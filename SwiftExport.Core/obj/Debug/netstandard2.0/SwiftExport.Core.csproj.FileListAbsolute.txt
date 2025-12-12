@@ -1,0 +1,10 @@
+D:\source\CSharp\SwiftExport\SwiftExport.Core\bin\Debug\netstandard2.0\SwiftExport.Core.deps.json
+D:\source\CSharp\SwiftExport\SwiftExport.Core\bin\Debug\netstandard2.0\SwiftExport.Core.dll
+D:\source\CSharp\SwiftExport\SwiftExport.Core\bin\Debug\netstandard2.0\SwiftExport.Core.pdb
+D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.csproj.AssemblyReference.cache
+D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.GeneratedMSBuildEditorConfig.editorconfig
+D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.AssemblyInfoInputs.cache
+D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.AssemblyInfo.cs
+D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.csproj.CoreCompileInputs.cache
+D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.dll
+D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.pdb

@@ -1,0 +1,13 @@
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\bin\Debug\netstandard2.0\SwiftExport.Infrastructure.deps.json
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\bin\Debug\netstandard2.0\SwiftExport.Infrastructure.dll
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\bin\Debug\netstandard2.0\SwiftExport.Infrastructure.pdb
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\bin\Debug\netstandard2.0\SwiftExport.Core.dll
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\bin\Debug\netstandard2.0\SwiftExport.Core.pdb
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.csproj.AssemblyReference.cache
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.AssemblyInfoInputs.cache
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.AssemblyInfo.cs
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.csproj.CoreCompileInputs.cache
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExp.052A568A.Up2Date
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.dll
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.pdb
