@@ -80,3 +80,4 @@ D:\source\CSharp\SwiftExport\ConsoleApp1\bin\Debug\net10.0\appsettings.json
 D:\source\CSharp\SwiftExport\ConsoleApp1\bin\Debug\net10.0\SwiftExport.AppLayer.dll
 D:\source\CSharp\SwiftExport\ConsoleApp1\bin\Debug\net10.0\SwiftExport.AppLayer.pdb
 D:\source\CSharp\SwiftExport\ConsoleApp1\bin\Debug\net10.0\AutoMapper.dll
+D:\source\CSharp\SwiftExport\ConsoleApp1\obj\Debug\net10.0\ConsoleApp1.sourcelink.json

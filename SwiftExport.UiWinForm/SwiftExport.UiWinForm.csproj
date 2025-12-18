@@ -6,14 +6,34 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+	  <!-- 强制 Designer 使用非 DPI 感知模式 -->
+	  <ForceDesignerDpiUnaware>true</ForceDesignerDpiUnaware>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SwiftExport.Application\SwiftExport.AppLayer.csproj" />
     <ProjectReference Include="..\SwiftExport.Core\SwiftExport.Core.csproj" />
     <ProjectReference Include="..\SwiftExport.UiKongJianFrameWork\SwiftExport.UiKongJianFrameWork.csproj" />
+    <ProjectReference Include="..\SwiftExprot.Utility\SwiftExprot.Utility.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+	
+
+		
   <ItemGroup>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

@@ -1,4 +1,5 @@
 ﻿using SwiftExport.Core.Entities;
+using SwiftExport.Core.Interfaces;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -26,7 +27,7 @@ namespace SwiftExport.Core.Interfaces
         /// 产品的Sku
         /// </param>
         /// <returns>受影响的行数</returns>
-        Task<int> Disable单产品BySku(string sku);
+        Task<int> Disable单产品BySku(string sku, IUnitOfWork uow);
 
         /// <summary>
         ///根据SKU删除一个产品,硬删除
@@ -35,7 +36,7 @@ namespace SwiftExport.Core.Interfaces
         /// 产品的Sku
         /// </param>
         /// <returns>受影响的行数</returns>
-        Task<int> Delete单产品BySku(string sku);
+        Task<int> Delete单产品BySku(string sku, IUnitOfWork uow);
 
         /// <summary>
         ///根据客户型号和客户代码查询一个产品
@@ -57,15 +58,6 @@ namespace SwiftExport.Core.Interfaces
         /// </param>
         /// <returns>一个多产品列表</returns>
         Task<IEnumerable<Product>> Get多产品BySkus(IEnumerable<String> skus);
-
-        /// <summary>
-        ///动态查询参数查询
-        /// </summary>
-        /// <param name="条件字典">
-        /// 一个Key为字段名,称,Value为字段值的查询字典
-        /// </param>
-        /// <returns>一个多产品列表</returns>
-        Task<IEnumerable<Product>> Get多产品By动态条件(Dictionary<string, string> 条件字典);
 
         /// <summary>
         ///适用于一个客户代码下多个客户型号的查询
@@ -97,7 +89,7 @@ namespace SwiftExport.Core.Interfaces
         /// 必须须带ID的产品列表,如果没有ID会新增产品
         /// </param>
         /// <returns>受影响的行数</returns>
-        Task<int> 同步产品(IEnumerable<Product> products);
+        Task<int> SyncProductsAsync(IEnumerable<Product> products, IUnitOfWork uow);
 
     }
 }

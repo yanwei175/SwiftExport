@@ -14,11 +14,11 @@ namespace SwiftExport.AppLayer.Services
 
     {
         private readonly IViewUserRoleRepository _repo;
-        private readonly IMapper _mapper;
-        public ViewUserRoleService(IViewUserRoleRepository repo,IMapper mapper)
+        private readonly IUintOfWorkFactory _uow;
+        public ViewUserRoleService(IViewUserRoleRepository repo, IUintOfWorkFactory uow)
         {
             _repo = repo;
-            _mapper = mapper;
+            _uow = uow;
         }
 
         public async Task<ViewUserRole> GetUserRole(string userName, string password)

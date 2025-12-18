@@ -447,7 +447,7 @@
       <Project>{aa16c03e-d164-7355-3ab0-45fc1d447ecc}</Project>
       <Name>SwiftExport.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\SwiftExport\SwiftExport.UiKongJianFrameWork\SwiftExport.UiKongJianFrameWork.csproj">
+    <ProjectReference Include="..\SwiftExport.UiKongJianFrameWork\SwiftExport.UiKongJianFrameWork.csproj">
       <Project>{29d3ed05-2428-41ed-9c78-a969a1ba2538}</Project>
       <Name>SwiftExport.UiKongJianFrameWork</Name>
     </ProjectReference>

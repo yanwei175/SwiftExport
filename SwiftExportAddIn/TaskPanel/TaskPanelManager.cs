@@ -38,6 +38,19 @@ namespace SwiftExportAddIn.TaskPanel
             }
             return pane;
         }
+
+        public static CustomTaskPane CreateTaskPane(UserControl uc, Microsoft.Office.Interop.Excel.Window wn)
+        {
+            var hwnd = wn.Hwnd;
+            if (!TaskPanelDict.TryGetValue(hwnd, out var pane))
+            {
+                pane = Globals.ThisAddIn.CustomTaskPanes.Add(uc, "SwiftExport", wn);
+                pane.Visible = false;
+                AddTaskPane(hwnd, pane);
+            }
+            return pane;
+        }
+
         public static void RemoveTaskPane(int hwnd)
         {
             if (TaskPanelDict.ContainsKey(hwnd))

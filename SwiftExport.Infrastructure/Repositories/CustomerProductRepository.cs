@@ -12,33 +12,23 @@ namespace SwiftExport.Infrastructure.Repositories
 {
     public class CustomerProductRepository : DapperRepository<CustomerProducts>, ICustomerProductRepository
     {
-        private readonly IDbConnectionFactory _connFactory;
-        private readonly IMappingCache _cache;
-        private readonly string tableName;
+
         private readonly IDataTableFactory<CustomerProducts> _fac;
 
-        public CustomerProductRepository(IDbConnectionFactory connFactory, IMappingCache cache,
-            IDataTableFactory<CustomerProducts> fac) : base(connFactory, cache)
+        public CustomerProductRepository( IMappingCache cache, IDbConnectionFactory _connFac, IDataTableFactory<CustomerProducts> fac) : base( cache, _connFac)
         {
-            _connFactory = connFactory;
-            _cache = cache;
-            tableName = _cache.GetTableNameByEntity<CustomerProducts>() ?? typeof(CustomerProducts).Name;
             _fac = fac;
         }
 
-
-
-        public async Task<int> 同步产品(IEnumerable<CustomerProducts> products)
+        public async Task<int> SyncCustomerProductsAsync(IEnumerable<CustomerProducts> products,IUnitOfWork uow)
         {
             var dt = await _fac.CreatDtByEntityPropertysAsync(products);
-            using (var conn = _connFactory.CreateConnection())
-            {
-                return await conn.ExecuteAsync(
+                return await uow.Connection.ExecuteAsync(
                     "SyncCustomerProducts",
                     new { Products = dt.AsTableValuedParameter("CustomerProductsType") },
+                    transaction: uow.Transaction,
                     commandType: CommandType.StoredProcedure
                 );
-            }
         }
 
     }

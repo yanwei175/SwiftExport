@@ -5,76 +5,66 @@ using SwiftExport.Infrastructure.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Transactions;
 
 namespace SwiftExport.Infrastructure.Repositories
 {
     public class BomRepository : DapperRepository<BOM>, IBomRepository
     {
-        private readonly IDbConnectionFactory _connFactory;
-        private readonly IMappingCache _cache;
-        private readonly string tableName;
-        private readonly IDataTableFactory<BOM> _fac;
-        public BomRepository(IDbConnectionFactory connFactory, IMappingCache cache,IDataTableFactory<BOM> fac) : base(connFactory, cache)
-        {
-            _connFactory = connFactory;
-            _cache = cache;
-            tableName = _cache.GetTableNameByEntity<BOM>() ?? typeof(BOM).Name;
-            _fac = fac;
-        }
 
-        public async Task<int> DeleteBomByBomNoAsync(string bomNo)
+        private readonly IDataTableFactory<BOM> _fac;
+        public BomRepository(IDbConnectionFactory _connFac, IMappingCache cache,IDataTableFactory<BOM> fac) : base(cache, _connFac)
         {
-            var sql = $"DELETE FROM  [{tableName}] WITH Where BomNo = @BomNo";
-            using (var conn = _connFactory.CreateConnection())
-            {
-                return await conn.ExecuteAsync(sql, new { BomNo = bomNo });
-            }
+            _fac = fac;
         }
 
         public async Task<IEnumerable<BOM>> GetBomByBomNoAsync(string bomNo)
         {
             var sql = $"SELECT * FROM  [{tableName}] Where BomNo = @BomNo";
-
-            using (var conn = _connFactory.CreateConnection())
-            {
-                return await conn.QueryAsync<BOM>(sql, new { BomNo = bomNo });
-            }
+            using (var _connection = _connFac.CreateConnection())
+                return await _connection.QueryAsync<BOM>(sql, new { BomNo = bomNo });
         }
 
         public async Task<Dictionary<string, IEnumerable<BOM>>> Get一堆BomBy一堆Bom号(IEnumerable<string> bomNos)
         {
-            var dic = new Dictionary<string, IEnumerable<BOM>>();
-                using (var conn = _connFactory.CreateConnection())
-                {
-                    foreach (var BomNo in bomNos)
-                    {
-                        var sql = $"SELECT * FROM  [{tableName}] Where BomNo = @BomNo";
-                        var rst = await conn.QueryAsync<BOM>(sql, new { BomNo });
-                        if (rst.Any()) dic[BomNo]= rst; 
-                    }
-                }
-                return dic;
+            if (bomNos == null || !bomNos.Any()) return new Dictionary<string, IEnumerable<BOM>>();
+
+            // 【核心优化】使用 WHERE IN 进行单次查询
+            var sql = $"SELECT * FROM [{tableName}] WHERE BomNo IN @BomNos";
+
+            // Dapper 会自动将 IEnumerable<string> BomNos 转换为 SQL 参数列表
+            using (var _connection = _connFac.CreateConnection())
+            {
+                var allBoms = await _connection.QueryAsync<BOM>(
+                                         sql,
+                                         new { BomNos = bomNos });
+                // 使用 LINQ 将结果分组并转换为字典
+                return allBoms.GroupBy(b => b.BomNo)
+                              .ToDictionary(g => g.Key, g => g.AsEnumerable());
+            }
         }
 
-        public async Task<int> 同步BomItemsAsync(IEnumerable<BOM> items)
+        public async Task<int> DeleteBomByBomNoAsync(string bomNo, IUnitOfWork uow)
+        {
+            var sql = $"DELETE FROM [{tableName}] WHERE BomNo = @BomNo";
+            // 使用基类已有的字段
+            return await uow.Connection.ExecuteAsync(sql, new { BomNo = bomNo }, transaction: uow.Transaction);
+        }
+
+        public async Task<int> SyncBomItemsAsync(IEnumerable<BOM> items, IUnitOfWork uow)
         {
            var dt= await _fac.CreatDtByEntityPropertysAsync(items);
-                using (var conn = _connFactory.CreateConnection())
-                {
-                    return await conn.ExecuteAsync(
+                    return await uow.Connection.ExecuteAsync(
                         "SyncBoms",
                         new { Boms = dt.AsTableValuedParameter("BomType") },
+                        transaction: uow.Transaction,
                         commandType: CommandType.StoredProcedure
                     );
-                }
         }
-
-
-
-
 
 
     }

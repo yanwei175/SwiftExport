@@ -764,6 +764,7 @@
         "dependencies": {
           "AutoMapper": "16.0.0",
           "Microsoft.Extensions.Configuration.Json": "10.0.0",
+          "SwiftExport.Core": "1.0.0",
           "SwiftExport.Infrastructure": "1.0.0"
         },
         "compile": {

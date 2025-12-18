@@ -58,3 +58,14 @@ D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExpo
 D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExp.00A96268.Up2Date
 D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExport.UiKongJianFrameWork.dll
 D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExport.UiKongJianFrameWork.pdb
+D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExport.UiKongJianFrameWork.AppUserControls.DataSplitUserControl.resources
+D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExport.UiKongJianFrameWork.AppForms.FrmCustomersManager.resources
+D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExport.UiKongJianFrameWork.AppUserControls.CustomerListUserControl.resources
+D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExport.UiKongJianFrameWork.AppUserControls.GeneralManagerUserControl.resources
+D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExport.UiKongJianFrameWork.Properties.Resources.resources
+D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExport.UiKongJianFrameWork.AppUserControls.DataTopUserControl.resources
+D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExport.UiKongJianFrameWork.BaseControls.BaseDataGridView.resources
+D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExport.UiKongJianFrameWork.AppForms.TestForm.resources
+D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\bin\Debug\SwiftExprot.Utility.dll
+D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\bin\Debug\SwiftExprot.Utility.pdb
+D:\source\CSharp\SwiftExport\SwiftExport.UiKongJianFrameWork\obj\Debug\SwiftExport.UiKongJianFrameWork.AppForms.FrmSuppliersManager.resources

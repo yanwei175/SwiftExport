@@ -19,10 +19,12 @@ namespace SwiftExport.Infrastructure.Global
         public Dictionary<(string 实体名, string 属性名), string> FieldMappings { get; private set; }
         public Dictionary<string, string> UniqueColumnMappings { get; private set; }
         public Dictionary<(string 实体名, string 属性名), string> UIColMappings { get; private set; }
-
         public MappingCache(IDbConnectionFactory factory)
-        {
-            LoadMappings(factory);
+        { 
+            if (TableMappings == null) 
+            {
+                LoadMappings(factory);
+            }
         }
         private void LoadMappings(IDbConnectionFactory factory)
         {
@@ -32,6 +34,7 @@ namespace SwiftExport.Infrastructure.Global
             var tableRecords = connection.Query<(string EntityName, string TableName, string UQName)>(
                 "SELECT EntityName, TableName, UQName FROM MappingTables"
             )?.ToList();
+
             //从实体名拿数据库表名
             TableMappings = (tableRecords != null && tableRecords.Any())
                 ? tableRecords.ToDictionary(x => x.EntityName, x => x.TableName)
@@ -107,9 +110,5 @@ namespace SwiftExport.Infrastructure.Global
                 ? uiColName
                 : propertyName; // 没找到就返回属性名
         }
-
-
-
-
     }
 }

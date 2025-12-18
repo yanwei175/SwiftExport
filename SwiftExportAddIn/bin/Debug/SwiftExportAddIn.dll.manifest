@@ -734,7 +734,7 @@
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>gr7akDiCLOGVDtbdA8G1S+/lPQBsSYnlWO7ca5hYtWg=</dsig:DigestValue>
+        <dsig:DigestValue>+WCnHZjiH6T2Lrhi2COGoEtZX9SA4d1hFOFhlslTU5s=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -746,43 +746,43 @@
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>KHKvmkNZOeMC/4xoVo3zPCiA7UNaib8uwL6A9j90U1g=</dsig:DigestValue>
+        <dsig:DigestValue>EF9uAqmTVuuXlhtCzpn1zhPqUeJdseSfSa4r7pyJ5mc=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="SwiftExport.Infrastructure.dll" size="56832">
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="SwiftExport.Infrastructure.dll" size="57344">
       <assemblyIdentity name="SwiftExport.Infrastructure" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>svl1RC8PFVNp00Hhw2ghug4q2+fJkY1p2gn0PUSmKh8=</dsig:DigestValue>
+        <dsig:DigestValue>RSToiHpzfJk117qIyquur57CQE6TkE1D0ttipIVy0PE=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="SwiftExport.UiKongJianFrameWork.dll" size="56832">
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="SwiftExport.UiKongJianFrameWork.dll" size="60928">
       <assemblyIdentity name="SwiftExport.UiKongJianFrameWork" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>A4mfWis8nbDPSlyzp8TvSf++aEf0sROODvuQ3UkqiHU=</dsig:DigestValue>
+        <dsig:DigestValue>cx64z6pGVpVo9XxexI5/74r4Nx23GirWx1lyKoQM5bM=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="SwiftExportAddIn.dll" size="35840">
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="SwiftExportAddIn.dll" size="36864">
       <assemblyIdentity name="SwiftExportAddIn" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>BZFd0Vr19+RFZ1zsnAOy0je8xXzxc2iCzMZRlCaUu8c=</dsig:DigestValue>
+        <dsig:DigestValue>2C47wU51GMQC8+CNr/zVAuEu68vGq3nktAGFOQcE6Oo=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -1051,4 +1051,4 @@
       </vstov4:customizations>
     </vstav3:application>
   </vstav3:addIn>
-<publisherIdentity name="CN=YSFS\YWFS" issuerKeyHash="85c5307e8afbafc74ef764d71d5ec6f86c650b77" /><Signature Id="StrongNameSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>IL+UDpP067QECcn4lTn8fBpXFMfsp0McchwLdbDPekk=</DigestValue></Reference></SignedInfo><SignatureValue>ngLQo+Bd5zBS/f5WuhY9w89X7SmriOC9Cxq5eGeImdW9IPfUqL0BSTyRPcDkcHMnwmoYsrpjM0Q/nzo9TdgUU3mVO8TvBYnVVM78DyghnrEAYThf1wWbBq9/tsx9jZJmMa5JrCSClrRNa+AqDC1caHVr3pgK0ww1S8MulSjsxkk=</SignatureValue><KeyInfo Id="StrongNameKeyInfo"><KeyValue><RSAKeyValue><Modulus>rjkqHrnOGTPHEoaZSdQmKZ5Ial97KDXp/c9DUa9oheJw9Rf+so/sZIhvLZrudcEhF7SU4mWtqdl6nrT544tj2TyMETQn7sDWL+6SYOz3fFXTYNQhQfY/BU6ExydBKveg8or3V1MCAaSMXMGX4sNbFs4HR2pJxPuCcPmUGTdh0G0=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><msrel:RelData xmlns:msrel="http://schemas.microsoft.com/windows/rel/2005/reldata"><r:license xmlns:r="urn:mpeg:mpeg21:2003:01-REL-R-NS" xmlns:as="http://schemas.microsoft.com/windows/pki/2005/Authenticode"><r:grant><as:ManifestInformation Hash="497acfb0750b1c721c43a7ecc714571a7cfc3995f8c90904b4ebf4930e94bf20" Description="" Url=""><as:assemblyIdentity name="SwiftExportAddIn.dll" version="1.0.0.0" publicKeyToken="ec7564c93fd706bb" language="neutral" processorArchitecture="msil" type="win32" /></as:ManifestInformation><as:SignedBy /><as:AuthenticodePublisher><as:X509SubjectName>CN=YSFS\YWFS</as:X509SubjectName></as:AuthenticodePublisher></r:grant><r:issuer><Signature Id="AuthenticodeSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>4o5xiz2KX1GdbkP7fUmNY/5Ru67j1GF1tXGRfmhkCtk=</DigestValue></Reference></SignedInfo><SignatureValue>THp+/q7xuNL/RuoPtZ2u4pwGBA9Nd8ghEL7dXaFeoN4hHRoLH8ORNgZNTUPblW81BfmhPXcsA+n8yNuJR/QXYSx2W1IMFEFcItknE4Adglx8/nVkLl95rtEoNeAu/oGr7UkudDFzkbYwXbduSOA/4HlZQTiITR0UOp6sUzxb/3E=</SignatureValue><KeyInfo><KeyValue><RSAKeyValue><Modulus>rjkqHrnOGTPHEoaZSdQmKZ5Ial97KDXp/c9DUa9oheJw9Rf+so/sZIhvLZrudcEhF7SU4mWtqdl6nrT544tj2TyMETQn7sDWL+6SYOz3fFXTYNQhQfY/BU6ExydBKveg8or3V1MCAaSMXMGX4sNbFs4HR2pJxPuCcPmUGTdh0G0=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><X509Data><X509Certificate>MIIBvTCCASagAwIBAgIQZWZfgjzKcYhPy9NDrwNzBDANBgkqhkiG9w0BAQsFADAdMRswGQYDVQQDHhIAWQBTAEYAUwBcAFkAVwBGAFMwHhcNMjUxMjA4MTEyMTMyWhcNMjYxMjA4MTcyMTMyWjAdMRswGQYDVQQDHhIAWQBTAEYAUwBcAFkAVwBGAFMwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAK45Kh65zhkzxxKGmUnUJimeSGpfeyg16f3PQ1GvaIXicPUX/rKP7GSIby2a7nXBIRe0lOJlranZep60+eOLY9k8jBE0J+7A1i/ukmDs93xV02DUIUH2PwVOhMcnQSr3oPKK91dTAgGkjFzBl+LDWxbOB0dqScT7gnD5lBk3YdBtAgMBAAEwDQYJKoZIhvcNAQELBQADgYEAiZ99BjKfr73KPrCtKbdqCKKaWUdN2Yi+lpCo3nfYTLisRKcaIxFFHXmyr66dbX+bQ1gxvIrLvn6Ao8voNCbfYU5FuT+92RFnQ5DTELUEyNKdJAgh+JXvOUK5ZMm+LqTEfDbf6G+VUGbi1eZNDWYeyAsbdym/D9Q/YSkmzgXRI9I=</X509Certificate></X509Data></KeyInfo></Signature></r:issuer></r:license></msrel:RelData></KeyInfo></Signature></asmv1:assembly>
+<publisherIdentity name="CN=YSFS\YWFS" issuerKeyHash="85c5307e8afbafc74ef764d71d5ec6f86c650b77" /><Signature Id="StrongNameSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>4EeKL1XjtxCqFhB6+JzTfemQFOTtyEeENciZtIAXWZo=</DigestValue></Reference></SignedInfo><SignatureValue>i9jOatSV/jmYaOhupcw5mGg1BynwVgEF3CvbOWYANHouM5oJzEWW6D1lRXvhMgD+DiM1Vqs5roRYg71g78sKPQ1E3/M0eMgVyFXgr1Whu3N6XaD/7ylq491CckLMFW27Id0VPJD0iP3YHjIA/WzaZj7uRxRuAXCqyVGDtRAv+pQ=</SignatureValue><KeyInfo Id="StrongNameKeyInfo"><KeyValue><RSAKeyValue><Modulus>rjkqHrnOGTPHEoaZSdQmKZ5Ial97KDXp/c9DUa9oheJw9Rf+so/sZIhvLZrudcEhF7SU4mWtqdl6nrT544tj2TyMETQn7sDWL+6SYOz3fFXTYNQhQfY/BU6ExydBKveg8or3V1MCAaSMXMGX4sNbFs4HR2pJxPuCcPmUGTdh0G0=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><msrel:RelData xmlns:msrel="http://schemas.microsoft.com/windows/rel/2005/reldata"><r:license xmlns:r="urn:mpeg:mpeg21:2003:01-REL-R-NS" xmlns:as="http://schemas.microsoft.com/windows/pki/2005/Authenticode"><r:grant><as:ManifestInformation Hash="9a591780b499c8358447c8ede41490e97dd39cf87a1016aa10b7e3552f8a47e0" Description="" Url=""><as:assemblyIdentity name="SwiftExportAddIn.dll" version="1.0.0.0" publicKeyToken="ec7564c93fd706bb" language="neutral" processorArchitecture="msil" type="win32" /></as:ManifestInformation><as:SignedBy /><as:AuthenticodePublisher><as:X509SubjectName>CN=YSFS\YWFS</as:X509SubjectName></as:AuthenticodePublisher></r:grant><r:issuer><Signature Id="AuthenticodeSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>q2ulYwpWQBgnMVRWzgibWzSDde6sRepkZrsFxXuQ+1o=</DigestValue></Reference></SignedInfo><SignatureValue>bbfIiYQm+p+SdMRdv35hOR6Kbhw/xo71y6UxTXv053t2FWTclair6lO01jIIMkb676hxcA7B66w7PfYs40AiLMbEITyeEPUyyieiW790PmVtDt4EB3aA/gJVplRg98bh9lfwvbURRjifzTMuVgFDHYXCENaBIgfFoZrBsjeIeVA=</SignatureValue><KeyInfo><KeyValue><RSAKeyValue><Modulus>rjkqHrnOGTPHEoaZSdQmKZ5Ial97KDXp/c9DUa9oheJw9Rf+so/sZIhvLZrudcEhF7SU4mWtqdl6nrT544tj2TyMETQn7sDWL+6SYOz3fFXTYNQhQfY/BU6ExydBKveg8or3V1MCAaSMXMGX4sNbFs4HR2pJxPuCcPmUGTdh0G0=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><X509Data><X509Certificate>MIIBvTCCASagAwIBAgIQZWZfgjzKcYhPy9NDrwNzBDANBgkqhkiG9w0BAQsFADAdMRswGQYDVQQDHhIAWQBTAEYAUwBcAFkAVwBGAFMwHhcNMjUxMjA4MTEyMTMyWhcNMjYxMjA4MTcyMTMyWjAdMRswGQYDVQQDHhIAWQBTAEYAUwBcAFkAVwBGAFMwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAK45Kh65zhkzxxKGmUnUJimeSGpfeyg16f3PQ1GvaIXicPUX/rKP7GSIby2a7nXBIRe0lOJlranZep60+eOLY9k8jBE0J+7A1i/ukmDs93xV02DUIUH2PwVOhMcnQSr3oPKK91dTAgGkjFzBl+LDWxbOB0dqScT7gnD5lBk3YdBtAgMBAAEwDQYJKoZIhvcNAQELBQADgYEAiZ99BjKfr73KPrCtKbdqCKKaWUdN2Yi+lpCo3nfYTLisRKcaIxFFHXmyr66dbX+bQ1gxvIrLvn6Ao8voNCbfYU5FuT+92RFnQ5DTELUEyNKdJAgh+JXvOUK5ZMm+LqTEfDbf6G+VUGbi1eZNDWYeyAsbdym/D9Q/YSkmzgXRI9I=</X509Certificate></X509Data></KeyInfo></Signature></r:issuer></r:license></msrel:RelData></KeyInfo></Signature></asmv1:assembly>

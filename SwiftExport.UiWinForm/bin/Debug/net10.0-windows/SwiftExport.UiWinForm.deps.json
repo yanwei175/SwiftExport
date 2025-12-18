@@ -10,7 +10,8 @@
         "dependencies": {
           "SwiftExport.AppLayer": "1.0.0",
           "SwiftExport.Core": "1.0.0",
-          "SwiftExport.UiKongJianFrameWork": "1.0.0"
+          "SwiftExport.UiKongJianFrameWork": "1.0.0",
+          "SwiftExprot.Utility": "1.0.0"
         },
         "runtime": {
           "SwiftExport.UiWinForm.dll": {}
@@ -462,6 +463,7 @@
         "dependencies": {
           "AutoMapper": "16.0.0",
           "Microsoft.Extensions.Configuration.Json": "10.0.0",
+          "SwiftExport.Core": "1.0.0",
           "SwiftExport.Infrastructure": "1.0.0"
         },
         "runtime": {
@@ -497,10 +499,19 @@
       "SwiftExport.UiKongJianFrameWork/1.0.0": {
         "dependencies": {
           "SwiftExport.AppLayer": "1.0.0",
-          "SwiftExport.Core": "1.0.0"
+          "SwiftExport.Core": "1.0.0",
+          "SwiftExprot.Utility": "1.0.0"
         },
         "runtime": {
           "SwiftExport.UiKongJianFrameWork.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "SwiftExprot.Utility/1.0.0": {
+        "runtime": {
+          "SwiftExprot.Utility.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -768,6 +779,11 @@
       "sha512": ""
     },
     "SwiftExport.UiKongJianFrameWork/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SwiftExprot.Utility/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

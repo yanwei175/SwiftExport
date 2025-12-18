@@ -22,6 +22,7 @@ namespace SwiftExport.AppLayer.DI
 
             if(string.IsNullOrWhiteSpace(connStr)) throw new ArgumentNullException(nameof(connStr));
 
+            // 扫描 Application 层程序集里的所有 Profile
             services.AddAutoMapper(cfg => { }, typeof(ProductProfiles).Assembly);
 
             //注册基础设施服务
@@ -31,8 +32,10 @@ namespace SwiftExport.AppLayer.DI
             services.AddScoped<IProductService, ProductService> ();
             services.AddScoped<IBOMService, BomService>();
             services.AddScoped<IViewUserRoleService, ViewUserRoleService>();
-            // 扫描 Application 层程序集里的所有 Profile
-            
+            services.AddScoped<ICustomersService, CustomersService>();
+            services.AddScoped<ISuppliersService, SuppliersService>();
+            services.AddScoped<IExcelSheetFieldsMappingService, ExcelSheetFieldsMappingService>();
+
 
             return services;
         }

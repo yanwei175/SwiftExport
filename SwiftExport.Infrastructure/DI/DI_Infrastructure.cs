@@ -22,6 +22,7 @@ namespace SwiftExport.Infrastructure.DI
             if (string.IsNullOrWhiteSpace(connString)) throw new ArgumentNullException(nameof(connString));
 
             services.AddSingleton<IDbConnectionFactory>(sp=> new SqlConnectionFactory(connString));
+            services.AddSingleton<IUintOfWorkFactory, UnitOfWorkFactory>();
 
             //注入数据库连接（Scoped，每次请求一个连接实例）
             services.AddScoped<IDbConnection>(sp => sp.GetRequiredService<IDbConnectionFactory>().CreateConnection());
@@ -36,6 +37,9 @@ namespace SwiftExport.Infrastructure.DI
             services.AddScoped<IBomRepository, BomRepository>();
             services.AddScoped<IViewUserRoleRepository, ViewUserRoleRepository>();
             services.AddScoped<ICustomerProductRepository, CustomerProductRepository>();
+            services.AddScoped<ICustomersRepository, CustomersRepository>();
+            services.AddScoped<IExcelSheetFieldsRepository, ExcelSheetFieldsRepository>();
+
 
             //services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
 

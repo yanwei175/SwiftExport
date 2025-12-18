@@ -81,6 +81,7 @@
             this.Rbon_Login_Group.Items.Add(this.Banna_Login);
             this.Rbon_Login_Group.Label = "用户";
             this.Rbon_Login_Group.Name = "Rbon_Login_Group";
+            this.Rbon_Login_Group.Tag = "LoginSheet";
             // 
             // Banna_Login
             // 
@@ -96,6 +97,7 @@
             this.Rbon_Product_Group.Items.Add(this.Rbn_btn_BOM);
             this.Rbon_Product_Group.Label = "产品管理";
             this.Rbon_Product_Group.Name = "Rbon_Product_Group";
+            this.Rbon_Product_Group.Tag = "ProductSheet";
             this.Rbon_Product_Group.Visible = false;
             // 
             // Rbn_btn_Product
@@ -120,6 +122,7 @@
             this.Rbon_Sales_Group.Items.Add(this.Rbn_btn_SaleOrder);
             this.Rbon_Sales_Group.Label = "销售管理";
             this.Rbon_Sales_Group.Name = "Rbon_Sales_Group";
+            this.Rbon_Sales_Group.Tag = "SalesOrderSheet";
             // 
             // Rbn_btn_SaleProduct
             // 
@@ -135,6 +138,7 @@
             this.Rbn_btn_SaleOrder.Label = "销售订单";
             this.Rbn_btn_SaleOrder.Name = "Rbn_btn_SaleOrder";
             this.Rbn_btn_SaleOrder.ShowImage = true;
+            this.Rbn_btn_SaleOrder.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Rbn_btn_SaleOrder_Click);
             // 
             // Rbon_Purcase_Group
             // 
@@ -142,6 +146,7 @@
             this.Rbon_Purcase_Group.Items.Add(this.Rbn_btn_Supplier);
             this.Rbon_Purcase_Group.Label = "采购管理";
             this.Rbon_Purcase_Group.Name = "Rbon_Purcase_Group";
+            this.Rbon_Purcase_Group.Tag = "PurchaseOrderSheet";
             // 
             // Rbn_btn_PurchaseProduct
             // 

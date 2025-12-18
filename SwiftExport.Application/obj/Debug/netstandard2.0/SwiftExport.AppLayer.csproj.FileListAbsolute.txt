@@ -13,3 +13,4 @@ D:\source\CSharp\SwiftExport\SwiftExport.Application\obj\Debug\netstandard2.0\Sw
 D:\source\CSharp\SwiftExport\SwiftExport.Application\obj\Debug\netstandard2.0\SwiftExp.9DAD5A1E.Up2Date
 D:\source\CSharp\SwiftExport\SwiftExport.Application\obj\Debug\netstandard2.0\SwiftExport.AppLayer.dll
 D:\source\CSharp\SwiftExport\SwiftExport.Application\obj\Debug\netstandard2.0\SwiftExport.AppLayer.pdb
+D:\source\CSharp\SwiftExport\SwiftExport.Application\obj\Debug\netstandard2.0\SwiftExport.AppLayer.sourcelink.json

@@ -10,6 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SwiftExport.Core\SwiftExport.Core.csproj" />
     <ProjectReference Include="..\SwiftExport.Infrastructure\SwiftExport.Infrastructure.csproj" />
   </ItemGroup>
 

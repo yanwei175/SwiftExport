@@ -16,5 +16,10 @@ namespace SwiftExportAddIn.用户控件
         {
             InitializeComponent();
         }
+
+        private void Btn_InputSalesOrder_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

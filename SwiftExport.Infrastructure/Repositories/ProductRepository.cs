@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Factory;
@@ -16,139 +17,121 @@ namespace SwiftExport.Infrastructure.Repositories
     public class ProductRepository : DapperRepository<Product>, IProductRepository
 
     {
-        private readonly IDbConnectionFactory _connFactory;
-        private readonly IMappingCache _cache;
-        private readonly string tableName;
         private readonly IDataTableFactory<Product> _fac;
-        public ProductRepository(IDbConnectionFactory connFactory, IMappingCache cache,IDataTableFactory<Product> fac) : base(connFactory, cache)
+        public ProductRepository(IDbConnectionFactory _connFac, IMappingCache cache, IDataTableFactory<Product> fac) : base(cache, _connFac)
         {
-            _connFactory = connFactory;
-            _cache = cache;
-            tableName = _cache.GetTableNameByEntity<Product>() ?? typeof(Product).Name;
             _fac=fac;
         }
 
-        public async Task<int> Delete单产品BySku(string sku)
+        public async Task<int> Delete单产品BySku(string sku,IUnitOfWork uow)
         {
-            var sql = $"DELETE FROM [{tableName}] WHERE [SKU] = @sku";
-
-            using (var conn = _connFactory.CreateConnection())
-            {
-                conn.Open();
-                return await conn.ExecuteAsync(sql, new { sku });
-            }
+            var sql = $"DELETE FROM [{tableName}] WHERE [SKU] = @Sku";
+            // 修正：参数名保持 PascalCase/CamelCase 一致性
+            return await uow.Connection.ExecuteAsync(sql, new { Sku = sku }, transaction: uow.Transaction);
         }
 
-        public async Task<int> Disable单产品BySku(string sku)
+        public async Task<int> Disable单产品BySku(string sku, IUnitOfWork uow)
         {
             var sql = $"UPDATE [{tableName}] SET IsDelete=1 WHERE [SKU] = @sku";
 
-            using (var conn = _connFactory.CreateConnection())
-            {
-                conn.Open();
-                return await conn.ExecuteAsync(sql, new {sku});
-            }
+                return await uow.Connection.ExecuteAsync(sql, new {sku}, transaction: uow.Transaction);
         }
 
         public async  Task<Product> Get单产品BySku(string sku)
         {
-                using (var connection = _connFactory.CreateConnection())
-                {
-                    string sql =$"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND sku = @sku";
-                    var product = connection.QueryFirstOrDefaultAsync<Product>(sql, new { sku });
-                    return await product;
-                }
+            // 注意：参数名保持一致 { Sku }
+            string sql = $"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND [SKU] = @Sku";
+
+            using (var _connection = _connFac.CreateConnection())
+                return await _connection.QueryFirstOrDefaultAsync<Product>(sql, new { Sku = sku });
+
         }
 
         public async Task<Product> Get单产品By客户代码和型号(string CustomerCode, string cSKU)
         {
-                using (var connection = _connFactory.CreateConnection())
-                {
-                    string sql = $"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND CustomerCode = @CustomerCode AND CSKU = @cSKU";
-                    var product = connection.QueryFirstOrDefaultAsync<Product>(sql, new { CustomerCode, cSKU });
-                    return await product;
-                }
+
+            string sql = $"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND [CustomerCode] = @CustomerCode AND [CSKU] = @cSKU";
+
+            // Dapper 可以自动匹配匿名对象的属性名
+            using (var _connection = _connFac.CreateConnection())
+                return await _connection.QueryFirstOrDefaultAsync<Product>(sql, new { CustomerCode, cSKU } );
+
         }
 
         public async Task<IEnumerable<Product>> Get多产品BySkus(IEnumerable<string> Skus)
         {
-                using (var connection = _connFactory.CreateConnection())
-                {
-                    string sql = $"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND SKU IN @Skus";
-                    return await connection.QueryAsync<Product>(sql, new { Skus });
-                }
-        }
-
-        public async Task<IEnumerable<Product>> Get多产品By动态条件(Dictionary<string, string> 条件字典)
-        {
-                using (var connection = _connFactory.CreateConnection())
-                {
-                    StringBuilder sqlBuilder = new StringBuilder($"SELECT * FROM [{tableName}] WHERE IsDelete<>1");
-                    DynamicParameters parameters = new DynamicParameters();
-                    foreach (var kvp in 条件字典)
-                    {
-                        sqlBuilder.Append($" AND {kvp.Key} = @{kvp.Key}");
-                        parameters.Add($"@{kvp.Key}", kvp.Value);
-                    }
-                    string sql = sqlBuilder.ToString();
-                    return await connection.QueryAsync<Product>(sql, parameters);
-                }
+            // Dapper 自动处理 IN (@Skus)
+            string sql = $"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND [SKU] IN @Skus";
+            using (var _connection = _connFac.CreateConnection())
+                return await _connection.QueryAsync<Product>(sql, new { Skus } );
         }
 
         public async Task<IEnumerable<Product>> Get多产品By单客户代码多客户型号(string CustomerCode, IEnumerable<string> cSKUs)
         {
+            string sql = $"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND [CustomerCode] = @CustomerCode AND [CSKU] IN @cSKUs";
+            using (var _connection = _connFac.CreateConnection())
+                return await _connection.QueryAsync<Product>(sql, new { CustomerCode, cSKUs } );
 
-                using (var connection = _connFactory.CreateConnection())
-                {
-                    string sql = $"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND CustomerCode = @CustomerCode AND CSKU IN @cSKUs";
-                    return await connection.QueryAsync<Product>(sql, new { CustomerCode, cSKUs });
-                }
         }
 
         public async Task<IEnumerable<Product>> Get多产品By多客户代码多客户型号(Dictionary<string, string> cSkuAndCustomerCode)
         {
-                using (var connection = _connFactory.CreateConnection())
-                {
-                    StringBuilder sqlBuilder = new StringBuilder($"SELECT * FROM [{tableName}] WHERE IsDelete<>1");
-                    DynamicParameters parameters = new DynamicParameters();
-                    List<string> conditions = new List<string>();
-                    int index = 0;
-                    foreach (var kvp in cSkuAndCustomerCode)
-                    {
-                        //建立@cSKU0, @CustomerCode0,@cSKU1, @CustomerCode1...等等
-                        string paramCSKU = $"@cSKU{index}";
-                        string paramCustomerCode = $"@CustomerCode{index}";
-                        conditions.Add($"(CSKU = {paramCSKU} AND CustomerCode = {paramCustomerCode})");
-                        //
-                        //建立对应值@cSKU0= kvp.Key, @CustomerCode0 = kvp.Value
-                        parameters.Add(paramCSKU, kvp.Key);
-                        parameters.Add(paramCustomerCode, kvp.Value);
-                        index++;
-                    }
-                      // SELECT* FROM Product
-                      //WHERE IsDelete<>1
-                      //AND(
-                      //(SKU = @cSKU0 AND CustomerCode = @customerCode0)
-                      //OR(SKU = @cSKU1 AND CustomerCode = @customerCode1)
-                      // OR(SKU = @cSKU2 AND CustomerCode = @customerCode2)
-                      //)
-                    sqlBuilder.Append(string.Join(" OR ", conditions));
-                    string sql = sqlBuilder.ToString();
-                    return await connection.QueryAsync<Product>(sql, parameters);
-                }
+            // 检查输入是否为空
+            if (cSkuAndCustomerCode == null || !cSkuAndCustomerCode.Any())
+            {
+                return Enumerable.Empty<Product>();
+            }
+
+
+            // 基础 WHERE 子句
+            StringBuilder sqlBuilder = new StringBuilder($"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND (");
+            DynamicParameters parameters = new DynamicParameters();
+            List<string> conditions = new List<string>();
+            int index = 0;
+
+
+            foreach (var kvp in cSkuAndCustomerCode)
+            {
+                string paramCSKU = $"@cSKU{index}";
+                string paramCustomerCode = $"@CustomerCode{index}";
+
+                // 【关键修正】使用方括号包裹字段名，并确保拼接格式为 OR 条件组
+                conditions.Add($"([CSKU] = {paramCSKU} AND [CustomerCode] = {paramCustomerCode})");
+
+                parameters.Add(paramCSKU, kvp.Key);   // kvp.Key 是 cSKU
+                parameters.Add(paramCustomerCode, kvp.Value); // kvp.Value 是 CustomerCode
+
+                index++;
+            }
+            // SELECT* FROM Product
+            //WHERE IsDelete<>1
+            //AND(
+            //(SKU = @cSKU0 AND CustomerCode = @customerCode0)
+            //OR(SKU = @cSKU1 AND CustomerCode = @customerCode1)
+            // OR(SKU = @cSKU2 AND CustomerCode = @customerCode2)
+            //)
+            // 将所有 OR 条件组连接起来，并用外层括号包裹
+            sqlBuilder.Append(string.Join(" OR ", conditions));
+            sqlBuilder.Append(")"); // 闭合外层括号
+
+            string sql = sqlBuilder.ToString();
+
+            // SQL 结构将是：SELECT * FROM [Table] WHERE IsDelete<>1 AND ((CSKU=...) AND (CSKU=...))
+            using (var _connection = _connFac.CreateConnection())
+                return await _connection.QueryAsync<Product>(sql, parameters );
+
         }
 
-        public async Task<int> 同步产品(IEnumerable<Product> products)
+        public async Task<int> SyncProductsAsync(IEnumerable<Product> products,IUnitOfWork uow)
         {
                var dt= await _fac.CreatDtByEntityPropertysAsync(products);
-                    using (var conn = _connFactory.CreateConnection())
-                    {
-                        return await conn.ExecuteAsync(
+
+                        return await uow.Connection.ExecuteAsync(
                             "SyncProducts",
                             new { Products = dt.AsTableValuedParameter("ProductType") },
+                            transaction: uow.Transaction,
                             commandType: CommandType.StoredProcedure
                         );
-                      }
             }
 
 

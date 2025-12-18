@@ -6,4 +6,5 @@
   <Project Path="SwiftExport.UiKongJianFrameWork/SwiftExport.UiKongJianFrameWork.csproj" Id="29d3ed05-2428-41ed-9c78-a969a1ba2538" />
   <Project Path="SwiftExport.UiWinForm/SwiftExport.UiWinForm.csproj" Id="00508706-6170-4ea2-8c71-617ba2b3658e" />
   <Project Path="SwiftExportAddIn/SwiftExportAddIn.csproj" Id="d8d71d0b-deea-4bbc-ac3b-cd6181ec10d0" />
+  <Project Path="SwiftExprot.Utility/SwiftExprot.Utility.csproj" Id="f7433d9a-3887-4366-b4ae-850fd08c7cf2" />
 </Solution>

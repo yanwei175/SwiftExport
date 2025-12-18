@@ -45,6 +45,7 @@
             this.Btn_InputSalesOrder.TabIndex = 0;
             this.Btn_InputSalesOrder.Text = "导入销售订单";
             this.Btn_InputSalesOrder.UseVisualStyleBackColor = true;
+            this.Btn_InputSalesOrder.Click += new System.EventHandler(this.Btn_InputSalesOrder_Click);
             // 
             // Btn_MatchCSku
             // 
@@ -102,7 +103,7 @@
             // 
             // SalesOrderSheetButtons
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(14F, 31F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(11F, 24F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.Controls.Add(this.Btn_ToPlanOrder);
             this.Controls.Add(this.Btn_SaveToNewOrder);
@@ -114,7 +115,7 @@
             this.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
             this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "SalesOrderSheetButtons";
-            this.Size = new System.Drawing.Size(293, 1047);
+            this.Size = new System.Drawing.Size(277, 1020);
             this.ResumeLayout(false);
 
         }

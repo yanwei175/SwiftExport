@@ -10,6 +10,6 @@ namespace SwiftExport.Infrastructure.Interfaces
         String GetUniqueFieldByEntity<T>() where T : BaseEntity;
         String GetFieldNameByEntityProperty<T>(string propertyName) where T : BaseEntity;
         String GetUiColNameByEntityProperty<T>(string UiColName) where T : BaseEntity;
-        
+
     }
 }

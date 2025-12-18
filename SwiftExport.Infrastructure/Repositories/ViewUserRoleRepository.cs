@@ -12,26 +12,17 @@ namespace SwiftExport.Infrastructure.Repositories
 {
     public class ViewUserRoleRepository : DapperRepository<ViewUserRole>, IViewUserRoleRepository
     {
-        private readonly IDbConnectionFactory _connFactory;
-        private readonly IMappingCache _cache;
-        private readonly string tableName;
         private readonly IDataTableFactory<ViewUserRole> _fac;
-        public ViewUserRoleRepository(IDbConnectionFactory connFactory, IMappingCache cache,IDataTableFactory<ViewUserRole> fac) : base(connFactory, cache)
+        public ViewUserRoleRepository(IDbConnectionFactory _connFac, IMappingCache cache, IDataTableFactory<ViewUserRole> fac) : base( cache, _connFac)
         {
-            _connFactory = connFactory;
-            _cache = cache;
-            tableName = _cache.GetTableNameByEntity<ViewUserRole>();
             _fac = fac;
         }
 
         public async Task<ViewUserRole> Login(string userName, string psswd)
         {
             var sql = $"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND UserName = @UserName AND Password=@Password";
-            using (var conn = _connFactory.CreateConnection())
-                {
-                    var userRole = conn.QueryFirstOrDefaultAsync<ViewUserRole>(sql, new { UserName = userName, Password=psswd });
-                    return await userRole;
-                }
+            using (var conn = _connFac.CreateConnection())
+            return await conn.QueryFirstOrDefaultAsync<ViewUserRole>(sql, new { UserName = userName, Password=psswd });
         }
     }
 }

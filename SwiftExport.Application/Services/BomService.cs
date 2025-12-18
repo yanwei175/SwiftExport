@@ -2,6 +2,7 @@
 using SwiftExport.AppLayer.Interfaces;
 using SwiftExport.Core.Entities;
 using SwiftExport.Core.Interfaces;
+using SwiftExport.Infrastructure.Interfaces;
 using SwiftExport.Infrastructure.Repositories;
 using System;
 using System.Collections.Generic;
@@ -11,110 +12,145 @@ using System.Threading.Tasks;
 
 namespace SwiftExport.AppLayer.Services
 {
-    public class BomService : IBOMService
+    public class BomService : BaseService<BOM>, IBOMService
     {
-        private readonly IBomRepository _repo;
+        private readonly IBomRepository repo;
         private readonly IProductRepository _pdrepo;
-        public BomService(IBomRepository repo, IProductRepository pdrepo)
+        public BomService(IUintOfWorkFactory _uowFac, IBomRepository _repo, IProductRepository pdrepo) : base(_repo, _uowFac)
         {
-            _repo = repo;
+            repo = _repo;
             _pdrepo = pdrepo;
         }
         //新增一条BOM
         public async Task<int> AddBomItemAsync(BOM bom)
         {
-            try
-                {
-                return await _repo.AddSingleReturnNewIDAsync(bom);
-            }
-            catch (Exception ex)
+            using (var uow = _uowFac.CreateUoW())
             {
-                throw new Exception($"BOM条目添加错误 item: {ex.Message}", ex);
+              try
+                {
+                        var results = await repo.AddAsync(bom,uow);
+                        await uow.CommitAsync();
+                        return results;
+                }
+                catch (Exception)
+                {
+                    // 【修正】关键：发生错误时回滚事务
+                    await uow.RollbackAsync();
+                    throw;
+                }
             }
         }
         //批量新增BOM
-        public async Task<IEnumerable<BOM>> AddBomRangeAsync(IEnumerable<BOM> items)
+        public async Task<IEnumerable<int>> AddBomRangeAsync(IEnumerable<BOM> items)
         {
-            try
-                {
-                return await _repo.AddRangeAsync(items);
-            }
-            catch (Exception ex)
+            using(var uow = _uowFac.CreateUoW())
             {
-                throw new Exception($"BOM条目批量添加错误 item: {ex.Message}", ex);
+                try
+                {
+                    var results = await repo.AddRangeAsync(items, uow);
+
+                    // 【修正】提交事务
+                    await uow.CommitAsync();
+
+                    return results;
+                }
+                catch (Exception)
+                {
+                    await uow.RollbackAsync();
+                    throw;
+                }
             }
+
         }
         //根据BomNo删除单条BOM
         public async Task<int> DeleteBomByBomNoAsync(string bomNo)
         {
-           try
+            using (var uow = _uowFac.CreateUoW())
+            {
+                try
                 {
-                return await _repo.DeleteBomByBomNoAsync(bomNo);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"BOM条目删除错误 item: {ex.Message}", ex);
-            }
-        }
-        //根据ID删除单条BOM
-        public Task<int> DeleteBomItemByIdAsync(int id)
-        {
-            try
-            {
-                return _repo.DeleteSingleByIdAsync(id);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"BOM条目删除错误 item: {ex.Message}", ex);
+                    var affectedRows = await repo.DeleteBomByBomNoAsync(bomNo, uow);
+                    // 【修正】提交事务
+                    await uow.CommitAsync();
+                    return affectedRows;
+                }
+                catch (Exception)
+                {
+                    // 【修正】失败时回滚事务
+                    await uow.RollbackAsync();
+                    throw;
+                }
             }
         }
-
+  
         public async Task<int> DeleteBomRangeByIdsAsync(IEnumerable<int> ids)
         {
-            try
+            using (var uow = _uowFac.CreateUoW())
             {
-                return await _repo.DeleteRangeByIdsAsync(ids);
+                try
+                {
+                    var affectedRows = await repo.DeleteRangeByIdsAsync(ids, uow);
+
+                    // 【修正】提交事务
+                    await uow.CommitAsync();
+                    return affectedRows;
+                }
+                catch (Exception)
+                {
+                    // 【修正】失败时回滚事务
+                    await uow.RollbackAsync();
+                    throw;
+                }
             }
-            catch (Exception ex)
-            {
-                throw new Exception($"BOM条目获取错误 item: {ex.Message}", ex);
-            }
+
         }
 
         public Task<IEnumerable<BOM>> GetBomByBomNoAsync(string bomNo)
         {
-            try
-                {
-                return _repo.GetBomByBomNoAsync(bomNo);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"BOM条目获取错误 item: {ex.Message}", ex);
-            }
+            return repo.GetBomByBomNoAsync(bomNo);
         }
 
         public async Task<int> UpdateBomItemNoAsync(BOM bom)
         {
-            try
-                {
-                return await _repo.UpdateSingleAsync(bom);
-            }
-            catch (Exception ex)
+            using (var uow = _uowFac.CreateUoW())
             {
-                throw new Exception($"BOM条目更新错误 item: {ex.Message}", ex);
+                try
+                {
+                    var affectedRows = await repo.UpdateAsync(bom, uow); // 假设 IRepository 接口方法名
+
+                    // 【修正】提交事务
+                    await uow.CommitAsync();
+                    return affectedRows;
+                }
+                catch (Exception)
+                {
+                    // 【修正】失败时回滚事务
+                    await uow.RollbackAsync();
+                    throw;
+                }
             }
         }
 
         public async Task<int> UpdateBomRangeAsync(IEnumerable<BOM> items)
         {
-            try
+            using (var uow = _uowFac.CreateUoW())
             {
-                return await _repo.UpdateRangeAsync(items);
+                try
+                {
+                    var affectedRows = await repo.UpdateRangeByIdsAsync(items, uow);
+
+                    // 【修正】提交事务
+                    await uow.CommitAsync();
+                    return affectedRows;
+                }
+                catch (Exception)
+                {
+                    // 【修正】失败时回滚事务
+                    await uow.RollbackAsync();
+                    throw;
+                }
             }
-            catch (Exception ex)
-            {
-                throw new Exception($"BOM条目更新错误 item: {ex.Message}", ex);
-            }
+
         }
 
         public async Task<bool> ValidateBOMAsync(string productSKU)
@@ -127,7 +163,7 @@ namespace SwiftExport.AppLayer.Services
             string bomNo = pd.BomNo;
 
             // 1. 查询该产品的 BOM 项
-            var bomItems = await _repo.GetBomByBomNoAsync(bomNo);
+            var bomItems = await repo.GetBomByBomNoAsync(bomNo);
             if (bomItems == null || !bomItems.Any())
                 return false; // 没有 BOM 数据，视为不合法
 
@@ -153,7 +189,7 @@ namespace SwiftExport.AppLayer.Services
             {
                 if (!visited.Add(currentBomNo)) return true; // 已访问过，说明有环
 
-                var children = await _repo.GetBomByBomNoAsync(currentBomNo);
+                var children = await repo.GetBomByBomNoAsync(currentBomNo);
                 foreach (var child in children)
                 {
                     // 递归检查子件的 BOM
@@ -169,11 +205,26 @@ namespace SwiftExport.AppLayer.Services
             return true; // 所有检查通过
         }
 
-
-
-        public async Task<int> 同步BomItemsAsync(IEnumerable<BOM> items)
+        public async Task<int> SyncBomItemsAsync(IEnumerable<BOM> items)
         {
-            return await _repo.同步BomItemsAsync(items);
+            using (var uow = _uowFac.CreateUoW())
+            {
+                try
+                {
+                    var affectedRows = await repo.SyncBomItemsAsync(items, uow);
+
+                    // 【修正】提交事务
+                    await uow.CommitAsync();
+                    return affectedRows;
+                }
+                catch (Exception)
+                {
+                    // 【修正】失败时回滚事务
+                    await uow.RollbackAsync();
+                    throw;
+                }
+            }
+
         }
     }
 }

@@ -1,131 +1,91 @@
-﻿//using SwiftExport.Core.Interfaces;
-//using System;
-//using System.Collections.Generic;
-//using System.Data;
-//using System.Text;
-//using System.Threading.Tasks;
+﻿using Microsoft.Data.SqlClient;
+using SwiftExport.Core.Interfaces;
+using SwiftExport.Infrastructure.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Text;
+using System.Threading.Tasks;
 
-//namespace SwiftExport.Infrastructure.Repositories
-//{
-//    public class UnitOfWork : IUnitOfWork
-//    {
-//        private readonly IDbConnection _connection;
-//        private IDbTransaction _transaction;
-//        private readonly ILogger<UnitOfWork> _logger;
-//        private bool _disposed;
+namespace SwiftExport.Infrastructure.Repositories
+{
+    public class UnitOfWork : IUnitOfWork
+    {
+        private readonly IDbConnectionFactory _connectionFactory;
+        private readonly IDbConnection _connection;
+        private readonly IDbTransaction _transaction;
+        private bool _disposed;
 
-//        public UnitOfWork(IDbConnection connection, ILogger<UnitOfWork> logger)
-//        {
-//            _connection = connection;
-//            _logger = logger;
+        // 假设你的连接字符串通过 DI 注入
+        public UnitOfWork(IDbConnectionFactory connectionFactory)
+        {
+            _connectionFactory = connectionFactory;
+            // 1. 通过工厂创建并打开连接
+            _connection = _connectionFactory.CreateConnection();
+            _connection.Open();
 
-//            if (_connection.State != ConnectionState.Open)
-//            {
-//                _connection.Open();
-//            }
-//        }
+            // 2. 启动事务
+            _transaction = _connection.BeginTransaction();
+        }
 
-//        public async Task<int> SaveChangesAsync()
-//        {
-//            try
-//            {
-//                // Dapper不跟踪变更，这里只是模拟保存
-//                _logger.LogInformation("Changes saved");
-//                return await Task.FromResult(1);
-//            }
-//            catch (Exception ex)
-//            {
-//                _logger.LogError(ex, "Error saving changes");
-//                throw;
-//            }
-//        }
+        public IDbConnection Connection=> _connection;
+        public IDbTransaction Transaction => _transaction;
 
-//        public async Task BeginTransactionAsync()
-//        {
-//            try
-//            {
-//                if (_transaction != null)
-//                {
-//                    throw new InvalidOperationException("Transaction already started");
-//                }
+        // 【异步提交实现】
+        public Task CommitAsync()
+        {
+            return Task.Run(() =>
+            {
+                try
+                {
+                    _transaction.Commit();
+                }
+                catch
+                {
+                    _transaction.Rollback();
+                    throw;
+                }
+                finally
+                {
+                    Dispose();
+                }
+            });
+        }
 
-//                _transaction = _connection.BeginTransaction();
-//                await Task.CompletedTask;
-//            }
-//            catch (Exception ex)
-//            {
-//                _logger.LogError(ex, "Error beginning transaction");
-//                throw;
-//            }
-//        }
+        // 【异步回滚实现】
+        public Task RollbackAsync()
+        {
+            return Task.Run(() =>
+            {
+                _transaction.Rollback();
+                Dispose();
+            });
+        }
 
-//        public async Task CommitAsync()
-//        {
-//            try
-//            {
-//                if (_transaction == null)
-//                {
-//                    throw new InvalidOperationException("No active transaction");
-//                }
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
 
-//                _transaction.Commit();
-//                _transaction.Dispose();
-//                _transaction = null;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    // 清理托管资源
+                    _transaction?.Dispose();
+                    _connection?.Close();
+                    _connection?.Dispose();
+                }
+                _disposed = true;
+            }
+        }
 
-//                await Task.CompletedTask;
-//            }
-//            catch (Exception ex)
-//            {
-//                _logger.LogError(ex, "Error committing transaction");
-//                throw;
-//            }
-//        }
 
-//        public async Task RollbackAsync()
-//        {
-//            try
-//            {
-//                if (_transaction == null)
-//                {
-//                    throw new InvalidOperationException("No active transaction");
-//                }
 
-//                _transaction.Rollback();
-//                _transaction.Dispose();
-//                _transaction = null;
 
-//                await Task.CompletedTask;
-//            }
-//            catch (Exception ex)
-//            {
-//                _logger.LogError(ex, "Error rolling back transaction");
-//                throw;
-//            }
-//        }
+    }
+}
 
-//        public void Dispose()
-//        {
-//            Dispose(true);
-//            GC.SuppressFinalize(this);
-//        }
-
-//        protected virtual void Dispose(bool disposing)
-//        {
-//            if (!_disposed)
-//            {
-//                if (disposing)
-//                {
-//                    _transaction?.Dispose();
-//                    _connection?.Dispose();
-//                }
-//                _disposed = true;
-//            }
-//        }
-
-//        ~UnitOfWork()
-//        {
-//            Dispose(false);
-//        }
-//    }
-
-//}

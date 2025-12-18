@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.AppLayer.DI;
 using SwiftExport.AppLayer.Interfaces;
 using SwiftExport.AppLayer.Services;
+using SwiftExport.UiKongJianFrameWork.AppForms;
 
 namespace SwiftExport.UiWinForm
 {
@@ -36,19 +37,21 @@ namespace SwiftExport.UiWinForm
             services.AddTransient<MainFrm>();
             services.AddSingleton<ILoggerFactory, NullLoggerFactory>();
             services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+            services.AddTransient<FrmCustomersManager>();
+            services.AddTransient<FrmSuppliersManager>();
 
             ServiceProvider = services.BuildServiceProvider();
 
             using (ServiceProvider as IDisposable)
             {
-                // 显示登录窗体作为对话框
-                var loginForm = ServiceProvider.GetRequiredService<LoginFrm>();
-                if (loginForm.ShowDialog() == DialogResult.OK)
-                {
-                    // 登录成功后启动主窗体
-                    var mainForm = ServiceProvider.GetRequiredService<MainFrm>();
-                    Application.Run(mainForm);
-                }
+                //// 显示登录窗体作为对话框
+                //var loginForm = ServiceProvider.GetRequiredService<LoginFrm>();
+                //if (loginForm.ShowDialog() == DialogResult.OK)
+                //{
+                // 登录成功后启动主窗体
+                var mainForm = ServiceProvider.GetRequiredService<MainFrm>();
+                Application.Run(mainForm);
+                //}
             }
 
             //Application.Run(new LoginFrm(_serviceProvider));

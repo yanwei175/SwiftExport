@@ -1,0 +1,11 @@
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\bin\Debug\netstandard2.0\SwiftExprot.Utility.deps.json
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\bin\Debug\netstandard2.0\SwiftExprot.Utility.dll
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\bin\Debug\netstandard2.0\SwiftExprot.Utility.pdb
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftExprot.Utility.csproj.AssemblyReference.cache
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftExprot.Utility.GeneratedMSBuildEditorConfig.editorconfig
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftExprot.Utility.AssemblyInfoInputs.cache
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftExprot.Utility.AssemblyInfo.cs
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftExprot.Utility.csproj.CoreCompileInputs.cache
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftExprot.Utility.sourcelink.json
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftExprot.Utility.dll
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftExprot.Utility.pdb

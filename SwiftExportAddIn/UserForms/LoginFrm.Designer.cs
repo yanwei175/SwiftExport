@@ -50,19 +50,19 @@ namespace SwiftExportVSTO
             // txt_UserName
             // 
             this.txt_UserName.Dock = System.Windows.Forms.DockStyle.Top;
-            this.txt_UserName.Location = new System.Drawing.Point(0, 31);
+            this.txt_UserName.Location = new System.Drawing.Point(0, 24);
             this.txt_UserName.Margin = new System.Windows.Forms.Padding(4);
             this.txt_UserName.Name = "txt_UserName";
-            this.txt_UserName.Size = new System.Drawing.Size(482, 39);
+            this.txt_UserName.Size = new System.Drawing.Size(482, 31);
             this.txt_UserName.TabIndex = 1;
             // 
             // txt_passwd
             // 
             this.txt_passwd.Dock = System.Windows.Forms.DockStyle.Top;
-            this.txt_passwd.Location = new System.Drawing.Point(0, 31);
+            this.txt_passwd.Location = new System.Drawing.Point(0, 24);
             this.txt_passwd.Margin = new System.Windows.Forms.Padding(4);
             this.txt_passwd.Name = "txt_passwd";
-            this.txt_passwd.Size = new System.Drawing.Size(482, 39);
+            this.txt_passwd.Size = new System.Drawing.Size(482, 31);
             this.txt_passwd.TabIndex = 2;
             // 
             // SignIn
@@ -127,7 +127,7 @@ namespace SwiftExportVSTO
             this.lbl_Pswd.Dock = System.Windows.Forms.DockStyle.Top;
             this.lbl_Pswd.Location = new System.Drawing.Point(0, 0);
             this.lbl_Pswd.Name = "lbl_Pswd";
-            this.lbl_Pswd.Size = new System.Drawing.Size(62, 31);
+            this.lbl_Pswd.Size = new System.Drawing.Size(46, 24);
             this.lbl_Pswd.TabIndex = 1;
             this.lbl_Pswd.Text = "密码";
             // 
@@ -147,7 +147,7 @@ namespace SwiftExportVSTO
             this.Lbl_Users.Dock = System.Windows.Forms.DockStyle.Top;
             this.Lbl_Users.Location = new System.Drawing.Point(0, 0);
             this.Lbl_Users.Name = "Lbl_Users";
-            this.Lbl_Users.Size = new System.Drawing.Size(86, 31);
+            this.Lbl_Users.Size = new System.Drawing.Size(64, 24);
             this.Lbl_Users.TabIndex = 1;
             this.Lbl_Users.Text = "用户名";
             // 
@@ -171,7 +171,7 @@ namespace SwiftExportVSTO
             // LoginFrm
             // 
             this.AcceptButton = this.SignIn;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(14F, 31F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(11F, 24F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.SignUp;
             this.ClientSize = new System.Drawing.Size(824, 529);

@@ -36,10 +36,6 @@ namespace SwiftExport.UiKongJianFrameWork
             this.tbP_Product = new System.Windows.Forms.TabPage();
             this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
             this.dataGridView1 = new System.Windows.Forms.DataGridView();
-            this.toolStrip2 = new System.Windows.Forms.ToolStrip();
-            this.toolStripButton2 = new System.Windows.Forms.ToolStripButton();
-            this.toolStripButton3 = new System.Windows.Forms.ToolStripButton();
-            this.toolStripButton4 = new System.Windows.Forms.ToolStripButton();
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.ToolStripButton_Save = new System.Windows.Forms.ToolStripButton();
             this.ToolStripButton_Add = new System.Windows.Forms.ToolStripButton();
@@ -49,17 +45,6 @@ namespace SwiftExport.UiKongJianFrameWork
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripLabel_Find = new System.Windows.Forms.ToolStripLabel();
             this.toolStripTextBox_FindResult = new System.Windows.Forms.ToolStripTextBox();
-            this.TSDataStatus = new System.Windows.Forms.ToolStrip();
-            this.TSLblDataCount = new System.Windows.Forms.ToolStripLabel();
-            this.TSLblPageInfo = new System.Windows.Forms.ToolStripLabel();
-            this.TSlblPgUnit = new System.Windows.Forms.ToolStripLabel();
-            this.TscmbPgIndex = new System.Windows.Forms.ToolStripComboBox();
-            this.TslblGotoPg = new System.Windows.Forms.ToolStripLabel();
-            this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
-            this.TsbtnLstPg = new System.Windows.Forms.ToolStripButton();
-            this.TsbtnNextPg = new System.Windows.Forms.ToolStripButton();
-            this.TsbtnPrePg = new System.Windows.Forms.ToolStripButton();
-            this.TSbtnFstPg = new System.Windows.Forms.ToolStripButton();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
             this.dataGridView2 = new System.Windows.Forms.DataGridView();
@@ -88,9 +73,7 @@ namespace SwiftExport.UiKongJianFrameWork
             this.tbP_Product.SuspendLayout();
             this.tableLayoutPanel2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
-            this.toolStrip2.SuspendLayout();
             this.toolStrip1.SuspendLayout();
-            this.TSDataStatus.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel2.SuspendLayout();
             this.splitContainer1.SuspendLayout();
@@ -108,29 +91,27 @@ namespace SwiftExport.UiKongJianFrameWork
             this.Product_tabCtrl_Product.Controls.Add(this.tbP_Product);
             this.Product_tabCtrl_Product.Controls.Add(this.tabPage1);
             this.Product_tabCtrl_Product.Font = new System.Drawing.Font("Microsoft YaHei UI", 10.875F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.Product_tabCtrl_Product.Location = new System.Drawing.Point(46, 26);
+            this.Product_tabCtrl_Product.Location = new System.Drawing.Point(90, 32);
             this.Product_tabCtrl_Product.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.Product_tabCtrl_Product.Name = "Product_tabCtrl_Product";
             this.Product_tabCtrl_Product.SelectedIndex = 0;
-            this.Product_tabCtrl_Product.Size = new System.Drawing.Size(2443, 1152);
+            this.Product_tabCtrl_Product.Size = new System.Drawing.Size(2420, 1160);
             this.Product_tabCtrl_Product.TabIndex = 0;
             // 
             // tbP_Product
             // 
             this.tbP_Product.Controls.Add(this.tableLayoutPanel2);
-            this.tbP_Product.Controls.Add(this.toolStrip2);
             this.tbP_Product.Controls.Add(this.toolStrip1);
-            this.tbP_Product.Controls.Add(this.TSDataStatus);
             this.tbP_Product.Controls.Add(this.splitContainer1);
             this.tbP_Product.Controls.Add(this.Product_Panel_Top);
             this.tbP_Product.Controls.Add(this.Product_Panel_Product);
             this.tbP_Product.Controls.Add(this.tableLayoutPanel1);
             this.tbP_Product.Controls.Add(this.sptctneDetales);
-            this.tbP_Product.Location = new System.Drawing.Point(4, 39);
+            this.tbP_Product.Location = new System.Drawing.Point(8, 52);
             this.tbP_Product.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.tbP_Product.Name = "tbP_Product";
             this.tbP_Product.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.tbP_Product.Size = new System.Drawing.Size(2435, 1109);
+            this.tbP_Product.Size = new System.Drawing.Size(2404, 1100);
             this.tbP_Product.TabIndex = 0;
             this.tbP_Product.Text = "订单";
             this.tbP_Product.UseVisualStyleBackColor = true;
@@ -161,44 +142,6 @@ namespace SwiftExport.UiKongJianFrameWork
             this.dataGridView1.Size = new System.Drawing.Size(865, 119);
             this.dataGridView1.TabIndex = 0;
             // 
-            // toolStrip2
-            // 
-            this.toolStrip2.Dock = System.Windows.Forms.DockStyle.None;
-            this.toolStrip2.ImageScalingSize = new System.Drawing.Size(32, 32);
-            this.toolStrip2.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.toolStripButton2,
-            this.toolStripButton3,
-            this.toolStripButton4});
-            this.toolStrip2.Location = new System.Drawing.Point(1448, 358);
-            this.toolStrip2.Name = "toolStrip2";
-            this.toolStrip2.Size = new System.Drawing.Size(264, 41);
-            this.toolStrip2.TabIndex = 1;
-            this.toolStrip2.Text = "toolStrip2";
-            // 
-            // toolStripButton2
-            // 
-            this.toolStripButton2.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButton2.Image")));
-            this.toolStripButton2.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.toolStripButton2.Name = "toolStripButton2";
-            this.toolStripButton2.Size = new System.Drawing.Size(82, 36);
-            this.toolStripButton2.Text = "新增";
-            // 
-            // toolStripButton3
-            // 
-            this.toolStripButton3.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButton3.Image")));
-            this.toolStripButton3.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.toolStripButton3.Name = "toolStripButton3";
-            this.toolStripButton3.Size = new System.Drawing.Size(82, 36);
-            this.toolStripButton3.Text = "删除";
-            // 
-            // toolStripButton4
-            // 
-            this.toolStripButton4.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButton4.Image")));
-            this.toolStripButton4.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.toolStripButton4.Name = "toolStripButton4";
-            this.toolStripButton4.Size = new System.Drawing.Size(82, 36);
-            this.toolStripButton4.Text = "保存";
-            // 
             // toolStrip1
             // 
             this.toolStrip1.Dock = System.Windows.Forms.DockStyle.None;
@@ -212,9 +155,9 @@ namespace SwiftExport.UiKongJianFrameWork
             this.toolStripSeparator1,
             this.toolStripLabel_Find,
             this.toolStripTextBox_FindResult});
-            this.toolStrip1.Location = new System.Drawing.Point(158, 997);
+            this.toolStrip1.Location = new System.Drawing.Point(89, 981);
             this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(1103, 41);
+            this.toolStrip1.Size = new System.Drawing.Size(1259, 42);
             this.toolStrip1.TabIndex = 5;
             this.toolStrip1.Text = "toolStrip1";
             // 
@@ -224,7 +167,7 @@ namespace SwiftExport.UiKongJianFrameWork
             this.ToolStripButton_Save.Image = ((System.Drawing.Image)(resources.GetObject("ToolStripButton_Save.Image")));
             this.ToolStripButton_Save.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.ToolStripButton_Save.Name = "ToolStripButton_Save";
-            this.ToolStripButton_Save.Size = new System.Drawing.Size(82, 36);
+            this.ToolStripButton_Save.Size = new System.Drawing.Size(98, 36);
             this.ToolStripButton_Save.Text = "保存";
             // 
             // ToolStripButton_Add
@@ -233,140 +176,45 @@ namespace SwiftExport.UiKongJianFrameWork
             this.ToolStripButton_Add.Image = ((System.Drawing.Image)(resources.GetObject("ToolStripButton_Add.Image")));
             this.ToolStripButton_Add.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.ToolStripButton_Add.Name = "ToolStripButton_Add";
-            this.ToolStripButton_Add.Size = new System.Drawing.Size(82, 36);
+            this.ToolStripButton_Add.Size = new System.Drawing.Size(98, 36);
             this.ToolStripButton_Add.Text = "新建";
             // 
             // ToolStripComboBox_QueryField
             // 
             this.ToolStripComboBox_QueryField.Name = "ToolStripComboBox_QueryField";
-            this.ToolStripComboBox_QueryField.Size = new System.Drawing.Size(233, 41);
+            this.ToolStripComboBox_QueryField.Size = new System.Drawing.Size(233, 42);
             this.ToolStripComboBox_QueryField.Text = "选择查询字段";
             // 
             // ToolStripTextBox_QueryResult
             // 
             this.ToolStripTextBox_QueryResult.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
             this.ToolStripTextBox_QueryResult.Name = "ToolStripTextBox_QueryResult";
-            this.ToolStripTextBox_QueryResult.Size = new System.Drawing.Size(233, 41);
+            this.ToolStripTextBox_QueryResult.Size = new System.Drawing.Size(233, 42);
             // 
             // ToolStripButton_Query
             // 
             this.ToolStripButton_Query.Image = ((System.Drawing.Image)(resources.GetObject("ToolStripButton_Query.Image")));
             this.ToolStripButton_Query.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.ToolStripButton_Query.Name = "ToolStripButton_Query";
-            this.ToolStripButton_Query.Size = new System.Drawing.Size(82, 36);
+            this.ToolStripButton_Query.Size = new System.Drawing.Size(98, 36);
             this.ToolStripButton_Query.Text = "查询";
             // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(6, 41);
+            this.toolStripSeparator1.Size = new System.Drawing.Size(6, 42);
             // 
             // toolStripLabel_Find
             // 
             this.toolStripLabel_Find.Name = "toolStripLabel_Find";
-            this.toolStripLabel_Find.Size = new System.Drawing.Size(122, 36);
+            this.toolStripLabel_Find.Size = new System.Drawing.Size(164, 36);
             this.toolStripLabel_Find.Text = "搜索当前结果:";
             // 
             // toolStripTextBox_FindResult
             // 
             this.toolStripTextBox_FindResult.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
             this.toolStripTextBox_FindResult.Name = "toolStripTextBox_FindResult";
-            this.toolStripTextBox_FindResult.Size = new System.Drawing.Size(233, 41);
-            // 
-            // TSDataStatus
-            // 
-            this.TSDataStatus.Dock = System.Windows.Forms.DockStyle.None;
-            this.TSDataStatus.ImageScalingSize = new System.Drawing.Size(32, 32);
-            this.TSDataStatus.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.TSLblDataCount,
-            this.TSLblPageInfo,
-            this.TSlblPgUnit,
-            this.TscmbPgIndex,
-            this.TslblGotoPg,
-            this.toolStripSeparator2,
-            this.TsbtnLstPg,
-            this.TsbtnNextPg,
-            this.TsbtnPrePg,
-            this.TSbtnFstPg});
-            this.TSDataStatus.Location = new System.Drawing.Point(158, 928);
-            this.TSDataStatus.Name = "TSDataStatus";
-            this.TSDataStatus.RenderMode = System.Windows.Forms.ToolStripRenderMode.Professional;
-            this.TSDataStatus.Size = new System.Drawing.Size(756, 41);
-            this.TSDataStatus.TabIndex = 7;
-            this.TSDataStatus.Text = "toolStrip2";
-            // 
-            // TSLblDataCount
-            // 
-            this.TSLblDataCount.Name = "TSLblDataCount";
-            this.TSLblDataCount.Size = new System.Drawing.Size(96, 36);
-            this.TSLblDataCount.Text = "总记录  条.";
-            // 
-            // TSLblPageInfo
-            // 
-            this.TSLblPageInfo.Name = "TSLblPageInfo";
-            this.TSLblPageInfo.Size = new System.Drawing.Size(109, 36);
-            this.TSLblPageInfo.Text = "当前第  / 页.";
-            // 
-            // TSlblPgUnit
-            // 
-            this.TSlblPgUnit.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
-            this.TSlblPgUnit.Name = "TSlblPgUnit";
-            this.TSlblPgUnit.Size = new System.Drawing.Size(28, 36);
-            this.TSlblPgUnit.Text = "页";
-            // 
-            // TscmbPgIndex
-            // 
-            this.TscmbPgIndex.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
-            this.TscmbPgIndex.Name = "TscmbPgIndex";
-            this.TscmbPgIndex.Size = new System.Drawing.Size(121, 41);
-            // 
-            // TslblGotoPg
-            // 
-            this.TslblGotoPg.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
-            this.TslblGotoPg.Name = "TslblGotoPg";
-            this.TslblGotoPg.Size = new System.Drawing.Size(46, 36);
-            this.TslblGotoPg.Text = "前往";
-            // 
-            // toolStripSeparator2
-            // 
-            this.toolStripSeparator2.Name = "toolStripSeparator2";
-            this.toolStripSeparator2.Size = new System.Drawing.Size(6, 41);
-            // 
-            // TsbtnLstPg
-            // 
-            this.TsbtnLstPg.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
-            this.TsbtnLstPg.Image = ((System.Drawing.Image)(resources.GetObject("TsbtnLstPg.Image")));
-            this.TsbtnLstPg.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.TsbtnLstPg.Name = "TsbtnLstPg";
-            this.TsbtnLstPg.Size = new System.Drawing.Size(82, 36);
-            this.TsbtnLstPg.Text = "尾页";
-            // 
-            // TsbtnNextPg
-            // 
-            this.TsbtnNextPg.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
-            this.TsbtnNextPg.Image = ((System.Drawing.Image)(resources.GetObject("TsbtnNextPg.Image")));
-            this.TsbtnNextPg.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.TsbtnNextPg.Name = "TsbtnNextPg";
-            this.TsbtnNextPg.Size = new System.Drawing.Size(82, 36);
-            this.TsbtnNextPg.Text = "下页";
-            // 
-            // TsbtnPrePg
-            // 
-            this.TsbtnPrePg.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
-            this.TsbtnPrePg.Image = ((System.Drawing.Image)(resources.GetObject("TsbtnPrePg.Image")));
-            this.TsbtnPrePg.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.TsbtnPrePg.Name = "TsbtnPrePg";
-            this.TsbtnPrePg.Size = new System.Drawing.Size(82, 36);
-            this.TsbtnPrePg.Text = "上页";
-            // 
-            // TSbtnFstPg
-            // 
-            this.TSbtnFstPg.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
-            this.TSbtnFstPg.Image = ((System.Drawing.Image)(resources.GetObject("TSbtnFstPg.Image")));
-            this.TSbtnFstPg.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.TSbtnFstPg.Name = "TSbtnFstPg";
-            this.TSbtnFstPg.Size = new System.Drawing.Size(82, 36);
-            this.TSbtnFstPg.Text = "首页";
+            this.toolStripTextBox_FindResult.Size = new System.Drawing.Size(233, 42);
             // 
             // splitContainer1
             // 
@@ -408,7 +256,7 @@ namespace SwiftExport.UiKongJianFrameWork
             // 
             // Product_Panel_Top
             // 
-            this.Product_Panel_Top.Location = new System.Drawing.Point(1433, 52);
+            this.Product_Panel_Top.Location = new System.Drawing.Point(1314, 86);
             this.Product_Panel_Top.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.Product_Panel_Top.Name = "Product_Panel_Top";
             this.Product_Panel_Top.Size = new System.Drawing.Size(265, 57);
@@ -416,7 +264,7 @@ namespace SwiftExport.UiKongJianFrameWork
             // 
             // Product_Panel_Product
             // 
-            this.Product_Panel_Product.Location = new System.Drawing.Point(1796, 52);
+            this.Product_Panel_Product.Location = new System.Drawing.Point(1671, 86);
             this.Product_Panel_Product.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.Product_Panel_Product.Name = "Product_Panel_Product";
             this.Product_Panel_Product.Size = new System.Drawing.Size(282, 208);
@@ -456,7 +304,7 @@ namespace SwiftExport.UiKongJianFrameWork
             this.Cmb_CustomerCode.Location = new System.Drawing.Point(0, 0);
             this.Cmb_CustomerCode.Margin = new System.Windows.Forms.Padding(4);
             this.Cmb_CustomerCode.Name = "Cmb_CustomerCode";
-            this.Cmb_CustomerCode.Size = new System.Drawing.Size(118, 39);
+            this.Cmb_CustomerCode.Size = new System.Drawing.Size(118, 49);
             this.Cmb_CustomerCode.TabIndex = 5;
             // 
             // sptctneDetales
@@ -470,10 +318,10 @@ namespace SwiftExport.UiKongJianFrameWork
             // 
             // tabPage1
             // 
-            this.tabPage1.Location = new System.Drawing.Point(4, 39);
+            this.tabPage1.Location = new System.Drawing.Point(8, 52);
             this.tabPage1.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage1.Name = "tabPage1";
-            this.tabPage1.Size = new System.Drawing.Size(2435, 1109);
+            this.tabPage1.Size = new System.Drawing.Size(2404, 1100);
             this.tabPage1.TabIndex = 1;
             this.tabPage1.Text = "订单进度";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -501,7 +349,7 @@ namespace SwiftExport.UiKongJianFrameWork
             this.cmbPage.Location = new System.Drawing.Point(1049, 4);
             this.cmbPage.Margin = new System.Windows.Forms.Padding(4);
             this.cmbPage.Name = "cmbPage";
-            this.cmbPage.Size = new System.Drawing.Size(204, 32);
+            this.cmbPage.Size = new System.Drawing.Size(204, 39);
             this.cmbPage.TabIndex = 7;
             // 
             // LblDatCount
@@ -511,7 +359,7 @@ namespace SwiftExport.UiKongJianFrameWork
             this.LblDatCount.Location = new System.Drawing.Point(0, 0);
             this.LblDatCount.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.LblDatCount.Name = "LblDatCount";
-            this.LblDatCount.Size = new System.Drawing.Size(56, 24);
+            this.LblDatCount.Size = new System.Drawing.Size(76, 31);
             this.LblDatCount.TabIndex = 6;
             this.LblDatCount.Text = "共  条";
             // 
@@ -525,10 +373,10 @@ namespace SwiftExport.UiKongJianFrameWork
             "20",
             "50",
             "100"});
-            this.CbmEachItemPage.Location = new System.Drawing.Point(887, 0);
+            this.CbmEachItemPage.Location = new System.Drawing.Point(863, 0);
             this.CbmEachItemPage.Margin = new System.Windows.Forms.Padding(4);
             this.CbmEachItemPage.Name = "CbmEachItemPage";
-            this.CbmEachItemPage.Size = new System.Drawing.Size(204, 39);
+            this.CbmEachItemPage.Size = new System.Drawing.Size(204, 49);
             this.CbmEachItemPage.TabIndex = 4;
             this.CbmEachItemPage.SelectedIndexChanged += new System.EventHandler(this.CbmEachItemPage_SelectedIndexChanged);
             // 
@@ -537,10 +385,10 @@ namespace SwiftExport.UiKongJianFrameWork
             this.LblEachItemPage.AutoSize = true;
             this.LblEachItemPage.Dock = System.Windows.Forms.DockStyle.Right;
             this.LblEachItemPage.Font = new System.Drawing.Font("Microsoft YaHei UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.LblEachItemPage.Location = new System.Drawing.Point(1091, 0);
+            this.LblEachItemPage.Location = new System.Drawing.Point(1067, 0);
             this.LblEachItemPage.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.LblEachItemPage.Name = "LblEachItemPage";
-            this.LblEachItemPage.Size = new System.Drawing.Size(72, 31);
+            this.LblEachItemPage.Size = new System.Drawing.Size(96, 41);
             this.LblEachItemPage.TabIndex = 5;
             this.LblEachItemPage.Text = "条/页";
             // 
@@ -630,7 +478,7 @@ namespace SwiftExport.UiKongJianFrameWork
             // 
             // SalesOrderUserControl
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(11F, 24F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(14F, 31F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.Controls.Add(this.Product_tabCtrl_Product);
             this.Controls.Add(this.Product_Panel_Status);
@@ -643,12 +491,8 @@ namespace SwiftExport.UiKongJianFrameWork
             this.tbP_Product.PerformLayout();
             this.tableLayoutPanel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).EndInit();
-            this.toolStrip2.ResumeLayout(false);
-            this.toolStrip2.PerformLayout();
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
-            this.TSDataStatus.ResumeLayout(false);
-            this.TSDataStatus.PerformLayout();
             this.splitContainer1.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
             this.splitContainer1.ResumeLayout(false);
@@ -697,23 +541,8 @@ namespace SwiftExport.UiKongJianFrameWork
         private ToolStripSeparator toolStripSeparator1;
         private ToolStripLabel toolStripLabel_Find;
         private ToolStripTextBox toolStripTextBox_FindResult;
-        private ToolStrip TSDataStatus;
-        private ToolStripLabel TSLblDataCount;
-        private ToolStripLabel TSLblPageInfo;
-        private ToolStripButton TSbtnFstPg;
-        private ToolStripButton TsbtnPrePg;
-        private ToolStripButton TsbtnNextPg;
-        private ToolStripButton TsbtnLstPg;
-        private ToolStripLabel TSlblPgUnit;
-        private ToolStripComboBox TscmbPgIndex;
-        private ToolStripLabel TslblGotoPg;
-        private ToolStripSeparator toolStripSeparator2;
         private TableLayoutPanel tableLayoutPanel2;
         private SplitContainer sptctneDetales;
-        private ToolStrip toolStrip2;
-        private ToolStripButton toolStripButton2;
-        private ToolStripButton toolStripButton3;
-        private ToolStripButton toolStripButton4;
         private DataGridView dataGridView2;
         private SplitContainer splitContainer1;
         private TableLayoutPanel tableLayoutPanel3;

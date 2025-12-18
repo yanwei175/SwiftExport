@@ -1,4 +1,5 @@
 ﻿using SwiftExport.Core.Entities;
+using SwiftExport.Core.Interfaces;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -25,7 +26,7 @@ namespace SwiftExport.Core.Interfaces
         /// BOM号
         /// </param>
         /// <returns>受影响的行数</returns>
-        Task<int> DeleteBomByBomNoAsync(string bomNo);
+        Task<int> DeleteBomByBomNoAsync(string bomNo, IUnitOfWork uow);
 
         /// <summary>
         /// 根据BOM号获取一张BOM
@@ -45,6 +46,6 @@ namespace SwiftExport.Core.Interfaces
         /// 必须带ID的一个BOM对象列表.
         /// </param>
         /// <returns>受影响的行数</returns>
-        Task<int> 同步BomItemsAsync(IEnumerable<BOM> items);
+        Task<int> SyncBomItemsAsync(IEnumerable<BOM> items, IUnitOfWork uow);
     }
 }

@@ -78,3 +78,7 @@ D:\source\CSharp\SwiftExport\SwiftExport.UiWinForm\obj\Debug\net10.0-windows\ref
 D:\source\CSharp\SwiftExport\SwiftExport.UiWinForm\bin\Debug\net10.0-windows\SwiftExport.UiKongJianFrameWork.dll
 D:\source\CSharp\SwiftExport\SwiftExport.UiWinForm\bin\Debug\net10.0-windows\SwiftExport.UiKongJianFrameWork.pdb
 D:\source\CSharp\SwiftExport\SwiftExport.UiWinForm\bin\Debug\net10.0-windows\SwiftExport.UiKongJianFrameWork.dll.config
+D:\source\CSharp\SwiftExport\SwiftExport.UiWinForm\obj\Debug\net10.0-windows\SwiftExport.UiWinForm.sourcelink.json
+D:\source\CSharp\SwiftExport\SwiftExport.UiWinForm\obj\Debug\net10.0-windows\SwiftExport.UiWinForm.Properties.Resources.resources
+D:\source\CSharp\SwiftExport\SwiftExport.UiWinForm\bin\Debug\net10.0-windows\SwiftExprot.Utility.dll
+D:\source\CSharp\SwiftExport\SwiftExport.UiWinForm\bin\Debug\net10.0-windows\SwiftExprot.Utility.pdb

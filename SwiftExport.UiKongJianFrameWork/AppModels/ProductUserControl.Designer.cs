@@ -80,10 +80,10 @@ namespace SwiftExport.UiKongJianFrameWork
             // tbP_Product
             // 
             this.tbP_Product.Controls.Add(this.tableLayoutPanel1);
-            this.tbP_Product.Location = new System.Drawing.Point(4, 39);
+            this.tbP_Product.Location = new System.Drawing.Point(8, 52);
             this.tbP_Product.Name = "tbP_Product";
-            this.tbP_Product.Padding = new System.Windows.Forms.Padding(3, 3, 3, 3);
-            this.tbP_Product.Size = new System.Drawing.Size(2469, 1272);
+            this.tbP_Product.Padding = new System.Windows.Forms.Padding(3);
+            this.tbP_Product.Size = new System.Drawing.Size(2461, 1255);
             this.tbP_Product.TabIndex = 0;
             this.tbP_Product.Text = "产品";
             this.tbP_Product.UseVisualStyleBackColor = true;
@@ -105,7 +105,7 @@ namespace SwiftExport.UiKongJianFrameWork
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 77F));
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 77F));
-            this.tableLayoutPanel1.Size = new System.Drawing.Size(2463, 1266);
+            this.tableLayoutPanel1.Size = new System.Drawing.Size(2455, 1249);
             this.tableLayoutPanel1.TabIndex = 0;
             // 
             // Product_Panel_Top
@@ -115,7 +115,7 @@ namespace SwiftExport.UiKongJianFrameWork
             this.Product_Panel_Top.Dock = System.Windows.Forms.DockStyle.Fill;
             this.Product_Panel_Top.Location = new System.Drawing.Point(223, 3);
             this.Product_Panel_Top.Name = "Product_Panel_Top";
-            this.Product_Panel_Top.Size = new System.Drawing.Size(2237, 71);
+            this.Product_Panel_Top.Size = new System.Drawing.Size(2229, 71);
             this.Product_Panel_Top.TabIndex = 3;
             // 
             // Txtbox_搜索结果
@@ -124,14 +124,14 @@ namespace SwiftExport.UiKongJianFrameWork
             this.Txtbox_搜索结果.Font = new System.Drawing.Font("Microsoft YaHei UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
             this.Txtbox_搜索结果.Location = new System.Drawing.Point(0, 0);
             this.Txtbox_搜索结果.Name = "Txtbox_搜索结果";
-            this.Txtbox_搜索结果.Size = new System.Drawing.Size(545, 38);
+            this.Txtbox_搜索结果.Size = new System.Drawing.Size(545, 48);
             this.Txtbox_搜索结果.TabIndex = 4;
             this.Txtbox_搜索结果.TextChanged += new System.EventHandler(this.Txtbox_搜索结果_TextChanged);
             // 
             // button1
             // 
             this.button1.Dock = System.Windows.Forms.DockStyle.Right;
-            this.button1.Location = new System.Drawing.Point(2082, 0);
+            this.button1.Location = new System.Drawing.Point(2074, 0);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(155, 71);
             this.button1.TabIndex = 3;
@@ -153,7 +153,7 @@ namespace SwiftExport.UiKongJianFrameWork
             this.Product_Panel_Menu.Location = new System.Drawing.Point(3, 80);
             this.Product_Panel_Menu.Name = "Product_Panel_Menu";
             this.tableLayoutPanel1.SetRowSpan(this.Product_Panel_Menu, 2);
-            this.Product_Panel_Menu.Size = new System.Drawing.Size(214, 1183);
+            this.Product_Panel_Menu.Size = new System.Drawing.Size(214, 1166);
             this.Product_Panel_Menu.TabIndex = 5;
             // 
             // Cmb_CustomerCode
@@ -163,7 +163,7 @@ namespace SwiftExport.UiKongJianFrameWork
             this.Cmb_CustomerCode.FormattingEnabled = true;
             this.Cmb_CustomerCode.Location = new System.Drawing.Point(0, 0);
             this.Cmb_CustomerCode.Name = "Cmb_CustomerCode";
-            this.Cmb_CustomerCode.Size = new System.Drawing.Size(214, 39);
+            this.Cmb_CustomerCode.Size = new System.Drawing.Size(214, 49);
             this.Cmb_CustomerCode.TabIndex = 5;
             // 
             // Product_Panel_Product
@@ -195,9 +195,9 @@ namespace SwiftExport.UiKongJianFrameWork
             this.Product_Panel_Status.Controls.Add(this.BtnNext);
             this.Product_Panel_Status.Controls.Add(this.BtnLast);
             this.Product_Panel_Status.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.Product_Panel_Status.Location = new System.Drawing.Point(223, 1192);
+            this.Product_Panel_Status.Location = new System.Drawing.Point(223, 1175);
             this.Product_Panel_Status.Name = "Product_Panel_Status";
-            this.Product_Panel_Status.Size = new System.Drawing.Size(2237, 71);
+            this.Product_Panel_Status.Size = new System.Drawing.Size(2229, 71);
             this.Product_Panel_Status.TabIndex = 7;
             // 
             // cmbPage
@@ -206,7 +206,7 @@ namespace SwiftExport.UiKongJianFrameWork
             this.cmbPage.FormattingEnabled = true;
             this.cmbPage.Location = new System.Drawing.Point(899, 3);
             this.cmbPage.Name = "cmbPage";
-            this.cmbPage.Size = new System.Drawing.Size(175, 38);
+            this.cmbPage.Size = new System.Drawing.Size(175, 46);
             this.cmbPage.TabIndex = 7;
             // 
             // LblDatCount
@@ -215,7 +215,7 @@ namespace SwiftExport.UiKongJianFrameWork
             this.LblDatCount.Dock = System.Windows.Forms.DockStyle.Left;
             this.LblDatCount.Location = new System.Drawing.Point(0, 0);
             this.LblDatCount.Name = "LblDatCount";
-            this.LblDatCount.Size = new System.Drawing.Size(71, 30);
+            this.LblDatCount.Size = new System.Drawing.Size(93, 38);
             this.LblDatCount.TabIndex = 6;
             this.LblDatCount.Text = "共  条";
             // 
@@ -229,9 +229,9 @@ namespace SwiftExport.UiKongJianFrameWork
             "20",
             "50",
             "100"});
-            this.CbmEachItemPage.Location = new System.Drawing.Point(1350, 0);
+            this.CbmEachItemPage.Location = new System.Drawing.Point(1318, 0);
             this.CbmEachItemPage.Name = "CbmEachItemPage";
-            this.CbmEachItemPage.Size = new System.Drawing.Size(175, 39);
+            this.CbmEachItemPage.Size = new System.Drawing.Size(175, 49);
             this.CbmEachItemPage.TabIndex = 4;
             this.CbmEachItemPage.SelectedIndexChanged += new System.EventHandler(this.CbmEachItemPage_SelectedIndexChanged);
             // 
@@ -240,16 +240,16 @@ namespace SwiftExport.UiKongJianFrameWork
             this.LblEachItemPage.AutoSize = true;
             this.LblEachItemPage.Dock = System.Windows.Forms.DockStyle.Right;
             this.LblEachItemPage.Font = new System.Drawing.Font("Microsoft YaHei UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.LblEachItemPage.Location = new System.Drawing.Point(1525, 0);
+            this.LblEachItemPage.Location = new System.Drawing.Point(1493, 0);
             this.LblEachItemPage.Name = "LblEachItemPage";
-            this.LblEachItemPage.Size = new System.Drawing.Size(72, 31);
+            this.LblEachItemPage.Size = new System.Drawing.Size(96, 41);
             this.LblEachItemPage.TabIndex = 5;
             this.LblEachItemPage.Text = "条/页";
             // 
             // BtnFirst
             // 
             this.BtnFirst.Dock = System.Windows.Forms.DockStyle.Right;
-            this.BtnFirst.Location = new System.Drawing.Point(1597, 0);
+            this.BtnFirst.Location = new System.Drawing.Point(1589, 0);
             this.BtnFirst.Name = "BtnFirst";
             this.BtnFirst.Size = new System.Drawing.Size(160, 71);
             this.BtnFirst.TabIndex = 0;
@@ -260,7 +260,7 @@ namespace SwiftExport.UiKongJianFrameWork
             // BtnPrev
             // 
             this.BtnPrev.Dock = System.Windows.Forms.DockStyle.Right;
-            this.BtnPrev.Location = new System.Drawing.Point(1757, 0);
+            this.BtnPrev.Location = new System.Drawing.Point(1749, 0);
             this.BtnPrev.Name = "BtnPrev";
             this.BtnPrev.Size = new System.Drawing.Size(160, 71);
             this.BtnPrev.TabIndex = 1;
@@ -271,7 +271,7 @@ namespace SwiftExport.UiKongJianFrameWork
             // BtnNext
             // 
             this.BtnNext.Dock = System.Windows.Forms.DockStyle.Right;
-            this.BtnNext.Location = new System.Drawing.Point(1917, 0);
+            this.BtnNext.Location = new System.Drawing.Point(1909, 0);
             this.BtnNext.Name = "BtnNext";
             this.BtnNext.Size = new System.Drawing.Size(160, 71);
             this.BtnNext.TabIndex = 2;
@@ -282,7 +282,7 @@ namespace SwiftExport.UiKongJianFrameWork
             // BtnLast
             // 
             this.BtnLast.Dock = System.Windows.Forms.DockStyle.Right;
-            this.BtnLast.Location = new System.Drawing.Point(2077, 0);
+            this.BtnLast.Location = new System.Drawing.Point(2069, 0);
             this.BtnLast.Name = "BtnLast";
             this.BtnLast.Size = new System.Drawing.Size(160, 71);
             this.BtnLast.TabIndex = 3;

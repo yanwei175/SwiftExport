@@ -657,6 +657,7 @@
         "dependencies": {
           "AutoMapper": "16.0.0",
           "Microsoft.Extensions.Configuration.Json": "10.0.0",
+          "SwiftExport.Core": "1.0.0",
           "SwiftExport.Infrastructure": "1.0.0"
         },
         "compile": {
@@ -697,13 +698,24 @@
         "type": "project",
         "dependencies": {
           "SwiftExport.AppLayer": "1.0.0",
-          "SwiftExport.Core": "1.0.0"
+          "SwiftExport.Core": "1.0.0",
+          "SwiftExprot.Utility": "1.0.0"
         },
         "compile": {
           "bin/placeholder/SwiftExport.UiKongJianFrameWork.dll": {}
         },
         "runtime": {
           "bin/placeholder/SwiftExport.UiKongJianFrameWork.dll": {}
+        }
+      },
+      "SwiftExprot.Utility/1.0.0": {
+        "type": "project",
+        "framework": ".NETStandard,Version=v2.0",
+        "compile": {
+          "bin/placeholder/SwiftExprot.Utility.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/SwiftExprot.Utility.dll": {}
         }
       }
     }
@@ -1695,13 +1707,19 @@
       "type": "project",
       "path": "../SwiftExport.UiKongJianFrameWork/SwiftExport.UiKongJianFrameWork.csproj",
       "msbuildProject": "../SwiftExport.UiKongJianFrameWork/SwiftExport.UiKongJianFrameWork.csproj"
+    },
+    "SwiftExprot.Utility/1.0.0": {
+      "type": "project",
+      "path": "../SwiftExprot.Utility/SwiftExprot.Utility.csproj",
+      "msbuildProject": "../SwiftExprot.Utility/SwiftExprot.Utility.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net10.0-windows7.0": [
       "SwiftExport.AppLayer >= 1.0.0",
       "SwiftExport.Core >= 1.0.0",
-      "SwiftExport.UiKongJianFrameWork >= 1.0.0"
+      "SwiftExport.UiKongJianFrameWork >= 1.0.0",
+      "SwiftExprot.Utility >= 1.0.0"
     ]
   },
   "packageFolders": {
@@ -1744,6 +1762,9 @@
             },
             "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UiKongJianFrameWork\\SwiftExport.UiKongJianFrameWork.csproj": {
               "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UiKongJianFrameWork\\SwiftExport.UiKongJianFrameWork.csproj"
+            },
+            "D:\\source\\CSharp\\SwiftExport\\SwiftExprot.Utility\\SwiftExprot.Utility.csproj": {
+              "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExprot.Utility\\SwiftExprot.Utility.csproj"
             }
           }
         }

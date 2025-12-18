@@ -1,4 +1,5 @@
 ﻿using SwiftExport.Core.Entities;
+using SwiftExport.Core.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -18,6 +19,6 @@ namespace SwiftExport.Core.Interfaces
         /// 必须须带ID的客户产品列表,如果没有ID会新增客户产品
         /// </param>
         /// <returns>受影响的行数</returns>
-        Task<int> 同步产品(IEnumerable<CustomerProducts> products);
+        Task<int> SyncCustomerProductsAsync(IEnumerable<CustomerProducts> products, IUnitOfWork uow);
     }
 }
