@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace SwiftExport.AppLayer.Interfaces
 {
-    public interface IBOMService
+    public interface IBOMService : IBaseService<BOM>
     {
 
         Task<int> AddBomItemAsync(BOM bom);

@@ -451,6 +451,10 @@
       <Project>{29d3ed05-2428-41ed-9c78-a969a1ba2538}</Project>
       <Name>SwiftExport.UiKongJianFrameWork</Name>
     </ProjectReference>
+    <ProjectReference Include="..\SwiftExprot.Utility\SwiftExprot.Utility.csproj">
+      <Project>{f7433d9a-3887-4366-b4ae-850fd08c7cf2}</Project>
+      <Name>SwiftExprot.Utility</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup />
   <PropertyGroup>

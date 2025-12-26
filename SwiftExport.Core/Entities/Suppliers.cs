@@ -13,5 +13,6 @@ namespace SwiftExport.Core.Entities
         public string SupplierName { get; set; }
         public decimal ZheKou { get; set; }
         public string ZheKouBeiZhu { get; set; }
+        public string DocRelateNo { get; set; }
     }
 }

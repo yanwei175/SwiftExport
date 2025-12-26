@@ -8,7 +8,7 @@ D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0
 D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.AssemblyInfoInputs.cache
 D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.AssemblyInfo.cs
 D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.csproj.CoreCompileInputs.cache
+D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.sourcelink.json
 D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExp.052A568A.Up2Date
 D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.dll
 D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.pdb
-D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\obj\Debug\netstandard2.0\SwiftExport.Infrastructure.sourcelink.json

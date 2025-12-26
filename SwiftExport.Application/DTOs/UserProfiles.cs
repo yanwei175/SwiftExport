@@ -12,8 +12,9 @@ namespace SwiftExport.AppLayer.DTOs
     {
             public  UserProfiles ()
             {
-                CreateMap<ViewUserRole, ViewUserRoleDTo>();
-                CreateMap<ViewUserRoleDTo, ViewUserRole>();
+                CreateMap<ViewUserRole, ViewUserRoleDTo>()
+                .ReverseMap()
+                ;
              }
     }
 }

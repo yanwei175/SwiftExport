@@ -15,26 +15,5 @@ namespace SwiftExport.AppLayer.Services
         public SuppliersService(IRepository<Suppliers> repo, IUintOfWorkFactory uowFac) : base(repo, uowFac)
         {
         }
-        
-
-        public Task<Result<CUDResult>> BeachCUDBy_UQ_SuppCodeAsync(IEnumerable<Suppliers> createList, IEnumerable<Suppliers> updateList, IEnumerable<Suppliers> deleteList)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<bool> ExistByCustomerCode(string suppCode)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<Result<Suppliers>> GetBySupplierCodeAsync(string suppCode)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<Result<IReadOnlyList<string>>> GetNonExistingSupplierCodesAsync(IEnumerable<string> suppCodes)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

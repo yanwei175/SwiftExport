@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace SwiftExport.AppLayer.Interfaces
 {
-    public interface IViewUserRoleService
+    public interface IViewUserRoleService 
     {
         Task<ViewUserRole> GetUserRole(String userName, String password);
 

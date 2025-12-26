@@ -6,6 +6,6 @@ D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExpo
 D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.AssemblyInfoInputs.cache
 D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.AssemblyInfo.cs
 D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.csproj.CoreCompileInputs.cache
+D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.sourcelink.json
 D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.dll
 D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.pdb
-D:\source\CSharp\SwiftExport\SwiftExport.Core\obj\Debug\netstandard2.0\SwiftExport.Core.sourcelink.json

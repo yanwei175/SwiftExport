@@ -20,6 +20,7 @@ namespace SwiftExport.Core.Entities
         public string LinedrawingFolder { get; set; }
         public string BarcodeFolder { get; set; }
         public string SpecSheetFolder { get; set; }
+        public string DocRelateNo { get; set; }
 
     }
 }

@@ -20,16 +20,16 @@ namespace SwiftExport.AppLayer.Services
             _thisrepo = repo;
         }
 
-        public async Task<Result<Customers>> GetByCustomerCodeAsync(string CustomerCode)
+        public async Task<ServiceResult<Customers>> GetByCustomerCodeAsync(string CustomerCode)
         {
             if (CustomerCode == null) {
-                return Result<Customers>.Fail("客户代码不能为空");
+                return ServiceResult<Customers>.Fail("客户代码不能为空");
             }
             var rst= await _thisrepo.GetByCustomerCodeAsync(CustomerCode);
-            return Result<Customers>.Ok(rst);
+            return ServiceResult<Customers>.Ok(rst);
         }
 
-        public async Task<Result<CUDResult>> 批量操作客户Async(IEnumerable<Customers> createList, IEnumerable<Customers> updateList, IEnumerable<Customers> deleteList)
+        public async Task<ServiceResult<CUDResult>> BatchCUDBy_UQ_CustomersCodeAsync(IEnumerable<Customers> createList, IEnumerable<Customers> updateList, IEnumerable<Customers> deleteList)
         {
             using (var uow = _uowFac.CreateUoW())
             {
@@ -49,7 +49,7 @@ namespace SwiftExport.AppLayer.Services
                         foreach (var item in createList)
                         {
                             if (item.CustomerCode == null || item.CustomerCode.Trim() == "")
-                                return Result<CUDResult>.Fail("客户代码不能为空"); 
+                                return ServiceResult<CUDResult>.Fail("客户代码不能为空"); 
                             NeedAdd.Add(item.CustomerCode);
                         }
 
@@ -114,7 +114,7 @@ namespace SwiftExport.AppLayer.Services
                         if (WrongDelete.Any())
                             errorMessage.AppendLine($"删除操作列表包含无效ID的实体。实体ID: {string.Join(", ", WrongDelete)}");
 
-                        return Result<CUDResult>.Fail(errorMessage.ToString());
+                        return ServiceResult<CUDResult>.Fail(errorMessage.ToString());
                     }
 
                     //uow 开始写数据库
@@ -141,7 +141,7 @@ namespace SwiftExport.AppLayer.Services
                     // uow 提交事务
                     await uow.CommitAsync();
                     cUDResult.AffectedRowsTotal = totalRowsAffected;
-                    return Result<CUDResult>.Ok(cUDResult);
+                    return ServiceResult<CUDResult>.Ok(cUDResult);
                 }
                 catch (Exception)
                 {
@@ -157,22 +157,22 @@ namespace SwiftExport.AppLayer.Services
            return await _thisrepo.ExistByCustomerCode(customerCode);
         }
 
-        public async Task<Result<IReadOnlyList<string>>> GetNonExistingCustomerCodesAsync(IEnumerable<string> customerCodes)
+        public async Task<ServiceResult<IReadOnlyList<string>>> GetNonExistingCustomerCodesAsync(IEnumerable<string> customerCodes)
         {
             if (customerCodes == null || !customerCodes.Any())
-                return Result<IReadOnlyList<string>>.Fail("客户代码列表不能为空");
+                return ServiceResult<IReadOnlyList<string>>.Fail("客户代码列表不能为空");
 
             if (customerCodes.Any(code => string.IsNullOrWhiteSpace(code)))
             {
                 // 说明集合里至少有一个是空的或者全是空格
-                return Result<IReadOnlyList<string>>.Fail("客户代码列表中包含空值。");
+                return ServiceResult<IReadOnlyList<string>>.Fail("客户代码列表中包含空值。");
             }
 
             // 1. 调用 Repository 获取数据库中已存在的代码
             var existingCodes = await _thisrepo.GetExistingCustomerCodesAsync(customerCodes);
 
             if (existingCodes == null || !existingCodes.Any())
-                return Result<IReadOnlyList<string>>.Ok(customerCodes.ToList());
+                return ServiceResult<IReadOnlyList<string>>.Ok(customerCodes.ToList());
 
 
                 // 注意：HashSet<T> 的 Except 方法效率最高，且能处理大小写问题（如果使用 StringComparer）
@@ -180,7 +180,7 @@ namespace SwiftExport.AppLayer.Services
                 var existingCodesSet = new HashSet<string>(existingCodes, StringComparer.OrdinalIgnoreCase);
                 // 从所有代码中排除已存在的代码 = 不存在的代码
                 var nonExistentCodes = allCodesSet.Except(existingCodesSet).ToList();
-                return Result<IReadOnlyList<string>>.Ok(nonExistentCodes);
+                return ServiceResult<IReadOnlyList<string>>.Ok(nonExistentCodes);
 
         }
 

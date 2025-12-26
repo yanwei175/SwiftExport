@@ -36,6 +36,9 @@
             编辑ToolStripMenuItem = new ToolStripMenuItem();
             销售ToolStripMenuItem = new ToolStripMenuItem();
             CustomerSetting = new ToolStripMenuItem();
+            采购ToolStripMenuItem = new ToolStripMenuItem();
+            供应商管理ToolStripMenuItem = new ToolStripMenuItem();
+            excel字段映射管理ToolStripMenuItem = new ToolStripMenuItem();
             toolStripContainer1 = new ToolStripContainer();
             tableLayoutPanel1 = new TableLayoutPanel();
             Panel_Left1 = new Panel();
@@ -44,8 +47,7 @@
             toolStrip1 = new ToolStrip();
             toolStripLabel1 = new ToolStripLabel();
             toolStripButton1 = new ToolStripButton();
-            采购ToolStripMenuItem = new ToolStripMenuItem();
-            供应商管理ToolStripMenuItem = new ToolStripMenuItem();
+            产品颜色管理ToolStripMenuItem = new ToolStripMenuItem();
             statusStrip1.SuspendLayout();
             menuStrip1.SuspendLayout();
             toolStripContainer1.ContentPanel.SuspendLayout();
@@ -109,6 +111,29 @@
             CustomerSetting.Size = new Size(180, 22);
             CustomerSetting.Text = "客户设置";
             CustomerSetting.Click += CustomerSetting_Click;
+            // 
+            // 采购ToolStripMenuItem
+            // 
+            采购ToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { 供应商管理ToolStripMenuItem, excel字段映射管理ToolStripMenuItem, 产品颜色管理ToolStripMenuItem });
+            采购ToolStripMenuItem.Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point, 134);
+            采购ToolStripMenuItem.ForeColor = Color.Black;
+            采购ToolStripMenuItem.Name = "采购ToolStripMenuItem";
+            采购ToolStripMenuItem.Size = new Size(44, 21);
+            采购ToolStripMenuItem.Text = "采购";
+            // 
+            // 供应商管理ToolStripMenuItem
+            // 
+            供应商管理ToolStripMenuItem.Name = "供应商管理ToolStripMenuItem";
+            供应商管理ToolStripMenuItem.Size = new Size(180, 22);
+            供应商管理ToolStripMenuItem.Text = "供应商管理";
+            供应商管理ToolStripMenuItem.Click += 供应商管理ToolStripMenuItem_Click;
+            // 
+            // excel字段映射管理ToolStripMenuItem
+            // 
+            excel字段映射管理ToolStripMenuItem.Name = "excel字段映射管理ToolStripMenuItem";
+            excel字段映射管理ToolStripMenuItem.Size = new Size(180, 22);
+            excel字段映射管理ToolStripMenuItem.Text = "Excel字段映射管理";
+            excel字段映射管理ToolStripMenuItem.Click += Excel字段映射管理ToolStripMenuItem_Click;
             // 
             // toolStripContainer1
             // 
@@ -201,19 +226,12 @@
             toolStripButton1.Size = new Size(36, 36);
             toolStripButton1.Text = "toolStripButton1";
             // 
-            // 采购ToolStripMenuItem
+            // 产品颜色管理ToolStripMenuItem
             // 
-            采购ToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { 供应商管理ToolStripMenuItem });
-            采购ToolStripMenuItem.Name = "采购ToolStripMenuItem";
-            采购ToolStripMenuItem.Size = new Size(44, 21);
-            采购ToolStripMenuItem.Text = "采购";
-            // 
-            // 供应商管理ToolStripMenuItem
-            // 
-            供应商管理ToolStripMenuItem.Name = "供应商管理ToolStripMenuItem";
-            供应商管理ToolStripMenuItem.Size = new Size(180, 22);
-            供应商管理ToolStripMenuItem.Text = "供应商管理";
-            供应商管理ToolStripMenuItem.Click += 供应商管理ToolStripMenuItem_Click;
+            产品颜色管理ToolStripMenuItem.Name = "产品颜色管理ToolStripMenuItem";
+            产品颜色管理ToolStripMenuItem.Size = new Size(180, 22);
+            产品颜色管理ToolStripMenuItem.Text = "产品颜色管理";
+            产品颜色管理ToolStripMenuItem.Click += 产品颜色管理ToolStripMenuItem_Click;
             // 
             // MainFrm
             // 
@@ -263,5 +281,7 @@
         private ToolStripMenuItem CustomerSetting;
         private ToolStripMenuItem 采购ToolStripMenuItem;
         private ToolStripMenuItem 供应商管理ToolStripMenuItem;
+        private ToolStripMenuItem excel字段映射管理ToolStripMenuItem;
+        private ToolStripMenuItem 产品颜色管理ToolStripMenuItem;
     }
 }

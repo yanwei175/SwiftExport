@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Office.Interop.Excel;
 using SwiftExport.AppLayer.DI;
 using SwiftExport.UiKongJianFrameWork;
+using SwiftExport.UiKongJianFrameWork.AppForms;
 using SwiftExportAddIn.TaskPanel;
 using SwiftExportAddIn.UserFactory;
 using SwiftExportVSTO;
@@ -26,29 +27,7 @@ namespace SwiftExportAddIn
         {
             Application.WorkbookBeforeClose += DeleteTaskPenByWindowsClose;
 
-
-            string databasePath = Properties.Settings.Default.DataBase.ToString();
-            // 1. 加载配置
-            var config = new ConfigurationBuilder()
-                                .AddInMemoryCollection(new Dictionary<string, string>
-                                {
-                                    ["ConnectionStrings:DataBase"] = databasePath,
-                                })
-                                .Build();
-
-            
-            var services = new ServiceCollection();
-            services.AddApplicationServers(config);
-            services.AddSingleton<IServerFactory, ServiceFactory>();
-            services.AddTransient<LoginFrm>();
-            services.AddTransient<ProductUserControl>();
-            services.AddSingleton<ILoggerFactory, NullLoggerFactory>();
-            services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
-            // 构建 ServiceProvider
-            _provider = services.BuildServiceProvider();
-
-            // 工厂服务存到全局变量
-            Globals.ThisAddIn.ServerFactory = _provider.GetRequiredService<IServerFactory>();
+            DI_Initialize();
 
         }
 
@@ -67,7 +46,35 @@ namespace SwiftExportAddIn
             }
         }
 
+        private void DI_Initialize()
+        {
+            string databasePath = Properties.Settings.Default.DataBase.ToString();
+            // 1. 加载配置
+            var config = new ConfigurationBuilder()
+                                .AddInMemoryCollection(new Dictionary<string, string>
+                                {
+                                    ["ConnectionStrings:DataBase"] = databasePath,
+                                })
+                                .Build();
 
+
+            var services = new ServiceCollection();
+            services.AddApplicationServers(config);
+            services.AddSingleton<IServerFactory, ServiceFactory>();
+            services.AddTransient<LoginFrm>();
+            services.AddTransient<FrmCustomersManager>();
+            services.AddTransient<FrmSuppliersManager>();
+            services.AddTransient<FrmExcelSheetFieldsMappingManager>();
+            services.AddTransient<FrmProductColorManager>();
+            services.AddSingleton<ILoggerFactory, NullLoggerFactory>();
+            services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+            // 构建 ServiceProvider
+            _provider = services.BuildServiceProvider();
+
+            // 工厂服务存到全局变量
+            Globals.ThisAddIn.ServerFactory = _provider.GetRequiredService<IServerFactory>();
+
+        }
 
 
         #region VSTO 生成的代码

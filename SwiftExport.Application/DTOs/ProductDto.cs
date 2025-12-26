@@ -4,9 +4,8 @@ using System.Text;
 
 namespace SwiftExport.AppLayer.DTOs
 {
-    public class ProductDto
+    public class ProductDto : BaseDto
     {
-        public int ID { get; set; }
         public string Even { get; set; }
         public string Status { get; set; }
         public string SKU { get; set; }

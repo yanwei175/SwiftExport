@@ -46,20 +46,19 @@ namespace SwiftExport.UiKongJianFrameWork.FrmUtility.UIStyle
                 dgv.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.EnableResizing;
                 dgv.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor = Color.FromArgb(245, 245, 247), // 苹果风的浅灰
-                    ForeColor = Color.FromArgb(64, 64, 64),
-                    Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                    BackColor = Color.LightBlue, 
+                    ForeColor = Color.Black,
+                    Font = new Font("Microsoft YaHei UI", 8, FontStyle.Bold),
                     Alignment = DataGridViewContentAlignment.MiddleLeft,
                     Padding = new Padding(5, 0, 0, 0)
                 };
-                dgv.ColumnHeadersHeight = 55;
-
+                dgv.ColumnHeadersHeight = 50;
                 // 3. 单元格样式 (Rows)
                 dgv.DefaultCellStyle = new DataGridViewCellStyle
                 {
                     BackColor = Color.White,
-                    ForeColor = Color.FromArgb(33, 33, 33),
-                    Font = new Font("Segoe UI", 8F),
+                    ForeColor = Color.Black,
+                    Font = new Font("Microsoft YaHei UI", 8),
                     SelectionBackColor = Color.FromArgb(235, 243, 255), // 浅蓝色选中
                     SelectionForeColor = Color.FromArgb(0, 120, 215),
                     Alignment = DataGridViewContentAlignment.MiddleLeft
@@ -203,7 +202,32 @@ namespace SwiftExport.UiKongJianFrameWork.FrmUtility.UIStyle
         }
         #endregion 
 
+        public static DataGridView EnableSilentDataError(this DataGridView dgv)
+        {
+            // 拦截 DataError 事件
+            dgv.DataError += (s, e) =>
+            {
+                // 1. 阻止弹出系统默认的错误对话框
+                e.ThrowException = false;
 
+                // 2. 准备友好的提示消息
+                string colName = dgv.Columns[e.ColumnIndex].HeaderText;
+                string errorMsg = $"[{colName}] 输入的数据格式不正确！\n\n" +
+                                  $"详细错误: {e.Exception.Message}\n" +
+                                  $"请检查是否在数字列输入了文字，或日期格式有误。";
+
+                // 3. 直接弹窗提醒
+                MessageBox.Show(errorMsg, "输入错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                // 4. 取消本次编辑，回滚到输入前的值
+                dgv.CancelEdit();
+
+                // 5. 标记错误已处理，且不强制用户留在该单元格（因为已经回滚了，数据现在是合法的）
+                e.Cancel = false;
+            };
+
+            return dgv;
+        }
 
 
 

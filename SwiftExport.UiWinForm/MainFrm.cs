@@ -8,7 +8,6 @@ using System.Text;
 using System.Windows.Forms;
 using SwiftExport.UiKongJianFrameWork.AppForms;
 using SwiftExport.AppLayer.Interfaces;
-using SwiftExport.UiKongJianFrameWork.AppModels;
 namespace SwiftExport.UiWinForm
 {
     public partial class MainFrm : Form
@@ -21,8 +20,6 @@ namespace SwiftExport.UiWinForm
 
         private void Button1_Click(object sender, EventArgs e)
         {
-            Form frm1 = new SalesOrderManagerForm();
-            frm1.Show();
         }
 
         private void CustomerSetting_Click(object sender, EventArgs e)
@@ -35,6 +32,20 @@ namespace SwiftExport.UiWinForm
         private void 供应商管理ToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Form frm1 = _Provider.GetRequiredService<FrmSuppliersManager>();
+            //Form frm1 = new TestForm();
+            frm1.Show();
+        }
+
+        private void Excel字段映射管理ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Form frm1 = _Provider.GetRequiredService<FrmExcelSheetFieldsMappingManager>();
+            //Form frm1 = new TestForm();
+            frm1.Show();
+        }
+
+        private void 产品颜色管理ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Form frm1 = _Provider.GetRequiredService<FrmProductColorManager>();
             //Form frm1 = new TestForm();
             frm1.Show();
         }

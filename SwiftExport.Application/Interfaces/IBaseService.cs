@@ -26,7 +26,7 @@ namespace SwiftExport.AppLayer.Interfaces
         /// 整数类型的主键ID
         /// </param>
         /// <returns>返回一个存在的ID集合</returns>
-        Task<Result<IReadOnlyList<int>>> GetExistingIdsAsync(IEnumerable<int> ids);
+        Task<ServiceResult<IReadOnlyList<int>>> GetExistingIdsAsync(IEnumerable<int> ids);
         /// <summary>
         ///泛型服务,查看一堆ID是否存在
         /// </summary>
@@ -34,7 +34,7 @@ namespace SwiftExport.AppLayer.Interfaces
         /// 整数类型的主键ID
         /// </param>
         /// <returns>返回一个不存在的ID集合</returns>
-        Task<Result<IReadOnlyList<int>>> GetNonExistingIDAsync(IEnumerable<int> ids);
+        Task<ServiceResult<IReadOnlyList<int>>> GetNonExistingIDAsync(IEnumerable<int> ids);
 
         /// <summary>
         /// 泛型服务,通过ID获取一个实体
@@ -43,19 +43,19 @@ namespace SwiftExport.AppLayer.Interfaces
         /// 整数类型的主键ID
         /// </param>
         /// <returns>返回一个实体</returns>
-        Task<Result<T>> GetByIdAsync(int id);
+        Task<ServiceResult<T>> GetByIdAsync(int id);
 
         /// <summary>
         /// 泛型服务,获取单个实体,主要是为了拿字段名
         /// </summary>
         /// <returns>返回一个实体</returns>
-        Task<Result<T>> GetSingleEntityAsync();
+        Task<ServiceResult<T>> GetSingleEntityAsync();
 
         /// <summary>
         /// 泛型服务,获取一个表里的所有数据
         /// </summary>
         /// <returns>返回实体的集合</returns>
-        Task<Result<IReadOnlyList<T>>> GetAllAsync();
+        Task<ServiceResult<IReadOnlyList<T>>> GetAllAsync();
 
         /// <summary>
         /// 动态SQL查询
@@ -65,7 +65,7 @@ namespace SwiftExport.AppLayer.Interfaces
         /// 字典的Key为待查询的数据库字段名，value为QueryCondition对象,对象里是 比对条件,条件值
         /// </param>
         /// <returns>一个对象列表,如果条件为空则返回所有IsDelete<>1的数据</returns>
-        Task<Result<IReadOnlyList<T>>> GetByUserWhereAsync(Dictionary<string, QueryCondition> 条件字典);
+        Task<ServiceResult<IReadOnlyList<T>>> GetByUserWhereAsync(Dictionary<string, QueryCondition> 条件字典);
 
         /// <summary>
         /// 泛型服务,通过ID获取一堆实体
@@ -74,7 +74,7 @@ namespace SwiftExport.AppLayer.Interfaces
         /// 整数类型的主键ID列表
         /// </param>
         /// <returns>返回一个实体列表</returns>
-        Task<Result<IReadOnlyList<T>>> GetByIdsAsync(IEnumerable<int> ids);
+        Task<ServiceResult<IReadOnlyList<T>>> GetByIdsAsync(IEnumerable<int> ids);
         #endregion
 
         #region 泛型增删改
@@ -85,8 +85,8 @@ namespace SwiftExport.AppLayer.Interfaces
         /// <param name="entity">
         /// 实体对象
         /// </param>
-        /// <returns>返回新ID</returns>
-        Task<Result<int>> AddAsync(T entity);
+        /// <returns>返回新的带ID的实体</returns>
+        Task<ServiceResult<T>> AddAsync(T entity);
 
 
         /// <summary>
@@ -95,8 +95,8 @@ namespace SwiftExport.AppLayer.Interfaces
         /// <param name="id">
         /// 整数类型的主键ID
         /// </param>
-        /// <returns>返回受影响的行数</returns>
-        Task<Result<int>> DeleteSoftAsync(int id);
+        /// <returns>返回被删除的ID</returns>
+        Task<ServiceResult<bool>> DeleteSoftAsync(int id);
 
 
         /// <summary>
@@ -105,8 +105,8 @@ namespace SwiftExport.AppLayer.Interfaces
         /// <param name="id">
         /// 整数类型的主键ID
         /// </param>
-        /// <returns>返回受影响的行数</returns>
-        Task<Result<int>> DeleteAsync(int id);
+        /// <returns>返回被删除的ID</returns>
+        Task<ServiceResult<bool>> DeleteAsync(int id);
 
 
         /// <summary>
@@ -115,8 +115,8 @@ namespace SwiftExport.AppLayer.Interfaces
         /// <param name="entity">
         /// 一个实体对象
         /// </param>
-        /// <returns>返回受影响的行数</returns>
-        Task<Result<int>> UpdateAsync(T entity);
+        /// <returns>返回更新后的实体,主要为了应对数据库里有触发器的情况</returns>
+        Task<ServiceResult<T>> UpdateAsync(T entity);
 
 
         /// <summary>
@@ -132,7 +132,7 @@ namespace SwiftExport.AppLayer.Interfaces
         /// 删除的实体列表
         /// </param>
         /// <returns>返回受影响的行数</returns>
-        Task<Result<CUDResult>> BeachCUDByOnlyPkUniqueAsync(IEnumerable<T> createList, IEnumerable<T> updateList, IEnumerable<T> deleteList);
+        Task<ServiceResult<CUDResult>> BatchCUDByOnlyPkUniqueAsync(IEnumerable<T> addList, IEnumerable<T> updateList, IEnumerable<int> deleteIds);
         #endregion
 
 

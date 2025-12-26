@@ -39,6 +39,8 @@ namespace SwiftExport.UiWinForm
             services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
             services.AddTransient<FrmCustomersManager>();
             services.AddTransient<FrmSuppliersManager>();
+            services.AddTransient<FrmExcelSheetFieldsMappingManager>();
+            services.AddTransient<FrmProductColorManager>();
 
             ServiceProvider = services.BuildServiceProvider();
 
@@ -49,8 +51,15 @@ namespace SwiftExport.UiWinForm
                 //if (loginForm.ShowDialog() == DialogResult.OK)
                 //{
                 // 登录成功后启动主窗体
-                var mainForm = ServiceProvider.GetRequiredService<MainFrm>();
-                Application.Run(mainForm);
+                try
+                {
+                    var mainForm = ServiceProvider.GetRequiredService<MainFrm>();
+                    Application.Run(mainForm);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
                 //}
             }
 

@@ -223,25 +223,44 @@ namespace SwiftExport.Infrastructure.Repositories
 
         public async Task<int> DeleteRangeByIdsAsync(IEnumerable<int> ids, IUnitOfWork uow)
         {
-            if (ids == null || !ids.Any())
-                throw new ArgumentException("ID集合不能为空");
+            if (ids == null || !ids.Any()) return 0;
 
             var sql = $"DELETE FROM [{tableName}] WHERE ID IN @Ids";
 
-                return await uow.Connection.ExecuteAsync(sql, new {Ids = ids}, transaction: uow.Transaction);
+             return await uow.Connection.ExecuteAsync(sql, new {Ids = ids}, transaction: uow.Transaction);
         }
 
         public async Task<int> UpdateRangeByIdsAsync(IEnumerable<T> entities, IUnitOfWork uow)
         {
-            if (entities == null || !entities.Any())
-                throw new ArgumentException("实体集合不能为空");
+            if (entities == null) throw new ArgumentException("实体集合不能为空");
+            var entityList = entities.ToList();
+            if (!entityList.Any()) return 0;
 
             var mappedProps = GetMappedPropertyColumns<T>(_cache);
+            // 过滤掉主键 ID 属性，因为主键通常不出现在 SET 子句中
+            var updateProps = mappedProps.Keys.Where(p => p.Name != "ID").ToList();
 
-            var setClause = string.Join(", ", mappedProps.Keys.Select(p => $"[{mappedProps[p]}] = @{p.Name}"));
-            var sql = $"UPDATE [{tableName}] SET {setClause} WHERE ID = @ID";
+            var parameters = new DynamicParameters();
+            var sqlBuilder = new StringBuilder();
+            for (int i = 0; i < entityList.Count; i++)
+            {
+                var setClauses = new List<string>();
+                foreach (var prop in updateProps)
+                {
+                    var paramName = $"p{i}_{prop.Name}";
+                    setClauses.Add($"[{mappedProps[prop]}] = @{paramName}");
+                    parameters.Add(paramName, prop.GetValue(entityList[i]));
+                }
 
-            return await uow.Connection.ExecuteAsync(sql, entities, transaction: uow.Transaction);
+                // 必须为主键 ID 单独加参数，用于 WHERE 子句
+                var idParamName = $"p{i}_ID";
+                var idValue = typeof(T).GetProperty("ID")?.GetValue(entityList[i]);
+                parameters.Add(idParamName, idValue);
+
+                sqlBuilder.AppendLine($"UPDATE [{tableName}] SET {string.Join(", ", setClauses)} WHERE [ID] = @{idParamName};");
+            }
+
+            return await uow.Connection.ExecuteAsync(sqlBuilder.ToString(), parameters, transaction: uow.Transaction);
         }
 
         public async Task<IEnumerable<T>> GetByUserWhereAsync(Dictionary<string, QueryCondition> 条件字典)
@@ -319,6 +338,36 @@ namespace SwiftExport.Infrastructure.Repositories
                 );
             }
         }
+
+        public async Task<PagedResult<T>> GetPagedListAsync(int pageIndex, int pageSize, string whereSql, object parameters, string orderBy)
+        {
+            var sqlCount = $"SELECT COUNT(1) FROM [{tableName}] {(string.IsNullOrEmpty(whereSql) ? "" : "WHERE " + whereSql)}";
+
+            var sqlData = $@"SELECT * FROM [{tableName}] 
+                    {(string.IsNullOrEmpty(whereSql) ? "" : "WHERE " + whereSql)} 
+                    ORDER BY {orderBy} 
+                    OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY";
+
+            var dynParams = new DynamicParameters(parameters);
+            dynParams.Add("Offset", (pageIndex - 1) * pageSize);
+            dynParams.Add("Limit", pageSize);
+
+            using (var conn = _connFac.CreateConnection())
+            {
+                var total = await conn.ExecuteScalarAsync<int>(sqlCount, parameters);
+                var items = await conn.QueryAsync<T>(sqlData, dynParams);
+
+                return new PagedResult<T>
+                {
+                    Items = items.ToList(),
+                    TotalCount = total,
+                    PageIndex = pageIndex,
+                    PageSize = pageSize
+                };
+            }
+        }
+
+
 
 
     }

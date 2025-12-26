@@ -112,17 +112,23 @@
     <Compile Include="AppForms\FrmCustomersManager.Designer.cs">
       <DependentUpon>FrmCustomersManager.cs</DependentUpon>
     </Compile>
+    <Compile Include="AppForms\FrmProductColorManager.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AppForms\FrmProductColorManager.Designer.cs">
+      <DependentUpon>FrmProductColorManager.cs</DependentUpon>
+    </Compile>
+    <Compile Include="AppForms\FrmExcelSheetFieldsMappingManager.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AppForms\FrmExcelSheetFieldsMappingManager.Designer.cs">
+      <DependentUpon>FrmExcelSheetFieldsMappingManager.cs</DependentUpon>
+    </Compile>
     <Compile Include="AppForms\FrmSuppliersManager.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="AppForms\FrmSuppliersManager.Designer.cs">
       <DependentUpon>FrmSuppliersManager.cs</DependentUpon>
-    </Compile>
-    <Compile Include="AppForms\SalesOrderManagerForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="AppForms\SalesOrderManagerForm.Designer.cs">
-      <DependentUpon>SalesOrderManagerForm.cs</DependentUpon>
     </Compile>
     <Compile Include="AppForms\TestForm.cs">
       <SubType>Form</SubType>
@@ -130,29 +136,11 @@
     <Compile Include="AppForms\TestForm.Designer.cs">
       <DependentUpon>TestForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="AppModels\SalesOrderUserControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="AppModels\SalesOrderUserControl.Designer.cs">
-      <DependentUpon>SalesOrderUserControl.cs</DependentUpon>
-    </Compile>
-    <Compile Include="AppModels\testfrm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="AppModels\testfrm.Designer.cs">
-      <DependentUpon>testfrm.cs</DependentUpon>
-    </Compile>
     <Compile Include="AppNavis\NaviUserControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="AppNavis\NaviUserControl.Designer.cs">
       <DependentUpon>NaviUserControl.cs</DependentUpon>
-    </Compile>
-    <Compile Include="AppModels\ProductUserControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="AppModels\ProductUserControl.Designer.cs">
-      <DependentUpon>ProductUserControl.cs</DependentUpon>
     </Compile>
     <Compile Include="AppUserControls\CustomerListUserControl.cs">
       <SubType>UserControl</SubType>
@@ -184,13 +172,12 @@
     <Compile Include="AppUserControls\UserDataGrid.Designer.cs">
       <DependentUpon>UserDataGrid.cs</DependentUpon>
     </Compile>
-    <Compile Include="BaseControls\BaseDataGridView.cs">
-      <SubType>Component</SubType>
-    </Compile>
     <Compile Include="FrmUtility\UIStyle\UITheme.cs" />
+    <Compile Include="FrmUtility\Validation\BindingSourceExtensions.cs" />
     <Compile Include="FrmUtility\Validation\DataGridViewValidationConfig.cs" />
     <Compile Include="FrmUtility\Validation\DataGridViewValidatorExtensions.cs" />
     <Compile Include="FrmUtility\UIStyle\DataGridViewStyleExtensions.cs" />
+    <Compile Include="FrmUtility\Validation\LabelExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -203,23 +190,20 @@
     <EmbeddedResource Include="AppForms\FrmCustomersManager.resx">
       <DependentUpon>FrmCustomersManager.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="AppForms\FrmProductColorManager.resx">
+      <DependentUpon>FrmProductColorManager.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="AppForms\FrmExcelSheetFieldsMappingManager.resx">
+      <DependentUpon>FrmExcelSheetFieldsMappingManager.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="AppForms\FrmSuppliersManager.resx">
       <DependentUpon>FrmSuppliersManager.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="AppForms\SalesOrderManagerForm.resx">
-      <DependentUpon>SalesOrderManagerForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="AppForms\TestForm.resx">
       <DependentUpon>TestForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="AppModels\SalesOrderUserControl.resx">
-      <DependentUpon>SalesOrderUserControl.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="AppNavis\NaviUserControl.resx">
       <DependentUpon>NaviUserControl.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="AppModels\ProductUserControl.resx">
-      <DependentUpon>ProductUserControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="AppUserControls\CustomerListUserControl.resx">
       <DependentUpon>CustomerListUserControl.cs</DependentUpon>
@@ -235,9 +219,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="AppUserControls\UserDataGrid.resx">
       <DependentUpon>UserDataGrid.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="BaseControls\BaseDataGridView.resx">
-      <DependentUpon>BaseDataGridView.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
@@ -264,6 +245,10 @@
     <None Include="Properties\DataSources\SwiftExport.AppLayer.DTOs.CustomersDto.datasource" />
     <None Include="Properties\DataSources\SwiftExport.AppLayer.DTOs.SuppliersDto.datasource" />
     <None Include="Properties\DataSources\SwiftExport.Core.Entities.Customers.datasource" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="AppModels\" />
+    <Folder Include="BaseControls\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\..\SwiftExportVSTO\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets" Condition="Exists('..\..\SwiftExportVSTO\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets')" />

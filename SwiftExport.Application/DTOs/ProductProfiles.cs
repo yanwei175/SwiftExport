@@ -9,8 +9,8 @@ namespace SwiftExport.AppLayer.DTOs
     {
         public ProductProfiles()
         {
-            CreateMap<Product, ProductDto>();
-            CreateMap<ProductDto, Product>();
+            CreateMap<Product, ProductDto>()
+                .ReverseMap();
         }
 
 

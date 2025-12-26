@@ -10,9 +10,9 @@ namespace SwiftExport.AppLayer.Interfaces
     public interface ICustomersService : IBaseService<Customers>
     {
         Task<bool> ExistByCustomerCode(string customerCode);
-        Task<Result<IReadOnlyList<string>>> GetNonExistingCustomerCodesAsync(IEnumerable<string> customerCodes);
-        Task<Result<Customers>> GetByCustomerCodeAsync(string customerCode);
-        Task<Result<CUDResult>> 批量操作客户Async(IEnumerable<Customers> createList,
+        Task<ServiceResult<IReadOnlyList<string>>> GetNonExistingCustomerCodesAsync(IEnumerable<string> customerCodes);
+        Task<ServiceResult<Customers>> GetByCustomerCodeAsync(string customerCode);
+        Task<ServiceResult<CUDResult>> BatchCUDBy_UQ_CustomersCodeAsync(IEnumerable<Customers> createList,
             IEnumerable<Customers> updateList, IEnumerable<Customers> deleteList);
     }
 }

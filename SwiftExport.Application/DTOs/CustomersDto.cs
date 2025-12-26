@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Net;
 using System.Text;
 
 namespace SwiftExport.AppLayer.DTOs
@@ -19,6 +21,10 @@ namespace SwiftExport.AppLayer.DTOs
         public string 线框图文件夹 { get; set; }
         public string 条码文件夹 { get; set; }
         public string 规格书文件夹 { get; set; }
+        public string 单据关联 { get; set; }
+
+        [Browsable(false)]
+        public string SearchKey => $"{客户代码}|{客户名称}|{地址}".ToLower();
 
     }
 }

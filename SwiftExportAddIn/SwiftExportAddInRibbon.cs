@@ -14,7 +14,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
-
 namespace SwiftExportAddIn
 {
     public partial class SwiftExportAddInRibbon
@@ -97,8 +96,8 @@ namespace SwiftExportAddIn
 
         private void Rbn_btn_GenJinOrder_Click(object sender, RibbonControlEventArgs e)
         {
-           Form frm1 =new SalesOrderManagerForm();
-            frm1.Show();
+           //Form frm1 =new SalesOrderManagerForm();
+           // frm1.Show();
         }
 
         private void Rbn_btn_SaleOrder_Click(object sender, RibbonControlEventArgs e)
@@ -151,22 +150,33 @@ namespace SwiftExportAddIn
                    ?? throw new Exception($"类型 {typeName} 不是 UserControl");
         }
 
-        
+        private void Btn_BaseSetting_FrmCustomersManager_Click(object sender, RibbonControlEventArgs e)
+        {
+            Form frm1 = Globals.ThisAddIn.ServerFactory.GetSingletonService<FrmSuppliersManager>();
+            //Form frm1 = new TestForm();
+            frm1.Show();
+        }
 
+        private void Btn_BaseSetting_FrmSupplierManager_Click(object sender, RibbonControlEventArgs e)
+        {
+            Form frm1 = Globals.ThisAddIn.ServerFactory.GetSingletonService<FrmSuppliersManager>();
+            //Form frm1 = new TestForm();
+            frm1.Show();
+        }
 
+        private void Btn_BaseSetting_FrmProductColorManager_Click(object sender, RibbonControlEventArgs e)
+        {
+            Form frm1 = Globals.ThisAddIn.ServerFactory.GetSingletonService<FrmProductColorManager>();
+            //Form frm1 = new TestForm();
+            frm1.Show();
+        }
 
-
-
-
-
-
-
-
-
-
-
-
-
+        private void Btn_BaseSetting_FrmExcelFieldMappManager_Click(object sender, RibbonControlEventArgs e)
+        {
+            Form frm1 = Globals.ThisAddIn.ServerFactory.GetSingletonService<FrmExcelSheetFieldsMappingManager>();
+            //Form frm1 = new TestForm();
+            frm1.Show();
+        }
     }
  }
 

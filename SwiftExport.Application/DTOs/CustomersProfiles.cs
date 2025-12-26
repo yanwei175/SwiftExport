@@ -26,7 +26,9 @@ namespace SwiftExport.AppLayer.DTOs
                 .ForMember(dest => dest.SpecSheetFolder, opt => opt.MapFrom(src => src.规格书文件夹))
                 .ForMember(dest => dest.CreateDate, opt => opt.MapFrom(src => src.创建时间))
                 .ForMember(dest => dest.ChangeTime, opt => opt.MapFrom(src => src.修改时间))
-                .ReverseMap(); 
+                .ForMember(dest => dest.DocRelateNo, opt => opt.MapFrom(src => src.单据关联))
+                .ReverseMap();
+
         }
 
     }

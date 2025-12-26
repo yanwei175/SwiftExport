@@ -13,6 +13,7 @@ namespace SwiftExport.UiKongJianFrameWork.FrmUtility
         public HashSet<string> DateColumns { get; } = new HashSet<string>();
         public HashSet<string> NumericColumns { get; } = new HashSet<string>();
         public HashSet<string> UniqueColumns { get; } = new HashSet<string>();
+        public HashSet<string> UcaseColumns { get; } = new HashSet<string>();
         // 可以在这里扩展更多，比如正则表达式、范围验证等
     }
 

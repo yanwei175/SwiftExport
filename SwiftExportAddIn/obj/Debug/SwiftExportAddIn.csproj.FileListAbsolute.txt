@@ -282,3 +282,5 @@ D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\tr\Microsoft.Data.SqlCli
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\zh-Hans\Microsoft.Data.SqlClient.resources.dll
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\zh-Hant\Microsoft.Data.SqlClient.resources.dll
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\obj\Debug\SwiftExp.0D9CFF2C.Up2Date
+D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExprot.Utility.dll
+D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExprot.Utility.pdb

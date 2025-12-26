@@ -9,3 +9,10 @@ D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftE
 D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftExprot.Utility.sourcelink.json
 D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftExprot.Utility.dll
 D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftExprot.Utility.pdb
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\bin\Debug\netstandard2.0\System.Windows.Forms.dll
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\bin\Debug\netstandard2.0\System.Security.dll
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\bin\Debug\netstandard2.0\System.Configuration.dll
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\bin\Debug\netstandard2.0\Accessibility.dll
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\bin\Debug\netstandard2.0\System.Deployment.dll
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\bin\Debug\netstandard2.0\System.Runtime.Serialization.Formatters.Soap.dll
+D:\source\CSharp\SwiftExport\SwiftExprot.Utility\obj\Debug\netstandard2.0\SwiftExp.7FBB0011.Up2Date

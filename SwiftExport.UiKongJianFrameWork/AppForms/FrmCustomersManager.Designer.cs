@@ -28,469 +28,382 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle3 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle4 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle5 = new System.Windows.Forms.DataGridViewCellStyle();
-            this.toolStrip1 = new System.Windows.Forms.ToolStrip();
-            this.ToolStripButton_Add = new System.Windows.Forms.ToolStripButton();
-            this.ToolStripButton_Save = new System.Windows.Forms.ToolStripButton();
-            this.ToolStripButton_Delete = new System.Windows.Forms.ToolStripButton();
-            this.ToolStripButton_Refresh = new System.Windows.Forms.ToolStripButton();
+            this.Tsp1 = new System.Windows.Forms.ToolStrip();
+            this.TsBtn_Add = new System.Windows.Forms.ToolStripButton();
+            this.TsBtn_Edit = new System.Windows.Forms.ToolStripButton();
+            this.TsBtn_Delete = new System.Windows.Forms.ToolStripButton();
+            this.TsBtn_Save = new System.Windows.Forms.ToolStripButton();
+            this.TsBtn_Refresh = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
-            this.ToolStripComboBox_QueryField = new System.Windows.Forms.ToolStripComboBox();
-            this.ToolStripTextBox_QueryResult = new System.Windows.Forms.ToolStripTextBox();
-            this.ToolStripButton_Query = new System.Windows.Forms.ToolStripButton();
+            this.TsLbl_Find = new System.Windows.Forms.ToolStripLabel();
+            this.Txt_FindResult = new System.Windows.Forms.ToolStripTextBox();
+            this.Dgv1 = new System.Windows.Forms.DataGridView();
+            this.MainPanel = new System.Windows.Forms.Panel();
+            this.Tsp2 = new System.Windows.Forms.ToolStrip();
+            this.LblTips = new System.Windows.Forms.ToolStripLabel();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
-            this.toolStripLabel_Find = new System.Windows.Forms.ToolStripLabel();
-            this.ToolStripTextBox_FindResult = new System.Windows.Forms.ToolStripTextBox();
-            this.customersDtoBindingSource = new System.Windows.Forms.BindingSource(this.components);
-            this.操作提示 = new System.Windows.Forms.ToolStripLabel();
-            this.DataGridView1 = new SwiftExport.UiKongJianFrameWork.BaseControls.BaseDataGridView();
-            this.iDDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.evenDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.状态DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.ID = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.视图状态 = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.客户代码DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.客户名称DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.地址DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.联系方式DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.联系人DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.标贴文件夹DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.说明书文件夹DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.尺寸图文件夹DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.线框图文件夹DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.条码文件夹DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.规格书文件夹DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.是否删除DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.创建时间DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.修改时间DataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.dataSplitUserControl1 = new SwiftExport.UiKongJianFrameWork.AppUserControls.DataSplitUserControl();
-            this.toolStrip1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.customersDtoBindingSource)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.DataGridView1)).BeginInit();
+            this.客户代码 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.单据关联号 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.客户名称 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.地址 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.联系方式 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.联系人 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.标贴文件夹 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.尺寸图文件夹 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.线框图文件夹 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.条码文件夹 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.规格书文件夹 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Save = new System.Windows.Forms.DataGridViewButtonColumn();
+            this.Delete = new System.Windows.Forms.DataGridViewButtonColumn();
+            this.Tsp1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.Dgv1)).BeginInit();
+            this.MainPanel.SuspendLayout();
+            this.Tsp2.SuspendLayout();
             this.SuspendLayout();
             // 
-            // toolStrip1
+            // Tsp1
             // 
-            this.toolStrip1.BackColor = System.Drawing.SystemColors.Window;
-            this.toolStrip1.ImageScalingSize = new System.Drawing.Size(32, 32);
-            this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.ToolStripButton_Add,
-            this.ToolStripButton_Save,
-            this.ToolStripButton_Delete,
-            this.ToolStripButton_Refresh,
+            this.Tsp1.BackColor = System.Drawing.SystemColors.Window;
+            this.Tsp1.Font = new System.Drawing.Font("Microsoft YaHei UI", 8F);
+            this.Tsp1.ImageScalingSize = new System.Drawing.Size(32, 32);
+            this.Tsp1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.TsBtn_Add,
+            this.TsBtn_Edit,
+            this.TsBtn_Delete,
+            this.TsBtn_Save,
+            this.TsBtn_Refresh,
             this.toolStripSeparator2,
-            this.ToolStripComboBox_QueryField,
-            this.ToolStripTextBox_QueryResult,
-            this.ToolStripButton_Query,
-            this.toolStripSeparator1,
-            this.toolStripLabel_Find,
-            this.ToolStripTextBox_FindResult,
-            this.操作提示});
-            this.toolStrip1.Location = new System.Drawing.Point(0, 0);
-            this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(2717, 66);
-            this.toolStrip1.TabIndex = 7;
-            this.toolStrip1.Text = "toolStrip1";
+            this.TsLbl_Find,
+            this.Txt_FindResult});
+            this.Tsp1.Location = new System.Drawing.Point(0, 0);
+            this.Tsp1.Name = "Tsp1";
+            this.Tsp1.Size = new System.Drawing.Size(2030, 61);
+            this.Tsp1.TabIndex = 8;
+            this.Tsp1.Text = "toolStrip1";
             // 
-            // ToolStripButton_Add
+            // TsBtn_Add
             // 
-            this.ToolStripButton_Add.AutoSize = false;
-            this.ToolStripButton_Add.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
-            this.ToolStripButton_Add.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.ToolStripButton_Add.Name = "ToolStripButton_Add";
-            this.ToolStripButton_Add.Size = new System.Drawing.Size(100, 60);
-            this.ToolStripButton_Add.Text = "新建";
-            this.ToolStripButton_Add.Click += new System.EventHandler(this.ToolStripButton_Add_Click);
+            this.TsBtn_Add.AutoSize = false;
+            this.TsBtn_Add.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.TsBtn_Add.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.TsBtn_Add.Name = "TsBtn_Add";
+            this.TsBtn_Add.Size = new System.Drawing.Size(60, 55);
+            this.TsBtn_Add.Text = "新建";
+            this.TsBtn_Add.Click += new System.EventHandler(this.TsBtn_Add_Click);
             // 
-            // ToolStripButton_Save
+            // TsBtn_Edit
             // 
-            this.ToolStripButton_Save.AutoSize = false;
-            this.ToolStripButton_Save.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
-            this.ToolStripButton_Save.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.ToolStripButton_Save.Name = "ToolStripButton_Save";
-            this.ToolStripButton_Save.Size = new System.Drawing.Size(100, 60);
-            this.ToolStripButton_Save.Text = "保存";
-            this.ToolStripButton_Save.Click += new System.EventHandler(this.ToolStripButton_Save_Click);
+            this.TsBtn_Edit.AutoSize = false;
+            this.TsBtn_Edit.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.TsBtn_Edit.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.TsBtn_Edit.Name = "TsBtn_Edit";
+            this.TsBtn_Edit.Size = new System.Drawing.Size(60, 55);
+            this.TsBtn_Edit.Text = "编辑";
             // 
-            // ToolStripButton_Delete
+            // TsBtn_Delete
             // 
-            this.ToolStripButton_Delete.AutoSize = false;
-            this.ToolStripButton_Delete.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
-            this.ToolStripButton_Delete.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.ToolStripButton_Delete.Name = "ToolStripButton_Delete";
-            this.ToolStripButton_Delete.Size = new System.Drawing.Size(100, 60);
-            this.ToolStripButton_Delete.Text = "删除";
-            this.ToolStripButton_Delete.Click += new System.EventHandler(this.ToolStripButton_Delete_Click);
+            this.TsBtn_Delete.AutoSize = false;
+            this.TsBtn_Delete.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.TsBtn_Delete.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.TsBtn_Delete.Name = "TsBtn_Delete";
+            this.TsBtn_Delete.Size = new System.Drawing.Size(60, 55);
+            this.TsBtn_Delete.Text = "删除";
+            this.TsBtn_Delete.Click += new System.EventHandler(this.TsBtn_Delete_Click);
             // 
-            // ToolStripButton_Refresh
+            // TsBtn_Save
             // 
-            this.ToolStripButton_Refresh.AutoSize = false;
-            this.ToolStripButton_Refresh.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
-            this.ToolStripButton_Refresh.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.ToolStripButton_Refresh.Name = "ToolStripButton_Refresh";
-            this.ToolStripButton_Refresh.Size = new System.Drawing.Size(100, 60);
-            this.ToolStripButton_Refresh.Text = "刷新";
-            this.ToolStripButton_Refresh.Click += new System.EventHandler(this.ToolStripButton_Refresh_Click);
+            this.TsBtn_Save.AutoSize = false;
+            this.TsBtn_Save.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.TsBtn_Save.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.TsBtn_Save.Name = "TsBtn_Save";
+            this.TsBtn_Save.Size = new System.Drawing.Size(60, 55);
+            this.TsBtn_Save.Text = "保存";
+            this.TsBtn_Save.Click += new System.EventHandler(this.TsBtn_Save_Click);
+            // 
+            // TsBtn_Refresh
+            // 
+            this.TsBtn_Refresh.AutoSize = false;
+            this.TsBtn_Refresh.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.TsBtn_Refresh.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.TsBtn_Refresh.Name = "TsBtn_Refresh";
+            this.TsBtn_Refresh.Size = new System.Drawing.Size(60, 55);
+            this.TsBtn_Refresh.Text = "刷新";
+            this.TsBtn_Refresh.Click += new System.EventHandler(this.TsBtn_Refresh_Click);
             // 
             // toolStripSeparator2
             // 
             this.toolStripSeparator2.Name = "toolStripSeparator2";
-            this.toolStripSeparator2.Size = new System.Drawing.Size(6, 66);
+            this.toolStripSeparator2.Size = new System.Drawing.Size(6, 61);
             // 
-            // ToolStripComboBox_QueryField
+            // TsLbl_Find
             // 
-            this.ToolStripComboBox_QueryField.Name = "ToolStripComboBox_QueryField";
-            this.ToolStripComboBox_QueryField.Size = new System.Drawing.Size(233, 66);
-            this.ToolStripComboBox_QueryField.Text = "--请选择--";
+            this.TsLbl_Find.Name = "TsLbl_Find";
+            this.TsLbl_Find.Size = new System.Drawing.Size(62, 55);
+            this.TsLbl_Find.Text = "筛选:";
             // 
-            // ToolStripTextBox_QueryResult
+            // Txt_FindResult
             // 
-            this.ToolStripTextBox_QueryResult.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.ToolStripTextBox_QueryResult.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
-            this.ToolStripTextBox_QueryResult.Name = "ToolStripTextBox_QueryResult";
-            this.ToolStripTextBox_QueryResult.Size = new System.Drawing.Size(233, 66);
+            this.Txt_FindResult.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.Txt_FindResult.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+            this.Txt_FindResult.Name = "Txt_FindResult";
+            this.Txt_FindResult.Size = new System.Drawing.Size(300, 61);
+            this.Txt_FindResult.TextChanged += new System.EventHandler(this.Txt_FindResult_TextChanged);
             // 
-            // ToolStripButton_Query
+            // Dgv1
             // 
-            this.ToolStripButton_Query.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.ToolStripButton_Query.Name = "ToolStripButton_Query";
-            this.ToolStripButton_Query.Size = new System.Drawing.Size(66, 60);
-            this.ToolStripButton_Query.Text = "查询";
-            this.ToolStripButton_Query.Click += new System.EventHandler(this.ToolStripButton_Query_Click);
+            this.Dgv1.AllowUserToAddRows = false;
+            this.Dgv1.AllowUserToDeleteRows = false;
+            this.Dgv1.AllowUserToOrderColumns = true;
+            dataGridViewCellStyle1.BackColor = System.Drawing.Color.LightGray;
+            this.Dgv1.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
+            this.Dgv1.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.Dgv1.BackgroundColor = System.Drawing.SystemColors.Window;
+            this.Dgv1.ClipboardCopyMode = System.Windows.Forms.DataGridViewClipboardCopyMode.EnableWithoutHeaderText;
+            this.Dgv1.ColumnHeadersHeight = 55;
+            this.Dgv1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
+            this.ID,
+            this.视图状态,
+            this.客户代码,
+            this.单据关联号,
+            this.客户名称,
+            this.地址,
+            this.联系方式,
+            this.联系人,
+            this.标贴文件夹,
+            this.尺寸图文件夹,
+            this.线框图文件夹,
+            this.条码文件夹,
+            this.规格书文件夹,
+            this.Save,
+            this.Delete});
+            this.Dgv1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.Dgv1.Location = new System.Drawing.Point(0, 61);
+            this.Dgv1.Margin = new System.Windows.Forms.Padding(4);
+            this.Dgv1.Name = "Dgv1";
+            this.Dgv1.RowHeadersVisible = false;
+            this.Dgv1.RowHeadersWidth = 40;
+            this.Dgv1.RowTemplate.Height = 55;
+            this.Dgv1.RowTemplate.Resizable = System.Windows.Forms.DataGridViewTriState.False;
+            this.Dgv1.Size = new System.Drawing.Size(2030, 815);
+            this.Dgv1.TabIndex = 11;
+            this.Dgv1.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.Dgv1_CellContentClick);
+            // 
+            // MainPanel
+            // 
+            this.MainPanel.Controls.Add(this.Dgv1);
+            this.MainPanel.Controls.Add(this.Tsp1);
+            this.MainPanel.Controls.Add(this.Tsp2);
+            this.MainPanel.Cursor = System.Windows.Forms.Cursors.Default;
+            this.MainPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.MainPanel.Font = new System.Drawing.Font("Microsoft YaHei UI", 8F);
+            this.MainPanel.Location = new System.Drawing.Point(0, 0);
+            this.MainPanel.Margin = new System.Windows.Forms.Padding(4);
+            this.MainPanel.Name = "MainPanel";
+            this.MainPanel.Size = new System.Drawing.Size(2030, 912);
+            this.MainPanel.TabIndex = 12;
+            // 
+            // Tsp2
+            // 
+            this.Tsp2.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.Tsp2.ImageScalingSize = new System.Drawing.Size(32, 32);
+            this.Tsp2.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.LblTips,
+            this.toolStripSeparator1});
+            this.Tsp2.Location = new System.Drawing.Point(0, 876);
+            this.Tsp2.Name = "Tsp2";
+            this.Tsp2.Size = new System.Drawing.Size(2030, 36);
+            this.Tsp2.TabIndex = 14;
+            this.Tsp2.Text = "toolStrip1";
+            // 
+            // LblTips
+            // 
+            this.LblTips.Font = new System.Drawing.Font("Microsoft YaHei UI", 8F);
+            this.LblTips.Name = "LblTips";
+            this.LblTips.Size = new System.Drawing.Size(79, 30);
+            this.LblTips.Text = "状态栏";
             // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(6, 66);
+            this.toolStripSeparator1.Size = new System.Drawing.Size(6, 36);
             // 
-            // toolStripLabel_Find
+            // ID
             // 
-            this.toolStripLabel_Find.Name = "toolStripLabel_Find";
-            this.toolStripLabel_Find.Size = new System.Drawing.Size(116, 60);
-            this.toolStripLabel_Find.Text = "结果筛选:";
-            // 
-            // ToolStripTextBox_FindResult
-            // 
-            this.ToolStripTextBox_FindResult.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.ToolStripTextBox_FindResult.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
-            this.ToolStripTextBox_FindResult.Name = "ToolStripTextBox_FindResult";
-            this.ToolStripTextBox_FindResult.Size = new System.Drawing.Size(233, 66);
-            this.ToolStripTextBox_FindResult.TextChanged += new System.EventHandler(this.ToolStripTextBox_FindResult_TextChanged);
-            // 
-            // customersDtoBindingSource
-            // 
-            this.customersDtoBindingSource.DataSource = typeof(SwiftExport.AppLayer.DTOs.CustomersDto);
-            // 
-            // 操作提示
-            // 
-            this.操作提示.ForeColor = System.Drawing.Color.Red;
-            this.操作提示.Name = "操作提示";
-            this.操作提示.Size = new System.Drawing.Size(0, 60);
-            // 
-            // DataGridView1
-            // 
-            this.DataGridView1.AllowUserToAddRows = false;
-            this.DataGridView1.AllowUserToDeleteRows = false;
-            dataGridViewCellStyle1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
-            dataGridViewCellStyle1.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
-            this.DataGridView1.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
-            this.DataGridView1.AutoGenerateColumns = false;
-            this.DataGridView1.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
-            this.DataGridView1.BackgroundColor = System.Drawing.Color.White;
-            this.DataGridView1.ClipboardCopyMode = System.Windows.Forms.DataGridViewClipboardCopyMode.EnableWithoutHeaderText;
-            this.DataGridView1.ColumnHeadersBorderStyle = System.Windows.Forms.DataGridViewHeaderBorderStyle.Single;
-            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleCenter;
-            dataGridViewCellStyle2.BackColor = System.Drawing.Color.SkyBlue;
-            dataGridViewCellStyle2.Font = new System.Drawing.Font("微软雅黑", 9F);
-            dataGridViewCellStyle2.ForeColor = System.Drawing.Color.Black;
-            dataGridViewCellStyle2.Padding = new System.Windows.Forms.Padding(0, 5, 0, 5);
-            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.Color.Honeydew;
-            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.DataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
-            this.DataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.DataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
-            this.iDDataGridViewTextBoxColumn,
-            this.evenDataGridViewTextBoxColumn,
-            this.状态DataGridViewTextBoxColumn,
-            this.视图状态,
-            this.客户代码DataGridViewTextBoxColumn,
-            this.客户名称DataGridViewTextBoxColumn,
-            this.地址DataGridViewTextBoxColumn,
-            this.联系方式DataGridViewTextBoxColumn,
-            this.联系人DataGridViewTextBoxColumn,
-            this.标贴文件夹DataGridViewTextBoxColumn,
-            this.说明书文件夹DataGridViewTextBoxColumn,
-            this.尺寸图文件夹DataGridViewTextBoxColumn,
-            this.线框图文件夹DataGridViewTextBoxColumn,
-            this.条码文件夹DataGridViewTextBoxColumn,
-            this.规格书文件夹DataGridViewTextBoxColumn,
-            this.是否删除DataGridViewTextBoxColumn,
-            this.创建时间DataGridViewTextBoxColumn,
-            this.修改时间DataGridViewTextBoxColumn});
-            this.DataGridView1.DataSource = this.customersDtoBindingSource;
-            dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle3.BackColor = System.Drawing.Color.White;
-            dataGridViewCellStyle3.Font = new System.Drawing.Font("微软雅黑", 8F);
-            dataGridViewCellStyle3.ForeColor = System.Drawing.Color.Black;
-            dataGridViewCellStyle3.Padding = new System.Windows.Forms.Padding(5, 2, 5, 2);
-            dataGridViewCellStyle3.SelectionBackColor = System.Drawing.Color.Honeydew;
-            dataGridViewCellStyle3.SelectionForeColor = System.Drawing.Color.Black;
-            dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.DataGridView1.DefaultCellStyle = dataGridViewCellStyle3;
-            this.DataGridView1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.DataGridView1.EnableHeadersVisualStyles = false;
-            this.DataGridView1.Font = new System.Drawing.Font("微软雅黑", 8F);
-            this.DataGridView1.GridColor = System.Drawing.Color.DarkGray;
-            this.DataGridView1.Location = new System.Drawing.Point(0, 66);
-            this.DataGridView1.Name = "DataGridView1";
-            this.DataGridView1.RowHeadersBorderStyle = System.Windows.Forms.DataGridViewHeaderBorderStyle.Single;
-            dataGridViewCellStyle4.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleCenter;
-            dataGridViewCellStyle4.BackColor = System.Drawing.Color.White;
-            dataGridViewCellStyle4.Font = new System.Drawing.Font("微软雅黑", 8F);
-            dataGridViewCellStyle4.ForeColor = System.Drawing.Color.Black;
-            dataGridViewCellStyle4.SelectionBackColor = System.Drawing.Color.Honeydew;
-            dataGridViewCellStyle4.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle4.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.DataGridView1.RowHeadersDefaultCellStyle = dataGridViewCellStyle4;
-            this.DataGridView1.RowHeadersWidth = 60;
-            this.DataGridView1.RowHeadersWidthSizeMode = System.Windows.Forms.DataGridViewRowHeadersWidthSizeMode.DisableResizing;
-            dataGridViewCellStyle5.SelectionBackColor = System.Drawing.Color.Honeydew;
-            dataGridViewCellStyle5.SelectionForeColor = System.Drawing.Color.Black;
-            this.DataGridView1.RowsDefaultCellStyle = dataGridViewCellStyle5;
-            this.DataGridView1.RowTemplate.Height = 60;
-            this.DataGridView1.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.DataGridView1.Size = new System.Drawing.Size(2717, 1309);
-            this.DataGridView1.TabIndex = 3;
-            this.DataGridView1.交替前景色 = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
-            this.DataGridView1.交替背景色 = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
-            this.DataGridView1.全局字体 = new System.Drawing.Font("微软雅黑", 8F);
-            this.DataGridView1.前景色 = System.Drawing.Color.Black;
-            this.DataGridView1.标题字体 = new System.Drawing.Font("微软雅黑", 9F);
-            this.DataGridView1.标题背景色 = System.Drawing.Color.Cyan;
-            this.DataGridView1.网格线颜色 = System.Drawing.Color.DarkGray;
-            this.DataGridView1.背景色 = System.Drawing.Color.White;
-            this.DataGridView1.行选中颜色 = System.Drawing.Color.Honeydew;
-            this.DataGridView1.CellBeginEdit += new System.Windows.Forms.DataGridViewCellCancelEventHandler(this.DataGridView1_CellBeginEdit);
-            this.DataGridView1.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(this.DataGridView1_CellEndEdit);
-            this.DataGridView1.CellValueChanged += new System.Windows.Forms.DataGridViewCellEventHandler(this.DataGridView1_CellValueChanged);
-            this.DataGridView1.DataBindingComplete += new System.Windows.Forms.DataGridViewBindingCompleteEventHandler(this.DataGridView1_DataBindingComplete);
-            // 
-            // iDDataGridViewTextBoxColumn
-            // 
-            this.iDDataGridViewTextBoxColumn.DataPropertyName = "ID";
-            this.iDDataGridViewTextBoxColumn.HeaderText = "ID";
-            this.iDDataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.iDDataGridViewTextBoxColumn.Name = "iDDataGridViewTextBoxColumn";
-            this.iDDataGridViewTextBoxColumn.ReadOnly = true;
-            this.iDDataGridViewTextBoxColumn.Visible = false;
-            // 
-            // evenDataGridViewTextBoxColumn
-            // 
-            this.evenDataGridViewTextBoxColumn.DataPropertyName = "Even";
-            this.evenDataGridViewTextBoxColumn.HeaderText = "Even";
-            this.evenDataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.evenDataGridViewTextBoxColumn.Name = "evenDataGridViewTextBoxColumn";
-            this.evenDataGridViewTextBoxColumn.ReadOnly = true;
-            this.evenDataGridViewTextBoxColumn.Visible = false;
-            // 
-            // 状态DataGridViewTextBoxColumn
-            // 
-            this.状态DataGridViewTextBoxColumn.DataPropertyName = "状态";
-            this.状态DataGridViewTextBoxColumn.HeaderText = "状态";
-            this.状态DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.状态DataGridViewTextBoxColumn.Name = "状态DataGridViewTextBoxColumn";
-            this.状态DataGridViewTextBoxColumn.ReadOnly = true;
-            this.状态DataGridViewTextBoxColumn.Visible = false;
+            this.ID.DataPropertyName = "ID";
+            this.ID.HeaderText = "ID";
+            this.ID.MinimumWidth = 10;
+            this.ID.Name = "ID";
+            this.ID.ReadOnly = true;
             // 
             // 视图状态
             // 
             this.视图状态.DataPropertyName = "视图状态";
-            this.视图状态.FillWeight = 50F;
-            this.视图状态.HeaderText = "操作";
+            this.视图状态.HeaderText = "编辑";
             this.视图状态.MinimumWidth = 10;
             this.视图状态.Name = "视图状态";
-            this.视图状态.ReadOnly = true;
-            this.视图状态.Resizable = System.Windows.Forms.DataGridViewTriState.False;
+            this.视图状态.Visible = false;
             // 
-            // 客户代码DataGridViewTextBoxColumn
+            // 客户代码
             // 
-            this.客户代码DataGridViewTextBoxColumn.DataPropertyName = "客户代码";
-            this.客户代码DataGridViewTextBoxColumn.HeaderText = "客户代码";
-            this.客户代码DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.客户代码DataGridViewTextBoxColumn.Name = "客户代码DataGridViewTextBoxColumn";
+            this.客户代码.DataPropertyName = "客户代码";
+            this.客户代码.HeaderText = "客户代码";
+            this.客户代码.MinimumWidth = 10;
+            this.客户代码.Name = "客户代码";
+            this.客户代码.ReadOnly = true;
+            this.客户代码.Resizable = System.Windows.Forms.DataGridViewTriState.False;
             // 
-            // 客户名称DataGridViewTextBoxColumn
+            // 单据关联号
             // 
-            this.客户名称DataGridViewTextBoxColumn.DataPropertyName = "客户名称";
-            this.客户名称DataGridViewTextBoxColumn.HeaderText = "客户名称";
-            this.客户名称DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.客户名称DataGridViewTextBoxColumn.Name = "客户名称DataGridViewTextBoxColumn";
+            this.单据关联号.DataPropertyName = "单据关联";
+            this.单据关联号.HeaderText = "单据关联号";
+            this.单据关联号.MinimumWidth = 10;
+            this.单据关联号.Name = "单据关联号";
             // 
-            // 地址DataGridViewTextBoxColumn
+            // 客户名称
             // 
-            this.地址DataGridViewTextBoxColumn.DataPropertyName = "地址";
-            this.地址DataGridViewTextBoxColumn.HeaderText = "地址";
-            this.地址DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.地址DataGridViewTextBoxColumn.Name = "地址DataGridViewTextBoxColumn";
+            this.客户名称.DataPropertyName = "客户名称";
+            this.客户名称.HeaderText = "客户名称";
+            this.客户名称.MinimumWidth = 10;
+            this.客户名称.Name = "客户名称";
             // 
-            // 联系方式DataGridViewTextBoxColumn
+            // 地址
             // 
-            this.联系方式DataGridViewTextBoxColumn.DataPropertyName = "联系方式";
-            this.联系方式DataGridViewTextBoxColumn.HeaderText = "联系方式";
-            this.联系方式DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.联系方式DataGridViewTextBoxColumn.Name = "联系方式DataGridViewTextBoxColumn";
+            this.地址.DataPropertyName = "地址";
+            this.地址.HeaderText = "地址";
+            this.地址.MinimumWidth = 10;
+            this.地址.Name = "地址";
             // 
-            // 联系人DataGridViewTextBoxColumn
+            // 联系方式
             // 
-            this.联系人DataGridViewTextBoxColumn.DataPropertyName = "联系人";
-            this.联系人DataGridViewTextBoxColumn.HeaderText = "联系人";
-            this.联系人DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.联系人DataGridViewTextBoxColumn.Name = "联系人DataGridViewTextBoxColumn";
+            this.联系方式.DataPropertyName = "联系方式";
+            this.联系方式.HeaderText = "联系方式";
+            this.联系方式.MinimumWidth = 10;
+            this.联系方式.Name = "联系方式";
             // 
-            // 标贴文件夹DataGridViewTextBoxColumn
+            // 联系人
             // 
-            this.标贴文件夹DataGridViewTextBoxColumn.DataPropertyName = "标贴文件夹";
-            this.标贴文件夹DataGridViewTextBoxColumn.HeaderText = "标贴文件夹";
-            this.标贴文件夹DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.标贴文件夹DataGridViewTextBoxColumn.Name = "标贴文件夹DataGridViewTextBoxColumn";
+            this.联系人.DataPropertyName = "联系人";
+            this.联系人.HeaderText = "联系人";
+            this.联系人.MinimumWidth = 10;
+            this.联系人.Name = "联系人";
             // 
-            // 说明书文件夹DataGridViewTextBoxColumn
+            // 标贴文件夹
             // 
-            this.说明书文件夹DataGridViewTextBoxColumn.DataPropertyName = "说明书文件夹";
-            this.说明书文件夹DataGridViewTextBoxColumn.HeaderText = "说明书文件夹";
-            this.说明书文件夹DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.说明书文件夹DataGridViewTextBoxColumn.Name = "说明书文件夹DataGridViewTextBoxColumn";
+            this.标贴文件夹.DataPropertyName = "标贴文件夹";
+            this.标贴文件夹.HeaderText = "标贴文件夹";
+            this.标贴文件夹.MinimumWidth = 10;
+            this.标贴文件夹.Name = "标贴文件夹";
             // 
-            // 尺寸图文件夹DataGridViewTextBoxColumn
+            // 尺寸图文件夹
             // 
-            this.尺寸图文件夹DataGridViewTextBoxColumn.DataPropertyName = "尺寸图文件夹";
-            this.尺寸图文件夹DataGridViewTextBoxColumn.HeaderText = "尺寸图文件夹";
-            this.尺寸图文件夹DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.尺寸图文件夹DataGridViewTextBoxColumn.Name = "尺寸图文件夹DataGridViewTextBoxColumn";
+            this.尺寸图文件夹.DataPropertyName = "尺寸图文件夹";
+            this.尺寸图文件夹.HeaderText = "尺寸图文件夹";
+            this.尺寸图文件夹.MinimumWidth = 10;
+            this.尺寸图文件夹.Name = "尺寸图文件夹";
             // 
-            // 线框图文件夹DataGridViewTextBoxColumn
+            // 线框图文件夹
             // 
-            this.线框图文件夹DataGridViewTextBoxColumn.DataPropertyName = "线框图文件夹";
-            this.线框图文件夹DataGridViewTextBoxColumn.HeaderText = "线框图文件夹";
-            this.线框图文件夹DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.线框图文件夹DataGridViewTextBoxColumn.Name = "线框图文件夹DataGridViewTextBoxColumn";
+            this.线框图文件夹.DataPropertyName = "线框图文件夹";
+            this.线框图文件夹.HeaderText = "线框图文件夹";
+            this.线框图文件夹.MinimumWidth = 10;
+            this.线框图文件夹.Name = "线框图文件夹";
             // 
-            // 条码文件夹DataGridViewTextBoxColumn
+            // 条码文件夹
             // 
-            this.条码文件夹DataGridViewTextBoxColumn.DataPropertyName = "条码文件夹";
-            this.条码文件夹DataGridViewTextBoxColumn.HeaderText = "条码文件夹";
-            this.条码文件夹DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.条码文件夹DataGridViewTextBoxColumn.Name = "条码文件夹DataGridViewTextBoxColumn";
+            this.条码文件夹.DataPropertyName = "条码文件夹";
+            this.条码文件夹.HeaderText = "条码文件夹";
+            this.条码文件夹.MinimumWidth = 10;
+            this.条码文件夹.Name = "条码文件夹";
             // 
-            // 规格书文件夹DataGridViewTextBoxColumn
+            // 规格书文件夹
             // 
-            this.规格书文件夹DataGridViewTextBoxColumn.DataPropertyName = "规格书文件夹";
-            this.规格书文件夹DataGridViewTextBoxColumn.HeaderText = "规格书文件夹";
-            this.规格书文件夹DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.规格书文件夹DataGridViewTextBoxColumn.Name = "规格书文件夹DataGridViewTextBoxColumn";
+            this.规格书文件夹.DataPropertyName = "规格书文件夹";
+            this.规格书文件夹.HeaderText = "规格书文件夹";
+            this.规格书文件夹.MinimumWidth = 10;
+            this.规格书文件夹.Name = "规格书文件夹";
             // 
-            // 是否删除DataGridViewTextBoxColumn
+            // Save
             // 
-            this.是否删除DataGridViewTextBoxColumn.DataPropertyName = "是否删除";
-            this.是否删除DataGridViewTextBoxColumn.HeaderText = "是否删除";
-            this.是否删除DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.是否删除DataGridViewTextBoxColumn.Name = "是否删除DataGridViewTextBoxColumn";
-            this.是否删除DataGridViewTextBoxColumn.ReadOnly = true;
-            this.是否删除DataGridViewTextBoxColumn.Visible = false;
+            this.Save.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            this.Save.FillWeight = 40F;
+            this.Save.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.Save.HeaderText = "保存";
+            this.Save.MinimumWidth = 8;
+            this.Save.Name = "Save";
+            this.Save.ReadOnly = true;
+            this.Save.Text = "保存";
+            this.Save.UseColumnTextForButtonValue = true;
+            this.Save.Width = 67;
             // 
-            // 创建时间DataGridViewTextBoxColumn
+            // Delete
             // 
-            this.创建时间DataGridViewTextBoxColumn.DataPropertyName = "创建时间";
-            this.创建时间DataGridViewTextBoxColumn.HeaderText = "创建时间";
-            this.创建时间DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.创建时间DataGridViewTextBoxColumn.Name = "创建时间DataGridViewTextBoxColumn";
-            this.创建时间DataGridViewTextBoxColumn.ReadOnly = true;
-            this.创建时间DataGridViewTextBoxColumn.Visible = false;
-            // 
-            // 修改时间DataGridViewTextBoxColumn
-            // 
-            this.修改时间DataGridViewTextBoxColumn.DataPropertyName = "修改时间";
-            this.修改时间DataGridViewTextBoxColumn.HeaderText = "修改时间";
-            this.修改时间DataGridViewTextBoxColumn.MinimumWidth = 10;
-            this.修改时间DataGridViewTextBoxColumn.Name = "修改时间DataGridViewTextBoxColumn";
-            this.修改时间DataGridViewTextBoxColumn.ReadOnly = true;
-            this.修改时间DataGridViewTextBoxColumn.Visible = false;
-            // 
-            // dataSplitUserControl1
-            // 
-            this.dataSplitUserControl1.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.dataSplitUserControl1.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.dataSplitUserControl1.Location = new System.Drawing.Point(0, 1375);
-            this.dataSplitUserControl1.Margin = new System.Windows.Forms.Padding(4);
-            this.dataSplitUserControl1.Name = "dataSplitUserControl1";
-            this.dataSplitUserControl1.PageCount = 0;
-            this.dataSplitUserControl1.PageIndex = 0;
-            this.dataSplitUserControl1.PageSize = 20;
-            this.dataSplitUserControl1.Size = new System.Drawing.Size(2717, 66);
-            this.dataSplitUserControl1.TabIndex = 4;
-            this.dataSplitUserControl1.TotalRecords = 0;
+            this.Delete.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            this.Delete.FillWeight = 40F;
+            this.Delete.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.Delete.HeaderText = "删除";
+            this.Delete.MinimumWidth = 8;
+            this.Delete.Name = "Delete";
+            this.Delete.ReadOnly = true;
+            this.Delete.Text = "删除";
+            this.Delete.UseColumnTextForButtonValue = true;
+            this.Delete.Width = 68;
             // 
             // FrmCustomersManager
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(13F, 28F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(2717, 1441);
-            this.Controls.Add(this.DataGridView1);
-            this.Controls.Add(this.dataSplitUserControl1);
-            this.Controls.Add(this.toolStrip1);
-            this.Font = new System.Drawing.Font("微软雅黑", 7.875F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.Margin = new System.Windows.Forms.Padding(2);
+            this.ClientSize = new System.Drawing.Size(2030, 912);
+            this.Controls.Add(this.MainPanel);
+            this.Cursor = System.Windows.Forms.Cursors.IBeam;
+            this.Font = new System.Drawing.Font("Microsoft YaHei UI", 8F);
+            this.Margin = new System.Windows.Forms.Padding(2, 4, 2, 4);
+            this.MinimumSize = new System.Drawing.Size(814, 615);
             this.Name = "FrmCustomersManager";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "客户管理";
-            this.toolStrip1.ResumeLayout(false);
-            this.toolStrip1.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.customersDtoBindingSource)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.DataGridView1)).EndInit();
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+            this.Text = "FrmCustomersManager";
+            this.Tsp1.ResumeLayout(false);
+            this.Tsp1.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.Dgv1)).EndInit();
+            this.MainPanel.ResumeLayout(false);
+            this.MainPanel.PerformLayout();
+            this.Tsp2.ResumeLayout(false);
+            this.Tsp2.PerformLayout();
             this.ResumeLayout(false);
-            this.PerformLayout();
 
         }
 
         #endregion
-        private System.Windows.Forms.BindingSource customersDtoBindingSource;
-        private BaseControls.BaseDataGridView DataGridView1;
-        private AppUserControls.DataSplitUserControl dataSplitUserControl1;
-        private System.Windows.Forms.ToolStrip toolStrip1;
-        private System.Windows.Forms.ToolStripButton ToolStripButton_Add;
-        private System.Windows.Forms.ToolStripButton ToolStripButton_Save;
-        private System.Windows.Forms.ToolStripButton ToolStripButton_Delete;
-        private System.Windows.Forms.ToolStripButton ToolStripButton_Refresh;
+        private System.Windows.Forms.ToolStrip Tsp1;
+        private System.Windows.Forms.ToolStripButton TsBtn_Add;
+        private System.Windows.Forms.ToolStripButton TsBtn_Save;
+        private System.Windows.Forms.ToolStripButton TsBtn_Delete;
+        private System.Windows.Forms.ToolStripButton TsBtn_Refresh;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
-        private System.Windows.Forms.ToolStripComboBox ToolStripComboBox_QueryField;
-        private System.Windows.Forms.ToolStripTextBox ToolStripTextBox_QueryResult;
-        private System.Windows.Forms.ToolStripButton ToolStripButton_Query;
+        private System.Windows.Forms.ToolStripLabel TsLbl_Find;
+        private System.Windows.Forms.ToolStripTextBox Txt_FindResult;
+        private System.Windows.Forms.DataGridView Dgv1;
+        private System.Windows.Forms.Panel MainPanel;
+        private System.Windows.Forms.ToolStripButton TsBtn_Edit;
+        private System.Windows.Forms.ToolStrip Tsp2;
+        private System.Windows.Forms.ToolStripLabel LblTips;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
-        private System.Windows.Forms.ToolStripLabel toolStripLabel_Find;
-        private System.Windows.Forms.ToolStripTextBox ToolStripTextBox_FindResult;
-        private System.Windows.Forms.DataGridViewTextBoxColumn iDDataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn evenDataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 状态DataGridViewTextBoxColumn;
+        private System.Windows.Forms.DataGridViewTextBoxColumn ID;
         private System.Windows.Forms.DataGridViewTextBoxColumn 视图状态;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 客户代码DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 客户名称DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 地址DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 联系方式DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 联系人DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 标贴文件夹DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 说明书文件夹DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 尺寸图文件夹DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 线框图文件夹DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 条码文件夹DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 规格书文件夹DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 是否删除DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 创建时间DataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn 修改时间DataGridViewTextBoxColumn;
-        private System.Windows.Forms.ToolStripLabel 操作提示;
+        private System.Windows.Forms.DataGridViewTextBoxColumn 客户代码;
+        private System.Windows.Forms.DataGridViewTextBoxColumn 单据关联号;
+        private System.Windows.Forms.DataGridViewTextBoxColumn 客户名称;
+        private System.Windows.Forms.DataGridViewTextBoxColumn 地址;
+        private System.Windows.Forms.DataGridViewTextBoxColumn 联系方式;
+        private System.Windows.Forms.DataGridViewTextBoxColumn 联系人;
+        private System.Windows.Forms.DataGridViewTextBoxColumn 标贴文件夹;
+        private System.Windows.Forms.DataGridViewTextBoxColumn 尺寸图文件夹;
+        private System.Windows.Forms.DataGridViewTextBoxColumn 线框图文件夹;
+        private System.Windows.Forms.DataGridViewTextBoxColumn 条码文件夹;
+        private System.Windows.Forms.DataGridViewTextBoxColumn 规格书文件夹;
+        private System.Windows.Forms.DataGridViewButtonColumn Save;
+        private System.Windows.Forms.DataGridViewButtonColumn Delete;
     }
 }

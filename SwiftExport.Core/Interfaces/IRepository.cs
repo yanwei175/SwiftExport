@@ -133,6 +133,17 @@ namespace SwiftExport.Core.Interfaces
         /// <returns>一个对象列表,如果条件为空则返回所有IsDelete<>1的数据</returns>
         Task<IEnumerable<T>> GetByUserWhereAsync(Dictionary<string, QueryCondition> 条件字典);
 
+        /// <summary>
+        /// 基础分页查询
+        /// </summary>
+        /// <param name="pageIndex">页码</param>
+        /// <param name="pageSize">每页大小</param>
+        /// <param name="whereSql">SQL 过滤条件 (如: Name LIKE @Key)</param>
+        /// <param name="parameters">参数对象</param>
+        /// <param name="orderBy">排序字段 (必填，因为 OFFSET 需要顺序)</param>
+        Task<PagedResult<T>> GetPagedListAsync(int pageIndex, int pageSize, string whereSql, object parameters, string orderBy);
+
+
 
     }
 
