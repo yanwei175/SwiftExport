@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SwiftExport.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e81afb581f90569b92167ca5fe0dd8212b454994")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+83af0dbe6abac04a5f483bc28beb353febe51265")]
 [assembly: System.Reflection.AssemblyProductAttribute("SwiftExport.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SwiftExport.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

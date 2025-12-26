@@ -54,27 +54,42 @@ namespace SwiftExport.UiKongJianFrameWork.AppForms
                 ;
             _filterTimer.Tick += FilterTimer_Tick;
         }
-        
+
         public async Task LoadDsv()
         {
-                var rst = await _service.GetAllAsync();
-                if (rst.Success)
-                {
-                if(BdListAllData ==null)
-                {
-                    BdListAllData= new BindingList<CurrentDto>();
-                    BdSource1.DataSource=BdListAllData;
-                }
-                BdListAllData.RaiseListChangedEvents = false;
-                BdListAllData.Clear();
-                foreach (var d in _mapper.Map<List<CurrentDto>>(rst.Data))
-                {
-                    BdListAllData.Add(d);
-                }
-                BdListAllData.RaiseListChangedEvents=true;
-                BdListAllData.ResetBindings();
-                }
+            // 1. 后台线程：获取数据 + 映射 DTO + 准备好 List
+            var dtoList = await Task.Run(async () =>
+            {
+                var rst = await _service.GetAllAsync(); // 不要再套一层 Task.Run
+
+                if (!rst.Success)
+                    return null;
+
+                // 数据加工也放后台
+                return _mapper.Map<List<CurrentDto>>(rst.Data);
+            });
+
+            // 2. 如果失败，直接返回
+            if (dtoList == null)
+                return;
+
+            // 3. 回到 UI 线程（await 自动切回）更新 BindingList
+            if (BdListAllData == null)
+            {
+                BdListAllData = new BindingList<CurrentDto>();
+                BdSource1.DataSource = BdListAllData;
+            }
+
+            BdListAllData.RaiseListChangedEvents = false;
+            BdListAllData.Clear();
+            
+            foreach (var d in dtoList)
+                BdListAllData.Add(d);
+
+            BdListAllData.RaiseListChangedEvents = true;
+            BdListAllData.ResetBindings();
         }
+
 
         private void BdSource1_CurrentChanged(object sender, EventArgs e)
         {

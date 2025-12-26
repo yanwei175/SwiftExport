@@ -9,7 +9,6 @@
       "SwiftExport.UiWinForm/1.0.0": {
         "dependencies": {
           "SwiftExport.AppLayer": "1.0.0",
-          "SwiftExport.Core": "1.0.0",
           "SwiftExport.UiKongJianFrameWork": "1.0.0",
           "SwiftExprot.Utility": "1.0.0"
         },

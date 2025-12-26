@@ -172,6 +172,7 @@
     <Compile Include="AppUserControls\UserDataGrid.Designer.cs">
       <DependentUpon>UserDataGrid.cs</DependentUpon>
     </Compile>
+    <Compile Include="DI\DI_UiKongJianFrameWork.cs" />
     <Compile Include="FrmUtility\UIStyle\UITheme.cs" />
     <Compile Include="FrmUtility\Validation\BindingSourceExtensions.cs" />
     <Compile Include="FrmUtility\Validation\DataGridViewValidationConfig.cs" />

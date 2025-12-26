@@ -152,9 +152,9 @@ namespace SwiftExportAddIn
 
         private void Btn_BaseSetting_FrmCustomersManager_Click(object sender, RibbonControlEventArgs e)
         {
-            Form frm1 = Globals.ThisAddIn.ServerFactory.GetSingletonService<FrmSuppliersManager>();
-            //Form frm1 = new TestForm();
-            frm1.Show();
+            //Form frm1 = Globals.ThisAddIn.ServerFactory.GetRequiredService<FrmCustomersManager>();
+            ////Form frm1 = new TestForm();
+            //frm1.Show();
         }
 
         private void Btn_BaseSetting_FrmSupplierManager_Click(object sender, RibbonControlEventArgs e)

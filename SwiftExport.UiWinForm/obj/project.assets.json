@@ -1717,7 +1717,6 @@
   "projectFileDependencyGroups": {
     "net10.0-windows7.0": [
       "SwiftExport.AppLayer >= 1.0.0",
-      "SwiftExport.Core >= 1.0.0",
       "SwiftExport.UiKongJianFrameWork >= 1.0.0",
       "SwiftExprot.Utility >= 1.0.0"
     ]
@@ -1756,9 +1755,6 @@
           "projectReferences": {
             "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Application\\SwiftExport.AppLayer.csproj": {
               "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Application\\SwiftExport.AppLayer.csproj"
-            },
-            "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Core\\SwiftExport.Core.csproj": {
-              "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Core\\SwiftExport.Core.csproj"
             },
             "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UiKongJianFrameWork\\SwiftExport.UiKongJianFrameWork.csproj": {
               "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UiKongJianFrameWork\\SwiftExport.UiKongJianFrameWork.csproj"

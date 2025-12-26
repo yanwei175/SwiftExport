@@ -341,6 +341,7 @@
     can be found.
   -->
   <ItemGroup>
+    <Compile Include="DI\DI_VstoHost.cs" />
     <Compile Include="GlobalClass\GlobalCom.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>

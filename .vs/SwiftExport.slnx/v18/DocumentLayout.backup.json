@@ -1,12 +1,71 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "D:\\source\\CSharp\\SwiftExport\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{00508706-6170-4EA2-8C71-617BA2B3658E}|SwiftExport.UiWinForm\\SwiftExport.UiWinForm.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.uiwinform\\mainfrm.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{00508706-6170-4EA2-8C71-617BA2B3658E}|SwiftExport.UiWinForm\\SwiftExport.UiWinForm.csproj|solutionrelative:swiftexport.uiwinform\\mainfrm.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{D8D71D0B-DEEA-4BBC-AC3B-CD6181EC10D0}|SwiftExportAddIn\\SwiftExportAddIn.csproj|d:\\source\\csharp\\swiftexport\\swiftexportaddin\\thisaddin.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{D8D71D0B-DEEA-4BBC-AC3B-CD6181EC10D0}|SwiftExportAddIn\\SwiftExportAddIn.csproj|solutionrelative:swiftexportaddin\\thisaddin.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{00508706-6170-4EA2-8C71-617BA2B3658E}|SwiftExport.UiWinForm\\SwiftExport.UiWinForm.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.uiwinform\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{00508706-6170-4EA2-8C71-617BA2B3658E}|SwiftExport.UiWinForm\\SwiftExport.UiWinForm.csproj|solutionrelative:swiftexport.uiwinform\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": []
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Program.cs",
+              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UiWinForm\\Program.cs",
+              "RelativeDocumentMoniker": "SwiftExport.UiWinForm\\Program.cs",
+              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UiWinForm\\Program.cs",
+              "RelativeToolTip": "SwiftExport.UiWinForm\\Program.cs",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAABkAAAAoAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-26T10:52:56.167Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MainFrm.cs",
+              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UiWinForm\\MainFrm.cs",
+              "RelativeDocumentMoniker": "SwiftExport.UiWinForm\\MainFrm.cs",
+              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UiWinForm\\MainFrm.cs",
+              "RelativeToolTip": "SwiftExport.UiWinForm\\MainFrm.cs",
+              "ViewState": "AgIAAAsAAAAAAAAAAAAQwBsAAAApAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-26T10:52:40.595Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ThisAddIn.cs",
+              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExportAddIn\\ThisAddIn.cs",
+              "RelativeDocumentMoniker": "SwiftExportAddIn\\ThisAddIn.cs",
+              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExportAddIn\\ThisAddIn.cs",
+              "RelativeToolTip": "SwiftExportAddIn\\ThisAddIn.cs",
+              "ViewState": "AgIAABAAAAAAAAAAAAAwwBsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-26T10:47:27.138Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
     }
   ]
 }

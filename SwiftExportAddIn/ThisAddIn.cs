@@ -6,6 +6,7 @@ using Microsoft.Office.Interop.Excel;
 using SwiftExport.AppLayer.DI;
 using SwiftExport.UiKongJianFrameWork;
 using SwiftExport.UiKongJianFrameWork.AppForms;
+using SwiftExportAddIn.DI;
 using SwiftExportAddIn.TaskPanel;
 using SwiftExportAddIn.UserFactory;
 using SwiftExportVSTO;
@@ -21,13 +22,11 @@ namespace SwiftExportAddIn
 {
     public partial class ThisAddIn
     {
-        private IServiceProvider _provider;
-        public IServerFactory ServerFactory { get; private set; }
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
             Application.WorkbookBeforeClose += DeleteTaskPenByWindowsClose;
 
-            DI_Initialize();
+            var provider = DI_VstoHost.Provider;
 
         }
 
@@ -46,35 +45,6 @@ namespace SwiftExportAddIn
             }
         }
 
-        private void DI_Initialize()
-        {
-            string databasePath = Properties.Settings.Default.DataBase.ToString();
-            // 1. 加载配置
-            var config = new ConfigurationBuilder()
-                                .AddInMemoryCollection(new Dictionary<string, string>
-                                {
-                                    ["ConnectionStrings:DataBase"] = databasePath,
-                                })
-                                .Build();
-
-
-            var services = new ServiceCollection();
-            services.AddApplicationServers(config);
-            services.AddSingleton<IServerFactory, ServiceFactory>();
-            services.AddTransient<LoginFrm>();
-            services.AddTransient<FrmCustomersManager>();
-            services.AddTransient<FrmSuppliersManager>();
-            services.AddTransient<FrmExcelSheetFieldsMappingManager>();
-            services.AddTransient<FrmProductColorManager>();
-            services.AddSingleton<ILoggerFactory, NullLoggerFactory>();
-            services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
-            // 构建 ServiceProvider
-            _provider = services.BuildServiceProvider();
-
-            // 工厂服务存到全局变量
-            Globals.ThisAddIn.ServerFactory = _provider.GetRequiredService<IServerFactory>();
-
-        }
 
 
         #region VSTO 生成的代码

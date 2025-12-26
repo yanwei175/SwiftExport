@@ -8,13 +8,13 @@ using System;
 
 namespace SwiftExport.AppLayer.DI
 {
-    public static class DI_Application
+    public static class DI_AppLayer
     {
         /// <summary>
         /// 主入口：宿主必须传入 IConfiguration（IConfiguration 在宿主中构建）。
         /// connectionName 表示 GetConnectionString(name) 的 name，默认 "Default"。
         /// </summary>
-        public static IServiceCollection AddApplicationServers(this IServiceCollection services,  IConfiguration configuration)
+        public static IServiceCollection AddAppLayerServers(this IServiceCollection services,  IConfiguration configuration)
         {
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 

@@ -12,7 +12,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SwiftExport.Application\SwiftExport.AppLayer.csproj" />
-    <ProjectReference Include="..\SwiftExport.Core\SwiftExport.Core.csproj" />
     <ProjectReference Include="..\SwiftExport.UiKongJianFrameWork\SwiftExport.UiKongJianFrameWork.csproj" />
     <ProjectReference Include="..\SwiftExprot.Utility\SwiftExprot.Utility.csproj" />
   </ItemGroup>

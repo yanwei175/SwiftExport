@@ -38,6 +38,12 @@
             this.tab2 = this.Factory.CreateRibbonTab();
             this.Rbon_Login_Group = this.Factory.CreateRibbonGroup();
             this.Banna_Login = this.Factory.CreateRibbonButton();
+            this.Rbon_BaseSetting_Group = this.Factory.CreateRibbonGroup();
+            this.SptBtn_BaseSetting = this.Factory.CreateRibbonSplitButton();
+            this.Btn_BaseSetting_FrmCustomersManager = this.Factory.CreateRibbonButton();
+            this.Btn_BaseSetting_FrmSupplierManager = this.Factory.CreateRibbonButton();
+            this.Btn_BaseSetting_FrmProductColorManager = this.Factory.CreateRibbonButton();
+            this.Btn_BaseSetting_FrmExcelFieldMappManager = this.Factory.CreateRibbonButton();
             this.Rbon_Product_Group = this.Factory.CreateRibbonGroup();
             this.Rbn_btn_Product = this.Factory.CreateRibbonButton();
             this.Rbn_btn_BOM = this.Factory.CreateRibbonButton();
@@ -51,20 +57,14 @@
             this.Rbn_btn_GenJinOrder = this.Factory.CreateRibbonButton();
             this.Rbn_btn_Shipped = this.Factory.CreateRibbonButton();
             this.Rbn_btn_PurchaseShouHuo = this.Factory.CreateRibbonButton();
-            this.Rbon_BaseSetting_Group = this.Factory.CreateRibbonGroup();
-            this.SptBtn_BaseSetting = this.Factory.CreateRibbonSplitButton();
-            this.Btn_BaseSetting_FrmCustomersManager = this.Factory.CreateRibbonButton();
-            this.Btn_BaseSetting_FrmExcelFieldMappManager = this.Factory.CreateRibbonButton();
-            this.Btn_BaseSetting_FrmProductColorManager = this.Factory.CreateRibbonButton();
-            this.Btn_BaseSetting_FrmSupplierManager = this.Factory.CreateRibbonButton();
             this.tab1.SuspendLayout();
             this.tab2.SuspendLayout();
             this.Rbon_Login_Group.SuspendLayout();
+            this.Rbon_BaseSetting_Group.SuspendLayout();
             this.Rbon_Product_Group.SuspendLayout();
             this.Rbon_Sales_Group.SuspendLayout();
             this.Rbon_Purcase_Group.SuspendLayout();
             this.Rbon_Shipped_Group.SuspendLayout();
-            this.Rbon_BaseSetting_Group.SuspendLayout();
             this.SuspendLayout();
             // 
             // tab1
@@ -98,6 +98,51 @@
             this.Banna_Login.Name = "Banna_Login";
             this.Banna_Login.ShowImage = true;
             this.Banna_Login.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Banna_Login_Click);
+            // 
+            // Rbon_BaseSetting_Group
+            // 
+            this.Rbon_BaseSetting_Group.Items.Add(this.SptBtn_BaseSetting);
+            this.Rbon_BaseSetting_Group.Label = "基础设置";
+            this.Rbon_BaseSetting_Group.Name = "Rbon_BaseSetting_Group";
+            // 
+            // SptBtn_BaseSetting
+            // 
+            this.SptBtn_BaseSetting.ButtonType = Microsoft.Office.Tools.Ribbon.RibbonButtonType.ToggleButton;
+            this.SptBtn_BaseSetting.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.SptBtn_BaseSetting.Items.Add(this.Btn_BaseSetting_FrmCustomersManager);
+            this.SptBtn_BaseSetting.Items.Add(this.Btn_BaseSetting_FrmSupplierManager);
+            this.SptBtn_BaseSetting.Items.Add(this.Btn_BaseSetting_FrmProductColorManager);
+            this.SptBtn_BaseSetting.Items.Add(this.Btn_BaseSetting_FrmExcelFieldMappManager);
+            this.SptBtn_BaseSetting.Label = "基础设置";
+            this.SptBtn_BaseSetting.Name = "SptBtn_BaseSetting";
+            // 
+            // Btn_BaseSetting_FrmCustomersManager
+            // 
+            this.Btn_BaseSetting_FrmCustomersManager.Label = "客户设置";
+            this.Btn_BaseSetting_FrmCustomersManager.Name = "Btn_BaseSetting_FrmCustomersManager";
+            this.Btn_BaseSetting_FrmCustomersManager.ShowImage = true;
+            this.Btn_BaseSetting_FrmCustomersManager.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Btn_BaseSetting_FrmCustomersManager_Click);
+            // 
+            // Btn_BaseSetting_FrmSupplierManager
+            // 
+            this.Btn_BaseSetting_FrmSupplierManager.Label = "供应商设置";
+            this.Btn_BaseSetting_FrmSupplierManager.Name = "Btn_BaseSetting_FrmSupplierManager";
+            this.Btn_BaseSetting_FrmSupplierManager.ShowImage = true;
+            this.Btn_BaseSetting_FrmSupplierManager.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Btn_BaseSetting_FrmSupplierManager_Click);
+            // 
+            // Btn_BaseSetting_FrmProductColorManager
+            // 
+            this.Btn_BaseSetting_FrmProductColorManager.Label = "产品颜色设置";
+            this.Btn_BaseSetting_FrmProductColorManager.Name = "Btn_BaseSetting_FrmProductColorManager";
+            this.Btn_BaseSetting_FrmProductColorManager.ShowImage = true;
+            this.Btn_BaseSetting_FrmProductColorManager.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Btn_BaseSetting_FrmProductColorManager_Click);
+            // 
+            // Btn_BaseSetting_FrmExcelFieldMappManager
+            // 
+            this.Btn_BaseSetting_FrmExcelFieldMappManager.Label = "Excel字段设置";
+            this.Btn_BaseSetting_FrmExcelFieldMappManager.Name = "Btn_BaseSetting_FrmExcelFieldMappManager";
+            this.Btn_BaseSetting_FrmExcelFieldMappManager.ShowImage = true;
+            this.Btn_BaseSetting_FrmExcelFieldMappManager.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Btn_BaseSetting_FrmExcelFieldMappManager_Click);
             // 
             // Rbon_Product_Group
             // 
@@ -201,51 +246,6 @@
             this.Rbn_btn_PurchaseShouHuo.Name = "Rbn_btn_PurchaseShouHuo";
             this.Rbn_btn_PurchaseShouHuo.ShowImage = true;
             // 
-            // Rbon_BaseSetting_Group
-            // 
-            this.Rbon_BaseSetting_Group.Items.Add(this.SptBtn_BaseSetting);
-            this.Rbon_BaseSetting_Group.Label = "基础设置";
-            this.Rbon_BaseSetting_Group.Name = "Rbon_BaseSetting_Group";
-            // 
-            // SptBtn_BaseSetting
-            // 
-            this.SptBtn_BaseSetting.ButtonType = Microsoft.Office.Tools.Ribbon.RibbonButtonType.ToggleButton;
-            this.SptBtn_BaseSetting.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.SptBtn_BaseSetting.Items.Add(this.Btn_BaseSetting_FrmCustomersManager);
-            this.SptBtn_BaseSetting.Items.Add(this.Btn_BaseSetting_FrmSupplierManager);
-            this.SptBtn_BaseSetting.Items.Add(this.Btn_BaseSetting_FrmProductColorManager);
-            this.SptBtn_BaseSetting.Items.Add(this.Btn_BaseSetting_FrmExcelFieldMappManager);
-            this.SptBtn_BaseSetting.Label = "基础设置";
-            this.SptBtn_BaseSetting.Name = "SptBtn_BaseSetting";
-            // 
-            // Btn_BaseSetting_FrmCustomersManager
-            // 
-            this.Btn_BaseSetting_FrmCustomersManager.Label = "客户设置";
-            this.Btn_BaseSetting_FrmCustomersManager.Name = "Btn_BaseSetting_FrmCustomersManager";
-            this.Btn_BaseSetting_FrmCustomersManager.ShowImage = true;
-            this.Btn_BaseSetting_FrmCustomersManager.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Btn_BaseSetting_FrmCustomersManager_Click);
-            // 
-            // Btn_BaseSetting_FrmExcelFieldMappManager
-            // 
-            this.Btn_BaseSetting_FrmExcelFieldMappManager.Label = "Excel字段设置";
-            this.Btn_BaseSetting_FrmExcelFieldMappManager.Name = "Btn_BaseSetting_FrmExcelFieldMappManager";
-            this.Btn_BaseSetting_FrmExcelFieldMappManager.ShowImage = true;
-            this.Btn_BaseSetting_FrmExcelFieldMappManager.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Btn_BaseSetting_FrmExcelFieldMappManager_Click);
-            // 
-            // Btn_BaseSetting_FrmProductColorManager
-            // 
-            this.Btn_BaseSetting_FrmProductColorManager.Label = "产品颜色设置";
-            this.Btn_BaseSetting_FrmProductColorManager.Name = "Btn_BaseSetting_FrmProductColorManager";
-            this.Btn_BaseSetting_FrmProductColorManager.ShowImage = true;
-            this.Btn_BaseSetting_FrmProductColorManager.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Btn_BaseSetting_FrmProductColorManager_Click);
-            // 
-            // Btn_BaseSetting_FrmSupplierManager
-            // 
-            this.Btn_BaseSetting_FrmSupplierManager.Label = "供应商设置";
-            this.Btn_BaseSetting_FrmSupplierManager.Name = "Btn_BaseSetting_FrmSupplierManager";
-            this.Btn_BaseSetting_FrmSupplierManager.ShowImage = true;
-            this.Btn_BaseSetting_FrmSupplierManager.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Btn_BaseSetting_FrmSupplierManager_Click);
-            // 
             // SwiftExportAddInRibbon
             // 
             this.Name = "SwiftExportAddInRibbon";
@@ -259,6 +259,8 @@
             this.tab2.PerformLayout();
             this.Rbon_Login_Group.ResumeLayout(false);
             this.Rbon_Login_Group.PerformLayout();
+            this.Rbon_BaseSetting_Group.ResumeLayout(false);
+            this.Rbon_BaseSetting_Group.PerformLayout();
             this.Rbon_Product_Group.ResumeLayout(false);
             this.Rbon_Product_Group.PerformLayout();
             this.Rbon_Sales_Group.ResumeLayout(false);
@@ -267,8 +269,6 @@
             this.Rbon_Purcase_Group.PerformLayout();
             this.Rbon_Shipped_Group.ResumeLayout(false);
             this.Rbon_Shipped_Group.PerformLayout();
-            this.Rbon_BaseSetting_Group.ResumeLayout(false);
-            this.Rbon_BaseSetting_Group.PerformLayout();
             this.ResumeLayout(false);
 
         }
