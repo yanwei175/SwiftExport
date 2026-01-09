@@ -1,47 +1,36 @@
-﻿using Microsoft.Office.Interop.Excel;
+﻿using SwiftExport.AppLayer.Services;
+using SwiftExportAddIn.DI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SwiftExportVSTO.GlobalClass
 {
     public static class GlobalCom
     {
-        // 当前允许使用的 Workbook
-        public static Microsoft.Office.Interop.Excel.Workbook CurrentWorkbook { get; private set; }
 
         // 白名单列表
-        public static List<string> WhiteList { get; set; } = new List<string>();
+        public static HashSet<string> WhitelistCache { get; private set; }
 
-        /// <summary>
-        /// 检查并设置全局 Workbook
-        /// </summary>
-        public static bool TrySetWorkbook(Microsoft.Office.Interop.Excel.Workbook wb)
+        // 提供一个初始化方法
+        public static async Task InitializeAsync()
         {
-            if (wb == null) return false;
+            // 如果已经加载过，就不重复加载
+            if (WhitelistCache != null) return;
 
-            string fileName = wb.FullName;
-
-            if (WhiteList.Contains(fileName))
+            try
             {
-                CurrentWorkbook = wb;
-                return true;
+                var svr = await DI_VstoHost.GetService<WhiteListServices>().GetVstoWhiteListAsync();
+                WhitelistCache = svr.ToHashSet(StringComparer.OrdinalIgnoreCase);
             }
-
-            CurrentWorkbook = null;
-            return false;
+            catch (Exception)
+            {
+                // 处理异常，或者赋值一个空的 HashSet 防止后续报错
+                WhitelistCache = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            }
         }
 
-        /// <summary>
-        /// 判断当前 Workbook 是否在白名单内
-        /// </summary>
-        public static bool IsAllowedWorkbook(Microsoft.Office.Interop.Excel.Workbook wb)
-        {
-            if (wb == null) return false;
-            return WhiteList.Contains(wb.FullName);
-        }
     }
 
 }

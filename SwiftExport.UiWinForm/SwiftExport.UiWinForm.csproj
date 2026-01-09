@@ -10,11 +10,10 @@
 	  <ForceDesignerDpiUnaware>true</ForceDesignerDpiUnaware>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\SwiftExport.Application\SwiftExport.AppLayer.csproj" />
-    <ProjectReference Include="..\SwiftExport.UiKongJianFrameWork\SwiftExport.UiKongJianFrameWork.csproj" />
-    <ProjectReference Include="..\SwiftExprot.Utility\SwiftExprot.Utility.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\SwiftExport.UI.Framework\SwiftExport.UI.Framework.csproj" />
+		<ProjectReference Include="..\SwiftExport.Utility\SwiftExport.Utility.csproj" />
+	</ItemGroup>
 
   <ItemGroup>
     <Compile Update="Properties\Resources.Designer.cs">

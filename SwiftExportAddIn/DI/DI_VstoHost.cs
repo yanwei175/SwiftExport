@@ -3,17 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.AppLayer.DI;
-using SwiftExport.UiKongJianFrameWork.AppForms;
-using SwiftExport.UiKongJianFrameWork.DI;
-using SwiftExportVSTO;
+using SwiftExport.UI.Framework.DI;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace SwiftExportAddIn.DI
 {
@@ -42,23 +33,24 @@ namespace SwiftExportAddIn.DI
 
         private static IServiceProvider BuildProvider()
         {
-            string databasePath = Properties.Settings.Default.DataBase.ToString();
-            // 1. 加载配置
-            var configuration = new ConfigurationBuilder()
-                                .AddInMemoryCollection(new Dictionary<string, string>
-                                {
-                                    ["ConnectionStrings:DataBase"] = databasePath,
-                                })
-                                .Build();
+            //string databasePath = Properties.Settings.Default.DataBase.ToString();
+            //// 1. 加载配置
+            ////var configuration = new ConfigurationBuilder()
+            ////                    .AddInMemoryCollection(new Dictionary<string, string>
+            ////                    {
+            ////                        ["ConnectionStrings:DataBase"] = databasePath,
+            ////                    })
+            ////                    .Build();
+            //var configuration = AppConfig.Configuration;
 
             var services = new ServiceCollection();
 
             // 注入基础配置
-            services.AddSingleton<IConfiguration>(configuration);
+            services.AddSingleton<IConfiguration>(AppConfig.Configuration);
 
             // 公共层
-            services.AddAppLayerServers(configuration);
-            services.AddUiKongJianFramerWorkServers();
+            services.AddAppLayerServers(AppConfig.Configuration);
+            services.AddUIFrameworkServers();
             //services.AddUtility();
 
             // 日志
@@ -66,7 +58,7 @@ namespace SwiftExportAddIn.DI
             services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
 
             // 本模块服务
-            services.AddTransient<LoginFrm>();
+
 
             return services.BuildServiceProvider();
         }
@@ -77,22 +69,5 @@ namespace SwiftExportAddIn.DI
             return Provider.GetRequiredService<T>();
         }
 
-        /// <summary>
-        /// VSTO 核心：解决异步回来的跨线程问题
-        /// </summary>
-        public static void InvokeOnUI(Action action)
-        {
-            // VSTO 没有单例 MainForm，需要通过 OpenForms 寻找活动的同步上下文
-            Form syncForm = Application.OpenForms.Cast<Form>().LastOrDefault();
-
-            if (syncForm != null && syncForm.InvokeRequired)
-            {
-                syncForm.Invoke(action);
-            }
-            else
-            {
-                action();
-            }
-        }
     }
 }

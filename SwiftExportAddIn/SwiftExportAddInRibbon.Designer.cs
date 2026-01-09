@@ -83,6 +83,7 @@
             this.tab2.Groups.Add(this.Rbon_Shipped_Group);
             this.tab2.Label = "SwiftExport";
             this.tab2.Name = "tab2";
+            this.tab2.Visible = false;
             // 
             // Rbon_Login_Group
             // 

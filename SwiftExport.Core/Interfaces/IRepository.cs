@@ -1,9 +1,5 @@
 ﻿using SwiftExport.Core.Common;
-using SwiftExport.Core.Interfaces;
-using System;
 using System.Collections.Generic;
-using System.Linq.Expressions;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SwiftExport.Core.Interfaces
@@ -28,7 +24,7 @@ namespace SwiftExport.Core.Interfaces
         /// 整数类型的主键ID
         /// </param>
         /// <returns>返回一个存在的ID集合</returns>
-        Task<IEnumerable<int>> GetExistingIdsAsync(IEnumerable<int> ids);
+        Task<IReadOnlyList<int>> GetExistingIdsAsync(IEnumerable<int> ids);
 
         /// <summary>
         /// 泛型仓库,通过ID获取一个实体
@@ -46,7 +42,7 @@ namespace SwiftExport.Core.Interfaces
         /// 整数类型的主键ID列表
         /// </param>
         /// <returns>返回一个实体列表</returns>
-        Task<IEnumerable<T>> GetByIdsAsync(IEnumerable<int> ids);
+        Task<IReadOnlyList<T>> GetByIdsAsync(IEnumerable<int> ids);
 
         /// <summary>
         /// 泛型仓库,获取单个实体,主要是为了拿字段名
@@ -61,7 +57,7 @@ namespace SwiftExport.Core.Interfaces
         /// 实体对象
         /// </param>
         /// <returns>返回新ID</returns>
-        Task<int> AddAsync(T entity,IUnitOfWork uow);
+        Task<int> AddAsync(T entity, IUnitOfWork uow);
 
         /// <summary>
         /// 泛型仓库,根据ID软删除
@@ -94,7 +90,7 @@ namespace SwiftExport.Core.Interfaces
         /// 泛型仓库,获取一个表里的所有数据
         /// </summary>
         /// <returns>返回实体的集合</returns>
-        Task<IEnumerable<T>> GetAllAsync();
+        Task<IReadOnlyList<T>> GetAllAsync();
 
         /// <summary>
         /// 泛型仓库,批量新增实体到数据库
@@ -103,7 +99,7 @@ namespace SwiftExport.Core.Interfaces
         /// 一批实体对象的列表
         /// </param>
         /// <returns>返回新的ID集合</returns>
-        Task<IEnumerable<int>> AddRangeAsync(IEnumerable<T> entities, IUnitOfWork uow);
+        Task<IReadOnlyList<int>> AddRangeAsync(IEnumerable<T> entities, IUnitOfWork uow);
 
         /// <summary>
         /// 泛型仓库,硬删除一批实体通过ID列表
@@ -126,12 +122,12 @@ namespace SwiftExport.Core.Interfaces
         /// <summary>
         /// 动态SQL查询
         /// </summary>
-        /// <param name="条件字典">
-        /// 示例：dic("ID",new QueryCondition(QueryOperator.等于,556))
+        /// <param name="criteria">
+        /// 示例：QueryCriteria("ID",new QueryCondition(QueryOperator.等于,556))
         /// 字典的Key为待查询的数据库字段名，value为QueryCondition对象,对象里是 比对条件,条件值
         /// </param>
         /// <returns>一个对象列表,如果条件为空则返回所有IsDelete<>1的数据</returns>
-        Task<IEnumerable<T>> GetByUserWhereAsync(Dictionary<string, QueryCondition> 条件字典);
+        Task<IReadOnlyList<T>> GetByUserWhereAsync(QueryCriteria criteria);
 
         /// <summary>
         /// 基础分页查询
@@ -141,7 +137,11 @@ namespace SwiftExport.Core.Interfaces
         /// <param name="whereSql">SQL 过滤条件 (如: Name LIKE @Key)</param>
         /// <param name="parameters">参数对象</param>
         /// <param name="orderBy">排序字段 (必填，因为 OFFSET 需要顺序)</param>
-        Task<PagedResult<T>> GetPagedListAsync(int pageIndex, int pageSize, string whereSql, object parameters, string orderBy);
+        Task<PagedResult<T>> GetPagedListAsync(
+            QueryCriteria criteria,
+            int pageIndex,
+            int pageSize,
+            string orderBy = "ID DESC");
 
 
 

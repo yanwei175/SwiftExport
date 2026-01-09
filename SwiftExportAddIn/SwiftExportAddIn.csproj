@@ -136,11 +136,14 @@
     <Reference Include="Microsoft.Extensions.Caching.Memory, Version=8.0.0.1, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Extensions.Caching.Memory.8.0.1\lib\net462\Microsoft.Extensions.Caching.Memory.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Extensions.Configuration, Version=10.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Extensions.Configuration.10.0.0\lib\net462\Microsoft.Extensions.Configuration.dll</HintPath>
+    <Reference Include="Microsoft.Extensions.Configuration, Version=10.0.0.1, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Configuration.10.0.1\lib\net462\Microsoft.Extensions.Configuration.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Extensions.Configuration.Abstractions, Version=10.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Extensions.Configuration.Abstractions.10.0.0\lib\net462\Microsoft.Extensions.Configuration.Abstractions.dll</HintPath>
+    <Reference Include="Microsoft.Extensions.Configuration.Abstractions, Version=10.0.0.1, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Configuration.Abstractions.10.0.1\lib\net462\Microsoft.Extensions.Configuration.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Configuration.Binder, Version=10.0.0.1, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Configuration.Binder.10.0.1\lib\net462\Microsoft.Extensions.Configuration.Binder.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Extensions.Configuration.FileExtensions, Version=10.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Extensions.Configuration.FileExtensions.10.0.0\lib\net462\Microsoft.Extensions.Configuration.FileExtensions.dll</HintPath>
@@ -169,8 +172,8 @@
     <Reference Include="Microsoft.Extensions.Options, Version=10.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Extensions.Options.10.0.0\lib\net462\Microsoft.Extensions.Options.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Extensions.Primitives, Version=10.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Extensions.Primitives.10.0.0\lib\net462\Microsoft.Extensions.Primitives.dll</HintPath>
+    <Reference Include="Microsoft.Extensions.Primitives, Version=10.0.0.1, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Primitives.10.0.1\lib\net462\Microsoft.Extensions.Primitives.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Identity.Client, Version=4.73.1.0, Culture=neutral, PublicKeyToken=0a613f4dd989e8ae, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Identity.Client.4.73.1\lib\net472\Microsoft.Identity.Client.dll</HintPath>
@@ -341,7 +344,9 @@
     can be found.
   -->
   <ItemGroup>
+    <Compile Include="DI\AppConfig.cs" />
     <Compile Include="DI\DI_VstoHost.cs" />
+    <Compile Include="GlobalClass\ExcelWindowWrapper.cs" />
     <Compile Include="GlobalClass\GlobalCom.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
@@ -360,32 +365,25 @@
       <DependentUpon>test.cs</DependentUpon>
     </Compile>
     <Compile Include="UserFactory\IServerFactory.cs" />
-    <Compile Include="UserForms\LoginFrm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="UserForms\LoginFrm.Designer.cs">
-      <DependentUpon>LoginFrm.cs</DependentUpon>
-    </Compile>
     <Compile Include="UserFactory\ServiceFactory.cs" />
-    <Compile Include="用户控件\ProductSheetButtons.cs">
+    <Compile Include="UserCtrls\ProductSheetButtons.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="用户控件\ProductSheetButtons.Designer.cs">
+    <Compile Include="UserCtrls\ProductSheetButtons.Designer.cs">
       <DependentUpon>ProductSheetButtons.cs</DependentUpon>
     </Compile>
-    <Compile Include="用户控件\PurchaseOrderSheetButtons.cs">
+    <Compile Include="UserCtrls\PurchaseOrderSheetButtons.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="用户控件\PurchaseOrderSheetButtons.Designer.cs">
+    <Compile Include="UserCtrls\PurchaseOrderSheetButtons.Designer.cs">
       <DependentUpon>PurchaseOrderSheetButtons.cs</DependentUpon>
     </Compile>
-    <Compile Include="用户控件\SalesOrderSheetButtons.cs">
+    <Compile Include="UserCtrls\SalesOrderSheetButtons.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="用户控件\SalesOrderSheetButtons.Designer.cs">
+    <Compile Include="UserCtrls\SalesOrderSheetButtons.Designer.cs">
       <DependentUpon>SalesOrderSheetButtons.cs</DependentUpon>
     </Compile>
-    <Compile Include="静态类\ActiveUserClass.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -398,24 +396,21 @@
     <EmbeddedResource Include="SwiftExportAddInRibbon.resx">
       <DependentUpon>SwiftExportAddInRibbon.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UserForms\LoginFrm.resx">
-      <DependentUpon>LoginFrm.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="UserForms\test.resx">
       <DependentUpon>test.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="用户控件\ProductSheetButtons.resx">
+    <EmbeddedResource Include="UserCtrls\ProductSheetButtons.resx">
       <DependentUpon>ProductSheetButtons.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="用户控件\PurchaseOrderSheetButtons.resx">
+    <EmbeddedResource Include="UserCtrls\PurchaseOrderSheetButtons.resx">
       <DependentUpon>PurchaseOrderSheetButtons.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="用户控件\SalesOrderSheetButtons.resx">
+    <EmbeddedResource Include="UserCtrls\SalesOrderSheetButtons.resx">
       <DependentUpon>SalesOrderSheetButtons.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="app.config" />
     <None Include="appsettings.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
@@ -448,13 +443,13 @@
       <Project>{aa16c03e-d164-7355-3ab0-45fc1d447ecc}</Project>
       <Name>SwiftExport.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\SwiftExport.UiKongJianFrameWork\SwiftExport.UiKongJianFrameWork.csproj">
+    <ProjectReference Include="..\SwiftExport.UI.Framework\SwiftExport.UI.Framework.csproj">
       <Project>{29d3ed05-2428-41ed-9c78-a969a1ba2538}</Project>
-      <Name>SwiftExport.UiKongJianFrameWork</Name>
+      <Name>SwiftExport.UI.Framework</Name>
     </ProjectReference>
-    <ProjectReference Include="..\SwiftExprot.Utility\SwiftExprot.Utility.csproj">
+    <ProjectReference Include="..\SwiftExport.Utility\SwiftExport.Utility.csproj">
       <Project>{f7433d9a-3887-4366-b4ae-850fd08c7cf2}</Project>
-      <Name>SwiftExprot.Utility</Name>
+      <Name>SwiftExport.Utility</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup />

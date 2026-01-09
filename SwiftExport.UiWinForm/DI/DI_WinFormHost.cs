@@ -3,11 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.AppLayer.DI;
-using SwiftExport.UiKongJianFrameWork.AppForms;
-using SwiftExport.UiKongJianFrameWork.DI;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using SwiftExport.UI.Framework.DI;
 
 namespace SwiftExport.UiWinForm.DI
 {
@@ -25,7 +21,7 @@ namespace SwiftExport.UiWinForm.DI
                     return _provider;
                 }
                 lock (_lock)
-                { 
+                {
                     _provider ??= BuildProvider();
                 }
                 return _provider;
@@ -42,7 +38,7 @@ namespace SwiftExport.UiWinForm.DI
 
             // 公共层
             services.AddAppLayerServers(configuration);
-            services.AddUiKongJianFramerWorkServers();
+            services.AddUIFrameworkServers();
             //services.AddUtility();
 
             // 日志
@@ -50,7 +46,7 @@ namespace SwiftExport.UiWinForm.DI
             services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
 
             // WinForm UI 层
-            services.AddTransient<LoginFrm>();
+            //services.AddTransient<LoginFrm>();
             services.AddSingleton<MainFrm>();
 
             return services.BuildServiceProvider();

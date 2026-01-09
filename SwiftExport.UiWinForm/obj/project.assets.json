@@ -694,28 +694,28 @@
           "bin/placeholder/SwiftExport.Infrastructure.dll": {}
         }
       },
-      "SwiftExport.UiKongJianFrameWork/1.0.0": {
+      "SwiftExport.UI.Framework/1.0.0": {
         "type": "project",
         "dependencies": {
           "SwiftExport.AppLayer": "1.0.0",
           "SwiftExport.Core": "1.0.0",
-          "SwiftExprot.Utility": "1.0.0"
+          "SwiftExport.Utility": "1.0.0"
         },
         "compile": {
-          "bin/placeholder/SwiftExport.UiKongJianFrameWork.dll": {}
+          "bin/placeholder/SwiftExport.UI.Framework.dll": {}
         },
         "runtime": {
-          "bin/placeholder/SwiftExport.UiKongJianFrameWork.dll": {}
+          "bin/placeholder/SwiftExport.UI.Framework.dll": {}
         }
       },
-      "SwiftExprot.Utility/1.0.0": {
+      "SwiftExport.Utility/1.0.0": {
         "type": "project",
         "framework": ".NETStandard,Version=v2.0",
         "compile": {
-          "bin/placeholder/SwiftExprot.Utility.dll": {}
+          "bin/placeholder/SwiftExport.Utility.dll": {}
         },
         "runtime": {
-          "bin/placeholder/SwiftExprot.Utility.dll": {}
+          "bin/placeholder/SwiftExport.Utility.dll": {}
         }
       }
     }
@@ -1703,22 +1703,21 @@
       "path": "../SwiftExport.Infrastructure/SwiftExport.Infrastructure.csproj",
       "msbuildProject": "../SwiftExport.Infrastructure/SwiftExport.Infrastructure.csproj"
     },
-    "SwiftExport.UiKongJianFrameWork/1.0.0": {
+    "SwiftExport.UI.Framework/1.0.0": {
       "type": "project",
-      "path": "../SwiftExport.UiKongJianFrameWork/SwiftExport.UiKongJianFrameWork.csproj",
-      "msbuildProject": "../SwiftExport.UiKongJianFrameWork/SwiftExport.UiKongJianFrameWork.csproj"
+      "path": "../SwiftExport.UI.Framework/SwiftExport.UI.Framework.csproj",
+      "msbuildProject": "../SwiftExport.UI.Framework/SwiftExport.UI.Framework.csproj"
     },
-    "SwiftExprot.Utility/1.0.0": {
+    "SwiftExport.Utility/1.0.0": {
       "type": "project",
-      "path": "../SwiftExprot.Utility/SwiftExprot.Utility.csproj",
-      "msbuildProject": "../SwiftExprot.Utility/SwiftExprot.Utility.csproj"
+      "path": "../SwiftExport.Utility/SwiftExport.Utility.csproj",
+      "msbuildProject": "../SwiftExport.Utility/SwiftExport.Utility.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net10.0-windows7.0": [
-      "SwiftExport.AppLayer >= 1.0.0",
-      "SwiftExport.UiKongJianFrameWork >= 1.0.0",
-      "SwiftExprot.Utility >= 1.0.0"
+      "SwiftExport.UI.Framework >= 1.0.0",
+      "SwiftExport.Utility >= 1.0.0"
     ]
   },
   "packageFolders": {
@@ -1753,14 +1752,11 @@
         "net10.0-windows7.0": {
           "targetAlias": "net10.0-windows",
           "projectReferences": {
-            "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Application\\SwiftExport.AppLayer.csproj": {
-              "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Application\\SwiftExport.AppLayer.csproj"
+            "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI.Framework\\SwiftExport.UI.Framework.csproj": {
+              "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI.Framework\\SwiftExport.UI.Framework.csproj"
             },
-            "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UiKongJianFrameWork\\SwiftExport.UiKongJianFrameWork.csproj": {
-              "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UiKongJianFrameWork\\SwiftExport.UiKongJianFrameWork.csproj"
-            },
-            "D:\\source\\CSharp\\SwiftExport\\SwiftExprot.Utility\\SwiftExprot.Utility.csproj": {
-              "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExprot.Utility\\SwiftExprot.Utility.csproj"
+            "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Utility\\SwiftExport.Utility.csproj": {
+              "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Utility\\SwiftExport.Utility.csproj"
             }
           }
         }

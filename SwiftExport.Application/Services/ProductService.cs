@@ -1,14 +1,9 @@
-﻿using AutoMapper;
-using SwiftExport.AppLayer.DTOs;
-using SwiftExport.AppLayer.Interfaces;
-using SwiftExport.Core.Common;
+﻿using SwiftExport.AppLayer.Interfaces;
 using SwiftExport.Core.Entities;
+using SwiftExport.Core.Entities.OtherEntities;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Interfaces;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SwiftExport.AppLayer.Services
@@ -21,49 +16,34 @@ namespace SwiftExport.AppLayer.Services
             _tsrepo = repo;
         }
 
-        public async Task<IEnumerable<Product>> GetAll()
-        {
-               return await _tsrepo.GetAllAsync();
-        }
-
 
         public async Task<Product> GetBySkuAsync(string sku)
         {
-                return await _tsrepo.Get单产品BySku(sku);
+            return await _tsrepo.GetBySkuAsync(sku);
         }
 
-        public Task<IEnumerable<Product>> GetBySkuListAsync(IEnumerable<string> skus)
+        public async Task<IReadOnlyList<Product>> GetBySkuListAsync(IReadOnlyList<string> skuList)
         {
-            throw new NotImplementedException();
+            return await _tsrepo.GetListBySkuListAsync(skuList);
         }
 
         public async Task<Product> GetByCustomerCodeWithCSkuAsync(string CustomerCode, string cSKU)
         {
-                return await _tsrepo.Get单产品By客户代码和型号(CustomerCode, cSKU);
+            return await _tsrepo.GetByCustomerInfoAsync(CustomerCode, cSKU);
 
         }
 
-        public async Task<IEnumerable<Product>> Get多产品BySkusAsync(IEnumerable<string> sku)
+        public async Task<IReadOnlyList<Product>> GetByCustomerCodeWithCSkuListAsync(string CustomerCode, IReadOnlyList<string> cskuList)
         {
-                return await _tsrepo.Get多产品BySkus(sku);
+            return await _tsrepo.GetListByCustomerCodeAndcSkuListAsync(CustomerCode, cskuList);
         }
 
-        public async Task<IEnumerable<Product>> Get多产品By动态条件Async(Dictionary<string, QueryCondition> 条件字典)
+        public async Task<IReadOnlyList<Product>> GetByCustomerCodeListWithCSkuListAsync(Dictionary<string, string> cSkuAndCustomerCode)
         {
-                return await _tsrepo.GetByUserWhereAsync(条件字典);
+            return await _tsrepo.GetProductListByCustomerSkuAndCodeAsync(cSkuAndCustomerCode);
         }
 
-        public async Task<IEnumerable<Product>> GetByCustomerCodeWithCSkuListAsync(string CustomerCode, IEnumerable<string> cSKUs)
-        {
-                return await _tsrepo.Get多产品By单客户代码多客户型号(CustomerCode,cSKUs);
-        }
-
-        public async Task<IEnumerable<Product>> GetByCustomerCodeListWithCSkuListAsync(Dictionary<string, string> cSkuAndCustomerCode)
-        {
-                return await _tsrepo.Get多产品By多客户代码多客户型号(cSkuAndCustomerCode);
-        }
-
-        public async Task<int> SyncProductsAsync(IEnumerable<Product> products)
+        public async Task<int> SyncProductsAsync(IReadOnlyList<Product> products)
         {
             using (var uow = _uowFac.CreateUoW())
             {
@@ -85,14 +65,14 @@ namespace SwiftExport.AppLayer.Services
 
         }
 
+        public async Task<List<ProductSearchMeta>> GetAllSearchMetaAsync()
+        {
+            return await _tsrepo.GetAllSearchMetaAsync();
+        }
 
-
-
-
-
-
-
-
-
+        public async Task<List<string>> GetAllCustomerCodeListAsync()
+        {
+            return await _tsrepo.GetAllCustomerCodeListAsync();
+        }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using SwiftExport.AppLayer.DTOs;
+using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities;
 using SwiftExport.Core.EntitieView;
 using System;
@@ -10,7 +11,7 @@ namespace SwiftExport.AppLayer.Interfaces
 {
     public interface IViewUserRoleService 
     {
-        Task<ViewUserRole> GetUserRole(String userName, String password);
+        Task<ServiceResult<ViewUserRole>> GetUserRole(String userName, String password);
 
     }
 }

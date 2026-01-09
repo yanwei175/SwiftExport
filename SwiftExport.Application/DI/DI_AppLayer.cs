@@ -14,28 +14,29 @@ namespace SwiftExport.AppLayer.DI
         /// 主入口：宿主必须传入 IConfiguration（IConfiguration 在宿主中构建）。
         /// connectionName 表示 GetConnectionString(name) 的 name，默认 "Default"。
         /// </summary>
-        public static IServiceCollection AddAppLayerServers(this IServiceCollection services,  IConfiguration configuration)
+        public static IServiceCollection AddAppLayerServers(this IServiceCollection services, IConfiguration configuration)
         {
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
             var connStr = configuration.GetConnectionString("DataBase");
 
-            if(string.IsNullOrWhiteSpace(connStr)) throw new ArgumentNullException(nameof(connStr));
+            if (string.IsNullOrWhiteSpace(connStr)) throw new ArgumentNullException(nameof(connStr));
 
             // 扫描 Application 层程序集里的所有 Profile
             services.AddAutoMapper(cfg => { }, typeof(ProductProfiles).Assembly);
 
             //注册基础设施服务
             services.AddInfrastructureServices(connStr);
-  
+
             // 注册应用服务
-            services.AddScoped<IProductService, ProductService> ();
+            services.AddScoped<IProductService, ProductService>();
             services.AddScoped<IBOMService, BomService>();
             services.AddScoped<IViewUserRoleService, ViewUserRoleService>();
             services.AddScoped<ICustomersService, CustomersService>();
             services.AddScoped<ISuppliersService, SuppliersService>();
             services.AddScoped<IExcelSheetFieldsMappingService, ExcelSheetFieldsMappingService>();
             services.AddScoped<IProductColorService, ProductColorService>();
+            services.AddScoped<IWhiteListServices, WhiteListServices>();
 
 
             return services;

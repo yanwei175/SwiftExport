@@ -1,4 +1,3 @@
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Factory;
@@ -16,12 +15,12 @@ namespace SwiftExport.Infrastructure.DI
         /// 主入口：宿主必须传入 IConfiguration（IConfiguration 在宿主中构建）。
         /// connectionName 表示 GetConnectionString(name) 的 name，默认 "Default"。
         /// </summary>
-        public static IServiceCollection AddInfrastructureServices(this IServiceCollection services,  string connString)
+        public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, string connString)
         {
             //注入数据库连接字符串
             if (string.IsNullOrWhiteSpace(connString)) throw new ArgumentNullException(nameof(connString));
 
-            services.AddSingleton<IDbConnectionFactory>(sp=> new SqlConnectionFactory(connString));
+            services.AddSingleton<IDbConnectionFactory>(sp => new SqlConnectionFactory(connString));
             services.AddSingleton<IUintOfWorkFactory, UnitOfWorkFactory>();
 
             //注入数据库连接（Scoped，每次请求一个连接实例）
@@ -39,6 +38,7 @@ namespace SwiftExport.Infrastructure.DI
             services.AddScoped<ICustomerProductRepository, CustomerProductRepository>();
             services.AddScoped<ICustomersRepository, CustomersRepository>();
             services.AddScoped<IExcelSheetFieldsRepository, ExcelSheetFieldsRepository>();
+            services.AddScoped<IWhiteListRepository, WhiteListRepository>();
 
 
             //services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();

@@ -1,9 +1,6 @@
-﻿using SwiftExport.AppLayer.DTOs;
-using SwiftExport.Core.Common;
-using SwiftExport.Core.Entities;
+﻿using SwiftExport.Core.Entities;
+using SwiftExport.Core.Entities.OtherEntities;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SwiftExport.AppLayer.Interfaces
@@ -12,10 +9,17 @@ namespace SwiftExport.AppLayer.Interfaces
     {
         Task<Product> GetBySkuAsync(string sku);
         Task<Product> GetByCustomerCodeWithCSkuAsync(string CustomerCode, string cSKU);
-        Task<IEnumerable<Product>> GetBySkuListAsync(IEnumerable<string> skus);
-        Task<IEnumerable<Product>> GetByCustomerCodeWithCSkuListAsync(string CustomerCode, IEnumerable<string> cSKUList);
-        Task<IEnumerable<Product>> GetByCustomerCodeListWithCSkuListAsync(Dictionary<string, string> cSkuListAndCustomerCodeList);
-        Task<int> SyncProductsAsync(IEnumerable<Product> productList);
+        Task<IReadOnlyList<Product>> GetBySkuListAsync(IReadOnlyList<string> skus);
+        Task<IReadOnlyList<Product>> GetByCustomerCodeWithCSkuListAsync(string CustomerCode, IReadOnlyList<string> cSKUList);
+        Task<IReadOnlyList<Product>> GetByCustomerCodeListWithCSkuListAsync(Dictionary<string, string> cSkuListAndCustomerCodeList);
+        Task<List<string>> GetAllCustomerCodeListAsync();
+
+        /// <summary>
+        /// 搜索联想
+        /// </summary>
+        Task<List<ProductSearchMeta>> GetAllSearchMetaAsync();
+
+        Task<int> SyncProductsAsync(IReadOnlyList<Product> productList);
 
     }
 }

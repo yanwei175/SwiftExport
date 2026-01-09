@@ -1,13 +1,11 @@
 ﻿using SwiftExport.Core.Common;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace SwiftExport.Core.Entities
 {
-    public class Product: BaseEntity
+    public class Product : BaseEntity
 
     {
+        public string MasterSku { get; set; } // 逻辑外键：直接存字符串 "AT010011"
         public string Even { get; set; }
         public string Status { get; set; }
         public string SKU { get; set; }

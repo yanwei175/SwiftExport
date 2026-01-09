@@ -7,7 +7,7 @@ namespace SwiftExport.UiWinForm.DI
         public static IServiceCollection AddWinFormServers(this IServiceCollection services)
         {
             // 注册窗体服务
-            services.AddTransient<LoginFrm>();
+            //services.AddTransient<LoginFrm>();
             services.AddTransient<MainFrm>();
             return services;
         }

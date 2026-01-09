@@ -1,17 +1,10 @@
-﻿using SwiftExport.AppLayer.DTOs;
-using SwiftExport.AppLayer.Interfaces;
+﻿using SwiftExport.AppLayer.Interfaces;
 using SwiftExport.Core.Common;
-using SwiftExport.Core.Entities;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Factory;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
-using static Dapper.SqlMapper;
 
 namespace SwiftExport.AppLayer.Services
 {
@@ -118,7 +111,7 @@ namespace SwiftExport.AppLayer.Services
                     {
                         return ServiceResult<T>.Fail($"ID{entity.ID}不存在,不允许更新!");
                     }
-                    
+
                     //uow 开始
                     var affectedRows = await _repo.UpdateAsync(entity, uow);
 
@@ -127,7 +120,7 @@ namespace SwiftExport.AppLayer.Services
                     return ServiceResult<T>.Ok(await _repo.GetByIdAsync(entity.ID));
                 }
                 catch (Exception)
-                {  
+                {
                     await uow.RollbackAsync();
                     throw;
                 }
@@ -147,7 +140,7 @@ namespace SwiftExport.AppLayer.Services
                     var affectedRows = await _repo.DeleteAsync(id, uow);
                     // uow提交
                     await uow.CommitAsync();
-                    return ServiceResult<bool>.Ok(true,"删除成功");
+                    return ServiceResult<bool>.Ok(true, "删除成功");
                 }
                 catch (Exception)
                 {
@@ -183,12 +176,12 @@ namespace SwiftExport.AppLayer.Services
         }
         public async Task<ServiceResult<IReadOnlyList<T>>> GetAllAsync()
         {
-            var rst= await _repo.GetAllAsync();
+            var rst = await _repo.GetAllAsync();
             if (rst == null)
             {
                 return ServiceResult<IReadOnlyList<T>>.Fail("未找到数据!");
             }
-           return ServiceResult<IReadOnlyList<T>>.Ok(rst.ToList());
+            return ServiceResult<IReadOnlyList<T>>.Ok(rst.ToList());
         }
         public async Task<ServiceResult<T>> GetByIdAsync(int id)
         {
@@ -200,7 +193,7 @@ namespace SwiftExport.AppLayer.Services
             {
                 return ServiceResult<T>.Fail("传入的ID无效!");
             }
-            var rst=await _repo.GetByIdAsync(id);
+            var rst = await _repo.GetByIdAsync(id);
             if (rst == null)
             {
                 return ServiceResult<T>.Fail($"ID{id}不存在!");
@@ -215,18 +208,9 @@ namespace SwiftExport.AppLayer.Services
         /// 示例：dic("ID",new QueryCondition(QueryOperator.等于,556))
         /// 字典的Key为待查询的数据库字段名，value为QueryCondition对象,对象里是 比对条件,条件值
         /// </param>
-        /// <returns>一个对象列表,如果条件为空则返回所有IsDelete<>1的数据</returns>
-        public async  Task<ServiceResult<IReadOnlyList<T>>> GetByUserWhereAsync(Dictionary<string, QueryCondition> 条件字典)
+        /// <returns>一个对象列表,如果条件为空则返回所有的数据</returns>
+        public async Task<ServiceResult<IReadOnlyList<T>>> GetByUserWhereAsync(QueryCriteria 条件字典)
         {
-            //遍历条件字典里的QueryCondition对象
-            foreach (var kvp in 条件字典)
-            { 
-                string field = kvp.Key;
-                if (string.IsNullOrEmpty(field.Trim()) ||  field.Trim().Length == 0 ||  field == "--请选择--")
-                {
-                    条件字典.Remove (field);
-                }
-            }
 
             var rst = await _repo.GetByUserWhereAsync(条件字典);
             if (rst == null)
@@ -238,14 +222,14 @@ namespace SwiftExport.AppLayer.Services
 
         public async Task<ServiceResult<T>> GetSingleEntityAsync()
         {
-            var rst=await _repo.GetSingleEntityAsync();
+            var rst = await _repo.GetSingleEntityAsync();
             if (rst == null)
             {
                 return ServiceResult<T>.Fail("未找到数据!");
             }
             return ServiceResult<T>.Ok(rst);
         }
-        public async Task<ServiceResult<CUDResult>> BatchCUDByOnlyPkUniqueAsync(IEnumerable<T> addList,IEnumerable<T> updateList,IEnumerable<int> deleteIds)
+        public async Task<ServiceResult<CUDResult>> BatchCUDByOnlyPkUniqueAsync(IEnumerable<T> addList, IEnumerable<T> updateList, IEnumerable<int> deleteIds)
         {
             // 1. 开启事务
             using (var uow = _uowFac.CreateUoW())
@@ -299,13 +283,31 @@ namespace SwiftExport.AppLayer.Services
         {
             if (ids == null || !ids.Any())
                 return ServiceResult<IReadOnlyList<T>>.Fail("请提供有效的ID列表");
-            var rst= await _repo.GetByIdsAsync(ids);
-            if (rst==null)
+            var rst = await _repo.GetByIdsAsync(ids);
+            if (rst == null)
                 return ServiceResult<IReadOnlyList<T>>.Fail("未找到任何数据");
 
             return ServiceResult<IReadOnlyList<T>>.Ok(rst.ToList());
         }
 
 
+        /// <summary>
+        /// 泛型分页查询 (基于 QueryCriteria)
+        /// </summary>
+        /// <param name="queryCondition">查询条件封装对象</param>
+        /// <param name="pageIndex">页码 (索引从1开始,内部会处理)</param>
+        /// <param name="pageSize">每页条数</param>
+        /// <returns>分页结果</returns>
+        public async Task<ServiceResult<PagedResult<T>>> GetPagedListAsync(QueryCriteria queryCondition, int pageIndex, int pageSize)
+        {
+            var result = await _repo.GetPagedListAsync(queryCondition, pageIndex, pageSize);
+
+            if (result == null)
+            {
+                return ServiceResult<PagedResult<T>>.Fail("未找到数据");
+            }
+
+            return ServiceResult<PagedResult<T>>.Ok(result);
+        }
     }
 }

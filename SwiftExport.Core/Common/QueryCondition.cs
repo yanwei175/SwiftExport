@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace SwiftExport.Core.Common
 {
@@ -12,7 +10,8 @@ namespace SwiftExport.Core.Common
         小于,        // LessThan
         大于等于,    // GreaterOrEqual
         小于等于,    // LessOrEqual
-        区间         // Between
+        区间,         // Between
+        包含某值      // In
     }
     /// <summary>
     /// 表示单个字段的查询条件配置对象。
@@ -43,5 +42,56 @@ namespace SwiftExport.Core.Common
         /// </value>
         public object 值2 { get; set; } // 区间用第二个值
     }
+
+    // ★ 新增：这是用来替代 Dictionary 的包装类
+    public class QueryCriteria
+    {
+        // 1. 【AND 区域】所有的 Key 必须同时满足 (原有逻辑)
+        // 例如: CustomerCode = "C001" AND Status = "Active"
+        public Dictionary<string, QueryCondition> Items { get; set; } = new Dictionary<string, QueryCondition>();
+        // 2. 【OR 区域】列表中的每一项代表一个"OR分组"
+        // 逻辑: (Main AND Main) AND (Group1_A OR Group1_B) AND (Group2_C OR Group2_D)
+        public List<Dictionary<string, QueryCondition>> OrGroups { get; set; } = new List<Dictionary<string, QueryCondition>>();
+
+
+        // 方便添加条件的辅助方法
+        public void Add(string field, QueryCondition condition)
+        {
+            if (!Items.ContainsKey(field)) Items.Add(field, condition);
+            else Items[field] = condition;
+        }
+
+        // 快捷添加方法 (语法糖)
+        public void Add(string field, 查询操作符 op, object v1, object v2 = null)
+        {
+            this.Add(field, new QueryCondition { 操作符 = op, 值1 = v1, 值2 = v2 });
+        }
+
+        /// <summary>
+        /// 添加一组 OR 条件。这组条件内部是用 OR 连接，但这组条件整体与外部是用 AND 连接。
+        /// 场景：搜索框同时搜 SKU 或 描述。
+        /// </summary>
+        public void AddOrGroup(params (string field, 查询操作符 op, object value)[] conditions)
+        {
+            var groupDict = new Dictionary<string, QueryCondition>();
+
+            foreach (var (field, op, val) in conditions)
+            {
+                // 注意：同一个 OR 分组内字段名也不能重复(这是字典限制)，但在搜索不同列时没问题
+                groupDict[field] = new QueryCondition { 操作符 = op, 值1 = val };
+            }
+
+            OrGroups.Add(groupDict);
+        }
+
+
+
+
+
+    }
+
+
+
+
 
 }

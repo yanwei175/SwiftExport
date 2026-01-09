@@ -1,95 +1,98 @@
 ﻿using SwiftExport.Core.Entities;
-using SwiftExport.Core.Interfaces;
-using System;
-using System.Collections;
+using SwiftExport.Core.Entities.OtherEntities;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SwiftExport.Core.Interfaces
 {
-    public interface IProductRepository :IRepository<Product>
+    public interface IProductRepository : IRepository<Product>
     {
+        // ---------------------------------------------------------
+        // 查询 - 辅助/元数据
+        // ---------------------------------------------------------
 
         /// <summary>
-        ///根据Sku查询一个产品
+        /// 获取所有用于内存搜索的元数据（包含拼接好的搜索字符串）
         /// </summary>
-        /// <param name="sku">
-        /// 产品的Sku
-        /// </param>
+        Task<List<ProductSearchMeta>> GetAllSearchMetaAsync();
+
+        // ---------------------------------------------------------
+        // 查询 - 单个实体
+        // ---------------------------------------------------------
+
+        /// <summary>
+        /// 根据 Sku 查询一个产品
+        /// </summary>
+        /// <param name="sku">产品的 SKU</param>
+        /// <returns>一个产品实体，如果未找到则返回 null</returns>
+        Task<Product> GetBySkuAsync(string sku);
+
+        /// <summary>
+        /// 根据客户代码和客户型号查询一个产品
+        /// </summary>
+        /// <param name="customerCode">客户代码</param>
+        /// <param name="cSku">客户型号</param>
         /// <returns>一个产品实体</returns>
-        Task<Product> Get单产品BySku(string sku);
+        Task<Product> GetByCustomerInfoAsync(string customerCode, string cSku);
+
+        // ---------------------------------------------------------
+        // 查询 - 批量/列表 (返回 IReadOnlyList 以确保安全)
+        // ---------------------------------------------------------
 
         /// <summary>
-        ///根据SKU删除一个产品,软删除
+        /// 根据 SKU 列表查询多个产品
         /// </summary>
-        /// <param name="sku">
-        /// 产品的Sku
-        /// </param>
-        /// <returns>受影响的行数</returns>
-        Task<int> Disable单产品BySku(string sku, IUnitOfWork uow);
+        /// <param name="skus">SKU 集合</param>
+        Task<IReadOnlyList<Product>> GetListBySkuListAsync(IEnumerable<string> skuList);
 
         /// <summary>
-        ///根据SKU删除一个产品,硬删除
+        /// 查询指定客户代码下的多个客户型号对应的产品
         /// </summary>
-        /// <param name="sku">
-        /// 产品的Sku
-        /// </param>
-        /// <returns>受影响的行数</returns>
-        Task<int> Delete单产品BySku(string sku, IUnitOfWork uow);
+        /// <param name="customerCode">客户代码</param>
+        /// <param name="cSkus">客户型号集合</param>
+        Task<IReadOnlyList<Product>> GetListByCustomerCodeAndcSkuListAsync(string customerCode, IEnumerable<string> cSkuList);
 
         /// <summary>
-        ///根据客户型号和客户代码查询一个产品
-        /// </summary>
-        /// <param name="CustomerCode">
-        /// 客户代码
-        /// </param>
-        /// <param name="cSKU">
-        /// 客户型号
-        /// </param>
-        /// <returns>一个产品实体</returns>
-        Task<Product> Get单产品By客户代码和型号(string CustomerCode, string cSKU);
-
-        /// <summary>
-        ///根据一个Sku列表查询多个产品
-        /// </summary>
-        /// <param name="skus">
-        /// 包含了多个SKU的列表
-        /// </param>
-        /// <returns>一个多产品列表</returns>
-        Task<IEnumerable<Product>> Get多产品BySkus(IEnumerable<String> skus);
-
-        /// <summary>
-        ///适用于一个客户代码下多个客户型号的查询
-        /// </summary>
-        /// <param name="CustomerCode">
-        /// 客户代码
-        /// </param>
-        /// <param name="cSKUs">
-        /// 客户型号的集合
-        /// </param>
-        /// <returns>一个多产品列表</returns>
-        Task<IEnumerable<Product>> Get多产品By单客户代码多客户型号(string CustomerCode, IEnumerable<string> cSKUs);
-
-        /// <summary>
-        ///根据多个客户代码和多个客户型号取多个产品,主要用于匹配数据,Excel里用的最多
+        /// 根据多个 [客户代码 + 客户型号] 组合查询产品
+        /// (主要用于 Excel 导入时的复杂匹配)
         /// </summary>
         /// <param name="cSkuAndCustomerCode">
-        /// 一个Key为客户产品型号和Value为客户代码的字典
+        /// 字典 Key: 客户型号 (CSku)
+        /// 字典 Value: 客户代码 (CustomerCode)
         /// </param>
-        /// <returns>一个多产品列表</returns>
-        Task<IEnumerable<Product>> Get多产品By多客户代码多客户型号(Dictionary<string, string> cSkuAndCustomerCode);
+        Task<IReadOnlyList<Product>> GetProductListByCustomerSkuAndCodeAsync(Dictionary<string, string> cSkuAndCustomerCode);
+
+        Task<List<string>> GetAllCustomerCodeListAsync();
+
+
+
+        // ---------------------------------------------------------
+        // 写入 - 增删改
+        // ---------------------------------------------------------
 
         /// <summary>
-        /// 调用数据库的存储过程,执行Merge 操作,
-        /// 同步产品,
-        /// 需要数据库里建有对应的存储过程和客户自定义表
+        /// 软删除：根据 SKU 将产品标记为已删除 (IsDelete = 1)
         /// </summary>
-        /// <param name="products">
-        /// 必须须带ID的产品列表,如果没有ID会新增产品
-        /// </param>
-        /// <returns>受影响的行数</returns>
-        Task<int> SyncProductsAsync(IEnumerable<Product> products, IUnitOfWork uow);
+        /// <param name="sku">产品 SKU</param>
+        /// <param name="uow">工作单元 (用于事务控制)</param>
+        Task<int> DisableBySkuAsync(string sku, IUnitOfWork uow);
 
+        /// <summary>
+        /// 硬删除：根据 SKU 从数据库物理删除产品 (慎用)
+        /// </summary>
+        /// <param name="sku">产品 SKU</param>
+        /// <param name="uow">工作单元</param>
+        Task<int> DeleteBySkuAsync(string sku, IUnitOfWork uow);
+
+
+
+
+        /// <summary>
+        /// 批量同步产品 (Merge操作)
+        /// 调用存储过程，存在则更新，不存在则新增
+        /// </summary>
+        /// <param name="products">产品列表</param>
+        /// <param name="uow">工作单元</param>
+        Task<int> SyncProductsAsync(IEnumerable<Product> products, IUnitOfWork uow);
     }
 }

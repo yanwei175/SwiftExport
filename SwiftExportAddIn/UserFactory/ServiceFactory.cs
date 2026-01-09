@@ -1,16 +1,10 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using SwiftExport.AppLayer.DI;
+﻿using Microsoft.Extensions.DependencyInjection;
 using SwiftExportAddIn.UserFactory;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SwiftExportVSTO.静态类
 {
-    public  class ServiceFactory : IServerFactory
+    public class ServiceFactory : IServerFactory
     {
         private readonly IServiceProvider _provider;
         //private static readonly object _lock = new object();
@@ -26,18 +20,16 @@ namespace SwiftExportVSTO.静态类
         /// <summary>
         /// 获取服务（全局单例）
         /// </summary>
-        public  T GetSingletonService<T>()
+        public T GetSingletonService<T>()
         {
             var service = _provider.GetService<T>();
-            if (service == null)
-                throw new InvalidOperationException($"未找到服务: {typeof(T).FullName}");
-            return service;
+            return service == null ? throw new InvalidOperationException($"未找到服务: {typeof(T).FullName}") : service;
         }
 
         /// <summary>
         /// 创建 Scope（支持 Scoped 生命周期）
         /// </summary>
-        public  IServiceScope CreateScope()
+        public IServiceScope CreateScope()
         {
             return _provider.CreateScope();
         }

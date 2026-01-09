@@ -1,9 +1,5 @@
 ﻿using SwiftExport.Core.Common;
-using SwiftExport.Core.Entities;
-using SwiftExport.Core.Interfaces;
-using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SwiftExport.AppLayer.Interfaces
@@ -61,11 +57,11 @@ namespace SwiftExport.AppLayer.Interfaces
         /// 动态SQL查询
         /// </summary>
         /// <param name="条件字典">
-        /// 示例：dic("ID",new QueryCondition(QueryOperator.等于,556))
+        /// 示例：QueryCriteria("ID",new QueryCondition(QueryOperator.等于,556))
         /// 字典的Key为待查询的数据库字段名，value为QueryCondition对象,对象里是 比对条件,条件值
         /// </param>
         /// <returns>一个对象列表,如果条件为空则返回所有IsDelete<>1的数据</returns>
-        Task<ServiceResult<IReadOnlyList<T>>> GetByUserWhereAsync(Dictionary<string, QueryCondition> 条件字典);
+        Task<ServiceResult<IReadOnlyList<T>>> GetByUserWhereAsync(QueryCriteria 条件字典);
 
         /// <summary>
         /// 泛型服务,通过ID获取一堆实体
@@ -117,6 +113,17 @@ namespace SwiftExport.AppLayer.Interfaces
         /// </param>
         /// <returns>返回更新后的实体,主要为了应对数据库里有触发器的情况</returns>
         Task<ServiceResult<T>> UpdateAsync(T entity);
+
+        /// <summary>
+        /// 泛型分页查询 (基于 QueryCriteria)
+        /// </summary>
+        /// <param name="queryCondition">查询条件封装对象</param>
+        /// <param name="pageIndex">页码 (索引从1开始,内部会处理)</param>
+        /// <param name="pageSize">每页条数</param>
+        /// <returns>分页结果</returns>
+        Task<ServiceResult<PagedResult<T>>> GetPagedListAsync(QueryCriteria queryCondition, int pageIndex, int pageSize);
+
+
 
 
         /// <summary>

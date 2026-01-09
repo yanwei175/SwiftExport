@@ -8,9 +8,8 @@
     ".NETCoreApp,Version=v10.0": {
       "SwiftExport.UiWinForm/1.0.0": {
         "dependencies": {
-          "SwiftExport.AppLayer": "1.0.0",
-          "SwiftExport.UiKongJianFrameWork": "1.0.0",
-          "SwiftExprot.Utility": "1.0.0"
+          "SwiftExport.UI.Framework": "1.0.0",
+          "SwiftExport.Utility": "1.0.0"
         },
         "runtime": {
           "SwiftExport.UiWinForm.dll": {}
@@ -495,22 +494,22 @@
           }
         }
       },
-      "SwiftExport.UiKongJianFrameWork/1.0.0": {
+      "SwiftExport.UI.Framework/1.0.0": {
         "dependencies": {
           "SwiftExport.AppLayer": "1.0.0",
           "SwiftExport.Core": "1.0.0",
-          "SwiftExprot.Utility": "1.0.0"
+          "SwiftExport.Utility": "1.0.0"
         },
         "runtime": {
-          "SwiftExport.UiKongJianFrameWork.dll": {
+          "SwiftExport.UI.Framework.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
         }
       },
-      "SwiftExprot.Utility/1.0.0": {
+      "SwiftExport.Utility/1.0.0": {
         "runtime": {
-          "SwiftExprot.Utility.dll": {
+          "SwiftExport.Utility.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -777,12 +776,12 @@
       "serviceable": false,
       "sha512": ""
     },
-    "SwiftExport.UiKongJianFrameWork/1.0.0": {
+    "SwiftExport.UI.Framework/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
     },
-    "SwiftExprot.Utility/1.0.0": {
+    "SwiftExport.Utility/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

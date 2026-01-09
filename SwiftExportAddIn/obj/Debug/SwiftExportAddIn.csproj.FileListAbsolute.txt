@@ -148,7 +148,6 @@ D:\source\CSharp\SwiftExport\SwiftExportAddIn\obj\Debug\Interop.Microsoft.Office
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\obj\Debug\SwiftExportAddIn.csproj.ResolveComReference.cache
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\obj\Debug\SwiftExportAddIn.Properties.Resources.resources
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\obj\Debug\SwiftExportAddIn.SwiftExportAddInRibbon.resources
-D:\source\CSharp\SwiftExport\SwiftExportAddIn\obj\Debug\SwiftExportVSTO.LoginFrm.resources
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\obj\Debug\SwiftExportAddIn.test.resources
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\obj\Debug\SwiftExportAddIn.用户控件.ProductSheetButtons.resources
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\obj\Debug\SwiftExportAddIn.用户控件.PurchaseOrderSheetButtons.resources
@@ -197,7 +196,6 @@ D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\Microsoft.IdentityModel.
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\Microsoft.Office.Tools.Common.v4.0.Utilities.dll
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.AppLayer.dll
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.Core.dll
-D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.UiKongJianFrameWork.dll
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\System.Buffers.dll
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\System.ClientModel.dll
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\System.Diagnostics.DiagnosticSource.dll
@@ -218,8 +216,6 @@ D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\System.Threading.Tasks.E
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.Infrastructure.dll
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.AppLayer.pdb
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.Core.pdb
-D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.UiKongJianFrameWork.pdb
-D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.UiKongJianFrameWork.dll.config
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\AutoMapper.xml
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\Azure.Core.xml
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\Azure.Identity.xml
@@ -282,5 +278,10 @@ D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\tr\Microsoft.Data.SqlCli
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\zh-Hans\Microsoft.Data.SqlClient.resources.dll
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\zh-Hant\Microsoft.Data.SqlClient.resources.dll
 D:\source\CSharp\SwiftExport\SwiftExportAddIn\obj\Debug\SwiftExp.0D9CFF2C.Up2Date
-D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExprot.Utility.dll
-D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExprot.Utility.pdb
+D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.UI.Framework.dll
+D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.Utility.dll
+D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.UI.Framework.pdb
+D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.UI.Framework.dll.config
+D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\SwiftExport.Utility.pdb
+D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\Microsoft.Extensions.Configuration.Binder.dll
+D:\source\CSharp\SwiftExport\SwiftExportAddIn\bin\Debug\Microsoft.Extensions.Configuration.Binder.xml

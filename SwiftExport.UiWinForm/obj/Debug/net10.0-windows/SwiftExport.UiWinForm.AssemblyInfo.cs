@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SwiftExport.UiWinForm")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+83af0dbe6abac04a5f483bc28beb353febe51265")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8f9f617c14a8b15da97bf6ac425a3f1d696f8b04")]
 [assembly: System.Reflection.AssemblyProductAttribute("SwiftExport.UiWinForm")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SwiftExport.UiWinForm")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

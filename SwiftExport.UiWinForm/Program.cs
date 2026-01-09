@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.AppLayer.DI;
 using SwiftExport.AppLayer.Interfaces;
 using SwiftExport.AppLayer.Services;
-using SwiftExport.UiKongJianFrameWork.AppForms;
+using SwiftExport.UI.Framework.AppForms;
 using SwiftExport.UiWinForm.DI;
 
 namespace SwiftExport.UiWinForm
@@ -24,6 +24,14 @@ namespace SwiftExport.UiWinForm
 
             // 从 DI 获取主窗体
             var mainFrm = DI_WinFormHost.GetService<MainFrm>();
+
+            // 注入 WinForm 的 Invoke 逻辑
+            SwiftExport.UI.Framework.Common.ThreadHelper.MainThreadDispatcher = (action) =>
+            {
+                if (mainFrm.InvokeRequired) mainFrm.Invoke(action);
+                else action();
+            };
+
             Application.Run(mainFrm);
 
             //Application.Run(provider.GetRequiredService<LoginFrm>();

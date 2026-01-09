@@ -1,13 +1,9 @@
-﻿using SwiftExport.AppLayer.DTOs;
-using SwiftExport.AppLayer.Interfaces;
+﻿using SwiftExport.AppLayer.Interfaces;
 using SwiftExport.Core.Entities;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Interfaces;
-using SwiftExport.Infrastructure.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SwiftExport.AppLayer.Services
@@ -26,11 +22,11 @@ namespace SwiftExport.AppLayer.Services
         {
             using (var uow = _uowFac.CreateUoW())
             {
-              try
+                try
                 {
-                        var results = await repo.AddAsync(bom,uow);
-                        await uow.CommitAsync();
-                        return results;
+                    var results = await repo.AddAsync(bom, uow);
+                    await uow.CommitAsync();
+                    return results;
                 }
                 catch (Exception)
                 {
@@ -43,7 +39,7 @@ namespace SwiftExport.AppLayer.Services
         //批量新增BOM
         public async Task<IEnumerable<int>> AddBomRangeAsync(IEnumerable<BOM> items)
         {
-            using(var uow = _uowFac.CreateUoW())
+            using (var uow = _uowFac.CreateUoW())
             {
                 try
                 {
@@ -82,7 +78,7 @@ namespace SwiftExport.AppLayer.Services
                 }
             }
         }
-  
+
         public async Task<int> DeleteBomRangeByIdsAsync(IEnumerable<int> ids)
         {
             using (var uow = _uowFac.CreateUoW())
@@ -156,7 +152,7 @@ namespace SwiftExport.AppLayer.Services
         public async Task<bool> ValidateBOMAsync(string productSKU)
         {
             // 0. 获取产品的 BOM 号
-            Product pd = await _pdrepo.Get单产品BySku(productSKU);
+            Product pd = await _pdrepo.GetBySkuAsync(productSKU);
             if (pd == null || string.IsNullOrEmpty(pd.BomNo))
                 return false;
 
