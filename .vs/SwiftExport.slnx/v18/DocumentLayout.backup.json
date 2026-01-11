@@ -1,36 +1,12 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "D:\\source\\CSharp\\SwiftExport\\",
-  "Documents": [
-    {
-      "AbsoluteMoniker": "D:0:0:{29D3ED05-2428-41ED-9C78-A969A1BA2538}|SwiftExport.UI.Framework\\SwiftExport.UI.Framework.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.ui.framework\\dialogsforms\\frmproductselector.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{29D3ED05-2428-41ED-9C78-A969A1BA2538}|SwiftExport.UI.Framework\\SwiftExport.UI.Framework.csproj|solutionrelative:swiftexport.ui.framework\\dialogsforms\\frmproductselector.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
-    }
-  ],
+  "Documents": [],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": [
-        {
-          "DockedWidth": 200,
-          "SelectedChildIndex": 0,
-          "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "FrmProductSelector.cs [\u8BBE\u8BA1]",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI.Framework\\DialogsForms\\FrmProductSelector.cs",
-              "RelativeDocumentMoniker": "SwiftExport.UI.Framework\\DialogsForms\\FrmProductSelector.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI.Framework\\DialogsForms\\FrmProductSelector.cs [\u8BBE\u8BA1]",
-              "RelativeToolTip": "SwiftExport.UI.Framework\\DialogsForms\\FrmProductSelector.cs [\u8BBE\u8BA1]",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-01-09T10:07:33.766Z",
-              "EditorCaption": " [\u8BBE\u8BA1]"
-            }
-          ]
-        }
-      ]
+      "DocumentGroups": []
     }
   ]
 }

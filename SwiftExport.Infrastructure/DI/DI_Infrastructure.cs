@@ -39,6 +39,7 @@ namespace SwiftExport.Infrastructure.DI
             services.AddScoped<ICustomersRepository, CustomersRepository>();
             services.AddScoped<IExcelSheetFieldsRepository, ExcelSheetFieldsRepository>();
             services.AddScoped<IWhiteListRepository, WhiteListRepository>();
+            services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
 
 
             //services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();

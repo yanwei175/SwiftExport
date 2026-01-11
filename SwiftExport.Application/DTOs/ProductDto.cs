@@ -51,5 +51,8 @@ namespace SwiftExport.AppLayer.DTOs
 
         [Column("SSKU")]
         public string 供应商SKU { get; set; }
+
+        [Column("ProductCategory")]
+        public string 产品分类 { get; set; }
     }
 }

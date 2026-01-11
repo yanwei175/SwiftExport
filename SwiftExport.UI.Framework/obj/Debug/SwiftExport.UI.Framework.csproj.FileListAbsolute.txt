@@ -91,3 +91,4 @@ D:\source\CSharp\SwiftExport\SwiftExport.UI.Framework\bin\Debug\Assets\ToolBarIc
 D:\source\CSharp\SwiftExport\SwiftExport.UI.Framework\bin\Debug\Assets\ToolBarIcons\Up.png
 D:\source\CSharp\SwiftExport\SwiftExport.UI.Framework\bin\Debug\Assets\StatusIcons\Error.bmp
 D:\source\CSharp\SwiftExport\SwiftExport.UI.Framework\bin\Debug\Assets\StatusIcons\Loading.bmp
+D:\source\CSharp\SwiftExport\SwiftExport.UI.Framework\obj\Debug\SwiftExport.UI.Framework.AppUserControls.ProductCategoryManagerControl.resources

@@ -1,5 +1,5 @@
 ﻿using SwiftExport.UI.Framework.AppForms;
-using SwiftExport.UI.Framework.DialogsForms;
+using SwiftExport.UI.Framework.AppUserControls;
 using SwiftExport.UI.Framework.ManagerForms;
 using SwiftExport.UiWinForm.DI;
 namespace SwiftExport.UiWinForm
@@ -59,7 +59,13 @@ namespace SwiftExport.UiWinForm
 
         private void 测试按钮ToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Form frm1 = DI_WinFormHost.GetService<FrmProductSelector>();
+            //Form frm1 = DI_WinFormHost.GetService<FrmProductSelector>();
+            ////Form frm1 = new TestForm();
+            //frm1.ShowDialog();
+            Form frm1 = DI_WinFormHost.GetService<TestForm>();
+            UserControl uctr = DI_WinFormHost.GetService<ProductCategoryManagerControl>();
+            uctr.Dock = DockStyle.Fill;
+            frm1.Controls.Add(uctr);
             //Form frm1 = new TestForm();
             frm1.ShowDialog();
         }

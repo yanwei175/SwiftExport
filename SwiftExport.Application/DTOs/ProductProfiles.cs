@@ -23,6 +23,7 @@ namespace SwiftExport.AppLayer.DTOs
                 .ForMember(dest => dest.CSKU, opt => opt.MapFrom(src => src.客户SKU))
                 .ForMember(dest => dest.SupplierCode, opt => opt.MapFrom(src => src.供应商代码))
                 .ForMember(dest => dest.CSKU, opt => opt.MapFrom(src => src.供应商SKU))
+                .ForMember(dest => dest.ProductCategory, opt => opt.MapFrom(src => src.产品分类))
                 .ReverseMap();
         }
 

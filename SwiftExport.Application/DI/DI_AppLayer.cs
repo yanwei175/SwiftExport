@@ -37,6 +37,7 @@ namespace SwiftExport.AppLayer.DI
             services.AddScoped<IExcelSheetFieldsMappingService, ExcelSheetFieldsMappingService>();
             services.AddScoped<IProductColorService, ProductColorService>();
             services.AddScoped<IWhiteListServices, WhiteListServices>();
+            services.AddScoped<IProductCategoryService, ProductCategoryService>();
 
 
             return services;

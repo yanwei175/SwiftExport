@@ -303,6 +303,35 @@ namespace SwiftExport.Infrastructure.Repositories
             }
         }
 
+
+
+        public async Task<IReadOnlyList<T>> GetListAsync(object noNameObj)
+        {
+            var sql = $"SELECT * FROM [{tableName}]";
+
+            if (noNameObj != null)
+            {
+                // 1. 获取匿名对象的所有属性
+                var properties = noNameObj.GetType().GetProperties();
+
+                if (properties.Length > 0)
+                {
+                    // 2. 拼接 WHERE 子句
+                    // 生成结果如: "ParentID = @ParentID AND IsDelete = @IsDelete"
+                    var whereClause = string.Join(" AND ", properties.Select(p => $"[{p.Name}] = @{p.Name}"));
+
+                    sql += $" WHERE {whereClause}";
+                }
+            }
+            using (var _connection = _connFac.CreateConnection())
+            {
+                // 3. 直接把 whereConditions 丢给 Dapper，它会自动绑定参数值
+                return (await _connection.QueryAsync<T>(sql, noNameObj)).ToList();
+            }
+
+        }
+
+
         /// <summary>
         /// 泛型分页查询 (基于 QueryCriteria)
         /// </summary>

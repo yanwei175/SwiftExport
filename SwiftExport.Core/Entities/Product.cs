@@ -22,6 +22,7 @@ namespace SwiftExport.Core.Entities
         public string CSKU { get; set; }
         public string SupplierCode { get; set; }
         public string SSKU { get; set; }
+        public string ProductCategory { get; set; }
 
 
     }

@@ -143,7 +143,10 @@ namespace SwiftExport.Core.Interfaces
             int pageSize,
             string orderBy = "ID DESC");
 
-
+        /// <summary>
+        /// 通用查询：传入匿名对象，属性名对应字段名，值为相等条件
+        /// </summary>
+        Task<IReadOnlyList<T>> GetListAsync(object noNameObj);
 
     }
 

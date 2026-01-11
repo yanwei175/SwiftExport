@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.UI.Framework.AppForms;
+using SwiftExport.UI.Framework.AppUserControls;
 using SwiftExport.UI.Framework.DialogsForms;
 using SwiftExport.UI.Framework.ManagerForms;
 
@@ -20,6 +21,8 @@ namespace SwiftExport.UI.Framework.DI
             services.AddTransient<FrmProductManager>();
             services.AddTransient<FrmWhiteListManager>();
             services.AddTransient<FrmProductSelector>();
+            services.AddTransient<ProductCategoryManagerControl>();
+            services.AddTransient<TestForm>();
             return services;
         }
     }

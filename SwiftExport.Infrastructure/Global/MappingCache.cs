@@ -1,12 +1,8 @@
 ﻿using Dapper;
 using SwiftExport.Core.Common;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using SwiftExport.Core.Entities;
 using SwiftExport.Infrastructure.Interfaces;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace SwiftExport.Infrastructure.Global
 {
@@ -20,49 +16,49 @@ namespace SwiftExport.Infrastructure.Global
         public Dictionary<string, string> UniqueColumnMappings { get; private set; }
         public Dictionary<(string 实体名, string 属性名), string> UIColMappings { get; private set; }
         public MappingCache(IDbConnectionFactory factory)
-        { 
-            if (TableMappings == null) 
+        {
+            if (TableMappings == null)
             {
                 LoadMappings(factory);
             }
         }
         private void LoadMappings(IDbConnectionFactory factory)
         {
-            using(var connection = factory.CreateConnection())
+            using (var connection = factory.CreateConnection())
             {
-            // 加载表映射 + 唯一索引
-            var tableRecords = connection.Query<(string EntityName, string TableName, string UQName)>(
-                "SELECT EntityName, TableName, UQName FROM MappingTables"
-            )?.ToList();
+                // 加载表映射 + 唯一索引
+                var tableRecords = connection.Query<(string EntityName, string TableName, string UQName)>(
+                    "SELECT EntityName, TableName, UQName FROM MappingTables"
+                )?.ToList();
 
-            //从实体名拿数据库表名
-            TableMappings = (tableRecords != null && tableRecords.Any())
-                ? tableRecords.ToDictionary(x => x.EntityName, x => x.TableName)
-                : new Dictionary<string, string>();
+                //从实体名拿数据库表名
+                TableMappings = (tableRecords != null && tableRecords.Any())
+                    ? tableRecords.ToDictionary(x => x.EntityName, x => x.TableName)
+                    : new Dictionary<string, string>();
 
-            //从实体名拿数据库唯一索引列名
-            UniqueColumnMappings = (tableRecords != null && tableRecords.Any())
-                ? tableRecords
-                    .Where(x => !string.IsNullOrWhiteSpace(x.UQName))
-                    .ToDictionary(x => x.EntityName, x => x.UQName)
-                : new Dictionary<string, string>();
+                //从实体名拿数据库唯一索引列名
+                UniqueColumnMappings = (tableRecords != null && tableRecords.Any())
+                    ? tableRecords
+                        .Where(x => !string.IsNullOrWhiteSpace(x.UQName))
+                        .ToDictionary(x => x.EntityName, x => x.UQName)
+                    : new Dictionary<string, string>();
 
-            // 加载字段映射（包括 UI 列名）
-            var fieldRecords = connection.Query<(string EntityName, string PropertyName, string ColumnName, string UIColName)>(
-                "SELECT EntityName, PropertyName, ColumnName, UIColName FROM MappingFields"
-            )?.ToList();
+                // 加载字段映射（包括 UI 列名）
+                var fieldRecords = connection.Query<(string EntityName, string PropertyName, string ColumnName, string UIColName)>(
+                    "SELECT EntityName, PropertyName, ColumnName, UIColName FROM MappingFields"
+                )?.ToList();
 
-            //从实体名+属性名拿数据库列名
-            FieldMappings = (fieldRecords != null && fieldRecords.Any())
-                ? fieldRecords.ToDictionary(x => (x.EntityName, x.PropertyName), x => x.ColumnName)
-                : new Dictionary<(string, string), string>();
+                //从实体名+属性名拿数据库列名
+                FieldMappings = (fieldRecords != null && fieldRecords.Any())
+                    ? fieldRecords.ToDictionary(x => (x.EntityName, x.PropertyName), x => x.ColumnName)
+                    : new Dictionary<(string, string), string>();
 
-            //从实体名+属性名拿UI列名
-            UIColMappings = (fieldRecords != null && fieldRecords.Any())
-                ? fieldRecords
-                    .Where(x => !string.IsNullOrWhiteSpace(x.UIColName))
-                    .ToDictionary(x => (x.EntityName, x.PropertyName), x => x.UIColName)
-                : new Dictionary<(string, string), string>();
+                //从实体名+属性名拿UI列名
+                UIColMappings = (fieldRecords != null && fieldRecords.Any())
+                    ? fieldRecords
+                        .Where(x => !string.IsNullOrWhiteSpace(x.UIColName))
+                        .ToDictionary(x => (x.EntityName, x.PropertyName), x => x.UIColName)
+                    : new Dictionary<(string, string), string>();
 
             }
         }
@@ -93,6 +89,9 @@ namespace SwiftExport.Infrastructure.Global
             return GetFieldNameByEntityProperty<T>("ID");
         }
 
+        /// <summary>
+        /// 获取实体属性对应的数据库字段名
+        /// </summary>
         public string GetFieldNameByEntityProperty<T>(string propertyName) where T : BaseEntity
         {
             if (string.IsNullOrWhiteSpace(propertyName)) return null;
@@ -110,5 +109,6 @@ namespace SwiftExport.Infrastructure.Global
                 ? uiColName
                 : propertyName; // 没找到就返回属性名
         }
+
     }
 }

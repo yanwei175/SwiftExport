@@ -112,6 +112,12 @@
     <Compile Include="AppUserControls\CollapsePanelUserControl.Designer.cs">
       <DependentUpon>CollapsePanelUserControl.cs</DependentUpon>
     </Compile>
+    <Compile Include="AppUserControls\ProductCategoryManagerControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="AppUserControls\ProductCategoryManagerControl.Designer.cs">
+      <DependentUpon>ProductCategoryManagerControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="Common\IconProvider.cs" />
     <Compile Include="DialogsForms\FrmProductSelector.cs">
       <SubType>Form</SubType>
@@ -148,12 +154,6 @@
     </Compile>
     <Compile Include="SettingForms\FrmExcelSheetFieldsMappingManager.Designer.cs">
       <DependentUpon>FrmExcelSheetFieldsMappingManager.cs</DependentUpon>
-    </Compile>
-    <Compile Include="SettingForms\FrmProductClassManager.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="SettingForms\FrmProductClassManager.Designer.cs">
-      <DependentUpon>FrmProductClassManager.cs</DependentUpon>
     </Compile>
     <Compile Include="SettingForms\FrmWhiteListManager.cs">
       <SubType>Form</SubType>
@@ -236,6 +236,9 @@
     <EmbeddedResource Include="AppUserControls\CollapsePanelUserControl.resx">
       <DependentUpon>CollapsePanelUserControl.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="AppUserControls\ProductCategoryManagerControl.resx">
+      <DependentUpon>ProductCategoryManagerControl.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="DialogsForms\FrmProductSelector.resx">
       <DependentUpon>FrmProductSelector.cs</DependentUpon>
     </EmbeddedResource>
@@ -253,9 +256,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="SettingForms\FrmExcelSheetFieldsMappingManager.resx">
       <DependentUpon>FrmExcelSheetFieldsMappingManager.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="SettingForms\FrmProductClassManager.resx">
-      <DependentUpon>FrmProductClassManager.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SettingForms\FrmWhiteListManager.resx">
       <DependentUpon>FrmWhiteListManager.cs</DependentUpon>
