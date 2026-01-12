@@ -32,6 +32,9 @@
             this._splitContainer = new System.Windows.Forms.SplitContainer();
             this._leftPanel = new System.Windows.Forms.Panel();
             this._treeView = new System.Windows.Forms.TreeView();
+            this.ContextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.ItemUp = new System.Windows.Forms.ToolStripMenuItem();
+            this.ItemDown = new System.Windows.Forms.ToolStripMenuItem();
             this._editPanel = new System.Windows.Forms.Panel();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.label3 = new System.Windows.Forms.Label();
@@ -48,18 +51,17 @@
             this._btnMoveDown = new System.Windows.Forms.Button();
             this._btnMoveUp = new System.Windows.Forms.Button();
             this._btnAddRoot = new System.Windows.Forms.Button();
-            this.ContextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.上移ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.下移ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.ItemEdit = new System.Windows.Forms.ToolStripMenuItem();
+            this.ItemDelete = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this._splitContainer)).BeginInit();
             this._splitContainer.Panel1.SuspendLayout();
             this._splitContainer.Panel2.SuspendLayout();
             this._splitContainer.SuspendLayout();
             this._leftPanel.SuspendLayout();
+            this.ContextMenuStrip1.SuspendLayout();
             this._editPanel.SuspendLayout();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this._numSort)).BeginInit();
-            this.ContextMenuStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
             // _splitContainer
@@ -110,6 +112,29 @@
             this._treeView.DragEnter += new System.Windows.Forms.DragEventHandler(this.OnTreeDragEnter);
             this._treeView.DragOver += new System.Windows.Forms.DragEventHandler(this.OnTreeDragOver);
             // 
+            // ContextMenuStrip1
+            // 
+            this.ContextMenuStrip1.ImageScalingSize = new System.Drawing.Size(32, 32);
+            this.ContextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.ItemEdit,
+            this.ItemUp,
+            this.ItemDown,
+            this.ItemDelete});
+            this.ContextMenuStrip1.Name = "ContextMenuStrip1";
+            this.ContextMenuStrip1.Size = new System.Drawing.Size(301, 200);
+            // 
+            // ItemUp
+            // 
+            this.ItemUp.Name = "ItemUp";
+            this.ItemUp.Size = new System.Drawing.Size(300, 38);
+            this.ItemUp.Text = "上移";
+            // 
+            // ItemDown
+            // 
+            this.ItemDown.Name = "ItemDown";
+            this.ItemDown.Size = new System.Drawing.Size(300, 38);
+            this.ItemDown.Text = "下移";
+            // 
             // _editPanel
             // 
             this._editPanel.BackColor = System.Drawing.Color.WhiteSmoke;
@@ -153,7 +178,7 @@
             this.label3.Location = new System.Drawing.Point(11, 62);
             this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(51, 16);
+            this.label3.Size = new System.Drawing.Size(101, 30);
             this.label3.TabIndex = 1;
             this.label3.Text = "分类名称";
             // 
@@ -162,7 +187,7 @@
             this._txtNo.Location = new System.Drawing.Point(160, 133);
             this._txtNo.Margin = new System.Windows.Forms.Padding(4);
             this._txtNo.Name = "_txtNo";
-            this._txtNo.Size = new System.Drawing.Size(108, 21);
+            this._txtNo.Size = new System.Drawing.Size(108, 35);
             this._txtNo.TabIndex = 5;
             // 
             // label2
@@ -172,7 +197,7 @@
             this.label2.Location = new System.Drawing.Point(11, 138);
             this.label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(51, 16);
+            this.label2.Size = new System.Drawing.Size(101, 30);
             this.label2.TabIndex = 1;
             this.label2.Text = "分类编号";
             // 
@@ -181,7 +206,7 @@
             this._txtName.Location = new System.Drawing.Point(160, 62);
             this._txtName.Margin = new System.Windows.Forms.Padding(4);
             this._txtName.Name = "_txtName";
-            this._txtName.Size = new System.Drawing.Size(108, 21);
+            this._txtName.Size = new System.Drawing.Size(108, 35);
             this._txtName.TabIndex = 5;
             // 
             // label1
@@ -191,7 +216,7 @@
             this.label1.Location = new System.Drawing.Point(11, 211);
             this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(29, 16);
+            this.label1.Size = new System.Drawing.Size(57, 30);
             this.label1.TabIndex = 1;
             this.label1.Text = "排序";
             // 
@@ -200,7 +225,7 @@
             this._numSort.Location = new System.Drawing.Point(160, 206);
             this._numSort.Margin = new System.Windows.Forms.Padding(4);
             this._numSort.Name = "_numSort";
-            this._numSort.Size = new System.Drawing.Size(130, 21);
+            this._numSort.Size = new System.Drawing.Size(130, 35);
             this._numSort.TabIndex = 6;
             // 
             // _lblCurrentAction
@@ -210,7 +235,7 @@
             this._lblCurrentAction.Location = new System.Drawing.Point(15, 21);
             this._lblCurrentAction.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this._lblCurrentAction.Name = "_lblCurrentAction";
-            this._lblCurrentAction.Size = new System.Drawing.Size(128, 16);
+            this._lblCurrentAction.Size = new System.Drawing.Size(255, 30);
             this._lblCurrentAction.TabIndex = 1;
             this._lblCurrentAction.Text = "请选择左侧分类进行操作";
             // 
@@ -315,29 +340,21 @@
             this._btnAddRoot.Text = "新建根分类";
             this._btnAddRoot.UseVisualStyleBackColor = false;
             // 
-            // ContextMenuStrip1
+            // ItemEdit
             // 
-            this.ContextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.上移ToolStripMenuItem,
-            this.下移ToolStripMenuItem});
-            this.ContextMenuStrip1.Name = "ContextMenuStrip1";
-            this.ContextMenuStrip1.Size = new System.Drawing.Size(101, 48);
+            this.ItemEdit.Name = "ItemEdit";
+            this.ItemEdit.Size = new System.Drawing.Size(300, 38);
+            this.ItemEdit.Text = "编辑";
             // 
-            // 上移ToolStripMenuItem
+            // ItemDelete
             // 
-            this.上移ToolStripMenuItem.Name = "上移ToolStripMenuItem";
-            this.上移ToolStripMenuItem.Size = new System.Drawing.Size(100, 22);
-            this.上移ToolStripMenuItem.Text = "上移";
-            // 
-            // 下移ToolStripMenuItem
-            // 
-            this.下移ToolStripMenuItem.Name = "下移ToolStripMenuItem";
-            this.下移ToolStripMenuItem.Size = new System.Drawing.Size(100, 22);
-            this.下移ToolStripMenuItem.Text = "下移";
+            this.ItemDelete.Name = "ItemDelete";
+            this.ItemDelete.Size = new System.Drawing.Size(300, 38);
+            this.ItemDelete.Text = "删除";
             // 
             // ProductCategoryManagerControl
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 16F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(13F, 28F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.Controls.Add(this._splitContainer);
             this.Font = new System.Drawing.Font("Microsoft YaHei UI", 8F);
@@ -349,12 +366,12 @@
             ((System.ComponentModel.ISupportInitialize)(this._splitContainer)).EndInit();
             this._splitContainer.ResumeLayout(false);
             this._leftPanel.ResumeLayout(false);
+            this.ContextMenuStrip1.ResumeLayout(false);
             this._editPanel.ResumeLayout(false);
             this._editPanel.PerformLayout();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this._numSort)).EndInit();
-            this.ContextMenuStrip1.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -381,7 +398,9 @@
         private System.Windows.Forms.Button _btnMoveUp;
         private System.Windows.Forms.Button _btnMoveDown;
         private System.Windows.Forms.ContextMenuStrip ContextMenuStrip1;
-        private System.Windows.Forms.ToolStripMenuItem 上移ToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem 下移ToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem ItemUp;
+        private System.Windows.Forms.ToolStripMenuItem ItemDown;
+        private System.Windows.Forms.ToolStripMenuItem ItemEdit;
+        private System.Windows.Forms.ToolStripMenuItem ItemDelete;
     }
 }

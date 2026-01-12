@@ -1,0 +1,2631 @@
+﻿# PROJECT SUMMARY
+
+Generated: 2026-01-11 16:18:47
+
+## Included Projects
+
+- SwiftExport.AppLayer
+- SwiftExport.Core
+- SwiftExport.Infrastructure
+- SwiftExport.UI.Framework
+- SwiftExport.UiWinForm
+- SwiftExport.Utility
+- SwiftExportAddIn
+
+## File Tree
+
+```
+    |- DI_AppLayer.cs
+    |- BaseDto.cs
+    |- BOMDto.cs
+    |- CustomersDto.cs
+    |- CustomersProfiles.cs
+    |- ExcelSheetFieldsMappingDto.cs
+    |- ExcelSheetFieldsMappingProfiles.cs
+      |- ProductQueryInput.cs
+      |- ProductSearchMetaDto.cs
+    |- PagedResultDto.cs
+    |- PageRequestDto.cs
+    |- ProductCategoryDto.cs
+    |- ProductCategoryProfiles.cs
+    |- ProductColorDto.cs
+    |- ProductColorProfiles.cs
+    |- ProductDto.cs
+    |- ProductProfiles.cs
+    |- SuppliersDto.cs
+    |- SuppliersProfiles.cs
+    |- UserProfiles.cs
+    |- ViewUserRoleDTo.cs
+    |- WhiteListsDto.cs
+    |- WhiteListsDtoProfiles.cs
+    |- IBaseService.cs
+    |- IBOMService.cs
+    |- ICustomersPoDetailsService.cs
+    |- ICustomersService.cs
+    |- IExcelSheetFieldsMappingService.cs
+    |- IProductCategoryService.cs
+    |- IProductColorService.cs
+    |- IProductService.cs
+    |- IPurchaseOrderService.cs
+    |- ISalesOrderService.cs
+    |- ISuppliersService.cs
+    |- IViewUserRoleService.cs
+    |- IWhiteListServices.cs
+    |- BaseService.cs
+    |- BomService.cs
+    |- CustomersPoDetailsService.cs
+    |- CustomersService.cs
+    |- ExcelSheetFieldsMappingService.cs
+    |- ProductCategoryService.cs
+    |- ProductColorService.cs
+    |- ProductService.cs
+    |- SuppliersService.cs
+    |- ViewUserRoleService.cs
+    |- WhiteListServices.cs
+  |- SwiftExport.AppLayer.csproj
+    |- BaseEntity.cs
+    |- CUDResult.cs
+    |- PagedResult.cs
+    |- Pagination.cs
+    |- QueryCondition.cs
+    |- ServiceResult.cs
+    |- BOM.cs
+    |- CKPackingListHead.cs
+    |- CKPackingListLine.cs
+    |- CKReceiptLine.cs
+    |- CustomerProducts.cs
+    |- Customers.cs
+    |- CustomersPoDetails.cs
+    |- ExcelSheetFieldsMapping.cs
+    |- MUsers.cs
+      |- ProductSearchMeta.cs
+    |- PlanOrderLine.cs
+    |- Product.cs
+    |- ProductCategory.cs
+    |- ProductColor.cs
+    |- ProductDetails.cs
+    |- ProductMaster.cs
+    |- ProductPackage.cs
+    |- PurchaseOrderHead.cs
+    |- PurchaseOrderLine.cs
+    |- Roles.cs
+    |- SalesOrderHead.cs
+    |- SalesOrderLine.cs
+    |- SupplierProducts.cs
+    |- Suppliers.cs
+    |- WhiteLists.cs
+    |- ViewUserRole.cs
+    |- OrderStatus.cs
+    |- IBomRepository.cs
+    |- ICustomerProductRepository.cs
+    |- ICustomersPoDetailsRepository.cs
+    |- ICustomersRepository.cs
+    |- IExcelSheetFieldsRepository.cs
+    |- IProductCategoryRepository.cs
+    |- IProductRepository.cs
+    |- IRepository.cs
+    |- IUintOfWorkFactory.cs
+    |- IUnitOfWork.cs
+    |- IViewUserRoleRepository.cs
+    |- IWhiteListRepository.cs
+  |- SwiftExport.Core.csproj
+    |- SimpleAuth.cs
+    |- DI_Infrastructure.cs
+    |- DataTableFactory.cs
+    |- SqlConnectionFactory.cs
+    |- UnitOfWorkFactory.cs
+    |- MappingCache.cs
+    |- IDataTableFactory.cs
+    |- IDbConnectionFactory.cs
+    |- IMappingCache.cs
+    |- Logger.cs
+    |- BomRepository.cs
+    |- CustomerProductRepository.cs
+    |- CustomersPoDetailsRepository.cs
+    |- CustomersRepository.cs
+    |- DapperRepository.cs
+    |- ExcelSheetFieldsRepository.cs
+    |- ProductCategoryRepository.cs
+    |- ProductRepository.cs
+    |- UnitOfWork.cs
+    |- ViewUserRoleRepository.cs
+    |- WhiteListRepository.cs
+  |- SwiftExport.Infrastructure.csproj
+  |- app.config
+    |- NaviUserControl.cs
+    |- NaviUserControl.resx
+    |- CollapsePanelUserControl.cs
+    |- CollapsePanelUserControl.resx
+    |- CustomerListUserControl.cs
+    |- CustomerListUserControl.resx
+    |- DataSplitUserControl.cs
+    |- DataSplitUserControl.resx
+    |- DataTopUserControl.cs
+    |- DataTopUserControl.resx
+    |- GeneralManagerUserControl.cs
+    |- GeneralManagerUserControl.resx
+    |- ProductCategoryManagerControl.cs
+    |- ProductCategoryManagerControl.resx
+    |- UserDataGrid.cs
+    |- UserDataGrid.resx
+    |- IconProvider.cs
+    |- ThreadHelper.cs
+    |- DI_UIFramework.cs
+    |- FrmProductSelector.cs
+    |- FrmProductSelector.resx
+      |- DataGridViewStyleExtensions.cs
+      |- UITheme.cs
+      |- BindingSourceExtensions.cs
+      |- DataGridViewValidationConfig.cs
+      |- DataGridViewValidatorExtensions.cs
+      |- LabelExtensions.cs
+    |- FrmProductManager.cs
+    |- FrmProductManager.resx
+    |- FrmSoOrderManager.cs
+    |- FrmSoOrderManager.resx
+    |- AssemblyInfo.cs
+    |- Resources.resx
+    |- FrmCustomersManager.cs
+    |- FrmCustomersManager.resx
+    |- FrmExcelSheetFieldsMappingManager.cs
+    |- FrmExcelSheetFieldsMappingManager.resx
+    |- FrmProductColorManager.cs
+    |- FrmProductColorManager.resx
+    |- FrmSuppliersManager.cs
+    |- FrmSuppliersManager.resx
+    |- FrmWhiteListManager.cs
+    |- FrmWhiteListManager.resx
+    |- LoginFrm.cs
+    |- LoginFrm.resx
+    |- TestForm.cs
+    |- TestForm.resx
+    |- SessionContext.cs
+  |- SwiftExport.UI.Framework.csproj
+  |- appsettings.json
+    |- DI_UiWinForm.cs
+    |- DI_WinFormHost.cs
+  |- MainFrm.cs
+  |- MainFrm.resx
+  |- Program.cs
+    |- Resources.resx
+  |- SwiftExport.UiWinForm.csproj
+    |- ActiveUserClass.cs
+  |- EntityListToPage.cs
+    |- ClipboardHelper.cs
+  |- SwiftExport.Utility.csproj
+  |- 通用搜索工具.cs
+  |- app.config
+  |- appsettings.json
+    |- AppConfig.cs
+    |- DI_VstoHost.cs
+    |- ExcelWindowWrapper.cs
+    |- GlobalCom.cs
+    |- AssemblyInfo.cs
+    |- Resources.resx
+  |- SwiftExportAddIn.csproj
+  |- SwiftExportAddInRibbon.cs
+  |- SwiftExportAddInRibbon.resx
+    |- TaskPanelManager.cs
+  |- ThisAddIn.cs
+    |- ProductSheetButtons.cs
+    |- ProductSheetButtons.resx
+    |- PurchaseOrderSheetButtons.cs
+    |- PurchaseOrderSheetButtons.resx
+    |- SalesOrderSheetButtons.cs
+    |- SalesOrderSheetButtons.resx
+    |- IServerFactory.cs
+    |- ServiceFactory.cs
+    |- test.cs
+    |- test.resx
+```
+
+## Types Overview
+
+### class DI_AppLayer  `(SwiftExport.AppLayer.DI)`
+
+- File: `SwiftExport.Application\DI\DI_AppLayer.cs`
+
+#### Properties
+
+- `class DI_AppLayer`
+
+#### Methods (signatures)
+
+- `IServiceCollection AddAppLayerServers(this IServiceCollection services, IConfiguration configuration)`
+- `services.AddScoped<IProductService, ProductService>()`
+- `services.AddScoped<IBOMService, BomService>()`
+- `services.AddScoped<IViewUserRoleService, ViewUserRoleService>()`
+- `services.AddScoped<ICustomersService, CustomersService>()`
+- `services.AddScoped<ISuppliersService, SuppliersService>()`
+- `services.AddScoped<IExcelSheetFieldsMappingService, ExcelSheetFieldsMappingService>()`
+- `services.AddScoped<IProductColorService, ProductColorService>()`
+- `services.AddScoped<IWhiteListServices, WhiteListServices>()`
+- `services.AddScoped<IProductCategoryService, ProductCategoryService>()`
+
+### enum RowState  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\BaseDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `enum RowState`
+
+### class BaseDto  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\BaseDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `class BaseDto`
+- `bool Loading`
+- `int ID`
+
+### class BOMDto  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\BOMDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `class BOMDto`
+
+### class CustomersDto  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\CustomersDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `string Even`
+
+### class CustomersProfiles  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\CustomersProfiles.cs`
+- Detected: DTO
+
+#### Methods (signatures)
+
+- ` CustomersProfiles()`
+- `CreateMap<CustomersDto, Customers>()`
+
+### class ExcelSheetFieldsMappingDto  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\ExcelSheetFieldsMappingDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `string Even`
+
+### class ExcelSheetFieldsMappingProfiles  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\ExcelSheetFieldsMappingProfiles.cs`
+- Detected: DTO
+
+#### Methods (signatures)
+
+- ` ExcelSheetFieldsMappingProfiles()`
+- `CreateMap<ExcelSheetFieldsMappingDto, ExcelSheetFieldsMapping>()`
+
+### class ProductQueryInput  `(SwiftExport.AppLayer.DTOs.OtherDTOs)`
+
+- File: `SwiftExport.Application\DTOs\OtherDTOs\ProductQueryInput.cs`
+
+#### Properties
+
+- `class ProductQueryInput`
+- `Pagination Pager`
+- `string GlobalSearchKey`
+- `Dictionary<string, QueryCondition> FilterConditions`
+
+### class ProductSearchMetaDto  `(SwiftExport.AppLayer.DTOs.OtherDTOs)`
+
+- File: `SwiftExport.Application\DTOs\OtherDTOs\ProductSearchMetaDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `class ProductSearchMetaDto`
+- `string SearchText`
+
+### class PagedResultDto<T>  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\PagedResultDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `List<T> Items`
+- `int TotalCount`
+- `int PageIndex`
+- `int PageSize`
+
+### class PageRequestDto  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\PageRequestDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `class PageRequestDto`
+- `int PageSize`
+- `string Keyword`
+- `string OrderBy`
+
+### class ProductCategoryDto  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\ProductCategoryDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `string Even`
+
+### class ProductCategoryDtoProfiles  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\ProductCategoryProfiles.cs`
+- Detected: DTO
+
+#### Methods (signatures)
+
+- ` ProductCategoryDtoProfiles()`
+- `CreateMap<ProductCategoryDto, ProductCategory>()`
+
+### class ProductColorDto  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\ProductColorDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `string Even`
+
+### class ProductColorProfiles  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\ProductColorProfiles.cs`
+- Detected: DTO
+
+#### Methods (signatures)
+
+- ` ProductColorProfiles()`
+- `CreateMap<ProductColorDto, ProductColor>()`
+
+### class ProductDto  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\ProductDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `string Even`
+- `string SKU`
+
+### class ProductProfiles  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\ProductProfiles.cs`
+- Detected: DTO
+
+#### Methods (signatures)
+
+- ` ProductProfiles()`
+- `CreateMap<ProductDto, Product>()`
+
+### class SuppliersDto  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\SuppliersDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `string Even`
+
+### class SuppliersProfiles  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\SuppliersProfiles.cs`
+- Detected: DTO
+
+#### Methods (signatures)
+
+- ` SuppliersProfiles()`
+- `CreateMap<SuppliersDto, Suppliers>()`
+- `//CreateMap<Suppliers, SuppliersDto>()`
+
+### class UserProfiles  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\UserProfiles.cs`
+- Detected: DTO
+
+#### Methods (signatures)
+
+- ` UserProfiles()`
+- `CreateMap<ViewUserRole, ViewUserRoleDTo>()`
+
+### class ViewUserRoleDTo  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\ViewUserRoleDTo.cs`
+- Detected: DTO
+
+#### Properties
+
+- `class ViewUserRoleDTo`
+- `string UserName`
+- `string PcName`
+- `string NickName`
+- `int RoleID`
+- `string RoleName`
+
+### class WhiteListsDto  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\WhiteListsDto.cs`
+- Detected: DTO
+
+#### Properties
+
+- `string Even`
+
+### class WhiteListsDtoProfiles  `(SwiftExport.AppLayer.DTOs)`
+
+- File: `SwiftExport.Application\DTOs\WhiteListsDtoProfiles.cs`
+- Detected: DTO
+
+#### Methods (signatures)
+
+- ` WhiteListsDtoProfiles()`
+- `CreateMap<WhiteListsDto, WhiteLists>()`
+
+### interface IBaseService<T>  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\IBaseService.cs`
+
+#### Methods (signatures)
+
+- `Task<bool> ExistsIdAsync(int id)`
+- `Task<ServiceResult<IReadOnlyList<int>>> GetExistingIdsAsync(IEnumerable<int> ids)`
+- `Task<ServiceResult<IReadOnlyList<int>>> GetNonExistingIDAsync(IEnumerable<int> ids)`
+- `Task<ServiceResult<T>> GetByIdAsync(int id)`
+- `Task<ServiceResult<T>> GetSingleEntityAsync()`
+- `Task<ServiceResult<IReadOnlyList<T>>> GetAllAsync()`
+- `Task<ServiceResult<IReadOnlyList<T>>> GetByUserWhereAsync(QueryCriteria 条件字典)`
+- `Task<ServiceResult<IReadOnlyList<T>>> GetByIdsAsync(IEnumerable<int> ids)`
+- `Task<ServiceResult<T>> AddAsync(T entity)`
+- `Task<ServiceResult<bool>> DeleteSoftAsync(int id)`
+- `Task<ServiceResult<bool>> DeleteAsync(int id)`
+- `Task<ServiceResult<T>> UpdateAsync(T entity)`
+- `Task<ServiceResult<PagedResult<T>>> GetPagedListAsync(QueryCriteria queryCondition, int pageIndex, int pageSize)`
+- `Task<ServiceResult<CUDResult>> BatchCUDByOnlyPkUniqueAsync(IEnumerable<T> addList, IEnumerable<T> updateList, IEnumerable<int> deleteIds)`
+
+### interface IBOMService  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\IBOMService.cs`
+
+#### Methods (signatures)
+
+- `Task<int> AddBomItemAsync(BOM bom)`
+- `Task<int> DeleteBomByBomNoAsync(string bomNo)`
+- `Task<int> UpdateBomItemNoAsync(BOM bom)`
+- `Task<IEnumerable<BOM>> GetBomByBomNoAsync(string bomNo)`
+- `Task<IEnumerable<int>> AddBomRangeAsync(IEnumerable<BOM> items)`
+- `Task<int> UpdateBomRangeAsync(IEnumerable<BOM> items)`
+- `Task<int> DeleteBomRangeByIdsAsync(IEnumerable<int> ids)`
+- `Task<bool> ValidateBOMAsync(string ProductSKU)`
+- `Task<int> SyncBomItemsAsync(IEnumerable<BOM> items)`
+
+### interface ICustomersPoDetailsService  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\ICustomersPoDetailsService.cs`
+
+#### Methods (signatures)
+
+- `Task<ServiceResult<CustomersPoDetails>> AddOrUpdateAsync(CustomersPoDetails ety)`
+- `Task<ServiceResult<bool>> DeleteByCustomerCodeAndSupplierCodeAsync(string customerCode, string supplierCode)`
+
+### interface ICustomersService  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\ICustomersService.cs`
+
+#### Methods (signatures)
+
+- `Task<bool> ExistByCustomerCode(string customerCode)`
+- `Task<ServiceResult<IReadOnlyList<string>>> GetNonExistingCustomerCodesAsync(IEnumerable<string> customerCodes)`
+- `Task<ServiceResult<Customers>> GetByCustomerCodeAsync(string customerCode)`
+- `Task<ServiceResult<CUDResult>> BatchCUDBy_UQ_CustomersCodeAsync(IEnumerable<Customers> createList,
+            IEnumerable<Customers> updateList, IEnumerable<Customers> deleteList)`
+
+### interface IExcelSheetFieldsMappingService  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\IExcelSheetFieldsMappingService.cs`
+
+#### Methods (signatures)
+
+- `Task<ServiceResult<Dictionary<string,string>>> GetListByShengXiaoDomain(string sheetDomainName)`
+
+### interface IProductCategoryService  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\IProductCategoryService.cs`
+
+#### Methods (signatures)
+
+- `Task<ServiceResult<ProductCategoryDto>> CreateByDtoAsync(ProductCategoryDto dto)`
+- `Task<ServiceResult<ProductCategoryDto>> UpdateByDtoAsync(ProductCategoryDto dto)`
+- `Task<ServiceResult<List<ProductCategoryDto>>> GetTreeListAsync()`
+- `Task<ServiceResult<bool>> MoveNodeUpAsync(int id)`
+- `Task<ServiceResult<bool>> MoveNodeDownAsync(int id)`
+- `Task<ServiceResult<bool>> MoveCategoryAsync(int id, int? newParentId)`
+
+### interface IProductColorService  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\IProductColorService.cs`
+
+### interface IProductService  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\IProductService.cs`
+
+#### Methods (signatures)
+
+- `Task<Product> GetBySkuAsync(string sku)`
+- `Task<Product> GetByCustomerCodeWithCSkuAsync(string CustomerCode, string cSKU)`
+- `Task<IReadOnlyList<Product>> GetBySkuListAsync(IReadOnlyList<string> skus)`
+- `Task<IReadOnlyList<Product>> GetByCustomerCodeWithCSkuListAsync(string CustomerCode, IReadOnlyList<string> cSKUList)`
+- `Task<IReadOnlyList<Product>> GetByCustomerCodeListWithCSkuListAsync(Dictionary<string, string> cSkuListAndCustomerCodeList)`
+- `Task<List<string>> GetAllCustomerCodeListAsync()`
+- `Task<List<ProductSearchMeta>> GetAllSearchMetaAsync()`
+- `Task<int> SyncProductsAsync(IReadOnlyList<Product> productList)`
+
+### interface IPurchaseOrderService  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\IPurchaseOrderService.cs`
+
+### interface ISalesOrderService  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\ISalesOrderService.cs`
+
+### interface ISuppliersService  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\ISuppliersService.cs`
+
+### interface IViewUserRoleService  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\IViewUserRoleService.cs`
+
+#### Properties
+
+- `interface IViewUserRoleService`
+
+#### Methods (signatures)
+
+- `Task<ServiceResult<ViewUserRole>> GetUserRole(String userName, String password)`
+
+### interface IWhiteListServices  `(SwiftExport.AppLayer.Interfaces)`
+
+- File: `SwiftExport.Application\Interfaces\IWhiteListServices.cs`
+
+#### Methods (signatures)
+
+- `Task<IReadOnlyList<string>> GetVstoWhiteListAsync()`
+
+### class BaseService<T>  `(SwiftExport.AppLayer.Services)`
+
+- File: `SwiftExport.Application\Services\BaseService.cs`
+
+#### Methods (signatures)
+
+- ` BaseService(IRepository<T> repo, IUintOfWorkFactory uowFac)`
+- `} catch(Exception)`
+- `} catch(Exception)`
+- `} catch(Exception)`
+- `} catch(Exception)`
+- ` if(rst == null)`
+- `} if(id <= 0)`
+- ` if(rst == null)`
+- ` if(rst == null)`
+- ` if(rst == null)`
+- `} catch(Exception ex)`
+- ` if(rst == null)`
+- ` if(result == null)`
+
+### class BomService  `(SwiftExport.AppLayer.Services)`
+
+- File: `SwiftExport.Application\Services\BomService.cs`
+
+#### Methods (signatures)
+
+- `} catch(Exception)`
+- `} catch(Exception)`
+- `} catch(Exception)`
+- `} catch(Exception)`
+- `Task<IEnumerable<BOM>> GetBomByBomNoAsync(string bomNo)`
+- `} catch(Exception)`
+- `} catch(Exception)`
+- ` foreach(var item in bomItems)`
+- ` foreach(var child in children)`
+- `} catch(Exception)`
+
+### class CustomersPoDetailsService  `(SwiftExport.AppLayer.Services)`
+
+- File: `SwiftExport.Application\Services\CustomersPoDetailsService.cs`
+
+#### Methods (signatures)
+
+- `{ if(ety == null)`
+- `} if(ety.ID <= 0)`
+- ` if(rst >0)`
+- `} catch(Exception)`
+- ` if(rst == null)`
+
+### class CustomersService  `(SwiftExport.AppLayer.Services)`
+
+- File: `SwiftExport.Application\Services\CustomersService.cs`
+
+#### Methods (signatures)
+
+- `{ if(CustomerCode == null)`
+- `{ foreach(var item in createList)`
+- `{ foreach(var customer in updateList)`
+- ` if(customer.ID <= 0)`
+- `{ foreach(var entity in deleteList)`
+- ` if(entity.ID <= 0)`
+- `} catch(Exception)`
+
+### class ExcelSheetFieldsMappingService  `(SwiftExport.AppLayer.Services)`
+
+- File: `SwiftExport.Application\Services\ExcelSheetFieldsMappingService.cs`
+
+#### Methods (signatures)
+
+- ` if(rst==null)`
+
+### class ProductColorService  `(SwiftExport.AppLayer.Services)`
+
+- File: `SwiftExport.Application\Services\ProductCategoryService.cs`
+
+### class ProductCategoryService  `(SwiftExport.AppLayer.Services)`
+
+- File: `SwiftExport.Application\Services\ProductColorService.cs`
+
+#### Methods (signatures)
+
+- ` if(tree == null)`
+- ` if(dto.父级ID.HasValue)`
+- ` if(parent != null)`
+- `} catch(Exception)`
+- ` if(entity == null)`
+- `} catch(Exception)`
+- ` if(entity == null)`
+- ` if(newParentId.HasValue)`
+- `} catch(Exception)`
+- ` if(position == "child")`
+- `await MoveCategoryAsync(draggedId, target.ID)`
+- ` if(current == null)`
+- ` if(index <= 0)`
+- `} catch(Exception)`
+- ` if(current == null)`
+- ` if(index >= siblings.Count - 1)`
+- `} catch(Exception)`
+- `List<ProductCategoryDto> BuildTree(List<ProductCategoryDto> allNodes, int? parentId)`
+- ` foreach(var child in children)`
+
+### class ProductService  `(SwiftExport.AppLayer.Services)`
+
+- File: `SwiftExport.Application\Services\ProductService.cs`
+
+#### Methods (signatures)
+
+- `} catch(Exception)`
+
+### class SuppliersService  `(SwiftExport.AppLayer.Services)`
+
+- File: `SwiftExport.Application\Services\SuppliersService.cs`
+
+### class ViewUserRoleService  `(SwiftExport.AppLayer.Services)`
+
+- File: `SwiftExport.Application\Services\ViewUserRoleService.cs`
+
+#### Methods (signatures)
+
+- ` if(user == null)`
+- `} if(user.Password != password)`
+- `} catch(Exception ex)`
+
+### class WhiteListServices  `(SwiftExport.AppLayer.Services)`
+
+- File: `SwiftExport.Application\Services\WhiteListServices.cs`
+
+### class BaseEntity  `(SwiftExport.Core.Common)`
+
+- File: `SwiftExport.Core\Common\BaseEntity.cs`
+- Detected: Entity/Model
+
+#### Properties
+
+- `class BaseEntity`
+- `short IsDelete`
+- `DateTime CreateDate`
+- `DateTime ChangeTime`
+
+### class CUDResult  `(SwiftExport.Core.Common)`
+
+- File: `SwiftExport.Core\Common\CUDResult.cs`
+
+#### Properties
+
+- `class CUDResult`
+- `int AffectedRowsTotal`
+- `List<int> UpdateIIds`
+- `List<int> DeleteIIds`
+
+#### Methods (signatures)
+
+- ` CUDResult()`
+- `List<int> GetAllAffectedIDs()`
+
+### class PagedResult<T>  `(SwiftExport.Core.Common)`
+
+- File: `SwiftExport.Core\Common\PagedResult.cs`
+
+#### Properties
+
+- `List<T> Items`
+- `int TotalCount`
+- `int PageIndex`
+- `int PageSize`
+
+### class Pagination  `(SwiftExport.Core.Common)`
+
+- File: `SwiftExport.Core\Common\Pagination.cs`
+
+#### Properties
+
+- `class Pagination`
+- `int PageSize`
+- `int PageCount`
+
+### class QueryCondition  `(SwiftExport.Core.Common)`
+
+- File: `SwiftExport.Core\Common\QueryCondition.cs`
+
+#### Properties
+
+- `class QueryCondition`
+
+### class QueryCriteria  `(SwiftExport.Core.Common)`
+
+- File: `SwiftExport.Core\Common\QueryCondition.cs`
+
+#### Properties
+
+- `class QueryCriteria`
+- `Dictionary<string, QueryCondition> Items`
+- `List<Dictionary<string, QueryCondition>> OrGroups`
+
+#### Methods (signatures)
+
+- `void Add(string field, QueryCondition condition)`
+- `void Add(string field, 查询操作符 op, object v1, object v2 = null)`
+
+### class ServiceResult<T>  `(SwiftExport.Core.Common)`
+
+- File: `SwiftExport.Core\Common\ServiceResult.cs`
+
+#### Properties
+
+- `bool Success`
+- `string Message`
+- `T Data`
+
+### class BOM  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\BOM.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string BomNo`
+- `string ProductSKU`
+- `decimal Qty`
+- `decimal SkuID`
+- `string SubType`
+
+### class CKPackingListHead  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\CKPackingListHead.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string PLNo`
+- `DateTime PLDate`
+- `string CustomerCode`
+- `string ShipTo`
+- `string SoNo`
+- `DateTime SoDate`
+- `string TransportNo`
+- `string SealNo`
+- `DateTime ETD`
+- `DateTime ETA`
+- `string Attention`
+- `string PLFolder`
+
+### class CKPackingListLine  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\CKPackingListLine.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string PLNo`
+- `string SKU`
+- `string CSku`
+- `string LinkSku`
+- `string CDescription`
+- `string CFinish`
+- `string HSCode`
+- `string SoNo`
+- `string CustomerPoNo`
+- `decimal QTY`
+- `decimal PcsOfCarton`
+- `decimal NwOfCarton`
+- `decimal GwOfCarton`
+- `decimal CbmOfCarton`
+- `decimal PcsSubTotal`
+- `decimal NwSubTotal`
+- `decimal GwSubTotal`
+- `decimal CbmSubTotal`
+- `string SubNote`
+
+### class CKReceiptLine  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\CKReceiptLine.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string PoNo`
+- `long PoLineID`
+- `string SKU`
+- `string SupplierCode`
+- `decimal ReceiveQTY`
+- `string Note`
+
+### class CustomerProducts  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\CustomerProducts.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string CustomerCode`
+- `string CSku`
+- `string LinkSku`
+- `string ProductSKU`
+- `string CSeries`
+- `string CDescription`
+- `string CFinish`
+- `string CFeatures`
+- `string SpecFeatures`
+- `decimal RMBPrice`
+- `decimal USDPrice`
+- `string Barcode1`
+- `string Barcode2`
+- `string Note`
+
+### class Customers  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\Customers.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string CustomerCode`
+- `string CustomerName`
+- `string CustomerAddress`
+- `string CustomerPhone`
+- `string CustomerContact`
+- `string LabelFolder`
+- `string IMFolder`
+- `string DrawingFolder`
+- `string LinedrawingFolder`
+- `string BarcodeFolder`
+- `string SpecSheetFolder`
+- `string DocRelateNo`
+
+### class CustomersPoDetails  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\CustomersPoDetails.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string CustomerCode`
+- `string SupplierCode`
+- `string InletrHoseType`
+- `string AeratorType`
+- `string PalletType`
+- `string BoxType`
+- `string LabelType`
+- `string IMType`
+- `string CartonType`
+- `string LogoType`
+- `string SoPerson`
+- `string PoPerson`
+- `string Note`
+
+### class ExcelSheetFieldsMapping  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\ExcelSheetFieldsMapping.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string ShengXiaoDomain`
+- `string SourceFields`
+- `string TargetFields`
+
+### class MUsers  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\MUsers.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string UserName`
+- `string PcName`
+- `string NickName`
+- `string Password`
+- `string Email`
+- `string PhoneNumber`
+
+### class ProductSearchMeta  `(SwiftExport.Core.Entities.OtherEntities)`
+
+- File: `SwiftExport.Core\Entities\OtherEntities\ProductSearchMeta.cs`
+
+#### Properties
+
+- `string SKU`
+- `string SearchText`
+
+### class PlanOrderLine  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\PlanOrderLine.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string PlanOrderNo`
+- `string SoNo`
+- `long SoLineID`
+- `string SKU`
+- `decimal QTY`
+- `string DeliveryTo`
+- `string CustomerCode`
+- `string Note`
+- `string SupplierCode`
+
+### class Product  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\Product.cs`
+
+#### Properties
+
+- `string MasterSku`
+- `string Even`
+- `string Status`
+- `string SKU`
+- `string Description`
+- `string Finish`
+- `string Features`
+- `string SupplyType`
+- `string BomNo`
+- `string Class`
+- `string Note`
+- `string LinkSku`
+- `string MainImage`
+- `string CustomerCode`
+- `string CSKU`
+- `string SupplierCode`
+- `string SSKU`
+- `string ProductCategory`
+
+### class ProductCategory  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\ProductCategory.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string CategoryName`
+- `int? ParentID`
+- `string ParentName`
+- `string CategoryNo`
+- `int SortNo`
+
+### class ProductColor  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\ProductColor.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string ColorCodeUnique`
+- `string ColorCode`
+- `string ColorNameEn`
+- `string ColorNameZh`
+
+### class ProductDetails  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\ProductDetails.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string ProductSKU`
+- `string LabelPath`
+- `string IMPath`
+- `string DrawingPath`
+- `string LinedrawingPath`
+- `string SpecSheetPath`
+- `string Barcode1Path`
+- `string Barcode2Path`
+
+### class ProductMaster  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\ProductMaster.cs`
+
+#### Properties
+
+- `string MasterSku`
+- `string Description`
+- `string Features`
+- `string ProductClass`
+- `string ProductType`
+- `string ProductTag`
+
+### class ProductPackage  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\ProductPackage.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string ProductSKU`
+- `int PcsOfCarton`
+- `decimal NwOfCarton`
+- `decimal GwOfCarton`
+- `decimal CbmOfCarton`
+- `string CartonClass`
+- `string CartonType`
+- `decimal CartonLength_CM`
+- `decimal CartonWidth_CM`
+- `decimal CartonHeight_CM`
+- `string ShippCartonClass`
+- `string ShippCartonType`
+- `decimal ShippCartonLength_CM`
+- `decimal ShippCartonWidth_CM`
+- `decimal ShippCartonHeight_CM`
+- `string BoxClass`
+- `string BoxType`
+- `decimal BoxLength_CM`
+- `decimal BoxWidth_CM`
+- `decimal BoxHeight_CM`
+
+### class PurchaseOrderHead  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\PurchaseOrderHead.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string PoNo`
+- `string SoNo`
+- `string CustomerPoNo`
+- `DateTime PoDate`
+- `DateTime ExpectedDate`
+- `DateTime RePlyDate`
+- `string CustomerCode`
+- `string SupplierCode`
+- `string SupplierName`
+- `string SoPerson`
+- `string PoPerson`
+- `string InletrHoseType`
+- `string AeratorType`
+- `string PalletType`
+- `string BoxType`
+- `string LabelType`
+- `string IMType`
+- `string CartonType`
+- `string LogoType`
+- `string PoFolder`
+- `string PoNote`
+- `string CreatedBy`
+- `string ReviewedBy`
+- `string ApprovedBy`
+- `decimal ZhiJieYouHuiJinE`
+- `decimal ZheKou`
+- `string ZheKouBeiZhu`
+
+### class PurchaseOrderLine  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\PurchaseOrderLine.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string PoNo`
+- `string SKU`
+- `string CSku`
+- `string LinkSku`
+- `string SSKU`
+- `string Description`
+- `string Finish`
+- `string Features`
+- `decimal RMBPrice1`
+- `decimal RMBPrice2`
+- `decimal QTY`
+- `decimal RMB1Amount`
+- `decimal RMB2Amount`
+- `string SubNote`
+- `string SupplyType`
+- `string DeliveryTo`
+- `long SoLineID`
+- `decimal RecQTY`
+- `DateTime LastRecDate`
+- `string FollowUpRemarks`
+- `DateTime FollowUpTime`
+- `DateTime FollowExpectedDate`
+
+### class Roles  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\Roles.cs`
+
+#### Properties
+
+- `class Roles`
+
+### class SalesOrderHead  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\SalesOrderHead.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string SoNo`
+- `DateTime SoDate`
+- `DateTime RePlyDate`
+- `string CustomerCode`
+- `string CustomerPoNo`
+- `string SoFolder`
+- `string SoNote`
+
+### class SalesOrderLine  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\SalesOrderLine.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string SoNo`
+- `string SKU`
+- `string CSku`
+- `string LinkSku`
+- `string CDescription`
+- `string CFinish`
+- `string CFeatures`
+- `decimal RMBPrice`
+- `decimal USDPrice`
+- `decimal QTY`
+- `decimal RMBAmount`
+- `decimal USDAmount`
+- `decimal PcsOfCarton`
+- `decimal NwOfCarton`
+- `decimal GwOfCarton`
+- `decimal CbmOfCarton`
+- `decimal PcsSubTotal`
+- `decimal NwSubTotal`
+- `decimal GwSubTotal`
+- `decimal CbmSubTotal`
+- `string SubNote`
+- `decimal ShippedQTY`
+- `DateTime LastShippedDate`
+- `DateTime ExpectedDeliveryDate`
+
+### class SupplierProducts  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\SupplierProducts.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string ProductSKU`
+- `string SupplierCode`
+- `string SSKU`
+- `string SDescription`
+- `string SFeatures`
+- `decimal RMBPrice1`
+- `decimal RMBPrice2`
+
+### class Suppliers  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\Suppliers.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string SupplierCode`
+- `string SupplierName`
+- `decimal ZheKou`
+- `string ZheKouBeiZhu`
+- `string DocRelateNo`
+
+### class WhiteLists  `(SwiftExport.Core.Entities)`
+
+- File: `SwiftExport.Core\Entities\WhiteLists.cs`
+
+#### Properties
+
+- `string Even`
+- `string Status`
+- `string ExcelWhiteList`
+
+### class ViewUserRole  `(SwiftExport.Core.EntitieView)`
+
+- File: `SwiftExport.Core\EntitieView\ViewUserRole.cs`
+
+#### Properties
+
+- `string UserName`
+- `string PcName`
+- `string Password`
+- `string NickName`
+- `int RoleID`
+- `string RoleName`
+
+### enum OrderStatus  `(SwiftExport.Core.Enumns)`
+
+- File: `SwiftExport.Core\Enumns\OrderStatus.cs`
+
+#### Properties
+
+- `enum OrderStatus`
+
+### enum LineStatus  `(SwiftExport.Core.Enumns)`
+
+- File: `SwiftExport.Core\Enumns\OrderStatus.cs`
+
+#### Properties
+
+- `enum LineStatus`
+
+### enum PackingStatus  `(SwiftExport.Core.Enumns)`
+
+- File: `SwiftExport.Core\Enumns\OrderStatus.cs`
+
+#### Properties
+
+- `enum PackingStatus`
+
+### interface IBomRepository  `(SwiftExport.Core.Interfaces)`
+
+- File: `SwiftExport.Core\Interfaces\IBomRepository.cs`
+
+#### Methods (signatures)
+
+- `Task<int> DeleteBomByBomNoAsync(string bomNo, IUnitOfWork uow)`
+- `Task<IEnumerable<BOM>> GetBomByBomNoAsync(string bomNo)`
+- `Task<int> SyncBomItemsAsync(IEnumerable<BOM> items, IUnitOfWork uow)`
+
+### interface ICustomerProductRepository  `(SwiftExport.Core.Interfaces)`
+
+- File: `SwiftExport.Core\Interfaces\ICustomerProductRepository.cs`
+
+#### Properties
+
+- `interface ICustomerProductRepository`
+
+#### Methods (signatures)
+
+- `Task<int> SyncCustomerProductsAsync(IEnumerable<CustomerProducts> products, IUnitOfWork uow)`
+
+### interface ICustomersPoDetailsRepository  `(SwiftExport.Core.Interfaces)`
+
+- File: `SwiftExport.Core\Interfaces\ICustomersPoDetailsRepository.cs`
+
+#### Methods (signatures)
+
+- `Task<CustomersPoDetails> GetByCustomerCodeWithSupplierCodeAsync(string CustomerCode, string SupplierCode)`
+- `Task<int> DeleteByCustomerCodeWithSupplierCodeAsync(string CustomerCode, string SupplierCode, IUnitOfWork uow)`
+
+### interface ICustomersRepository  `(SwiftExport.Core.Interfaces)`
+
+- File: `SwiftExport.Core\Interfaces\ICustomersRepository.cs`
+
+#### Methods (signatures)
+
+- `Task<bool> ExistByCustomerCode(string CustomerCode)`
+- `Task<IEnumerable<string>> GetExistingCustomerCodesAsync(IEnumerable<string> CustomerCodes)`
+- `Task<Customers> GetByCustomerCodeAsync(string customerCode)`
+
+### interface IExcelSheetFieldsRepository  `(SwiftExport.Core.Interfaces)`
+
+- File: `SwiftExport.Core\Interfaces\IExcelSheetFieldsRepository.cs`
+
+### interface IProductCategoryRepository  `(SwiftExport.Core.Interfaces)`
+
+- File: `SwiftExport.Core\Interfaces\IProductCategoryRepository.cs`
+
+#### Methods (signatures)
+
+- `Task<int> GetMaxSortNoAsync(int? parentId)`
+
+### interface IProductRepository  `(SwiftExport.Core.Interfaces)`
+
+- File: `SwiftExport.Core\Interfaces\IProductRepository.cs`
+
+#### Methods (signatures)
+
+- `Task<List<ProductSearchMeta>> GetAllSearchMetaAsync()`
+- `Task<Product> GetBySkuAsync(string sku)`
+- `Task<Product> GetByCustomerInfoAsync(string customerCode, string cSku)`
+- `Task<IReadOnlyList<Product>> GetListBySkuListAsync(IEnumerable<string> skuList)`
+- `Task<IReadOnlyList<Product>> GetListByCustomerCodeAndcSkuListAsync(string customerCode, IEnumerable<string> cSkuList)`
+- `Task<IReadOnlyList<Product>> GetProductListByCustomerSkuAndCodeAsync(Dictionary<string, string> cSkuAndCustomerCode)`
+- `Task<List<string>> GetAllCustomerCodeListAsync()`
+- `Task<int> DisableBySkuAsync(string sku, IUnitOfWork uow)`
+- `Task<int> DeleteBySkuAsync(string sku, IUnitOfWork uow)`
+- `Task<int> SyncProductsAsync(IEnumerable<Product> products, IUnitOfWork uow)`
+
+### interface IRepository<T>  `(SwiftExport.Core.Interfaces)`
+
+- File: `SwiftExport.Core\Interfaces\IRepository.cs`
+
+#### Methods (signatures)
+
+- `Task<bool> ExistsIdAsync(int id)`
+- `Task<IReadOnlyList<int>> GetExistingIdsAsync(IEnumerable<int> ids)`
+- `Task<T> GetByIdAsync(int id)`
+- `Task<IReadOnlyList<T>> GetByIdsAsync(IEnumerable<int> ids)`
+- `Task<T> GetSingleEntityAsync()`
+- `Task<int> AddAsync(T entity, IUnitOfWork uow)`
+- `Task<int> DeleteSoftAsync(int id, IUnitOfWork uow)`
+- `Task<int> DeleteAsync(int id, IUnitOfWork uow)`
+- `Task<int> UpdateAsync(T entity, IUnitOfWork uow)`
+- `Task<IReadOnlyList<T>> GetAllAsync()`
+- `Task<IReadOnlyList<int>> AddRangeAsync(IEnumerable<T> entities, IUnitOfWork uow)`
+- `Task<int> DeleteRangeByIdsAsync(IEnumerable<int> ids, IUnitOfWork uow)`
+- `Task<int> UpdateRangeByIdsAsync(IEnumerable<T> entities, IUnitOfWork uow)`
+- `Task<IReadOnlyList<T>> GetByUserWhereAsync(QueryCriteria criteria)`
+- `Task<PagedResult<T>> GetPagedListAsync(QueryCriteria criteria,
+            int pageIndex,
+            int pageSize,
+            string orderBy = "ID DESC")`
+- `Task<IReadOnlyList<T>> GetListAsync(object noNameObj)`
+
+### interface IUintOfWorkFactory  `(SwiftExport.Core.Interfaces)`
+
+- File: `SwiftExport.Core\Interfaces\IUintOfWorkFactory.cs`
+
+#### Properties
+
+- `interface IUintOfWorkFactory`
+
+#### Methods (signatures)
+
+- `IUnitOfWork CreateUoW()`
+
+### interface IUnitOfWork  `(SwiftExport.Core.Interfaces)`
+
+- File: `SwiftExport.Core\Interfaces\IUnitOfWork.cs`
+
+#### Methods (signatures)
+
+- `Task CommitAsync()`
+- `Task RollbackAsync()`
+
+### interface IViewUserRoleRepository  `(SwiftExport.Core.Interfaces)`
+
+- File: `SwiftExport.Core\Interfaces\IViewUserRoleRepository.cs`
+
+#### Methods (signatures)
+
+- `Task<ViewUserRole> Login(string userName, string psswd)`
+
+### interface IWhiteListRepository  `(SwiftExport.Core.Interfaces)`
+
+- File: `SwiftExport.Core\Interfaces\IWhiteListRepository.cs`
+
+#### Methods (signatures)
+
+- `Task<IEnumerable<string>> GetVstoWhiteListAsync()`
+
+### class SimpleAuth  `(SwiftExport.Infrastructure.Auth)`
+
+- File: `SwiftExport.Infrastructure\Auth\SimpleAuth.cs`
+
+#### Properties
+
+- `class SimpleAuth`
+
+#### Methods (signatures)
+
+- `bool Login(string username, string password)`
+
+### class DI_Infrastructure  `(SwiftExport.Infrastructure.DI)`
+
+- File: `SwiftExport.Infrastructure\DI\DI_Infrastructure.cs`
+
+#### Properties
+
+- `class DI_Infrastructure`
+
+#### Methods (signatures)
+
+- `IServiceCollection AddInfrastructureServices(this IServiceCollection services, string connString)`
+- `services.AddSingleton<IUintOfWorkFactory, UnitOfWorkFactory>()`
+- `services.AddSingleton<IMappingCache, MappingCache>()`
+- `services.AddScoped<IProductRepository, ProductRepository>()`
+- `services.AddScoped<IBomRepository, BomRepository>()`
+- `services.AddScoped<IViewUserRoleRepository, ViewUserRoleRepository>()`
+- `services.AddScoped<ICustomerProductRepository, CustomerProductRepository>()`
+- `services.AddScoped<ICustomersRepository, CustomersRepository>()`
+- `services.AddScoped<IExcelSheetFieldsRepository, ExcelSheetFieldsRepository>()`
+- `services.AddScoped<IWhiteListRepository, WhiteListRepository>()`
+- `services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>()`
+- `//services.AddScoped<ISalesOrderRepository, SalesOrderRepository>()`
+
+### class DataTableFactory<T>  `(SwiftExport.Infrastructure.Factory)`
+
+- File: `SwiftExport.Infrastructure\Factory\DataTableFactory.cs`
+
+#### Methods (signatures)
+
+- ` DataTableFactory(IMappingCache cache)`
+- `//添加行 foreach(var entity in entitys)`
+- ` foreach(var property in props)`
+
+### class SqlConnectionFactory  `(SwiftExport.Infrastructure.Factory)`
+
+- File: `SwiftExport.Infrastructure\Factory\SqlConnectionFactory.cs`
+
+#### Methods (signatures)
+
+- ` SqlConnectionFactory(string connString)`
+- `IDbConnection CreateConnection()`
+
+### class UnitOfWorkFactory  `(SwiftExport.Infrastructure.Factory)`
+
+- File: `SwiftExport.Infrastructure\Factory\UnitOfWorkFactory.cs`
+
+#### Methods (signatures)
+
+- `IUnitOfWork CreateUoW()`
+
+### class MappingCache  `(SwiftExport.Infrastructure.Global)`
+
+- File: `SwiftExport.Infrastructure\Global\MappingCache.cs`
+
+#### Properties
+
+- `Dictionary<string, string> TableMappings`
+- `Dictionary<string, string> UniqueColumnMappings`
+
+#### Methods (signatures)
+
+- ` MappingCache(IDbConnectionFactory factory)`
+- ` if(TableMappings == null)`
+- ` LoadMappings(factory)`
+- `void LoadMappings(IDbConnectionFactory factory)`
+- `return GetFieldNameByEntityProperty<T>(uqProperty)`
+- `return GetFieldNameByEntityProperty<T>("ID")`
+
+### interface IDataTableFactory<T>  `(SwiftExport.Infrastructure.Interfaces)`
+
+- File: `SwiftExport.Infrastructure\Interfaces\IDataTableFactory.cs`
+
+### interface IDbConnectionFactory  `(SwiftExport.Infrastructure.Interfaces)`
+
+- File: `SwiftExport.Infrastructure\Interfaces\IDbConnectionFactory.cs`
+
+#### Properties
+
+- `interface IDbConnectionFactory`
+
+#### Methods (signatures)
+
+- `IDbConnection CreateConnection()`
+
+### interface IMappingCache  `(SwiftExport.Infrastructure.Interfaces)`
+
+- File: `SwiftExport.Infrastructure\Interfaces\IMappingCache.cs`
+
+#### Properties
+
+- `interface IMappingCache`
+
+### class Logger  `(SwiftExport.Infrastructure.Logging)`
+
+- File: `SwiftExport.Infrastructure\Logging\Logger.cs`
+
+#### Properties
+
+- `class Logger`
+
+### class BomRepository  `(SwiftExport.Infrastructure.Repositories)`
+
+- File: `SwiftExport.Infrastructure\Repositories\BomRepository.cs`
+
+### class CustomerProductRepository  `(SwiftExport.Infrastructure.Repositories)`
+
+- File: `SwiftExport.Infrastructure\Repositories\CustomerProductRepository.cs`
+
+### class CustomersPoDetailsRepository  `(SwiftExport.Infrastructure.Repositories)`
+
+- File: `SwiftExport.Infrastructure\Repositories\CustomersPoDetailsRepository.cs`
+
+### class CustomersRepository  `(SwiftExport.Infrastructure.Repositories)`
+
+- File: `SwiftExport.Infrastructure\Repositories\CustomersRepository.cs`
+
+### class DapperRepository<T>  `(SwiftExport.Infrastructure.Repositories)`
+
+- File: `SwiftExport.Infrastructure\Repositories\DapperRepository.cs`
+
+#### Methods (signatures)
+
+- ` DapperRepository(IMappingCache cache, IDbConnectionFactory connectionFactory)`
+- `}; if(排除扩展字段 != null)`
+- ` foreach(var field in 排除扩展字段)`
+- ` if(排除基础字段)`
+- ` foreach(var prop in props)`
+- ` if(mappedProps == null || mappedProps.Count == 0)`
+- ` for(int i = 0; i < entityList.Count; i++)`
+- ` foreach(var prop in mappedProps.Keys)`
+- `{ for(int i = 0; i < newIds.Count && i < entityList.Count; i++)`
+- ` for(int i = 0; i < entityList.Count; i++)`
+- ` foreach(var prop in updateProps)`
+- ` if(noNameObj != null)`
+- ` if(properties.Length > 0)`
+- `string BuildConditionSql(string propName, QueryCondition cond, string paramName, DynamicParameters parameters)`
+- ` switch(cond.操作符)`
+- `string ParseQueryCriteria(QueryCriteria criteria, DynamicParameters parameters)`
+- ` foreach(var kvp in criteria.Items)`
+- ` foreach(var groupDict in criteria.OrGroups)`
+- ` foreach(var kvp in groupDict)`
+- ` if(orParts.Count > 0)`
+
+### class ExcelSheetFieldsRepository  `(SwiftExport.Infrastructure.Repositories)`
+
+- File: `SwiftExport.Infrastructure\Repositories\ExcelSheetFieldsRepository.cs`
+
+### class ProductCategoryRepository  `(SwiftExport.Infrastructure.Repositories)`
+
+- File: `SwiftExport.Infrastructure\Repositories\ProductCategoryRepository.cs`
+
+#### Methods (signatures)
+
+- `{ if(parentId.HasValue)`
+
+### class ProductRepository  `(SwiftExport.Infrastructure.Repositories)`
+
+- File: `SwiftExport.Infrastructure\Repositories\ProductRepository.cs`
+
+#### Methods (signatures)
+
+- ` ProductRepository(IDbConnectionFactory connFac, IMappingCache cache, IDataTableFactory<Product> dataTableFac)`
+- `: base(cache, connFac)`
+- ` if(cSkuAndCustomerCode == null || cSkuAndCustomerCode.Count == 0)`
+- ` if(cSkuAndCustomerCode.Count > 1000)`
+- ` foreach(var kvp in cSkuAndCustomerCode)`
+
+### class UnitOfWork  `(SwiftExport.Infrastructure.Repositories)`
+
+- File: `SwiftExport.Infrastructure\Repositories\UnitOfWork.cs`
+
+#### Methods (signatures)
+
+- ` UnitOfWork(IDbConnectionFactory connectionFactory)`
+- `Task CommitAsync()`
+- `{ Dispose()`
+- `Task RollbackAsync()`
+- `_transaction.Rollback(); Dispose()`
+- `void Dispose()`
+- ` Dispose(true)`
+- `{ if(!_disposed)`
+- ` if(disposing)`
+
+### class ViewUserRoleRepository  `(SwiftExport.Infrastructure.Repositories)`
+
+- File: `SwiftExport.Infrastructure\Repositories\ViewUserRoleRepository.cs`
+
+### class WhiteListRepository  `(SwiftExport.Infrastructure.Repositories)`
+
+- File: `SwiftExport.Infrastructure\Repositories\WhiteListRepository.cs`
+
+### class NaviUserControl  `(SwiftExport.UI.Framework)`
+
+- File: `SwiftExport.UI.Framework\AppNavis\NaviUserControl.cs`
+
+#### Methods (signatures)
+
+- ` NaviUserControl(ViewUserRoleDTo userRoleDTo)`
+- `_userRoleDTo=userRoleDTo; InitializeComponent()`
+- ` LoadNavi()`
+- `void LoadNavi()`
+- ` if(_userRoleDTo.RoleID ==1)`
+- `}else if(_userRoleDTo.RoleID == 2)`
+- `void MainBtn_Click(object sender, EventArgs e)`
+- ` if(perm == "UserEdit")`
+- `else if(perm == "UserView")`
+- ` if(uc != null)`
+
+### class CollapsePanelUserControl  `(SwiftExport.UI.Framework.AppUserControls)`
+
+- File: `SwiftExport.UI.Framework\AppUserControls\CollapsePanelUserControl.cs`
+
+#### Methods (signatures)
+
+- ` CollapsePanelUserControl()`
+- ` InitializeComponent()`
+- `void CtrlVisiblePane2_Click(object sender, EventArgs e)`
+
+### class CustomerListUserControl  `(SwiftExport.UI.Framework.AppUserControls)`
+
+- File: `SwiftExport.UI.Framework\AppUserControls\CustomerListUserControl.cs`
+
+#### Methods (signatures)
+
+- ` CustomerListUserControl()`
+- ` InitializeComponent()`
+- `void BindCustomers(IEnumerable<Customers> customers)`
+
+### class DataSplitUserControl  `(SwiftExport.UI.Framework.AppUserControls)`
+
+- File: `SwiftExport.UI.Framework\AppUserControls\DataSplitUserControl.cs`
+
+#### Properties
+
+- `int PageIndex`
+- `int PageSize`
+- `int TotalRecords`
+- `int PageIndex`
+- `int PageSize`
+
+#### Methods (signatures)
+
+- ` DataSplitUserControl()`
+- ` InitializeComponent()`
+- `void UpdateState(int totalRecords)`
+- ` if(TscmbPgIndex.Items.Count != pages)`
+- ` if(TscmbPgIndex.Items.Count > 0)`
+- `void RequestPageChange(int targetIndex)`
+- `void TscmbPgIndex_SelectedIndexChanged(object sender, EventArgs e)`
+- ` RequestPageChange(TscmbPgIndex.SelectedIndex)`
+- ` RequestPageChange(0)`
+- ` PageChangedEventArgs(int index, int size)`
+
+### class PageChangedEventArgs  `(SwiftExport.UI.Framework.AppUserControls)`
+
+- File: `SwiftExport.UI.Framework\AppUserControls\DataSplitUserControl.cs`
+
+#### Properties
+
+- `int PageIndex`
+- `int PageSize`
+
+#### Methods (signatures)
+
+- ` PageChangedEventArgs(int index, int size)`
+
+### class DataTopUserControl  `(SwiftExport.UI.Framework.AppUserControls)`
+
+- File: `SwiftExport.UI.Framework\AppUserControls\DataTopUserControl.cs`
+
+#### Properties
+
+- `List<string> ZiDuanLieBiao`
+
+#### Methods (signatures)
+
+- ` DataTopUserControl()`
+- ` InitializeComponent()`
+- `void BindZiDuanLieBiao(List<string> ziDuanLieBiao)`
+- `void ToolStripButton_Query_Click(object sender, EventArgs e)`
+- `void ToolStripTextBox_FindResult_TextChanged(object sender, EventArgs e)`
+
+### class QueryEventArgs  `(SwiftExport.UI.Framework.AppUserControls)`
+
+- File: `SwiftExport.UI.Framework\AppUserControls\DataTopUserControl.cs`
+
+#### Properties
+
+- `string Field`
+- `string Value`
+
+### class FilterEventArgs  `(SwiftExport.UI.Framework.AppUserControls)`
+
+- File: `SwiftExport.UI.Framework\AppUserControls\DataTopUserControl.cs`
+
+#### Properties
+
+- `string FilterText`
+
+### class GeneralManagerUserControl  `(SwiftExport.UI.Framework.AppUserControls)`
+
+- File: `SwiftExport.UI.Framework\AppUserControls\GeneralManagerUserControl.cs`
+
+#### Methods (signatures)
+
+- ` GeneralManagerUserControl()`
+- ` InitializeComponent()`
+
+### class ProductCategoryManagerControl  `(SwiftExport.UI.Framework.AppUserControls)`
+
+- File: `SwiftExport.UI.Framework\AppUserControls\ProductCategoryManagerControl.cs`
+
+#### Methods (signatures)
+
+- ` ProductCategoryManagerControl()`
+- `InitializeComponent(); BindEvents()`
+- `void SetService(IProductCategoryService service)`
+- `void BindEvents()`
+- `void LoadTreeSafe()`
+- `_treeView.Nodes.Clear(); foreach(var dto in treeData)`
+- ` UpdateMoveButtonsState()`
+- `} catch(Exception ex)`
+- `TreeNode CreateTreeNode(ProductCategoryDto dto)`
+- ` foreach(var child in dto.子集列表)`
+- `void FindAndSelectNode(TreeNode node, int id)`
+- ` if(node.Tag is ProductCategoryDto dto && dto.ID == id)`
+- `void OnTreeItemDrag(object sender, ItemDragEventArgs e)`
+- ` DoDragDrop(e.Item, DragDropEffects.Move)`
+- `void OnTreeDragEnter(object sender, DragEventArgs e)`
+- `void OnTreeDragOver(object sender, DragEventArgs e)`
+- ` if(targetNode != null && _treeView.SelectedNode != targetNode)`
+- ` if(targetNode == null)`
+- ` if(draggedDto.父级ID != null)`
+- ` LoadTreeSafe()`
+- ` if(draggedDto.父级ID != targetDto.ID)`
+- ` LoadTreeSafe()`
+- `} catch(Exception ex)`
+- ` LoadTreeSafe()`
+- `bool IsContains(TreeNode parent, TreeNode target)`
+- `return IsContains(parent, target.Parent)`
+- ` LoadTreeSafe()`
+- ` LoadTreeSafe()`
+- `void UpdateMoveButtonsState()`
+- `void OnTreeAfterSelect(object sender, TreeViewEventArgs e)`
+- ` ToggleInputs(true)`
+- ` UpdateMoveButtonsState()`
+- `void StartAddNew(TreeNode parentNode)`
+- ` if(parentNode != null)`
+- `_txtName.Focus(); ToggleInputs(true)`
+- `}; if(_isAddingNew)`
+- `} ResetEditArea()`
+- ` LoadTreeSafe()`
+- `ResetEditArea(); LoadTreeSafe()`
+- `void ResetEditArea()`
+- ` ToggleInputs(false)`
+- `void ToggleInputs(bool enable)`
+
+### class UserDataGrid  `(SwiftExport.UI.Framework.AppUserControls)`
+
+- File: `SwiftExport.UI.Framework\AppUserControls\UserDataGrid.cs`
+
+#### Methods (signatures)
+
+- ` UserDataGrid()`
+- ` InitializeComponent()`
+
+### class IconProvider  `(SwiftExport.UI.Framework.Common)`
+
+- File: `SwiftExport.UI.Framework\Common\IconProvider.cs`
+
+#### Properties
+
+- `class IconProvider`
+
+#### Methods (signatures)
+
+- `Image GetToolBarIcons(string name, string extednName)`
+- `Image GetStatusIcons(string name, string extednName)`
+- `Image LoadImage(string _iconPath, string name, string _extednName)`
+- `bool IsDesignMode()`
+- ` if(LicenseManager.UsageMode == LicenseUsageMode.Designtime)`
+- ` if(Application.OpenForms.Count == 0)`
+
+### class ThreadHelper  `(SwiftExport.UI.Framework.Common)`
+
+- File: `SwiftExport.UI.Framework\Common\ThreadHelper.cs`
+
+#### Properties
+
+- `class ThreadHelper`
+- `Action<Action> MainThreadDispatcher`
+
+#### Methods (signatures)
+
+- ` if(Application.OpenForms.Count > 0 && Application.OpenForms[0].InvokeRequired)`
+- `{ action()`
+- `void UIInvoke(Action action)`
+
+### class DI_UIFramework  `(SwiftExport.UI.Framework.DI)`
+
+- File: `SwiftExport.UI.Framework\DI\DI_UIFramework.cs`
+
+#### Properties
+
+- `class DI_UIFramework`
+
+#### Methods (signatures)
+
+- `IServiceCollection AddUIFrameworkServers(this IServiceCollection services)`
+
+### class FrmProductSelector  `(SwiftExport.UI.Framework.DialogsForms)`
+
+- File: `SwiftExport.UI.Framework\DialogsForms\FrmProductSelector.cs`
+
+#### Methods (signatures)
+
+- ` FrmProductSelector(IProductService productService, IMapper mapper)`
+- ` InitializeComponent()`
+- ` if(CmbLimitCustomer.Focused)`
+- `await SearchDataAsync(resetPage: true)`
+- `//把所有列设为“程序控制排序” foreach(DataGridViewColumn col in Dgv.Columns)`
+- `} catch(Exception ex)`
+- `void Dgv_CellValueNeeded(object sender, DataGridViewCellValueEventArgs e)`
+- ` switch(col.DataPropertyName)`
+- `Image GetImageForVirtualCell(string imagePath, int rowIndex, int colIndex)`
+- ` lock(_imageCache)`
+- ` LoadImageAsync(imagePath, Dgv, rowIndex, colIndex)`
+- `void SelectedDgv_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)`
+- ` if(SelectedDgv.Columns[e.ColumnIndex].Name == "已选图片")`
+- ` if(SelectedDgv.Rows[e.RowIndex].DataBoundItem is ProductDto dto)`
+- ` lock(_loadingTasks)`
+- ` lock(_imageCache)`
+- `{ lock(_imageCache)`
+- `{ lock(_imageCache)`
+- `{ lock(_loadingTasks)`
+- ` if(rowIndex >= 0 && rowIndex < dgv.RowCount)`
+- `// if(rowIndex >= 0 && rowIndex < dgv.RowCount)`
+- `await SearchDataAsync(resetPage: true)`
+- `{ if(resetPage)`
+- ` if(!result.Success)`
+- ` if(resetPage)`
+- ` if(mappedItems.Count == 0)`
+- ` if(mappedItems.Count > 0)`
+- `} catch(Exception ex)`
+- `{ if(e.ScrollOrientation == ScrollOrientation.VerticalScroll)`
+- `{ if(_hasMoreData && !_isLoading)`
+- `await SearchDataAsync(resetPage: false)`
+- `List<ProductDto> GetSelectedFromVirtual()`
+- ` if(Dgv.SelectedRows.Count > 0)`
+- ` foreach(DataGridViewRow row in Dgv.SelectedRows)`
+- ` if(row.Index < _virtualSource.Count)`
+- `List<ProductDto> GetSelectedFromBinding(DataGridView dgv)`
+- ` foreach(DataGridViewRow row in dgv.SelectedRows)`
+- `void AddToSelected(List<ProductDto> items)`
+- ` foreach(var item in items)`
+- `void RemoveFromSelected(List<ProductDto> items)`
+- ` foreach(var item in items)`
+- `void Dgv_CellDoubleClick(object sender, DataGridViewCellEventArgs e)`
+- ` AddToSelected(new List<ProductDto> { item })`
+- `void SelectedDgv_CellDoubleClick(object sender, DataGridViewCellEventArgs e)`
+- ` if(SelectedDgv.Rows[e.RowIndex].DataBoundItem is ProductDto item)`
+- ` RemoveFromSelected(new List<ProductDto> { item })`
+- `void Dgv_ColumnHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)`
+- ` if(propInfo != null)`
+- ` if(valX is IComparable cX)`
+
+### class DataGridViewStyleExtensions  `(SwiftExport.UI.Framework.FrmUtility.UIStyle)`
+
+- File: `SwiftExport.UI.Framework\FrmUtility\UIStyle\DataGridViewStyleExtensions.cs`
+
+#### Properties
+
+- `class DataGridViewStyleExtensions`
+
+#### Methods (signatures)
+
+- `DataGridView EnableDoubleBuffered(this DataGridView dgv)`
+- `DataGridView ApplyModernStyle(this DataGridView dgv)`
+- `DataGridView EnableRowNumbers(this DataGridView dgv)`
+- `void UpdateRowHeaderWidth(DataGridView dgv)`
+- ` if(dgv.RowHeadersWidth < width)`
+- `DataGridView AddLineNumberColumn(this DataGridView dgv, string headerText = "No.", int width = 60)`
+- `{ if(e.ColumnIndex >= 0 && dgv.Columns[e.ColumnIndex].Name == LineNumColName)`
+- `DataGridView EnableSilentDataError(this DataGridView dgv)`
+
+### class UITheme  `(SwiftExport.UI.Framework.FrmUtility.UIStyle)`
+
+- File: `SwiftExport.UI.Framework\FrmUtility\UIStyle\UITheme.cs`
+
+#### Properties
+
+- `class UITheme`
+
+#### Methods (signatures)
+
+- `void ApplyTheme(Control parent)`
+- ` foreach(Control c in parent.Controls)`
+- `void ApplyButtonStyle(Button btn)`
+- `void ApplyTextStyle(TextBox txt)`
+
+### class BindingSourceExtensions  `()`
+
+- File: `SwiftExport.UI.Framework\FrmUtility\Validation\BindingSourceExtensions.cs`
+
+#### Properties
+
+- `class BindingSourceExtensions`
+
+#### Methods (signatures)
+
+- `return; if(e.ListChangedType == ListChangedType.ItemChanged)`
+- ` if(e.NewIndex >= 0 && e.NewIndex < bs.Count)`
+- ` if(bs[e.NewIndex] is T dto && dto.视图状态 == RowState.正常)`
+- `void SilentUpdate(this BindingSource bs, Action action)`
+
+### class DataGridViewValidationConfig  `(SwiftExport.UI.Framework.FrmUtility)`
+
+- File: `SwiftExport.UI.Framework\FrmUtility\Validation\DataGridViewValidationConfig.cs`
+
+#### Properties
+
+- `class DataGridViewValidationConfig`
+- `HashSet<string> NotNullColumns`
+- `HashSet<string> DateColumns`
+- `HashSet<string> NumericColumns`
+- `HashSet<string> UniqueColumns`
+- `HashSet<string> UcaseColumns`
+
+### class DataGridViewValidatorExtensions  `(SwiftExport.UI.Framework.FrmUtility)`
+
+- File: `SwiftExport.UI.Framework\FrmUtility\Validation\DataGridViewValidatorExtensions.cs`
+
+#### Properties
+
+- `class DataGridViewValidatorExtensions`
+
+#### Methods (signatures)
+
+- `DataGridViewValidationConfig GetConfig(DataGridView dgv)`
+- ` AttachEvents(dgv)`
+- `void AttachEvents(DataGridView dgv)`
+- ` if(e.Control is TextBox textBox)`
+- `bool CheckCell(this DataGridView dgv, int rowIndex, int colIndex, string proposedValue = null)`
+- ` if(isDuplicate)`
+- `DataGridView SetNotNullColumnsColumns(this DataGridView dgv, params string[] cols)`
+- `DataGridView SetNumericColumns(this DataGridView dgv, params string[] cols)`
+- `DataGridView SetDateColumns(this DataGridView dgv, params string[] cols)`
+- `DataGridView SetAutoUcaseColumn(this DataGridView dgv, params string[] cols)`
+- `DataGridView EnableAutoTrim(this DataGridView dgv)`
+- `bool ValidateRow(this DataGridView dgv, int rowIndex)`
+- ` for(int i = 0; i < dgv.ColumnCount; i++)`
+- `bool ValidateAll(this DataGridView dgv)`
+- ` if(dgv.IsCurrentCellInEditMode)`
+- ` for(int r = 0; r < dgv.RowCount; r++)`
+- `DataGridView SetUniqueColumns(this DataGridView dgv, params string[] cols)`
+- `DataGridView EnableDeleteKey(this DataGridView dgv)`
+- ` if(e.KeyCode == Keys.Delete && dgv.IsCurrentCellInEditMode == false)`
+- ` foreach(DataGridViewCell cell in dgv.SelectedCells)`
+- ` if(!cell.ReadOnly)`
+- ` if(cell.Value == null)`
+- `.Cast<BaseDto>(); foreach(var dto in selectedDtos)`
+- ` if(dto.视图状态 == RowState.正常)`
+- `DataGridView EnableEnterAsTab(this DataGridView dgv)`
+- `{ if(e.KeyCode == Keys.Enter)`
+- ` if(col < dgv.ColumnCount - 1)`
+- `else if(row < dgv.RowCount - 1)`
+- `void BindContextMenu(this DataGridView dgv, ContextMenuStrip menu)`
+- `{ if(e.Button == MouseButtons.Right && e.RowIndex >= 0)`
+- ` if(!dgv.Rows[e.RowIndex].Selected)`
+- ` if(dgv.DataSource is BindingSource bs)`
+
+### class LabelExtensions  `(SwiftExport.UI.Framework.FrmUtility.Validation)`
+
+- File: `SwiftExport.UI.Framework\FrmUtility\Validation\LabelExtensions.cs`
+
+#### Properties
+
+- `class LabelExtensions`
+
+#### Methods (signatures)
+
+- `ToolStripLabel GoodNews(this ToolStripLabel lbl, string message)`
+- `ToolStripLabel BadNews(this ToolStripLabel lbl, string message)`
+- `ToolStripLabel GeneralNews(this ToolStripLabel lbl, string message)`
+- `Label GoodNews(this Label lbl, string message)`
+- `Label BadNews(this Label lbl, string message)`
+- `Label GeneralNews(this Label lbl, string message)`
+
+### class FrmProductManager  `(SwiftExport.UI.Framework.ManagerForms)`
+
+- File: `SwiftExport.UI.Framework\ManagerForms\FrmProductManager.cs`
+
+#### Methods (signatures)
+
+- ` FrmProductManager(IProductService service, IMapper mapper)`
+- ` InitializeComponent()`
+- `// if(suggestions.Count > 0)`
+- `{ if(e.KeyCode == Keys.Enter)`
+- `await ExecuteQueryAsync()`
+- `void VisibleScPane2_Click(object sender, EventArgs e)`
+- `{ if(_searchCache == null)`
+- `void Txt_FindResult_TextChanged(object sender, EventArgs e)`
+- ` if(!Txt_FindResult.DroppedDown)`
+
+### class FrmSoOrderManager  `(SwiftExport.UI.Framework.ManagerForms)`
+
+- File: `SwiftExport.UI.Framework\ManagerForms\FrmSoOrderManager.cs`
+
+#### Methods (signatures)
+
+- ` FrmSoOrderManager(IProductService service, IMapper mapper)`
+- ` InitializeComponent()`
+- `// if(suggestions.Count > 0)`
+- `{ if(e.KeyCode == Keys.Enter)`
+- `await ExecuteQueryAsync()`
+- `void VisibleScPane2_Click(object sender, EventArgs e)`
+- `{ if(_searchCache == null)`
+- `void Txt_FindResult_TextChanged(object sender, EventArgs e)`
+- ` if(!Txt_FindResult.DroppedDown)`
+- `void VisibleScPane1_Click(object sender, EventArgs e)`
+- `void FrmSoOrderManager_Shown(object sender, EventArgs e)`
+
+### class FrmCustomersManager  `(SwiftExport.UI.Framework.AppForms)`
+
+- File: `SwiftExport.UI.Framework\SettingForms\FrmCustomersManager.cs`
+
+#### Methods (signatures)
+
+- ` FrmCustomersManager(ICustomersService service, IMapper mapper)`
+- ` InitializeComponent()`
+- ` if(!rst.Success)`
+- `{ if(BdListAllData == null)`
+- `BdListAllData.Clear(); foreach(var d in dtoList)`
+- `void BdSource1_CurrentChanged(object sender, EventArgs e)`
+- ` if(BdListAllData == null)`
+- `await LoadDsv()`
+- ` if(BdSource1.Count > 0)`
+- ` if(Dgv1.RowCount > 0)`
+- ` if(targetCell != null && targetCell.Visible)`
+- `await LoadDsv()`
+- `void Txt_FindResult_TextChanged(object sender, EventArgs e)`
+- `{ if(rst.Success)`
+- ` for(int i = 0; i < addDtos.Count; i++)`
+- ` foreach(var d in deleteDtos)`
+- ` if(row != null)`
+- `await DeleteAsync(row.DataBoundItem as CurrentDto)`
+- ` if(rowIndex < 0)`
+- ` switch(Dgv1.Columns[e.ColumnIndex].Name)`
+- `await DeleteAsync(sp)`
+- ` if(sp.视图状态 == RowState.新增)`
+- `await AddAsync(sp)`
+- `else if(sp.视图状态 == RowState.修改)`
+- `await UpdateAsync(sp)`
+- `} catch(Exception ex)`
+- `{ if(rst.Success)`
+- `} catch(Exception ex)`
+- `{ if(rst.Success)`
+- `{ if(sp.视图状态 == RowState.新增)`
+- `{ if(rst.Success)`
+- `} catch(Exception ex)`
+- `void FilterTimer_Tick(object sender, EventArgs e)`
+- ` ApplyFilter(searchText)`
+- `void ApplyFilter(string searchText)`
+- `void Txt_FindResult_Click(object sender, EventArgs e)`
+
+### class FrmExcelSheetFieldsMappingManager  `(SwiftExport.UI.Framework.AppForms)`
+
+- File: `SwiftExport.UI.Framework\SettingForms\FrmExcelSheetFieldsMappingManager.cs`
+
+#### Methods (signatures)
+
+- ` FrmExcelSheetFieldsMappingManager(IExcelSheetFieldsMappingService service, IMapper mapper)`
+- ` InitializeComponent()`
+- ` if(!rst.Success)`
+- `{ if(BdListAllData == null)`
+- `BdListAllData.Clear(); foreach(var d in dtoList)`
+- `void BdSource1_CurrentChanged(object sender, EventArgs e)`
+- ` if(BdListAllData == null)`
+- `await LoadDsv()`
+- ` if(BdSource1.Count > 0)`
+- ` if(Dgv1.RowCount > 0)`
+- ` if(targetCell != null && targetCell.Visible)`
+- `await LoadDsv()`
+- `void Txt_FindResult_TextChanged(object sender, EventArgs e)`
+- `{ if(rst.Success)`
+- ` for(int i = 0; i < addDtos.Count; i++)`
+- ` foreach(var d in deleteDtos)`
+- ` if(row != null)`
+- `await DeleteAsync(row.DataBoundItem as CurrentDto)`
+- ` if(rowIndex < 0)`
+- ` switch(Dgv1.Columns[e.ColumnIndex].Name)`
+- `await DeleteAsync(sp)`
+- ` if(sp.视图状态 == RowState.新增)`
+- `await AddAsync(sp)`
+- `else if(sp.视图状态 == RowState.修改)`
+- `await UpdateAsync(sp)`
+- `} catch(Exception ex)`
+- `{ if(rst.Success)`
+- `} catch(Exception ex)`
+- `{ if(rst.Success)`
+- `{ if(sp.视图状态 == RowState.新增)`
+- `{ if(rst.Success)`
+- `} catch(Exception ex)`
+- `void FilterTimer_Tick(object sender, EventArgs e)`
+- ` ApplyFilter(searchText)`
+- `void ApplyFilter(string searchText)`
+
+### class FrmProductColorManager  `(SwiftExport.UI.Framework.AppForms)`
+
+- File: `SwiftExport.UI.Framework\SettingForms\FrmProductColorManager.cs`
+
+#### Methods (signatures)
+
+- ` FrmProductColorManager(IProductColorService service, IMapper mapper)`
+- ` InitializeComponent()`
+- ` if(!rst.Success)`
+- `{ if(BdListAllData == null)`
+- `BdListAllData.Clear(); foreach(var d in dtoList)`
+- `void UpdateBindingList(List<CurrentDto> items)`
+- ` if(BdListAllData == null)`
+- `BdListAllData.Clear(); foreach(var d in items)`
+- `void BdSource1_CurrentChanged(object sender, EventArgs e)`
+- ` if(BdListAllData == null)`
+- `await LoadDsv()`
+- ` if(BdSource1.Count > 0)`
+- ` if(Dgv1.RowCount > 0)`
+- ` if(targetCell != null && targetCell.Visible)`
+- `await LoadDsv()`
+- `void Txt_FindResult_TextChanged(object sender, EventArgs e)`
+- `{ if(rst.Success)`
+- ` for(int i = 0; i < addDtos.Count; i++)`
+- ` foreach(var d in deleteDtos)`
+- ` if(row != null)`
+- `await DeleteAsync(row.DataBoundItem as CurrentDto)`
+- ` if(rowIndex < 0)`
+- ` switch(Dgv1.Columns[e.ColumnIndex].Name)`
+- `await DeleteAsync(sp)`
+- ` if(sp.视图状态 == RowState.新增)`
+- `await AddAsync(sp)`
+- `else if(sp.视图状态 == RowState.修改)`
+- `await UpdateAsync(sp)`
+- `} catch(Exception ex)`
+- `{ if(rst.Success)`
+- `} catch(Exception ex)`
+- `{ if(rst.Success)`
+- `{ if(sp.视图状态 == RowState.新增)`
+- `{ if(rst.Success)`
+- `} catch(Exception ex)`
+- `void FilterTimer_Tick(object sender, EventArgs e)`
+- ` ApplyFilter(searchText)`
+- `void ApplyFilter(string searchText)`
+
+### class FrmSuppliersManager  `(SwiftExport.UI.Framework.AppForms)`
+
+- File: `SwiftExport.UI.Framework\SettingForms\FrmSuppliersManager.cs`
+
+#### Methods (signatures)
+
+- ` FrmSuppliersManager(ISuppliersService service, IMapper mapper)`
+- ` InitializeComponent()`
+- ` if(!rst.Success)`
+- `{ if(BdListAllData == null)`
+- `BdListAllData.Clear(); foreach(var d in dtoList)`
+- `void BdSource1_CurrentChanged(object sender, EventArgs e)`
+- ` if(BdListAllData == null)`
+- `await LoadDsv()`
+- ` if(BdSource1.Count > 0)`
+- ` if(Dgv1.RowCount > 0)`
+- ` if(targetCell != null && targetCell.Visible)`
+- `await LoadDsv()`
+- `void Txt_FindResult_TextChanged(object sender, EventArgs e)`
+- `{ if(rst.Success)`
+- ` for(int i = 0; i < addDtos.Count; i++)`
+- ` foreach(var d in deleteDtos)`
+- ` if(row != null)`
+- `await DeleteAsync(row.DataBoundItem as CurrentDto)`
+- ` if(rowIndex < 0)`
+- ` switch(Dgv1.Columns[e.ColumnIndex].Name)`
+- `await DeleteAsync(sp)`
+- ` if(sp.视图状态 == RowState.新增)`
+- `await AddAsync(sp)`
+- `else if(sp.视图状态 == RowState.修改)`
+- `await UpdateAsync(sp)`
+- `} catch(Exception ex)`
+- `{ if(rst.Success)`
+- `} catch(Exception ex)`
+- `{ if(rst.Success)`
+- `{ if(sp.视图状态 == RowState.新增)`
+- `{ if(rst.Success)`
+- `} catch(Exception ex)`
+- `void FilterTimer_Tick(object sender, EventArgs e)`
+- ` ApplyFilter(searchText)`
+- `void ApplyFilter(string searchText)`
+
+### class FrmWhiteListManager  `(SwiftExport.UI.Framework.AppForms)`
+
+- File: `SwiftExport.UI.Framework\SettingForms\FrmWhiteListManager.cs`
+
+#### Methods (signatures)
+
+- ` FrmWhiteListManager(IWhiteListServices service, IMapper mapper)`
+- ` InitializeComponent()`
+- ` if(!rst.Success)`
+- `{ if(BdListAllData == null)`
+- `BdListAllData.Clear(); foreach(var d in dtoList)`
+- `void BdSource1_CurrentChanged(object sender, EventArgs e)`
+- ` if(BdListAllData == null)`
+- `await LoadDsv()`
+- ` if(BdSource1.Count > 0)`
+- ` if(Dgv1.RowCount > 0)`
+- ` if(targetCell != null && targetCell.Visible)`
+- `await LoadDsv()`
+- `void Txt_FindResult_TextChanged(object sender, EventArgs e)`
+- `{ if(rst.Success)`
+- ` for(int i = 0; i < addDtos.Count; i++)`
+- ` foreach(var d in deleteDtos)`
+- ` if(row != null)`
+- `await DeleteAsync(row.DataBoundItem as CurrentDto)`
+- ` if(rowIndex < 0)`
+- ` switch(Dgv1.Columns[e.ColumnIndex].Name)`
+- `await DeleteAsync(sp)`
+- ` if(sp.视图状态 == RowState.新增)`
+- `await AddAsync(sp)`
+- `else if(sp.视图状态 == RowState.修改)`
+- `await UpdateAsync(sp)`
+- `} catch(Exception ex)`
+- `{ if(rst.Success)`
+- `} catch(Exception ex)`
+- `{ if(rst.Success)`
+- `{ if(sp.视图状态 == RowState.新增)`
+- `{ if(rst.Success)`
+- `} catch(Exception ex)`
+- `void FilterTimer_Tick(object sender, EventArgs e)`
+- ` ApplyFilter(searchText)`
+- `void ApplyFilter(string searchText)`
+
+### class LoginFrm  `(SwiftExport.UI.Framework)`
+
+- File: `SwiftExport.UI.Framework\SettingForms\LoginFrm.cs`
+
+#### Methods (signatures)
+
+- ` LoginFrm(IViewUserRoleService viewUserRoleService, IMapper mapper)`
+- ` InitializeComponent()`
+- ` if(result.Success)`
+- `} catch(Exception ex)`
+- `void SignUp_Click(object sender, EventArgs e)`
+
+### class TestForm  `(SwiftExport.UI.Framework.AppForms)`
+
+- File: `SwiftExport.UI.Framework\SettingForms\TestForm.cs`
+
+#### Methods (signatures)
+
+- ` TestForm()`
+- ` InitializeComponent()`
+
+### class SessionContext  `(SwiftExport.UI.Framework.State)`
+
+- File: `SwiftExport.UI.Framework\State\SessionContext.cs`
+
+#### Properties
+
+- `class SessionContext`
+- `ViewUserRoleDTo CurrentUser`
+
+#### Methods (signatures)
+
+- `void SetUser(ViewUserRoleDTo user)`
+- `void Logout()`
+
+### class DI_UiWinForm  `(SwiftExport.UiWinForm.DI)`
+
+- File: `SwiftExport.UiWinForm\DI\DI_UiWinForm.cs`
+
+#### Properties
+
+- `class DI_UiWinForm`
+
+#### Methods (signatures)
+
+- `IServiceCollection AddWinFormServers(this IServiceCollection services)`
+
+### class DI_WinFormHost  `(SwiftExport.UiWinForm.DI)`
+
+- File: `SwiftExport.UiWinForm\DI\DI_WinFormHost.cs`
+
+#### Properties
+
+- `class DI_WinFormHost`
+- `IServiceProvider Provider`
+
+#### Methods (signatures)
+
+- `{ if(_provider != null)`
+- `} lock(_lock)`
+- `ServiceProvider BuildProvider()`
+- `services.AddSingleton<ILoggerFactory, NullLoggerFactory>()`
+
+### class MainFrm  `(SwiftExport.UiWinForm)`
+
+- File: `SwiftExport.UiWinForm\MainFrm.cs`
+
+#### Methods (signatures)
+
+- ` MainFrm()`
+- ` InitializeComponent()`
+- `void Button1_Click(object sender, EventArgs e)`
+- `void CustomerSetting_Click(object sender, EventArgs e)`
+- `void WhiteListManageTSMenuItem_Click(object sender, EventArgs e)`
+
+### class Program  `(SwiftExport.UiWinForm)`
+
+- File: `SwiftExport.UiWinForm\Program.cs`
+
+#### Properties
+
+- `class Program`
+
+#### Methods (signatures)
+
+- `void Main()`
+- `else action()`
+
+### class ActiveUserClass  `(SwiftExport.UiWinForm.)`
+
+- File: `SwiftExport.UiWinForm\静态类\ActiveUserClass.cs`
+
+#### Properties
+
+- `class ActiveUserClass`
+- `ViewUserRole ActiveUser`
+
+#### Methods (signatures)
+
+- `{ if(_currentUser == null)`
+
+### class EntityListToPage  `(SwiftExport.Utility)`
+
+- File: `SwiftExport.Utility\EntityListToPage.cs`
+
+#### Properties
+
+- `class EntityListToPage`
+
+#### Methods (signatures)
+
+- ` for(int page = 1; page <= totalPages; page++)`
+
+### class ClipboardHelper  `(SwiftExport.Utility.ExcelHelp)`
+
+- File: `SwiftExport.Utility\ExcelHelp\ClipboardHelper.cs`
+
+#### Properties
+
+- `class ClipboardHelper`
+
+#### Methods (signatures)
+
+- `string[,] GetClipboardMatrix(bool skipHeader = false)`
+- ` for(int i = 0; i < rowCount; i++)`
+- ` for(int j = 0; j < colCount; j++)`
+- ` if(j < cells.Length)`
+
+### class AppConfig  `(SwiftExportAddIn.DI)`
+
+- File: `SwiftExportAddIn\DI\AppConfig.cs`
+
+#### Properties
+
+- `class AppConfig`
+- `IConfiguration Configuration`
+
+#### Methods (signatures)
+
+- ` AppConfig()`
+
+### class DI_VstoHost  `(SwiftExportAddIn.DI)`
+
+- File: `SwiftExportAddIn\DI\DI_VstoHost.cs`
+
+#### Properties
+
+- `class DI_VstoHost`
+- `IServiceProvider Provider`
+
+#### Methods (signatures)
+
+- `{ if(_provider == null)`
+- ` lock(_lock)`
+- ` if(_provider == null)`
+- `IServiceProvider BuildProvider()`
+- `services.AddSingleton<ILoggerFactory, NullLoggerFactory>()`
+- `T GetService<T>()`
+
+### class ExcelWindowWrapper  `()`
+
+- File: `SwiftExportAddIn\GlobalClass\ExcelWindowWrapper.cs`
+
+#### Properties
+
+- `IntPtr Handle`
+
+#### Methods (signatures)
+
+- ` ExcelWindowWrapper(IntPtr handle)`
+
+### class GlobalCom  `(SwiftExportVSTO.GlobalClass)`
+
+- File: `SwiftExportAddIn\GlobalClass\GlobalCom.cs`
+
+#### Properties
+
+- `class GlobalCom`
+- `HashSet<string> WhitelistCache`
+
+#### Methods (signatures)
+
+- `} catch(Exception)`
+
+### class SwiftExportAddInRibbon  `(SwiftExportAddIn)`
+
+- File: `SwiftExportAddIn\SwiftExportAddInRibbon.cs`
+
+#### Properties
+
+- `partial class SwiftExportAddInRibbon`
+
+#### Methods (signatures)
+
+- `void SwiftExportAddInRibbon_Load(object sender, RibbonUIEventArgs e)`
+- `void CheckVisibility(Microsoft.Office.Interop.Excel.Workbook wb)`
+- ` if(System.Diagnostics.Debugger.IsAttached)`
+- ` if(AppConfig.IsDevMode)`
+- ` if(wl == null)`
+- ` if(wb == null)`
+- `} catch(Exception)`
+- `void Rbn_btn_Product_Click(object sender, RibbonControlEventArgs e)`
+- `void Banna_Login_Click(object sender, RibbonControlEventArgs e)`
+- ` LoginOk()`
+- `void LoginOk()`
+- `void Rbn_btn_SaleProduct_Click(object sender, RibbonControlEventArgs e)`
+- `void Rbn_btn_BOM_Click(object sender, RibbonControlEventArgs e)`
+- `void Rbn_btn_PurchaseProduct_Click(object sender, RibbonControlEventArgs e)`
+- `void Rbn_btn_GenJinOrder_Click(object sender, RibbonControlEventArgs e)`
+- `void Rbn_btn_SaleOrder_Click(object sender, RibbonControlEventArgs e)`
+- `{ BindingTskPane(sender as RibbonControl)`
+- `} catch(Exception ex)`
+- `void BindingTskPane(RibbonControl b)`
+- `UserControl RefUsersControl(string typeName)`
+- `void Btn_BaseSetting_FrmCustomersManager_Click(object sender, RibbonControlEventArgs e)`
+- `void Btn_BaseSetting_FrmSupplierManager_Click(object sender, RibbonControlEventArgs e)`
+- `void Btn_BaseSetting_FrmProductColorManager_Click(object sender, RibbonControlEventArgs e)`
+- `void Btn_BaseSetting_FrmExcelFieldMappManager_Click(object sender, RibbonControlEventArgs e)`
+
+### class TaskPanelManager  `(SwiftExportAddIn.TaskPanel)`
+
+- File: `SwiftExportAddIn\TaskPanel\TaskPanelManager.cs`
+
+#### Properties
+
+- `partial class TaskPanelManager`
+
+#### Methods (signatures)
+
+- `bool ExistsTaskPane(int hwnd)`
+- `CustomTaskPane GetTaskPane(int hwnd)`
+- `CustomTaskPane CreateEmptyTaskPane(Microsoft.Office.Interop.Excel.Window wn)`
+- ` AddTaskPane(hwnd, pane)`
+- `CustomTaskPane CreateTaskPane(UserControl uc, Microsoft.Office.Interop.Excel.Window wn)`
+- ` AddTaskPane(hwnd, pane)`
+- `void RemoveTaskPane(int hwnd)`
+- `void AddTaskPane(int hwnd, CustomTaskPane pane)`
+
+### class ThisAddIn  `(SwiftExportAddIn)`
+
+- File: `SwiftExportAddIn\ThisAddIn.cs`
+
+#### Properties
+
+- `partial class ThisAddIn`
+
+#### Methods (signatures)
+
+- `void ThisAddIn_Startup(object sender, System.EventArgs e)`
+- ` if(activeForm == null && System.Windows.Forms.Application.OpenForms.Count > 0)`
+- `} if(activeForm != null && activeForm.InvokeRequired)`
+- ` action()`
+- `void Application_WindowActivate(Workbook Wb, Window Wn)`
+- `void ThisAddIn_Shutdown(object sender, System.EventArgs e)`
+- `void DeleteTaskPenByWindowsClose(Excel.Workbook Wb, ref bool Cancel)`
+- ` foreach(Excel.Window awn in Wb.Windows)`
+- `void InternalStartup()`
+
+### class ProductSheetButtons  `(SwiftExportAddIn.)`
+
+- File: `SwiftExportAddIn\UserCtrls\ProductSheetButtons.cs`
+
+#### Methods (signatures)
+
+- ` ProductSheetButtons()`
+- ` InitializeComponent()`
+
+### class PurchaseOrderSheetButtons  `(SwiftExportAddIn.)`
+
+- File: `SwiftExportAddIn\UserCtrls\PurchaseOrderSheetButtons.cs`
+
+#### Methods (signatures)
+
+- ` PurchaseOrderSheetButtons()`
+- ` InitializeComponent()`
+
+### class SalesOrderSheetButtons  `(SwiftExportAddIn.)`
+
+- File: `SwiftExportAddIn\UserCtrls\SalesOrderSheetButtons.cs`
+
+#### Methods (signatures)
+
+- ` SalesOrderSheetButtons()`
+- ` InitializeComponent()`
+- `void Btn_InputSalesOrder_Click(object sender, EventArgs e)`
+
+### interface IServerFactory  `(SwiftExportAddIn.UserFactory)`
+
+- File: `SwiftExportAddIn\UserFactory\IServerFactory.cs`
+
+#### Properties
+
+- `interface IServerFactory`
+
+#### Methods (signatures)
+
+- `T GetSingletonService<T>()`
+- `IServiceScope CreateScope()`
+
+### class ServiceFactory  `(SwiftExportVSTO.)`
+
+- File: `SwiftExportAddIn\UserFactory\ServiceFactory.cs`
+
+#### Methods (signatures)
+
+- ` ServiceFactory(IServiceProvider provider)`
+- `T GetSingletonService<T>()`
+- `IServiceScope CreateScope()`
+
+### class test  `(SwiftExportAddIn)`
+
+- File: `SwiftExportAddIn\UserForms\test.cs`
+
+#### Methods (signatures)
+
+- ` test()`
+- ` InitializeComponent()`
+
+## Notes
+
+- UI designer files (*.Designer.cs) 已排除以减小输出体积。
+- 若希望包含 designer 文件，请传入扩展参数并修改脚本。
+- 解析基于简单正则与花括号计数，复杂语法建议用 Roslyn 精确解析。
+

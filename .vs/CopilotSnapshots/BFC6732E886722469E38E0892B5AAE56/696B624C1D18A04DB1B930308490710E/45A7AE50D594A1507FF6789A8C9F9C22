@@ -1,0 +1,204 @@
+﻿<#
+.SYNOPSIS
+  生成项目摘要 Markdown（文件架构、类型、接口、函数、实体/DTO 属性与简单 DTO 转换检测）
+
+.USAGE
+  在仓库根目录运行：
+    .\tools\GenerateProjectSummary.ps1
+  可传入根目录和输出文件：
+    .\tools\GenerateProjectSummary.ps1 -RootPath . -OutFile PROJECT_SUMMARY.md
+
+.NOTES
+  - 会排除 bin/, obj/, packages/ 和 *.Designer.cs
+  - 使用简单的正则与花括号匹配提取类型和属性；不是完整的语法解析，但对大多数常见 C# 结构足够。
+#>
+
+param(
+    [string]$RootPath = (Get-Location).Path,
+    [string]$OutFile = "PROJECT_SUMMARY.md",
+    [string[]]$ExcludeDirs = @("bin","obj","packages",".git"),
+    [string[]]$ExcludeFilePatterns = @("*.Designer.cs")
+)
+
+Write-Host "Scanning root: $RootPath"
+
+# 收集文件（过滤）
+$csFiles = Get-ChildItem -Path $RootPath -Recurse -File -Include *.cs |
+    Where-Object {
+        foreach ($d in $ExcludeDirs) {
+            if ($_.FullName -like "*\\${d}\\*") { return $false }
+        }
+        foreach ($p in $ExcludeFilePatterns) {
+            if ($_.Name -like $p) { return $false }
+        }
+        return $true
+    } | Sort-Object FullName
+
+# 生成文件树（文本）
+function Build-Tree {
+    param($files, $root)
+    $relPaths = $files | ForEach-Object { $_.FullName.Substring($root.Length).TrimStart('\') }
+    $tree = @()
+    $groups = $relPaths | Sort-Object
+    foreach ($p in $groups) {
+        $parts = $p -split '\\'
+        $line = ""
+        for ($i=0; $i -lt $parts.Length; $i++) {
+            if ($i -lt $parts.Length-1) {
+                # folder
+                $prefix = ('  ' * $i) + "|- "
+            } else {
+                $prefix = ('  ' * $i) + "|- "
+            }
+            $line = $prefix + $parts[$i]
+        }
+        $tree += $line
+    }
+    return $tree
+}
+
+$tree = Build-Tree -files $csFiles -root $RootPath
+
+# 正则与解析辅助
+$typeHeaderRegex = '^\s*(public|internal|private|protected)?\s*(static\s+)?(partial\s+)?(class|interface|struct|enum)\s+([A-Za-z0-9_`]+(?:<[^>]+>)?)'
+$namespaceRegex = '^\s*namespace\s+([A-Za-z0-9_.]+)'
+$methodSigRegex = '^\s*(public|private|protected|internal)?\s*(static\s+)?([^\s]+\s+)?([A-Za-z0-9_<>]+)\s*\(([^")]*)\)\s*(\{?|;)$'
+$propertyRegex = '^\s*(public|private|protected|internal)\s+(static\s+)?([A-Za-z0-9_<>,\.\[\]\? ]+)\s+([A-Za-z0-9_]+)\s*\{\s*(get;|set;|get; set;|set; get;|get\s*\{|\s*)'
+
+# 解析每个文件，提取类型、属性、方法签名
+$types = @()
+
+foreach ($file in $csFiles) {
+    $text = Get-Content $file.FullName -Raw
+    $lines = $text -split "`r?`n"
+    $currentNamespace = ""
+    for ($i=0; $i -lt $lines.Length; $i++) {
+        $line = $lines[$i]
+        if ($line -match $namespaceRegex) {
+            $currentNamespace = $Matches[1]
+        }
+        if ($line -match $typeHeaderRegex) {
+            $typeKind = $Matches[4]
+            $typeName = $Matches[5]
+            # 收集类型体（简单花括号计数）
+            $startIndex = $i
+            $braceCount = 0
+            $foundStart = $false
+            for ($j=$i; $j -lt $lines.Length; $j++) {
+                $l = $lines[$j]
+                if ($l -match '\{') { $braceCount += ([regex]::Matches($l,'\{').Count); $foundStart = $true }
+                if ($l -match '\}') { $braceCount -= ([regex]::Matches($l,'\}').Count) }
+                if ($foundStart -and $braceCount -le 0) { $endIndex = $j; break }
+            }
+            if (-not $endIndex) { $endIndex = [math]::Min($startIndex+200, $lines.Length-1) } # 容错
+            $body = ($lines[$startIndex..$endIndex] -join "`n")
+            # 在 body 中找属性与方法签名（简单提取）
+            $propMatches = @()
+            foreach ($m in [regex]::Matches($body, $propertyRegex, 'Multiline')) {
+                $typetext = $m.Groups[3].Value.Trim()
+                $propname = $m.Groups[4].Value.Trim()
+                $propMatches += @{ Type = $typetext; Name = $propname }
+            }
+            $methodMatches = @()
+            foreach ($m in [regex]::Matches($body, $methodSigRegex, 'Multiline')) {
+                $ret = $m.Groups[3].Value.Trim()
+                $name = $m.Groups[4].Value.Trim()
+                $args = $m.Groups[5].Value.Trim()
+                if ($name -and ($name -notmatch 'get_|set_')) {
+                    $methodMatches += @{ Return = $ret; Name = $name; Args = $args }
+                }
+            }
+
+            $isDto = ($typeName -match 'Dto$') -or ($currentNamespace -match '\.Dto(s)?$' -or $currentNamespace -match '\.Dtos$')
+            $isEntity = ($typeName -match '(Entity$|Model$|Dto$)') -and -not $isDto
+
+            $types += @{
+                File = $file.FullName.Substring($RootPath.Length).TrimStart('\');
+                Namespace = $currentNamespace;
+                Kind = $typeKind;
+                Name = $typeName;
+                Props = $propMatches;
+                Methods = $methodMatches;
+                IsDto = $isDto;
+                IsEntity = $isEntity;
+            }
+        }
+    }
+}
+
+# 尝试检测简单的 DTO 转换（ToDto/FromDto/MapTo/MapFrom 或 AutoMapper Profile）
+$mappingHints = @()
+foreach ($t in $types) {
+    foreach ($m in $t.Methods) {
+        if ($m.Name -match 'ToDto|FromDto|MapTo|MapFrom|ToModel|ToEntity') {
+            $mappingHints += @{
+                Type = $t.Name;
+                Method = $m.Name;
+                Signature = "$($m.Return) $($m.Name)($($m.Args))"
+            }
+        }
+    }
+}
+
+# 构建 Markdown 输出
+$md = @()
+$md += "# PROJECT SUMMARY"
+$md += ""
+$md += "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+$md += ""
+$md += "## File Tree"
+$md += ""
+$md += '```'
+$md += $tree
+$md += '```'
+$md += ""
+$md += "## Types Overview"
+$md += ""
+
+foreach ($t in $types) {
+    $md += "### $($t.Kind) $($t.Name)  `($($t.Namespace))`"
+    $md += ""
+    $md += "- File: `$($t.File)`"
+    if ($t.IsDto) { $md += "- Detected: DTO" }
+    elseif ($t.IsEntity) { $md += "- Detected: Entity/Model" }
+    $md += ""
+    if ($t.Props.Count -gt 0) {
+        $md += "#### Properties"
+        $md += ""
+        foreach ($p in $t.Props) {
+            $md += "- `$($p.Type) $($p.Name)`"
+        }
+        $md += ""
+    }
+    if ($t.Methods.Count -gt 0) {
+        $md += "#### Methods (signatures)"
+        $md += ""
+        foreach ($m in $t.Methods) {
+            $ret = if ($m.Return) { $m.Return } else { "" }
+            $md += "- `$ret $($m.Name)($($m.Args))`"
+        }
+        $md += ""
+    }
+}
+
+if ($mappingHints.Count -gt 0) {
+    $md += "## Detected Mapping Methods / DTO Conversions"
+    $md += ""
+    foreach ($h in $mappingHints) {
+        $md += "- Type `$($h.Type)` -> Method: `$($h.Signature)`"
+    }
+    $md += ""
+}
+
+$md += "## Notes"
+$md += ""
+$md += "- UI designer files (`*.Designer.cs`) are excluded to keep output精简。"
+$md += "- 解析基于简单正则与花括号匹配，某些复杂泛型/宏/预处理指令场景可能需要更精确的 Roslyn 解析。"
+$md += "- 若需要更精准的 DTO 映射提取（AutoMapper Profile、Mapster、手写映射），可以扩展脚本搜索特定模式或使用 Roslyn。"
+$md += ""
+
+# 写入文件
+$outPath = Join-Path $RootPath $OutFile
+$md -join "`n" | Out-File -FilePath $outPath -Encoding UTF8
+
+Write-Host "PROJECT_SUMMARY written to $outPath"
