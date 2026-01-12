@@ -1,0 +1,41 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "SwiftExport.Contracts/1.0.0": {
+        "dependencies": {
+          "Refit": "9.0.2"
+        },
+        "runtime": {
+          "SwiftExport.Contracts.dll": {}
+        }
+      },
+      "Refit/9.0.2": {
+        "runtime": {
+          "lib/net10.0/Refit.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.2.7758"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "SwiftExport.Contracts/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Refit/9.0.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-zLAfOh1iYE1bXFdnPjX5V6Nq8d4vBwxXaCovNNcAt9Fz3mfxAqHS3fckbBX4wetVgN1A6tIOzrDtPTN2c4FNrQ==",
+      "path": "refit/9.0.2",
+      "hashPath": "refit.9.0.2.nupkg.sha512"
+    }
+  }
+}

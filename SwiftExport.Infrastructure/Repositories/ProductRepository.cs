@@ -1,207 +1,58 @@
 ﻿using Dapper;
-using SwiftExport.Core.Entities;
-using SwiftExport.Core.Entities.OtherEntities;
-using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using SwiftExport.Core.Entities.MasterData; // 引用 Core
+using SwiftExport.Infrastructure.Data;
 
-namespace SwiftExport.Infrastructure.Repositories
+namespace SwiftExport.Infrastructure.Repositories;
+
+// 定义接口 (通常这个接口定义应该放在 Core 层，为了演示方便先写这)
+public interface IProductRepository
 {
-    public class ProductRepository : DapperRepository<Product>, IProductRepository
+    Task<IEnumerable<Product>> GetAllAsync();
+    Task<Product?> GetByIdAsync(int id);
+}
+
+public class ProductRepository : IProductRepository
+{
+    private readonly IDbConnectionFactory _connectionFactory;
+
+    public ProductRepository(IDbConnectionFactory connectionFactory)
     {
-        private readonly IDataTableFactory<Product> _dataTableFac;
+        _connectionFactory = connectionFactory;
+    }
 
-        public ProductRepository(IDbConnectionFactory connFac, IMappingCache cache, IDataTableFactory<Product> dataTableFac)
-            : base(cache, connFac)
-        {
-            _dataTableFac = dataTableFac;
-        }
+    // ⚡ 关键：SQL 映射桥接
+    // 数据库里的字段 (Chinese/Pinyin) -> 实体属性 (English)
+    private const string SelectSql = @"
+        SELECT 
+            ID as Id,
+            SKU as Sku,
+            Description as Description,
+            
+            -- 处理拼音/旧命名映射
+            RMBPrice as RmbPrice,
+            USDPrice as UsdPrice,
+            
+            -- 处理那些必填字段 (= default!)
+            -- 如果数据库是 NULL，用 ISNULL 给个默认值防止报错
+            ISNULL(CustomerCode, '') as CustomerCode,
+            ISNULL(CSKU, '') as CSku,
+            ISNULL(CDescription, '') as CDescription, 
+            
+            CreateDate as CreatedTime
+        FROM Product 
+        WHERE IsDelete = 0"; // 假设你的软删除字段叫 IsDelete
 
-        // ---------------------------------------------------------
-        // Delete / Update Operations
-        // ---------------------------------------------------------
+    public async Task<IEnumerable<Product>> GetAllAsync()
+    {
+        using var conn = _connectionFactory.CreateConnection();
+        return await conn.QueryAsync<Product>(SelectSql);
+    }
 
-        /// <summary>
-        /// Physically delete a product by SKU (Use with caution)
-        /// </summary>
-        public async Task<int> DeleteBySkuAsync(string sku, IUnitOfWork uow)
-        {
-            var sql = $"DELETE FROM [{tableName}] WHERE [SKU] = @sku";
-            return await uow.Connection.ExecuteAsync(sql, new { sku }, transaction: uow.Transaction);
-        }
-
-        /// <summary>
-        /// Soft delete a product by SKU (Sets IsDelete = 1)
-        /// </summary>
-        public async Task<int> DisableBySkuAsync(string sku, IUnitOfWork uow)
-        {
-            var sql = $"UPDATE [{tableName}] SET IsDelete=1 WHERE [SKU] = @sku";
-            return await uow.Connection.ExecuteAsync(sql, new { sku }, transaction: uow.Transaction);
-        }
-
-        /// <summary>
-        /// Bulk sync products using Table-Valued Parameters (TVP)
-        /// </summary>
-        public async Task<int> SyncProductsAsync(IEnumerable<Product> products, IUnitOfWork uow)
-        {
-            // Convert entities to DataTable for TVP
-            var dt = await _dataTableFac.CreatDtByEntityPropertysAsync(products);
-
-            return await uow.Connection.ExecuteAsync(
-                "SyncProducts",
-                new { Products = dt.AsTableValuedParameter("ProductType") },
-                transaction: uow.Transaction,
-                commandType: CommandType.StoredProcedure
-            );
-        }
-
-        // ---------------------------------------------------------
-        // Single Read Operations
-        // ---------------------------------------------------------
-
-        public async Task<Product> GetBySkuAsync(string sku)
-        {
-            // Standardized parameter name to @sku
-            string sql = $"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND [SKU] = @sku";
-
-            using (var conn = _connFac.CreateConnection())
-            {
-                return await conn.QueryFirstOrDefaultAsync<Product>(sql, new { sku });
-            }
-        }
-
-        public async Task<Product> GetByCustomerInfoAsync(string customerCode, string cSku)
-        {
-            string sql = $"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND [CustomerCode] = @customerCode AND [CSKU] = @cSku";
-
-            using (var conn = _connFac.CreateConnection())
-            {
-                return await conn.QueryFirstOrDefaultAsync<Product>(sql, new { customerCode, cSku });
-            }
-        }
-
-        // ---------------------------------------------------------
-        // List/Batch Read Operations
-        // ---------------------------------------------------------
-
-        public async Task<IReadOnlyList<Product>> GetListBySkuListAsync(IEnumerable<string> cSkuList)
-        {
-            // Dapper automatically handles IN clauses with IEnumerable
-            string sql = $"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND [SKU] IN @cSkuList";
-
-            using (var conn = _connFac.CreateConnection())
-            {
-                var result = await conn.QueryAsync<Product>(sql, new { cSkuList });
-                return result.ToList(); // Safety: Execute immediate
-            }
-        }
-
-        public async Task<IReadOnlyList<Product>> GetListByCustomerCodeAndcSkuListAsync(string customerCode, IEnumerable<string> cSkuList)
-        {
-            string sql = $"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND [CustomerCode] = @customerCode AND [CSKU] IN @cSkuList";
-
-            using (var conn = _connFac.CreateConnection())
-            {
-                var result = await conn.QueryAsync<Product>(sql, new { customerCode, cSkuList });
-                return result.ToList();
-            }
-        }
-
-        /// <summary>
-        /// Get products by a combination of CustomerSKU and CustomerCode
-        /// </summary>
-        /// <param name="cSkuAndCustomerCode">Dictionary Key: CustomerSKU, Value: CustomerCode</param>
-        public async Task<IReadOnlyList<Product>> GetProductListByCustomerSkuAndCodeAsync(Dictionary<string, string> cSkuAndCustomerCode)
-        {
-            // 1. Check for empty input
-            if (cSkuAndCustomerCode == null || cSkuAndCustomerCode.Count == 0)
-            {
-                return new List<Product>();
-            }
-
-            // 2. Safety check: SQL Server parameter limit (approx 2100)
-            if (cSkuAndCustomerCode.Count > 1000)
-            {
-                throw new ArgumentException("Too many query combinations. Max 1000 allowed.", nameof(cSkuAndCustomerCode));
-            }
-
-            // 3. Build SQL
-            StringBuilder sqlBuilder = new StringBuilder($"SELECT * FROM [{tableName}] WHERE IsDelete<>1 AND (");
-            DynamicParameters parameters = new DynamicParameters();
-            List<string> orClauses = new List<string>();
-
-            int index = 0;
-            foreach (var kvp in cSkuAndCustomerCode)
-            {
-                // Validate data
-                if (string.IsNullOrWhiteSpace(kvp.Key) || string.IsNullOrWhiteSpace(kvp.Value))
-                    continue;
-
-                // Use short parameter names
-                string pSku = $"@s{index}";
-                string pCode = $"@c{index}";
-
-                // Combine conditions: (CSKU=x AND CustomerCode=y)
-                orClauses.Add($"([CSKU] = {pSku} AND [CustomerCode] = {pCode})");
-
-                parameters.Add(pSku, kvp.Key);
-                parameters.Add(pCode, kvp.Value);
-
-                index++;
-            }
-
-            // If no valid conditions remained
-            if (orClauses.Count == 0) return new List<Product>();
-
-            // 4. Join clauses with OR
-            sqlBuilder.Append(string.Join(" OR ", orClauses));
-            sqlBuilder.Append(")"); // Close the outer parentheses
-
-            string sql = sqlBuilder.ToString();
-
-            // 5. Execute
-            using (var conn = _connFac.CreateConnection())
-            {
-                var result = await conn.QueryAsync<Product>(sql, parameters);
-                return result.ToList();
-            }
-        }
-
-        // ---------------------------------------------------------
-        // Memory Search Helpers
-        // ---------------------------------------------------------
-
-        public async Task<List<ProductSearchMeta>> GetAllSearchMetaAsync()
-        {
-            using (var conn = _connFac.CreateConnection())
-            {
-                // Assuming database column is 'IsDelete' based on consistency with other methods
-                // Pre-calculate the search string in SQL
-                string sql = @"
-                    SELECT SKU, 
-                           (SKU + ' | ' + ISNULL(Description,'') + ' | ' + ISNULL(CSku,'')) AS SearchText
-                    FROM Product 
-                    WHERE IsDelete<>1";
-
-                var result = await conn.QueryAsync<ProductSearchMeta>(sql);
-                return result.ToList();
-            }
-        }
-
-        public async Task<List<string>> GetAllCustomerCodeListAsync()
-        {
-            using (var conn = _connFac.CreateConnection())
-            {
-                // 只需要查一列，并去重
-                string sql = "SELECT DISTINCT [CustomerCode] FROM [Product] WHERE [CustomerCode] IS NOT NULL AND [CustomerCode] <> '' ORDER BY [CustomerCode]";
-                var result = await conn.QueryAsync<string>(sql);
-                return result.ToList();
-            }
-        }
+    public async Task<Product?> GetByIdAsync(int id)
+    {
+        using var conn = _connectionFactory.CreateConnection();
+        // Dapper 会自动参数化防止注入
+        var sql = $"{SelectSql} AND ID = @Id";
+        return await conn.QueryFirstOrDefaultAsync<Product>(sql, new { Id = id });
     }
 }

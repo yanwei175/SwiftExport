@@ -13,4 +13,7 @@
     <SourceRoot Include="C:\Users\YWFS\.nuget\packages\" />
     <SourceRoot Include="D:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages\" />
   </ItemGroup>
+  <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
+    <Import Project="$(NuGetPackageRoot)refit\9.0.2\buildTransitive\netstandard2.0\refit.props" Condition="Exists('$(NuGetPackageRoot)refit\9.0.2\buildTransitive\netstandard2.0\refit.props')" />
+  </ImportGroup>
 </Project>

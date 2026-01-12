@@ -3,12 +3,16 @@
   "WorkspaceRootPath": "D:\\source\\CSharp\\SwiftExport\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{29D3ED05-2428-41ED-9C78-A969A1BA2538}|SwiftExport.UI.Framework\\SwiftExport.UI.Framework.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.ui.framework\\appusercontrols\\productcategorymanagercontrol.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{29D3ED05-2428-41ED-9C78-A969A1BA2538}|SwiftExport.UI.Framework\\SwiftExport.UI.Framework.csproj|solutionrelative:swiftexport.ui.framework\\appusercontrols\\productcategorymanagercontrol.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+      "AbsoluteMoniker": "D:0:0:{73FAA5C6-C278-4C02-80D0-27A24A6B831A}|SwiftExport.Contracts\\SwiftExport.Contracts.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.contracts\\interfaces\\iproductapi.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{73FAA5C6-C278-4C02-80D0-27A24A6B831A}|SwiftExport.Contracts\\SwiftExport.Contracts.csproj|solutionrelative:swiftexport.contracts\\interfaces\\iproductapi.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{29D3ED05-2428-41ED-9C78-A969A1BA2538}|SwiftExport.UI.Framework\\SwiftExport.UI.Framework.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.ui.framework\\appusercontrols\\productcategorymanagercontrol.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{29D3ED05-2428-41ED-9C78-A969A1BA2538}|SwiftExport.UI.Framework\\SwiftExport.UI.Framework.csproj|solutionrelative:swiftexport.ui.framework\\appusercontrols\\productcategorymanagercontrol.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{73FAA5C6-C278-4C02-80D0-27A24A6B831A}|SwiftExport.Contracts\\SwiftExport.Contracts.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.contracts\\dtos\\product\\productsearchdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{73FAA5C6-C278-4C02-80D0-27A24A6B831A}|SwiftExport.Contracts\\SwiftExport.Contracts.csproj|solutionrelative:swiftexport.contracts\\dtos\\product\\productsearchdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{73FAA5C6-C278-4C02-80D0-27A24A6B831A}|SwiftExport.Contracts\\SwiftExport.Contracts.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.contracts\\dtos\\pagedresultdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{73FAA5C6-C278-4C02-80D0-27A24A6B831A}|SwiftExport.Contracts\\SwiftExport.Contracts.csproj|solutionrelative:swiftexport.contracts\\dtos\\pagedresultdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -18,32 +22,46 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "ProductCategoryManagerControl.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI.Framework\\AppUserControls\\ProductCategoryManagerControl.cs",
-              "RelativeDocumentMoniker": "SwiftExport.UI.Framework\\AppUserControls\\ProductCategoryManagerControl.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI.Framework\\AppUserControls\\ProductCategoryManagerControl.cs",
-              "RelativeToolTip": "SwiftExport.UI.Framework\\AppUserControls\\ProductCategoryManagerControl.cs",
-              "ViewState": "AgIAABEAAAAAAAAAAAAYwCMAAAAAAAAAAAAAAA==",
+              "DocumentIndex": 0,
+              "Title": "IProductApi.cs",
+              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\Interfaces\\IProductApi.cs",
+              "RelativeDocumentMoniker": "SwiftExport.Contracts\\Interfaces\\IProductApi.cs",
+              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\Interfaces\\IProductApi.cs",
+              "RelativeToolTip": "SwiftExport.Contracts\\Interfaces\\IProductApi.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-01-12T01:26:45.597Z",
+              "WhenOpened": "2026-01-12T08:38:31.982Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "ProductCategoryManagerControl.cs [\u8BBE\u8BA1]",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI.Framework\\AppUserControls\\ProductCategoryManagerControl.cs",
-              "RelativeDocumentMoniker": "SwiftExport.UI.Framework\\AppUserControls\\ProductCategoryManagerControl.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI.Framework\\AppUserControls\\ProductCategoryManagerControl.cs [\u8BBE\u8BA1]",
-              "RelativeToolTip": "SwiftExport.UI.Framework\\AppUserControls\\ProductCategoryManagerControl.cs [\u8BBE\u8BA1]",
+              "DocumentIndex": 1,
+              "Title": "ProductSearchDto.cs",
+              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\DTOs\\Product\\ProductSearchDto.cs",
+              "RelativeDocumentMoniker": "SwiftExport.Contracts\\DTOs\\Product\\ProductSearchDto.cs",
+              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\DTOs\\Product\\ProductSearchDto.cs",
+              "RelativeToolTip": "SwiftExport.Contracts\\DTOs\\Product\\ProductSearchDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-01-11T08:39:57.984Z",
-              "EditorCaption": " [\u8BBE\u8BA1]"
+              "WhenOpened": "2026-01-12T08:38:14.227Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "PagedResultDto.cs",
+              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\DTOs\\PagedResultDto.cs",
+              "RelativeDocumentMoniker": "SwiftExport.Contracts\\DTOs\\PagedResultDto.cs",
+              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\DTOs\\PagedResultDto.cs",
+              "RelativeToolTip": "SwiftExport.Contracts\\DTOs\\PagedResultDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-12T08:35:01.762Z",
+              "EditorCaption": ""
             }
           ]
         }

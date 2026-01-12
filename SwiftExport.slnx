@@ -1,9 +1,7 @@
 <Solution>
-  <Project Path="SwiftExport.Application/SwiftExport.AppLayer.csproj" />
-  <Project Path="SwiftExport.Core/SwiftExport.Core.csproj" Id="4f2de49f-a9e2-4d11-a8ab-40e8abd39ced" />
-  <Project Path="SwiftExport.Infrastructure/SwiftExport.Infrastructure.csproj" Id="ef58df4e-5dd0-4e22-95cc-0a09a41e10fa" />
-  <Project Path="SwiftExport.UI.Framework/SwiftExport.UI.Framework.csproj" Id="29d3ed05-2428-41ed-9c78-a969a1ba2538" />
-  <Project Path="SwiftExport.UiWinForm/SwiftExport.UiWinForm.csproj" Id="00508706-6170-4ea2-8c71-617ba2b3658e" />
-  <Project Path="SwiftExport.Utility/SwiftExport.Utility.csproj" Id="f7433d9a-3887-4366-b4ae-850fd08c7cf2" />
-  <Project Path="SwiftExportAddIn/SwiftExportAddIn.csproj" Id="d8d71d0b-deea-4bbc-ac3b-cd6181ec10d0" />
+  <Project Path="SwiftExport.Application/SwiftExport.Application.csproj" Id="f2495596-07b4-47c1-8318-25dd64e52e07" />
+  <Project Path="SwiftExport.Contracts/SwiftExport.Contracts.csproj" Id="73faa5c6-c278-4c02-80d0-27a24a6b831a" />
+  <Project Path="SwiftExport.Core/SwiftExport.Core.csproj" Id="6e5ec76f-9246-4853-9938-a255b044e3b7" />
+  <Project Path="SwiftExport.Infrastructure/SwiftExport.Infrastructure.csproj" Id="3dfd2bd1-ccf0-47c1-8815-5399df23aafe" />
+  <Project Path="SwiftExport.WebApi/SwiftExport.WebApi.csproj" Id="55b0efb5-cd3b-4fa7-b226-610da55cb9ec" />
 </Solution>
