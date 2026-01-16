@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "Start Excel": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+      "commandLineArgs": "SwiftExport.ExcelClient-AddIn64.xll"
+    },
+    "Excel": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+      "commandLineArgs": "/x \"SwiftExport.ExcelClient-AddIn64.xll\""
+    }
+  }
+}

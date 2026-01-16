@@ -8,14 +8,9 @@ public interface IDbConnectionFactory
     IDbConnection CreateConnection();
 }
 
-public class SqlConnectionFactory : IDbConnectionFactory
+public class SqlConnectionFactory(string connectionString) : IDbConnectionFactory
 {
-    private readonly string _connectionString;
-
-    public SqlConnectionFactory(string connectionString)
-    {
-        _connectionString = connectionString;
-    }
+    private readonly string _connectionString = connectionString;
 
     public IDbConnection CreateConnection()
     {

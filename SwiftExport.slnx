@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/Clients/">
+    <Project Path="SwiftExport.Desktop/SwiftExport.Desktop.csproj" Id="c1e9a94b-be8c-4edc-b868-b7b1f3fe1e73" />
+    <Project Path="SwiftExport.ExcelClient/SwiftExport.ExcelClient.csproj" Id="849f12e3-d8b3-4f1d-bc13-4b4068d2b5c1" />
+    <Project Path="SwiftExport.UI/SwiftExport.UI.csproj" Id="1ba75d55-c3fe-4445-83ab-1308ff73d65b" />
+  </Folder>
   <Project Path="SwiftExport.Application/SwiftExport.Application.csproj" Id="f2495596-07b4-47c1-8318-25dd64e52e07" />
   <Project Path="SwiftExport.Contracts/SwiftExport.Contracts.csproj" Id="73faa5c6-c278-4c02-80d0-27a24a6b831a" />
   <Project Path="SwiftExport.Core/SwiftExport.Core.csproj" Id="6e5ec76f-9246-4853-9938-a255b044e3b7" />

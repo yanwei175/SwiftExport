@@ -12,8 +12,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Mappings\" />
-    <Folder Include="Services\Order\" />
+    <Folder Include="Common\" />
+    <Folder Include="Services\Orders\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="16.0.0" />
   </ItemGroup>
 
 </Project>

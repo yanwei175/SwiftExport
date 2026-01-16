@@ -1,0 +1,20 @@
+﻿<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">
+	<ribbon>
+		<tabs>
+			<tab id="tabSwiftExport" label="SwiftExport">
+				<group id="grpProduct" label="产品管理">
+					<button id="btnGetProduct"
+							label="测试获取产品"
+							size="large"
+							imageMso="FindDialog"
+							onAction="OnGetProductPressed"/>
+					<button id="ShowTaskPane"
+							label="打开搜索面板"
+							size="large"
+							imageMso="FindDialog"
+							onAction="OnShowTaskPanePressed"/>
+				</group>
+			</tab>
+		</tabs>
+	</ribbon>
+</customUI>

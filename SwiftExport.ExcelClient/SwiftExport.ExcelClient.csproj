@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<EnableExcelDna>true</EnableExcelDna>
+		<UseWindowsForms>true</UseWindowsForms>
+		<EnableComServer>true</EnableComServer>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj" />
+		<ProjectReference Include="..\SwiftExport.UI\SwiftExport.UI.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="ExcelDna.AddIn" Version="1.9.0" />
+		<PackageReference Include="ExcelDna.IntelliSense" Version="1.9.0" />
+		<PackageReference Include="ExcelDna.Interop" Version="15.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="Ribbon.xml">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Services\" />
+	</ItemGroup>
+
+</Project>

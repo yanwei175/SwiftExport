@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "dgSpecHash": "McrHvnmj/Xg=",
+  "success": true,
+  "projectFilePath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.ExcelClient\\SwiftExport.ExcelClient.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\YWFS\\.nuget\\packages\\exceldna.addin\\1.9.0\\exceldna.addin.1.9.0.nupkg.sha512",
+    "C:\\Users\\YWFS\\.nuget\\packages\\exceldna.integration\\1.9.0\\exceldna.integration.1.9.0.nupkg.sha512",
+    "C:\\Users\\YWFS\\.nuget\\packages\\exceldna.intellisense\\1.9.0\\exceldna.intellisense.1.9.0.nupkg.sha512",
+    "C:\\Users\\YWFS\\.nuget\\packages\\exceldna.interop\\15.0.1\\exceldna.interop.15.0.1.nupkg.sha512",
+    "C:\\Users\\YWFS\\.nuget\\packages\\newtonsoft.json\\13.0.4\\newtonsoft.json.13.0.4.nupkg.sha512",
+    "C:\\Users\\YWFS\\.nuget\\packages\\refit\\9.0.2\\refit.9.0.2.nupkg.sha512",
+    "C:\\Users\\YWFS\\.nuget\\packages\\refit.newtonsoft.json\\9.0.2\\refit.newtonsoft.json.9.0.2.nupkg.sha512"
+  ],
+  "logs": []
+}

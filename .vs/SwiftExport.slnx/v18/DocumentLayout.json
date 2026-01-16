@@ -1,71 +1,12 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "D:\\source\\CSharp\\SwiftExport\\",
-  "Documents": [
-    {
-      "AbsoluteMoniker": "D:0:0:{3DFD2BD1-CCF0-47C1-8815-5399DF23AAFE}|SwiftExport.Infrastructure\\SwiftExport.Infrastructure.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.infrastructure\\repositories\\productrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3DFD2BD1-CCF0-47C1-8815-5399DF23AAFE}|SwiftExport.Infrastructure\\SwiftExport.Infrastructure.csproj|solutionrelative:swiftexport.infrastructure\\repositories\\productrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{6E5EC76F-9246-4853-9938-A255B044E3B7}|SwiftExport.Core\\SwiftExport.Core.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.core\\interfaces\\iunitofwork.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{6E5EC76F-9246-4853-9938-A255B044E3B7}|SwiftExport.Core\\SwiftExport.Core.csproj|solutionrelative:swiftexport.core\\interfaces\\iunitofwork.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{3DFD2BD1-CCF0-47C1-8815-5399DF23AAFE}|SwiftExport.Infrastructure\\SwiftExport.Infrastructure.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.infrastructure\\data\\unitofwork.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3DFD2BD1-CCF0-47C1-8815-5399DF23AAFE}|SwiftExport.Infrastructure\\SwiftExport.Infrastructure.csproj|solutionrelative:swiftexport.infrastructure\\data\\unitofwork.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    }
-  ],
+  "Documents": [],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": [
-        {
-          "DockedWidth": 200,
-          "SelectedChildIndex": 2,
-          "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "IUnitOfWork.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Core\\Interfaces\\IUnitOfWork.cs",
-              "RelativeDocumentMoniker": "SwiftExport.Core\\Interfaces\\IUnitOfWork.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Core\\Interfaces\\IUnitOfWork.cs",
-              "RelativeToolTip": "SwiftExport.Core\\Interfaces\\IUnitOfWork.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAcAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-01-12T10:29:40.053Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "UnitOfWork.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Data\\UnitOfWork.cs",
-              "RelativeDocumentMoniker": "SwiftExport.Infrastructure\\Data\\UnitOfWork.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Data\\UnitOfWork.cs",
-              "RelativeToolTip": "SwiftExport.Infrastructure\\Data\\UnitOfWork.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABkAAAAZAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-01-12T10:26:09.044Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "ProductRepository.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\ProductRepository.cs",
-              "RelativeDocumentMoniker": "SwiftExport.Infrastructure\\Repositories\\ProductRepository.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\ProductRepository.cs",
-              "RelativeToolTip": "SwiftExport.Infrastructure\\Repositories\\ProductRepository.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABkAAAAPAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-01-12T08:45:12.896Z",
-              "EditorCaption": ""
-            }
-          ]
-        }
-      ]
+      "DocumentGroups": []
     }
   ]
 }

@@ -26,5 +26,6 @@ public class UnitOfWork(DbSession session) : IUnitOfWork
     public void Dispose()
     {
         _session.Transaction?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
