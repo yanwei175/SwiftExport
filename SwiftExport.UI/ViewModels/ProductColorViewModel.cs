@@ -1,10 +1,11 @@
-﻿using SwiftExport.Contracts.DTOs.Product;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using SwiftExport.Contracts.DTOs.Product;
 using SwiftExport.UI.ViewModels.Base;
 using System.Collections.ObjectModel;
 
 namespace SwiftExport.UI.ViewModels;
 
-public class ProductColorViewModel : ViewModelBase
+public class ProductColorViewModel : ObservableObject
 {
     public ObservableCollection<ProductColorDto> Colors { get; }
         = new ObservableCollection<ProductColorDto>();
@@ -16,8 +17,6 @@ public class ProductColorViewModel : ViewModelBase
         set
         {
             _selected = value;
-            Raise(nameof(Selected));
-            RaiseCommands();
         }
     }
 
@@ -25,14 +24,6 @@ public class ProductColorViewModel : ViewModelBase
     public RelayCommand NewCommand { get; }
     public RelayCommand SaveCommand { get; }
     public RelayCommand DeleteCommand { get; }
-
-    public ProductColorViewModel()
-    {
-        LoadCommand = new RelayCommand(Load);
-        NewCommand = new RelayCommand(NewItem);
-        SaveCommand = new RelayCommand(Save, () => Selected != null);
-        DeleteCommand = new RelayCommand(Delete, () => Selected?.Id > 0);
-    }
 
     private void Load()
     {
@@ -60,9 +51,4 @@ public class ProductColorViewModel : ViewModelBase
         Selected = null;
     }
 
-    private void RaiseCommands()
-    {
-        SaveCommand.RaiseCanExecuteChanged();
-        DeleteCommand.RaiseCanExecuteChanged();
-    }
 }

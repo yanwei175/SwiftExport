@@ -1,4 +1,7 @@
-﻿namespace SwiftExport.Contracts.DTOs
+﻿using System;
+using System.Collections.Generic;
+
+namespace SwiftExport.Contracts.DTOs
 {
     public class PagedResultDto<T>
     {

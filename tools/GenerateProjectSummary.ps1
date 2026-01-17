@@ -16,7 +16,7 @@
 param(
     [string]$RootPath = (Get-Location).Path,
     [string]$OutFile = "PROJECT_SUMMARY.md",
-    [string[]]$IncludeProjects = @("SwiftExport.AppLayer","SwiftExport.Core","SwiftExport.Infrastructure","SwiftExport.UI.Framework","SwiftExport.UiWinForm","SwiftExport.Utility","SwiftExportAddIn"),
+    [string[]]$IncludeProjects = @("SwiftExport.Application","SwiftExport.Core","SwiftExport.Infrastructure","SwiftExport.Contracts","SwiftExport.WebApi","SwiftExport.UI","SwiftExport.Desktop","SwiftExport.ExcelClient"),
     [string[]]$ExcludeDirs = @("bin","obj","packages",".git"),
     [string[]]$ExcludeFilePatterns = @("*.Designer.cs")
 )

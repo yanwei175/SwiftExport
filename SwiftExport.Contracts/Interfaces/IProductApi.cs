@@ -2,6 +2,8 @@
 using SwiftExport.Contracts.DTOs;
 using SwiftExport.Contracts.DTOs.Product;
 using SwiftExport.Contracts.Wrappers;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace SwiftExport.Contracts.Interfaces
 {

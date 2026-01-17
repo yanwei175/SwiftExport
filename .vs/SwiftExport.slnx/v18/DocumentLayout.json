@@ -1,12 +1,53 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "D:\\source\\CSharp\\SwiftExport\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{1BA75D55-C3FE-4445-83AB-1308FF73D65B}|SwiftExport.UI\\SwiftExport.UI.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.ui\\views\\productcolorview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{1BA75D55-C3FE-4445-83AB-1308FF73D65B}|SwiftExport.UI\\SwiftExport.UI.csproj|solutionrelative:swiftexport.ui\\views\\productcolorview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{1BA75D55-C3FE-4445-83AB-1308FF73D65B}|SwiftExport.UI\\SwiftExport.UI.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.ui\\viewmodels\\productcolorviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{1BA75D55-C3FE-4445-83AB-1308FF73D65B}|SwiftExport.UI\\SwiftExport.UI.csproj|solutionrelative:swiftexport.ui\\viewmodels\\productcolorviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": []
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ProductColorViewModel.cs",
+              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI\\ViewModels\\ProductColorViewModel.cs",
+              "RelativeDocumentMoniker": "SwiftExport.UI\\ViewModels\\ProductColorViewModel.cs",
+              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI\\ViewModels\\ProductColorViewModel.cs",
+              "RelativeToolTip": "SwiftExport.UI\\ViewModels\\ProductColorViewModel.cs",
+              "ViewState": "AgIAAAoAAAAAAAAAAAAowBcAAAArAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-17T09:21:02.195Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ProductColorView.xaml",
+              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI\\Views\\ProductColorView.xaml",
+              "RelativeDocumentMoniker": "SwiftExport.UI\\Views\\ProductColorView.xaml",
+              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI\\Views\\ProductColorView.xaml*",
+              "RelativeToolTip": "SwiftExport.UI\\Views\\ProductColorView.xaml*",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-01-17T08:00:38.797Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -16,4 +16,7 @@
   <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
     <Import Project="$(NuGetPackageRoot)refit\9.0.2\buildTransitive\netstandard2.0\refit.props" Condition="Exists('$(NuGetPackageRoot)refit\9.0.2\buildTransitive\netstandard2.0\refit.props')" />
   </ImportGroup>
+  <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
+    <PkgHandyControl Condition=" '$(PkgHandyControl)' == '' ">C:\Users\YWFS\.nuget\packages\handycontrol\3.5.1</PkgHandyControl>
+  </PropertyGroup>
 </Project>

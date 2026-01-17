@@ -1,0 +1,11 @@
+D:\source\CSharp\SwiftExport\SwiftExport.Contracts\obj\Debug\netstandard2.0\SwiftExport.Contracts.csproj.AssemblyReference.cache
+D:\source\CSharp\SwiftExport\SwiftExport.Contracts\obj\Debug\netstandard2.0\SwiftExport.Contracts.GeneratedMSBuildEditorConfig.editorconfig
+D:\source\CSharp\SwiftExport\SwiftExport.Contracts\obj\Debug\netstandard2.0\SwiftExport.Contracts.AssemblyInfoInputs.cache
+D:\source\CSharp\SwiftExport\SwiftExport.Contracts\obj\Debug\netstandard2.0\SwiftExport.Contracts.AssemblyInfo.cs
+D:\source\CSharp\SwiftExport\SwiftExport.Contracts\obj\Debug\netstandard2.0\SwiftExport.Contracts.csproj.CoreCompileInputs.cache
+D:\source\CSharp\SwiftExport\SwiftExport.Contracts\obj\Debug\netstandard2.0\SwiftExport.Contracts.sourcelink.json
+D:\source\CSharp\SwiftExport\SwiftExport.Contracts\bin\Debug\netstandard2.0\SwiftExport.Contracts.deps.json
+D:\source\CSharp\SwiftExport\SwiftExport.Contracts\bin\Debug\netstandard2.0\SwiftExport.Contracts.dll
+D:\source\CSharp\SwiftExport\SwiftExport.Contracts\bin\Debug\netstandard2.0\SwiftExport.Contracts.pdb
+D:\source\CSharp\SwiftExport\SwiftExport.Contracts\obj\Debug\netstandard2.0\SwiftExport.Contracts.dll
+D:\source\CSharp\SwiftExport\SwiftExport.Contracts\obj\Debug\netstandard2.0\SwiftExport.Contracts.pdb

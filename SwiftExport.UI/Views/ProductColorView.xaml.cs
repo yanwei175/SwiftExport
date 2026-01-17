@@ -4,11 +4,11 @@ using System.Windows.Controls;
 namespace SwiftExport.UI.Views
 {
     /// <summary>
-    /// FrmProductColorManager.xaml 的交互逻辑
+    /// ProductColorView.xaml 的交互逻辑
     /// </summary>
-    public partial class FrmProductColorManager : UserControl
+    public partial class ProductColorView : UserControl
     {
-        public FrmProductColorManager()
+        public ProductColorView()
         {
             InitializeComponent();
             DataContext = new ProductColorViewModel();

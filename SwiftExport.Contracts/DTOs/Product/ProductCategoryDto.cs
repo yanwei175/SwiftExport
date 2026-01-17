@@ -1,4 +1,5 @@
 ﻿using SwiftExport.Contracts.DTOs.Base;
+using System.Collections.Generic;
 
 namespace SwiftExport.Contracts.DTOs.Product
 {
