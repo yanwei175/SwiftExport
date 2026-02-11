@@ -1,4 +1,5 @@
 ﻿using SwiftExport.UI.ViewModels;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace SwiftExport.UI.Views
@@ -12,6 +13,7 @@ namespace SwiftExport.UI.Views
         {
             InitializeComponent();
             DataContext = new ProductColorViewModel();
+            MessageBox.Show("ProductColorView Loaded");
         }
     }
 }

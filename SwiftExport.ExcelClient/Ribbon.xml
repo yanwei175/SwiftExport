@@ -13,6 +13,11 @@
 							size="large"
 							imageMso="FindDialog"
 							onAction="OnShowTaskPanePressed"/>
+					<button id="TestWPFform"
+							label="测试打开wpf窗体"
+							size="large"
+							imageMso="FindDialog"
+							onAction="OnOpenWindow"/>
 				</group>
 			</tab>
 		</tabs>

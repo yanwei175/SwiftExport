@@ -18,57 +18,6 @@
           "buildTransitive/CommunityToolkit.Mvvm.targets": {}
         }
       },
-      "ExcelDna.AddIn/1.9.0": {
-        "type": "package",
-        "dependencies": {
-          "ExcelDna.Integration": "[1.9.0]"
-        },
-        "build": {
-          "build/ExcelDna.AddIn.props": {},
-          "build/ExcelDna.AddIn.targets": {}
-        }
-      },
-      "ExcelDna.Integration/1.9.0": {
-        "type": "package",
-        "compile": {
-          "lib/net6.0-windows7.0/ExcelDna.Integration.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/net6.0-windows7.0/ExcelDna.Integration.dll": {
-            "related": ".xml"
-          }
-        }
-      },
-      "ExcelDna.IntelliSense/1.9.0": {
-        "type": "package",
-        "dependencies": {
-          "ExcelDna.Integration": "[1.9.0]"
-        },
-        "compile": {
-          "lib/net6.0-windows7.0/ExcelDna.IntelliSense.dll": {}
-        },
-        "runtime": {
-          "lib/net6.0-windows7.0/ExcelDna.IntelliSense.dll": {}
-        }
-      },
-      "ExcelDna.Interop/15.0.1": {
-        "type": "package",
-        "compile": {
-          "lib/net6.0-windows7.0/Microsoft.Office.Interop.Excel.dll": {},
-          "lib/net6.0-windows7.0/Microsoft.Vbe.Interop.dll": {},
-          "lib/net6.0-windows7.0/Office.dll": {}
-        },
-        "runtime": {
-          "lib/net6.0-windows7.0/Microsoft.Office.Interop.Excel.dll": {},
-          "lib/net6.0-windows7.0/Microsoft.Vbe.Interop.dll": {},
-          "lib/net6.0-windows7.0/Office.dll": {}
-        },
-        "build": {
-          "build/ExcelDna.Interop.targets": {}
-        }
-      },
       "HandyControl/3.5.1": {
         "type": "package",
         "compile": {
@@ -204,91 +153,6 @@
         "lib/netstandard2.1/CommunityToolkit.Mvvm.dll",
         "lib/netstandard2.1/CommunityToolkit.Mvvm.pdb",
         "lib/netstandard2.1/CommunityToolkit.Mvvm.xml"
-      ]
-    },
-    "ExcelDna.AddIn/1.9.0": {
-      "sha512": "+jxXXswl6ds2ZGTwsuKWwO8crfzqvBFqd/t3PmEtg2YR6EN9F2pA97hiXblckhWZ6AKBlSGEC/ONTrCON2O33A==",
-      "type": "package",
-      "path": "exceldna.addin/1.9.0",
-      "hasTools": true,
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "build/ExcelDna.AddIn.props",
-        "build/ExcelDna.AddIn.targets",
-        "content/ExcelDna-Template.dna",
-        "content/Properties/ExcelDna.Build.props",
-        "exceldna.addin.1.9.0.nupkg.sha512",
-        "exceldna.addin.nuspec",
-        "images/ExcelDna-nu.png",
-        "readme.txt",
-        "tools/net462/EnvDTE.dll",
-        "tools/net462/ExcelDna.AddIn.Tasks.dll",
-        "tools/net462/ExcelDna.Integration.dll",
-        "tools/net462/ExcelDna.xll",
-        "tools/net462/ExcelDna64.xll",
-        "tools/net462/Microsoft.Extensions.DependencyModel.dll",
-        "tools/net462/Newtonsoft.Json.dll",
-        "tools/net462/System.Collections.Immutable.dll",
-        "tools/net462/System.Reflection.Metadata.dll",
-        "tools/net462/install.ps1",
-        "tools/net462/uninstall.ps1",
-        "tools/net6.0-windows7.0/AsmResolver.PE.File.dll",
-        "tools/net6.0-windows7.0/AsmResolver.PE.dll",
-        "tools/net6.0-windows7.0/AsmResolver.dll",
-        "tools/net6.0-windows7.0/ExcelDna.AddIn.Tasks.dll",
-        "tools/net6.0-windows7.0/ExcelDna.Integration.dll",
-        "tools/net6.0-windows7.0/ExcelDna.xll",
-        "tools/net6.0-windows7.0/ExcelDna64.xll"
-      ]
-    },
-    "ExcelDna.Integration/1.9.0": {
-      "sha512": "A1nbeRWa+rg3RoO9NV9iqNwQxWb9eVNG+Ki3uCfo8D3U8CT11/fzTIvVT3y2LoCTzqRIPwTysqp9sj42MKYw5Q==",
-      "type": "package",
-      "path": "exceldna.integration/1.9.0",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "exceldna.integration.1.9.0.nupkg.sha512",
-        "exceldna.integration.nuspec",
-        "images/ExcelDna-nu.png",
-        "lib/net462/ExcelDna.Integration.dll",
-        "lib/net462/ExcelDna.Integration.xml",
-        "lib/net6.0-windows7.0/ExcelDna.Integration.dll",
-        "lib/net6.0-windows7.0/ExcelDna.Integration.xml"
-      ]
-    },
-    "ExcelDna.IntelliSense/1.9.0": {
-      "sha512": "IskRgqur6aiCdsZSsqYdo7kp5V4ODz1WI8orvEmQaSCdixb5pmQ3ZbEnB0dlC67YHnjOK4aLN55LRragyOI3+w==",
-      "type": "package",
-      "path": "exceldna.intellisense/1.9.0",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "exceldna.intellisense.1.9.0.nupkg.sha512",
-        "exceldna.intellisense.nuspec",
-        "images/ExcelDna-nu.png",
-        "lib/net462/ExcelDna.IntelliSense.dll",
-        "lib/net6.0-windows7.0/ExcelDna.IntelliSense.dll"
-      ]
-    },
-    "ExcelDna.Interop/15.0.1": {
-      "sha512": "CIKPXlw+6C6v2Em8DVFgkTsrMZoz978CtSG722+dwHi3Tt7JTxQ2BmmBH4yJuzcA9EaOC5AMEmioLkLsvhESQw==",
-      "type": "package",
-      "path": "exceldna.interop/15.0.1",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "build/ExcelDna.Interop.targets",
-        "exceldna.interop.15.0.1.nupkg.sha512",
-        "exceldna.interop.nuspec",
-        "images/ExcelDna-nu.png",
-        "lib/net452/Microsoft.Office.Interop.Excel.dll",
-        "lib/net452/Microsoft.Vbe.Interop.dll",
-        "lib/net452/Office.dll",
-        "lib/net6.0-windows7.0/Microsoft.Office.Interop.Excel.dll",
-        "lib/net6.0-windows7.0/Microsoft.Vbe.Interop.dll",
-        "lib/net6.0-windows7.0/Office.dll"
       ]
     },
     "HandyControl/3.5.1": {
@@ -444,9 +308,6 @@
   },
   "projectFileDependencyGroups": {
     "net10.0-windows7.0": [
-      "ExcelDna.AddIn >= 1.9.0",
-      "ExcelDna.IntelliSense >= 1.9.0",
-      "ExcelDna.Interop >= 15.0.1",
       "SwiftExport.Contracts >= 1.0.0",
       "SwiftExport.UI >= 1.0.0"
     ]
@@ -507,20 +368,6 @@
     "frameworks": {
       "net10.0-windows7.0": {
         "targetAlias": "net10.0-windows",
-        "dependencies": {
-          "ExcelDna.AddIn": {
-            "target": "Package",
-            "version": "[1.9.0, )"
-          },
-          "ExcelDna.IntelliSense": {
-            "target": "Package",
-            "version": "[1.9.0, )"
-          },
-          "ExcelDna.Interop": {
-            "target": "Package",
-            "version": "[15.0.1, )"
-          }
-        },
         "imports": [
           "net461",
           "net462",

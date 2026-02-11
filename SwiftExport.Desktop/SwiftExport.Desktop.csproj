@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SwiftExport.UI\SwiftExport.UI.csproj" />
+    <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

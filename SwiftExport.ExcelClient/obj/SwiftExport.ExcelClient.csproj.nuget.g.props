@@ -15,10 +15,8 @@
   </ItemGroup>
   <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
     <Import Project="$(NuGetPackageRoot)refit\9.0.2\buildTransitive\netstandard2.0\refit.props" Condition="Exists('$(NuGetPackageRoot)refit\9.0.2\buildTransitive\netstandard2.0\refit.props')" />
-    <Import Project="$(NuGetPackageRoot)exceldna.addin\1.9.0\build\ExcelDna.AddIn.props" Condition="Exists('$(NuGetPackageRoot)exceldna.addin\1.9.0\build\ExcelDna.AddIn.props')" />
   </ImportGroup>
   <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
     <PkgHandyControl Condition=" '$(PkgHandyControl)' == '' ">C:\Users\YWFS\.nuget\packages\handycontrol\3.5.1</PkgHandyControl>
-    <PkgExcelDna_AddIn Condition=" '$(PkgExcelDna_AddIn)' == '' ">C:\Users\YWFS\.nuget\packages\exceldna.addin\1.9.0</PkgExcelDna_AddIn>
   </PropertyGroup>
 </Project>

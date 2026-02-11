@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SwiftExport.WebApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b5229b8aa120765675ddfc6885d613cf4235d3c4")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+245dea3bbf2f929222cf3f32d75ed8019b9f8b05")]
 [assembly: System.Reflection.AssemblyProductAttribute("SwiftExport.WebApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SwiftExport.WebApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
