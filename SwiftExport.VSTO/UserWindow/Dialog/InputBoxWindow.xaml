@@ -1,0 +1,73 @@
+﻿<Window x:Class="SwiftExport.VSTO.UserWindow.Dialog.InputBoxWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
+        Title="输入" 
+        Height="Auto" Width="400"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        SizeToContent="Height"
+        Loaded="Window_Loaded">
+
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <md:BundledTheme BaseTheme="Light" 
+                             PrimaryColor="Teal" 
+                             SecondaryColor="Lime" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign3.Defaults.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    
+    <Border CornerRadius="8" Background="White" BorderBrush="#DDDDDD" BorderThickness="1" Margin="10" MouseLeftButtonDown="Border_MouseLeftButtonDown">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="15" ShadowDepth="5" Opacity="0.3" Color="Gray"/>
+        </Border.Effect>
+
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
+                <md:PackIcon Kind="FormTextbox" Width="24" Height="24" VerticalAlignment="Center"/>
+                <TextBlock x:Name="TxtTitle" Text="请输入内容" FontSize="16" FontWeight="Bold" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#333"/>
+            </StackPanel>
+
+            <TextBlock x:Name="TxtMessage" Grid.Row="1" 
+                       Text="请输入新的名称:" 
+                       TextWrapping="Wrap" 
+                       Margin="5,0,0,10" 
+                       FontSize="14" 
+                       Foreground="#666"/>
+
+            <TextBox x:Name="TxtInput" Grid.Row="2"
+                     Margin="0,0,0,20"
+                     Padding="10"
+                     FontSize="15"
+                     md:HintAssist.Hint="在此输入..."
+                     KeyDown="TxtInput_KeyDown"/>
+
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="取消" 
+                        Click="BtnCancel_Click"
+                        Margin="0,0,10,0"
+                        Width="80"
+                        IsCancel="True"/>
+                <Button Content="确定" 
+                        Click="BtnOk_Click"
+                        Width="80"
+                        IsDefault="True"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

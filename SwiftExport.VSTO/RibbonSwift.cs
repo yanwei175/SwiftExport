@@ -1,5 +1,6 @@
 ﻿using Microsoft.Office.Tools.Ribbon;
-using SwiftExport.UI.Views;
+using SwiftExport.VSTO.Common;
+using SwiftExport.VSTO.UserWindow;
 namespace SwiftExport.VSTO
 {
     public partial class RibbonSwift
@@ -11,10 +12,15 @@ namespace SwiftExport.VSTO
 
         private void BtnTest_Click(object sender, RibbonControlEventArgs e)
         {
-            MainWindow window = new MainWindow();
-            Customer customer = new Customer();
-            window.Content = customer;
-            window.ShowDialog();
+            //WindowHelper.ShowUnique(() => new TestWindow());
+            var win = new TestWindow();
+            win.ShowDialog();
+        }
+
+        private void button1_Click(object sender, RibbonControlEventArgs e)
+        {
+
+            WindowHelper.ShowUnique(() => new MainWindow());
         }
     }
 }

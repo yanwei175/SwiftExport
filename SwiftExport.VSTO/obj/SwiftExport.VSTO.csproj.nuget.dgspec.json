@@ -44,7 +44,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "10.0.100"
+        "SdkAnalysisLevel": "10.0.200"
       },
       "frameworks": {
         "netstandard2.0": {
@@ -72,7 +72,7 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.200-preview.0.26103.119\\RuntimeIdentifierGraph.json"
         }
       }
     },
@@ -126,59 +126,71 @@
             },
             "Microsoft.Bcl.AsyncInterfaces": {
               "target": "Package",
-              "version": "[9.0.9, )"
+              "version": "[10.0.3, )"
+            },
+            "Microsoft.Extensions.DependencyInjection": {
+              "target": "Package",
+              "version": "[10.0.3, )"
+            },
+            "Microsoft.Xaml.Behaviors.Wpf": {
+              "target": "Package",
+              "version": "[1.1.77, )"
             },
             "Newtonsoft.Json": {
               "target": "Package",
-              "version": "[13.0.3, )"
+              "version": "[13.0.4, )"
             },
             "Refit": {
               "target": "Package",
-              "version": "[9.0.2, )"
+              "version": "[10.0.1, )"
             },
             "Refit.Newtonsoft.Json": {
               "target": "Package",
-              "version": "[8.0.0, )"
+              "version": "[10.0.1, )"
             },
             "System.Buffers": {
               "target": "Package",
-              "version": "[4.5.1, )"
+              "version": "[4.6.1, )"
             },
             "System.IO.Pipelines": {
               "target": "Package",
-              "version": "[9.0.9, )"
+              "version": "[10.0.3, )"
             },
             "System.Memory": {
               "target": "Package",
-              "version": "[4.5.5, )"
+              "version": "[4.6.3, )"
             },
             "System.Net.Http.Json": {
               "target": "Package",
-              "version": "[9.0.9, )"
+              "version": "[10.0.3, )"
             },
             "System.Numerics.Vectors": {
               "target": "Package",
-              "version": "[4.5.0, )"
+              "version": "[4.6.1, )"
             },
             "System.Runtime.CompilerServices.Unsafe": {
               "target": "Package",
-              "version": "[6.0.0, )"
+              "version": "[6.1.2, )"
             },
             "System.Text.Encodings.Web": {
               "target": "Package",
-              "version": "[9.0.9, )"
+              "version": "[10.0.3, )"
             },
             "System.Text.Json": {
               "target": "Package",
-              "version": "[9.0.9, )"
+              "version": "[10.0.3, )"
             },
             "System.Threading.Tasks.Extensions": {
               "target": "Package",
-              "version": "[4.5.4, )"
+              "version": "[4.6.3, )"
             },
             "System.ValueTuple": {
               "target": "Package",
-              "version": "[4.5.0, )"
+              "version": "[4.6.1, )"
+            },
+            "WindowsAPICodePack-Shell": {
+              "target": "Package",
+              "version": "[1.1.1, )"
             }
           }
         }

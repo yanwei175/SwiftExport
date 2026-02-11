@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SwiftExport.Contracts")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+245dea3bbf2f929222cf3f32d75ed8019b9f8b05")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+035b5afddbd2544ea3d20963309d8151fc512edf")]
 [assembly: System.Reflection.AssemblyProductAttribute("SwiftExport.Contracts")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SwiftExport.Contracts")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

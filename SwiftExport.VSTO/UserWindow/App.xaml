@@ -1,25 +1,25 @@
-﻿<Application x:Class="SwiftExport.VSTO.App"
+﻿<Application x:Class="SwiftExport.VSTO.UserWindow.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
-    <!--<Application.Resources>
+    <Application.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
+            <!--<ResourceDictionary.MergedDictionaries>
 
-                --><!-- MD3 默认样式 --><!--
+                 MD3 默认样式 
                 <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign3.Defaults.xaml" />
 
-                --><!-- 主题配置 --><!--
+                 主题配置 
                 <materialDesign:BundledTheme BaseTheme="Light"
                                              PrimaryColor="Teal"
                                              SecondaryColor="Lime" />
 
-                --><!-- 字体设置 --><!--
+                 字体设置 
                 <ResourceDictionary>
                     <FontFamily x:Key="MaterialDesignFont">Microsoft YaHei</FontFamily>
-                </ResourceDictionary>
+                </ResourceDictionary>-->
 
-            </ResourceDictionary.MergedDictionaries>
+            <!--</ResourceDictionary.MergedDictionaries>-->
         </ResourceDictionary>
-    </Application.Resources>-->
+    </Application.Resources>
 </Application>

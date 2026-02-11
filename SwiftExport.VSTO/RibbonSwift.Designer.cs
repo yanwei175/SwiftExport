@@ -37,6 +37,7 @@
             this.tabSwiftExport = this.Factory.CreateRibbonTab();
             this.group1 = this.Factory.CreateRibbonGroup();
             this.BtnTest = this.Factory.CreateRibbonButton();
+            this.button1 = this.Factory.CreateRibbonButton();
             this.tabSwiftExport.SuspendLayout();
             this.group1.SuspendLayout();
             this.SuspendLayout();
@@ -51,6 +52,7 @@
             // group1
             // 
             this.group1.Items.Add(this.BtnTest);
+            this.group1.Items.Add(this.button1);
             this.group1.Label = "group1";
             this.group1.Name = "group1";
             // 
@@ -61,6 +63,14 @@
             this.BtnTest.Name = "BtnTest";
             this.BtnTest.ShowImage = true;
             this.BtnTest.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.BtnTest_Click);
+            // 
+            // button1
+            // 
+            this.button1.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.button1.Label = "Test";
+            this.button1.Name = "button1";
+            this.button1.ShowImage = true;
+            this.button1.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.button1_Click);
             // 
             // RibbonSwift
             // 
@@ -81,6 +91,7 @@
         internal Microsoft.Office.Tools.Ribbon.RibbonTab tabSwiftExport;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup group1;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton BtnTest;
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton button1;
     }
 
     partial class ThisRibbonCollection
