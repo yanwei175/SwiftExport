@@ -1,5 +1,8 @@
-﻿namespace SwiftExport.Core.Interfaces;
+﻿using SwiftExport.Core.Entities.MasterData;
 
-public interface IProductRepository
+namespace SwiftExport.Core.Interfaces;
+
+public interface IProductRepository : IRepository<Product>
 {
+    Task<IReadOnlyList<string>> GetAllCustomerCodeListAsync();
 }

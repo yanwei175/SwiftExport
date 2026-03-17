@@ -7,17 +7,34 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Interfaces\IBOMService.cs" />
+    <Compile Remove="Interfaces\ICustomersPoDetailsService.cs" />
+    <Compile Remove="Interfaces\IExcelSheetFieldsMappingService.cs" />
+    <Compile Remove="Interfaces\IPurchaseOrderService.cs" />
+    <Compile Remove="Interfaces\ISalesOrderService.cs" />
+    <Compile Remove="Interfaces\IViewUserRoleService.cs" />
+    <Compile Remove="Interfaces\IWhiteListServices.cs" />
+    <Compile Remove="Services\Orders\CustomersPoDetailsService.cs" />
+    <Compile Remove="Services\Products\BomService.cs" />
+    <Compile Remove="Services\Settings\ExcelSheetFieldsMappingService.cs" />
+    <Compile Remove="Services\Settings\ViewUserRoleService.cs" />
+    <Compile Remove="Services\Settings\WhiteListServices.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj" />
     <ProjectReference Include="..\SwiftExport.Core\SwiftExport.Core.csproj" />
+    <ProjectReference Include="..\SwiftExport.Infrastructure\SwiftExport.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Common\" />
     <Folder Include="Services\Orders\" />
+    <Folder Include="Services\Settings\" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AutoMapper" Version="16.0.0" />
+    <PackageReference Include="Mapster" Version="7.4.0" />
   </ItemGroup>
 
 </Project>

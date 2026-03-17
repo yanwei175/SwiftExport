@@ -1,0 +1,241 @@
+﻿<Window x:Class="SwiftExport.VSTO.UserWindow.CustomerViews.Views.CustomerPoConfigManagerView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
+        xmlns:ctrl="clr-namespace:SwiftExport.UI.Controls;assembly=SwiftExport.UI.Controls"
+        xmlns:ctrl2="clr-namespace:SwiftExport.VSTO.UserControls"
+        
+        x:Name="RootWindow"
+        xmlns:beh="clr-namespace:SwiftExport.UI.Controls.Expand;assembly=SwiftExport.UI.Controls"
+        xmlns:conv="clr-namespace:SwiftExport.VSTO.UserWindow.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        xmlns:mock="clr-namespace:SwiftExport.VSTO.UserWindow.CustomerViews.ViewModels"
+        d:DataContext="{d:DesignInstance Type=mock:CustomerPoConfigDesignViewModel, IsDesignTimeCreatable=True}"
+        Title="采购单客户默认配置管理" Height="768" Width="1026"
+        WindowStartupLocation="CenterScreen"
+        Background="White">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/SwiftExport.VSTO;component/Resources/Styles/ErpTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="CustomerAutoCompleteEditStyle" TargetType="TextBox" BasedOn="{StaticResource DataGridTextBoxStyle}">
+                <Setter Property="beh:AutoCompleteBehavior.ItemsSource" Value="{Binding DataContext.Customers, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                <Setter Property="beh:AutoCompleteBehavior.DisplayMemberPath" Value="CustomerCode" />
+            </Style>
+
+            <Style x:Key="SupplierAutoCompleteEditStyle" TargetType="TextBox" BasedOn="{StaticResource DataGridTextBoxStyle}">
+                <Setter Property="beh:AutoCompleteBehavior.ItemsSource" Value="{Binding DataContext.Suppliers, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                <Setter Property="beh:AutoCompleteBehavior.DisplayMemberPath" Value="SupplierCode" />
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Button Style="{DynamicResource PrimaryButtonStyle}" Command="{Binding AddNewRowCommand}" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Width="10" Height="10" Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Data="{StaticResource Icon.Add}" 
+                                  Margin="0,0,6,0" Stretch="Uniform"/>
+                            <TextBlock Text="新建" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding LoadCommand}" Background="White" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Width="10" Height="10" Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Data="{StaticResource Icon.Refresh}" 
+                                  Margin="0,0,6,0" Stretch="Uniform"/>
+                            <TextBlock Text="刷新" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Style="{DynamicResource PrimaryButtonStyle}" 
+                            Command="{Binding BatchSaveCommand}" 
+                            IsEnabled="{Binding HasChanges}"
+                            Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Width="10" Height="10" Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Data="{StaticResource Icon.Save}" 
+                                  Margin="0,0,6,0" Stretch="Uniform"/>
+                            <TextBlock Text="保存" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Rectangle Width="1" Fill="#E0E0E0" Margin="5,5,15,5" VerticalAlignment="Stretch"/>
+
+                    <Button Style="{DynamicResource DefaultButtonStyle}" Command="{Binding InvertCheckCommand}"  Margin="0,0,5,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Width="10" Height="10" Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Data="{StaticResource Icon.Refresh}" 
+                                  Margin="0,0,6,0" Stretch="Uniform"/>
+                            <TextBlock Text="反选" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Style="{DynamicResource DangerButtonStyle}" Command="{Binding DeleteCheckedCommand}" Margin="0,0,10,0" 
+                            IsEnabled="{Binding HasSelectedItems}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Width="10" Height="10" Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Data="{StaticResource Icon.Delete}" 
+                                  Margin="0,0,5,0" Stretch="Uniform"/>
+                            <TextBlock Text="删除" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <TextBlock VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{DynamicResource SecondaryTextBrush}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="{Binding SelectedCount, StringFormat='已选中 {0} 项'}"/>
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedCount}" Value="0">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="查询: " VerticalAlignment="Center" Foreground="#666" Margin="0,0,5,0"/>
+                    <TextBox Width="250" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Background="White" Padding="5">
+            <DataGrid x:Name="MainDataGrid"
+                    ItemsSource="{Binding ItemsView}" 
+                    HorizontalScrollBarVisibility="Auto"  
+                    HeadersVisibility="All" 
+                    SelectionUnit="CellOrRowHeader"
+                    FrozenColumnCount="3"
+                    RowHeight="40"
+                    beh:DataGridBehavior.ShowAutoRowNumber="True">
+
+                <DataGrid.RowHeaderStyle>
+                    <Style TargetType="DataGridRowHeader">
+                        <Setter Property="Background" Value="#F5F5F5"/>
+                        <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                        <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                        <Setter Property="ContextMenu">
+                            <Setter.Value>
+                                <ContextMenu>
+                                    <MenuItem Header="删除此行" 
+                                              Foreground="{DynamicResource WarningBrush}"
+                                              Command="{Binding PlacementTarget.Tag.SingleDeleteCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}"/>
+                                </ContextMenu>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#EAEAEA"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowHeaderStyle>
+
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                        <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding State}" Value="Added">
+                                <Setter Property="Background" Value="#E8F5E9"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding State}" Value="Modified">
+                                <Setter Property="Background" Value="#FFF8E1"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Width="40" CanUserSort="False">
+                        <DataGridTemplateColumn.Header>
+                            <CheckBox IsChecked="{Binding DataContext.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" 
+                                      ToolTip="全选/全不选" 
+                                      HorizontalAlignment="Center" 
+                                      VerticalAlignment="Center"/>
+                        </DataGridTemplateColumn.Header>
+
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" 
+                                      Command="{Binding DataContext.ItemCheckedChangedCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTextColumn Header="客户代码" Width="80" 
+                                        Binding="{Binding CustomerCode}"                                         
+                                        EditingElementStyle="{StaticResource CustomerAutoCompleteEditStyle}" />
+                    <DataGridTextColumn Header="供应商代码" Width="80" 
+                                        Binding="{Binding SupplierCode}"
+                                        EditingElementStyle="{StaticResource SupplierAutoCompleteEditStyle}" />
+
+                    <DataGridTextColumn Header="备注" Binding="{Binding Note}" Width="140" ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}" EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}">
+                        <DataGridTextColumn.CellStyle>
+                            <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                                <Setter Property="Panel.ZIndex" Value="999"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="DataGridCell">
+                                            <Border Background="{TemplateBinding Background}" BorderBrush="#999999" BorderThickness="0,0,1,0" SnapsToDevicePixels="True">
+                                                <ContentPresenter VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </DataGridTextColumn.CellStyle>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Header="光标" Binding="{Binding LogoType}" Width="100" ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"/>
+                    <DataGridTextColumn Header="标贴" Binding="{Binding LabelType}" Width="100" ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}" EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                    <DataGridTextColumn Header="说明书" Binding="{Binding IMType}" Width="100" ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}" EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                    <DataGridTextColumn Header="内盒" Binding="{Binding BoxType}" Width="100" ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}" EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                    <DataGridTextColumn Header="外箱" Binding="{Binding CartonType}" Width="100" ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}" EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                    <DataGridTextColumn Header="进水管" Binding="{Binding InletHoseType}" Width="100" ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}" EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                    <DataGridTextColumn Header="起泡器" Binding="{Binding AeratorType}" Width="100" ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}" EditingElementStyle="{StaticResource DataGridTextBoxStyle}" />
+                    <DataGridTextColumn Header="业务员" Binding="{Binding SalesPerson}" Width="100" ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}" EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                    <DataGridTextColumn Header="跟单员" Binding="{Binding Purchaser}" Width="100" ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}" EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                    <DataGridTextColumn Header="托盘" Binding="{Binding PalletType}" Width="100" ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}" EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <Border Grid.Row="2" Background="{StaticResource PaperBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="15,8">
+
+            <ctrl2:PaginationControl HorizontalAlignment="Right" 
+                                    TotalCount="{Binding TotalCount}" 
+                                    PageIndex="{Binding PageIndex, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+                                    PageSize="{Binding PageSize, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+        </Border>
+
+
+
+    </Grid>
+</Window>

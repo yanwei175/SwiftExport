@@ -1,15 +1,36 @@
 [
   {
-    "ContainingType": "SwiftExport.WebApi.Controllers.ProductController",
-    "Method": "GetAll",
-    "RelativePath": "api/Product",
+    "ContainingType": "SwiftExport.WebApi.Controllers.Customers.CustomerController",
+    "Method": "GetPaged",
+    "RelativePath": "api/customer",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
-    "Parameters": [],
+    "Parameters": [
+      {
+        "Name": "PageIndex",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "PageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchText",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BatchSearchTexts",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
     "ReturnTypes": [
       {
-        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Collections.Generic.IReadOnlyList\u00601[[SwiftExport.Contracts.DTOs.Product.ProductDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.Wrappers.PagedResultDto\u00601[[SwiftExport.Contracts.DTOs.Customers.CustomerDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
         "MediaTypes": [
           "text/plain",
           "application/json",
@@ -20,16 +41,16 @@
     ]
   },
   {
-    "ContainingType": "SwiftExport.WebApi.Controllers.ProductController",
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.Customer, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Customers.CustomerDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
     "Method": "Create",
-    "RelativePath": "api/Product",
+    "RelativePath": "api/customer",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
     "Parameters": [
       {
         "Name": "dto",
-        "Type": "SwiftExport.Contracts.DTOs.Product.ProductDto",
+        "Type": "SwiftExport.Contracts.DTOs.Customers.CustomerDto",
         "IsRequired": true
       }
     ],
@@ -46,35 +67,9 @@
     ]
   },
   {
-    "ContainingType": "SwiftExport.WebApi.Controllers.ProductController",
-    "Method": "Update",
-    "RelativePath": "api/Product",
-    "HttpMethod": "PUT",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "dto",
-        "Type": "SwiftExport.Contracts.DTOs.Product.ProductDto",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": [
-      {
-        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
-        "MediaTypes": [
-          "text/plain",
-          "application/json",
-          "text/json"
-        ],
-        "StatusCode": 200
-      }
-    ]
-  },
-  {
-    "ContainingType": "SwiftExport.WebApi.Controllers.ProductController",
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.Customer, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Customers.CustomerDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
     "Method": "GetById",
-    "RelativePath": "api/Product/{id}",
+    "RelativePath": "api/customer/{id}",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -87,7 +82,7 @@
     ],
     "ReturnTypes": [
       {
-        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.DTOs.Product.ProductDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.DTOs.Customers.CustomerDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
         "MediaTypes": [
           "text/plain",
           "application/json",
@@ -98,9 +93,40 @@
     ]
   },
   {
-    "ContainingType": "SwiftExport.WebApi.Controllers.ProductController",
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.Customer, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Customers.CustomerDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Update",
+    "RelativePath": "api/customer/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "SwiftExport.Contracts.DTOs.Customers.CustomerDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.Customer, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Customers.CustomerDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
     "Method": "Delete",
-    "RelativePath": "api/Product/{id}",
+    "RelativePath": "api/customer/{id}",
     "HttpMethod": "DELETE",
     "IsController": true,
     "Order": 0,
@@ -124,9 +150,451 @@
     ]
   },
   {
-    "ContainingType": "SwiftExport.WebApi.Controllers.ProductController",
+    "ContainingType": "SwiftExport.WebApi.Controllers.Customers.CustomerController",
+    "Method": "GetAll",
+    "RelativePath": "api/customer/all",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Collections.Generic.IReadOnlyList\u00601[[SwiftExport.Contracts.DTOs.Customers.CustomerDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Customers.CustomerController",
+    "Method": "BatchSave",
+    "RelativePath": "api/customer/batch-save",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "SwiftExport.Contracts.Wrappers.BatchRequestGeneric\u00601[[SwiftExport.Contracts.DTOs.Customers.CustomerDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.Wrappers.BatchResultDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Customers.CustomerPoConfigController",
+    "Method": "GetPaged",
+    "RelativePath": "api/customerpoconfig",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "PageIndex",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "PageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchText",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BatchSearchTexts",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.Wrappers.PagedResultDto\u00601[[SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.Relations.CustomerPoConfig, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Create",
+    "RelativePath": "api/customerpoconfig",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.Relations.CustomerPoConfig, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "GetById",
+    "RelativePath": "api/customerpoconfig/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.Relations.CustomerPoConfig, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Update",
+    "RelativePath": "api/customerpoconfig/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.Relations.CustomerPoConfig, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Delete",
+    "RelativePath": "api/customerpoconfig/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Customers.CustomerPoConfigController",
+    "Method": "GetAll",
+    "RelativePath": "api/customerpoconfig/all",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Collections.Generic.IReadOnlyList\u00601[[SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Customers.CustomerPoConfigController",
+    "Method": "BatchSaveAsync",
+    "RelativePath": "api/customerpoconfig/batch-save",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "SwiftExport.Contracts.Wrappers.BatchRequestGeneric\u00601[[SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.Wrappers.BatchResultDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Products.ProductController",
+    "Method": "GetProductPagedList",
+    "RelativePath": "api/product",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Keyword",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "CustomerCode",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "CategoryId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "BatchKeywords",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "PageIndex",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "PageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.Wrappers.PagedResultDto\u00601[[SwiftExport.Contracts.DTOs.Products.ProductDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.Product, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Products.ProductDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Create",
+    "RelativePath": "api/product",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "SwiftExport.Contracts.DTOs.Products.ProductDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.Product, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Products.ProductDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "GetById",
+    "RelativePath": "api/product/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.DTOs.Products.ProductDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.Product, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Products.ProductDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Update",
+    "RelativePath": "api/product/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "SwiftExport.Contracts.DTOs.Products.ProductDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.Product, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Products.ProductDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Delete",
+    "RelativePath": "api/product/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Products.ProductController",
+    "Method": "GetAll",
+    "RelativePath": "api/product/all",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Collections.Generic.IReadOnlyList\u00601[[SwiftExport.Contracts.DTOs.Products.ProductDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Products.ProductController",
+    "Method": "GetAllCustomerCodeList",
+    "RelativePath": "api/product/customercodes",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Collections.Generic.IReadOnlyList\u00601[[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Products.ProductController",
     "Method": "GetBySku",
-    "RelativePath": "api/Product/sku/{sku}",
+    "RelativePath": "api/product/sku/{sku}",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -139,7 +607,399 @@
     ],
     "ReturnTypes": [
       {
-        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.DTOs.Product.ProductDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.DTOs.Products.ProductDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Products.ProductColorController",
+    "Method": "GetPaged",
+    "RelativePath": "api/productcolor",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "PageIndex",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "PageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchText",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BatchSearchTexts",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.Wrappers.PagedResultDto\u00601[[SwiftExport.Contracts.DTOs.Products.ProductColorDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.ProductColor, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Products.ProductColorDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Create",
+    "RelativePath": "api/productcolor",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "SwiftExport.Contracts.DTOs.Products.ProductColorDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.ProductColor, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Products.ProductColorDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "GetById",
+    "RelativePath": "api/productcolor/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.DTOs.Products.ProductColorDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.ProductColor, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Products.ProductColorDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Update",
+    "RelativePath": "api/productcolor/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "SwiftExport.Contracts.DTOs.Products.ProductColorDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.ProductColor, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Products.ProductColorDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Delete",
+    "RelativePath": "api/productcolor/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Products.ProductColorController",
+    "Method": "GetAll",
+    "RelativePath": "api/productcolor/all",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Collections.Generic.IReadOnlyList\u00601[[SwiftExport.Contracts.DTOs.Products.ProductColorDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Products.ProductColorController",
+    "Method": "BatchSaveAsync",
+    "RelativePath": "api/productcolor/batch-save",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "SwiftExport.Contracts.Wrappers.BatchRequestGeneric\u00601[[SwiftExport.Contracts.DTOs.Products.ProductColorDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.Wrappers.BatchResultDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Suppliers.SupplierController",
+    "Method": "GetPaged",
+    "RelativePath": "api/supplier",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "PageIndex",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "PageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchText",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BatchSearchTexts",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.Wrappers.PagedResultDto\u00601[[SwiftExport.Contracts.DTOs.Suppliers.SupplierDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.Supplier, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Suppliers.SupplierDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Create",
+    "RelativePath": "api/supplier",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "SwiftExport.Contracts.DTOs.Suppliers.SupplierDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.Supplier, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Suppliers.SupplierDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "GetById",
+    "RelativePath": "api/supplier/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.DTOs.Suppliers.SupplierDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.Supplier, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Suppliers.SupplierDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Update",
+    "RelativePath": "api/supplier/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "SwiftExport.Contracts.DTOs.Suppliers.SupplierDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Base.BaseController\u00602[[SwiftExport.Core.Entities.MasterData.Supplier, SwiftExport.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[SwiftExport.Contracts.DTOs.Suppliers.SupplierDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+    "Method": "Delete",
+    "RelativePath": "api/supplier/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Suppliers.SupplierController",
+    "Method": "GetAll",
+    "RelativePath": "api/supplier/all",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[System.Collections.Generic.IReadOnlyList\u00601[[SwiftExport.Contracts.DTOs.Suppliers.SupplierDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "SwiftExport.WebApi.Controllers.Suppliers.SupplierController",
+    "Method": "BatchSaveAsync",
+    "RelativePath": "api/supplier/batch-save",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "SwiftExport.Contracts.Wrappers.BatchRequestGeneric\u00601[[SwiftExport.Contracts.DTOs.Suppliers.SupplierDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "SwiftExport.Contracts.Wrappers.ServiceResult\u00601[[SwiftExport.Contracts.Wrappers.BatchResultDto, SwiftExport.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
         "MediaTypes": [
           "text/plain",
           "application/json",

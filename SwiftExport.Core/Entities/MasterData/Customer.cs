@@ -1,7 +1,9 @@
 ﻿using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
+[Table("Customer")]
 public class Customer : BaseEntity
 {
     public string CustomerCode { get; set; } = default!;

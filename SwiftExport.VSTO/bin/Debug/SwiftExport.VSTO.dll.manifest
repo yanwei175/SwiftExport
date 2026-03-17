@@ -108,6 +108,11 @@
   </dependency>
   <dependency>
     <dependentAssembly dependencyType="preRequisite" allowDelayedBinding="true">
+      <assemblyIdentity name="System.ComponentModel.DataAnnotations" version="4.0.0.0" publicKeyToken="31BF3856AD364E35" language="neutral" />
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="preRequisite" allowDelayedBinding="true">
       <assemblyIdentity name="System.Core" version="4.0.0.0" publicKeyToken="B77A5C561934E089" language="neutral" />
     </dependentAssembly>
   </dependency>
@@ -177,26 +182,26 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="MaterialDesignColors.dll" size="320512">
-      <assemblyIdentity name="MaterialDesignColors" version="5.3.0.0" publicKeyToken="DF2A72020BD7962A" language="neutral" processorArchitecture="msil" />
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="Mapster.dll" size="163328">
+      <assemblyIdentity name="Mapster" version="7.2.0.0" publicKeyToken="2F39883AF23C29A8" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>i5vAVzy/wruiguYsOJq9x4ZtJdSD1L3EDCS8iO133m0=</dsig:DigestValue>
+        <dsig:DigestValue>0g/EKdGub7ba/Ej8dtyAr8gqLwimOtj2mAObgRv0aiM=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="MaterialDesignThemes.Wpf.dll" size="9963520">
-      <assemblyIdentity name="MaterialDesignThemes.Wpf" version="5.3.0.0" publicKeyToken="DF2A72020BD7962A" language="neutral" processorArchitecture="msil" />
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="Mapster.Core.dll" size="31744">
+      <assemblyIdentity name="Mapster.Core" version="1.2.0.0" publicKeyToken="E64997D676A9C1D3" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>7Jd9J2/DpMuiCNKRP5F4IPpX/PAM1xlXkLUjcL3M0T4=</dsig:DigestValue>
+        <dsig:DigestValue>JwVUNXWt90v8VPg3/4p7q5ZnuuvWoxtuex0RiQnq+Tw=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -209,6 +214,18 @@
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
         <dsig:DigestValue>vaBpsXJhpQ82s6eaiLAkPXufZQhyVZit+I1CRxl3cg4=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="Microsoft.Extensions.Configuration.Abstractions.dll" size="31528">
+      <assemblyIdentity name="Microsoft.Extensions.Configuration.Abstractions" version="9.0.0.3" publicKeyToken="ADB9793829DDAE60" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>1tGMGkn8z7hBVq00e4wKFiD/nRBtQULT8kRPKJCvbAc=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -233,6 +250,66 @@
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
         <dsig:DigestValue>BPR4q30Tk2htVfgKefrFX1d7Ng9EJPfqaRqeuXlWSXc=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="Microsoft.Extensions.Http.dll" size="83208">
+      <assemblyIdentity name="Microsoft.Extensions.Http" version="9.0.0.3" publicKeyToken="ADB9793829DDAE60" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>dIFsf8e/fy5bS4G8PU3vkjdsz0t579TiuikHjQSn6OE=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="Microsoft.Extensions.Logging.dll" size="54544">
+      <assemblyIdentity name="Microsoft.Extensions.Logging" version="9.0.0.3" publicKeyToken="ADB9793829DDAE60" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>JdMJSGFKUNe/rjKeP/WnWTvRQh+xG+gIKw15iKJADlA=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="Microsoft.Extensions.Logging.Abstractions.dll" size="69416">
+      <assemblyIdentity name="Microsoft.Extensions.Logging.Abstractions" version="9.0.0.3" publicKeyToken="ADB9793829DDAE60" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>2pIz/3FHqn7tmdAaNsN8nVyV+RIc4HXMAWXoZIGnov4=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="Microsoft.Extensions.Options.dll" size="68904">
+      <assemblyIdentity name="Microsoft.Extensions.Options" version="9.0.0.3" publicKeyToken="ADB9793829DDAE60" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>WcOLzN3a/yyjWHIdzyHaL6HEaRBScUPuD+SsXaGV6Dg=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="Microsoft.Extensions.Primitives.dll" size="50464">
+      <assemblyIdentity name="Microsoft.Extensions.Primitives" version="9.0.0.3" publicKeyToken="ADB9793829DDAE60" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>Wgo7tcGUFIdh2DDmgTtR0lGIDeETPbqPAWr/mVDpKhw=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -309,6 +386,18 @@
     </dependentAssembly>
   </dependency>
   <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="Refit.HttpClientFactory.dll" size="36656">
+      <assemblyIdentity name="Refit.HttpClientFactory" version="9.0.0.0" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>QZZnoDg/81HQ/VmnJU45StoUYJmN6aQIISL0LMX4lIY=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
     <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="Refit.Newtonsoft.Json.dll" size="29488">
       <assemblyIdentity name="Refit.Newtonsoft.Json" version="10.0.0.0" language="neutral" processorArchitecture="msil" />
       <hash>
@@ -321,26 +410,38 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="SwiftExport.Contracts.dll" size="14336">
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="SwiftExport.Contracts.dll" size="76288">
       <assemblyIdentity name="SwiftExport.Contracts" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>CBqDLyPbGK929ogo1GCzRSvfg4ZANLC7KB9oFCqGHAU=</dsig:DigestValue>
+        <dsig:DigestValue>pqSbPX6ACVdjVFpjWiZOGNxXg5yi70yakgoPFyKBEWs=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="SwiftExport.VSTO.dll" size="49152">
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="SwiftExport.UI.Controls.dll" size="48128">
+      <assemblyIdentity name="SwiftExport.UI.Controls" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>8iSemrxTZgVNncXvMG9jxXHT805OiNeOxR7kSzkGUBY=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="SwiftExport.VSTO.dll" size="191488">
       <assemblyIdentity name="SwiftExport.VSTO" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>ipjeWYqjvVD0CZFjohLDlIUIbcu2kkmQ7JfVUChDz9U=</dsig:DigestValue>
+        <dsig:DigestValue>En7mEsxpCKOL+4OjjKbqvjluZ00rxhaxYlWdfvhk/74=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -353,6 +454,18 @@
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
         <dsig:DigestValue>LXjXcMnLmXGZFUrowBi58dHvvIZyn3Jk3ebbrSoSysM=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Diagnostics.DiagnosticSource.dll" size="199992">
+      <assemblyIdentity name="System.Diagnostics.DiagnosticSource" version="9.0.0.3" publicKeyToken="CC7B13FFCD2DDD51" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>gq3bpQcKbNZE1iho8Di4oIYJ9Aou/hJDDHrOmzYDMAw=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -452,211 +565,13 @@
       </hash>
     </dependentAssembly>
   </dependency>
-  <file name="NotoSans-Bold.ttf" size="398652">
+  <file name="SwiftExport.VSTO.dll.config" size="3166">
     <hash>
       <dsig:Transforms>
         <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
       </dsig:Transforms>
       <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>+aa9SJ31YPepJbQ9W0jUU2+iRYkzLlNwK2P8AHKJj4Y=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="NotoSans-BoldItalic.ttf" size="285736">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>qrsG6O91G9BTN7Nuh6+WM0/aG8W4ZxfuAj8xdcOkybU=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="NotoSans-Italic.ttf" size="274624">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>Xmatbro/brLl3WkEXfy2dtSJvyvvkhhuSgjhtvd9ObY=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="NotoSans-Regular.ttf" size="398968">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>Ld6u0H9kg/eDGyP6oyz4WgTDQG60uyklUwiUgFoF1Ps=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="Roboto-Black.ttf" size="163488">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>j/BMblsT67pXRTmRiBPEbQ/sFwhJpH5owdcqrkafpf8=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="Roboto-BlackItalic.ttf" size="165444">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>m+bUANonDywQTUBTnz8wM44h7nvMEBKVNwZVHBBBVoY=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="Roboto-Bold.ttf" size="162464">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>7yqw5ALVy53ok+JjosROV/V/7Dl0sNmBv+hN7D2ug6E=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="Roboto-BoldItalic.ttf" size="163644">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>MVd3P/gcTrCIOTbicFTAXtNCvu74OkMKHZmCE4ItPaE=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="RobotoCondensed-Bold.ttf" size="161748">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>AxImllAxbgg7DG0Aba7wn7tWttFy5cZcMeI/HCXc0ow=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="RobotoCondensed-BoldItalic.ttf" size="167212">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>GyoyWplWwWkpmn/IBaC5oiTt7DVdHYvt8vo9DUoZCyk=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="RobotoCondensed-Italic.ttf" size="166136">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>9UYhmCbz6589aQ7L5PHVWeYym5zMo+NOm/RA0yeCe/U=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="RobotoCondensed-Light.ttf" size="160748">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>PI3AqxGDNnxWKJlPCJaVip9C/Vj01NLDsOY/+jvq6+E=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="RobotoCondensed-LightItalic.ttf" size="167432">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>jODH7sRNURQSuIPbPt7tLfUALqdhGonvpsA/uluqZbs=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="RobotoCondensed-Regular.ttf" size="161524">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>1cvhDPuVTm1YBSW9BVNrIUR84pq4qE4h2opYtYgZAyY=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="Roboto-Italic.ttf" size="161484">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>BE0uPjoX2kh9pG/DjL0Kcp3rmvBE5WP2b4zbxXQhJ34=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="Roboto-Light.ttf" size="162420">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>5+plPd7C0qdNDcv/CZwAnMdGnsMjpQyJopFc5EykwLQ=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="Roboto-LightItalic.ttf" size="166492">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>V1d6irUIYpXRAmsdU5cvoKL30XcKKG04vmK61MfN+80=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="Roboto-Medium.ttf" size="162588">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>hVkTLImtUdiiulsXGIekSnupN3biBfVTVz3iKOZLRfg=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="Roboto-MediumItalic.ttf" size="165636">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>kaHBFmCSnoz7cm15JKUbQELA537ExbkLkv5eRdJt51k=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="Roboto-Regular.ttf" size="162876">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>8OWiG/XJXkwbzivpijZW68xtQqIfQcTj6/ad2BVwLlQ=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="Roboto-Thin.ttf" size="163132">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>O3pmkdl46BrfySkTzfrliXMVGYWwct8qGxGeqTe6kX4=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="Roboto-ThinItalic.ttf" size="168276">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>UgeeT2djXFqb/GWHPOttdcdzslq069y0I/bnCqA2/Zk=</dsig:DigestValue>
-    </hash>
-  </file>
-  <file name="SwiftExport.VSTO.dll.config" size="2445">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>n19BdubtOycng6uUnceEoyMYvgGMT77/hHYM45COvxI=</dsig:DigestValue>
+      <dsig:DigestValue>oyKasAPiyKY1Fs5BCAY7FsW4UlxuENCbVKQbIufwP+Q=</dsig:DigestValue>
     </hash>
   </file>
   <vstav3:addIn xmlns:vstav3="urn:schemas-microsoft-com:vsta.v3">
@@ -684,4 +599,4 @@
       </vstov4:customizations>
     </vstav3:application>
   </vstav3:addIn>
-<publisherIdentity name="CN=YSFS\YWFS" issuerKeyHash="528609f7c9667995c657dd9625df818c75162cc0" /><Signature Id="StrongNameSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>oQP6f6xDZameZSKg8NNwyBJP+tR3LgoSl58e+PyONaQ=</DigestValue></Reference></SignedInfo><SignatureValue>TTJsfKW1wFzucEMyeTGOuyaaY2w34sTRJgCBZlApcBtUPAX3flmvGiHARsGK2RIuCMdsDDWzwfy90yHa9M2nBXauZcnShEYZf7KgIz0VNoXJKzLtwvYuHayxEOAKzON/SxtyW6bY1EasU78XdvWuUvI7xgyVAPAYf11P1ct2x1Y=</SignatureValue><KeyInfo Id="StrongNameKeyInfo"><KeyValue><RSAKeyValue><Modulus>sRpHZSkIMYY2L14QpbdPqqr29Axsn5Kdr4r2q5XUn1KsT+Q9P3VbljqdAP3KACqaSRd7yZPEQ0AD7BJjnWP7BbeUynSlSFHHchou7Ys+pZNJTfpU6FH5RZ6I0VY79YkxYsm/wVwdT7hYEjBK8h8yRYUtwnZba2Dg/OP8NIwZq4E=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><msrel:RelData xmlns:msrel="http://schemas.microsoft.com/windows/rel/2005/reldata"><r:license xmlns:r="urn:mpeg:mpeg21:2003:01-REL-R-NS" xmlns:as="http://schemas.microsoft.com/windows/pki/2005/Authenticode"><r:grant><as:ManifestInformation Hash="a4358efcf81e9f97120a2e77d4fa4f12c870d3f0a022659ea96543ac7ffa03a1" Description="" Url=""><as:assemblyIdentity name="SwiftExport.VSTO.dll" version="1.0.0.0" publicKeyToken="6133b0e88c1442af" language="neutral" processorArchitecture="msil" type="win32" /></as:ManifestInformation><as:SignedBy /><as:AuthenticodePublisher><as:X509SubjectName>CN=YSFS\YWFS</as:X509SubjectName></as:AuthenticodePublisher></r:grant><r:issuer><Signature Id="AuthenticodeSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>blHOLz47l42ldFcnKkNPpAxkBCZ6NEsLgA/LjEbG2Y0=</DigestValue></Reference></SignedInfo><SignatureValue>jjvz0OwiVFdL+yrfyX9Is/mPliB/mOhWNUd43j/eRGC7rUubGbj8FU6uesJPQhH367nHeIspfx/tn+YWyKTaz6cRw/ihkDSeFkdMFauG5BD6JGfxj58kjq5n9jd2EkBq+OW6ybu5HlVIGviwDtCyVj1P7ru6lj7nvIVd2adF3gk=</SignatureValue><KeyInfo><KeyValue><RSAKeyValue><Modulus>sRpHZSkIMYY2L14QpbdPqqr29Axsn5Kdr4r2q5XUn1KsT+Q9P3VbljqdAP3KACqaSRd7yZPEQ0AD7BJjnWP7BbeUynSlSFHHchou7Ys+pZNJTfpU6FH5RZ6I0VY79YkxYsm/wVwdT7hYEjBK8h8yRYUtwnZba2Dg/OP8NIwZq4E=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><X509Data><X509Certificate>MIIBvTCCASagAwIBAgIQXun4X8Hl4IVLax+vZUQONDANBgkqhkiG9w0BAQsFADAdMRswGQYDVQQDHhIAWQBTAEYAUwBcAFkAVwBGAFMwHhcNMjYwMTIwMDIxOTU2WhcNMjcwMTIwMDgxOTU2WjAdMRswGQYDVQQDHhIAWQBTAEYAUwBcAFkAVwBGAFMwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBALEaR2UpCDGGNi9eEKW3T6qq9vQMbJ+Sna+K9quV1J9SrE/kPT91W5Y6nQD9ygAqmkkXe8mTxENAA+wSY51j+wW3lMp0pUhRx3IaLu2LPqWTSU36VOhR+UWeiNFWO/WJMWLJv8FcHU+4WBIwSvIfMkWFLcJ2W2tg4Pzj/DSMGauBAgMBAAEwDQYJKoZIhvcNAQELBQADgYEADItnScmN1wCyFz6KCkQ+rQKmsj76Vbdu8oY2NrRzMfXFS4QR78J5SacmXGlm17H3GNsfo8Q2xcwgtjNV8iXOQ2eD51zm9pc6EL7Mmo5OA9OZ0Gr4nZABrJtdpF9Kxuu3sou6JFKBhLpDhfAqL0wnTsMg51BMXeR1abqp+0yEUWg=</X509Certificate></X509Data></KeyInfo></Signature></r:issuer></r:license></msrel:RelData></KeyInfo></Signature></asmv1:assembly>
+<publisherIdentity name="CN=YSFS\YWFS" issuerKeyHash="528609f7c9667995c657dd9625df818c75162cc0" /><Signature Id="StrongNameSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>6xdyyaFnGQ3MgycluQ2yq5bVymlw8uNiMwklQND9SwE=</DigestValue></Reference></SignedInfo><SignatureValue>DuI3mUooJJE7cu50IFztQAzOOxkh41J2JRPxBRBr3pZDDXSloBEPQ8GusX+wwyk0oxBCCEaEj4oR7OLaLT0ErGmILkg7ddMNv3hOBB1z8cciDvqB3RK0sJB50/mw6Avwspruia+psnGVSpRpK66A1RC4PChgMHW5HSvjUi/4DVw=</SignatureValue><KeyInfo Id="StrongNameKeyInfo"><KeyValue><RSAKeyValue><Modulus>sRpHZSkIMYY2L14QpbdPqqr29Axsn5Kdr4r2q5XUn1KsT+Q9P3VbljqdAP3KACqaSRd7yZPEQ0AD7BJjnWP7BbeUynSlSFHHchou7Ys+pZNJTfpU6FH5RZ6I0VY79YkxYsm/wVwdT7hYEjBK8h8yRYUtwnZba2Dg/OP8NIwZq4E=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><msrel:RelData xmlns:msrel="http://schemas.microsoft.com/windows/rel/2005/reldata"><r:license xmlns:r="urn:mpeg:mpeg21:2003:01-REL-R-NS" xmlns:as="http://schemas.microsoft.com/windows/pki/2005/Authenticode"><r:grant><as:ManifestInformation Hash="014bfdd04025093362e3f27069cad596abb20db9252783cc0d1967a1c97217eb" Description="" Url=""><as:assemblyIdentity name="SwiftExport.VSTO.dll" version="1.0.0.0" publicKeyToken="6133b0e88c1442af" language="neutral" processorArchitecture="msil" type="win32" /></as:ManifestInformation><as:SignedBy /><as:AuthenticodePublisher><as:X509SubjectName>CN=YSFS\YWFS</as:X509SubjectName></as:AuthenticodePublisher></r:grant><r:issuer><Signature Id="AuthenticodeSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>dxGub9pgX2Y9/5yx9guaQVrPBaxhpzz0dDKorxeG8l8=</DigestValue></Reference></SignedInfo><SignatureValue>YJ0kkpgIMptsVB4gWXBdU8UWyEeKiMgKBbko7wAumP3Xh1wh7S6RwPiFm42+xCm+MeItZfzY7MjrQBX7jdfccwrYoVRdf/AsShJ/W0VRLcGTduYPTPTcqdxhmDvFk21+5Ro5SWwvhdBnVRBl4jz2cJZh3vIiGSNr/jpwVq138bE=</SignatureValue><KeyInfo><KeyValue><RSAKeyValue><Modulus>sRpHZSkIMYY2L14QpbdPqqr29Axsn5Kdr4r2q5XUn1KsT+Q9P3VbljqdAP3KACqaSRd7yZPEQ0AD7BJjnWP7BbeUynSlSFHHchou7Ys+pZNJTfpU6FH5RZ6I0VY79YkxYsm/wVwdT7hYEjBK8h8yRYUtwnZba2Dg/OP8NIwZq4E=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><X509Data><X509Certificate>MIIBvTCCASagAwIBAgIQXun4X8Hl4IVLax+vZUQONDANBgkqhkiG9w0BAQsFADAdMRswGQYDVQQDHhIAWQBTAEYAUwBcAFkAVwBGAFMwHhcNMjYwMTIwMDIxOTU2WhcNMjcwMTIwMDgxOTU2WjAdMRswGQYDVQQDHhIAWQBTAEYAUwBcAFkAVwBGAFMwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBALEaR2UpCDGGNi9eEKW3T6qq9vQMbJ+Sna+K9quV1J9SrE/kPT91W5Y6nQD9ygAqmkkXe8mTxENAA+wSY51j+wW3lMp0pUhRx3IaLu2LPqWTSU36VOhR+UWeiNFWO/WJMWLJv8FcHU+4WBIwSvIfMkWFLcJ2W2tg4Pzj/DSMGauBAgMBAAEwDQYJKoZIhvcNAQELBQADgYEADItnScmN1wCyFz6KCkQ+rQKmsj76Vbdu8oY2NrRzMfXFS4QR78J5SacmXGlm17H3GNsfo8Q2xcwgtjNV8iXOQ2eD51zm9pc6EL7Mmo5OA9OZ0Gr4nZABrJtdpF9Kxuu3sou6JFKBhLpDhfAqL0wnTsMg51BMXeR1abqp+0yEUWg=</X509Certificate></X509Data></KeyInfo></Signature></r:issuer></r:license></msrel:RelData></KeyInfo></Signature></asmv1:assembly>

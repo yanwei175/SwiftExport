@@ -7,6 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Repositories\Orders\CustomersPoDetailsRepository.cs" />
+    <Compile Remove="Repositories\Products\BomRepository.cs" />
+    <Compile Remove="Repositories\Products\CustomerProductRepository.cs" />
+    <Compile Remove="Repositories\Settings\ExcelSheetFieldsRepository.cs" />
+    <Compile Remove="Repositories\Settings\ViewUserRoleRepository.cs" />
+    <Compile Remove="Repositories\Settings\WhiteListRepository.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.1" />
@@ -14,6 +23,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SwiftExport.Core\SwiftExport.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Repositories\Orders\" />
+    <Folder Include="Repositories\Settings\" />
   </ItemGroup>
 
 </Project>

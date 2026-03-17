@@ -1,0 +1,236 @@
+2026-03-01 15:21:14.208 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-01 16:04:42.332 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-01 16:20:53.360 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:20:58.818 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:21:02.621 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:22:37.752 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:22:40.838 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:23:09.306 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:23:30.216 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:24:17.637 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:24:29.503 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:24:42.943 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:25:40.378 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:25:45.550 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:26:15.397 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/supplierList
+System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Application.Interfaces.ISupplierService' while attempting to activate 'SwiftExport.WebApi.Controllers.SupplierController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method36(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-01 16:31:16.398 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-01 17:30:54.316 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-01 17:32:03.669 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-01 17:41:15.811 +08:00 [INF] 开始执行批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-03-01 17:41:15.909 +08:00 [ERR] 执行批量保存时发生致命异常，数据库事务已安全回滚！
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'CustomerCode' 无效。
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.QueryAsync[T](IDbConnection cnn, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 434
+   at SwiftExport.Infrastructure.Repositories.Products.ProductColorRepository.GetExistingColorCodesAsync(IEnumerable`1 productColorList) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Products\ProductColorRepository.cs:line 25
+   at SwiftExport.Application.Services.Products.ProductColorService.BatchSaveAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Products\ProductColorService.cs:line 59
+ClientConnectionId:69eb546f-812f-48c0-a7e0-335fa47ee656
+Error Number:207,State:1,Class:16
+2026-03-01 17:42:37.989 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-01 17:42:51.749 +08:00 [INF] 开始执行批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-03-01 17:42:51.821 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-01 17:42:59.929 +08:00 [INF] 开始执行批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-01 17:42:59.948 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-01 17:43:06.151 +08:00 [INF] 开始执行批量保存事务，计划新增: 0，修改: 0，删除: 1
+2026-03-01 17:43:06.156 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-01 17:45:21.735 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-01 17:45:53.246 +08:00 [INF] 开始执行批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-03-01 17:45:53.314 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-01 17:46:15.048 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-01 17:50:59.836 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-01 17:51:14.954 +08:00 [INF] 开始执行批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-03-01 17:51:15.024 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-01 17:51:22.534 +08:00 [INF] 开始执行批量保存事务，计划新增: 0，修改: 0，删除: 2
+2026-03-01 17:51:22.547 +08:00 [INF] 批量保存事务提交！共影响数据库 2 行。
+2026-03-01 17:51:41.304 +08:00 [INF] 开始执行批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-01 17:51:41.316 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-01 17:51:47.105 +08:00 [INF] 开始执行批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-01 17:51:47.108 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-01 20:37:55.234 +08:00 [INF] SwiftExport 后端 Web API 启动中...

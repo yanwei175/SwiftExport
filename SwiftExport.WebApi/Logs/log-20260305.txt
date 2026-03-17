@@ -1,0 +1,27 @@
+2026-03-05 10:08:09.689 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-05 10:21:14.054 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-05 10:50:08.101 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-03-05 10:50:08.227 +08:00 [ERR] 执行批量保存时发生致命异常，数据库事务已安全回滚！
+System.InvalidOperationException: 如果分配给命令的连接位于本地挂起事务中，BeginExecuteReader 要求命令拥有事务。命令的 Transaction 属性尚未初始化。
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.QueryAsync[T](IDbConnection cnn, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 434
+   at SwiftExport.Infrastructure.Repositories.Customers.CustomerPoConfigRepository.GetNonUniqueByPoConfigCheckList(IEnumerable`1 poConfigCheckList) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Customers\CustomerPoConfigRepository.cs:line 26
+   at SwiftExport.Application.Services.Customers.CustomerPoConfigService.BatchSaveAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Customers\CustomerPoConfigService.cs:line 83
+2026-03-05 10:52:17.189 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-05 10:52:23.318 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-03-05 10:52:35.510 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-05 10:53:07.437 +08:00 [INF] 成功物理删除 CustomerPoConfig 数据，ID: 101
+2026-03-05 10:53:44.803 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 4，修改: 0，删除: 0
+2026-03-05 10:53:44.812 +08:00 [INF] 批量保存事务提交！共影响数据库 4 行。
+2026-03-05 10:53:59.692 +08:00 [INF] 成功物理删除 CustomerPoConfig 数据，ID: 102
+2026-03-05 11:12:46.091 +08:00 [INF] 成功物理删除 CustomerPoConfig 数据，ID: 105
+2026-03-05 11:12:59.619 +08:00 [INF] 成功物理删除 CustomerPoConfig 数据，ID: 104
+2026-03-05 15:39:34.792 +08:00 [INF] 成功物理删除 CustomerPoConfig 数据，ID: 103
+2026-03-05 18:26:36.042 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-05 18:29:17.350 +08:00 [INF] SwiftExport 后端 Web API 启动中...

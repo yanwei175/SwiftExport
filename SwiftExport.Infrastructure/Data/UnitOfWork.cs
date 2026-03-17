@@ -13,13 +13,13 @@ public class UnitOfWork(DbSession session) : IUnitOfWork
 
     public void Commit()
     {
-        _session.Transaction?.Commit();
+        _session.Transaction?.Commit(); _session.Transaction?.Dispose(); _session.Transaction = null;
         _session.Transaction = null;
     }
 
     public void Rollback()
     {
-        _session.Transaction?.Rollback();
+        _session.Transaction?.Rollback(); _session.Transaction?.Dispose(); _session.Transaction = null;
         _session.Transaction = null;
     }
 

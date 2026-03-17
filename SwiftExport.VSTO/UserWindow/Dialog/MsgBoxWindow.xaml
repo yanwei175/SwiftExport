@@ -1,7 +1,6 @@
 ﻿<Window x:Class="SwiftExport.VSTO.UserWindow.Dialog.MsgBoxWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
         Title="提示" 
         Height="Auto" Width="400"
         WindowStartupLocation="CenterScreen"
@@ -15,17 +14,14 @@
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <md:BundledTheme BaseTheme="Light" 
-                             PrimaryColor="Teal" 
-                             SecondaryColor="Lime" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign3.Defaults.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/SwiftExport.VSTO;component/Resources/Styles/ErpTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
 
-    <Border CornerRadius="8" Background="White" BorderBrush="#DDDDDD" BorderThickness="1" Margin="10" MouseLeftButtonDown="Border_MouseLeftButtonDown">
+    <Border CornerRadius="4" Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Margin="15" MouseLeftButtonDown="Border_MouseLeftButtonDown">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="15" ShadowDepth="5" Opacity="0.3" Color="Gray"/>
+            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.15" Color="Black"/>
         </Border.Effect>
 
         <Grid Margin="20">
@@ -35,30 +31,45 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,15">
-                <md:PackIcon x:Name="IconInfo" Kind="InformationCircle" Width="28" Height="28" Foreground="#009688" Visibility="Collapsed"/>
-                <md:PackIcon x:Name="IconWarn" Kind="AlertCircle"       Width="28" Height="28" Foreground="#FF9800" Visibility="Collapsed"/>
-                <md:PackIcon x:Name="IconError" Kind="CloseCircle"      Width="28" Height="28" Foreground="#F44336" Visibility="Collapsed"/>
-                <md:PackIcon x:Name="IconQuestion" Kind="HelpCircle"    Width="28" Height="28" Foreground="#2196F3" Visibility="Collapsed"/>
+            <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,15" VerticalAlignment="Center">
 
-                <TextBlock x:Name="TxtTitle" Text="系统提示" FontSize="18" FontWeight="Bold" Margin="10,2,0,0" VerticalAlignment="Center" Foreground="#333"/>
+                <Viewbox x:Name="IconInfo" Width="24" Height="24" Visibility="Collapsed">
+                    <Path Fill="{StaticResource PrimaryBrush}" Data="{StaticResource Icon.Info}"/>
+                </Viewbox>
+
+                <Viewbox x:Name="IconWarn" Width="24" Height="24" Visibility="Collapsed">
+                    <Path Fill="#D83B01" Data="{StaticResource Icon.Warning}"/>
+                </Viewbox>
+
+                <Viewbox x:Name="IconError" Width="24" Height="24" Visibility="Collapsed">
+                    <Path Fill="#E81123" Data="{StaticResource Icon.Error}"/>
+                </Viewbox>
+
+                <Viewbox x:Name="IconQuestion" Width="24" Height="24" Visibility="Collapsed">
+                    <Path Fill="{StaticResource PrimaryBrush}" Data="{StaticResource Icon.Question}"/>
+                </Viewbox>
+
+                <TextBlock x:Name="TxtTitle" Text="系统提示" FontSize="15" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#333"/>
             </StackPanel>
 
             <TextBlock x:Name="TxtMessage" Grid.Row="1" 
                        Text="这里是消息内容..." 
                        TextWrapping="Wrap" 
                        VerticalAlignment="Center" 
-                       Margin="38,0,0,25" 
-                       FontSize="15" 
-                       Foreground="#555"
-                       LineHeight="22"/>
+                       Margin="32,0,0,25" 
+                       FontSize="14" 
+                       Foreground="#444"
+                       LineHeight="20"/>
 
             <Grid Grid.Row="2">
                 <Button x:Name="BtnOkOnly" 
                         Content="知道了" 
                         Click="BtnOk_Click"
                         HorizontalAlignment="Right"
-                        Width="100"
+                        Width="80"
+                        Background="{StaticResource PrimaryBrush}"
+                        Foreground="White"
+                        BorderThickness="0"
                         Visibility="Collapsed"/>
 
                 <StackPanel x:Name="PanelYesNo" Orientation="Horizontal" HorizontalAlignment="Right" Visibility="Collapsed">
@@ -67,9 +78,13 @@
                             IsCancel="True"
                             Margin="0,0,10,0"
                             Width="80"/>
+
                     <Button Content="确定" 
                             Click="BtnOk_Click"
-                            Width="80"/>
+                            Width="80"
+                            Background="{StaticResource PrimaryBrush}"
+                            Foreground="White"
+                            BorderThickness="0"/>
                 </StackPanel>
             </Grid>
         </Grid>

@@ -1,13 +1,8 @@
 <Solution>
   <Folder Name="/Clients/">
     <Project Path="SwiftExport.Desktop/SwiftExport.Desktop.csproj" Id="c1e9a94b-be8c-4edc-b868-b7b1f3fe1e73" />
-    <Project Path="SwiftExport.Logic.Shared/SwiftExport.Logic.Shared.csproj" Id="2bcd12ba-d0db-46ea-81f5-0f64a1351233" />
-    <Project Path="SwiftExport.UI/SwiftExport.UI.csproj" Id="1ba75d55-c3fe-4445-83ab-1308ff73d65b" />
+    <Project Path="SwiftExport.UI.Controls/SwiftExport.UI.Controls.csproj" Id="dd896331-0959-4b1a-baad-2dd043f9cf23" />
     <Project Path="SwiftExport.VSTO/SwiftExport.VSTO.csproj" Id="b8863b43-db40-4321-8c73-81336270d773" />
   </Folder>
-  <Project Path="SwiftExport.Application/SwiftExport.Application.csproj" Id="f2495596-07b4-47c1-8318-25dd64e52e07" />
   <Project Path="SwiftExport.Contracts/SwiftExport.Contracts.csproj" Id="73faa5c6-c278-4c02-80d0-27a24a6b831a" />
-  <Project Path="SwiftExport.Core/SwiftExport.Core.csproj" Id="6e5ec76f-9246-4853-9938-a255b044e3b7" />
-  <Project Path="SwiftExport.Infrastructure/SwiftExport.Infrastructure.csproj" Id="3dfd2bd1-ccf0-47c1-8815-5399df23aafe" />
-  <Project Path="SwiftExport.WebApi/SwiftExport.WebApi.csproj" Id="55b0efb5-cd3b-4fa7-b226-610da55cb9ec" />
 </Solution>

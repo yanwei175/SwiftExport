@@ -1,36 +1,72 @@
-﻿using SwiftExport.Application;      // 引用 Application 的扩展方法
-using SwiftExport.Infrastructure;   // 引用 Infrastructure 的扩展方法
-
-var builder = WebApplication.CreateBuilder(args);
-
-
-// 1. 注册基础设施 
-builder.Services.AddInfrastructureServices();
-
-// 2. 注册应用逻辑
-builder.Services.AddApplicationServices();
+﻿using Serilog;
+using Serilog.Events;
+using SwiftExport.Application;
+using SwiftExport.Infrastructure;
+using SwiftExport.WebApi.Middlewares;
 
 // ==========================================
+// 初始化 Serilog (在构建系统前就启动，防闪退)
+// ==========================================
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning) // 屏蔽底层啰嗦的日志
+    .Enrich.FromLogContext()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} <s:{SourceContext}>{NewLine}{Exception}")
+    .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30)
+    .CreateLogger();
 
-// 3. 添加 Web 服务
-#region 添加 Web 服务
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-var app = builder.Build();
-
-// ... 中间件配置 (保持不变) ...
-
-if (app.Environment.IsDevelopment())
+try
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    Log.Information("SwiftExport 后端 Web API 启动中...");
+    var builder = WebApplication.CreateBuilder(args);
+
+    // ★ 告诉框架使用 Serilog 替代默认日志
+    builder.Host.UseSerilog();
+
+    // 1. 注册基础设施 
+    builder.Services.AddInfrastructureServices();
+
+    // 2. 注册应用逻辑
+    builder.Services.AddApplicationServices();
+
+    // ==========================================
+    // 3. 注册 Web API 核心服务
+    // ==========================================
+    #region 添加 Web 服务
+    builder.Services.AddControllers();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+    builder.Services.AddRouting(options => options.LowercaseUrls = true);
+    var app = builder.Build();
+
+    // ... 中间件配置 (保持不变) ...
+    // ==========================================
+    // 4. 配置 HTTP 请求管道 (Middlewares)
+    // ==========================================
+
+    // ★ 挂载全局异常拦截器 (必须放在这里，也就是管道的最前面！)
+    // 这样才能确保接住后面所有中间件和 Controller 抛出的异常。
+    app.UseMiddleware<GlobalExceptionMiddleware>();
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
+
+    app.UseHttpsRedirection();
+    app.UseAuthorization();
+    app.MapControllers();
+
+    app.Run();
+    #endregion
 }
-
-app.UseHttpsRedirection();
-app.UseAuthorization();
-app.MapControllers();
-
-app.Run();
-#endregion
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Web API 启动失败，遭遇致命异常！");
+}
+finally
+{
+    // 确保程序完全退出前，把内存里的日志全部刷入 txt 文件
+    Log.CloseAndFlush();
+}

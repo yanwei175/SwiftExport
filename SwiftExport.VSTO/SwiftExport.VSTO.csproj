@@ -119,6 +119,7 @@
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="WindowsBase" />
+    <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Office.Tools.v4.0.Framework, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
@@ -195,8 +196,9 @@
   -->
   <ItemGroup>
     <Compile Include="Common\WindowHelper.cs" />
+    <Compile Include="DependencyInjection.cs" />
     <Compile Include="DiServices.cs" />
-    <Compile Include="UserWindow\App.xaml.cs">
+    <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
     <Compile Include="Common\ExcelHelp.cs" />
@@ -207,13 +209,63 @@
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="SwiftExportTaskPane\TaskPaneConfig.cs" />
+    <Compile Include="SwiftExportTaskPane\TaskPaneHostControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="SwiftExportTaskPane\TaskPaneHostControl.Designer.cs">
+      <DependentUpon>TaskPaneHostControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SwiftExportTaskPane\TaskPaneManager.cs" />
+    <Compile Include="SwiftExportTaskPane\TaskPaneRegistrar.cs" />
+    <Compile Include="UserControls\PaginationControl.xaml.cs">
+      <DependentUpon>PaginationControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserWindow\Converters\SelectedCellsToModelsConverter.cs" />
+    <Compile Include="UserWindow\CustomerViews\Models\CustomerPoConfigModel.cs" />
+    <Compile Include="UserWindow\CustomerViews\ViewModels\CustomerPoConfigDesignViewModel.cs" />
+    <Compile Include="UserWindow\CustomerViews\ViewModels\CustomerPoConfigViewModel.cs" />
+    <Compile Include="UserWindow\CustomerViews\Views\CustomerPoConfigManagerView.xaml.cs">
+      <DependentUpon>CustomerPoConfigManagerView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserWindow\DictViews\Models\DictDataModel.cs" />
+    <Compile Include="UserWindow\DictViews\Models\DictTypeModel.cs" />
+    <Compile Include="UserWindow\DictViews\ViewModels\DictManagerViewModel.cs" />
+    <Compile Include="UserWindow\DictViews\Views\DictManagerView.xaml.cs">
+      <DependentUpon>DictManagerView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserWindow\Mvvm\BaseManagerViewModel.cs" />
+    <Compile Include="UserWindow\Mvvm\BaseSmallDataManagerViewModel.cs" />
+    <Compile Include="UserWindow\Mvvm\ModelState.cs" />
+    <Compile Include="UserWindow\Mvvm\IBaseModel.cs" />
+    <Compile Include="UserWindow\ProductViews\Models\ProductColorModel.cs" />
+    <Compile Include="UserWindow\CustomerViews\Models\CustomerModel.cs" />
+    <Compile Include="UserWindow\ProductViews\ViewModels\ProductColorManagerViewModel.cs" />
+    <Compile Include="UserWindow\SupplierViews\Models\SupplierModel.cs" />
+    <Compile Include="UserWindow\SupplierViews\ViewModels\SupplierManagerViewModel.cs" />
+    <Compile Include="UserWindow\CustomerViews\ViewModels\CustomerManagerViewModel.cs" />
+    <Compile Include="UserWindow\ProductViews\Views\ProductColorManagerView.xaml.cs">
+      <DependentUpon>ProductColorManagerView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserWindow\CustomerViews\Views\CustomerManagerView.xaml.cs">
+      <DependentUpon>CustomerManagerView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UserWindow\Dialog\DialogHelper.cs" />
+    <Compile Include="UserWindow\ProductViews\Views\ProductSelectorView.xaml.cs">
+      <DependentUpon>ProductSelectorView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UserWindow\Dialog\InputBoxWindow.xaml.cs">
       <DependentUpon>InputBoxWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="UserWindow\Dialog\Msg.cs" />
     <Compile Include="UserWindow\Dialog\MsgBoxWindow.xaml.cs">
       <DependentUpon>MsgBoxWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserWindow\ProductViews\ViewModels\ProductSelectorViewModel.cs" />
+    <Compile Include="UserWindow\Mvvm\LocalImagePathConverter.cs" />
+    <Compile Include="UserWindow\Mvvm\RelayCommandGeneric.cs" />
+    <Compile Include="UserWindow\SupplierViews\Views\SupplierManagerView.xaml.cs">
+      <DependentUpon>SupplierManagerView.xaml</DependentUpon>
     </Compile>
     <Compile Include="UserWindow\TestWindow.xaml.cs">
       <DependentUpon>TestWindow.xaml</DependentUpon>
@@ -231,6 +283,9 @@
     </Compile>
     <EmbeddedResource Include="RibbonSwift.resx">
       <DependentUpon>RibbonSwift.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SwiftExportTaskPane\TaskPaneHostControl.resx">
+      <DependentUpon>TaskPaneHostControl.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="app.config" />
     <None Include="Properties\Settings.settings">
@@ -260,7 +315,35 @@
     <AppDesigner Include="Properties\" />
   </ItemGroup>
   <ItemGroup>
-    <Page Include="UserWindow\App.xaml">
+    <Page Include="Resources\Styles\Buttons.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Resources\Styles\ComboBoxs.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Resources\Styles\DataGrids.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Resources\Styles\Icons.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Resources\Styles\Colors.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Resources\Styles\CheckBoxs.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Resources\Styles\Inputs.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="App.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -268,11 +351,43 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="UserControls\PaginationControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserWindow\CustomerViews\Views\CustomerPoConfigManagerView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserWindow\DictViews\Views\DictManagerView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserWindow\ProductViews\Views\ProductColorManagerView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserWindow\CustomerViews\Views\CustomerManagerView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserWindow\ProductViews\Views\ProductSelectorView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="UserWindow\Dialog\InputBoxWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
     <Page Include="UserWindow\Dialog\MsgBoxWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Resources\Styles\ErpTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserWindow\SupplierViews\Views\SupplierManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -286,16 +401,18 @@
       <Project>{73faa5c6-c278-4c02-80d0-27a24a6b831a}</Project>
       <Name>SwiftExport.Contracts</Name>
     </ProjectReference>
+    <ProjectReference Include="..\SwiftExport.UI.Controls\SwiftExport.UI.Controls.csproj">
+      <Project>{dd896331-0959-4b1a-baad-2dd043f9cf23}</Project>
+      <Name>SwiftExport.UI.Controls</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Assets\" />
-    <Folder Include="Resources\" />
     <Folder Include="UserWindow\SettingViews\" />
-    <Folder Include="UserWindow\ViewModels\" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="MaterialDesignThemes">
-      <Version>5.3.0</Version>
+    <PackageReference Include="Mapster">
+      <Version>7.2.0</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces">
       <Version>10.0.3</Version>
@@ -311,6 +428,9 @@
     </PackageReference>
     <PackageReference Include="Refit">
       <Version>10.0.1</Version>
+    </PackageReference>
+    <PackageReference Include="Refit.HttpClientFactory">
+      <Version>9.0.2</Version>
     </PackageReference>
     <PackageReference Include="Refit.Newtonsoft.Json">
       <Version>10.0.1</Version>

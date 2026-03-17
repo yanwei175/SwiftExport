@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using Microsoft.Extensions.Logging;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Data;
@@ -9,9 +10,11 @@ using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Base;
 
-public class DapperRepository<T>(DbSession session) : IRepository<T> where T : BaseEntity
+public partial class DapperRepository<T>(DbSession session, ILogger<DapperRepository<T>> logger) : IRepository<T> where T : BaseEntity
 {
     private readonly DbSession _session = session ?? throw new ArgumentNullException(nameof(session));
+    protected readonly ILogger<DapperRepository<T>> _logger = logger; // ★ 保存 Logger
+
     protected static readonly string TableName = typeof(T).GetCustomAttribute<TableAttribute>()?.Name ?? typeof(T).Name;
     private static readonly List<string> _writeableProps = GetWriteableProperties();
     // 辅助属性：当前连接和事务
@@ -26,7 +29,7 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
         // 这里的排除列表你可以根据自己的 BaseEntity 随意调整
         var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "ID", "IsDelete", "CreateTime", "UpdateTime", "CreatedTime", "UpdatedTime"
+                "Id", "IsDeleted", "CreateTime", "UpdateTime", "CreatedTime", "UpdatedTime"
             };
 
         return [.. typeof(T).GetProperties()
@@ -37,27 +40,27 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
 
     public virtual async Task<bool> ExistsIdAsync(int id)
     {
-        var sql = $"SELECT COUNT(1) FROM [{TableName}] WITH(NOLOCK) WHERE [ID] = @Id";
+        var sql = $"SELECT COUNT(1) FROM [{TableName}] WITH(NOLOCK) WHERE [Id] = @Id";
         return await Connection.ExecuteScalarAsync<int>(sql, new { Id = id }, transaction: Transaction) > 0;
     }
     public virtual async Task<IReadOnlyList<int>> GetExistingIdListAsync(IEnumerable<int> idList)
     {
         if (idList == null || !idList.Any()) return [];
-        var sql = $"SELECT [ID] FROM [{TableName}] WITH(NOLOCK) WHERE [ID] IN @Ids";
+        var sql = $"SELECT [Id] FROM [{TableName}] WITH(NOLOCK) WHERE [Id] IN @Ids";
         var rst = await Connection.QueryAsync<int>(sql, new { Ids = idList }, transaction: Transaction);
         return [.. rst];
     }
 
     public virtual async Task<T?> GetByIdAsync(int id)
     {
-        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE [ID] = @Id AND IsDeleted <> 1";
+        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE [Id] = @Id AND IsDeleted <> 1";
         return await Connection.QuerySingleOrDefaultAsync<T>(sql, new { Id = id }, transaction: Transaction);
     }
 
     public virtual async Task<IReadOnlyList<T>> GetByIdListAsync(IEnumerable<int> idList)
     {
         if (idList == null || !idList.Any()) return [];
-        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE [ID] IN @Ids AND IsDeleted <> 1";
+        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE [Id] IN @Ids AND IsDeleted <> 1";
         var rst = await Connection.QueryAsync<T>(sql, new { Ids = idList }, transaction: Transaction);
         return [.. rst];
     }
@@ -72,19 +75,34 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
 
     public virtual async Task<IReadOnlyList<T>> GetAllAsync()
     {
-        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE IsDeleted <> 1";
+        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE IsDeleted <> 1 ORDER BY ISNULL(ChangeTime, CreateDate) DESC";
         var rst = await Connection.QueryAsync<T>(sql, transaction: Transaction);
         return [.. rst];
     }
     public virtual async Task<IReadOnlyList<T>> GetListAsync(string whereSql, object? param = null)
     {
+        // 1. 基础 SQL 已经包含了 WHERE IsDeleted <> 1
         var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE IsDeleted <> 1";
+
         if (!string.IsNullOrWhiteSpace(whereSql))
         {
-            sql += whereSql.TrimStart().StartsWith("WHERE", StringComparison.OrdinalIgnoreCase) ? $" {whereSql}" : $" WHERE {whereSql}";
+            // 2. 处理用户传入的条件
+            var condition = whereSql.Trim();
+
+            // 如果用户习惯性传了 "WHERE Sku = ...", 我们要把它去掉
+            if (condition.StartsWith("WHERE", StringComparison.OrdinalIgnoreCase))
+            {
+                condition = condition[5..]; // 去掉 "WHERE" 字符
+            }
+
+            // 3. ★ 关键修正：用 AND 连接，而不是再加一个 WHERE ★
+            // 加上括号 () 是为了防止用户传入 OR 条件破坏前面的 IsDeleted 逻辑
+            sql += $" AND ({condition})";
         }
+
+        // 4. 执行查询
         var rst = await Connection.QueryAsync<T>(sql, param, transaction: Transaction);
-        return [.. rst];
+        return rst.AsList(); // 或者 return [.. rst]; (C# 12写法)
     }
 
     public virtual async Task<IReadOnlyList<T>> GetListAsync(object noNameObj)
@@ -108,14 +126,26 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
         var sb = new StringBuilder($"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE IsDeleted <> 1");
         var parameters = new DynamicParameters();
 
-        // 调用下方的私有解析方法
         var whereClause = ParseQueryCriteria(criteria, parameters);
         sb.Append(whereClause);
 
-        var result = await Connection.QueryAsync<T>(sb.ToString(), parameters, transaction: Transaction);
+        var finalSql = sb.ToString();
+
+        // ★ 仓储层专属：动态 SQL 追踪日志（仅 Debug 级别生效）
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug("执行动态查询 [{TableName}]，生成的 SQL: {Sql}", TableName, finalSql);
+        }
+
+        var result = await Connection.QueryAsync<T>(finalSql, parameters, transaction: Transaction);
         return [.. result];
     }
 
+
+
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"[^a-zA-Z0-9_,\s\.\[\]]")]
+    private static partial System.Text.RegularExpressions.Regex OrderByRegex();
     /// <summary>
     /// 泛型分页查询 (基于 QueryCriteria)
     /// </summary>
@@ -124,30 +154,49 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
     /// <param name="pageSize">每页条数</param>
     /// <param name="orderBy">排序字段 (例如 "ID DESC")，必填，否则分页会报错</param>
     /// <returns>分页结果</returns>
-    public virtual async Task<PagedResult<T>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "ID DESC")
+    public virtual async Task<PagedResult<T>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Id DESC")
     {
-        var sb = new StringBuilder("WHERE IsDeleted <> 1");
+        // 🛡️ 安全墙：清洗 orderBy
+        if (string.IsNullOrWhiteSpace(orderBy))
+        {
+            orderBy = "Id DESC";
+        }
+        else
+        {
+            orderBy = OrderByRegex().Replace(orderBy, "");
+        }
+
+        // 基础底座
+        var sb = new StringBuilder("WHERE IsDeleted = 0"); // 建议用 = 0 替代 <> 1，很多数据库对 = 的索引优化更好
         var parameters = new DynamicParameters();
 
-        // 1. 解析动态条件
+        // 获取动态条件 (此时 whereClause 类似于 " AND [Code] = @Code_0 AND ([A]=@.. OR [B]=@..)")
         var whereClause = ParseQueryCriteria(criteria, parameters);
-        sb.Append(whereClause);
 
-        // 2. 计算分页偏移量
+        //直接 Append 即可！因为 whereClause 自己已经带了 AND 开头了。
+        if (!string.IsNullOrWhiteSpace(whereClause))
+        {
+            sb.Append(whereClause);
+        }
+
+        // 分页计算
         if (pageIndex < 1) pageIndex = 1;
         int offset = (pageIndex - 1) * pageSize;
 
         parameters.Add("@Offset", offset);
         parameters.Add("@Limit", pageSize);
 
-        // 3. 组装 SQL (SQL Server 2012+ 写法)
-        // 一次查询返回总数和当前页数据，效率更高
         var sql = $@"
-                SELECT COUNT(1) FROM [{TableName}] WITH(NOLOCK) {sb};
-                
-                SELECT * FROM [{TableName}] WITH(NOLOCK) {sb} 
-                ORDER BY {orderBy} 
-                OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
+            SELECT COUNT(1) FROM [{TableName}] WITH(NOLOCK) {sb};
+            SELECT * FROM [{TableName}] WITH(NOLOCK) {sb} 
+            ORDER BY {orderBy} 
+            OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
+
+        // ★ 日志追踪
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug("执行分页动态查询 [{TableName}]，生成的 SQL: {Sql}", TableName, sql);
+        }
 
         using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
         var total = await multi.ReadFirstAsync<int>();
@@ -163,17 +212,8 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
     }
 
 
-
-
-
-
-
-
-
-
-
     // =============================================================
-    // 增删改 (Write) - 使用 Output 这里的 ID 为 int
+    // 增删改 (Write) - 使用 Output 这里的 Id 为 int
     // =============================================================
 
     public virtual async Task<int> AddAsync(T entity)
@@ -189,8 +229,8 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
 
         var newId = await Connection.ExecuteScalarAsync<int>(sql, entity, transaction: Transaction);
 
-        // 回写 ID
-        var idProp = typeof(T).GetProperty("ID");
+        // 回写 Id
+        var idProp = typeof(T).GetProperty("Id");
         if (idProp != null && idProp.CanWrite) idProp.SetValue(entity, newId);
 
         return newId;
@@ -201,20 +241,20 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
 
         // 拼接 SET 语句
         var setClause = string.Join(", ", _writeableProps.Select(p => $"[{p}] = @{p}"));
-        var sql = $"UPDATE [{TableName}] SET {setClause} WHERE [ID] = @ID";
+        var sql = $"UPDATE [{TableName}] SET {setClause} WHERE [Id] = @Id";
 
         return await Connection.ExecuteAsync(sql, entity, transaction: Transaction);
     }
 
     public virtual async Task<int> DeleteSoftAsync(int id)
     {
-        var sql = $"UPDATE [{TableName}] SET IsDelete = 1 WHERE [ID] = @Id";
+        var sql = $"UPDATE [{TableName}] SET IsDelete = 1 WHERE [Id] = @Id";
         return await Connection.ExecuteAsync(sql, new { Id = id }, transaction: Transaction);
     }
 
     public virtual async Task<int> DeleteAsync(int id)
     {
-        var sql = $"DELETE FROM [{TableName}] WHERE [ID] = @Id";
+        var sql = $"DELETE FROM [{TableName}] WHERE [Id] = @Id";
         return await Connection.ExecuteAsync(sql, new { Id = id }, transaction: Transaction);
     }
 
@@ -268,7 +308,7 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
                             transaction: Transaction)).ToList();
 
         // 4. 回写 ID
-        var idProperty = typeof(T).GetProperty("ID");
+        var idProperty = typeof(T).GetProperty("Id");
         if (idProperty != null && idProperty.CanWrite)
         {
             for (int i = 0; i < newIds.Count && i < entityList.Count; i++)
@@ -284,7 +324,7 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
     {
         if (idList == null || !idList.Any()) return 0;
 
-        var sql = $"DELETE FROM [{TableName}] WHERE ID IN @IdList";
+        var sql = $"DELETE FROM [{TableName}] WHERE Id IN @IdList";
 
         // 直接用 Connection 和 Transaction 属性
         return await Connection.ExecuteAsync(sql, new { IdList = idList }, transaction: Transaction);
@@ -293,7 +333,7 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
     {
         if (idList == null || !idList.Any()) return 0;
 
-        var sql = $"UPDATE [{TableName}] SET IsDeleted=1 WHERE ID IN @IdList";
+        var sql = $"UPDATE [{TableName}] SET IsDeleted=1 WHERE Id IN @IdList";
 
         // 直接用 Connection 和 Transaction 属性
         return await Connection.ExecuteAsync(sql, new { IdList = idList }, transaction: Transaction);
@@ -311,7 +351,7 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
             .Select(p => p!)
             .ToList();
 
-        var idProp = typeof(T).GetProperty("ID") ?? throw new InvalidOperationException("实体必须包含 ID 属性才能进行批量更新");
+        var idProp = typeof(T).GetProperty("Id") ?? throw new InvalidOperationException("实体必须包含 ID 属性才能进行批量更新");
         var parameters = new DynamicParameters();
         var sqlBuilder = new StringBuilder();
 
@@ -326,27 +366,23 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
                 parameters.Add(paramName, prop.GetValue(entityList[i]));
             }
 
-            var idParamName = $"p{i}_ID";
+            var idParamName = $"p{i}_Id";
             parameters.Add(idParamName, idProp.GetValue(entityList[i]));
 
-            sqlBuilder.AppendLine($"UPDATE [{TableName}] SET {string.Join(", ", setClauses)} WHERE [ID] = @{idParamName};");
+            sqlBuilder.AppendLine($"UPDATE [{TableName}] SET {string.Join(", ", setClauses)} WHERE [Id] = @{idParamName};");
         }
 
         // 直接用 Connection 和 Transaction 属性
         return await Connection.ExecuteAsync(sqlBuilder.ToString(), parameters, transaction: Transaction);
     }
 
-
-
-
     /// <summary>
     /// 辅助方法：生成单个条件的 SQL 片段，并填充参数
     /// </summary>
     private static string BuildConditionSql(string propName, QueryCondition cond, string paramName, DynamicParameters parameters)
     {
-        string safeField = $"[{propName}]";
+        string safeField = $"[{propName.Replace("[", "").Replace("]", "")}]";
 
-        // 2. 根据操作符生成 SQL
         switch (cond.操作符)
         {
             case 查询操作符.等于:
@@ -381,11 +417,12 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
                 return $"{safeField} BETWEEN {pStart} AND {pEnd}";
 
             case 查询操作符.包含某值:
+                // 注意：Dapper 中 IN 后面直接跟参数名即可，例如 IN @Ids，千万不要写成 IN (@Ids)
                 parameters.Add(paramName, cond.值1);
                 return $"{safeField} IN {paramName}";
 
             default:
-                return "1=1"; // 容错
+                return "1=1";
         }
     }
 
@@ -394,7 +431,6 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
     /// </summary>
     protected string ParseQueryCriteria(QueryCriteria criteria, DynamicParameters parameters)
     {
-        // 基本校验
         if (criteria == null || (criteria.Items.Count == 0 && criteria.OrGroups.Count == 0))
         {
             return string.Empty;
@@ -402,64 +438,56 @@ public class DapperRepository<T>(DbSession session) : IRepository<T> where T : B
 
         StringBuilder sqlBuilder = new();
 
-        // =======================================================
-        // Part 1: 处理固定 AND 条件 (criteria.Items)
-        // =======================================================
-        foreach (var kvp in criteria.Items)
+        // Part 1: AND 条件
+        int andIndex = 0;
+        foreach (var item in criteria.Items)
         {
-            string propName = kvp.Key;
-            var cond = kvp.Value;
-            string paramName = $"@{propName}"; // AND 条件直接用属性名做参数
+            string propName = item.Field;
+            var cond = item.Condition;
+            string paramName = $"@{propName}_{andIndex}";
 
-            // 调用抽取的方法
-            string sqlPart = DapperRepository<T>.BuildConditionSql(propName, cond, paramName, parameters);
-
-            // 拼接到总 SQL (注意前面加 AND)
+            string sqlPart = BuildConditionSql(propName, cond, paramName, parameters);
+            // 每次生成都自带 AND 前缀
             sqlBuilder.Append($" AND {sqlPart}");
+
+            andIndex++;
         }
 
-        // =======================================================
-        // Part 2: 处理 OR 分组 (criteria.OrGroups)
-        // 逻辑：AND ( (A OR B) AND (C OR D) )
-        // =======================================================
-        int groupIndex = 0; // 用于生成唯一的参数名，防止不同组之间冲突
-
-        foreach (var groupDict in criteria.OrGroups)
+        // Part 2: OR 分组
+        int groupIndex = 0;
+        foreach (var groupList in criteria.OrGroups)
         {
-            if (groupDict.Count == 0) continue;
+            if (groupList.Count == 0) continue;
 
             List<string> orParts = [];
+            int orItemIndex = 0;
 
-            foreach (var kvp in groupDict)
+            foreach (var item in groupList)
             {
-                string propName = kvp.Key;
-                var cond = kvp.Value;
+                string propName = item.Field;
+                var cond = item.Condition;
+                string paramName = $"@Or_{groupIndex}_{propName}_{orItemIndex}";
 
-                // ★ 关键：OR 参数名必须唯一化，避免与 Part 1 或其他组冲突
-                // 例如: @Or_0_SKU, @Or_0_Description
-                string paramName = $"@Or_{groupIndex}_{propName}";
-
-                // 调用抽取的方法
-                string sqlPart = DapperRepository<T>.BuildConditionSql(propName, cond, paramName, parameters);
-
+                string sqlPart = BuildConditionSql(propName, cond, paramName, parameters);
                 orParts.Add(sqlPart);
+                orItemIndex++;
             }
 
-            // 如果这一组有有效的 SQL 片段
             if (orParts.Count > 0)
             {
-                // 用 " OR " 连接组内元素，并用括号包裹整个组
-                // 结果示例: AND ( [SKU] LIKE @... OR [Desc] LIKE @... )
                 string groupSql = $"({string.Join(" OR ", orParts)})";
-
+                // 整个 OR 组作为一个整体，与外部用 AND 连接
                 sqlBuilder.Append($" AND {groupSql}");
             }
-
             groupIndex++;
         }
 
+        // 清理了刚才在这里的残余错误代码！！！
         return sqlBuilder.ToString();
     }
+
+
+
 
 
 

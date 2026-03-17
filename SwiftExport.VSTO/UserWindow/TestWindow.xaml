@@ -16,33 +16,8 @@
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <md:BundledTheme BaseTheme="Light" 
-                             PrimaryColor="Teal" 
-                             SecondaryColor="Lime" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign3.Defaults.xaml" />
+                <ResourceDictionary Source="/SwiftExport.VSTO;component/Resources/Styles/ErpTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
-            <Style x:Key="WindowControlButtonStyle" TargetType="Button">
-                <Setter Property="Background" Value="Transparent"/>
-                <Setter Property="BorderThickness" Value="0"/>
-                <Setter Property="Width" Value="40"/>
-                <Setter Property="Height" Value="30"/>
-                <Setter Property="Foreground" Value="Gray"/>
-                <Setter Property="Cursor" Value="Hand"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Border Background="{TemplateBinding Background}" CornerRadius="4">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-                <Style.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="Background" Value="#F0F0F0"/>
-                    </Trigger>
-                </Style.Triggers>
-            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -73,7 +48,6 @@
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                     <Button x:Name="BtnMinimize"
                             Content="—"
-                            Style="{StaticResource WindowControlButtonStyle}"
                             Click="BtnMinimize_Click"/>
 
                     <Button x:Name="BtnClose"
@@ -82,7 +56,7 @@
                             FontSize="16"
                             Click="BtnClose_Click">
                         <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource WindowControlButtonStyle}">
+                            <Style TargetType="Button">
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
                                         <Setter Property="Background" Value="#FF4444"/>

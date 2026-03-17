@@ -10,11 +10,11 @@ none
 false
 VSTO40;DEBUG;TRACE
 
-5-845215309
-221667499704
-20598649676
-491072246850
-UserWindow\App.xaml;MainWindow.xaml;UserWindow\Dialog\InputBoxWindow.xaml;UserWindow\Dialog\MsgBoxWindow.xaml;UserWindow\TestWindow.xaml;
+192034631044
 
-False
+50-266017341
+60-1722783038
+Resources\Styles\Buttons.xaml;Resources\Styles\ComboBoxs.xaml;Resources\Styles\DataGrids.xaml;Resources\Styles\Icons.xaml;Resources\Styles\Colors.xaml;Resources\Styles\CheckBoxs.xaml;Resources\Styles\Inputs.xaml;App.xaml;MainWindow.xaml;UserControls\PaginationControl.xaml;UserWindow\CustomerViews\Views\CustomerPoConfigManagerView.xaml;UserWindow\ProductViews\Views\ProductColorManagerView.xaml;UserWindow\CustomerViews\Views\CustomerManagerView.xaml;UserWindow\ProductViews\Views\ProductSelectorView.xaml;UserWindow\Dialog\InputBoxWindow.xaml;UserWindow\Dialog\MsgBoxWindow.xaml;Resources\Styles\ErpTheme.xaml;UserWindow\SupplierViews\Views\SupplierManagerView.xaml;UserWindow\TestWindow.xaml;
+
+True
 

@@ -1,0 +1,207 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    
+                    xmlns:mvvm="clr-namespace:SwiftExport.VSTO.UserWindow.Mvvm" 
+                    xmlns:beh="clr-namespace:SwiftExport.UI.Controls.Expand;assembly=SwiftExport.UI.Controls">
+
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Colors.xaml" />
+        <ResourceDictionary Source="Inputs.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+    
+    <mvvm:LocalImagePathConverter x:Key="PathToImage"/>
+    <beh:CellDirtyConverter x:Key="CellDirtyConverter"/>
+
+    
+
+    <Style x:Key="DataGridTextBlockStyle" TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="6,0,6,0"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    </Style>
+
+    <Style x:Key="MultiLineDataGridTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource DataGridTextBlockStyle}">
+        <Setter Property="TextWrapping" Value="NoWrap"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+    </Style>
+
+    <Style x:Key="DataGridTextBoxStyle" TargetType="TextBox">
+        <Setter Property="MinHeight" Value="34"/>
+
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+
+        <Setter Property="BorderBrush" Value="{DynamicResource LightBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1.5"/>
+        <Setter Property="Background" Value="{DynamicResource   PaperBackgroundBrush}"/>
+        <Setter Property="Padding" Value="6,0,6,0"/>
+
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border CornerRadius="4"  BorderBrush="{TemplateBinding BorderBrush}" 
+                            BorderThickness="{TemplateBinding BorderThickness}" 
+                            Background="{TemplateBinding Background}">
+
+                        <ScrollViewer x:Name="PART_ContentHost" 
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                      Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="MultiLineDataGridTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource DataGridTextBoxStyle}">
+        <Setter Property="AcceptsReturn" Value="False"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="beh:ExcelEnterBehavior.IsExcelMultilineEnabled" Value="True"/>
+
+    </Style>
+
+
+    <Style TargetType="DataGrid">
+        <Setter Property="Background" Value="{DynamicResource PaperBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource LightBorderBrush}"/>
+        <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource LightBorderBrush}"/>
+        <Setter Property="AlternatingRowBackground" Value="{DynamicResource AppBackgroundBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="GridLinesVisibility" Value="All"/>
+        <Setter Property="AutoGenerateColumns" Value="False"/>
+        <Setter Property="CanUserAddRows" Value="False"/>
+        <Setter Property="HeadersVisibility" Value="All"/>
+        <Setter Property="RowHeaderWidth" Value="25"/>
+
+        <Setter Property="SelectionUnit" Value="CellOrRowHeader"/>
+        <Setter Property="SelectionMode" Value="Extended"/>
+
+        <Setter Property="beh:DataGridScrollBehavior.ScrollOnNewItem" Value="True"/><!--定位到新增行-->
+        <Setter Property="beh:ExcelInteractionBehavior.IsEnabled" Value="True"/><!--类Excel的各种操作-->
+        <Setter Property="beh:CellTracker.IsTrackingEnabled" Value="True"/><!--类Excel的各种操作-->
+        <Setter Property="beh:DataGridStyleInjector.AutoInject" Value="True"/><!--拦截替换编辑时的textbox-->
+
+    </Style>
+
+    <Style TargetType="DataGridRowHeader">
+        <Setter Property="Background" Value="#F5F5F5"/>
+        <Setter Property="BorderBrush" Value="#E0E0E0"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#EAEAEA"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="DataGridColumnHeader">
+        <Setter Property="Background" Value="{DynamicResource   HoverBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource   TitleTextBrush}"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+    </Style>
+
+    <Style TargetType="DataGridRow">
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource  HoverBackgroundBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="DataGridCell">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+
+
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridCell">
+                    <Border Padding="{TemplateBinding Padding}" 
+                        Background="{TemplateBinding Background}" 
+                        BorderBrush="Transparent" 
+                        BorderThickness="0">
+                        <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+
+        <Style.Triggers>
+            <DataTrigger Value="True">
+                <DataTrigger.Binding>
+                    <MultiBinding Converter="{StaticResource CellDirtyConverter}">
+                        <Binding />
+                        <Binding RelativeSource="{RelativeSource Self}"/>
+                        <Binding Path="IsEditing" RelativeSource="{RelativeSource Self}"/>
+
+                        <Binding Path="(beh:CellTracker.RowVersion)" RelativeSource="{RelativeSource AncestorType=DataGridRow}"/>
+
+                    </MultiBinding>
+                </DataTrigger.Binding>
+                <Setter Property="Background" Value="#FFF9C4"/>
+                <Setter Property="Foreground" Value="#D32F2F"/>
+            </DataTrigger>
+
+            <Trigger Property="Validation.HasError" Value="True">
+                <Setter Property="Background" Value="#FFEBEE"/>
+                <Setter Property="ToolTip" 
+                Value="{Binding RelativeSource={RelativeSource Self}, 
+                        Path=(Validation.Errors)[0].ErrorContent}"/>
+            </Trigger>
+
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="#CCE8FF"/>
+                <Setter Property="Foreground" Value="Black"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    
+    <Style x:Key="ZeroPaddingCell" TargetType="DataGridCell">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridCell">
+                    <Border Padding="{TemplateBinding Padding}" 
+                        Background="{TemplateBinding Background}" 
+                        BorderBrush="Transparent" 
+                        BorderThickness="0">
+                        <ContentPresenter />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <DataTemplate x:Key="ImageCellTemplate">
+        <Image Stretch="Uniform"
+               HorizontalAlignment="Center"
+               Margin="1"
+               VerticalAlignment="Center"
+               Source="{Binding MainImage, Converter={StaticResource PathToImage}, IsAsync=True}">
+
+            <Image.ToolTip>
+                <ToolTip Background="White" 
+                         BorderBrush="{StaticResource BorderBrush}" 
+                         BorderThickness="1" 
+                         HasDropShadow="True" 
+                         Padding="4"
+                         Placement="Mouse">
+                    <Image Source="{Binding MainImage, Converter={StaticResource PathToImage}, IsAsync=True}"
+                           Stretch="Uniform"
+                           MaxWidth="500"   MaxHeight="500"  RenderOptions.BitmapScalingMode="HighQuality"/>
+                </ToolTip>
+            </Image.ToolTip>
+        </Image>
+    </DataTemplate>
+
+</ResourceDictionary>

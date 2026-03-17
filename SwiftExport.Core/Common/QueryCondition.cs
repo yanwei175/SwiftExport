@@ -41,44 +41,53 @@ public class QueryCondition
     public object? 值2 { get; set; } // 区间用第二个值
 }
 
+/// <summary>
+/// ★ 新增：将 字段名 和 条件 绑定在一起的实体，代替 Dictionary 的 KeyValuePair
+/// </summary>
+public class QueryItem(string field, QueryCondition condition)
+{
+    public string Field { get; set; } = field;
+    public QueryCondition Condition { get; set; } = condition;
+}
 
 public class QueryCriteria
 {
-    // 1. 【AND 区域】所有的 Key 必须同时满足 (原有逻辑)
-    // 例如: CustomerCode = "C001" AND Status = "Active"
-    public Dictionary<string, QueryCondition> Items { get; set; } = [];
-    // 2. 【OR 区域】列表中的每一项代表一个"OR分组"
+    // 1. 【AND 区域】换成 List！彻底解决同名字段冲突！
+    public List<QueryItem> Items { get; set; } = [];
+
+    // 2. 【OR 区域】换成 List<List<QueryItem>>！同理，解决 OR 组内的字段冲突！ 
     // 逻辑: (Main AND Main) AND (Group1_A OR Group1_B) AND (Group2_C OR Group2_D)
-    public List<Dictionary<string, QueryCondition>> OrGroups { get; set; } = [];
+    public List<List<QueryItem>> OrGroups { get; set; } = [];
 
 
     // 方便添加条件的辅助方法
     public void Add(string field, QueryCondition condition)
     {
-        if (!Items.TryAdd(field, condition)) Items[field] = condition;
+        // 直接往 List 塞，绝对不会覆盖！
+        Items.Add(new QueryItem(field, condition));
     }
 
     // 快捷添加方法 (语法糖)
     public void Add(string field, 查询操作符 op, object v1, object? v2 = null)
     {
-        this.Add(field, new QueryCondition { 操作符 = op, 值1 = v1, 值2 = v2! });
+        this.Add(field, new QueryCondition { 操作符 = op, 值1 = v1, 值2 = v2 });
     }
 
     /// <summary>
-    /// 添加一组 OR 条件。这组条件内部是用 OR 连接，但这组条件整体与外部是用 AND 连接。
-    /// 场景：搜索框同时搜 SKU 或 描述。
+    /// 添加一组 OR 条件。
+    /// 场景：搜索框同时搜 SKU 或 描述，甚至 (SKU包含A OR SKU包含B)
     /// </summary>
     public void AddOrGroup(params (string field, 查询操作符 op, object value)[] conditions)
     {
-        var groupDict = new Dictionary<string, QueryCondition>();
+        var groupList = new List<QueryItem>();
 
         foreach (var (field, op, val) in conditions)
         {
-            // 注意：同一个 OR 分组内字段名也不能重复(这是字典限制)，但在搜索不同列时没问题
-            groupDict[field] = new QueryCondition { 操作符 = op, 值1 = val };
+            // 直接往组 List 里塞，即使 field 重名也完美支持！
+            groupList.Add(new QueryItem(field, new QueryCondition { 操作符 = op, 值1 = val }));
         }
 
-        OrGroups.Add(groupDict);
+        OrGroups.Add(groupList);
     }
 
 

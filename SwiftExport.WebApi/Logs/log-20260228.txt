@@ -1,0 +1,244 @@
+2026-02-28 14:04:21.043 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:04:21.502 +08:00 [FTL] Web API 启动失败，遭遇致命异常！
+System.AggregateException: Some services are not able to be constructed (Error while validating the service descriptor 'ServiceType: SwiftExport.Application.Interfaces.ICustomerService Lifetime: Scoped ImplementationType: SwiftExport.Application.Services.Customers.CustomerService': Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.)
+ ---> System.InvalidOperationException: Error while validating the service descriptor 'ServiceType: SwiftExport.Application.Interfaces.ICustomerService Lifetime: Scoped ImplementationType: SwiftExport.Application.Services.Customers.CustomerService': Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.
+ ---> System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateArgumentCallSites(ServiceIdentifier serviceIdentifier, Type implementationType, CallSiteChain callSiteChain, ParameterInfo[] parameters, Boolean throwIfCallSiteNotFound)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateConstructorCallSite(ResultCache lifetime, ServiceIdentifier serviceIdentifier, Type implementationType, CallSiteChain callSiteChain)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateExact(ServiceDescriptor descriptor, ServiceIdentifier serviceIdentifier, CallSiteChain callSiteChain, Int32 slot)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.GetCallSite(ServiceDescriptor serviceDescriptor, CallSiteChain callSiteChain)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   at Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(IServiceCollection services, ServiceProviderOptions options)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Program.cs:line 42
+2026-02-28 14:05:00.476 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:05:00.910 +08:00 [FTL] Web API 启动失败，遭遇致命异常！
+System.AggregateException: Some services are not able to be constructed (Error while validating the service descriptor 'ServiceType: SwiftExport.Application.Interfaces.ICustomerService Lifetime: Scoped ImplementationType: SwiftExport.Application.Services.Customers.CustomerService': Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.)
+ ---> System.InvalidOperationException: Error while validating the service descriptor 'ServiceType: SwiftExport.Application.Interfaces.ICustomerService Lifetime: Scoped ImplementationType: SwiftExport.Application.Services.Customers.CustomerService': Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.
+ ---> System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateArgumentCallSites(ServiceIdentifier serviceIdentifier, Type implementationType, CallSiteChain callSiteChain, ParameterInfo[] parameters, Boolean throwIfCallSiteNotFound)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateConstructorCallSite(ResultCache lifetime, ServiceIdentifier serviceIdentifier, Type implementationType, CallSiteChain callSiteChain)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateExact(ServiceDescriptor descriptor, ServiceIdentifier serviceIdentifier, CallSiteChain callSiteChain, Int32 slot)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.GetCallSite(ServiceDescriptor serviceDescriptor, CallSiteChain callSiteChain)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   at Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(IServiceCollection services, ServiceProviderOptions options)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Program.cs:line 42
+2026-02-28 14:05:22.123 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:05:22.483 +08:00 [FTL] Web API 启动失败，遭遇致命异常！
+System.AggregateException: Some services are not able to be constructed (Error while validating the service descriptor 'ServiceType: SwiftExport.Application.Interfaces.ICustomerService Lifetime: Scoped ImplementationType: SwiftExport.Application.Services.Customers.CustomerService': Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.)
+ ---> System.InvalidOperationException: Error while validating the service descriptor 'ServiceType: SwiftExport.Application.Interfaces.ICustomerService Lifetime: Scoped ImplementationType: SwiftExport.Application.Services.Customers.CustomerService': Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.
+ ---> System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateArgumentCallSites(ServiceIdentifier serviceIdentifier, Type implementationType, CallSiteChain callSiteChain, ParameterInfo[] parameters, Boolean throwIfCallSiteNotFound)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateConstructorCallSite(ResultCache lifetime, ServiceIdentifier serviceIdentifier, Type implementationType, CallSiteChain callSiteChain)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateExact(ServiceDescriptor descriptor, ServiceIdentifier serviceIdentifier, CallSiteChain callSiteChain, Int32 slot)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.GetCallSite(ServiceDescriptor serviceDescriptor, CallSiteChain callSiteChain)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   at Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(IServiceCollection services, ServiceProviderOptions options)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Program.cs:line 42
+2026-02-28 14:06:08.835 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:06:09.203 +08:00 [FTL] Web API 启动失败，遭遇致命异常！
+System.AggregateException: Some services are not able to be constructed (Error while validating the service descriptor 'ServiceType: SwiftExport.Application.Interfaces.ICustomerService Lifetime: Scoped ImplementationType: SwiftExport.Application.Services.Customers.CustomerService': Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.)
+ ---> System.InvalidOperationException: Error while validating the service descriptor 'ServiceType: SwiftExport.Application.Interfaces.ICustomerService Lifetime: Scoped ImplementationType: SwiftExport.Application.Services.Customers.CustomerService': Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.
+ ---> System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateArgumentCallSites(ServiceIdentifier serviceIdentifier, Type implementationType, CallSiteChain callSiteChain, ParameterInfo[] parameters, Boolean throwIfCallSiteNotFound)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateConstructorCallSite(ResultCache lifetime, ServiceIdentifier serviceIdentifier, Type implementationType, CallSiteChain callSiteChain)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateExact(ServiceDescriptor descriptor, ServiceIdentifier serviceIdentifier, CallSiteChain callSiteChain, Int32 slot)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.GetCallSite(ServiceDescriptor serviceDescriptor, CallSiteChain callSiteChain)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   at Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(IServiceCollection services, ServiceProviderOptions options)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Program.cs:line 41
+2026-02-28 14:10:38.571 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:10:38.918 +08:00 [FTL] Web API 启动失败，遭遇致命异常！
+System.AggregateException: Some services are not able to be constructed (Error while validating the service descriptor 'ServiceType: SwiftExport.Application.Interfaces.ICustomerService Lifetime: Scoped ImplementationType: SwiftExport.Application.Services.Customers.CustomerService': Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.)
+ ---> System.InvalidOperationException: Error while validating the service descriptor 'ServiceType: SwiftExport.Application.Interfaces.ICustomerService Lifetime: Scoped ImplementationType: SwiftExport.Application.Services.Customers.CustomerService': Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.
+ ---> System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateArgumentCallSites(ServiceIdentifier serviceIdentifier, Type implementationType, CallSiteChain callSiteChain, ParameterInfo[] parameters, Boolean throwIfCallSiteNotFound)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateConstructorCallSite(ResultCache lifetime, ServiceIdentifier serviceIdentifier, Type implementationType, CallSiteChain callSiteChain)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateExact(ServiceDescriptor descriptor, ServiceIdentifier serviceIdentifier, CallSiteChain callSiteChain, Int32 slot)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.GetCallSite(ServiceDescriptor serviceDescriptor, CallSiteChain callSiteChain)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   at Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(IServiceCollection services, ServiceProviderOptions options)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Program.cs:line 41
+2026-02-28 14:12:50.839 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:12:51.173 +08:00 [FTL] Web API 启动失败，遭遇致命异常！
+System.AggregateException: Some services are not able to be constructed (Error while validating the service descriptor 'ServiceType: SwiftExport.Application.Interfaces.ICustomerService Lifetime: Scoped ImplementationType: SwiftExport.Application.Services.Customers.CustomerService': Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.)
+ ---> System.InvalidOperationException: Error while validating the service descriptor 'ServiceType: SwiftExport.Application.Interfaces.ICustomerService Lifetime: Scoped ImplementationType: SwiftExport.Application.Services.Customers.CustomerService': Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.
+ ---> System.InvalidOperationException: Unable to resolve service for type 'SwiftExport.Core.Interfaces.ICustomerRepository' while attempting to activate 'SwiftExport.Application.Services.Customers.CustomerService'.
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateArgumentCallSites(ServiceIdentifier serviceIdentifier, Type implementationType, CallSiteChain callSiteChain, ParameterInfo[] parameters, Boolean throwIfCallSiteNotFound)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateConstructorCallSite(ResultCache lifetime, ServiceIdentifier serviceIdentifier, Type implementationType, CallSiteChain callSiteChain)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.CreateExact(ServiceDescriptor descriptor, ServiceIdentifier serviceIdentifier, CallSiteChain callSiteChain, Int32 slot)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteFactory.GetCallSite(ServiceDescriptor serviceDescriptor, CallSiteChain callSiteChain)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   at Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(IServiceCollection services, ServiceProviderOptions options)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Program.cs:line 42
+2026-02-28 14:15:29.803 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:29:40.074 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:30:30.259 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-02-28 14:30:30.323 +08:00 [WRN] 客户批量保存事务中断（数据校验不通过）：批量更新列表包含无效ID，事务已终止。ID: 0, 0
+
+2026-02-28 14:33:51.232 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-02-28 14:34:13.235 +08:00 [WRN] 客户批量保存事务中断（数据校验不通过）：批量更新列表包含无效ID，事务已终止。ID: 0, 0
+
+2026-02-28 14:36:56.606 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-02-28 14:37:00.147 +08:00 [ERR] 执行客户批量保存时发生致命异常，数据库事务已安全回滚！
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'Name' 无效。
+列名 'Address' 无效。
+列名 'PhoneNumber' 无效。
+列名 'ContactPerson' 无效。
+列名 'LabelFolderPath' 无效。
+列名 'ManualFolderPath' 无效。
+列名 'DrawingFolderPath' 无效。
+列名 'LinedrawingFolderPath' 无效。
+列名 'BarcodeFolderPath' 无效。
+列名 'SpecSheetFolderPath' 无效。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 363
+   at SwiftExport.Application.Services.Customers.CustomerService.BatchSaveBy_UQ_CustomersCodeAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Customers\CustomerService.cs:line 137
+ClientConnectionId:3436b314-bc23-44eb-a442-4637089db9ba
+Error Number:207,State:1,Class:16
+2026-02-28 14:39:49.498 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:40:16.985 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-02-28 14:40:17.139 +08:00 [ERR] 执行客户批量保存时发生致命异常，数据库事务已安全回滚！
+Microsoft.Data.SqlClient.SqlException (0x80131904): 对象名 'Customers' 无效。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 363
+   at SwiftExport.Application.Services.Customers.CustomerService.BatchSaveBy_UQ_CustomersCodeAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Customers\CustomerService.cs:line 137
+ClientConnectionId:0ce040b5-2f56-4563-bb17-c43f19ab0a80
+Error Number:208,State:1,Class:16
+2026-02-28 14:42:50.243 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:43:00.481 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-02-28 14:48:31.949 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:48:43.295 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-02-28 14:48:43.444 +08:00 [ERR] 执行客户批量保存时发生致命异常，数据库事务已安全回滚！
+Microsoft.Data.SqlClient.SqlException (0x80131904): 对象名 'Customers' 无效。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 363
+   at SwiftExport.Application.Services.Customers.CustomerService.BatchSaveBy_UQ_CustomersCodeAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Customers\CustomerService.cs:line 137
+ClientConnectionId:de43935a-ca0a-436c-8a38-890118ad30de
+Error Number:208,State:1,Class:16
+2026-02-28 14:49:52.430 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:50:00.581 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-02-28 14:52:04.062 +08:00 [ERR] 执行客户批量保存时发生致命异常，数据库事务已安全回滚！
+Microsoft.Data.SqlClient.SqlException (0x80131904): 对象名 'Customers' 无效。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 363
+   at SwiftExport.Application.Services.Customers.CustomerService.BatchSaveBy_UQ_CustomersCodeAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Customers\CustomerService.cs:line 137
+ClientConnectionId:87bdc2f2-10aa-485c-ba66-90676f03e92e
+Error Number:208,State:1,Class:16
+2026-02-28 14:54:27.071 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 14:54:36.615 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-02-28 14:54:45.548 +08:00 [INF] 客户批量保存事务圆满提交！共影响数据库 1 行。
+2026-02-28 14:55:00.152 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 2，删除: 0
+2026-02-28 14:55:00.164 +08:00 [INF] 客户批量保存事务圆满提交！共影响数据库 2 行。
+2026-02-28 14:55:05.651 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 2，删除: 0
+2026-02-28 14:55:05.654 +08:00 [INF] 客户批量保存事务圆满提交！共影响数据库 2 行。
+2026-02-28 14:55:10.295 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-02-28 14:55:10.297 +08:00 [WRN] 批量保存校验失败：存在客户代码为空的新增项
+2026-02-28 14:55:17.287 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-02-28 14:55:17.295 +08:00 [INF] 客户批量保存事务圆满提交！共影响数据库 1 行。
+2026-02-28 14:55:23.658 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 0，删除: 1
+2026-02-28 14:55:23.661 +08:00 [WRN] 客户批量保存事务中断（数据校验不通过）：删除操作列表包含无效ID的实体。实体ID: 0
+
+2026-02-28 14:55:45.423 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 0，删除: 1
+2026-02-28 14:55:45.425 +08:00 [WRN] 客户批量保存事务中断（数据校验不通过）：删除操作列表包含无效ID的实体。实体ID: 0
+
+2026-02-28 15:05:03.761 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-02-28 15:05:40.703 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 0，删除: 1
+2026-02-28 15:05:40.779 +08:00 [INF] 客户批量保存事务圆满提交！共影响数据库 1 行。
+2026-02-28 15:06:13.212 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 2，修改: 1，删除: 0
+2026-02-28 15:06:13.240 +08:00 [INF] 客户批量保存事务圆满提交！共影响数据库 3 行。
+2026-02-28 15:06:22.036 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 1，删除: 2
+2026-02-28 15:06:22.040 +08:00 [INF] 客户批量保存事务圆满提交！共影响数据库 3 行。
+2026-02-28 15:06:49.700 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-02-28 15:06:49.703 +08:00 [INF] 客户批量保存事务圆满提交！共影响数据库 1 行。
+2026-02-28 15:13:28.061 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 2，删除: 0
+2026-02-28 15:13:28.074 +08:00 [INF] 客户批量保存事务圆满提交！共影响数据库 2 行。

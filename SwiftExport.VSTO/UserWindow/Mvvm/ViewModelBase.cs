@@ -31,14 +31,13 @@ namespace SwiftExport.VSTO.UserWindow.Mvvm
         protected virtual bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string propertyName = null)
         {
             // 检查值是否相同，如果相同就不浪费资源去更新 UI
-            if (EqualityComparer<T>.Default.Equals(storage, value))
-            {
-                return false;
-            }
+            if (EqualityComparer<T>.Default.Equals(storage, value)) return false;
 
             storage = value;
             OnPropertyChanged(propertyName);
             return true;
         }
+
+
     }
 }

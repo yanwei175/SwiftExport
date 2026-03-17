@@ -1,86 +1,12 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "D:\\source\\CSharp\\SwiftExport\\",
-  "Documents": [
-    {
-      "AbsoluteMoniker": "D:0:0:{B8863B43-DB40-4321-8C73-81336270D773}|SwiftExport.VSTO\\SwiftExport.VSTO.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.vsto\\ribbonswift.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B8863B43-DB40-4321-8C73-81336270D773}|SwiftExport.VSTO\\SwiftExport.VSTO.csproj|solutionrelative:swiftexport.vsto\\ribbonswift.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B8863B43-DB40-4321-8C73-81336270D773}|SwiftExport.VSTO\\SwiftExport.VSTO.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.vsto\\ribbonswift.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{B8863B43-DB40-4321-8C73-81336270D773}|SwiftExport.VSTO\\SwiftExport.VSTO.csproj|solutionrelative:swiftexport.vsto\\ribbonswift.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B8863B43-DB40-4321-8C73-81336270D773}|SwiftExport.VSTO\\SwiftExport.VSTO.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.vsto\\userwindow\\testwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
-      "RelativeMoniker": "D:0:0:{B8863B43-DB40-4321-8C73-81336270D773}|SwiftExport.VSTO\\SwiftExport.VSTO.csproj|solutionrelative:swiftexport.vsto\\userwindow\\testwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B8863B43-DB40-4321-8C73-81336270D773}|SwiftExport.VSTO\\SwiftExport.VSTO.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.vsto\\thisaddin.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B8863B43-DB40-4321-8C73-81336270D773}|SwiftExport.VSTO\\SwiftExport.VSTO.csproj|solutionrelative:swiftexport.vsto\\thisaddin.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    }
-  ],
+  "Documents": [],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": [
-        {
-          "DockedWidth": 200,
-          "SelectedChildIndex": 0,
-          "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "RibbonSwift.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.VSTO\\RibbonSwift.cs",
-              "RelativeDocumentMoniker": "SwiftExport.VSTO\\RibbonSwift.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.VSTO\\RibbonSwift.cs",
-              "RelativeToolTip": "SwiftExport.VSTO\\RibbonSwift.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAQwBAAAAAdAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-11T09:35:07.42Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "TestWindow.xaml",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.VSTO\\UserWindow\\TestWindow.xaml",
-              "RelativeDocumentMoniker": "SwiftExport.VSTO\\UserWindow\\TestWindow.xaml",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.VSTO\\UserWindow\\TestWindow.xaml",
-              "RelativeToolTip": "SwiftExport.VSTO\\UserWindow\\TestWindow.xaml",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2026-02-11T09:32:42.132Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "ThisAddIn.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.VSTO\\ThisAddIn.cs",
-              "RelativeDocumentMoniker": "SwiftExport.VSTO\\ThisAddIn.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.VSTO\\ThisAddIn.cs",
-              "RelativeToolTip": "SwiftExport.VSTO\\ThisAddIn.cs",
-              "ViewState": "AgIAAB0AAAAAAAAAAAAwwC0AAAAdAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-11T07:20:39.149Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "RibbonSwift.cs [\u8BBE\u8BA1]",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.VSTO\\RibbonSwift.cs",
-              "RelativeDocumentMoniker": "SwiftExport.VSTO\\RibbonSwift.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.VSTO\\RibbonSwift.cs [\u8BBE\u8BA1]",
-              "RelativeToolTip": "SwiftExport.VSTO\\RibbonSwift.cs [\u8BBE\u8BA1]",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-11T06:28:03.269Z",
-              "EditorCaption": " [\u8BBE\u8BA1]"
-            }
-          ]
-        }
-      ]
+      "DocumentGroups": []
     }
   ]
 }

@@ -124,6 +124,4 @@ public interface IRepository<T> where T : BaseEntity
     /// <returns>受影响行数</returns>
     Task<int> UpdateRangeAsync(IEnumerable<T> entitieList);
 
-
-
 }

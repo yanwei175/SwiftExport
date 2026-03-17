@@ -1,0 +1,103 @@
+2026-03-02 09:26:06.112 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-02 09:26:08.382 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /swagger/v1/swagger.json
+Swashbuckle.AspNetCore.SwaggerGen.SwaggerGeneratorException: Conflicting method/path combination "POST api/Customer" for actions - SwiftExport.WebApi.Controllers.CustomerController.BatchSaveAsync (SwiftExport.WebApi), SwiftExport.WebApi.Controllers.CustomerController.Create (SwiftExport.WebApi). Actions require a unique method/path combination for Swagger/OpenAPI 2.0 and 3.0. Use ConflictingActionsResolver as a workaround or provide your own implementation of PathGroupSelector.
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.PrepareGenerateOperation(IGrouping`2 group)
+   at System.Linq.Enumerable.IteratorSelectIterator`2.MoveNext()
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GenerateOperationsAsync(OpenApiDocument document, IEnumerable`1 apiDescriptions, SchemaRepository schemaRepository)
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GeneratePathsAsync(OpenApiDocument document, IEnumerable`1 apiDescriptions, SchemaRepository schemaRepository, Func`4 operationsGenerator)
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GeneratePathsAsync(OpenApiDocument document, IEnumerable`1 apiDescriptions, SchemaRepository schemaRepository)
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GetSwaggerAsync(String documentName, String host, String basePath)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-02 09:27:09.511 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-02 09:27:10.771 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /swagger/v1/swagger.json
+Swashbuckle.AspNetCore.SwaggerGen.SwaggerGeneratorException: Conflicting method/path combination "POST api/Customer" for actions - SwiftExport.WebApi.Controllers.CustomerController.BatchSaveAsync (SwiftExport.WebApi), SwiftExport.WebApi.Controllers.CustomerController.Create (SwiftExport.WebApi). Actions require a unique method/path combination for Swagger/OpenAPI 2.0 and 3.0. Use ConflictingActionsResolver as a workaround or provide your own implementation of PathGroupSelector.
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.PrepareGenerateOperation(IGrouping`2 group)
+   at System.Linq.Enumerable.IteratorSelectIterator`2.MoveNext()
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GenerateOperationsAsync(OpenApiDocument document, IEnumerable`1 apiDescriptions, SchemaRepository schemaRepository)
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GeneratePathsAsync(OpenApiDocument document, IEnumerable`1 apiDescriptions, SchemaRepository schemaRepository, Func`4 operationsGenerator)
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GeneratePathsAsync(OpenApiDocument document, IEnumerable`1 apiDescriptions, SchemaRepository schemaRepository)
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GetSwaggerAsync(String documentName, String host, String basePath)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-02 09:27:40.562 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-02 09:28:50.364 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-02 09:28:52.101 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /swagger/v1/swagger.json
+Swashbuckle.AspNetCore.SwaggerGen.SwaggerGeneratorException: Conflicting method/path combination "GET api/Product" for actions - SwiftExport.WebApi.Controllers.ProductController.GetAll (SwiftExport.WebApi), SwiftExport.WebApi.Controllers.ProductController.GetAllCustomerCodeList (SwiftExport.WebApi). Actions require a unique method/path combination for Swagger/OpenAPI 2.0 and 3.0. Use ConflictingActionsResolver as a workaround or provide your own implementation of PathGroupSelector.
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.PrepareGenerateOperation(IGrouping`2 group)
+   at System.Linq.Enumerable.IteratorSelectIterator`2.MoveNext()
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GenerateOperationsAsync(OpenApiDocument document, IEnumerable`1 apiDescriptions, SchemaRepository schemaRepository)
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GeneratePathsAsync(OpenApiDocument document, IEnumerable`1 apiDescriptions, SchemaRepository schemaRepository, Func`4 operationsGenerator)
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GeneratePathsAsync(OpenApiDocument document, IEnumerable`1 apiDescriptions, SchemaRepository schemaRepository)
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GetSwaggerAsync(String documentName, String host, String basePath)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-02 09:30:27.713 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-02 09:58:49.553 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-02 10:00:52.899 +08:00 [INF] 开始执行批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-03-02 10:00:52.966 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-02 10:04:04.400 +08:00 [INF] 开始执行批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-03-02 10:04:04.406 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-02 10:04:11.876 +08:00 [INF] 开始执行批量保存事务，计划新增: 0，修改: 0，删除: 1
+2026-03-02 10:04:11.888 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-02 10:04:14.924 +08:00 [INF] 开始执行批量保存事务，计划新增: 0，修改: 0，删除: 1
+2026-03-02 10:04:14.926 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-02 12:07:49.394 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-02 15:07:00.521 +08:00 [INF] 开始执行批量保存事务，计划新增: 0，修改: 14，删除: 0
+2026-03-02 15:07:00.696 +08:00 [ERR] 执行批量保存时发生致命异常，数据库事务已安全回滚！
+Microsoft.Data.SqlClient.SqlException (0x80131904): 不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+不能将值 NULL 插入列 'Name'，表 'dv.dbo.Supplier'；列不允许有 Null 值。UPDATE 失败。
+语句已终止。
+语句已终止。
+语句已终止。
+语句已终止。
+语句已终止。
+语句已终止。
+语句已终止。
+语句已终止。
+语句已终止。
+语句已终止。
+语句已终止。
+语句已终止。
+语句已终止。
+语句已终止。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 363
+   at SwiftExport.Application.Services.Suppliers.SupplierService.BatchSaveAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Suppliers\SupplierService.cs:line 134
+ClientConnectionId:1e6c6ad0-2f7c-4448-a189-a8e99138a0fa
+Error Number:515,State:2,Class:16
+2026-03-02 15:09:01.785 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-02 15:11:28.638 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-02 15:13:20.195 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-02 15:14:03.706 +08:00 [INF] 开始执行批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-02 15:14:03.787 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-02 15:14:34.753 +08:00 [INF] 开始执行批量保存事务，计划新增: 0，修改: 13，删除: 0
+2026-03-02 15:14:34.775 +08:00 [INF] 批量保存事务提交！共影响数据库 13 行。
+2026-03-02 15:14:58.569 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-02 15:14:58.584 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
+2026-03-02 21:06:11.442 +08:00 [INF] 开始执行客户批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-02 21:06:11.454 +08:00 [INF] 批量保存事务提交！共影响数据库 1 行。
