@@ -65,12 +65,7 @@ public class CustomerController(ICustomerService service) : BaseController<Swift
         return await _service.GetAllAsync();
     }
 
-    // 注意：强制指定绝对路由，确保和 Refit 里的 [Post("/api/customer/Batch")] 完全一致！
-    [HttpPost("batch-save")]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestGeneric<CustomerDto> request)
-    {
-        return await service.BatchSaveAsync(request);
-    }
+
 
 
 

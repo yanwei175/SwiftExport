@@ -1,0 +1,277 @@
+2026-03-18 15:41:17.919 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-18 15:44:04.204 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-18 17:00:13.775 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 10，删除: 0
+2026-03-18 17:00:13.845 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 10 行。
+2026-03-18 17:01:02.791 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:01:02.800 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:02:01.906 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 5，删除: 0
+2026-03-18 17:02:01.918 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 5 行。
+2026-03-18 17:05:32.372 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:05:32.405 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:06:15.628 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:06:39.616 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:21:52.169 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-18 17:30:38.261 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:30:48.108 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:32:19.176 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 10，删除: 0
+2026-03-18 17:32:19.194 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 10 行。
+2026-03-18 17:32:28.483 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:32:28.489 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:32:39.137 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:32:39.139 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:32:45.015 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:32:45.019 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:34:04.201 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:34:04.208 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:34:16.974 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:34:16.978 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:34:50.560 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:34:50.571 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:35:21.286 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 2，删除: 0
+2026-03-18 17:35:21.325 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 2 行。
+2026-03-18 17:35:41.724 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 3，删除: 0
+2026-03-18 17:35:41.737 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 3 行。
+2026-03-18 17:36:30.185 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:36:30.191 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:37:23.424 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:37:23.430 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:40:23.127 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 17:40:23.137 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 17:46:11.764 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 2，删除: 0
+2026-03-18 17:46:11.771 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 2 行。
+2026-03-18 17:46:15.967 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 2，删除: 0
+2026-03-18 17:46:15.971 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 2 行。
+2026-03-18 17:46:20.756 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 2，删除: 0
+2026-03-18 17:46:20.763 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 2 行。
+2026-03-18 17:46:28.388 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 3，删除: 0
+2026-03-18 17:46:28.396 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 3 行。
+2026-03-18 18:28:21.497 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-18 18:47:52.123 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 18:47:52.334 +08:00 [ERR] [ProductCategory] 批量保存发生致命异常，事务已回滚！
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'CategoryCode' 无效。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 379
+   at SwiftExport.Application.Services.Base.BaseService`2.BatchSaveAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 328
+ClientConnectionId:6b605b58-3946-4356-be1e-97df45b9e715
+Error Number:207,State:1,Class:16
+2026-03-18 18:47:52.711 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/ProductCategory/batch-save
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'CategoryCode' 无效。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 379
+   at SwiftExport.Application.Services.Base.BaseService`2.BatchSaveAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 328
+   at SwiftExport.WebApi.Controllers.Products.ProductCategoryController.BatchSaveAsync(BatchRequestGeneric`1 request) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Products\ProductCategoryController.cs:line 75
+   at lambda_method14(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:6b605b58-3946-4356-be1e-97df45b9e715
+Error Number:207,State:1,Class:16
+2026-03-18 18:48:05.553 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-18 18:48:09.339 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 18:48:09.722 +08:00 [ERR] [ProductCategory] 批量保存发生致命异常，事务已回滚！
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'CategoryCode' 无效。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 379
+   at SwiftExport.Application.Services.Base.BaseService`2.BatchSaveAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 328
+ClientConnectionId:74efd7f4-a419-42b4-adbc-a46491a565dd
+Error Number:207,State:1,Class:16
+2026-03-18 18:48:10.111 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/ProductCategory/batch-save
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'CategoryCode' 无效。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 379
+   at SwiftExport.Application.Services.Base.BaseService`2.BatchSaveAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 328
+   at SwiftExport.WebApi.Controllers.Products.ProductCategoryController.BatchSaveAsync(BatchRequestGeneric`1 request) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Products\ProductCategoryController.cs:line 75
+   at lambda_method5(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:74efd7f4-a419-42b4-adbc-a46491a565dd
+Error Number:207,State:1,Class:16
+2026-03-18 18:48:12.209 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 18:48:12.317 +08:00 [ERR] [ProductCategory] 批量保存发生致命异常，事务已回滚！
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'CategoryCode' 无效。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 379
+   at SwiftExport.Application.Services.Base.BaseService`2.BatchSaveAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 328
+ClientConnectionId:74efd7f4-a419-42b4-adbc-a46491a565dd
+Error Number:207,State:1,Class:16
+2026-03-18 18:48:12.713 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/ProductCategory/batch-save
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'CategoryCode' 无效。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 379
+   at SwiftExport.Application.Services.Base.BaseService`2.BatchSaveAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 328
+   at SwiftExport.WebApi.Controllers.Products.ProductCategoryController.BatchSaveAsync(BatchRequestGeneric`1 request) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Products\ProductCategoryController.cs:line 75
+   at lambda_method5(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:74efd7f4-a419-42b4-adbc-a46491a565dd
+Error Number:207,State:1,Class:16
+2026-03-18 18:48:14.305 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 18:48:14.423 +08:00 [ERR] [ProductCategory] 批量保存发生致命异常，事务已回滚！
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'CategoryCode' 无效。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 379
+   at SwiftExport.Application.Services.Base.BaseService`2.BatchSaveAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 328
+ClientConnectionId:74efd7f4-a419-42b4-adbc-a46491a565dd
+Error Number:207,State:1,Class:16
+2026-03-18 18:48:14.765 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/ProductCategory/batch-save
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'CategoryCode' 无效。
+   at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, SqlCommand command, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at Microsoft.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted)
+   at Microsoft.Data.SqlClient.SqlCommand.CompleteAsyncExecuteReader(Boolean isInternal, Boolean forDescribeParameterEncryption)
+   at Microsoft.Data.SqlClient.SqlCommand.InternalEndExecuteNonQuery(IAsyncResult asyncResult, Boolean isInternal, String endMethod)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryInternal(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.EndExecuteNonQueryAsync(IAsyncResult asyncResult)
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<InternalExecuteNonQueryAsync>b__193_1(IAsyncResult asyncResult)
+   at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.ExecuteImplAsync(IDbConnection cnn, CommandDefinition command, Object param) in /_/Dapper/SqlMapper.Async.cs:line 662
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.UpdateRangeAsync(IEnumerable`1 entities) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 379
+   at SwiftExport.Application.Services.Base.BaseService`2.BatchSaveAsync(BatchRequestGeneric`1 batchReq) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 328
+   at SwiftExport.WebApi.Controllers.Products.ProductCategoryController.BatchSaveAsync(BatchRequestGeneric`1 request) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Products\ProductCategoryController.cs:line 75
+   at lambda_method5(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:74efd7f4-a419-42b4-adbc-a46491a565dd
+Error Number:207,State:1,Class:16
+2026-03-18 18:49:11.752 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-18 18:49:17.134 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 18:49:17.385 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 18:52:12.253 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-18 18:53:57.553 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-18 18:54:14.530 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 1，删除: 0
+2026-03-18 18:54:14.622 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 19:03:57.843 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 0，修改: 3，删除: 0
+2026-03-18 19:03:57.853 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 3 行。
+2026-03-18 19:20:29.453 +08:00 [INF] 开始执行 [ProductCategory] 批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-03-18 19:20:29.463 +08:00 [INF] [ProductCategory] 批量保存事务提交！共影响 1 行。
+2026-03-18 20:53:42.912 +08:00 [INF] SwiftExport 后端 Web API 启动中...

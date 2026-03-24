@@ -1,0 +1,79 @@
+﻿<Window x:Class="SwiftExport.View.FW.Dialog.MsgBoxWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="提示" 
+        Height="Auto" Width="400"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        SizeToContent="Height">
+
+
+    <Border CornerRadius="4" Background="White" BorderBrush="{DynamicResource   Neutral1Brush}" BorderThickness="1" Margin="15" MouseLeftButtonDown="Border_MouseLeftButtonDown">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.15" Color="Black"/>
+        </Border.Effect>
+
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,15" VerticalAlignment="Center">
+
+                <Viewbox x:Name="IconInfo" Width="24" Height="24" Visibility="Collapsed">
+                    <Path Fill="{DynamicResource  Brush_Txt_Primary}" Data="{StaticResource Icon.Info}"/>
+                </Viewbox>
+
+                <Viewbox x:Name="IconWarn" Width="24" Height="24" Visibility="Collapsed">
+                    <Path Fill="#D83B01" Data="{StaticResource Icon.Warning}"/>
+                </Viewbox>
+
+                <Viewbox x:Name="IconError" Width="24" Height="24" Visibility="Collapsed">
+                    <Path Fill="#E81123" Data="{StaticResource Icon.Error}"/>
+                </Viewbox>
+
+                <Viewbox x:Name="IconQuestion" Width="24" Height="24" Visibility="Collapsed">
+                    <Path Fill="{DynamicResource Brush_Txt_Primary}" Data="{StaticResource Icon.Question}"/>
+                </Viewbox>
+
+                <TextBlock x:Name="TxtTitle" Text="系统提示" FontSize="15" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#333"/>
+            </StackPanel>
+
+            <TextBlock x:Name="TxtMessage" Grid.Row="1" 
+                       Text="这里是消息内容..." 
+                       TextWrapping="Wrap" 
+                       VerticalAlignment="Center" 
+                       Margin="32,0,0,25" 
+                       FontSize="14" 
+                       Foreground="#444"
+                       LineHeight="20"/>
+
+            <Grid Grid.Row="2">
+                <Button x:Name="BtnOkOnly" Style="{StaticResource ButtonSuccess}"
+                        Content="知道了" 
+                        Click="BtnOk_Click"
+                        HorizontalAlignment="Right"
+                        Width="80"
+                        BorderThickness="0"
+                        Visibility="Collapsed"/>
+
+                <StackPanel x:Name="PanelYesNo" Orientation="Horizontal" HorizontalAlignment="Right" Visibility="Collapsed">
+                    <Button Content="取消" Style="{StaticResource ButtonOutline}"
+                            Click="BtnCancel_Click"
+                            IsCancel="True"
+                            Margin="0,0,10,0"/>
+
+                    <Button Content="确定"  Style="{StaticResource ButtonPrimary}"
+                            Click="BtnOk_Click"
+                            Width="80"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

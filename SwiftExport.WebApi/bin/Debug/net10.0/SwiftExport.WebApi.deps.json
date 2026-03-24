@@ -302,11 +302,11 @@
           }
         }
       },
-      "Refit/9.0.2": {
+      "Refit/10.0.1": {
         "runtime": {
           "lib/net10.0/Refit.dll": {
-            "assemblyVersion": "9.0.0.0",
-            "fileVersion": "9.0.2.7758"
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.1.341"
           }
         }
       },
@@ -517,7 +517,7 @@
       },
       "SwiftExport.Contracts/1.0.0": {
         "dependencies": {
-          "Refit": "9.0.2"
+          "Refit": "10.0.1"
         },
         "runtime": {
           "SwiftExport.Contracts.dll": {
@@ -702,12 +702,12 @@
       "path": "microsoft.sqlserver.server/1.0.0",
       "hashPath": "microsoft.sqlserver.server.1.0.0.nupkg.sha512"
     },
-    "Refit/9.0.2": {
+    "Refit/10.0.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-zLAfOh1iYE1bXFdnPjX5V6Nq8d4vBwxXaCovNNcAt9Fz3mfxAqHS3fckbBX4wetVgN1A6tIOzrDtPTN2c4FNrQ==",
-      "path": "refit/9.0.2",
-      "hashPath": "refit.9.0.2.nupkg.sha512"
+      "sha512": "sha512-AprsDMXFRU2k+sXZYfiFLYueP7ovEvoGzC2ylAV9i6xh6rcGJOgLiZdugxnEpIrH6WNbiR8OnOrAr06/pZMQaQ==",
+      "path": "refit/10.0.1",
+      "hashPath": "refit.10.0.1.nupkg.sha512"
     },
     "Serilog/4.3.1": {
       "type": "package",

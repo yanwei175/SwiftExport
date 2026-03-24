@@ -1,7 +1,9 @@
 <Solution>
   <Folder Name="/Clients/">
+    <Project Path="../MateWpfThemes/MateWpfThemes.FW/MateWpfThemes.FW.csproj" Id="21dfb387-dc04-440d-8008-a8d6c25badad" />
     <Project Path="SwiftExport.Desktop/SwiftExport.Desktop.csproj" Id="c1e9a94b-be8c-4edc-b868-b7b1f3fe1e73" />
-    <Project Path="SwiftExport.UI.Controls/SwiftExport.UI.Controls.csproj" Id="dd896331-0959-4b1a-baad-2dd043f9cf23" />
+    <Project Path="SwiftExport.DevApp/SwiftExport.DevApp.csproj" Id="26d1d153-b488-4216-bca5-edb79ea51f7c" />
+    <Project Path="SwiftExport.View.FW/SwiftExport.View.FW.csproj" Id="c1efb3ce-47eb-4f67-a289-d50a3c30ba10" />
     <Project Path="SwiftExport.VSTO/SwiftExport.VSTO.csproj" Id="b8863b43-db40-4321-8c73-81336270d773" />
   </Folder>
   <Project Path="SwiftExport.Contracts/SwiftExport.Contracts.csproj" Id="73faa5c6-c278-4c02-80d0-27a24a6b831a" />

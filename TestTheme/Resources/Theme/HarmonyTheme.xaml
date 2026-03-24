@@ -1,0 +1,29 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ResourceDictionary.MergedDictionaries>
+
+        <!-- Light Theme -->
+        <ResourceDictionary Source="Colors/HarmonyLight.xaml" />
+        <ResourceDictionary Source="Brushes/HarmonyLightBrushes.xaml" />
+
+        <!--Animations-->
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Animations.xaml" />
+
+        <!-- Controls -->
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Controls/Button.xaml" />
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Controls/Inputs.xaml" />
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Controls/ToggleSwitch.xaml" />
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Controls/CheckBox.xaml" />
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Controls/RadioButton.xaml" />
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Controls/Card.xaml" />
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Controls/ListBox.xaml" />
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Controls/Dialog.xaml" />
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Controls/Slider.xaml" />
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Controls/ProgressBar.xaml" />
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Controls/TabControl.xaml" />
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Controls/ComboBox.xaml" />
+
+    </ResourceDictionary.MergedDictionaries>
+
+</ResourceDictionary>

@@ -1,0 +1,104 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    
+    
+    
+    <!-- ========================= -->
+    <!--   基础模板（所有按钮共用） -->
+    <!-- ========================= -->
+    <ControlTemplate x:Key="HarmonyButtonTemplate" TargetType="Button">
+        <Border x:Name="border"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="8"
+                SnapsToDevicePixels="True"
+                RenderTransformOrigin="0.5,0.5">
+
+            <Border.RenderTransform>
+                <ScaleTransform ScaleX="1" ScaleY="1" />
+            </Border.RenderTransform>
+
+            <ContentPresenter HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              Margin="{TemplateBinding Padding}" />
+        </Border>
+
+        <ControlTemplate.Triggers>
+
+            <!-- Hover -->
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="border" Property="Opacity" Value="0.92" />
+            </Trigger>
+
+            <!-- Pressed（使用全局动画） -->
+            <EventTrigger RoutedEvent="Button.PreviewMouseLeftButtonDown">
+                <BeginStoryboard Storyboard="{StaticResource ClickRippleStoryboard}" />
+            </EventTrigger>
+
+            <!-- Disabled -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="border" Property="Background"
+                        Value="{DynamicResource HarmonyNeutral4Brush}" />
+                <Setter Property="Foreground"
+                        Value="{DynamicResource HarmonyNeutral7Brush}" />
+            </Trigger>
+
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+
+
+
+    <!-- ========================= -->
+    <!--   其他按钮样式（可选）     -->
+    <!-- ========================= -->
+
+    <!-- Primary 主按钮 -->
+    <Style x:Key="HarmonyButtonPrimary" TargetType="Button"
+           BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{DynamicResource HarmonyPrimary5Brush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Outline 描边按钮 -->
+    <Style x:Key="HarmonyButtonOutline" TargetType="Button"
+           BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{DynamicResource HarmonyNeutral1Brush}" />
+        <Setter Property="Foreground" Value="{DynamicResource HarmonyPrimary5Brush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource HarmonyPrimary5Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <!-- Text 文本按钮 -->
+    <Style x:Key="HarmonyButtonText" TargetType="Button"
+           BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource HarmonyPrimary5Brush}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="8,4" />
+    </Style>
+
+    <!-- Success 成功按钮 -->
+    <Style x:Key="HarmonyButtonSuccess" TargetType="Button"
+           BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{DynamicResource HarmonySuccessBrush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Danger 危险按钮 -->
+    <Style x:Key="HarmonyButtonDanger" TargetType="Button"
+           BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{DynamicResource HarmonyErrorBrush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    
+    <!-- ========================= -->
+    <!--   默认按钮（不写 Style）   -->
+    <!-- ========================= -->
+    <Style TargetType="Button" BasedOn="{StaticResource HarmonyButtonOutline}">
+    </Style>
+
+</ResourceDictionary>

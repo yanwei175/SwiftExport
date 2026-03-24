@@ -16,7 +16,8 @@ namespace SwiftExport.VSTO
 
         private void BtnTest_Click(object sender, RibbonControlEventArgs e)
         {
-
+            var win = new ThemeTest.MainWindow();
+            win.ShowDialog();
 
         }
 

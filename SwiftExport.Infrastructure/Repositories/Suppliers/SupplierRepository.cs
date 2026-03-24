@@ -1,13 +1,12 @@
 ﻿using Dapper;
-using Microsoft.Extensions.Logging;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Suppliers
 {
-    public class SupplierRepository(DbSession _session, ILogger<SupplierRepository> logger) : DapperRepository<Supplier>(_session, logger), ISupplierRepository
+    public class SupplierRepository(RepositoryBaseContext context) : DapperRepository<Supplier>(context), ISupplierRepository
     {
         public async Task<bool> ExistBySupplierCode(string supplierCode)
         {

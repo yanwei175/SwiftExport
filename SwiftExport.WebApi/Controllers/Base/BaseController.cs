@@ -41,5 +41,19 @@ namespace SwiftExport.WebApi.Controllers.Base // 你的实际命名空间
             return await _service.DeleteAsync(id);
         }
 
+
+        [HttpPost("page")]
+        public virtual async Task<ServiceResult<PagedResultDto<TDto>>> GetPagedList([FromBody] QueryCriteria criteria, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 500)
+        {
+            return await _service.GetPagedListAsync(criteria, pageIndex, pageSize);
+        }
+
+
+        [HttpPost("batch-save")]
+        public virtual async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestGeneric<TDto> req)
+        {
+            // 直接调用泛型服务里的批量事务处理
+            return await ((IBaseService<TEntity, TDto>)_service).BatchSaveAsync(req);
+        }
     }
 }

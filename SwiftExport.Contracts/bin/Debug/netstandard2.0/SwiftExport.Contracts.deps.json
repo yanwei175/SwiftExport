@@ -9,7 +9,8 @@
     ".NETStandard,Version=v2.0/": {
       "SwiftExport.Contracts/1.0.0": {
         "dependencies": {
-          "Refit": "9.0.2"
+          "Refit": "10.0.1",
+          "System.Buffers": "4.6.1"
         },
         "runtime": {
           "SwiftExport.Contracts.dll": {}
@@ -26,29 +27,29 @@
           }
         }
       },
-      "Refit/9.0.2": {
+      "Refit/10.0.1": {
         "dependencies": {
           "System.Net.Http.Json": "9.0.9",
           "System.Text.Json": "9.0.9"
         },
         "runtime": {
           "lib/netstandard2.0/Refit.dll": {
-            "assemblyVersion": "9.0.0.0",
-            "fileVersion": "9.0.2.7758"
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.1.341"
           }
         }
       },
-      "System.Buffers/4.5.1": {
+      "System.Buffers/4.6.1": {
         "runtime": {
           "lib/netstandard2.0/System.Buffers.dll": {
-            "assemblyVersion": "4.0.3.0",
-            "fileVersion": "4.6.28619.1"
+            "assemblyVersion": "4.0.2.0",
+            "fileVersion": "4.600.125.16908"
           }
         }
       },
       "System.IO.Pipelines/9.0.9": {
         "dependencies": {
-          "System.Buffers": "4.5.1",
+          "System.Buffers": "4.6.1",
           "System.Memory": "4.5.5",
           "System.Threading.Tasks.Extensions": "4.5.4"
         },
@@ -61,7 +62,7 @@
       },
       "System.Memory/4.5.5": {
         "dependencies": {
-          "System.Buffers": "4.5.1",
+          "System.Buffers": "4.6.1",
           "System.Numerics.Vectors": "4.4.0",
           "System.Runtime.CompilerServices.Unsafe": "6.0.0"
         },
@@ -74,7 +75,7 @@
       },
       "System.Net.Http.Json/9.0.9": {
         "dependencies": {
-          "System.Buffers": "4.5.1",
+          "System.Buffers": "4.6.1",
           "System.Memory": "4.5.5",
           "System.Text.Json": "9.0.9",
           "System.Threading.Tasks.Extensions": "4.5.4"
@@ -104,7 +105,7 @@
       },
       "System.Text.Encodings.Web/9.0.9": {
         "dependencies": {
-          "System.Buffers": "4.5.1",
+          "System.Buffers": "4.6.1",
           "System.Memory": "4.5.5",
           "System.Runtime.CompilerServices.Unsafe": "6.0.0"
         },
@@ -118,7 +119,7 @@
       "System.Text.Json/9.0.9": {
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "9.0.9",
-          "System.Buffers": "4.5.1",
+          "System.Buffers": "4.6.1",
           "System.IO.Pipelines": "9.0.9",
           "System.Memory": "4.5.5",
           "System.Runtime.CompilerServices.Unsafe": "6.0.0",
@@ -158,19 +159,19 @@
       "path": "microsoft.bcl.asyncinterfaces/9.0.9",
       "hashPath": "microsoft.bcl.asyncinterfaces.9.0.9.nupkg.sha512"
     },
-    "Refit/9.0.2": {
+    "Refit/10.0.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-zLAfOh1iYE1bXFdnPjX5V6Nq8d4vBwxXaCovNNcAt9Fz3mfxAqHS3fckbBX4wetVgN1A6tIOzrDtPTN2c4FNrQ==",
-      "path": "refit/9.0.2",
-      "hashPath": "refit.9.0.2.nupkg.sha512"
+      "sha512": "sha512-AprsDMXFRU2k+sXZYfiFLYueP7ovEvoGzC2ylAV9i6xh6rcGJOgLiZdugxnEpIrH6WNbiR8OnOrAr06/pZMQaQ==",
+      "path": "refit/10.0.1",
+      "hashPath": "refit.10.0.1.nupkg.sha512"
     },
-    "System.Buffers/4.5.1": {
+    "System.Buffers/4.6.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-Rw7ijyl1qqRS0YQD/WycNst8hUUMgrMH4FCn1nNm27M4VxchZ1js3fVjQaANHO5f3sN4isvP4a+Met9Y4YomAg==",
-      "path": "system.buffers/4.5.1",
-      "hashPath": "system.buffers.4.5.1.nupkg.sha512"
+      "sha512": "sha512-N8GXpmiLMtljq7gwvyS+1QvKT/W2J8sNAvx+HVg4NGmsG/H+2k/y9QI23auLJRterrzCiDH+IWAw4V/GPwsMlw==",
+      "path": "system.buffers/4.6.1",
+      "hashPath": "system.buffers.4.6.1.nupkg.sha512"
     },
     "System.IO.Pipelines/9.0.9": {
       "type": "package",

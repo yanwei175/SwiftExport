@@ -1,5 +1,5 @@
 ﻿using Mapster;
-using Microsoft.Extensions.Logging;
+using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Products;
@@ -10,7 +10,7 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Products;
 
-public class ProductService(IProductRepository productRepository, ILogger<ProductService> logger) : BaseService<Product, ProductDto>(productRepository, logger), IProductService
+public class ProductService(IProductRepository productRepository, ServiceBaseContext context) : BaseService<Product, ProductDto>(productRepository, context), IProductService
 {
     // 2. 将传入的特有 Repository 保存为当前类的私有只读字段
     private readonly IProductRepository _productRepository = productRepository;

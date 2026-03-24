@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "dgSpecHash": "lCAbbIPTZ3Q=",
+  "dgSpecHash": "HuBJVYlFxfI=",
   "success": true,
   "projectFilePath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\SwiftExport.Contracts.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\YWFS\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\9.0.9\\microsoft.bcl.asyncinterfaces.9.0.9.nupkg.sha512",
     "C:\\Users\\YWFS\\.nuget\\packages\\microsoft.netcore.platforms\\1.1.0\\microsoft.netcore.platforms.1.1.0.nupkg.sha512",
     "C:\\Users\\YWFS\\.nuget\\packages\\netstandard.library\\2.0.3\\netstandard.library.2.0.3.nupkg.sha512",
-    "C:\\Users\\YWFS\\.nuget\\packages\\refit\\9.0.2\\refit.9.0.2.nupkg.sha512",
-    "C:\\Users\\YWFS\\.nuget\\packages\\system.buffers\\4.5.1\\system.buffers.4.5.1.nupkg.sha512",
+    "C:\\Users\\YWFS\\.nuget\\packages\\refit\\10.0.1\\refit.10.0.1.nupkg.sha512",
+    "C:\\Users\\YWFS\\.nuget\\packages\\system.buffers\\4.6.1\\system.buffers.4.6.1.nupkg.sha512",
     "C:\\Users\\YWFS\\.nuget\\packages\\system.io.pipelines\\9.0.9\\system.io.pipelines.9.0.9.nupkg.sha512",
     "C:\\Users\\YWFS\\.nuget\\packages\\system.memory\\4.5.5\\system.memory.4.5.5.nupkg.sha512",
     "C:\\Users\\YWFS\\.nuget\\packages\\system.net.http.json\\9.0.9\\system.net.http.json.9.0.9.nupkg.sha512",

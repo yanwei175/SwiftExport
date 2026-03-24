@@ -65,9 +65,5 @@ public class SupplierController(ISupplierService service) : BaseController<Suppl
         return await service.GetAllAsync();
     }
 
-    [HttpPost("batch-save")]
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync([FromBody] BatchRequestGeneric<SupplierDto> request)
-    {
-        return await service.BatchSaveAsync(request);
-    }
+
 }

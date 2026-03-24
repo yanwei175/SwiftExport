@@ -72,11 +72,5 @@ public class CustomerPoConfigController(ICustomerPoConfigService service) : Base
         return await service.GetAllAsync();
     }
 
-
-    [HttpPost("batch-save")]
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync([FromBody] BatchRequestGeneric<CustomerPoConfigDto> request)
-    {
-        return await service.BatchSaveAsync(request);
-    }
 }
 

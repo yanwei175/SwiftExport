@@ -1,13 +1,12 @@
 ﻿using Dapper;
-using Microsoft.Extensions.Logging;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Customers
 {
-    public class CustomerRepository(DbSession _session, ILogger<CustomerRepository> logger) : DapperRepository<Customer>(_session, logger), ICustomerRepository
+    public class CustomerRepository(RepositoryBaseContext context) : DapperRepository<Customer>(context), ICustomerRepository
     {
 
         public async Task<IReadOnlyList<string>> 获取表字段列表Async()

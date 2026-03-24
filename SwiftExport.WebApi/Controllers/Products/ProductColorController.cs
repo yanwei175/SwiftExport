@@ -69,11 +69,7 @@ public class ProductColorController(IProductColorService service) : BaseControll
         return await service.GetAllAsync();
     }
 
-    [HttpPost("batch-save")]
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync([FromBody] BatchRequestGeneric<ProductColorDto> request)
-    {
-        return await service.BatchSaveAsync(request);
-    }
+
 
 
 

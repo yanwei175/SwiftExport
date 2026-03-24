@@ -395,7 +395,7 @@
           }
         }
       },
-      "Refit/9.0.2": {
+      "Refit/10.0.1": {
         "type": "package",
         "compile": {
           "lib/net10.0/Refit.dll": {
@@ -759,7 +759,7 @@
         "type": "project",
         "framework": ".NETStandard,Version=v2.0",
         "dependencies": {
-          "Refit": "9.0.2"
+          "Refit": "10.0.1"
         },
         "compile": {
           "bin/placeholder/SwiftExport.Contracts.dll": {}
@@ -1546,10 +1546,10 @@
         "microsoft.sqlserver.server.nuspec"
       ]
     },
-    "Refit/9.0.2": {
-      "sha512": "zLAfOh1iYE1bXFdnPjX5V6Nq8d4vBwxXaCovNNcAt9Fz3mfxAqHS3fckbBX4wetVgN1A6tIOzrDtPTN2c4FNrQ==",
+    "Refit/10.0.1": {
+      "sha512": "AprsDMXFRU2k+sXZYfiFLYueP7ovEvoGzC2ylAV9i6xh6rcGJOgLiZdugxnEpIrH6WNbiR8OnOrAr06/pZMQaQ==",
       "type": "package",
-      "path": "refit/9.0.2",
+      "path": "refit/10.0.1",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -1570,7 +1570,7 @@
         "lib/net9.0/Refit.xml",
         "lib/netstandard2.0/Refit.dll",
         "lib/netstandard2.0/Refit.xml",
-        "refit.9.0.2.nupkg.sha512",
+        "refit.10.0.1.nupkg.sha512",
         "refit.nuspec",
         "refit_logo.png"
       ]
@@ -2166,7 +2166,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.200/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.AspNetCore": "(,10.0.32767]",
           "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",

@@ -45,7 +45,7 @@ namespace SwiftExport.Contracts.Apis.BaseApi
 
         // 6. 批量保存混合包 (实际传入比如 "api/product/batch-save")
         [Post("/batch-save")]
-        Task<ServiceResult<object>> BatchSaveAsync([Body] BatchRequestGeneric<TDto> request);
+        Task<ServiceResult<BatchResultDto>> BatchSaveAsync([Body] BatchRequestGeneric<TDto> request);
 
     }
 }

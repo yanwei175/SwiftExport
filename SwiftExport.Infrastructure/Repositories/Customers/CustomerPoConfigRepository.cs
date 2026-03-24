@@ -1,14 +1,13 @@
 ﻿using Dapper;
-using Microsoft.Extensions.Logging;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Customers
 {
-    public class CustomerPoConfigRepository(DbSession _session, ILogger<CustomerPoConfigRepository> logger) : DapperRepository<CustomerPoConfig>(_session, logger), ICustomerPoConfigRepository
+    public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperRepository<CustomerPoConfig>(context), ICustomerPoConfigRepository
     {
         public async Task<IReadOnlyList<PoConfigCheck>> GetNonUniqueByPoConfigCheckList(IEnumerable<PoConfigCheck> poConfigCheckList)
         {

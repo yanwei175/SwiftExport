@@ -65,12 +65,12 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "Microsoft.Extensions.DependencyInjection/10.0.3": {
+      "Microsoft.Extensions.DependencyInjection/9.0.3": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.3",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.3",
-          "System.Threading.Tasks.Extensions": "4.6.3"
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.3",
+          "System.Threading.Tasks.Extensions": "4.5.4"
         },
         "compile": {
           "lib/net462/Microsoft.Extensions.DependencyInjection.dll": {
@@ -86,11 +86,11 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "Microsoft.Extensions.DependencyInjection.Abstractions/10.0.3": {
+      "Microsoft.Extensions.DependencyInjection.Abstractions/9.0.3": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.3",
-          "System.Threading.Tasks.Extensions": "4.6.3"
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "System.Threading.Tasks.Extensions": "4.5.4"
         },
         "compile": {
           "lib/net462/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
@@ -523,8 +523,11 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "System.ValueTuple/4.6.1": {
+      "System.ValueTuple/4.6.2": {
         "type": "package",
+        "frameworkAssemblies": [
+          "System.ValueTuple"
+        ],
         "compile": {
           "lib/net471/_._": {}
         },
@@ -560,22 +563,14 @@
         "type": "project",
         "framework": ".NETStandard,Version=v2.0",
         "dependencies": {
-          "Refit": "9.0.2"
+          "Refit": "10.0.1",
+          "System.Buffers": "4.6.1"
         },
         "compile": {
           "bin/placeholder/SwiftExport.Contracts.dll": {}
         },
         "runtime": {
           "bin/placeholder/SwiftExport.Contracts.dll": {}
-        }
-      },
-      "SwiftExport.UI.Controls/1.0.0": {
-        "type": "project",
-        "compile": {
-          "bin/placeholder/SwiftExport.UI.Controls.dll": {}
-        },
-        "runtime": {
-          "bin/placeholder/SwiftExport.UI.Controls.dll": {}
         }
       }
     },
@@ -643,12 +638,12 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "Microsoft.Extensions.DependencyInjection/10.0.3": {
+      "Microsoft.Extensions.DependencyInjection/9.0.3": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.3",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.3",
-          "System.Threading.Tasks.Extensions": "4.6.3"
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.3",
+          "System.Threading.Tasks.Extensions": "4.5.4"
         },
         "compile": {
           "lib/net462/Microsoft.Extensions.DependencyInjection.dll": {
@@ -664,11 +659,11 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "Microsoft.Extensions.DependencyInjection.Abstractions/10.0.3": {
+      "Microsoft.Extensions.DependencyInjection.Abstractions/9.0.3": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.3",
-          "System.Threading.Tasks.Extensions": "4.6.3"
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "System.Threading.Tasks.Extensions": "4.5.4"
         },
         "compile": {
           "lib/net462/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
@@ -1101,8 +1096,11 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "System.ValueTuple/4.6.1": {
+      "System.ValueTuple/4.6.2": {
         "type": "package",
+        "frameworkAssemblies": [
+          "System.ValueTuple"
+        ],
         "compile": {
           "lib/net471/_._": {}
         },
@@ -1138,22 +1136,14 @@
         "type": "project",
         "framework": ".NETStandard,Version=v2.0",
         "dependencies": {
-          "Refit": "9.0.2"
+          "Refit": "10.0.1",
+          "System.Buffers": "4.6.1"
         },
         "compile": {
           "bin/placeholder/SwiftExport.Contracts.dll": {}
         },
         "runtime": {
           "bin/placeholder/SwiftExport.Contracts.dll": {}
-        }
-      },
-      "SwiftExport.UI.Controls/1.0.0": {
-        "type": "project",
-        "compile": {
-          "bin/placeholder/SwiftExport.UI.Controls.dll": {}
-        },
-        "runtime": {
-          "bin/placeholder/SwiftExport.UI.Controls.dll": {}
         }
       }
     },
@@ -1221,12 +1211,12 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "Microsoft.Extensions.DependencyInjection/10.0.3": {
+      "Microsoft.Extensions.DependencyInjection/9.0.3": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.3",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.3",
-          "System.Threading.Tasks.Extensions": "4.6.3"
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.3",
+          "System.Threading.Tasks.Extensions": "4.5.4"
         },
         "compile": {
           "lib/net462/Microsoft.Extensions.DependencyInjection.dll": {
@@ -1242,11 +1232,11 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "Microsoft.Extensions.DependencyInjection.Abstractions/10.0.3": {
+      "Microsoft.Extensions.DependencyInjection.Abstractions/9.0.3": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.3",
-          "System.Threading.Tasks.Extensions": "4.6.3"
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "System.Threading.Tasks.Extensions": "4.5.4"
         },
         "compile": {
           "lib/net462/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
@@ -1679,8 +1669,11 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "System.ValueTuple/4.6.1": {
+      "System.ValueTuple/4.6.2": {
         "type": "package",
+        "frameworkAssemblies": [
+          "System.ValueTuple"
+        ],
         "compile": {
           "lib/net471/_._": {}
         },
@@ -1716,22 +1709,14 @@
         "type": "project",
         "framework": ".NETStandard,Version=v2.0",
         "dependencies": {
-          "Refit": "9.0.2"
+          "Refit": "10.0.1",
+          "System.Buffers": "4.6.1"
         },
         "compile": {
           "bin/placeholder/SwiftExport.Contracts.dll": {}
         },
         "runtime": {
           "bin/placeholder/SwiftExport.Contracts.dll": {}
-        }
-      },
-      "SwiftExport.UI.Controls/1.0.0": {
-        "type": "project",
-        "compile": {
-          "bin/placeholder/SwiftExport.UI.Controls.dll": {}
-        },
-        "runtime": {
-          "bin/placeholder/SwiftExport.UI.Controls.dll": {}
         }
       }
     },
@@ -1799,12 +1784,12 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "Microsoft.Extensions.DependencyInjection/10.0.3": {
+      "Microsoft.Extensions.DependencyInjection/9.0.3": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.3",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.3",
-          "System.Threading.Tasks.Extensions": "4.6.3"
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.3",
+          "System.Threading.Tasks.Extensions": "4.5.4"
         },
         "compile": {
           "lib/net462/Microsoft.Extensions.DependencyInjection.dll": {
@@ -1820,11 +1805,11 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "Microsoft.Extensions.DependencyInjection.Abstractions/10.0.3": {
+      "Microsoft.Extensions.DependencyInjection.Abstractions/9.0.3": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.3",
-          "System.Threading.Tasks.Extensions": "4.6.3"
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "System.Threading.Tasks.Extensions": "4.5.4"
         },
         "compile": {
           "lib/net462/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
@@ -2257,8 +2242,11 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "System.ValueTuple/4.6.1": {
+      "System.ValueTuple/4.6.2": {
         "type": "package",
+        "frameworkAssemblies": [
+          "System.ValueTuple"
+        ],
         "compile": {
           "lib/net471/_._": {}
         },
@@ -2294,22 +2282,14 @@
         "type": "project",
         "framework": ".NETStandard,Version=v2.0",
         "dependencies": {
-          "Refit": "9.0.2"
+          "Refit": "10.0.1",
+          "System.Buffers": "4.6.1"
         },
         "compile": {
           "bin/placeholder/SwiftExport.Contracts.dll": {}
         },
         "runtime": {
           "bin/placeholder/SwiftExport.Contracts.dll": {}
-        }
-      },
-      "SwiftExport.UI.Controls/1.0.0": {
-        "type": "project",
-        "compile": {
-          "bin/placeholder/SwiftExport.UI.Controls.dll": {}
-        },
-        "runtime": {
-          "bin/placeholder/SwiftExport.UI.Controls.dll": {}
         }
       }
     },
@@ -2377,12 +2357,12 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "Microsoft.Extensions.DependencyInjection/10.0.3": {
+      "Microsoft.Extensions.DependencyInjection/9.0.3": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.3",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.3",
-          "System.Threading.Tasks.Extensions": "4.6.3"
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.3",
+          "System.Threading.Tasks.Extensions": "4.5.4"
         },
         "compile": {
           "lib/net462/Microsoft.Extensions.DependencyInjection.dll": {
@@ -2398,11 +2378,11 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "Microsoft.Extensions.DependencyInjection.Abstractions/10.0.3": {
+      "Microsoft.Extensions.DependencyInjection.Abstractions/9.0.3": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.3",
-          "System.Threading.Tasks.Extensions": "4.6.3"
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "System.Threading.Tasks.Extensions": "4.5.4"
         },
         "compile": {
           "lib/net462/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
@@ -2835,8 +2815,11 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "System.ValueTuple/4.6.1": {
+      "System.ValueTuple/4.6.2": {
         "type": "package",
+        "frameworkAssemblies": [
+          "System.ValueTuple"
+        ],
         "compile": {
           "lib/net471/_._": {}
         },
@@ -2872,22 +2855,14 @@
         "type": "project",
         "framework": ".NETStandard,Version=v2.0",
         "dependencies": {
-          "Refit": "9.0.2"
+          "Refit": "10.0.1",
+          "System.Buffers": "4.6.1"
         },
         "compile": {
           "bin/placeholder/SwiftExport.Contracts.dll": {}
         },
         "runtime": {
           "bin/placeholder/SwiftExport.Contracts.dll": {}
-        }
-      },
-      "SwiftExport.UI.Controls/1.0.0": {
-        "type": "project",
-        "compile": {
-          "bin/placeholder/SwiftExport.UI.Controls.dll": {}
-        },
-        "runtime": {
-          "bin/placeholder/SwiftExport.UI.Controls.dll": {}
         }
       }
     }
@@ -2976,22 +2951,21 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "Microsoft.Extensions.DependencyInjection/10.0.3": {
-      "sha512": "2DLOmC0EkB2smVK8lPP1PIKEgL1arE3CMp9XSIQB/Y7ev5nnnyuM/PizKJ6QfLD08QCYoopSC9SFdbYglDomYg==",
+    "Microsoft.Extensions.DependencyInjection/9.0.3": {
+      "sha512": "lDbxJpkl6X8KZGpkAxgrrthQ42YeiR0xjPp7KPx+sCPc3ZbpaIbjzd0QQ+9kDdK2RU2DOl3pc6tQyAgEZY3V0A==",
       "type": "package",
-      "path": "microsoft.extensions.dependencyinjection/10.0.3",
+      "path": "microsoft.extensions.dependencyinjection/9.0.3",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "Icon.png",
+        "LICENSE.TXT",
         "PACKAGE.md",
         "THIRD-PARTY-NOTICES.TXT",
         "buildTransitive/net461/Microsoft.Extensions.DependencyInjection.targets",
         "buildTransitive/net462/_._",
         "buildTransitive/net8.0/_._",
         "buildTransitive/netcoreapp2.0/Microsoft.Extensions.DependencyInjection.targets",
-        "lib/net10.0/Microsoft.Extensions.DependencyInjection.dll",
-        "lib/net10.0/Microsoft.Extensions.DependencyInjection.xml",
         "lib/net462/Microsoft.Extensions.DependencyInjection.dll",
         "lib/net462/Microsoft.Extensions.DependencyInjection.xml",
         "lib/net8.0/Microsoft.Extensions.DependencyInjection.dll",
@@ -3002,27 +2976,26 @@
         "lib/netstandard2.0/Microsoft.Extensions.DependencyInjection.xml",
         "lib/netstandard2.1/Microsoft.Extensions.DependencyInjection.dll",
         "lib/netstandard2.1/Microsoft.Extensions.DependencyInjection.xml",
-        "microsoft.extensions.dependencyinjection.10.0.3.nupkg.sha512",
+        "microsoft.extensions.dependencyinjection.9.0.3.nupkg.sha512",
         "microsoft.extensions.dependencyinjection.nuspec",
         "useSharedDesignerContext.txt"
       ]
     },
-    "Microsoft.Extensions.DependencyInjection.Abstractions/10.0.3": {
-      "sha512": "bwGMrRcAMWx2s/RDgja97p27rxSz2pEQW0+rX5cWAUWVETVJ/eyxGfjAl8vuG5a+lckWmPIE+vcuaZNVB5YDdw==",
+    "Microsoft.Extensions.DependencyInjection.Abstractions/9.0.3": {
+      "sha512": "TfaHPSe39NyL2wxkisRxXK7xvHGZYBZ+dy3r+mqGvnxKgAPdHkMu3QMQZI4pquP6W5FIQBqs8FJpWV8ffCgDqQ==",
       "type": "package",
-      "path": "microsoft.extensions.dependencyinjection.abstractions/10.0.3",
+      "path": "microsoft.extensions.dependencyinjection.abstractions/9.0.3",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "Icon.png",
+        "LICENSE.TXT",
         "PACKAGE.md",
         "THIRD-PARTY-NOTICES.TXT",
         "buildTransitive/net461/Microsoft.Extensions.DependencyInjection.Abstractions.targets",
         "buildTransitive/net462/_._",
         "buildTransitive/net8.0/_._",
         "buildTransitive/netcoreapp2.0/Microsoft.Extensions.DependencyInjection.Abstractions.targets",
-        "lib/net10.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll",
-        "lib/net10.0/Microsoft.Extensions.DependencyInjection.Abstractions.xml",
         "lib/net462/Microsoft.Extensions.DependencyInjection.Abstractions.dll",
         "lib/net462/Microsoft.Extensions.DependencyInjection.Abstractions.xml",
         "lib/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll",
@@ -3033,7 +3006,7 @@
         "lib/netstandard2.0/Microsoft.Extensions.DependencyInjection.Abstractions.xml",
         "lib/netstandard2.1/Microsoft.Extensions.DependencyInjection.Abstractions.dll",
         "lib/netstandard2.1/Microsoft.Extensions.DependencyInjection.Abstractions.xml",
-        "microsoft.extensions.dependencyinjection.abstractions.10.0.3.nupkg.sha512",
+        "microsoft.extensions.dependencyinjection.abstractions.9.0.3.nupkg.sha512",
         "microsoft.extensions.dependencyinjection.abstractions.nuspec",
         "useSharedDesignerContext.txt"
       ]
@@ -3676,19 +3649,21 @@
         "system.threading.tasks.extensions.nuspec"
       ]
     },
-    "System.ValueTuple/4.6.1": {
-      "sha512": "+RJT4qaekpZ7DDLhf+LTjq+E48jieKiY9ulJ+BoxKmZblIJfIJT8Ufcaa/clQqnYvWs8jugfGSMu8ylS0caG0w==",
+    "System.ValueTuple/4.6.2": {
+      "sha512": "yQgmjfFximrNm9LIV3mL6T5MzjeC+epeE5rl4hXxAlYmxby7RM1dPSkIKXk9HNkl6G54h2JHOmLD46+Pey+IRg==",
       "type": "package",
-      "path": "system.valuetuple/4.6.1",
+      "path": "system.valuetuple/4.6.2",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "Icon.png",
         "PACKAGE.md",
         "build/net471/System.ValueTuple.targets",
+        "build/net471/ValueTupleFrameworkList.xml",
         "buildTransitive/net461/System.ValueTuple.targets",
         "buildTransitive/net462/_._",
         "buildTransitive/net471/System.ValueTuple.targets",
+        "buildTransitive/net471/ValueTupleFrameworkList.xml",
         "lib/net462/System.ValueTuple.dll",
         "lib/net462/System.ValueTuple.xml",
         "lib/net47/System.ValueTuple.dll",
@@ -3696,7 +3671,7 @@
         "lib/net471/_._",
         "lib/netcoreapp2.0/_._",
         "lib/netstandard2.0/_._",
-        "system.valuetuple.4.6.1.nupkg.sha512",
+        "system.valuetuple.4.6.2.nupkg.sha512",
         "system.valuetuple.nuspec"
       ]
     },
@@ -3730,25 +3705,20 @@
       "type": "project",
       "path": "../SwiftExport.Contracts/SwiftExport.Contracts.csproj",
       "msbuildProject": "../SwiftExport.Contracts/SwiftExport.Contracts.csproj"
-    },
-    "SwiftExport.UI.Controls/1.0.0": {
-      "type": "project",
-      "path": "../SwiftExport.UI.Controls/SwiftExport.UI.Controls.csproj",
-      "msbuildProject": "../SwiftExport.UI.Controls/SwiftExport.UI.Controls.csproj"
     }
   },
   "projectFileDependencyGroups": {
     ".NETFramework,Version=v4.8": [
       "Mapster >= 7.2.0",
       "Microsoft.Bcl.AsyncInterfaces >= 10.0.3",
-      "Microsoft.Extensions.DependencyInjection >= 10.0.3",
+      "Microsoft.Extensions.DependencyInjection >= 9.0.3",
+      "Microsoft.Extensions.DependencyInjection.Abstractions >= 9.0.3",
       "Microsoft.Xaml.Behaviors.Wpf >= 1.1.77",
       "Newtonsoft.Json >= 13.0.4",
       "Refit >= 10.0.1",
       "Refit.HttpClientFactory >= 9.0.2",
       "Refit.Newtonsoft.Json >= 10.0.1",
       "SwiftExport.Contracts >= 1.0.0",
-      "SwiftExport.UI.Controls >= 1.0.0",
       "System.Buffers >= 4.6.1",
       "System.IO.Pipelines >= 10.0.3",
       "System.Memory >= 4.6.3",
@@ -3758,7 +3728,7 @@
       "System.Text.Encodings.Web >= 10.0.3",
       "System.Text.Json >= 10.0.3",
       "System.Threading.Tasks.Extensions >= 4.6.3",
-      "System.ValueTuple >= 4.6.1",
+      "System.ValueTuple >= 4.6.2",
       "WindowsAPICodePack-Shell >= 1.1.1"
     ]
   },
@@ -3794,12 +3764,10 @@
       },
       "frameworks": {
         "net48": {
+          "framework": "net48",
           "projectReferences": {
             "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\SwiftExport.Contracts.csproj": {
               "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\SwiftExport.Contracts.csproj"
-            },
-            "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI.Controls\\SwiftExport.UI.Controls.csproj": {
-              "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.UI.Controls\\SwiftExport.UI.Controls.csproj"
             }
           }
         }
@@ -3812,6 +3780,7 @@
     },
     "frameworks": {
       "net48": {
+        "framework": "net48",
         "dependencies": {
           "Mapster": {
             "target": "Package",
@@ -3823,7 +3792,11 @@
           },
           "Microsoft.Extensions.DependencyInjection": {
             "target": "Package",
-            "version": "[10.0.3, )"
+            "version": "[9.0.3, )"
+          },
+          "Microsoft.Extensions.DependencyInjection.Abstractions": {
+            "target": "Package",
+            "version": "[9.0.3, )"
           },
           "Microsoft.Xaml.Behaviors.Wpf": {
             "target": "Package",
@@ -3883,7 +3856,7 @@
           },
           "System.ValueTuple": {
             "target": "Package",
-            "version": "[4.6.1, )"
+            "version": "[4.6.2, )"
           },
           "WindowsAPICodePack-Shell": {
             "target": "Package",

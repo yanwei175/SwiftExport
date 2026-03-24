@@ -4,15 +4,14 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 
-        xmlns:beh="clr-namespace:SwiftExport.UI.Controls.Expand;assembly=SwiftExport.UI.Controls"
-        
+         xmlns:beh="clr-namespace:SwiftExport.View.FW.UserControls.Expand"
+        xmlns:ctrl="clr-namespace:SwiftExport.View.FW.UserControls"
         
         xmlns:viewmodels="clr-namespace:SwiftExport.VSTO.UserWindow.ProductViews.ViewModels"
         d:DataContext="{d:DesignInstance Type=viewmodels:ProductSelectorViewModel}"
         mc:Ignorable="d"
         Title="选择产品" Height="800" Width="1400" 
-        WindowStartupLocation="CenterScreen"
-        xmlns:ctrl="clr-namespace:SwiftExport.UI.Controls;assembly=SwiftExport.UI.Controls">
+        WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
         <ResourceDictionary>

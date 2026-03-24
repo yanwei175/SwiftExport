@@ -1,0 +1,103 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ========================= -->
+    <!--   鸿蒙 ListBoxItem 样式    -->
+    <!-- ========================= -->
+    <Style x:Key="HarmonyListBoxItem" TargetType="ListBoxItem">
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="Margin" Value="0,2" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True"
+                            RenderTransformOrigin="0.5,0.5">
+
+                        <Border.RenderTransform>
+                            <ScaleTransform ScaleX="1" ScaleY="1" />
+                        </Border.RenderTransform>
+
+                        <ContentPresenter />
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+
+                        <!-- Hover -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background"
+                                    Value="{DynamicResource HarmonyNeutral3Brush}" />
+                        </Trigger>
+
+                        <!-- Selected -->
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="border" Property="Background"
+                                    Value="{DynamicResource HarmonyPrimary1Brush}" />
+                            <Setter Property="Foreground"
+                                    Value="{DynamicResource HarmonyPrimary5Brush}" />
+                        </Trigger>
+
+                        <!-- Disabled -->
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="border" Property="Background"
+                                    Value="{DynamicResource HarmonyNeutral3Brush}" />
+                            <Setter Property="Foreground"
+                                    Value="{DynamicResource HarmonyNeutral7Brush}" />
+                        </Trigger>
+
+                        <!-- 加载动效 -->
+                        <EventTrigger RoutedEvent="ListBoxItem.Loaded">
+                            <BeginStoryboard Storyboard="{StaticResource FadeInStoryboard}" />
+                        </EventTrigger>
+
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+
+    <!-- ========================= -->
+    <!--   默认 ListBox 样式        -->
+    <!-- ========================= -->
+    <Style TargetType="ListBox">
+        <Setter Property="Background" Value="{DynamicResource HarmonyNeutral1Brush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource HarmonyNeutral4Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="4" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource HarmonyListBoxItem}" />
+    </Style>
+
+
+    <!-- ========================= -->
+    <!--   ListView（继承 ListBox） -->
+    <!-- ========================= -->
+    <Style TargetType="ListView" BasedOn="{StaticResource {x:Type ListBox}}">
+        <Setter Property="ItemContainerStyle" Value="{StaticResource HarmonyListBoxItem}" />
+    </Style>
+
+
+    <!-- ========================= -->
+    <!--   GridViewColumnHeader     -->
+    <!-- ========================= -->
+    <Style TargetType="GridViewColumnHeader">
+        <Setter Property="Background" Value="{DynamicResource HarmonyNeutral2Brush}" />
+        <Setter Property="Foreground" Value="{DynamicResource HarmonyPrimaryTextBrush}" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="BorderBrush" Value="{DynamicResource HarmonyNeutral4Brush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+</ResourceDictionary>

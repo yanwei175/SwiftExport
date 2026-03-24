@@ -1,0 +1,78 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ========================= -->
+    <!--   鸿蒙基础 InputBox 模板   -->
+    <!-- ========================= -->
+    <ControlTemplate x:Key="HarmonyInputBoxTemplate" TargetType="Control">
+        <Border x:Name="border"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="8"
+                SnapsToDevicePixels="True"
+                RenderTransformOrigin="0.5,0.5">
+
+            <Border.RenderTransform>
+                <ScaleTransform ScaleX="1" ScaleY="1" />
+            </Border.RenderTransform>
+
+            <ScrollViewer x:Name="PART_ContentHost"
+                          Margin="{TemplateBinding Padding}" />
+        </Border>
+
+        <ControlTemplate.Triggers>
+
+            <!-- Hover -->
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="border" Property="Opacity" Value="0.96" />
+            </Trigger>
+
+            <!-- Focus -->
+            <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="border" Property="BorderBrush"
+                        Value="{DynamicResource HarmonyPrimary5Brush}" />
+                <Setter TargetName="border" Property="Background"
+                        Value="{DynamicResource HarmonyNeutral1Brush}" />
+            </Trigger>
+
+            <!-- Disabled -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="border" Property="Background"
+                        Value="{DynamicResource HarmonyNeutral3Brush}" />
+                <Setter Property="Foreground"
+                        Value="{DynamicResource HarmonyNeutral7Brush}" />
+            </Trigger>
+
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+
+    <!-- ========================= -->
+    <!--       TextBox 样式        -->
+    <!-- ========================= -->
+    <Style x:Key="HarmonyTextBox" TargetType="TextBox">
+        <Setter Property="Foreground" Value="{DynamicResource HarmonyPrimaryTextBrush}" />
+        <Setter Property="Background" Value="{DynamicResource HarmonyNeutral2Brush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource HarmonyNeutral4Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="CaretBrush" Value="{DynamicResource HarmonyPrimary5Brush}" />
+        <Setter Property="Template" Value="{StaticResource HarmonyInputBoxTemplate}" />
+    </Style>
+
+
+    <!-- ========================= -->
+    <!--      PasswordBox 样式     -->
+    <!-- ========================= -->
+    <Style x:Key="HarmonyPasswordBox" TargetType="PasswordBox">
+        <Setter Property="Foreground" Value="{DynamicResource HarmonyPrimaryTextBrush}" />
+        <Setter Property="Background" Value="{DynamicResource HarmonyNeutral2Brush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource HarmonyNeutral4Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="CaretBrush" Value="{DynamicResource HarmonyPrimary5Brush}" />
+        <Setter Property="Template" Value="{StaticResource HarmonyInputBoxTemplate}" />
+    </Style>
+
+</ResourceDictionary>

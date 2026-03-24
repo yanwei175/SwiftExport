@@ -1,0 +1,313 @@
+2026-03-22 15:04:30.827 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-22 21:13:51.385 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-22 21:13:53.669 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /swagger/v1/swagger.json
+Swashbuckle.AspNetCore.SwaggerGen.SwaggerGeneratorException: Conflicting method/path combination "POST api/customer/batch-save" for actions - SwiftExport.WebApi.Controllers.Customers.CustomerController.BatchSave (SwiftExport.WebApi), SwiftExport.WebApi.Controllers.Customers.CustomerController.BatchSave (SwiftExport.WebApi). Actions require a unique method/path combination for Swagger/OpenAPI 2.0 and 3.0. Use ConflictingActionsResolver as a workaround or provide your own implementation of PathGroupSelector.
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.PrepareGenerateOperation(IGrouping`2 group)
+   at System.Linq.Enumerable.IteratorSelectIterator`2.MoveNext()
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GenerateOperationsAsync(OpenApiDocument document, IEnumerable`1 apiDescriptions, SchemaRepository schemaRepository)
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GeneratePathsAsync(OpenApiDocument document, IEnumerable`1 apiDescriptions, SchemaRepository schemaRepository, Func`4 operationsGenerator)
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GeneratePathsAsync(OpenApiDocument document, IEnumerable`1 apiDescriptions, SchemaRepository schemaRepository)
+   at Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenerator.GetSwaggerAsync(String documentName, String host, String basePath)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+2026-03-22 21:15:59.539 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-22 21:26:54.951 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-22 21:47:40.106 +08:00 [INF] 成功新增 SysDictType 数据，生成的 ID: 1
+2026-03-22 21:47:41.759 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/SysDictData/by-code/CustomerType
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'IsActive' 无效。
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.QueryAsync[T](IDbConnection cnn, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 434
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 123
+   at SwiftExport.Application.Services.Base.BaseService`2.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 93
+   at SwiftExport.WebApi.Controllers.Systems.SysDictDataController.GetByCode(String dictCode) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Systems\SysDictDataController.cs:line 19
+   at lambda_method23(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:72ab8567-15e6-4510-a042-2229223aa4f0
+Error Number:207,State:1,Class:16
+2026-03-22 21:47:50.344 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/SysDictData/by-code/CustomerType
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'IsActive' 无效。
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.QueryAsync[T](IDbConnection cnn, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 434
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 123
+   at SwiftExport.Application.Services.Base.BaseService`2.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 93
+   at SwiftExport.WebApi.Controllers.Systems.SysDictDataController.GetByCode(String dictCode) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Systems\SysDictDataController.cs:line 19
+   at lambda_method23(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:72ab8567-15e6-4510-a042-2229223aa4f0
+Error Number:207,State:1,Class:16
+2026-03-22 21:47:53.086 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/SysDictData/by-code/CustomerType
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'IsActive' 无效。
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.QueryAsync[T](IDbConnection cnn, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 434
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 123
+   at SwiftExport.Application.Services.Base.BaseService`2.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 93
+   at SwiftExport.WebApi.Controllers.Systems.SysDictDataController.GetByCode(String dictCode) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Systems\SysDictDataController.cs:line 19
+   at lambda_method23(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:72ab8567-15e6-4510-a042-2229223aa4f0
+Error Number:207,State:1,Class:16
+2026-03-22 21:48:12.022 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/SysDictData/by-code/CustomerType
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'IsActive' 无效。
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.QueryAsync[T](IDbConnection cnn, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 434
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 123
+   at SwiftExport.Application.Services.Base.BaseService`2.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 93
+   at SwiftExport.WebApi.Controllers.Systems.SysDictDataController.GetByCode(String dictCode) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Systems\SysDictDataController.cs:line 19
+   at lambda_method23(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:72ab8567-15e6-4510-a042-2229223aa4f0
+Error Number:207,State:1,Class:16
+2026-03-22 21:56:51.540 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/SysDictData/by-code/CustomerType
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'IsActive' 无效。
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.QueryAsync[T](IDbConnection cnn, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 434
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 123
+   at SwiftExport.Application.Services.Base.BaseService`2.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 93
+   at SwiftExport.WebApi.Controllers.Systems.SysDictDataController.GetByCode(String dictCode) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Systems\SysDictDataController.cs:line 19
+   at lambda_method23(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:3506d1bc-9a8f-4a55-8dc7-626f413ec880
+Error Number:207,State:1,Class:16
+2026-03-22 21:56:53.723 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/SysDictData/by-code/CustomerType
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'IsActive' 无效。
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.QueryAsync[T](IDbConnection cnn, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 434
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 123
+   at SwiftExport.Application.Services.Base.BaseService`2.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 93
+   at SwiftExport.WebApi.Controllers.Systems.SysDictDataController.GetByCode(String dictCode) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Systems\SysDictDataController.cs:line 19
+   at lambda_method23(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:3506d1bc-9a8f-4a55-8dc7-626f413ec880
+Error Number:207,State:1,Class:16
+2026-03-22 21:57:50.608 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/SysDictData/by-code/CustomerType
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'IsActive' 无效。
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.QueryAsync[T](IDbConnection cnn, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 434
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 123
+   at SwiftExport.Application.Services.Base.BaseService`2.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 93
+   at SwiftExport.WebApi.Controllers.Systems.SysDictDataController.GetByCode(String dictCode) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Systems\SysDictDataController.cs:line 19
+   at lambda_method23(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:3506d1bc-9a8f-4a55-8dc7-626f413ec880
+Error Number:207,State:1,Class:16
+2026-03-22 21:57:53.751 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/SysDictData/by-code/CustomerType
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'IsActive' 无效。
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.QueryAsync[T](IDbConnection cnn, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 434
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 123
+   at SwiftExport.Application.Services.Base.BaseService`2.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 93
+   at SwiftExport.WebApi.Controllers.Systems.SysDictDataController.GetByCode(String dictCode) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Systems\SysDictDataController.cs:line 19
+   at lambda_method23(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:3506d1bc-9a8f-4a55-8dc7-626f413ec880
+Error Number:207,State:1,Class:16
+2026-03-22 21:57:55.147 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/SysDictData/by-code/CustomerType
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'IsActive' 无效。
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.QueryAsync[T](IDbConnection cnn, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 434
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 123
+   at SwiftExport.Application.Services.Base.BaseService`2.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 93
+   at SwiftExport.WebApi.Controllers.Systems.SysDictDataController.GetByCode(String dictCode) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Systems\SysDictDataController.cs:line 19
+   at lambda_method23(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:3506d1bc-9a8f-4a55-8dc7-626f413ec880
+Error Number:207,State:1,Class:16
+2026-03-22 21:57:56.110 +08:00 [ERR] 发生了未捕获的全局系统异常。请求路径: /api/SysDictData/by-code/CustomerType
+Microsoft.Data.SqlClient.SqlException (0x80131904): 列名 'IsActive' 无效。
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Dapper.SqlMapper.QueryAsync[T](IDbConnection cnn, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 434
+   at SwiftExport.Infrastructure.Repositories.Base.DapperRepository`1.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Infrastructure\Repositories\Base\DapperRepository.cs:line 123
+   at SwiftExport.Application.Services.Base.BaseService`2.GetListAsync(Object noNameObj) in D:\source\CSharp\SwiftExport\SwiftExport.Application\Services\Base\BaseService.cs:line 93
+   at SwiftExport.WebApi.Controllers.Systems.SysDictDataController.GetByCode(String dictCode) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Controllers\Systems\SysDictDataController.cs:line 19
+   at lambda_method23(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at SwiftExport.WebApi.Middlewares.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\source\CSharp\SwiftExport\SwiftExport.WebApi\Middlewares\GlobalExceptionMiddleware.cs:line 21
+ClientConnectionId:3506d1bc-9a8f-4a55-8dc7-626f413ec880
+Error Number:207,State:1,Class:16
+2026-03-22 22:07:01.246 +08:00 [INF] SwiftExport 后端 Web API 启动中...
+2026-03-22 22:09:54.535 +08:00 [INF] 开始执行 [SysDictData] 批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-03-22 22:09:54.583 +08:00 [INF] [SysDictData] 批量保存事务提交！共影响 1 行。
+2026-03-22 22:10:17.075 +08:00 [INF] 成功新增 SysDictType 数据，生成的 ID: 2
+2026-03-22 22:10:50.554 +08:00 [INF] 开始执行 [SysDictData] 批量保存事务，计划新增: 1，修改: 0，删除: 0
+2026-03-22 22:10:50.560 +08:00 [INF] [SysDictData] 批量保存事务提交！共影响 1 行。
+2026-03-22 22:15:47.592 +08:00 [INF] 成功新增 SysDictType 数据，生成的 ID: 3
+2026-03-22 22:16:57.537 +08:00 [INF] 成功物理删除 SysDictType 数据，ID: 3

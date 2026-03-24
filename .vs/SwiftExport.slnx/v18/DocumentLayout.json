@@ -1,12 +1,36 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "D:\\source\\CSharp\\SwiftExport\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{C1EFB3CE-47EB-4F67-A289-D50A3C30BA10}|SwiftExport.View.FW\\SwiftExport.View.FW.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.view.fw\\productviews\\views\\productmanagerview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{C1EFB3CE-47EB-4F67-A289-D50A3C30BA10}|SwiftExport.View.FW\\SwiftExport.View.FW.csproj|solutionrelative:swiftexport.view.fw\\productviews\\views\\productmanagerview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": []
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ProductManagerView.xaml",
+              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.View.FW\\ProductViews\\Views\\ProductManagerView.xaml",
+              "RelativeDocumentMoniker": "SwiftExport.View.FW\\ProductViews\\Views\\ProductManagerView.xaml",
+              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.View.FW\\ProductViews\\Views\\ProductManagerView.xaml",
+              "RelativeToolTip": "SwiftExport.View.FW\\ProductViews\\Views\\ProductManagerView.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-03-23T13:10:34.923Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
     }
   ]
 }

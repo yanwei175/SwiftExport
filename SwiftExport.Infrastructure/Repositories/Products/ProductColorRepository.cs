@@ -1,13 +1,12 @@
 ﻿using Dapper;
-using Microsoft.Extensions.Logging;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Products
 {
-    public class ProductColorRepository(DbSession _session, ILogger<ProductColorRepository> logger) : DapperRepository<ProductColor>(_session, logger), IProductColorRepository
+    public class ProductColorRepository(RepositoryBaseContext context) : DapperRepository<ProductColor>(context), IProductColorRepository
     {
         public async Task<bool> ExistByColorCode(string productColor)
         {

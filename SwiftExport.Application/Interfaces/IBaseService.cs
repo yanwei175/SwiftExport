@@ -1,5 +1,4 @@
-﻿using SwiftExport.Contracts.DTOs;
-using SwiftExport.Contracts.Wrappers;
+﻿using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 
 namespace SwiftExport.Application.Interfaces;
@@ -54,5 +53,7 @@ public interface IBaseService<TEntity, TDto> where TEntity : class where TDto : 
     Task<ServiceResult<int>> DeleteRangeAsync(IEnumerable<int> idList);
     Task<ServiceResult<int>> DeleteRangeSoftAsync(IEnumerable<int> idList);
     Task<ServiceResult<int>> UpdateRangeAsync(IEnumerable<TDto> dtoList);
+
+    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestGeneric<TDto> batchReq);
 
 }

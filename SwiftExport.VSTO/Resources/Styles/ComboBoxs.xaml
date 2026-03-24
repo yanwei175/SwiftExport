@@ -163,7 +163,6 @@
     </Style>
 
 
-    <Style TargetType="ComboBoxItem" BasedOn="{StaticResource BaseComboBoxItemStyle}">
+    <Style TargetType="ComboBoxItem" BasedOn="{StaticResource BaseComboBoxItemStyle}"/>
 
-    </Style>
 </ResourceDictionary>

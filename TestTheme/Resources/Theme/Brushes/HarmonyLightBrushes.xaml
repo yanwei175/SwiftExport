@@ -1,0 +1,36 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/SwiftExport.View.FW;component/Resources/Styles/Base/Colors.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+    <!-- Primary -->
+    <SolidColorBrush x:Key="HarmonyPrimary1Brush" Color="{StaticResource HarmonyPrimary1}" />
+    <SolidColorBrush x:Key="HarmonyPrimary2Brush" Color="{StaticResource HarmonyPrimary2}" />
+    <SolidColorBrush x:Key="HarmonyPrimary3Brush" Color="{StaticResource HarmonyPrimary3}" />
+    <SolidColorBrush x:Key="HarmonyPrimary4Brush" Color="{StaticResource HarmonyPrimary4}" />
+    <SolidColorBrush x:Key="HarmonyPrimary5Brush" Color="{StaticResource HarmonyPrimary5}" />
+    <SolidColorBrush x:Key="HarmonyPrimary6Brush" Color="{StaticResource HarmonyPrimary6}" />
+
+    <!-- Neutral -->
+    <SolidColorBrush x:Key="HarmonyNeutral1Brush" Color="{StaticResource HarmonyNeutral1}" />
+    <SolidColorBrush x:Key="HarmonyNeutral2Brush" Color="{StaticResource HarmonyNeutral2}" />
+    <SolidColorBrush x:Key="HarmonyNeutral3Brush" Color="{StaticResource HarmonyNeutral3}" />
+    <SolidColorBrush x:Key="HarmonyNeutral4Brush" Color="{StaticResource HarmonyNeutral4}" />
+    <SolidColorBrush x:Key="HarmonyNeutral5Brush" Color="{StaticResource HarmonyNeutral5}" />
+    <SolidColorBrush x:Key="HarmonyNeutral6Brush" Color="{StaticResource HarmonyNeutral6}" />
+    <SolidColorBrush x:Key="HarmonyNeutral7Brush" Color="{StaticResource HarmonyNeutral7}" />
+    <SolidColorBrush x:Key="HarmonyNeutral8Brush" Color="{StaticResource HarmonyNeutral8}" />
+
+    <!-- 状态色 -->
+    <SolidColorBrush x:Key="HarmonySuccessBrush" Color="{StaticResource HarmonySuccess}" />
+    <SolidColorBrush x:Key="HarmonyWarningBrush" Color="{StaticResource HarmonyWarning}" />
+    <SolidColorBrush x:Key="HarmonyErrorBrush" Color="{StaticResource HarmonyError}" />
+
+    <!-- 文本颜色 -->
+    <SolidColorBrush x:Key="HarmonyPrimaryTextBrush" Color="{StaticResource HarmonyNeutral8}" />
+
+    <!-- 卡片背景 -->
+    <SolidColorBrush x:Key="HarmonyCardBackgroundBrush" Color="{StaticResource HarmonyNeutral1}" />
+
+</ResourceDictionary>

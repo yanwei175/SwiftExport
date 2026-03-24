@@ -1,15 +1,14 @@
 ﻿using Dapper;
-using Microsoft.Extensions.Logging;
 using SwiftExport.Core.Entities.MasterData; // 引用 Core
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Products;
 
 
 
-public class ProductRepository(DbSession _session, ILogger<ProductRepository> logger) : DapperRepository<Product>(_session, logger), IProductRepository
+public class ProductRepository(RepositoryBaseContext context) : DapperRepository<Product>(context), IProductRepository
 {
     // ⚡ 关键：SQL 映射桥接
     // 数据库里的字段 (Chinese/Pinyin) -> 实体属性 (English)

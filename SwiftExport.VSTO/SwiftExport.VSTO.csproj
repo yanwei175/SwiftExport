@@ -228,12 +228,6 @@
     <Compile Include="UserWindow\CustomerViews\Views\CustomerPoConfigManagerView.xaml.cs">
       <DependentUpon>CustomerPoConfigManagerView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="UserWindow\DictViews\Models\DictDataModel.cs" />
-    <Compile Include="UserWindow\DictViews\Models\DictTypeModel.cs" />
-    <Compile Include="UserWindow\DictViews\ViewModels\DictManagerViewModel.cs" />
-    <Compile Include="UserWindow\DictViews\Views\DictManagerView.xaml.cs">
-      <DependentUpon>DictManagerView.xaml</DependentUpon>
-    </Compile>
     <Compile Include="UserWindow\Mvvm\BaseManagerViewModel.cs" />
     <Compile Include="UserWindow\Mvvm\BaseSmallDataManagerViewModel.cs" />
     <Compile Include="UserWindow\Mvvm\ModelState.cs" />
@@ -359,10 +353,6 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="UserWindow\DictViews\Views\DictManagerView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
     <Page Include="UserWindow\ProductViews\Views\ProductColorManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -397,13 +387,13 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\ThemeTest\ThemeTest\ThemeTest.csproj">
+      <Project>{dd709d28-476e-45a5-947c-d641e0bab782}</Project>
+      <Name>ThemeTest</Name>
+    </ProjectReference>
     <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj">
       <Project>{73faa5c6-c278-4c02-80d0-27a24a6b831a}</Project>
       <Name>SwiftExport.Contracts</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\SwiftExport.UI.Controls\SwiftExport.UI.Controls.csproj">
-      <Project>{dd896331-0959-4b1a-baad-2dd043f9cf23}</Project>
-      <Name>SwiftExport.UI.Controls</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
@@ -418,7 +408,10 @@
       <Version>10.0.3</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection">
-      <Version>10.0.3</Version>
+      <Version>9.0.3</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions">
+      <Version>9.0.3</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf">
       <Version>1.1.77</Version>
@@ -463,7 +456,7 @@
       <Version>4.6.3</Version>
     </PackageReference>
     <PackageReference Include="System.ValueTuple">
-      <Version>4.6.1</Version>
+      <Version>4.6.2</Version>
     </PackageReference>
     <PackageReference Include="WindowsAPICodePack-Shell">
       <Version>1.1.1</Version>

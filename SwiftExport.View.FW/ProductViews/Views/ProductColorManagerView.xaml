@@ -1,0 +1,139 @@
+﻿<Window x:Class="SwiftExport.View.FW.ProductViews.Views.ProductColorManagerView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
+ 
+        xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
+        Title="产品颜色管理" Height="768" Width="1024"
+        WindowStartupLocation="CenterScreen"
+        Background="White">
+
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0"  Background="White" BorderBrush="{DynamicResource Primary1Brush}" BorderThickness="0,0,0,1" Padding="15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Button Margin="0,0,10,0"
+                            Command="{Binding AddNewRowCommand}" >
+                        <StackPanel Orientation="Horizontal">
+                            <Path Width="10" Height="10" Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Data="{StaticResource Icon.Add}" 
+                                  Margin="0,0,6,0" Stretch="Uniform"/>
+                            <TextBlock Text="新建" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button  Margin="0,0,10,0"
+                            Command="{Binding BatchSaveCommand}" >
+                        <StackPanel Orientation="Horizontal">
+                            <Path Width="10" Height="10" Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Data="{StaticResource Icon.Save}" 
+                                  Margin="0,0,6,0" Stretch="Uniform"/>
+                            <TextBlock Text="保存" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button  Margin="0,0,10,0"
+                        Command="{Binding LoadCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Width="10" Height="10" Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Data="{StaticResource Icon.Refresh}" 
+                                  Margin="0,0,6,0" Stretch="Uniform"/>
+                            <TextBlock Text="刷新" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="筛选: " VerticalAlignment="Center" Foreground="#666" Margin="0,0,5,0"/>
+                    <TextBox Width="250" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+
+        <Border  Grid.Row="1" Background="White"  BorderThickness="0,0,0,0" Padding="5,5">
+            <DataGrid
+                  ItemsSource="{Binding ItemsView}" 
+                  RowHeight="40">
+
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding State}" Value="Added">
+                                <Setter Property="Background" Value="#E8F5E9"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding State}" Value="Modified">
+                                <Setter Property="Background" Value="#FFF8E1"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding State}" Value="Deleted">
+                                <Setter Property="Background" Value="#FFEBEE"/>
+                                <Setter Property="Foreground" Value="#9E9E9E"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+
+                <DataGrid.Columns>
+
+                    <DataGridTextColumn Header="颜色代码(唯一)" 
+                                        Binding="{Binding ColorCodeUnique}" 
+                                        Width="120" FontWeight="Bold"/>
+
+                    <DataGridTextColumn Header="颜色代码" 
+                                        Binding="{Binding ColorCode}" 
+                                        Width="150"/>
+                    
+                    <DataGridTextColumn Header="颜色英文名称" 
+                                        Binding="{Binding ColorNameEn}" Width="200"/>
+                    
+                    <DataGridTextColumn Header="颜色中文名称" 
+                                        Binding="{Binding ColorNameZh}" Width="*"/>
+                    
+                    <DataGridTemplateColumn Header="操作" Width="100">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button CommandParameter="{Binding}" Width="60" Height="24" Padding="0" Foreground="White">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource  ButtonOutline}">
+
+                                            <Setter Property="Content" Value="删除"/>
+                                            <Setter Property="Background" Value="{DynamicResource Brush_Error}"/>
+                                            <Setter Property="Command" Value="{Binding DataContext.SingleDeleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding State}" Value="Deleted">
+                                                        <Setter Property="Content" Value="撤销"/>
+                                                        <Setter Property="Background" Value="{StaticResource Primary1Brush}"/>
+                                                        <Setter Property="Command" Value="{Binding DataContext.CancelDeleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+
+                                            </Style>
+                                    </Button.Style>
+                                </Button>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+
+            </DataGrid>
+        </Border>
+
+        <Border  Grid.Row="2" Background="White"  BorderThickness="0,1,0,0" Padding="15,5">
+            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#666" VerticalAlignment="Center"/>
+        </Border>
+
+        <mt:DialogHost />
+    </Grid>
+</Window>

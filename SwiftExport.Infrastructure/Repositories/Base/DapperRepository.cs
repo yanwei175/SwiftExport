@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Interfaces;
+using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
@@ -10,10 +11,12 @@ using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Base;
 
-public partial class DapperRepository<T>(DbSession session, ILogger<DapperRepository<T>> logger) : IRepository<T> where T : BaseEntity
+public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T> where T : BaseEntity
 {
-    private readonly DbSession _session = session ?? throw new ArgumentNullException(nameof(session));
-    protected readonly ILogger<DapperRepository<T>> _logger = logger; // ★ 保存 Logger
+    private readonly DbSession _session = context.Session ?? throw new ArgumentNullException(nameof(context.Session));
+
+    private ILogger? _loggerInstance;
+    protected ILogger Logger => _loggerInstance ??= context.LoggerFactory.CreateLogger(GetType());
 
     protected static readonly string TableName = typeof(T).GetCustomAttribute<TableAttribute>()?.Name ?? typeof(T).Name;
     private static readonly List<string> _writeableProps = GetWriteableProperties();
@@ -132,9 +135,9 @@ public partial class DapperRepository<T>(DbSession session, ILogger<DapperReposi
         var finalSql = sb.ToString();
 
         // ★ 仓储层专属：动态 SQL 追踪日志（仅 Debug 级别生效）
-        if (_logger.IsEnabled(LogLevel.Debug))
+        if (Logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogDebug("执行动态查询 [{TableName}]，生成的 SQL: {Sql}", TableName, finalSql);
+            Logger.LogDebug("执行动态查询 [{TableName}]，生成的 SQL: {Sql}", TableName, finalSql);
         }
 
         var result = await Connection.QueryAsync<T>(finalSql, parameters, transaction: Transaction);
@@ -193,9 +196,9 @@ public partial class DapperRepository<T>(DbSession session, ILogger<DapperReposi
             OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
 
         // ★ 日志追踪
-        if (_logger.IsEnabled(LogLevel.Debug))
+        if (Logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogDebug("执行分页动态查询 [{TableName}]，生成的 SQL: {Sql}", TableName, sql);
+            Logger.LogDebug("执行分页动态查询 [{TableName}]，生成的 SQL: {Sql}", TableName, sql);
         }
 
         using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
