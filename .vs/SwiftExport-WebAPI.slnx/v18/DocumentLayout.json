@@ -1,36 +1,7 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "D:\\source\\CSharp\\SwiftExport\\",
-  "Documents": [
-    {
-      "AbsoluteMoniker": "D:0:0:{6E5EC76F-9246-4853-9938-A255B044E3B7}|SwiftExport.Core\\SwiftExport.Core.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.core\\entities\\systems\\sysdicttype.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{6E5EC76F-9246-4853-9938-A255B044E3B7}|SwiftExport.Core\\SwiftExport.Core.csproj|solutionrelative:swiftexport.core\\entities\\systems\\sysdicttype.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{73FAA5C6-C278-4C02-80D0-27A24A6B831A}|SwiftExport.Contracts\\SwiftExport.Contracts.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.contracts\\dtos\\systemdtos\\dictdatadto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{73FAA5C6-C278-4C02-80D0-27A24A6B831A}|SwiftExport.Contracts\\SwiftExport.Contracts.csproj|solutionrelative:swiftexport.contracts\\dtos\\systemdtos\\dictdatadto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{73FAA5C6-C278-4C02-80D0-27A24A6B831A}|SwiftExport.Contracts\\SwiftExport.Contracts.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.contracts\\dtos\\systemdtos\\dicttypedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{73FAA5C6-C278-4C02-80D0-27A24A6B831A}|SwiftExport.Contracts\\SwiftExport.Contracts.csproj|solutionrelative:swiftexport.contracts\\dtos\\systemdtos\\dicttypedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{6E5EC76F-9246-4853-9938-A255B044E3B7}|SwiftExport.Core\\SwiftExport.Core.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.core\\entities\\systems\\sysdictdata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{6E5EC76F-9246-4853-9938-A255B044E3B7}|SwiftExport.Core\\SwiftExport.Core.csproj|solutionrelative:swiftexport.core\\entities\\systems\\sysdictdata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{55B0EFB5-CD3B-4FA7-B226-610DA55CB9EC}|SwiftExport.WebApi\\SwiftExport.WebApi.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.webapi\\controllers\\base\\basecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{55B0EFB5-CD3B-4FA7-B226-610DA55CB9EC}|SwiftExport.WebApi\\SwiftExport.WebApi.csproj|solutionrelative:swiftexport.webapi\\controllers\\base\\basecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{55B0EFB5-CD3B-4FA7-B226-610DA55CB9EC}|SwiftExport.WebApi\\SwiftExport.WebApi.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.webapi\\controllers\\products\\productcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{55B0EFB5-CD3B-4FA7-B226-610DA55CB9EC}|SwiftExport.WebApi\\SwiftExport.WebApi.csproj|solutionrelative:swiftexport.webapi\\controllers\\products\\productcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{55B0EFB5-CD3B-4FA7-B226-610DA55CB9EC}|SwiftExport.WebApi\\SwiftExport.WebApi.csproj|d:\\source\\csharp\\swiftexport\\swiftexport.webapi\\controllers\\systems\\sysdicttypecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{55B0EFB5-CD3B-4FA7-B226-610DA55CB9EC}|SwiftExport.WebApi\\SwiftExport.WebApi.csproj|solutionrelative:swiftexport.webapi\\controllers\\systems\\sysdicttypecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    }
-  ],
+  "Documents": [],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -38,92 +9,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": -1,
           "Children": [
             {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "SysDictType.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Core\\Entities\\Systems\\SysDictType.cs",
-              "RelativeDocumentMoniker": "SwiftExport.Core\\Entities\\Systems\\SysDictType.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Core\\Entities\\Systems\\SysDictType.cs",
-              "RelativeToolTip": "SwiftExport.Core\\Entities\\Systems\\SysDictType.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAtAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-22T14:05:04.3Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "SysDictData.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Core\\Entities\\Systems\\SysDictData.cs",
-              "RelativeDocumentMoniker": "SwiftExport.Core\\Entities\\Systems\\SysDictData.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Core\\Entities\\Systems\\SysDictData.cs",
-              "RelativeToolTip": "SwiftExport.Core\\Entities\\Systems\\SysDictData.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAARAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-22T14:05:02.365Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "DictTypeDto.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\DTOs\\SystemDtos\\DictTypeDto.cs",
-              "RelativeDocumentMoniker": "SwiftExport.Contracts\\DTOs\\SystemDtos\\DictTypeDto.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\DTOs\\SystemDtos\\DictTypeDto.cs",
-              "RelativeToolTip": "SwiftExport.Contracts\\DTOs\\SystemDtos\\DictTypeDto.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-22T14:04:49.413Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "DictDataDto.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\DTOs\\SystemDtos\\DictDataDto.cs",
-              "RelativeDocumentMoniker": "SwiftExport.Contracts\\DTOs\\SystemDtos\\DictDataDto.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\DTOs\\SystemDtos\\DictDataDto.cs",
-              "RelativeToolTip": "SwiftExport.Contracts\\DTOs\\SystemDtos\\DictDataDto.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAuwA0AAAAsAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-22T14:02:10.595Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "ProductController.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.WebApi\\Controllers\\Products\\ProductController.cs",
-              "RelativeDocumentMoniker": "SwiftExport.WebApi\\Controllers\\Products\\ProductController.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.WebApi\\Controllers\\Products\\ProductController.cs",
-              "RelativeToolTip": "SwiftExport.WebApi\\Controllers\\Products\\ProductController.cs",
-              "ViewState": "AgIAABsAAAAAAAAAAAAowCkAAAAwAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-22T13:34:53.541Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "SysDictTypeController.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.WebApi\\Controllers\\Systems\\SysDictTypeController.cs",
-              "RelativeDocumentMoniker": "SwiftExport.WebApi\\Controllers\\Systems\\SysDictTypeController.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.WebApi\\Controllers\\Systems\\SysDictTypeController.cs",
-              "RelativeToolTip": "SwiftExport.WebApi\\Controllers\\Systems\\SysDictTypeController.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAABOAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-22T13:24:55.078Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "BaseController.cs",
-              "DocumentMoniker": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.WebApi\\Controllers\\Base\\BaseController.cs",
-              "RelativeDocumentMoniker": "SwiftExport.WebApi\\Controllers\\Base\\BaseController.cs",
-              "ToolTip": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.WebApi\\Controllers\\Base\\BaseController.cs",
-              "RelativeToolTip": "SwiftExport.WebApi\\Controllers\\Base\\BaseController.cs",
-              "ViewState": "AgIAACAAAAAAAAAAAAAwwCYAAABEAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-22T13:24:32.911Z"
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{c6f34f0d-7ae5-4f3a-be61-fe0c21ae9eb8}"
             }
           ]
         }

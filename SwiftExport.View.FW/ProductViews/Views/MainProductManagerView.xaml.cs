@@ -8,12 +8,12 @@ namespace SwiftExport.View.FW.ProductViews.Views
     /// <summary>
     /// ProductManagerView.xaml 的交互逻辑
     /// </summary>
-    public partial class ProductManagerView : UserControl
+    public partial class MainProductManagerView : UserControl
     {
         // 记录折叠前的高度，以便展开时恢复
         private GridLength _cachedDetailHeight = new GridLength(4, GridUnitType.Star);
 
-        public ProductManagerView(ProductManagerViewModel vm)
+        public MainProductManagerView(ProductManagerViewModel vm)
         {
             InitializeComponent();
             DataContext = vm;

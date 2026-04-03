@@ -47,12 +47,13 @@ namespace SwiftExport.DevApp
             var newwin = new Window
             {
                 Title = "产品与BOM管理中心 - 独立测试环境",
-                Width = 1200,  // 稍微给大一点，主从表挤在小窗口不好看
-                Height = 800,
+                Width = 1920,  // 稍微给大一点，主从表挤在小窗口不好看
+                Height = 1080,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen, // 启动时屏幕居中
-
+                
                 // ★ 核心修复：直接把 UserControl 塞给 Window，它天生就会 100% 完美撑满！绝对不需要 DockPanel！
                 Content = win
+                
             };
 
             newwin.ShowDialog();

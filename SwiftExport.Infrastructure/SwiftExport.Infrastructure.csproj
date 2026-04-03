@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <Compile Remove="Repositories\Orders\CustomersPoDetailsRepository.cs" />
-    <Compile Remove="Repositories\Products\BomRepository.cs" />
     <Compile Remove="Repositories\Products\CustomerProductRepository.cs" />
     <Compile Remove="Repositories\Settings\ExcelSheetFieldsRepository.cs" />
     <Compile Remove="Repositories\Settings\ViewUserRoleRepository.cs" />

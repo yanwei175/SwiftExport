@@ -1,220 +1,155 @@
-﻿using SwiftExport.Core.Interfaces;
+﻿using Mapster;
+using Microsoft.Extensions.Logging;
+using SwiftExport.Application.Contexts;
+using SwiftExport.Application.Interfaces;
+using SwiftExport.Application.Services.Base;
+using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.MasterData;
+using SwiftExport.Core.Interfaces;
+using static Dapper.SqlMapper;
 
-namespace SwiftExport.Application.Services
+namespace SwiftExport.Application.Services.Products;
+
+public class BomService(IBomRepository bomRepo, IProductRepository pdRepo, ServiceBaseContext context) : BaseService<Bom, BomDto>(bomRepo, context), IBomService
 {
-    public class BomService : BaseService<BOM>, IBOMService
+    private readonly IBomRepository _bomRepo = bomRepo;
+    private readonly IProductRepository _pdRepo = pdRepo;
+
+    public override async Task<ServiceResult<int>> AddAsync(BomDto dto)
     {
-        private readonly IBomRepository repo;
-        private readonly IProductRepository _pdrepo;
-        public BomService(IUintOfWorkFactory _uowFac, IBomRepository _repo, IProductRepository pdrepo) : base(_repo, _uowFac)
+        var entity = dto.Adapt<Bom>();
+
+        //检查这条BOM是否在数据库中对应BomNo和ProductSku已经存在了，如果存在了就不允许新增
+        //根据这条bom的BomNo和ProductSku去数据库中查询，如果查询到了数据就说明已经存在了，就不允许新增了
+        var rst = await _bomRepo.IsBomItemExistAsync(entity.BomNo, entity.ProductSku); 
+
+        if (rst)
         {
-            repo = _repo;
-            _pdrepo = pdrepo;
-        }
-        //新增一条BOM
-        public async Task<int> AddBomItemAsync(BOM bom)
-        {
-            using (var uow = _uowFac.CreateUoW())
+            if (Logger.IsEnabled(LogLevel.Warning))
             {
-                try
-                {
-                    var results = await repo.AddAsync(bom, uow);
-                    await uow.CommitAsync();
-                    return results;
-                }
-                catch (Exception)
-                {
-                    // 【修正】关键：发生错误时回滚事务
-                    await uow.RollbackAsync();
-                    throw;
-                }
+                Logger.LogWarning("尝试新增 {EntityName} 数据失败，原因：BomNo和ProductSku的组合已经存在！BomNo: {BomNo}, ProductSku: {ProductSku}", EntityName, entity.BomNo, entity.ProductSku);
             }
+            return ServiceResult<int>.Fail("相同BomNo和ProductSku的记录已存在，无法新增！");
         }
-        //批量新增BOM
-        public async Task<IEnumerable<int>> AddBomRangeAsync(IEnumerable<BOM> items)
+
+
+        entity.CreatedTime = DateTime.Now;
+        entity.IsDeleted = 0;
+
+        var id = await _repository.AddAsync(entity);
+
+        // Information 级别
+        if (Logger.IsEnabled(LogLevel.Information))
         {
-            using (var uow = _uowFac.CreateUoW())
-            {
-                try
-                {
-                    var results = await repo.AddRangeAsync(items, uow);
-
-                    // 【修正】提交事务
-                    await uow.CommitAsync();
-
-                    return results;
-                }
-                catch (Exception)
-                {
-                    await uow.RollbackAsync();
-                    throw;
-                }
-            }
-
-        }
-        //根据BomNo删除单条BOM
-        public async Task<int> DeleteBomByBomNoAsync(string bomNo)
-        {
-            using (var uow = _uowFac.CreateUoW())
-            {
-                try
-                {
-                    var affectedRows = await repo.DeleteBomByBomNoAsync(bomNo, uow);
-                    // 【修正】提交事务
-                    await uow.CommitAsync();
-                    return affectedRows;
-                }
-                catch (Exception)
-                {
-                    // 【修正】失败时回滚事务
-                    await uow.RollbackAsync();
-                    throw;
-                }
-            }
+            Logger.LogInformation("成功新增 {EntityName} 数据，生成的 ID: {Id}", EntityName, id);
         }
 
-        public async Task<int> DeleteBomRangeByIdsAsync(IEnumerable<int> ids)
-        {
-            using (var uow = _uowFac.CreateUoW())
-            {
-                try
-                {
-                    var affectedRows = await repo.DeleteRangeByIdsAsync(ids, uow);
-
-                    // 【修正】提交事务
-                    await uow.CommitAsync();
-                    return affectedRows;
-                }
-                catch (Exception)
-                {
-                    // 【修正】失败时回滚事务
-                    await uow.RollbackAsync();
-                    throw;
-                }
-            }
-
-        }
-
-        public Task<IEnumerable<BOM>> GetBomByBomNoAsync(string bomNo)
-        {
-            return repo.GetBomByBomNoAsync(bomNo);
-        }
-
-        public async Task<int> UpdateBomItemNoAsync(BOM bom)
-        {
-            using (var uow = _uowFac.CreateUoW())
-            {
-                try
-                {
-                    var affectedRows = await repo.UpdateAsync(bom, uow); // 假设 IRepository 接口方法名
-
-                    // 【修正】提交事务
-                    await uow.CommitAsync();
-                    return affectedRows;
-                }
-                catch (Exception)
-                {
-                    // 【修正】失败时回滚事务
-                    await uow.RollbackAsync();
-                    throw;
-                }
-            }
-        }
-
-        public async Task<int> UpdateBomRangeAsync(IEnumerable<BOM> items)
-        {
-            using (var uow = _uowFac.CreateUoW())
-            {
-                try
-                {
-                    var affectedRows = await repo.UpdateRangeByIdsAsync(items, uow);
-
-                    // 【修正】提交事务
-                    await uow.CommitAsync();
-                    return affectedRows;
-                }
-                catch (Exception)
-                {
-                    // 【修正】失败时回滚事务
-                    await uow.RollbackAsync();
-                    throw;
-                }
-            }
-
-        }
-
-        public async Task<bool> ValidateBOMAsync(string productSKU)
-        {
-            // 0. 获取产品的 BOM 号
-            Product pd = await _pdrepo.GetBySkuAsync(productSKU);
-            if (pd == null || string.IsNullOrEmpty(pd.BomNo))
-                return false;
-
-            string bomNo = pd.BomNo;
-
-            // 1. 查询该产品的 BOM 项
-            var bomItems = await repo.GetBomByBomNoAsync(bomNo);
-            if (bomItems == null || !bomItems.Any())
-                return false; // 没有 BOM 数据，视为不合法
-
-            // 2. 数量合法性
-            if (bomItems.Any(i => i.Qty <= 0))
-                return false;
-
-            // 3. 子件存在性
-            foreach (var item in bomItems)
-            {
-                var exists = await _pdrepo.ExistsIdAsync(Convert.ToInt32(item.SkuID));
-                if (!exists) return false;
-            }
-
-            // 4. 重复项检查
-            if (bomItems.GroupBy(i => i.ProductSKU).Any(g => g.Count() > 1))
-                return false;
-
-            // 5. 循环依赖检查（DFS，异步）
-            var visited = new HashSet<string>();
-
-            async Task<bool> HasCycleAsync(string currentBomNo)
-            {
-                if (!visited.Add(currentBomNo)) return true; // 已访问过，说明有环
-
-                var children = await repo.GetBomByBomNoAsync(currentBomNo);
-                foreach (var child in children)
-                {
-                    // 递归检查子件的 BOM
-                    if (await HasCycleAsync(child.BomNo)) return true;
-                }
-
-                visited.Remove(currentBomNo);
-                return false;
-            }
-
-            if (await HasCycleAsync(bomNo)) return false;
-
-            return true; // 所有检查通过
-        }
-
-        public async Task<int> SyncBomItemsAsync(IEnumerable<BOM> items)
-        {
-            using (var uow = _uowFac.CreateUoW())
-            {
-                try
-                {
-                    var affectedRows = await repo.SyncBomItemsAsync(items, uow);
-
-                    // 【修正】提交事务
-                    await uow.CommitAsync();
-                    return affectedRows;
-                }
-                catch (Exception)
-                {
-                    // 【修正】失败时回滚事务
-                    await uow.RollbackAsync();
-                    throw;
-                }
-            }
-
-        }
+        return ServiceResult<int>.Ok(id);
     }
+
+
+    public async Task<ServiceResult<int>> DeleteBomByBomNoAsync(string bomNo)
+    {
+
+        var rst = await _bomRepo.DeleteBomByBomNoAsync(bomNo);
+
+        if (Logger.IsEnabled(LogLevel.Information))
+        {
+            Logger.LogInformation("[{EntityName}] 根据BomNo删除Bom成功！BomNo: {BomNo}, 受影响行数: {AffectedRows}", EntityName, bomNo, rst);
+        }
+        return ServiceResult<int>.Ok(rst);
+    }
+
+    public async Task<ServiceResult<IEnumerable<Bom>>> GetBomByBomNoAsync(string bomNo)
+    {
+        return ServiceResult<IEnumerable<Bom>>.Ok(await _bomRepo.GetBomByBomNoAsync(bomNo));
+    }
+
+    public async Task<ServiceResult<bool>> ValidateBomAsync(string productSku)
+    {
+        // 0. 获取产品的 BOM 号
+        Product pd = await _pdRepo.GetBySkuAsync(productSku);
+        if (pd == null || string.IsNullOrEmpty(pd.BomNo))
+            return ServiceResult<bool>.Fail("产品型号不存在或产品没设置BOM");
+
+        string bomNo = pd.BomNo;
+
+        // 1. 查询该产品的 BOM 项
+        var bomItems = await _bomRepo.GetBomByBomNoAsync(bomNo);
+        if (bomItems == null || !bomItems.Any())
+            return ServiceResult<bool>.Fail("该Bom 没有 BOM 数据，视为不合法");
+
+        // 2. 数量合法性
+        if (bomItems.Any(i => i.Qty <= 0))
+            return ServiceResult<bool>.Fail("子项的用量不能小于等于0");
+
+        // 3. 子件存在性
+        foreach (var item in bomItems)
+        {
+            var exists = await _pdRepo.ExistsIdAsync(Convert.ToInt32(item.SkuId));
+            if (!exists) return ServiceResult<bool>.Fail($"子项{item.ProductSku}的Id不存在");
+        }
+
+        // 4. 重复项检查
+        if (bomItems.GroupBy(i => i.ProductSku).Any(g => g.Count() > 1))
+            return ServiceResult<bool>.Fail($"子项中存在重复项");
+
+        // 5. 循环依赖检查（DFS，异步）
+        var visited = new HashSet<string>();
+
+        async Task<bool> HasCycleAsync(string currentBomNo)
+        {
+            if (!visited.Add(currentBomNo)) return true; // 已访问过，说明有环
+
+            var children = await _bomRepo.GetBomByBomNoAsync(currentBomNo);
+            foreach (var child in children)
+            {
+                // 递归检查子件的 BOM
+                if (await HasCycleAsync(child.BomNo)) return true;
+            }
+
+            visited.Remove(currentBomNo);
+            return false;
+        }
+
+        if (await HasCycleAsync(bomNo)) return ServiceResult<bool>.Fail("递归依赖检查不通过,Bom链上存在不合理.");
+
+        return ServiceResult<bool>.Ok(true); // 所有检查通过
+    }
+
+    //public async Task<ServiceResult<int>> SyncBomItemsAsync(IEnumerable<Bom> items)
+    //{
+    //    // 1. 开启事务
+    //    _session.Transaction = _session.Connection.BeginTransaction();
+    //    try
+    //    {
+
+    //        var affectedRows = await _bomRepo.SyncBomItemsAsync(items);
+
+    //        // 提交事务
+    //        _session.Transaction.Commit();
+
+    //        if (Logger.IsEnabled(LogLevel.Information))
+    //        {
+    //            Logger.LogInformation("[{EntityName}] 同步失败！", EntityName);
+    //        }
+
+    //        return ServiceResult<int>.Ok(affectedRows);
+
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _session.Transaction.Rollback();
+    //        if (Logger.IsEnabled(LogLevel.Error)) Logger.LogError(ex, "[{EntityName}] 同步发生致命异常，事务已回滚！", EntityName);
+    //        throw;
+    //    }
+    //    finally
+    //    {
+    //        _session.Transaction.Dispose();
+    //        _session.Transaction = null;
+    //    }
+
+
+    //}
 }

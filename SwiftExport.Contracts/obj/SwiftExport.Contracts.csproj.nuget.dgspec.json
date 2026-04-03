@@ -10,14 +10,14 @@
         "projectUniqueName": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\SwiftExport.Contracts.csproj",
         "projectName": "SwiftExport.Contracts",
         "projectPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\SwiftExport.Contracts.csproj",
-        "packagesPath": "C:\\Users\\YWFS\\.nuget\\packages\\",
+        "packagesPath": "C:\\Users\\DavidFoShan\\.nuget\\packages\\",
         "outputPath": "D:\\source\\CSharp\\SwiftExport\\SwiftExport.Contracts\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
-          "D:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+          "d:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\YWFS\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\DavidFoShan\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -30,7 +30,6 @@
         },
         "frameworks": {
           "netstandard2.0": {
-            "framework": "netstandard2.0",
             "targetAlias": "netstandard2.0",
             "projectReferences": {}
           }
@@ -49,7 +48,6 @@
       },
       "frameworks": {
         "netstandard2.0": {
-          "framework": "netstandard2.0",
           "targetAlias": "netstandard2.0",
           "dependencies": {
             "NETStandard.Library": {

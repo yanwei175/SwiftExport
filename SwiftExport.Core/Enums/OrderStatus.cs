@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace SwiftExport.Core.Enumns
+namespace SwiftExport.Core.Enums
 {
     public enum OrderStatus
     {

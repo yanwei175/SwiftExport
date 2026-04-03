@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Interfaces\IBomRepository.cs" />
     <Compile Remove="Interfaces\ICustomerProductRepository.cs" />
     <Compile Remove="Interfaces\ICustomersPoDetailsRepository.cs" />
     <Compile Remove="Interfaces\IExcelSheetFieldsRepository.cs" />

@@ -175,6 +175,7 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     public virtual async Task<ServiceResult<IReadOnlyList<int>>> AddRangeAsync(IEnumerable<TDto> dtoList)
     {
         var entities = dtoList.Adapt<List<TEntity>>();
+
         var ids = await _repository.AddRangeAsync(entities);
 
         if (Logger.IsEnabled(LogLevel.Information))

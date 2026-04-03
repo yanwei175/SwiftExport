@@ -124,11 +124,6 @@
                         </DataGrid.RowStyle>
 
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="显示名称 (Label)" 
-                            Binding="{Binding DictLabel}" 
-                            Width="150" FontWeight="Bold"
-                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
-
                             <DataGridTextColumn Header="真实键值 (Value)" 
                             Binding="{Binding DictValue}" 
                             Width="150"
@@ -139,12 +134,18 @@
                                             <DataTrigger Binding="{Binding IsSystem}" Value="True">
                                                 <Setter Property="IsEnabled" Value="False"/>
                                                 <Setter Property="Background" Value="{DynamicResource Brush_Control_Disabled}"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Disabled}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
+                            <DataGridTextColumn Header="显示名称 (Label)" 
+                                                Binding="{Binding DictLabel}" 
+                                                Width="*" FontWeight="Bold"
+                                                ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
+                                                EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}"/>
+
 
                             <DataGridTextColumn Header="排序号" 
                             Binding="{Binding SortOrder}" 

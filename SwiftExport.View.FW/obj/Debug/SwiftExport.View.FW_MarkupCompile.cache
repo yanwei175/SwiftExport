@@ -10,11 +10,11 @@ none
 false
 DEBUG;TRACE
 
-1187216156
+12-1058425901
 
-481184381704
-49402239495
-CustomerViews\Views\CustomerManagerView.xaml;CustomerViews\Views\CustomerPoConfigManagerView.xaml;Dialog\InputBoxWindow.xaml;Dialog\MsgBoxWindow.xaml;DictViews\Views\DictManagerView.xaml;ProductViews\Views\ProductCategoryManagerView.xaml;ProductViews\Views\ProductColorManagerView.xaml;ProductViews\Views\ProductManagerView.xaml;ProductViews\Views\ProductSelectorView.xaml;Properties\DesignTimeResources.xaml;SupplierViews\Views\SupplierManagerView.xaml;
+50-1138807170
+491245121815
+CustomerViews\Views\CustomerManagerView.xaml;CustomerViews\Views\CustomerPoConfigManagerView.xaml;Dialog\InputBoxWindow.xaml;Dialog\MsgBoxWindow.xaml;DictViews\Views\DictManagerView.xaml;ProductViews\Views\ProductCategoryManagerView.xaml;ProductViews\Views\ProductColorManagerView.xaml;ProductViews\Views\MainProductManagerView.xaml;ProductViews\Views\ProductManagerView.xaml;ProductViews\Views\ProductSelectorView.xaml;Properties\DesignTimeResources.xaml;SupplierViews\Views\SupplierManagerView.xaml;
 
-False
+True
 

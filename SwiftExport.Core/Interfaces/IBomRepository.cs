@@ -1,15 +1,19 @@
 ﻿using SwiftExport.Core.Entities;
+using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using System.Transactions;
 
 namespace SwiftExport.Core.Interfaces
 {
-    public interface IBomRepository : IRepository<BOM>
+    public interface IBomRepository : IRepository<Bom>
     {
+
+        Task<bool> IsBomItemExistAsync(string bomNo,string productSku);
         /// <summary>
         /// 通过一堆BOM号,获取多张BOM
         /// </summary>
@@ -17,7 +21,7 @@ namespace SwiftExport.Core.Interfaces
         /// 一堆BOM号的集合
         /// </param>
         /// <returns>字典(BOM号,对应的BOM集合)</returns>
-        Task<Dictionary<string, IEnumerable<BOM>>> Get一堆BomBy一堆Bom号(IEnumerable<String> bomNos);
+        Task<Dictionary<string, IEnumerable<Bom>>> Get一堆BomBy一堆Bom号(IEnumerable<String> bomNos);
 
         /// <summary>
         /// 根据BOM号删除一张BOM
@@ -26,7 +30,7 @@ namespace SwiftExport.Core.Interfaces
         /// BOM号
         /// </param>
         /// <returns>受影响的行数</returns>
-        Task<int> DeleteBomByBomNoAsync(string bomNo, IUnitOfWork uow);
+        Task<int> DeleteBomByBomNoAsync(string bomNo);
 
         /// <summary>
         /// 根据BOM号获取一张BOM
@@ -35,7 +39,8 @@ namespace SwiftExport.Core.Interfaces
         /// BOM号
         /// </param>
         /// <returns>一张BOM</returns>
-        Task<IEnumerable<BOM>> GetBomByBomNoAsync(string bomNo);
+        Task<IEnumerable<Bom>> GetBomByBomNoAsync(string bomNo);
+
 
         /// <summary>
         /// 调用数据库的存储过程,执行Merge 操作,适用于Excel批量修改BOM条目,不针对单个BOM对象
@@ -46,6 +51,6 @@ namespace SwiftExport.Core.Interfaces
         /// 必须带ID的一个BOM对象列表.
         /// </param>
         /// <returns>受影响的行数</returns>
-        Task<int> SyncBomItemsAsync(IEnumerable<BOM> items, IUnitOfWork uow);
+        //Task<int> SyncBomItemsAsync(IEnumerable<Bom> items);
     }
 }

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:dd="urn:gong-wpf-dragdrop"
         xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
-        Title="产品分类管理 (大厂电商级拖拽树)" Height="600" Width="900"
+        Title="产品分类管理" Height="600" Width="900"
         WindowStartupLocation="CenterScreen" Background="White">
 
     <Window.Resources>

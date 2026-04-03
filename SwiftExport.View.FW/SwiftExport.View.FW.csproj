@@ -190,6 +190,9 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="PurchaseOrderViews\Models\" />
+    <Folder Include="PurchaseOrderViews\ViewModels\" />
+    <Folder Include="PurchaseOrderViews\Views\" />
     <Folder Include="SettingViews\" />
   </ItemGroup>
   <ItemGroup>
