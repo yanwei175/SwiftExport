@@ -116,8 +116,8 @@ namespace SwiftExport.DevApp
 
         private void Button_Click_9(object sender, RoutedEventArgs e)
         {
-            var vm = DiServices.GetService<CustomerManagerVM2>();
-            var view = DiServices.GetService<CustomerManagerView2>();
+            var vm = DiServices.GetService<CustomerManagerViewModel>();
+            var view = DiServices.GetService<CustomerManagerView>();
             view.DataContext = vm;
 
             var window = new Window

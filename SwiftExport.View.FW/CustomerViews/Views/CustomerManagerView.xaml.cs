@@ -1,12 +1,13 @@
 ﻿using SwiftExport.View.FW.CustomerViews.ViewModels;
 using System.Windows;
+using System.Windows.Controls;
 
 namespace SwiftExport.View.FW.CustomerViews.Views
 {
     /// <summary>
-    /// MyWindow.xaml 的交互逻辑
+    /// CustomerManagerView.xaml 的交互逻辑
     /// </summary>
-    public partial class CustomerManagerView : Window
+    public partial class CustomerManagerView : UserControl
     {
         public CustomerManagerView(CustomerManagerViewModel vm)
         {
@@ -18,7 +19,11 @@ namespace SwiftExport.View.FW.CustomerViews.Views
         // 关闭窗体
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
-            this.Close();
+            var window = Window.GetWindow(this);
+            if (window != null)
+            {
+                window.Close();
+            }
         }
     }
 }

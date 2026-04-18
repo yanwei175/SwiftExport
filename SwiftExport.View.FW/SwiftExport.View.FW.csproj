@@ -54,17 +54,12 @@
     <Compile Include="CustomerViews\Models\CustomerPoConfigModel.cs" />
     <Compile Include="CustomerViews\Models\CustomerProductList.cs" />
     <Compile Include="CustomerViews\Models\CustomerProductModel.cs" />
-    <Compile Include="CustomerViews\ViewModels\CustomerManagerVM2.cs" />
     <Compile Include="CustomerViews\ViewModels\CustomerManagerViewModel.cs" />
     <Compile Include="CustomerViews\ViewModels\CustomerPoConfigDesignViewModel.cs" />
     <Compile Include="CustomerViews\ViewModels\CustomerPoConfigViewModel.cs" />
-    <Compile Include="CustomerViews\Views\CustomerManagerView2.xaml.cs">
-      <DependentUpon>CustomerManagerView2.xaml</DependentUpon>
-    </Compile>
     <Compile Include="CustomerViews\Views\CustomerManagerView.xaml.cs">
       <DependentUpon>CustomerManagerView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="CustomerViews\Views\CustomerManagerViewModel2.cs" />
     <Compile Include="CustomerViews\Views\CustomerPoConfigManagerView.xaml.cs">
       <DependentUpon>CustomerPoConfigManagerView.xaml</DependentUpon>
     </Compile>
@@ -125,13 +120,9 @@
     <Compile Include="SupplierViews\Views\SupplierManagerView.xaml.cs">
       <DependentUpon>SupplierManagerView.xaml</DependentUpon>
     </Compile>
-    <Page Include="CustomerViews\Views\CustomerManagerView2.xaml">
+    <Page Include="CustomerViews\Views\CustomerManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
-    </Page>
-    <Page Include="CustomerViews\Views\CustomerManagerView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>XamlIntelliSenseFileGenerator</Generator>
     </Page>
     <Page Include="CustomerViews\Views\CustomerPoConfigManagerView.xaml">
       <SubType>Designer</SubType>

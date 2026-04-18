@@ -127,8 +127,8 @@ namespace SwiftExport.View.FW
 
             services.AddTransient<CustomerManagerViewModel>();
             services.AddTransient<CustomerManagerView>();
-            services.AddTransient<CustomerManagerVM2>();
-            services.AddTransient<CustomerManagerView2>();
+            services.AddTransient<CustomerManagerViewModel>();
+            services.AddTransient<CustomerManagerView>();
 
             services.AddTransient<CustomerPoConfigViewModel>();
             services.AddTransient<CustomerPoConfigManagerView>();

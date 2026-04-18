@@ -113,6 +113,7 @@ namespace SwiftExport.View.FW.Mvvm
             storage = value;
             RaisePropertyChanged(propertyName);
             RaisePropertyChanged(nameof(IsValid));//只要有属性值变化，必须通知 IsValid 重新计算！
+            RaisePropertyChanged("Item[]"); // 【关键修复】通知 WPF 绑定引擎重新计算 IDataErrorInfo 的 this[propName]
 
             // 用户修改才触发 Modified
             if (!是否程序内部修改)
@@ -188,6 +189,7 @@ namespace SwiftExport.View.FW.Mvvm
             // string.Empty 会强制 WPF 重新读取该对象的所有绑定属性，触发全局验证
             RaisePropertyChanged(string.Empty);
             RaisePropertyChanged(nameof(IsValid));
+            RaisePropertyChanged("Item[]"); // 确保强制触发 DataGrid 中的企业级验证
         }
 
         // ============================================================

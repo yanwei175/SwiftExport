@@ -61,7 +61,7 @@
         <WrapPanel Grid.Row="0" Margin="10,10">
             <StackPanel>
                 <TextBlock Text="订单编号:"/>
-                <TextBox Text="{Binding OrderHeader.单号, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                <TextBox Text="{Binding OrderHeader.单号, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
                                                     MinWidth="110"
                                                     d:Text="SO2026050001"/>
                 <Button Style="{StaticResource ButtonIcon}"
@@ -70,7 +70,7 @@
 
             <StackPanel>
                 <TextBlock Text="客户代码:" />
-                <TextBox Width="110" Text="{Binding OrderHeader.客户代码, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                <TextBox Width="110" Text="{Binding OrderHeader.客户代码, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
                                              MinWidth="80"
                                              d:Text="1007-TM"
                                              mt:TextBoxAssist.Placeholder="输入客户代码"/>
@@ -104,7 +104,7 @@
             <StackPanel>
                 <TextBlock Text="审批状态:" Foreground="{DynamicResource Brush_Txt_Secondary}"/>
                 <TextBox Width="110" IsReadOnly="True"                               
-                                        Text="{Binding OrderHeader.审批状态, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        Text="{Binding OrderHeader.审批状态, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
             </StackPanel>
 
         </WrapPanel>
@@ -146,40 +146,40 @@
 
                         <TextBox Grid.Row="1" Grid.ColumnSpan="2"  d:Text="ShipToName" 
                                          Style="{StaticResource UnderLineTextBox}"
-                                         Text="{Binding OrderHeader.ShipToName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                         Text="{Binding OrderHeader.ShipToName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
 
                         <TextBox Grid.Row="2" Grid.ColumnSpan="2" d:Text="ShipToAddress" 
                                          Style="{StaticResource UnderLineTextBox}"
-                                         Text="{Binding OrderHeader.ShipToAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                         Text="{Binding OrderHeader.ShipToAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
 
                         <TextBox Grid.Column="1" Grid.Row="3"  d:Text="ShipToPhone" 
                                          Style="{StaticResource UnderLineTextBox}"
-                                         Text="{Binding OrderHeader.ShipToPhone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                         Text="{Binding OrderHeader.ShipToPhone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
 
                         <TextBox Grid.Column="1" Grid.Row="4" d:Text="FOB Jiangmen,30% Deposit, Balance before shipment for orders more than 15,000 USD, otherwise EX Works" 
                                          Style="{StaticResource WrapUnderLineTextBox}"
-                                         Text="{Binding OrderHeader.IncotermSortRemark, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                         Text="{Binding OrderHeader.IncotermSortRemark, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
 
                         <TextBox Grid.Column="3" Grid.Row="0" Grid.ColumnSpan="3" d:Text="客户PO号" 
                                          Style="{StaticResource UnderLineTextBox}"
-                                         Text="{Binding OrderHeader.PoNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                         Text="{Binding OrderHeader.PoNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
 
                         <TextBox Grid.Column="3" Grid.Row="1" Grid.ColumnSpan="3" d:Text="InvoiceNo"
                                          Style="{StaticResource UnderLineTextBox}"
-                                         Text="{Binding OrderHeader.InvoiceNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                         Text="{Binding OrderHeader.InvoiceNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
 
                         <DatePicker Grid.Column="3" Grid.Row="2" 
                                         Style="{StaticResource UnderLineDatePicker}"
-                                        SelectedDate="{Binding OrderHeader.OrderDate, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                                        SelectedDate="{Binding OrderHeader.OrderDate, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
                                         />
 
                         <TextBox Grid.Column="3"  Grid.Row="3" Grid.ColumnSpan="3"  d:Text="EtdSortRemark" 
                                          Style="{StaticResource UnderLineTextBox}"
-                                         Text="{Binding OrderHeader.EtdSortRemark, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                         Text="{Binding OrderHeader.EtdSortRemark, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
 
                         <TextBox Grid.Column="3"  Grid.Row="4" Grid.ColumnSpan="3" d:Text="ShippedBy" 
                                          Style="{StaticResource UnderLineTextBox}"
-                                         Text="{Binding OrderHeader.ShippedBy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                         Text="{Binding OrderHeader.ShippedBy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
 
                         <DatePicker Grid.Column="5" Grid.Row="2" Grid.ColumnSpan="2"  d:Text="2025/06/05"
                                             Style="{StaticResource UnderLineDatePicker}"
@@ -204,7 +204,7 @@
                         <WrapPanel Grid.Row="1">
                             <StackPanel>
                                 <TextBlock Text="币种:" />
-                                <TextBox Text="{Binding OrderHeader.货币, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBox Text="{Binding OrderHeader.货币, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="汇率:" />
@@ -212,19 +212,19 @@
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="支付方式:"/>
-                                <TextBox   Text="{Binding OrderHeader.支付方式, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBox   Text="{Binding OrderHeader.支付方式, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="贸易条款:" />
-                                <TextBox Text="{Binding OrderHeader.贸易条款, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBox Text="{Binding OrderHeader.贸易条款, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="条款地点:" />
-                                <TextBox Text="{Binding OrderHeader.条款地点, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBox Text="{Binding OrderHeader.条款地点, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="订单目录:" />
-                                <TextBox Text="{Binding OrderHeader.订单文件夹, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBox Text="{Binding OrderHeader.订单文件夹, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
                             </StackPanel>
 
                             <StackPanel>
@@ -234,7 +234,7 @@
 
                             <StackPanel>
                                 <TextBlock Text="生产周期(天):"/>
-                                <TextBox Text="{Binding OrderHeader.交货天数, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBox Text="{Binding OrderHeader.交货天数, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
                             </StackPanel>
 
                             <StackPanel>
@@ -533,7 +533,7 @@
 
             <TextBlock Grid.Row="2" Text="订单备注:" VerticalAlignment="Top" Margin="8,2,5,0"/>
             <TextBox  Grid.Row="2" Grid.Column="1" 
-                                    Text="{Binding OrderHeader.订单备注, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    Text="{Binding OrderHeader.订单备注, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
                                      Height="50" Margin="0,3,0,0"
                                      TextWrapping="Wrap"
                                      AcceptsReturn="True"

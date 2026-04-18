@@ -46,8 +46,12 @@ namespace SwiftExport.View.FW.Mvvm
             RaiseAllState();
         }
         //Itesm里的行变化事件,切换行才会触发.
+        private bool _suppressItemChangedEvents = false;
+
         private void OnItemChanged(object sender, PropertyChangedEventArgs e)
         {
+            if (_suppressItemChangedEvents) return;
+
             if (e.PropertyName == nameof(BaseLineModel.IsValid))
                 RaisePropertyChanged(nameof(IsAllValid));
 
@@ -62,10 +66,6 @@ namespace SwiftExport.View.FW.Mvvm
 
             ListStateChanged?.Invoke();
         }
-
-
-
-
 
         // ============================
         // 验证 & 脏数据
@@ -98,8 +98,16 @@ namespace SwiftExport.View.FW.Mvvm
             get => Items.Count > 0 && Items.All(x => x.IsChecked);
             set
             {
-                foreach (var item in Items)
-                    item.IsChecked = value;
+                _suppressItemChangedEvents = true;
+                try
+                {
+                    foreach (var item in Items)
+                        item.IsChecked = value;
+                }
+                finally
+                {
+                    _suppressItemChangedEvents = false;
+                }
 
                 RaisePropertyChanged();
                 RaisePropertyChanged(nameof(CheckedCount));
@@ -111,6 +119,24 @@ namespace SwiftExport.View.FW.Mvvm
         public void CheckAll() => IsAllChecked = true;
         public void UncheckAll() => IsAllChecked = false;
         public void ToggleCheckAll() => IsAllChecked = !IsAllChecked;
+        
+        public void InvertCheckAll()
+        {
+            _suppressItemChangedEvents = true;
+            try
+            {
+                foreach (var item in Items)
+                {
+                    item.IsChecked = !item.IsChecked;
+                }
+            }
+            finally
+            {
+                _suppressItemChangedEvents = false;
+            }
+            RaisePropertyChanged(nameof(IsAllChecked));
+            RaisePropertyChanged(nameof(CheckedCount));
+        }
 
         // ============================
         // 删除
@@ -227,8 +253,11 @@ namespace SwiftExport.View.FW.Mvvm
                     if (!_allItems.Contains(item))
                         _allItems.Add(item);
 
+                    // 防御性退订，彻底防止因重复加载数据遗留的旧委托
                     item.PropertyChanged -= OnItemChanged;
                     item.PropertyChanged += OnItemChanged;
+
+                    // 即使是从数据库加载的，也有校验出错可能，刷新 UI
                     item.ForceValidationUI();
                 }
             }
@@ -245,24 +274,29 @@ namespace SwiftExport.View.FW.Mvvm
         {
             if (item == null) return;
 
-            var nextId = Items.Count == 0 ? 1 : Items.Max(x => x.Id) + 1;
-
+            // 暂时取消集合变更监听，避免底层多重订阅
+            Items.CollectionChanged -= OnCollectionChanged;
             try
             {
-                // 添加到 UI 列表
+                // 添加到 UI 列表首位
                 Items.Insert(0, item);
 
                 // 确保内部_allItems 跟上，并订阅属性变化
                 if (!_allItems.Contains(item))
                     _allItems.Insert(0, item);
+
+                // 防御性退订，防止同一对象多次引发事件
+                item.PropertyChanged -= OnItemChanged;
                 item.PropertyChanged += OnItemChanged;
+                item.ForceValidationUI();
             }
             finally
             {
                 // 恢复集合变更监听
+                Items.CollectionChanged += OnCollectionChanged;
             }
 
-            // 批量完成后一次性刷新状态
+            // 一次性刷新状态
             RaiseAllState();
         }
         protected void RaiseAllState()

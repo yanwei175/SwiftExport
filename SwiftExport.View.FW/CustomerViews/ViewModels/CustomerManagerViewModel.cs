@@ -1,68 +1,654 @@
-﻿using SwiftExport.Contracts.Apis.CustomerApis;
+﻿using GalaSoft.MvvmLight.Command;
+using Mapster;
+using SwiftExport.Contracts.Apis.CustomerApis;
+using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.UiInterface;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.View.FW.CustomerViews.Enums;
 using SwiftExport.View.FW.CustomerViews.Models;
 using SwiftExport.View.FW.Mvvm;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Threading;
 
 namespace SwiftExport.View.FW.CustomerViews.ViewModels
 {
-    public class CustomerManagerViewModel : BaseSmallDataManagerViewModel<CustomerModel, CustomerDto>
+    public class CustomerManagerViewModel : ViewModelBaseEx
     {
         private readonly IDialogService _msg;
-        public CustomerManagerViewModel(ICustomerApi api, IDialogService dialogService) : base(api, dialogService)
+        private readonly ICustomerApi _customerApi;
+        private readonly ICustomerProductApi _customerProductApi;
+
+        private readonly DispatcherTimer _搜索客户防抖计时器;
+        private readonly DispatcherTimer _搜索客户产品防抖计时器;
+
+
+        public CustomerManagerViewModel(ICustomerApi customerApi, ICustomerProductApi customerProductApi, IDialogService dialogService)
         {
+
+            _customerApi = customerApi;
+            _customerProductApi= customerProductApi;
             _msg = dialogService;
+
+            CurrentCustomerTable = new CustomerList();
+            CurrentProductTable = new CustomerProductList();
+
+            AddCustomerCommand = new RelayCommand(AddCustomer);
+            BatchSaveCustomerAsyncCommand = new RelayCommand(async () => await BatchSaveCustomerAsync());
+            DeleteCustomerAsyncCommand = new RelayCommand(async () => await DeleteCustomerAsync());
+            LoadCustomerAsyncCommand = new RelayCommand(async () => await LoadCustomerAsync());
+            InvertCheckCommand = new RelayCommand(InvertCheck);
+
+            _搜索客户防抖计时器 = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };// 800毫秒的输入防抖，用户停止输入800ms后才会触发搜索
+            _搜索客户防抖计时器.Tick += 搜索客户防抖计时器_Tick;
+
+
+            AddProductCommand = new RelayCommand(AddProduct);
+            BatchSaveProductAsyncCommand = new RelayCommand(async ()=> await BatchSaveProductAsync());
+            DeleteProductAsyncCommand = new RelayCommand(async() => await DeleteProductAsync());
+            CheckAndLoadProductCommand = new RelayCommand(CheckAndLoadProduct);
+            InvertCheckProductCommand = new RelayCommand(InvertCheckProduct);
+
+
+            _搜索客户产品防抖计时器 = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };// 800毫秒的输入防抖，用户停止输入800ms后才会触发搜索
+            _搜索客户产品防抖计时器.Tick += 搜索客户产品防抖计时器_Tick;
+
+            _ = LoadCustomerAsync();
+
         }
 
-        //实现一下怎么搜索供应商
-        protected override bool FilterItem(CustomerModel item, string searchText)
+        #region 字段属性
+        private string _statusMessage = "准备就绪";// UI底部的状态提示信息，绑定到UI的状态栏，用于显示当前操作状态、错误信息等，由各个操作方法在执行过程中设置以反馈给用户
+        public string StatusMessage
         {
-            return (item.CustomerCode?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                   (item.Name?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                   (item.ContactPerson?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0);
+            get => _statusMessage;
+            set => SetProperty(ref _statusMessage, value);
         }
-        protected override async Task<bool> ValidateBeforeSaveAsync(List<CustomerModel> dirtyModels)
+        #region Tab控制相关字段
+        private CustomerManagerTabs _activeTab;
+        public CustomerManagerTabs ActiveTab
         {
-            // 1. 必填项空值拦截 (这是替代了以前前端红框的防线)
-            var emptyItems = dirtyModels.Where(x => !x.IsValid).ToList();
-            if (emptyItems.Any())
+            get => _activeTab;
+            set
             {
-                await _msg.ShowWarningAsync("存在未填写完整的行！\n\n【客户代码】和【名称】和【单据关联号】为必填项，请补充完整后再保存。");
-                return false;
-            }
-            //2. 重复检测
-            // 我们把当前 DataGrid 里所有没有被删除的数据拿出来分组
-            var activeItems = AllItems.Where(x => x.State != ModelState.Deleted).ToList();
-
-            // ★ 架构师防呆升级：统一转大写 + 去除首尾空格 + 防 Null
-            var duplicates = activeItems
-                .GroupBy(x => new
+                if (SetProperty(ref _activeTab, value) && value == CustomerManagerTabs.CustomerProducts)
                 {
-                    CustomerCode = x.CustomerCode?.Trim().ToUpper() ?? ""
-                })
-                .Where(g => g.Count() > 1)
-                .ToList(); // 这里不要直接 Select Key，我们把整组数据留下来
+                    CheckAndLoadProduct();
+                }
+            }
+        }
 
-            if (duplicates.Any())
+        #endregion
+
+        #region 客户表字段
+        public CustomerList CurrentCustomerTable { get; }
+        private CustomerModel _selectedCustomer;
+        public CustomerModel SelectedCustomer
+        {
+            get => _selectedCustomer;
+            set
             {
-                // ★ 体验细节：拿到重复组里的“第一行真实数据”，这样弹窗报错时显示的是用户原来输入的真实大小写
-                var firstDupItem = duplicates.First().First();
+                if (SetProperty(ref _selectedCustomer, value))
+                {
+                    if (value == null)
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+ 
 
-                await _msg.ShowWarningAsync($"列表中存在重复的配置！\n\n" +
-                                 $"客户代码：{firstDupItem.CustomerCode}\n" +
-                                 $"请修改或删除重复行后再保存。");
+        private string _searchCustomerText;
+        public string SearchCustomerText
+        {
+            get => _searchCustomerText;
+            set
+            {
+                if (SetProperty(ref _searchCustomerText, value))
+                {
+                    防抖搜索客户开始();
+                }
+            }
+        }
 
-                // 返回 false 告诉基类：拦截失败！不要发请求！
-                return false;
+        #endregion
+
+        #region 客户表分页控件
+
+        private int _pageCustomerTableIndex = 1;// 当前页码，绑定到UI的分页控件，用户切换页码时会触发数据重新加载以显示对应页的数据
+        public int PageCustomerTableIndex
+        {
+            get => _pageCustomerTableIndex;
+            set
+            {
+                if (SetProperty(ref _pageCustomerTableIndex, value))
+                {
+                    if (IsBusy) return;
+                    _ = LoadCustomerAsync();
+                }
+            }
+        }
+
+        private int _pageCustomerTableSize = 50;// 每页行数，绑定到UI的分页控件，用户修改每页行数时会触发数据重新加载以应用新的分页设置
+        public int PageCustomerTableSize
+        {
+            get => _pageCustomerTableSize;
+            set
+            {
+                if (SetProperty(ref _pageCustomerTableSize, value))
+                {
+                    if (IsBusy) return;
+                    if (PageCustomerTableIndex == 1) _ = LoadCustomerAsync();
+                    else PageCustomerTableIndex = 1;
+                }
+            }
+        }
+
+        private int _totalCustomerTableCount;// 数据总条数，绑定到UI的分页控件，用于显示总页数和当前数据范围等信息，由数据加载方法在获取数据后设置
+        public int TotalCustomerTableCount
+        {
+            get => _totalCustomerTableCount;
+            set => SetProperty(ref _totalCustomerTableCount, value);
+        }
+
+        #endregion
+
+        #region 客户产品表字段
+        public CustomerProductList CurrentProductTable { get; }
+        private CustomerProductModel _selectedProduct;
+        public CustomerProductModel SelectedProduct    
+        {
+            get => _selectedProduct;
+            set
+            {
+                if (SetProperty(ref _selectedProduct, value))
+                {
+                    if (value == null)
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+        public bool ToggSelectionUnit => !ToggSelectionUnit;
+
+        private string _searchProductText;// 主表格的搜索关键字，绑定到UI的搜索框，用户输入时会触发防抖机制以减少频繁查询，并在停止输入后重新加载数据以应用搜索过滤
+        public string SearchProductText
+        {
+            get => _searchProductText;
+            set
+            {
+                if (SetProperty(ref _searchProductText, value))
+                {
+                    if (IsBusy) return;
+                    防抖搜索客户产品开始();
+                }
+            }
+        }
+
+
+        #region 客户产品表分页控件
+
+        private int _pageProductTableIndex = 1;// 当前页码，绑定到UI的分页控件，用户切换页码时会触发数据重新加载以显示对应页的数据
+        public int PageProductTableIndex
+        {
+            get => _pageProductTableIndex;
+            set
+            {
+                if (SetProperty(ref _pageProductTableIndex, value))
+                {
+                    if (IsBusy) return;
+                    CheckAndLoadProduct();
+                }
+            }
+        }
+
+        private int _pageProductTableSize = 50;// 每页行数，绑定到UI的分页控件，用户修改每页行数时会触发数据重新加载以应用新的分页设置
+        public int PageProductTableSize
+        {
+            get => _pageProductTableSize;
+            set
+            {
+                if (SetProperty(ref _pageProductTableSize, value))
+                {
+                    if (IsBusy) return;
+                    if (PageProductTableIndex == 1)  CheckAndLoadProduct();
+                    else PageProductTableIndex = 1;
+                }
+            }
+        }
+
+        private int _totalProductTableCount;// 数据总条数，绑定到UI的分页控件，用于显示总页数和当前数据范围等信息，由数据加载方法在获取数据后设置
+        public int TotalProductTableCount
+        {
+            get => _totalProductTableCount;
+            set => SetProperty(ref _totalProductTableCount, value);
+        }
+
+        #endregion
+
+
+
+        #endregion
+
+
+        #endregion
+
+        #region 命令
+        //==============
+        //客户表命令
+        //==============
+        #region 客户表命令
+
+
+        //新增客户命令
+
+        public RelayCommand AddCustomerCommand { get; }
+        private void AddCustomer()
+        {
+            var model = new CustomerModel() { CustomerCode="Newcode"};
+            model.MarkAsAdded();
+            CurrentCustomerTable.AddModelToFirst(model);
+            StatusMessage = "已添加新客户行，请编辑相关信息并保存。";
+        }
+
+        //批量保存客户命令
+        public RelayCommand BatchSaveCustomerAsyncCommand { get; }
+        private async Task BatchSaveCustomerAsync()
+        {
+            var dirtyModels = CurrentCustomerTable.GetChangeSet();
+            if (dirtyModels.AddList.Count == 0 && dirtyModels.UpdateList.Count == 0 && dirtyModels.DeleteIdList.Count == 0)
+            {
+                StatusMessage = "没有需要保存的更改。";
+                return;
+            }
+            if (CurrentCustomerTable.IsAllValid == false)
+            {
+                StatusMessage = "请修正数据中的错误后再保存。";
+                return;
+            }
+            StatusMessage = "正在保存更改...";
+
+            var req = dirtyModels.Adapt<BatchRequestGeneric<CustomerDto>>(); // 先调用Adapt方法进行类型转换，确保所有属性都被正确映射
+            try
+            {
+                var result = await _customerApi.BatchSaveAsync(req);
+                if (result.Success)
+                {
+                    StatusMessage = "保存成功。";
+
+                    await _msg.ShowInfoAsync("保存成功！");
+                    _ = LoadCustomerAsync();
+                }
+                else
+                {
+                    StatusMessage = "保存失败: " + result.Message;
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                await _msg.ShowErrorAsync("异常: " + ex.Message);
+            }
+        }
+        //删除客户命令
+        public RelayCommand DeleteCustomerAsyncCommand { get; }
+        private async Task DeleteCustomerAsync()
+        {
+            var checkItems = CurrentCustomerTable.GetCheckedItems();
+
+            if (checkItems.Count == 0) return;
+
+            StatusMessage = $"准备删除 {checkItems.Count} 条记录...";
+            try
+            {
+                //删除刚刚新建的行
+                var deleteByNew = checkItems.Where(x => x.Id <= 0).ToList();
+                foreach (var item in deleteByNew) { CurrentCustomerTable.Remove(item); }
+
+                //发API删除数据库的行
+                var apiToDelete = checkItems.Where(x => x.Id > 0).ToList();
+                if (apiToDelete.Count > 0)
+                {
+                    if (!await _msg.ShowConfirmAsync($"确定要删除选中的 {apiToDelete.Count} 条记录吗？", "确认删除")) return;
+
+                    bool isSuccess = false;
+                    string errMsg = "";
+
+                    if (apiToDelete.Count == 1)
+                    {
+                        var rst = await _customerApi.DeleteAsync(apiToDelete.First().Id);
+                        isSuccess = rst.Success;
+                        errMsg = rst.Message;
+                    }
+                    else
+                    {
+                        var req = new BatchRequestGeneric<CustomerDto> { DeleteIdList = apiToDelete.Select(x => x.Id).ToList() };
+                        var rst = await _customerApi.BatchSaveAsync(req);
+                        isSuccess = rst.Success;
+                        errMsg = rst.Message;
+                    }
+                    if (isSuccess)
+                    {
+                        foreach (var item in apiToDelete) CurrentCustomerTable.Delete(item);
+                        await _msg.ShowInfoAsync("删除成功！");
+                    }
+                    else
+                    {
+                        await _msg.ShowErrorAsync("删除失败：" + errMsg);
+                        return;
+                    }
+                }
+
+            }
+            catch (Exception ex) { await _msg.ShowErrorAsync("删除异常：" + ex.Message); }
+            finally
+            {
+                StatusMessage = "准备就绪";
+            }
+        }
+        public RelayCommand LoadCustomerAsyncCommand { get; }
+        private async Task LoadCustomerAsync()
+        {
+            if (_customerApi == null) return;
+
+            using (BusyScope())
+            {
+                try
+                {
+                    var requestDto = new PagedRequestDto
+                    {
+                        SearchText = SearchCustomerText,
+                        // 绑定到当前页面索引
+                        PageIndex = PageCustomerTableIndex,
+                        // 绑定到当前的页面行数(PageCustomerTableSize)
+                        PageSize = PageCustomerTableSize
+                    };
+
+                    var result = await _customerApi.GetPagedAsync(requestDto);
+
+                    DispatcherProvider.BeginInvoke(() =>
+                    {
+                        if (result.Success && result.Data != null)
+                        {
+
+                            var dtos = result.Data.Items.ToList();
+
+                            CurrentCustomerTable.ReLoadRangeFromDtoList(dtos);
+
+                            TotalCustomerTableCount = dtos.Count;
+                            StatusMessage = $"加载成功，共 {TotalCustomerTableCount} 条。";
+                            return;
+                        }
+                        else
+                        {
+                            StatusMessage = "加载失败: " + result.Message;
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = "加载异常: " + ex.Message;
+                }
+                finally
+                {
+                }
+            }
+        }
+        //反选命令
+        public RelayCommand InvertCheckCommand { get; private set; }
+        private void InvertCheck()
+        {
+            CurrentCustomerTable.InvertCheckAll();
+        }
+
+        private void 防抖搜索客户开始()
+        {
+            _搜索客户防抖计时器.Stop();
+            _搜索客户防抖计时器.Start();
+        }
+
+        private void 搜索客户防抖计时器_Tick(object sender, EventArgs e)
+        {
+            _搜索客户防抖计时器.Stop();
+
+            if (IsBusy) return;
+
+            if (PageCustomerTableIndex != 1)
+            {
+                PageCustomerTableIndex = 1;
             }
 
-            // 返回 true 告诉基类：校验完美通过，放行！
-            return true;
+            _ = LoadCustomerAsync();
         }
+
+
+
+        #endregion
+
+        #region 客户产品表命令
+
+        public RelayCommand AddProductCommand { get; }
+        private void AddProduct()
+        {
+            if (SelectedCustomer == null)
+            { StatusMessage = "未选择客户"; return; }
+
+            var model = new CustomerProductModel()
+            {
+                CustomerId = SelectedCustomer.Id,
+                
+                CustomerSku = "新客户编码",
+                Sku = "aksldjlak"
+            };
+            model.MarkAsAdded();
+            CurrentProductTable.AddModelToFirst(model);
+            StatusMessage = "已添加新客户行，请编辑相关信息并保存。";
+        }
+
+        //批量保存客户命令
+        public RelayCommand BatchSaveProductAsyncCommand { get; }
+        private async Task BatchSaveProductAsync()
+        {
+            var dirtyModels = CurrentProductTable.GetChangeSet();
+            if (dirtyModels.AddList.Count == 0 && dirtyModels.UpdateList.Count == 0 && dirtyModels.DeleteIdList.Count == 0)
+            {
+                StatusMessage = "没有需要保存的更改。";
+                return;
+            }
+            if (CurrentProductTable.IsAllValid == false)
+            {
+                StatusMessage = "请修正数据中的错误后再保存。";
+                return;
+            }
+            StatusMessage = "正在保存更改...";
+
+            var req = dirtyModels.Adapt<BatchRequestGeneric<CustomerProductDto>>(); // 先调用Adapt方法进行类型转换，确保所有属性都被正确映射
+            try
+            {
+                var result = await _customerProductApi.BatchSaveAsync(req);
+                if (result.Success)
+                {
+                    StatusMessage = "保存成功。";
+
+                    await _msg.ShowInfoAsync("保存成功！");
+                    CheckAndLoadProduct();
+                }
+                else
+                {
+                    StatusMessage = "保存失败: " + result.Message;
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                await _msg.ShowErrorAsync("异常: " + ex.Message);
+            }
+        }
+        //删除客户产命令
+        public RelayCommand DeleteProductAsyncCommand { get; }
+        private async Task DeleteProductAsync()
+        {
+            var checkItems = CurrentProductTable.GetCheckedItems();
+
+            if (checkItems.Count == 0) return;
+
+            StatusMessage = $"准备删除 {checkItems.Count} 条记录...";
+            try
+            {
+                //删除刚刚新建的行
+                var deleteByNew = checkItems.Where(x => x.Id <= 0).ToList();
+                foreach (var item in deleteByNew) { CurrentProductTable.Remove(item); }
+
+                //发API删除数据库的行
+                var apiToDelete = checkItems.Where(x => x.Id > 0).ToList();
+                if (apiToDelete.Count > 0)
+                {
+                    if (!await _msg.ShowConfirmAsync($"确定要删除选中的 {apiToDelete.Count} 条记录吗？", "确认删除")) return;
+
+                    bool isSuccess = false;
+                    string errMsg = "";
+
+                    if (apiToDelete.Count == 1)
+                    {
+                        var rst = await _customerProductApi.DeleteAsync(apiToDelete.First().Id);
+                        isSuccess = rst.Success;
+                        errMsg = rst.Message;
+                    }
+                    else
+                    {
+                        var req = new BatchRequestGeneric<CustomerProductDto> { DeleteIdList = apiToDelete.Select(x => x.Id).ToList() };
+                        var rst = await _customerProductApi.BatchSaveAsync(req);
+                        isSuccess = rst.Success;
+                        errMsg = rst.Message;
+                    }
+                    if (isSuccess)
+                    {
+                        foreach (var item in apiToDelete) CurrentProductTable.Delete(item);
+                        await _msg.ShowInfoAsync("删除成功！");
+                    }
+                    else
+                    {
+                        await _msg.ShowErrorAsync("删除失败：" + errMsg);
+                        return;
+                    }
+                }
+
+            }
+            catch (Exception ex) { await _msg.ShowErrorAsync("删除异常：" + ex.Message); }
+            finally
+            {
+                StatusMessage = "准备就绪";
+            }
+        }
+
+        //反选命令
+        public RelayCommand InvertCheckProductCommand { get; private set; }
+        private void InvertCheckProduct()
+        {
+            CurrentProductTable.InvertCheckAll();
+        }
+        public RelayCommand CheckAndLoadProductCommand { get;}
+
+        private void CheckAndLoadProduct()
+        {
+            if (ActiveTab != CustomerManagerTabs.CustomerProducts) return;
+            if (SelectedCustomer == null)
+            {
+                StatusMessage = "请先选择一个客户以查看其产品信息。";
+                return;
+            }
+            _ = LoadCustomerProductAsync();
+        }
+
+        private async Task LoadCustomerProductAsync()
+        {
+            if (_customerProductApi == null) return;
+            if (SelectedCustomer == null)
+            {
+                StatusMessage = "请先选择一个客户以查看其产品信息。";
+                return;
+            }
+            var customerId = SelectedCustomer.Id;
+
+            using (BusyScope())
+            {
+                try
+                {
+                    var requestDto = new ProductSearchDto
+                    {
+                         Keyword = SearchProductText,
+                         CustomerIds = new List<int> { customerId },
+                        // 绑定到当前页面索引
+                        PageIndex = PageProductTableIndex,
+                        // 绑定到当前的页面行数(PageProductTableSize)
+                        PageSize = PageProductTableSize
+                    };
+
+                    var result = await _customerProductApi.GetCustomerProductPagedListAsync(requestDto);
+
+                    DispatcherProvider.BeginInvoke(() =>
+                    {
+                        if (result.Success && result.Data != null)
+                        {
+
+                            var dtos = result.Data.Items.ToList();
+
+                            CurrentProductTable.ReLoadRangeFromDtoList(dtos);
+
+                            TotalProductTableCount = dtos.Count;
+                            StatusMessage = $"加载成功，共 {TotalProductTableCount} 条。";
+                            return;
+                        }
+                        else
+                        {
+                            StatusMessage = "加载失败: " + result.Message;
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = "加载异常: " + ex.Message;
+                }
+                finally
+                {
+                }
+            }
+        }
+
+        private void 防抖搜索客户产品开始()
+        {
+            _搜索客户产品防抖计时器.Stop();
+            _搜索客户产品防抖计时器.Start();
+        }
+
+        private void 搜索客户产品防抖计时器_Tick(object sender, EventArgs e)
+        {
+            _搜索客户产品防抖计时器.Stop();
+
+            if (IsBusy) return;
+
+            if (PageCustomerTableIndex != 1)
+            {
+                PageCustomerTableIndex = 1;
+            }
+            _ = LoadCustomerProductAsync();
+        }
+
+        #endregion
+
+
+
+
+        #endregion
+
+
+
 
 
 

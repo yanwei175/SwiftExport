@@ -12,24 +12,5 @@ namespace SwiftExport.View.FW.CustomerViews.Models
 {
     public class CustomerProductList : BaseListModel<CustomerProductModel>
     {
-
-        /// <summary>
-        /// 从 DTO 列表加载订单头集合（用于订单管理页）
-        /// </summary>
-        public void LoadFromDto(List<CustomerProductDto> dtos)
-        {
-            Clear();
-            if (dtos != null)
-            {
-                foreach (var dto in dtos)
-                {
-                    var model = new CustomerProductModel();
-                    model.LoadFromDto(dto);
-                    Items.Add(model);
-                }
-            }
-
-            RaiseAllState();
-        }
     }
 }
