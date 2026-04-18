@@ -9,84 +9,84 @@
 
 - 在代码中添加中文注释，以提高可读性和维护性，尤其是每个方法/区域，以确保注释直观且完整。用户强调不要删除现有注释，注释很重要；修改代码时应保留并补充中文注释。
 
-- The project is a WPF application targeting .NET Framework 4.8 and C# 7.3, eventually running in VSTO. Be cautious with newer Microsoft MVVM Toolkit packages as they may be incompatible。
+- The project is a WPF application targeting .NET Framework 4.8 and C# 7.3, eventually running in VSTO. Be cautious with newer Microsoft MVVM Toolkit packages as they may be incompatible. Note that VSTO is not currently in the development scope and will be handled separately.
 
 - 在销售订单明细删除逻辑中：已持久化的行应仅从 UI 隐藏并保留在内部集合中标记为 Deleted，以便后端提交删除；未保存的新行才从内部集合和 UI 一并移除。
 
 - 在销售订单明细中，行级 subtotal 字段（如 NwSubTotal/GwSubTotal/CbmSubTotal/金额小计）需要允许用户手动修改；只有集合汇总字段应作为只读展示。
 
-  
+- MateWpfThemes.FW 主题库是项目所有 WPF 样式/主题的唯一来源。所有业务视图依赖此库。
 
-  # 文件结构总览
+# 文件结构总览
 
-  SwiftExport/
-  ├── .github/
-  │   └── copilot-instructions.md          ← 本文件
-  ├── SwiftExport.Core/                     ← 核心层（域实体、接口）
-  │   ├── Entities/MasterData/
-  │   │   ├── Product.cs
-  │   │   ├── ProductCategory.cs
-  │   │   └── ...
-  │   ├── Common/
-  │   │   ├── BaseEntity.cs
-  │   │   ├── QueryCriteria.cs
-  │   │   └── QueryCondition.cs
-  │   ├── Interfaces/
-  │   │   ├── IRepository.cs
-  │   │   └── IProductRepository.cs
-  │   └── Enums/
-  ├── SwiftExport.Application/              ← 应用层（业务逻辑）
-  │   ├── Services/Base/
-  │   │   └── BaseService.cs
-  │   ├── Services/Products/
-  │   │   └── ProductService.cs
-  │   ├── Interfaces/
-  │   │   ├── IBaseService.cs
-  │   │   └── IProductService.cs
-  │   ├── Mappings/
-  │   │   └── ProductProfile.cs
-  │   └── DependencyInjection.cs
-  ├── SwiftExport.Infrastructure/          ← 基础设施层（数据访问）
-  │   ├── Repositories/Base/
-  │   │   └── DapperRepository.cs
-  │   ├── Repositories/Products/
-  │   │   └── ProductRepository.cs
-  │   ├── Data/
-  │   │   ├── DbSession.cs
-  │   │   └── UnitOfWork.cs
-  │   └── DependencyInjection.cs
-  ├── SwiftExport.Contracts/               ← 契约层（DTO / API）
-  │   ├── DTOs/Base/
-  │   │   └── BaseDto.cs
-  │   ├── DTOs/Products/
-  │   │   └── ProductDto.cs
-  │   ├── Wrappers/
-  │   │   ├── ServiceResult.cs
-  │   │   └── BatchRequestGeneric.cs
-  │   └── Apis/
-  │       └── IProductApi.cs
-  ├── SwiftExport.WebApi/                  ← WebAPI 层（控制器）
-  │   ├── Controllers/Base/
-  │   │   └── BaseController.cs
-  │   ├── Controllers/Products/
-  │   │   └── ProductController.cs
-  │   ├── Middlewares/
-  │   │   └── GlobalExceptionMiddleware.cs
-  │   ├── Program.cs
-  │   └── appsettings.json
-  ├── SwiftExport.VSTO/                    ← Excel 插件层
-  │   ├── App.xaml.cs
-  │   └── ...
-  └── SwiftExport.View.FW/                 ← WPF 视图层（.NET Framework 4.8）
-      ├── Services/
-      ├── ViewModels/
-      └── Views/
+SwiftExport/
+├── .github/
+│   └── copilot-instructions.md          ← 本文件
+├── SwiftExport.Core/                     ← 核心层（域实体、接口）
+│   ├── Entities/MasterData/
+│   │   ├── Product.cs
+│   │   ├── ProductCategory.cs
+│   │   └── ...
+│   ├── Common/
+│   │   ├── BaseEntity.cs
+│   │   ├── QueryCriteria.cs
+│   │   └── QueryCondition.cs
+│   ├── Interfaces/
+│   │   ├── IRepository.cs
+│   │   └── IProductRepository.cs
+│   └── Enums/
+├── SwiftExport.Application/              ← 应用层（业务逻辑）
+│   ├── Services/Base/
+│   │   └── BaseService.cs
+│   ├── Services/Products/
+│   │   └── ProductService.cs
+│   ├── Interfaces/
+│   │   ├── IBaseService.cs
+│   │   └── IProductService.cs
+│   ├── Mappings/
+│   │   └── ProductProfile.cs
+│   └── DependencyInjection.cs
+├── SwiftExport.Infrastructure/          ← 基础设施层（数据访问）
+│   ├── Repositories/Base/
+│   │   └── DapperRepository.cs
+│   ├── Repositories/Products/
+│   │   └── ProductRepository.cs
+│   ├── Data/
+│   │   ├── DbSession.cs
+│   │   └── UnitOfWork.cs
+│   └── DependencyInjection.cs
+├── SwiftExport.Contracts/               ← 契约层（DTO / API）
+│   ├── DTOs/Base/
+│   │   └── BaseDto.cs
+│   ├── DTOs/Products/
+│   │   └── ProductDto.cs
+│   ├── Wrappers/
+│   │   ├── ServiceResult.cs
+│   │   └── BatchRequestGeneric.cs
+│   └── Apis/
+│       └── IProductApi.cs
+├── SwiftExport.WebApi/                  ← WebAPI 层（控制器）
+│   ├── Controllers/Base/
+│   │   └── BaseController.cs
+│   ├── Controllers/Products/
+│   │   └── ProductController.cs
+│   ├── Middlewares/
+│   │   └── GlobalExceptionMiddleware.cs
+│   ├── Program.cs
+│   └── appsettings.json
+├── SwiftExport.VSTO/                    ← Excel 插件层
+│   ├── App.xaml.cs
+│   └── ...
+└── SwiftExport.View.FW/                 ← WPF 视图层（.NET Framework 4.8）
+    ├── Services/
+    ├── ViewModels/
+    └── Views/
 
 ### 核心分层结构
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                       表现层 (Presentation)                      │
-│  SwiftExport.VSTO (Excel 插件暂时还没开发) | SwiftExport.View.FW (WPF)    │MateThemeFWTest
+│  SwiftExport.VSTO (Excel 插件暂时还没开发) | SwiftExport.View.FW (WPF)    │
 └──────────────────────┬──────────────────────────────────────────┘
                        │ (HTTP Client / Refit)
 ┌──────────────────────▼──────────────────────────────────────────┐
@@ -139,14 +139,7 @@
 │  └─ Interfaces/IRepository<T> (仓储接口契约)                   │
 └─────────────────────────────────────────────────────────────────┘
 
-
-
 ### QueryCriteria - 动态查询条件构建
-
-
-    
-
-```c#
 // SwiftExport.Core/Common/QueryCondition.cs
 public enum 查询操作符
 {
@@ -178,20 +171,16 @@ public class QueryCriteria
     // AND 条件列表（支持重名字段）
     public List<QueryItem> Items { get; set; } = [];
     // OR 分组列表（每组内是 OR 关系，组间是 AND 关系）
-public List<List<QueryItem>> OrGroups { get; set; } = [];
+    public List<List<QueryItem>> OrGroups { get; set; } = [];
 
-// 快捷方法：添加 AND 条件
-public void Add(string field, 查询操作符 op, object v1, object? v2 = null)
+    // 快捷方法：添加 AND 条件
+    public void Add(string field, 查询操作符 op, object v1, object? v2 = null)
 
-// 快捷方法：添加 OR 分组
-// 场景：(SKU LIKE @Kw OR Description LIKE @Kw) AND (Status = @St1 OR Status = @St2)
-public void AddOrGroup(params (string field, 查询操作符 op, object value)[] conditions)
-```
+    // 快捷方法：添加 OR 分组
+    // 场景：(SKU LIKE @Kw OR Description LIKE @Kw) AND (Status = @St1 OR Status = @St2)
+    public void AddOrGroup(params (string field, 查询操作符 op, object value)[] conditions)
 }
-
 #### **使用示例**:
-
-```
 // 查询：(Sku IN (...) OR CSku IN (...)) AND Status = 'Active'
 var criteria = new QueryCriteria();
 criteria.AddOrGroup(
@@ -201,20 +190,13 @@ criteria.AddOrGroup(
 criteria.Add("Status", 查询操作符.等于, "Active");
 
 var result = await _service.GetListAsync(criteria);
-```
-
-
-
 ### ServiceResult<T> - 统一结果封装
-
-
-    
-    // SwiftExport.Contracts/Wrappers/ServiceResult.cs
-    public class ServiceResult<T>
-    {
-        // 是否成功
-        public bool Success { get; set; }
-        // 提示消息
+// SwiftExport.Contracts/Wrappers/ServiceResult.cs
+public class ServiceResult<T>
+{
+    // 是否成功
+    public bool Success { get; set; }
+    // 提示消息
     public string Message { get; set; } = string.Empty;
     
     // 返回数据
@@ -228,62 +210,46 @@ var result = await _service.GetListAsync(criteria);
     public static ServiceResult<T> Fail(string msg) 
         => new ServiceResult<T> { Success = false, Message = msg };
 }
-
 **前端判断示例**:
-
-```
 const result = await api.getProduct(id);
 if (result.success) {
     console.log("成功:", result.data);
 } else {
     console.error("失败:", result.message);
 }
-```
-
-
-
 ### BatchRequestGeneric<T> - 批量操作请求
+public class BatchRequestGeneric<T> where T : class
+{
+    // 新增列表
+    public List<T>? AddList { get; set; }
+    
+    // 修改列表（必须带 ID）
+    public List<T>? UpdateList { get; set; }
+    
+    // 删除 ID 列表
+    public List<int>? DeleteIdList { get; set; }
+}
 
-
-    
-    public class BatchRequestGeneric<T> where T : class
-    {
-        // 新增列表
-        public List<T>? AddList { get; set; }
-        
-    
-        // 修改列表（必须带 ID）
-        public List<T>? UpdateList { get; set; }
-        
-        // 删除 ID 列表
-        public List<int>? DeleteIdList { get; set; }
-    
-    }
-    
-    public class BatchResultDto
-    {
-        // 新增后的 ID 列表
-        public List<int> AddIdList { get; set; } = [];
-        // 修改的 ID 列表
+public class BatchResultDto
+{
+    // 新增后的 ID 列表
+    public List<int> AddIdList { get; set; } = [];
+    // 修改的 ID 列表
     public List<int> UpdateIdList { get; set; } = [];
     
     // 删除的 ID 列表
     public List<int> DeleteIdList { get; set; } = [];
 }
-
 ## 通用仓储基类详解 (DapperRepository)
 
 ### 核心特性
-
-
-
-    // SwiftExport.Infrastructure/Repositories/Base/DapperRepository.cs
-    public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T> 
-        where T : BaseEntity
-    {
-        // 1️⃣ 属性反射缓存：一次性获取可写属性，避免重复反射
-        private static readonly List<string> _writeableProps = GetWriteableProperties();
-        // 2️⃣ 连接和事务通过 DbSession 管理
+// SwiftExport.Infrastructure/Repositories/Base/DapperRepository.cs
+public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T> 
+    where T : BaseEntity
+{
+    // 1️⃣ 属性反射缓存：一次性获取可写属性，避免重复反射
+    private static readonly List<string> _writeableProps = GetWriteableProperties();
+    // 2️⃣ 连接和事务通过 DbSession 管理
     protected IDbConnection Connection => _session.Connection;
     protected IDbTransaction? Transaction => _session.Transaction;
     
@@ -294,10 +260,7 @@ if (result.success) {
     protected static readonly string TableName = 
         typeof(T).GetCustomAttribute<TableAttribute>()?.Name ?? typeof(T).Name;
 }
-
 #### 动态条件查询（QueryCriteria）
-
-```C#
 // 构建复杂查询：(Sku 包含 "AA" OR Description 包含 "AA") AND CategoryId = 5
 var criteria = new QueryCriteria();
 criteria.AddOrGroup(
@@ -331,15 +294,7 @@ public class PagedResult<T>
     public int PageIndex { get; set; }     // 当前页码
     public int PageSize { get; set; }      // 页大小
 }
-```
-
-
-
 ## 通用服务基类详解 (BaseService)
-
-
-    
-```c#
 // SwiftExport.Application/Services/Base/BaseService.cs
 public class BaseService<TEntity, TDto>(
     IRepository<TEntity> repository, 
@@ -350,23 +305,19 @@ public class BaseService<TEntity, TDto>(
     // 1️⃣ 自动映射 Entity <-> DTO（使用 Mapster）
     var dto = entity.Adapt<TDto>();
     // 2️⃣ 业务校验和异常处理
-if (entity == null)
-    return ServiceResult<TDto>.Fail("实体不存在");
+    if (entity == null)
+        return ServiceResult<TDto>.Fail("实体不存在");
 
-// 3️⃣ 结构化日志（Info/Warning/Error）
-Logger.LogInformation("成功新增 {EntityName}，ID: {Id}", EntityName, newId);
+    // 3️⃣ 结构化日志（Info/Warning/Error）
+    Logger.LogInformation("成功新增 {EntityName}，ID: {Id}", EntityName, newId);
 
-// 4️⃣ 事务协调（批量保存时）
-_session.Transaction = _session.Connection.BeginTransaction();
+    // 4️⃣ 事务协调（批量保存时）
+    _session.Transaction = _session.Connection.BeginTransaction();
 
-// 5️⃣ 统一返回 ServiceResult<T>
-return ServiceResult<TDto>.Ok(dto);
-```
+    // 5️⃣ 统一返回 ServiceResult<T>
+    return ServiceResult<TDto>.Ok(dto);
 }
-
 ### 软/硬删除策略
-
-```c#
 // 子类可通过重写来控制删除策略
 public class CustomerService : BaseService<Customer, CustomerDto>
 {
@@ -385,13 +336,7 @@ if (IsSoftDelete)
     await _repository.DeleteRangeSoftAsync(deleteIds);
 else
     await _repository.DeleteRangeAsync(deleteIds);
-```
-
-
-
 ### 批量保存事务流程（BatchSaveAsync）
-
-```
 public virtual async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestGeneric<TDto> batchReq)
 {
     // 1️⃣ 开启事务
@@ -464,11 +409,7 @@ public virtual async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchReq
         _session.Transaction.Dispose();
     }
 }
-```
-
 ### 子类可继承的 Hook 方法
-
-```c#
 public class ProductService : BaseService<Product, ProductDto>
 {
     // Hook 1: 新增前的业务校验
@@ -513,13 +454,9 @@ public class ProductService : BaseService<Product, ProductDto>
         return null;
     }
 }
-```
-
-##  WebAPI 层设计
+## WebAPI 层设计
 
 ### BaseController - 通用 RESTful 端点
-
-```c#
 // SwiftExport.WebApi/Controllers/Base/BaseController.cs
 [ApiController]
 [Route("api/[controller]")]
@@ -577,11 +514,7 @@ public abstract class BaseController<TEntity, TDto>(IBaseService<TEntity, TDto> 
         return await _service.BatchSaveAsync(req);
     }
 }
-```
-
 ### 具体控制器示例
-
-```c#
 // SwiftExport.WebApi/Controllers/Products/ProductController.cs
 public class ProductController(IProductService service) : BaseController<Product, ProductDto>(service)
 {
@@ -632,11 +565,7 @@ public class ProductController(IProductService service) : BaseController<Product
         return await service.GetPagedListAsync(criteria, pageIndex, pageSize, "Sku ASC");
     }
 }
-```
-
 ## Program.cs 启动流程
-
-```c#
 // SwiftExport.WebApi/Middlewares/GlobalExceptionMiddleware.cs
 public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
 {
@@ -676,11 +605,7 @@ public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExcep
         await context.Response.WriteAsync(json);
     }
 }
-```
-
 ## 异常处理中间件
-
-```c#
 // SwiftExport.WebApi/Middlewares/GlobalExceptionMiddleware.cs
 public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
 {
@@ -720,8 +645,6 @@ public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExcep
         await context.Response.WriteAsync(json);
     }
 }
-```
-
 ### 日志级别使用
 
 | 级别            | 场景                  | 示例                           |
@@ -731,8 +654,6 @@ public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExcep
 | **Warning**     | 预期的异常情况        | "查询失败：产品不存在 ID: 999" |
 | **Error**       | 系统错误、异常捕获    | 数据库连接失败、业务异常       |
 | **Fatal**       | 应用启动失败          | 数据库初始化失败、配置缺失     |
-
-```c#
 // 1️⃣ 新增操作 (Information)
 Logger.LogInformation("成功新增 {EntityName} 数据，生成的 ID: {Id}", EntityName, id);
 
@@ -750,11 +671,7 @@ Log.Information("SwiftExport WebAPI 启动中...");
 
 // 6️⃣ 启动失败 (Fatal)
 Log.Fatal(ex, "WebAPI 启动失败，遭遇致命异常！");
-```
-
 ### 前端 (Refit 客户端)
-
-```c#
 // 定义 API 接口
 [Headers("Authorization: Bearer")]
 public interface IProductApi
@@ -789,14 +706,10 @@ var batchResult = await api.BatchSaveAsync(new BatchRequestGeneric<ProductDto> {
     UpdateList = editedProducts,
     DeleteIdList = new[] { 1, 2, 3 }
 });
-```
-
-
-
 ## Architecture Guidelines
 
 - Implement global dictionary loading via a singleton cache service initialized at application startup.
-- Continue to use generic RESTful APIs for data access。
+- Continue to use generic RESTful APIs for data access.
 
 ## DataGrid Guidelines
-- Keep potentially expensive visual DataGrid triggers (like tracking dirty states) optional or attach them via properties, rather than hardcoding them into the default DataGrid style。
+- Keep potentially expensive visual DataGrid triggers (like tracking dirty states) optional or attach them via properties, rather than hardcoding them into the default DataGrid style.

@@ -121,7 +121,7 @@
                                 <DataGridTextColumn Header="客户代码" 
                                             Binding="{Binding CustomerCode,UpdateSourceTrigger=PropertyChanged,ValidatesOnDataErrors=False}" 
                                             Width="100" FontWeight="Bold"/>
-                                
+
                                 <DataGridTextColumn Header="客户名称" Binding="{Binding Name,UpdateSourceTrigger=PropertyChanged}" Width="150"/>
 
                                 <DataGridTextColumn Header="单据关联号" Binding="{Binding DocRelateNo}" Width="120"/>
@@ -130,7 +130,30 @@
 
                                 <DataGridTextColumn Header="电话" Binding="{Binding PhoneNumber}" Width="140"/>
 
-                                <DataGridTextColumn Header="地址" Binding="{Binding Address}" Width="*" 
+                                <DataGridTextColumn Header="地址" Binding="{Binding Address}" Width="150" 
+                                            ElementStyle="{DynamicResource  MultiLineDataGridTextBlockStyle}" 
+                                            EditingElementStyle="{DynamicResource MultiLineDataGridTextBoxStyle}"/>
+
+                                <!-- ==================== 贸易条款默认值字段 ==================== -->
+                                <DataGridTextColumn Header="贸易条款" Binding="{Binding Incoterm}" Width="90"/>
+
+                                <DataGridTextColumn Header="贸易地点" Binding="{Binding IncotermLocation}" Width="100"/>
+
+                                <DataGridTextColumn Header="定金比例" Binding="{Binding DepositRate}" Width="80"/>
+
+                                <DataGridTextColumn Header="交货周期(天)" Binding="{Binding LeadTimeDays}" Width="100"/>
+
+                                <DataGridTextColumn Header="付款方式" Binding="{Binding PaymentMethod}" Width="90"/>
+
+                                <DataGridTextColumn Header="币种" Binding="{Binding Currency}" Width="70"/>
+
+                                <DataGridTextColumn Header="承运方式" Binding="{Binding ShippedBy}" Width="90"/>
+
+                                <DataGridTextColumn Header="交期备注" Binding="{Binding EtdSortRemark}" Width="120"
+                                            ElementStyle="{DynamicResource  MultiLineDataGridTextBlockStyle}" 
+                                            EditingElementStyle="{DynamicResource MultiLineDataGridTextBoxStyle}"/>
+
+                                <DataGridTextColumn Header="贸易条款备注" Binding="{Binding IncotermSortRemark}" Width="150"
                                             ElementStyle="{DynamicResource  MultiLineDataGridTextBlockStyle}" 
                                             EditingElementStyle="{DynamicResource MultiLineDataGridTextBoxStyle}"/>
 
@@ -167,24 +190,28 @@
                                         Content="新增"
                                         mt:ButtonAssist.IconSize="12"
                                         mt:ButtonAssist.Icon="{StaticResource Icon.Add}"
+                                        IsEnabled="{Binding HasSelectedCustomer}"
                                         Command="{Binding AddProductCommand}" />
                                 <Button  Margin="0,0,10,0" 
                                          Style="{StaticResource ButtonSuccess}"
                                          Content="保存"
                                          mt:ButtonAssist.IconSize="12"
                                          mt:ButtonAssist.Icon="{StaticResource Icon.Save}"
+                                         IsEnabled="{Binding HasSelectedCustomer}"
                                         Command="{Binding BatchSaveProductAsyncCommand}" />
                                 <Button  Margin="0,0,10,0" 
                                          Style="{StaticResource ButtonDanger}"
                                          Content="删除"
                                          mt:ButtonAssist.IconSize="12"
                                          mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"
+                                         IsEnabled="{Binding HasSelectedCustomer}"
                                         Command="{Binding DeleteProductAsyncCommand}" />
                                 <Button Margin="0,0,10,0"
                                        Style="{StaticResource ButtonBase}"
                                        Content="刷新"
                                         mt:ButtonAssist.IconSize="12"
                                         mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
+                                        IsEnabled="{Binding HasSelectedCustomer}"
                                         Command="{Binding CheckAndLoadProductCommand}"/>
                                 <Rectangle Width="1" Fill="#E0E0E0" Margin="5,5,15,5" VerticalAlignment="Stretch"/>
 
@@ -193,6 +220,7 @@
                                        Content="反选"
                                         mt:ButtonAssist.IconSize="12"
                                         mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
+                                        IsEnabled="{Binding HasSelectedCustomer}"
                                         Command="{Binding InvertCheckProductCommand}"/>
                                 <!-- 主表选择模式切换按钮（整行选择 / 单元格+行头选择）。
                    使用 ToggleButton 的 IsChecked 来驱动 DataGrid.SelectionUnit，避免代码后台事件切换。 -->
@@ -314,9 +342,9 @@
                     </DataGrid>
 
                     <mt:PaginationControl Grid.Row="2" Margin="0,8,0,0" HorizontalAlignment="Right" 
-                                                   TotalCount="{Binding TotalCustomerTableCount}" 
-                                                   PageIndex="{Binding PageCustomerTableIndex, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
-                                                   PageSize="{Binding PageCustomerTableSize, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                                                   TotalCount="{Binding TotalProductTableCount}" 
+                                                   PageIndex="{Binding PageProductTableIndex, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                                                   PageSize="{Binding PageProductTableSize, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
 
                 </Grid>
             </TabItem>

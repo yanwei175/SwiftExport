@@ -94,6 +94,8 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             {
                 if (SetProperty(ref _selectedCustomer, value))
                 {
+                    // 当选中客户变化时，通知是否可以启用产品表操作
+                    RaisePropertyChanged(nameof(HasSelectedCustomer));
                     if (value == null)
                     {
                         return;
@@ -101,7 +103,11 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                 }
             }
         }
- 
+
+        /// <summary>
+        /// 是否选择了客户（用于控制"客户产品管理"标签页的操作按钮可用性）
+        /// </summary>
+        public bool HasSelectedCustomer => _selectedCustomer != null && _selectedCustomer.Id > 0;
 
         private string _searchCustomerText;
         public string SearchCustomerText
