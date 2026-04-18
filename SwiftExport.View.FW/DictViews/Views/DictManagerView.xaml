@@ -1,0 +1,191 @@
+﻿<Window x:Class="SwiftExport.View.FW.DictViews.Views.DictManagerView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
+        Title="数据字典 (枚举) 管理" Height="768" Width="1024"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Brush_Bck_Page}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280"/>
+                <ColumnDefinition Width="1"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{DynamicResource Brush_Control_Background}" Margin="10" CornerRadius="4"
+                    mt:ShadowAssist.Level="Medium">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Padding="15,15,15,5">
+                        <Grid>
+                            <TextBlock Text="字典大类" FontWeight="Bold" FontSize="15" VerticalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Command="{Binding AddTypeCommand}" 
+                                        Style="{StaticResource ButtonPrimary}" Height="28" Padding="10,0" Margin="0,0,5,0"
+                                        mt:ButtonAssist.Icon="{StaticResource Icon.Add}" mt:ButtonAssist.IconSize="12" Content="新建"/>
+                                <Button Command="{Binding DeleteTypeCommand}" 
+                                        Style="{StaticResource ButtonDanger}" Height="28" Padding="10,0"
+                                        mt:ButtonAssist.Icon="{StaticResource Icon.Delete}" mt:ButtonAssist.IconSize="12" Content="删除"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="1" BorderThickness="0,0,0,1" Padding="15,5,15,15">
+                        <TextBox Text="{Binding SearchTypeText, UpdateSourceTrigger=PropertyChanged}" 
+                                 Tag="搜索字典分类..." 
+                                 Height="32" VerticalContentAlignment="Center" Padding="5,0"/>
+                    </Border>
+
+                    <ListBox Grid.Row="2" ItemsSource="{Binding DictTypesView}" 
+                             SelectedItem="{Binding SelectedDictType, Mode=TwoWay}"
+                             BorderThickness="0" Background="Transparent" Margin="0,5">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="5" Background="Transparent">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding DictName}" FontWeight="Bold" FontSize="14" />
+                                        <TextBlock Text="{Binding DictCode}" FontSize="12" Margin="0,2,0,0" Foreground="{DynamicResource Brush_Txt_Secondary}"/>
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Visibility="{Binding IsSystem, Converter={StaticResource BoolToVis}}"
+                                            Background="#FFF4E5" BorderBrush="#FF9800" BorderThickness="1" 
+                                            CornerRadius="2" Padding="4,2" VerticalAlignment="Center">
+                                        <TextBlock Text="系统内置" FontSize="10" Foreground="#FF9800"/>
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="1" Background="Transparent" HorizontalAlignment="Center"/>
+
+            <Border Grid.Column="2" Background="{DynamicResource Brush_Control_Background}" 
+                    Margin="0,10,10,10" CornerRadius="4"
+                    mt:ShadowAssist.Level="Medium">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" BorderThickness="0,0,0,1" Padding="15">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding SelectedDictType.DictName, FallbackValue='请选择字典'}" 
+                                           FontSize="18" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                                <Button Margin="0,0,10,0" Command="{Binding AddNewRowCommand}" Content="新增"
+                                        mt:ButtonAssist.IconSize="12" mt:ButtonAssist.Icon="{StaticResource Icon.Add}"
+                                        Style="{StaticResource ButtonPrimary}"/>
+                                <Button Margin="0,0,10,0" Command="{Binding BatchSaveCommand}" Content="保存"
+                                        mt:ButtonAssist.IconSize="12" mt:ButtonAssist.Icon="{StaticResource Icon.Save}"
+                                        Style="{StaticResource ButtonPrimary}"/>
+                                <Button Command="{Binding LoadCommand}" Content="刷新"
+                                        mt:ButtonAssist.IconSize="12" mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
+                                        Style="{StaticResource ButtonBase}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding ItemsView}" RowHeight="40" Margin="10"
+          CanUserAddRows="False" AutoGenerateColumns="False" BorderThickness="1">
+
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding State}" Value="Added">
+                                        <Setter Property="Background" Value="#E8F5E9"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding State}" Value="Modified">
+                                        <Setter Property="Background" Value="#FFF8E1"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding State}" Value="Deleted">
+                                        <Setter Property="Background" Value="#FFEBEE"/>
+                                        <Setter Property="Foreground" Value="#9E9E9E"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="真实键值 (Value)" 
+                            Binding="{Binding DictValue}" 
+                            Width="150"
+                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}">
+                                <DataGridTextColumn.CellStyle>
+                                    <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSystem}" Value="True">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                                <Setter Property="Background" Value="{DynamicResource Brush_Control_Disabled}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="显示名称 (Label)" 
+                                                Binding="{Binding DictLabel}" 
+                                                Width="*" FontWeight="Bold"
+                                                ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
+                                                EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}"/>
+
+
+                            <DataGridTextColumn Header="排序号" 
+                            Binding="{Binding SortOrder}" 
+                            Width="80"
+                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+
+                            <DataGridTemplateColumn Header="操作" Width="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button CommandParameter="{Binding}" Width="60" Height="24" Padding="0" Foreground="White"
+                            IsEnabled="{Binding IsSystem, Converter={StaticResource InverseBoolConverter}}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource ButtonDanger}">
+                                                    <Setter Property="Content" Value="删除"/>
+                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                    <Setter Property="Background" Value="{DynamicResource Brush_Danger}"/>
+                                                    <Setter Property="Command" Value="{Binding DataContext.SingleDeleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding State}" Value="Deleted">
+                                                            <Setter Property="Content" Value="撤销"/>
+                                                            <Setter Property="Background" Value="{DynamicResource Brush_Btn_Primary_Background}"/>
+                                                            <Setter Property="Command" Value="{Binding DataContext.CancelDeleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <Border Grid.Row="2" Background="{DynamicResource Brush_Control_Background}" BorderBrush="{DynamicResource Brush_Border_Light}" BorderThickness="0,1,0,0" Padding="15,5">
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="{DynamicResource Brush_Txt_Secondary}" VerticalAlignment="Center"/>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <mt:DialogHost />
+    </Grid>
+</Window>

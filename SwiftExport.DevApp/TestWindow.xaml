@@ -1,0 +1,222 @@
+﻿<Window x:Class="SwiftExport.DevApp.TestWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SwiftExport.DevApp"
+        xmlns:mt ="https://MateWpfTheme.com/wpf/framework/themes"
+        mc:Ignorable="d"
+        Title="TestWindow" Height="1025" Width="800">
+
+
+    <Grid>
+        <StackPanel>
+            <!-- ================= TABCONTROL ================= -->
+            <GroupBox Header="TabControl" Margin="0,0,0,10">
+                <TabControl  Margin="10,0,-2,0" TabStripPlacement="Left">
+                    <!-- ================= DataGrid ================= -->
+                    <TabItem Header="DataGrid">
+                        <GroupBox Header="DataGrid (带神装 Assist)" Margin="0,0,0,10">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Button Content="打开测试弹窗" Width="120" Margin="0,0,10,0" Style="{StaticResource ButtonPrimary}" Click="OpenDialog_Click"
+                                            />
+                                    <Button Content="清空表格数据" Width="120" Margin="0,0,10,0" Click="ClearData_Click"/>
+                                    <Button Content="添加一行数据" Width="120" Click="AddData_Click"/>
+                                </StackPanel>
+
+                                <DataGrid ItemsSource="{Binding TestCustomers}" 
+                                          Style="{StaticResource  BaseDataGrid}"
+                                  Height="250"
+                                  RowHeight="25"
+                                         SelectionMode="Single"
+                                          SelectionUnit="FullRow"
+                                  mt:DataGridAssist.ShowRowNumber="True"
+                                  mt:DataGridAssist.AutoScrollToNewItem="True"
+                                  mt:DataGridAssist.EmptyText="暂无客户数据，请点击上方添加"
+                                  mt:DataGridExcelAssist.EnableDirtyTracking="True">
+
+                                    <DataGrid.Columns>
+                                        <DataGridCheckBoxColumn>
+                                        </DataGridCheckBoxColumn>
+
+
+                                        <DataGridTextColumn Header="客户名称" Width="150"
+                                                    Binding="{Binding CustomerName}" 
+                                                    ElementStyle="{StaticResource DataGridTextBlockStyle}"
+                                                    EditingElementStyle="{StaticResource DataGridTextBoxStyle}" />
+
+                                        <DataGridTextColumn Header="备注说明" Width="*"
+                                                    Binding="{Binding Remark}" 
+                                                    ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
+                                                    EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}" />
+                                        <DataGridCheckBoxColumn Header="Check" Width="*" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </GroupBox>
+                    </TabItem>
+
+                    <TabItem Header="BUTTONS">
+                        <!-- ================= BUTTONS ================= -->
+                        <GroupBox Header="Buttons" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal" Margin="10">
+                                <Button Content="Default" Width="100" Margin="5"
+                                Style="{StaticResource ButtonBase}"
+                                mt:ButtonAssist.Icon="🗑"/>
+                                <Button Content="Default" Width="110" Margin="5"
+                                Style="{StaticResource ButtonBase}"
+                                mt:ButtonAssist.Icon="👨‍👩‍👧‍👦"/>
+                                <Button Style="{StaticResource ButtonPrimary}" Width="100" Margin="5"
+                                mt:ButtonAssist.Icon="{StaticResource Icon.Save}" 
+                                Content="保存" />
+                                <Button Content="Primary" Width="100" Margin="5"
+                                Style="{StaticResource ButtonPrimary}"
+                                mt:ButtonAssist.Icon="👨‍👩‍👧‍👦👨‍👩‍👧‍👦"/>
+                                <Button Content="Text" Width="160" Margin="5"
+                                mt:ButtonAssist.Icon="👨‍👩‍👧‍👦👨‍👩‍👧‍👦"
+                                Style="{StaticResource ButtonText}"/>
+                            </StackPanel>
+                        </GroupBox>
+                    </TabItem>
+
+                    <TabItem Header="CARD">
+                        <!-- ================= CARD ================= -->
+                        <GroupBox Header="Card" Margin="0,0,0,10">
+                            <Border CornerRadius="8" Padding="15" BorderThickness="1"
+                            Background="{DynamicResource Brush_Control_Background}"
+                            BorderBrush="{DynamicResource Brush_Border_Default}">
+                                <StackPanel>
+                                    <TextBlock Text="This is a Card" FontSize="16" FontWeight="Bold"/>
+                                    <TextBlock Text="Card content area for layout testing" Margin="0,5,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </GroupBox>
+                    </TabItem>
+
+                    <TabItem Header="INPUTS">
+                        <!-- ================= INPUTS ================= -->
+                        <GroupBox Header="Inputs" Margin="10,10,10,10">
+                            <StackPanel>
+                                <TextBox Width="200" HorizontalAlignment="Left"
+                                 mt:TextBoxAssist.Placeholder="请输入账号..."
+                                 mt:TextBoxAssist.ShowClearButton="True"/>
+
+                                <PasswordBox Width="200" Margin="0,5,0,0" HorizontalAlignment="Left"
+                                     mt:TextBoxAssist.Placeholder="请输入密码..."/>
+                            </StackPanel>
+                        </GroupBox>
+                    </TabItem>
+
+                    <TabItem Header="ComboBox">
+                        <!-- ================= COMBOBOX ================= -->
+                        <StackPanel>
+
+                            <ComboBox Width="200" Margin="5">
+                                <ComboBoxItem Content="Option 1"/>
+                                <ComboBoxItem Content="Option 2"/>
+                                <ComboBoxItem Content="Option 3"/>
+                            </ComboBox>
+                            <ComboBox Width="200" Margin="5" IsEditable="True">
+                                <ComboBoxItem Content="Option 1"/>
+                                <ComboBoxItem Content="Option 2"/>
+                                <ComboBoxItem Content="Option 3"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </TabItem>
+
+                    <TabItem Header="CHECKBOX / RADIO ">
+                        <GroupBox Header="Selection Controls" Margin="0,0,0,10">
+                            <StackPanel>
+
+                                <CheckBox Content="CheckBox A" Margin="5"/>
+                                <CheckBox Content="CheckBox A" Margin="5" IsChecked="{x:Null}"/>
+                                <CheckBox Content="CheckBox B" Margin="5" IsChecked="True"/>
+
+                                <RadioButton Content="Radio 1" Margin="5" GroupName="A"/>
+                                <RadioButton Content="Radio 2" Margin="5" GroupName="A"/>
+
+                            </StackPanel>
+                        </GroupBox>
+                    </TabItem>
+
+                    <TabItem Header="SLIDER">
+                        <!-- ================= SLIDER ================= -->
+                        <GroupBox Header="Slider" Margin="0,0,0,10">
+                            <Slider Minimum="0" Maximum="100"
+                        Value="30"
+                        Width="300"/>
+                        </GroupBox>
+
+                    </TabItem>
+
+                    <TabItem Header="PROGRESS BAR">
+                        <!-- ================= PROGRESS BAR ================= -->
+                        <GroupBox Header="ProgressBar" Margin="0,0,0,10">
+                            <ProgressBar Width="300"
+                             Height="20"
+                             Value="60"/>
+                        </GroupBox>
+                    </TabItem>
+
+                    <TabItem Header="LISTBOX">
+                        <!-- ================= LISTBOX ================= -->
+                        <GroupBox Header="ListBox" Margin="0,0,0,10">
+                            <ListBox Height="200">
+                                <ListBoxItem Content="Item 1"/>
+                                <ListBoxItem Content="Item 2"/>
+                                <ListBoxItem Content="Item 3"/>
+                                <ListBoxItem Content="Item 3"/>
+                                <ListBoxItem Content="Item 3"/>
+                                <ListBoxItem Content="Item 3"/>
+                                <ListBoxItem Content="Item 3"/>
+                            </ListBox>
+                        </GroupBox>
+                    </TabItem>
+
+                    <TabItem Header="LISTVIEW">
+                        <!-- ================= LISTVIEW ================= -->
+                        <GroupBox Header="ListView" Margin="0,0,0,10">
+
+                            <ListView Height="200" >
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="名称">
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="数量"/>
+                                    </GridView>
+
+                                </ListView.View>
+                                <ListViewItem Content="Row A"/>
+                                <ListViewItem Content="Row A"/>
+                                <ListViewItem Content="Row A"/>
+                                <ListViewItem Content="Row A"/>
+                                <ListViewItem Content="Row A"/>
+                                <ListViewItem Content="Row A"/>
+                                <ListViewItem Content="Row A"/>
+                                <ListViewItem Content="Row A"/>
+                                <ListViewItem Content="Row A"/>
+                                <ListViewItem Content="Row A"/>
+                            </ListView>
+                        </GroupBox>
+                    </TabItem>
+
+                    <TabItem Header="TOGGLE">
+                        <StackPanel>
+                            <!-- ================= TOGGLE ================= -->
+                            <ToggleButton Style="{StaticResource ToggleSwitch}"  />
+                            <ToggleButton Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left" Margin="0,10,0,0" />
+                            <DatePicker />
+                            
+                        </StackPanel>
+
+                    </TabItem>
+                </TabControl>
+            </GroupBox>
+        </StackPanel>
+
+
+        <mt:DialogHost />
+
+    </Grid>
+</Window>

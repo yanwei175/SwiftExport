@@ -1,0 +1,19 @@
+﻿<Application x:Class="SwiftExport.DevApp.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mt ="https://MateWpfTheme.com/wpf/framework/themes"
+             xmlns:local="clr-namespace:SwiftExport.DevApp">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+
+                <ResourceDictionary Source="pack://application:,,,/MateWpfThemes.FW;component/Themes/MateThemes.xaml" />
+                <!--<ResourceDictionary Source="/MateWpfThemes.FW;component/Themes/MateThemes.xaml" />-->
+                
+
+
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
+</Application>

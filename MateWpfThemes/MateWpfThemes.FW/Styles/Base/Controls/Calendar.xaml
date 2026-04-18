@@ -1,0 +1,180 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:converters="clr-namespace:MateWpfThemes.FW.Converters"
+                    xmlns:globalization="clr-namespace:System.Globalization;assembly=mscorlib"
+                    xmlns:controls="clr-namespace:System.Windows.Controls;assembly=PresentationFramework"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib"
+                    xmlns:mtcom="clr-namespace:MateWpfThemes.FW.Common"
+                    xmlns:wpf="clr-namespace:MateWpfThemes.FW.AttachedProperties"
+                    xmlns:effects="clr-namespace:System.Windows.Media.Effects;assembly=PresentationCore">
+
+    <!--
+    轻量 Calendar 样式：
+    这套样式专门给轻量 DatePicker 使用，目标是：
+    1. 避免 MaterialDesign 式复杂 CalendarItem 模板导致不显示；
+    2. 保留较好的日期按钮视觉；
+    3. 优先保证稳定显示，再逐步美化。
+  -->
+
+    <!--
+    轻量月/年切换按钮样式：
+    这里改成更扁平的按钮风格，避免系统默认按钮太重、太突兀。
+  -->
+    <Style x:Key="CalendarButtonLite" TargetType="{x:Type CalendarButton}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="MinWidth" Value="44" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type CalendarButton}">
+                    <Border x:Name="Root"
+                  Margin="2"
+                  Padding="8,6"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="8">
+                        <ContentPresenter HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush_Control_Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush_Control_Pressed}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush_Primary}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+    轻量日期按钮样式：
+    将日期格做成更扁平的圆角矩形，保留 hover、选中、今天 的视觉反馈。
+  -->
+    <Style x:Key="CalendarDayButtonLite" TargetType="{x:Type CalendarDayButton}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="MinWidth" Value="30" />
+        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type CalendarDayButton}">
+                    <Grid>
+                        <Border x:Name="Root"
+                    Margin="1"
+                    Background="Transparent"
+                    BorderBrush="Transparent"
+                    BorderThickness="1"
+                    CornerRadius="4" />
+                        <ContentPresenter x:Name="ContentHost"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush_Control_Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush_Control_Pressed}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush_Primary}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush_Primary}" />
+                            <Setter TargetName="ContentHost" Property="TextElement.Foreground" Value="{DynamicResource Brush_Btn_Primary_Foreground}" />
+                        </Trigger>
+                        <Trigger Property="IsToday" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush_Primary}" />
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsToday" Value="True" />
+                                <Condition Property="IsSelected" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush_Primary}" />
+                        </MultiTrigger>
+                        <Trigger Property="IsInactive" Value="True">
+                            <Setter TargetName="ContentHost" Property="Opacity" Value="0.45" />
+                        </Trigger>
+                        <Trigger Property="IsBlackedOut" Value="True">
+                            <Setter TargetName="ContentHost" Property="Opacity" Value="0.25" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="ContentHost" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+    轻量 Calendar：
+    继续复用系统稳定模板，但统一调整边框、内边距和按钮样式，
+    让整体更扁平、更贴近当前主题。
+    这里直接给 Calendar 自身加外层卡片模板，确保背景、圆角、阴影一定生效。
+  -->
+    <Style x:Key="CalendarLite" TargetType="{x:Type Calendar}">
+        <Setter Property="Background" Value="{DynamicResource Brush_Bck_Card}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush_Border_Light}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CalendarButtonStyle" Value="{StaticResource CalendarButtonLite}" />
+        <Setter Property="CalendarDayButtonStyle" Value="{StaticResource CalendarDayButtonLite}" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="8" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Calendar}">
+                    <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="10"
+                  Padding="8"
+                  Margin="8"
+                  wpf:ShadowAssist.Level="Low"
+                  SnapsToDevicePixels="True">
+                        <!--
+              中文注释：
+              这里仍然使用系统稳定的 CalendarItem 作为真正的日历承载体，
+              但把卡片外观包在最外层，这样就不会再出现 Popup 外层 Border 看起来没生效的问题。
+            -->
+                        <CalendarItem x:Name="PART_CalendarItem"
+                          Background="Transparent"
+                          BorderBrush="Transparent"
+                          BorderThickness="0"
+                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

@@ -1,0 +1,308 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:assist="clr-namespace:MateWpfThemes.FW.AttachedProperties">
+
+    <!-- 中文注释：统一输入控件的错误边框厚度与错误下划线厚度，避免各控件各写一份。 -->
+    <Thickness x:Key="InputValidationOutlineThickness">1</Thickness>
+    <Thickness x:Key="InputValidationUnderlineThickness">0,0,0,2</Thickness>
+
+    <ControlTemplate x:Key="TextBoxTemplate" TargetType="TextBox">
+        <Border x:Name="border"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="4"
+                SnapsToDevicePixels="True">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="PART_Placeholder"
+                           Text="{Binding Path=(assist:TextBoxAssist.Placeholder), RelativeSource={RelativeSource TemplatedParent}}"
+                           Foreground="{DynamicResource Brush_Input_Placeholder}"
+                           Padding="{TemplateBinding Padding}"
+                           Margin="2,0,0,0"
+                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                           HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                           IsHitTestVisible="False"
+                           Visibility="Collapsed" />
+
+                <ScrollViewer x:Name="PART_ContentHost"
+                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+
+                <Button x:Name="PART_ClearButton"
+                        Grid.Column="1"
+                        Margin="4,0,4,0"
+                        Width="16" Height="16"
+                        Cursor="Hand"
+                        Focusable="False"
+                        Visibility="Collapsed">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="Transparent">
+                                <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                                      Fill="{DynamicResource Brush_Input_Placeholder}"
+                                      Stretch="Uniform" 
+                                      Width="10" Height="10"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+        </Border>
+
+        <ControlTemplate.Triggers>
+            <Trigger Property="Text" Value="">
+                <Setter TargetName="PART_Placeholder" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <Trigger Property="Text" Value="{x:Null}">
+                <Setter TargetName="PART_Placeholder" Property="Visibility" Value="Visible" />
+            </Trigger>
+
+            <Trigger Property="assist:TextBoxAssist.ShowClearButton" Value="True">
+                <Setter TargetName="PART_ClearButton" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <Trigger Property="Text" Value="">
+                <Setter TargetName="PART_ClearButton" Property="Visibility" Value="Collapsed" />
+            </Trigger>
+            <Trigger Property="Text" Value="{x:Null}">
+                <Setter TargetName="PART_ClearButton" Property="Visibility" Value="Collapsed" />
+            </Trigger>
+
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="border" Property="Opacity" Value="0.96" />
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource Brush_Input_FocusBorder}" />
+            </Trigger>
+            <Trigger Property="Validation.HasError" Value="True">
+                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource Brush_Error}" />
+                <Setter TargetName="border" Property="BorderThickness" Value="{DynamicResource InputValidationOutlineThickness}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="border" Property="Background" Value="{DynamicResource Brush_Control_Disabled}" />
+                <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Disabled}" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!-- 中文注释：下划线输入框模板，保留占位符与清空按钮，仅把外观改成底部横线 -->
+    <ControlTemplate x:Key="UnderLineTextBoxTemplate" TargetType="TextBox">
+        <Grid SnapsToDevicePixels="True">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock x:Name="PART_Placeholder"
+                       Text="{Binding Path=(assist:TextBoxAssist.Placeholder), RelativeSource={RelativeSource TemplatedParent}}"
+                       Foreground="{DynamicResource Brush_Input_Placeholder}"
+                       Padding="{TemplateBinding Padding}"
+                       Margin="2,0,0,0"
+                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                       HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                       IsHitTestVisible="False"
+                       Visibility="Collapsed" />
+
+            <ScrollViewer x:Name="PART_ContentHost"
+                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+
+            <Button x:Name="PART_ClearButton"
+                    Grid.Column="1"
+                    Margin="4,0,0,0"
+                    Width="16"
+                    Height="16"
+                    Cursor="Hand"
+                    Focusable="False"
+                    Visibility="Collapsed">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="Transparent">
+                            <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                                  Fill="{DynamicResource Brush_Input_Placeholder}"
+                                  Stretch="Uniform"
+                                  Width="10"
+                                  Height="10"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+
+            <!-- 中文注释：真正的下划线，只显示底边 -->
+            <Border x:Name="UnderlineBorder"
+                    Grid.ColumnSpan="2"
+                    VerticalAlignment="Bottom"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" />
+        </Grid>
+
+        <ControlTemplate.Triggers>
+            <Trigger Property="Text" Value="">
+                <Setter TargetName="PART_Placeholder" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <Trigger Property="Text" Value="{x:Null}">
+                <Setter TargetName="PART_Placeholder" Property="Visibility" Value="Visible" />
+            </Trigger>
+
+            <Trigger Property="assist:TextBoxAssist.ShowClearButton" Value="True">
+                <Setter TargetName="PART_ClearButton" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <Trigger Property="Text" Value="">
+                <Setter TargetName="PART_ClearButton" Property="Visibility" Value="Collapsed" />
+            </Trigger>
+            <Trigger Property="Text" Value="{x:Null}">
+                <Setter TargetName="PART_ClearButton" Property="Visibility" Value="Collapsed" />
+            </Trigger>
+
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="UnderlineBorder" Property="Opacity" Value="0.96" />
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="UnderlineBorder" Property="BorderBrush" Value="{DynamicResource Brush_Input_FocusBorder}" />
+            </Trigger>
+            <Trigger Property="Validation.HasError" Value="True">
+                <Setter TargetName="UnderlineBorder" Property="BorderBrush" Value="{DynamicResource Brush_Error}" />
+                <Setter TargetName="UnderlineBorder" Property="BorderThickness" Value="{DynamicResource InputValidationUnderlineThickness}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Disabled}" />
+                <Setter TargetName="UnderlineBorder" Property="BorderBrush" Value="{DynamicResource Brush_Txt_Disabled}" />
+                <Setter TargetName="PART_ClearButton" Property="Visibility" Value="Collapsed" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <ControlTemplate x:Key="PasswordBoxTemplate" TargetType="PasswordBox">
+        <Border x:Name="border"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="4"
+                SnapsToDevicePixels="True">
+            <Grid>
+                <TextBlock x:Name="PART_Placeholder"
+                           Text="{Binding Path=(assist:TextBoxAssist.Placeholder), RelativeSource={RelativeSource TemplatedParent}}"
+                           Foreground="{DynamicResource Brush_Input_Placeholder}"
+                           Padding="{TemplateBinding Padding}"
+                           Margin="2,0,0,0"
+                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                           HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                           IsHitTestVisible="False"
+                           Visibility="Visible" />
+
+                <ScrollViewer x:Name="PART_ContentHost"
+                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </Grid>
+        </Border>
+
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="border" Property="Opacity" Value="0.96" />
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource Brush_Input_FocusBorder}" />
+            </Trigger>
+            <Trigger Property="Validation.HasError" Value="True">
+                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource Brush_Error}" />
+                <Setter TargetName="border" Property="BorderThickness" Value="{DynamicResource InputValidationOutlineThickness}" />
+            </Trigger>
+
+            <Trigger Property="assist:PasswordBoxAssist.IsPasswordEmpty" Value="False">
+                <Setter TargetName="PART_Placeholder" Property="Visibility" Value="Collapsed" />
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="PART_Placeholder" Property="Visibility" Value="Collapsed" />
+            </Trigger>
+
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="border" Property="Background" Value="{DynamicResource Brush_Control_Disabled}" />
+                <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Disabled}" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <Style x:Key="BaseTextBox" TargetType="TextBox">
+        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}" />
+        <Setter Property="Background" Value="{DynamicResource Brush_Input_Background}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush_Input_Border}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Padding" Value="6" />
+        <Setter Property="CaretBrush" Value="{DynamicResource Brush_Input_Placeholder}" />
+        <!-- 中文注释：关闭系统默认验证 Adorner，统一使用模板内的单一错误边框。 -->
+        <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
+        <Setter Property="ToolTip" Value="{x:Null}" />
+        <Setter Property="ToolTipService.Placement" Value="{Binding RelativeSource={RelativeSource Self}, Path=(assist:ValidationAssist.PopupPlacement)}" />
+        <Setter Property="ToolTipService.HorizontalOffset" Value="{Binding RelativeSource={RelativeSource Self}, Path=(assist:ValidationAssist.PopupHorizontalOffset)}" />
+        <Setter Property="ToolTipService.VerticalOffset" Value="{Binding RelativeSource={RelativeSource Self}, Path=(assist:ValidationAssist.PopupVerticalOffset)}" />
+        <Setter Property="Template" Value="{StaticResource TextBoxTemplate}" />
+        <Style.Triggers>
+            <Trigger Property="Validation.HasError" Value="True">
+                <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- 中文注释：下划线风格输入框，适合表单或搜索栏这类更轻量的输入场景 -->
+    <Style x:Key="UnderLineTextBox" TargetType="TextBox" BasedOn="{StaticResource BaseTextBox}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Template" Value="{StaticResource UnderLineTextBoxTemplate}" />
+    </Style>
+
+    <Style x:Key="WrapUnderLineTextBox" TargetType="TextBox" BasedOn="{StaticResource UnderLineTextBox}">
+        <Setter Property="TextWrapping" Value="WrapWithOverflow"/>
+        <Setter Property="AcceptsReturn" Value="True"/>
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+    </Style>
+
+
+    <Style x:Key="BasePasswordBox" TargetType="PasswordBox">
+        <Setter Property="assist:PasswordBoxAssist.Attach" Value="True" />
+
+        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}" />
+        <Setter Property="Background" Value="{DynamicResource Brush_Input_Background}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush_Input_Border}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Padding" Value="6" />
+        <Setter Property="CaretBrush" Value="{DynamicResource Brush_Input_Placeholder}" />
+        <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
+        <Setter Property="ToolTip" Value="{x:Null}" />
+        <Setter Property="ToolTipService.Placement" Value="{Binding RelativeSource={RelativeSource Self}, Path=(assist:ValidationAssist.PopupPlacement)}" />
+        <Setter Property="ToolTipService.HorizontalOffset" Value="{Binding RelativeSource={RelativeSource Self}, Path=(assist:ValidationAssist.PopupHorizontalOffset)}" />
+        <Setter Property="ToolTipService.VerticalOffset" Value="{Binding RelativeSource={RelativeSource Self}, Path=(assist:ValidationAssist.PopupVerticalOffset)}" />
+        <Setter Property="Template" Value="{StaticResource PasswordBoxTemplate}" />
+        <Style.Triggers>
+            <Trigger Property="Validation.HasError" Value="True">
+                <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="MultiLineTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource BaseTextBox}">
+        <Setter Property="TextWrapping" Value="WrapWithOverflow"/>
+        <Setter Property="AcceptsReturn" Value="True"/>
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+    </Style>
+
+    <Style x:Key="DataGridTextBox" TargetType="TextBox">
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+
+    <Style TargetType="TextBox" BasedOn="{StaticResource BaseTextBox}"/>
+    <Style TargetType="PasswordBox" BasedOn="{StaticResource BasePasswordBox}"/>
+
+</ResourceDictionary>

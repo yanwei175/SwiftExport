@@ -1,0 +1,41 @@
+﻿<UserControl x:Class="MateWpfThemes.FW.Controls.SearchableComboBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="uc">
+
+    <Grid>
+        <TextBox x:Name="SearchTextBox"
+                 Text="{Binding SearchText, ElementName=uc, UpdateSourceTrigger=PropertyChanged}"
+                 Height="28" 
+                 VerticalContentAlignment="Center" 
+                 Padding="4,0"
+                 PreviewKeyDown="SearchTextBox_PreviewKeyDown"/>
+
+        <Popup x:Name="DropdownPopup" 
+               PlacementTarget="{Binding ElementName=SearchTextBox}" 
+               Placement="Bottom" 
+               StaysOpen="False" 
+               IsOpen="False" 
+               AllowsTransparency="True"
+               PopupAnimation="Fade"
+               Width="{Binding ActualWidth, ElementName=SearchTextBox}">
+
+            <Border Background="White" BorderBrush="{DynamicResource Brush_Border_Light}" BorderThickness="1" MaxHeight="250">
+                <ListBox x:Name="ResultListBox"
+                         ItemsSource="{Binding FilteredView, ElementName=uc}"
+                         SelectionMode="Single"
+                         BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                         PreviewKeyDown="ResultListBox_PreviewKeyDown"
+                         MouseUp="ResultListBox_MouseUp" >
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="8,6"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

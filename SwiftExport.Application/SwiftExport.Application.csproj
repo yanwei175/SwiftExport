@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Interfaces\ICustomersPoDetailsService.cs" />
+    <Compile Remove="Interfaces\IExcelSheetFieldsMappingService.cs" />
+    <Compile Remove="Interfaces\IPurchaseOrderService.cs" />
+    <Compile Remove="Interfaces\IViewUserRoleService.cs" />
+    <Compile Remove="Interfaces\IWhiteListServices.cs" />
+    <Compile Remove="Services\Orders\CustomersPoDetailsService.cs" />
+    <Compile Remove="Services\Settings\ExcelSheetFieldsMappingService.cs" />
+    <Compile Remove="Services\Settings\ViewUserRoleService.cs" />
+    <Compile Remove="Services\Settings\WhiteListServices.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj" />
+    <ProjectReference Include="..\SwiftExport.Core\SwiftExport.Core.csproj" />
+    <ProjectReference Include="..\SwiftExport.Infrastructure\SwiftExport.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Common\" />
+    <Folder Include="Services\Settings\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Mapster" Version="7.4.0" />
+  </ItemGroup>
+
+</Project>
