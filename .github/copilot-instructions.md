@@ -6,16 +6,19 @@
 
 ## 项目指南
 - ERP product domain rule: `MasterSku` is a non-transactional parent identifier (e.g., AA010011) carrying shared attributes, while business operations are on child `Sku` variants (e.g., AA010011CH/MB) with variant attributes like price/finish; `Sku` may be created without linking to `MasterSku` (no required FK), and each `Sku` owns BOM data.
-
 - 在代码中添加中文注释，以提高可读性和维护性，尤其是每个方法/区域，以确保注释直观且完整。用户强调不要删除现有注释，注释很重要；修改代码时应保留并补充中文注释。
-
+- 除非我叫你生成md文档,否则请不要耗费太多的时间来生成md解释文档.
+- 可以提交git,但是git解释也要用中文.
 - The project is a WPF application targeting .NET Framework 4.8 and C# 7.3, eventually running in VSTO. Be cautious with newer Microsoft MVVM Toolkit packages as they may be incompatible. Note that VSTO is not currently in the development scope and will be handled separately.
-
 - 在销售订单明细删除逻辑中：已持久化的行应仅从 UI 隐藏并保留在内部集合中标记为 Deleted，以便后端提交删除；未保存的新行才从内部集合和 UI 一并移除。
-
 - 在销售订单明细中，行级 subtotal 字段（如 NwSubTotal/GwSubTotal/CbmSubTotal/金额小计）需要允许用户手动修改；只有集合汇总字段应作为只读展示。
-
 - MateWpfThemes.FW 主题库是项目所有 WPF 样式/主题的唯一来源。所有业务视图依赖此库。
+- 用户的项目遵循以下 UI/交互设计规范：
+  - DataGrid 两个维度的表 - 主表（客户列表）和明细表（客户产品），通过 TabControl 分离。
+  - 明细表依赖于主表的行选择 - 必须先选客户，才能在"客户产品管理"标签页加载该客户的产品。
+  - 按钮的可执行性需与主表/明细表的选择状态和脏数据状态绑定。
+  - 所有 Model 字段应在对应的 DataGrid 列中有绑定（包括新添加的贸易条款字段）。
+  - TabItem 切换时应触发产品表的条件加载（检查是否选中客户）。
 
 # 文件结构总览
 
@@ -175,7 +178,7 @@ public class QueryCriteria
 
     // 快捷方法：添加 AND 条件
     public void Add(string field, 查询操作符 op, object v1, object? v2 = null)
-
+    
     // 快捷方法：添加 OR 分组
     // 场景：(SKU LIKE @Kw OR Description LIKE @Kw) AND (Status = @St1 OR Status = @St2)
     public void AddOrGroup(params (string field, 查询操作符 op, object value)[] conditions)
@@ -310,10 +313,10 @@ public class BaseService<TEntity, TDto>(
 
     // 3️⃣ 结构化日志（Info/Warning/Error）
     Logger.LogInformation("成功新增 {EntityName}，ID: {Id}", EntityName, newId);
-
+    
     // 4️⃣ 事务协调（批量保存时）
     _session.Transaction = _session.Connection.BeginTransaction();
-
+    
     // 5️⃣ 统一返回 ServiceResult<T>
     return ServiceResult<TDto>.Ok(dto);
 }

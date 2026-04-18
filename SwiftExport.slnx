@@ -6,6 +6,11 @@
     <Project Path="SwiftExport.View.FW/SwiftExport.View.FW.csproj" Id="c1efb3ce-47eb-4f67-a289-d50a3c30ba10" />
     <Project Path="SwiftExport.VSTO/SwiftExport.VSTO.csproj" Id="b8863b43-db40-4321-8c73-81336270d773" />
   </Folder>
-  <Project Path="BenchmarkSuite1/BenchmarkSuite1.csproj" />
+  <Folder Name="/WebApi/">
+    <Project Path="SwiftExport.Application/SwiftExport.Application.csproj" />
+    <Project Path="SwiftExport.Core/SwiftExport.Core.csproj" />
+    <Project Path="SwiftExport.Infrastructure/SwiftExport.Infrastructure.csproj" />
+    <Project Path="SwiftExport.WebApi/SwiftExport.WebApi.csproj" />
+  </Folder>
   <Project Path="SwiftExport.Contracts/SwiftExport.Contracts.csproj" Id="73faa5c6-c278-4c02-80d0-27a24a6b831a" />
 </Solution>

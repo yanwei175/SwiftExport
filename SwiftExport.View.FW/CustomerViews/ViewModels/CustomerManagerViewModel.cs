@@ -31,28 +31,47 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         {
 
             _customerApi = customerApi;
-            _customerProductApi= customerProductApi;
+            _customerProductApi = customerProductApi;
             _msg = dialogService;
 
             CurrentCustomerTable = new CustomerList();
             CurrentProductTable = new CustomerProductList();
 
             AddCustomerCommand = new RelayCommand(AddCustomer);
-            BatchSaveCustomerAsyncCommand = new RelayCommand(async () => await BatchSaveCustomerAsync());
-            DeleteCustomerAsyncCommand = new RelayCommand(async () => await DeleteCustomerAsync());
+            BatchSaveCustomerAsyncCommand = new RelayCommand(async () => await BatchSaveCustomerAsync(), () => CustomerTableCanSave);
+            DeleteCustomerAsyncCommand = new RelayCommand(async () => await DeleteCustomerAsync(), () => HasSelectedCustomer);
             LoadCustomerAsyncCommand = new RelayCommand(async () => await LoadCustomerAsync());
             InvertCheckCommand = new RelayCommand(InvertCheck);
+
+            // 监听客户表的脏数据状态变化
+            CurrentCustomerTable.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(BaseListModel<CustomerModel>.IsDirty))
+                {
+                    RaisePropertyChanged(nameof(CustomerTableCanSave));
+                    BatchSaveCustomerAsyncCommand.RaiseCanExecuteChanged();
+                }
+            };
 
             _搜索客户防抖计时器 = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };// 800毫秒的输入防抖，用户停止输入800ms后才会触发搜索
             _搜索客户防抖计时器.Tick += 搜索客户防抖计时器_Tick;
 
 
             AddProductCommand = new RelayCommand(AddProduct);
-            BatchSaveProductAsyncCommand = new RelayCommand(async ()=> await BatchSaveProductAsync());
-            DeleteProductAsyncCommand = new RelayCommand(async() => await DeleteProductAsync());
+            BatchSaveProductAsyncCommand = new RelayCommand(async () => await BatchSaveProductAsync(), () => ProductTableCanSave);
+            DeleteProductAsyncCommand = new RelayCommand(async () => await DeleteProductAsync(), () => HasSelectedCustomer);
             CheckAndLoadProductCommand = new RelayCommand(CheckAndLoadProduct);
             InvertCheckProductCommand = new RelayCommand(InvertCheckProduct);
 
+            // 监听产品表的脏数据状态变化
+            CurrentProductTable.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(BaseListModel<CustomerProductModel>.IsDirty))
+                {
+                    RaisePropertyChanged(nameof(ProductTableCanSave));
+                    BatchSaveProductAsyncCommand.RaiseCanExecuteChanged();
+                }
+            };
 
             _搜索客户产品防抖计时器 = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };// 800毫秒的输入防抖，用户停止输入800ms后才会触发搜索
             _搜索客户产品防抖计时器.Tick += 搜索客户产品防抖计时器_Tick;
@@ -75,10 +94,14 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             get => _activeTab;
             set
             {
-                if (SetProperty(ref _activeTab, value) && value == CustomerManagerTabs.CustomerProducts)
+                if (SetProperty(ref _activeTab, value))
                 {
-                    CheckAndLoadProduct();
+                    if (value == CustomerManagerTabs.CustomerProducts)
+                        CheckAndLoadProduct();
+                    if (value == CustomerManagerTabs.CustomerInfo)
+                        StatusMessage = "";
                 }
+
             }
         }
 
@@ -94,8 +117,12 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             {
                 if (SetProperty(ref _selectedCustomer, value))
                 {
+
                     // 当选中客户变化时，通知是否可以启用产品表操作
                     RaisePropertyChanged(nameof(HasSelectedCustomer));
+                    DeleteCustomerAsyncCommand.RaiseCanExecuteChanged();
+                    DeleteProductAsyncCommand.RaiseCanExecuteChanged();
+
                     if (value == null)
                     {
                         return;
@@ -167,7 +194,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         #region 客户产品表字段
         public CustomerProductList CurrentProductTable { get; }
         private CustomerProductModel _selectedProduct;
-        public CustomerProductModel SelectedProduct    
+        public CustomerProductModel SelectedProduct
         {
             get => _selectedProduct;
             set
@@ -223,7 +250,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                 if (SetProperty(ref _pageProductTableSize, value))
                 {
                     if (IsBusy) return;
-                    if (PageProductTableIndex == 1)  CheckAndLoadProduct();
+                    if (PageProductTableIndex == 1) CheckAndLoadProduct();
                     else PageProductTableIndex = 1;
                 }
             }
@@ -257,7 +284,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         public RelayCommand AddCustomerCommand { get; }
         private void AddCustomer()
         {
-            var model = new CustomerModel() { CustomerCode="Newcode"};
+            var model = new CustomerModel() { CustomerCode = "Newcode" };
             model.MarkAsAdded();
             CurrentCustomerTable.AddModelToFirst(model);
             StatusMessage = "已添加新客户行，请编辑相关信息并保存。";
@@ -302,10 +329,24 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                 await _msg.ShowErrorAsync("异常: " + ex.Message);
             }
         }
-        //删除客户命令
+
+        /// <summary>
+        /// 客户表是否有脏数据
+        /// </summary>
+        public bool CustomerTableCanSave => CurrentCustomerTable.IsDirty;
+        /// <summary>
+        /// 产品表是否有脏数据
+        /// </summary>
+        public bool ProductTableCanSave => CurrentProductTable.IsDirty;
+
         public RelayCommand DeleteCustomerAsyncCommand { get; }
         private async Task DeleteCustomerAsync()
         {
+             if (SelectedCustomer != null && SelectedCustomer.Id<=0) 
+                { 
+                    CurrentCustomerTable.Remove(SelectedCustomer); 
+                }
+
             var checkItems = CurrentCustomerTable.GetCheckedItems();
 
             if (checkItems.Count == 0) return;
@@ -608,18 +649,18 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                             CurrentProductTable.ReLoadRangeFromDtoList(dtos);
 
                             TotalProductTableCount = dtos.Count;
-                            StatusMessage = $"加载成功，共 {TotalProductTableCount} 条。";
+                            StatusMessage = $"加载客户产品成功，共 {TotalProductTableCount} 条。";
                             return;
                         }
                         else
                         {
-                            StatusMessage = "加载失败: " + result.Message;
+                            StatusMessage = "加载客户产品失败: " + result.Message;
                         }
                     });
                 }
                 catch (Exception ex)
                 {
-                    StatusMessage = "加载异常: " + ex.Message;
+                    StatusMessage = "加载客户产品异常: " + ex.Message;
                 }
                 finally
                 {

@@ -105,6 +105,7 @@
     <Compile Include="Converters\CalendarDateCoalesceConverter.cs" />
     <Compile Include="Converters\CalendarYearMonthConverter.cs" />
     <Compile Include="Converters\ClockItemIsCheckedConverter.cs" />
+    <Compile Include="Converters\EnumToIntConverter.cs" />
     <Compile Include="Converters\GridLinesVisibilityBorderToThicknessConverter.cs" />
     <Compile Include="Converters\Internal\AutomationPropertiesNameConverter.cs" />
     <Compile Include="Converters\Internal\DialogBackgroundBlurConverter.cs" />

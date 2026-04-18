@@ -9,12 +9,13 @@
         mc:Ignorable="d"
         d:DesignHeight="768" d:DesignWidth="1024"
         d:DataContext="{d:DesignInstance vm:CustomerManagerViewModel}"
-        Background="{DynamicResource Brush_Bck_Page}">
+        Background="{DynamicResource Brush_Bck_Card}">
 
     <UserControl.Resources>
         <ResourceDictionary>
             <mt:ImgPathToImgConverter x:Key="ImgPathToImgConverter"/>
-
+            <mt:EnumToIntConverter x:Key="EnumToIntConverter"/>
+            
             <Style x:Key="FinishAutoCompleteEditStyle" TargetType="TextBox" BasedOn="{StaticResource DataGridTextBoxStyle}">
                 <Setter Property="mt:DataGridDropdownAssist.ItemsSource" Value="{Binding DataContext.ProductFinishList, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
                 <Setter Property="mt:DataGridDropdownAssist.DisplayMemberPath" Value="ColorNameZh" />
@@ -37,7 +38,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <TabControl Margin="15" Background="Transparent" BorderThickness="0"
-                    SelectedIndex="{Binding ActiveTab, Mode=TwoWay}"
+                    SelectedIndex="{Binding ActiveTab, Mode=TwoWay,Converter={StaticResource EnumToIntConverter}}"
                     d:SelectedIndex="0">
             
             <TabItem Header="客户列表" Background="Transparent">
@@ -68,6 +69,7 @@
                                          Content="保存"
                                          mt:ButtonAssist.IconSize="12"
                                          mt:ButtonAssist.Icon="{StaticResource Icon.Save}"
+                                         IsEnabled="{Binding CustomerTableCanSave}"
                                         Command="{Binding BatchSaveCustomerAsyncCommand}" />
                                 <Button  Margin="0,0,10,0" 
                                          Style="{StaticResource ButtonDanger}"
@@ -104,9 +106,7 @@
                                   EnableColumnVirtualization="False"
                                   mt:DataGridAssist.ShowRowNumber="True"
                                   mt:DataGridAssist.EnableSoftValidation="True"
-                                  mt:DataGridExcelAssist.EnableDirtyTracking="True"
                                   mt:DataGridAssist.AutoScrollToNewItem="True"
-                                  mt:DataGridExcelAssist.EnableExcelShortcuts="{Binding IsChecked, ElementName=BtnToggleSelectionUnit}"
                                   >
 
                         <DataGrid.Columns>
@@ -175,8 +175,12 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                    <Border x:Name="客户产品管理工具栏" Grid.Row="0"  Background="{DynamicResource Brush_Bck_Card}" BorderThickness="0,0,0,1" Padding="15">
+                    <Border x:Name="客户产品管理工具栏" Grid.Row="0" Grid.ColumnSpan="2" Background="{DynamicResource Brush_Bck_Card}" BorderThickness="0,0,0,1" Padding="15">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -197,7 +201,7 @@
                                          Content="保存"
                                          mt:ButtonAssist.IconSize="12"
                                          mt:ButtonAssist.Icon="{StaticResource Icon.Save}"
-                                         IsEnabled="{Binding HasSelectedCustomer}"
+                                         IsEnabled="{Binding ProductTableCanSave}"
                                         Command="{Binding BatchSaveProductAsyncCommand}" />
                                 <Button  Margin="0,0,10,0" 
                                          Style="{StaticResource ButtonDanger}"
@@ -213,6 +217,7 @@
                                         mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
                                         IsEnabled="{Binding HasSelectedCustomer}"
                                         Command="{Binding CheckAndLoadProductCommand}"/>
+                                
                                 <Rectangle Width="1" Fill="#E0E0E0" Margin="5,5,15,5" VerticalAlignment="Stretch"/>
 
                                 <Button Margin="0,0,10,0"
@@ -251,7 +256,7 @@
                         </Grid>
                     </Border>
 
-                    <DataGrid Grid.Row="1" x:Name="客户产品管理DataGrid"
+                    <DataGrid Grid.Row="1" Grid.ColumnSpan="2" x:Name="客户产品管理DataGrid"
                                   ItemsSource="{Binding CurrentProductTable.Items}" 
                                      HorizontalScrollBarVisibility="Auto" 
                                      HeadersVisibility="All" 
@@ -341,7 +346,9 @@
                         </DataGrid.Columns>
                     </DataGrid>
 
-                    <mt:PaginationControl Grid.Row="2" Margin="0,8,0,0" HorizontalAlignment="Right" 
+
+
+                    <mt:PaginationControl Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" HorizontalAlignment="Right" 
                                                    TotalCount="{Binding TotalProductTableCount}" 
                                                    PageIndex="{Binding PageProductTableIndex, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
                                                    PageSize="{Binding PageProductTableSize, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
@@ -350,10 +357,19 @@
             </TabItem>
 
         </TabControl>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,5">
+            
+            <TextBlock Grid.Row="2" Grid.Column="0" Foreground="{DynamicResource Red8Brush}"
+                               Style="{StaticResource BoldTextBlock}"
+                               Text="{Binding SelectedCustomer.Name,StringFormat='当前选择客户: {0}'}"/>
+            
+                <TextBlock FontSize="12" Foreground="{DynamicResource Red8Brush}" 
+                           Margin="20,5"
+                           Text="{Binding StatusMessage}" 
+                           VerticalAlignment="Center"/>
 
-        <Border Grid.Row="1"  Background="{DynamicResource Brush_Btn_Default_Background}" BorderBrush="{DynamicResource  Brush_Border_Light}" BorderThickness="0,1,0,0" Padding="15,5">
-            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#666" VerticalAlignment="Center"/>
-        </Border>
+        </StackPanel>
+
         
         <mt:DialogHost />
     </Grid>

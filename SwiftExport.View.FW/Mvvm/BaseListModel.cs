@@ -56,7 +56,9 @@ namespace SwiftExport.View.FW.Mvvm
                 RaisePropertyChanged(nameof(IsAllValid));
 
             if (e.PropertyName == nameof(BaseLineModel.State))
+            {
                 RaisePropertyChanged(nameof(IsDirty));
+            }
 
             if (e.PropertyName == nameof(BaseLineModel.IsChecked))
             {
