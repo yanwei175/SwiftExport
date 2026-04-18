@@ -38,16 +38,18 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             CurrentProductTable = new CustomerProductList();
 
             AddCustomerCommand = new RelayCommand(AddCustomer);
-            BatchSaveCustomerAsyncCommand = new RelayCommand(async () => await BatchSaveCustomerAsync(), () => CustomerTableCanSave);
-            DeleteCustomerAsyncCommand = new RelayCommand(async () => await DeleteCustomerAsync(), () => HasSelectedCustomer);
+            BatchSaveCustomerAsyncCommand = new RelayCommand(async () => await BatchSaveCustomerAsync(), () => CanBatchSaveCustomerAsync);
+            DeleteCustomerAsyncCommand = new RelayCommand(async () => await DeleteCustomerAsync(), () => CanDeleteCustomer);
             LoadCustomerAsyncCommand = new RelayCommand(async () => await LoadCustomerAsync());
             InvertCheckCommand = new RelayCommand(InvertCheck);
 
-            // 监听客户表的状态变化（脏数据、有效性等）
+            // 监听客户表的状态变化（脏数据、勾选数量等）
             CurrentCustomerTable.ListStateChanged += () =>
             {
-                RaisePropertyChanged(nameof(CustomerTableCanSave));
+                RaisePropertyChanged(nameof(CanBatchSaveCustomerAsync));
                 BatchSaveCustomerAsyncCommand.RaiseCanExecuteChanged();
+                RaisePropertyChanged(nameof(CanDeleteCustomer));
+                DeleteCustomerAsyncCommand.RaiseCanExecuteChanged();
             };
 
             _搜索客户防抖计时器 = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };// 800毫秒的输入防抖，用户停止输入800ms后才会触发搜索
@@ -55,7 +57,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
 
             AddProductCommand = new RelayCommand(AddProduct);
-            BatchSaveProductAsyncCommand = new RelayCommand(async () => await BatchSaveProductAsync(), () => ProductTableCanSave);
+            BatchSaveProductAsyncCommand = new RelayCommand(async () => await BatchSaveProductAsync(), () => CanBatchSaveProductAsync);
             DeleteProductAsyncCommand = new RelayCommand(async () => await DeleteProductAsync(), () => HasSelectedCustomer);
             CheckAndLoadProductCommand = new RelayCommand(CheckAndLoadProduct);
             InvertCheckProductCommand = new RelayCommand(InvertCheckProduct);
@@ -63,7 +65,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             // 监听产品表的状态变化（脏数据、有效性等）
             CurrentProductTable.ListStateChanged += () =>
             {
-                RaisePropertyChanged(nameof(ProductTableCanSave));
+                RaisePropertyChanged(nameof(CanBatchSaveProductAsync));
                 BatchSaveProductAsyncCommand.RaiseCanExecuteChanged();
             };
 
@@ -114,7 +116,6 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
                     // 当选中客户变化时，通知是否可以启用产品表操作
                     RaisePropertyChanged(nameof(HasSelectedCustomer));
-                    DeleteCustomerAsyncCommand.RaiseCanExecuteChanged();
                     DeleteProductAsyncCommand.RaiseCanExecuteChanged();
 
                     if (value == null)
@@ -126,9 +127,14 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         }
 
         /// <summary>
-        /// 是否选择了客户（用于控制"客户产品管理"标签页的操作按钮可用性）
+        /// 是否选择了客户（用于控制"客户产品管理"标签页的操作按钮可用性，要求已持久化的客户 Id > 0）
         /// </summary>
         public bool HasSelectedCustomer => _selectedCustomer != null && _selectedCustomer.Id > 0;
+
+        /// <summary>
+        /// 客户表删除命令是否可用：列表中有勾选项即可（不限制是否已持久化）
+        /// </summary>
+        public bool CanDeleteCustomer => CurrentCustomerTable.CheckedCount > 0;
 
         private string _searchCustomerText;
         public string SearchCustomerText
@@ -278,11 +284,20 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         public RelayCommand AddCustomerCommand { get; }
         private void AddCustomer()
         {
-            var model = new CustomerModel() { CustomerCode = "Newcode" };
-            model.MarkAsAdded();
-            CurrentCustomerTable.AddModelToFirst(model);
-            StatusMessage = "已添加新客户行，请编辑相关信息并保存。";
+            using (BusyScope())
+            {
+                var model = new CustomerModel() { CustomerCode = "Newcode" };
+                model.MarkAsAdded();
+                CurrentCustomerTable.AddModelToFirst(model);
+                StatusMessage = "已添加新客户行，请编辑相关信息并保存。";
+            }
+
         }
+
+        /// <summary>
+        /// 客户表是否有脏数据
+        /// </summary>
+        public bool CanBatchSaveCustomerAsync => CurrentCustomerTable.IsDirty;
 
         //批量保存客户命令
         public RelayCommand BatchSaveCustomerAsyncCommand { get; }
@@ -324,14 +339,8 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             }
         }
 
-        /// <summary>
-        /// 客户表是否有脏数据
-        /// </summary>
-        public bool CustomerTableCanSave => CurrentCustomerTable.IsDirty;
-        /// <summary>
-        /// 产品表是否有脏数据
-        /// </summary>
-        public bool ProductTableCanSave => CurrentProductTable.IsDirty;
+
+
 
         public RelayCommand DeleteCustomerAsyncCommand { get; }
         private async Task DeleteCustomerAsync()
@@ -491,7 +500,10 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             CurrentProductTable.AddModelToFirst(model);
             StatusMessage = "已添加新客户行，请编辑相关信息并保存。";
         }
-
+        /// <summary>
+        /// 产品表是否有脏数据
+        /// </summary>
+        public bool CanBatchSaveProductAsync => CurrentProductTable.IsDirty;
         //批量保存客户命令
         public RelayCommand BatchSaveProductAsyncCommand { get; }
         private async Task BatchSaveProductAsync()
