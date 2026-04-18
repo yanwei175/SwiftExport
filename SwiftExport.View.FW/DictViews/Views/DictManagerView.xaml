@@ -106,22 +106,7 @@
                     <DataGrid Grid.Row="1" ItemsSource="{Binding ItemsView}" RowHeight="40" Margin="10"
           CanUserAddRows="False" AutoGenerateColumns="False" BorderThickness="1">
 
-                        <DataGrid.RowStyle>
-                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding State}" Value="Added">
-                                        <Setter Property="Background" Value="#E8F5E9"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding State}" Value="Modified">
-                                        <Setter Property="Background" Value="#FFF8E1"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding State}" Value="Deleted">
-                                        <Setter Property="Background" Value="#FFEBEE"/>
-                                        <Setter Property="Foreground" Value="#9E9E9E"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </DataGrid.RowStyle>
+                        
 
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="真实键值 (Value)" 

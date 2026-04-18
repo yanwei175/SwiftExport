@@ -392,22 +392,7 @@
                     </Style>
                 </DataGrid.Style>
 
-                <DataGrid.RowStyle>
-                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding State}" Value="Added">
-                                <Setter Property="Background" Value="#E8F5E9"/>
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding State}" Value="Modified">
-                                <Setter Property="Background" Value="#FFF8E1"/>
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding State}" Value="Deleted">
-                                <Setter Property="Background" Value="#FFEBEE"/>
-                                <Setter Property="Opacity" Value="0.75"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.RowStyle>
+                
 
                 <DataGrid.Columns>
 

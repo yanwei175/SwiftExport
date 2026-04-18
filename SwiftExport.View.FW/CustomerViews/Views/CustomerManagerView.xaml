@@ -95,7 +95,7 @@
                         </Grid>
                     </Border>
 
-                        <DataGrid Grid.Row="1" x:Name="客户表DataGrid"
+                    <DataGrid Grid.Row="1" x:Name="客户表DataGrid"
                                   ItemsSource="{Binding CurrentCustomerTable.Items}" 
                                   SelectedItem="{Binding SelectedCustomer}"
                                   SelectionUnit="FullRow"
@@ -107,27 +107,9 @@
                                   mt:DataGridExcelAssist.EnableDirtyTracking="True"
                                   mt:DataGridAssist.AutoScrollToNewItem="True"
                                   mt:DataGridExcelAssist.EnableExcelShortcuts="{Binding IsChecked, ElementName=BtnToggleSelectionUnit}"
-                                  
                                   >
 
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding State}" Value="Added">
-                                            <Setter Property="Background" Value="#E8F5E9"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding State}" Value="Modified">
-                                            <Setter Property="Background" Value="#FFF8E1"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding State}" Value="Deleted">
-                                            <Setter Property="Background" Value="#FFEBEE"/>
-                                            <Setter Property="Foreground" Value="#9E9E9E"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </DataGrid.RowStyle>
-
-                            <DataGrid.Columns>
+                        <DataGrid.Columns>
 
                                 <mt:CheckBoxDataGridTemplateColumn 
                                             AllCheckedPropertyName="CurrentCustomerTable.IsAllChecked"
@@ -140,10 +122,7 @@
                                             Binding="{Binding CustomerCode,UpdateSourceTrigger=PropertyChanged,ValidatesOnDataErrors=False}" 
                                             Width="100" FontWeight="Bold"/>
                                 
-                            <DataGridCheckBoxColumn Header="Valid" Binding="{Binding IsValid,Mode=OneWay}" Width="150"/>
-                            <DataGridTextColumn Header="Err" Binding="{Binding Error,Mode=OneWay,ValidatesOnDataErrors=False}" Width="150"/>
-
-                            <DataGridTextColumn Header="客户名称" Binding="{Binding Name,UpdateSourceTrigger=PropertyChanged}" Width="150"/>
+                                <DataGridTextColumn Header="客户名称" Binding="{Binding Name,UpdateSourceTrigger=PropertyChanged}" Width="150"/>
 
                                 <DataGridTextColumn Header="单据关联号" Binding="{Binding DocRelateNo}" Width="120"/>
 
@@ -257,7 +236,7 @@
                                      mt:UndoManager.IsUndoEnabled="True"
                                      mt:DataGridAssist.AutoScrollToNewItem="True"
                                      mt:DataGridAssist.EnableSoftValidation="True"
-                                     mt:DataGridExcelAssist.EnableExcelShortcuts="{Binding IsChecked, ElementName=BtnToggleSelectionUnit}"
+                                     mt:DataGridExcelAssist.EnableExcelShortcuts="{Binding IsChecked, ElementName=BtnToggleSelectionUnit2}"
                                      mt:DataGridExcelAssist.EnableDirtyTracking="True">
                         <DataGrid.Style>
                             <Style TargetType="DataGrid" BasedOn="{StaticResource BaseDataGrid}">
@@ -272,22 +251,7 @@
                             </Style>
                         </DataGrid.Style>
 
-                        <DataGrid.RowStyle>
-                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding State}" Value="Added">
-                                        <Setter Property="Background" Value="#E8F5E9"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding State}" Value="Modified">
-                                        <Setter Property="Background" Value="#FFF8E1"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding State}" Value="Deleted">
-                                        <Setter Property="Background" Value="#FFEBEE"/>
-                                        <Setter Property="Foreground" Value="#9E9E9E"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </DataGrid.RowStyle>
+                        
 
                         <DataGrid.Columns>
 

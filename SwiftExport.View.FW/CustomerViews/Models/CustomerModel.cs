@@ -113,6 +113,97 @@ namespace SwiftExport.View.FW.CustomerViews.Models
             get => _specSheetFolderPath;
             set => SetProperty(ref _specSheetFolderPath, value);
         }
+
+        // ================= 贸易条款默认值（销售订单默认值来源）=================
+        private string _incotermSortRemark;
+        /// <summary>
+        /// 贸易条款备注（用于定义完整的交易条件）
+        /// </summary>
+        public string IncotermSortRemark
+        {
+            get => _incotermSortRemark;
+            set => SetProperty(ref _incotermSortRemark, value);
+        }
+
+        private string _incoterm;
+        /// <summary>
+        /// 国际贸易术语（如 EXW / FOB / CIF / DAP / DDP）
+        /// </summary>
+        public string Incoterm
+        {
+            get => _incoterm;
+            set => SetProperty(ref _incoterm, value);
+        }
+
+        private string _incotermLocation;
+        /// <summary>
+        /// 贸易条款地点（如 FOB Shenzhen 中的 Shenzhen）
+        /// </summary>
+        public string IncotermLocation
+        {
+            get => _incotermLocation;
+            set => SetProperty(ref _incotermLocation, value);
+        }
+
+        private decimal _depositRate;
+        /// <summary>
+        /// 定金比例（如 30%）
+        /// </summary>
+        public decimal DepositRate
+        {
+            get => _depositRate;
+            set => SetProperty(ref _depositRate, value);
+        }
+
+        private int _leadTimeDays;
+        /// <summary>
+        /// 交货周期（天数）
+        /// </summary>
+        public int LeadTimeDays
+        {
+            get => _leadTimeDays;
+            set => SetProperty(ref _leadTimeDays, value);
+        }
+
+        private string _paymentMethod;
+        /// <summary>
+        /// 付款方式（如 TT / LC / OA）
+        /// </summary>
+        public string PaymentMethod
+        {
+            get => _paymentMethod;
+            set => SetProperty(ref _paymentMethod, value);
+        }
+
+        private string _currency;
+        /// <summary>
+        /// 币种（USD / RMB / EUR 等）
+        /// </summary>
+        public string Currency
+        {
+            get => _currency;
+            set => SetProperty(ref _currency, value);
+        }
+
+        private string _etdSortRemark;
+        /// <summary>
+        /// ETD 备注（用于告知客户预计离港时间）
+        /// </summary>
+        public string EtdSortRemark
+        {
+            get => _etdSortRemark;
+            set => SetProperty(ref _etdSortRemark, value);
+        }
+
+        private string _shippedBy;
+        /// <summary>
+        /// 承运方式（如 DHL / UPS / 海运）
+        /// </summary>
+        public string ShippedBy
+        {
+            get => _shippedBy;
+            set => SetProperty(ref _shippedBy, value);
+        }
         #endregion
 
         // ============================================================

@@ -79,6 +79,7 @@
     <Compile Include="DispatcherProvider.cs" />
     <Compile Include="DI_View.cs" />
     <Compile Include="Interface\IExcelContextService.cs" />
+    <Compile Include="Mappings\CustomerMapping.cs" />
     <Compile Include="Mappings\CustomerProductMapping.cs" />
     <Compile Include="Mappings\MapsterConfig.cs" />
     <Compile Include="Mappings\SalesOrderMapping.cs" />

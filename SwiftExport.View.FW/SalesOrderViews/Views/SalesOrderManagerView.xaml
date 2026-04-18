@@ -1,4 +1,4 @@
-<UserControl x:Class="SwiftExport.View.FW.SalesOrderViews.Views.SalesOrderManagerView"
+﻿<UserControl x:Class="SwiftExport.View.FW.SalesOrderViews.Views.SalesOrderManagerView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -297,24 +297,7 @@
                                         </Style>
                                     </DataGrid.Style>
 
-                                    <DataGrid.RowStyle>
-                                        <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                                            <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding State}" Value="Added">
-                                                    <Setter Property="Background" Value="#E8F5E9"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding State}" Value="Modified">
-                                                    <Setter Property="Background" Value="#FFF8E1"/>
-                                                </DataTrigger>
-                                                <!-- 中文注释：补齐待删除行的脏状态视觉反馈。 -->
-                                                <DataTrigger Binding="{Binding State}" Value="Deleted">
-                                                    <Setter Property="Background" Value="#FFEBEE"/>
-                                                    <Setter Property="Opacity" Value="0.75"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </DataGrid.RowStyle>
+                                    
 
                                     <DataGrid.Columns>
                                         <mtControls:CheckBoxDataGridTemplateColumn 
@@ -489,23 +472,7 @@
                                                  mt:DataGridAssist.AutoScrollToNewItem="True"
                                                  mt:DataGridAssist.EnableSoftValidation="True"
                                                  mt:DataGridExcelAssist.EnableDirtyTracking="True">
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding State}" Value="Added">
-                                            <Setter Property="Foreground" Value="#E8F5E9"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding State}" Value="Modified">
-                                            <Setter Property="Foreground" Value="#FFF8E1"/>
-                                        </DataTrigger>
-                                        <!-- 中文注释：补齐待删除行的脏状态视觉反馈。 -->
-                                        <DataTrigger Binding="{Binding State}" Value="Deleted">
-                                            <Setter Property="Foreground" Value="#FFEBEE"/>
-                                            <Setter Property="Opacity" Value="0.75"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </DataGrid.RowStyle>
+                            
                             <DataGrid.Columns>
                                 <!-- 次表列：绑定到 SalesOrderLineModel 的属性 -->
                                 <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}" CellTemplate="{StaticResource ImageCellTemplate}" Width="64" />

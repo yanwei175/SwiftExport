@@ -247,6 +247,19 @@
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Brush_DataGridSelectionCell}"/>
             </Trigger>
+            
+            <!-- 业务层行级状态变更反馈样式 (Added / Modified / Deleted) -->
+            <DataTrigger Binding="{Binding State}" Value="Added">
+                <Setter Property="Background" Value="#E8F5E9"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding State}" Value="Modified">
+                <Setter Property="Background" Value="#FFF8E1"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding State}" Value="Deleted">
+                <Setter Property="Background" Value="#FFEBEE"/>
+                <Setter Property="Foreground" Value="#9E9E9E"/>
+                <Setter Property="Opacity" Value="0.75"/>
+            </DataTrigger>
         </Style.Triggers>
     </Style>
 
