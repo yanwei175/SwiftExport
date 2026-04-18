@@ -58,7 +58,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
             AddProductCommand = new RelayCommand(AddProduct);
             BatchSaveProductAsyncCommand = new RelayCommand(async () => await BatchSaveProductAsync(), () => CanBatchSaveProductAsync);
-            DeleteProductAsyncCommand = new RelayCommand(async () => await DeleteProductAsync(), () => HasSelectedCustomer);
+            DeleteProductAsyncCommand = new RelayCommand(async () => await DeleteProductAsync(), () => CanDeleteProduct);
             CheckAndLoadProductCommand = new RelayCommand(CheckAndLoadProduct);
             InvertCheckProductCommand = new RelayCommand(InvertCheckProduct);
 
@@ -67,6 +67,8 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             {
                 RaisePropertyChanged(nameof(CanBatchSaveProductAsync));
                 BatchSaveProductAsyncCommand.RaiseCanExecuteChanged();
+                RaisePropertyChanged(nameof(CanDeleteProduct));
+                DeleteProductAsyncCommand.RaiseCanExecuteChanged();
             };
 
             _搜索客户产品防抖计时器 = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };// 800毫秒的输入防抖，用户停止输入800ms后才会触发搜索
@@ -113,17 +115,15 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             {
                 if (SetProperty(ref _selectedCustomer, value))
                 {
-
-                    // 当选中客户变化时，通知是否可以启用产品表操作
+                    // 选中客户变化时，刷新相关按钮可用性
                     RaisePropertyChanged(nameof(HasSelectedCustomer));
                     RaisePropertyChanged(nameof(CanDeleteCustomer));
                     DeleteCustomerAsyncCommand.RaiseCanExecuteChanged();
                     DeleteProductAsyncCommand.RaiseCanExecuteChanged();
 
-                    if (value == null)
-                    {
-                        return;
-                    }
+                    // 清空产品列表，等用户切换到产品 Tab 再重新加载，避免不必要的 API 请求
+                    CurrentProductTable.Clear();
+                    TotalProductTableCount = 0;
                 }
             }
         }
@@ -133,10 +133,6 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         /// </summary>
         public bool HasSelectedCustomer => _selectedCustomer != null && _selectedCustomer.Id > 0;
 
-        /// <summary>
-        /// 客户表删除命令是否可用：有勾选项 或 有当前选中行，任意一个满足即可
-        /// </summary>
-        public bool CanDeleteCustomer => CurrentCustomerTable.CheckedCount > 0 || _selectedCustomer != null;
 
         private string _searchCustomerText;
         public string SearchCustomerText
@@ -203,10 +199,9 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             {
                 if (SetProperty(ref _selectedProduct, value))
                 {
-                    if (value == null)
-                    {
-                        return;
-                    }
+                    // 选中行变化时，刷新删除按钮可用性
+                    RaisePropertyChanged(nameof(CanDeleteProduct));
+                    DeleteProductAsyncCommand.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -221,7 +216,9 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                 if (SetProperty(ref _searchProductText, value))
                 {
                     if (IsBusy) return;
+
                     防抖搜索客户产品开始();
+
                 }
             }
         }
@@ -343,6 +340,10 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
 
 
+        /// <summary>
+        /// 客户表删除命令是否可用：有勾选项 或 有当前选中行，任意一个满足即可
+        /// </summary>
+        public bool CanDeleteCustomer => CurrentCustomerTable.CheckedCount > 0 || _selectedCustomer != null;
 
         public RelayCommand DeleteCustomerAsyncCommand { get; }
         private async Task DeleteCustomerAsync()
@@ -545,7 +546,8 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                 await _msg.ShowErrorAsync("异常: " + ex.Message);
             }
         }
-        //删除客户产命令
+        //删除客户产品产命令
+        public bool CanDeleteProduct => CurrentProductTable.CheckedCount > 0 || _selectedProduct != null;
         public RelayCommand DeleteProductAsyncCommand { get; }
         private async Task DeleteProductAsync()
         {

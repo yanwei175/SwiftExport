@@ -69,7 +69,6 @@
                                          Content="保存"
                                          mt:ButtonAssist.IconSize="12"
                                          mt:ButtonAssist.Icon="{StaticResource Icon.Save}"
-                                         IsEnabled="{Binding CustomerTableCanSave}"
                                         Command="{Binding BatchSaveCustomerAsyncCommand}" />
                                 <Button  Margin="0,0,10,0" 
                                          Style="{StaticResource ButtonDanger}"
@@ -201,14 +200,12 @@
                                          Content="保存"
                                          mt:ButtonAssist.IconSize="12"
                                          mt:ButtonAssist.Icon="{StaticResource Icon.Save}"
-                                         IsEnabled="{Binding ProductTableCanSave}"
                                         Command="{Binding BatchSaveProductAsyncCommand}" />
                                 <Button  Margin="0,0,10,0" 
                                          Style="{StaticResource ButtonDanger}"
                                          Content="删除"
                                          mt:ButtonAssist.IconSize="12"
                                          mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"
-                                         IsEnabled="{Binding HasSelectedCustomer}"
                                         Command="{Binding DeleteProductAsyncCommand}" />
                                 <Button Margin="0,0,10,0"
                                        Style="{StaticResource ButtonBase}"
