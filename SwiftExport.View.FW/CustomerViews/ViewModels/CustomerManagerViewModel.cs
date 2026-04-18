@@ -116,6 +116,8 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
                     // 当选中客户变化时，通知是否可以启用产品表操作
                     RaisePropertyChanged(nameof(HasSelectedCustomer));
+                    RaisePropertyChanged(nameof(CanDeleteCustomer));
+                    DeleteCustomerAsyncCommand.RaiseCanExecuteChanged();
                     DeleteProductAsyncCommand.RaiseCanExecuteChanged();
 
                     if (value == null)
@@ -132,9 +134,9 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         public bool HasSelectedCustomer => _selectedCustomer != null && _selectedCustomer.Id > 0;
 
         /// <summary>
-        /// 客户表删除命令是否可用：列表中有勾选项即可（不限制是否已持久化）
+        /// 客户表删除命令是否可用：有勾选项 或 有当前选中行，任意一个满足即可
         /// </summary>
-        public bool CanDeleteCustomer => CurrentCustomerTable.CheckedCount > 0;
+        public bool CanDeleteCustomer => CurrentCustomerTable.CheckedCount > 0 || _selectedCustomer != null;
 
         private string _searchCustomerText;
         public string SearchCustomerText
