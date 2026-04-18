@@ -43,14 +43,11 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             LoadCustomerAsyncCommand = new RelayCommand(async () => await LoadCustomerAsync());
             InvertCheckCommand = new RelayCommand(InvertCheck);
 
-            // 监听客户表的脏数据状态变化
-            CurrentCustomerTable.PropertyChanged += (s, e) =>
+            // 监听客户表的状态变化（脏数据、有效性等）
+            CurrentCustomerTable.ListStateChanged += () =>
             {
-                if (e.PropertyName == nameof(BaseListModel<CustomerModel>.IsDirty))
-                {
-                    RaisePropertyChanged(nameof(CustomerTableCanSave));
-                    BatchSaveCustomerAsyncCommand.RaiseCanExecuteChanged();
-                }
+                RaisePropertyChanged(nameof(CustomerTableCanSave));
+                BatchSaveCustomerAsyncCommand.RaiseCanExecuteChanged();
             };
 
             _搜索客户防抖计时器 = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };// 800毫秒的输入防抖，用户停止输入800ms后才会触发搜索
@@ -63,14 +60,11 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             CheckAndLoadProductCommand = new RelayCommand(CheckAndLoadProduct);
             InvertCheckProductCommand = new RelayCommand(InvertCheckProduct);
 
-            // 监听产品表的脏数据状态变化
-            CurrentProductTable.PropertyChanged += (s, e) =>
+            // 监听产品表的状态变化（脏数据、有效性等）
+            CurrentProductTable.ListStateChanged += () =>
             {
-                if (e.PropertyName == nameof(BaseListModel<CustomerProductModel>.IsDirty))
-                {
-                    RaisePropertyChanged(nameof(ProductTableCanSave));
-                    BatchSaveProductAsyncCommand.RaiseCanExecuteChanged();
-                }
+                RaisePropertyChanged(nameof(ProductTableCanSave));
+                BatchSaveProductAsyncCommand.RaiseCanExecuteChanged();
             };
 
             _搜索客户产品防抖计时器 = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };// 800毫秒的输入防抖，用户停止输入800ms后才会触发搜索
