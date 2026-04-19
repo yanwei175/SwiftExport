@@ -57,7 +57,7 @@
                 <ControlTemplate TargetType="TreeViewItem">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition MinWidth="19" Width="Auto"/>
+                            <ColumnDefinition MinWidth="20" Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
@@ -97,23 +97,27 @@
                             <Setter TargetName="Expander" Property="Visibility" Value="Hidden"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Selection_Background}"/>
-
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Primary_Hover}"/>
                         </Trigger>
+
                         <Trigger Property="IsMouseOver" SourceName="Bd" Value="True">
                             <!-- Subtle hover over item -->
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Selection_Hover}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Primary_Subtle}"/>
                         </Trigger>
+
+
                         <MultiTrigger>
                             <MultiTrigger.Conditions>
                                 <Condition Property="IsSelected" Value="True"/>
                                 <Condition Property="IsSelectionActive" Value="False"/>
                             </MultiTrigger.Conditions>
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Selection_Background}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Primary_Hover}"/>
                         </MultiTrigger>
+
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
+
         </Setter>
     </Style>
 
@@ -153,6 +157,7 @@
                         <Trigger Property="VirtualizingPanel.IsVirtualizing" Value="true">
                             <Setter Property="CanContentScroll" TargetName="_tv_scrollviewer_" Value="true"/>
                         </Trigger>
+
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>

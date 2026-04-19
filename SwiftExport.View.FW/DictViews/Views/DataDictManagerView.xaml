@@ -13,67 +13,57 @@
              xmlns:vm="clr-namespace:SwiftExport.View.FW.DictViews.ViewModels"
 
              Background="{DynamicResource Brush_Bck_Card}"
-             d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
+             d:DesignHeight="800" d:DesignWidth="800">
+    <UserControl.Resources>
+    </UserControl.Resources>
+
+    <Grid >
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         
-        <!--<ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Width="200">
-            <ItemsControl ItemsSource="{Binding Groups}" d:ItemsSource="{d:SampleData}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Expander Header="{Binding GroupName}" IsExpanded="True" 
-                                  Style="{StaticResource  NavigationExpander}">
-                            <ItemsControl ItemsSource="{Binding Groups.DictMenuItems}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button Content="{Binding DictName}"
-                                                Style="{StaticResource ButtonText}"
-                                                Command="{Binding Command}"
-                                                HorizontalAlignment="Stretch"
-                                                Margin="0,2"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Expander>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-           
-        </ScrollViewer>-->
-        <ScrollViewer VerticalScrollBarVisibility="Auto" Width="200">
-            <StackPanel>
-                <Expander Grid.Column="0" Header="预览区域" IsExpanded="True" Margin="12,0,0,0"
-                  Style="{StaticResource   BaseExpander}">
-                    <StackPanel>
-                        <Button Content="示例功面" 
-                        Height="25" Margin="8" />
-                        <Button Content="示例功面" 
-                        Height="25" Margin="8" />
-                        <Button Content="示例功面" 
-                        Height="25" Margin="8" />
-                    </StackPanel>
-                </Expander>
-                <Expander Grid.Column="0" Header="预览区域" IsExpanded="True" Margin="12,0,0,0"
-                  Style="{StaticResource  NavigationExpander}">
-                    <StackPanel>
-                        <Button Content="示例功面" 
-                        Height="25" Margin="8" />
-                        <Button Content="示例功面" 
-                        Height="25" Margin="8" />
-                        <Button Content="示例功面" 
-                        Height="25" Margin="8" />
-                    </StackPanel>
+   
+        <TreeView  x:Name="MyNavTree" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+            <TreeViewItem  Header="系统字典" IsExpanded="True">
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+                 <TreeViewItem Header="21212"/>
+                </TreeViewItem>
+            
+            <TreeViewItem  Header="用户字典" IsExpanded="True">
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+            </TreeViewItem>
+            <TreeViewItem  Header="用户字典" IsExpanded="True">
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+            </TreeViewItem>
+            <TreeViewItem  Header="用户字典" IsExpanded="True">
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+            </TreeViewItem>
+            <TreeViewItem  Header="用户字典" IsExpanded="True">
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+            </TreeViewItem>
+            <TreeViewItem  Header="用户字典" IsExpanded="True">
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+                <TreeViewItem Header="21212"/>
+            </TreeViewItem>
 
-                </Expander>
-            </StackPanel>
-
-        </ScrollViewer>
-
-
-
+        </TreeView>
 
 
     </Grid>

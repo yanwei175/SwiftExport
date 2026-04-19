@@ -2,152 +2,81 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!--
-        Expander 控件样式集合
+    传统 Expander 样式资源区（兼容型）
 
-        说明：
-        1. 本文件提供若干与导航、列表风格一致的 Expander 相关样式，便于在业务视图中复用。
-        2. 风格依赖于 Styles/Base/Brushes.xaml 中定义的笔刷（Brush_*），以保持主题统一。
-        3. 包含：
-           - ExpanderToggleButtonStyle：用于控制展开/收起的箭头（与 TreeView 保持一致的视觉与交互）。
-           - BaseExpander：通用的 Expander 模板（圆角、Header 区域、内容区、Hover/Focus/Disabled 状态）。
-           - NavButtonStyle：无边框的导航按钮样式，支持 Hover/Pressed 视觉反馈，适用于侧边导航或内容区项。
-           - NavHeaderToggleStyle：将 Expander 的 Header 呈现为“伪按钮”，外观与 NavButtonStyle 保持一致，点击可切换 IsExpanded。
-           - NavigationExpander：基于 BaseExpander 的导航专用样式，Header 使用伪按钮，且内容区内的 Button 默认采用 NavButtonStyle。
-
-        注意：样式中尽量保持无硬编码颜色，使用 DynamicResource 引用 Brush_* 资源，方便主题切换。
-    -->
+    说明：
+    1) 本段是经典圆形箭头风格的 Expander 资源，和上方较新的导航风格可并存。
+    2) 颜色资源按状态拆分：默认 / 悬停 / 按下 / 禁用，供多个 Header 模板复用。
+    3) 方向样式通过旋转同一套“圆+箭头”图形实现，减少重复绘制逻辑。
+    4) `BaseExpanderStyle` 根据 `ExpandDirection` 自动切换对应 Header 模板。
+-->
 
     <!--
-        ExpanderToggleButtonStyle
+    ExpanderHeaderFocusVisual
 
-        描述：用于 Header 左侧的小箭头（ToggleButton），外观与 TreeView 的展开/收起箭头一致。
-        细节：
-        - 使用 Path 绘制箭头形状，通过 RotateTransform 控制方向，IsChecked 时旋转为展开状态并改变颜色。
-        - 鼠标悬停与禁用态都有对应的视觉反馈。
-    -->
-    <Style x:Key="ExpanderToggleButtonStyle" TargetType="ToggleButton">
-        <Setter Property="Focusable" Value="False" />
-        <Setter Property="Width" Value="16" />
-        <Setter Property="Height" Value="16" />
-        <Setter Property="Template">
+    用途：
+    - 为 Header ToggleButton 提供键盘焦点可视化（虚线矩形）。
+    - 主要用于可访问性与键盘导航场景。
+-->
+    <Style x:Key="ExpanderHeaderFocusVisual">
+        <Setter Property="Control.Template">
             <Setter.Value>
-                <ControlTemplate TargetType="ToggleButton">
-                    <Border Background="Transparent" Width="16" Height="16">
-                        <!-- 使用与 TreeView 中相同的 Path 形状，旋转控制展开/收起 -->
-                        <Path x:Name="ArrowPath"
-                              Data="M 4 4 L 8 8 L 4 12"
-                              Stroke="{DynamicResource Brush_Txt_Secondary}"
-                              StrokeThickness="1.5"
-                              StrokeEndLineCap="Round"
-                              StrokeStartLineCap="Round"
-                              StrokeLineJoin="Round"
-                              HorizontalAlignment="Center"
-                              VerticalAlignment="Center"
-                              RenderTransformOrigin="0.5,0.5">
-                            <Path.RenderTransform>
-                                <RotateTransform Angle="-90" />
-                            </Path.RenderTransform>
-                        </Path>
+                <ControlTemplate>
+                    <Border>
+                        <Rectangle Margin="0" StrokeDashArray="1 2" Stroke="Black" SnapsToDevicePixels="true" StrokeThickness="1"/>
                     </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="ArrowPath" Property="RenderTransform">
-                                <Setter.Value>
-                                    <RotateTransform Angle="0" />
-                                </Setter.Value>
-                            </Setter>
-                            <Setter TargetName="ArrowPath" Property="Stroke" Value="{DynamicResource Brush_Primary}" />
-                        </Trigger>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="ArrowPath" Property="Stroke" Value="{DynamicResource Brush_Primary_Focus}" />
-                        </Trigger>
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="ArrowPath" Property="Stroke" Value="{DynamicResource Brush_Control_Border_Disabled}" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
 
     <!--
-        BaseExpander
+    ExpanderDownHeaderStyle（向下展开，默认方向）
 
-        描述：通用的 Expander 控件模板（默认样式）。
-        特性：
-        - 外层有圆角边框（CornerRadius=4），支持背景与边框样式绑定（TemplateBinding）。
-        - Header 使用一个区域（HeaderBorder），包含左侧箭头和 Header 内容（ContentPresenter）。
-        - 内容区域使用 ContentPresenter（ExpandSite），通过 IsExpanded 触发可见性切换。
-        - 支持 IsMouseOver（Header 悬停变色）、IsKeyboardFocusWithin（聚焦时边框高亮）、IsEnabled（禁用时半透明）等触发器。
-    -->
-    <Style x:Key="BaseExpander" TargetType="Expander">
-        <!-- 基础视觉属性 -->
-        <Setter Property="Background" Value="{DynamicResource Brush_Bck_Card}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Brush_Border_Default}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="6" />
-        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}" />
+    结构：
+    - 左侧 19x19 圆形图标区（circle + arrow）
+    - 右侧 Header 内容展示区（ContentPresenter）
+
+    交互：
+    - IsChecked=true：箭头翻转为“收起”形态
+    - IsMouseOver / IsPressed / IsEnabled=false：切换对应画刷资源
+-->
+    <Style x:Key="ExpanderDownHeaderStyle" TargetType="{x:Type ToggleButton}">
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="Expander">
-                    <Border x:Name="OuterBorder"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4"
-                            SnapsToDevicePixels="True">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-
-                            <!-- Header 区域 -->
-                            <Border x:Name="HeaderBorder"
-                                    Background="Transparent"
-                                    Padding="6"
-                                    CornerRadius="4,4,0,0">
-                                <DockPanel LastChildFill="True">
-                                    <ToggleButton x:Name="ExpanderToggle"
-                                                  Style="{StaticResource ExpanderToggleButtonStyle}"
-                                                  IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
-                                                  DockPanel.Dock="Left"
-                                                  VerticalAlignment="Center"
-                                                  Margin="0,0,8,0" />
-
-                                    <ContentPresenter x:Name="HeaderContent"
-                                                      ContentSource="Header"
-                                                      VerticalAlignment="Center"
-                                                      RecognizesAccessKey="True" />
-                                </DockPanel>
-                            </Border>
-
-                            <!-- 内容区域 -->
-                            <ContentPresenter x:Name="ExpandSite"
-                                              Grid.Row="1"
-                                              Margin="6"
-                                              Visibility="Collapsed"
-                                              ContentSource="Content" />
+                <ControlTemplate TargetType="{x:Type ToggleButton}">
+                    <Border x:Name="borderDown" 
+                                    Padding="{TemplateBinding Padding}"
+                                    CornerRadius="4">
+                        <Grid Background="Transparent" SnapsToDevicePixels="False">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="19"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <!--箭头-->
+                            <Path x:Name="arrow" Data="M 1,1.5 L 4.5,5 L 8,1.5" 
+                                          HorizontalAlignment="Center" 
+                                          Stroke="{DynamicResource Brush_Txt_Primary}" 
+                                          SnapsToDevicePixels="false" 
+                                          StrokeThickness="2" 
+                                          VerticalAlignment="Center"/>
+                            <!--标题文字-->
+                            <ContentPresenter  Grid.Column="1" HorizontalAlignment="Left" Margin="4,0,0,0" RecognizesAccessKey="True" SnapsToDevicePixels="True" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
-
-                    <!-- 触发器：控制展开/收起、悬停、禁用样式 -->
                     <ControlTemplate.Triggers>
-                        <Trigger Property="IsExpanded" Value="True">
-                            <Setter TargetName="ExpandSite" Property="Visibility" Value="Visible" />
+                        <Trigger Property="IsChecked" Value="true">
+                            <Setter Property="Data" TargetName="arrow" Value="M 1,4.5  L 4.5,1  L 8,4.5"/>
                         </Trigger>
-
-                        <Trigger Property="IsMouseOver" SourceName="HeaderBorder" Value="True">
-                            <Setter TargetName="HeaderBorder" Property="Background" Value="{DynamicResource Brush_Control_Hover}" />
+                        <Trigger Property="IsMouseOver" Value="true">
+                            <Setter Property="Background" TargetName="borderDown" Value="{DynamicResource Brush_Primary_Subtle}"/>
+                            <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary}"/>
                         </Trigger>
-
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="OuterBorder" Property="Opacity" Value="0.6" />
+                        <Trigger Property="IsPressed" Value="true">
+                            <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary_Pressed}"/>
                         </Trigger>
-
-                        <!-- 当 Expander 被设置为 IsFocused 或 Header 被点击时，显示选中样式 -->
-                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                            <Setter TargetName="OuterBorder" Property="BorderBrush" Value="{DynamicResource Brush_Primary}" />
+                        <Trigger Property="IsEnabled" Value="false">
+                            <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Btn_Primary_Disabled_Fck}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -155,172 +84,47 @@
         </Setter>
     </Style>
 
-    <!--
-        NavButtonStyle
-
-        描述：无边框的按钮样式，适用于导航列表或 Expander 内容区内的项。
-        要点：
-        - 默认无背景、无边框；鼠标悬停时使用 Brush_Control_Hover，按下时使用 Brush_Control_Pressed。
-        - 不显示默认焦点样式（FocusVisualStyle = null），以便使用自定义高亮或不显示虚线框。
-        - 文本左对齐（HorizontalContentAlignment=Left），便于呈现图标+文本的导航项。
-    -->
-    <Style x:Key="NavButtonStyle" TargetType="Button">
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Padding" Value="6,4" />
-        <Setter Property="HorizontalContentAlignment" Value="Left" />
-        <Setter Property="VerticalContentAlignment" Value="Center" />
-        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}" />
-        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+    <!-- 向上展开：在向下样式基础上整体旋转 180° -->
+    <Style x:Key="ExpanderUpHeaderStyle" TargetType="{x:Type ToggleButton}">
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="Button">
-                    <Border x:Name="Bd"
-                            Background="{TemplateBinding Background}"
-                            CornerRadius="4">
-                        <ContentPresenter HorizontalAlignment="Left"
-                                          VerticalAlignment="Center"
-                                          Margin="{TemplateBinding Padding}"/>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Control_Hover}" />
-                        </Trigger>
-                        <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Control_Pressed}" />
-                        </Trigger>
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Disabled}" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
-    <!--
-        NavHeaderToggleStyle
-
-        描述：将 Expander 的 Header 呈现为“伪按钮”（ToggleButton），外观与 NavButtonStyle 保持一致。
-        行为：
-        - 鼠标悬停和按下有相同的视觉反馈；IsChecked（即展开）状态下显示选中背景与高亮前景色。
-        - 通过绑定 IsChecked 到 TemplatedParent 的 IsExpanded，使 Header 点击能够切换展开状态。
-    -->
-    <Style x:Key="NavHeaderToggleStyle" TargetType="ToggleButton">
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Padding" Value="6,4" />
-        <Setter Property="HorizontalContentAlignment" Value="Left" />
-        <Setter Property="VerticalContentAlignment" Value="Center" />
-        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}" />
-        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="ToggleButton">
-                    <Border x:Name="Bd"
-                            Background="{TemplateBinding Background}"
-                            CornerRadius="4">
-                        <ContentPresenter HorizontalAlignment="Left"
-                                          VerticalAlignment="Center"
-                                          Margin="{TemplateBinding Padding}"/>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Control_Hover}" />
-                        </Trigger>
-                        <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Selection_Background}" />
-                            <Setter Property="Foreground" Value="{DynamicResource Brush_Primary}" />
-                        </Trigger>
-                        <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Control_Pressed}" />
-                        </Trigger>
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Disabled}" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
-    <!--
-        NavigationExpander
-
-        描述：面向导航场景的 Expander 样式，基于 BaseExpander。
-        特点：
-        - Header 使用伪按钮（NavHeaderToggleStyle），视觉上像一个可折叠的导航项。
-        - 内容区内部的 Button 默认样式被设置为 NavButtonStyle，方便直接放置导航项列表而无需逐个指定样式。
-        - 保持对 IsExpanded、IsMouseOver、IsEnabled、IsKeyboardFocusWithin 等状态的处理。
-    -->
-    <Style x:Key="NavigationExpander" TargetType="Expander" BasedOn="{StaticResource BaseExpander}">
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="Expander">
-                    <Border x:Name="OuterBorder"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4"
-                            SnapsToDevicePixels="True">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-
-                            <!-- Header 区域：用 ToggleButton 表示伪按钮 -->
-                            <Border x:Name="HeaderBorder"
-                                    Background="Transparent"
-                                    Padding="6"
-                                    CornerRadius="4,4,0,0">
-                                <DockPanel LastChildFill="True">
-                                    <ToggleButton x:Name="ExpanderToggle"
-                                                  Style="{StaticResource ExpanderToggleButtonStyle}"
-                                                  IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
-                                                  DockPanel.Dock="Left"
-                                                  VerticalAlignment="Center"
-                                                  Margin="0,0,8,0" />
-
-                                    <!-- 伪按钮 Header：显示为无边框按钮，点击时也切换 IsExpanded -->
-                                    <ToggleButton x:Name="HeaderPseudoButton"
-                                                  Style="{StaticResource NavHeaderToggleStyle}"
-                                                  IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
-                                                  Content="{TemplateBinding Header}"
-                                                  HorizontalAlignment="Stretch"
-                                                  VerticalAlignment="Center" />
-                                </DockPanel>
-                            </Border>
-
-                            <!-- 内容区域：在模板范围内设置 Button 的默认样式为 NavButtonStyle -->
-                            <ContentPresenter x:Name="ExpandSite"
-                                              Grid.Row="1"
-                                              Margin="6"
-                                              Visibility="Collapsed"
-                                              ContentSource="Content">
-                                <ContentPresenter.Resources>
-                                    <!-- 将模板内部的 Button 默认样式设置为 NavButtonStyle -->
-                                    <Style TargetType="Button" BasedOn="{StaticResource NavButtonStyle}" />
-                                </ContentPresenter.Resources>
-                            </ContentPresenter>
+                <ControlTemplate TargetType="{x:Type ToggleButton}">
+                    <Border x:Name="borderUp"                         
+                                Padding="{TemplateBinding Padding}"
+                                CornerRadius="4">
+                        <Grid Background="Transparent" SnapsToDevicePixels="False">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="19"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid>
+                                <Grid.LayoutTransform>
+                                    <TransformGroup>
+                                        <TransformGroup.Children>
+                                            <TransformCollection>
+                                                <RotateTransform Angle="180"/>
+                                            </TransformCollection>
+                                        </TransformGroup.Children>
+                                    </TransformGroup>
+                                </Grid.LayoutTransform>
+                                <Path x:Name="arrow" Data="M 1,1.5 L 4.5,5 L 8,1.5" HorizontalAlignment="Center" Stroke="{DynamicResource Brush_Txt_Primary}" SnapsToDevicePixels="false" StrokeThickness="2" VerticalAlignment="Center"/>
+                            </Grid>
+                            <ContentPresenter Grid.Column="1" HorizontalAlignment="Left" Margin="4,0,0,0" RecognizesAccessKey="True" SnapsToDevicePixels="True" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
-
                     <ControlTemplate.Triggers>
-                        <Trigger Property="IsExpanded" Value="True">
-                            <Setter TargetName="ExpandSite" Property="Visibility" Value="Visible" />
+                        <Trigger Property="IsChecked" Value="true">
+                            <Setter Property="Data" TargetName="arrow" Value="M 1,4.5  L 4.5,1  L 8,4.5"/>
                         </Trigger>
-
-                        <Trigger Property="IsMouseOver" SourceName="HeaderBorder" Value="True">
-                            <Setter TargetName="HeaderBorder" Property="Background" Value="{DynamicResource Brush_Control_Hover}" />
+                        <Trigger Property="IsMouseOver" Value="true">
+                            <Setter Property="Background" TargetName="borderUp" Value="{DynamicResource Brush_Primary_Subtle}"/>
+                            <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary}"/>
                         </Trigger>
-
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="OuterBorder" Property="Opacity" Value="0.6" />
+                        <Trigger Property="IsPressed" Value="true">
+                            <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary_Pressed}"/>
                         </Trigger>
-
-                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                            <Setter TargetName="OuterBorder" Property="BorderBrush" Value="{DynamicResource Brush_Primary}" />
+                        <Trigger Property="IsEnabled" Value="false">
+                            <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Btn_Primary_Disabled_Fck}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -328,7 +132,197 @@
         </Setter>
     </Style>
 
-    <!-- 默认将所有 Expander 使用 BaseExpander 风格 -->
-    <Style TargetType="Expander" BasedOn="{StaticResource BaseExpander}" />
+    <!-- 向左展开：布局改为上下结构，图标区旋转 90° -->
+    <Style x:Key="ExpanderLeftHeaderStyle" TargetType="{x:Type ToggleButton}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ToggleButton}">
+                    <Border x:Name="borderLeft"
+                                        Padding="{TemplateBinding Padding}"
+                                        CornerRadius="4">
+                        <Grid Background="Transparent" SnapsToDevicePixels="False">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="19"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid>
+                                <Grid.LayoutTransform>
+                                    <TransformGroup>
+                                        <TransformGroup.Children>
+                                            <TransformCollection>
+                                                <RotateTransform Angle="90"/>
+                                            </TransformCollection>
+                                        </TransformGroup.Children>
+                                    </TransformGroup>
+                                </Grid.LayoutTransform>
+                                <Path x:Name="arrow" Data="M 1,1.5 L 4.5,5 L 8,1.5" HorizontalAlignment="Center" Stroke="{DynamicResource Brush_Txt_Primary}" SnapsToDevicePixels="false" StrokeThickness="2" VerticalAlignment="Center"/>
+                            </Grid>
+                            <ContentPresenter HorizontalAlignment="Center" Margin="0,4,0,0" RecognizesAccessKey="True" Grid.Row="1" SnapsToDevicePixels="True" VerticalAlignment="Top"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="true">
+                            <Setter Property="Data" TargetName="arrow" Value="M 1,4.5  L 4.5,1  L 8,4.5"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="true">
+                            <Setter Property="Background" TargetName="borderLeft" Value="{DynamicResource Brush_Primary_Subtle}"/>
+                            <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="true">
+                            <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary_Pressed}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="false">
+                            <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Btn_Primary_Disabled_Fck}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 
+    <!-- 向右展开：布局改为上下结构，图标区旋转 -90° -->
+    <Style x:Key="ExpanderRightHeaderStyle" TargetType="{x:Type ToggleButton}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ToggleButton}">
+                    <Border x:Name="borderRight"
+                        Padding="{TemplateBinding Padding}"
+                        CornerRadius="4">
+                        <Grid Background="Transparent" SnapsToDevicePixels="False">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="19"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid>
+                                <Grid.LayoutTransform>
+                                    <TransformGroup>
+                                        <TransformGroup.Children>
+                                            <TransformCollection>
+                                                <RotateTransform Angle="-90"/>
+                                            </TransformCollection>
+                                        </TransformGroup.Children>
+                                    </TransformGroup>
+                                </Grid.LayoutTransform>
+                                <Path x:Name="arrow" Data="M 1,1.5 L 4.5,5 L 8,1.5" HorizontalAlignment="Center" Stroke="{DynamicResource Brush_Txt_Primary}" SnapsToDevicePixels="false" StrokeThickness="2" VerticalAlignment="Center"/>
+                            </Grid>
+                            <ContentPresenter HorizontalAlignment="Center" Margin="0,4,0,0" RecognizesAccessKey="True" Grid.Row="1" SnapsToDevicePixels="True" VerticalAlignment="Top"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="true">
+                            <Setter Property="Data" TargetName="arrow" Value="M 1,4.5  L 4.5,1  L 8,4.5"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="true">
+                            <Setter Property="Background" TargetName="borderRight" Value="{DynamicResource Brush_Primary_Subtle}"/>
+                            <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="true">
+                            <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary_Pressed}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="false">
+                            <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Btn_Primary_Disabled_Fck}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+    BaseExpanderStyle
+
+    作用：
+    - 提供传统 Expander 的基础模板与方向适配能力。
+    - Header 使用 `HeaderSite`（ToggleButton），内容使用 `ExpandSite`（ContentPresenter）。
+    - 通过触发器处理展开状态、展开方向及禁用前景色。
+
+    方向映射：
+    - Down(默认) -> ExpanderDownHeaderStyle
+    - Right       -> ExpanderRightHeaderStyle
+    - Up          -> ExpanderUpHeaderStyle
+    - Left        -> ExpanderLeftHeaderStyle
+-->
+    <Style x:Key="BaseExpanderStyle" TargetType="{x:Type Expander}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="Padding" Value="6"/>
+        <Setter Property="BorderThickness" Value="2"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Expander}">
+                    <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="4" 
+                                SnapsToDevicePixels="true">
+                        <DockPanel>
+                            <!--菜单条-->
+                            <ToggleButton x:Name="HeaderSite" 
+                                              ContentTemplate="{TemplateBinding HeaderTemplate}" 
+                                              Content="{TemplateBinding Header}" 
+                                              ContentTemplateSelector="{TemplateBinding HeaderTemplateSelector}" 
+                                              DockPanel.Dock="Top" 
+                                              FontStretch="{TemplateBinding FontStretch}"
+                                              Foreground="{TemplateBinding Foreground}" 
+                                              FocusVisualStyle="{StaticResource ExpanderHeaderFocusVisual}" 
+                                              FontStyle="{TemplateBinding FontStyle}" 
+                                              FontFamily="{TemplateBinding FontFamily}" 
+                                              FontWeight="{TemplateBinding FontWeight}" 
+                                              FontSize="{TemplateBinding FontSize}" 
+                                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" 
+                                              IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource Mode=TemplatedParent}}" 
+                                              Margin="1" MinWidth="0" MinHeight="0" 
+                                              Padding="{TemplateBinding Padding}" 
+                                              Style="{StaticResource ExpanderDownHeaderStyle}" 
+                                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                            <ContentPresenter x:Name="ExpandSite" DockPanel.Dock="Bottom" Focusable="false" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" Margin="{TemplateBinding Padding}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Visibility="Collapsed"/>
+
+                        </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <!-- 展开时显示内容 -->
+                        <Trigger Property="IsExpanded" Value="true">
+                            <Setter Property="Visibility" TargetName="ExpandSite" Value="Visible"/>
+                        </Trigger>
+                        <!-- 根据 ExpandDirection 切换停靠位置和 Header 样式 -->
+                        <Trigger Property="ExpandDirection" Value="Right">
+                            <Setter Property="DockPanel.Dock" TargetName="ExpandSite" Value="Right"/>
+                            <Setter Property="DockPanel.Dock" TargetName="HeaderSite" Value="Left"/>
+                            <Setter Property="Style" TargetName="HeaderSite" Value="{StaticResource ExpanderRightHeaderStyle}"/>
+                        </Trigger>
+                        <Trigger Property="ExpandDirection" Value="Up">
+                            <Setter Property="DockPanel.Dock" TargetName="ExpandSite" Value="Top"/>
+                            <Setter Property="DockPanel.Dock" TargetName="HeaderSite" Value="Bottom"/>
+                            <Setter Property="Style" TargetName="HeaderSite" Value="{StaticResource ExpanderUpHeaderStyle}"/>
+                        </Trigger>
+                        <Trigger Property="ExpandDirection" Value="Left">
+                            <Setter Property="DockPanel.Dock" TargetName="ExpandSite" Value="Left"/>
+                            <Setter Property="DockPanel.Dock" TargetName="HeaderSite" Value="Right"/>
+                            <Setter Property="Style" TargetName="HeaderSite" Value="{StaticResource ExpanderLeftHeaderStyle}"/>
+                        </Trigger>
+
+                        <!-- 禁用时使用系统灰色前景 -->
+                        <Trigger Property="IsEnabled" Value="false">
+                            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+
+            <Trigger Property="IsMouseOver" Value="true">
+                <Setter Property="Foreground"  Value="{DynamicResource Brush_Primary}"/>
+            </Trigger>
+
+            <Trigger Property="IsEnabled" Value="false">
+                <Setter Property="Foreground"  Value="{DynamicResource Brush_Btn_Primary_Disabled_Fck}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="Expander" BasedOn="{StaticResource BaseExpanderStyle}"/> 
 </ResourceDictionary>

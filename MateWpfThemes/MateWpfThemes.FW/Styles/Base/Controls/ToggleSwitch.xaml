@@ -91,6 +91,11 @@
         </ControlTemplate.Triggers>
     </ControlTemplate>
 
+    <Style x:Key="TextToggleButton" TargetType="ToggleButton">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    
     <!-- ========================= -->
     <!--   默认 ToggleSwitch 样式   -->
     <!-- ========================= -->
