@@ -6,6 +6,7 @@ using SwiftExport.Infrastructure.Repositories.Base;
 using SwiftExport.Infrastructure.Repositories.Customers;
 using SwiftExport.Infrastructure.Repositories.Products;
 using SwiftExport.Infrastructure.Repositories.Suppliers;
+using SwiftExport.Infrastructure.Repositories.Systems;
 
 namespace SwiftExport.Infrastructure;
 

@@ -27,6 +27,7 @@
   <ItemGroup>
     <Folder Include="Repositories\Orders\" />
     <Folder Include="Repositories\Settings\" />
+    <Folder Include="Repositories\Systems\" />
   </ItemGroup>
 
 </Project>

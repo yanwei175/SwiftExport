@@ -14,7 +14,9 @@ public abstract class BaseEntity
 
     // 审计字段
     public DateTime? CreatedDate { get; set; }
+    public string? CreatedBy { get; set; }
     public DateTime? UpdatedDate { get; set; }
+    public string? UpdatedBy { get; set; }
 }
 
 

@@ -255,6 +255,7 @@
 
                     <DataGrid Grid.Row="1" Grid.ColumnSpan="2" x:Name="客户产品管理DataGrid"
                                   ItemsSource="{Binding CurrentProductTable.Items}" 
+                                    SelectedItem="{Binding SelectedProduct}"
                                      HorizontalScrollBarVisibility="Auto" 
                                      HeadersVisibility="All" 
                                      Margin="0,5,0,0"

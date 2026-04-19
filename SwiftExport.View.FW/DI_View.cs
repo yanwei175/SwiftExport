@@ -139,6 +139,12 @@ namespace SwiftExport.View.FW
             services.AddTransient<ProductColorManagerViewModel>();
             services.AddTransient<ProductColorManagerView>();
 
+            services.AddTransient<DictTypeManagerViewModel>();
+            services.AddTransient<DictTypeManagerView>();
+
+            services.AddTransient<DictDataManagerViewModel>();
+            services.AddTransient<DictDataManagerView>();
+
             services.AddTransient<DictManagerViewModel>();
             services.AddTransient<DictManagerView>();
 

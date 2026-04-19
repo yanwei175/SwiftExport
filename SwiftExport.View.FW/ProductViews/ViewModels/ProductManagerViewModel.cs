@@ -3,6 +3,7 @@ using Mapster;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.View.FW.Mvvm;
@@ -872,7 +873,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
 
         private async Task LoadFilterDataAsync()
         {
-            await _dictCacheService.PreloadAsync(new[] { DictCodes.SupplyType, DictCodes.BomSubType, DictCodes.CustomerType, DictCodes.ProductType });
+            await _dictCacheService.PreloadAsync(new[] { DictCodes.SupplyType, DictCodes.CustomerType, DictCodes.ProductType });
 
             SeedStaticLookups();
             await LoadCustomersAsync();

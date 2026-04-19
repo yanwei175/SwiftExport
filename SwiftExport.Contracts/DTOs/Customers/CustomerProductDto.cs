@@ -29,7 +29,7 @@ namespace SwiftExport.Contracts.DTOs.Customers
 
         // 价格相关
         public decimal? Price { get; set; }
-        public string Currency { get; set; }
+        public string Currency { get; set; }  //货币,用户枚举值
 
         // 业务要求
         public int? LeadTimeDays { get; set; }               // 客户交期要求
@@ -39,11 +39,6 @@ namespace SwiftExport.Contracts.DTOs.Customers
         public bool IsActive { get; set; }
         public bool IsDeleted { get; set; }
 
-        // 审计字段
-        public string CreatedBy { get; set; }
-        public DateTime CreatedDate { get; set; }
-        public string UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
     }
 
 }

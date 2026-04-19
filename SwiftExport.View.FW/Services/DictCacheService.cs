@@ -27,7 +27,7 @@ namespace SwiftExport.View.FW.Services
         private static readonly string[] CoreDictCodes =
         {
             DictCodes.SupplyType,
-            DictCodes.BomSubType,
+            DictCodes.Currency,
             DictCodes.CustomerType,
             DictCodes.ProductType
         };

@@ -350,8 +350,20 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         {
              if (SelectedCustomer != null && SelectedCustomer.Id<=0) 
                 { 
-                    CurrentCustomerTable.Remove(SelectedCustomer); 
+                var tempIndex = CurrentCustomerTable.Items.IndexOf(SelectedCustomer);
+                    CurrentCustomerTable.Remove(SelectedCustomer);
+                CustomerModel temp;
+                try
+                {
+                    temp = CurrentCustomerTable.Items[tempIndex];
                 }
+                catch 
+                {
+                    temp=CurrentCustomerTable.Items.FirstOrDefault();
+                }
+                if (temp != null)
+                SelectedCustomer = temp;
+            }
 
             var checkItems = CurrentCustomerTable.GetCheckedItems();
 
@@ -551,6 +563,25 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         public RelayCommand DeleteProductAsyncCommand { get; }
         private async Task DeleteProductAsync()
         {
+            //根据当前选择来删除
+            if (SelectedProduct != null && SelectedProduct.Id <= 0)
+            {
+                var tempIndex = CurrentProductTable.Items.IndexOf(SelectedProduct);
+                CurrentProductTable.Remove(SelectedProduct);
+                CustomerProductModel temp;
+                try
+                {
+                    temp = CurrentProductTable.Items[tempIndex];
+                }
+                catch 
+                {
+                    temp = CurrentProductTable.Items.FirstOrDefault();
+                }
+                if (temp!=null)                
+                SelectedProduct = temp;
+            }
+
+            //根据勾选来删除
             var checkItems = CurrentProductTable.GetCheckedItems();
 
             if (checkItems.Count == 0) return;

@@ -70,7 +70,7 @@ namespace SwiftExport.DevApp
                 await dictCache.PreloadAsync(new[]
                 {
                     DictCodes.SupplyType,
-                    DictCodes.BomSubType,
+                    DictCodes.Currency,
                     DictCodes.CustomerType,
                     DictCodes.ProductType
                 });
