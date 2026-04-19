@@ -7,6 +7,7 @@ using SwiftExport.View.FW.SupplierViews.Views;
 using System.Windows;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.View.FW.CustomerViews.ViewModels;
+using SwiftExport.View.FW.DictViews.ViewModels;
 
 namespace SwiftExport.DevApp
 {
@@ -107,10 +108,19 @@ namespace SwiftExport.DevApp
         /// </summary>
         private void Button_Click_8(object sender, RoutedEventArgs e)
         {
-            var vm = new SalesOrderDetailViewModel(1, DiServices.GetService<SwiftExport.Contracts.Apis.SalesOrderApis.ISalesOrderApi>(), 
-                                                   DiServices.GetService<SwiftExport.Contracts.UiInterface.IDialogService>());
-            var window = DiServices.GetService<SalesOrderDetailView>();
-            window.DataContext = vm;
+            var vm = DiServices.GetService<DataDictManagerViewModel>();
+            var view = DiServices.GetService<DataDictManagerView>();
+            view.DataContext = vm;
+
+            var window = new Window
+            {
+                Title = "Sales Order Management - Test Environment",
+                Width = 1920,
+                Height = 920,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Content = view
+            };
+
             window.ShowDialog();
         }
 

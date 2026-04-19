@@ -193,6 +193,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Styles\Base\Controls\Expander.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Styles\Base\Controls\Inputs.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

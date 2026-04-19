@@ -28,6 +28,7 @@
         <ResourceDictionary Source="../Styles/Base/Controls/ComboBox.xaml" />
         <ResourceDictionary Source="../Styles/Base/Controls/DataGrid.xaml" />
         <ResourceDictionary Source="../Styles/Base/Controls/TreeView.xaml" />
+        <ResourceDictionary Source="../Styles/Base/Controls/Expander.xaml" />
         <ResourceDictionary Source="../Styles/Base/Controls/Calendar.xaml" />
         <ResourceDictionary Source="../Styles/Base/Controls/DateDisplayStyle.xaml" />
         <ResourceDictionary Source="../Styles/Base/Controls/DatePicker.xaml" />

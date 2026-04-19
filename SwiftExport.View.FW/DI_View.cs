@@ -148,6 +148,10 @@ namespace SwiftExport.View.FW
             services.AddTransient<DictManagerViewModel>();
             services.AddTransient<DictManagerView>();
 
+            services.AddTransient<DataDictManagerViewModel>();
+            services.AddTransient<DataDictManagerDesignVM>();
+            services.AddTransient<DataDictManagerView>();
+
             services.AddTransient<ProductCategoryManagerViewModel>();
             services.AddTransient<ProductCategoryManagerView>();
 

@@ -44,9 +44,6 @@ public class SalesOrderHeader : BaseEntity
 
     public bool IsLocked { get; set; }
 
-    public string? CreatedBy { get; set; }
-    public string? UpdatedBy { get; set; }
-
     public DateTime? OrderDate { get; set; }
     public DateTime? DeliveryDate { get; set; }
     public DateTime? ReplyDate { get; set; }

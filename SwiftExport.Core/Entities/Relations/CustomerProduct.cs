@@ -33,9 +33,6 @@ public class CustomerProduct : BaseEntity
     // 状态
     public bool IsActive { get; set; }
 
-    // 审计字段
-    public string? CreatedBy { get; set; }
-    public string? UpdatedBy { get; set; }
 
 
 }

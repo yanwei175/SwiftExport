@@ -35,7 +35,7 @@ public class PurchaseOrder : BaseEntity
     public string? DiscountRemarks { get; set; }       // ZheKouBeiZhu (折扣备注)
 
 
-    public string? CreatedBy { get; set; }
+
     public string? ReviewedBy { get; set; }
     public string? ApprovedBy { get; set; }
 

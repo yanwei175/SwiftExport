@@ -1,0 +1,334 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Expander 控件样式集合
+
+        说明：
+        1. 本文件提供若干与导航、列表风格一致的 Expander 相关样式，便于在业务视图中复用。
+        2. 风格依赖于 Styles/Base/Brushes.xaml 中定义的笔刷（Brush_*），以保持主题统一。
+        3. 包含：
+           - ExpanderToggleButtonStyle：用于控制展开/收起的箭头（与 TreeView 保持一致的视觉与交互）。
+           - BaseExpander：通用的 Expander 模板（圆角、Header 区域、内容区、Hover/Focus/Disabled 状态）。
+           - NavButtonStyle：无边框的导航按钮样式，支持 Hover/Pressed 视觉反馈，适用于侧边导航或内容区项。
+           - NavHeaderToggleStyle：将 Expander 的 Header 呈现为“伪按钮”，外观与 NavButtonStyle 保持一致，点击可切换 IsExpanded。
+           - NavigationExpander：基于 BaseExpander 的导航专用样式，Header 使用伪按钮，且内容区内的 Button 默认采用 NavButtonStyle。
+
+        注意：样式中尽量保持无硬编码颜色，使用 DynamicResource 引用 Brush_* 资源，方便主题切换。
+    -->
+
+    <!--
+        ExpanderToggleButtonStyle
+
+        描述：用于 Header 左侧的小箭头（ToggleButton），外观与 TreeView 的展开/收起箭头一致。
+        细节：
+        - 使用 Path 绘制箭头形状，通过 RotateTransform 控制方向，IsChecked 时旋转为展开状态并改变颜色。
+        - 鼠标悬停与禁用态都有对应的视觉反馈。
+    -->
+    <Style x:Key="ExpanderToggleButtonStyle" TargetType="ToggleButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Width" Value="16" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border Background="Transparent" Width="16" Height="16">
+                        <!-- 使用与 TreeView 中相同的 Path 形状，旋转控制展开/收起 -->
+                        <Path x:Name="ArrowPath"
+                              Data="M 4 4 L 8 8 L 4 12"
+                              Stroke="{DynamicResource Brush_Txt_Secondary}"
+                              StrokeThickness="1.5"
+                              StrokeEndLineCap="Round"
+                              StrokeStartLineCap="Round"
+                              StrokeLineJoin="Round"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              RenderTransformOrigin="0.5,0.5">
+                            <Path.RenderTransform>
+                                <RotateTransform Angle="-90" />
+                            </Path.RenderTransform>
+                        </Path>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="ArrowPath" Property="RenderTransform">
+                                <Setter.Value>
+                                    <RotateTransform Angle="0" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter TargetName="ArrowPath" Property="Stroke" Value="{DynamicResource Brush_Primary}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ArrowPath" Property="Stroke" Value="{DynamicResource Brush_Primary_Focus}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="ArrowPath" Property="Stroke" Value="{DynamicResource Brush_Control_Border_Disabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        BaseExpander
+
+        描述：通用的 Expander 控件模板（默认样式）。
+        特性：
+        - 外层有圆角边框（CornerRadius=4），支持背景与边框样式绑定（TemplateBinding）。
+        - Header 使用一个区域（HeaderBorder），包含左侧箭头和 Header 内容（ContentPresenter）。
+        - 内容区域使用 ContentPresenter（ExpandSite），通过 IsExpanded 触发可见性切换。
+        - 支持 IsMouseOver（Header 悬停变色）、IsKeyboardFocusWithin（聚焦时边框高亮）、IsEnabled（禁用时半透明）等触发器。
+    -->
+    <Style x:Key="BaseExpander" TargetType="Expander">
+        <!-- 基础视觉属性 -->
+        <Setter Property="Background" Value="{DynamicResource Brush_Bck_Card}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush_Border_Default}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="6" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Expander">
+                    <Border x:Name="OuterBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            SnapsToDevicePixels="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Header 区域 -->
+                            <Border x:Name="HeaderBorder"
+                                    Background="Transparent"
+                                    Padding="6"
+                                    CornerRadius="4,4,0,0">
+                                <DockPanel LastChildFill="True">
+                                    <ToggleButton x:Name="ExpanderToggle"
+                                                  Style="{StaticResource ExpanderToggleButtonStyle}"
+                                                  IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                                  DockPanel.Dock="Left"
+                                                  VerticalAlignment="Center"
+                                                  Margin="0,0,8,0" />
+
+                                    <ContentPresenter x:Name="HeaderContent"
+                                                      ContentSource="Header"
+                                                      VerticalAlignment="Center"
+                                                      RecognizesAccessKey="True" />
+                                </DockPanel>
+                            </Border>
+
+                            <!-- 内容区域 -->
+                            <ContentPresenter x:Name="ExpandSite"
+                                              Grid.Row="1"
+                                              Margin="6"
+                                              Visibility="Collapsed"
+                                              ContentSource="Content" />
+                        </Grid>
+                    </Border>
+
+                    <!-- 触发器：控制展开/收起、悬停、禁用样式 -->
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="ExpandSite" Property="Visibility" Value="Visible" />
+                        </Trigger>
+
+                        <Trigger Property="IsMouseOver" SourceName="HeaderBorder" Value="True">
+                            <Setter TargetName="HeaderBorder" Property="Background" Value="{DynamicResource Brush_Control_Hover}" />
+                        </Trigger>
+
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="OuterBorder" Property="Opacity" Value="0.6" />
+                        </Trigger>
+
+                        <!-- 当 Expander 被设置为 IsFocused 或 Header 被点击时，显示选中样式 -->
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="OuterBorder" Property="BorderBrush" Value="{DynamicResource Brush_Primary}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        NavButtonStyle
+
+        描述：无边框的按钮样式，适用于导航列表或 Expander 内容区内的项。
+        要点：
+        - 默认无背景、无边框；鼠标悬停时使用 Brush_Control_Hover，按下时使用 Brush_Control_Pressed。
+        - 不显示默认焦点样式（FocusVisualStyle = null），以便使用自定义高亮或不显示虚线框。
+        - 文本左对齐（HorizontalContentAlignment=Left），便于呈现图标+文本的导航项。
+    -->
+    <Style x:Key="NavButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4">
+                        <ContentPresenter HorizontalAlignment="Left"
+                                          VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Control_Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Control_Pressed}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Disabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        NavHeaderToggleStyle
+
+        描述：将 Expander 的 Header 呈现为“伪按钮”（ToggleButton），外观与 NavButtonStyle 保持一致。
+        行为：
+        - 鼠标悬停和按下有相同的视觉反馈；IsChecked（即展开）状态下显示选中背景与高亮前景色。
+        - 通过绑定 IsChecked 到 TemplatedParent 的 IsExpanded，使 Header 点击能够切换展开状态。
+    -->
+    <Style x:Key="NavHeaderToggleStyle" TargetType="ToggleButton">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4">
+                        <ContentPresenter HorizontalAlignment="Left"
+                                          VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Control_Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Selection_Background}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush_Primary}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Control_Pressed}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Disabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        NavigationExpander
+
+        描述：面向导航场景的 Expander 样式，基于 BaseExpander。
+        特点：
+        - Header 使用伪按钮（NavHeaderToggleStyle），视觉上像一个可折叠的导航项。
+        - 内容区内部的 Button 默认样式被设置为 NavButtonStyle，方便直接放置导航项列表而无需逐个指定样式。
+        - 保持对 IsExpanded、IsMouseOver、IsEnabled、IsKeyboardFocusWithin 等状态的处理。
+    -->
+    <Style x:Key="NavigationExpander" TargetType="Expander" BasedOn="{StaticResource BaseExpander}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Expander">
+                    <Border x:Name="OuterBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            SnapsToDevicePixels="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Header 区域：用 ToggleButton 表示伪按钮 -->
+                            <Border x:Name="HeaderBorder"
+                                    Background="Transparent"
+                                    Padding="6"
+                                    CornerRadius="4,4,0,0">
+                                <DockPanel LastChildFill="True">
+                                    <ToggleButton x:Name="ExpanderToggle"
+                                                  Style="{StaticResource ExpanderToggleButtonStyle}"
+                                                  IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                                  DockPanel.Dock="Left"
+                                                  VerticalAlignment="Center"
+                                                  Margin="0,0,8,0" />
+
+                                    <!-- 伪按钮 Header：显示为无边框按钮，点击时也切换 IsExpanded -->
+                                    <ToggleButton x:Name="HeaderPseudoButton"
+                                                  Style="{StaticResource NavHeaderToggleStyle}"
+                                                  IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                                  Content="{TemplateBinding Header}"
+                                                  HorizontalAlignment="Stretch"
+                                                  VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
+
+                            <!-- 内容区域：在模板范围内设置 Button 的默认样式为 NavButtonStyle -->
+                            <ContentPresenter x:Name="ExpandSite"
+                                              Grid.Row="1"
+                                              Margin="6"
+                                              Visibility="Collapsed"
+                                              ContentSource="Content">
+                                <ContentPresenter.Resources>
+                                    <!-- 将模板内部的 Button 默认样式设置为 NavButtonStyle -->
+                                    <Style TargetType="Button" BasedOn="{StaticResource NavButtonStyle}" />
+                                </ContentPresenter.Resources>
+                            </ContentPresenter>
+                        </Grid>
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="ExpandSite" Property="Visibility" Value="Visible" />
+                        </Trigger>
+
+                        <Trigger Property="IsMouseOver" SourceName="HeaderBorder" Value="True">
+                            <Setter TargetName="HeaderBorder" Property="Background" Value="{DynamicResource Brush_Control_Hover}" />
+                        </Trigger>
+
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="OuterBorder" Property="Opacity" Value="0.6" />
+                        </Trigger>
+
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="OuterBorder" Property="BorderBrush" Value="{DynamicResource Brush_Primary}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 默认将所有 Expander 使用 BaseExpander 风格 -->
+    <Style TargetType="Expander" BasedOn="{StaticResource BaseExpander}" />
+
+</ResourceDictionary>

@@ -72,9 +72,14 @@
     </Compile>
     <Compile Include="DictViews\Models\DictDataModel.cs" />
     <Compile Include="DictViews\Models\DictTypeModel.cs" />
+    <Compile Include="DictViews\ViewModels\DataDictManagerViewModel.cs" />
     <Compile Include="DictViews\ViewModels\DictDataManagerViewModel.cs" />
+    <Compile Include="DictViews\ViewModels\DataDictManagerDesignVM.cs" />
     <Compile Include="DictViews\ViewModels\DictManagerViewModel.cs" />
     <Compile Include="DictViews\ViewModels\DictTypeManagerViewModel.cs" />
+    <Compile Include="DictViews\Views\DataDictManagerView.xaml.cs">
+      <DependentUpon>DataDictManagerView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="DictViews\Views\DictDataManagerView.xaml.cs" />
     <Compile Include="DictViews\Views\DictManagerView.xaml.cs">
       <DependentUpon>DictManagerView.xaml</DependentUpon>
@@ -140,6 +145,10 @@
     <Page Include="Dialog\MsgBoxWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>XamlIntelliSenseFileGenerator</Generator>
+    </Page>
+    <Page Include="DictViews\Views\DataDictManagerView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="DictViews\Views\DictDataManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>
