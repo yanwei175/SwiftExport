@@ -103,7 +103,9 @@ namespace SwiftExport.View.FW
             services.AddTransient<HttpLoggingHandler>();
             // ================== API 接口注册 ==================
             string apiBaseUrl = "https://localhost:7086";
+
             services.AddErpApi<ISysDictTypeApi>(apiBaseUrl + "/api/SysDictType");
+
             services.AddErpApi<ISysDictDataApi>(apiBaseUrl + "/api/SysDictData");
             //services.AddErpApi<IDictApi>(apiBaseUrl + "/api/Dict");
 
@@ -142,14 +144,7 @@ namespace SwiftExport.View.FW
             services.AddTransient<DictTypeManagerViewModel>();
             services.AddTransient<DictTypeManagerView>();
 
-            services.AddTransient<DictDataManagerViewModel>();
-            services.AddTransient<DictDataManagerView>();
-
-            services.AddTransient<DictManagerViewModel>();
-            services.AddTransient<DictManagerView>();
-
             services.AddTransient<DataDictManagerViewModel>();
-            services.AddTransient<DataDictManagerDesignVM>();
             services.AddTransient<DataDictManagerView>();
 
             services.AddTransient<ProductCategoryManagerViewModel>();

@@ -1,70 +1,164 @@
 ﻿<UserControl x:Class="SwiftExport.View.FW.DictViews.Views.DataDictManagerView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:SwiftExport.View.FW.DictViews.Views"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
+        xmlns:dictview="clr-namespace:SwiftExport.View.FW.DictViews.Views"
+        xmlns:vm="clr-namespace:SwiftExport.View.FW.DictViews.ViewModels"
+        xmlns:productvm="clr-namespace:SwiftExport.View.FW.ProductViews.ViewModels"
+        xmlns:productview="clr-namespace:SwiftExport.View.FW.ProductViews.Views"
+        mc:Ignorable="d"
+        d:Height="768" d:Width="1024"
+        d:DataContext="{d:DesignInstance Type=vm:DataDictManagerViewModel}"
+        Background="{DynamicResource Brush_Bck_Page}">
 
-             mc:Ignorable="d"
-             
-             d:DataContext="{d:DesignInstance Type=vm:DataDictManagerDesignVM, IsDesignTimeCreatable=True}"
-
-             xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
-             xmlns:vm="clr-namespace:SwiftExport.View.FW.DictViews.ViewModels"
-
-             Background="{DynamicResource Brush_Bck_Card}"
-             d:DesignHeight="800" d:DesignWidth="800">
     <UserControl.Resources>
-    </UserControl.Resources>
+        <mt:BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
 
-    <Grid >
+        <!--
+            右侧内容面板路由映射表
+            ContentControl.Content 绑定 CurrentViewModel，
+            WPF 根据此处的 DataTemplate DataType 自动选择对应的 View 渲染
+            新增路由时：在此追加一条 DataTemplate 即可，无需改动 ContentControl
+        -->
+        <DataTemplate DataType="{x:Type productvm:ProductColorManagerViewModel}">
+            <productview:ProductColorManagerView/>
+        </DataTemplate>
+
+        <!-- 预留示例（取消注释即可接入）
+        <DataTemplate DataType="{x:Type productvm:ProductCategoryManagerViewModel}">
+            <productview:ProductCategoryManagerView/>
+        </DataTemplate>
+        -->
+
+    </UserControl.Resources>
+    
+    <Grid>
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300"/>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-        
-   
-        <TreeView  x:Name="MyNavTree" ScrollViewer.HorizontalScrollBarVisibility="Auto">
-            <TreeViewItem  Header="系统字典" IsExpanded="True">
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-                 <TreeViewItem Header="21212"/>
-                </TreeViewItem>
-            
-            <TreeViewItem  Header="用户字典" IsExpanded="True">
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-            </TreeViewItem>
-            <TreeViewItem  Header="用户字典" IsExpanded="True">
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-            </TreeViewItem>
-            <TreeViewItem  Header="用户字典" IsExpanded="True">
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-            </TreeViewItem>
-            <TreeViewItem  Header="用户字典" IsExpanded="True">
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-            </TreeViewItem>
-            <TreeViewItem  Header="用户字典" IsExpanded="True">
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-                <TreeViewItem Header="21212"/>
-            </TreeViewItem>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-        </TreeView>
+        <!-- ============ 左侧：字典类型树形搜索栏 ============ -->
+        <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Vertical" Margin="10" VerticalAlignment="Top">
+            <TextBox 
+                Text="{Binding SearchTypeText, UpdateSourceTrigger=PropertyChanged}" 
+                mt:TextBoxAssist.Placeholder="搜索字典类型"
+                mt:TextBoxAssist.ShowClearButton="True"/>
 
+            <!-- 操作按钮 -->
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                <Button 
+                    Content="⚙ 管理"
+                    Style="{StaticResource ButtonBase}"
+                    Height="28" Padding="10,0" Margin="0,0,6,0" FontSize="12"
+                    ToolTip="打开字典类型管理窗体（增删改查）"
+                    Command="{Binding ManageTypesCommand}"/>
+                <Button 
+                    Content="📂 全部展开" 
+                    Click="ExpandAll_Click"
+                    Height="28"
+                    Padding="8,0"
+                    Margin="0,0,5,0"
+                    FontSize="12"/>
+                <Button 
+                    Content="📁 全部折叠" 
+                    Click="CollapseAll_Click"
+                    Height="28"
+                    Padding="8,0"
+                    FontSize="12"/>
+            </StackPanel>
+        </StackPanel>
 
+        <!-- ============ 左侧：字典类型只读导航树 ============ -->
+        <Border Grid.Column="0" Grid.Row="1" Margin="10,0,10,10" CornerRadius="4" Background="{DynamicResource Brush_Control_Background}" BorderBrush="{DynamicResource Neutral3Brush}" BorderThickness="1" mt:ShadowAssist.Level="Low">
+            <TreeView 
+                ItemsSource="{Binding TreeRoots}" 
+                BorderThickness="0" 
+                Background="Transparent">
+                <!-- 统一节点模板（Group 和 DictType 共用 DictTypeNavNode） -->
+                <TreeView.ItemTemplate>
+                    <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <!-- 分组/字典类型图标 -->
+                            <TextBlock Margin="0,0,4,0" VerticalAlignment="Center" FontSize="12">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="📄"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                                <Setter Property="Text" Value="📂"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <!-- 节点名称 -->
+                            <TextBlock 
+                                Text="{Binding DisplayName}"
+                                FontSize="12"
+                                VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource Brush_Btn_Default_Foreground}"/>
+                                        <Style.Triggers>
+                                            <!-- 分组节点字体加粗 -->
+                                            <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </HierarchicalDataTemplate>
+                </TreeView.ItemTemplate>
+                <!-- 容器样式：双向绑定 IsSelected / IsExpanded -->
+                <TreeView.ItemContainerStyle>
+                    <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+                        <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                    </Style>
+                </TreeView.ItemContainerStyle>
+            </TreeView>
+        </Border>
+
+        <!-- ============ 中间：分割条 ============ -->
+        <GridSplitter Grid.Column="1" Grid.RowSpan="2" Width="4" 
+                      BorderBrush="{DynamicResource Neutral5Brush}"
+                      BorderThickness="0"
+                      Background="{DynamicResource Neutral4Brush}" 
+                      HorizontalAlignment="Center"/>
+
+        <!-- ============ 右侧：内容面板 ============ -->
+        <Border Grid.Column="2" Grid.RowSpan="2" Background="{DynamicResource Brush_Control_Background}" Margin="10,10,10,10" CornerRadius="4" mt:ShadowAssist.Level="Medium">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- 内容 -->
+                <ContentControl Grid.Row="0" Content="{Binding CurrentViewModel}" />
+
+                <!-- 状态栏 -->
+                <TextBlock 
+                    Grid.Row="1"
+                    Text="{Binding StatusMessage}"
+                    Foreground="{DynamicResource Neutral6Brush}"
+                    FontSize="11"
+                    Margin="10"
+                    TextWrapping="Wrap"
+                    Padding="5"/>
+            </Grid>
+        </Border>
+
+        <mt:DialogHost />
     </Grid>
 </UserControl>

@@ -14,21 +14,35 @@ namespace SwiftExport.View.FW.Mappings
         public void Register(TypeAdapterConfig config)
         {
             // DTO → Model
+            // 将 DTO（可空类型）映射到 Model（保持可空以支持 UI 绑定）
             config.NewConfig<CustomerProductDto, CustomerProductModel>()
-                .Map(dest => dest.CategoryId, dto => dto.CategoryId ?? 0)
-                .Map(dest => dest.LeadTimeDays, dto => dto.LeadTimeDays ?? 0)
-                .Map(dest => dest.MOQ, dto => dto.MOQ ?? 0)
-                .Map(dest => dest.Price, dto => dto.Price ?? 0)
+                // 外键字段 - 直接映射
+                .Map(dest => dest.CustomerId, dto => dto.CustomerId)
+                .Map(dest => dest.CustomerCode, dto => dto.CustomerCode)
+                .Map(dest => dest.SkuId, dto => dto.SkuId)
+                .Map(dest => dest.Sku, dto => dto.Sku)
+                .Map(dest => dest.LinkSku, dto => dto.LinkSku)
+                .Map(dest => dest.Description, dto => dto.Description)
+                .Map(dest => dest.CategoryId, dto => dto.CategoryId)
+                // 客户自定义字段 - 直接映射
+                .Map(dest => dest.CustomerSku, dto => dto.CustomerSku)
+                .Map(dest => dest.CustomerPdDescription, dto => dto.CustomerPdDescription)
+                .Map(dest => dest.CustomerPdSeries, dto => dto.CustomerPdSeries)
+                .Map(dest => dest.CustomerColorName, dto => dto.CustomerColorName)
+                .Map(dest => dest.CustomerPdFeatures, dto => dto.CustomerPdFeatures)
+                .Map(dest => dest.CustomerBarcode1, dto => dto.CustomerBarcode1)
+                .Map(dest => dest.CustomerBarcode2, dto => dto.CustomerBarcode2)
+                .Map(dest => dest.CustomerSkuUnit, dto => dto.CustomerSkuUnit)
+                // 价格相关 - 直接映射（保持可空）
+                .Map(dest => dest.Price, dto => dto.Price)
+                .Map(dest => dest.Currency, dto => dto.Currency)
+                // 业务要求 - 直接映射（保持可空）
+                .Map(dest => dest.LeadTimeDays, dto => dto.LeadTimeDays)
+                .Map(dest => dest.MOQ, dto => dto.MOQ)
+                // 状态字段 - 直接映射
+                .Map(dest => dest.IsActive, dto => dto.IsActive)
+                .Map(dest => dest.IsDeleted, dto => dto.IsDeleted)
                 .TwoWays();
-
-            // Model → DTO
-            config.NewConfig<CustomerProductModel, CustomerProductDto>()
-                .Map(dto => dto.CategoryId, src => src.CategoryId == 0 ? (int?)null : src.CategoryId)
-                .Map(dto => dto.LeadTimeDays, src => src.LeadTimeDays == 0 ? (int?)null : src.LeadTimeDays)
-                .Map(dto => dto.MOQ, src => src.MOQ == 0 ? (int?)null : src.MOQ)
-                // Price 不需要变 null
-                .TwoWays();
-
 
         }
     }

@@ -10,5 +10,11 @@ namespace SwiftExport.Core.Entities.Systems
         public int SortOrder { get; set; }
         public bool IsSystem { get; set; }
         public string? CssClass { get; set; }
+
+        public bool IsEnabled { get; set; }
+        // 👇 新增：说明文字
+        public string? Remark { get; set; }
+        // 👇 新增(可选)：如果要做省市区这种级联字典，需要这个
+        public string? ParentValue { get; set; }
     }
 }

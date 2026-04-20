@@ -31,12 +31,13 @@ namespace SwiftExport.View.FW.Mvvm
 
 
         /// <summary>
-        /// 通用的扁平数据转树算法
+        /// 从扁平数据构建树形结构
         /// </summary>
         /// <param name="flatList">包含所有节点的扁平列表</param>
-        /// <param name="idSelector">获取主键的方法</param>
-        /// <param name="parentIdSelector">获取父主键的方法</param>
+        /// <param name="idSelector">获取节点唯一标识的方法</param>
+        /// <param name="parentIdSelector">获取节点父标识的方法（null 表示根节点）</param>
         public void BuildTree<TKey>(List<T> flatList, Func<T, TKey> idSelector, Func<T, TKey> parentIdSelector)
+            where TKey : IEquatable<TKey>
         {
             ClearTree();
 
@@ -44,22 +45,27 @@ namespace SwiftExport.View.FW.Mvvm
             AllNodes.Clear();
             AllNodes.AddRange(flatList);
 
-            var dict = flatList.ToDictionary(idSelector);
+            // 构建 ID → Node 字典（O(1) 查找）
+            var nodeDict = flatList.ToDictionary(idSelector);
 
             foreach (var node in flatList)
             {
-                // 绑定节点选中事件
+                // 1. 注入节点选中事件处理
                 node.NodeSelectedAction = OnNodeSelected;
 
+                // 2. 判断是否为根节点
                 var parentId = parentIdSelector(node);
-                // 判断是否为根节点 (假设父ID为空或0，或者在字典里找不到，即为根)
-                if (parentId == null || parentId.Equals(default(TKey)) || !dict.ContainsKey(parentId))
+                bool isRoot = parentId == null || 
+                              parentId.Equals(default(TKey)) || 
+                              !nodeDict.ContainsKey(parentId);
+
+                if (isRoot)
                 {
                     Roots.Add(node);
                 }
                 else
                 {
-                    var parent = dict[parentId];
+                    var parent = nodeDict[parentId];
                     node.Parent = parent;
                     parent.Children.Add(node);
                 }
@@ -117,7 +123,7 @@ namespace SwiftExport.View.FW.Mvvm
             // 4. 如果匹配成功，展开自身并向上追溯展开父节点
             if (node.IsVisible)
             {
-                node.展开当前节点及其所有父节点();
+                node.ExpandNodeAndAncestors();
             }
 
             return node.IsVisible;
@@ -125,6 +131,9 @@ namespace SwiftExport.View.FW.Mvvm
 
         // ================= 辅助方法 =================
 
+        /// <summary>
+        /// 展开或折叠所有节点
+        /// </summary>
         public void ExpandAll(bool isExpanded = true)
         {
             foreach (var node in AllNodes)
@@ -133,7 +142,9 @@ namespace SwiftExport.View.FW.Mvvm
             }
         }
 
-
+        /// <summary>
+        /// 清空树形结构（回收内存、解除事件引用）
+        /// </summary>
         public virtual void ClearTree()
         {
             // 1. 显式解除委托引用，帮助 GC 飞速回收
@@ -147,6 +158,80 @@ namespace SwiftExport.View.FW.Mvvm
             // 2. 清空集合
             Roots.Clear();
             AllNodes.Clear();
+        }
+
+        // ================= 树形查询辅助方法 =================
+
+        /// <summary>
+        /// 根据节点 ID 查找节点
+        /// </summary>
+        public T FindNodeById(int id)
+        {
+            return AllNodes.FirstOrDefault(n => n.Id == id);
+        }
+
+        /// <summary>
+        /// 获取所有可见的节点（用于导出等操作）
+        /// </summary>
+        public List<T> GetVisibleNodes()
+        {
+            return AllNodes.Where(n => n.IsVisible).ToList();
+        }
+
+        /// <summary>
+        /// 获取所有已选中的节点
+        /// </summary>
+        public List<T> GetSelectedNodes()
+        {
+            return AllNodes.Where(n => n.IsSelected).ToList();
+        }
+
+        /// <summary>
+        /// 获取所有根节点
+        /// </summary>
+        public List<T> GetRootNodes()
+        {
+            return Roots.ToList();
+        }
+
+        /// <summary>
+        /// 获取所有叶子节点（无子节点的节点）
+        /// </summary>
+        public List<T> GetLeafNodes()
+        {
+            return AllNodes.Where(n => n.Children.Count == 0).ToList();
+        }
+
+        /// <summary>
+        /// 递归清空所有节点的选中状态
+        /// </summary>
+        public void ClearSelection()
+        {
+            foreach (var node in AllNodes)
+            {
+                node.IsSelected = false;
+            }
+        }
+
+        /// <summary>
+        /// 递归全选所有节点
+        /// </summary>
+        public void SelectAll()
+        {
+            foreach (var node in AllNodes)
+            {
+                node.IsSelected = true;
+            }
+        }
+
+        /// <summary>
+        /// 获取某节点的所有子节点及自身（用于删除）
+        /// </summary>
+        public List<T> GetNodeAndDescendants(T node)
+        {
+            var result = new List<T> { node };
+            result.AddRange(node.GetAllDescendants());
+            return result;
         }
 
 

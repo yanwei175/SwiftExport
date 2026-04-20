@@ -4,5 +4,5 @@ using SwiftExport.Core.Entities.Systems;
 namespace SwiftExport.Application.Interfaces
 {
     // 接口
-    public interface ISysDictDataService : IBaseService<SysDictData, DictDataDto> { }
+    public interface ISysDictDataService : IBaseService<SysDictData, SysDictDataDto> { }
 }

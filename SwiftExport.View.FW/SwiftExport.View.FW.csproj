@@ -71,31 +71,37 @@
       <DependentUpon>MsgBoxWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="DictViews\Models\DictDataModel.cs" />
+    <Compile Include="DictViews\Models\DictTypeList.cs" />
     <Compile Include="DictViews\Models\DictTypeModel.cs" />
+    <Compile Include="DictViews\Models\DictTypeNavNode.cs" />
     <Compile Include="DictViews\ViewModels\DataDictManagerViewModel.cs" />
-    <Compile Include="DictViews\ViewModels\DictDataManagerViewModel.cs" />
-    <Compile Include="DictViews\ViewModels\DataDictManagerDesignVM.cs" />
-    <Compile Include="DictViews\ViewModels\DictManagerViewModel.cs" />
     <Compile Include="DictViews\ViewModels\DictTypeManagerViewModel.cs" />
+    <Compile Include="DictViews\ViewModels\UnitDictListViewModel.cs" />
     <Compile Include="DictViews\Views\DataDictManagerView.xaml.cs">
       <DependentUpon>DataDictManagerView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="DictViews\Views\DictDataManagerView.xaml.cs" />
-    <Compile Include="DictViews\Views\DictManagerView.xaml.cs">
-      <DependentUpon>DictManagerView.xaml</DependentUpon>
+    <Compile Include="DictViews\Views\DictTypeManagerView.xaml.cs">
+      <DependentUpon>DictTypeManagerView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="DictViews\Views\DictTypeManagerView.xaml.cs" />
+    <Compile Include="DictViews\Views\UnitDictUserControl.xaml.cs">
+      <DependentUpon>UnitDictUserControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="DispatcherProvider.cs" />
     <Compile Include="DI_View.cs" />
     <Compile Include="Interface\IExcelContextService.cs" />
     <Compile Include="Mappings\CustomerMapping.cs" />
     <Compile Include="Mappings\CustomerProductMapping.cs" />
+    <Compile Include="Mappings\DictDataMapping.cs" />
+    <Compile Include="Mappings\DictTypeMapping.cs" />
+    <Compile Include="Mappings\DictTypeTreeMapping.cs" />
     <Compile Include="Mappings\MapsterConfig.cs" />
+    <Compile Include="Mappings\ProductMapping.cs" />
     <Compile Include="Mappings\SalesOrderMapping.cs" />
     <Compile Include="Mvvm\BaseLineModel.cs" />
     <Compile Include="Mvvm\BaseListModel.cs" />
     <Compile Include="Mvvm\BaseTreeListModel.cs" />
     <Compile Include="Mvvm\BaseTreeNodeModel.cs" />
+    <Compile Include="Mvvm\ITreeModelService.cs" />
     <Compile Include="ProductViews\Assists\BomSubSkuSearchAssist.cs" />
     <Compile Include="ProductViews\Assists\PopupPlacementService.cs" />
     <Compile Include="ProductViews\Messages\ProductSelectionResultMessage.cs" />
@@ -150,14 +156,11 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="DictViews\Views\DictDataManagerView.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="DictViews\Views\DictManagerView.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Page Include="DictViews\Views\DictTypeManagerView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="DictViews\Views\UnitDictUserControl.xaml">
+      <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="ProductViews\Views\ProductCategoryManagerView.xaml">

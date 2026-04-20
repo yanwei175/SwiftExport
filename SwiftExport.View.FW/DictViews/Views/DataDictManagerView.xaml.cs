@@ -1,23 +1,13 @@
 ﻿using SwiftExport.View.FW.DictViews.ViewModels;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace SwiftExport.View.FW.DictViews.Views
 {
     /// <summary>
-    /// DataDictManagerView.xaml 的交互逻辑
+    /// 中文注释：主数据与系统字典统一管理窗体
+    /// 左侧使用新的树形模型（DictTypeTreeListModel + DictTypeTreeModel）
+    /// 右侧动态加载字典明细 ViewModel
     /// </summary>
     public partial class DataDictManagerView : UserControl
     {
@@ -25,6 +15,22 @@ namespace SwiftExport.View.FW.DictViews.Views
         {
             InitializeComponent();
             DataContext = vm;
+        }
+
+        /// <summary>
+        /// 全部展开事件处理
+        /// </summary>
+        private void ExpandAll_Click(object sender, RoutedEventArgs e)
+        {
+            (DataContext as DataDictManagerViewModel)?.ExpandAllNodes();
+        }
+
+        /// <summary>
+        /// 全部折叠事件处理
+        /// </summary>
+        private void CollapseAll_Click(object sender, RoutedEventArgs e)
+        {
+            (DataContext as DataDictManagerViewModel)?.CollapseAllNodes();
         }
     }
 }

@@ -67,6 +67,27 @@ namespace SwiftExport.View.FW.ProductViews.Models
             set { if (SetProperty(ref _features, value)) MarkAsModified(); }
         }
 
+        // 价格字段（与 DTO 对应）
+        private decimal _rmbPrice;
+        /// <summary>
+        /// 人民币单价
+        /// </summary>
+        public decimal RmbPrice
+        {
+            get => _rmbPrice;
+            set { if (SetProperty(ref _rmbPrice, value)) MarkAsModified(); }
+        }
+
+        private decimal _usdPrice;
+        /// <summary>
+        /// 美元单价
+        /// </summary>
+        public decimal UsdPrice
+        {
+            get => _usdPrice;
+            set { if (SetProperty(ref _usdPrice, value)) MarkAsModified(); }
+        }
+
         private string _supplyType = string.Empty;
         public string SupplyType
         {
@@ -101,6 +122,16 @@ namespace SwiftExport.View.FW.ProductViews.Models
         {
             get { return _note; }
             set { if (SetProperty(ref _note, value)) MarkAsModified(); }
+        }
+
+        private string _supplierName = string.Empty;
+        /// <summary>
+        /// 供应商名称（DTO 中的聚合字段）
+        /// </summary>
+        public string SupplierName
+        {
+            get => _supplierName;
+            set { if (SetProperty(ref _supplierName, value)) MarkAsModified(); }
         }
 
         private string _linkSku = string.Empty;

@@ -9,7 +9,7 @@ namespace SwiftExport.Contracts.Apis.BaseApi
     {
         // ================= 查询 (GET) =================
 
-        [Get("/")]
+        [Get("/page")]
         Task<ServiceResult<PagedResultDto<TDto>>> GetPagedAsync([Query] PagedRequestDto request);
 
         // 1. 获取列表 (传入 "api/product" 或 "api/product?page=1")

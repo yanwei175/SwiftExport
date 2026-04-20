@@ -23,8 +23,8 @@ namespace SwiftExport.DevApp
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            var win = DiServices.GetService<DictManagerView>();
-            win.ShowDialog();
+            //var win = DiServices.GetService<DictManagerView>();
+            //win.ShowDialog();
         }
 
         private void Button_Click_1(object sender, RoutedEventArgs e)

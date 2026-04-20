@@ -13,12 +13,12 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public string CustomerCode { get; set; }
         public string CustomerPoNo { get; set; }
         public string ShippedBy { get; set; }
-        public string Currency { get; set; }
-        public decimal ExchangeRate { get; set; }
+        public string Currency { get; set; }// 货币
+        public decimal ExchangeRate { get; set; }// 汇率
         public decimal? TotalAmountOriginalCurrency { get; set; }
         public decimal? TotalAmountLocalCurrency { get; set; }
         public decimal? TotalQty { get; set; }
-        public int? LineCount { get; set; }
+        public int? LineCount { get; set; }// 行数
         public decimal? TotalShippedQty { get; set; }
         public decimal? TotalUnshippedQty { get; set; }
         public decimal? TotalPartiallyShippedQty { get; set; }
@@ -26,12 +26,12 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public string ShipToName { get; set; }
         public string ShipToAddress { get; set; }
         public string ShipToPhone { get; set; }
-        public string Incoterm { get; set; }
-        public string IncotermSortRemark { get; set; }
-        public string IncotermLocation { get; set; }
-        public decimal DepositRate { get; set; }
-        public int LeadTimeDays { get; set; }
-        public string PaymentMethod { get; set; }
+        public string Incoterm { get; set; }// 贸易术语
+        public string IncotermSortRemark { get; set; }// 贸易术语备注
+        public string IncotermLocation { get; set; }// 贸易术语地点
+        public decimal DepositRate { get; set; }// 定金比例
+        public int LeadTimeDays { get; set; }// 交货周期（天数）
+        public string PaymentMethod { get; set; }// 付款方式
         public string VersionNo { get; set; }
         public string ApprovalStatus { get; set; }
         public string SoFolder { get; set; }

@@ -13,7 +13,7 @@ namespace SwiftExport.Contracts.DTOs.Products
         public string Features { get; set; }
         public string Finish { get; set; }
 
-        public string SupplyType { get; set; }
+        public string SupplyType { get; set; }//供货类型,直接采购,拆BOM,客供件之类,分解BOM依赖字段.
         public string BomNo { get; set; }
         public string Note { get; set; }
         public string LinkSku { get; set; }

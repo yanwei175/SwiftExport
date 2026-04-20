@@ -619,7 +619,14 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         private async void ExecuteQuickAddFinish()
         {
             var vm = (ProductColorManagerViewModel)_serviceProvider.GetService(typeof(ProductColorManagerViewModel));
-            var win = new Views.ProductColorManagerView(vm);
+            var view = new Views.ProductColorManagerView(vm);
+            var win = new System.Windows.Window { 
+                Title = "产品颜色管理", 
+                Content = view, 
+                Width = 1024, 
+                Height = 768, 
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen 
+            };
             win.ShowDialog();
             // 窗体关闭后重新拉取字典等数据以刷新下拉列表
             await LoadFilterDataAsync();
@@ -1824,3 +1831,5 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         }
     }
 }
+
+

@@ -60,8 +60,9 @@ namespace SwiftExport.View.FW.CustomerViews.Models
             set => SetProperty(ref _description, value);
         }
 
-        private int _categoryId;
-        public int CategoryId
+        // 与 DTO 对齐：分类可能为空
+        private int? _categoryId;
+        public int? CategoryId
         {
             get => _categoryId;
             set => SetProperty(ref _categoryId, value);
@@ -82,6 +83,16 @@ namespace SwiftExport.View.FW.CustomerViews.Models
             set => SetProperty(ref _customerPdDescription, value);
         }
 
+        private string _customerPdSeries;
+        /// <summary>
+        /// 客户产品系列
+        /// </summary>
+        public string CustomerPdSeries
+        {
+            get => _customerPdSeries;
+            set => SetProperty(ref _customerPdSeries, value);
+        }
+
         private string _customerColorName;
         public string CustomerColorName
         {
@@ -94,6 +105,16 @@ namespace SwiftExport.View.FW.CustomerViews.Models
         {
             get => _customerPdFeatures;
             set => SetProperty(ref _customerPdFeatures, value);
+        }
+
+        private string _linkSku;
+        /// <summary>
+        /// Link SKU（关联料号），DTO 中存在
+        /// </summary>
+        public string LinkSku
+        {
+            get => _linkSku;
+            set => SetProperty(ref _linkSku, value);
         }
 
         private string _customerBarcode1;
@@ -129,9 +150,9 @@ namespace SwiftExport.View.FW.CustomerViews.Models
             set => SetProperty(ref _customerSkuUnit, value);
         }
 
-        // 价格相关
-        private decimal _price;
-        public decimal Price
+        // 价格相关（DTO 中为可空）
+        private decimal? _price;
+        public decimal? Price
         {
             get => _price;
             set => SetProperty(ref _price, value);
@@ -145,15 +166,17 @@ namespace SwiftExport.View.FW.CustomerViews.Models
         }
 
         // 业务要求
-        private int _leadTimeDays;
-        public int LeadTimeDays
+
+        // 业务要求（可空，与 DTO 对齐）
+        private int? _leadTimeDays;
+        public int? LeadTimeDays
         {
             get => _leadTimeDays;
             set => SetProperty(ref _leadTimeDays, value);
         }
 
-        private int _moq;
-        public int MOQ
+        private int? _moq;
+        public int? MOQ
         {
             get => _moq;
             set => SetProperty(ref _moq, value);
@@ -172,6 +195,14 @@ namespace SwiftExport.View.FW.CustomerViews.Models
         {
             get => _isDeleted;
             set => SetProperty(ref _isDeleted, value);
+        }
+
+        // DTO 中存在的客户编码
+        private string _customerCode;
+        public string CustomerCode
+        {
+            get => _customerCode;
+            set => SetProperty(ref _customerCode, value);
         }
 
         // 审计字段

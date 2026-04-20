@@ -1,212 +1,320 @@
 ﻿using GalaSoft.MvvmLight.Command;
+using Microsoft.Extensions.DependencyInjection;
+using SwiftExport.Contracts.Apis.SystemApis;
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.DictViews.Models;
+using SwiftExport.View.FW.DictViews.Views;
 using SwiftExport.View.FW.Mvvm;
+using SwiftExport.View.FW.ProductViews.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Windows.Input;
+using System.Windows;
+using System.Windows.Threading;
 
 namespace SwiftExport.View.FW.DictViews.ViewModels
 {
-    public class DictGroup
-    {
-        public string GroupName { get; set; }           // 左侧分组名称（商品属性 / 结算相关 / 自定义字典）
-        public List<DictMenuItem> DictMenuItems { get; set; }     // 属于该分组的字典编码列表
-    }
-
-
-    public class DictMenuItem
-    {
-        public string DictCode { get; set; }
-        public string DictName { get; set; }
-        public bool IsSystem { get; set; }
-
-        public ICommand OpenCommand { get; set; }
-    }
-
-
+    /// <summary>
+    /// 中文注释：主窗体 ViewModel
+    /// 左侧是字典类型只读导航树，右侧是对应的内容面板（字典明细列表）
+    /// 编辑字典类型本身由另一个独立窗体负责
+    /// </summary>
     public class DataDictManagerViewModel : ViewModelBaseEx
     {
-        // ============================
-        // 左侧：分组 + 菜单项
-        // ============================
+        private readonly IServiceProvider _serviceProvider;
+        private readonly ISysDictTypeApi _dictTypeApi;
+        private readonly Dispatcher _dispatcher;
 
-        public ObservableCollection<DictGroup> Groups { get; set; }
-        public ObservableCollection<DictMenuItem> MenuItems { get; set; }
+        // ============= 树形导航 =============
 
-        // ============================
-        // 右侧：当前字典项列表
-        // ============================
+        /// <summary>
+        /// 绑定给 TreeView.ItemsSource 的根节点集合
+        /// 类型统一为 DictTypeNavNode，由后端分组树转换而来
+        /// </summary>
+        public ObservableCollection<DictTypeNavNode> TreeRoots { get; } = new ObservableCollection<DictTypeNavNode>();
 
-        private ObservableCollection<DictDataModel> _currentDictItems;
-        public ObservableCollection<DictDataModel> CurrentDictItems
+        // ============= 搜索 =============
+
+        private string _searchTypeText;
+        public string SearchTypeText
         {
-            get => _currentDictItems;
-            set => SetProperty(ref _currentDictItems, value);
-        }
-
-        private DictMenuItem _selectedMenuItem;
-        public DictMenuItem SelectedMenuItem
-        {
-            get => _selectedMenuItem;
-            set => SetProperty(ref _selectedMenuItem, value);
-        }
-        public DataDictManagerViewModel() 
-        {
-            LoadGroups();
-            LoadMenuItems();
-
-
-        }
-
-
-        // ============================
-        // 1. 左侧分组（写死）
-        // ============================
-
-        private void LoadGroups()
-        {
-            Groups = new ObservableCollection<DictGroup>
+            get => _searchTypeText;
+            set
             {
-                new DictGroup
-                {
-                    GroupName = "商品属性",
-                    DictMenuItems = new List<DictMenuItem> { new DictMenuItem { DictCode = "Color", DictName = "颜色" }, new DictMenuItem { DictCode = "Size", DictName = "尺码" }, new DictMenuItem { DictCode = "Grade", DictName = "产品等级" }, new DictMenuItem { DictCode = "OEType", DictName = "OE类型" } }
-                },
-                new DictGroup
-                {
-                    GroupName = "结算相关",
-                    DictMenuItems = new List<DictMenuItem> { new DictMenuItem { DictCode = "PayMethod", DictName = "结算方式" }, new DictMenuItem { DictCode = "PayTerm", DictName = "结算期限" } }
-                },
-                new DictGroup
-                {
-                    GroupName = "客户属性",
-                    DictMenuItems = new List<DictMenuItem> { new DictMenuItem { DictCode = "CustomerType", DictName = "客户类型" }, new DictMenuItem { DictCode = "CustomerLevel", DictName = "客户等级" } }
-                },
-                //new DictGroup
-                //{
-                //    GroupName = "自定义字典",
-                //    DictMenuItems = LoadCustomDictCodesFromDb()
-                //}
-            };
-
-
-
-
-
+                if (SetProperty(ref _searchTypeText, value))
+                    OnSearchTextChanged();
+            }
         }
 
+        // ============= 右侧内容面板 =============
 
-        // ============================
-        // 2. 左侧菜单项（从 DictType 表加载）
-        // ============================
-
-        private void LoadMenuItems()
+        private object _currentViewModel;
+        public object CurrentViewModel
         {
-            var dictTypes = LoadDictTypesFromDb(); // ← 你自己实现
+            get => _currentViewModel;
+            set => SetProperty(ref _currentViewModel, value);
+        }
 
-            MenuItems = new ObservableCollection<DictMenuItem>();
+        // ============= 状态 =============
 
-            foreach (var group in Groups)
+        private string _statusMessage;
+        public string StatusMessage
+        {
+            get => _statusMessage;
+            set => SetProperty(ref _statusMessage, value);
+        }
+
+        // ============= 命令 =============
+
+        public RelayCommand ExpandAllCommand { get; }
+        public RelayCommand CollapseAllCommand { get; }
+
+        /// <summary>
+        /// 打开字典类型管理独立窗体（增删改）
+        /// </summary>
+        public RelayCommand ManageTypesCommand { get; }
+
+        // ============= 构造函数 =============
+
+        public DataDictManagerViewModel(
+            IServiceProvider serviceProvider,
+            ISysDictTypeApi dictTypeApi,
+            IDialogService dialogService)
+        {
+            _serviceProvider = serviceProvider;
+            _dictTypeApi = dictTypeApi;
+            _dispatcher = Dispatcher.CurrentDispatcher;
+
+            ExpandAllCommand   = new RelayCommand(() => SetExpandAll(true));
+            CollapseAllCommand = new RelayCommand(() => SetExpandAll(false));
+
+            // 打开 DictTypeManagerView 独立窗体
+            ManageTypesCommand = new RelayCommand(() =>
             {
-                foreach (var code in group.DictMenuItems)
-                {
-                    var type = dictTypes.FirstOrDefault(t => t.DictCode == code.DictCode);
-                    if (type == null) continue;
+                var win = _serviceProvider.GetRequiredService<DictTypeManagerView>();
+                win.Owner = Application.Current.MainWindow;
+                // 窗体关闭后刷新左侧树（字典类型可能已变更）
+                win.Closed += (_, __) => _ = LoadDictTypesAsync();
+                win.Show();
+            });
 
-                    MenuItems.Add(new DictMenuItem
-                    {
-                        DictCode = type.DictCode,
-                        DictName = type.DictName,
-                        IsSystem = type.IsSystem,
-                        OpenCommand = new RelayCommand(() => OpenDict(type.DictCode))
-                    });
+            _ = LoadDictTypesAsync();
+        }
+
+        // ============= 数据加载 =============
+
+        /// <summary>
+        /// 从后端加载分组树，转换为统一的 DictTypeNavNode 结构绑定到 TreeView
+        /// 后端已完成分组和多层级树形构建，前端只需遍历转换
+        /// </summary>
+        private async Task LoadDictTypesAsync()
+        {
+            StatusMessage = "正在加载字典类型树...";
+            try
+            {
+                var rst = await _dictTypeApi.GetDictTypeGroupTreeAsync();
+
+                if (!rst.Success || rst.Data == null)
+                {
+                    StatusMessage = "加载失败: " + rst.Message;
+                    return;
                 }
+
+                _dispatcher.Invoke(() =>
+                {
+                    TreeRoots.Clear();
+
+                    // 后端第一层是 DictTypeGroupTreeDto（分组）
+                    // 其 Children 是 List<DictTypeTreeDto>（第二层及以上，支持多层级）
+                    foreach (var groupDto in rst.Data)
+                    {
+                        var groupNode = new DictTypeNavNode
+                        {
+                            DisplayName = groupDto.GroupName,
+                            DictCode    = null,   // 分组节点不对应字典明细
+                            IsGroup     = true,
+                            IsExpanded  = true    // 分组默认展开
+                        };
+
+                        // 递归转换分组下的字典类型树
+                        foreach (var child in groupDto.Children)
+                        {
+                            var childNode = ConvertDictTypeTreeNode(child);
+                            groupNode.Children.Add(childNode);
+                        }
+
+                        TreeRoots.Add(groupNode);
+                    }
+
+                    // 统计叶子节点数量（真实字典类型数量）
+                    var totalCount = CountLeafNodes(TreeRoots);
+                    StatusMessage = $"加载成功，共 {totalCount} 个字典类型";
+                });
+            }
+            catch (Exception ex)
+            {
+                _dispatcher.Invoke(() => StatusMessage = "加载异常: " + ex.Message);
             }
         }
 
-        // ============================
-        // 3. 点击左侧菜单 → 加载右侧字典项
-        // ============================
-
-        private void OpenDict(string dictCode)
+        /// <summary>
+        /// 递归将 DictTypeTreeDto 转换为 DictTypeNavNode
+        /// DictTypeTreeDto 天然支持多层级（Children 是同类型）
+        /// </summary>
+        private DictTypeNavNode ConvertDictTypeTreeNode(DictTypeTreeDto dto)
         {
-            SelectedMenuItem = MenuItems.First(m => m.DictCode == dictCode);
-
-            var items = LoadDictDataFromDb(dictCode); // ← 你自己实现
-
-            CurrentDictItems = new ObservableCollection<DictDataModel>(items);
-        }
-
-        // ============================
-        // 4. 保存（仅用户自定义字典可编辑）
-        // ============================
-
-        public ICommand SaveCommand => new RelayCommand(Save);
-
-        private void Save()
-        {
-            if (SelectedMenuItem.IsSystem)
+            var node = new DictTypeNavNode
             {
+                DisplayName        = dto.DictName,
+                DictCode           = dto.DictCode,
+                TargetViewKey      = dto.TargetViewKey,   // 路由键，驱动右侧面板切换
+                IsGroup            = false,
+                IsExpanded         = false,
+                NodeSelectedAction = OnNodeSelected
+            };
 
-                return;
+            // 递归处理子节点
+            foreach (var child in dto.Children)
+            {
+                node.Children.Add(ConvertDictTypeTreeNode(child));
             }
 
-            SaveDictDataToDb(CurrentDictItems.ToList()); // ← 你自己实现
-
+            return node;
         }
 
-        // ============================
-        // 你需要实现的数据库方法
-        // ============================
+        // ============= 节点选中路由 =============
 
-        private List<DictTypeModel> LoadDictTypesFromDb()
+        /// <summary>
+        /// 树形节点被选中时，根据 TargetViewKey 路由到右侧对应的管理面板
+        /// 
+        /// 路由规则（TargetViewKey → ViewModel）：
+        ///   "ProductColorView"   → ProductColorManagerViewModel  （产品颜色）
+        ///   ——后续按需在此扩展——
+        ///   未匹配 / 分组节点    → 不切换右侧面板
+        /// </summary>
+        private void OnNodeSelected(DictTypeNavNode node)
         {
-            // TODO: 你自己的数据库访问
-            return new List<DictTypeModel>()
+            // 分组节点不加载内容
+            if (node == null || node.IsGroup) return;
+
+            try
             {
-                new DictTypeModel{ DictCode="Color",DictName="2345"},
-                new DictTypeModel{ DictCode="Color",DictName="2345"},
-                new DictTypeModel{ DictCode="Color",DictName="2345"},
-                new DictTypeModel{ DictCode="Color",DictName="2345"},
-                new DictTypeModel{ DictCode="Color",DictName="2345"},
-                new DictTypeModel{ DictCode="Color",DictName="2345"}
-            };
-        }
-
-        private List<string> LoadCustomDictCodesFromDb()
-        {
-            // TODO: 从 DictType 表里找 IsSystem = false 的
-            return new List<string>();
-        }
-
-        private List<DictDataModel> LoadDictDataFromDb(string dictCode)
-        {
-            // TODO: 从 DictData 表加载
-            return new List<DictDataModel>()
+                object vm = ResolveViewModel(node.TargetViewKey, node.DictCode);
+                if (vm != null)
+                    CurrentViewModel = vm;
+            }
+            catch (Exception ex)
             {
-                new DictDataModel{ DictCode="Color",DictLabel="asdkj",DictValue="as22676"},
-                new DictDataModel{ DictCode="Color",DictLabel="asdkj",DictValue="as22676"},
-                new DictDataModel{ DictCode="Color",DictLabel="asdkj",DictValue="as22676"},
-                new DictDataModel{ DictCode="Color",DictLabel="asdkj",DictValue="as22676"},
-                new DictDataModel{ DictCode="Color",DictLabel="asdkj",DictValue="as22676"}
-            };
+                StatusMessage = $"路由失败 [{node.TargetViewKey}]: {ex.Message}";
+                CurrentViewModel = null;
+            }
         }
 
-        private void SaveDictDataToDb(List<DictDataModel> items)
+        /// <summary>
+        /// 根据 TargetViewKey 从 DI 容器解析对应的 ViewModel
+        /// 每次都是新实例（Transient），避免状态污染
+        /// 
+        /// 扩展方式：在 switch 里添加新的 case 即可，同时在 DI_View.cs 中注册对应的 ViewModel
+        /// </summary>
+        private object ResolveViewModel(string targetViewKey, string dictCode)
         {
-            // TODO: 保存到数据库
+            switch (targetViewKey)
+            {
+                // ===== 产品颜色管理 =====
+                case "ProductColorView":
+                    return _serviceProvider.GetRequiredService<ProductColorManagerViewModel>();
+
+                // ===== 预留：后续字典类型陆续在此接入 =====
+                // case "ProductCategoryView":
+                //     return _serviceProvider.GetRequiredService<ProductCategoryManagerViewModel>();
+                // case "SupplierView":
+                //     return _serviceProvider.GetRequiredService<SupplierManagerViewModel>();
+
+                default:
+                    // TargetViewKey 为空或未匹配：右侧面板保持原样，仅更新状态栏提示
+                    StatusMessage = string.IsNullOrWhiteSpace(targetViewKey)
+                        ? $"[{dictCode}] 暂未配置 TargetViewKey"
+                        : $"未找到视图路由：{targetViewKey}";
+                    return null;
+            }
         }
 
+        // ============= 搜索过滤 =============
 
+        /// <summary>
+        /// 搜索文本变化时，过滤节点显示
+        /// 仅过滤字典类型节点（DictType），不过滤分组节点
+        /// </summary>
+        private void OnSearchTextChanged()
+        {
+            FilterNodes(TreeRoots, SearchTypeText);
+        }
 
+        /// <summary>
+        /// 递归过滤节点
+        /// 匹配规则：DictName 或 DictCode 包含关键字时显示；父节点有子节点匹配时也显示
+        /// </summary>
+        private bool FilterNodes(IEnumerable<DictTypeNavNode> nodes, string keyword)
+        {
+            bool anyMatch = false;
 
+            foreach (var node in nodes)
+            {
+                bool selfMatch = node.IsGroup
+                    ? false
+                    : string.IsNullOrWhiteSpace(keyword) ||
+                      (node.DisplayName != null && node.DisplayName.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                      (node.DictCode    != null && node.DictCode.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
 
+                bool childMatch = FilterNodes(node.Children, keyword);
 
+                // 自身匹配或子节点有匹配，则展开并显示
+                node.IsExpanded = childMatch;
 
+                anyMatch = anyMatch || selfMatch || childMatch;
+            }
+
+            return anyMatch;
+        }
+
+        // ============= 展开/折叠 =============
+
+        public void ExpandAllNodes()  => SetExpandAll(true);
+        public void CollapseAllNodes() => SetExpandAll(false);
+
+        private void SetExpandAll(bool isExpanded)
+        {
+            SetExpandNodes(TreeRoots, isExpanded);
+            StatusMessage = isExpanded ? "已展开全部字典类型" : "已折叠全部字典类型";
+        }
+
+        private void SetExpandNodes(IEnumerable<DictTypeNavNode> nodes, bool isExpanded)
+        {
+            foreach (var node in nodes)
+            {
+                node.IsExpanded = isExpanded;
+                SetExpandNodes(node.Children, isExpanded);
+            }
+        }
+
+        // ============= 辅助 =============
+
+        /// <summary>
+        /// 统计叶子节点（真实字典类型）数量
+        /// </summary>
+        private int CountLeafNodes(IEnumerable<DictTypeNavNode> nodes)
+        {
+            int count = 0;
+            foreach (var node in nodes)
+            {
+                if (!node.IsGroup)
+                    count++;
+                count += CountLeafNodes(node.Children);
+            }
+            return count;
+        }
     }
 }
+

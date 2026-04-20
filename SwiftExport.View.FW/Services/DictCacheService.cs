@@ -17,7 +17,7 @@ namespace SwiftExport.View.FW.Services
         Task PreloadAsync(IEnumerable<string> dictCodes = null);
         Task RefreshAsync(string dictCode);
         Task RefreshAllAsync();
-        IReadOnlyList<DictDataDto> GetItems(string dictCode);
+        IReadOnlyList<SysDictDataDto> GetItems(string dictCode);
         IReadOnlyList<string> GetValues(string dictCode);
     }
 
@@ -33,7 +33,7 @@ namespace SwiftExport.View.FW.Services
         };
 
         private readonly ISysDictDataApi _dictDataApi;
-        private readonly ConcurrentDictionary<string, List<DictDataDto>> _cache = new ConcurrentDictionary<string, List<DictDataDto>>(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, List<SysDictDataDto>> _cache = new ConcurrentDictionary<string, List<SysDictDataDto>>(StringComparer.OrdinalIgnoreCase);
         private readonly SemaphoreSlim _locker = new SemaphoreSlim(1, 1);
 
         public DictCacheService(ISysDictDataApi dictDataApi)
@@ -116,14 +116,14 @@ namespace SwiftExport.View.FW.Services
 
 
         /// 获取指定字典的所有数据项，如果缓存中不存在或 dictCode 无效，则返回空列表
-        public IReadOnlyList<DictDataDto> GetItems(string dictCode)
+        public IReadOnlyList<SysDictDataDto> GetItems(string dictCode)
         {
-            if (string.IsNullOrWhiteSpace(dictCode)) return Array.Empty<DictDataDto>();
+            if (string.IsNullOrWhiteSpace(dictCode)) return Array.Empty<SysDictDataDto>();
 
-            List<DictDataDto> items;
+            List<SysDictDataDto> items;
             if (!_cache.TryGetValue(dictCode, out items) || items == null)
             {
-                return Array.Empty<DictDataDto>();
+                return Array.Empty<SysDictDataDto>();
             }
 
             return items;
