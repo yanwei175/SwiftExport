@@ -78,7 +78,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
 
     public virtual async Task<IReadOnlyList<T>> GetAllAsync()
     {
-        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE IsDeleted = 0 OR IsDeleted IS NULL ORDER BY ISNULL(ChangeTime, CreatedDate) DESC";
+        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE IsDeleted = 0 OR IsDeleted IS NULL ORDER BY ISNULL(UpdatedDate, CreatedDate) DESC";
         var rst = await Connection.QueryAsync<T>(sql, transaction: Transaction);
         return [.. rst];
     }

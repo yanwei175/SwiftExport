@@ -106,6 +106,7 @@
     <Compile Include="ProductViews\Assists\PopupPlacementService.cs" />
     <Compile Include="ProductViews\Messages\ProductSelectionResultMessage.cs" />
     <Compile Include="ProductViews\Models\BomTreeNodeModel.cs" />
+    <Compile Include="ProductViews\Models\ProductColorList.cs" />
     <Compile Include="ProductViews\Views\MainProductManagerView.xaml.cs">
       <DependentUpon>MainProductManagerView.xaml</DependentUpon>
     </Compile>

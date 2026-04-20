@@ -3,16 +3,14 @@ using Mapster;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.UiInterface;
-using SwiftExport.Contracts.Wrappers;
 using SwiftExport.View.FW.DictViews.Models;
 using SwiftExport.View.FW.Mvvm;
-using SwiftExport.View.FW.Services;
-using SwiftExport.View.FW.SupplierViews.Models;
 using System;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Threading;
+using System.Windows.Data;
 
 namespace SwiftExport.View.FW.DictViews.ViewModels
 {
@@ -25,8 +23,6 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
     {
         private readonly ISysDictTypeApi _dictTypeApi;
         private readonly IDialogService _msg;
-        private readonly IDictCacheService _dictCacheService;
-        private readonly DispatcherTimer _搜索防抖计时器;
 
         // ============= 数据表 =============
 
@@ -34,6 +30,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         /// 字典类型列表（绑定 DataGrid.ItemsSource = CurrentTable.Items）
         /// </summary>
         public DictTypeList CurrentTable { get; }
+        public ICollectionView ItemsView { get; private set; }
 
         // ============= 选中行 =============
 
@@ -53,6 +50,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
 
         // ============= 搜索 =============
 
+        #region 搜索
         private string _searchText;
         public string SearchText
         {
@@ -61,16 +59,19 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             {
                 if (SetProperty(ref _searchText, value))
                     //防抖搜索开始();
-                DebounceFilter(value); // 触发本地过滤，不发请求！
+                    DebounceFilter(value); // 触发本地过滤，不发请求！
             }
         }
 
         private CancellationTokenSource _debounceCts;
 
-        private  bool FilterItem(SupplierModel item, string searchText)
+        private bool FilterItem(DictTypeModel item, string searchText)
         {
-            return (item.SupplierCode?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                   (item.Name?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0);
+            return (item.DictCode?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                   (item.DictName?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                   (item.GroupName?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                   (item.TargetViewKey?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                   (item.Remark?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         private void DebounceFilter(string text)
@@ -83,32 +84,15 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
                 if (t.IsCanceled) return;
 
                 // 中文注释：过滤刷新统一走线程安全调度，避免跨线程触发 ICollectionView 异常。
-                DispatcherProvider.Invoke(() =>
+                DispatcherProvider.BeginInvoke(() =>
                 {
-                    //CurrentTable.Items.Filter = (obj) => string.IsNullOrWhiteSpace(text) || FilterItem((TModel)obj, text);
-                    //CurrentTable.Items.Refresh();
+                    ItemsView.Filter = (obj) => string.IsNullOrWhiteSpace(text) || FilterItem((DictTypeModel)obj, text);
+                    ItemsView.Refresh();
                 });
             }, TaskScheduler.Default);
         }
 
-
-
-        // ============= 搜索防抖 =============
-
-        private void 防抖搜索开始()
-        {
-            _搜索防抖计时器.Stop();
-            _搜索防抖计时器.Start();
-        }
-
-        private void 搜索防抖计时器_Tick(object sender, EventArgs e)
-        {
-            _搜索防抖计时器.Stop();
-        }
-
-
-
-
+        #endregion
 
         // ============= 状态 =============
 
@@ -119,56 +103,91 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             set => SetProperty(ref _statusMessage, value);
         }
 
-        // ============= 命令可用性 =============
-
-        /// <summary>
-        /// 有脏数据时才能保存
-        /// </summary>
-        public bool CanSave => CurrentTable.IsDirty;
-
-        /// <summary>
-        /// 选中行存在、且不是系统内置时才能删除
-        /// </summary>
-        public bool CanDelete => SelectedItem != null && !SelectedItem.IsSystem;
 
         // ============= 命令 =============
+        #region 创建
+        public RelayCommand CreatCommand { get; }
+        private void Creat()
+        {
+            var model = new DictTypeModel
+            {
+                Id = 0, // 新增行 ID 默认为 0 或负数，表示未持久化
+                DictCode = "",
+                DictName = "",
+                IsSystem = false
+            };
+            EditingItem = model;
+            IsEditDialogOpen = true;
+            SaveEditCommand.RaiseCanExecuteChanged();
+            CancelEditCommand.RaiseCanExecuteChanged();
+        }
+        #endregion
+        #region 删除
+        public bool CanDelete => SelectedItem != null && !SelectedItem.IsSystem;
+        public RelayCommand<DictTypeModel> DeleteCommand { get; }
+        private async Task DeleteAsync(DictTypeModel item)
+        {
 
-        public RelayCommand AddCommand { get; }
-        public RelayCommand SaveCommand { get; }
-        public RelayCommand DeleteCommand { get; }
+            if (item == null) return;
+            var id = item.Id;
+            if (id <= 0)
+            {
+                CurrentTable.Remove(item);
+                return;
+            }
+
+            var confirmed = await _msg.ShowConfirmAsync($"确定要删除选中的 {item.DictName} 字典类型吗？", "确认删除");
+            if (!confirmed) return;
+
+            using (BusyScope())
+            {
+                StatusMessage = $"正在删除 {item.DictName} ...";
+                try
+                {
+                    var rst = await _dictTypeApi.DeleteAsync(id);
+
+                    if (!rst.Success)
+                    {
+                        StatusMessage = "删除失败: " + rst.Message;
+                        await _msg.ShowWarningAsync("删除失败：" + rst.Message);
+                        return;
+                    }
+
+                    StatusMessage = $"已删除 {item.DictName} ";
+                    await LoadAsync();
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = "删除异常: " + ex.Message;
+                }
+            }
+        }
+
+        #endregion
+
         public RelayCommand RefreshCommand { get; }
         public RelayCommand InvertCheckCommand { get; }
 
         // ============= 构造函数 =============
 
-        public DictTypeManagerViewModel(
-            ISysDictTypeApi dictTypeApi,
-            IDialogService dialogService,
-            IDictCacheService dictCacheService)
+
+        #region 加载
+        public DictTypeManagerViewModel(ISysDictTypeApi dictTypeApi, IDialogService dialogService)
         {
             _dictTypeApi = dictTypeApi;
             _msg = dialogService;
-            _dictCacheService = dictCacheService;
 
             CurrentTable = new DictTypeList();
+            ItemsView = CollectionViewSource.GetDefaultView(CurrentTable.Items);
 
-            AddCommand       = new RelayCommand(AddRow);
-            SaveCommand      = new RelayCommand(async () => await SaveAsync(), () => CanSave);
-            DeleteCommand    = new RelayCommand(async () => await DeleteAsync(), () => CanDelete);
-            RefreshCommand   = new RelayCommand(async () => await LoadAsync());
+            CreatCommand = new RelayCommand(Creat);
+            DeleteCommand = new RelayCommand<DictTypeModel>(async (item) => await DeleteAsync(item), item => item != null && !item.IsSystem);
+            RefreshCommand = new RelayCommand(async () => await LoadAsync());
             InvertCheckCommand = new RelayCommand(InvertCheck);
 
-            // 监听表格状态变化 → 刷新命令可用性
-            CurrentTable.ListStateChanged += () =>
-            {
-                RaisePropertyChanged(nameof(CanSave));
-                SaveCommand.RaiseCanExecuteChanged();
-                RaisePropertyChanged(nameof(CanDelete));
-                DeleteCommand.RaiseCanExecuteChanged();
-            };
-
-            _搜索防抖计时器 = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
-            _搜索防抖计时器.Tick += 搜索防抖计时器_Tick;
+            OpenEditCommand = new RelayCommand<DictTypeModel>(OpenEdit);
+            SaveEditCommand = new RelayCommand(async () => await SaveEditAsync(), () => EditingItem != null);
+            CancelEditCommand = new RelayCommand(CancelEdit, () => IsEditDialogOpen);
 
             _ = LoadAsync();
         }
@@ -208,93 +227,82 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             }
         }
 
-        // ============= 新增 =============
+        #endregion
 
-        /// <summary>
-        /// 在表格头部插入新行
-        /// </summary>
-        private void AddRow()
+
+
+        #region 编辑
+        private bool _isEditDialogOpen;
+        public bool IsEditDialogOpen
         {
-            using (BusyScope())
-            {
-                var model = new DictTypeModel
-                {
-                    IsSystem = false,
-                    SortOrder = 0
-                };
-                model.MarkAsAdded();
-                CurrentTable.AddModelToFirst(model);
-                StatusMessage = "已添加新行，请填写字典编码和名称后保存。";
-            }
+            get => _isEditDialogOpen;
+            set => SetProperty(ref _isEditDialogOpen, value);
         }
 
-        // ============= 保存 =============
-
-        /// <summary>
-        /// 批量保存脏数据（新增 / 修改 / 删除）
-        /// </summary>
-        private async Task SaveAsync()
+        private DictTypeModel _editingItem;
+        public DictTypeModel EditingItem
         {
-            // 验证所有脏行
-            var dirtyItems = CurrentTable.Items
-                .Where(x => x.State == ModelState.Added || x.State == ModelState.Modified)
-                .ToList();
-            foreach (var item in dirtyItems)
+            get => _editingItem;
+            set => SetProperty(ref _editingItem, value);
+        }
+
+        public RelayCommand<DictTypeModel> OpenEditCommand { get; }
+        private void OpenEdit(DictTypeModel dictTypeModel)
+        {
+            if (dictTypeModel == null) return;
+
+            if (EditingItem == null)
             {
-                var fieldErr = item[nameof(DictTypeModel.DictCode)];
-                if (!string.IsNullOrEmpty(fieldErr))
-                {
-                    await _msg.ShowWarningAsync($"保存失败：{fieldErr}");
-                    return;
-                }
-                fieldErr = item[nameof(DictTypeModel.DictName)];
-                if (!string.IsNullOrEmpty(fieldErr))
-                {
-                    await _msg.ShowWarningAsync($"保存失败：{fieldErr}");
-                    return;
-                }
+                EditingItem = new DictTypeModel();
             }
 
-            // 检查编码重复（仅活跃行）
-            var activeItems = CurrentTable.Items
-                .Where(x => x.State != ModelState.Deleted)
-                .ToList();
-            var dup = activeItems
-                .GroupBy(x => (x.DictCode ?? string.Empty).Trim().ToUpper())
-                .FirstOrDefault(g => !string.IsNullOrWhiteSpace(g.Key) && g.Count() > 1);
-            if (dup != null)
+            //拷贝一份数据到 EditingItem，避免直接修改 SelectedItem 导致表格行变脏
+            foreach (var prop in typeof(DictTypeModel).GetProperties())
             {
-                await _msg.ShowWarningAsync($"保存失败：字典编码【{dup.Key}】重复，请修正后再保存。");
-                return;
+                if (prop.CanRead && prop.CanWrite)
+                    prop.SetValue(EditingItem, prop.GetValue(dictTypeModel));
             }
+            SelectedItem = dictTypeModel;
+            IsEditDialogOpen = true;
+            SaveEditCommand.RaiseCanExecuteChanged();
+            CancelEditCommand.RaiseCanExecuteChanged();
+        }
 
+        public RelayCommand SaveEditCommand { get; }
+        private async Task SaveEditAsync()
+        {
+            if (!IsEditDialogOpen) return;
+            if (EditingItem == null) return;
+            var dto = EditingItem.Adapt<SysDictTypeDto>();
             using (BusyScope())
             {
                 StatusMessage = "保存中...";
                 try
                 {
-                    // GetChangeSet 返回 BatchRequestGeneric<DictTypeModel>（Model层）
-                    // 用 Mapster Adapt 转为 DTO 再发给后端
-                    var changeSet = CurrentTable.GetChangeSet();
-                    var batch = new BatchRequestGeneric<SysDictTypeDto>
+                    if (EditingItem.Id <= 0)
                     {
-                        AddList      = changeSet.AddList?.Adapt<System.Collections.Generic.List<SysDictTypeDto>>(),
-                        UpdateList   = changeSet.UpdateList?.Adapt<System.Collections.Generic.List<SysDictTypeDto>>(),
-                        DeleteIdList = changeSet.DeleteIdList
-                    };
-                    var rst = await _dictTypeApi.BatchSaveAsync(batch);
-
-                    if (!rst.Success)
-                    {
-                        StatusMessage = "保存失败: " + rst.Message;
-                        await _msg.ShowWarningAsync("保存失败：" + rst.Message);
-                        return;
+                        // 新增
+                        var addRst = await _dictTypeApi.CreateAsync(dto);
+                        if (!addRst.Success)
+                        {
+                            StatusMessage = "添加失败: " + addRst.Message;
+                            await _msg.ShowWarningAsync("添加失败：" + addRst.Message);
+                            return;
+                        }
                     }
-                    StatusMessage = "保存成功";
+                    else
+                    {
+                        var rst = await _dictTypeApi.UpdateAsync(dto.Id, dto);
+                        if (!rst.Success)
+                        {
+                            StatusMessage = "保存失败: " + rst.Message;
+                            await _msg.ShowWarningAsync("保存失败：" + rst.Message);
+                            return;
+                        }
+                        StatusMessage = "保存成功";
+                    }
 
-                    // 刷新字典缓存（Fire-and-forget，不阻塞 UI）
-                    _ = _dictCacheService.RefreshAllAsync();
-
+                    IsEditDialogOpen = false;
                     // 重新加载以同步最新服务端数据（ID 回填等）
                     await LoadAsync();
                 }
@@ -305,6 +313,25 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             }
         }
 
+        public RelayCommand CancelEditCommand { get; }
+        private void CancelEdit()
+        {
+            IsEditDialogOpen = false;
+            EditingItem = null;
+            SaveEditCommand.RaiseCanExecuteChanged();
+            CancelEditCommand.RaiseCanExecuteChanged();
+        }
+
+
+
+
+
+
+        #endregion
+
+
+
+
         // ============= 删除 =============
 
         /// <summary>
@@ -312,67 +339,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         /// - 新增行（未持久化）：直接从列表移除
         /// - 已持久化行：调用 API 删除后重新加载
         /// </summary>
-        private async Task DeleteAsync()
-        {
-            if (SelectedItem == null) return;
 
-            // 勾选行批量删除优先，否则删除选中行
-            var toDelete = CurrentTable.GetCheckedItems();
-            if (toDelete.Count == 0)
-                toDelete.Add(SelectedItem);
-
-            // 过滤掉系统内置（且已持久化）的行
-            var systemItems = toDelete.Where(x => x.IsSystem && x.Id > 0).ToList();
-            if (systemItems.Any())
-            {
-                await _msg.ShowWarningAsync($"以下系统内置字典类型无法删除：{string.Join(", ", systemItems.Select(x => x.DictCode))}");
-                toDelete = toDelete.Except(systemItems).ToList();
-                if (toDelete.Count == 0) return;
-            }
-
-            // 1. 新增行（未保存过）直接从列表移除，不需要确认
-            var newRows = toDelete.Where(x => x.Id <= 0).ToList();
-            foreach (var item in newRows)
-            {
-                CurrentTable.Remove(item);
-                toDelete.Remove(item);
-            }
-
-            // 2. 已持久化行调用后端 API 批量删除
-            if (toDelete.Count == 0) return;
-
-            var confirmed = await _msg.ShowConfirmAsync($"确定要删除选中的 {toDelete.Count} 条字典类型吗？", "确认删除");
-            if (!confirmed) return;
-
-            using (BusyScope())
-            {
-                StatusMessage = $"正在删除 {toDelete.Count} 条记录...";
-                try
-                {
-                    // 构建仅含 DeleteIdList 的批量请求
-                    var batch = new BatchRequestGeneric<SysDictTypeDto>
-                    {
-                        DeleteIdList = toDelete.Select(x => x.Id).ToList()
-                    };
-                    var rst = await _dictTypeApi.BatchSaveAsync(batch);
-
-                    if (!rst.Success)
-                    {
-                        StatusMessage = "删除失败: " + rst.Message;
-                        await _msg.ShowWarningAsync("删除失败：" + rst.Message);
-                        return;
-                    }
-
-                    StatusMessage = $"已删除 {toDelete.Count} 条记录";
-                    _ = _dictCacheService.RefreshAllAsync();
-                    await LoadAsync();
-                }
-                catch (Exception ex)
-                {
-                    StatusMessage = "删除异常: " + ex.Message;
-                }
-            }
-        }
 
         // ============= 反选 =============
 
@@ -382,6 +349,6 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
                 item.IsChecked = !item.IsChecked;
         }
 
- 
+
     }
 }

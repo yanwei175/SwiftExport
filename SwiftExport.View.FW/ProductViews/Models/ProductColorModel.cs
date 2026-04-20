@@ -1,19 +1,35 @@
-﻿using SwiftExport.View.FW.Mvvm;
+﻿using Mapster;
+using SwiftExport.Contracts.SysEnums;
+using SwiftExport.View.FW.Mvvm;
+using System.ComponentModel;
+using System.Threading.Tasks;
 
 namespace SwiftExport.View.FW.ProductViews.Models
 {
 
-    public class ProductColorModel : ViewModelBaseEx, IBaseModel
+    public class ProductColorModel : BaseLineModel, IDataErrorInfo
     {
-        public int Id { get; set; }
-
-        private ModelState _state = ModelState.Unchanged;
-        public ModelState State
+        /// <summary>
+        /// 从 DTO 加载数据到 Model
+        /// </summary>
+        public override void LoadFromDto<ProductColorModel>(ProductColorModel dto, bool 抑制清理脏数据 = false)
         {
-            get => _state;
-            set { _state = value; RaisePropertyChanged(nameof(State)); }
+            if (dto == null) return;
+
+            using (程序内部修改Scope())
+            {
+                dto.Adapt(this);  // 使用 Mapster 映射 DTO → Model
+                if (this.Id == 0)
+                {
+                    this.MarkAsAdded();
+                }
+
+                if (!抑制清理脏数据)
+                    CommitChanges();
+            }
         }
 
+        #region 字段属性
         private string _colorCodeUnique;
         public string ColorCodeUnique
         {
@@ -49,35 +65,63 @@ namespace SwiftExport.View.FW.ProductViews.Models
             get => _colorNameZh;
             set { if (_colorNameZh != value) { _colorNameZh = value; MarkAsModified(); RaisePropertyChanged(nameof(ColorNameZh)); } }
         }
+        #endregion
 
-        private bool _isChecked;
-        public bool IsChecked
-        {
-            get => _isChecked;
-            set
-            {
-                _isChecked = value;
-                RaisePropertyChanged(nameof(IsChecked));
-            }
-        }
+        #region IDataErrorInfo Members
 
+        /// <summary>
+        /// 行级错误（返回 null 避免整行标红）
+        /// </summary>
+        public override string Error => null;
 
-        public bool IsValid
+        /// <summary>
+        /// 字段级验证
+        /// </summary>
+        public override string this[string columnName]
         {
             get
             {
-                // 如果所有必填项都没有错误信息，则代表合法
-                return !string.IsNullOrWhiteSpace(ColorCodeUnique) &&
-                                       !string.IsNullOrWhiteSpace(ColorCode);
+                string result = null;
+
+                if (columnName == nameof(ColorCodeUnique))
+                {
+                    if (string.IsNullOrWhiteSpace(ColorCodeUnique))
+                        result = "颜色代码(唯一)不能为空";
+                }
+
+                if (columnName == nameof(ColorNameZh))
+                {
+                    if (string.IsNullOrWhiteSpace(ColorNameZh))
+                        result = "颜色名称不能为空";
+                }
+
+                return result;
             }
         }
 
-        private void MarkAsModified()
+        #endregion
+
+        #region 行级/异步验证
+
+        /// <summary>
+        /// 行级验证（跨字段验证）
+        /// </summary>
+        public override string ValidateRow()
         {
-            if (State == ModelState.Unchanged)
-            {
-                State = ModelState.Modified;
-            }
+            // 可扩展：检查编码唯一性等跨字段逻辑
+            return null;
         }
+
+        /// <summary>
+        /// 异步验证（数据库验证）
+        /// </summary>
+        public override async Task<string> ValidateAsync()
+        {
+            // 可扩展：检查编码是否已存在等
+            return null;
+        }
+
+        #endregion
+
     }
 }

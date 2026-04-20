@@ -93,8 +93,9 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             // 打开 DictTypeManagerView 独立窗体
             ManageTypesCommand = new RelayCommand(() =>
             {
-                var win = _serviceProvider.GetRequiredService<DictTypeManagerView>();
-                win.Owner = Application.Current.MainWindow;
+                var win=new Window { Width=1080, Height=720, Title="字典类型管理" };
+                var ctrl = _serviceProvider.GetRequiredService<DictTypeManagerView>();
+                win.Content = ctrl;
                 // 窗体关闭后刷新左侧树（字典类型可能已变更）
                 win.Closed += (_, __) => _ = LoadDictTypesAsync();
                 win.Show();
@@ -202,8 +203,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             try
             {
                 object vm = ResolveViewModel(node.TargetViewKey, node.DictCode);
-                if (vm != null)
-                    CurrentViewModel = vm;
+                CurrentViewModel = vm;
             }
             catch (Exception ex)
             {

@@ -26,11 +26,11 @@
             <productview:ProductColorManagerView/>
         </DataTemplate>
 
-        <!-- 预留示例（取消注释即可接入）
+         <!--预留示例（取消注释即可接入）-->
         <DataTemplate DataType="{x:Type productvm:ProductCategoryManagerViewModel}">
             <productview:ProductCategoryManagerView/>
         </DataTemplate>
-        -->
+        
 
     </UserControl.Resources>
     
@@ -137,7 +137,7 @@
                       HorizontalAlignment="Center"/>
 
         <!-- ============ 右侧：内容面板 ============ -->
-        <Border Grid.Column="2" Grid.RowSpan="2" Background="{DynamicResource Brush_Control_Background}" Margin="10,10,10,10" CornerRadius="4" mt:ShadowAssist.Level="Medium">
+        <Border Grid.Column="2" Grid.RowSpan="2" Background="{DynamicResource Brush_Control_Background}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>

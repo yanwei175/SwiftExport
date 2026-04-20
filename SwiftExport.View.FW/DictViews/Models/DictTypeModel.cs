@@ -15,7 +15,7 @@ namespace SwiftExport.View.FW.DictViews.Models
         /// <summary>
         /// 从 DTO 加载数据到 Model
         /// </summary>
-        public override void LoadFromDto<TDto>(TDto dto, bool 抑制清理脏数据 = false)
+        public override void LoadFromDto<DictTypeModel>(DictTypeModel dto, bool 抑制清理脏数据 = false)
         {
             if (dto == null) return;
 

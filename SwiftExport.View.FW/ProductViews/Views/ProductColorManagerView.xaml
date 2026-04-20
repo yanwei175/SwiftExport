@@ -1,118 +1,211 @@
 ﻿<UserControl x:Class="SwiftExport.View.FW.ProductViews.Views.ProductColorManagerView"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
- 
         xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
-         Height="768" Width="1024"
-        
-        Background="White">
+        xmlns:vm="clr-namespace:SwiftExport.View.FW.ProductViews.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance vm:ProductColorManagerViewModel}"
+        d:Height="720" d:Width="1100"
+        Background="Transparent">
 
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Border Grid.Row="0"  Background="White" BorderBrush="{DynamicResource Primary1Brush}" BorderThickness="0,0,0,1" Padding="15">
+        <Border Margin="10" Padding="5" 
+                Background="White"
+                mt:ShadowAssist.Level="Medium">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>  <!-- 工具栏 -->
+                    <RowDefinition Height="Auto"/>  <!-- 搜索栏 -->
+                    <RowDefinition Height="*"/>     <!-- DataGrid -->
+                    <RowDefinition Height="Auto"/>  <!-- 状态栏 -->
+                </Grid.RowDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <Button Margin="0,0,10,0"
-                             Style="{StaticResource ButtonPrimary}"
-                             mt:ButtonAssist.IconSize="10"
-                             mt:ButtonAssist.Icon="{StaticResource Icon.Add}"
-                            Content="新增"
-                            Command="{Binding AddNewRowCommand}" >
-                    </Button>
+                <!-- ===== 工具栏 ===== -->
+                <Border Grid.Row="0" BorderThickness="0,0,0,1"
+                        BorderBrush="{DynamicResource Brush_Border_Light}" Padding="15,10">
+                    <StackPanel Orientation="Horizontal">
 
-                    <Button  Margin="0,0,10,0"
-                             Style="{StaticResource ButtonSuccess}"
-                             mt:ButtonAssist.IconSize="10"
-                             mt:ButtonAssist.Icon="{StaticResource Icon.Save}"
-                             Content="保存"
-                            Command="{Binding BatchSaveCommand}" >
-                    </Button>
+                        <TextBlock Text="产品颜色配置" FontSize="16" FontWeight="Bold"
+                                   VerticalAlignment="Center" Margin="0,0,20,0"/>
 
-                    <Button  Margin="0,0,10,0"
-                             Style="{StaticResource ButtonBase}"
-                             mt:ButtonAssist.IconSize="10"
-                             mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
-                             Content="刷新"
-                            Command="{Binding LoadCommand}" >
-                    </Button>
-                </StackPanel>
+                        <Button Margin="0,0,8,0"
+                                Style="{StaticResource ButtonPrimary}"
+                                Content="创建"
+                                mt:ButtonAssist.IconSize="12"
+                                mt:ButtonAssist.Icon="{StaticResource Icon.Add}"
+                                Command="{Binding CreatCommand}"/>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="筛选: " VerticalAlignment="Center" Foreground="#666" Margin="0,0,5,0"/>
-                    <TextBox Width="250" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"/>
-                </StackPanel>
+                        <Button Margin="0,0,8,0"
+                                Style="{StaticResource ButtonBase}"
+                                Content="刷新"
+                                mt:ButtonAssist.IconSize="12"
+                                mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
+                                Command="{Binding RefreshCommand}"/>
+
+                        <Rectangle Width="1" Fill="{DynamicResource Brush_Border_Light}"
+                                   Margin="5,4,12,4" VerticalAlignment="Stretch"/>
+
+                    </StackPanel>
+                </Border>
+
+                <!-- ===== 搜索栏 ===== -->
+                <Border Grid.Row="1" BorderThickness="0,0,0,1"
+                        BorderBrush="{DynamicResource Brush_Border_Light}" Padding="15,8">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="筛选: " VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBox Width="300" Height="30" VerticalContentAlignment="Center" Padding="6,0"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 Tag="搜索颜色代码 / 名称..."/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ===== DataGrid ===== -->
+                <DataGrid Grid.Row="2"
+                          ItemsSource="{Binding ItemsView}"
+                          SelectedItem="{Binding SelectedItem}"
+                          IsReadOnly="True"
+                          RowHeight="40"
+                          CanUserAddRows="False"
+                          AutoGenerateColumns="False"
+                          BorderThickness="0"
+                          SelectionUnit="FullRow"
+                          EnableRowVirtualization="False"
+                          EnableColumnVirtualization="False"
+                          mt:DataGridAssist.ShowRowNumber="True"
+                          mt:DataGridAssist.EnableSoftValidation="True"
+                          mt:DataGridAssist.AutoScrollToNewItem="True">
+
+                    <DataGrid.Columns>
+
+                        <DataGridTextColumn Header="颜色代码(唯一)" Width="150" FontWeight="Bold"
+                                            Binding="{Binding ColorCodeUnique, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
+                                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+
+                        <DataGridTextColumn Header="颜色代码" Width="150"
+                                            Binding="{Binding ColorCode, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
+                                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+
+                        <DataGridTextColumn Header="颜色英文名称" Width="200"
+                                            Binding="{Binding ColorNameEn, UpdateSourceTrigger=PropertyChanged}"
+                                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+
+                        <DataGridTextColumn Header="颜色中文名称" Width="*"
+                                            Binding="{Binding ColorNameZh, UpdateSourceTrigger=PropertyChanged}"
+                                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+
+                        <DataGridTemplateColumn Header="操作" Width="80">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <Button Style="{StaticResource ButtonIcon}"
+                                                Command="{Binding DataContext.OpenEditCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                mt:ButtonAssist.IconSize="13"
+                                                mt:ButtonAssist.IconForeground="{DynamicResource Brush_Primary}"
+                                                mt:ButtonAssist.Icon="{StaticResource Icon.Edit}"
+                                                />
+                                        <Button Style="{StaticResource ButtonIcon}"
+                                                Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                mt:ButtonAssist.IconSize="13"
+                                                mt:ButtonAssist.IconForeground="{DynamicResource Brush_Danger}"
+                                                mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"
+                                                />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- ===== 状态栏 ===== -->
+                <Border Grid.Row="3"
+                        BorderBrush="{DynamicResource Brush_Border_Light}"
+                        BorderThickness="0,1,0,0" Padding="15,5">
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="12"
+                               Foreground="{DynamicResource Brush_Txt_Secondary}"
+                               VerticalAlignment="Center"/>
+                </Border>
             </Grid>
         </Border>
 
+        <!-- 2. 弹窗遮罩层 (默认隐藏) -->
+        <Grid x:Name="DialogEdit"               
+              Background="#66000000"
+              Visibility="{Binding IsEditDialogOpen, Converter={StaticResource BoolToVis}}"
+              d:Visibility="Collapsed"
+              Panel.ZIndex="999"
+              FocusManager.IsFocusScope="True">
 
-        <Border  Grid.Row="1" Background="White"  BorderThickness="0,0,0,0" Padding="5,5">
-            <DataGrid
-                  ItemsSource="{Binding ItemsView}" 
-                  RowHeight="40">
+            <!-- 简单的模态框 -->
+            <Border Style="{StaticResource Dialog}"
+                    VerticalAlignment="Center" 
+                    HorizontalAlignment="Center" 
+                    Padding="20">
 
-                
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="编辑颜色" Style="{StaticResource BoldTextBlock}" Margin="0,0,0,10"/>
 
-                <DataGrid.Columns>
+                    <Grid x:Name="EditPanelGrid" Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="256"/>
+                        </Grid.ColumnDefinitions>
 
-                    <DataGridTextColumn Header="颜色代码(唯一)" 
-                                        Binding="{Binding ColorCodeUnique}" 
-                                        Width="120" FontWeight="Bold"/>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                    <DataGridTextColumn Header="颜色代码" 
-                                        Binding="{Binding ColorCode}" 
-                                        Width="150"/>
-                    
-                    <DataGridTextColumn Header="颜色英文名称" 
-                                        Binding="{Binding ColorNameEn}" Width="200"/>
-                    
-                    <DataGridTextColumn Header="颜色中文名称" 
-                                        Binding="{Binding ColorNameZh}" Width="*"/>
-                    
-                    <DataGridTemplateColumn Header="操作" Width="100">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Button CommandParameter="{Binding}" Width="60" Height="24" Padding="0" Foreground="White">
-                                    <Button.Style>
-                                        <Style TargetType="Button" BasedOn="{StaticResource  ButtonOutline}">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="颜色代码(唯一):" TextAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,0" />
+                        <TextBox Grid.Row="0" Grid.Column="1" Margin="2,5"
+                                 Text="{Binding EditingItem.ColorCodeUnique, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
 
-                                            <Setter Property="Content" Value="删除"/>
-                                            <Setter Property="Background" Value="{DynamicResource Brush_Error}"/>
-                                            <Setter Property="Command" Value="{Binding DataContext.SingleDeleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="颜色代码:" TextAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,0" />
+                        <TextBox Grid.Row="1" Grid.Column="1" Margin="2,5"
+                                 Text="{Binding EditingItem.ColorCode, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
 
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding State}" Value="Deleted">
-                                                        <Setter Property="Content" Value="撤销"/>
-                                                        <Setter Property="Background" Value="{StaticResource Primary1Brush}"/>
-                                                        <Setter Property="Command" Value="{Binding DataContext.CancelDeleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="颜色英文名称:" TextAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,0" />
+                        <TextBox Grid.Row="2" Grid.Column="1" Margin="2,5"
+                                 Text="{Binding EditingItem.ColorNameEn, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                            </Style>
-                                    </Button.Style>
-                                </Button>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="颜色中文名称:" TextAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,0" />
+                        <TextBox Grid.Row="3" Grid.Column="1" Margin="2,5"
+                                 Text="{Binding EditingItem.ColorNameZh, UpdateSourceTrigger=PropertyChanged}"/>
 
-            </DataGrid>
-        </Border>
+                    </Grid>
 
-        <Border  Grid.Row="2" Background="White"  BorderThickness="0,1,0,0" Padding="15,5">
-            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#666" VerticalAlignment="Center"/>
-        </Border>
-
-        <mt:DialogHost />
+                    <StackPanel Grid.Row="2" Margin="0,15,0,0"
+                                Orientation="Horizontal" 
+                                HorizontalAlignment="Right">
+                        
+                        <Button Width="70" Margin="0,0,8,0"
+                                Style="{StaticResource ButtonPrimary}"
+                                Content="取消"
+                                Command="{Binding CancelEditCommand}"/>
+                        
+                        <Button Width="70" Margin="0,0,0,0"
+                                Style="{StaticResource ButtonSuccess}"
+                                Content="保存"
+                                Command="{Binding SaveEditCommand}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+        
+        <mt:DialogHost/>
     </Grid>
 </UserControl>

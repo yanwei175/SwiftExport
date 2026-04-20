@@ -1,70 +1,327 @@
-﻿using SwiftExport.Contracts.Apis.ProductApis;
+﻿using GalaSoft.MvvmLight.Command;
+using Mapster;
+using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.Mvvm;
 using SwiftExport.View.FW.ProductViews.Models;
 using System;
-using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Data;
 
 namespace SwiftExport.View.FW.ProductViews.ViewModels
 {
-    public class ProductColorManagerViewModel : BaseSmallDataManagerViewModel<ProductColorModel, ProductColorDto>
+    public class ProductColorManagerViewModel : ViewModelBaseEx
     {
+        private readonly IProductColorApi _api;
         private readonly IDialogService _msg;
-        public ProductColorManagerViewModel(IProductColorApi api, IDialogService dialogService) : base(api, dialogService)
+
+        // ============= 数据表 =============
+
+        public ProductColorList CurrentTable { get; }
+        public ICollectionView ItemsView { get; private set; }
+
+        // ============= 选中行 =============
+
+        private ProductColorModel _selectedItem;
+        public ProductColorModel SelectedItem
         {
-            _msg = dialogService;
+            get => _selectedItem;
+            set
+            {
+                if (SetProperty(ref _selectedItem, value))
+                {
+                    RaisePropertyChanged(nameof(CanDelete));
+                    DeleteCommand.RaiseCanExecuteChanged();
+                }
+            }
         }
 
-        protected override bool FilterItem(ProductColorModel item, string searchText)
+        // ============= 搜索 =============
+
+        #region 搜索
+        private string _searchText;
+        public string SearchText
+        {
+            get => _searchText;
+            set
+            {
+                if (SetProperty(ref _searchText, value))
+                    DebounceFilter(value);
+            }
+        }
+
+        private CancellationTokenSource _debounceCts;
+
+        private bool FilterItem(ProductColorModel item, string searchText)
         {
             return (item.ColorCode?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
                    (item.ColorNameEn?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                   (item.ColorNameZh?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0);
+                   (item.ColorNameZh?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                   (item.ColorCodeUnique?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
-        protected override async Task<bool> ValidateBeforeSaveAsync(List<ProductColorModel> dirtyModels)
+        private void DebounceFilter(string text)
         {
-            // 1. 必填项空值拦截 (这是替代了以前前端红框的防线)
-            var emptyItems = dirtyModels.Where(x => !x.IsValid).ToList();
-            if (emptyItems.Any())
+            _debounceCts?.Cancel();
+            _debounceCts = new CancellationTokenSource();
+
+            Task.Delay(350, _debounceCts.Token).ContinueWith(t =>
+            {
+                if (t.IsCanceled) return;
+
+                DispatcherProvider.BeginInvoke(() =>
+                {
+                    ItemsView.Filter = (obj) => string.IsNullOrWhiteSpace(text) || FilterItem((ProductColorModel)obj, text);
+                    ItemsView.Refresh();
+                });
+            }, TaskScheduler.Default);
+        }
+
+        #endregion
+
+        // ============= 状态 =============
+
+        private string _statusMessage = "准备就绪";
+        public string StatusMessage
+        {
+            get => _statusMessage;
+            set => SetProperty(ref _statusMessage, value);
+        }
+
+
+        // ============= 命令 =============
+        #region 创建
+        public RelayCommand CreatCommand { get; }
+        private void Creat()
+        {
+            var model = new ProductColorModel
+            {
+                Id = 0,
+                ColorCodeUnique = "",
+                ColorCode = "",
+                ColorNameEn = "",
+                ColorNameZh = ""
+            };
+            EditingItem = model;
+            IsEditDialogOpen = true;
+            SaveEditCommand.RaiseCanExecuteChanged();
+            CancelEditCommand.RaiseCanExecuteChanged();
+        }
+        #endregion
+        #region 删除
+        public bool CanDelete => SelectedItem != null;
+        public RelayCommand<ProductColorModel> DeleteCommand { get; }
+        private async Task DeleteAsync(ProductColorModel item)
+        {
+
+            if (item == null) return;
+            var id = item.Id;
+            if (id <= 0)
+            {
+                CurrentTable.Remove(item);
+                return;
+            }
+
+            var confirmed = await _msg.ShowConfirmAsync($"确定要删除选中的颜色 {item.ColorNameZh} 吗？", "确认删除");
+            if (!confirmed) return;
+
+            using (BusyScope())
+            {
+                StatusMessage = $"正在删除 {item.ColorNameZh} ...";
+                try
+                {
+                    var rst = await _api.DeleteAsync(id);
+
+                    if (!rst.Success)
+                    {
+                        StatusMessage = "删除失败: " + rst.Message;
+                        await _msg.ShowWarningAsync("删除失败：" + rst.Message);
+                        return;
+                    }
+
+                    StatusMessage = $"已删除 {item.ColorNameZh} ";
+                    await LoadAsync();
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = "删除异常: " + ex.Message;
+                }
+            }
+        }
+
+        #endregion
+
+        public RelayCommand RefreshCommand { get; }
+
+        // ============= 构造函数 =============
+
+        #region 加载
+        public ProductColorManagerViewModel(IProductColorApi api, IDialogService dialogService)
+        {
+            _api = api;
+            _msg = dialogService;
+
+            CurrentTable = new ProductColorList();
+            ItemsView = CollectionViewSource.GetDefaultView(CurrentTable.Items);
+
+            CreatCommand = new RelayCommand(Creat);
+            DeleteCommand = new RelayCommand<ProductColorModel>(async (item) => await DeleteAsync(item), item => item != null);
+            RefreshCommand = new RelayCommand(async () => await LoadAsync());
+
+            OpenEditCommand = new RelayCommand<ProductColorModel>(OpenEdit);
+            SaveEditCommand = new RelayCommand(async () => await SaveEditAsync(), () => EditingItem != null);
+            CancelEditCommand = new RelayCommand(CancelEdit, () => IsEditDialogOpen);
+
+            _ = LoadAsync();
+        }
+
+        // ============= 数据加载 =============
+
+        private async Task LoadAsync()
+        {
+            using (BusyScope())
+            {
+                StatusMessage = "加载中...";
+                try
+                {
+
+                    var rst = await _api.GetAllAsync();
+
+                    DispatcherProvider.BeginInvoke(() =>
+                    {
+                        if (rst.Success && rst.Data != null)
+                        {
+                            CurrentTable.ReLoadRangeFromDtoList(rst.Data.ToList());
+                            StatusMessage = $"共 {rst.Data.Count} 条记录";
+                        }
+                        else
+                        {
+                            StatusMessage = "加载失败: " + rst.Message;
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = "加载异常: " + ex.Message;
+                }
+            }
+        }
+
+        #endregion
+
+
+
+        #region 编辑
+        private bool _isEditDialogOpen;
+        public bool IsEditDialogOpen
+        {
+            get => _isEditDialogOpen;
+            set => SetProperty(ref _isEditDialogOpen, value);
+        }
+
+        private ProductColorModel _editingItem;
+        public ProductColorModel EditingItem
+        {
+            get => _editingItem;
+            set => SetProperty(ref _editingItem, value);
+        }
+
+        public RelayCommand<ProductColorModel> OpenEditCommand { get; }
+        private void OpenEdit(ProductColorModel model)
+        {
+            if (model == null) return;
+
+            if (EditingItem == null)
+            {
+                EditingItem = new ProductColorModel();
+            }
+
+            foreach (var prop in typeof(ProductColorModel).GetProperties())
+            {
+                if (prop.CanRead && prop.CanWrite)
+                    prop.SetValue(EditingItem, prop.GetValue(model));
+            }
+            SelectedItem = model;
+            IsEditDialogOpen = true;
+            SaveEditCommand.RaiseCanExecuteChanged();
+            CancelEditCommand.RaiseCanExecuteChanged();
+        }
+
+        public RelayCommand SaveEditCommand { get; }
+        private async Task SaveEditAsync()
+        {
+            if (!IsEditDialogOpen) return;
+            if (EditingItem == null) return;
+            
+            if (!EditingItem.IsValid)
             {
                 await _msg.ShowWarningAsync("存在未填写完整的行！\n\n【颜色唯一代码】和【颜色代码】为必填项，请补充完整后再保存。");
-                return false;
+                return;
             }
-
-            // 所有没有被删除的数据拿出来分组
-            var activeItems = AllItems.Where(x => x.State != ModelState.Deleted).ToList();
-
-            // 统一转大写 + 去除首尾空格 + 防 Null
-            var duplicates = activeItems
-                .GroupBy(x => new
-                {
-                    CustomerCode = x.ColorCodeUnique?.Trim().ToUpper() ?? ""
-                })
-                .Where(g => g.Count() > 1)
-                .ToList(); // 这里不要直接 Select Key，我们把整组数据留下来
-
-            if (duplicates.Any())
+            var markCode = EditingItem.ColorCodeUnique;
+            var dto = EditingItem.Adapt<ProductColorDto>();
+            using (BusyScope())
             {
-                // ★ 体验细节：拿到重复组里的“第一行真实数据”，这样弹窗报错时显示的是用户原来输入的真实大小写
-                var firstDupItem = duplicates.First().First();
+                StatusMessage = "保存中...";
+                try
+                {
+                    if (EditingItem.Id <= 0)
+                    {
+                        var addRst = await _api.CreateAsync(dto);
+                        if (!addRst.Success)
+                        {
+                            StatusMessage = "添加失败: " + addRst.Message;
+                            await _msg.ShowWarningAsync("添加失败：" + addRst.Message);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        var rst = await _api.UpdateAsync(dto.Id, dto);
+                        if (!rst.Success)
+                        {
+                            StatusMessage = "保存失败: " + rst.Message;
+                            await _msg.ShowWarningAsync("保存失败：" + rst.Message);
+                            return;
+                        }
+                        StatusMessage = "保存成功";
+                    }
 
-                await _msg.ShowWarningAsync($"列表中存在重复的配置！\n\n" +
-                                  $"颜色唯一代码：{firstDupItem.ColorCodeUnique}\n" +
-                                  $"请修改或删除重复行后再保存。");
+                    IsEditDialogOpen = false;
+                    await LoadAsync();
+                    DispatcherProvider.BeginInvoke(() =>
+                    {
+                        foreach (var item in CurrentTable.Items)
+                        {
+                            if (item.ColorCodeUnique == markCode)
+                                SelectedItem = item; return;
+                        }
+                    });
+                 
 
-                // 返回 false 告诉基类：拦截失败！不要发请求！
-                return false;
+
+
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = "保存异常: " + ex.Message;
+                }
             }
-
-            // 返回 true 告诉基类：校验完美通过，放行！
-            return true;
         }
 
+        public RelayCommand CancelEditCommand { get; }
+        private void CancelEdit()
+        {
+            IsEditDialogOpen = false;
+            EditingItem = null;
+            SaveEditCommand.RaiseCanExecuteChanged();
+            CancelEditCommand.RaiseCanExecuteChanged();
+        }
 
-
+        #endregion
     }
 }
