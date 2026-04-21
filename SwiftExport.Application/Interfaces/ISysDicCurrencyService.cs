@@ -10,11 +10,15 @@ namespace SwiftExport.Application.Interfaces
     /// </summary>
     public interface ISysDicCurrencyService : IBaseService<SysDicCurrency, SysDicCurrencyDto>
     {
-        Task<ServiceResult<int>> ResetBaseCurrencyAsync(SysDicCurrencyDto newSysDicCurrencyDto);
+        Task<ServiceResult<int>> SetNewBaseCurrencyAsync(SysDicCurrencyDto newSysDicCurrencyDto);
+
         /// <summary>获取当前本位币信息</summary>
         Task<ServiceResult<SysDicCurrencyDto>> GetBaseCurrencyAsync();
 
         /// <summary>获取所有启用的货币列表（下拉选择器场景）</summary>
         Task<ServiceResult<IReadOnlyList<SysDicCurrencyDto>>> GetEnabledListAsync();
+
+        Task<ServiceResult<SysDicCurrencyDetailDto>> GetDefaultBaseCurrencyAsync();
+
     }
 }

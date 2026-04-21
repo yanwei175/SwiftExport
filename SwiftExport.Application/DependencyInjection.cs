@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
         services.AddScoped<ISalesOrderService, SalesOrderService>();
         services.AddScoped<ISysDicCurrencyService, SysDicCurrencyService>();
+        services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();
 
 
         // 以后加了 OrderService，就加在这里，不用动 Program.cs

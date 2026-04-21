@@ -21,5 +21,12 @@ namespace SwiftExport.Contracts.Apis.SystemApis
         /// <summary>获取所有启用的货币列表（下拉选择器用）</summary>
         [Get("/enabled")]
         Task<ServiceResult<IReadOnlyList<SysDicCurrencyDto>>> GetEnabledListAsync();
+
+        [Post("/setnewbase")]
+        Task<ServiceResult<int>> SetNewBaseCurrency([Body] SysDicCurrencyDto dto);
+
+        [Get("/defaultbasecurrency")]
+         Task<ServiceResult<SysDicCurrencyDetailDto>> GetDefaultBaseCurrency();
+
     }
 }

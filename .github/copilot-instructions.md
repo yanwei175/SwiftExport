@@ -6,7 +6,7 @@
 
 ## 项目指南
 
-- - 当我要你建立起后端全链条的时候,我给了你一个数据库的表字段,
+- - 从数据库表开始建流程
   - 1. SwiftExport.Core层建一个实体继承自SwiftExport.Core.Common的BaseEntity. 以及定义仓储接口继承IRepository<TEntity>. (-.Net10)
   - 2. SwiftExport.Contracts层建一个Dto继承自SwiftExport.Contracts.DTOs.Base的BaseDto.  (Net Framework4.8)
 

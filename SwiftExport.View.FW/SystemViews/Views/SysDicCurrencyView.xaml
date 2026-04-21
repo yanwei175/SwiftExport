@@ -123,20 +123,20 @@
                             HeaderCheckBoxToolTip="全选/全不选"/>
 
                         <!-- 货币代码（必填，加粗） -->
-                        <DataGridTextColumn Header="货币代码" Width="100" FontWeight="Bold"
-                            Binding="{Binding CurrencyCode, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
+                        <DataGridTextColumn Header="货币ISO代码" Width="100" FontWeight="Bold"
+                            Binding="{Binding CurrencyCode}"
                             ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
                             EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
 
                         <!-- 货币中文名 -->
                         <DataGridTextColumn Header="中文名称" Width="120"
-                            Binding="{Binding CurrencyNameZh, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
+                            Binding="{Binding CurrencyNameZh}"
                             ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
                             EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
 
                         <!-- 货币英文名 -->
                         <DataGridTextColumn Header="英文名称" Width="140"
-                            Binding="{Binding CurrencyNameEn, UpdateSourceTrigger=PropertyChanged}"
+                            Binding="{Binding CurrencyNameEn}"
                             ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
                             EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
 
@@ -148,32 +148,25 @@
 
                         <!-- 小数精度 -->
                         <DataGridTextColumn Header="精度" Width="55"
-                            Binding="{Binding Precision, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
+                            Binding="{Binding Precision}"
 									
                             EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
 
                         <!-- 汇率（切换本位币时会被清空） -->
                         <DataGridTextColumn Header="对本位币汇率" Width="120"
-                            Binding="{Binding RateToBase, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F8}, ValidatesOnDataErrors=True}"
-
-							EditingElementStyle="{StaticResource DataGridTextBoxStyle}">
-                            <DataGridTextColumn.HeaderStyle>
-                                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
-                                    <Setter Property="ToolTip" Value="切换本位币后，此列汇率将被清空，需重新录入"/>
-                                </Style>
-                            </DataGridTextColumn.HeaderStyle>
-                        </DataGridTextColumn>
+                            Binding="{Binding RateToBase}"
+							EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
 
                         <!-- 是否启用 -->
-                        <DataGridCheckBoxColumn Header="启用状态" Width="70"
-                            ElementStyle="{StaticResource DataGridCheckBoxColumnStyle}"
-                            Binding="{Binding IsEnabled, UpdateSourceTrigger=PropertyChanged}"/>
+                        <DataGridCheckBoxColumn Header="启用状态" Width="80"
+                            ElementStyle="{StaticResource  DataGridCheckBoxColumnStyle}"
+                            Binding="{Binding IsEnabled}"/>
 
-                        <!-- 系统内置（只读） -->
-                        <DataGridCheckBoxColumn Header="系统内置" Width="70"
-                            IsReadOnly="True"
-                            ElementStyle="{StaticResource DataGridCheckBoxColumnStyle}"
-                            Binding="{Binding IsSystem}"/>
+                            <!-- 系统内置（只读） -->
+                            <DataGridCheckBoxColumn Header="系统内置" Width="80"
+                                IsReadOnly="True"
+                                ElementStyle="{StaticResource DataGridCheckBoxColumnStyle}"
+                                Binding="{Binding IsSystem}"/>
 
                         <!-- 备注 -->
                         <DataGridTextColumn Header="备注" Width="*"
@@ -219,7 +212,7 @@
         <!-- ===== 编辑弹窗遮罩 ===== -->
         <Grid Background="#66000000" d:Visibility="Collapsed"
               Visibility="{Binding IsEditDialogOpen, Converter={StaticResource BoolToVis}}"
-              Panel.ZIndex="999"
+              Panel.ZIndex="997"
               FocusManager.IsFocusScope="True">
 
             <Border Style="{StaticResource Dialog}"
@@ -254,7 +247,7 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="货币代码:" TextAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="货币ISO代码:" TextAlignment="Right" VerticalAlignment="Center"/>
                         <TextBox Grid.Row="0" Grid.Column="2" Margin="0,5"
                                  IsReadOnly="{Binding EditingItem.IsSystem}"
                                  Text="{Binding EditingItem.CurrencyCode, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
@@ -273,15 +266,11 @@
 
                         <TextBlock Grid.Row="4" Grid.Column="0" Text="小数精度:" TextAlignment="Right" VerticalAlignment="Center"/>
                         <TextBox Grid.Row="4" Grid.Column="2" Margin="0,5"
-                                 Text="{Binding EditingItem.Precision, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+                                 Text="{Binding EditingItem.Precision, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True}"/>
 
                         <TextBlock Grid.Row="5" Grid.Column="0" Text="对本位币汇率:" TextAlignment="Right" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         <TextBox Grid.Row="5" Grid.Column="2" Margin="0,5"
-                                 Text="{Binding EditingItem.RateToBase, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F8}, ValidatesOnDataErrors=True}"/>
-
-                        <TextBlock Grid.Row="6" Grid.Column="0" Text="是否本位币:" TextAlignment="Right" VerticalAlignment="Center"/>
-                        <CheckBox Grid.Row="6" Grid.Column="2" Margin="0,8"
-                                  IsChecked="{Binding EditingItem.IsBase}"/>
+                                 Text="{Binding EditingItem.RateToBase, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True}"/>
 
                         <TextBlock Grid.Row="7" Grid.Column="0" Text="是否启用:" TextAlignment="Right" VerticalAlignment="Center"/>
                         <CheckBox Grid.Row="7" Grid.Column="2" Margin="0,8"
@@ -363,6 +352,7 @@
                                 Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Width="70" Margin="0,0,8,0"
                                 Style="{StaticResource ButtonOutline}"
+                                IsCancel="True"
                                 Content="取消"
                                 Command="{Binding CancelEditBaseSwitchCommand}"/>
                         <Button Width="70"

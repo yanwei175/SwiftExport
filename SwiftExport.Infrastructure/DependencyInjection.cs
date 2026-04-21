@@ -30,6 +30,8 @@ public static class DependencyInjection
         services.AddScoped<IProductColorRepository, ProductColorRepository>();
         services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
         services.AddScoped<ISysDicCurrencyRepository, SysDicCurrencyRepository>();
+        services.AddScoped<ISysDicCurrencyExchangeRepository, SysDicCurrencyExchangeRepository>();
+        services.AddScoped<ISysDictDataRepository, SysDictDataRepository>();
 
         return services;
     }

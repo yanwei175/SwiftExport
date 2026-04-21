@@ -1,6 +1,7 @@
 using Dapper;
 using SwiftExport.Core.Entities.Systems;
 using SwiftExport.Core.Interfaces;
+using SwiftExport.Core.ReadModels.Systems;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
 using System.Transactions;
@@ -14,17 +15,11 @@ namespace SwiftExport.Infrastructure.Repositories.Systems
     public class SysDicCurrencyRepository(RepositoryBaseContext context)
         : DapperRepository<SysDicCurrency>(context), ISysDicCurrencyRepository
     {
-        public Task<int> ResetBaseCurrencyAsync(SysDicCurrency newSysDicCurrency)
+        public async Task<bool> ResetAllBaseCurrencyAsync()
         {
-            var id = newSysDicCurrency.Id;
-            var sql1 = $"UPDATE [{TableName}] SET IsBase = false WHERE Id != @Id";
-            var sql2 = $"UPDATE [{TableName}] SET IsBase = true WHERE Id = @Id";
-            Connection.BeginTransaction();
-            Connection.ExecuteAsync(sql1, new { Id = id }, transaction: _transaction);
-            Connection.ExecuteAsync(sql2, new { Id = id }, transaction: _transaction);
-  
-
-
+            var sql = $"UPDATE [{TableName}] SET RateToBase=null, IsBase = 0";
+            await Connection.ExecuteAsync(sql, transaction: Transaction);
+            return true;
         }
 
         /// <summary>
@@ -57,7 +52,6 @@ namespace SwiftExport.Infrastructure.Repositories.Systems
             var result = await Connection.QueryAsync<string>(sql, new { Codes = currencyCodes }, transaction: Transaction);
             return [.. result];
         }
-
 
     }
 }

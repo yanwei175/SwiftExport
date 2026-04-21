@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Systems;
@@ -38,4 +39,17 @@ public class SysDicCurrencyController(ISysDicCurrencyService service)
     {
         return await CurrencyService.GetEnabledListAsync();
     }
+
+    [HttpPost("setnewbase")]
+    public async Task<ServiceResult<int>> SetNewBaseCurrency([FromBody] SysDicCurrencyDto dto)
+    {
+        return await service.SetNewBaseCurrencyAsync(dto);
+    }
+
+    //[HttpGet("defaultbasecurrency")]
+    //public async Task<ServiceResult<SysDicCurrencyDetailDto>> GetDefaultBaseCurrency()
+    //{
+    //    return await CurrencyService.GetDefaultBaseCurrencyAsync();
+    //}
+
 }

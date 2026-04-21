@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
+using System.Threading;
+using System.Windows.Controls;
 
 namespace MateWpfThemes.FW.Services.Dialogs
 {
@@ -10,6 +12,8 @@ namespace MateWpfThemes.FW.Services.Dialogs
         // ─────────────────────────────────────────────
         private const int DefaultToastDurationMs = 3000;
         private static Controls.DialogHost _currentHost;
+        // 用于控制多个 Host 的 ZIndex 值，值越大显示越上层
+        private static int _zIndexCounter = 1000;
 
         internal static void RegisterHost(Controls.DialogHost host)
         {
@@ -20,6 +24,8 @@ namespace MateWpfThemes.FW.Services.Dialogs
             if (host != null)
             {
                 DispatcherProvider.Initialize(host.Dispatcher);
+                // 注册 Host 时把它放到最上层，避免后续 Host 被遮挡
+                BringHostToFront();
             }
         }
 
@@ -53,6 +59,16 @@ namespace MateWpfThemes.FW.Services.Dialogs
             }
         }
 
+        // 将当前 Host 提到最上层
+        private static void BringHostToFront()
+        {
+            if (_currentHost == null) return;
+            // 使用 Interlocked 保证线程安全的自增
+            int newIndex = Interlocked.Increment(ref _zIndexCounter);
+            // 设置附加属性 Panel.ZIndex，使得后显示的 Host 能覆盖在前面的之上
+            Panel.SetZIndex(_currentHost, newIndex);
+        }
+
         /// <summary>
         /// 弹出消息类 (Info / Warning / Error)，只有一个确定按钮
         /// </summary>
@@ -73,6 +89,8 @@ namespace MateWpfThemes.FW.Services.Dialogs
                     OnConfirm = () => { CloseDialog(); tcs.TrySetResult(true); },
                     OnCancel = () => { CloseDialog(); tcs.TrySetResult(false); } // 兼容按下 Esc
                 };
+                // 确保当前 Host 在最上层再打开模态窗
+                BringHostToFront();
                 _currentHost.DialogContent = vm;
                 _currentHost.IsOpen = true;
             });
@@ -105,6 +123,8 @@ namespace MateWpfThemes.FW.Services.Dialogs
                     OnCancel = () => { CloseDialog(); tcs.TrySetResult(false); }
                 };
 
+                // 确保当前 Host 在最上层再打开模态窗
+                BringHostToFront();
                 _currentHost.DialogContent = vm;
                 _currentHost.IsOpen = true;
             });
@@ -135,6 +155,8 @@ namespace MateWpfThemes.FW.Services.Dialogs
                     OnCancel = () => { CloseDialog(); tcs.TrySetResult(null); }
                 };
 
+                // 确保当前 Host 在最上层再打开模态窗
+                BringHostToFront();
                 _currentHost.DialogContent = vm;
                 _currentHost.IsOpen = true;
             });
@@ -154,7 +176,7 @@ namespace MateWpfThemes.FW.Services.Dialogs
         /// <param name="message">通知正文</param>
         /// <param name="icon">图标类型（Info / Warning / Error）</param>
         /// <param name="durationMs">显示时长，毫秒，默认 3000</param>
-        public static void Notify(string message, DialogIcon icon = DialogIcon.Info, int durationMs = DefaultToastDurationMs)
+        public static void Notify(string message, int durationMs = DefaultToastDurationMs, DialogIcon icon = DialogIcon.Info)
         {
             // 没有 Host 时静默忽略，不抛异常（Toast 是非关键通知）
             if (_currentHost == null) return;

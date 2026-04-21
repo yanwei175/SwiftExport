@@ -1,26 +1,56 @@
-ï»¿using SwiftExport.Contracts.DTOs.Base;
+using SwiftExport.Contracts.DTOs.Base;
+using System;
 
 namespace SwiftExport.Contracts.DTOs.SystemDtos
 {
-    // å­—å…¸å¤§ç±» DTO
-    // å­—å…¸æšä¸¾æ˜ç»† DTO
+    /// <summary>
+    /// ×ÖµäÃ÷Ï¸ DTO
+    /// </summary>
     public class SysDictDataDto : BaseDto
     {
+        /// <summary>
+        /// ÒµÎñ±ä¸üÊ±¼ä
+        /// </summary>
+        public DateTime? ChangeTime { get; set; }
+
+        /// <summary>
+        /// ×Öµä±àÂë£¨¹ØÁª×ÖµäÀàĞÍ£©
+        /// </summary>
         public string DictCode { get; set; }
-        public string DictValue { get; set; }
-        public string DictLabel { get; set; }
-        public int SortOrder { get; set; }
-        public bool IsSystem { get; set; }
-        public bool IsDeleted { get; set; }
+
+        /// <summary>
+        /// Ó¢ÎÄÃû³Æ
+        /// </summary>
+        public string DataNameEn { get; set; }
+
+        /// <summary>
+        /// ÖĞÎÄÃû³Æ
+        /// </summary>
+        public string DataNameZh { get; set; }
+
+        /// <summary>
+        /// ±¸×¢
+        /// </summary>
+        public string Remark { get; set; }
+
+        /// <summary>
+        /// ÅÅĞòºÅ
+        /// </summary>
+        public int? SortOrder { get; set; }
+
+        /// <summary>
+        /// Ç°¶ËÑùÊ½ÀàÃû
+        /// </summary>
         public string CssClass { get; set; }
 
-        // ğŸ‘‡ æ–°å¢ï¼šçŠ¶æ€æ§åˆ¶ï¼ŒåºŸå¼ƒä½†ä¸èƒ½åˆ çš„æ•°æ®
+        /// <summary>
+        /// ÊÇ·ñÏµÍ³ÄÚÖÃ
+        /// </summary>
+        public bool IsSystem { get; set; }
+
+        /// <summary>
+        /// ÊÇ·ñÆôÓÃ
+        /// </summary>
         public bool IsEnabled { get; set; }
-        // ğŸ‘‡ æ–°å¢ï¼šè¯´æ˜æ–‡å­—
-        public string Remark { get; set; }
-        // ğŸ‘‡ æ–°å¢(å¯é€‰)ï¼šå¦‚æœè¦åšçœå¸‚åŒºè¿™ç§çº§è”å­—å…¸ï¼Œéœ€è¦è¿™ä¸ª
-        public string ParentValue { get; set; }
-
-
     }
 }

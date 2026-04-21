@@ -1,6 +1,7 @@
 using Mapster;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.View.FW.Mvvm;
+using System;
 using System.ComponentModel;
 
 namespace SwiftExport.View.FW.SystemViews.Models
@@ -90,7 +91,21 @@ namespace SwiftExport.View.FW.SystemViews.Models
         public decimal? RateToBase
         {
             get => _rateToBase;
-            set => SetProperty(ref _rateToBase, value);
+            set
+            {
+                //将值按照_precision格式化为小数位，避免用户输入过多小数位导致的脏数据
+                if (value == null)
+                {
+                    SetProperty(ref _rateToBase, null);
+                }
+                else
+                {
+                    decimal roundedValue = Math.Round(value.Value, Precision);
+                    // 消除多余的后缀 0，例如 6.000 -> 6
+                    roundedValue = roundedValue / 1.000000000000000000000000000000000m;
+                    SetProperty(ref _rateToBase, roundedValue);
+                }
+            } 
         }
 
         #endregion

@@ -1,0 +1,201 @@
+<UserControl x:Class="SwiftExport.View.FW.DictViews.Views.GenericDictDataManagerView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
+        xmlns:vm="clr-namespace:SwiftExport.View.FW.DictViews.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance vm:GenericDictDataManagerViewModel}"
+        d:Height="720" d:Width="1100"
+        Background="Transparent">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Border Margin="10" Padding="0" CornerRadius="4"
+                Background="{DynamicResource Brush_Control_Background}"
+                mt:ShadowAssist.Level="Medium">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" BorderThickness="0,0,0,1"
+                        BorderBrush="{DynamicResource Brush_Border_Light}" Padding="15,10">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding HeaderTitle}" FontSize="16" FontWeight="Bold"
+                                   VerticalAlignment="Center" Margin="0,0,20,0"/>
+
+                        <Button Margin="0,0,8,0"
+                                Style="{StaticResource ButtonPrimary}"
+                                Content="创建"
+                                mt:ButtonAssist.IconSize="12"
+                                mt:ButtonAssist.Icon="{StaticResource Icon.Add}"
+                                Command="{Binding CreateCommand}"/>
+
+                        <Button Margin="0,0,8,0"
+                                Style="{StaticResource ButtonBase}"
+                                Content="刷新"
+                                mt:ButtonAssist.IconSize="12"
+                                mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
+                                Command="{Binding RefreshCommand}"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="1" BorderThickness="0,0,0,1"
+                        BorderBrush="{DynamicResource Brush_Border_Light}" Padding="15,8">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="筛选: " VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBox Width="300" Height="30" VerticalContentAlignment="Center" Padding="6,0"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 Tag="搜索英文名 / 中文名 / 备注..."/>
+                    </StackPanel>
+                </Border>
+
+                <DataGrid Grid.Row="2"
+                          ItemsSource="{Binding ItemsView}"
+                          SelectedItem="{Binding SelectedItem}"
+                          IsReadOnly="True"
+                          RowHeight="36"
+                          CanUserAddRows="False"
+                          AutoGenerateColumns="False"
+                          BorderThickness="0"
+                          SelectionUnit="FullRow"
+                          EnableRowVirtualization="False"
+                          EnableColumnVirtualization="False"
+                          mt:DataGridAssist.ShowRowNumber="True"
+                          mt:DataGridAssist.EnableSoftValidation="True"
+                          mt:DataGridAssist.AutoScrollToNewItem="True">
+
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="英文名称" Width="200"
+                            Binding="{Binding DataNameEn, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
+                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+
+                        <DataGridTextColumn Header="中文名称" Width="200"
+                            Binding="{Binding DataNameZh, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
+                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+
+                        <DataGridTextColumn Header="排序" Width="70"
+                            Binding="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged}"
+                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+
+                        <DataGridCheckBoxColumn Header="启用" Width="70"
+                            Binding="{Binding IsEnabled}"
+                            ElementStyle="{StaticResource DataGridCheckBoxColumnStyle}"/>
+
+                        <DataGridTextColumn Header="备注" Width="*"
+                            Binding="{Binding Remark, UpdateSourceTrigger=PropertyChanged}"
+                            EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}"
+                            ElementStyle="{DynamicResource MultiLineDataGridTextBlockStyle}"/>
+
+                        <DataGridTemplateColumn Header="操作" Width="80">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <Button Style="{StaticResource ButtonIcon}"
+                                                Command="{Binding DataContext.OpenEditCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                mt:ButtonAssist.IconSize="13"
+                                                mt:ButtonAssist.IconForeground="{DynamicResource Brush_Primary}"
+                                                mt:ButtonAssist.Icon="{StaticResource Icon.Edit}"/>
+                                        <Button Style="{StaticResource ButtonIcon}"
+                                                Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                mt:ButtonAssist.IconSize="13"
+                                                mt:ButtonAssist.IconForeground="{DynamicResource Brush_Danger}"
+                                                mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <Border Grid.Row="3"
+                        BorderBrush="{DynamicResource Brush_Border_Light}"
+                        BorderThickness="0,1,0,0" Padding="15,5">
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="12"
+                               Foreground="{DynamicResource Brush_Txt_Secondary}"
+                               VerticalAlignment="Center"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <Grid Background="#66000000" d:Visibility="Collapsed"
+              Visibility="{Binding IsEditDialogOpen, Converter={StaticResource BoolToVis}}"
+              FocusManager.IsFocusScope="True">
+
+            <Border Style="{StaticResource Dialog}"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Padding="20" MinWidth="380">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="编辑字典项" Style="{StaticResource BoldTextBlock}" Margin="0,0,0,10"/>
+
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="240"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="英文名称:" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="0" Grid.Column="2" Margin="0,5"
+                                 Text="{Binding EditingItem.DataNameEn, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="中文名称:" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="1" Grid.Column="2" Margin="0,5"
+                                 Text="{Binding EditingItem.DataNameZh, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="排序:" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="2" Grid.Column="2" Margin="0,5"
+                                 Text="{Binding EditingItem.SortOrder, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="启用:" VerticalAlignment="Center"/>
+                        <CheckBox Grid.Row="3" Grid.Column="2" Margin="0,8"
+                                  IsChecked="{Binding EditingItem.IsEnabled}"/>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="备注:"/>
+                        <TextBox Grid.Row="4" Grid.Column="2" Margin="0,5" Height="80"
+                                 Style="{StaticResource MultiLineTextBoxStyle}"
+                                 Text="{Binding EditingItem.Remark, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+
+                    <StackPanel Grid.Row="2" Margin="0,12,0,0"
+                                Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Width="70" Margin="0,0,8,0"
+                                Style="{StaticResource ButtonBase}"
+                                Content="取消"
+                                Command="{Binding CancelEditCommand}"/>
+                        <Button Width="70"
+                                Style="{StaticResource ButtonSuccess}"
+                                Content="保存"
+                                Command="{Binding SaveEditCommand}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <mt:DialogHost/>
+    </Grid>
+</UserControl>

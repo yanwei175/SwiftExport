@@ -17,12 +17,22 @@ namespace SwiftExport.Application.Services.Systems
     /// 2. 扩展本位币唯一性校验（批量保存时的前置拦截）
     /// 3. 提供"获取本位币"、"获取启用列表"等业务查询
     /// </summary>
-    public class SysDicCurrencyService(ISysDicCurrencyRepository repository, ServiceBaseContext context)
+    public class SysDicCurrencyService(ISysDicCurrencyRepository repository, ServiceBaseContext context,ISysDicCurrencyExchangeRepository exchangeRepository)
         : BaseService<SysDicCurrency, SysDicCurrencyDto>(repository, context), ISysDicCurrencyService
     {
 
 
-
+        public override async Task<ServiceResult<int>> UpdateAsync(SysDicCurrencyDto newSysDicCurrencyDto)
+        {
+            var entity = newSysDicCurrencyDto.Adapt<SysDicCurrency>();
+            var rst = await _repository.UpdateAsync(entity);
+            if (rst == 0)
+            {
+                Logger.LogWarning("更新失败，未找到匹配的货币代码：{CurrencyCode}", newSysDicCurrencyDto.CurrencyCode);
+                return ServiceResult<int>.Fail("更新失败，未找到匹配的货币代码");
+            }
+            return ServiceResult<int>.Ok(rst, "成功更新货币信息");
+        }
 
         // ============================================================
         // 删除策略：货币主数据使用软删除（IsDeleted 标记）
@@ -32,18 +42,37 @@ namespace SwiftExport.Application.Services.Systems
         // ============================================================
         // 业务查询扩展
         // ============================================================
-        public async Task<ServiceResult<int>> ResetBaseCurrencyAsync(SysDicCurrencyDto newSysDicCurrencyDto)
+        public async Task<ServiceResult<int>> SetNewBaseCurrencyAsync(SysDicCurrencyDto newSysDicCurrencyDto)
         {
-            var rst = await repository.ResetBaseCurrencyAsync(newSysDicCurrencyDto.Adapt<SysDicCurrency>());
-            if (rst> 0)
+            _session.Transaction = _session.Connection.BeginTransaction();
+            try
             {
-                return ServiceResult<int>.Ok(rst, "成功重置本位币");
+                var entity = newSysDicCurrencyDto.Adapt<SysDicCurrency>();
+                await repository.ResetAllBaseCurrencyAsync();
+                entity.IsBase = true;
+                var rst = await _repository.UpdateAsync(entity);
+                //var rst = 1;
+                if (rst == 0)
+                {
+                    _session.Transaction.Rollback();
+                    Logger.LogWarning("重置本位币失败，未找到匹配的货币代码：{CurrencyCode}", newSysDicCurrencyDto.CurrencyCode);
+                    return ServiceResult<int>.Fail("重置本位币失败，未找到匹配的货币代码");
+                }
+                _session.Transaction.Commit();
+                 return ServiceResult<int>.Ok(rst, "成功重置本位币");
             }
-            else
+            catch (Exception ex)
             {
-                Logger.LogWarning("重置本位币失败，未找到匹配的货币代码：{CurrencyCode}", newSysDicCurrencyDto.CurrencyCode);
-                return ServiceResult<int>.Fail("重置本位币失败，未找到匹配的货币代码");
+                _session.Transaction.Rollback();
+                if (Logger.IsEnabled(LogLevel.Error)) Logger.LogError(ex, "[{EntityName}] 保存时发生错误，事务已回滚！", EntityName);
+                throw;
             }
+            finally
+            {
+                _session.Transaction.Dispose();
+                _session.Transaction = null;
+            }
+
         }
 
         /// <summary>
@@ -51,8 +80,9 @@ namespace SwiftExport.Application.Services.Systems
         /// </summary>
         public async Task<ServiceResult<SysDicCurrencyDto>> GetBaseCurrencyAsync()
         {
+            // 直接用索引器访问第一个元素，避免在 List<T> 上用 FirstOrDefault()
             var list = await repository.GetListAsync(new { IsBase = true, IsDeleted = false });
-            var baseCurrency = list.FirstOrDefault();
+            SysDicCurrency? baseCurrency = (list.Count > 0) ? list[0] : null;
 
             if (baseCurrency == null)
             {
@@ -72,6 +102,8 @@ namespace SwiftExport.Application.Services.Systems
             var dtos = list.Adapt<IReadOnlyList<SysDicCurrencyDto>>();
             return ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Ok(dtos);
         }
+
+
 
 
 
@@ -149,5 +181,33 @@ namespace SwiftExport.Application.Services.Systems
 
             return null; // null = 校验全部通过
         }
+
+        public async Task<ServiceResult<SysDicCurrencyDetailDto>> GetDefaultBaseCurrencyAsync()
+        {
+            
+            var currency = await GetBaseCurrencyAsync();
+            if (!currency.Success)
+            {
+               
+                var id = currency.Data?.Id ?? 0;
+                if (id == 0) { return ServiceResult<SysDicCurrencyDetailDto>.Fail(currency.Message); }
+
+                var detailDto = new SysDicCurrencyDetailDto { Currency = currency.Data };
+
+                var exchange = await exchangeRepository.GetListAsync(id);
+                var exchangeDto= exchange?.Adapt<List<SysDicCurrencyExchangeDto>>();
+                if (exchangeDto != null)
+                {
+                    detailDto.CurrencyRates = exchangeDto;
+                }
+               return ServiceResult<SysDicCurrencyDetailDto>.Ok(detailDto);
+           }
+            else
+            {
+                return ServiceResult<SysDicCurrencyDetailDto>.Fail(currency.Message);
+            }
+
+                
+       }
     }
 }

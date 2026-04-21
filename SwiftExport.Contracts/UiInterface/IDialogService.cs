@@ -12,5 +12,7 @@ namespace SwiftExport.Contracts.UiInterface
 
         // 对于输入框，message 通常是提示语（比如 "请输入验证码"）
         Task<string> ShowInputAsync(string message, string title = "请输入");
+        void ShowCardAsync(string message, int durationMs = 3000);
+
     }
 }

@@ -36,6 +36,10 @@
         <DataTemplate DataType="{x:Type SysVm:SysDicCurrencyViewModel}">
             <SysView:SysDicCurrencyView/>
         </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:GenericDictDataManagerViewModel}">
+            <dictview:GenericDictDataManagerView/>
+        </DataTemplate>
         
     </UserControl.Resources>
     

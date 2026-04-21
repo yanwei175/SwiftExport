@@ -19,10 +19,11 @@ namespace SwiftExport.Core.Entities.Systems
 
         /// <summary>货币符号，如 $、¥、€</summary>
         public string? CurrencySymbol { get; set; }
+        public int Precision { get; set; } = 2;
+        public decimal RateToBase { get; set; }
 
         /// <summary>是否本位币（系统中只能有一个）</summary>
         public bool IsBase { get; set; } = false;
-
         /// <summary>是否系统内置货币（内置货币不允许删除）</summary>
         public bool IsSystem { get; set; } = true;
 

@@ -30,5 +30,9 @@ namespace SwiftExport.View.FW.Services
         {
             return DialogProvider.ShowInputAsync(message, title);
         }
+        public void ShowCardAsync(string message, int durationMs = 3000)
+        {
+            DialogProvider.Notify(message, durationMs);
+        }
     }
 }

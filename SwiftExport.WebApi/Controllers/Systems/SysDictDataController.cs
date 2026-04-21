@@ -10,6 +10,12 @@ namespace SwiftExport.WebApi.Controllers.Systems;
 public class SysDictDataController(ISysDictDataService service)
         : BaseController<SysDictData, SysDictDataDto>(service)
 {
+    [HttpGet("all")]
+    public async Task<ServiceResult<IReadOnlyList<SysDictDataDto>>> GetAll()
+    {
+        return await _service.GetAllAsync();
+    }
+
     // 基类的增删改查全有了，只需要把“按字典Code查询”这个特有业务写上就行了
 
     [HttpGet("by-code/{dictCode}")]

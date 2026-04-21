@@ -110,6 +110,7 @@ namespace SwiftExport.View.FW
 
             services.AddErpApi<ISysDictDataApi>(apiBaseUrl + "/api/SysDictData");
             services.AddErpApi<ISysDicCurrencyApi>(apiBaseUrl + "/api/SysDicCurrency");
+            services.AddErpApi<ISysDicCurrencyExchangeApi>(apiBaseUrl + "/api/SysDicCurrencyExchange");
 
             //services.AddErpApi<IDictApi>(apiBaseUrl + "/api/Dict");
 
@@ -147,6 +148,9 @@ namespace SwiftExport.View.FW
 
             services.AddTransient<DictTypeManagerViewModel>();
             services.AddTransient<DictTypeManagerView>();
+
+            services.AddTransient<GenericDictDataManagerViewModel>();
+            services.AddTransient<GenericDictDataManagerView>();
 
             services.AddTransient<DataDictManagerViewModel>();
             services.AddTransient<DataDictManagerView>();

@@ -77,6 +77,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
         // ================================================================
         // ComboBox：本位币切换器
         // ================================================================
+
         #region 本币切换Combobox数据源
 
         /// <summary>ComboBox 数据源 —— 所有货币的简单列表（代码+中文名）</summary>
@@ -115,7 +116,12 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
         // ================================================================
         // 主币种编辑弹窗
         // ================================================================
-
+        private bool _isEditBaseSwitchDialogOpen;
+        public bool IsEditBaseSwitchDialogOpen
+        {
+            get => _isEditBaseSwitchDialogOpen;
+            set => SetProperty(ref _isEditBaseSwitchDialogOpen, value);
+        }
         private void OpenEditBaseSwitch()
         {
             _selectedBaseCurrency = CurrencyOptions.FirstOrDefault(x => x.CurrencyCode == _dbBaseCurrencyCode);
@@ -128,6 +134,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
             IsEditBaseSwitchDialogOpen = false;
         }
 
+
         private async Task SaveEditBaseSwitchAsync()
         {
             if (SelectedBaseCurrency == null) return;
@@ -138,7 +145,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
                 return;
             }
 
-            var confirm = await _msg.ShowConfirmAsync($"确定要将 [{SelectedBaseCurrency.CurrencyNameZh}] 设置为主币种吗？其他币种可能需要重置汇率。", "确认切换主币种");
+            var confirm = await _msg.ShowConfirmAsync($"确定要将 [{SelectedBaseCurrency.CurrencyNameZh}] 设置为主币种吗？修改币种会重置汇率。", "确认切换主币种");
             
             if (!confirm) return;
 
@@ -150,7 +157,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
                     var dto = SelectedBaseCurrency;
                     dto.IsBase = true;
                     // 后端接口调用校验和保存
-                    var updRst = await _currencyApi.UpdateAsync(dto.Id, dto);
+                    var updRst = await _currencyApi.SetNewBaseCurrency(dto);
                     if (!updRst.Success)
                     {
                         StatusMessage = "保存主币种失败: " + updRst.Message;
@@ -172,6 +179,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
 
 
         #endregion
+
         // ================================================================
         // 搜索防抖
         // ================================================================
@@ -220,7 +228,13 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
         public string StatusMessage
         {
             get => _statusMessage;
-            set => SetProperty(ref _statusMessage, value);
+            set
+            {
+                if (SetProperty(ref _statusMessage, value))
+                {
+                    _msg.ShowCardAsync(StatusMessage);
+                }
+            }
         }
 
         // ================================================================
@@ -242,6 +256,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
         // ================================================================
         // 编辑弹窗
         // ================================================================
+
         #region 编辑货币弹窗
 
         private bool _isEditDialogOpen;
@@ -251,12 +266,6 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
             set => SetProperty(ref _isEditDialogOpen, value);
         }
 
-        private bool _isEditBaseSwitchDialogOpen;
-        public bool IsEditBaseSwitchDialogOpen
-        {
-            get => _isEditBaseSwitchDialogOpen;
-            set => SetProperty(ref _isEditBaseSwitchDialogOpen, value);
-        }
 
         private CurrencyModel _editingItem;
         public CurrencyModel EditingItem
@@ -433,12 +442,15 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
 
         private void Create()
         {
+            
             var model = new CurrencyModel { Id = 0 };
             model.MarkAsAdded();
             EditingItem = model;
             IsEditDialogOpen = true;
             SaveEditCommand.RaiseCanExecuteChanged();
             CancelEditCommand.RaiseCanExecuteChanged();
+
+
         }
 
 

@@ -70,12 +70,14 @@
     <Compile Include="Dialog\MsgBoxWindow.xaml.cs">
       <DependentUpon>MsgBoxWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="DictViews\Models\DictDataList.cs" />
     <Compile Include="DictViews\Models\DictDataModel.cs" />
     <Compile Include="DictViews\Models\DictTypeList.cs" />
     <Compile Include="DictViews\Models\DictTypeModel.cs" />
     <Compile Include="DictViews\Models\DictTypeNavNode.cs" />
     <Compile Include="DictViews\ViewModels\DataDictManagerViewModel.cs" />
     <Compile Include="DictViews\ViewModels\DictTypeManagerViewModel.cs" />
+    <Compile Include="DictViews\ViewModels\GenericDictDataManagerViewModel.cs" />
     <Compile Include="DictViews\ViewModels\UnitDictListViewModel.cs" />
     <Compile Include="DictViews\Views\DataDictManagerView.xaml.cs">
       <DependentUpon>DataDictManagerView.xaml</DependentUpon>
@@ -83,6 +85,7 @@
     <Compile Include="DictViews\Views\DictTypeManagerView.xaml.cs">
       <DependentUpon>DictTypeManagerView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="DictViews\Views\GenericDictDataManagerView.xaml.cs" />
     <Compile Include="DictViews\Views\UnitDictUserControl.xaml.cs">
       <DependentUpon>UnitDictUserControl.xaml</DependentUpon>
     </Compile>
@@ -112,6 +115,7 @@
     </Compile>
     <Compile Include="Resources\Controls\Converters\PermissionToBoolConverter.cs" />
     <Compile Include="Resources\Controls\Converters\PermissionToVisibilityConverter.cs" />
+    <Compile Include="Routing\IDictRouteAwareViewModel.cs" />
     <Compile Include="Routing\ViewRoutes.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderHeaderList.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderHeaderModel.cs" />
@@ -138,6 +142,8 @@
     <Compile Include="SupplierViews\Views\SupplierManagerView.xaml.cs">
       <DependentUpon>SupplierManagerView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="SystemViews\Models\CurrencyExchangeList.cs" />
+    <Compile Include="SystemViews\Models\CurrencyExchangeModel.cs" />
     <Compile Include="SystemViews\Models\CurrencyList.cs" />
     <Compile Include="SystemViews\Models\CurrencyModel.cs" />
     <Compile Include="SystemViews\ViewModels\SysDicCurrencyViewModel.cs" />
@@ -165,6 +171,9 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="DictViews\Views\DictTypeManagerView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="DictViews\Views\GenericDictDataManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="DictViews\Views\UnitDictUserControl.xaml">

@@ -202,7 +202,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
 
             try
             {
-                object vm = ResolveViewModel(node.TargetViewKey, node.DictCode);
+                object vm = ResolveViewModel(node.TargetViewKey, node.DictCode, node.DisplayName);
                 CurrentViewModel = vm;
             }
             catch (Exception ex)
@@ -218,7 +218,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         /// 路由映射统一维护在 <see cref="ViewRoutes.Routes"/>，
         /// 新增路由只需在那里加一行，此处无需改动。
         /// </summary>
-        private object ResolveViewModel(string targetViewKey, string dictCode)
+        private object ResolveViewModel(string targetViewKey, string dictCode, string displayName)
         {
             // 查路由表
             if (!ViewRoutes.TryResolve(targetViewKey, out var vmType))
@@ -230,7 +230,16 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             }
 
             // 从 DI 容器创建实例（Transient，状态隔离）
-            return _serviceProvider.GetRequiredService(vmType);
+            var vm = _serviceProvider.GetRequiredService(vmType);
+
+            // 若目标 VM 支持字典路由上下文，则注入 DictCode + 显示名
+            var routeAwareVm = vm as IDictRouteAwareViewModel;
+            if (routeAwareVm != null)
+            {
+                routeAwareVm.SetRouteContext(dictCode, displayName);
+            }
+
+            return vm;
         }
         #endregion
 

@@ -7,10 +7,16 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Systems
 {
-    public class SysDictDataService(IRepository<SysDictData> repository, ServiceBaseContext context)
+    /// <summary>
+    /// 字典明细服务
+    /// 继承 BaseService 提供标准 CRUD / BatchSave 能力。
+    /// </summary>
+    public class SysDictDataService(ISysDictDataRepository repository, ServiceBaseContext context)
             : BaseService<SysDictData, SysDictDataDto>(repository, context), ISysDictDataService
     {
-        // 软删除开关：如果你字典表确实用了 IsDeleted 字段，就保持默认 true。
-        // protected override bool IsSoftDelete => true; 
+        /// <summary>
+        /// 字典明细使用软删除。
+        /// </summary>
+        protected override bool IsSoftDelete => true;
     }
 }

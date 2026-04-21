@@ -1,4 +1,5 @@
 using SwiftExport.Core.Entities.Systems;
+using SwiftExport.Core.ReadModels.Systems;
 
 namespace SwiftExport.Core.Interfaces
 {
@@ -8,7 +9,8 @@ namespace SwiftExport.Core.Interfaces
     /// </summary>
     public interface ISysDicCurrencyRepository : IRepository<SysDicCurrency>
     {
-        Task<int> ResetBaseCurrencyAsync(SysDicCurrency newSysDicCurrency);
+
+        Task<bool> ResetAllBaseCurrencyAsync();
         /// <summary>
         /// 查询当前数据库中已设为本位币的记录 ID 列表
         /// 用于校验"本位币唯一性"约束

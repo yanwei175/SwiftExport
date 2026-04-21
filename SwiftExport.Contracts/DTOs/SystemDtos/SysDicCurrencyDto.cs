@@ -20,6 +20,10 @@ namespace SwiftExport.Contracts.DTOs.SystemDtos
         /// <summary>货币符号，如 $、¥、€</summary>
         public string CurrencySymbol { get; set; }
 
+        public int Precision { get; set; } = 2;
+
+        public decimal RateToBase { get; set; }
+
         /// <summary>是否本位币（全局唯一）</summary>
         public bool IsBase { get; set; }
 

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace SwiftExport.Contracts.Apis.SystemApis
 {
+    [Headers("Content-Type: application/json")]
     public interface ISysDictDataApi : IGenericApi<SysDictDataDto>
     {
         // ★ 继承了基类所有的 CRUD 和 BatchSave，
