@@ -5,6 +5,36 @@
 # Copilot Instructions
 
 ## 项目指南
+
+- - 当我要你建立起后端全链条的时候,我给了你一个数据库的表字段,
+  - 1. SwiftExport.Core层建一个实体继承自SwiftExport.Core.Common的BaseEntity. 以及定义仓储接口继承IRepository<TEntity>. (-.Net10)
+  - 2. SwiftExport.Contracts层建一个Dto继承自SwiftExport.Contracts.DTOs.Base的BaseDto.  (Net Framework4.8)
+
+  - 3. SwiftExport.Application建立Service,接口继承IBaseService<TEntity, TDto>,实现继承BaseService<TEntity, TDto>. (.NET10.)
+
+  - 4. SwiftExport.Infrastructure实现Core层的仓储接口继承自DapperRepository<TEntity>(context), 以及实现自己的仓储接口.仓储层依赖RepositoryBaseContext实现Session和LoggerFactory.    (.NET10)
+
+  - 5. 注册Application层的DependencyInjection以及Infrastructure的DependencyInjection.
+
+  - 6. SwiftExport.WebApi层的Controller实现,继承自public abstract class BaseController<TEntity, TDto>(IBaseService<TEntity, TDto> service) : ControllerBase where TEntity : BaseEntity where TDto : class  (.NET10)
+
+  - 7. SwiftExport.Contracts建立Refit的Api继承自IGenericApi<TDto>. Api应与Controller里的对应好.
+
+  - 8. SwiftExport.View.FW层的DI_View里的AddViewServices里注册好前端需要发的基础API接口.示例:
+
+  - ```c#
+                // ================== API 接口注册 ==================
+        string apiBaseUrl = "https://localhost:7086";
+        services.AddErpApi<ISysDictTypeApi>(apiBaseUrl + "/api/SysDictType");(.NET Framework)
+    ```
+
+    
+
+  - 9. SwiftExport.View.FW层建立UIModel继承BaseLineModel以及ListModel继承BaseListModel,Mappings里Mapster的Model至Dto的转换. (.NET Framework)
+    10. 需要修改字段的时候也要修改实体,Dto,Model.以及Mapster的Mapping.
+
+    
+
 - ERP product domain rule: `MasterSku` is a non-transactional parent identifier (e.g., AA010011) carrying shared attributes, while business operations are on child `Sku` variants (e.g., AA010011CH/MB) with variant attributes like price/finish; `Sku` may be created without linking to `MasterSku` (no required FK), and each `Sku` owns BOM data.
 - 在代码中添加中文注释，以提高可读性和维护性，尤其是每个方法/区域，以确保注释直观且完整。用户强调不要删除现有注释，注释很重要；修改代码时应保留并补充中文注释。
 - 除非我叫你生成md文档,否则请不要耗费太多的时间来生成md解释文档.
@@ -13,12 +43,28 @@
 - 在销售订单明细删除逻辑中：已持久化的行应仅从 UI 隐藏并保留在内部集合中标记为 Deleted，以便后端提交删除；未保存的新行才从内部集合和 UI 一并移除。
 - 在销售订单明细中，行级 subtotal 字段（如 NwSubTotal/GwSubTotal/CbmSubTotal/金额小计）需要允许用户手动修改；只有集合汇总字段应作为只读展示。
 - MateWpfThemes.FW 主题库是项目所有 WPF 样式/主题的唯一来源。所有业务视图依赖此库。
+- - - 
+
+    
+
+
+
+
+
 - 用户的项目遵循以下 UI/交互设计规范：
   - DataGrid 两个维度的表 - 主表（客户列表）和明细表（客户产品），通过 TabControl 分离。
   - 明细表依赖于主表的行选择 - 必须先选客户，才能在"客户产品管理"标签页加载该客户的产品。
   - 按钮的可执行性需与主表/明细表的选择状态和脏数据状态绑定。
   - 所有 Model 字段应在对应的 DataGrid 列中有绑定（包括新添加的贸易条款字段）。
   - TabItem 切换时应触发产品表的条件加载（检查是否选中客户）。
+
+  
+
+
+
+
+
+
 
 # 文件结构总览
 

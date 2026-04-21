@@ -1,18 +1,17 @@
-﻿<Window x:Class="SwiftExport.View.FW.ProductViews.Views.ProductCategoryManagerView"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:dd="urn:gong-wpf-dragdrop"
-        xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
-        Title="产品分类管理" Height="600" Width="900"
-        WindowStartupLocation="CenterScreen" Background="White">
+﻿<UserControl x:Class="SwiftExport.View.FW.ProductViews.Views.ProductCategoryManagerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dd="urn:gong-wpf-dragdrop"
+             xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
+             Background="White">
 
-    <Window.Resources>
+    <UserControl.Resources>
         <ResourceDictionary>
 
             <HierarchicalDataTemplate x:Key="CategoryTreeTemplate" ItemsSource="{Binding Children}">
                 <Border x:Name="ItemBorder" CornerRadius="4" Padding="5,5,5,5" Margin="0,2" Background="Transparent">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" 
-                            Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+                            Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
 
                         <StackPanel.ContextMenu>
                             <ContextMenu DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource Self}}">
@@ -100,7 +99,7 @@
 
             <mt:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         </ResourceDictionary>
-    </Window.Resources>
+    </UserControl.Resources>
     <Grid>
         
     
@@ -201,7 +200,7 @@
 
 
                     <Button Content="💾 保存所有结构更改" Style="{DynamicResource ButtonPrimary}" MaxWidth="170" HorizontalAlignment="Left"
-                        Command="{Binding DataContext.SaveCommand, RelativeSource={RelativeSource AncestorType=Window}}"  
+                        Command="{Binding DataContext.SaveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"  
                         />
                 </StackPanel>
             </Grid>
@@ -217,4 +216,4 @@
     </Grid>
         <mt:DialogHost />
     </Grid>
-</Window>
+</UserControl>

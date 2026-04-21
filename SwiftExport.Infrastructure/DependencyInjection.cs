@@ -6,6 +6,7 @@ using SwiftExport.Infrastructure.Repositories.Base;
 using SwiftExport.Infrastructure.Repositories.Customers;
 using SwiftExport.Infrastructure.Repositories.Products;
 using SwiftExport.Infrastructure.Repositories.Suppliers;
+using SwiftExport.Infrastructure.Repositories.Systems;
 
 namespace SwiftExport.Infrastructure;
 
@@ -28,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<IProductColorRepository, ProductColorRepository>();
         services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
+        services.AddScoped<ISysDicCurrencyRepository, SysDicCurrencyRepository>();
 
         return services;
     }

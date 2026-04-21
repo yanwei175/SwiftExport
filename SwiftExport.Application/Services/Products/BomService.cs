@@ -9,7 +9,6 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
-using static Dapper.SqlMapper;
 
 namespace SwiftExport.Application.Services.Products;
 
@@ -78,7 +77,7 @@ public class BomService(IBomRepository bomRepo, IProductRepository pdRepo, Servi
         }
 
         // 0. 获取产品的 BOM 号
-        Product pd = await _pdRepo.GetBySkuAsync(productSku);
+        Product? pd = await _pdRepo.GetBySkuAsync(productSku);
         if (pd == null || string.IsNullOrEmpty(pd.BomNo))
             return ServiceResult<bool>.Fail("产品型号不存在或产品没设置BOM");
 

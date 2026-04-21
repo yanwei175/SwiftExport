@@ -12,6 +12,7 @@
     
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <mt:InverseBoolConverter x:Key="InverseBoolConverter"/>
     </UserControl.Resources>
     
     <Grid>
@@ -133,31 +134,28 @@
                         <DataGridCheckBoxColumn Header="系统内置" Width="60"
                             ElementStyle="{StaticResource DataGridCheckBoxColumnStyle}"
                             Binding="{Binding IsSystem, UpdateSourceTrigger=PropertyChanged}"/>
-                        
+
                         <DataGridTemplateColumn Header="操作" Width="80">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal"  HorizontalAlignment="Center">
-                                        <Button Style="{StaticResource ButtonIcon}"
+                                        <Button Style="{StaticResource ButtonIconEdit}"
                                                 Command="{Binding DataContext.OpenEditCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                 CommandParameter="{Binding}"
                                                 mt:ButtonAssist.IconSize="13"
-                                                mt:ButtonAssist.IconForeground="{DynamicResource Brush_Primary}"
                                                 mt:ButtonAssist.Icon="{StaticResource Icon.Edit}"
                                                 />
-                                        <Button Style="{StaticResource ButtonIcon}"
+                                        <Button Style="{StaticResource ButtonIconDelete}"
+                                                IsEnabled="{Binding IsSystem, Converter={StaticResource InverseBoolConverter}}"
                                                 Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                 CommandParameter="{Binding}"
                                                 mt:ButtonAssist.IconSize="13"
-                                                mt:ButtonAssist.IconForeground="{DynamicResource Brush_Danger}"
                                                 mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"
                                                 />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-
-
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -177,7 +175,7 @@
         <Grid x:Name="DialogEdit"               
                   Background="#66000000"
                   Visibility="{Binding IsEditDialogOpen, Converter={StaticResource BoolToVis}}"
-                    d:Visibility="Collapsed"
+                  d:Visibility="Collapsed"
                   Panel.ZIndex="999"
                   FocusManager.IsFocusScope="True">
             <!-- 半透明背景 -->

@@ -16,6 +16,7 @@
   <ItemGroup>
     <Folder Include="ReadModels\Customer\" />
     <Folder Include="ReadModels\Products\" />
+    <Folder Include="ReadModels\Systems\" />
   </ItemGroup>
 
 </Project>

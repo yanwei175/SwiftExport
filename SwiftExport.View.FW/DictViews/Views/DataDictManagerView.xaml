@@ -8,6 +8,8 @@
         xmlns:vm="clr-namespace:SwiftExport.View.FW.DictViews.ViewModels"
         xmlns:productvm="clr-namespace:SwiftExport.View.FW.ProductViews.ViewModels"
         xmlns:productview="clr-namespace:SwiftExport.View.FW.ProductViews.Views"
+        xmlns:SysVm="clr-namespace:SwiftExport.View.FW.SystemViews.ViewModels"
+        xmlns:SysView="clr-namespace:SwiftExport.View.FW.SystemViews.Views"
         mc:Ignorable="d"
         d:Height="768" d:Width="1024"
         d:DataContext="{d:DesignInstance Type=vm:DataDictManagerViewModel}"
@@ -30,8 +32,11 @@
         <DataTemplate DataType="{x:Type productvm:ProductCategoryManagerViewModel}">
             <productview:ProductCategoryManagerView/>
         </DataTemplate>
-        
 
+        <DataTemplate DataType="{x:Type SysVm:SysDicCurrencyViewModel}">
+            <SysView:SysDicCurrencyView/>
+        </DataTemplate>
+        
     </UserControl.Resources>
     
     <Grid>
@@ -56,12 +61,13 @@
             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                 <Button 
                     Content="⚙ 管理"
-                    Style="{StaticResource ButtonBase}"
+                    Style="{StaticResource ButtonOutline}"
                     Height="28" Padding="10,0" Margin="0,0,6,0" FontSize="12"
                     ToolTip="打开字典类型管理窗体（增删改查）"
                     Command="{Binding ManageTypesCommand}"/>
                 <Button 
                     Content="📂 全部展开" 
+                    Style="{StaticResource ButtonOutline}"
                     Click="ExpandAll_Click"
                     Height="28"
                     Padding="8,0"
@@ -69,6 +75,7 @@
                     FontSize="12"/>
                 <Button 
                     Content="📁 全部折叠" 
+                    Style="{StaticResource ButtonOutline}"
                     Click="CollapseAll_Click"
                     Height="28"
                     Padding="8,0"

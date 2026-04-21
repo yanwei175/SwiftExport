@@ -75,7 +75,7 @@
         <Setter Property="Foreground" Value="{DynamicResource Brush_Btn_Default_Foreground}" />
         <Setter Property="Background" Value="{DynamicResource Brush_Btn_Default_Background}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Brush_Btn_Default_Foreground}" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderThickness" Value="0.5" />
         <Setter Property="Padding" Value="12,6" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template" Value="{DynamicResource ButtonTemplate}" />
@@ -121,17 +121,16 @@
 
     <!-- 2. 描边按钮 Outline -->
     <Style x:Key="ButtonOutline" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
-        <Setter Property="Foreground" Value="{DynamicResource Brush_Btn_Primary_Background}" />
-        <Setter Property="Background" Value="{DynamicResource Brush_Btn_Primary_Foreground}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Brush_Btn_Primary_Background}" />
         <Style.Triggers>
             <!-- 覆盖 Hover -->
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="{DynamicResource Primary1Brush}" />
+                <Setter Property="Background" Value="{DynamicResource Brush_Selection_Background}" />
+                <Setter Property="Foreground" Value="{DynamicResource Brush_Primary}" />
             </Trigger>
             <!-- 覆盖 Pressed -->
             <Trigger Property="IsPressed" Value="True">
-                <Setter Property="Background" Value="{DynamicResource Primary3Brush}" />
+                <Setter Property="Background" Value="{DynamicResource Brush_Selection_Background}" />
+                <Setter Property="Foreground" Value="{DynamicResource Brush_Primary}" />
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -226,6 +225,16 @@
 
         </Style.Triggers>
     </Style>
+    
+    <Style x:Key="ButtonIconDelete" TargetType="Button"
+           BasedOn="{StaticResource ButtonIcon}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush_Error}" />
+    </Style>
+    <Style x:Key="ButtonIconEdit" TargetType="Button"
+           BasedOn="{StaticResource ButtonIcon}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush_Primary}" />
+    </Style>
+
 
 
     <Style TargetType="Button" BasedOn="{StaticResource ButtonBase}"/>

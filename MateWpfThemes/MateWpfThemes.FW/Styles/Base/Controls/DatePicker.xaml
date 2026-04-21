@@ -146,13 +146,15 @@
                         <!-- 中文注释：DatePicker 自身绑定错误时，统一显示错误边框与 Tooltip。 -->
                         <Trigger Property="Validation.HasError" Value="True">
                             <Setter TargetName="OuterBorder" Property="BorderBrush" Value="{DynamicResource Brush_Error}" />
-                            <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(Validation.Errors)[0].ErrorContent}" />
+                            <!-- FallbackValue={x:Null}：Trigger 停用瞬间 Errors 可能为空，防止 [0] 越界 -->
+                            <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(Validation.Errors)[0].ErrorContent, FallbackValue={x:Null}}" />
                         </Trigger>
 
                         <!-- 中文注释：DatePicker 内部文本框解析/格式错误时，也要把外层边框切成错误色，并给出错误 Tooltip。 -->
                         <Trigger SourceName="PART_TextBox" Property="Validation.HasError" Value="True">
                             <Setter TargetName="OuterBorder" Property="BorderBrush" Value="{DynamicResource Brush_Error}" />
-                            <Setter Property="ToolTip" Value="{Binding ElementName=PART_TextBox, Path=(Validation.Errors)[0].ErrorContent}" />
+                            <!-- FallbackValue={x:Null}：内部 TextBox 错误清除时同样存在竞态，加 FallbackValue 兜底 -->
+                            <Setter Property="ToolTip" Value="{Binding ElementName=PART_TextBox, Path=(Validation.Errors)[0].ErrorContent, FallbackValue={x:Null}}" />
                         </Trigger>
 
                         <!-- 禁用态统一降低透明度 -->

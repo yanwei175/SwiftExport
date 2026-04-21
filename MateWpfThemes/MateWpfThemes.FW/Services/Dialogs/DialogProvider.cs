@@ -5,6 +5,10 @@ namespace MateWpfThemes.FW.Services.Dialogs
 {
     public static class DialogProvider
     {
+        // ─────────────────────────────────────────────
+        // Toast 通知默认显示时长（毫秒）
+        // ─────────────────────────────────────────────
+        private const int DefaultToastDurationMs = 3000;
         private static Controls.DialogHost _currentHost;
 
         internal static void RegisterHost(Controls.DialogHost host)
@@ -136,6 +140,47 @@ namespace MateWpfThemes.FW.Services.Dialogs
             });
 
             return tcs.Task;
+        }
+
+        // ─────────────────────────────────────────────
+        // Toast 非阻塞通知
+        // ─────────────────────────────────────────────
+
+        /// <summary>
+        /// 发出一条轻量级 Toast 通知：
+        /// 不阻塞 UI，自动在 <paramref name="durationMs"/> 毫秒后消失。
+        /// 多条通知会同时排队显示在屏幕上。
+        /// </summary>
+        /// <param name="message">通知正文</param>
+        /// <param name="icon">图标类型（Info / Warning / Error）</param>
+        /// <param name="durationMs">显示时长，毫秒，默认 3000</param>
+        public static void Notify(string message, DialogIcon icon = DialogIcon.Info, int durationMs = DefaultToastDurationMs)
+        {
+            // 没有 Host 时静默忽略，不抛异常（Toast 是非关键通知）
+            if (_currentHost == null) return;
+
+            // 在 UI 线程上创建 ViewModel 并加入队列
+            MsgBoxViewModel toastVm = null;
+            RunOnUi(() =>
+            {
+                toastVm = new MsgBoxViewModel
+                {
+                    Message = message,
+                    Icon = icon,
+                    ShowCancelButton = false
+                };
+                _currentHost.ActiveToasts.Add(toastVm);
+            });
+
+            // 在后台线程等待，到期后回到 UI 线程移除——不阻塞调用方
+            Task.Delay(durationMs).ContinueWith(_ =>
+            {
+                RunOnUi(() =>
+                {
+                    if (toastVm != null)
+                        _currentHost?.ActiveToasts.Remove(toastVm);
+                });
+            });
         }
     }
 }

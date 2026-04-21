@@ -245,7 +245,8 @@
         <Setter Property="Template" Value="{StaticResource TextBoxTemplate}" />
         <Style.Triggers>
             <Trigger Property="Validation.HasError" Value="True">
-                <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}" />
+                <!-- FallbackValue={x:Null}：Trigger 停用瞬间 Errors 可能为空，防止 [0] 越界抛 ArgumentOutOfRangeException -->
+                <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent, FallbackValue={x:Null}}" />
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -283,7 +284,8 @@
         <Setter Property="Template" Value="{StaticResource PasswordBoxTemplate}" />
         <Style.Triggers>
             <Trigger Property="Validation.HasError" Value="True">
-                <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}" />
+                <!-- FallbackValue={x:Null}：同上，防止 PasswordBox 验证错误清除时 [0] 越界 -->
+                <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent, FallbackValue={x:Null}}" />
             </Trigger>
         </Style.Triggers>
     </Style>

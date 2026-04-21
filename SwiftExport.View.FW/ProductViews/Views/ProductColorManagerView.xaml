@@ -8,7 +8,7 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance vm:ProductColorManagerViewModel}"
         d:Height="720" d:Width="1100"
-        Background="Transparent">
+        Background="{DynamicResource Brush_Bck_Page}">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
@@ -16,8 +16,7 @@
 
     <Grid>
         <Border Margin="10" Padding="5" 
-                Background="White"
-                mt:ShadowAssist.Level="Medium">
+                Background="Transparent">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>  <!-- 工具栏 -->
@@ -42,7 +41,7 @@
                                 Command="{Binding CreatCommand}"/>
 
                         <Button Margin="0,0,8,0"
-                                Style="{StaticResource ButtonBase}"
+                                Style="{StaticResource ButtonOutline}"
                                 Content="刷新"
                                 mt:ButtonAssist.IconSize="12"
                                 mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
@@ -73,7 +72,6 @@
                           RowHeight="40"
                           CanUserAddRows="False"
                           AutoGenerateColumns="False"
-                          BorderThickness="0"
                           SelectionUnit="FullRow"
                           EnableRowVirtualization="False"
                           EnableColumnVirtualization="False"

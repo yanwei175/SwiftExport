@@ -6,7 +6,7 @@ using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.DictViews.Models;
 using SwiftExport.View.FW.DictViews.Views;
 using SwiftExport.View.FW.Mvvm;
-using SwiftExport.View.FW.ProductViews.ViewModels;
+using SwiftExport.View.FW.Routing;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -186,7 +186,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         }
 
         // ============= 节点选中路由 =============
-
+        #region 视图路由
         /// <summary>
         /// 树形节点被选中时，根据 TargetViewKey 路由到右侧对应的管理面板
         /// 
@@ -213,33 +213,29 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         }
 
         /// <summary>
-        /// 根据 TargetViewKey 从 DI 容器解析对应的 ViewModel
-        /// 每次都是新实例（Transient），避免状态污染
+        /// 根据 TargetViewKey 从 DI 容器解析对应的 ViewModel（Transient，每次新实例）。
         /// 
-        /// 扩展方式：在 switch 里添加新的 case 即可，同时在 DI_View.cs 中注册对应的 ViewModel
+        /// 路由映射统一维护在 <see cref="ViewRoutes.Routes"/>，
+        /// 新增路由只需在那里加一行，此处无需改动。
         /// </summary>
         private object ResolveViewModel(string targetViewKey, string dictCode)
         {
-            switch (targetViewKey)
+            // 查路由表
+            if (!ViewRoutes.TryResolve(targetViewKey, out var vmType))
             {
-                // ===== 产品颜色管理 =====
-                case "ProductColorView":
-                    return _serviceProvider.GetRequiredService<ProductColorManagerViewModel>();
-
-                // ===== 预留：后续字典类型陆续在此接入 =====
-                // case "ProductCategoryView":
-                //     return _serviceProvider.GetRequiredService<ProductCategoryManagerViewModel>();
-                // case "SupplierView":
-                //     return _serviceProvider.GetRequiredService<SupplierManagerViewModel>();
-
-                default:
-                    // TargetViewKey 为空或未匹配：右侧面板保持原样，仅更新状态栏提示
-                    StatusMessage = string.IsNullOrWhiteSpace(targetViewKey)
-                        ? $"[{dictCode}] 暂未配置 TargetViewKey"
-                        : $"未找到视图路由：{targetViewKey}";
-                    return null;
+                StatusMessage = string.IsNullOrWhiteSpace(targetViewKey)
+                    ? $"[{dictCode}] 暂未配置 TargetViewKey"
+                    : $"未找到视图路由：{targetViewKey}，请在 ViewRoutes.cs 中注册";
+                return null;
             }
+
+            // 从 DI 容器创建实例（Transient，状态隔离）
+            return _serviceProvider.GetRequiredService(vmType);
         }
+        #endregion
+
+
+
 
         // ============= 搜索过滤 =============
 

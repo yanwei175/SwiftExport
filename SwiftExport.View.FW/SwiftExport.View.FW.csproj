@@ -112,6 +112,7 @@
     </Compile>
     <Compile Include="Resources\Controls\Converters\PermissionToBoolConverter.cs" />
     <Compile Include="Resources\Controls\Converters\PermissionToVisibilityConverter.cs" />
+    <Compile Include="Routing\ViewRoutes.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderHeaderList.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderHeaderModel.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderLineList.cs" />
@@ -136,6 +137,12 @@
     <Compile Include="SupplierViews\ViewModels\SupplierManagerViewModel.cs" />
     <Compile Include="SupplierViews\Views\SupplierManagerView.xaml.cs">
       <DependentUpon>SupplierManagerView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SystemViews\Models\CurrencyList.cs" />
+    <Compile Include="SystemViews\Models\CurrencyModel.cs" />
+    <Compile Include="SystemViews\ViewModels\SysDicCurrencyViewModel.cs" />
+    <Compile Include="SystemViews\Views\SysDicCurrencyView.xaml.cs">
+      <DependentUpon>SysDicCurrencyView.xaml</DependentUpon>
     </Compile>
     <Page Include="CustomerViews\Views\CustomerManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -183,6 +190,9 @@
     <Page Include="ProductViews\Views\ProductSelectorView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="SystemViews\Views\SysDicCurrencyView.xaml">
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Resource Include="Properties\DesignTimeResources.xaml">
       <SubType>Designer</SubType>

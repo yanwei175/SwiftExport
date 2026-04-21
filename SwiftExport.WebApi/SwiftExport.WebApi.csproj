@@ -18,8 +18,4 @@
     <ProjectReference Include="..\SwiftExport.Infrastructure\SwiftExport.Infrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Controllers\Systems\" />
-  </ItemGroup>
-
 </Project>

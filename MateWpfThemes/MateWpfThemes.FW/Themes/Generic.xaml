@@ -8,33 +8,105 @@
     </ResourceDictionary.MergedDictionaries>
 
     <Style TargetType="{x:Type controls:DialogHost}">
-        <Setter Property="Visibility" Value="Collapsed" />
-
+        <!--
+            根控件不再设置 Visibility=Collapsed。
+            控件始终可见，以确保 Toast 层（PART_ToastContainer）在模态弹窗关闭时也能正常显示。
+            模态弹窗的显隐改由内部 PART_ModalLayer + ControlTemplate.Triggers 负责。
+        -->
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type controls:DialogHost}">
+                    <!--
+                        最外层 Grid：始终铺满父容器，不阻断鼠标事件（IsHitTestVisible 继承默认值）。
+                        内部分为两个独立渲染层：
+                          1. PART_ModalLayer        — 模态遮罩 + 弹窗（默认 Collapsed，由 ControlTemplate.Triggers 控制）
+                          2. PART_ToastContainer    — Toast 通知列（始终 Visible，IsHitTestVisible=False 点击穿透）
+                    -->
                     <Grid>
-                        <Border Style="{DynamicResource DialogMask}" />
 
-                        <Border Style="{DynamicResource Dialog}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <!-- ══════════════════════════════════════
+                             层 1：模态弹窗层
+                             默认 Collapsed，IsOpen=True 时由 ControlTemplate.Triggers 设为 Visible
+                             ══════════════════════════════════════ -->
+                        <Grid x:Name="PART_ModalLayer" Visibility="Collapsed">
+                            <Border Style="{DynamicResource DialogMask}" />
 
-                            <ContentControl Content="{TemplateBinding DialogContent}">
-                                <ContentControl.Resources>
+                            <Border Style="{DynamicResource Dialog}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <ContentControl Content="{TemplateBinding DialogContent}">
+                                    <ContentControl.Resources>
 
-                                    <DataTemplate DataType="{x:Type dialogs:MsgBoxViewModel}">
-                                        <Grid MinWidth="320" MaxWidth="450">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
+                                        <!-- ── MsgBoxViewModel 模板（消息 / 确认 / 警告 / 错误）── -->
+                                        <DataTemplate DataType="{x:Type dialogs:MsgBoxViewModel}">
+                                            <Grid MinWidth="320" MaxWidth="450">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
 
-                                            <Path x:Name="IconPath" Width="36" Height="36" Stretch="Uniform" Margin="0,0,15,0" VerticalAlignment="Top"/>
+                                                <Path x:Name="IconPath" Width="36" Height="36" Stretch="Uniform" Margin="0,0,15,0" VerticalAlignment="Top"/>
 
-                                            <StackPanel Grid.Column="1">
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" Margin="0,0,0,10">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                <Style.Triggers>
+                                                                    <Trigger Property="Text" Value="{x:Null}">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="Text" Value="">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,0,0,25" LineHeight="20"/>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <Button x:Name="BtnCancel" Content="取消"
+                                                            Command="{Binding CancelCommand}"
+                                                            Style="{DynamicResource ButtonBase}" Margin="0,0,10,0" Width="80" MinHeight="25"/>
+                                                    <Button x:Name="BtnConfirm" Content="{Binding ConfirmText}"
+                                                            Command="{Binding ConfirmCommand}"
+                                                            Style="{DynamicResource ButtonPrimary}" BorderThickness="0" MinWidth="80" MinHeight="25" Padding="15,0"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding ShowCancelButton}" Value="False">
+                                                    <Setter TargetName="BtnCancel" Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Icon}" Value="{x:Static dialogs:DialogIcon.Info}">
+                                                    <Setter TargetName="IconPath" Property="Data" Value="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z" />
+                                                    <Setter TargetName="IconPath" Property="Fill" Value="#1890FF" />
+                                                    <Setter TargetName="BtnConfirm" Property="Background" Value="#1890FF" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Icon}" Value="{x:Static dialogs:DialogIcon.Warning}">
+                                                    <Setter TargetName="IconPath" Property="Data" Value="M12,2L1,21H23M12,6L19.53,19H4.47M11,10V14H13V10M11,16V18H13V16" />
+                                                    <Setter TargetName="IconPath" Property="Fill" Value="#FAAD14" />
+                                                    <Setter TargetName="BtnConfirm" Property="Background" Value="#FAAD14" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Icon}" Value="{x:Static dialogs:DialogIcon.Error}">
+                                                    <Setter TargetName="IconPath" Property="Data" Value="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z" />
+                                                    <Setter TargetName="IconPath" Property="Fill" Value="#FF4D4F" />
+                                                    <Setter TargetName="BtnConfirm" Property="Background" Value="#FF4D4F" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Icon}" Value="{x:Static dialogs:DialogIcon.Question}">
+                                                    <Setter TargetName="IconPath" Property="Data" Value="M15.07,11.25L14.17,12.17C13.45,12.89 13,13.5 13,15H11V14.5C11,13.39 11.45,12.39 12.17,11.67L13.41,10.41C13.78,10.05 14,9.55 14,9C14,7.89 13.1,7 12,7A2,2 0 0,0 10,9H8A4,4 0 0,1 12,5A4,4 0 0,1 16,9C16,9.88 15.64,10.67 15.07,11.25M13,19H11V17H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
+                                                    <Setter TargetName="IconPath" Property="Fill" Value="#1890FF" />
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+
+                                        <!-- ── InputBoxViewModel 模板（输入框）── -->
+                                        <DataTemplate DataType="{x:Type dialogs:InputBoxViewModel}">
+                                            <StackPanel MinWidth="300">
                                                 <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" Margin="0,0,0,10">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
@@ -50,112 +122,132 @@
                                                         </Style>
                                                     </TextBlock.Style>
                                                 </TextBlock>
-                                                <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,0,0,25" LineHeight="20"/>
+
+                                                <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,0,0,15">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <Trigger Property="Text" Value="{x:Null}">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </Trigger>
+                                                                <Trigger Property="Text" Value="">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+
+                                                <TextBox Text="{Binding InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                         Height="32" VerticalContentAlignment="Center" Margin="0,0,0,25"/>
+
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <Button Content="取消"
+                                                            Command="{Binding CancelCommand}"
+                                                            Style="{DynamicResource ButtonBase}" Margin="0,0,10,0" Width="80" MinHeight="25"/>
+                                                    <Button Content="提交"
+                                                            Command="{Binding SubmitCommand}"
+                                                            Style="{DynamicResource ButtonPrimary}" BorderThickness="0" Width="80" MinHeight="25"/>
+                                                </StackPanel>
                                             </StackPanel>
+                                        </DataTemplate>
 
-                                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                <Button x:Name="BtnCancel" Content="取消" 
-                                                        Command="{Binding CancelCommand}" 
-                                                        Style="{DynamicResource ButtonBase}" Margin="0,0,10,0" Width="80" MinHeight="25"/>
-                                                <Button x:Name="BtnConfirm" Content="{Binding ConfirmText}" 
-                                                        Command="{Binding ConfirmCommand}" 
-                                                        Style="{DynamicResource ButtonPrimary}" BorderThickness="0" MinWidth="80" MinHeight="25" Padding="15,0"/>
-                                            </StackPanel>
-                                        </Grid>
+                                    </ContentControl.Resources>
+                                </ContentControl>
+                            </Border>
+                        </Grid>
 
-                                        <DataTemplate.Triggers>
-                                            <DataTrigger Binding="{Binding ShowCancelButton}" Value="False">
-                                                <Setter TargetName="BtnCancel" Property="Visibility" Value="Collapsed" />
-                                            </DataTrigger>
+                        <!-- ══════════════════════════════════════
+                             层 2：Toast 通知层
+                             始终 Visible，IsHitTestVisible=False 保证完全点击穿透。
+                             固定在右下角，多条 Toast 自下而上堆叠。
+                             ══════════════════════════════════════ -->
+                        <ItemsControl x:Name="PART_ToastContainer"
+                                      IsHitTestVisible="False"
+                                      VerticalAlignment="Bottom"
+                                      HorizontalAlignment="Right"
+                                      Margin="0,0,24,24">
+                            <ItemsControl.ItemsPanel>
+                                <!-- 新 Toast 出现在底部，旧条目向上推 -->
+                                <ItemsPanelTemplate>
+                                    <StackPanel VerticalAlignment="Bottom" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
 
-                                            <DataTrigger Binding="{Binding Icon}" Value="{x:Static dialogs:DialogIcon.Info}">
-                                                <Setter TargetName="IconPath" Property="Data" Value="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z" />
-                                                <Setter TargetName="IconPath" Property="Fill" Value="#1890FF" />
-                                                <Setter TargetName="BtnConfirm" Property="Background" Value="#1890FF" />
-                                            </DataTrigger>
+                            <ItemsControl.ItemTemplate>
+                                <!-- 单条 Toast 卡片：圆角边框 + 左侧图标 + 右侧消息文本 -->
+                                <DataTemplate DataType="{x:Type dialogs:MsgBoxViewModel}">
+                                    <!-- Toast 卡片：圆角边框 + 阴影 + 图标 + 文本 -->
+                                    <Border CornerRadius="6"
+                                            Background="#F0F0F0"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            Padding="12,10"
+                                            Margin="0,6,0,0"
+                                            MinWidth="240"
+                                            MaxWidth="380">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.18" Color="#000000"/>
+                                        </Border.Effect>
 
-                                            <DataTrigger Binding="{Binding Icon}" Value="{x:Static dialogs:DialogIcon.Warning}">
-                                                <Setter TargetName="IconPath" Property="Data" Value="M12,2L1,21H23M12,6L19.53,19H4.47M11,10V14H13V10M11,16V18H13V16" />
-                                                <Setter TargetName="IconPath" Property="Fill" Value="#FAAD14" />
-                                                <Setter TargetName="BtnConfirm" Property="Background" Value="#FAAD14" />
-                                            </DataTrigger>
-
-                                            <DataTrigger Binding="{Binding Icon}" Value="{x:Static dialogs:DialogIcon.Error}">
-                                                <Setter TargetName="IconPath" Property="Data" Value="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z" />
-                                                <Setter TargetName="IconPath" Property="Fill" Value="#FF4D4F" />
-                                                <Setter TargetName="BtnConfirm" Property="Background" Value="#FF4D4F" />
-                                            </DataTrigger>
-
-                                            <DataTrigger Binding="{Binding Icon}" Value="{x:Static dialogs:DialogIcon.Question}">
-                                                <Setter TargetName="IconPath" Property="Data" Value="M15.07,11.25L14.17,12.17C13.45,12.89 13,13.5 13,15H11V14.5C11,13.39 11.45,12.39 12.17,11.67L13.41,10.41C13.78,10.05 14,9.55 14,9C14,7.89 13.1,7 12,7A2,2 0 0,0 10,9H8A4,4 0 0,1 12,5A4,4 0 0,1 16,9C16,9.88 15.64,10.67 15.07,11.25M13,19H11V17H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
-                                                <Setter TargetName="IconPath" Property="Fill" Value="#1890FF" />
-                                            </DataTrigger>
-                                        </DataTemplate.Triggers>
-                                    </DataTemplate>
-
-                                    <DataTemplate DataType="{x:Type dialogs:InputBoxViewModel}">
-                                        <StackPanel MinWidth="300">
-
-                                            <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" Margin="0,0,0,10">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                        <Style.Triggers>
-                                                            <Trigger Property="Text" Value="{x:Null}">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                            </Trigger>
-                                                            <Trigger Property="Text" Value="">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                            </Trigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-
-                                            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,0,0,15">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                        <Style.Triggers>
-                                                            <Trigger Property="Text" Value="{x:Null}">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                            </Trigger>
-                                                            <Trigger Property="Text" Value="">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                            </Trigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-
-                                            <TextBox Text="{Binding InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                 Height="32" VerticalContentAlignment="Center" Margin="0,0,0,25"/>
-
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                <Button Content="取消" 
-                                                        Command="{Binding CancelCommand}" 
-                                                        Style="{DynamicResource ButtonBase}" Margin="0,0,10,0" Width="80" MinHeight="25"/>
-                                                <Button Content="提交" 
-                                                        Command="{Binding SubmitCommand}" 
-                                                        Style="{DynamicResource ButtonPrimary}" BorderThickness="0" Width="80" MinHeight="25"/>
-                                            </StackPanel>
-
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <!-- 左侧图标，图标数据由下方 DataTemplate.Triggers 按 Icon 枚举注入 -->
+                                            <Path x:Name="ToastIcon"
+                                                  Width="18" Height="18"
+                                                  Stretch="Uniform"
+                                                  VerticalAlignment="Center"
+                                                  Margin="0,0,10,0"/>
+                                            <!-- 消息正文 -->
+                                            <TextBlock Text="{Binding Message}"
+                                                       TextWrapping="Wrap"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="13"
+                                                       Foreground="#333333"/>
                                         </StackPanel>
-                                    </DataTemplate>
+                                    </Border>
 
-                                </ContentControl.Resources>
-                            </ContentControl>
-                        </Border>
+                                    <!--
+                                        DataTemplate.Triggers 必须是 DataTemplate 的直接子元素，
+                                        放在根视觉元素（Border）闭合之后，DataTemplate 闭合之前。
+                                    -->
+                                    <DataTemplate.Triggers>
+                                        <!-- Info：蓝色圆圈 i -->
+                                        <DataTrigger Binding="{Binding Icon}" Value="{x:Static dialogs:DialogIcon.Info}">
+                                            <Setter TargetName="ToastIcon" Property="Data" Value="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
+                                            <Setter TargetName="ToastIcon" Property="Fill" Value="#1890FF"/>
+                                        </DataTrigger>
+                                        <!-- Warning：黄色三角 ! -->
+                                        <DataTrigger Binding="{Binding Icon}" Value="{x:Static dialogs:DialogIcon.Warning}">
+                                            <Setter TargetName="ToastIcon" Property="Data" Value="M12,2L1,21H23M12,6L19.53,19H4.47M11,10V14H13V10M11,16V18H13V16"/>
+                                            <Setter TargetName="ToastIcon" Property="Fill" Value="#FAAD14"/>
+                                        </DataTrigger>
+                                        <!-- Error：红色 × 圆圈 -->
+                                        <DataTrigger Binding="{Binding Icon}" Value="{x:Static dialogs:DialogIcon.Error}">
+                                            <Setter TargetName="ToastIcon" Property="Data" Value="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z"/>
+                                            <Setter TargetName="ToastIcon" Property="Fill" Value="#FF4D4F"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
                     </Grid>
+
+                    <!-- ══════════════════════════════════════
+                         ControlTemplate.Triggers：
+                         IsOpen=True 时，将 PART_ModalLayer 设为 Visible。
+                         这是 WPF 中通过触发器控制模板内部命名元素的正确方式。
+                         ══════════════════════════════════════ -->
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsOpen" Value="True">
+                            <Setter TargetName="PART_ModalLayer" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
-
-        <Style.Triggers>
-            <Trigger Property="IsOpen" Value="True">
-                <Setter Property="Visibility" Value="Visible" />
-            </Trigger>
-        </Style.Triggers>
     </Style>
 
 </ResourceDictionary>

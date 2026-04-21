@@ -635,7 +635,17 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         private async void ExecuteQuickAddCategory()
         {
             var vm = (ProductCategoryManagerViewModel)_serviceProvider.GetService(typeof(ProductCategoryManagerViewModel));
-            var win = new Views.ProductCategoryManagerView(vm);
+            // ProductCategoryManagerView 已改为 UserControl（用于 DataTemplate 路由），
+            // 此处用匿名 Window 包裹，与 ProductColorManagerView 保持一致的对话框打开方式。
+            var view = new Views.ProductCategoryManagerView { DataContext = vm };
+            var win = new System.Windows.Window
+            {
+                Title = "产品分类管理",
+                Content = view,
+                Width = 900,
+                Height = 600,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen
+            };
             win.ShowDialog();
             // 窗体关闭后重新拉取字典/分类等数据刷新树和下拉列表
             await LoadFilterDataAsync();

@@ -41,7 +41,16 @@ namespace SwiftExport.DevApp
 
         private void Button_Click_3(object sender, RoutedEventArgs e)
         {
-            var win = DiServices.GetService<ProductCategoryManagerView>();
+            // ProductCategoryManagerView 已改为 UserControl，用匿名 Window 包裹后以对话框方式打开
+            var view = DiServices.GetService<ProductCategoryManagerView>();
+            var win = new Window
+            {
+                Title = "产品分类管理",
+                Content = view,
+                Width = 900,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
             win.ShowDialog();
         }
 

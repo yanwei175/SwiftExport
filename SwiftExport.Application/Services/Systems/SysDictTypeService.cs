@@ -38,7 +38,8 @@ namespace SwiftExport.Application.Services.Systems
                 // 1. 获取所有字典类型（仅用泛型 Repository 的 GetAllAsync）
                 var allDictTypesReadOnly = await _repository.GetAllAsync();
 
-                if (allDictTypesReadOnly == null || !allDictTypesReadOnly.Any())
+                // GetAllAsync 返回值不可为 null，无需 null 判断，直接检查是否为空集合
+                if (!allDictTypesReadOnly.Any())
                 {
                     Logger.LogInformation("没有可用的字典类型数据");
                     return ServiceResult<List<DictTypeGroupTreeDto>>.Ok(new List<DictTypeGroupTreeDto>());

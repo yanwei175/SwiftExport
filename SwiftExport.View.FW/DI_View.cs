@@ -19,6 +19,8 @@ using SwiftExport.View.FW.SalesOrderViews.Views;
 using SwiftExport.View.FW.Services;
 using SwiftExport.View.FW.SupplierViews.ViewModels;
 using SwiftExport.View.FW.SupplierViews.Views;
+using SwiftExport.View.FW.SystemViews.ViewModels;
+using SwiftExport.View.FW.SystemViews.Views;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -107,6 +109,8 @@ namespace SwiftExport.View.FW
             services.AddErpApi<ISysDictTypeApi>(apiBaseUrl + "/api/SysDictType");
 
             services.AddErpApi<ISysDictDataApi>(apiBaseUrl + "/api/SysDictData");
+            services.AddErpApi<ISysDicCurrencyApi>(apiBaseUrl + "/api/SysDicCurrency");
+
             //services.AddErpApi<IDictApi>(apiBaseUrl + "/api/Dict");
 
             services.AddErpApi<IProductApi>(apiBaseUrl + "/api/Product");
@@ -146,6 +150,13 @@ namespace SwiftExport.View.FW
 
             services.AddTransient<DataDictManagerViewModel>();
             services.AddTransient<DataDictManagerView>();
+
+            services.AddTransient<SysDicCurrencyViewModel>();
+            services.AddTransient<SysDicCurrencyView>();
+
+
+
+
 
             services.AddTransient<ProductCategoryManagerViewModel>();
             services.AddTransient<ProductCategoryManagerView>();

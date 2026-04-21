@@ -82,7 +82,7 @@
     <!--#region 背景系统-->
 
     <!-- Page / Window -->
-    <SolidColorBrush x:Key="Brush_Bck_Page" Color="{DynamicResource Neutral2}" />
+    <SolidColorBrush x:Key="Brush_Bck_Page" Color="{DynamicResource Neutral1}" />
 
     <!-- 卡片 / Panel -->
     <SolidColorBrush x:Key="Brush_Bck_Card" Color="{DynamicResource Neutral1}" />
@@ -142,15 +142,21 @@
     <!--#endregion-->
 
     <!--#region 选中 / 高亮-->
-    <SolidColorBrush x:Key="Brush_Selection_Background" Color="{DynamicResource Primary1}" />
+    <SolidColorBrush x:Key="Brush_Selection_Background" Color="{DynamicResource Primary2}" />
     <SolidColorBrush x:Key="Brush_Selection_Border" Color="{DynamicResource Primary5}" />
     <SolidColorBrush x:Key="Brush_Selection_Hover" Color="{DynamicResource Primary2}" />
     <!--#endregion-->
 
+    <!--#region DataGrid-->
+    <SolidColorBrush x:Key="Brush_DataGridHeaderBck" Color="{DynamicResource Neutral2}" />
+    <SolidColorBrush x:Key="Brush_DataGridMouseOver" Color="{DynamicResource Neutral4}" />
+
+    <SolidColorBrush x:Key="Brush_DataGridSelectionCell" Color="{DynamicResource Primary2}" />
+    
+    <!--#endregion-->
     <!--#region 状态色（业务提示）-->
     <SolidColorBrush x:Key="Brush_Success" Color="{DynamicResource Success}" />
     <SolidColorBrush x:Key="Brush_Attention" Color="{DynamicResource Attention}" />
-    <SolidColorBrush x:Key="Brush_DataGridSelectionCell" Color="{DynamicResource DataGridSelectionCell}" />
     <SolidColorBrush x:Key="Brush_Warning" Color="{DynamicResource Warning}" />
     <SolidColorBrush x:Key="Brush_MisTake" Color="{DynamicResource MisTake}" />
     <SolidColorBrush x:Key="Brush_Error" Color="{DynamicResource Error}" />

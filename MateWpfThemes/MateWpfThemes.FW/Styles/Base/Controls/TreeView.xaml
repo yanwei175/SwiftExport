@@ -32,10 +32,10 @@
                                     <RotateTransform Angle="45"/>
                                 </Setter.Value>
                             </Setter>
-                            <Setter TargetName="ExpandPath" Property="Stroke" Value="{DynamicResource Brush_Primary}"/>
+                            <Setter TargetName="ExpandPath" Property="Stroke" Value="{DynamicResource Brush_Selection_Background}"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="ExpandPath" Property="Stroke" Value="{DynamicResource Brush_Primary_Focus}"/>
+                            <Setter TargetName="ExpandPath" Property="Stroke" Value="{DynamicResource Brush_Selection_Background}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -97,12 +97,12 @@
                             <Setter TargetName="Expander" Property="Visibility" Value="Hidden"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Primary_Hover}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Selection_Background}"/>
                         </Trigger>
 
                         <Trigger Property="IsMouseOver" SourceName="Bd" Value="True">
                             <!-- Subtle hover over item -->
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Primary_Subtle}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Selection_Background}"/>
                         </Trigger>
 
 
@@ -111,7 +111,7 @@
                                 <Condition Property="IsSelected" Value="True"/>
                                 <Condition Property="IsSelectionActive" Value="False"/>
                             </MultiTrigger.Conditions>
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Primary_Hover}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush_Selection_Background}"/>
                         </MultiTrigger>
 
                     </ControlTemplate.Triggers>
