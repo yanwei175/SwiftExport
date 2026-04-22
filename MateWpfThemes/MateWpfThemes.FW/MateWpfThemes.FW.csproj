@@ -87,6 +87,9 @@
     <Compile Include="Common\TimePickerTextBox.cs" />
     <Compile Include="Common\TransitionAssist.cs" />
     <Compile Include="Controls\CheckBoxDataGridTemplateColumn.cs" />
+    <Compile Include="Controls\PageNavigator.xaml.cs">
+      <DependentUpon>PageNavigator.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Controls\SearchableTextBox.xaml.cs">
       <DependentUpon>SearchableTextBox.xaml</DependentUpon>
     </Compile>
@@ -133,6 +136,9 @@
     <Compile Include="Services\Dialogs\DialogProvider.cs" />
     <Compile Include="Services\Dialogs\DialogViewModels.cs" />
     <Compile Include="AttachedProperties\VisualTreeExtensions.cs" />
+    <Page Include="Controls\PageNavigator.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Controls\SearchableTextBox.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

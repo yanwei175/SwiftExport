@@ -93,10 +93,7 @@ namespace SwiftExport.DevApp
         /// </summary>
         private void Button_Click_6(object sender, RoutedEventArgs e)
         {
-            var vm = DiServices.GetService<SalesOrderManagerViewModel>();
             var view = DiServices.GetService<SalesOrderManagerView>();
-            view.DataContext = vm;
-
             var window = new Window
             {
                 Title = "Sales Order Management - Test Environment",
@@ -126,10 +123,7 @@ namespace SwiftExport.DevApp
         /// </summary>
         private void Button_Click_8(object sender, RoutedEventArgs e)
         {
-            var vm = DiServices.GetService<DataDictManagerViewModel>();
             var view = DiServices.GetService<DataDictManagerView>();
-            view.DataContext = vm;
-
             var window = new Window
             {
                 Title = "Sales Order Management - Test Environment",
@@ -144,13 +138,11 @@ namespace SwiftExport.DevApp
 
         private void Button_Click_9(object sender, RoutedEventArgs e)
         {
-            var vm = DiServices.GetService<CustomerManagerViewModel>();
-            var view = DiServices.GetService<CustomerManagerView>();
-            view.DataContext = vm;
 
+            var view = DiServices.GetService<CustomerManagerView>();
             var window = new Window
             {
-                Title = "Sales Order Management - Test Environment",
+                Title = "客户管理窗体",
                 Width = 1920,
                 Height = 920,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,

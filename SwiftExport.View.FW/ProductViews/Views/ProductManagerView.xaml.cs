@@ -1,4 +1,4 @@
-﻿using SwiftExport.View.FW.ProductViews.ViewModels;
+using SwiftExport.View.FW.ProductViews.ViewModels;
 using SwiftExport.View.FW.ProductViews.Models;
 using System;
 using System.Windows;

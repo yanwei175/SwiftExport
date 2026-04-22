@@ -37,6 +37,9 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             CurrentCustomerTable = new CustomerList();
             CurrentProductTable = new CustomerProductList();
 
+            PaginationCustomerTableChangedCommand = new RelayCommand<SwiftExport.Contracts.Models.PageChangeRequest>(OnPaginationCustomerTableChanged);
+            PaginationProductTableChangedCommand = new RelayCommand<SwiftExport.Contracts.Models.PageChangeRequest>(OnPaginationProductTableChanged);
+
             AddCustomerCommand = new RelayCommand(AddCustomer);
             BatchSaveCustomerAsyncCommand = new RelayCommand(async () => await BatchSaveCustomerAsync(), () => CanBatchSaveCustomerAsync);
             DeleteCustomerAsyncCommand = new RelayCommand(async () => await DeleteCustomerAsync(), () => CanDeleteCustomer);
@@ -155,29 +158,14 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         public int PageCustomerTableIndex
         {
             get => _pageCustomerTableIndex;
-            set
-            {
-                if (SetProperty(ref _pageCustomerTableIndex, value))
-                {
-                    if (IsBusy) return;
-                    _ = LoadCustomerAsync();
-                }
-            }
+            set => SetProperty(ref _pageCustomerTableIndex, value);
         }
 
         private int _pageCustomerTableSize = 50;// 每页行数，绑定到UI的分页控件，用户修改每页行数时会触发数据重新加载以应用新的分页设置
         public int PageCustomerTableSize
         {
             get => _pageCustomerTableSize;
-            set
-            {
-                if (SetProperty(ref _pageCustomerTableSize, value))
-                {
-                    if (IsBusy) return;
-                    if (PageCustomerTableIndex == 1) _ = LoadCustomerAsync();
-                    else PageCustomerTableIndex = 1;
-                }
-            }
+            set => SetProperty(ref _pageCustomerTableSize, value);
         }
 
         private int _totalCustomerTableCount;// 数据总条数，绑定到UI的分页控件，用于显示总页数和当前数据范围等信息，由数据加载方法在获取数据后设置
@@ -230,29 +218,14 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         public int PageProductTableIndex
         {
             get => _pageProductTableIndex;
-            set
-            {
-                if (SetProperty(ref _pageProductTableIndex, value))
-                {
-                    if (IsBusy) return;
-                    CheckAndLoadProduct();
-                }
-            }
+            set => SetProperty(ref _pageProductTableIndex, value);
         }
 
         private int _pageProductTableSize = 50;// 每页行数，绑定到UI的分页控件，用户修改每页行数时会触发数据重新加载以应用新的分页设置
         public int PageProductTableSize
         {
             get => _pageProductTableSize;
-            set
-            {
-                if (SetProperty(ref _pageProductTableSize, value))
-                {
-                    if (IsBusy) return;
-                    if (PageProductTableIndex == 1) CheckAndLoadProduct();
-                    else PageProductTableIndex = 1;
-                }
-            }
+            set => SetProperty(ref _pageProductTableSize, value);
         }
 
         private int _totalProductTableCount;// 数据总条数，绑定到UI的分页控件，用于显示总页数和当前数据范围等信息，由数据加载方法在获取数据后设置
@@ -279,6 +252,24 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
 
         //新增客户命令
+
+        public RelayCommand<SwiftExport.Contracts.Models.PageChangeRequest> PaginationCustomerTableChangedCommand { get; }
+        private async void OnPaginationCustomerTableChanged(SwiftExport.Contracts.Models.PageChangeRequest request)
+        {
+            if (CurrentCustomerTable.IsDirty)
+            {
+                var result = System.Windows.MessageBox.Show("当前客户表有未保存的数据，翻页将会丢失，是否继续？", "未保存提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    return; 
+                }
+            }
+
+            PageCustomerTableIndex = request.NewIndex;
+            PageCustomerTableSize = request.NewSize;
+
+            await LoadCustomerAsync();
+        }
 
         public RelayCommand AddCustomerCommand { get; }
         private void AddCustomer()
@@ -446,7 +437,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
                             CurrentCustomerTable.ReLoadRangeFromDtoList(dtos);
 
-                            TotalCustomerTableCount = dtos.Count;
+                            TotalCustomerTableCount = result.Data.TotalCount; // 修复：使用实际的总数据条数，而不是当前页查出来的条数
                             StatusMessage = $"加载成功，共 {TotalCustomerTableCount} 条。";
                             return;
                         }
@@ -484,6 +475,15 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
             if (IsBusy) return;
 
+            if (CurrentCustomerTable.IsDirty)
+            {
+                var result = System.Windows.MessageBox.Show("当前客户表有未保存的数据，搜索将会丢失，是否继续？", "未保存提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    return; 
+                }
+            }
+
             if (PageCustomerTableIndex != 1)
             {
                 PageCustomerTableIndex = 1;
@@ -497,6 +497,24 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         #endregion
 
         #region 客户产品表命令
+
+        public RelayCommand<SwiftExport.Contracts.Models.PageChangeRequest> PaginationProductTableChangedCommand { get; }
+        private void OnPaginationProductTableChanged(SwiftExport.Contracts.Models.PageChangeRequest request)
+        {
+            if (CurrentProductTable.IsDirty)
+            {
+                var result = System.Windows.MessageBox.Show("当前客户产品表有未保存的数据，翻页将会丢失，是否继续？", "未保存提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    return; 
+                }
+            }
+
+            PageProductTableIndex = request.NewIndex;
+            PageProductTableSize = request.NewSize;
+
+            CheckAndLoadProduct();
+        }
 
         public RelayCommand AddProductCommand { get; }
         private void AddProduct()
@@ -689,7 +707,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
                             CurrentProductTable.ReLoadRangeFromDtoList(dtos);
 
-                            TotalProductTableCount = dtos.Count;
+                            TotalProductTableCount = result.Data.TotalCount; // 修复：这里原来使用的是dtos.Count，导致只会根据当前页条数算总条数
                             StatusMessage = $"加载客户产品成功，共 {TotalProductTableCount} 条。";
                             return;
                         }
@@ -721,11 +739,20 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
             if (IsBusy) return;
 
-            if (PageCustomerTableIndex != 1)
+            if (CurrentProductTable.IsDirty)
             {
-                PageCustomerTableIndex = 1;
+                var result = System.Windows.MessageBox.Show("当前客户产品表有未保存的数据，搜索将会丢失，是否继续？", "未保存提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    return; 
+                }
             }
-            _ = LoadCustomerProductAsync();
+
+            if (PageProductTableIndex != 1)
+            {
+                PageProductTableIndex = 1;
+            }
+            CheckAndLoadProduct();
         }
 
         #endregion

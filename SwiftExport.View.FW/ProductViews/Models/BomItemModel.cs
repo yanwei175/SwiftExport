@@ -4,28 +4,21 @@ using System.ComponentModel;
 
 namespace SwiftExport.View.FW.ProductViews.Models
 {
-    public class BomItemModel : ViewModelBaseEx, IBaseModel, IDataErrorInfo
+    public class BomItemModel : BaseLineModel, IBaseModel, IDataErrorInfo
     {
-        #region 行模块
-
-        public int Id { get; set; }
-
-        private ModelState _state = ModelState.Unchanged;
-        public ModelState State
+        public override void LoadFromDto<BomDto>(BomDto dto, bool 抑制清理脏数据 = false)
         {
-            get => _state;
-            set => SetProperty(ref _state, value);
-        }
+            if (dto == null) return;
+            using (程序内部修改Scope())
+            {
+                Mapster.TypeAdapter.Adapt(dto, this);
+                if (this.Id == 0)
+                { this.MarkAsAdded(); }
 
-        private bool _isChecked;
-        public bool IsChecked
-        {
-            get => _isChecked;
-            set => SetProperty(ref _isChecked, value);
+                if (!抑制清理脏数据)
+                    CommitChanges();
+            }
         }
-
-        //public bool IsValid => string.IsNullOrEmpty(Error);
-        public bool IsValid => true;
 
         //BomNo不能修改
         public string BomNo { get; set; }
@@ -83,7 +76,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
         }
 
 
-        private void MarkAsModified()
+        protected override void MarkAsModified()
         {
             if (State == ModelState.Unchanged)
             {
@@ -91,7 +84,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
             }
         }
 
-        public override void RaisePropertyChanged(string propertyName)
+        public override void RaisePropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
         {
             base.RaisePropertyChanged(propertyName);
 
@@ -103,7 +96,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
 
         #region IDataErrorInfo Members
 
-        public string Error
+        public override string Error
         {
             get
             {
@@ -115,7 +108,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
             }
         }
 
-        public string this[string columnName]
+        public override string this[string columnName]
         {
             get
             {
@@ -149,6 +142,5 @@ namespace SwiftExport.View.FW.ProductViews.Models
         #endregion
 
 
-        #endregion
     }
 }

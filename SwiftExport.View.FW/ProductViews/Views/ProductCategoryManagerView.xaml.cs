@@ -18,7 +18,10 @@ namespace SwiftExport.View.FW.ProductViews.Views
         {
             InitializeComponent();
         }
-
+        public ProductCategoryManagerView(ProductCategoryManagerViewModel vm):this()
+        {
+            this.DataContext = vm;
+        }
         private void CategoryTreeView_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
             if (this.DataContext is ProductCategoryManagerViewModel vm)

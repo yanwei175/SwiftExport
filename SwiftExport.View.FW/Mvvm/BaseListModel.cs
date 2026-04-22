@@ -48,9 +48,9 @@ namespace SwiftExport.View.FW.Mvvm
 
             RaiseAllState();
         }
-        //Itesm里的行变化事件,切换行才会触发.
         private bool _suppressItemChangedEvents = false;
 
+        //Items里的行变化事件,切换行才会触发.
         private void OnItemChanged(object sender, PropertyChangedEventArgs e)
         {
             if (_suppressItemChangedEvents) return;
@@ -67,7 +67,7 @@ namespace SwiftExport.View.FW.Mvvm
             {
                 RaiseCheckedChanged();
             }
-
+            RaiseAllState();
             ListStateChanged?.Invoke();
         }
 

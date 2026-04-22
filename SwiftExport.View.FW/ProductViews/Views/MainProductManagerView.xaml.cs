@@ -12,11 +12,13 @@ namespace SwiftExport.View.FW.ProductViews.Views
     {
         // 记录折叠前的高度，以便展开时恢复
         private GridLength _cachedDetailHeight = new GridLength(4, GridUnitType.Star);
-
-        public MainProductManagerView(ProductManagerViewModel vm)
+        public MainProductManagerView( )
         {
             InitializeComponent();
-            DataContext = vm;
+        }
+        public MainProductManagerView(MainProductManagerViewModel vm):this()
+        {
+            this.DataContext = vm;
         }
 
         // 处理分割线上 ToggleButton 的点击事件

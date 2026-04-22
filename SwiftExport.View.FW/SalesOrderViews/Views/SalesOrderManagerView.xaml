@@ -397,7 +397,7 @@
                                Margin="5,2">
                         <!-- 订单号标签：绑定到 SelectedOrderHeader.OrderNo，无订单时显示 (无订单) -->
                         <TextBlock Text="订单号：" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                        <TextBlock Text="{Binding SelectedOrderHeader.OrderNo, TargetNullValue='(无订单号)'}" VerticalAlignment="Center"  Margin="0,0,15,0" Width="120" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding SelectedOrderHeader.单号, TargetNullValue='(无订单号)'}" VerticalAlignment="Center"  Margin="0,0,15,0" Width="120" TextTrimming="CharacterEllipsis"/>
                         <Separator Margin="5,0"/>
 
                         <!-- 有BOM时显示的操作按钮区域（获取/保存/删除/筛选） -->

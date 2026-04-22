@@ -1,0 +1,96 @@
+<UserControl x:Class="MateWpfThemes.FW.Controls.PageNavigator"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d"
+             x:Name="Root">
+
+    <!-- 
+    ========================================================================
+    组件使用说明 (PageNavigator):
+
+    1. 绑定模式:
+       该组件设计为“命令驱动（Command-Driven）”，必须使用单向绑定（Mode=OneWay）。
+       用户的一切翻页操作（点击页码、上一页、修改每页条数）都会被转换为一个 PageChangeRequest 对象，
+       并通过 PageChangeCommand 发送给 ViewModel。
+
+    2. 拦截机制:
+       因为使用的是 Mode=OneWay，UI 组件自身的值只有在 ViewModel 中实际修改了绑定的属性后才会改变。
+       这使得我们可以在 ViewModel 的 Command 处理函数中，优先检查数据是否“未保存（IsDirty）”。
+       - 如果用户放弃翻页（例如弹窗点“取消”），则 ViewModel 不更改绑定的属性，组件保持在当前页码。
+       - 如果用户同意翻页，则 ViewModel 实际更新 PageIndex/PageSize，调用 API 加载数据，组件 UI 同步刷新。
+
+    3. 基础使用示例:
+       <controls:PageNavigator TotalCount="{Binding TotalCount}" 
+                               PageIndex="{Binding PageIndex, Mode=OneWay}" 
+                               PageSize="{Binding PageSize, Mode=OneWay}" 
+                               PageChangeCommand="{Binding PageChangeCommand}" />
+    ========================================================================
+    -->
+
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Background="Transparent" Height="30">
+
+        <!-- 总条数 -->
+        <TextBlock Text="共 " Foreground="{DynamicResource Brush_Txt_Primary}" VerticalAlignment="Center"/>
+        <TextBlock Text="{Binding TotalCount, ElementName=Root, Mode=OneWay}" Foreground="{DynamicResource Brush_Txt_Primary}" FontWeight="Bold" VerticalAlignment="Center"/>
+        <TextBlock Text=" 条数据" Foreground="{DynamicResource Brush_Txt_Primary}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+
+        <Rectangle Width="1" Height="14" Fill="{DynamicResource Brush_Txt_Secondary}" Margin="0,0,15,0" VerticalAlignment="Center"/>
+
+        <!-- 每页条数 -->
+        <TextBlock Text="每页 " VerticalAlignment="Center" Foreground="{DynamicResource Brush_Txt_Primary}"/>
+        <ComboBox x:Name="CboPageSize" 
+                  Style="{DynamicResource BaseComboBox}" 
+                  Background="Transparent" Width="55" Margin="5,0" Padding="4,2" 
+                  HorizontalContentAlignment="Left" VerticalContentAlignment="Center"
+                  ItemsSource="{Binding PageSizeOptions, ElementName=Root, Mode=OneWay}"
+                  SelectionChanged="CboPageSize_SelectionChanged"/>
+        <TextBlock Text="条" VerticalAlignment="Center" Foreground="{DynamicResource Brush_Txt_Primary}" Margin="0,0,15,0"/>
+
+        <!-- 首页 & 上一页 -->
+        <Button Content="|&lt;" ToolTip="首页" Style="{DynamicResource ButtonText}" 
+                IsEnabled="{Binding CanGoBack, ElementName=Root, Mode=OneWay}" 
+                Click="BtnFirst_Click" Margin="2,0"/>
+        <Button Content="&lt;" ToolTip="上一页" Style="{DynamicResource ButtonText}" 
+                IsEnabled="{Binding CanGoBack, ElementName=Root, Mode=OneWay}" 
+                Click="BtnPrev_Click" Margin="2,0,10,0"/>
+
+        <!-- 动态页码列表 -->
+        <ItemsControl ItemsSource="{Binding PageItems, ElementName=Root}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button Content="{Binding DisplayText}" 
+                            IsEnabled="{Binding IsClickable}"
+                            Click="BtnPage_Click"
+                            Margin="2,0" MinWidth="24">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource ButtonText}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                        <Setter Property="Foreground" Value="DodgerBlue"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- 下一页 & 尾页 -->
+        <Button Content="&gt;" ToolTip="下一页" Style="{DynamicResource ButtonText}" 
+                IsEnabled="{Binding CanGoForward, ElementName=Root, Mode=OneWay}" 
+                Click="BtnNext_Click" Margin="10,0,2,0"/>
+        <Button Content="&gt;|" ToolTip="尾页" Style="{DynamicResource ButtonText}" 
+                IsEnabled="{Binding CanGoForward, ElementName=Root, Mode=OneWay}" 
+                Click="BtnLast_Click" Margin="2,0"/>
+
+    </StackPanel>
+</UserControl>

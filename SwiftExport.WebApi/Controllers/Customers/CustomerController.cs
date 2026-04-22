@@ -8,7 +8,7 @@ namespace SwiftExport.WebApi.Controllers.Customers;
 
 public class CustomerController(ICustomerService service) : BaseController<SwiftExport.Core.Entities.MasterData.Customer, CustomerDto>(service)
 {
-    [HttpGet]
+    [HttpGet("page")]
     public async Task<ServiceResult<PagedResultDto<CustomerDto>>> GetPaged([FromQuery] PagedRequestDto request)
     {
 

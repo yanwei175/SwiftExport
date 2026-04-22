@@ -116,11 +116,28 @@
     <Compile Include="Mvvm\ITreeModelService.cs" />
     <Compile Include="ProductViews\Assists\BomSubSkuSearchAssist.cs" />
     <Compile Include="ProductViews\Assists\PopupPlacementService.cs" />
+    <Compile Include="ProductViews\Controls\CategoryTreeSelectorControl.xaml.cs">
+      <DependentUpon>CategoryTreeSelectorControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ProductViews\Controls\ColorSelectorControl.xaml.cs">
+      <DependentUpon>ColorSelectorControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ProductViews\Controls\CustomerSelectorControl.xaml.cs">
+      <DependentUpon>CustomerSelectorControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ProductViews\Messages\ProductSelectionResultMessage.cs" />
     <Compile Include="ProductViews\Models\BomTreeNodeModel.cs" />
+    <Compile Include="ProductViews\Models\CategorySelectionModel.cs" />
     <Compile Include="ProductViews\Models\ProductColorList.cs" />
+    <Compile Include="ProductViews\ViewModels\BomListViewModel.cs" />
+    <Compile Include="ProductViews\ViewModels\MainProductManagerViewModel.cs" />
+    <Compile Include="ProductViews\ViewModels\ProductListViewModel.cs" />
+    <Compile Include="ProductViews\ViewModels\ProductManagerViewModel.cs" />
     <Compile Include="ProductViews\Views\MainProductManagerView.xaml.cs">
       <DependentUpon>MainProductManagerView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ProductViews\Views\ProductManagerView.xaml.cs">
+      <DependentUpon>ProductManagerView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Resources\Controls\Converters\PermissionToBoolConverter.cs" />
     <Compile Include="Resources\Controls\Converters\PermissionToVisibilityConverter.cs" />
@@ -199,6 +216,22 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="ProductViews\Controls\CategoryTreeSelectorControl.xaml">
+      <Generator>XamlIntelliSenseFileGenerator</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="ProductViews\Controls\ColorSelectorControl.xaml">
+      <Generator>XamlIntelliSenseFileGenerator</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="ProductViews\Controls\CustomerSelectorControl.xaml">
+      <Generator>XamlIntelliSenseFileGenerator</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="ProductViews\Views\MainProductManagerView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>XamlIntelliSenseFileGenerator</Generator>
+    </Page>
     <Page Include="ProductViews\Views\ProductCategoryManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -207,13 +240,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="ProductViews\Views\MainProductManagerView.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Page Include="ProductViews\Views\ProductManagerView.xaml">
-      <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+      <Generator>XamlIntelliSenseFileGenerator</Generator>
     </Page>
     <Page Include="ProductViews\Views\ProductSelectorView.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -255,16 +284,12 @@
     <Compile Include="ProductViews\Models\ProductModel.cs" />
     <Compile Include="ProductViews\ViewModels\ProductCategoryManagerViewModel.cs" />
     <Compile Include="ProductViews\ViewModels\ProductColorManagerViewModel.cs" />
-    <Compile Include="ProductViews\ViewModels\ProductManagerViewModel.cs" />
     <Compile Include="ProductViews\ViewModels\ProductSelectorViewModel.cs" />
     <Compile Include="ProductViews\Views\ProductCategoryManagerView.xaml.cs">
       <DependentUpon>ProductCategoryManagerView.xaml</DependentUpon>
     </Compile>
     <Compile Include="ProductViews\Views\ProductColorManagerView.xaml.cs">
       <DependentUpon>ProductColorManagerView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="ProductViews\Views\ProductManagerView.xaml.cs">
-      <DependentUpon>ProductManagerView.xaml</DependentUpon>
     </Compile>
     <Compile Include="ProductViews\Views\ProductSelectorView.xaml.cs">
       <DependentUpon>ProductSelectorView.xaml</DependentUpon>
@@ -296,7 +321,6 @@
     <Folder Include="Orders\SaleaOrder\Models\" />
     <Folder Include="Orders\SaleaOrder\ViewModels\" />
     <Folder Include="Orders\SaleaOrder\Views\" />
-    <Folder Include="ProductViews\Controls\" />
     <Folder Include="SettingViews\" />
   </ItemGroup>
   <ItemGroup>

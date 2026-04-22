@@ -110,7 +110,7 @@
 
                         <DataGrid.Columns>
 
-                                <mt:CheckBoxDataGridTemplateColumn 
+                            <mt:CheckBoxDataGridTemplateColumn 
                                             AllCheckedPropertyName="CurrentCustomerTable.IsAllChecked"
                                             ItemCheckedPropertyName="IsChecked"
                                             ItemCheckedCommandName="{x:Null}"
@@ -159,10 +159,11 @@
                             </DataGrid.Columns>
                         </DataGrid>
                     
-                        <mt:PaginationControl Grid.Row="2" Margin="0,8,0,0" HorizontalAlignment="Right" 
+                        <mt:PageNavigator Grid.Row="2" Margin="0,8,0,0" HorizontalAlignment="Right" 
                                                    TotalCount="{Binding TotalCustomerTableCount}" 
-                                                   PageIndex="{Binding PageCustomerTableIndex, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
-                                                   PageSize="{Binding PageCustomerTableSize, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                                                   PageIndex="{Binding PageCustomerTableIndex, Mode=OneWay}"
+                                                   PageSize="{Binding PageCustomerTableSize, Mode=OneWay}"
+                                                   PageChangeCommand="{Binding PaginationCustomerTableChangedCommand}"/>
 
                 </Grid>
             </TabItem>
@@ -346,10 +347,11 @@
 
 
 
-                    <mt:PaginationControl Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" HorizontalAlignment="Right" 
+                    <mt:PageNavigator Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" HorizontalAlignment="Right" 
                                                    TotalCount="{Binding TotalProductTableCount}" 
-                                                   PageIndex="{Binding PageProductTableIndex, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
-                                                   PageSize="{Binding PageProductTableSize, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                                                   PageIndex="{Binding PageProductTableIndex, Mode=OneWay}"
+                                                   PageSize="{Binding PageProductTableSize, Mode=OneWay}"
+                                                   PageChangeCommand="{Binding PaginationProductTableChangedCommand}"/>
 
                 </Grid>
             </TabItem>

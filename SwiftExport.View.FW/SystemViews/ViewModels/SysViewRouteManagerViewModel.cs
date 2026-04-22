@@ -26,9 +26,6 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
         private readonly IViewRouteService _routeService;
         private readonly IDialogService _msg;
 
-        // 中文注释：由 View 订阅，用于在保存完成后关闭弹窗并返回结果。
-        public event Action<bool?> CloseWindow;
-
         // ============= 列表数据 =============
 
         /// <summary>路由配置列表，绑定到 DataGrid</summary>

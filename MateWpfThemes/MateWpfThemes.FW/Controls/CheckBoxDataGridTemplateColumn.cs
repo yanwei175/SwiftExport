@@ -249,6 +249,8 @@ namespace MateWpfThemes.FW.Controls
         {
             // 设置列的基本属性
             Width = 40;
+            MinWidth = 40;
+            MaxWidth = 40;
             CanUserResize = false;
             CanUserReorder = false;
             CanUserSort = false;

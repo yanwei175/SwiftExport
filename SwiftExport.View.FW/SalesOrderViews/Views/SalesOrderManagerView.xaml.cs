@@ -21,11 +21,14 @@ namespace SwiftExport.View.FW.SalesOrderViews.Views
 
         // 中文注释：确保首次焦点逻辑只执行一次，避免切换可见性时频繁抢焦点影响体验。
         private bool _hasInitializedFirstFocus;
-
-        public SalesOrderManagerView(SalesOrderManagerViewModel vm)
+        public SalesOrderManagerView()
         {
             InitializeComponent();
-            DataContext = vm;
+        }
+        public SalesOrderManagerView(SalesOrderManagerViewModel vm):this()
+        {
+            
+            this.DataContext = vm;
 
             // 中文注释：控件首次加载完成后，自动聚焦到主表模糊搜索框。
             this.Loaded += SalesOrderManagerView_Loaded;

@@ -9,9 +9,12 @@ namespace SwiftExport.View.FW.CustomerViews.Views
     /// </summary>
     public partial class CustomerManagerView : UserControl
     {
-        public CustomerManagerView(CustomerManagerViewModel vm)
+        public CustomerManagerView()
         {
             InitializeComponent();
+        }
+        public CustomerManagerView(CustomerManagerViewModel vm):this()
+        {
             this.DataContext = vm;
         }
 

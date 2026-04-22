@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SwiftExport.View.FW.ProductViews.Views.ProductManagerView"
+<UserControl x:Class="SwiftExport.View.FW.ProductViews.Views.ProductManagerView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -20,7 +20,7 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <mt:ImgPathToImgConverter x:Key="ImgPathToImgConverter"/>
-            
+
             <Style x:Key="FinishAutoCompleteEditStyle" TargetType="TextBox" BasedOn="{StaticResource DataGridTextBoxStyle}">
                 <Setter Property="mt:DataGridDropdownAssist.ItemsSource" Value="{Binding DataContext.ProductFinishList, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
                 <Setter Property="mt:DataGridDropdownAssist.DisplayMemberPath" Value="ColorNameZh" />
@@ -49,7 +49,7 @@
                 <Setter Property="mt:DataGridDropdownAssist.RequireItemMatch" Value="True" />
             </Style>
 
-    
+
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -133,7 +133,7 @@
             </Grid>
         </Border>
         <!--#endregion 左侧列表-->
-        
+
         <GridSplitter Width="8" 
                      Background="Transparent" Cursor="SizeWE" ShowsPreview="True"/>
 
@@ -152,7 +152,7 @@
                      Click="BtnToggleProduct_Click" VerticalAlignment="Center"  HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
                 <TextBlock  Text="产品区域" FontSize="9" Foreground="#666" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             </ToggleButton>
-            
+
             <!--#region 产品列表-->
             <Border Grid.Row="1"  x:Name="MasterBorder" Margin="5"
                Background="White" CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource Brush_Border_Light}">
@@ -285,7 +285,7 @@
                                         </Style>
                                     </DataGrid.Style>
 
-                                    
+
 
                                     <DataGrid.Columns>
                                         <mtControls:CheckBoxDataGridTemplateColumn 
@@ -430,7 +430,7 @@
                      Click="BtnToggleBom_Click" VerticalAlignment="Center">
                 <TextBlock Text="BOM区域" FontSize="9" Foreground="#666" VerticalAlignment="Center" HorizontalAlignment="Left"/>
             </ToggleButton>
-<!--#region BOM区域-->
+            <!--#region BOM区域-->
             <Border Grid.Row="3" x:Name="DetailContainer" Margin="5"
                Background="{DynamicResource  Brush_Control_Background}" CornerRadius="8" 
                     BorderThickness="1" BorderBrush="{DynamicResource Brush_Border_Light}" >
@@ -465,7 +465,7 @@
                                    Style="{StaticResource ButtonPrimary}"
                                    mt:ButtonAssist.IconSize="12"
                                    mt:ButtonAssist.Icon="{StaticResource Icon.Add}"/>
-                            
+
                             <Button Command="{Binding SaveBomCommand}" Margin="0,0,5,0"
                                    Content="保存"
                                    Style="{StaticResource ButtonSuccess}"
@@ -521,7 +521,7 @@
                                                  mt:DataGridAssist.AutoScrollToNewItem="True"
                                                  mt:DataGridAssist.EnableSoftValidation="True"
                                                  mt:DataGridExcelAssist.EnableDirtyTracking="True">
-                                    
+
                                     <DataGrid.Columns>
                                         <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}" 
                                            CellTemplate="{StaticResource ImageCellTemplate}" Width="64"/>
@@ -605,13 +605,13 @@
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        
+
                                         <DataGridTextColumn EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}"
                                                         Header="备注" Binding="{Binding Note, UpdateSourceTrigger=PropertyChanged}" Width="300" />
 
                                     </DataGrid.Columns>
                                 </DataGrid>
-<!--Bom条目快速搜索产品-->
+                                <!--Bom条目快速搜索产品-->
                                 <Popup x:Name="PopupForSubModel"
                                                IsOpen="{Binding IsPopupOpen}"
                                                Placement="Bottom"
@@ -650,7 +650,7 @@
                                                             <TextBlock Text="{Binding Sku}"
                                                                                FontWeight="SemiBold"
                                                                                FontSize="12"/>
-                                                             <TextBlock Text="{Binding Description}"
+                                                            <TextBlock Text="{Binding Description}"
                                                                                Foreground="#888"
                                                                                FontSize="11"
                                                                                TextTrimming="CharacterEllipsis"/>
@@ -709,7 +709,7 @@
             </Border>
 
         </Grid>
-<!--#endregion-->
+        <!--#endregion-->
         <mt:DialogHost Grid.Column="1" Grid.RowSpan="4" />
     </Grid>
 </UserControl>

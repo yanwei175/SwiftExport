@@ -460,7 +460,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             {
                 if (SetProperty(ref _isAllChecked, value) && AllProductModels != null)
                 {
-                    foreach (var item in    AllProductModels) item.IsChecked = value;
+                    foreach (var item in AllProductModels) item.IsChecked = value;
                     UpdateSelectionState();
                 }
             }
@@ -620,12 +620,13 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         {
             var vm = (ProductColorManagerViewModel)_serviceProvider.GetService(typeof(ProductColorManagerViewModel));
             var view = new Views.ProductColorManagerView(vm);
-            var win = new System.Windows.Window { 
-                Title = "产品颜色管理", 
-                Content = view, 
-                Width = 1024, 
-                Height = 768, 
-                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen 
+            var win = new System.Windows.Window
+            {
+                Title = "产品颜色管理",
+                Content = view,
+                Width = 1024,
+                Height = 768,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen
             };
             win.ShowDialog();
             // 窗体关闭后重新拉取字典等数据以刷新下拉列表
@@ -1462,7 +1463,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         private async void SaveBomAsync()
         {
 
-            if ( _bomApi == null) return;
+            if (_bomApi == null) return;
 
             var dirtyModels = _currentAllBoms.Where(x => x.State == ModelState.Added || x.State == ModelState.Modified || x.State == ModelState.Deleted).ToList();
             if (!dirtyModels.Any())
@@ -1554,7 +1555,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 target.Add(new BomItemModel
                 {
                     Id = item.Id,
-                    BomNo= item.BomNo,
+                    BomNo = item.BomNo,
                     SubSku = item.SubSku,
                     Description = item.Description,
                     Numerator = item.Numerator,
@@ -1841,5 +1842,3 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         }
     }
 }
-
-

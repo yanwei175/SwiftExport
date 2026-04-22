@@ -3,25 +3,21 @@ using SwiftExport.View.FW.Mvvm;
 
 namespace SwiftExport.View.FW.ProductViews.Models
 {
-    public class ProductModel : ViewModelBaseEx, IBaseModel, IDataErrorInfo
+    public class ProductModel : BaseLineModel, IBaseModel, IDataErrorInfo
     {
-        public int Id { get; set; }
-
-        private ModelState _state = ModelState.Unchanged;
-        public ModelState State
+        public override void LoadFromDto<ProductDto>(ProductDto dto, bool 抑制清理脏数据 = false)
         {
-            get => _state;
-            set => SetProperty(ref _state, value);
-        }
+            if (dto == null) return;
+            using (程序内部修改Scope())
+            {
+                Mapster.TypeAdapter.Adapt(dto, this);
+                if (this.Id == 0)
+                { this.MarkAsAdded(); }
 
-        private bool _isChecked;
-        public bool IsChecked
-        {
-            get => _isChecked;
-            set => SetProperty(ref _isChecked, value);
+                if (!抑制清理脏数据)
+                    CommitChanges();
+            }
         }
-
-        public bool IsValid => true;
 
         private string _masterSku = string.Empty;
         public string MasterSku
@@ -176,7 +172,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
             set { if (SetProperty(ref _sSku, value)) MarkAsModified(); }
         }
 
-        private void MarkAsModified()
+        protected override void MarkAsModified()
         {
             if (State == ModelState.Unchanged)
             {
@@ -199,7 +195,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
         #region IDataErrorInfo Members
 
         // 当没有错误的时候返回 null，这里如果要求对整个对象做校验的话可以继续扩展。
-        public string Error
+        public override string Error
         {
             get
             {
@@ -209,7 +205,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
             }
         }
 
-        public string this[string columnName]
+        public override string this[string columnName]
         {
             get
             {

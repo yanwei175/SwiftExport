@@ -38,7 +38,14 @@
                     Command="{Binding DeleteAsyncCommand}"
                     Height="28" Padding="12,0" Margin="0,0,12,0" FontSize="12"/>
             
-            <Button Content="刷新"
+                <Button Content="反选"
+                    mt:ButtonAssist.IconSize="12"
+                    mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
+                    Style="{StaticResource ButtonOutline}"
+                    Command="{Binding InvertCheckCommand}"
+                    Height="28" Padding="12,0" Margin="0,0,12,0" FontSize="12"/>
+            
+                <Button Content="刷新"
                     mt:ButtonAssist.IconSize="12"
                     mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
                     Style="{StaticResource ButtonOutline}"
@@ -112,9 +119,9 @@
             </DataGrid.Style>
             
             <DataGrid.Columns>
-                <mt:CheckBoxDataGridTemplateColumn                          
+                <mt:CheckBoxDataGridTemplateColumn   
                                             AllCheckedPropertyName="IsAllChecked"
-                                            HeaderCheckBoxMargin="3,0"
+                                            HeaderCheckBoxMargin="2,0"
                                             ItemCheckedPropertyName="IsChecked"
                                             HeaderCheckBoxToolTip="全选/全不选"/>
                 <DataGridTextColumn Header="路由键Key"          Binding="{Binding TargetViewKey,UpdateSourceTrigger=PropertyChanged}"     Width="120"/>
