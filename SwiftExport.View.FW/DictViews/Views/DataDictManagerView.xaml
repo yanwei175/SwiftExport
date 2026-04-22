@@ -10,6 +10,7 @@
         xmlns:productview="clr-namespace:SwiftExport.View.FW.ProductViews.Views"
         xmlns:SysVm="clr-namespace:SwiftExport.View.FW.SystemViews.ViewModels"
         xmlns:SysView="clr-namespace:SwiftExport.View.FW.SystemViews.Views"
+        xmlns:routing="clr-namespace:SwiftExport.View.FW.Routing"
         mc:Ignorable="d"
         d:Height="768" d:Width="1024"
         d:DataContext="{d:DesignInstance Type=vm:DataDictManagerViewModel}"
@@ -19,10 +20,17 @@
         <mt:BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
 
         <!--
-            右侧内容面板路由映射表
-            ContentControl.Content 绑定 CurrentViewModel，
-            WPF 根据此处的 DataTemplate DataType 自动选择对应的 View 渲染
-            新增路由时：在此追加一条 DataTemplate 即可，无需改动 ContentControl
+            ViewLocator 约定选择器：
+            根据 ViewModel 类型自动按命名约定（.ViewModels. → .Views.，XxxViewModel → XxxView）
+            找到对应的 View，不再需要手写 DataTemplate。
+            新增页面只需按约定新建 ViewModel + View，此处无需改动。
+        -->
+        <routing:ViewLocatorSelector x:Key="ViewLocatorSelector"/>
+
+        <!--
+            兜底 DataTemplate（保留兼容）：
+            当 ViewLocatorSelector 按约定找不到 View 时，WPF 会降级使用下方的显式 DataTemplate。
+            若命名完全符合约定，这些条目可逐步移除。
         -->
         <DataTemplate DataType="{x:Type productvm:ProductColorManagerViewModel}">
             <productview:ProductColorManagerView/>
@@ -155,8 +163,10 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- 内容 -->
-                <ContentControl Grid.Row="0" Content="{Binding CurrentViewModel}" />
+                <!-- 内容：ContentTemplateSelector 优先走约定自动映射，找不到时降级到 Resources 里的 DataTemplate -->
+                <ContentControl Grid.Row="0"
+                                Content="{Binding CurrentViewModel}"
+                                ContentTemplateSelector="{StaticResource ViewLocatorSelector}" />
 
                 <!-- 状态栏 -->
                 <TextBlock 

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.View.FW;
+using SwiftExport.View.FW.Routing;
 using SwiftExport.View.FW.Services;
 using System;
 using System.Threading.Tasks;
@@ -23,19 +24,16 @@ namespace SwiftExport.DevApp
         {
             base.OnStartup(e);
 
-            // 中文注释：同时初始化业务层与控件库的 DispatcherProvider，
-            // 以兼容 WPF 主程序与后续可能的宿主切换（例如 VSTO）。
-            SwiftExport.View.FW.DispatcherProvider.Initialize(Dispatcher.CurrentDispatcher);
-            MateWpfThemes.FW.DispatcherProvider.Initialize(Dispatcher.CurrentDispatcher);
+            // 中文注释：把离线模式同步到 View 层运行时配置（必须在 AddAppServices 之前设置）。
+            AppRuntimeOptions.DisableRemoteApi = StartupOfflineMode;
 
             try
             {
-                // 中文注释：把离线模式同步到 View 层运行时配置。
-                AppRuntimeOptions.DisableRemoteApi = StartupOfflineMode;
-
-                // 注册依赖
+                // 注册依赖。
+                // AddAppServices 内部会调用 AddViewServices(Dispatcher.CurrentDispatcher)，
+                // 自动完成 DispatcherProvider 初始化，无需在此处手动调用 Initialize。
                 var services = new ServiceCollection();
-                services.AddAppServices();
+                services.AddAppServices();  // uiDispatcher 留空 = 自动捕获当前 UI 线程 Dispatcher
 
                 var provider = services.BuildServiceProvider();
                 DiServices.Init(provider);
@@ -44,10 +42,13 @@ namespace SwiftExport.DevApp
                 var mainWindow = DiServices.GetService<MainWindow>();
                 mainWindow.Show();
 
-                // 中文注释：字典预加载改为后台执行；离线模式直接跳过，不触发任何 API/数据库链路。
+                // 中文注释：字典预加载 + 路由缓存预加载，均后台执行；
+                // 离线模式直接跳过，不触发任何 API/数据库链路。
                 if (!AppRuntimeOptions.DisableRemoteApi)
                 {
                     _ = TryPreloadDictAsync();
+                    // 路由缓存预加载：从 DB 拉取 SysViewRouteModel 到内存
+                    _ = TryPreloadViewRoutesAsync();
                 }
             }
             catch (Exception ex)
@@ -78,6 +79,25 @@ namespace SwiftExport.DevApp
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("[App] Dict preload failed: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// 后台预加载视图路由缓存（从 DB 的 SysViewRouteModel 表拉取）。
+        /// 失败不崩溃，路由将自动降级到静态 ViewRoutes.cs 兜底。
+        /// </summary>
+        private static async Task TryPreloadViewRoutesAsync()
+        {
+            var routeService = DiServices.GetService<IViewRouteService>();
+            if (routeService == null) return;
+
+            try
+            {
+                await routeService.RefreshAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[App] ViewRoute preload failed: " + ex.Message);
             }
         }
     }

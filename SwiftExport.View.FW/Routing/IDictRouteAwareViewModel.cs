@@ -11,6 +11,7 @@ namespace SwiftExport.View.FW.Routing
         /// </summary>
         /// <param name="dictCode">字典编码</param>
         /// <param name="dictDisplayName">字典显示名称</param>
-        void SetRouteContext(string dictCode, string dictDisplayName);
+        /// <param name="routeContext">可用于传递完整节点的上下文对象</param>
+        void SetRouteContext(string dictCode, string dictDisplayName, object routeContext = null);
     }
 }

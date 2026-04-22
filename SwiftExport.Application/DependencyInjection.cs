@@ -7,6 +7,7 @@ using SwiftExport.Application.Services.Orders;
 using SwiftExport.Application.Services.Products;
 using SwiftExport.Application.Services.Suppliers;
 using SwiftExport.Application.Services.Systems;
+using SwiftExport.Application.Services.SystemServices;
 namespace SwiftExport.Application;
 
 public static class DependencyInjection
@@ -29,6 +30,8 @@ public static class DependencyInjection
         services.AddScoped<ISalesOrderService, SalesOrderService>();
         services.AddScoped<ISysDicCurrencyService, SysDicCurrencyService>();
         services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();
+        // 视图路由配置服务
+        services.AddScoped<ISysViewRouteService, SysViewRouteService>();
 
 
         // 以后加了 OrderService，就加在这里，不用动 Program.cs

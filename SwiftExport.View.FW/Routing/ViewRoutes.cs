@@ -39,9 +39,6 @@ namespace SwiftExport.View.FW.Routing
                 // ===== 通用字典明细页（英/中文字典项） =====
                 ["GenericDictDataView"] = typeof(GenericDictDataManagerViewModel),
 
-                // ===== 预留（按需取消注释并在 DI_View.cs 中注册） =====
-                // ["SupplierView"]     = typeof(SupplierManagerViewModel),
-                // ["CustomerView"]     = typeof(CustomerManagerViewModel),
             };
 
         /// <summary>

@@ -68,6 +68,8 @@
                 <DataGrid Grid.Row="2"
                           ItemsSource="{Binding ItemsView}"
                           SelectedItem="{Binding SelectedItem}"
+                          ColumnHeaderHeight="30"
+                          GridLinesVisibility="Horizontal"
                           IsReadOnly="True"
                           RowHeight="40"
                           CanUserAddRows="False"
@@ -204,6 +206,6 @@
             </Border>
         </Grid>
         
-        <mt:DialogHost/>
+        <mt:DialogHost d:IsHidden="True"/>
     </Grid>
 </UserControl>

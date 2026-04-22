@@ -26,8 +26,10 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         private readonly IServiceProvider _serviceProvider;
         private readonly ISysDictTypeApi _dictTypeApi;
         private readonly Dispatcher _dispatcher;
+        // 动态路由缓存服务（优先查数据库路由，未命中时降级到静态 ViewRoutes.cs）
+        private readonly IViewRouteService _viewRouteService;
 
-        // ============= 树形导航 =============
+        // ============= 树形导航 ==============
 
         /// <summary>
         /// 绑定给 TreeView.ItemsSource 的根节点集合
@@ -35,7 +37,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         /// </summary>
         public ObservableCollection<DictTypeNavNode> TreeRoots { get; } = new ObservableCollection<DictTypeNavNode>();
 
-        // ============= 搜索 =============
+        // ============= 搜索 ==============
 
         private string _searchTypeText;
         public string SearchTypeText
@@ -48,7 +50,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             }
         }
 
-        // ============= 右侧内容面板 =============
+        // ============= 右侧内容面板 ==============
 
         private object _currentViewModel;
         public object CurrentViewModel
@@ -57,7 +59,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             set => SetProperty(ref _currentViewModel, value);
         }
 
-        // ============= 状态 =============
+        // ============= 状态 ==============
 
         private string _statusMessage;
         public string StatusMessage
@@ -66,7 +68,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             set => SetProperty(ref _statusMessage, value);
         }
 
-        // ============= 命令 =============
+        // ============= 命令 ==============
 
         public RelayCommand ExpandAllCommand { get; }
         public RelayCommand CollapseAllCommand { get; }
@@ -76,16 +78,18 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         /// </summary>
         public RelayCommand ManageTypesCommand { get; }
 
-        // ============= 构造函数 =============
+        // ============= 构造函数 ==============
 
         public DataDictManagerViewModel(
             IServiceProvider serviceProvider,
             ISysDictTypeApi dictTypeApi,
-            IDialogService dialogService)
+            IDialogService dialogService,
+            IViewRouteService viewRouteService)
         {
-            _serviceProvider = serviceProvider;
-            _dictTypeApi = dictTypeApi;
-            _dispatcher = Dispatcher.CurrentDispatcher;
+            _serviceProvider     = serviceProvider;
+            _dictTypeApi         = dictTypeApi;
+            _dispatcher          = Dispatcher.CurrentDispatcher;
+            _viewRouteService    = viewRouteService;
 
             ExpandAllCommand   = new RelayCommand(() => SetExpandAll(true));
             CollapseAllCommand = new RelayCommand(() => SetExpandAll(false));
@@ -104,7 +108,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             _ = LoadDictTypesAsync();
         }
 
-        // ============= 数据加载 =============
+        // ============= 数据加载 ==============
 
         /// <summary>
         /// 从后端加载分组树，转换为统一的 DictTypeNavNode 结构绑定到 TreeView
@@ -185,7 +189,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             return node;
         }
 
-        // ============= 节点选中路由 =============
+        // ============= 节点选中路由 ==============
         #region 视图路由
         /// <summary>
         /// 树形节点被选中时，根据 TargetViewKey 路由到右侧对应的管理面板
@@ -202,7 +206,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
 
             try
             {
-                object vm = ResolveViewModel(node.TargetViewKey, node.DictCode, node.DisplayName);
+                object vm = ResolveViewModel(node);
                 CurrentViewModel = vm;
             }
             catch (Exception ex)
@@ -214,39 +218,39 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
 
         /// <summary>
         /// 根据 TargetViewKey 从 DI 容器解析对应的 ViewModel（Transient，每次新实例）。
-        /// 
-        /// 路由映射统一维护在 <see cref="ViewRoutes.Routes"/>，
-        /// 新增路由只需在那里加一行，此处无需改动。
+        ///
+        /// 路由解析优先级：
+        ///   1. IViewRouteService（数据库缓存，动态路由）
+        ///   2. 静态 ViewRoutes.cs（兜底，迁移期间保留兼容）
+        /// 新增路由只需在数据库 SysViewRouteModel 表插入一行，无需改代码。
         /// </summary>
-        private object ResolveViewModel(string targetViewKey, string dictCode, string displayName)
+        private object ResolveViewModel(DictTypeNavNode node)
         {
-            // 查路由表
-            if (!ViewRoutes.TryResolve(targetViewKey, out var vmType))
+            var targetViewKey = node.TargetViewKey;
+            var dictCode      = node.DictCode;
+            var displayName   = node.DisplayName;
+
+            // 优先走动态路由缓存（数据库），未命中自动降级到静态路由
+            if (!_viewRouteService.TryResolve(targetViewKey, out var vmType))
             {
                 StatusMessage = string.IsNullOrWhiteSpace(targetViewKey)
                     ? $"[{dictCode}] 暂未配置 TargetViewKey"
-                    : $"未找到视图路由：{targetViewKey}，请在 ViewRoutes.cs 中注册";
+                    : $"未找到视图路由：{targetViewKey}，请在 SysViewRoute 表中配置";
                 return null;
             }
 
             // 从 DI 容器创建实例（Transient，状态隔离）
             var vm = _serviceProvider.GetRequiredService(vmType);
 
-            // 若目标 VM 支持字典路由上下文，则注入 DictCode + 显示名
+            // 若目标 VM 支持字典路由上下文，则注入 DictCode + 显示名 + 完整节点上下文
             var routeAwareVm = vm as IDictRouteAwareViewModel;
-            if (routeAwareVm != null)
-            {
-                routeAwareVm.SetRouteContext(dictCode, displayName);
-            }
+            routeAwareVm?.SetRouteContext(dictCode, displayName, node);
 
             return vm;
         }
         #endregion
 
-
-
-
-        // ============= 搜索过滤 =============
+        // ============= 搜索过滤 ==============
 
         /// <summary>
         /// 搜索文本变化时，过滤节点显示
@@ -284,7 +288,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             return anyMatch;
         }
 
-        // ============= 展开/折叠 =============
+        // ============= 展开/折叠 ==============
 
         public void ExpandAllNodes()  => SetExpandAll(true);
         public void CollapseAllNodes() => SetExpandAll(false);
@@ -304,7 +308,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             }
         }
 
-        // ============= 辅助 =============
+        // ============= 辅助 ==============
 
         /// <summary>
         /// 统计叶子节点（真实字典类型）数量

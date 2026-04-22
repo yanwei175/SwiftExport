@@ -11,5 +11,9 @@ namespace SwiftExport.View.FW.DictViews.Views
         {
             InitializeComponent();
         }
+        public GenericDictDataManagerView(GenericDictDataManagerView vm):this()
+        {
+            this.DataContext = vm;
+        }
     }
 }

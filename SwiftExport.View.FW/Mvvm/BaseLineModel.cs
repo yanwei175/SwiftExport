@@ -129,8 +129,17 @@ namespace SwiftExport.View.FW.Mvvm
                 State = ModelState.Modified;
         }
 
-        public void MarkAsAdded() => State = ModelState.Added;
-        public void MarkAsDeleted() => State = ModelState.Deleted;
+        public void MarkAsAdded()
+        {
+            State = ModelState.Added;
+            RaisePropertyChanged(nameof(State)); // 通知列表 Dirty
+        }
+        public void MarkAsDeleted()
+        {
+            State = ModelState.Deleted;
+            RaisePropertyChanged(nameof(State)); // 通知列表 Dirty
+        }
+
 
 
         // ============================================================

@@ -133,7 +133,7 @@ namespace SwiftExport.View.FW.Services
         public IReadOnlyList<string> GetValues(string dictCode)
         {
             return GetItems(dictCode)
-                .Select(x => x.DictValue)
+                .Select(x => x.DataNameEn)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();

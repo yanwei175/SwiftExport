@@ -6,6 +6,8 @@
 
 ## 项目指南
 
+铁律: 我这里是中文项目, 编码请固定UTF-8以防产生乱码.
+
 - - 从数据库表开始建流程
   - 1. SwiftExport.Core层建一个实体继承自SwiftExport.Core.Common的BaseEntity. 以及定义仓储接口继承IRepository<TEntity>. (-.Net10)
   - 2. SwiftExport.Contracts层建一个Dto继承自SwiftExport.Contracts.DTOs.Base的BaseDto.  (Net Framework4.8)
@@ -43,9 +45,9 @@
 - 在销售订单明细删除逻辑中：已持久化的行应仅从 UI 隐藏并保留在内部集合中标记为 Deleted，以便后端提交删除；未保存的新行才从内部集合和 UI 一并移除。
 - 在销售订单明细中，行级 subtotal 字段（如 NwSubTotal/GwSubTotal/CbmSubTotal/金额小计）需要允许用户手动修改；只有集合汇总字段应作为只读展示。
 - MateWpfThemes.FW 主题库是项目所有 WPF 样式/主题的唯一来源。所有业务视图依赖此库。
-- - - 
+- - -
 
-    
+​    
 
 
 

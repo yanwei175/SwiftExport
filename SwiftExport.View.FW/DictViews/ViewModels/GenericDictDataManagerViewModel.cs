@@ -28,12 +28,33 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         private readonly IDialogService _msg;
 
         // ============= 路由上下文 =============
-
+        #region 路由上下文
         private string _dictCode;
         public string DictCode
         {
             get => _dictCode;
             set => SetProperty(ref _dictCode, value);
+        }
+
+        private object _routeContext;
+        public object RouteContext
+        {
+            get => _routeContext;
+            private set => SetProperty(ref _routeContext, value);
+        }
+
+        private string _columnNameEn = "DataNameEn";
+        public string ColumnNameEn
+        {
+            get => _columnNameEn;
+            set => SetProperty(ref _columnNameEn, value);
+        }
+
+        private string _columnNameZh = "DataNameZh";
+        public string ColumnNameZh
+        {
+            get => _columnNameZh;
+            set => SetProperty(ref _columnNameZh, value);
         }
 
         private string _headerTitle = "字典明细管理";
@@ -42,6 +63,32 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             get => _headerTitle;
             set => SetProperty(ref _headerTitle, value);
         }
+
+        /// <summary>
+        /// 路由注入上下文：设置 DictCode 并加载数据。
+        /// </summary>
+        public void SetRouteContext(string dictCode, string dictDisplayName, object routeContext = null)
+        {
+            DictCode = dictCode;
+            ColumnNameEn = string.IsNullOrWhiteSpace(dictDisplayName)
+                ? "英文名称"
+                : dictDisplayName + "英文";
+            ColumnNameZh = string.IsNullOrWhiteSpace(dictDisplayName)
+                ? "中文名称"
+                : dictDisplayName + "中文";
+            RouteContext = routeContext;
+            HeaderTitle = string.IsNullOrWhiteSpace(dictDisplayName)
+                ? "字典明细管理"
+                : dictDisplayName + "（通用字典）";
+
+            // 通过触发 DataGrid 等重新绑定或者明确抛出通知
+            RaisePropertyChanged(nameof(HeaderTitle));
+            RaisePropertyChanged(nameof(DictCode));
+            RaisePropertyChanged(nameof(RouteContext));
+
+            _ = LoadAsync();
+        }
+        #endregion
 
         // ============= 数据表 =============
         public DictDataList CurrentTable { get; }
@@ -103,6 +150,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
 
         #endregion
 
+        #region 状态
         // ============= 状态 =============
         private string _statusMessage = "准备就绪";
         public string StatusMessage
@@ -133,8 +181,11 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             get => _editingItem;
             set => SetProperty(ref _editingItem, value);
         }
+        public GenericDictDataManagerViewModel()
+        {
 
-        public GenericDictDataManagerViewModel(ISysDictDataApi dictDataApi, IDialogService dialogService)
+        }
+        public GenericDictDataManagerViewModel(ISysDictDataApi dictDataApi, IDialogService dialogService) : this() 
         {
             _dictDataApi = dictDataApi;
             _msg = dialogService;
@@ -149,19 +200,8 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
             SaveEditCommand = new RelayCommand(async () => await SaveEditAsync(), () => EditingItem != null);
             CancelEditCommand = new RelayCommand(CancelEdit, () => IsEditDialogOpen);
         }
+        #endregion
 
-        /// <summary>
-        /// 路由注入上下文：设置 DictCode 并加载数据。
-        /// </summary>
-        public void SetRouteContext(string dictCode, string dictDisplayName)
-        {
-            DictCode = dictCode;
-            HeaderTitle = string.IsNullOrWhiteSpace(dictDisplayName)
-                ? "字典明细管理"
-                : dictDisplayName + "（通用字典）";
-
-            _ = LoadAsync();
-        }
 
         private void Create()
         {
@@ -246,7 +286,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
 
             if (!EditingItem.IsValid)
             {
-                await _msg.ShowWarningAsync("请先完善必填字段（中文名称）。");
+                await _msg.ShowWarningAsync("请先完善必填字段。");
                 return;
             }
 

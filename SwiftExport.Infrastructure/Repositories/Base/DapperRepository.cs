@@ -110,7 +110,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
 
     public virtual async Task<IReadOnlyList<T>> GetListAsync(object noNameObj)
     {
-        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE IsDeleted = 0 OR IsDeleted IS NULL";
+        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE (IsDeleted = 0 OR IsDeleted IS NULL)";
         if (noNameObj != null)
         {
             var props = noNameObj.GetType().GetProperties();

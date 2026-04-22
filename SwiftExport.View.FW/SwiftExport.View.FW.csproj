@@ -48,6 +48,7 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AppRuntimeOptions.cs" />
     <Compile Include="CustomerViews\Enums\CustomerTabs.cs" />
     <Compile Include="CustomerViews\Models\CustomerList.cs" />
     <Compile Include="CustomerViews\Models\CustomerModel.cs" />
@@ -85,12 +86,20 @@
     <Compile Include="DictViews\Views\DictTypeManagerView.xaml.cs">
       <DependentUpon>DictTypeManagerView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="DictViews\Views\GenericDictDataManagerView.xaml.cs" />
+    <Compile Include="DictViews\Views\GenericDictDataManagerView.xaml.cs">
+      <DependentUpon>GenericDictDataManagerView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="DictViews\Views\UnitDictUserControl.xaml.cs">
       <DependentUpon>UnitDictUserControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="DispatcherProvider.cs" />
+    <Compile Include="DI\DependencyInjection.Apis.cs" />
+    <Compile Include="DI\DependencyInjection.cs" />
+    <Compile Include="DI\DependencyInjection.Pages.cs" />
+    <Compile Include="DI\DependencyInjection.Routing.cs" />
+    <Compile Include="DI\DependencyInjection.Services.cs" />
     <Compile Include="DI_View.cs" />
+    <Compile Include="Http\HttpHandlers.cs" />
     <Compile Include="Interface\IExcelContextService.cs" />
     <Compile Include="Mappings\CustomerMapping.cs" />
     <Compile Include="Mappings\CustomerProductMapping.cs" />
@@ -116,7 +125,10 @@
     <Compile Include="Resources\Controls\Converters\PermissionToBoolConverter.cs" />
     <Compile Include="Resources\Controls\Converters\PermissionToVisibilityConverter.cs" />
     <Compile Include="Routing\IDictRouteAwareViewModel.cs" />
+    <Compile Include="Routing\IViewRouteService.cs" />
+    <Compile Include="Routing\ViewLocatorSelector.cs" />
     <Compile Include="Routing\ViewRoutes.cs" />
+    <Compile Include="Routing\ViewRouteService.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderHeaderList.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderHeaderModel.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderLineList.cs" />
@@ -146,9 +158,15 @@
     <Compile Include="SystemViews\Models\CurrencyExchangeModel.cs" />
     <Compile Include="SystemViews\Models\CurrencyList.cs" />
     <Compile Include="SystemViews\Models\CurrencyModel.cs" />
+    <Compile Include="SystemViews\Models\SysViewRouteList.cs" />
+    <Compile Include="SystemViews\Models\SysViewRouteModel.cs" />
     <Compile Include="SystemViews\ViewModels\SysDicCurrencyViewModel.cs" />
+    <Compile Include="SystemViews\ViewModels\SysViewRouteManagerViewModel.cs" />
     <Compile Include="SystemViews\Views\SysDicCurrencyView.xaml.cs">
       <DependentUpon>SysDicCurrencyView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SystemViews\Views\SysViewRouteManagerView.xaml.cs">
+      <DependentUpon>SysViewRouteManagerView.xaml</DependentUpon>
     </Compile>
     <Page Include="CustomerViews\Views\CustomerManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -175,6 +193,7 @@
     </Page>
     <Page Include="DictViews\Views\GenericDictDataManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Page Include="DictViews\Views\UnitDictUserControl.xaml">
       <SubType>Designer</SubType>
@@ -202,6 +221,10 @@
     </Page>
     <Page Include="SystemViews\Views\SysDicCurrencyView.xaml">
       <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SystemViews\Views\SysViewRouteManagerView.xaml">
+      <Generator>XamlIntelliSenseFileGenerator</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Resource Include="Properties\DesignTimeResources.xaml">
       <SubType>Designer</SubType>

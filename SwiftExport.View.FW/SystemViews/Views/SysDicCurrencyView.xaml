@@ -103,6 +103,7 @@
                           ItemsSource="{Binding ItemsView}"
                           SelectedItem="{Binding SelectedItem}"
                           IsReadOnly="True"
+                          GridLinesVisibility="Horizontal"
                           SelectionUnit="FullRow"
                           RowHeight="40"
                           CanUserAddRows="False"

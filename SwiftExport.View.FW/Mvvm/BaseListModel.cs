@@ -1,4 +1,6 @@
-﻿using SwiftExport.Contracts.Wrappers;
+﻿
+using GalaSoft.MvvmLight.Command;
+using SwiftExport.Contracts.Wrappers;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -31,6 +33,7 @@ namespace SwiftExport.View.FW.Mvvm
                     if (!_allItems.Contains(item))
                         _allItems.Add(item);
 
+                    item.PropertyChanged -= OnItemChanged;
                     item.PropertyChanged += OnItemChanged;
                 }
             }
@@ -57,17 +60,20 @@ namespace SwiftExport.View.FW.Mvvm
 
             if (e.PropertyName == nameof(BaseLineModel.State))
             {
-                RaisePropertyChanged(nameof(IsDirty));
+                RaiseDirtyChanged();//★ 列表级 通知脏数据以及脏数据的命令
             }
 
             if (e.PropertyName == nameof(BaseLineModel.IsChecked))
             {
-                RaisePropertyChanged(nameof(IsAllChecked));
-                RaisePropertyChanged(nameof(CheckedCount));
+                RaiseCheckedChanged();
             }
 
             ListStateChanged?.Invoke();
         }
+
+
+ 
+
 
         // ============================
         // 验证 & 脏数据
@@ -86,11 +92,34 @@ namespace SwiftExport.View.FW.Mvvm
             return null;
         }
 
+        /// <summary>
+        /// 列表级 Dirty（任何行 Added/Modified/Deleted）
+        /// </summary>
         public bool IsDirty =>
             _allItems.Any(x =>
                 x.State == ModelState.Added ||
                 x.State == ModelState.Modified ||
                 x.State == ModelState.Deleted);
+
+        // ============================
+        // Dirty 命令系统
+        // ============================
+
+        private readonly List<RelayCommand> _dirtyNotifyCommands = new List<RelayCommand>();
+
+        public void RegisterDirtyNotifyCommand(RelayCommand command)
+        {
+            if (command != null && !_dirtyNotifyCommands.Contains(command))
+                _dirtyNotifyCommands.Add(command);
+        }
+
+        private void RaiseDirtyChanged()
+        {
+            RaisePropertyChanged(nameof(IsDirty));
+
+            foreach (var cmd in _dirtyNotifyCommands)
+                cmd.RaiseCanExecuteChanged();
+        }
 
         // ============================
         // 全选 / 反选
@@ -110,9 +139,7 @@ namespace SwiftExport.View.FW.Mvvm
                 {
                     _suppressItemChangedEvents = false;
                 }
-
-                RaisePropertyChanged();
-                RaisePropertyChanged(nameof(CheckedCount));
+                RaiseCheckedChanged();
             }
         }
 
@@ -139,6 +166,29 @@ namespace SwiftExport.View.FW.Mvvm
             RaisePropertyChanged(nameof(IsAllChecked));
             RaisePropertyChanged(nameof(CheckedCount));
         }
+
+        // ============================
+        // Checked 命令系统（类似 Dirty）
+        // ============================
+        private readonly List<RelayCommand> _checkedNotifyCommands = new List<RelayCommand>();
+
+        public void RegisterCheckedNotifyCommand(RelayCommand command)
+        {
+            if (command != null && !_checkedNotifyCommands.Contains(command))
+                _checkedNotifyCommands.Add(command);
+        }
+
+        private void RaiseCheckedChanged()
+        {
+            RaisePropertyChanged(nameof(IsAllChecked));
+            RaisePropertyChanged(nameof(CheckedCount));
+
+            foreach (var cmd in _checkedNotifyCommands)
+                cmd.RaiseCanExecuteChanged();
+        }
+
+
+
 
         // ============================
         // 删除
@@ -268,7 +318,6 @@ namespace SwiftExport.View.FW.Mvvm
                 // 恢复集合变更监听
                 Items.CollectionChanged += OnCollectionChanged;
             }
-
             // 批量完成后一次性刷新状态
             RaiseAllState();
         }
@@ -297,12 +346,13 @@ namespace SwiftExport.View.FW.Mvvm
                 // 恢复集合变更监听
                 Items.CollectionChanged += OnCollectionChanged;
             }
-
+  
             // 一次性刷新状态
             RaiseAllState();
         }
         protected void RaiseAllState()
         {
+            RaiseDirtyChanged();// ★ 列表级 Dirty 自动通知命令
             RaisePropertyChanged(nameof(IsDirty));
             RaisePropertyChanged(nameof(IsAllValid));
             RaisePropertyChanged(nameof(IsAllChecked));

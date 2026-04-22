@@ -8,6 +8,7 @@ using System.Windows;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.View.FW.CustomerViews.ViewModels;
 using SwiftExport.View.FW.DictViews.ViewModels;
+using SwiftExport.View.FW.SystemViews.Views;
 
 namespace SwiftExport.DevApp
 {
@@ -23,8 +24,16 @@ namespace SwiftExport.DevApp
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            //var win = DiServices.GetService<DictManagerView>();
-            //win.ShowDialog();
+            var view = DiServices.GetService<SysViewRouteManagerView>();
+            var win = new Window
+            {
+                Title = "页面路由",
+                Content = view,
+                Width = 900,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+            win.ShowDialog();
         }
 
         private void Button_Click_1(object sender, RoutedEventArgs e)

@@ -78,6 +78,7 @@
                           ItemsSource="{Binding ItemsView}"
                           SelectedItem="{Binding SelectedItem}"
                           IsReadOnly="True"
+                          GridLinesVisibility="Horizontal"
                           RowHeight="40"
                           CanUserAddRows="False"
                           AutoGenerateColumns="False"
@@ -259,6 +260,6 @@
                 </Grid>
             </Border>
         </Grid>
-        <mt:DialogHost/>
+        <mt:DialogHost d:IsHidden="True"/>
     </Grid>
 </UserControl>

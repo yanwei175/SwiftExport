@@ -5,9 +5,10 @@
         xmlns:vm="clr-namespace:SwiftExport.View.FW.DictViews.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        d:DataContext="{d:DesignInstance Type=vm:GenericDictDataManagerViewModel}"
         mc:Ignorable="d"
-        d:DataContext="{d:DesignInstance vm:GenericDictDataManagerViewModel}"
         d:Height="720" d:Width="1100"
+        x:Name="RootCtrl"
         Background="Transparent">
 
     <UserControl.Resources>
@@ -34,14 +35,14 @@
 
                         <Button Margin="0,0,8,0"
                                 Style="{StaticResource ButtonPrimary}"
-                                Content="´´½¨"
+                                Content="åˆ›å»º"
                                 mt:ButtonAssist.IconSize="12"
                                 mt:ButtonAssist.Icon="{StaticResource Icon.Add}"
                                 Command="{Binding CreateCommand}"/>
 
                         <Button Margin="0,0,8,0"
                                 Style="{StaticResource ButtonBase}"
-                                Content="Ë¢ÐÂ"
+                                Content="åˆ·æ–°"
                                 mt:ButtonAssist.IconSize="12"
                                 mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
                                 Command="{Binding RefreshCommand}"/>
@@ -51,10 +52,10 @@
                 <Border Grid.Row="1" BorderThickness="0,0,0,1"
                         BorderBrush="{DynamicResource Brush_Border_Light}" Padding="15,8">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="É¸Ñ¡: " VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock Text="ç­›é€‰: " VerticalAlignment="Center" Margin="0,0,6,0"/>
                         <TextBox Width="300" Height="30" VerticalContentAlignment="Center" Padding="6,0"
                                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                 Tag="ËÑË÷Ó¢ÎÄÃû / ÖÐÎÄÃû / ±¸×¢..."/>
+                                 Tag="æœç´¢è‹±æ–‡å / ä¸­æ–‡å / å¤‡æ³¨..."/>
                     </StackPanel>
                 </Border>
 
@@ -62,6 +63,7 @@
                           ItemsSource="{Binding ItemsView}"
                           SelectedItem="{Binding SelectedItem}"
                           IsReadOnly="True"
+                          GridLinesVisibility="Horizontal"
                           RowHeight="36"
                           CanUserAddRows="False"
                           AutoGenerateColumns="False"
@@ -74,28 +76,43 @@
                           mt:DataGridAssist.AutoScrollToNewItem="True">
 
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Ó¢ÎÄÃû³Æ" Width="200"
+                        <!-- DataGridColumns ä¸åœ¨å¯è§†åŒ–æ ‘ä¸­ï¼Œå› æ­¤ä¸èƒ½ç›´æŽ¥ç»‘å®š DataContextï¼Œåªèƒ½ç”¨å¦‚ä¸‹æ–¹å¼æˆ–è€…æ”¾å¼ƒåŠ¨æ€ç»‘å®š -->
+                        <!-- æˆ‘ä»¬é€šè¿‡ç»‘å®š Freezable æˆ–è€… ElementName ä¹Ÿä¸ä¸€å®šå¯é ï¼Œæœ€ç®€å•çš„åšæ³•æ˜¯åœ¨ XAML é‡Œæ”¾é™æ€æ–‡å­—ï¼Œæˆ–è€…é€šè¿‡é™„åŠ å±žæ€§/ä»£ç åŽå°æŒ‡å®šåˆ—å -->
+                        <DataGridTextColumn Width="200"
                             Binding="{Binding DataNameEn, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
-                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}">
+                            <DataGridTextColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DataContext.ColumnNameEn, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                </DataTemplate>
+                            </DataGridTextColumn.HeaderTemplate>
+                        </DataGridTextColumn>
 
-                        <DataGridTextColumn Header="ÖÐÎÄÃû³Æ" Width="200"
+                        <DataGridTextColumn Header="ä¸­æ–‡åç§°" Width="200"
                             Binding="{Binding DataNameZh, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
-                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}">
+                            <DataGridTextColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DataContext.ColumnNameZh, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                </DataTemplate>
+                            </DataGridTextColumn.HeaderTemplate>
+                        </DataGridTextColumn>
 
-                        <DataGridTextColumn Header="ÅÅÐò" Width="70"
-                            Binding="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged}"
-                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                        <DataGridTextColumn Header="æŽ’åº" Width="70"
+                                            Visibility="Hidden"
+                                            Binding="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged}"
+                                            EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
 
-                        <DataGridCheckBoxColumn Header="ÆôÓÃ" Width="70"
+                        <DataGridCheckBoxColumn Header="å¯ç”¨" Width="70"
                             Binding="{Binding IsEnabled}"
                             ElementStyle="{StaticResource DataGridCheckBoxColumnStyle}"/>
 
-                        <DataGridTextColumn Header="±¸×¢" Width="*"
+                        <DataGridTextColumn Header="å¤‡æ³¨" Width="*"
                             Binding="{Binding Remark, UpdateSourceTrigger=PropertyChanged}"
                             EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}"
                             ElementStyle="{DynamicResource MultiLineDataGridTextBlockStyle}"/>
 
-                        <DataGridTemplateColumn Header="²Ù×÷" Width="80">
+                        <DataGridTemplateColumn Header="æ“ä½œ" Width="80">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -115,6 +132,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
+                        
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -143,7 +161,7 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="±à¼­×ÖµäÏî" Style="{StaticResource BoldTextBlock}" Margin="0,0,0,10"/>
+                    <TextBlock Text="ç¼–è¾‘å­—å…¸é¡¹" Style="{StaticResource BoldTextBlock}" Margin="0,0,0,10"/>
 
                     <Grid Grid.Row="1">
                         <Grid.ColumnDefinitions>
@@ -159,23 +177,19 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Ó¢ÎÄÃû³Æ:" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding ColumnNameEn,StringFormat=' {0}: '}" VerticalAlignment="Center"/>
                         <TextBox Grid.Row="0" Grid.Column="2" Margin="0,5"
                                  Text="{Binding EditingItem.DataNameEn, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="ÖÐÎÄÃû³Æ:" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding ColumnNameZh,StringFormat=' {0}: '}" VerticalAlignment="Center"/>
                         <TextBox Grid.Row="1" Grid.Column="2" Margin="0,5"
                                  Text="{Binding EditingItem.DataNameZh, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
-
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="ÅÅÐò:" VerticalAlignment="Center"/>
-                        <TextBox Grid.Row="2" Grid.Column="2" Margin="0,5"
-                                 Text="{Binding EditingItem.SortOrder, UpdateSourceTrigger=PropertyChanged}"/>
-
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="ÆôÓÃ:" VerticalAlignment="Center"/>
+                        
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="å¯ç”¨:" VerticalAlignment="Center"/>
                         <CheckBox Grid.Row="3" Grid.Column="2" Margin="0,8"
                                   IsChecked="{Binding EditingItem.IsEnabled}"/>
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" Text="±¸×¢:"/>
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="å¤‡æ³¨:"/>
                         <TextBox Grid.Row="4" Grid.Column="2" Margin="0,5" Height="80"
                                  Style="{StaticResource MultiLineTextBoxStyle}"
                                  Text="{Binding EditingItem.Remark, UpdateSourceTrigger=PropertyChanged}"/>
@@ -185,17 +199,17 @@
                                 Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Width="70" Margin="0,0,8,0"
                                 Style="{StaticResource ButtonBase}"
-                                Content="È¡Ïû"
+                                Content="å–æ¶ˆ"
                                 Command="{Binding CancelEditCommand}"/>
                         <Button Width="70"
                                 Style="{StaticResource ButtonSuccess}"
-                                Content="±£´æ"
+                                Content="ä¿å­˜"
                                 Command="{Binding SaveEditCommand}"/>
                     </StackPanel>
                 </Grid>
             </Border>
         </Grid>
 
-        <mt:DialogHost/>
+        <mt:DialogHost d:IsHidden="True"/>
     </Grid>
 </UserControl>

@@ -7,6 +7,7 @@ using SwiftExport.Infrastructure.Repositories.Customers;
 using SwiftExport.Infrastructure.Repositories.Products;
 using SwiftExport.Infrastructure.Repositories.Suppliers;
 using SwiftExport.Infrastructure.Repositories.Systems;
+using SwiftExport.Infrastructure.Repositories.SystemRepositories;
 
 namespace SwiftExport.Infrastructure;
 
@@ -32,6 +33,8 @@ public static class DependencyInjection
         services.AddScoped<ISysDicCurrencyRepository, SysDicCurrencyRepository>();
         services.AddScoped<ISysDicCurrencyExchangeRepository, SysDicCurrencyExchangeRepository>();
         services.AddScoped<ISysDictDataRepository, SysDictDataRepository>();
+        // 视图路由配置仓储
+        services.AddScoped<ISysViewRouteRepository, SysViewRouteRepository>();
 
         return services;
     }

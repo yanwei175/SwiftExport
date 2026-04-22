@@ -228,13 +228,8 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
         public string StatusMessage
         {
             get => _statusMessage;
-            set
-            {
-                if (SetProperty(ref _statusMessage, value))
-                {
-                    _msg.ShowCardAsync(StatusMessage);
-                }
-            }
+            set => SetProperty(ref _statusMessage, value);
+ 
         }
 
         // ================================================================

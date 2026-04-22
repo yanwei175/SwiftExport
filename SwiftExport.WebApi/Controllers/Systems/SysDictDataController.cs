@@ -22,6 +22,6 @@ public class SysDictDataController(ISysDictDataService service)
     public async Task<ServiceResult<IReadOnlyList<SysDictDataDto>>> GetByCode(string dictCode)
     {
         // 利用你基建里的匿名对象智能查询
-        return await _service.GetListAsync(new { DictCode = dictCode, IsDeleted = 0 });
+        return await _service.GetListAsync(new { DictCode = dictCode});
     }
 }

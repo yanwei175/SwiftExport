@@ -369,6 +369,6 @@
         </StackPanel>
 
         
-        <mt:DialogHost />
+        <mt:DialogHost d:IsHidden="True" />
     </Grid>
 </UserControl>

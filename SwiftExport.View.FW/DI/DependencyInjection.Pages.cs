@@ -1,0 +1,84 @@
+using Microsoft.Extensions.DependencyInjection;
+using SwiftExport.View.FW.CustomerViews.ViewModels;
+using SwiftExport.View.FW.CustomerViews.Views;
+using SwiftExport.View.FW.DictViews.ViewModels;
+using SwiftExport.View.FW.DictViews.Views;
+using SwiftExport.View.FW.ProductViews.ViewModels;
+using SwiftExport.View.FW.ProductViews.Views;
+using SwiftExport.View.FW.SalesOrderViews.ViewModels;
+using SwiftExport.View.FW.SalesOrderViews.Views;
+using SwiftExport.View.FW.SupplierViews.ViewModels;
+using SwiftExport.View.FW.SupplierViews.Views;
+using SwiftExport.View.FW.SystemViews.ViewModels;
+using SwiftExport.View.FW.SystemViews.Views;
+
+namespace SwiftExport.View.FW
+{
+    public static partial class DependencyInjection
+    {
+        /// <summary>
+        /// 注册所有 ViewModel 和 View（按业务模块分组，成对注册）。
+        ///
+        /// 规则：
+        ///   - 均为 Transient：每次从 DI 取出时创建新实例，状态互不干扰
+        ///   - ViewModel 和 View 始终成对出现，新增页面时在对应模块分组末尾追加两行
+        ///   - 共享/工具类 ViewModel（如 ProductSelectorViewModel）单独列在"共享组件"分组
+        ///
+        /// 新增页面示例：
+        ///   services.AddTransient&lt;XxxViewModel&gt;();
+        ///   services.AddTransient&lt;XxxView&gt;();
+        /// </summary>
+        private static IServiceCollection AddViewPages(this IServiceCollection services)
+        {
+            // ================== 共享组件 ==================
+            // 跨模块复用的选择器/弹窗 ViewModel，无对应独立 View
+            services.AddTransient<ProductSelectorViewModel>();
+
+            // ================== 字典管理模块 ==================
+            services.AddTransient<DataDictManagerViewModel>();
+            services.AddTransient<DataDictManagerView>();
+
+            services.AddTransient<DictTypeManagerViewModel>();
+            services.AddTransient<DictTypeManagerView>();
+
+            services.AddTransient<GenericDictDataManagerViewModel>();
+            services.AddTransient<GenericDictDataManagerView>();
+
+            // ================== 系统配置模块 ==================
+            services.AddTransient<SysDicCurrencyViewModel>();
+            services.AddTransient<SysDicCurrencyView>();
+
+            services.AddTransient<SysViewRouteManagerViewModel>();
+            services.AddTransient<SysViewRouteManagerView>();
+
+            // ================== 产品模块 ==================
+            services.AddTransient<ProductManagerViewModel>();
+            services.AddTransient<ProductManagerView>();
+
+            services.AddTransient<ProductColorManagerViewModel>();
+            services.AddTransient<ProductColorManagerView>();
+
+            services.AddTransient<ProductCategoryManagerViewModel>();
+            services.AddTransient<ProductCategoryManagerView>();
+
+            // ================== 供应商模块 ==================
+            services.AddTransient<SupplierManagerViewModel>();
+            services.AddTransient<SupplierManagerView>();
+
+            // ================== 客户模块 ==================
+            services.AddTransient<CustomerManagerViewModel>();
+            services.AddTransient<CustomerManagerView>();
+
+            services.AddTransient<CustomerPoConfigViewModel>();
+            services.AddTransient<CustomerPoConfigManagerView>();
+
+            // ================== 销售订单模块 ==================
+            services.AddTransient<SalesOrderManagerViewModel>();
+            services.AddTransient<SalesOrderDetailViewModel>();
+            services.AddTransient<SalesOrderManagerView>();
+            services.AddTransient<SalesOrderDetailView>();
+
+            return services;
+        }
+    }
+}

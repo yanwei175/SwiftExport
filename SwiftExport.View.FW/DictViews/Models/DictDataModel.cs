@@ -104,10 +104,10 @@ namespace SwiftExport.View.FW.DictViews.Models
             {
                 if (columnName == nameof(DictCode) && string.IsNullOrWhiteSpace(DictCode))
                     return "字典编码不能为空";
-
                 if (columnName == nameof(DataNameZh) && string.IsNullOrWhiteSpace(DataNameZh))
                     return "中文名称不能为空";
-
+                if (columnName == nameof(DataNameEn) && string.IsNullOrWhiteSpace(DataNameEn))
+                    return "英文名称不能为空";
                 return null;
             }
         }
