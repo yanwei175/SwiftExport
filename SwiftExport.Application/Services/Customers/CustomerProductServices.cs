@@ -117,7 +117,7 @@ public class CustomerProductServices(ICustomerRepository customerRepository,ICus
 
         return ServiceResult<PagedResultDto<CustomerProductDto>>.Ok(new PagedResultDto<CustomerProductDto>
         {
-            Items = paged.Items.Adapt<IReadOnlyList<CustomerProductDto>>(),
+            Items = paged.Items.Adapt<List<CustomerProductDto>>(),
             TotalCount = paged.TotalCount,
             PageIndex = paged.PageIndex,
             PageSize = paged.PageSize

@@ -187,7 +187,7 @@ public class SalesOrderService(
 
         return ServiceResult<PagedResultDto<SalesOrderHeaderDto>>.Ok(new PagedResultDto<SalesOrderHeaderDto>
         {
-            Items = paged.Items.Adapt<IReadOnlyList<SalesOrderHeaderDto>>(),
+            Items = paged.Items.Adapt<List<SalesOrderHeaderDto>>(),
             TotalCount = paged.TotalCount,
             PageIndex = paged.PageIndex,
             PageSize = paged.PageSize
@@ -639,7 +639,7 @@ public class SalesOrderService(
     /// <summary>
     /// 中文注释：实体映射到旧版订单 DTO。
     /// </summary>
-    private static SalesOrderDto MapToSalesOrderDto(SalesOrderHeader header, IReadOnlyDictionary<int, string> customerNameMap)
+    private static SalesOrderDto MapToSalesOrderDto(SalesOrderHeader header, Dictionary<int, string> customerNameMap)
     {
         int customerId = header.CustomerId ?? 0;
         DateTime orderDate = header.OrderDate ?? header.CreatedDate ?? DateTime.Now;

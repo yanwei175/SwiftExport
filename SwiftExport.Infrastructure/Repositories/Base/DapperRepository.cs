@@ -380,11 +380,23 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     }
 
     /// <summary>
-    /// 辅助方法：生成单个条件的 SQL 片段，并填充参数
+    /// 辅助方法：生成单个条件的 SQL 片段。支持 "t.FieldName" 或 "FieldName" 格式
     /// </summary>
     private static string BuildConditionSql(string propName, QueryCondition cond, string paramName, DynamicParameters parameters)
     {
-        string safeField = $"[{propName.Replace("[", "").Replace("]", "")}]";
+        // 核心修复：处理带别名的字段，例如 t.CategoryId -> t.[CategoryId]
+        string safeField;
+        if (propName.Contains('.'))
+        {
+            var parts = propName.Split('.');
+            // parts[0] 是别名 (t), parts[1] 是字段名
+            string field = parts[1].Replace("[", "").Replace("]", "");
+            safeField = $"{parts[0]}.[{field}]";
+        }
+        else
+        {
+            safeField = $"[{propName.Replace("[", "").Replace("]", "")}]";
+        }
 
         switch (cond.操作符)
         {
@@ -436,7 +448,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     /// <summary>
     /// 解析查询条件对象为 SQL
     /// </summary>
-    protected string ParseQueryCriteria(QueryCriteria criteria, DynamicParameters parameters)
+    protected string ParseQueryCriteria(QueryCriteria criteria, DynamicParameters parameters, string prefix = "")
     {
         if (criteria == null || (criteria.Items.Count == 0 && criteria.OrGroups.Count == 0))
         {
@@ -449,14 +461,15 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         int andIndex = 0;
         foreach (var item in criteria.Items)
         {
-            string propName = item.Field;
-            var cond = item.Condition;
-            string paramName = $"@{propName}_{andIndex}";
+            // 拼接前缀：如果不为空且不含点，则加上前缀
+            string fieldName = (string.IsNullOrEmpty(prefix) || item.Field.Contains('.'))
+                               ? item.Field
+                               : $"{prefix}{item.Field}";
+            // 参数名不能有点，将点替换为下划线
+            string paramName = $"@{fieldName.Replace(".", "_")}_A{andIndex}";
 
-            string sqlPart = BuildConditionSql(propName, cond, paramName, parameters);
-            // 每次生成都自带 AND 前缀
+            string sqlPart = BuildConditionSql(fieldName, item.Condition, paramName, parameters);
             sqlBuilder.Append($" AND {sqlPart}");
-
             andIndex++;
         }
 
@@ -471,12 +484,12 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
 
             foreach (var item in groupList)
             {
-                string propName = item.Field;
-                var cond = item.Condition;
-                string paramName = $"@Or_{groupIndex}_{propName}_{orItemIndex}";
+                string fieldName = (string.IsNullOrEmpty(prefix) || item.Field.Contains('.'))
+                                   ? item.Field
+                                   : $"{prefix}{item.Field}";
 
-                string sqlPart = BuildConditionSql(propName, cond, paramName, parameters);
-                orParts.Add(sqlPart);
+                string paramName = $"@Or_{groupIndex}_{fieldName.Replace(".", "_")}_{orItemIndex}";
+                orParts.Add(BuildConditionSql(fieldName, item.Condition, paramName, parameters));
                 orItemIndex++;
             }
 

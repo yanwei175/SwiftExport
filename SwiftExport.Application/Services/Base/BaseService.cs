@@ -102,7 +102,7 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
 
         return ServiceResult<PagedResultDto<TDto>>.Ok(new PagedResultDto<TDto>
         {
-            Items = entities.Items.Adapt<IReadOnlyList<TDto>>(),
+            Items = entities.Items.Adapt<List<TDto>>(),
             TotalCount = entities.TotalCount,
             PageSize = entities.PageSize,
             PageIndex = entities.PageIndex

@@ -98,6 +98,7 @@
     <Compile Include="DI\DependencyInjection.Pages.cs" />
     <Compile Include="DI\DependencyInjection.Routing.cs" />
     <Compile Include="DI\DependencyInjection.Services.cs" />
+    <Compile Include="DI\IocProvider.cs" />
     <Compile Include="DI_View.cs" />
     <Compile Include="Http\HttpHandlers.cs" />
     <Compile Include="Interface\IExcelContextService.cs" />

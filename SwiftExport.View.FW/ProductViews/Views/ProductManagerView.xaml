@@ -710,6 +710,6 @@
 
         </Grid>
         <!--#endregion-->
-        <mt:DialogHost Grid.Column="1" Grid.RowSpan="4" />
+        <mt:DialogHost Grid.Column="1" Grid.RowSpan="4" d:IsHidden="True" />
     </Grid>
 </UserControl>

@@ -1,6 +1,8 @@
 using GalaSoft.MvvmLight.Ioc;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.View.FW.DI;
+using SwiftExport.View.FW.Services;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System.Windows;
@@ -50,6 +52,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
             Loaded += OnLoadedAsync;
         }
 
+
         private bool _isLoaded;
         private async void OnLoadedAsync(object sender, RoutedEventArgs e)
         {
@@ -66,7 +69,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
         {
             try
             {
-                var api = SimpleIoc.Default.GetInstance<IProductColorApi>();
+                var api = IocProvider.Get<IProductColorApi>();
                 if (api == null) return;
 
                 var result = await api.GetAllAsync();

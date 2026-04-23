@@ -133,25 +133,25 @@
                     <StackPanel  Grid.Row="0" Orientation="Horizontal"
                             Margin="8"
                             Background="Transparent" HorizontalAlignment="Stretch">
-                        <Button Command="{Binding AddNewRowCommand}" Margin="0,0,5,0" Style="{StaticResource   ButtonPrimary}"
+                        <Button Command="{Binding AddProductCommand}" Margin="0,0,5,0" Style="{StaticResource   ButtonPrimary}"
                                Content="新建"
                                mt:ButtonAssist.IconSize="12"
                                mt:ButtonAssist.Icon="{StaticResource Icon.Add}">
                         </Button>
-                        <Button Command="{Binding BatchSaveCommand}" Margin="0,0,5,0" 
+                        <Button Command="{Binding BatchSaveProductAsyncCommand}" Margin="0,0,5,0" 
                                 Style="{StaticResource   ButtonSuccess}"
                                Content="保存"
                                mt:ButtonAssist.IconSize="12"
                                mt:ButtonAssist.Icon="{StaticResource Icon.Save}">
                         </Button>
                         <Separator Margin="5,0"/>
-                        <Button Command="{Binding DeleteCheckedCommand}" Margin="0,0,5,0"
+                        <Button Command="{Binding DeleteProductAsyncCommand}" Margin="0,0,5,0"
                                Style="{StaticResource   ButtonDanger}"
                                Content="删除"
                                mt:ButtonAssist.IconSize="12"
                                mt:ButtonAssist.Icon="{StaticResource Icon.Delete}">
                         </Button>
-                        <Button Command="{Binding LoadCommand}" Margin="0,0,5,0" 
+                        <Button Command="{Binding RefreshProductCommand}" Margin="0,0,5,0" 
                                 Style="{StaticResource   ButtonBase}"
                                Content="刷新"
                                mt:ButtonAssist.IconSize="12"
@@ -160,7 +160,7 @@
 
                         <Rectangle Width="1" Fill="#E0E0E0" Margin="5,5,15,5" VerticalAlignment="Stretch"/>
 
-                        <Button Command="{Binding InvertCheckCommand}"  Margin="0,0,5,0" Style="{StaticResource ButtonBase}"
+                        <Button Command="{Binding InvertProductSelectionCommand}"  Margin="0,0,5,0" Style="{StaticResource ButtonBase}"
                                                          Content="反选"
                              mt:ButtonAssist.IconSize="12"
                              mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}">
@@ -206,7 +206,7 @@
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource Brush_Txt_Primary}" Margin="8,0,8,0"/>
                         <TextBox x:Name="MainSearchTextBox"
-                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" 
+                                 Text="{Binding SearchProductTxt, UpdateSourceTrigger=PropertyChanged}" 
                                  Width="180"
                                  VerticalContentAlignment="Center"
                                  mt:TextBoxAssist.Placeholder="键入搜索"
@@ -230,7 +230,7 @@
                                      SelectedItem="{Binding SelectedProduct, Mode=TwoWay}"
                                      HorizontalScrollBarVisibility="Auto" 
                                      HeadersVisibility="All" 
-                                     RowHeight="35" Margin="0,5,0,0"
+                                     RowHeight="60" Margin="0,5,0,0"
                                      EnableRowVirtualization="False"
                                      EnableColumnVirtualization="False"
                                      mt:DataGridAssist.ShowRowNumber="True" 
@@ -259,6 +259,7 @@
                                             AllCheckedPropertyName="IsAllChecked"
                                             ItemCheckedPropertyName="IsChecked"
                                             ItemCheckedCommandName="ItemCheckedChangedCommand"
+                                            HeaderCheckBoxMargin="2,0,0,0"
                                             HeaderCheckBoxToolTip="全选/全不选"/>
 
                                         <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}" 

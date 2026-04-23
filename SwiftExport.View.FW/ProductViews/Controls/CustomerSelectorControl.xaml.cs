@@ -1,6 +1,8 @@
 using GalaSoft.MvvmLight.Ioc;
 using SwiftExport.Contracts.Apis.CustomerApis;
+using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.View.FW.DI;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System.Windows;
@@ -66,8 +68,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
         {
             try
             {
-                // 通过 MvvmLight 的 SimpleIoc 获取 API 依赖
-                var api = SimpleIoc.Default.GetInstance<ICustomerApi>();
+                var api = IocProvider.Get<ICustomerApi>(); // 获取 API 接口实例
                 if (api == null) return;
 
                 var result = await api.GetAllAsync();

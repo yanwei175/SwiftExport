@@ -82,41 +82,51 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
 
     public async Task<PagedResult<ProductPagedItem>> GetPagedReadModelAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Id DESC")
     {
+        // 1. 规范化排序字段（如果外部传的是 Id，变为 t.Id 防止多表冲突）
         if (string.IsNullOrWhiteSpace(orderBy))
-            orderBy = "Id DESC";
+            orderBy = "t.Id DESC";
         else
-            orderBy = OrderByRegex().Replace(orderBy, "");
+            orderBy = $"t.{OrderByRegex().Replace(orderBy, "")}";
 
         if (string.IsNullOrWhiteSpace(orderBy))
             orderBy = "Id DESC";
 
-        var sb = new System.Text.StringBuilder("WHERE (IsDeleted = 0 OR IsDeleted IS NULL)");
+        var sb = new System.Text.StringBuilder("WHERE (t.IsDeleted = 0 OR t.IsDeleted IS NULL)");
         var parameters = new DynamicParameters();
 
-        var whereClause = ParseQueryCriteria(criteria, parameters);
+        // 3. 调用解析器，传入 "t." 前缀！
+        // 这样无论 criteria 里的字段是 Main表字段还是 Join表字段，都会指向派生表 t 的列
+        var whereClause = ParseQueryCriteria(criteria, parameters, "t.");
         if (!string.IsNullOrWhiteSpace(whereClause))
             sb.Append(whereClause);
 
         if (pageIndex < 1) pageIndex = 1;
-        int offset = (pageIndex - 1) * pageSize;
-        parameters.Add("@Offset", offset);
+        parameters.Add("@Offset", (pageIndex - 1) * pageSize);
         parameters.Add("@Limit", pageSize);
 
         string baseQuery = $@"
-            SELECT 
-                p.* , pat.CategoryName,pat.FakeName,pc.ColorCodeUnique,pc.ColorCode,pc.ColorNameEn,pc.ColorNameZh as Finish
-            FROM [{TableName}] p WITH(NOLOCK)
-            LEFT JOIN [ProductColor] pc WITH(NOLOCK) ON p.ColorId = pc.Id AND (pc.IsDeleted = 0 OR pc.IsDeleted IS NULL)
-            LEFT JOIN [ProductCategory] pat WITH(NOLOCK) ON p.CategoryId = pat.Id AND (pat.IsDeleted = 0 OR pat.IsDeleted IS NULL)
-        ";
+        SELECT 
+            p.*, 
+            pat.CategoryName, 
+            pat.FakeName, 
+            pc.ColorCodeUnique, 
+            pc.ColorCode, 
+            pc.ColorNameEn, 
+            pc.ColorNameZh as Finish
+        FROM [{TableName}] p WITH(NOLOCK)
+        LEFT JOIN [ProductColor] pc WITH(NOLOCK) ON p.ColorId = pc.Id AND (pc.IsDeleted = 0 OR pc.IsDeleted IS NULL)
+        LEFT JOIN [ProductCategory] pat WITH(NOLOCK) ON p.CategoryId = pat.Id AND (pat.IsDeleted = 0 OR pat.IsDeleted IS NULL)
+    ";
 
+        // 5. 组合最终 SQL
+        // 使用派生表 t 包装后，外部的 sb (WHERE t.xxx) 就能完美执行
         string derivedTable = $"({baseQuery}) t";
 
         var sql = $@"
-            SELECT COUNT(1) FROM {derivedTable} {sb};
-            SELECT * FROM {derivedTable} {sb} 
-            ORDER BY {orderBy} 
-            OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
+        SELECT COUNT(1) FROM {derivedTable} {sb};
+        SELECT * FROM {derivedTable} {sb} 
+        ORDER BY {orderBy} 
+        OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
 
         using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
         var totalCount = await multi.ReadFirstAsync<int>();

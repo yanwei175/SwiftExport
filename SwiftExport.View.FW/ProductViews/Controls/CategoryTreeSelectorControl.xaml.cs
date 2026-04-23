@@ -11,6 +11,7 @@ using System.Windows;
 using System.Windows.Controls;
 using GalaSoft.MvvmLight.Command;
 using System.ComponentModel;
+using SwiftExport.View.FW.DI;
 
 namespace SwiftExport.View.FW.ProductViews.Controls
 {
@@ -58,6 +59,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
         public RelayCommand ExpandAllCategoryCommand { get; private set; }
         public RelayCommand CollapseAllCategoryCommand { get; private set; }
 
+
         public CategoryTreeSelectorControl()
         {
             InitializeComponent();
@@ -78,7 +80,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
         {
             try
             {
-                var api = SimpleIoc.Default.GetInstance<IProductCategoryApi>();
+                var api = IocProvider.Get<IProductCategoryApi>();
                 if (api == null) return;
 
                 var result = await api.GetAllAsync();

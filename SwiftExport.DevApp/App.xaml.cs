@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.View.FW;
+using SwiftExport.View.FW.DI;
 using SwiftExport.View.FW.Routing;
 using SwiftExport.View.FW.Services;
 using System;
@@ -34,8 +35,10 @@ namespace SwiftExport.DevApp
                 // 自动完成 DispatcherProvider 初始化，无需在此处手动调用 Initialize。
                 var services = new ServiceCollection();
                 services.AddAppServices();  // uiDispatcher 留空 = 自动捕获当前 UI 线程 Dispatcher
-
                 var provider = services.BuildServiceProvider();
+                
+                IocProvider.GetServiceFunc = (type) => provider.GetService(type);// 将 DI 容器提供器传递给控件静态类供控件使用.
+
                 DiServices.Init(provider);
 
                 // 中文注释：先显示主窗体，避免因后端不可用导致启动阶段阻塞，看起来像“程序没弹出来”。

@@ -96,11 +96,17 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
         {
             criteria.Add("CustomerId", 查询操作符.包含某值, search.CustomerIds);
         }
-
+        if (search.CustomerCodes != null && search.CustomerCodes.Count > 0)
+        {
+            criteria.Add("CustomerCode", 查询操作符.包含某值, search.CustomerCodes);
+        }
         if (search.CategoryId > 0)
         {
-            var ids = await _categoryRepository.GetSubById(search.CategoryId);
+            List<ProductCategory> ids = (await _categoryRepository.GetSubById(search.CategoryId)).ToList();
+            if (search.CategoryIds == null) search.CategoryIds = new List<int>();
             search.CategoryIds.AddRange(ids.Select(c => c.Id));
+            search.CategoryIds.Add(search.CategoryId);
+
         }
 
         if (search.CategoryIds != null && search.CategoryIds.Count > 0)
@@ -121,7 +127,7 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
 
         return ServiceResult<PagedResultDto<ProductDto>>.Ok(new PagedResultDto<ProductDto>
         {
-            Items = paged.Items.Adapt<IReadOnlyList<ProductDto>>(),
+            Items = paged.Items.Adapt<List<ProductDto>>(),
             TotalCount = paged.TotalCount,
             PageIndex = paged.PageIndex,
             PageSize = paged.PageSize

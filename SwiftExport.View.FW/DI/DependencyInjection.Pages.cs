@@ -53,7 +53,9 @@ namespace SwiftExport.View.FW
 
             // ================== 产品模块 ==================
             services.AddTransient<ProductManagerViewModel>();
-            services.AddTransient<ProductManagerView>();
+            services.AddTransient<ProductManagerView>(); 
+            services.AddTransient<MainProductManagerViewModel>();
+            services.AddTransient<MainProductManagerView>();
 
             services.AddTransient<ProductColorManagerViewModel>();
             services.AddTransient<ProductColorManagerView>();

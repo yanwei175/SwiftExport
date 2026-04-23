@@ -10,9 +10,11 @@ using SwiftExport.View.FW.ProductViews.Models;
 using SwiftExport.View.FW.Services;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.ComponentModel;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
 
@@ -21,11 +23,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
     public class MainProductManagerViewModel : ViewModelBaseEx
     {
         #region 主要字段与构造函数
-        private readonly IServiceProvider _serviceProvider;
-        private readonly IProductApi _productApi;
-        private readonly IBomApi _bomApi;
-        private readonly IDictCacheService _dictCacheService;
-        private readonly IDialogService _msg;
+
 
         private string _statusMessage;
         public string StatusMessage
@@ -41,10 +39,52 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             set => SetProperty(ref _isBomAreaCollapsed, value);
         }
 
-        public MainProductManagerViewModel()
+        private readonly IServiceProvider _serviceProvider;
+        private readonly IProductApi _productApi;
+        private readonly IBomApi _bomApi;
+        private readonly IDictCacheService _dictCacheService;
+        private readonly IDialogService _msg;
+        public MainProductManagerViewModel(IProductApi productApi, IBomApi bomApi, IDictCacheService dictCacheService, IDialogService msg)
         {
+            _productApi = productApi;
+            _bomApi = bomApi;
+            _dictCacheService = dictCacheService;
+            _msg = msg;
+
+            ProductList = new ProductList();
+            BomList = new BomList();
+            BomItemsView = CollectionViewSource.GetDefaultView(BomList.Items);
+
+            //======产品命令初始化======
+            AddProductCommand = new RelayCommand(AddProduct);
+
+            BatchSaveProductAsyncCommand = new RelayCommand(async () => await BatchSaveProductAsync(), () => IsNotBusy && ProductList.IsDirty && ProductList.IsAllValid);
+            ProductList.RegisterDirtyNotifyCommand(BatchSaveProductAsyncCommand);
+            RegisterBusyNotifyCommand(BatchSaveProductAsyncCommand);
+
+            DeleteProductAsyncCommand = new RelayCommand(async () => await DeleteProductAsync(), () => (ProductList.CheckedCount > 0 && IsNotBusy) || SelectedProduct != null);
+            ProductList.RegisterCheckedNotifyCommand(DeleteProductAsyncCommand);
+            RegisterBusyNotifyCommand(DeleteProductAsyncCommand);
+
+            RefreshProductCommand = new RelayCommand(async () => await LoadProductAsync(), () => IsNotBusy);
+            RegisterBusyNotifyCommand(RefreshProductCommand);
+
+            InvertProductSelectionCommand = new RelayCommand(async () => InvertProductSelection(), () => ProductList.Items.Count > 0 && IsNotBusy);
+            RegisterBusyNotifyCommand(InvertProductSelectionCommand);
 
             _产品搜索防抖计时器.Tick += 产品搜索防抖计时器_Tick;
+
+
+
+            //======BOM命令初始化======
+            AddBomItemCommand = new RelayCommand(AddBomItem, () => HasActiveBom && IsNotBusy);
+            BatchSaveBomCommand = new RelayCommand(async () => await BatchSaveBomAsync(), () => HasActiveBom && IsNotBusy && BomList.IsDirty && BomList.IsAllValid);
+            RemoveBomItemCommand = new RelayCommand(async () => await RemoveBomItemAsync(), () => HasActiveBom && IsNotBusy && (BomList.CheckedCount > 0 || SelectedBomItem != null));
+            OpenProductSelectorCommand = new RelayCommand(OpenProductSelector, () => !IsBusy);
+            CreateBomCommand = new RelayCommand(async () => await CreateBomAsync(), () => SelectedProduct != null && !IsBusy && SelectedProduct.SupplyType == SupplyType.按BOM拆分 && string.IsNullOrWhiteSpace(SelectedProduct.BomNo));
+
+
+
 
         }
 
@@ -91,7 +131,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 if (SetProperty(ref _selectedProduct, value))
                 {
                     // 中文注释：选中产品变化时，先刷新 BOM 区域启用状态。
-                    RaisePropertyChanged(nameof(EffBomNo));
+                    RaisePropertyChanged(nameof(HasActiveBom));
                     RaiseBomCommandsCanExecuteChanged();
 
                     // 中文注释：在 CellOrRowHeader 模式下，DataGrid 会出现瞬时 null 抖动。
@@ -107,7 +147,17 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
 
             }
         }
-
+        public bool IsAllChecked
+        {
+            get => ProductList.IsAllChecked;
+            set
+            {
+                if (ProductList.IsAllChecked == value)
+                    return;
+                ProductList.IsAllChecked = value;
+                RaisePropertyChanged(nameof(IsAllChecked));
+            }
+        }
         private string _searchProductTxt;
         public string SearchProductTxt
         {
@@ -208,7 +258,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         #region 右上命令
         public RelayCommand AddProductCommand { get; }
         public RelayCommand BatchSaveProductAsyncCommand { get; }
-        public RelayCommand<ProductModel> DeleteProductAsyncCommand { get; }
+        public RelayCommand DeleteProductAsyncCommand { get; }
         public RelayCommand RefreshProductCommand { get; }
         public RelayCommand InvertProductSelectionCommand { get; }
 
@@ -217,11 +267,19 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         #region 右上命令实现
         private void AddProduct()
         {
+            if (ProductList == null) return;
+            var model = new ProductModel
+            {
+                Sku = "NEW-PRODUCT-",
+                Description = "新产品",
+                State = ModelState.Added
+            };
+            ProductList.AddModelToFirst(model);
         }
-        private async void BatchSaveProduct()
+        private async Task BatchSaveProductAsync()
         {
         }
-        private async void DeleteProduct(ProductModel model)
+        private async Task DeleteProductAsync()
         {
         }
         private async void InvertProductSelection() => ProductList.InvertCheckAll();
@@ -237,8 +295,8 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 StatusMessage = "正在加载数据...";
                 try
                 {
-                    var cName = string.Empty;
-                    if (FilterCustomerDto.Name == "全部客户") { cName = FilterCustomerDto.Name; }
+                    var cCode = string.Empty;
+                    if (FilterCustomerDto != null && FilterCustomerDto.Name != "全部客户" && !string.IsNullOrWhiteSpace(FilterCustomerDto.Name)) { cCode = FilterCustomerDto.CustomerCode; }
 
                     // 构建用于提交给后端的查询条件 DTO
                     var search = new ProductSearchDto
@@ -247,10 +305,12 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                         Keyword = SearchProductTxt,
 
                         //// 如果选中的是"全部客户"，则不传过滤条件
-                        CustomerCodes = string.IsNullOrWhiteSpace(cName) ? null : new List<string>() { cName },
-                        ColorCodeUnique = string.IsNullOrWhiteSpace(FilterColorDto.ColorCode) ? null : FilterColorDto.ColorCode,
+                        CustomerCodes = string.IsNullOrWhiteSpace(cCode) ? null : new List<string>() { cCode },
+
+                        ColorCodeUnique = FilterColorDto != null && FilterColorDto.ColorNameZh != "全部颜色" && !string.IsNullOrWhiteSpace(FilterColorDto.ColorCode) ? FilterColorDto.ColorCode : null,
+
                         //// 按分类名筛选（支持包含子集）
-                        CategoryId = FilterCategory.Id > 0 ? FilterCategory.Id : 0,
+                        CategoryId = FilterCategory != null && FilterCategory.Id > 0 ? FilterCategory.Id : 0,
                         // 绑定到当前页面索引
                         PageIndex = PageIndex,
                         // 绑定到当前的页面行数(PageCustomerTableSize)
@@ -301,20 +361,48 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             {
                 if (SetProperty(ref _searchBomTxt, value))
                 {
-                    //产品防抖搜索开始();
+                    DebounceFilter(value); // 触发本地过滤，不发请求！
                 }
             }
         }
 
+        private CancellationTokenSource _debounceCts;
 
-        public bool EffBomNo => SelectedProduct != null && SelectedProduct.SupplyType != SupplyType.直接采购 && !string.IsNullOrWhiteSpace(SelectedProduct.BomNo);
+        private bool FilterItem(BomItemModel item, string searchText)
+        {
+            return (item.SubSku?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                   (item.Description?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                   (item.BomNo?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                   (item.Note?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
 
-        public BomList BomList { get; set; }
-        public RelayCommand OpenProductSelectorCommand { get; }
+        private void DebounceFilter(string text)
+        {
+            _debounceCts?.Cancel();
+            _debounceCts = new CancellationTokenSource();
+
+            Task.Delay(350, _debounceCts.Token).ContinueWith(t =>
+            {
+                if (t.IsCanceled) return;
+
+                // 中文注释：过滤刷新统一走线程安全调度，避免跨线程触发 ICollectionView 异常。
+                DispatcherProvider.BeginInvoke(() =>
+                {
+                    BomItemsView.Filter = (obj) => string.IsNullOrWhiteSpace(text) || FilterItem((BomItemModel)obj, text);
+                    BomItemsView.Refresh();
+                });
+            }, TaskScheduler.Default);
+        }
+
+        public bool HasActiveBom => SelectedProduct != null && SelectedProduct.SupplyType != SupplyType.直接采购 && !string.IsNullOrWhiteSpace(SelectedProduct.BomNo);
+
+        public BomList BomList { get; set; } = new BomList();
+        public ICollectionView BomItemsView { get; private set; }
+        public RelayCommand AddBomItemCommand { get; private set; }// 添加BOM项的命令，绑定到BOM子表的添加按钮，当用户点击添加时会执行此命令在当前选中产品的BOM列表中插入一行新的空数据以供编辑
         public RelayCommand BatchSaveBomCommand { get; }
         public RelayCommand RemoveBomItemCommand { get; }
+        public RelayCommand OpenProductSelectorCommand { get; }
         public RelayCommand CreateBomCommand { get; }
-        public RelayCommand AddBomItemCommand { get; private set; }// 添加BOM项的命令，绑定到BOM子表的添加按钮，当用户点击添加时会执行此命令在当前选中产品的BOM列表中插入一行新的空数据以供编辑
         /// <summary>
         /// 统一刷新所有 BOM 区域命令的 CanExecute 状态。
         /// 在选中产品切换、BOM 号变更等场景下调用。
@@ -344,11 +432,9 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         {
             if (SelectedProduct == null) return;
 
-            var nextId = _currentAllBoms.Count == 0 ? 1 : _currentAllBoms.Max(x => x.Id) + 1;
             var item = new BomItemModel
             {
-                Id = nextId,
-                SubSku = "NEW-ITEM-" + nextId,
+                SubSku = "NEW-ITEM-",
                 Description = "新子件",
                 Numerator = 1,
                 Denominator = 1,
@@ -356,18 +442,16 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 MainImage = string.Empty,
                 State = ModelState.Added
             };
+            BomList.AddModelToFirst(item);
 
-            AddBomItemToCurrent(item);
-            SaveBomToCache();
-            ApplyBomFilters();
-            EvaluateBomChanges();
+            DebounceFilter(SearchBomTxt);
             SelectedBomItem = item;
         }
         private async void LoadBomListAsync(ProductModel product)
         {
-            if (_bomApi == null || product ==null || string.IsNullOrWhiteSpace(product.BomNo) || product.SupplyType==SupplyType.直接采购) return;
+            if (_bomApi == null || product == null || string.IsNullOrWhiteSpace(product.BomNo) || product.SupplyType == SupplyType.直接采购) return;
 
-            using(BusyScope())
+            using (BusyScope())
             {
                 try
                 {
@@ -379,41 +463,26 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 }
                 catch
                 {
-                   _msg.ShowCardAsync("加载BOM失败，请稍后重试, 错误");
+                    _msg.ShowCardAsync("加载BOM失败，请稍后重试, 错误");
                 }
             }
         }
 
-        private void ApplyBomFilters()
+        private async Task BatchSaveBomAsync()
         {
-            IEnumerable<BomItemModel> query = _currentAllBoms;
-            if (!string.IsNullOrWhiteSpace(BomSearchText))
-            {
-                var keyword = BomSearchText.Trim();
-                query = query.Where(x =>
-                    Contains(x.SubSku, keyword) ||
-                    Contains(x.Description, keyword) ||
-                    Contains(x.BomSubType, keyword));
-            }
-
-            var snapshot = query.ToList();
-
-            DispatcherProvider.Invoke(() =>
-            {
-                _isSyncingBomItems = true;
-                try
-                {
-                    CurrentBomItems.Clear();
-                    foreach (var item in snapshot) CurrentBomItems.Add(item);
-                }
-                finally
-                {
-                    _isSyncingBomItems = false;
-                }
-
-                BuildBomTreeCore();
-            });
         }
+        private async Task RemoveBomItemAsync()
+        {
+        }
+        private async void OpenProductSelector()
+        {
+        }
+        private async Task CreateBomAsync()
+        {
+        }
+
+
+
         #endregion
 
 
