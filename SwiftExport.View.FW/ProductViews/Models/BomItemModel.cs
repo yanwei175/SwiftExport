@@ -4,7 +4,7 @@ using System.ComponentModel;
 
 namespace SwiftExport.View.FW.ProductViews.Models
 {
-    public class BomItemModel : BaseLineModel, IBaseModel, IDataErrorInfo
+    public class BomItemModel : BaseLineModel
     {
         public override void LoadFromDto<BomDto>(BomDto dto, bool 抑制清理脏数据 = false)
         {
@@ -28,14 +28,14 @@ namespace SwiftExport.View.FW.ProductViews.Models
         public string SubSku
         {
             get { return _subSku; }
-            set { if (SetProperty(ref _subSku, value)) MarkAsModified(); }
+            set => SetProperty(ref _subSku, value);
         }
 
         private string _description = string.Empty;
         public string Description
         {
             get { return _description; }
-            set { if (SetProperty(ref _description, value)) MarkAsModified(); }
+            set => SetProperty(ref _description, value);
         }
 
         //定义为可空类型，以便在验证时区分未设置和设置为0的情况
@@ -43,7 +43,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
         public int? Numerator
         {
             get { return _numerator; }
-            set { if (SetProperty(ref _numerator, value)) MarkAsModified(); }
+            set => SetProperty(ref _numerator, value);
         }
 
         //定义为可空类型，以便在验证时区分未设置和设置为0的情况
@@ -51,62 +51,34 @@ namespace SwiftExport.View.FW.ProductViews.Models
         public int? Denominator
         {
             get { return _denominator; }
-            set { if (SetProperty(ref _denominator, value)) MarkAsModified(); }
+            set => SetProperty(ref _denominator, value);
         }
 
         private string _bomSubType = string.Empty;
         public string BomSubType
         {
             get { return _bomSubType; }
-            set { if (SetProperty(ref _bomSubType, value)) MarkAsModified(); }
+            set => SetProperty(ref _bomSubType, value);
         }
 
         private string _mainImage = string.Empty;
         public string MainImage
         {
             get { return _mainImage; }
-            set { if (SetProperty(ref _mainImage, value)) MarkAsModified(); }
+            set => SetProperty(ref _mainImage, value);
         }
 
         private string _note = string.Empty;
         public string Note
         {
             get { return _note; }
-            set { if (SetProperty(ref _note, value)) MarkAsModified(); }
+            set => SetProperty(ref _note, value);
         }
 
-
-        protected override void MarkAsModified()
-        {
-            if (State == ModelState.Unchanged)
-            {
-                State = ModelState.Modified;
-            }
-        }
-
-        public override void RaisePropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
-        {
-            base.RaisePropertyChanged(propertyName);
-
-            if (propertyName != "Item[]" && propertyName != nameof(State) && propertyName != nameof(IsChecked))
-            {
-                base.RaisePropertyChanged("Item[]");
-            }
-        }
 
         #region IDataErrorInfo Members
 
-        public override string Error
-        {
-            get
-            {
-                if (!string.IsNullOrEmpty(this[nameof(SubSku)])) return this[nameof(SubSku)];
-                if (!string.IsNullOrEmpty(this[nameof(BomSubType)])) return this[nameof(BomSubType)];
-                if (!string.IsNullOrEmpty(this[nameof(Numerator)])) return this[nameof(Numerator)];
-                if (!string.IsNullOrEmpty(this[nameof(Denominator)])) return this[nameof(Denominator)];
-                return null;
-            }
-        }
+        public override string Error => null;
 
         public override string this[string columnName]
         {

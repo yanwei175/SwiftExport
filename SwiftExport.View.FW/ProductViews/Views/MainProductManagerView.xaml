@@ -75,8 +75,8 @@
 
                 <StackPanel Grid.Row="0" Margin="0,0,0,8">
                     <TextBlock Text="客户代码" FontWeight="SemiBold" Foreground="{StaticResource Brush_Txt_Primary}" Margin="0,8,0,8"/>
-                    
-                    <controls:CustomerSelectorControl SelectedItem="{Binding FilterCustomerLeft, Mode=OneWayToSource}" MinWidth="140" Height="30" />
+
+                    <controls:CustomerSelectorControl SelectedItem="{Binding FilterCustomerDto, Mode=OneWayToSource}" MinWidth="140" Height="30" />
 
                     <TextBlock Text="颜色" FontWeight="SemiBold" Foreground="{StaticResource Brush_Txt_Primary}" Margin="0,8,0,8"/>
                     
@@ -95,7 +95,8 @@
                 </StackPanel>
 
 
-                <controls:CategoryTreeSelectorControl Grid.Row="2" Grid.RowSpan="3" SelectedItem="{Binding FilterCategory, Mode=OneWayToSource}" />
+                <controls:CategoryTreeSelectorControl Grid.Row="2" Grid.RowSpan="3" 
+                                                      SelectedItem="{Binding FilterCategory, Mode=OneWayToSource}" />
             </Grid>
         </Border>
         <!--#endregion 左侧列表-->
@@ -342,14 +343,14 @@
                                 </DataGrid>
 
                                 <mt:PageNavigator Grid.Row="1" Margin="0,8,0,0" HorizontalAlignment="Right" 
-                                                   TotalCount="{Binding ProductList.TotalCount}" 
-                                                   PageIndex="{Binding ProductList.PageIndex, Mode=OneWay}"
-                                                   PageSize="{Binding ProductList.PageSize, Mode=OneWay}"
-                                                   PageChangeCommand="{Binding ProductList.PageChangeCommand}"/>
+                                                   TotalCount="{Binding TotalCount}" 
+                                                   PageIndex="{Binding PageIndex, Mode=OneWay}"
+                                                   PageSize="{Binding PageSize, Mode=OneWay}"
+                                                   PageChangeCommand="{Binding PageChangeCommand}"/>
                             </Grid>
                         </TabItem>
 
-                        <TabItem Header="产品详情" FontSize="14">
+                        <TabItem Visibility="Hidden" Header="产品详情" FontSize="14">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                                 <WrapPanel ItemWidth="280" ItemHeight="100" Orientation="Horizontal">
                                     <StackPanel Margin="10">
@@ -421,7 +422,7 @@
                             <StackPanel.Style>
                                 <Style TargetType="StackPanel">
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasActiveBom}" Value="False">
+                                        <DataTrigger Binding="{Binding EffBomNo}" Value="False">
                                             <Setter Property="Visibility" Value="Collapsed"/>
                                         </DataTrigger>
                                     </Style.Triggers>
@@ -433,16 +434,16 @@
                                    mt:ButtonAssist.IconSize="12"
                                    mt:ButtonAssist.Icon="{StaticResource Icon.Add}"/>
 
-                            <Button Command="{Binding SaveBomCommand}" Margin="0,0,5,0"
+                            <Button Command="{Binding BatchSaveBomCommand}" Margin="0,0,5,0"
                                    Content="保存"
                                    Style="{StaticResource ButtonSuccess}"
                                    mt:ButtonAssist.IconSize="12"
                                    mt:ButtonAssist.Icon="{StaticResource Icon.Save}"/>
-                            <!--<Button Command="{Binding RemoveBomItemCommand}" Margin="0,0,5,0"
+                            <Button Command="{Binding RemoveBomItemCommand}" Margin="0,0,5,0"
                                    Content="删除"
                                    Style="{StaticResource ButtonDanger}"
                                    mt:ButtonAssist.IconSize="12"
-                                   mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"/>-->
+                                   mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"/>
                             <Separator Margin="5,0"/>
                             <TextBlock Text="筛选：" VerticalAlignment="Center" Margin="5,0,2,0"/>
                             <TextBox Width="180" Text="{Binding BomSearchText, UpdateSourceTrigger=PropertyChanged}" 
@@ -460,7 +461,7 @@
                                 <Style TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasActiveBom}" Value="False">
+                                        <DataTrigger Binding="{Binding EffBomNo}" Value="False">
                                             <Setter Property="Visibility" Value="Visible"/>
                                         </DataTrigger>
                                     </Style.Triggers>
@@ -677,6 +678,6 @@
 
         </Grid>
         <!--#endregion-->
-        <mt:DialogHost Grid.Column="1" Grid.RowSpan="4" />
+        <mt:DialogHost Grid.Column="1" Grid.RowSpan="4" d:IsHidden="True" />
     </Grid>
 </UserControl>

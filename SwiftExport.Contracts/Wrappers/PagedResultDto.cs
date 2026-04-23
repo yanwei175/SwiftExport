@@ -5,7 +5,7 @@ namespace SwiftExport.Contracts.Wrappers
 {
     public class PagedResultDto<T>
     {
-        public IReadOnlyList<T> Items { get; set; } = new List<T>();
+        public List<T> Items { get; set; } = new List<T>();
         public int TotalCount { get; set; }
         public int PageIndex { get; set; }
         public int PageSize { get; set; }

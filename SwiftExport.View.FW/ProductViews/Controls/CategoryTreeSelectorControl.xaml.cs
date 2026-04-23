@@ -19,21 +19,21 @@ namespace SwiftExport.View.FW.ProductViews.Controls
     /// </summary>
     public partial class CategoryTreeSelectorControl : UserControl
     {
-        //对外暴露的双向绑定属性 SelectedItem (根据API定义为 CategorySelectionModel)
-        public event Action<CategorySelectionModel> OnCategorySelected;
+        // 对外暴露的双向绑定属性 SelectedItem — 只含当前选中节点，子节点由后端根据 Id 查询
+        public event Action<ProductCategoryDto> OnCategorySelected;
 
         public static readonly DependencyProperty SelectedItemProperty =
             DependencyProperty.Register(
                 nameof(SelectedItem),
-                typeof(CategorySelectionModel),
+                typeof(ProductCategoryDto),
                 typeof(CategoryTreeSelectorControl),
                 new FrameworkPropertyMetadata(
                     null,
                     FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
 
-        public CategorySelectionModel SelectedItem
+        public ProductCategoryDto SelectedItem
         {
-            get => (CategorySelectionModel)GetValue(SelectedItemProperty);
+            get => (ProductCategoryDto)GetValue(SelectedItemProperty);
             set => SetValue(SelectedItemProperty, value);
         }
 
@@ -133,7 +133,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
         {
             CategoryTreeFilterNodes.Clear();
 
-            var allNode = new CategoryTreeModel { Id = 1, CategoryName = "全部分类", IsExpanded = true };
+            var allNode = new CategoryTreeModel { CategoryCode="All Category",FakeName="全部分类", CategoryName = "全部分类",  IsExpanded = true };
             SubscribeCategoryNode(allNode);
             CategoryTreeFilterNodes.Add(allNode);
 
@@ -210,28 +210,16 @@ namespace SwiftExport.View.FW.ProductViews.Controls
             var node = sender as CategoryTreeModel;
             if (node == null || !node.IsSelected) return;
 
-            var selection = new CategorySelectionModel
+            // 只抛出当前选中节点，子节点由后端根据 Id 查询
+            var dto = new ProductCategoryDto
             {
-                CurrentCategory = new ProductCategoryDto { Id = node.Id, CategoryName = node.CategoryName, ParentId = node.ParentId }
+                Id = node.Id,
+                CategoryName = node.CategoryName,
+                ParentId = node.ParentId
             };
 
-            var flatList = new List<string>();
-            CollectCategoryNames(node, flatList);
-            selection.IncludedChildren = flatList.Select(x => new ProductCategoryDto { CategoryName = x }).ToList();
-
-            SelectedItem = selection;
-            OnCategorySelected?.Invoke(selection);
-        }
-
-         private void CollectCategoryNames(CategoryTreeModel node, List<string> list)
-        {
-            if (node == null) return;
-            if (!list.Contains(node.CategoryName)) list.Add(node.CategoryName);
-            if (node.Children == null) return;
-            foreach (var child in node.Children)
-            {
-                CollectCategoryNames(child, list);
-            }
+            SelectedItem = dto;
+            OnCategorySelected?.Invoke(dto);
         }
     }
 }

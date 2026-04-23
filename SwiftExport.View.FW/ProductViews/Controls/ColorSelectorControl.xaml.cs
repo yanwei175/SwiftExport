@@ -56,7 +56,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
             if (_isLoaded) return;
             _isLoaded = true;
 
-            _= LoadDataAsync();
+            _ = LoadDataAsync();
         }
 
         /// <summary>
@@ -74,6 +74,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
                 {
                     Items.Clear();
 
+                    Items.Add(new ProductColorDto { ColorCodeUnique = "全部颜色", ColorNameEn = "All Colors", ColorNameZh = "全部颜色", ColorCode = "全部颜色" });
                     // Optional: 为防止“全部”这一假选项影响，可以通过 Dto 构造一个"全部颜色"节点，或者纯清除搜索。
                     // 此处直接加载所有有效颜色
                     foreach (var item in result.Data)

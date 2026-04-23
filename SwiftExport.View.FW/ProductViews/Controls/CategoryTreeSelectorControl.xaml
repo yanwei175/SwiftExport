@@ -30,7 +30,7 @@
         </StackPanel>
 
         <TreeView Grid.Row="2" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                  ItemsSource="{Binding CategoryTreeFilterNodes, ElementName=Root}" BorderThickness="1" BorderBrush="{DynamicResource Brush_Border_Light}" Margin="0,0,0,-207">
+                  ItemsSource="{Binding CategoryTreeFilterNodes, ElementName=Root}" BorderThickness="1" BorderBrush="{DynamicResource Brush_Border_Light}" Margin="0,0,0,-151">
             <TreeView.ItemContainerStyle>
                 <Style TargetType="TreeViewItem"  BasedOn="{StaticResource BaseTreeViewItem}">
                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>

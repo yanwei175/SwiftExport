@@ -9,6 +9,7 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
+using System.Collections;
 
 namespace SwiftExport.Application.Services.Products;
 
@@ -64,9 +65,12 @@ public class BomService(IBomRepository bomRepo, IProductRepository pdRepo, Servi
         return ServiceResult<int>.Ok(rst);
     }
 
-    public async Task<ServiceResult<IEnumerable<Bom>>> GetBomByBomNoAsync(string bomNo)
+    public async Task<ServiceResult<List<BomDto>>> GetBomByBomNoAsync(string bomNo)
     {
-        return ServiceResult<IEnumerable<Bom>>.Ok(await _bomRepo.GetBomByBomNoAsync(bomNo));
+        var entities = await _bomRepo.GetBomByBomNoAsync(bomNo);
+        if (!entities.Any()) return ServiceResult<List<BomDto>>.Fail("未找到数据");
+
+        return ServiceResult<List<BomDto>>.Ok(entities.Adapt<List<BomDto>>());
     }
 
     public async Task<ServiceResult<bool>> ValidateBomAsync(string productSku)

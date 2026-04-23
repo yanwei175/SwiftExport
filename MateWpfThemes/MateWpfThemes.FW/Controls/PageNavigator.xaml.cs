@@ -1,13 +1,84 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using SwiftExport.Contracts.Models; 
+using SwiftExport.Contracts.Models;
 
 namespace MateWpfThemes.FW.Controls
 {
+    //#region 使用方式
+    //==============================
+    //<!-- 引入命名空间 -->
+    //xmlns:controls="clr-namespace:MateWpfThemes.FW.Controls;assembly=MateWpfThemes.FW"
+
+    //<!-- 使用组件，注意 PageIndex/PageSize 必须 Mode=OneWay -->
+    //<controls:PageNavigator
+    //    TotalCount = "{Binding TotalCount}"
+    //    PageIndex="{Binding PageIndex, Mode=OneWay}"
+    //    PageSize="{Binding PageSize, Mode=OneWay}"
+    //    PageSizeOptions="{Binding MyPageSizeOptions}" />自定义每页条数列表,默认是 10, 20, 50, 100, 200，可以覆盖：
+    //    PageChangeCommand="{Binding PageChangeCommand}" />
+
+    // ================== 分页属性 ==================
+    //public IEnumerable<int> MyPageSizeOptions { get; } = new[] { 20, 50, 100 }; //如果需要自定义每页条数列表，提供一个属性并绑定到 PageSizeOptions
+    //private int _pageIndex = 1;
+    //public int PageIndex
+    //{
+    //    get => _pageIndex;
+    //    set
+    //    {
+    //        if (_pageIndex == value) return;
+    //        if (SetProperty(ref _pageIndex, value))
+    //            _ = LoadDataAsync(); // 页码变化 → 加载数据
+    //    }
+    //}
+
+    //private int _pageSize = 50;
+    //public int PageSize
+    //{
+    //    get => _pageSize;
+    //    set
+    //    {
+    //        if (_pageSize == value) return;
+    //        if (SetProperty(ref _pageSize, value))
+    //        {
+    //            // 换页大小时回第一页
+    //            if (PageIndex == 1) _ = LoadDataAsync();
+    //            else PageIndex = 1;
+    //        }
+    //    }
+    //}
+
+    //private int _totalCount;
+    //public int TotalCount
+    //{
+    //    get => _totalCount;
+    //    set => SetProperty(ref _totalCount, value);
+    //}
+
+    //// ================== 翻页命令 ==================
+
+    //public ICommand PageChangeCommand => new RelayCommand<PageChangeRequest>(req =>
+    //{
+    //    // ★ 拦截点：检查是否有未保存数据
+    //    if (HasChanges)
+    //    {
+    //        var ok = MessageBox.Show("当前有未保存修改，翻页将丢失，是否继续？",
+    //                                 "提示", MessageBoxButton.YesNo) == MessageBoxResult.Yes;
+    //        if (!ok) return; // 不执行 → UI 因 Mode=OneWay 自动保持原值
+    //    }
+
+    //    // 正常翻页：更新属性 → 触发 LoadDataAsync
+    //    PageSize = req.NewSize;
+    //    PageIndex = req.NewIndex;
+    //});
+    //
+    //
+    //
+    //==============================
+    //#endregion
     public partial class PageNavigator : UserControl
     {
         public PageNavigator()
@@ -99,7 +170,7 @@ namespace MateWpfThemes.FW.Controls
         {
             if (d is PageNavigator control)
             {
-                // �����ڲ�ComboBoxֵ��������SelectionChanged
+                // 设置内部ComboBox值而不触发SelectionChanged
                 control.CboPageSize.SelectionChanged -= control.CboPageSize_SelectionChanged;
                 control.CboPageSize.SelectedItem = control.PageSize;
                 control.CboPageSize.SelectionChanged += control.CboPageSize_SelectionChanged;
@@ -109,7 +180,7 @@ namespace MateWpfThemes.FW.Controls
         }
 
         /// <summary>
-        /// ���ģ�����ҳ��ֲ� (���� 1 2 ... 7 8 9)
+        /// 核心：计算页码分布 (例如 1 2 ... 7 8 9)
         /// </summary>
         private void UpdatePageItems()
         {
@@ -127,7 +198,7 @@ namespace MateWpfThemes.FW.Controls
                 return;
             }
 
-            // �����ʾҳ�밴ť����(����ʡ�Ժ�)
+            // 最多显示页码按钮数量(不含省略号)
             const int maxVisible = 5;
 
             if (total <= maxVisible)
@@ -137,16 +208,16 @@ namespace MateWpfThemes.FW.Controls
             }
             else
             {
-                // ��ҳ���϶�ʱ������ʡ�Ժ�
+                // 总页数较多时，引入省略号
                 items.Add(new PageItem(1, current));
 
-                if (current > 3) 
+                if (current > 3)
                     items.Add(new PageItem(-1, current)); // ...
 
                 int start = Math.Max(2, current - 1);
                 int end = Math.Min(total - 1, current + 1);
 
-                // �߽粹��
+                // 边界补偿
                 if (current == 1) end = 3;
                 if (current == total) start = total - 2;
 
@@ -155,7 +226,7 @@ namespace MateWpfThemes.FW.Controls
                     items.Add(new PageItem(i, current));
                 }
 
-                if (current < total - 2) 
+                if (current < total - 2)
                     items.Add(new PageItem(-1, current)); // ...
 
                 items.Add(new PageItem(total, current));
@@ -165,7 +236,7 @@ namespace MateWpfThemes.FW.Controls
         }
 
         /// <summary>
-        /// ͳһ�ɷ���������
+        /// 统一派发导航请求
         /// </summary>
         private void RequestPageChange(int newIndex, int newSize)
         {
@@ -186,7 +257,7 @@ namespace MateWpfThemes.FW.Controls
             }
             else
             {
-                // ���û��Command���أ����߾ܽ�ִ�У�����ComboBox UI ״̬
+                // 如果没有Command拦截，或者拒接执行，重置ComboBox UI 状态
                 CboPageSize.SelectionChanged -= CboPageSize_SelectionChanged;
                 CboPageSize.SelectedItem = PageSize;
                 CboPageSize.SelectionChanged += CboPageSize_SelectionChanged;
@@ -211,15 +282,15 @@ namespace MateWpfThemes.FW.Controls
         {
             if (CboPageSize.SelectedItem is int newSize)
             {
-                // ���Ĵ�С�������ûص�һҳ
-                RequestPageChange(1, newSize); 
+                // 更改大小优先重置回第一页
+                RequestPageChange(1, newSize);
             }
         }
         #endregion
     }
 
     /// <summary>
-    /// ����װ�ض�̬ҳ���UI��
+    /// 用于装载动态页码的UI类
     /// </summary>
     public class PageItem
     {

@@ -10,10 +10,12 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Products;
 
-public class ProductService(IProductRepository productRepository, ServiceBaseContext context) : BaseService<Product, ProductDto>(productRepository, context), IProductService
+public class ProductService(IProductRepository productRepository, ServiceBaseContext context, IProductCategoryRepository categoryRepository) : BaseService<Product, ProductDto>(productRepository, context), IProductService
 {
     // 2. 将传入的特有 Repository 保存为当前类的私有只读字段
     private readonly IProductRepository _productRepository = productRepository;
+    private readonly IProductCategoryRepository _categoryRepository = categoryRepository;
+
     public override async Task<ServiceResult<IReadOnlyList<ProductDto>>> GetAllAsync()
     {
         return ServiceResult<IReadOnlyList<ProductDto>>.Fail("数据太多,不允许GetAll");
@@ -95,10 +97,17 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
             criteria.Add("CustomerId", 查询操作符.包含某值, search.CustomerIds);
         }
 
+        if (search.CategoryId > 0)
+        {
+            var ids = await _categoryRepository.GetSubById(search.CategoryId);
+            search.CategoryIds.AddRange(ids.Select(c => c.Id));
+        }
+
         if (search.CategoryIds != null && search.CategoryIds.Count > 0)
         {
             criteria.Add("CategoryId", 查询操作符.包含某值, search.CategoryIds);
         }
+
         else if (!string.IsNullOrWhiteSpace(search.CategoryName))
         {
             criteria.Add("CategoryName", 查询操作符.等于, search.CategoryName);

@@ -126,9 +126,11 @@
       <DependentUpon>CustomerSelectorControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="ProductViews\Messages\ProductSelectionResultMessage.cs" />
+    <Compile Include="ProductViews\Models\BomList.cs" />
     <Compile Include="ProductViews\Models\BomTreeNodeModel.cs" />
     <Compile Include="ProductViews\Models\CategorySelectionModel.cs" />
     <Compile Include="ProductViews\Models\ProductColorList.cs" />
+    <Compile Include="ProductViews\Models\ProductList.cs" />
     <Compile Include="ProductViews\ViewModels\BomListViewModel.cs" />
     <Compile Include="ProductViews\ViewModels\MainProductManagerViewModel.cs" />
     <Compile Include="ProductViews\ViewModels\ProductListViewModel.cs" />
