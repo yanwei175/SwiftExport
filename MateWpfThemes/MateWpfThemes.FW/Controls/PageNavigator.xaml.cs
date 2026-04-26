@@ -8,77 +8,6 @@ using SwiftExport.Contracts.Models;
 
 namespace MateWpfThemes.FW.Controls
 {
-    //#region 使用方式
-    //==============================
-    //<!-- 引入命名空间 -->
-    //xmlns:controls="clr-namespace:MateWpfThemes.FW.Controls;assembly=MateWpfThemes.FW"
-
-    //<!-- 使用组件，注意 PageIndex/PageSize 必须 Mode=OneWay -->
-    //<controls:PageNavigator
-    //    TotalCount = "{Binding TotalCount}"
-    //    PageIndex="{Binding PageIndex, Mode=OneWay}"
-    //    PageSize="{Binding PageSize, Mode=OneWay}"
-    //    PageSizeOptions="{Binding MyPageSizeOptions}" />自定义每页条数列表,默认是 10, 20, 50, 100, 200，可以覆盖：
-    //    PageChangeCommand="{Binding PageChangeCommand}" />
-
-    // ================== 分页属性 ==================
-    //public IEnumerable<int> MyPageSizeOptions { get; } = new[] { 20, 50, 100 }; //如果需要自定义每页条数列表，提供一个属性并绑定到 PageSizeOptions
-    //private int _pageIndex = 1;
-    //public int PageIndex
-    //{
-    //    get => _pageIndex;
-    //    set
-    //    {
-    //        if (_pageIndex == value) return;
-    //        if (SetProperty(ref _pageIndex, value))
-    //            _ = LoadDataAsync(); // 页码变化 → 加载数据
-    //    }
-    //}
-
-    //private int _pageSize = 50;
-    //public int PageSize
-    //{
-    //    get => _pageSize;
-    //    set
-    //    {
-    //        if (_pageSize == value) return;
-    //        if (SetProperty(ref _pageSize, value))
-    //        {
-    //            // 换页大小时回第一页
-    //            if (PageIndex == 1) _ = LoadDataAsync();
-    //            else PageIndex = 1;
-    //        }
-    //    }
-    //}
-
-    //private int _totalCount;
-    //public int TotalCount
-    //{
-    //    get => _totalCount;
-    //    set => SetProperty(ref _totalCount, value);
-    //}
-
-    //// ================== 翻页命令 ==================
-
-    //public ICommand PageChangeCommand => new RelayCommand<PageChangeRequest>(req =>
-    //{
-    //    // ★ 拦截点：检查是否有未保存数据
-    //    if (HasChanges)
-    //    {
-    //        var ok = MessageBox.Show("当前有未保存修改，翻页将丢失，是否继续？",
-    //                                 "提示", MessageBoxButton.YesNo) == MessageBoxResult.Yes;
-    //        if (!ok) return; // 不执行 → UI 因 Mode=OneWay 自动保持原值
-    //    }
-
-    //    // 正常翻页：更新属性 → 触发 LoadDataAsync
-    //    PageSize = req.NewSize;
-    //    PageIndex = req.NewIndex;
-    //});
-    //
-    //
-    //
-    //==============================
-    //#endregion
     public partial class PageNavigator : UserControl
     {
         public PageNavigator()
@@ -130,31 +59,7 @@ namespace MateWpfThemes.FW.Controls
 
         #endregion
 
-        #region Internal Properties for UI Binding
-
-        public static readonly DependencyProperty TotalPagesProperty =
-            DependencyProperty.Register("TotalPages", typeof(int), typeof(PageNavigator), new PropertyMetadata(0));
-        public int TotalPages
-        {
-            get => (int)GetValue(TotalPagesProperty);
-            private set => SetValue(TotalPagesProperty, value);
-        }
-
-        public static readonly DependencyProperty CanGoBackProperty =
-            DependencyProperty.Register("CanGoBack", typeof(bool), typeof(PageNavigator), new PropertyMetadata(false));
-        public bool CanGoBack
-        {
-            get => (bool)GetValue(CanGoBackProperty);
-            private set => SetValue(CanGoBackProperty, value);
-        }
-
-        public static readonly DependencyProperty CanGoForwardProperty =
-            DependencyProperty.Register("CanGoForward", typeof(bool), typeof(PageNavigator), new PropertyMetadata(false));
-        public bool CanGoForward
-        {
-            get => (bool)GetValue(CanGoForwardProperty);
-            private set => SetValue(CanGoForwardProperty, value);
-        }
+        #region Internal Properties
 
         public static readonly DependencyProperty PageItemsProperty =
             DependencyProperty.Register("PageItems", typeof(ObservableCollection<PageItem>), typeof(PageNavigator), new PropertyMetadata(new ObservableCollection<PageItem>()));
@@ -170,7 +75,6 @@ namespace MateWpfThemes.FW.Controls
         {
             if (d is PageNavigator control)
             {
-                // 设置内部ComboBox值而不触发SelectionChanged
                 control.CboPageSize.SelectionChanged -= control.CboPageSize_SelectionChanged;
                 control.CboPageSize.SelectedItem = control.PageSize;
                 control.CboPageSize.SelectionChanged += control.CboPageSize_SelectionChanged;
@@ -178,70 +82,73 @@ namespace MateWpfThemes.FW.Controls
                 control.UpdatePageItems();
             }
         }
-
         /// <summary>
-        /// 核心：计算页码分布 (例如 1 2 ... 7 8 9)
+        /// 核心：计算页码分布 (固定 9 个槽位显示)
         /// </summary>
         private void UpdatePageItems()
         {
-            TotalPages = PageSize > 0 ? (int)Math.Ceiling(TotalCount / (double)PageSize) : 0;
-            CanGoBack = PageIndex > 1;
-            CanGoForward = PageIndex < TotalPages && TotalPages > 0;
-
-            var items = new ObservableCollection<PageItem>();
-            int total = TotalPages;
+            int total = PageSize > 0 ? (int)Math.Ceiling(TotalCount / (double)PageSize) : 0;
             int current = PageIndex;
 
-            if (total == 0)
+            var items = new ObservableCollection<PageItem>();
+            if (total <= 0)
             {
                 PageItems = items;
                 return;
             }
 
-            // 最多显示页码按钮数量(不含省略号)
-            const int maxVisible = 5;
+            // 规则：
+            // 1. 如果总页数 <= 9，直接显示全部。
+            // 2. 如果总页数 > 9，固定显示 9 个槽位（含省略号）。
 
-            if (total <= maxVisible)
+            if (total <= 9)
             {
-                for (int i = 1; i <= total; i++)
-                    items.Add(new PageItem(i, current));
+                for (int i = 1; i <= total; i++) items.Add(new PageItem(i, current));
             }
             else
             {
-                // 总页数较多时，引入省略号
-                items.Add(new PageItem(1, current));
+                // 槽位计算
+                int start, end;
 
-                if (current > 3)
-                    items.Add(new PageItem(-1, current)); // ...
-
-                int start = Math.Max(2, current - 1);
-                int end = Math.Min(total - 1, current + 1);
-
-                // 边界补偿
-                if (current == 1) end = 3;
-                if (current == total) start = total - 2;
-
-                for (int i = start; i <= end; i++)
+                if (current <= 5)
                 {
-                    items.Add(new PageItem(i, current));
+                    // 在首页附近: 1 2 3 4 5 6 7 ... total (9个槽位)
+                    start = 1;
+                    end = 7;
+                    for (int i = start; i <= end; i++) items.Add(new PageItem(i, current));
+                    items.Add(new PageItem(-1, current)); // 第8位
+                    items.Add(new PageItem(total, current)); // 第9位
                 }
+                else if (current >= total - 4)
+                {
+                    // 在末页附近: 1 ... total-6 total-5 total-4 total-3 total-2 total-1 total (9个槽位)
+                    items.Add(new PageItem(1, current)); // 第1位
+                    items.Add(new PageItem(-1, current)); // 第2位
+                    start = total - 6;
+                    end = total;
+                    for (int i = start; i <= end; i++) items.Add(new PageItem(i, current));
+                }
+                else
+                {
+                    // 在中间部分: 1 ... 48 49 50 51 52 ... total (9个槽位)
+                    items.Add(new PageItem(1, current)); // 第1位
+                    items.Add(new PageItem(-1, current)); // 第2位
 
-                if (current < total - 2)
-                    items.Add(new PageItem(-1, current)); // ...
+                    start = current - 2;
+                    end = current + 2;
+                    for (int i = start; i <= end; i++) items.Add(new PageItem(i, current));
 
-                items.Add(new PageItem(total, current));
+                    items.Add(new PageItem(-1, current)); // 第8位
+                    items.Add(new PageItem(total, current)); // 第9位
+                }
             }
 
             PageItems = items;
         }
 
-        /// <summary>
-        /// 统一派发导航请求
-        /// </summary>
         private void RequestPageChange(int newIndex, int newSize)
         {
             if (newIndex == PageIndex && newSize == PageSize) return;
-            if (newIndex < 1 || newIndex > Math.Max(1, TotalPages)) return;
 
             var request = new PageChangeRequest
             {
@@ -257,7 +164,6 @@ namespace MateWpfThemes.FW.Controls
             }
             else
             {
-                // 如果没有Command拦截，或者拒接执行，重置ComboBox UI 状态
                 CboPageSize.SelectionChanged -= CboPageSize_SelectionChanged;
                 CboPageSize.SelectedItem = PageSize;
                 CboPageSize.SelectionChanged += CboPageSize_SelectionChanged;
@@ -265,11 +171,6 @@ namespace MateWpfThemes.FW.Controls
         }
 
         #region UI Event Handlers
-        private void BtnFirst_Click(object sender, RoutedEventArgs e) => RequestPageChange(1, PageSize);
-        private void BtnPrev_Click(object sender, RoutedEventArgs e) => RequestPageChange(PageIndex - 1, PageSize);
-        private void BtnNext_Click(object sender, RoutedEventArgs e) => RequestPageChange(PageIndex + 1, PageSize);
-        private void BtnLast_Click(object sender, RoutedEventArgs e) => RequestPageChange(TotalPages, PageSize);
-
         private void BtnPage_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.DataContext is PageItem item && item.PageIndex != -1)
@@ -282,16 +183,12 @@ namespace MateWpfThemes.FW.Controls
         {
             if (CboPageSize.SelectedItem is int newSize)
             {
-                // 更改大小优先重置回第一页
                 RequestPageChange(1, newSize);
             }
         }
         #endregion
     }
 
-    /// <summary>
-    /// 用于装载动态页码的UI类
-    /// </summary>
     public class PageItem
     {
         public int PageIndex { get; }

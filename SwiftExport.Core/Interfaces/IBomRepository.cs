@@ -1,4 +1,5 @@
-﻿using SwiftExport.Core.Entities;
+﻿using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Core.Entities;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
 using System;
@@ -41,6 +42,7 @@ namespace SwiftExport.Core.Interfaces
         /// <returns>一张BOM</returns>
         Task<IEnumerable<Bom>> GetBomByBomNoAsync(string bomNo);
 
+        Task<IEnumerable<BomDto>> GetBomDtoByBomNoAsync(string bomNo);
 
         /// <summary>
         /// 调用数据库的存储过程,执行Merge 操作,适用于Excel批量修改BOM条目,不针对单个BOM对象

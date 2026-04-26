@@ -27,6 +27,8 @@ public static class DependencyInjection
         services.AddScoped<IBomRepository, BomRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<ICustomerPoConfigRepository, CustomerPoConfigRepository>();
+        // 注册客户产品仓储
+        services.AddScoped<ICustomerProductRepository, CustomerProductRepository>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<IProductColorRepository, ProductColorRepository>();
         services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();

@@ -7,7 +7,7 @@ namespace SwiftExport.Core.Entities.MasterData;
 public class Customer : BaseEntity
 {
     public string CustomerCode { get; set; } = default!;
-    public string? Name { get; set; }
+    public string? CustomerName { get; set; }
     public string? Address { get; set; }
     public string? PhoneNumber { get; set; }
     public string? ContactPerson { get; set; }

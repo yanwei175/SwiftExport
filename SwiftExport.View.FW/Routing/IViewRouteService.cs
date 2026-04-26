@@ -1,3 +1,6 @@
+using Microsoft.Extensions.DependencyInjection;
+using SwiftExport.Contracts.SysEnums;
+using SwiftExport.View.FW.Routing;
 using System;
 
 namespace SwiftExport.View.FW.Routing
@@ -8,7 +11,30 @@ namespace SwiftExport.View.FW.Routing
     /// 职责：
     ///   封装"TargetViewKey → ViewModel Type"的解析逻辑，
     ///   内部优先从数据库路由缓存查找，找不到时降级到静态 ViewRoutes 兜底。
+    ///        private object ResolveViewModel(DictTypeNavNode node)
+    ///        {
+    ///            var targetViewKey = node.TargetViewKey;
+    ///            var dictCode = node.DictCode;
+    ///            var displayName = node.DisplayName;
     ///
+    ///            // 优先走动态路由缓存（数据库），未命中自动降级到静态路由
+    ///            if (!_viewRouteService.TryResolve(targetViewKey, out var vmType))
+    ///            {
+    ///                StatusMessage = string.IsNullOrWhiteSpace(targetViewKey)
+    ///                    ? $"[{dictCode}] 暂未配置 TargetViewKey"
+    ///                    : $"未找到视图路由：{targetViewKey}，请在 SysViewRoute 表中配置";
+    ///                return null;
+    ///            }
+    ///
+    ///          // 从 DI 容器创建实例（Transient，状态隔离）
+    ///         var vm = _serviceProvider.GetRequiredService(vmType);
+    ///
+    ///         // 若目标 VM 支持字典路由上下文，则注入 DictCode + 显示名 + 完整节点上下文
+    ///         var routeAwareVm = vm as IDictRouteAwareViewModel;
+    ///         routeAwareVm?.SetRouteContext(dictCode, displayName, node);
+    ///
+    ///         return vm;
+    ///         }
     /// 使用方：
     ///   DataDictManagerViewModel、主界面路由器等需要动态加载页面的地方。
     /// </summary>

@@ -283,7 +283,8 @@ namespace MateWpfThemes.FW.AttachedProperties
                         Value = true
                     };
 
-                    trigger.Setters.Add(new Setter(Control.BackgroundProperty, errorBg));
+                    // 中文注释：按用户交互规范将“验证态”和“选中态”解耦。
+                    // 这里只保留红色边框与提示，不再改背景色；背景色由 DataGridCell 的 IsSelected 触发器统一控制。
                     trigger.Setters.Add(new Setter(Control.BorderBrushProperty, Brushes.Red));
                     trigger.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
                     trigger.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, new Binding($"[{propName}]")));

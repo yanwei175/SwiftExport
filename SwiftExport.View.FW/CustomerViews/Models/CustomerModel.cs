@@ -36,11 +36,11 @@ namespace SwiftExport.View.FW.CustomerViews.Models
             set => SetProperty(ref _customerCode, value);
         }
 
-        private string _name;
-        public string Name
+        private string _customerName;
+        public string CustomerName
         {
-            get => _name;
-            set => SetProperty(ref _name, value);
+            get => _customerName;
+            set => SetProperty(ref _customerName, value);
         }
 
         private string _address;

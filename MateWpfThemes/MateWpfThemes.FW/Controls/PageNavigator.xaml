@@ -12,7 +12,7 @@
 
     1. 绑定模式:
        该组件设计为“命令驱动（Command-Driven）”，必须使用单向绑定（Mode=OneWay）。
-       用户的一切翻页操作（点击页码、上一页、修改每页条数）都会被转换为一个 PageChangeRequest 对象，
+       用户的一切翻页操作（点击页码、修改每页条数）都会被转换为一个 PageChangeRequest 对象，
        并通过 PageChangeCommand 发送给 ViewModel。
 
     2. 拦截机制:
@@ -48,15 +48,7 @@
                   SelectionChanged="CboPageSize_SelectionChanged"/>
         <TextBlock Text="条" VerticalAlignment="Center" Foreground="{DynamicResource Brush_Txt_Primary}" Margin="0,0,15,0"/>
 
-        <!-- 首页 & 上一页 -->
-        <Button Content="|&lt;" ToolTip="首页" Style="{DynamicResource ButtonText}" 
-                IsEnabled="{Binding CanGoBack, ElementName=Root, Mode=OneWay}" 
-                Click="BtnFirst_Click" Margin="2,0"/>
-        <Button Content="&lt;" ToolTip="上一页" Style="{DynamicResource ButtonText}" 
-                IsEnabled="{Binding CanGoBack, ElementName=Root, Mode=OneWay}" 
-                Click="BtnPrev_Click" Margin="2,0,10,0"/>
-
-        <!-- 动态页码列表 -->
+        <!-- 动态页码列表 (已移除导航图标，通过数字直接跳转) -->
         <ItemsControl ItemsSource="{Binding PageItems, ElementName=Root}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -68,13 +60,13 @@
                     <Button Content="{Binding DisplayText}" 
                             IsEnabled="{Binding IsClickable}"
                             Click="BtnPage_Click"
-                            Margin="2,0" MinWidth="24">
+                            Margin="2,0" MinWidth="40">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource ButtonText}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsCurrent}" Value="True">
                                         <Setter Property="Foreground" Value="DodgerBlue"/>
-                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="FontWeight" Value="Regular"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -83,14 +75,6 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
-
-        <!-- 下一页 & 尾页 -->
-        <Button Content="&gt;" ToolTip="下一页" Style="{DynamicResource ButtonText}" 
-                IsEnabled="{Binding CanGoForward, ElementName=Root, Mode=OneWay}" 
-                Click="BtnNext_Click" Margin="10,0,2,0"/>
-        <Button Content="&gt;|" ToolTip="尾页" Style="{DynamicResource ButtonText}" 
-                IsEnabled="{Binding CanGoForward, ElementName=Root, Mode=OneWay}" 
-                Click="BtnLast_Click" Margin="2,0"/>
 
     </StackPanel>
 </UserControl>

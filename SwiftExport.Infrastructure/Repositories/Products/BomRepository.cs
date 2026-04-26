@@ -1,28 +1,37 @@
 ﻿using Dapper;
-using SwiftExport.Core.Entities;
+using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Data.Common;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Transactions;
 
 namespace SwiftExport.Infrastructure.Repositories.Products;
 
 public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom>(context), IBomRepository
 {
 
+    public async Task<IEnumerable<BomDto>> GetBomDtoByBomNoAsync(string bomNo)
+    {
+        var sql = @"SELECT 
+                        t1.*, 
+                        t2.Description, 
+                        t3.ColorNameZh as Finish,
+                        t2.Features,
+                        t2.MainImage
+                    FROM Bom t1
+                    LEFT JOIN Product t2 ON t1.SubSkuId = t2.Id
+                    LEFT JOIN ProductColor t3 ON t2.ColorId = t3.Id
+                    WHERE t1.BomNo = @BomNo";
+
+        return await Connection.QueryAsync<BomDto>(sql, new { BomNo = bomNo });
+    }
+
 
     public async Task<IEnumerable<Bom>> GetBomByBomNoAsync(string bomNo)
     {
         var sql = $"SELECT * FROM  [{TableName}] Where BomNo = @BomNo";
-            return await Connection.QueryAsync<Bom>(sql, new { BomNo = bomNo });
+        return await Connection.QueryAsync<Bom>(sql, new { BomNo = bomNo });
     }
 
     public async Task<Dictionary<string, IEnumerable<Bom>>> Get一堆BomBy一堆Bom号(IEnumerable<string> bomNos)
@@ -34,20 +43,20 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
 
         // Dapper 会自动将 IEnumerable<string> BomNos 转换为 SQL 参数列表
 
-            var allBoms = await Connection.QueryAsync<Bom>(
-                                     sql,
-                                     new { BomNos = bomNos });
-            // 使用 LINQ 将结果分组并转换为字典
-            return allBoms.GroupBy(b => b.BomNo)
-                          .ToDictionary(g => g.Key, g => g.AsEnumerable());
-        
+        var allBoms = await Connection.QueryAsync<Bom>(
+                                 sql,
+                                 new { BomNos = bomNos });
+        // 使用 LINQ 将结果分组并转换为字典
+        return allBoms.GroupBy(b => b.BomNo)
+                      .ToDictionary(g => g.Key, g => g.AsEnumerable());
+
     }
 
     public async Task<int> DeleteBomByBomNoAsync(string bomNo)
     {
         var sql = $"DELETE FROM [{TableName}] WHERE BomNo = @BomNo";
         // 使用基类已有的字段
-        return await Connection.ExecuteAsync(sql, new { BomNo = bomNo }, transaction:Transaction);
+        return await Connection.ExecuteAsync(sql, new { BomNo = bomNo }, transaction: Transaction);
     }
 
     public async Task<bool> IsBomItemExistAsync(string bomNo, string productSku)

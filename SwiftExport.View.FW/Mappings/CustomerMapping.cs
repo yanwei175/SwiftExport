@@ -16,7 +16,7 @@ namespace SwiftExport.View.FW.Mappings
             config.NewConfig<CustomerDto, CustomerModel>()
                 // 字段直接映射（属性名相同）
                 .Map(dest => dest.CustomerCode, src => src.CustomerCode)
-                .Map(dest => dest.Name, src => src.Name)
+                .Map(dest => dest.CustomerName, src => src.CustomerName)
                 .Map(dest => dest.Address, src => src.Address)
                 .Map(dest => dest.PhoneNumber, src => src.PhoneNumber)
                 .Map(dest => dest.ContactPerson, src => src.ContactPerson)
@@ -48,7 +48,7 @@ namespace SwiftExport.View.FW.Mappings
             // Model → DTO 映射（逆向）
             config.NewConfig<CustomerModel, CustomerDto>()
                 .Map(dest => dest.CustomerCode, src => src.CustomerCode)
-                .Map(dest => dest.Name, src => src.Name)
+                .Map(dest => dest.CustomerName, src => src.CustomerName)
                 .Map(dest => dest.Address, src => src.Address)
                 .Map(dest => dest.PhoneNumber, src => src.PhoneNumber)
                 .Map(dest => dest.ContactPerson, src => src.ContactPerson)

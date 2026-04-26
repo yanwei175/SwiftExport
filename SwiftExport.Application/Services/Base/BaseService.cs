@@ -29,197 +29,338 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
 
     public virtual async Task<ServiceResult<IReadOnlyList<int>>> GetExistingIdListAsync(IEnumerable<int> idList)
     {
-        var rst = await _repository.GetExistingIdListAsync(idList);
-        if (!rst.Any()) return ServiceResult<IReadOnlyList<int>>.Fail("未找到数据");
-        return ServiceResult<IReadOnlyList<int>>.Ok(rst);
+        try
+        {
+            var rst = await _repository.GetExistingIdListAsync(idList);
+            if (!rst.Any()) return ServiceResult<IReadOnlyList<int>>.Fail("未找到数据");
+            return ServiceResult<IReadOnlyList<int>>.Ok(rst);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<int>>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<TDto>> GetByIdAsync(int id)
     {
-        var entity = await _repository.GetByIdAsync(id);
-        if (entity == null)
+        try
         {
-            // ★ 包裹 Warning 级别
-            if (Logger.IsEnabled(LogLevel.Warning))
+            var entity = await _repository.GetByIdAsync(id);
+            if (entity == null)
             {
-                Logger.LogWarning("查询失败：未找到 ID 为 {Id} 的 {EntityName} 数据", id, EntityName);
+                // ★ 包裹 Warning 级别
+                if (Logger.IsEnabled(LogLevel.Warning))
+                {
+                    Logger.LogWarning("查询失败：未找到 ID 为 {Id} 的 {EntityName} 数据", id, EntityName);
+                }
+                return ServiceResult<TDto>.Fail("未找到数据");
             }
-            return ServiceResult<TDto>.Fail("未找到数据");
-        }
 
-        return ServiceResult<TDto>.Ok(entity.Adapt<TDto>());
+            return ServiceResult<TDto>.Ok(entity.Adapt<TDto>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<TDto>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<IReadOnlyList<TDto>>> GetByIdListAsync(IEnumerable<int> idList)
     {
-        var entities = await _repository.GetByIdListAsync(idList);
-        if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
+        try
+        {
 
-        return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
+
+            var entities = await _repository.GetByIdListAsync(idList);
+            if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
+
+            return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<TDto>>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<TDto?>> GetSingleEntityAsync()
     {
-        var entity = await _repository.GetSingleEntityAsync();
-        return entity == null ? ServiceResult<TDto?>.Fail("未找到数据") : ServiceResult<TDto?>.Ok(entity.Adapt<TDto>());
+        try
+        {
+
+
+            var entity = await _repository.GetSingleEntityAsync();
+            return entity == null ? ServiceResult<TDto?>.Fail("未找到数据") : ServiceResult<TDto?>.Ok(entity.Adapt<TDto>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<TDto?>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<IReadOnlyList<TDto>>> GetAllAsync()
     {
-        var entities = await _repository.GetAllAsync();
-        if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
+        try
+        {
 
-        return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
+
+            var entities = await _repository.GetAllAsync();
+            if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
+
+            return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<TDto>>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<IReadOnlyList<TDto>>> GetListAsync(string whereSql, object? param = null)
     {
-        var entities = await _repository.GetListAsync(whereSql, param);
-        if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
+        try
+        {
 
-        return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
+
+            var entities = await _repository.GetListAsync(whereSql, param);
+            if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
+
+            return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<TDto>>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<IReadOnlyList<TDto>>> GetListAsync(QueryCriteria criteria)
     {
-        var entities = await _repository.GetListAsync(criteria);
-        if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
+        try
+        {
 
-        return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
+
+            var entities = await _repository.GetListAsync(criteria);
+            if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
+
+            return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<TDto>>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<IReadOnlyList<TDto>>> GetListAsync(object noNameObj)
     {
-        var entities = await _repository.GetListAsync(noNameObj);
-        if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
+        try
+        {
+            var entities = await _repository.GetListAsync(noNameObj);
+            if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
 
-        return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
+            return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<TDto>>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<PagedResultDto<TDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "ID DESC")
     {
-        var entities = await _repository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
-
-        return ServiceResult<PagedResultDto<TDto>>.Ok(new PagedResultDto<TDto>
+        try
         {
-            Items = entities.Items.Adapt<List<TDto>>(),
-            TotalCount = entities.TotalCount,
-            PageSize = entities.PageSize,
-            PageIndex = entities.PageIndex
-        });
+
+
+            var entities = await _repository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
+
+            return ServiceResult<PagedResultDto<TDto>>.Ok(new PagedResultDto<TDto>
+            {
+                Items = entities.Items.Adapt<List<TDto>>(),
+                TotalCount = entities.TotalCount,
+                PageSize = entities.PageSize,
+                PageIndex = entities.PageIndex
+            });
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<PagedResultDto<TDto>>.Fail(ex.Message);
+        }
+
     }
 
     public virtual async Task<ServiceResult<int>> AddAsync(TDto dto)
     {
-        var entity = dto.Adapt<TEntity>();
-
-        entity.CreatedDate = DateTime.Now;
-        entity.IsDeleted = false;
-
-        var id = await _repository.AddAsync(entity);
-
-        // ★ 包裹 Information 级别
-        if (Logger.IsEnabled(LogLevel.Information))
+        try
         {
-            Logger.LogInformation("成功新增 {EntityName} 数据，生成的 ID: {Id}", EntityName, id);
-        }
+            var entity = dto.Adapt<TEntity>();
 
-        return ServiceResult<int>.Ok(id);
+            entity.CreatedDate = DateTime.Now;
+            entity.IsDeleted = false;
+
+            var id = await _repository.AddAsync(entity);
+
+            // ★ 包裹 Information 级别
+            if (Logger.IsEnabled(LogLevel.Information))
+            {
+                Logger.LogInformation("成功新增 {EntityName} 数据，生成的 ID: {Id}", EntityName, id);
+            }
+
+            return ServiceResult<int>.Ok(id);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<int>> UpdateAsync(TDto dto)
     {
-        var existing = await _repository.GetByIdAsync(dto.Id);
-        if (existing == null)
+        try
         {
-            if (Logger.IsEnabled(LogLevel.Warning))
+
+
+            var existing = await _repository.GetByIdAsync(dto.Id);
+            if (existing == null)
             {
-                Logger.LogWarning("修改失败：未找到 ID 为 {Id} 的 {EntityName} 数据", dto.Id, EntityName);
+                if (Logger.IsEnabled(LogLevel.Warning))
+                {
+                    Logger.LogWarning("修改失败：未找到 ID 为 {Id} 的 {EntityName} 数据", dto.Id, EntityName);
+                }
+                return ServiceResult<int>.Fail("数据不存在");
             }
-            return ServiceResult<int>.Fail("数据不存在");
+
+            dto.Adapt(existing);
+            var rst = await _repository.UpdateAsync(existing);
+
+            if (Logger.IsEnabled(LogLevel.Information))
+            {
+                Logger.LogInformation("成功修改 {EntityName} 数据，ID: {Id}", EntityName, dto.Id);
+            }
+
+            return ServiceResult<int>.Ok(rst);
         }
-
-        dto.Adapt(existing);
-        var rst = await _repository.UpdateAsync(existing);
-
-        if (Logger.IsEnabled(LogLevel.Information))
+        catch (Exception ex)
         {
-            Logger.LogInformation("成功修改 {EntityName} 数据，ID: {Id}", EntityName, dto.Id);
+            return ServiceResult<int>.Fail(ex.Message);
         }
-
-        return ServiceResult<int>.Ok(rst);
     }
 
     public virtual async Task<ServiceResult<int>> DeleteSoftAsync(int id)
     {
-        var rst = await _repository.DeleteSoftAsync(id);
-
-        if (Logger.IsEnabled(LogLevel.Information))
+        try
         {
-            Logger.LogInformation("成功逻辑删除 {EntityName} 数据，ID: {Id}", EntityName, id);
+
+
+            var rst = await _repository.DeleteSoftAsync(id);
+
+            if (Logger.IsEnabled(LogLevel.Information))
+            {
+                Logger.LogInformation("成功逻辑删除 {EntityName} 数据，ID: {Id}", EntityName, id);
+            }
+            return ServiceResult<int>.Ok(rst);
         }
-        return ServiceResult<int>.Ok(rst);
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<int>> DeleteAsync(int id)
     {
-        var rst = await _repository.DeleteAsync(id);
-
-        if (Logger.IsEnabled(LogLevel.Information))
+        try
         {
-            Logger.LogInformation("成功物理删除 {EntityName} 数据，ID: {Id}", EntityName, id);
+
+
+            var rst = await _repository.DeleteAsync(id);
+
+            if (Logger.IsEnabled(LogLevel.Information))
+            {
+                Logger.LogInformation("成功物理删除 {EntityName} 数据，ID: {Id}", EntityName, id);
+            }
+            return ServiceResult<int>.Ok(rst);
         }
-        return ServiceResult<int>.Ok(rst);
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<IReadOnlyList<int>>> AddRangeAsync(IEnumerable<TDto> dtoList)
     {
-        var entities = dtoList.Adapt<List<TEntity>>();
-
-        var ids = await _repository.AddRangeAsync(entities);
-
-        if (Logger.IsEnabled(LogLevel.Information))
+        try
         {
-            Logger.LogInformation("成功批量新增 {Count} 条 {EntityName} 数据", entities.Count, EntityName);
-        }
 
-        return ServiceResult<IReadOnlyList<int>>.Ok(ids);
+
+            var entities = dtoList.Adapt<List<TEntity>>();
+
+            var ids = await _repository.AddRangeAsync(entities);
+
+            if (Logger.IsEnabled(LogLevel.Information))
+            {
+                Logger.LogInformation("成功批量新增 {Count} 条 {EntityName} 数据", entities.Count, EntityName);
+            }
+
+            return ServiceResult<IReadOnlyList<int>>.Ok(ids);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<int>>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<int>> DeleteRangeAsync(IEnumerable<int> idList)
     {
-        var ids = idList.ToList();
-        var rst = await _repository.DeleteRangeAsync(ids);
-
-        if (Logger.IsEnabled(LogLevel.Information))
+        try
         {
-            Logger.LogInformation("成功批量物理删除 {Count} 条 {EntityName} 数据", ids.Count, EntityName);
+            var ids = idList.ToList();
+            var rst = await _repository.DeleteRangeAsync(ids);
+
+            if (Logger.IsEnabled(LogLevel.Information))
+            {
+                Logger.LogInformation("成功批量物理删除 {Count} 条 {EntityName} 数据", ids.Count, EntityName);
+            }
+            return ServiceResult<int>.Ok(rst);
         }
-        return ServiceResult<int>.Ok(rst);
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<int>> DeleteRangeSoftAsync(IEnumerable<int> idList)
     {
-        var ids = idList.ToList();
-        var rst = await _repository.DeleteRangeSoftAsync(ids);
-
-        if (Logger.IsEnabled(LogLevel.Information))
+        try
         {
-            Logger.LogInformation("成功批量逻辑删除 {Count} 条 {EntityName} 数据", ids.Count, EntityName);
+            var ids = idList.ToList();
+            var rst = await _repository.DeleteRangeSoftAsync(ids);
+
+            if (Logger.IsEnabled(LogLevel.Information))
+            {
+                Logger.LogInformation("成功批量逻辑删除 {Count} 条 {EntityName} 数据", ids.Count, EntityName);
+            }
+            return ServiceResult<int>.Ok(rst);
         }
-        return ServiceResult<int>.Ok(rst);
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
     }
 
     public virtual async Task<ServiceResult<int>> UpdateRangeAsync(IEnumerable<TDto> dtoList)
     {
-        var entities = dtoList.Adapt<List<TEntity>>();
-        var rst = await _repository.UpdateRangeAsync(entities);
-
-        if (Logger.IsEnabled(LogLevel.Information))
+        try
         {
-            Logger.LogInformation("成功批量修改 {Count} 条 {EntityName} 数据", entities.Count, EntityName);
+
+            var entities = dtoList.Adapt<List<TEntity>>();
+            var rst = await _repository.UpdateRangeAsync(entities);
+
+            if (Logger.IsEnabled(LogLevel.Information))
+            {
+                Logger.LogInformation("成功批量修改 {Count} 条 {EntityName} 数据", entities.Count, EntityName);
+            }
+            return ServiceResult<int>.Ok(rst);
         }
-        return ServiceResult<int>.Ok(rst);
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
     }
 
 
@@ -355,7 +496,7 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
         {
             _session.Transaction.Rollback();
             if (Logger.IsEnabled(LogLevel.Error)) Logger.LogError(ex, "[{EntityName}] 批量保存发生致命异常，事务已回滚！", EntityName);
-            throw;
+            return ServiceResult<BatchResultDto>.Fail(ex.Message);
         }
         finally
         {

@@ -8,11 +8,7 @@ namespace SwiftExport.View.FW.Mvvm
     /// </summary>
     public class BindingProxy : Freezable
     {
-        protected override Freezable CreateInstanceCore()
-        {
-            return new BindingProxy();
-        }
-
+        protected override Freezable CreateInstanceCore() => new BindingProxy();
         /// <summary>
         /// 中文注释：中转数据对象。
         /// </summary>

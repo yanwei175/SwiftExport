@@ -5,10 +5,13 @@ public class ProductPagedItem
     public int Id { get; set; }
     public string? MasterSku { get; set; }
     public string Sku { get; set; } = default!;
-    public string? Description { get; set; }
+    public string? DescriptionEn { get; set; }
+    public string? DescriptionZh { get; set; }
     public int ColorId { get; set; }
     public string? Finish { get; set; }
-    public string? Features { get; set; }
+    public string? FeaturesEn { get; set; }
+    public string? FeaturesZh { get; set; }
+    public string? MaterialType { get; set; }
     public string? SupplyType { get; set; }
     public string? BomNo { get; set; }
     public string? Note { get; set; }

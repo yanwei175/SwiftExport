@@ -633,7 +633,7 @@ public class SalesOrderService(
         return customers
             .Where(x => x.Id > 0)
             .GroupBy(x => x.Id)
-            .ToDictionary(g => g.Key, g => g.First().Name ?? g.First().CustomerCode ?? string.Empty);
+            .ToDictionary(g => g.Key, g => g.First().CustomerName ?? g.First().CustomerCode ?? string.Empty);
     }
 
     /// <summary>

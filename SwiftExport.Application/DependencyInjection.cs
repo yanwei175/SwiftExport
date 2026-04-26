@@ -22,6 +22,8 @@ public static class DependencyInjection
         services.AddScoped<IBomService, BomService>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<ICustomerPoConfigService, CustomerPoConfigService>();
+        // ✅ 补充注册客户产品服务
+        services.AddScoped<ICustomerProductService, CustomerProductServices>();
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<IProductColorService, ProductColorService>();
         services.AddScoped<IProductCategoryService, ProductCategoryService>();
@@ -32,10 +34,6 @@ public static class DependencyInjection
         services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();
         // 视图路由配置服务
         services.AddScoped<ISysViewRouteService, SysViewRouteService>();
-
-
-        // 以后加了 OrderService，就加在这里，不用动 Program.cs
-        // services.AddScoped<IOrderService, OrderService>();
 
         return services;
     }

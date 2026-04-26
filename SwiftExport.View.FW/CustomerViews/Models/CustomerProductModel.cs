@@ -68,6 +68,14 @@ namespace SwiftExport.View.FW.CustomerViews.Models
             set => SetProperty(ref _categoryId, value);
         }
 
+        // 分类名称（只读展示，来自 DTO）
+        private string _categoryName;
+        public string CategoryName
+        {
+            get => _categoryName;
+            set => SetProperty(ref _categoryName, value);
+        }
+
         // 客户自定义字段
         private string _customerSku;
         public string CustomerSku

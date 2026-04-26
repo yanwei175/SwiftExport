@@ -289,9 +289,10 @@ namespace MateWpfThemes.FW.Controls
 
             // 绑定复选框的选中状态到 DataGrid DataContext 的属性
             checkBoxFactory.SetBinding(CheckBox.IsCheckedProperty,
-                new Binding($"DataContext.{AllCheckedPropertyName}")
+                new Binding(AllCheckedPropertyName)
                 {
                     RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(DataGrid), 1),
+                    Path = new PropertyPath($"DataContext.{AllCheckedPropertyName}"), // 关键：手动补齐 DataContext 路径
                     Mode = BindingMode.TwoWay,
                     UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
                 });
@@ -330,9 +331,10 @@ namespace MateWpfThemes.FW.Controls
 
             // 绑定复选框的命令
             checkBoxFactory.SetBinding(CheckBox.CommandProperty,
-                new Binding($"DataContext.{ItemCheckedCommandName}")
+                new Binding(ItemCheckedCommandName)
                 {
-                    RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(UserControl), 1)
+                    RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(DataGrid), 1),
+                    Path = new PropertyPath($"DataContext.{ItemCheckedCommandName}")
                 });
 
             // 仅在外部显式传入样式时才设置本地 Style，避免覆盖主题默认的 CheckBox 样式

@@ -65,12 +65,12 @@ public class BomService(IBomRepository bomRepo, IProductRepository pdRepo, Servi
         return ServiceResult<int>.Ok(rst);
     }
 
-    public async Task<ServiceResult<List<BomDto>>> GetBomByBomNoAsync(string bomNo)
+    public async Task<ServiceResult<List<BomDto>>> GetBomDtoByBomNoAsync(string bomNo)
     {
-        var entities = await _bomRepo.GetBomByBomNoAsync(bomNo);
+        var entities = await _bomRepo.GetBomDtoByBomNoAsync(bomNo);
         if (!entities.Any()) return ServiceResult<List<BomDto>>.Fail("未找到数据");
 
-        return ServiceResult<List<BomDto>>.Ok(entities.Adapt<List<BomDto>>());
+        return ServiceResult<List<BomDto>>.Ok([.. entities]);
     }
 
     public async Task<ServiceResult<bool>> ValidateBomAsync(string productSku)
@@ -167,16 +167,15 @@ public class BomService(IBomRepository bomRepo, IProductRepository pdRepo, Servi
             if (subPd != null)
             {
                 // 补齐显示用的字段
-                dto.Description = subPd.Description;
+                dto.Description = subPd.DescriptionEn;
                 dto.MainImage = subPd.MainImage;
                 // 如果你有 Finish (表面处理/颜色)，这里可以补齐：
                 // 这取决于你的底层模型。例如如果需要查询 Color，可在这里处理
                 
                 // 判断是否继续递归拆解
                 // 条件：实体有BomNo 且 本身的类型不是"止拆"
-                if (string.Equals(subPd.SupplyType, SupplyType.按BOM拆分, StringComparison.OrdinalIgnoreCase) && 
-                    !string.IsNullOrEmpty(subPd.BomNo) && 
-                    !string.Equals(item.BomSubType, BomSubType.止拆, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(subPd.SupplyType, SupplyTypeEnums.按BOM拆分, StringComparison.OrdinalIgnoreCase) && 
+                    !string.IsNullOrEmpty(subPd.BomNo))
                 {
                     dto.Children = await BuildBomTreeAsync(subPd.BomNo, visited);
                 }

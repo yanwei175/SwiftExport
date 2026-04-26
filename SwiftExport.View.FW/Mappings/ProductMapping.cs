@@ -23,8 +23,8 @@ namespace SwiftExport.View.FW.Mappings
                 // SKU 级别管理字段
                 .Map(dest => dest.MasterSku, dto => dto.MasterSku)
                 .Map(dest => dest.Sku, dto => dto.Sku)
-                .Map(dest => dest.Description, dto => dto.Description)
-                .Map(dest => dest.Features, dto => dto.Features)
+                .Map(dest => dest.DescriptionEn, dto => dto.DescriptionEn)
+                .Map(dest => dest.FeaturesEn, dto => dto.FeaturesEn)
                 .Map(dest => dest.Finish, dto => dto.Finish)
                 .Map(dest => dest.SupplyType, dto => dto.SupplyType)
                 .Map(dest => dest.BomNo, dto => dto.BomNo)

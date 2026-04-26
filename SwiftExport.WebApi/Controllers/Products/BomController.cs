@@ -19,10 +19,10 @@ public class BomController(IBomService service) : BaseController<Bom, BomDto>(se
         return await _bomService.GetBomTreeAsync(productSku);
     }
 
-    [HttpGet("{bonNo}")]
-    public async Task<ServiceResult<List<BomDto>>> GetBomByBomNo(string bonNo)
+    [HttpGet("by-no/{bomNo}")]
+    public async Task<ServiceResult<List<BomDto>>> GetBomDtoByBomNo(string bomNo)
     {
-        return await _bomService.GetBomByBomNoAsync(bonNo);
+        return await _bomService.GetBomDtoByBomNoAsync(bomNo);
     }
 
 

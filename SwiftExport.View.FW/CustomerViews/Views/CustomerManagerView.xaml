@@ -6,6 +6,7 @@
         x:Name="RootUserCtrl"
         xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
         xmlns:vm="clr-namespace:SwiftExport.View.FW.CustomerViews.ViewModels"
+        xmlns:views="clr-namespace:SwiftExport.View.FW.CustomerViews.Views"
         mc:Ignorable="d"
         d:DesignHeight="768" d:DesignWidth="1024"
         d:DataContext="{d:DesignInstance vm:CustomerManagerViewModel}"
@@ -121,7 +122,7 @@
                                             Binding="{Binding CustomerCode,UpdateSourceTrigger=PropertyChanged,ValidatesOnDataErrors=False}" 
                                             Width="100" FontWeight="Bold"/>
 
-                                <DataGridTextColumn Header="客户名称" Binding="{Binding Name,UpdateSourceTrigger=PropertyChanged}" Width="150"/>
+                            <DataGridTextColumn Header="客户名称" Binding="{Binding CustomerName,UpdateSourceTrigger=PropertyChanged}" Width="150"/>
 
                                 <DataGridTextColumn Header="单据关联号" Binding="{Binding DocRelateNo}" Width="120"/>
 
@@ -169,199 +170,16 @@
             </TabItem>
             
             <TabItem Header="客户产品管理" Background="Transparent">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <Border x:Name="客户产品管理工具栏" Grid.Row="0" Grid.ColumnSpan="2" Background="{DynamicResource Brush_Bck_Card}" BorderThickness="0,0,0,1" Padding="15">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                <Button Margin="0,0,10,0"  
-                                        Style="{StaticResource ButtonPrimary}"
-                                        Content="新增"
-                                        mt:ButtonAssist.IconSize="12"
-                                        mt:ButtonAssist.Icon="{StaticResource Icon.Add}"
-                                        IsEnabled="{Binding HasSelectedCustomer}"
-                                        Command="{Binding AddProductCommand}" />
-                                <Button  Margin="0,0,10,0" 
-                                         Style="{StaticResource ButtonSuccess}"
-                                         Content="保存"
-                                         mt:ButtonAssist.IconSize="12"
-                                         mt:ButtonAssist.Icon="{StaticResource Icon.Save}"
-                                        Command="{Binding BatchSaveProductAsyncCommand}" />
-                                <Button  Margin="0,0,10,0" 
-                                         Style="{StaticResource ButtonDanger}"
-                                         Content="删除"
-                                         mt:ButtonAssist.IconSize="12"
-                                         mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"
-                                        Command="{Binding DeleteProductAsyncCommand}" />
-                                <Button Margin="0,0,10,0"
-                                       Style="{StaticResource ButtonBase}"
-                                       Content="刷新"
-                                        mt:ButtonAssist.IconSize="12"
-                                        mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
-                                        IsEnabled="{Binding HasSelectedCustomer}"
-                                        Command="{Binding CheckAndLoadProductCommand}"/>
-                                
-                                <Rectangle Width="1" Fill="#E0E0E0" Margin="5,5,15,5" VerticalAlignment="Stretch"/>
-
-                                <Button Margin="0,0,10,0"
-                                       Style="{StaticResource ButtonBase}"
-                                       Content="反选"
-                                        mt:ButtonAssist.IconSize="12"
-                                        mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
-                                        IsEnabled="{Binding HasSelectedCustomer}"
-                                        Command="{Binding InvertCheckProductCommand}"/>
-                                <!-- 主表选择模式切换按钮（整行选择 / 单元格+行头选择）。
-                   使用 ToggleButton 的 IsChecked 来驱动 DataGrid.SelectionUnit，避免代码后台事件切换。 -->
-                                <ToggleButton x:Name="BtnToggleSelectionUnit2"
-                                      Margin="0,0,5,0"
-                                      Padding="10,6"
-                                      BorderThickness="1"
-                                      Cursor="Hand"
-                                      IsChecked="False">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton" BasedOn="{StaticResource ToggleSwitch}">
-                                            <Setter Property="ToolTip" Value="切换为整行选择"/>
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Opacity" Value="0.9"/>
-                                                </Trigger>
-                                                <Trigger Property="IsChecked" Value="True">
-                                                    <Setter Property="ToolTip" Value="切换为单元格选择"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-
-                                <TextBlock Text="筛选: " VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                <TextBox Width="250" Text="{Binding SearchProductText, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"/>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-
-                    <DataGrid Grid.Row="1" Grid.ColumnSpan="2" x:Name="客户产品管理DataGrid"
-                                  ItemsSource="{Binding CurrentProductTable.Items}" 
-                                    SelectedItem="{Binding SelectedProduct}"
-                                     HorizontalScrollBarVisibility="Auto" 
-                                     HeadersVisibility="All" 
-                                     Margin="0,5,0,0"
-                                    RowHeight="45"
-                                     EnableRowVirtualization="False"
-                                     EnableColumnVirtualization="False"
-                                     mt:DataGridAssist.ShowRowNumber="True"
-                                   
-                                     mt:UndoManager.IsUndoEnabled="True"
-                                     mt:DataGridAssist.AutoScrollToNewItem="True"
-                                     mt:DataGridAssist.EnableSoftValidation="True"
-                                     mt:DataGridExcelAssist.EnableExcelShortcuts="{Binding IsChecked, ElementName=BtnToggleSelectionUnit2}"
-                                     mt:DataGridExcelAssist.EnableDirtyTracking="True">
-                        <DataGrid.Style>
-                            <Style TargetType="DataGrid" BasedOn="{StaticResource BaseDataGrid}">
-                                <!-- 中文注释：默认保持整行模式，便于稳定触发行选择联动（例如 BOM 加载）。 -->
-                                <Setter Property="SelectionUnit" Value="FullRow"/>
-                                <Style.Triggers>
-                                    <!-- 中文注释：切到 CellOrRowHeader，便于单元格编辑场景。 -->
-                                    <DataTrigger Binding="{Binding IsChecked, ElementName=BtnToggleSelectionUnit2}" Value="True">
-                                        <Setter Property="SelectionUnit" Value="CellOrRowHeader"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </DataGrid.Style>
-
-                        
-
-                        <DataGrid.Columns>
-
-                            <mt:CheckBoxDataGridTemplateColumn 
-                                            AllCheckedPropertyName="CurrentProductTable.IsAllChecked"
-                                            ItemCheckedPropertyName="IsChecked"
-                                            ItemCheckedCommandName="{x:Null}"
-                                            HeaderCheckBoxMargin="3"
-                                            HeaderCheckBoxToolTip="全选/全不选"/>
-
-                            <DataGridTemplateColumn Header="图片" Width="80" IsReadOnly="True">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Image Source="{Binding MainImage, Converter={StaticResource ImgPathToImgConverter}}"
-                                           Width="48"
-                                           Height="48"
-                                           Stretch="Uniform"
-                                           VerticalAlignment="Center"/>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-
-                            <DataGridTextColumn Header="客户编号" 
-                                            Binding="{Binding CustomerSku, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="100" FontWeight="Bold"/>
-                            
-                            <DataGridTextColumn Header="链接物料编号" 
-                                            Binding="{Binding Sku, UpdateSourceTrigger=PropertyChanged,ValidatesOnDataErrors=False}" 
-                                            Width="100" FontWeight="Bold"/>
-
-                            <DataGridTextColumn Header="客户描述" Width="150"
-                                                ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
-                                                EditingElementStyle="{StaticResource  MultiLineDataGridTextBoxStyle}"
-                                                Binding="{Binding CustomerPdDescription}" />
-                            <DataGridTextColumn Header="客户颜色" Width="100"
-                                                ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
-                                                EditingElementStyle="{StaticResource  MultiLineDataGridTextBoxStyle}"
-                                                Binding="{Binding CustomerColorName}" />
-                            <DataGridTextColumn Header="客户配置" Width="150"
-                                                ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
-                                                EditingElementStyle="{StaticResource  MultiLineDataGridTextBoxStyle}"
-                                                Binding="{Binding CustomerPdFeatures}" />
-                            <DataGridTextColumn Header="币种" Width="80"
-                                                Binding="{Binding Currency}" />
-                            <DataGridTextColumn Header="专用单价" Width="80"
-                                                Binding="{Binding Price}" />
-                            <DataGridTextColumn Header="条码1码制" Width="80"
-                                                Binding="{Binding Barcode1Type}" />
-                            <DataGridTextColumn Header="条码1" Width="150"
-                                                Binding="{Binding CustomerBarcode1}" />
-                            <DataGridTextColumn Header="条码2码制" Width="80"
-                                                Binding="{Binding Barcode2Type}"/>
-                            <DataGridTextColumn Header="条码2" Width="150"
-                                                Binding="{Binding CustomerBarcode2}"/>
-                            <DataGridTextColumn Header="起订量" Width="80"
-                                                Binding="{Binding MOQ}"/>
-
-
-                        </DataGrid.Columns>
-                    </DataGrid>
-
-
-
-                    <mt:PageNavigator Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" HorizontalAlignment="Right" 
-                                                   TotalCount="{Binding TotalProductTableCount}" 
-                                                   PageIndex="{Binding PageProductTableIndex, Mode=OneWay}"
-                                                   PageSize="{Binding PageProductTableSize, Mode=OneWay}"
-                                                   PageChangeCommand="{Binding PaginationProductTableChangedCommand}"/>
-
-                </Grid>
+                <!-- 中文注释：子视图 CustomerProductManagerView，DataContext 由 code-behind 绑定到 CustomerProductVM -->
+                <views:CustomerProductManagerView x:Name="CustomerProductSubView"/>
             </TabItem>
 
         </TabControl>
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,5">
-            
+
             <TextBlock Grid.Row="2" Grid.Column="0" Foreground="{DynamicResource Red8Brush}"
                                Style="{StaticResource BoldTextBlock}"
-                               Text="{Binding SelectedCustomer.Name,StringFormat='当前选择客户: {0}'}"/>
+                               Text="{Binding SelectedCustomer.CustomerName,StringFormat='当前选择客户: {0}'}"/>
             
                 <TextBlock FontSize="12" Foreground="{DynamicResource Red8Brush}" 
                            Margin="20,5"

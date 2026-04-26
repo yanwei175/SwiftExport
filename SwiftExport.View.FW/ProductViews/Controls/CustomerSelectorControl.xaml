@@ -7,7 +7,8 @@
              mc:Ignorable="d" 
              x:Name="Root">
     <Grid>
-        <mt:SearchableTextBox ItemsSource="{Binding Items, ElementName=Root}"
+        <mt:SearchableTextBox x:Name="PART_SearchBox"
+                              ItemsSource="{Binding Items, ElementName=Root}"
                               SelectedItem="{Binding SelectedItem, ElementName=Root, Mode=TwoWay}"
                               DisplayMemberPath="CustomerCode"
                               FilterMemberPaths="CustomerCode,Name,ContactPerson"

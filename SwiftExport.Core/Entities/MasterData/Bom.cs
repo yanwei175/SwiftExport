@@ -12,8 +12,6 @@ namespace SwiftExport.Core.Entities.MasterData
         public string SubSku { get; set; } = default!;
         public int Numerator { get; set; } = 1;
         public int Denominator { get; set; } = 1;
-        public string BomSubType { get; set; } = default!;
-        public int IsCustomerSupplied { get; set; }
         public string? Note { get; set; }
     }
 }

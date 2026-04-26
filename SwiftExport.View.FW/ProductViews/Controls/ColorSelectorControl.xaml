@@ -4,15 +4,21 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
+             xmlns:local="clr-namespace:MateWpfThemes.FW.Controls;assembly=MateWpfThemes.FW"
              mc:Ignorable="d" 
              x:Name="Root">
     <Grid>
-        <mt:SearchableTextBox ItemsSource="{Binding Items, ElementName=Root}"
-                              DisplayMemberPath="ColorNameZh"
-                              FilterMemberPaths="ColorNameZh,ColorNameEn,ColorCodeUnique"
-                              RequireItemMatch="True"
-                              SelectedItem="{Binding SelectedItem, ElementName=Root, Mode=TwoWay}"
-                              mt:TextBoxAssist.Placeholder="搜索颜色..." 
-                              Height="30" />
+        <!-- 
+           SelectedItem 使用双向绑定到 Root.SelectedItem (即控件暴露给外部的属性)
+           ItemsSource 绑定到 Root.Items (控件内部加载的数据源)
+        -->
+        <local:SearchableTextBox x:Name="InternalSearchBox"
+                                 ItemsSource="{Binding Items, ElementName=Root}"
+                                 SelectedItem="{Binding SelectedItem, ElementName=Root, Mode=TwoWay}"
+                                 DisplayMemberPath="ColorNameZh"
+                                 FilterMemberPaths="ColorNameZh,ColorNameEn,ColorCodeUnique"
+                                 RequireItemMatch="True"
+                                 Placeholder="输入颜色名称或代码搜索..." 
+                                 Height="30" />
     </Grid>
 </UserControl>

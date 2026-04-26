@@ -19,7 +19,6 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
     public override async Task<ServiceResult<IReadOnlyList<ProductDto>>> GetAllAsync()
     {
         return ServiceResult<IReadOnlyList<ProductDto>>.Fail("数据太多,不允许GetAll");
-
     }
 
     public async Task<ServiceResult<IReadOnlyList<string>>> GetAllCustomerCodeListAsync()
@@ -81,7 +80,8 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
         {
             criteria.AddOrGroup(
                 ("Sku", 查询操作符.模糊匹配, search.Keyword),
-                ("Description", 查询操作符.模糊匹配, search.Keyword),
+                ("DescriptionEn", 查询操作符.模糊匹配, search.Keyword),
+                ("DescriptionZh", 查询操作符.模糊匹配, search.Keyword),
                 ("CSku", 查询操作符.模糊匹配, search.Keyword)
             );
         }
@@ -170,14 +170,6 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
             if (string.IsNullOrWhiteSpace(item.Sku))
                 return "产品型号不能为空";
             codes.Add(item.Sku);
-        }
-
-        // 调用子仓储专属方法检查重复
-        var repositoryImpl = (IProductRepository)_repository;
-        var existedCodes = await repositoryImpl.GetExistingSkuListAsync(codes);
-        if (existedCodes.Any())
-        {
-            return $"以下产品型号已存在，拒绝修改: {string.Join(", ", existedCodes)}";
         }
 
         // 返回 null 代表一切正常，放行！

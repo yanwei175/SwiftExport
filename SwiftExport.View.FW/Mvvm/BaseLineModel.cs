@@ -206,7 +206,7 @@ namespace SwiftExport.View.FW.Mvvm
         {
             using (程序内部修改Scope())
             {
-                // 恢复原始值
+                // 1. 恢复所有被 SetProperty 修改过的属性
                 foreach (var kv in _原始值字典)
                 {
                     var prop = GetType().GetProperty(kv.Key);
@@ -216,7 +216,25 @@ namespace SwiftExport.View.FW.Mvvm
             }
 
             _原始值字典.Clear();
+
+            // 如果是从 Added 状态回滚，依然是 Added（除非你希望它消失）
+            // 如果是从 Deleted 状态回滚，通常应该回到 Unchanged 或之前记录的状态
             State = ModelState.Unchanged;
+
+            // 手动触发一次 IsChecked 的通知，确保全选逻辑正确
+            RaisePropertyChanged(nameof(IsChecked));
+        }
+
+        public virtual void RestoreFromDeleted()
+        {
+            if (State == ModelState.Deleted)
+            {
+                // 恢复到 Modified 或 Unchanged，取决于它是否有原始 ID
+                State = Id > 0 ? ModelState.Unchanged : ModelState.Added;
+
+                // 如果需要保留用户在删除前填写的备注，就不调用 RollbackChanges
+                // 仅仅是改变状态机
+            }
         }
 
         public virtual void CommitChanges()

@@ -15,7 +15,8 @@ namespace SwiftExport.Contracts.DTOs.Customers
         public string Sku { get; set; }
         public string LinkSku { get; set; }
         public string Description { get; set; }
-        public int? CategoryId { get; set; }
+        public string CategoryName { get; set; }
+        public string MainImage { get; set; }
 
         // 客户自定义字段
         public string CustomerSku { get; set; }      // 客户料号

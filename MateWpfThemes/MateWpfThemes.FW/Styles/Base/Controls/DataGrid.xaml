@@ -369,6 +369,7 @@
                     <Condition Binding="{Binding SelectionUnit, RelativeSource={RelativeSource AncestorType=DataGrid}}" Value="Cell"/>
                 </MultiDataTrigger.Conditions>
                 <Setter Property="BorderBrush" Value="{DynamicResource Brush_Primary_Focus}"/>
+                <Setter Property="Background" Value="{DynamicResource Brush_DataGridSelectionCell}"/>
                 <Setter Property="BorderThickness" Value="0.5"/>
             </MultiDataTrigger>
 
@@ -379,7 +380,44 @@
                     <Condition Binding="{Binding SelectionUnit, RelativeSource={RelativeSource AncestorType=DataGrid}}" Value="CellOrRowHeader"/>
                 </MultiDataTrigger.Conditions>
                 <Setter Property="BorderBrush" Value="{DynamicResource Brush_Primary_Focus}"/>
+                <Setter Property="Background" Value="{DynamicResource Brush_DataGridSelectionCell}"/>
                 <Setter Property="BorderThickness" Value="0.5"/>
+            </MultiDataTrigger>
+
+            <!-- 中文注释：当单元格既处于选中态又有校验错误时，优先保证选中视觉（背景/边框）可见，错误信息继续通过 Tooltip 呈现。 -->
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                    <Condition Binding="{Binding (Validation.HasError), RelativeSource={RelativeSource Self}}" Value="True"/>
+                    <Condition Binding="{Binding SelectionUnit, RelativeSource={RelativeSource AncestorType=DataGrid}}" Value="FullRow"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{DynamicResource Brush_DataGridSelectionCell}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush_Primary_Focus}"/>
+                <Setter Property="BorderThickness" Value="0.5"/>
+            </MultiDataTrigger>
+
+            <!-- 中文注释：Cell 选择模式下，错误态不再压住选中态边框颜色。 -->
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                    <Condition Binding="{Binding (Validation.HasError), RelativeSource={RelativeSource Self}}" Value="True"/>
+                    <Condition Binding="{Binding SelectionUnit, RelativeSource={RelativeSource AncestorType=DataGrid}}" Value="Cell"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush_Primary_Focus}"/>
+                <Setter Property="Background" Value="{DynamicResource Brush_DataGridSelectionCell}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+            </MultiDataTrigger>
+
+            <!-- 中文注释：CellOrRowHeader 选择模式下，同步保证选中态视觉优先。 -->
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                    <Condition Binding="{Binding (Validation.HasError), RelativeSource={RelativeSource Self}}" Value="True"/>
+                    <Condition Binding="{Binding SelectionUnit, RelativeSource={RelativeSource AncestorType=DataGrid}}" Value="CellOrRowHeader"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush_Primary_Focus}"/>
+                <Setter Property="Background" Value="{DynamicResource Brush_DataGridSelectionCell}"/>
+                <Setter Property="BorderThickness" Value="1"/>
             </MultiDataTrigger>
         </Style.Triggers>
     </Style>
@@ -441,6 +479,7 @@
         <Setter Property="GridLinesVisibility" Value="All"/>
         <Setter Property="AutoGenerateColumns" Value="False"/>
         <Setter Property="CanUserAddRows" Value="False"/>
+        <Setter Property="CanUserDeleteRows" Value="False"/>
         <Setter Property="HeadersVisibility" Value="All"/>
         <Setter Property="RowHeaderWidth" Value="30"/>
         <Setter Property="SelectionUnit" Value="CellOrRowHeader"/>

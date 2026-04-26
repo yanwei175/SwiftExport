@@ -18,7 +18,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         SELECT 
             ID as Id,
             SKU as Sku,
-            Description as Description,
+            DescriptionEn as Description,
             
             -- 处理拼音/旧命名映射
             RMBPrice as RmbPrice,
@@ -63,9 +63,9 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
                 Id = x.Id,
                 MasterSku = x.MasterSku,
                 Sku = x.Sku,
-                Description = x.Description,
+                DescriptionEn = x.DescriptionEn,
                 ColorId = x.ColorId,
-                Features = x.Features,
+                FeaturesEn = x.FeaturesEn,
                 SupplyType = x.SupplyType ?? string.Empty,
                 BomNo = x.BomNo,
                 Note = x.Note,

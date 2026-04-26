@@ -2,7 +2,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
 {
     /// <summary>
     /// 中文注释：订单筛选状态选项 DTO。
-    /// 用于多选筛选控件展示（Name）和回传（Value）。
+    /// 用于多选筛选控件展示（CustomerName）和回传（Value）。
     /// </summary>
     public class SalesOrderStatusOptionDto
     {

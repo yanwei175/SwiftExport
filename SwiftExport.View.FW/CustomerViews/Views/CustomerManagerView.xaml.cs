@@ -13,11 +13,12 @@ namespace SwiftExport.View.FW.CustomerViews.Views
         {
             InitializeComponent();
         }
-        public CustomerManagerView(CustomerManagerViewModel vm):this()
+        public CustomerManagerView(CustomerManagerViewModel vm) : this()
         {
             this.DataContext = vm;
+            // 将子 ViewModel 绑定到子视图的 DataContext，实现产品管理功能委托
+            CustomerProductSubView.DataContext = vm.CustomerProductVM;
         }
-
 
         // 关闭窗体
         private void BtnClose_Click(object sender, RoutedEventArgs e)

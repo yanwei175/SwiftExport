@@ -1,36 +1,28 @@
-using GalaSoft.MvvmLight.Ioc;
+using MateWpfThemes.FW.Controls;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.View.FW.DI;
 using SwiftExport.View.FW.ProductViews.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using GalaSoft.MvvmLight.Command;
-using System.ComponentModel;
-using SwiftExport.View.FW.DI;
 
 namespace SwiftExport.View.FW.ProductViews.Controls
 {
-    /// <summary>
-    /// 自治分类树选择控件
-    /// </summary>
     public partial class CategoryTreeSelectorControl : UserControl
     {
-        // 对外暴露的双向绑定属性 SelectedItem — 只含当前选中节点，子节点由后端根据 Id 查询
+        // 外部回调事件
         public event Action<ProductCategoryDto> OnCategorySelected;
 
+        // 外部绑定属性
         public static readonly DependencyProperty SelectedItemProperty =
-            DependencyProperty.Register(
-                nameof(SelectedItem),
-                typeof(ProductCategoryDto),
-                typeof(CategoryTreeSelectorControl),
-                new FrameworkPropertyMetadata(
-                    null,
-                    FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+            DependencyProperty.Register(nameof(SelectedItem), typeof(ProductCategoryDto), typeof(CategoryTreeSelectorControl),
+                new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnSelectedItemChanged));
 
         public ProductCategoryDto SelectedItem
         {
@@ -38,57 +30,67 @@ namespace SwiftExport.View.FW.ProductViews.Controls
             set => SetValue(SelectedItemProperty, value);
         }
 
-        public static readonly DependencyProperty SearchKeywordProperty =
-            DependencyProperty.Register(
-                nameof(SearchKeyword),
-                typeof(string),
-                typeof(CategoryTreeSelectorControl),
-                new PropertyMetadata(string.Empty, OnSearchKeywordChanged));
+        // 外部绑定搜索关键字：用于在 ResetFilter 时强制清空控件内搜索框。
+        public static readonly DependencyProperty SearchTextProperty =
+            DependencyProperty.Register(nameof(SearchText), typeof(string), typeof(CategoryTreeSelectorControl),
+                new FrameworkPropertyMetadata(string.Empty, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
 
-        public string SearchKeyword
+        public string SearchText
         {
-            get => (string)GetValue(SearchKeywordProperty);
-            set => SetValue(SearchKeywordProperty, value);
+            get => (string)GetValue(SearchTextProperty);
+            set => SetValue(SearchTextProperty, value);
         }
 
-        public ObservableCollection<CategoryTreeModel> CategoryTreeFilterNodes { get; } = new ObservableCollection<CategoryTreeModel>();
+        /// <summary>
+        /// 外部绑定的 SelectedItem 变化回调。
+        /// 这里只处理“被清空”场景：当外部把 SelectedItem 置为 null（如重置筛选）时，
+        /// 同步清空当前树上的选中状态，避免 UI 仍然停留在旧选中项。
+        /// </summary>
+        private static void OnSelectedItemChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var control = d as CategoryTreeSelectorControl;
+            if (control == null)
+                return;
 
-        private readonly List<CategoryTreeModel> _allCategoryTreeTemplates = new List<CategoryTreeModel>();
-        private bool _isLoaded;
-        public RelayCommand ClearOtherSearchFiltersCommand { get; private set; }
-        public RelayCommand ExpandAllCategoryCommand { get; private set; }
-        public RelayCommand CollapseAllCategoryCommand { get; private set; }
+            // 仅处理清空场景；非空选择仍由用户点击树节点驱动。
+            if (e.NewValue != null)
+                return;
 
+            foreach (var node in control.FilteredNodes)
+            {
+                control.SetSelectedRecursive(node, false);
+            }
+
+            // 外部执行重置时，同时清空分类搜索框绑定值，确保 UI 显示与筛选状态一致。
+            control.SearchText = string.Empty;
+        }
+
+   
+
+        // 内部数据源
+        private readonly List<CategoryTreeModel> _allRawNodes = new List<CategoryTreeModel>();
+        public ObservableCollection<CategoryTreeModel> FilteredNodes { get; } = new ObservableCollection<CategoryTreeModel>();
 
         public CategoryTreeSelectorControl()
         {
             InitializeComponent();
-            ExpandAllCategoryCommand = new RelayCommand(() => ToggleCategoryTreeExpansion(true));
-            CollapseAllCategoryCommand = new RelayCommand(() => ToggleCategoryTreeExpansion(false));
-            ClearOtherSearchFiltersCommand = new RelayCommand(() => SearchKeyword = string.Empty);
-            Loaded += OnLoadedAsync;
+            TreeCategory.ItemsSource = FilteredNodes;
+            this.Loaded += async (s, e) => await LoadInitialData();
         }
 
-        private async void OnLoadedAsync(object sender, RoutedEventArgs e)
-        {
-            if (_isLoaded) return;
-            _isLoaded = true;
-            _= LoadDataAsync();
-        }
+        #region 数据加载与处理
 
-        private async Task LoadDataAsync()
+        private async Task LoadInitialData()
         {
             try
             {
                 var api = IocProvider.Get<IProductCategoryApi>();
-                if (api == null) return;
-
-                var result = await api.GetAllAsync();
-                if (result != null && result.Success && result.Data != null)
+                var result = await api?.GetAllAsync();
+                if (result?.Success == true && result.Data != null)
                 {
-                    _allCategoryTreeTemplates.Clear();
-
                     var allDtos = result.Data.OrderBy(x => x.SortNo).ToList();
+
+                    // 转换为 Model 结构
                     var byId = allDtos.ToDictionary(x => x.Id, x => new CategoryTreeModel
                     {
                         Id = x.Id,
@@ -99,65 +101,57 @@ namespace SwiftExport.View.FW.ProductViews.Controls
                         SortNo = x.SortNo
                     });
 
+                    _allRawNodes.Clear();
                     foreach (var dto in allDtos)
                     {
-                        CategoryTreeModel node;
-                        if (!byId.TryGetValue(dto.Id, out node)) continue;
-
-                        if (dto.ParentId.HasValue && byId.ContainsKey(dto.ParentId.Value))
+                        if (byId.TryGetValue(dto.Id, out var node))
                         {
-                            byId[dto.ParentId.Value].Children.Add(node);
-                        }
-                        else
-                        {
-                            _allCategoryTreeTemplates.Add(node);
+                            if (dto.ParentId.HasValue && byId.ContainsKey(dto.ParentId.Value))
+                                byId[dto.ParentId.Value].Children.Add(node);
+                            else
+                                _allRawNodes.Add(node);
                         }
                     }
-
-                    BuildCategoryTree();
+                    RefreshTree();
                 }
             }
-            catch
+            catch { /* 处理异常 */ }
+        }
+
+        private void RefreshTree()
+        {
+            FilteredNodes.Clear();
+
+            // 1. 添加“全部分类”固定节点
+            var allNode = new CategoryTreeModel { CategoryName = "全部分类", CategoryCode = "All", IsExpanded = true };
+            allNode.PropertyChanged += Node_PropertyChanged;
+            FilteredNodes.Add(allNode);
+
+            // 2. 过滤并克隆节点
+            string keyword = TxtSearch.Text?.Trim();
+            var filtered = _allRawNodes
+                .Select(x => CloneAndFilter(x, keyword))
+                .Where(x => x != null);
+
+            foreach (var node in filtered)
             {
-                // Ignore error
+                if (!string.IsNullOrEmpty(keyword)) SetExpansionRecursive(node, true);
+                SubscribeEventsRecursive(node);
+                FilteredNodes.Add(node);
             }
         }
 
-        private static void OnSearchKeywordChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private CategoryTreeModel CloneAndFilter(CategoryTreeModel source, string keyword)
         {
-            if (d is CategoryTreeSelectorControl control)
-            {
-                control.BuildCategoryTree();
-            }
-        }
+            bool isMatch = string.IsNullOrEmpty(keyword) ||
+                           (source.CategoryName?.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
 
-        private void BuildCategoryTree()
-        {
-            CategoryTreeFilterNodes.Clear();
+            var children = source.Children
+                .Select(c => CloneAndFilter(c, keyword))
+                .Where(c => c != null).ToList();
 
-            var allNode = new CategoryTreeModel { CategoryCode="All Category",FakeName="全部分类", CategoryName = "全部分类",  IsExpanded = true };
-            SubscribeCategoryNode(allNode);
-            CategoryTreeFilterNodes.Add(allNode);
+            if (!isMatch && children.Count == 0) return null;
 
-            var clonedRoots = _allCategoryTreeTemplates
-                .Select(CloneCategoryNode)
-                .Where(x => IsNodeVisibleByKeyword(x, SearchKeyword))
-                .ToList();
-
-            bool forceExpand = !string.IsNullOrWhiteSpace(SearchKeyword);
-
-            foreach (var node in clonedRoots)
-            {
-                node.IsExpanded = forceExpand || true;
-                if (forceExpand) SetNodeExpansion(node, true);
-
-                SubscribeCategoryNode(node);
-                CategoryTreeFilterNodes.Add(node);
-            }
-        }
-
-        private static CategoryTreeModel CloneCategoryNode(CategoryTreeModel source)
-        {
             var clone = new CategoryTreeModel
             {
                 Id = source.Id,
@@ -167,61 +161,77 @@ namespace SwiftExport.View.FW.ProductViews.Controls
                 FakeName = source.FakeName,
                 SortNo = source.SortNo
             };
-            foreach (var child in source.Children) clone.Children.Add(CloneCategoryNode(child));
+            foreach (var child in children) clone.Children.Add(child);
             return clone;
         }
 
-        private static bool IsNodeVisibleByKeyword(CategoryTreeModel node, string keyword)
+        private void SubscribeEventsRecursive(CategoryTreeModel node)
         {
-            if (string.IsNullOrWhiteSpace(keyword)) return true;
-            if (node.CategoryName?.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-            return node.Children.Any(child => IsNodeVisibleByKeyword(child, keyword));
+            node.PropertyChanged += Node_PropertyChanged;
+            foreach (var child in node.Children) SubscribeEventsRecursive(child);
         }
 
-        private void ToggleCategoryTreeExpansion(bool isExpanded)
+        private void Node_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            foreach (var node in CategoryTreeFilterNodes)
+            if (e.PropertyName == nameof(CategoryTreeModel.IsSelected))
             {
-                SetNodeExpansion(node, isExpanded);
-            }
-        }
-
-        private void SetNodeExpansion(CategoryTreeModel node, bool isExpanded)
-        {
-            if (node == null) return;
-            node.IsExpanded = isExpanded;
-            if (node.Children != null)
-            {
-                foreach (var child in node.Children)
+                var node = sender as CategoryTreeModel;
+                if (node != null && node.IsSelected)
                 {
-                    SetNodeExpansion(child, isExpanded);
+                    var dto = new ProductCategoryDto { Id = node.Id, CategoryName = node.CategoryName, ParentId = node.ParentId };
+                    SelectedItem = dto;
+                    OnCategorySelected?.Invoke(dto);
                 }
             }
         }
 
-        private void SubscribeCategoryNode(CategoryTreeModel node)
+        private void SetExpansionRecursive(CategoryTreeModel node, bool isExpanded)
         {
-            node.PropertyChanged += CategoryNode_PropertyChanged;
-            foreach (var child in node.Children) SubscribeCategoryNode(child);
+            if (node == null) return;
+            node.IsExpanded = isExpanded;
+            foreach (var child in node.Children) SetExpansionRecursive(child, isExpanded);
         }
 
-        private void CategoryNode_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        /// <summary>
+        /// 递归设置节点选中状态。
+        /// 用于外部清空筛选条件时，统一把 TreeView 的可视选中态清掉。
+        /// </summary>
+        private void SetSelectedRecursive(CategoryTreeModel node, bool isSelected)
         {
-            if (e.PropertyName != nameof(CategoryTreeModel.IsSelected)) return;
+            if (node == null) return;
+            node.IsSelected = isSelected;
+            foreach (var child in node.Children) SetSelectedRecursive(child, isSelected);
+        }
 
-            var node = sender as CategoryTreeModel;
-            if (node == null || !node.IsSelected) return;
+        #endregion
 
-            // 只抛出当前选中节点，子节点由后端根据 Id 查询
-            var dto = new ProductCategoryDto
+        #region UI 事件驱动逻辑
+
+        private bool IsExpaned { get; set; }
+        private void BtnExpandAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (!IsExpaned)
             {
-                Id = node.Id,
-                CategoryName = node.CategoryName,
-                ParentId = node.ParentId
-            };
-
-            SelectedItem = dto;
-            OnCategorySelected?.Invoke(dto);
+                foreach (var node in FilteredNodes) SetExpansionRecursive(node, true);
+                IsExpaned = true;
+            }
+            else
+            {
+                foreach (var node in FilteredNodes) SetExpansionRecursive(node, false);
+                IsExpaned = false;
+            }
         }
+
+        private void BtnCollapseAll_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (var node in FilteredNodes) SetExpansionRecursive(node, false);
+        }
+
+        private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            RefreshTree();
+        }
+
+        #endregion
     }
 }

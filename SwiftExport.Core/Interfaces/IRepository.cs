@@ -22,7 +22,7 @@ public interface IRepository<T> where T : BaseEntity
     /// <returns>返回实体的集合</returns>
     Task<IReadOnlyList<T>> GetAllAsync();
     /// <summary>
-    /// 自定义条件查询 (whereSql: "WHERE Name = @Name", param: new { Name = "X" })
+    /// 自定义条件查询 (whereSql: "WHERE CustomerName = @CustomerName", param: new { CustomerName = "X" })
     /// </summary>
     /// <param name="whereSql"></param>
     /// <param name="param"></param>
@@ -49,7 +49,7 @@ public interface IRepository<T> where T : BaseEntity
     /// </summary>
     /// <param name="pageIndex">页码</param>
     /// <param name="pageSize">每页大小</param>
-    /// <param name="whereSql">SQL 过滤条件 (如: Name LIKE @Key)</param>
+    /// <param name="whereSql">SQL 过滤条件 (如: CustomerName LIKE @Key)</param>
     /// <param name="parameters">参数对象</param>
     /// <param name="orderBy">排序字段 (必填，因为 OFFSET 需要顺序)</param>
     Task<PagedResult<T>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "ID DESC");

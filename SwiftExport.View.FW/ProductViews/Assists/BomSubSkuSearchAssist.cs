@@ -256,7 +256,7 @@ namespace SwiftExport.View.FW.ProductViews.Assists
             tbDesc.SetValue(TextBlock.FontSizeProperty, 11.0);
             tbDesc.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(110, 110, 110)));
             tbDesc.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
-            tbDesc.SetBinding(TextBlock.TextProperty, new Binding("Description"));
+            tbDesc.SetBinding(TextBlock.TextProperty, new Binding("DescriptionZh"));
             textStack.AppendChild(tbDesc);
 
             dock.AppendChild(textStack);

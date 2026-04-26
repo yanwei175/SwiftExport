@@ -3,35 +3,39 @@ namespace SwiftExport.Core.Entities.Relations;
 
 public class CustomerProduct : BaseEntity
 {
- 
-    // 外键
-    public int CustomerId { get; set; }
-    public string CustomerCode { get; set; } = default!;
-    public int SkuId { get; set; }
+
+    // ============================================================
+    // 1. 核心关联（外键）
+    // ============================================================
+    public int CustomerId { get; set; }  // 关联客户主表 ID
+    public required string CustomerCode { get; set; }  // 关联客户主表编码   
+    public int? SkuId { get; set; }       // 关联咱们的产品主表 ID
     public string? Sku { get; set; }
     public string? LinkSku { get; set; }
-    public string? Description { get; set; }
-    public int? CategoryId { get; set; }
+    // ============================================================
+    // 2. 客户自定义字段（这部分是核心，必须保留，因为是客户独有的）
+    // ============================================================
+    public required string CustomerSku { get; set; }         // 客户那边的料号
+    public string? CustomerPdSeries { get; set; }           // 客户那边的系列名
+    public string? CustomerPdDescription { get; set; }      // 客户那边的描述
+    public string? CustomerColorName { get; set; }          // 客户那边的颜色称呼
+    public string? CustomerPdFeatures { get; set; }         // 客户那边的规格/特性
+    public string? CustomerBarcode1 { get; set; }           // 客户条码1
+    public string? CustomerBarcode2 { get; set; }           // 客户条码2
+    public string? CustomerSkuUnit { get; set; }            // 客户那边的单位（如：Set/Pc）
 
-    // 客户自定义字段
-    public required string CustomerSku { get; set; }      // 客户料号
-    public string? CustomerPdSeries { get; set; }//客户产品系列
-    public string? CustomerPdDescription { get; set; }      // 客户产品名称
-    public string? CustomerColorName { get; set; }        // 客户颜色叫法
-    public string? CustomerPdFeatures { get; set; }      // 客户规格
-    public string? CustomerBarcode1 { get; set; }          // 客户条码
-    public string? CustomerBarcode2 { get; set; }          // 客户条码
-    public string? CustomerSkuUnit { get; set; }             // 客户单位
+    // ============================================================
+    // 3. 商务与物流
+    // ============================================================
+    public decimal? Price { get; set; }                     // 约定价
+    public string? Currency { get; set; } = "USD";          // 币种
+    public int? LeadTimeDays { get; set; }                  // 生产提前期（天）
+    public int? MOQ { get; set; }                           // 最小起订量
 
-    // 价格相关
-    public decimal? Price { get; set; }
-    public string? Currency { get; set; } = string.Empty;
-    // 业务要求
-    public int? LeadTimeDays { get; set; }               // 客户交期要求
-    public int? MOQ { get; set; }                        // 最小起订量
-
-    // 状态
-    public bool IsActive { get; set; }
+    // ============================================================
+    // 4. 状态管控
+    // ============================================================
+    public bool IsActive { get; set; } = true;               // 是否启用
 
 
 

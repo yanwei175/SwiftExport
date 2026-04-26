@@ -11,7 +11,7 @@ namespace SwiftExport.Contracts.Apis.ProductApis
     {
         [Get("/tree/{productSku}")]
         Task<ServiceResult<List<BomTreeDto>>> GetBomTreeAsync(string productSku);
-        [Get("/{bomNo}")]
+        [Get("/by-no/{bomNo}")]
         Task<ServiceResult<List<BomDto>>> GetBomByBomNo(string bomNo);
 
         [Get("/validate/{productSku}")]

@@ -139,6 +139,40 @@ namespace MateWpfThemes.FW.AttachedProperties
             EnsurePopupListBox();
         }
 
+
+
+        // ===========================
+        // 通过 Popup.Tag 存储最后一次提交时间戳（毫秒）
+        // 这样即使 DataGrid 重建了 TextBox（新 Behavior 实例），
+        // 也能从共享的 Popup 对象上读取到提交时间，避免触发二次搜索。
+        // ===========================
+        private const int CommitSuppressMs = 600;
+
+        /// <summary>
+        /// 标记共享 Popup 的最后提交时间（写入 Popup.Tag）
+        /// </summary>
+        private void MarkPopupCommitTime()
+        {
+            if (Popup == null) return;
+            Popup.Tag = Environment.TickCount;
+        }
+
+        /// <summary>
+        /// 判断当前是否处于提交后的抑制期
+        /// 从 Popup.Tag 读取上次提交时间戳
+        /// </summary>
+        private bool IsInCommitSuppressWindow()
+        {
+            if (Popup?.Tag is int lastCommitTick)
+            {
+                return Math.Abs(Environment.TickCount - lastCommitTick) < CommitSuppressMs;
+            }
+            return false;
+        }
+
+
+
+
         // ===========================
         // TextChanged → 防抖搜索
         // 300ms 内连续输入只会触发最后一次查询
@@ -147,7 +181,10 @@ namespace MateWpfThemes.FW.AttachedProperties
         // ===========================
         private void OnTextChanged(object sender, TextChangedEventArgs e)
         {
+            // 本实例内部抑制（回填期间）
             if (_suppressTextChanged) return;
+            // 跨实例抑制：DataGrid 重建 TextBox 后新实例也能感知到提交窗口
+            if (IsInCommitSuppressWindow()) return;
             if (SearchCommand == null) return;
 
             _cts?.Cancel();
@@ -291,8 +328,21 @@ namespace MateWpfThemes.FW.AttachedProperties
 
             if (listBox.SelectedItem == null) return;
 
+            // 中文注释：优先取当前编辑框绑定的行对象。
             var rowObject = AssociatedObject.DataContext;
+
+            // 中文注释：单元格模式下，DataGrid 可能未更新 SelectedItem，
+            // 此时兜底从 CurrentCell.Item 取行对象，避免 rowObj 丢失。
+            if (rowObject == null)
+            {
+                var dataGrid = FindAncestor<DataGrid>(AssociatedObject);
+                rowObject = dataGrid?.CurrentCell.Item;
+            }
+
             if (rowObject == null) return;
+
+            // 在提交前先打上时间戳，使后续任何新 TextBox 实例都在抑制窗口内
+            MarkPopupCommitTime();
 
             _suppressTextChanged = true;
             try

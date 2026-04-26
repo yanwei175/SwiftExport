@@ -9,10 +9,12 @@ namespace SwiftExport.Contracts.DTOs.Products
         // ERP SKU级别管理字段
         public string MasterSku { get; set; }
         public string Sku { get; set; }
-        public string Description { get; set; }
-        public string Features { get; set; }
+        public string DescriptionEn { get; set; } 
+        public string DescriptionZh { get; set; }
+        public string FeaturesEn { get; set; } 
+        public string FeaturesZh { get; set; } 
         public string Finish { get; set; }
-
+        public string MaterialType { get; set; }
         public string SupplyType { get; set; }//供货类型,直接采购,拆BOM,客供件之类,分解BOM依赖字段.
         public string BomNo { get; set; }
         public string Note { get; set; }

@@ -118,12 +118,48 @@ namespace MateWpfThemes.FW.Controls
 
         public static readonly DependencyProperty SelectedItemProperty =
             DependencyProperty.Register(nameof(SelectedItem), typeof(object), typeof(SearchableTextBox),
-                new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+                new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnSelectedItemChanged));
 
         public object SelectedItem
         {
             get => GetValue(SelectedItemProperty);
             set => SetValue(SelectedItemProperty, value);
+        }
+
+        /// <summary>
+        /// 中文注释：当外部直接修改 SelectedItem（包括置空）时，同步输入框显示文本。
+        /// 这里绝不能改 DisplayMemberPath，否则会导致回退到 item.ToString() 显示 DTO 类型名。
+        /// </summary>
+        private static void OnSelectedItemChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var control = (SearchableTextBox)d;
+            if (control == null || control.InputTextBox == null || control._isSearching)
+                return;
+
+            if (e.NewValue == null)
+            {
+                control.SetInputTextSilently(string.Empty);
+                control.SyncTextDependencySilently(string.Empty);
+                control.SelectedValue = null;
+                return;
+            }
+
+            var item = e.NewValue;
+            string text;
+
+            if (!string.IsNullOrWhiteSpace(control.DisplayMemberPath))
+            {
+                var prop = control.GetCachedProperty(item.GetType(), control.DisplayMemberPath);
+                text = prop?.GetValue(item)?.ToString() ?? string.Empty;
+            }
+            else
+            {
+                text = item.ToString() ?? string.Empty;
+            }
+
+            control.SetInputTextSilently(text);
+            control.SyncTextDependencySilently(text);
+            control.SelectedValue = control.GetSelectedValue(item);
         }
 
         public static readonly DependencyProperty SelectedValuePathProperty =

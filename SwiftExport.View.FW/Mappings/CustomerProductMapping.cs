@@ -23,7 +23,7 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.Sku, dto => dto.Sku)
                 .Map(dest => dest.LinkSku, dto => dto.LinkSku)
                 .Map(dest => dest.Description, dto => dto.Description)
-                .Map(dest => dest.CategoryId, dto => dto.CategoryId)
+                .Map(dest => dest.CategoryName, dto => dto.CategoryName)
                 // 客户自定义字段 - 直接映射
                 .Map(dest => dest.CustomerSku, dto => dto.CustomerSku)
                 .Map(dest => dest.CustomerPdDescription, dto => dto.CustomerPdDescription)

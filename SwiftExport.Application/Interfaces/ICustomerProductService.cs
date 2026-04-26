@@ -1,17 +1,36 @@
 ﻿using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.Relations;
 
 namespace SwiftExport.Application.Interfaces;
 
-public interface ICustomerProductService : IBaseService<Core.Entities.Relations.CustomerProduct, CustomerProductDto>
+/// <summary>
+/// 客户产品服务接口。
+/// 因 CustomerProduct 实体与 CustomerProductDto 不对称（DTO 含联表字段），
+/// 故不继承 IBaseService，独立定义读写方法，职责边界清晰。
+/// </summary>
+public interface ICustomerProductService
 {
-    Task<ServiceResult<IReadOnlyList<CustomerDto>>> GetAllHaveProductCustomerListAsync();
+    // ============================================================
+    // 读操作（联表查询，直接返回 DTO）
+    // ============================================================
 
-    // 在这里扩展特有的业务方法
+    /// <summary>按 ID 联表查询单条客户产品</summary>
+    Task<ServiceResult<CustomerProductDto>> GetByIdAsync(int id);
+
+    /// <summary>按客户料号 + 客户 ID 精确查询</summary>
     Task<ServiceResult<CustomerProductDto>> GetByCustomerSkuAsync(string customerSku, int customerId);
 
+    /// <summary>联表分页查询</summary>
     Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetPagedListAsync(ProductSearchDto search);
+
+    /// <summary>获取所有有产品记录的客户列表</summary>
+    Task<ServiceResult<IReadOnlyList<CustomerDto>>> GetAllHaveProductCustomerListAsync();
+
+    // ============================================================
+    // 写操作（只操作 CustomerProduct 实体，DTO 仅作为数据载体传入）
+    // ============================================================
+
+    /// <summary>批量保存（新增 / 修改 / 删除），事务保护</summary>
+    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestGeneric<CustomerProductDto> batchReq);
 }

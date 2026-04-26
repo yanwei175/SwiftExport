@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj" />
     <ProjectReference Include="..\SwiftExport.Core\SwiftExport.Core.csproj" />
   </ItemGroup>
 

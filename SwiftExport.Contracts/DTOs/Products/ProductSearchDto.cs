@@ -10,8 +10,9 @@ namespace SwiftExport.Contracts.DTOs.Products
 
         public string ColorCodeUnique { get; set; } // 按颜色代码筛选
         public string UserTag { get; set; } // 按用户标签筛选
+        public int CustomerId { get; set; } // 按客户id筛选
 
-        public List<int> CustomerIds { get; set; } // 按客户id筛选
+        public List<int> CustomerIds { get; set; } // 按客户id多选
         public List<string> CustomerCodes { get; set; } // 按客户代码筛选
 
         public string CategoryName { get; set; } // 按分类名称筛选

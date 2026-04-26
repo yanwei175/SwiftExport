@@ -1,0 +1,116 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Animations.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- ========================= -->
+    <!--   鸿蒙 ToggleSwitch 模板   -->
+    <!-- ========================= -->
+    <ControlTemplate x:Key="ToggleSwitchTemplate" TargetType="ToggleButton">
+        <!-- 说明：使用 Viewbox 包裹固定基准尺寸，让使用方可在任意位置通过 Width/Height 自由缩放 -->
+        <Viewbox Stretch="Fill"
+                 Width="{TemplateBinding Width}"
+                 Height="{TemplateBinding Height}">
+            <!-- 基准设计尺寸：46x26 -->
+            <Grid Width="46" Height="26"
+                  RenderTransformOrigin="0.5,0.5">
+
+                <Grid.RenderTransform>
+                    <ScaleTransform ScaleX="1" ScaleY="1" />
+                </Grid.RenderTransform>
+
+                <!-- 背景条 -->
+                <Border x:Name="SwitchTrack"
+                        CornerRadius="13"
+                        Background="{DynamicResource Brush_Btn_Default_Pressed}" />
+
+                <!-- 滑块 -->
+                <Border x:Name="SwitchThumb"
+                        Width="22" Height="22"
+                        CornerRadius="11"
+                        Background="{DynamicResource Brush_Btn_Default_Background}"
+                        Margin="2"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        RenderTransformOrigin="0.5,0.5">
+                    <Border.RenderTransform>
+                        <TranslateTransform x:Name="ThumbTransform" />
+                    </Border.RenderTransform>
+                </Border>
+
+            </Grid>
+        </Viewbox>
+
+        <ControlTemplate.Triggers>
+
+            <!-- Hover -->
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="SwitchTrack" Property="Opacity" Value="0.92" />
+            </Trigger>
+
+            <!-- Checked -->
+            <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="SwitchTrack" Property="Background"
+            Value="{DynamicResource Brush_Btn_Primary_Background}" />
+
+                <Trigger.EnterActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="ThumbTransform"
+                                 Storyboard.TargetProperty="X"
+                                 To="20" 
+                                 Duration="0:0:0.15"
+                                 EasingFunction="{StaticResource EaseOut}" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </Trigger.EnterActions>
+
+                <Trigger.ExitActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="ThumbTransform"
+                                 Storyboard.TargetProperty="X"
+                                 To="0" 
+                                 Duration="0:0:0.15"
+                                 EasingFunction="{StaticResource EaseOut}" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </Trigger.ExitActions>
+            </Trigger>
+
+            <!-- Disabled -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="SwitchTrack" Property="Background"
+                        Value="{DynamicResource Brush_Control_Border_Disabled}" />
+                <Setter TargetName="SwitchThumb" Property="Background"
+                        Value="{DynamicResource Brush_Control_Disabled}" />
+            </Trigger>
+
+            <!-- 点击动效（使用全局动画） -->
+            <EventTrigger RoutedEvent="ToggleButton.PreviewMouseLeftButtonDown">
+                <BeginStoryboard Storyboard="{StaticResource ClickRippleStoryboard}" />
+            </EventTrigger>
+
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <Style x:Key="TextToggleButton" TargetType="ToggleButton">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    
+    <!-- ========================= -->
+    <!--   默认 ToggleSwitch 样式   -->
+    <!-- ========================= -->
+    <Style x:Key="ToggleSwitch" TargetType="ToggleButton">
+        <!-- 默认尺寸保留；使用方可在控件处覆盖 Width/Height 调整大小 -->
+        <Setter Property="Width" Value="46" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template" Value="{StaticResource ToggleSwitchTemplate}" />
+    </Style>
+
+</ResourceDictionary>

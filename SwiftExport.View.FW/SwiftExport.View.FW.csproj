@@ -58,11 +58,15 @@
     <Compile Include="CustomerViews\ViewModels\CustomerManagerViewModel.cs" />
     <Compile Include="CustomerViews\ViewModels\CustomerPoConfigDesignViewModel.cs" />
     <Compile Include="CustomerViews\ViewModels\CustomerPoConfigViewModel.cs" />
+    <Compile Include="CustomerViews\ViewModels\CustomerProductManagerViewModel.cs" />
     <Compile Include="CustomerViews\Views\CustomerManagerView.xaml.cs">
       <DependentUpon>CustomerManagerView.xaml</DependentUpon>
     </Compile>
     <Compile Include="CustomerViews\Views\CustomerPoConfigManagerView.xaml.cs">
       <DependentUpon>CustomerPoConfigManagerView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="CustomerViews\Views\CustomerProductManagerView.xaml.cs">
+      <DependentUpon>CustomerProductManagerView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Dialog\DialogHelper.cs" />
     <Compile Include="Dialog\InputBoxWindow.xaml.cs">
@@ -114,6 +118,7 @@
     <Compile Include="Mvvm\BaseListModel.cs" />
     <Compile Include="Mvvm\BaseTreeListModel.cs" />
     <Compile Include="Mvvm\BaseTreeNodeModel.cs" />
+    <Compile Include="Mvvm\CollectionExtensions.cs" />
     <Compile Include="Mvvm\ITreeModelService.cs" />
     <Compile Include="ProductViews\Assists\BomSubSkuSearchAssist.cs" />
     <Compile Include="ProductViews\Assists\PopupPlacementService.cs" />
@@ -126,6 +131,7 @@
     <Compile Include="ProductViews\Controls\CustomerSelectorControl.xaml.cs">
       <DependentUpon>CustomerSelectorControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ProductViews\Convert\LangToVisibilityConverter.cs" />
     <Compile Include="ProductViews\Messages\ProductSelectionResultMessage.cs" />
     <Compile Include="ProductViews\Models\BomList.cs" />
     <Compile Include="ProductViews\Models\BomTreeNodeModel.cs" />
@@ -195,6 +201,9 @@
     <Page Include="CustomerViews\Views\CustomerPoConfigManagerView.xaml">
       <SubType>Designer</SubType>
       <Generator>XamlIntelliSenseFileGenerator</Generator>
+    </Page>
+    <Page Include="CustomerViews\Views\CustomerProductManagerView.xaml">
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Dialog\InputBoxWindow.xaml">
       <SubType>Designer</SubType>

@@ -33,7 +33,7 @@ public class CustomerController(ICustomerService service) : BaseController<Swift
                 // 逻辑：(SKU IN (...) OR CSKU IN (...))
                 criteria.AddOrGroup(
                     ("CustomerCode", 查询操作符.包含某值, batchList),
-                    ("Name", 查询操作符.包含某值, batchList),
+                    ("CustomerName", 查询操作符.包含某值, batchList),
                     ("ContactPerson", 查询操作符.包含某值, batchList)
                 );
             }
@@ -64,9 +64,5 @@ public class CustomerController(ICustomerService service) : BaseController<Swift
     {
         return await _service.GetAllAsync();
     }
-
-
-
-
 
 }

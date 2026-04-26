@@ -125,11 +125,13 @@
             <!-- 覆盖 Hover -->
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Brush_Selection_Background}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush_Selection_Border}" />
                 <Setter Property="Foreground" Value="{DynamicResource Brush_Primary}" />
             </Trigger>
             <!-- 覆盖 Pressed -->
             <Trigger Property="IsPressed" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Brush_Selection_Background}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush_Selection_Border}" />
                 <Setter Property="Foreground" Value="{DynamicResource Brush_Primary}" />
             </Trigger>
         </Style.Triggers>
@@ -237,7 +239,7 @@
 
 
 
-    <Style TargetType="Button" BasedOn="{StaticResource ButtonBase}"/>
+    <Style TargetType="Button" BasedOn="{StaticResource ButtonOutline}"/>
 
 
 

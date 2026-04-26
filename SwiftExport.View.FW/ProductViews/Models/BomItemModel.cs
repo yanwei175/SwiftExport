@@ -31,13 +31,6 @@ namespace SwiftExport.View.FW.ProductViews.Models
             set => SetProperty(ref _subSku, value);
         }
 
-        private string _description = string.Empty;
-        public string Description
-        {
-            get { return _description; }
-            set => SetProperty(ref _description, value);
-        }
-
         //定义为可空类型，以便在验证时区分未设置和设置为0的情况
         private int? _numerator = 1;
         public int? Numerator
@@ -54,11 +47,34 @@ namespace SwiftExport.View.FW.ProductViews.Models
             set => SetProperty(ref _denominator, value);
         }
 
-        private string _bomSubType = string.Empty;
-        public string BomSubType
+
+        private string _note = string.Empty;
+        public string Note
         {
-            get { return _bomSubType; }
-            set => SetProperty(ref _bomSubType, value);
+            get { return _note; }
+            set => SetProperty(ref _note, value);
+        }
+
+
+        private string _description = string.Empty;
+        public string Description
+        {
+            get { return _description; }
+            set => SetProperty(ref _description, value);
+        }
+
+        private string _finish = string.Empty;
+        public string Finish
+        {
+            get { return _finish; }
+            set => SetProperty(ref _finish, value);
+        }
+
+        private string _features = string.Empty;
+        public string Features
+        {
+            get { return _features; }
+            set => SetProperty(ref _features, value);
         }
 
         private string _mainImage = string.Empty;
@@ -68,12 +84,9 @@ namespace SwiftExport.View.FW.ProductViews.Models
             set => SetProperty(ref _mainImage, value);
         }
 
-        private string _note = string.Empty;
-        public string Note
-        {
-            get { return _note; }
-            set => SetProperty(ref _note, value);
-        }
+
+
+
 
 
         #region IDataErrorInfo Members
@@ -90,11 +103,6 @@ namespace SwiftExport.View.FW.ProductViews.Models
                 {
                     if (string.IsNullOrWhiteSpace(SubSku))
                         result = "子件型号不能为空";
-                }
-                else if (columnName == nameof(BomSubType))
-                {
-                    if (string.IsNullOrWhiteSpace(BomSubType))
-                        result = "子件类型不能为空";
                 }
                 else if (columnName == nameof(Numerator))
                 {

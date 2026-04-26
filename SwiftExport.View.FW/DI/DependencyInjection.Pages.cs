@@ -70,6 +70,8 @@ namespace SwiftExport.View.FW
             // ================== 客户模块 ==================
             services.AddTransient<CustomerManagerViewModel>();
             services.AddTransient<CustomerManagerView>();
+            services.AddTransient<CustomerProductManagerViewModel>();
+            services.AddTransient<CustomerProductManagerView>();
 
             services.AddTransient<CustomerPoConfigViewModel>();
             services.AddTransient<CustomerPoConfigManagerView>();

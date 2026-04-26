@@ -65,7 +65,7 @@ namespace SwiftExport.DevApp
 
         private void Button_Click_4(object sender, RoutedEventArgs e)
         {
-            var win = DiServices.GetService<MainProductManagerView>();
+            var win = DiServices.GetService<ProductManagerView>();
 
             var newwin = new Window
             {

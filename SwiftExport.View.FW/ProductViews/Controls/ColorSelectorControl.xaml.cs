@@ -1,9 +1,9 @@
-using GalaSoft.MvvmLight.Ioc;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.View.FW.DI;
-using SwiftExport.View.FW.Services;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -11,19 +11,17 @@ using System.Windows.Controls;
 namespace SwiftExport.View.FW.ProductViews.Controls
 {
     /// <summary>
-    /// 颜色选择自主控件，包含下拉检索与中文、英文及色号模糊过滤
+    /// 完全自治的颜色搜索选择控件
     /// </summary>
     public partial class ColorSelectorControl : UserControl
     {
-        // 1. 定义对外暴露的选中的具体颜色实体 (ProductColorDto)
+        // 1. 对外暴露的选中项，支持双向绑定
         public static readonly DependencyProperty SelectedItemProperty =
             DependencyProperty.Register(
                 nameof(SelectedItem),
                 typeof(ProductColorDto),
                 typeof(ColorSelectorControl),
-                new FrameworkPropertyMetadata(
-                    null,
-                    FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+                new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
 
         public ProductColorDto SelectedItem
         {
@@ -31,13 +29,13 @@ namespace SwiftExport.View.FW.ProductViews.Controls
             set => SetValue(SelectedItemProperty, value);
         }
 
-        // 内部数据源集合
+        // 2. 内部数据源依赖属性（用于 XAML 绑定到 SearchableTextBox）
         public static readonly DependencyProperty ItemsProperty =
             DependencyProperty.Register(
                 nameof(Items),
                 typeof(ObservableCollection<ProductColorDto>),
                 typeof(ColorSelectorControl),
-                new PropertyMetadata(new ObservableCollection<ProductColorDto>()));
+                new PropertyMetadata(null));
 
         public ObservableCollection<ProductColorDto> Items
         {
@@ -45,25 +43,24 @@ namespace SwiftExport.View.FW.ProductViews.Controls
             private set => SetValue(ItemsProperty, value);
         }
 
+        private bool _isDataInitialized = false;
+
         public ColorSelectorControl()
         {
             InitializeComponent();
             Items = new ObservableCollection<ProductColorDto>();
-            Loaded += OnLoadedAsync;
+            this.Loaded += OnLoadedAsync;
         }
 
-
-        private bool _isLoaded;
         private async void OnLoadedAsync(object sender, RoutedEventArgs e)
         {
-            if (_isLoaded) return;
-            _isLoaded = true;
-
-            _ = LoadDataAsync();
+            if (_isDataInitialized) return;
+            _isDataInitialized = true;
+            await LoadDataAsync();
         }
 
         /// <summary>
-        /// 从接口层自主提取全量颜色池以备展示
+        /// 自治 API 加载逻辑
         /// </summary>
         private async Task LoadDataAsync()
         {
@@ -73,13 +70,18 @@ namespace SwiftExport.View.FW.ProductViews.Controls
                 if (api == null) return;
 
                 var result = await api.GetAllAsync();
-                if (result != null && result.Success && result.Data != null)
+                if (result?.Success == true && result.Data != null)
                 {
                     Items.Clear();
 
-                    Items.Add(new ProductColorDto { ColorCodeUnique = "全部颜色", ColorNameEn = "All Colors", ColorNameZh = "全部颜色", ColorCode = "全部颜色" });
-                    // Optional: 为防止“全部”这一假选项影响，可以通过 Dto 构造一个"全部颜色"节点，或者纯清除搜索。
-                    // 此处直接加载所有有效颜色
+                    //// 插入一个虚拟的“全部”选项，方便清空或全选
+                    //Items.Add(new ProductColorDto
+                    //{
+                    //    ColorNameZh = "全部颜色",
+                    //    ColorCodeUnique = "ALL",
+                    //    ColorNameEn = "All Colors"
+                    //});
+
                     foreach (var item in result.Data)
                     {
                         Items.Add(item);
@@ -88,7 +90,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
             }
             catch
             {
-                // 日志记录与吞出
+                // 静默处理 API 错误
             }
         }
     }

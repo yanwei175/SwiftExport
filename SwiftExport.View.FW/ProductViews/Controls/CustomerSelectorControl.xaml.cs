@@ -75,7 +75,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
                 if (result != null && result.Success && result.Data != null)
                 {
                     Items.Clear();
-                    Items.Add(new CustomerDto { CustomerCode = "All Customer", Name = "全部客户" }); // 添加默认选项
+                    //Items.Add(new CustomerDto { CustomerCode = "All Customer", CustomerName = "全部客户" }); // 添加默认选项
                     foreach (var code in result.Data)
                     {
                         Items.Add(code);
@@ -87,5 +87,6 @@ namespace SwiftExport.View.FW.ProductViews.Controls
                 // 容错处理
             }
         }
+
     }
 }

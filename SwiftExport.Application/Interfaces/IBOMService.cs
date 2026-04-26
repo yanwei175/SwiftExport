@@ -10,7 +10,7 @@ namespace SwiftExport.Application.Interfaces
 
         //以下为批量操作
 
-        Task<ServiceResult<List<BomDto>>> GetBomByBomNoAsync(string bomNo);
+        Task<ServiceResult<List<BomDto>>> GetBomDtoByBomNoAsync(string bomNo);
 
 
         // 校验 BOM 合理性

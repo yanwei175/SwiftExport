@@ -298,12 +298,30 @@ namespace SwiftExport.View.FW.Mvvm
                 {
                     if (item == null) continue;
 
-                    // 添加到 UI 列表
-                    Items.Add(item);
+                    // 策略 A：按数据库 ID 去重 (针对 Id > 0 的项)
+                    if (item.Id > 0)
+                    {
+                        // 寻找池中是否有相同 ID 的项（包括那些已标记为 Deleted 的）
+                        var existingById = _allItems.FirstOrDefault(x => x.Id == item.Id);
+                        if (existingById != null)
+                        {
+                            // 场景：你删除了 ID 为 100 的行，现在由于某种原因（如刷新）又加载了 ID 为 100 的行。
+                            // 必须踢掉旧的，否则后端会收到“删除 100”和“查询/更新 100”的冲突指令。
+                            existingById.PropertyChanged -= OnItemChanged;
+                            _allItems.Remove(existingById);
+                            Items.Remove(existingById);
+                        }
+                    }
+                    // 策略 B：按内存引用去重 (针对所有项，特别是 Id = 0 的新增项)
+                    else if (_allItems.Contains(item))
+                    {
+                        // 如果这个【特定的内存实例】已经在池子里了，直接跳过，防止重复订阅事件。
+                        continue;
+                    }
 
-                    // 确保内部_allItems 跟上，并订阅属性变化
-                    if (!_allItems.Contains(item))
-                        _allItems.Add(item);
+                    // --- 执行添加 ---
+                    Items.Add(item);
+                    _allItems.Add(item);
 
                     // 防御性退订，彻底防止因重复加载数据遗留的旧委托
                     item.PropertyChanged -= OnItemChanged;
@@ -329,12 +347,33 @@ namespace SwiftExport.View.FW.Mvvm
             Items.CollectionChanged -= OnCollectionChanged;
             try
             {
-                // 添加到 UI 列表首位
+                // 1. 处理逻辑冲突：按 ID 查找并彻底清理旧实例
+                if (item.Id > 0)
+                {
+                    var existingById = _allItems.FirstOrDefault(x => x.Id == item.Id);
+                    if (existingById != null)
+                    {
+                        existingById.PropertyChanged -= OnItemChanged;
+                        _allItems.Remove(existingById);
+                        Items.Remove(existingById); // 确保 UI 也不重复
+                    }
+                }
+
+                // 2. 处理内存冲突：如果这个【特定实例】已经在 UI 列表里了，先挪走
+                if (Items.Contains(item))
+                {
+                    Items.Remove(item);
+                }
+
+                // 3. 始终确保它出现在两个列表的最前端
                 Items.Insert(0, item);
 
-                // 确保内部_allItems 跟上，并订阅属性变化
-                if (!_allItems.Contains(item))
-                    _allItems.Insert(0, item);
+                // 如果 _allItems 里已经有这个引用（可能刚才没被 Id 逻辑删掉），先删掉再插到首位
+                if (_allItems.Contains(item))
+                {
+                    _allItems.Remove(item);
+                }
+                _allItems.Insert(0, item);
 
                 // 防御性退订，防止同一对象多次引发事件
                 item.PropertyChanged -= OnItemChanged;
@@ -362,7 +401,23 @@ namespace SwiftExport.View.FW.Mvvm
 
 
 
+        /// <summary>
+        /// 检查全局池（包括已标记为删除的项）中是否已存在符合条件的项
+        /// 示例 BomList.ExistsInAll(x => string.Equals(x.SubSku, p.Sku, StringComparison.OrdinalIgnoreCase));
+        /// </summary>
+        public bool ExistsInAll(Func<T, bool> predicate)
+        {
+            return _allItems.Any(predicate);
+        }
 
+        /// <summary>
+        /// 获取全局池中符合条件的项（包括已标记为删除的项）
+        /// 示例 BomList.GetFromAll(x => string.Equals(x.SubSku, p.Sku, StringComparison.OrdinalIgnoreCase));
+        /// </summary>
+        public T GetFromAll(Func<T, bool> predicate)
+        {
+            return _allItems.FirstOrDefault(predicate);
+        }
 
 
 
