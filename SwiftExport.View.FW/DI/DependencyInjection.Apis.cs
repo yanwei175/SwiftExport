@@ -87,6 +87,7 @@ namespace SwiftExport.View.FW
             services.AddErpApi<IRequirementPoolApi>(apiBaseUrl + "/api/SalesOrderDecomposeBridge");
             services.AddErpApi<IPurchaseOrderApi>(apiBaseUrl + "/api/PurchaseOrder");
             services.AddErpApi<IReceiveApi>(apiBaseUrl + "/api/Receive");
+            services.AddErpApi<IPackingListApi>(apiBaseUrl + "/api/PackingList");
 
             return services;
         }

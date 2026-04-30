@@ -53,6 +53,10 @@
     <Compile Include="PurchaseOrderViews\Models\PurchaseOrderLineList.cs" />
     <Compile Include="PurchaseOrderViews\Models\PurchaseOrderLineModel.cs" />
     <Compile Include="PurchaseOrderViews\Models\PurchaseReceiptRecordModel.cs" />
+    <Compile Include="PackingListViews\ViewModels\PackingListManagerViewModel.cs" />
+    <Compile Include="PackingListViews\Views\PackingListManagerView.xaml.cs">
+      <DependentUpon>PackingListManagerView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="PurchaseOrderViews\ViewModels\PurchaseOrderManagerViewModel.cs" />
     <Compile Include="PurchaseOrderViews\Views\PurchaseOrderManagerView.xaml.cs">
       <DependentUpon>PurchaseOrderManagerView.xaml</DependentUpon>
@@ -221,6 +225,9 @@
       <DependentUpon>SysViewRouteManagerView.xaml</DependentUpon>
     </Compile>
     <Page Include="PurchaseOrderViews\Views\PurchaseOrderManagerView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="PackingListViews\Views\PackingListManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="SalesOrderViews\Controls\SalesOrderLinePopupSelectorControl.xaml">

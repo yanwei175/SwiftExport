@@ -1,0 +1,184 @@
+<UserControl x:Class="SwiftExport.View.FW.PackingListViews.Views.PackingListManagerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
+             xmlns:vm="clr-namespace:SwiftExport.View.FW.PackingListViews.ViewModels"
+             mc:Ignorable="d"
+             d:DesignHeight="900"
+             d:DesignWidth="1500"
+             d:DataContext="{d:DesignInstance vm:PackingListManagerViewModel}"
+             Background="{DynamicResource Brush_Bck_Page}">
+    <Grid Margin="5">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Background="White"
+                CornerRadius="8"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource Brush_Border_Light}"
+                Padding="10">
+            <StackPanel>
+                <TextBlock Text="装箱单" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+
+                <TextBlock Text="搜索" FontWeight="SemiBold" Margin="0,4,0,5"/>
+                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         Height="30"
+                         mt:TextBoxAssist.Placeholder="PL / PO / SO / 供应商"/>
+                <Button Content="查询"
+                        Style="{StaticResource ButtonPrimary}"
+                        Margin="0,8,0,14"
+                        Command="{Binding LoadCommand}"
+                        mt:ButtonAssist.Icon="{StaticResource Icon.Search}"
+                        mt:ButtonAssist.IconSize="12"/>
+
+                <Separator Margin="0,4,0,10"/>
+
+                <Button Content="新建装箱单"
+                        Style="{StaticResource ButtonBase}"
+                        Command="{Binding AddNewCommand}"
+                        Margin="0,0,0,10"/>
+
+                <TextBlock Text="采购单 PoNo" FontWeight="SemiBold" Margin="0,4,0,5"/>
+                <TextBox Text="{Binding SourcePoNo, UpdateSourceTrigger=PropertyChanged}"
+                         Height="30"
+                         mt:TextBoxAssist.Placeholder="输入 PoNo"/>
+                <Button Content="从采购单引入"
+                        Style="{StaticResource ButtonBase}"
+                        Margin="0,8,0,12"
+                        Command="{Binding ImportPurchaseOrderCommand}"/>
+
+                <TextBlock Text="销售单 OrderNo" FontWeight="SemiBold" Margin="0,4,0,5"/>
+                <TextBox Text="{Binding SourceSalesOrderNo, UpdateSourceTrigger=PropertyChanged}"
+                         Height="30"
+                         mt:TextBoxAssist.Placeholder="输入 SO 单号"/>
+                <Button Content="从销售单引入"
+                        Style="{StaticResource ButtonBase}"
+                        Margin="0,8,0,16"
+                        Command="{Binding ImportSalesOrderCommand}"/>
+
+                <Button Content="保存装箱单"
+                        Style="{StaticResource ButtonSuccess}"
+                        Margin="0,0,0,8"
+                        Command="{Binding SaveCommand}"
+                        mt:ButtonAssist.Icon="{StaticResource Icon.Save}"
+                        mt:ButtonAssist.IconSize="12"/>
+                <Button Content="一键过账"
+                        Style="{StaticResource ButtonPrimary}"
+                        Command="{Binding PostCommand}"/>
+
+                <TextBlock Text="{Binding StatusMessage}"
+                           Margin="0,16,0,0"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource Brush_Txt_Secondary}"/>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Column="1" Margin="8,0,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="4*" MinHeight="240"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="5*" MinHeight="260"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0"
+                    Background="White"
+                    CornerRadius="8"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource Brush_Border_Light}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0"
+                               Text="装箱单列表"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Margin="10"/>
+
+                    <DataGrid Grid.Row="1"
+                              Style="{StaticResource BaseDataGrid}"
+                              ItemsSource="{Binding HeaderItems}"
+                              SelectedItem="{Binding SelectedHeader, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              Margin="8,0,8,8"
+                              mt:DataGridAssist.ShowRowNumber="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="PL No" Binding="{Binding PackingListNo}" Width="150"/>
+                            <DataGridTextColumn Header="供应商" Binding="{Binding SupplierName}" Width="150"/>
+                            <DataGridTextColumn Header="PoNo" Binding="{Binding PoNo}" Width="130"/>
+                            <DataGridTextColumn Header="采购单号" Binding="{Binding PurchaseOrderNo}" Width="130"/>
+                            <DataGridTextColumn Header="销售单号" Binding="{Binding SalesOrderNo}" Width="130"/>
+                            <DataGridTextColumn Header="装箱日期" Binding="{Binding PackingDate, StringFormat=yyyy-MM-dd}" Width="110"/>
+                            <DataGridCheckBoxColumn Header="已过账" Binding="{Binding IsPosted}" Width="70"/>
+                            <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="90"/>
+                            <DataGridTextColumn Header="数量" Binding="{Binding TotalQty, StringFormat=F2}" Width="80"/>
+                            <DataGridTextColumn Header="入库单号" Binding="{Binding ReceiveNo}" Width="140"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <mt:PageNavigator Grid.Row="2"
+                                      Margin="0,0,8,8"
+                                      HorizontalAlignment="Right"
+                                      TotalCount="{Binding TotalCount}"
+                                      PageIndex="{Binding PageIndex, Mode=OneWay}"
+                                      PageSize="{Binding PageSize, Mode=OneWay}"
+                                      PageChangeCommand="{Binding PageChangeCommand}"/>
+                </Grid>
+            </Border>
+
+            <GridSplitter Grid.Row="1" Height="8" Background="Transparent" Cursor="SizeNS" ShowsPreview="True"/>
+
+            <Border Grid.Row="2"
+                    Background="White"
+                    CornerRadius="8"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource Brush_Border_Light}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" Margin="10">
+                        <TextBlock Text="装箱明细" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Content="移除当前行"
+                                DockPanel.Dock="Right"
+                                Width="100"
+                                HorizontalAlignment="Right"
+                                Style="{StaticResource ButtonBase}"
+                                Command="{Binding RemoveSelectedLineCommand}"/>
+                    </DockPanel>
+
+                    <DataGrid Grid.Row="1"
+                              Style="{StaticResource BaseDataGrid}"
+                              ItemsSource="{Binding LineItems}"
+                              SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              Margin="8,0,8,8"
+                              mt:DataGridAssist.ShowRowNumber="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="SKU" Binding="{Binding Sku, UpdateSourceTrigger=PropertyChanged}" Width="150"/>
+                            <DataGridTextColumn Header="客户SKU" Binding="{Binding CustomerSku, UpdateSourceTrigger=PropertyChanged}" Width="130"/>
+                            <DataGridTextColumn Header="描述" Binding="{Binding Description, UpdateSourceTrigger=PropertyChanged}" Width="220"/>
+                            <DataGridTextColumn Header="装箱数量" Binding="{Binding Qty, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}" Width="100"/>
+                            <DataGridTextColumn Header="单位" Binding="{Binding Unit, UpdateSourceTrigger=PropertyChanged}" Width="70"/>
+                            <DataGridTextColumn Header="PO行ID" Binding="{Binding PoLineId}" Width="80"/>
+                            <DataGridTextColumn Header="SO行ID" Binding="{Binding SoLineId}" Width="80"/>
+                            <DataGridTextColumn Header="PoNo" Binding="{Binding PoNo}" Width="120"/>
+                            <DataGridTextColumn Header="销售单号" Binding="{Binding SalesOrderNo}" Width="120"/>
+                            <DataGridTextColumn Header="备注" Binding="{Binding Remark, UpdateSourceTrigger=PropertyChanged}" Width="200"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

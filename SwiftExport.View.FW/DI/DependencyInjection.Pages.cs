@@ -5,6 +5,8 @@ using SwiftExport.View.FW.DictViews.ViewModels;
 using SwiftExport.View.FW.DictViews.Views;
 using SwiftExport.View.FW.OrderDecomposeViews.ViewModels;
 using SwiftExport.View.FW.OrderDecomposeViews.Views;
+using SwiftExport.View.FW.PackingListViews.ViewModels;
+using SwiftExport.View.FW.PackingListViews.Views;
 using SwiftExport.View.FW.ProductViews.ViewModels;
 using SwiftExport.View.FW.ProductViews.Views;
 using SwiftExport.View.FW.PurchaseOrderViews.ViewModels;
@@ -93,6 +95,8 @@ namespace SwiftExport.View.FW
             // ================== 采购订单模块 ==================
             services.AddTransient<PurchaseOrderManagerViewModel>();
             services.AddTransient<PurchaseOrderManagerView>();
+            services.AddTransient<PackingListManagerViewModel>();
+            services.AddTransient<PackingListManagerView>();
 
             return services;
         }

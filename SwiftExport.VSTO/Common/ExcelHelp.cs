@@ -20,7 +20,7 @@ namespace SwiftExport.VSTO.Common.ExcelHelp
         }
 
         /// <summary>
-        /// 列号转换：字母 -> 数字
+        /// 列号转换：字母 -> 数字（非法输入返回 0）
         /// </summary>
         public static int ConvertColumn(string letter)
         {
@@ -29,19 +29,22 @@ namespace SwiftExport.VSTO.Common.ExcelHelp
 
         // =================================================================
         // 核心算法：字母转数字 (Base26 -> Base10)
-        // 输入: "AB" -> 输出: 28
+        // 输入："AB" -> 输出：28
         // =================================================================
         private static int ColumnLetterToColumnIndex(string columnName)
         {
-            if (string.IsNullOrEmpty(columnName)) return 0;
+            if (string.IsNullOrWhiteSpace(columnName)) return 0;
 
-            // 强制转大写，防止 "ab" 这种输入导致计算错误
-            columnName = columnName.ToUpper();
+            // 强制转大写并去掉首尾空白，避免输入格式导致计算错误
+            columnName = columnName.Trim().ToUpperInvariant();
 
             int sum = 0;
 
             foreach (char c in columnName)
             {
+                // 非 A-Z 输入直接判定为无效，避免返回错误列号
+                if (c < 'A' || c > 'Z') return 0;
+
                 // 核心算法：
                 // 1. sum * 26 相当于把之前的位数进位
                 // 2. (c - 'A' + 1) 是把当前字母转成 1-26 的数字

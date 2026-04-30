@@ -541,7 +541,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
             groupIndex++;
         }
 
-        // 清理了刚才在这里的残余错误代码！！！
+        // 返回拼接后的 WHERE 条件片段（不包含 WHERE 关键字）
         return sqlBuilder.ToString();
     }
 

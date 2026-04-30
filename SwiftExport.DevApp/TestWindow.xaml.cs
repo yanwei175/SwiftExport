@@ -11,6 +11,8 @@ namespace SwiftExport.DevApp
     {
         // 测试用的 ObservableCollection，WPF 的亲儿子，数据变动自动刷新 UI
         public ObservableCollection<CustomerModel> TestCustomers { get; set; }
+        private int _newCustomerSeed = 1;
+
         public TestWindow()
         {
             InitializeComponent();
@@ -63,7 +65,7 @@ namespace SwiftExport.DevApp
             // 插入一条新数据，用来测试 assist:DataGridAssist.AutoScrollToNewItem 是否生效
             TestCustomers.Add(new CustomerModel
             {
-                CustomerName = "新客户" + System.DateTime.Now.Second,
+                CustomerName = $"新客户{_newCustomerSeed++:D2}",
                 Remark = "新录入的数据"
             });
         }
