@@ -49,7 +49,20 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AppRuntimeOptions.cs" />
+    <Compile Include="PurchaseOrderViews\Models\PurchaseOrderHeadModel.cs" />
+    <Compile Include="PurchaseOrderViews\Models\PurchaseOrderLineList.cs" />
+    <Compile Include="PurchaseOrderViews\Models\PurchaseOrderLineModel.cs" />
+    <Compile Include="PurchaseOrderViews\Models\PurchaseReceiptRecordModel.cs" />
+    <Compile Include="PurchaseOrderViews\ViewModels\PurchaseOrderManagerViewModel.cs" />
+    <Compile Include="PurchaseOrderViews\Views\PurchaseOrderManagerView.xaml.cs">
+      <DependentUpon>PurchaseOrderManagerView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SalesOrderViews\Controls\SalesOrderLinePopupSelectorControl.xaml.cs">
+      <DependentUpon>SalesOrderLinePopupSelectorControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SalesOrderViews\Controls\SalesOrderLinePopupSelectorSubmitArgs.cs" />
     <Compile Include="CustomerViews\Enums\CustomerTabs.cs" />
+    <Compile Include="CustomerViews\Messages\CustomerSelectionResultMessage.cs" />
     <Compile Include="CustomerViews\Models\CustomerList.cs" />
     <Compile Include="CustomerViews\Models\CustomerModel.cs" />
     <Compile Include="CustomerViews\Models\CustomerPoConfigModel.cs" />
@@ -59,6 +72,7 @@
     <Compile Include="CustomerViews\ViewModels\CustomerPoConfigDesignViewModel.cs" />
     <Compile Include="CustomerViews\ViewModels\CustomerPoConfigViewModel.cs" />
     <Compile Include="CustomerViews\ViewModels\CustomerProductManagerViewModel.cs" />
+    <Compile Include="CustomerViews\ViewModels\CustomerSelectorDialogViewModel.cs" />
     <Compile Include="CustomerViews\Views\CustomerManagerView.xaml.cs">
       <DependentUpon>CustomerManagerView.xaml</DependentUpon>
     </Compile>
@@ -67,6 +81,9 @@
     </Compile>
     <Compile Include="CustomerViews\Views\CustomerProductManagerView.xaml.cs">
       <DependentUpon>CustomerProductManagerView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="CustomerViews\Views\CustomerSelectorDialog.xaml.cs">
+      <DependentUpon>CustomerSelectorDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="Dialog\DialogHelper.cs" />
     <Compile Include="Dialog\InputBoxWindow.xaml.cs">
@@ -120,6 +137,12 @@
     <Compile Include="Mvvm\BaseTreeNodeModel.cs" />
     <Compile Include="Mvvm\CollectionExtensions.cs" />
     <Compile Include="Mvvm\ITreeModelService.cs" />
+    <Compile Include="OrderDecomposeViews\Models\RequirementPoolList.cs" />
+    <Compile Include="OrderDecomposeViews\Models\RequirementPoolModel.cs" />
+    <Compile Include="OrderDecomposeViews\ViewModels\RequirementPoolManagerViewModel.cs" />
+    <Compile Include="OrderDecomposeViews\Views\RequirementPoolView.xaml.cs">
+      <DependentUpon>RequirementPoolView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ProductViews\Assists\BomSubSkuSearchAssist.cs" />
     <Compile Include="ProductViews\Assists\PopupPlacementService.cs" />
     <Compile Include="ProductViews\Controls\CategoryTreeSelectorControl.xaml.cs">
@@ -180,6 +203,9 @@
     <Compile Include="SupplierViews\Views\SupplierManagerView.xaml.cs">
       <DependentUpon>SupplierManagerView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="SupplierViews\Views\SupplierProductManagerView.xaml.cs">
+      <DependentUpon>SupplierProductManagerView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="SystemViews\Models\CurrencyExchangeList.cs" />
     <Compile Include="SystemViews\Models\CurrencyExchangeModel.cs" />
     <Compile Include="SystemViews\Models\CurrencyList.cs" />
@@ -194,6 +220,13 @@
     <Compile Include="SystemViews\Views\SysViewRouteManagerView.xaml.cs">
       <DependentUpon>SysViewRouteManagerView.xaml</DependentUpon>
     </Compile>
+    <Page Include="PurchaseOrderViews\Views\PurchaseOrderManagerView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SalesOrderViews\Controls\SalesOrderLinePopupSelectorControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="CustomerViews\Views\CustomerManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -203,6 +236,9 @@
       <Generator>XamlIntelliSenseFileGenerator</Generator>
     </Page>
     <Page Include="CustomerViews\Views\CustomerProductManagerView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="CustomerViews\Views\CustomerSelectorDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Dialog\InputBoxWindow.xaml">
@@ -227,6 +263,10 @@
     <Page Include="DictViews\Views\UnitDictUserControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="OrderDecomposeViews\Views\RequirementPoolView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Page Include="ProductViews\Controls\CategoryTreeSelectorControl.xaml">
       <Generator>XamlIntelliSenseFileGenerator</Generator>
@@ -259,6 +299,9 @@
     <Page Include="ProductViews\Views\ProductSelectorView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="SupplierViews\Views\SupplierProductManagerView.xaml">
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="SystemViews\Views\SysDicCurrencyView.xaml">
       <Generator>MSBuild:Compile</Generator>

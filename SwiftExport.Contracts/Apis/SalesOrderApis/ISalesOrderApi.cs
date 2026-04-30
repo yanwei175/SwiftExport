@@ -1,6 +1,7 @@
 using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.SalesOrders;
+using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -100,6 +101,43 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         /// </summary>
         [Post("/detail/save")]
         Task<ServiceResult<int>> SaveSalesOrderDetailAsync([Body] SalesOrderDetailDto request);
+
+        /// <summary>
+        /// 中文注释：销售订单行数据源分页查询。
+        /// 从 CustomerProduct 与 Product 联查结果中返回可用于“新增订单行”的基础数据。
+        /// </summary>
+        [Post("/lines/source/search")]
+        Task<ServiceResult<PagedResultDto<SalesOrderLineDto>>> GetSalesOrderLineSourcePagedListAsync([Body] SalesOrderLineSourceSearchDto search);
+
+        /// <summary>
+        /// 获取销售订单下一单号。
+        /// </summary>
+        [Post("/next-order-no")]
+        Task<ServiceResult<DocumentNoResultDto>> GetNextOrderNoAsync([Body] DocumentNoRequestDto request);
+
+        /// <summary>
+        /// 批准一张销售订单。
+        /// </summary>
+        [Post("/{orderId}/approve")]
+        Task<ServiceResult<bool>> ApproveSalesOrderAsync(int orderId);
+
+        /// <summary>
+        /// 驳回一张销售订单。
+        /// </summary>
+        [Post("/{orderId}/reject")]
+        Task<ServiceResult<bool>> RejectSalesOrderAsync(int orderId);
+
+        /// <summary>
+        /// 批量批准销售订单。
+        /// </summary>
+        [Post("/batch-approve")]
+        Task<ServiceResult<List<string>>> BatchApproveSalesOrdersAsync([Body] List<int> orderIds);
+
+        /// <summary>
+        /// 批量驳回销售订单。
+        /// </summary>
+        [Post("/batch-reject")]
+        Task<ServiceResult<List<string>>> BatchRejectSalesOrdersAsync([Body] List<int> orderIds);
 
         #endregion
     }

@@ -48,6 +48,7 @@ namespace SwiftExport.View.FW.Mvvm
 
             RaiseAllState();
         }
+
         private bool _suppressItemChangedEvents = false;
 
         //Items里的行变化事件,切换行才会触发.
@@ -211,6 +212,7 @@ namespace SwiftExport.View.FW.Mvvm
 
             RaiseAllState();
         }
+
         public void Delete(T item)
         {
             if (item == null) return;
@@ -396,7 +398,6 @@ namespace SwiftExport.View.FW.Mvvm
             RaisePropertyChanged(nameof(IsAllValid));
             RaisePropertyChanged(nameof(IsAllChecked));
             RaisePropertyChanged(nameof(CheckedCount));
-            ListStateChanged?.Invoke();
         }
 
 

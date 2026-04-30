@@ -10,22 +10,51 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
     public class SalesOrderLineDto : BaseDto
     {
         public int LineNumber { get; set; }
-
+        public int SalesOrderId { get; set; }
         public string OrderNo { get; set; }
 
         public string Sku { get; set; }
         public string LinkSku { get; set; }
+        public string MaterialType { get; set; }
+
+        /// <summary>
+        /// 客户产品主键 Id（来源于 CustomerProduct.Id，用于前端后续联动或回填时定位）。
+        /// </summary>
+        public int? CustomerProductId { get; set; }
+
+        /// <summary>
+        /// 产品主键 Id（来源于 Product.Id）。
+        /// </summary>
+        public int? ProductId { get; set; }
 
         public string CustomerSKU { get; set; }
-        public string CustomerPdDescription { get; set; }
-        public string CustomerPdFinish { get; set; }
-        public string CustomerPdFeatures { get; set; }
 
-        public decimal? RMBPrice { get; set; }
+        /// <summary>
+        /// 产品英文描述（对应 Product.DescriptionEn）。
+        /// </summary>
+        public string DescriptionEn { get; set; }
+
+        /// <summary>
+        /// 产品英文颜色名（对应 ProductColor.ColorNameEn）。
+        /// </summary>
+        public string ColorNameEn { get; set; }
+
+        /// <summary>
+        /// 产品英文特性（对应 Product.FeaturesEn）。
+        /// </summary>
+        public string FeaturesEn { get; set; }
+
+        /// <summary>
+        /// 人民币单价（字段命名统一为 CNY）。
+        /// </summary>
+        public decimal? CNYPrice { get; set; }
         public decimal? USDPrice { get; set; }
         public decimal? QTY { get; set; }
 
-        public decimal? RMBAmount { get; set; }
+        /// <summary>
+        /// 人民币金额（字段命名统一为 CNY）。
+        /// </summary>
+        public decimal? CNYAmount { get; set; }
         public decimal? USDAmount { get; set; }
 
         public decimal? PcsOfCarton { get; set; }

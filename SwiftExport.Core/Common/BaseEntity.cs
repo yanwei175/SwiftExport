@@ -3,7 +3,7 @@ namespace SwiftExport.Core.Common;
 
 public abstract class BaseEntity
 {
-    public int Id { get; set; }
+    public  int Id { get; set; }
 
     // 业务层字段，不入库（Dapper 忽略即可）
     public string? Even { get; set; }

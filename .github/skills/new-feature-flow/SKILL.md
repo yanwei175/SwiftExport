@@ -16,3 +16,4 @@
 8. **View.FW 注册**：在 `SwiftExport.View.FW.DependencyInjection` 的 `AddViewApis` 中注册 API 地址。
 9. **View.FW Model**：创建 UIModel (`BaseLineModel`) 和 ListModel (`BaseListModel`)，配置 Mapster 映射。
 10. **联动修改**：修改字段时，必须同步更新 Entity, Dto, Model 及 Mapping。
+11. 只读模型:直接在仓库里使用Dto,不要另外去Core里建只读Entity,基础设施层和core层我已经引用好了Contracts.Dto定义在Contracts.

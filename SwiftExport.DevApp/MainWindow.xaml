@@ -19,6 +19,8 @@
         <Button Height="35" MinWidth="66" Content="销售订单测试2" Margin="5,5,5,5" Click="Button_Click_7"></Button>
         <Button Height="35" MinWidth="66" Content="销售订单测试3" Margin="5,5,5,5" Click="Button_Click_8"></Button>
         <Button Height="35" MinWidth="66" Content="客户窗体" Margin="5,5,5,5" Click="Button_Click_9"></Button>
+        <Button Height="35" MinWidth="66" Content="需求池" Margin="5,5,5,5" Click="Button_Click_10"></Button>
+        <Button Height="35" MinWidth="66" Content="供应商管理" Margin="5,5,5,5" Click="Button_Click_11"></Button>
 
 
     </WrapPanel>

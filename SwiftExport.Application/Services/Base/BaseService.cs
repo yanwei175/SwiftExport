@@ -166,8 +166,6 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     {
         try
         {
-
-
             var entities = await _repository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
 
             return ServiceResult<PagedResultDto<TDto>>.Ok(new PagedResultDto<TDto>

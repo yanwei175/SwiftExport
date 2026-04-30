@@ -91,7 +91,7 @@ public interface IRepository<T> where T : BaseEntity
     /// 整数类型的主键ID
     /// </param>
     /// <returns>返回受影响的行数</returns>
-    Task<int> DeleteAsync(int id);
+    Task<int> DeleteAsync(int id, bool softDelete = true);
 
 
     // 批量增删改 (返回 ID 或 受影响行数)
@@ -112,7 +112,7 @@ public interface IRepository<T> where T : BaseEntity
     /// 主键ID的列表
     /// </param>
     /// <returns>受影响行数</returns>
-    Task<int> DeleteRangeAsync(IEnumerable<int> idList);
+    Task<int> DeleteRangeAsync(IEnumerable<int> idList,bool softDelete=true);
 
     /// <summary>
     /// 泛型仓库,批量更新一批实体

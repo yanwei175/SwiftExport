@@ -96,7 +96,7 @@ namespace SwiftExport.View.FW.SystemViews.Models
         }
 
         private string _remark;
-        /// <summary>备注</summary>
+        /// <summary>SubNote</summary>
         public string Remark
         {
             get => _remark;

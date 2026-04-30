@@ -3,8 +3,12 @@ using SwiftExport.View.FW.CustomerViews.ViewModels;
 using SwiftExport.View.FW.CustomerViews.Views;
 using SwiftExport.View.FW.DictViews.ViewModels;
 using SwiftExport.View.FW.DictViews.Views;
+using SwiftExport.View.FW.OrderDecomposeViews.ViewModels;
+using SwiftExport.View.FW.OrderDecomposeViews.Views;
 using SwiftExport.View.FW.ProductViews.ViewModels;
 using SwiftExport.View.FW.ProductViews.Views;
+using SwiftExport.View.FW.PurchaseOrderViews.ViewModels;
+using SwiftExport.View.FW.PurchaseOrderViews.Views;
 using SwiftExport.View.FW.SalesOrderViews.ViewModels;
 using SwiftExport.View.FW.SalesOrderViews.Views;
 using SwiftExport.View.FW.SupplierViews.ViewModels;
@@ -33,6 +37,7 @@ namespace SwiftExport.View.FW
             // ================== 共享组件 ==================
             // 跨模块复用的选择器/弹窗 ViewModel，无对应独立 View
             services.AddTransient<ProductSelectorViewModel>();
+            services.AddTransient<CustomerSelectorDialogViewModel>();
 
             // ================== 字典管理模块 ==================
             services.AddTransient<DataDictManagerViewModel>();
@@ -66,6 +71,7 @@ namespace SwiftExport.View.FW
             // ================== 供应商模块 ==================
             services.AddTransient<SupplierManagerViewModel>();
             services.AddTransient<SupplierManagerView>();
+            services.AddTransient<SupplierProductManagerView>();
 
             // ================== 客户模块 ==================
             services.AddTransient<CustomerManagerViewModel>();
@@ -79,8 +85,14 @@ namespace SwiftExport.View.FW
             // ================== 销售订单模块 ==================
             services.AddTransient<SalesOrderManagerViewModel>();
             services.AddTransient<SalesOrderDetailViewModel>();
+            services.AddTransient<RequirementPoolManagerViewModel>();
             services.AddTransient<SalesOrderManagerView>();
             services.AddTransient<SalesOrderDetailView>();
+            services.AddTransient<RequirementPoolView>();
+
+            // ================== 采购订单模块 ==================
+            services.AddTransient<PurchaseOrderManagerViewModel>();
+            services.AddTransient<PurchaseOrderManagerView>();
 
             return services;
         }

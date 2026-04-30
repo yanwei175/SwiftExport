@@ -4,7 +4,7 @@
     public class PagedRequestDto
     {
         public int PageIndex { get; set; } = 1;
-        public int PageSize { get; set; } = 50;
+        public int PageSize { get; set; } = 20;
 
         // 模糊搜索的关键字
         public string SearchText { get; set; }

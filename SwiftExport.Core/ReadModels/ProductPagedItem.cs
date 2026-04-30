@@ -1,4 +1,4 @@
-namespace SwiftExport.Core.ReadModels.Products;
+namespace SwiftExport.Core.ReadModels;
 
 public class ProductPagedItem
 {
@@ -17,6 +17,12 @@ public class ProductPagedItem
     public string? Note { get; set; }
     public string? LinkSku { get; set; }
     public string? MainImage { get; set; }
+    public decimal? PcsOfCarton { get; set; }
+    public decimal? NwOfCarton { get; set; }
+    public decimal? GwOfCarton { get; set; }
+    public decimal? CbmOfCarton { get; set; }
+    public decimal? CNYPrice { get; set; }
+    public decimal? USDPrice { get; set; }
     public string? CustomerCode { get; set; }
     public string? CSku { get; set; }
     public string? SupplierCode { get; set; }

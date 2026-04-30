@@ -16,7 +16,7 @@
         <ResourceDictionary>
             <mt:ImgPathToImgConverter x:Key="ImgPathToImgConverter"/>
             <mt:EnumToIntConverter x:Key="EnumToIntConverter"/>
-            
+
             <Style x:Key="FinishAutoCompleteEditStyle" TargetType="TextBox" BasedOn="{StaticResource DataGridTextBoxStyle}">
                 <Setter Property="mt:DataGridDropdownAssist.ItemsSource" Value="{Binding DataContext.ProductFinishList, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
                 <Setter Property="mt:DataGridDropdownAssist.DisplayMemberPath" Value="ColorNameZh" />
@@ -41,7 +41,7 @@
         <TabControl Margin="15" Background="Transparent" BorderThickness="0"
                     SelectedIndex="{Binding ActiveTab, Mode=TwoWay,Converter={StaticResource EnumToIntConverter}}"
                     d:SelectedIndex="0">
-            
+
             <TabItem Header="客户列表" Background="Transparent">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -49,7 +49,7 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    
+
                     <Border x:Name="客户表工具栏" Grid.Row="0"  Background="{DynamicResource Brush_Bck_Card}" BorderThickness="0,0,0,1" Padding="15">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -108,7 +108,6 @@
                                   mt:DataGridAssist.EnableSoftValidation="True"
                                   mt:DataGridAssist.AutoScrollToNewItem="True"
                                   >
-
                         <DataGrid.Columns>
 
                             <mt:CheckBoxDataGridTemplateColumn 
@@ -118,49 +117,49 @@
                                             HeaderCheckBoxMargin="3"
                                             HeaderCheckBoxToolTip="全选/全不选"/>
 
-                                <DataGridTextColumn Header="客户代码" 
+                            <DataGridTextColumn Header="客户代码" 
                                             Binding="{Binding CustomerCode,UpdateSourceTrigger=PropertyChanged,ValidatesOnDataErrors=False}" 
                                             Width="100" FontWeight="Bold"/>
 
                             <DataGridTextColumn Header="客户名称" Binding="{Binding CustomerName,UpdateSourceTrigger=PropertyChanged}" Width="150"/>
 
-                                <DataGridTextColumn Header="单据关联号" Binding="{Binding DocRelateNo}" Width="120"/>
+                            <DataGridTextColumn Header="单据关联号" Binding="{Binding DocRelateNo}" Width="120"/>
 
-                                <DataGridTextColumn Header="联系人" Binding="{Binding ContactPerson}" Width="100"/>
+                            <DataGridTextColumn Header="联系人" Binding="{Binding ContactPerson}" Width="100"/>
 
-                                <DataGridTextColumn Header="电话" Binding="{Binding PhoneNumber}" Width="140"/>
+                            <DataGridTextColumn Header="电话" Binding="{Binding PhoneNumber}" Width="140"/>
 
-                                <DataGridTextColumn Header="地址" Binding="{Binding Address}" Width="150" 
+                            <DataGridTextColumn Header="地址" Binding="{Binding Address}" Width="150" 
                                             ElementStyle="{DynamicResource  MultiLineDataGridTextBlockStyle}" 
                                             EditingElementStyle="{DynamicResource MultiLineDataGridTextBoxStyle}"/>
 
-                                <!-- ==================== 贸易条款默认值字段 ==================== -->
-                                <DataGridTextColumn Header="贸易条款" Binding="{Binding Incoterm}" Width="90"/>
+                            <!-- ==================== 贸易条款默认值字段 ==================== -->
+                            <DataGridTextColumn Header="贸易条款" Binding="{Binding Incoterm}" Width="90"/>
 
-                                <DataGridTextColumn Header="贸易地点" Binding="{Binding IncotermLocation}" Width="100"/>
+                            <DataGridTextColumn Header="贸易地点" Binding="{Binding IncotermLocation}" Width="100"/>
 
-                                <DataGridTextColumn Header="定金比例" Binding="{Binding DepositRate}" Width="80"/>
+                            <DataGridTextColumn Header="定金比例" Binding="{Binding DepositRate}" Width="80"/>
 
-                                <DataGridTextColumn Header="交货周期(天)" Binding="{Binding LeadTimeDays}" Width="100"/>
+                            <DataGridTextColumn Header="交货周期(天)" Binding="{Binding LeadTimeDays}" Width="100"/>
 
-                                <DataGridTextColumn Header="付款方式" Binding="{Binding PaymentMethod}" Width="90"/>
+                            <DataGridTextColumn Header="付款方式" Binding="{Binding PaymentMethod}" Width="90"/>
 
-                                <DataGridTextColumn Header="币种" Binding="{Binding Currency}" Width="70"/>
+                            <DataGridTextColumn Header="币种" Binding="{Binding Currency}" Width="70"/>
 
-                                <DataGridTextColumn Header="承运方式" Binding="{Binding ShippedBy}" Width="90"/>
+                            <DataGridTextColumn Header="承运方式" Binding="{Binding ShippedBy}" Width="90"/>
 
-                                <DataGridTextColumn Header="交期备注" Binding="{Binding EtdSortRemark}" Width="120"
+                            <DataGridTextColumn Header="交期备注" Binding="{Binding EtdSortRemark}" Width="120"
                                             ElementStyle="{DynamicResource  MultiLineDataGridTextBlockStyle}" 
                                             EditingElementStyle="{DynamicResource MultiLineDataGridTextBoxStyle}"/>
 
-                                <DataGridTextColumn Header="贸易条款备注" Binding="{Binding IncotermSortRemark}" Width="150"
+                            <DataGridTextColumn Header="贸易条款备注" Binding="{Binding IncotermSortRemark}" Width="150"
                                             ElementStyle="{DynamicResource  MultiLineDataGridTextBlockStyle}" 
                                             EditingElementStyle="{DynamicResource MultiLineDataGridTextBoxStyle}"/>
 
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    
-                        <mt:PageNavigator Grid.Row="2" Margin="0,8,0,0" HorizontalAlignment="Right" 
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <mt:PageNavigator Grid.Row="2" Margin="0,8,0,0" HorizontalAlignment="Right" 
                                                    TotalCount="{Binding TotalCustomerTableCount}" 
                                                    PageIndex="{Binding PageCustomerTableIndex, Mode=OneWay}"
                                                    PageSize="{Binding PageCustomerTableSize, Mode=OneWay}"
@@ -168,7 +167,7 @@
 
                 </Grid>
             </TabItem>
-            
+
             <TabItem Header="客户产品管理" Background="Transparent">
                 <!-- 中文注释：子视图 CustomerProductManagerView，DataContext 由 code-behind 绑定到 CustomerProductVM -->
                 <views:CustomerProductManagerView x:Name="CustomerProductSubView"/>
@@ -180,15 +179,14 @@
             <TextBlock Grid.Row="2" Grid.Column="0" Foreground="{DynamicResource Red8Brush}"
                                Style="{StaticResource BoldTextBlock}"
                                Text="{Binding SelectedCustomer.CustomerName,StringFormat='当前选择客户: {0}'}"/>
-            
-                <TextBlock FontSize="12" Foreground="{DynamicResource Red8Brush}" 
+
+            <TextBlock FontSize="12" Foreground="{DynamicResource Red8Brush}" 
                            Margin="20,5"
                            Text="{Binding StatusMessage}" 
                            VerticalAlignment="Center"/>
-
         </StackPanel>
 
-        
+
         <mt:DialogHost d:IsHidden="True" />
     </Grid>
 </UserControl>

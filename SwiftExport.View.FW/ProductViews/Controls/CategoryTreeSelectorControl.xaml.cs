@@ -71,6 +71,9 @@ namespace SwiftExport.View.FW.ProductViews.Controls
         private readonly List<CategoryTreeModel> _allRawNodes = new List<CategoryTreeModel>();
         public ObservableCollection<CategoryTreeModel> FilteredNodes { get; } = new ObservableCollection<CategoryTreeModel>();
 
+        // 控件首次加载后默认展开一次，避免样式写死导致的状态冲突。
+        private bool _isInitialExpandPending = true;
+
         public CategoryTreeSelectorControl()
         {
             InitializeComponent();
@@ -129,15 +132,24 @@ namespace SwiftExport.View.FW.ProductViews.Controls
 
             // 2. 过滤并克隆节点
             string keyword = TxtSearch.Text?.Trim();
+            bool shouldExpandAll = _isInitialExpandPending || !string.IsNullOrEmpty(keyword);
+
             var filtered = _allRawNodes
                 .Select(x => CloneAndFilter(x, keyword))
                 .Where(x => x != null);
 
             foreach (var node in filtered)
             {
-                if (!string.IsNullOrEmpty(keyword)) SetExpansionRecursive(node, true);
+                if (shouldExpandAll) SetExpansionRecursive(node, true);
                 SubscribeEventsRecursive(node);
                 FilteredNodes.Add(node);
+            }
+
+            // 首次刷新后，标记为“当前已展开”。
+            if (_isInitialExpandPending)
+            {
+                IsExpaned = true;
+                _isInitialExpandPending = false;
             }
         }
 

@@ -1,4 +1,5 @@
 using SwiftExport.Contracts.DTOs.Base;
+using System;
 
 namespace SwiftExport.Contracts.DTOs.SalesOrders
 {
@@ -18,10 +19,10 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public string CustomerName { get; set; }
 
         // 中文注释：下单日期
-        public System.DateTime OrderDate { get; set; }
+        public DateTime? OrderDate { get; set; }
 
         // 中文注释：期望交期
-        public System.DateTime DeliveryDate { get; set; }
+        public DateTime? DeliveryDate { get; set; }
 
         // 中文注释：订单总金额（所有订单行小计的求和）
         public decimal TotalAmount { get; set; }
@@ -36,9 +37,9 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public int LineCount { get; set; }
 
         // 中文注释：创建时间（系统记录）
-        public System.DateTime CreatedTime { get; set; }
+        public DateTime? CreatedTime { get; set; }
 
         // 中文注释：最后修改时间（系统自动更新）
-        public System.DateTime ModifiedTime { get; set; }
+        public DateTime? ModifiedTime { get; set; }
     }
 }

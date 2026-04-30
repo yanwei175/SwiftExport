@@ -59,7 +59,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             ProductList = new CustomerProductList();
 
             // 预留：单元格模式联动（当前按需求禁用）
-            // ProductList.Items.CollectionChanged += ProductItems_CollectionChanged;
+            // ProductList.Items.CollectionChanged += OrderLineItems_CollectionChanged;
             // AttachItemHandlers(ProductList.Items);
 
             // ====== 命令初始化 ======
@@ -557,6 +557,10 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                         row.Description = selectedPopupProduct.DescriptionEn;
                         row.CustomerPdDescription = selectedPopupProduct.DescriptionEn;
                         row.CustomerPdFeatures = selectedPopupProduct.FeaturesEn;
+                        // 中文注释：选择关联物料时，默认带出标准产品美元/CNYPrice，
+                        // 便于客户产品行后续快速调整，减少重复录入。
+                        row.USDPrice = selectedPopupProduct.USDPrice;
+                        row.CNYPrice = selectedPopupProduct.CNYPrice;
                         row.MainImage = selectedPopupProduct.MainImage;
                         row.IsActive = true;
 
@@ -607,14 +611,14 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         /// <summary>
         /// 监听列表新增/移除，维护每行 PropertyChanged 订阅。
         /// </summary>
-        private void ProductItems_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void OrderLineItems_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (e?.NewItems != null)
             {
                 foreach (var item in e.NewItems.OfType<CustomerProductModel>())
                 {
-                    item.PropertyChanged -= ProductItem_PropertyChanged;
-                    item.PropertyChanged += ProductItem_PropertyChanged;
+                    item.PropertyChanged -= SalesOrderLineItem_PropertyChanged;
+                    item.PropertyChanged += SalesOrderLineItem_PropertyChanged;
                 }
             }
 
@@ -622,7 +626,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             {
                 foreach (var item in e.OldItems.OfType<CustomerProductModel>())
                 {
-                    item.PropertyChanged -= ProductItem_PropertyChanged;
+                    item.PropertyChanged -= SalesOrderLineItem_PropertyChanged;
                 }
             }
         }
@@ -635,8 +639,8 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             if (items == null) return;
             foreach (var item in items)
             {
-                item.PropertyChanged -= ProductItem_PropertyChanged;
-                item.PropertyChanged += ProductItem_PropertyChanged;
+                item.PropertyChanged -= SalesOrderLineItem_PropertyChanged;
+                item.PropertyChanged += SalesOrderLineItem_PropertyChanged;
             }
         }
 
@@ -644,20 +648,20 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         /// 当 Sku 变化时，自动联动 SkuId/LinkSku/DescriptionEn/MainImage。
         /// 兼容：手工输入、Popup 回填、Ctrl+D、粘贴。
         /// </summary>
-        private async void ProductItem_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private async void SalesOrderLineItem_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             if (e == null || e.PropertyName != nameof(CustomerProductModel.Sku)) return;
 
             var row = sender as CustomerProductModel;
             if (row == null) return;
 
-            await TryApplyProductLinkageBySkuAsync(row);
+            await TryApplyLinkageAsync(row);
         }
 
         /// <summary>
         /// 根据行内 Sku 尝试联动产品信息。
         /// </summary>
-        private async Task TryApplyProductLinkageBySkuAsync(CustomerProductModel row)
+        private async Task TryApplyLinkageAsync(CustomerProductModel row)
         {
             if (row == null) return;
             if (_linkingRows.Contains(row)) return;

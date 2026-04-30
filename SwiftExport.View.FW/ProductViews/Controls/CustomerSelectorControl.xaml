@@ -10,10 +10,11 @@
         <mt:SearchableTextBox x:Name="PART_SearchBox"
                               ItemsSource="{Binding Items, ElementName=Root}"
                               SelectedItem="{Binding SelectedItem, ElementName=Root, Mode=TwoWay}"
+                              SelectedValuePath="{Binding SelectedValuePath, ElementName=Root, Mode=TwoWay}"
+                              SelectedValue="{Binding SelectedValue, ElementName=Root, Mode=TwoWay}"
                               DisplayMemberPath="CustomerCode"
                               FilterMemberPaths="CustomerCode,Name,ContactPerson"
                               RequireItemMatch="True"
-                              mt:TextBoxAssist.Placeholder="搜索客户代码" 
-                              Height="30" />
+                              Placeholder="搜索客户代码"/>
     </Grid>
 </UserControl>

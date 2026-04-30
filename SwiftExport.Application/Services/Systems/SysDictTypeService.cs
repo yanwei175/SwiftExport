@@ -36,7 +36,8 @@ namespace SwiftExport.Application.Services.Systems
             try
             {
                 // 1. 获取所有字典类型（仅用泛型 Repository 的 GetAllAsync）
-                var allDictTypesReadOnly = await _repository.GetAllAsync();
+                // 防御性处理：确保不会将可能为 null 的返回值赋给不可为 null 的变量，避免 CS8600
+                var allDictTypesReadOnly = (await _repository.GetAllAsync()) ?? Enumerable.Empty<SysDictType>();
 
                 // GetAllAsync 返回值不可为 null，无需 null 判断，直接检查是否为空集合
                 if (!allDictTypesReadOnly.Any())
@@ -85,18 +86,21 @@ namespace SwiftExport.Application.Services.Systems
         private static List<DictTypeGroupTreeDto> BuildGroupedTree(List<SysDictType> allDictTypes)
         {
             // 1. 使用 Mapster 将 Entity 转换为 DTO
-            var dictTypeDtos = allDictTypes.Adapt<List<SysDictTypeDto>>();
+            // Adapt 可能返回 null（取决于 Mapster 配置），使用空列表替代以避免 CS8600
+            var dictTypeDtos = allDictTypes.Adapt<List<SysDictTypeDto>>() ?? new List<SysDictTypeDto>();
 
             // 2. 按 GroupCode 分组（第一层级聚合）
+            // 防止列表中出现 null 元素，先过滤 null
             var groupedByCode = dictTypeDtos
-                .GroupBy(x => new { x.GroupCode, x.GroupName })
+                .Where(x => x is not null)
+                .GroupBy(x => new { x!.GroupCode, x!.GroupName })
                 .OrderBy(g => g.First().SortOrder)
                 .ToList();
 
             var treeRoot = new List<DictTypeGroupTreeDto>();
 
             // 3. 创建未分组节点（用于收集所有 GroupCode 为空的字典类型）
-            DictTypeGroupTreeDto ungroupedNode = null;
+            DictTypeGroupTreeDto? ungroupedNode = null;
 
             foreach (var group in groupedByCode)
             {
@@ -166,17 +170,21 @@ namespace SwiftExport.Application.Services.Systems
         /// </summary>
         private static List<DictTypeTreeDto> BuildDictTypeTree(List<SysDictTypeDto> dictTypes)
         {
-            if (dictTypes.Count == 0)
+            if (dictTypes == null || dictTypes.Count == 0)
             {
                 return new List<DictTypeTreeDto>();
             }
 
             var rootNodes = new List<DictTypeTreeDto>();
-            var nodeDict = dictTypes.ToDictionary(x => x.Id);
+
+            // 过滤任何可能为 null 的元素并构建字典，避免将 null 值转换为不可为 null 的键/值（CS8600）
+            var nonNullDictTypes = dictTypes.Where(x => x is not null).Select(x => x!).ToList();
+
+            var nodeDict = nonNullDictTypes.ToDictionary(x => x.Id);
             var treeNodeDict = new Dictionary<int, DictTypeTreeDto>();
 
             // 1. 先创建所有树形节点
-            foreach (var dictType in dictTypes.OrderBy(x => x.SortOrder))
+            foreach (var dictType in nonNullDictTypes.OrderBy(x => x.SortOrder))
             {
                 var treeNode = new DictTypeTreeDto
                 {
@@ -196,27 +204,29 @@ namespace SwiftExport.Application.Services.Systems
                 treeNodeDict[dictType.Id] = treeNode;
             }
 
-            // 2. 建立父子关系
-            foreach (var dictType in dictTypes.OrderBy(x => x.SortOrder))
+            // 2. 建立父子关系（安全处理可空 ParentId，避免 CS8629）
+            foreach (var dictType in nonNullDictTypes.OrderBy(x => x.SortOrder))
             {
                 var treeNode = treeNodeDict[dictType.Id];
 
-                // 判断是否为根节点（ParentId 为 null 或 0，或指向不存在的节点）
-                bool isRootNode = dictType.ParentId == null || 
-                                  dictType.ParentId == 0 || 
-                                  !nodeDict.ContainsKey(dictType.ParentId.Value);
-
-                if (isRootNode)
+                // 使用局部变量并检查 HasValue，保证在使用 Value 前非空
+                var parentId = dictType.ParentId;
+                if (!parentId.HasValue || parentId.Value == 0 || !nodeDict.ContainsKey(parentId.Value))
                 {
+                    // 视为根节点
                     rootNodes.Add(treeNode);
                 }
                 else
                 {
-                    // 为子节点，添加到父节点
-                    var parentId = dictType.ParentId.Value;
-                    if (treeNodeDict.ContainsKey(parentId))
+                    var pid = parentId.Value; // 此处安全，因为已检查 HasValue
+                    if (treeNodeDict.TryGetValue(pid, out DictTypeTreeDto? value))
                     {
-                        treeNodeDict[parentId].Children.Add(treeNode);
+                        value.Children.Add(treeNode);
+                    }
+                    else
+                    {
+                        // 如果父节点在 treeNodeDict 中不存在，则仍视为根节点
+                        rootNodes.Add(treeNode);
                     }
                 }
             }

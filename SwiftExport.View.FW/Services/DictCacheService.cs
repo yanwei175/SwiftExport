@@ -26,10 +26,8 @@ namespace SwiftExport.View.FW.Services
         // 核心字典代码列表，预加载时默认使用该列表，如果需要加载其他字典，可以在调用 PreloadAsync 时指定 dictCodes 参数
         private static readonly string[] CoreDictCodes =
         {
-            DictCodes.SupplyType,
             DictCodes.Currency,
-            DictCodes.CustomerType,
-            DictCodes.ProductType
+            DictCodes.CustomerType
         };
 
         private readonly ISysDictDataApi _dictDataApi;

@@ -6,9 +6,7 @@ using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
-using System.Collections.Generic;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace SwiftExport.Infrastructure.Repositories.Products;
 
@@ -38,7 +36,8 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
                 cp.CustomerBarcode1,
                 cp.CustomerBarcode2,
                 cp.CustomerSkuUnit,
-                cp.Price,
+                cp.USDPrice,
+                cp.CNYPrice,
                 cp.Currency,
                 cp.LeadTimeDays,
                 cp.MOQ,
@@ -59,7 +58,7 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
     }
 
     // ============================================================
-    // 联表分页查询（隐藏基类泛型 GetPagedListAsync）
+    // 联表分页查询（隐藏基类泛型 GetPagedSalesOrderLineSourceDtoAsync）
     // ============================================================
     /// <summary>
     /// 联表分页查询，返回 CustomerProductPagedItem 读模型。
@@ -71,11 +70,7 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
     ///   - 直接写字段名（如 CustomerId / CustomerSku / Sku）→ 映射到 cp.字段
     ///   - CategoryId → 映射到 p.CategoryId
     /// </summary>
-    public new async Task<PagedResult<CustomerProductDto>> GetPagedListAsync(
-        QueryCriteria criteria,
-        int pageIndex,
-        int pageSize,
-        string orderBy = "cp.Id DESC")
+    public  async Task<PagedResult<CustomerProductDto>> GetPagedCustomerProductAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "cp.Id DESC")
     {
         // 🛡️ orderBy 安全清洗
         if (string.IsNullOrWhiteSpace(orderBy))
@@ -144,7 +139,8 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
                 cp.CustomerBarcode1,
                 cp.CustomerBarcode2,
                 cp.CustomerSkuUnit,
-                cp.Price,
+                cp.USDPrice,
+                cp.CNYPrice,
                 cp.Currency,
                 cp.LeadTimeDays,
                 cp.MOQ,
@@ -152,6 +148,7 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
                 -- JOIN 补充字段
                 c.CustomerCode,
                 p.DescriptionEn,
+                p.MaterialType,
                 p.MainImage,
                 pc.CategoryName
             {joinClause}

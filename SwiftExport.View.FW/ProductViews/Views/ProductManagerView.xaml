@@ -105,6 +105,19 @@
 
                     <controls:ColorSelectorControl SelectedItem="{Binding FilterColorDto, Mode=TwoWay}" MinWidth="140" Height="30" />
 
+                    <TextBlock Text="物料类型" FontWeight="SemiBold" Foreground="{StaticResource Brush_Txt_Primary}" Margin="0,8,0,8"/>
+                    <ComboBox 
+                        ItemsSource="{Binding FilterMaterialTypeList}"
+                        SelectedItem="{Binding FilterMaterialTypeSelected, Mode=TwoWay}" MinWidth="140" Height="30">
+                    </ComboBox>
+                    
+                    <Button Style="{StaticResource ButtonPrimary}" Margin="0,8,0,8"
+                            Content="立即查询"
+                            Command="{Binding RefreshProductCommand}"
+                            mt:ButtonAssist.IconSize="12"
+                            mt:ButtonAssist.Icon="{StaticResource Icon.Search}" >
+                    </Button>
+
                     <Button Style="{StaticResource ButtonOutline}" Margin="0,8,0,8"
                             Content="重置条件"
                             Command="{Binding ResetFilterCommand}"
@@ -112,12 +125,6 @@
                             mt:ButtonAssist.Icon="{StaticResource Icon.Reset}" >
                     </Button>
 
-                    <Button Style="{StaticResource ButtonOutline}" Margin="0,8,0,8"
-                            Content="立即查询"
-                            Command="{Binding RefreshProductCommand}"
-                            mt:ButtonAssist.IconSize="12"
-                            mt:ButtonAssist.Icon="{StaticResource Icon.Search}" >
-                    </Button>
                 </StackPanel>
 
                 <StackPanel Grid.Row="1" Margin="0,0,0,8">
@@ -683,6 +690,7 @@
                         </ScrollViewer>
                     </TabItem>
                 </TabControl>
+            
             </Grid>
         </Border>
         <!--#endregion-->

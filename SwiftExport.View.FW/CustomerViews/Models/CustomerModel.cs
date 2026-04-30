@@ -147,7 +147,7 @@ namespace SwiftExport.View.FW.CustomerViews.Models
 
         private decimal _depositRate;
         /// <summary>
-        /// 定金比例（如 30%）
+        /// DepositRate（如 30%）
         /// </summary>
         public decimal DepositRate
         {
@@ -187,7 +187,7 @@ namespace SwiftExport.View.FW.CustomerViews.Models
 
         private string _etdSortRemark;
         /// <summary>
-        /// ETD 备注（用于告知客户预计离港时间）
+        /// ETD SubNote（用于告知客户预计离港时间）
         /// </summary>
         public string EtdSortRemark
         {
@@ -237,7 +237,7 @@ namespace SwiftExport.View.FW.CustomerViews.Models
         public override string ValidateRow()
         {
             //// 示例：数量和单价必须同时有效
-            //if (数量 > 0 && 美金单价 > 0)
+            //if (QTY > 0 && USDPrice > 0)
             return null;
 
             //return "数量和单价必须同时有效";
@@ -252,7 +252,7 @@ namespace SwiftExport.View.FW.CustomerViews.Models
         public override async Task<string> ValidateAsync()
         {
             // 示例（伪代码）：
-            // if (!await ProductService.ExistsAsync(物料编码))
+            // if (!await ProductService.ExistsAsync(Sku))
             //     return "SKU 不存在于数据库";
 
             return null; // 默认无错误

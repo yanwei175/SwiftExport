@@ -211,7 +211,7 @@ namespace SwiftExport.View.FW.ProductViews.Assists
             // 复用主表图片列已有的 LRU 磁盘缓存转换器
             var imgConverter = new ImgPathToImgConverter();
 
-            // 构建富模板：DockPanel[ 图片(左) | 颜色(右) | SKU+描述(填充) ]
+            // 构建富模板：DockPanel[ 图片(左) | ColorNameEn(右) | SKU+DescriptionEn(填充) ]
             var itemTemplate = new DataTemplate();
             var dock = new FrameworkElementFactory(typeof(DockPanel));
             dock.SetValue(DockPanel.LastChildFillProperty, true);
@@ -228,7 +228,7 @@ namespace SwiftExport.View.FW.ProductViews.Assists
             img.SetBinding(Image.SourceProperty, new Binding("MainImage") { Converter = imgConverter });
             dock.AppendChild(img);
 
-            // 颜色/Finish（右侧固定 78px，蓝色）
+            // ColorNameEn/Finish（右侧固定 78px，蓝色）
             var tbFinish = new FrameworkElementFactory(typeof(TextBlock));
             tbFinish.SetValue(DockPanel.DockProperty, Dock.Right);
             tbFinish.SetValue(FrameworkElement.WidthProperty, 78.0);
@@ -240,7 +240,7 @@ namespace SwiftExport.View.FW.ProductViews.Assists
             tbFinish.SetBinding(TextBlock.TextProperty, new Binding("Finish"));
             dock.AppendChild(tbFinish);
 
-            // SKU + 描述（垂直堆叠，填充剩余空间）
+            // SKU + DescriptionEn（垂直堆叠，填充剩余空间）
             var textStack = new FrameworkElementFactory(typeof(StackPanel));
             textStack.SetValue(StackPanel.OrientationProperty, Orientation.Vertical);
             textStack.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);

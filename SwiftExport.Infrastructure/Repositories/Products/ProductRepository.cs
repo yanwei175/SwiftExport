@@ -1,38 +1,17 @@
 ﻿using Dapper;
+using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.MasterData; // 引用 Core
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Core.ReadModels.Products;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
-
+using SwiftExport.Contracts.Wrappers;
 namespace SwiftExport.Infrastructure.Repositories.Products;
 
 
 
 public partial class ProductRepository(RepositoryBaseContext context) : DapperRepository<Product>(context), IProductRepository
 {
-    // ⚡ 关键：SQL 映射桥接
-    // 数据库里的字段 (Chinese/Pinyin) -> 实体属性 (English)
-    private const string SelectSql = @"
-        SELECT 
-            ID as Id,
-            SKU as Sku,
-            DescriptionEn as Description,
-            
-            -- 处理拼音/旧命名映射
-            RMBPrice as RmbPrice,
-            USDPrice as UsdPrice,
-            
-            -- 处理那些必填字段 (= default!)
-            -- 如果数据库是 NULL，用 ISNULL 给个默认值防止报错
-            ISNULL(CustomerCode, '') as CustomerCode,
-            ISNULL(CSKU, '') as CSku,
-            ISNULL(CDescription, '') as CDescription, 
-            
-            CreateDate as CreatedTime
-        FROM Product 
-        WHERE IsDelete = 0"; // 假设你的软删除字段叫 IsDelete
 
     public async Task<IReadOnlyList<string>> GetAllCustomerCodeListAsync()
     {
@@ -47,40 +26,30 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         return await Connection.QueryFirstOrDefaultAsync<Product>(sql, new { Sku = sku }, transaction: Transaction);
     }
 
+    /// <summary>
+    /// 按 SKU 列表批量查询产品。
+    /// </summary>
+    public async Task<IReadOnlyList<Product>> GetBySkuListAsync(IEnumerable<string> skuList)
+    {
+        if (skuList == null) return [];
+
+        var normalized = skuList
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalized.Count == 0) return [];
+
+        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE [Sku] IN @SkuList AND (IsDeleted = 0 OR IsDeleted IS NULL)";
+        var rst = await Connection.QueryAsync<Product>(sql, new { SkuList = normalized }, transaction: Transaction);
+        return [.. rst];
+    }
+
     [System.Text.RegularExpressions.GeneratedRegex(@"[^a-zA-Z0-9_,\s\.\[\]]")]
     private static partial System.Text.RegularExpressions.Regex OrderByRegex();
 
-    public override async Task<PagedResult<Product>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Id DESC")
-    {
-        var readModelPage = await GetPagedReadModelAsync(criteria, pageIndex, pageSize, orderBy);
-        return new PagedResult<Product>
-        {
-            TotalCount = readModelPage.TotalCount,
-            PageIndex = readModelPage.PageIndex,
-            PageSize = readModelPage.PageSize,
-            Items = [.. readModelPage.Items.Select(x => new Product
-            {
-                Id = x.Id,
-                MasterSku = x.MasterSku,
-                Sku = x.Sku,
-                DescriptionEn = x.DescriptionEn,
-                ColorId = x.ColorId,
-                FeaturesEn = x.FeaturesEn,
-                SupplyType = x.SupplyType ?? string.Empty,
-                BomNo = x.BomNo,
-                Note = x.Note,
-                LinkSku = x.LinkSku,
-                MainImage = x.MainImage,
-                CustomerCode = x.CustomerCode,
-                CSku = x.CSku,
-                SupplierCode = x.SupplierCode,
-                SSku = x.SSku,
-                CategoryId = x.CategoryId
-            })]
-        };
-    }
-
-    public async Task<PagedResult<ProductPagedItem>> GetPagedReadModelAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Id DESC")
+    public async Task<PagedResult<ProductDto>> GetPagedProductDtoAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Id DESC")
     {
         // 1. 规范化排序字段（如果外部传的是 Id，变为 t.Id 防止多表冲突）
         if (string.IsNullOrWhiteSpace(orderBy))
@@ -112,10 +81,29 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
             pc.ColorCodeUnique, 
             pc.ColorCode, 
             pc.ColorNameEn, 
-            pc.ColorNameZh as Finish
+            pc.ColorNameZh as Finish,
+            -- 下面这些字段从 APPLY 的别名 pkg 中获取
+            pkg.PcsOfCarton,
+            pkg.NwOfCarton,
+            pkg.GwOfCarton,
+            pkg.CbmOfCarton
         FROM [{TableName}] p WITH(NOLOCK)
-        LEFT JOIN [ProductColor] pc WITH(NOLOCK) ON p.ColorId = pc.Id AND (pc.IsDeleted = 0 OR pc.IsDeleted IS NULL)
-        LEFT JOIN [ProductCategory] pat WITH(NOLOCK) ON p.CategoryId = pat.Id AND (pat.IsDeleted = 0 OR pat.IsDeleted IS NULL)
+        LEFT JOIN [ProductColor] pc WITH(NOLOCK) ON p.ColorId = pc.Id AND pc.IsDeleted = 0
+        LEFT JOIN [ProductCategory] pat WITH(NOLOCK) ON p.CategoryId = pat.Id AND pat.IsDeleted = 0
+    
+        -- 使用 OUTER APPLY 代替 LEFT JOIN
+        OUTER APPLY (
+            SELECT TOP 1 
+                pp.PcsPerPackage as PcsOfCarton,
+                pp.Nw_KG as NwOfCarton,
+                pp.Gw_KG as GwOfCarton,
+                pp.Cbm as CbmOfCarton
+            FROM [ProductPackage] pp 
+            WHERE pp.ProductId = p.Id 
+              AND pp.IsDeleted = 0
+            -- 核心逻辑：优先取默认的，如果没有默认的，取装数最多的（通常是外箱）
+            ORDER BY pp.IsDefault DESC, pp.PcsPerPackage DESC 
+        ) pkg
     ";
 
         // 5. 组合最终 SQL
@@ -130,9 +118,9 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
 
         using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
         var totalCount = await multi.ReadFirstAsync<int>();
-        var items = await multi.ReadAsync<ProductPagedItem>();
+        var items = await multi.ReadAsync<ProductDto>();
 
-        return new PagedResult<ProductPagedItem>
+        return new PagedResult<ProductDto>
         {
             TotalCount = totalCount,
             PageIndex = pageIndex,

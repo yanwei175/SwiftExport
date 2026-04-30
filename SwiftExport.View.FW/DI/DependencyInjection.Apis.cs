@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Refit;
 using SwiftExport.Contracts.Apis.CustomerApis;
+using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
@@ -65,6 +66,7 @@ namespace SwiftExport.View.FW
             services.AddErpApi<ISysDicCurrencyApi>(apiBaseUrl + "/api/SysDicCurrency");
             services.AddErpApi<ISysDicCurrencyExchangeApi>(apiBaseUrl + "/api/SysDicCurrencyExchange");
             services.AddErpApi<ISysViewRouteApi>(apiBaseUrl + "/api/SysViewRoute");
+            services.AddErpApi<IDocumentNoApi>(apiBaseUrl + "/api/DocumentNo");
 
             // ================== 产品模块 ==================
             services.AddErpApi<IProductApi>(apiBaseUrl + "/api/Product");
@@ -82,6 +84,9 @@ namespace SwiftExport.View.FW
 
             // ================== 销售订单模块 ==================
             services.AddErpApi<ISalesOrderApi>(apiBaseUrl + "/api/SalesOrder");
+            services.AddErpApi<IRequirementPoolApi>(apiBaseUrl + "/api/SalesOrderDecomposeBridge");
+            services.AddErpApi<IPurchaseOrderApi>(apiBaseUrl + "/api/PurchaseOrder");
+            services.AddErpApi<IReceiveApi>(apiBaseUrl + "/api/Receive");
 
             return services;
         }

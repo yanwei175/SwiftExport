@@ -1,14 +1,10 @@
-﻿using Mapster;
-using SwiftExport.Contracts.DTOs.SalesOrders;
-using SwiftExport.Contracts.Wrappers;
+﻿using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.View.FW.Mvvm;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace SwiftExport.View.FW.SalesOrderViews.Models
 {
@@ -16,28 +12,16 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
     /// 行集合模型（企业级 ERP 标准）
     /// 负责：
     /// 1. 自动行号管理（新增行使用负数行号）
-    /// 2. 自动监听行变化（金额、箱数、重量、体积）
+    /// 2. 自动监听行变化（金额、Ctns、重量、体积）
     /// 3. 自动合计（总金额、总箱数、总重量、总体积）
     /// 4. 自动验证（所有行是否有效）
     /// 5. 自动 ChangeSet（一次性提交 Added/Modified/Deleted）
     /// 6. 脏数据检测（IsDirty）
     /// 7. 软删除（DeleteLine）
     /// </summary>
-    public class SalesOrderLineList : ViewModelBaseEx
+    public class SalesOrderLineList : BaseListModel<SalesOrderLineModel>
     {
         private SalesOrderHeaderModel _header;
-        private bool _isSyncingCheckState;
-
-        /// <summary>
-        /// UI 可见的行集合（用于 DataGrid 绑定）
-        /// </summary>
-        public ObservableCollection<SalesOrderLineModel> Items { get; } = new ObservableCollection<SalesOrderLineModel>();
-
-        /// <summary>
-        /// 内部所有行（包括 Deleted 行）
-        /// 用于 ChangeSet、IsDirty 等业务逻辑
-        /// </summary>
-        private readonly List<SalesOrderLineModel> _allItems = new List<SalesOrderLineModel>();
 
         private int _tempLineNumber = -1; // 新增行使用负数行号
 
@@ -47,7 +31,11 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         public SalesOrderLineList(SalesOrderHeaderModel header)
         {
+            // 中文注释：基类已经订阅了 CollectionChanged，这里只保留订单行自己的扩展逻辑。
             Items.CollectionChanged += OnCollectionChanged;
+            // 中文注释：统一监听列表状态变化（行属性变化、勾选变化、增删变化），
+            // 用于刷新汇总和选择状态代理字段。
+            ListStateChanged += OnListStateChanged;
             BindHeader(header);
         }
 
@@ -77,45 +65,32 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// <summary>
         /// 从 DTO 加载行集合（用于加载订单）
         /// </summary>
-        public void LoadFromDto(List<SalesOrderLineDto> dtos)
+        public override void ReLoadRangeFromDtoList<SalesOrderLineDto>(List<SalesOrderLineDto> dtos)
         {
             _isSuppressingTotals = true; // 锁定计算
             try
             {
-                // 中文注释：重新加载订单明细时，需要同时清空 UI 集合与内部追踪集合，避免残留旧状态。
-                Items.Clear();
-                _allItems.Clear();
+                // 中文注释：直接复用基类批量加载逻辑，避免重复维护 _allItems 与事件订阅。
+                base.ReLoadRangeFromDtoList(dtos);
 
                 // 中文注释：重置临时行号种子，保证之后新增行仍从负数开始分配。
                 _tempLineNumber = -1;
-
-                if (dtos == null || dtos.Count == 0)
-                {
-                    RecalculateTotals();
-                    UpdateSelectionState();
-                    RaisePropertyChanged(nameof(IsDirty));
-                    RaisePropertyChanged(nameof(IsAllValid));
-                    return;
-                }
-
-                foreach (var dto in dtos)
-                {
-                    // 中文注释：加载场景统一走行模型自己的 LoadFromDto，
-                    // 由行模型内部负责 程序内部修改Scope、字段映射和状态清理。
-                    var line = new SalesOrderLineModel();
-                    line.LoadFromDto(dto);
-                    Items.Add(line);
-                }
-
-                UpdateSelectionState();
-                RaisePropertyChanged(nameof(IsDirty));
-                RaisePropertyChanged(nameof(IsAllValid));
             }
             finally
             {
                 _isSuppressingTotals = false;
                 RecalculateTotals(); // 统一计算一次
             }
+            RaiseAllState();//最终刷新状态，确保 UI 绑定的合计字段、校验状态、保存按钮等都能正确响应。
+        }
+
+        /// <summary>
+        /// 中文注释：兼容旧调用入口的加载方法。
+        /// 外部仍可通过 LoadFromDto 传入明细 DTO 列表，内部统一走重载批量加载逻辑。
+        /// </summary>
+        public void LoadFromDto(List<SalesOrderLineDto> dtos)
+        {
+            ReLoadRangeFromDtoList(dtos);
         }
 
         // ============================================================
@@ -172,127 +147,33 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         }
 
         #endregion
-        // ============================================================
-        // 1.1 勾选字段（UI 可绑定）
-        // ============================================================
-        #region 勾选字段
 
-        private bool _isAllChecked;
-        /// <summary>
-        /// 中文注释：表头“全选/全不选”复选框绑定字段。
-        /// 当用户勾选表头时，自动同步所有可见行的 IsChecked。
-        /// </summary>
-        public bool IsAllChecked
-        {
-            get => _isAllChecked;
-            set
-            {
-                if (SetProperty(ref _isAllChecked, value))
-                {
-                    if (_isSyncingCheckState)
-                        return;
-
-                    SetAllChecked(value);
-                }
-            }
-        }
-
-        private int _selectedCount;
-        /// <summary>
-        /// 中文注释：当前已勾选的可见行数。
-        /// </summary>
-        public int SelectedCount
-        {
-            get => _selectedCount;
-            private set => SetProperty(ref _selectedCount, value);
-        }
-
-        private bool _hasSelectedItems;
-        /// <summary>
-        /// 中文注释：是否存在至少一条已勾选的可见行。
-        /// 可用于启用/禁用批量删除、批量导出等按钮。
-        /// </summary>
-        public bool HasSelectedItems
-        {
-            get => _hasSelectedItems;
-            private set => SetProperty(ref _hasSelectedItems, value);
-        }
-
-        #endregion
         // ============================================================
         // 2. 集合变更事件（新增/删除行）
         // ============================================================
         private void OnCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            // 新增行
+            // 中文注释：新增行时仅处理业务扩展（自动分配负数行号）。
+            // _allItems 维护、校验状态刷新、勾选状态刷新由基类统一处理。
             if (e.NewItems != null)
             {
                 foreach (SalesOrderLineModel line in e.NewItems)
                 {
                     // 新增行 → 自动分配负数行号
-                    if (line.行号 == 0)
-                        line.行号 = _tempLineNumber--;
-
-                    // 加入内部列表
-                    if (!_allItems.Contains(line))
-                        _allItems.Add(line);
-
-                    // 监听行变化
-                    line.PropertyChanged += OnLinePropertyChanged;
+                    if (line.LineNumber == 0)
+                        line.LineNumber = _tempLineNumber--;
                 }
             }
-
-            // 删除行（UI 隐藏，但不从 _allItems 删除）
-            if (e.OldItems != null)
-            {
-                foreach (SalesOrderLineModel line in e.OldItems)
-                {
-                    line.PropertyChanged -= OnLinePropertyChanged;
-                }
-            }
-
-            RecalculateTotals();
-            UpdateSelectionState();
-            RaisePropertyChanged(nameof(IsDirty));
-            RaisePropertyChanged(nameof(IsAllValid));
         }
 
-        // ============================================================
-        // 3. 行变化事件（金额、箱数、重量、体积变化）
-        // ============================================================
-        private void OnLinePropertyChanged(object sender, PropertyChangedEventArgs e)
+        /// <summary>
+        /// 中文注释：列表状态变化统一回调。
+        /// 由基类在行属性变更、集合变更后触发，这里只做订单行特有逻辑。
+        /// </summary>
+        private void OnListStateChanged()
         {
-            string[] watchedProps =
-            {
-                nameof(SalesOrderLineModel.数量),
-                nameof(SalesOrderLineModel.美金小计),
-                nameof(SalesOrderLineModel.人民币小计),
-                nameof(SalesOrderLineModel.箱数),
-                nameof(SalesOrderLineModel.净重小计),
-                nameof(SalesOrderLineModel.毛重小计),
-                nameof(SalesOrderLineModel.体积小计)
-            };
-
-            if (watchedProps.Contains(e.PropertyName))
-            {
-                RecalculateTotals();
-            }
-
-            // 中文注释：单行勾选状态变化时，需要同步表头全选状态与选中数量统计。
-            if (e.PropertyName == nameof(BaseLineModel.IsChecked))
-            {
-                UpdateSelectionState();
-            }
-
-            // 中文注释：任意行字段变化都可能影响 IsValid/ValidateRow，
-            // 因此这里统一刷新 IsAllValid，确保保存按钮和校验状态及时联动。
-            RaisePropertyChanged(nameof(IsAllValid));
-
-            // 行状态变化 → 脏数据变化
-            if (e.PropertyName == nameof(SalesOrderLineModel.State))
-            {
-                RaisePropertyChanged(nameof(IsDirty));
-            }
+            RecalculateTotals();
+            UpdateSelectionState();
         }
 
         /// <summary>
@@ -301,8 +182,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// </summary>
         private void OnHeaderPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(SalesOrderHeaderModel.货币) ||
-                e.PropertyName == nameof(SalesOrderHeaderModel.汇率))
+            if (e.PropertyName == nameof(SalesOrderHeaderModel.Currency) ||
+                e.PropertyName == nameof(SalesOrderHeaderModel.ExchangeRate))
             {
                 SyncHeaderSummary();
             }
@@ -315,23 +196,14 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         {
             if (_isSuppressingTotals) return;
 
-            DispatcherProvider.BeginInvoke(() =>
-            {
-                if (_isSuppressingTotals) return;
-                TotalUsdAmount = Items.Sum(x => x.美金小计);
-                TotalRmbAmount = Items.Sum(x => x.人民币小计);
-                TotalCtns = Items.Sum(x => x.箱数);
-                TotalNw = Items.Sum(x => x.净重小计);
-                TotalGw = Items.Sum(x => x.毛重小计);
-                TotalCbm = Items.Sum(x => x.体积小计);
-                SyncHeaderSummary();
-            });
-            TotalUsdAmount = Items.Sum(x => x.美金小计);
-            TotalRmbAmount = Items.Sum(x => x.人民币小计);
-            TotalCtns = Items.Sum(x => x.箱数);
-            TotalNw = Items.Sum(x => x.净重小计);
-            TotalGw = Items.Sum(x => x.毛重小计);
-            TotalCbm = Items.Sum(x => x.体积小计);
+            // 中文注释：合计字段统一在 UI 线程刷新，避免跨线程更新绑定属性。
+            TotalUsdAmount = Items.Sum(x => x.USDAmount);
+            TotalRmbAmount = Items.Sum(x => x.CNYAmount);
+            TotalQty = Items.Sum(x => x.QTY);
+            TotalCtns = Items.Sum(x => x.Ctns);
+            TotalNw = Items.Sum(x => x.NwSubTotal);
+            TotalGw = Items.Sum(x => x.GwSubTotal);
+            TotalCbm = Items.Sum(x => x.CbmSubTotal);
 
             SyncHeaderSummary();
         }
@@ -343,7 +215,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         private void SyncHeaderSummary()
         {
             if (_header == null) return;
-            var totalQty = Items.Sum(x => x.数量);
+            var totalQty = Items.Sum(x => x.QTY);
             var lineCount = Items.Count;
             var totalAmountOriginalCurrency = ResolveOriginalCurrencyAmount();
             var totalAmountLocalCurrency = ResolveLocalCurrencyAmount(totalAmountOriginalCurrency);
@@ -370,7 +242,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             if (_header == null)
                 return TotalUsdAmount;
 
-            var currency = (_header.货币 ?? string.Empty).Trim().ToUpperInvariant();
+            var currency = (_header.Currency ?? string.Empty).Trim().ToUpperInvariant();
             if (currency == "RMB" || currency == "CNY")
                 return TotalRmbAmount;
 
@@ -388,174 +260,39 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             if (_header == null)
                 return TotalRmbAmount;
 
-            var currency = (_header.货币 ?? string.Empty).Trim().ToUpperInvariant();
+            var currency = (_header.Currency ?? string.Empty).Trim().ToUpperInvariant();
             if (currency == "RMB" || currency == "CNY")
                 return totalAmountOriginalCurrency;
 
-            if (_header.汇率 > 0)
-                return Math.Round(totalAmountOriginalCurrency * _header.汇率, 2, MidpointRounding.AwayFromZero);
+            if (_header.ExchangeRate > 0)
+                return Math.Round(totalAmountOriginalCurrency * _header.ExchangeRate, 2, MidpointRounding.AwayFromZero);
 
             return TotalRmbAmount;
         }
 
-        // ============================================================
-        // 5. 自动验证（所有行是否有效）
-        // ============================================================
-        public bool IsAllValid => _allItems
-            .Where(x => x.State != ModelState.Deleted)
-            .All(x => x.IsValid);
-
-        public async Task<string> ValidateAllAsync()
-        {
-            foreach (var line in Items)
-            {
-                var asyncError = await line.ValidateAsync();
-                if (!string.IsNullOrEmpty(asyncError))
-                    return asyncError;
-            }
-            return null;
-        }
-
-        // ============================================================
-        // 6. 脏数据检测（Dirty）
-        // ============================================================
-        public bool IsDirty =>
-            _allItems.Any(x =>
-                x.State == ModelState.Added ||
-                x.State == ModelState.Modified ||
-                x.State == ModelState.Deleted);
-        // ============================================================
-        // 6.1 勾选联动（全选 / 取消全选 / 反选）
-        // ============================================================
-        #region 勾选联动
+        /// <summary>
+        /// 中文注释：选中项数量代理（兼容 ViewModel 现有绑定）。
+        /// 实际值复用基类 CheckedCount。
+        /// </summary>
+        public int SelectedCount => CheckedCount;
 
         /// <summary>
-        /// 中文注释：根据当前可见行的勾选状态，统一刷新表头全选状态、选中数量和是否存在选中项。
-        /// 该方法既可在行复选框点击后调用，也可在集合变更后调用。
+        /// 中文注释：是否存在已选中项代理（兼容 ViewModel 现有绑定）。
+        /// </summary>
+        public bool HasSelectedItems => CheckedCount > 0;
+
+        /// <summary>
+        /// 中文注释：刷新选择状态相关属性通知。
+        /// 当前不重复计算，直接复用基类结果并同步通知代理属性。
         /// </summary>
         public void UpdateSelectionState()
         {
-            _isSyncingCheckState = true;
-            try
-            {
-                SelectedCount = Items.Count(x => x.IsChecked);
-                HasSelectedItems = SelectedCount > 0;
-                IsAllChecked = Items.Count > 0 && Items.All(x => x.IsChecked);
-            }
-            finally
-            {
-                _isSyncingCheckState = false;
-            }
+            RaisePropertyChanged(nameof(IsAllChecked));
+            RaisePropertyChanged(nameof(CheckedCount));
+            RaisePropertyChanged(nameof(SelectedCount));
+            RaisePropertyChanged(nameof(HasSelectedItems));
         }
 
-        /// <summary>
-        /// 中文注释：统一设置当前所有可见行的勾选状态。
-        /// true 表示全选，false 表示全不选。
-        /// </summary>
-        public void SetAllChecked(bool isChecked)
-        {
-            _isSyncingCheckState = true;
-            try
-            {
-                foreach (var item in Items)
-                {
-                    item.IsChecked = isChecked;
-                }
-            }
-            finally
-            {
-                _isSyncingCheckState = false;
-            }
-
-            UpdateSelectionState();
-        }
-
-        /// <summary>
-        /// 中文注释：反选当前所有可见行。
-        /// 已选中的变未选，未选中的变已选。
-        /// </summary>
-        public void InvertCheck()
-        {
-            _isSyncingCheckState = true;
-            try
-            {
-                foreach (var item in Items)
-                {
-                    item.IsChecked = !item.IsChecked;
-                }
-            }
-            finally
-            {
-                _isSyncingCheckState = false;
-            }
-
-            UpdateSelectionState();
-        }
-
-        /// <summary>
-        /// 中文注释：批量删除当前所有已勾选的可见行。
-        /// 删除规则与单行 DeleteLine 保持一致：
-        /// 1. 未保存的新行直接从内部集合与 UI 集合移除；
-        /// 2. 已持久化的行仅标记为 Deleted，并从 UI 集合隐藏，等待后端统一提交。
-        /// </summary>
-        public void DeleteChecked()
-        {
-            var checkedItems = Items.Where(x => x.IsChecked).ToList();
-            if (checkedItems.Count == 0)
-                return;
-
-            foreach (var line in checkedItems)
-            {
-                DeleteLine(line);
-            }
-
-            UpdateSelectionState();
-            RaisePropertyChanged(nameof(IsDirty));
-            RaisePropertyChanged(nameof(IsAllValid));
-        }
-
-        #endregion
-        // ============================================================
-        // 7. 删除行（软删除）
-        // ============================================================
-        public void DeleteLine(SalesOrderLineModel line)
-        {
-            if (line == null) return;
-
-            if (line.Id == 0)
-            {
-                // 中文注释：新增未保存的行不需要进入 Deleted ChangeSet，直接从内部列表和 UI 一并移除即可。
-                _allItems.Remove(line);
-                Items.Remove(line);
-                UpdateSelectionState();
-                RaisePropertyChanged(nameof(IsDirty));
-                RaisePropertyChanged(nameof(IsAllValid));
-                return;
-            }
-
-            // 标记删除
-            line.State = ModelState.Deleted;
-
-            // UI 隐藏
-            Items.Remove(line);
-
-            UpdateSelectionState();
-            RaisePropertyChanged(nameof(IsDirty));
-            RaisePropertyChanged(nameof(IsAllValid));
-        }
-
-        // ============================================================
-        // 8. ChangeSet（一次性提交）
-        // ============================================================
-        public BatchRequestGeneric<SalesOrderLineModel> GetChangeSet()
-        {
-            return new BatchRequestGeneric<SalesOrderLineModel>
-            {
-                AddList = _allItems.Where(x => x.State == ModelState.Added).ToList(),
-                UpdateList = _allItems.Where(x => x.State == ModelState.Modified).ToList(),
-                DeleteIdList = _allItems.Where(x => x.State == ModelState.Deleted).Select(x => x.Id).ToList()
-            };
-        }
     }
 
 }

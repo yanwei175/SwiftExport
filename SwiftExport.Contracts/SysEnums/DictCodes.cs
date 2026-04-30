@@ -12,8 +12,7 @@ namespace SwiftExport.Contracts.SysEnums
         // 例如： DictCode,DictName, IsSystem, Remark
         //左边是枚举的名称,枚举名称可以是中文,方便写代码，右边是数据库中存储的字符串值
         #region 产品类
-        public const string SupplyType = "SupplyType";
-        public const string ProductType = "ProductType";
+        //public const string SupplyType = "SupplyType";
         #endregion
 
         #region 单据相关

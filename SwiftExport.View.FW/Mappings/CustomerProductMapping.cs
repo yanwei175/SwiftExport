@@ -24,6 +24,7 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.LinkSku, dto => dto.LinkSku)
                 .Map(dest => dest.Description, dto => dto.Description)
                 .Map(dest => dest.CategoryName, dto => dto.CategoryName)
+                .Map(dest => dest.MaterialType, dto => dto.MaterialType)
                 // 客户自定义字段 - 直接映射
                 .Map(dest => dest.CustomerSku, dto => dto.CustomerSku)
                 .Map(dest => dest.CustomerPdDescription, dto => dto.CustomerPdDescription)
@@ -34,7 +35,8 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.CustomerBarcode2, dto => dto.CustomerBarcode2)
                 .Map(dest => dest.CustomerSkuUnit, dto => dto.CustomerSkuUnit)
                 // 价格相关 - 直接映射（保持可空）
-                .Map(dest => dest.Price, dto => dto.Price)
+                .Map(dest => dest.USDPrice, dto => dto.USDPrice)
+                .Map(dest => dest.CNYPrice, dto => dto.CNYPrice)
                 .Map(dest => dest.Currency, dto => dto.Currency)
                 // 业务要求 - 直接映射（保持可空）
                 .Map(dest => dest.LeadTimeDays, dto => dto.LeadTimeDays)

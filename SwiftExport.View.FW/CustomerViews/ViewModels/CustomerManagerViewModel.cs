@@ -2,6 +2,7 @@
 using Mapster;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.Models;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.View.FW.CustomerViews.Enums;
@@ -170,13 +171,13 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
         //新增客户命令
 
-        public RelayCommand<SwiftExport.Contracts.Models.PageChangeRequest> PaginationCustomerTableChangedCommand { get; }
-        private async void OnPaginationCustomerTableChanged(SwiftExport.Contracts.Models.PageChangeRequest request)
+        public RelayCommand<PageChangeRequest> PaginationCustomerTableChangedCommand { get; }
+        private async void OnPaginationCustomerTableChanged(PageChangeRequest request)
         {
             if (CurrentCustomerTable.IsDirty)
             {
-                var result = System.Windows.MessageBox.Show("当前客户表有未保存的数据，翻页将会丢失，是否继续？", "未保存提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
-                if (result != System.Windows.MessageBoxResult.Yes)
+                var result = await _msg.ShowConfirmAsync("当前客户表有未保存的数据，翻页将会丢失，是否继续？", "未保存提示");
+                if (!result)
                 {
                     return;
                 }
@@ -386,7 +387,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             _搜索客户防抖计时器.Start();
         }
 
-        private void 搜索客户防抖计时器_Tick(object sender, EventArgs e)
+        private async void 搜索客户防抖计时器_Tick(object sender, EventArgs e)
         {
             _搜索客户防抖计时器.Stop();
 
@@ -394,8 +395,8 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
             if (CurrentCustomerTable.IsDirty)
             {
-                var result = System.Windows.MessageBox.Show("当前客户表有未保存的数据，搜索将会丢失，是否继续？", "未保存提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
-                if (result != System.Windows.MessageBoxResult.Yes)
+                var result = await _msg.ShowConfirmAsync("当前客户表有未保存的数据，搜索将会丢失，是否继续？", "未保存提示");
+                if (!result)
                 {
                     return;
                 }

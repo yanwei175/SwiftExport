@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.SalesOrders;
+using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.WebApi.Controllers.Base;
@@ -136,6 +137,61 @@ public class SalesOrderController(ISalesOrderService service)
     public async Task<ServiceResult<int>> SaveSalesOrderDetailAsync([FromBody] SalesOrderDetailDto request)
     {
         return await service.SaveSalesOrderDetailAsync(request);
+    }
+
+    /// <summary>
+    /// 中文注释：销售订单行数据源分页查询。
+    /// 为订单行编辑页提供 CustomerProduct + Product 联查结果。
+    /// </summary>
+    [HttpPost("lines/source/search")]
+    public async Task<ServiceResult<PagedResultDto<SalesOrderLineDto>>> GetSalesOrderLineSourcePagedListAsync([FromBody] SalesOrderLineSourceSearchDto search)
+    {
+        return await service.GetSalesOrderLineSourcePagedListAsync(search);
+    }
+
+    /// <summary>
+    /// 中文注释：获取销售订单下一单号（SO）。
+    /// </summary>
+    [HttpPost("next-order-no")]
+    public async Task<ServiceResult<DocumentNoResultDto>> GetNextOrderNoAsync([FromBody] DocumentNoRequestDto request)
+    {
+        return await service.GetNextOrderNoAsync(request);
+    }
+
+    /// <summary>
+    /// 批准一张销售订单。
+    /// </summary>
+    [HttpPost("{orderId}/approve")]
+    public async Task<ServiceResult<bool>> ApproveSalesOrderAsync(int orderId)
+    {
+        return await service.ApproveSalesOrderAsync(orderId);
+    }
+
+    /// <summary>
+    /// 驳回一张销售订单。
+    /// </summary>
+    [HttpPost("{orderId}/reject")]
+    public async Task<ServiceResult<bool>> RejectSalesOrderAsync(int orderId)
+    {
+        return await service.RejectSalesOrderAsync(orderId);
+    }
+
+    /// <summary>
+    /// 批量批准销售订单。
+    /// </summary>
+    [HttpPost("batch-approve")]
+    public async Task<ServiceResult<List<string>>> BatchApproveSalesOrdersAsync([FromBody] List<int> orderIds)
+    {
+        return await service.BatchApproveSalesOrdersAsync(orderIds);
+    }
+
+    /// <summary>
+    /// 批量驳回销售订单。
+    /// </summary>
+    [HttpPost("batch-reject")]
+    public async Task<ServiceResult<List<string>>> BatchRejectSalesOrdersAsync([FromBody] List<int> orderIds)
+    {
+        return await service.BatchRejectSalesOrdersAsync(orderIds);
     }
 
     #endregion

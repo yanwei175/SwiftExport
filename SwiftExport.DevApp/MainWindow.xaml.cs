@@ -9,6 +9,7 @@ using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.View.FW.CustomerViews.ViewModels;
 using SwiftExport.View.FW.DictViews.ViewModels;
 using SwiftExport.View.FW.SystemViews.Views;
+using SwiftExport.View.FW.OrderDecomposeViews.Views;
 
 namespace SwiftExport.DevApp
 {
@@ -38,7 +39,15 @@ namespace SwiftExport.DevApp
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
-            var win = DiServices.GetService<SupplierManagerView>();
+            var view = DiServices.GetService<SupplierManagerView>();
+            var win = new Window
+            {
+                Title = "供应商管理",
+                Content = view,
+                Width = 1920,
+                Height = 920,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
             win.ShowDialog();
         }
 
@@ -111,11 +120,21 @@ namespace SwiftExport.DevApp
         /// </summary>
         private void Button_Click_7(object sender, RoutedEventArgs e)
         {
-            var vm = new SalesOrderDetailViewModel(0, DiServices.GetService<SwiftExport.Contracts.Apis.SalesOrderApis.ISalesOrderApi>(), 
-                                                   DiServices.GetService<SwiftExport.Contracts.UiInterface.IDialogService>());
-            var window = DiServices.GetService<SalesOrderDetailView>();
-            window.DataContext = vm;
+
+
+            var view = DiServices.GetService<SalesOrderDetailView>();
+            var window = new Window
+            {
+                Title = "销售详情",
+                Width = 1920,
+                Height = 920,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Content = view
+            };
+
             window.ShowDialog();
+
+
         }
 
         /// <summary>
@@ -143,6 +162,36 @@ namespace SwiftExport.DevApp
             var window = new Window
             {
                 Title = "客户管理窗体",
+                Width = 1920,
+                Height = 920,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Content = view
+            };
+
+            window.ShowDialog();
+        }
+
+        private void Button_Click_10(object sender, RoutedEventArgs e)
+        {
+            var view = DiServices.GetService<RequirementPoolView>();
+            var window = new Window
+            {
+                Title = "需求池",
+                Width = 1920,
+                Height = 920,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Content = view
+            };
+
+            window.ShowDialog();
+        }
+
+        private void Button_Click_11(object sender, RoutedEventArgs e)
+        {
+            var view = DiServices.GetService<SupplierManagerView>();
+            var window = new Window
+            {
+                Title = "供应商管理",
                 Width = 1920,
                 Height = 920,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,

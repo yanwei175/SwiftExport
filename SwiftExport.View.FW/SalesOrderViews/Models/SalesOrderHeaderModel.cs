@@ -19,7 +19,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
 
     {
-        public bool IsRmbCurrency => 货币 == "CNY" || 货币 == "RMB"; //提供一个给UI判断是否显示某些字段的属性
+        public bool IsRmbCurrency => Currency == "CNY" || Currency == "RMB"; //提供一个给UI判断是否显示某些字段的属性
         public override void LoadFromDto<SalesOrderHeaderDto>(SalesOrderHeaderDto dto, bool 抑制清理脏数据 = false) //加载数据方法
         {
             if (dto == null) return;
@@ -38,17 +38,17 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         }
 
         /// <summary>
-        /// 明细行变化时调用，更新汇总字段（总数量、总金额等）
+        /// 明细行变化时调用，更新汇总字段（TotalQty、总金额等）
         /// 这里使用 程序内部修改Scope 包裹，避免“行变化导致的汇总回写”把 Header 误标成用户修改。
         /// </summary>
         public void UpdateSummaryFromLines(decimal totalQty, int lineCount, decimal totalAmountOriginalCurrency, decimal totalAmountLocalCurrency)
         {
             using (程序内部修改Scope())
             {
-                总数量 = totalQty;
-                订单行数 = lineCount;
-                原币金额总计 = totalAmountOriginalCurrency;
-                本币金额总计 = totalAmountLocalCurrency;
+                TotalQty = totalQty;
+                LineCount = lineCount;
+                TotalAmountOriginalCurrency = totalAmountOriginalCurrency;
+                TotalAmountLocalCurrency = totalAmountLocalCurrency;
             }
         }
         // ============================================================
@@ -58,9 +58,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         private string _orderStatus;
         /// <summary>
-        /// 订单状态（未发货/部分发货/已发货）
+        /// OrderStatus（未发货/部分发货/已发货）
         /// </summary>
-        public string 订单状态
+        public string OrderStatus
         {
             get => _orderStatus;
             set => SetProperty(ref _orderStatus, value);
@@ -68,9 +68,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         private string _orderNo;
         /// <summary>
-        /// 单号（系统生成或手工录入）
+        /// OrderNo（系统生成或手工录入）
         /// </summary>
-        public string 单号
+        public string OrderNo
         {
             get => _orderNo;
             set => SetProperty(ref _orderNo, value);
@@ -80,7 +80,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// <summary>
         /// 客户 ID（外键）
         /// </summary>
-        public int 客户Id
+        public int CustomerId
         {
             get => _customerId;
             set => SetProperty(ref _customerId, value);
@@ -88,9 +88,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         private string _customerCode;
         /// <summary>
-        /// 客户代码（显示用）
+        /// CustomerCode（显示用）
         /// </summary>
-        public string 客户代码
+        public string CustomerCode
         {
             get => _customerCode;
             set => SetProperty(ref _customerCode, value);
@@ -140,7 +140,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// <summary>
         /// 币种（USD / RMB / EUR 等）
         /// </summary>
-        public string 货币
+        public string Currency
         {
             get => _currency;
             set
@@ -155,9 +155,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         private decimal _exchangeRate;
         /// <summary>
-        /// 汇率（用于本币金额计算）
+        /// ExchangeRate（用于本币金额计算）
         /// </summary>
-        public decimal 汇率
+        public decimal ExchangeRate
         {
             get => _exchangeRate;
             set => SetProperty(ref _exchangeRate, value);
@@ -167,7 +167,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// <summary>
         /// 原币总金额（由行集合自动计算）
         /// </summary>
-        public decimal 原币金额总计
+        public decimal TotalAmountOriginalCurrency
         {
             get => _totalAmountOriginalCurrency;
             set => SetProperty(ref _totalAmountOriginalCurrency, value);
@@ -175,9 +175,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         private decimal _totalAmountLocalCurrency;
         /// <summary>
-        /// 本币总金额（原币金额 * 汇率）
+        /// 本币总金额（原币金额 * ExchangeRate）
         /// </summary>
-        public decimal 本币金额总计
+        public decimal TotalAmountLocalCurrency
         {
             get => _totalAmountLocalCurrency;
             set => SetProperty(ref _totalAmountLocalCurrency, value);
@@ -206,16 +206,16 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// 该属性由行集合自动计算得出，无需手动设置。
         /// </remarks>
         private decimal _totalQty;
-        public decimal 总数量
+        public decimal TotalQty
         {
             get => _totalQty;
             set => SetProperty(ref _totalQty, value);
         }
         /// <summary>
-        /// 订单行数(由行集合自动计算)
+        /// LineCount(由行集合自动计算)
         /// </summary>
         private int _lineCount;
-        public int 订单行数
+        public int LineCount
         {
             get => _lineCount;
             set => SetProperty(ref _lineCount, value);
@@ -224,7 +224,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// 订单总发货数量（由行集合自动计算）
         /// </summary>
         private decimal _totalShippedQty;
-        public decimal 总发货数量
+        public decimal TotalShippedQty
         {
             get => _totalShippedQty;
             set => SetProperty(ref _totalShippedQty, value);
@@ -234,7 +234,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// 订单未发货数量（由行集合自动计算）
         /// </summary>
         private decimal _totalUnshippedQty;
-        public decimal 总未发货数量
+        public decimal TotalUnshippedQty
         {
             get => _totalUnshippedQty;
             set => SetProperty(ref _totalUnshippedQty, value);
@@ -245,7 +245,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// </summary>
 
         private decimal _totalPartiallyShippedQty;
-        public decimal 总部分发货数量
+        public decimal TotalPartiallyShippedQty
         {
             get => _totalPartiallyShippedQty;
             set => SetProperty(ref _totalPartiallyShippedQty, value);
@@ -294,7 +294,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
 
         // ============================================================
-        // 贸易条款（_incotermSortRemark）
+        // Incoterm（_incotermSortRemark）
         // ============================================================
         #region 贸易条款
 
@@ -314,7 +314,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// 国际贸易术语（如 EXW / FOB / CIF / DAP / DDP）
         /// 用于定义买卖双方的责任划分。
         /// </summary>
-        public string 贸易条款
+        public string Incoterm
         {
             get => _incoterm;
             set => SetProperty(ref _incoterm, value);
@@ -326,7 +326,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// FOB Shenzhen → 地点为 Shenzhen
         /// CIF Los Angeles → 地点为 Los Angeles
         /// </summary>
-        public string 条款地点
+        public string Incotermlocation
         {
             get => _incotermLocation;
             set => SetProperty(ref _incotermLocation, value);
@@ -334,9 +334,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         private decimal _depositRate;
         /// <summary>
-        /// 定金比例（如 30%）
+        /// DepositRate（如 30%）
         /// </summary>
-        public decimal 定金比例
+        public decimal DepositRate
         {
             get => _depositRate;
             set => SetProperty(ref _depositRate, value);
@@ -346,7 +346,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// <summary>
         /// 生产周期（天数）
         /// </summary>
-        public int 交货天数
+        public int LeadTimeDays
         {
             get => _leadTimeDays;
             set => SetProperty(ref _leadTimeDays, value);
@@ -356,7 +356,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// <summary>
         /// 付款方式（如 TT / LC / OA）
         /// </summary>
-        public string 支付方式
+        public string PaymentMethod
         {
             get => _paymentMethod;
             set => SetProperty(ref _paymentMethod, value);
@@ -384,7 +384,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// <summary>
         /// 交期（预计发货日期）
         /// </summary>
-        public DateTime? 交货日期
+        public DateTime? DeliverDate
         {
             get => _deliveryDate;
             set => SetProperty(ref _deliveryDate, value);
@@ -394,7 +394,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// <summary>
         /// 回复客户的日期（如确认交期）
         /// </summary>
-        public DateTime? 回复交期
+        public DateTime? ReplyDate
         {
             get => _replyDate;
             set => SetProperty(ref _replyDate, value);
@@ -424,7 +424,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
 
         // ============================================================
-        // 备注
+        // SubNote
         // ============================================================
         #region 备注
 
@@ -432,7 +432,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// <summary>
         /// 订单文件夹路径（如存放附件）
         /// </summary>
-        public string 订单文件夹
+        public string SoFolder
         {
             get => _soFolder;
             set => SetProperty(ref _soFolder, value);
@@ -440,9 +440,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         private string _remark;
         /// <summary>
-        /// 备注
+        /// SubNote
         /// </summary>
-        public string 订单备注
+        public string Remark
         {
             get => _remark;
             set => SetProperty(ref _remark, value);
@@ -458,9 +458,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         private string _versionNo;
         /// <summary>
-        /// 版本号（用于并发控制）
+        /// VersionNo（用于并发控制）
         /// </summary>
-        public string 版本号
+        public string VersionNo
         {
             get => _versionNo;
             set => SetProperty(ref _versionNo, value);
@@ -468,9 +468,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         private string _approvalStatus;
         /// <summary>
-        /// 审批状态（未审批/已审批/驳回）
+        /// ApprovalStatusEnums（未审批/已审批/驳回）
         /// </summary>
-        public string 审批状态
+        public string ApprovalStatus
         {
             get => _approvalStatus;
             set => SetProperty(ref _approvalStatus, value);
@@ -512,14 +512,14 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             {
                 switch (columnName)
                 {
-                    case nameof(单号):
-                        if (string.IsNullOrWhiteSpace(单号))
+                    case nameof(OrderNo):
+                        if (string.IsNullOrWhiteSpace(OrderNo))
                             return "订单编号不能为空";
                         break;
-                    //case nameof(客户代码):
-                    //    if (string.IsNullOrWhiteSpace(客户代码))
-                    //        return "客户不能为空";
-                    //    break;
+                    case nameof(CustomerCode):
+                        if (string.IsNullOrWhiteSpace(CustomerCode))
+                            return "客户不能为空";
+                        break;
                     case nameof(InvoiceNo):
                         if (string.IsNullOrWhiteSpace(InvoiceNo))
                             return "发票号不能为空";

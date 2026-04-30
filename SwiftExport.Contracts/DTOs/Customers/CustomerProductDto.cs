@@ -16,6 +16,7 @@ namespace SwiftExport.Contracts.DTOs.Customers
         public string LinkSku { get; set; }
         public string Description { get; set; }
         public string CategoryName { get; set; }
+        public string MaterialType { get; set; }
         public string MainImage { get; set; }
 
         // 客户自定义字段
@@ -29,7 +30,15 @@ namespace SwiftExport.Contracts.DTOs.Customers
         public string CustomerSkuUnit { get; set; }             // 客户单位
 
         // 价格相关
-        public decimal? Price { get; set; }
+        /// <summary>
+        /// 客户专用美元单价。
+        /// </summary>
+        public decimal? USDPrice { get; set; }
+
+        /// <summary>
+        /// 客户专用人民币单价。
+        /// </summary>
+        public decimal? CNYPrice { get; set; }
         public string Currency { get; set; }  //货币,用户枚举值
 
         // 业务要求

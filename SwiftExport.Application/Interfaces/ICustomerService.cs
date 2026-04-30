@@ -9,5 +9,6 @@ namespace SwiftExport.Application.Interfaces
         Task<bool> ExistByCustomerCode(string customerCode);
         Task<ServiceResult<IReadOnlyList<string>>> GetNonExistingCustomerCodesAsync(IEnumerable<string> customerCodes);
         Task<ServiceResult<CustomerDto>> GetByCustomerCodeAsync(string customerCode);
+        Task<ServiceResult<PagedResultDto<CustomerDto>>> GetPagedAsync(PagedRequestDto request);
     }
 }

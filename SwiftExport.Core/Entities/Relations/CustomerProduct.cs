@@ -27,7 +27,8 @@ public class CustomerProduct : BaseEntity
     // ============================================================
     // 3. 商务与物流
     // ============================================================
-    public decimal? Price { get; set; }                     // 约定价
+    public decimal? USDPrice { get; set; }                  // 美元约定价
+    public decimal? CNYPrice { get; set; }                  // 人民币约定价
     public string? Currency { get; set; } = "USD";          // 币种
     public int? LeadTimeDays { get; set; }                  // 生产提前期（天）
     public int? MOQ { get; set; }                           // 最小起订量

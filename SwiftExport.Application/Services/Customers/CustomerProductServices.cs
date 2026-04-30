@@ -61,7 +61,7 @@ public class CustomerProductServices(
     }
 
     /// <summary>联表分页查询</summary>
-    public async Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetPagedListAsync(ProductSearchDto search)
+    public async Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetPagedCustomerProductAsync(ProductSearchDto search)
     {
         var criteria = new QueryCriteria();
 
@@ -106,11 +106,11 @@ public class CustomerProductServices(
         int pageIndex = search.PageIndex > 0 ? search.PageIndex : 1;
         int pageSize = search.PageSize > 0 ? search.PageSize : 50;
 
-        var paged = await _repo.GetPagedListAsync(criteria, pageIndex, pageSize, "cp.Id DESC");
+        var paged = await _repo.GetPagedCustomerProductAsync(criteria, pageIndex, pageSize, "cp.Id DESC");
 
         return ServiceResult<PagedResultDto<CustomerProductDto>>.Ok(new PagedResultDto<CustomerProductDto>
         {
-            Items = [.. paged.Items],
+            Items = paged.Items,
             TotalCount = paged.TotalCount,
             PageIndex = paged.PageIndex,
             PageSize = paged.PageSize
@@ -179,7 +179,8 @@ public class CustomerProductServices(
                         CustomerBarcode1 = dto.CustomerBarcode1,
                         CustomerBarcode2 = dto.CustomerBarcode2,
                         CustomerSkuUnit = dto.CustomerSkuUnit,
-                        Price = dto.Price,
+                        USDPrice = dto.USDPrice,
+                        CNYPrice = dto.CNYPrice,
                         Currency = dto.Currency,
                         LeadTimeDays = dto.LeadTimeDays,
                         MOQ = dto.MOQ,
@@ -233,7 +234,8 @@ public class CustomerProductServices(
                         existing.CustomerBarcode1 = dto.CustomerBarcode1;
                         existing.CustomerBarcode2 = dto.CustomerBarcode2;
                         existing.CustomerSkuUnit = dto.CustomerSkuUnit;
-                        existing.Price = dto.Price;
+                        existing.USDPrice = dto.USDPrice;
+                        existing.CNYPrice = dto.CNYPrice;
                         existing.Currency = dto.Currency;
                         existing.LeadTimeDays = dto.LeadTimeDays;
                         existing.MOQ = dto.MOQ;

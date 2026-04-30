@@ -23,12 +23,45 @@ namespace SwiftExport.View.FW.ProductViews.Controls
                 typeof(CustomerSelectorControl),
                 new FrameworkPropertyMetadata(
                     null, // 默认值
-                    FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+                    FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
+                    OnSelectedItemChanged));
 
         public CustomerDto SelectedItem
         {
             get => (CustomerDto)GetValue(SelectedItemProperty);
             set => SetValue(SelectedItemProperty, value);
+        }
+
+        // 2. 对外暴露 SelectedValuePath，调用方按 ComboBox 用法配置“取值字段”。
+        public static readonly DependencyProperty SelectedValuePathProperty =
+            DependencyProperty.Register(
+                nameof(SelectedValuePath),
+                typeof(string),
+                typeof(CustomerSelectorControl),
+                new FrameworkPropertyMetadata(
+                    string.Empty,
+                    FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+
+        public string SelectedValuePath
+        {
+            get => (string)GetValue(SelectedValuePathProperty);
+            set => SetValue(SelectedValuePathProperty, value);
+        }
+
+        // 3. 对外暴露 SelectedValue，调用方可直接绑定标量值（例如 CustomerCode/Id）。
+        public static readonly DependencyProperty SelectedValueProperty =
+            DependencyProperty.Register(
+                nameof(SelectedValue),
+                typeof(object),
+                typeof(CustomerSelectorControl),
+                new FrameworkPropertyMetadata(
+                    null,
+                    FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+
+        public object SelectedValue
+        {
+            get => GetValue(SelectedValueProperty);
+            set => SetValue(SelectedValueProperty, value);
         }
 
         // 内部数据源属性，用于绑定 UI
@@ -85,6 +118,21 @@ namespace SwiftExport.View.FW.ProductViews.Controls
             catch
             {
                 // 容错处理
+            }
+        }
+
+        /// <summary>
+        /// 当外部/内部更新 SelectedItem 时，若为空则同步清空 SelectedValue。
+        /// 这样 ResetFilter 时两个绑定出口状态保持一致。
+        /// </summary>
+        private static void OnSelectedItemChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var control = d as CustomerSelectorControl;
+            if (control == null) return;
+
+            if (e.NewValue == null)
+            {
+                control.SelectedValue = null;
             }
         }
 

@@ -76,6 +76,13 @@ namespace SwiftExport.View.FW.CustomerViews.Models
             set => SetProperty(ref _categoryName, value);
         }
 
+        private string _materialType;
+        public string MaterialType
+        {
+            get => _materialType;
+            set => SetProperty(ref _materialType, value);
+        }
+
         // 客户自定义字段
         private string _customerSku;
         public string CustomerSku
@@ -159,11 +166,24 @@ namespace SwiftExport.View.FW.CustomerViews.Models
         }
 
         // 价格相关（DTO 中为可空）
-        private decimal? _price;
-        public decimal? Price
+        private decimal? _usdPrice;
+        /// <summary>
+        /// 客户专用美元单价。
+        /// </summary>
+        public decimal? USDPrice
         {
-            get => _price;
-            set => SetProperty(ref _price, value);
+            get => _usdPrice;
+            set => SetProperty(ref _usdPrice, value);
+        }
+
+        private decimal? _cnyPrice;
+        /// <summary>
+        /// 客户专用人民币单价。
+        /// </summary>
+        public decimal? CNYPrice
+        {
+            get => _cnyPrice;
+            set => SetProperty(ref _cnyPrice, value);
         }
 
         private string _currency;
@@ -280,7 +300,7 @@ namespace SwiftExport.View.FW.CustomerViews.Models
         public override string ValidateRow()
         {
             //// 示例：数量和单价必须同时有效
-            //if (数量 > 0 && 美金单价 > 0)
+            //if (QTY > 0 && USDPrice > 0)
             return null;
 
             //return "数量和单价必须同时有效";
@@ -295,7 +315,7 @@ namespace SwiftExport.View.FW.CustomerViews.Models
         public override async Task<string> ValidateAsync()
         {
             // 示例（伪代码）：
-            // if (!await ProductService.ExistsAsync(物料编码))
+            // if (!await ProductService.ExistsAsync(Sku))
             //     return "SKU 不存在于数据库";
 
             return null; // 默认无错误

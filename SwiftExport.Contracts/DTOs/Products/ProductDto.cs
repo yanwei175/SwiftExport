@@ -21,8 +21,15 @@ namespace SwiftExport.Contracts.DTOs.Products
         public string LinkSku { get; set; }
 
         // 价格
-        public decimal RmbPrice { get; set; }
-        public decimal UsdPrice { get; set; }
+        public decimal CNYPrice { get; set; }
+        public decimal USDPrice { get; set; }
+
+
+        // 装箱基础数据（供销售订单行带出）
+        public decimal? PcsOfCarton { get; set; }
+        public decimal? NwOfCarton { get; set; }
+        public decimal? GwOfCarton { get; set; }
+        public decimal? CbmOfCarton { get; set; }
 
         // 聚合信息 (由后端 SQL Join 查好填进来，UI 直接显示)
         public int CategoryId { get; set; }

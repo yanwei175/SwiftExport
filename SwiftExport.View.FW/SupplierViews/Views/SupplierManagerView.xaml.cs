@@ -1,24 +1,22 @@
 ﻿using SwiftExport.View.FW.SupplierViews.ViewModels;
 using System.Windows;
+using System.Windows.Controls;
 
 namespace SwiftExport.View.FW.SupplierViews.Views
 {
     /// <summary>
-    /// MyWindow.xaml 的交互逻辑
+    /// SupplierManagerView.xaml 的交互逻辑。
     /// </summary>
-    public partial class SupplierManagerView : Window
+    public partial class SupplierManagerView : UserControl
     {
-        public SupplierManagerView(SupplierManagerViewModel vm)
+        public SupplierManagerView()
         {
             InitializeComponent();
-            this.DataContext = vm;
         }
 
-
-        // 关闭窗体
-        private void BtnClose_Click(object sender, RoutedEventArgs e)
+        public SupplierManagerView(SupplierManagerViewModel vm) : this()
         {
-            this.Close();
+            this.DataContext = vm;
         }
     }
 }

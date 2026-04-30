@@ -39,13 +39,13 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public bool IsDeleted { get; set; }
         public bool IsLocked { get; set; }
 
-        public DateTime OrderDate { get; set; }
+        public DateTime? OrderDate { get; set; }
         public DateTime? DeliveryDate { get; set; }
         public DateTime? ReplyDate { get; set; }
         public DateTime? ETA { get; set; }
         public DateTime? ETD { get; set; }
 
-        public DateTime ChangeTime { get; set; }
+        public DateTime? ChangeTime { get; set; }
     }
 
 }

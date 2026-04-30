@@ -6,7 +6,7 @@ namespace SwiftExport.Core.Entities.MasterData;
 [Table("Customer")]
 public class Customer : BaseEntity
 {
-    public string CustomerCode { get; set; } = default!;
+    public required string CustomerCode { get; set; }
     public string? CustomerName { get; set; }
     public string? Address { get; set; }
     public string? PhoneNumber { get; set; }
@@ -17,7 +17,7 @@ public class Customer : BaseEntity
     public string? LinedrawingFolderPath { get; set; }
     public string? BarcodeFolderPath { get; set; }
     public string? SpecSheetFolderPath { get; set; }
-    public string? DocRelateNo { get; set; }
+    public required string DocRelateNo { get; set; }
 
     // ==================== 贸易条款默认值 ====================
     /// <summary>

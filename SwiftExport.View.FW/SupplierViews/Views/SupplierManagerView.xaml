@@ -1,118 +1,209 @@
-﻿<Window x:Class="SwiftExport.View.FW.SupplierViews.Views.SupplierManagerView"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
-        
-        xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
-        Title="供应商管理" Height="768" Width="1024"
-        WindowStartupLocation="CenterScreen"
-        Background="White">
-    <Grid>
+﻿<UserControl x:Class="SwiftExport.View.FW.SupplierViews.Views.SupplierManagerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             x:Name="RootUserCtrl"
+             xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
+             xmlns:vm="clr-namespace:SwiftExport.View.FW.SupplierViews.ViewModels"
+             xmlns:views="clr-namespace:SwiftExport.View.FW.SupplierViews.Views"
+             mc:Ignorable="d"
+             d:DesignHeight="768"
+             d:DesignWidth="1024"
+             d:DataContext="{d:DesignInstance vm:SupplierManagerViewModel}"
+             Background="{DynamicResource Brush_Bck_Card}">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <mt:ImgPathToImgConverter x:Key="ImgPathToImgConverter"/>
+            <mt:EnumToIntConverter x:Key="EnumToIntConverter"/>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <Border Grid.Row="0"  BorderThickness="0,0,0,1" Padding="15">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <Button  Margin="0,0,10,0"
-                            Command="{Binding AddNewRowCommand}" 
-                            Content="新增"
-                            mt:ButtonAssist.IconSize="12"
-                            mt:ButtonAssist.Icon="{StaticResource Icon.Add}"
-                            Style="{StaticResource ButtonPrimary}">
-                        </Button>
+        <TabControl Margin="15"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    SelectedIndex="{Binding ActiveTab, Mode=TwoWay, Converter={StaticResource EnumToIntConverter}}"
+                    d:SelectedIndex="0">
 
-                        <Button  Margin="0,0,10,0"
-                            Command="{Binding BatchSaveCommand}"          
-                                 Content="保存"
-                             mt:ButtonAssist.IconSize="12"
-                            mt:ButtonAssist.Icon="{StaticResource Icon.Save}"
-                            Style="{StaticResource ButtonSuccess}">
-                        </Button>
+            <TabItem Header="供应商列表" Background="Transparent">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                    <Button Margin="0,0,10,0"
-                        Command="{Binding LoadCommand}"
-                          Content="刷新"
-                             mt:ButtonAssist.IconSize="12"
-                            mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
-                            Style="{StaticResource ButtonBase}">
+                    <Border Grid.Row="0"
+                            Background="{DynamicResource Brush_Bck_Card}"
+                            BorderThickness="0,0,0,1"
+                            Padding="15">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                    </Button>
-                </StackPanel>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <Button Margin="0,0,10,0"
+                                        Style="{StaticResource ButtonPrimary}"
+                                        Content="新增"
+                                        mt:ButtonAssist.IconSize="12"
+                                        mt:ButtonAssist.Icon="{StaticResource Icon.Add}"
+                                        Command="{Binding AddSupplierCommand}"/>
+                                <Button Margin="0,0,10,0"
+                                        Style="{StaticResource ButtonSuccess}"
+                                        Content="保存"
+                                        mt:ButtonAssist.IconSize="12"
+                                        mt:ButtonAssist.Icon="{StaticResource Icon.Save}"
+                                        Command="{Binding BatchSaveSupplierAsyncCommand}"/>
+                                <Button Margin="0,0,10,0"
+                                        Style="{StaticResource ButtonDanger}"
+                                        Content="删除"
+                                        mt:ButtonAssist.IconSize="12"
+                                        mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"
+                                        Command="{Binding DeleteCheckedCommand}"/>
+                                <Button Margin="0,0,10,0"
+                                        Style="{StaticResource ButtonBase}"
+                                        Content="刷新"
+                                        mt:ButtonAssist.IconSize="12"
+                                        mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
+                                        Command="{Binding LoadSupplierAsyncCommand}"/>
+                                <Button Margin="0,0,10,0"
+                                        Style="{StaticResource ButtonBase}"
+                                        Content="反选"
+                                        mt:ButtonAssist.IconSize="12"
+                                        mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"
+                                        Command="{Binding InvertCheckSupplierCommand}"/>
+                            </StackPanel>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="筛选: " VerticalAlignment="Center" Foreground="{DynamicResource Brush_Txt_Primary}" Margin="0,0,5,0"/>
-                    <TextBox Width="250" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" 
-                             VerticalContentAlignment="Center"/>
-                </StackPanel>
-            </Grid>
-        </Border>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="筛选: " VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                <TextBox Width="250"
+                                         Text="{Binding SearchSupplierText, UpdateSourceTrigger=PropertyChanged}"
+                                         VerticalContentAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
 
-        <Border Grid.Row="1" Background="{DynamicResource Brush_Control_Background}" Padding="5">
-            <DataGrid x:Name="MainDataGrid"
-                  ItemsSource="{Binding ItemsView}" 
-                  RowHeight="40">
+                    <DataGrid Grid.Row="1"
+                              x:Name="SupplierDataGrid"
+                              ItemsSource="{Binding ItemsView}"
+                              SelectedItem="{Binding SelectedSupplier, Mode=TwoWay}"
+                              SelectionUnit="FullRow"
+                              RowHeight="36"
+                              EnableRowVirtualization="False"
+                              EnableColumnVirtualization="False"
+                              mt:DataGridAssist.ShowRowNumber="True"
+                              mt:DataGridAssist.EnableSoftValidation="True"
+                              mt:DataGridAssist.AutoScrollToNewItem="True">
+                        <DataGrid.Columns>
+                            <mt:CheckBoxDataGridTemplateColumn
+                                AllCheckedPropertyName="IsAllChecked"
+                                ItemCheckedPropertyName="IsChecked"
+                                ItemCheckedCommandName="{x:Null}"
+                                HeaderCheckBoxMargin="3"
+                                HeaderCheckBoxToolTip="全选/全不选"/>
 
-                
+                            <DataGridTextColumn Header="供应商代码"
+                                                Binding="{Binding SupplierCode, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="120"
+                                                FontWeight="Bold"/>
 
-                <DataGrid.Columns>
+                            <DataGridTextColumn Header="供应商名称"
+                                                Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="160"/>
 
-                    <DataGridTextColumn Header="供应商代码" 
-                                        Binding="{Binding SupplierCode}"  
-                                        Width="100" FontWeight="Bold" 
-                                        EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                            <DataGridTextColumn Binding="{Binding DocRelateNo, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="140">
+                                <DataGridTextColumn.HeaderTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="单据关联号"
+                                                   ToolTip="用于合成自动采购单号的后缀"/>
+                                    </DataTemplate>
+                                </DataGridTextColumn.HeaderTemplate>
+                            </DataGridTextColumn>
 
-                    <DataGridTextColumn Header="供应商名称" 
-                                        Binding="{Binding Name}" 
-                                        Width="150"
-                                        EditingElementStyle="{StaticResource DataGridTextBoxStyle}"/>
+                            <DataGridTextColumn Header="联系人"
+                                                Binding="{Binding ContactPerson, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="120"/>
 
-                    <DataGridTextColumn Header="单据关联号" Binding="{Binding DocRelateNo}" Width="120"/>
+                            <DataGridTextColumn Header="联系电话"
+                                                Binding="{Binding ContactPhone, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="140"/>
 
-                    <DataGridTextColumn Header="折扣" Binding="{Binding ZheKou}" Width="100"/>
+                            <DataGridTextColumn Header="邮箱"
+                                                Binding="{Binding ContactEmail, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="180"/>
 
-                    <DataGridTextColumn Header="折扣备注" Binding="{Binding ZheKouBeiZhu}" Width="*" 
-                                        ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
-                                        EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}"/>
+                            <DataGridTextColumn Header="地址"
+                                                Binding="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="220"
+                                                ElementStyle="{DynamicResource MultiLineDataGridTextBlockStyle}"
+                                                EditingElementStyle="{DynamicResource MultiLineDataGridTextBoxStyle}"/>
 
-                    <DataGridTemplateColumn Header="操作" Width="80">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Button CommandParameter="{Binding}"  Width="60" Height="24" Padding="0">
-                                    <Button.Style>
-                                        <Style TargetType="Button"  BasedOn="{StaticResource  ButtonDanger}">
-                                                <Setter Property="Content" Value="删除"/>
-                                                <Setter Property="Command" Value="{Binding DataContext.SingleDeleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding State}" Value="Deleted">
-                                                    <Setter Property="Content" Value="撤销"/>
-                                                    <Setter Property="Background" Value="{StaticResource Brush_Btn_Primary_Background}"/>
-                                                    <Setter Property="Command" Value="{Binding DataContext.CancelDeleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
+                            <DataGridTextColumn Header="折扣"
+                                                Binding="{Binding ZheKou, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="80"/>
 
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    
-                </DataGrid.Columns>
-            </DataGrid>
-        </Border>
-            <Border Grid.Row="2"   BorderThickness="0,1,0,0" Padding="15,5">
-                <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="{DynamicResource Brush_Txt_Secondary}" VerticalAlignment="Center"/>
-            </Border>
-        </Grid>  
-        <mt:DialogHost />
+                            <DataGridTextColumn Header="币种"
+                                                Binding="{Binding Currency, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="80"/>
+
+                            <DataGridTextColumn Header="税率"
+                                                Binding="{Binding TaxRate, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="80"/>
+
+                            <DataGridTextColumn Header="生产周期(天)"
+                                                Binding="{Binding DefaultLeadTime, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="110"/>
+
+                            <DataGridTextColumn Header="付款条款"
+                                                Binding="{Binding PaymentTerms, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="120"/>
+
+                            <DataGridTextColumn Header="折扣备注"
+                                                Binding="{Binding ZheKouBeiZhu, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="220"
+                                                ElementStyle="{DynamicResource MultiLineDataGridTextBlockStyle}"
+                                                EditingElementStyle="{DynamicResource MultiLineDataGridTextBoxStyle}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <mt:PageNavigator Grid.Row="2"
+                                      Margin="0,8,0,0"
+                                      HorizontalAlignment="Right"
+                                      TotalCount="{Binding TotalSupplierCount}"
+                                      PageIndex="{Binding PageSupplierIndex, Mode=OneWay}"
+                                      PageSize="{Binding PageSupplierSize, Mode=OneWay}"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="供应产品对照" Background="Transparent">
+                <views:SupplierProductManagerView/>
+            </TabItem>
+
+        </TabControl>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,5">
+            <TextBlock Foreground="{DynamicResource Red8Brush}"
+                       Style="{StaticResource BoldTextBlock}"
+                       Text="{Binding SelectedSupplier.Name, StringFormat='当前选择供应商: {0}'}"/>
+
+            <TextBlock FontSize="12"
+                       Foreground="{DynamicResource Red8Brush}"
+                       Margin="20,5"
+                       Text="{Binding StatusMessage}"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <mt:DialogHost d:IsHidden="True" />
     </Grid>
-</Window>
+</UserControl>

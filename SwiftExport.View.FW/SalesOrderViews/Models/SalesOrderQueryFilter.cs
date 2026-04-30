@@ -29,7 +29,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         // 中文注释：期望交期范围 - 结束日期
         public DateTime? DeliveryDateTo { get; set; }
 
-        // 中文注释：订单状态（待审核、已审核、已发货、已收货、已取消等）
+        // 中文注释：OrderStatus（待审核、已审核、已发货、已收货、已取消等）
         public string OrderStatus { get; set; }
 
         // 中文注释：订单总金额范围 - 最小值

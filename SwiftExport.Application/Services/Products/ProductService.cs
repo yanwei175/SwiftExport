@@ -85,6 +85,7 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
                 ("CSku", 查询操作符.模糊匹配, search.Keyword)
             );
         }
+
         // ==========================================
         // 处理精确匹配条件
         // ==========================================
@@ -106,7 +107,6 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
             if (search.CategoryIds == null) search.CategoryIds = new List<int>();
             search.CategoryIds.AddRange(ids.Select(c => c.Id));
             search.CategoryIds.Add(search.CategoryId);
-
         }
 
         if (search.CategoryIds != null && search.CategoryIds.Count > 0)
@@ -118,16 +118,21 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
         {
             criteria.Add("CategoryName", 查询操作符.等于, search.CategoryName);
         }
+        
+        if (!string.IsNullOrWhiteSpace(search.MaterialType))
+        {
+            criteria.Add("MaterialType", 查询操作符.等于, search.MaterialType);
+        }
 
         // 4. 处理分页默认值保护
         int pageIndex = search.PageIndex > 0 ? search.PageIndex : 1;
         int pageSize = search.PageSize > 0 ? search.PageSize : 50;
 
-        var paged = await _productRepository.GetPagedReadModelAsync(criteria, pageIndex, pageSize, "ID DESC");
+        var paged = await _productRepository.GetPagedProductDtoAsync(criteria, pageIndex, pageSize, "ID DESC");
 
         return ServiceResult<PagedResultDto<ProductDto>>.Ok(new PagedResultDto<ProductDto>
         {
-            Items = paged.Items.Adapt<List<ProductDto>>(),
+            Items = paged.Items,
             TotalCount = paged.TotalCount,
             PageIndex = paged.PageIndex,
             PageSize = paged.PageSize
@@ -135,11 +140,8 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
     }
 
 
-
-
-
     #region 批量保存
-    protected override bool IsSoftDelete => false;
+    protected override bool IsSoftDelete => true;
     protected override async Task<string?> ValidateBeforeAddAsync(List<Product> entities)
     {
         var codes = new List<string>();

@@ -73,10 +73,8 @@ namespace SwiftExport.DevApp
             {
                 await dictCache.PreloadAsync(new[]
                 {
-                    DictCodes.SupplyType,
                     DictCodes.Currency,
-                    DictCodes.CustomerType,
-                    DictCodes.ProductType
+                    DictCodes.CustomerType
                 });
             }
             catch (Exception ex)

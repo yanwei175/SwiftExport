@@ -30,9 +30,14 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.BomNo, dto => dto.BomNo)
                 .Map(dest => dest.Note, dto => dto.Note)
                 .Map(dest => dest.LinkSku, dto => dto.LinkSku)
-                // 价格字段（与新增的 RmbPrice/UsdPrice 对应）
-                .Map(dest => dest.RmbPrice, dto => dto.RmbPrice)
-                .Map(dest => dest.UsdPrice, dto => dto.UsdPrice)
+                // 价格字段（与新增的 CNYPrice/USDPrice 对应）
+                .Map(dest => dest.CNYPrice, dto => dto.CNYPrice)
+                .Map(dest => dest.USDPrice, dto => dto.USDPrice)
+                // 装箱基础数据
+                .Map(dest => dest.PcsOfCarton, dto => dto.PcsOfCarton)
+                .Map(dest => dest.NwOfCarton, dto => dto.NwOfCarton)
+                .Map(dest => dest.GwOfCarton, dto => dto.GwOfCarton)
+                .Map(dest => dest.CbmOfCarton, dto => dto.CbmOfCarton)
                 // 聚合信息（后端 SQL Join 填充，UI 直接显示）
                 .Map(dest => dest.CategoryId, dto => dto.CategoryId)
                 .Map(dest => dest.CategoryName, dto => dto.CategoryName)

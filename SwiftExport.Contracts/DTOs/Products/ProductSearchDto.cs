@@ -19,6 +19,7 @@ namespace SwiftExport.Contracts.DTOs.Products
         public int CategoryId { get; set; } // 按分类id单选
         public List<int> CategoryIds { get; set; } // 按分类id多选
 
+        public string MaterialType { get; set; } //物料类型
 
         public string BatchKeywords { get; set; }//p批量搜索
         public int PageIndex { get; set; } = 1;

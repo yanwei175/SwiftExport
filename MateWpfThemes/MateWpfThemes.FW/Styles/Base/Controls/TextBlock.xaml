@@ -8,6 +8,7 @@
     <Style x:Key="BoldTextBlock" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlock}">
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}"/>
     </Style>
 
     <Style x:Key="WrappingTextBlock" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlock}">

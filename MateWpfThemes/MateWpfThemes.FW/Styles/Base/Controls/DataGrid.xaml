@@ -273,8 +273,7 @@
 
     <Style x:Key="ReadOnlyDataGridRow" TargetType="DataGridRow" BasedOn="{StaticResource BaseDataGridRow}">
         
-        
-        
+
     </Style>
     <Style TargetType="DataGridRow" BasedOn="{StaticResource BaseDataGridRow}">
 

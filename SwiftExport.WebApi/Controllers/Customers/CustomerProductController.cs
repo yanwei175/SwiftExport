@@ -29,7 +29,7 @@ public class CustomerProductController(ICustomerProductService service) : Contro
     /// <summary>联表分页搜索</summary>
     [HttpPost("search")]
     public async Task<ServiceResult<PagedResultDto<CustomerProductDto>>> Search([FromBody] ProductSearchDto search)
-        => await service.GetPagedListAsync(search);
+        => await service.GetPagedCustomerProductAsync(search);
 
     /// <summary>获取有产品记录的客户列表</summary>
     [HttpGet("haveproductCustomers")]

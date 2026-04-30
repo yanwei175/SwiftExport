@@ -1,4 +1,5 @@
 ﻿<UserControl x:Class="SwiftExport.View.FW.SalesOrderViews.Views.SalesOrderManagerView"
+             x:Name="Root"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -9,6 +10,8 @@
              xmlns:mtControls="clr-namespace:MateWpfThemes.FW.Controls;assembly=MateWpfThemes.FW"
              xmlns:assists="clr-namespace:SwiftExport.View.FW.ProductViews.Assists"
              xmlns:mtPopup="clr-namespace:MateWpfThemes.FW.AttachedProperties;assembly=MateWpfThemes.FW"
+             xmlns:mvvm="clr-namespace:SwiftExport.View.FW.Mvvm"
+             xmlns:salesViews="clr-namespace:SwiftExport.View.FW.SalesOrderViews.Views"
              
              xmlns:local="clr-namespace:SwiftExport.View.FW.SalesOrderViews.ViewModels"
              d:DataContext="{d:DesignInstance local:SalesOrderManagerViewModel}"
@@ -23,6 +26,24 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <mt:ImgPathToImgConverter x:Key="ImgPathToImgConverter"/>
+            <mvvm:BindingProxy x:Key="SelectionUnitProxy" Data="{Binding IsChecked, ElementName=BtnToggleSelectionUnit}"/>
+
+            <!-- 审批状态标签样式：已审核-绿色，待审核-橙色，已驳回-红色。 -->
+            <Style x:Key="ApprovalStatusBadgeTextStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding ApprovalStatus}" Value="已审核">
+                        <Setter Property="Foreground" Value="#FF2E7D32"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding ApprovalStatus}" Value="待审核">
+                        <Setter Property="Foreground" Value="#FFF57C00"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding ApprovalStatus}" Value="已驳回">
+                        <Setter Property="Foreground" Value="#FFC62828"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
 
             <Style x:Key="FinishAutoCompleteEditStyle" TargetType="TextBox" BasedOn="{StaticResource DataGridTextBoxStyle}">
                 <Setter Property="mt:DataGridDropdownAssist.ItemsSource" Value="{Binding DataContext.ProductFinishList, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
@@ -62,7 +83,7 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!--#region 左侧列表-->
+        <!--#region 左侧筛选栏（参考 ProductManagerView）-->
         <Border Margin="5"
                Background="White" CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource Brush_Border_Light}">
             <Grid Margin="8">
@@ -82,20 +103,22 @@
                                           Text="{Binding SelectedCustomerFilter, Mode=TwoWay}" Height="30" />
                     
                     <TextBlock Text="审批状态" FontWeight="SemiBold" Margin="0,8,0,2"/>
-                    <ComboBox x:Name="ApprovalStatusComboBox" 
-                            DisplayMemberPath="Name"
-                            ItemsSource="{Binding OrderStatusOptions}"
+                    <ComboBox x:Name="ApprovalStatusComboBox"
+                            ItemsSource="{Binding ApprovalStatusOptions}"
                             mt:MultiSelectComboBoxAssist.Enable="True"
-                            mt:MultiSelectComboBoxAssist.DisplayMemberPath="Name"
-                            mt:MultiSelectComboBoxAssist.SelectedItems="{Binding SelectedOrderStatuses, Mode=TwoWay}" />
+                            mt:MultiSelectComboBoxAssist.SelectedItems="{Binding SelectedApprovalStatuses, Mode=TwoWay}" />
 
                     <TextBlock Text="订单状态" FontWeight="SemiBold" Margin="0,8,0,2"/>
-                    <ComboBox x:Name="OrderStatusComboBox" 
-                            DisplayMemberPath="Name"
+                    <ComboBox x:Name="OrderStatusComboBox"
                             ItemsSource="{Binding OrderStatusOptions}"
                             mt:MultiSelectComboBoxAssist.Enable="True"
-                            mt:MultiSelectComboBoxAssist.DisplayMemberPath="Name"
                             mt:MultiSelectComboBoxAssist.SelectedItems="{Binding SelectedOrderStatuses, Mode=TwoWay}" />
+
+                    <TextBlock Text="下单日期(起)" FontWeight="SemiBold" Margin="0,8,0,2"/>
+                    <DatePicker SelectedDate="{Binding OrderDateFrom, Mode=TwoWay}"/>
+
+                    <TextBlock Text="下单日期(止)" FontWeight="SemiBold" Margin="0,8,0,2"/>
+                    <DatePicker SelectedDate="{Binding OrderDateTo, Mode=TwoWay}"/>
 
                     <TextBlock Text="订单号" FontWeight="SemiBold" Margin="0,8,0,2"/>
                     <mt:SearchableTextBox ItemsSource="{Binding OrderNoList}" MinWidth="140"
@@ -155,13 +178,13 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="6*" MinHeight="40" x:Name="MasterRow"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="4*" MinHeight="40" x:Name="DetailRow"/>
+                <RowDefinition Height="0"/>
+                <RowDefinition Height="0"/>
             </Grid.RowDefinitions>
 
-            <ToggleButton Grid.Row="0"  x:Name="BtnToggleMasterBorder"  
+            <ToggleButton Grid.Row="0"  x:Name="BtnToggleMasterBorder"
                      Height="20" Cursor="Hand"  Margin="8,5"
-                     ToolTip="隐藏/显示订单明细"  Background="Transparent" BorderBrush="Transparent" BorderThickness="0" 
+                     ToolTip="隐藏/显示订单列表"  Background="Transparent" BorderBrush="Transparent" BorderThickness="0" 
                      Click="BtnToggleMasterBorder_Click" VerticalAlignment="Center"  HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
                 <TextBlock  Text="订单列表" FontSize="9" Foreground="#666" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             </ToggleButton>
@@ -183,7 +206,7 @@
                                mt:ButtonAssist.IconSize="12"
                                mt:ButtonAssist.Icon="{StaticResource Icon.Add}">
                         </Button>
-                        <Button Command="{Binding BatchSaveCommand}" Margin="0,0,5,0" 
+                        <Button Command="{Binding BatchSaveCommand}" Margin="0,0,5,0"
                                 Style="{StaticResource   ButtonSuccess}"
                                Content="保存"
                                mt:ButtonAssist.IconSize="12"
@@ -196,6 +219,18 @@
                                mt:ButtonAssist.IconSize="12"
                                mt:ButtonAssist.Icon="{StaticResource Icon.Delete}">
                         </Button>
+
+                        <Button Command="{Binding BatchApproveCommand}" Margin="0,0,5,0"
+                               Style="{StaticResource ButtonSuccess}"
+                               Content="审批通过"
+                               mt:ButtonAssist.IconSize="12"
+                               mt:ButtonAssist.Icon="{StaticResource Icon.Check}"/>
+
+                        <Button Command="{Binding BatchRejectCommand}" Margin="0,0,5,0"
+                               Style="{StaticResource ButtonDanger}"
+                               Content="驳回"
+                               mt:ButtonAssist.IconSize="12"
+                               mt:ButtonAssist.Icon="{StaticResource Icon.Close}"/>
                         <Button Command="{Binding LoadCommand}" Margin="0,0,5,0" 
                                 Style="{StaticResource   ButtonBase}"
                                Content="刷新"
@@ -247,7 +282,7 @@
                                 <MenuItem Header="批量打印条码" />
                             </MenuItem>
                         </Menu>
-                        <TextBlock Text="模糊搜索" FontWeight="SemiBold" 
+                        <TextBlock Text="模糊搜索" FontWeight="SemiBold"
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource Brush_Txt_Primary}" Margin="8,0,8,0"/>
                         <TextBox x:Name="MainSearchTextBox"
@@ -257,7 +292,6 @@
                                  mt:TextBoxAssist.Placeholder="键入搜索"
                                  mt:TextBoxAssist.ShowClearButton="True"
                                  />
-
                     </StackPanel>
 
 <!--主表区域-->
@@ -266,10 +300,14 @@
                         <TabItem Header="订单列表" FontSize="14">
                             <Grid>
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="3*"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="2*"/>
                                 </Grid.RowDefinitions>
-                                <!--主DataGrid：绑定到 OrderHeaders.Items，选中项绑定 SelectedOrderHeader -->
+
+                                <!-- 主DataGrid：订单头列表 -->
                                 <DataGrid Grid.Row="0" x:Name="MasterDataGrid"
                                      ItemsSource="{Binding OrderHeaders.Items}"
                                      SelectedItem="{Binding SelectedOrderHeader, Mode=TwoWay}"
@@ -344,7 +382,13 @@
                                         <DataGridTextColumn Header="ETD" Binding="{Binding ETD, StringFormat=g}" Width="140" />
                                         <DataGridTextColumn Header="文件夹" Binding="{Binding SoFolder}" Width="160" />
                                         <DataGridTextColumn Header="版本号" Binding="{Binding VersionNo}" Width="100" />
-                                        <DataGridTextColumn Header="审批状态" Binding="{Binding ApprovalStatus}" Width="120" />
+                                        <DataGridTemplateColumn Header="审批状态" Width="120">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding ApprovalStatus}" Style="{StaticResource ApprovalStatusBadgeTextStyle}"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
                                         <DataGridCheckBoxColumn Header="已删除" Binding="{Binding IsDeleted}" Width="80" />
                                         <DataGridCheckBoxColumn Header="已锁定" Binding="{Binding IsLocked}" Width="80" />
                                         <DataGridTextColumn Header="更新人" Binding="{Binding UpdatedBy}" Width="120" />
@@ -352,15 +396,160 @@
                                     </DataGrid.Columns>
                                 </DataGrid>
 
-                                <mt:PaginationControl Grid.Row="1" Margin="0,8,0,0" HorizontalAlignment="Right" 
+                                <mt:PaginationControl Grid.Row="1" Margin="0,8,0,8" HorizontalAlignment="Right"
                                                    TotalCount="{Binding TotalCount}" 
                                                    PageIndex="{Binding PageIndex, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
                                                    PageSize="{Binding PageSize, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+
+                                <GridSplitter Grid.Row="2" HorizontalAlignment="Stretch" VerticalAlignment="Center" Height="12"
+                                              Background="Transparent" Cursor="SizeNS" ShowsPreview="False"/>
+
+                                <ToggleButton Grid.Row="3"
+                                              IsChecked="True"
+                                              Height="20" Cursor="Hand" Margin="2,2,2,6"
+                                              ToolTip="隐藏/显示订单行明细"
+                                              HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                              Background="Transparent" BorderBrush="Transparent" BorderThickness="0">
+                                    <TextBlock Text="订单行明细" FontSize="9" Foreground="#666"/>
+                                </ToggleButton>
+
+                                <!-- 订单行明细：按你的要求放到第一个 Tab 内主表下方 -->
+                                <Border Grid.Row="4"
+                                        Margin="0,0,0,0"
+                                        Background="{DynamicResource Brush_Control_Background}"
+                                        BorderBrush="{DynamicResource Brush_Border_Light}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="6">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Text="订单行明细" FontWeight="SemiBold" Margin="2,0,0,6"/>
+
+                                        <!-- 中文注释：操作区移入第一个Tab（与 ProductManagerView 主从同区风格一致）。 -->
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,6">
+                                            <Button Command="{Binding AddLineCommand}" Margin="0,0,5,0"
+                                                    Style="{StaticResource ButtonPrimary}"
+                                                    Content="新增"
+                                                    mt:ButtonAssist.IconSize="12"
+                                                    mt:ButtonAssist.Icon="{StaticResource Icon.Add}"/>
+
+                                            <Button Command="{Binding DeleteLineCommand}" Margin="0,0,5,0"
+                                                    Style="{StaticResource ButtonDanger}"
+                                                    Content="删除"
+                                                    mt:ButtonAssist.IconSize="12"
+                                                    mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"/>
+
+                                            <Button Command="{Binding InvertCheckCommand}" Margin="0,0,5,0"
+                                                    Style="{StaticResource ButtonBase}"
+                                                    Content="反选"
+                                                    mt:ButtonAssist.IconSize="12"
+                                                    mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"/>
+
+                                            <Separator Margin="5,0"/>
+                                            <TextBlock Text="筛选：" VerticalAlignment="Center" Margin="5,0,2,0"/>
+                                            <TextBox Width="180"
+                                                     Text="{Binding BomSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                                     VerticalContentAlignment="Center"
+                                                     mt:TextBoxAssist.Placeholder="内存极速筛选"
+                                                     mt:TextBoxAssist.ShowClearButton="True"/>
+                                        </StackPanel>
+
+                                        <DataGrid Grid.Row="2"
+                                                  x:Name="DetailDataGridInTab"
+                                                  ItemsSource="{Binding CurrentOrderLines.Items}"
+                                                  SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
+                                                  AutoGenerateColumns="False"
+                                                  EnableRowVirtualization="False"
+                                                  EnableColumnVirtualization="False"
+                                                  mt:DataGridAssist.ShowRowNumber="True"
+                                                  mt:DataGridAssist.EnableSoftValidation="True"
+                                                  mt:DataGridExcelAssist.EnableDirtyTracking="True">
+                                            <DataGrid.Style>
+                                                <Style TargetType="DataGrid" BasedOn="{StaticResource BaseDataGrid}">
+                                                    <Setter Property="SelectionUnit" Value="FullRow"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Data, Source={StaticResource SelectionUnitProxy}}" Value="True">
+                                                            <Setter Property="SelectionUnit" Value="CellOrRowHeader"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DataGrid.Style>
+
+                                            <DataGrid.Columns>
+                                                <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}" CellTemplate="{StaticResource ImageCellTemplate}" Width="64" />
+                                                <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="160" />
+                                                <DataGridTextColumn Header="订单号(行)" Binding="{Binding OrderNo}" Width="140" />
+                                                <DataGridTextColumn Header="客户型号" Binding="{Binding CustomerPdSku}" Width="140" />
+                                                <DataGridTextColumn Header="描述" Binding="{Binding DescriptionEn}" Width="240" />
+                                                <DataGridTextColumn Header="数量" Binding="{Binding QTY, StringFormat=N0}" Width="80" />
+                                                <DataGridTextColumn Header="已发货" Binding="{Binding ShippedQty, StringFormat=N0}" Width="80" />
+                                                <DataGridTextColumn Header="未发货" Binding="{Binding UnshippedQty, StringFormat=N0}" Width="80" />
+                                                <DataGridTextColumn Header="USD金额" Binding="{Binding UsdAmount, StringFormat=N2}" Width="120" />
+                                                <DataGridTextColumn Header="CNY金额" Binding="{Binding CnyAmount, StringFormat=N2}" Width="120" />
+                                                <DataGridTextColumn Header="备注" Binding="{Binding SubRemark}" Width="260" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+
+                                        <!-- 中文注释：Popup 也移入第一个Tab的主从区域。 -->
+                                        <Popup x:Name="PopupForSubModelInTab"
+                                               Grid.Row="2"
+                                               IsOpen="{Binding IsPopupOpen}"
+                                               Placement="Bottom"
+                                               StaysOpen="False"
+                                               AllowsTransparency="True"
+                                               Focusable="False">
+                                            <Border BorderBrush="{DynamicResource Brush_Border_Default}"
+                                                    Background="{DynamicResource Brush_Bck_Card}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="8"
+                                                    Padding="4"
+                                                    SnapsToDevicePixels="True">
+                                                <ListBox ItemsSource="{Binding BomPopItemSource}"
+                                                         SelectedItem="{Binding BomPopSelectedItem}"
+                                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                         BorderThickness="0"
+                                                         Focusable="False"
+                                                         MinWidth="280"
+                                                         MinHeight="60"
+                                                         MaxHeight="260">
+                                                    <ListBox.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <DockPanel Margin="2,3">
+                                                                <Image DockPanel.Dock="Left"
+                                                                       Width="32" Height="32"
+                                                                       Margin="0,0,8,0"
+                                                                       Stretch="Uniform"
+                                                                       VerticalAlignment="Center"
+                                                                       Source="{Binding MainImage, Converter={StaticResource ImgPathToImgConverter}}"/>
+                                                                <StackPanel VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Sku}" FontWeight="SemiBold" FontSize="12"/>
+                                                                    <TextBlock Text="{Binding Description}" Foreground="#888" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                                                </StackPanel>
+                                                            </DockPanel>
+                                                        </DataTemplate>
+                                                    </ListBox.ItemTemplate>
+                                                </ListBox>
+                                            </Border>
+                                        </Popup>
+
+                                        <StatusBar Grid.Row="3" Background="Transparent" BorderThickness="0" Padding="4,2">
+                                            <StatusBarItem>
+                                                <TextBlock Text="就绪" Foreground="#888"/>
+                                            </StatusBarItem>
+                                        </StatusBar>
+                                    </Grid>
+                                </Border>
                             </Grid>
                         </TabItem>
 
                         <TabItem Header="订单详情" FontSize="14">
-                            <Viewbox />
+                            <salesViews:SalesOrderDetailView DataContext="{Binding EmbeddedDetailViewModel}"/>
                         </TabItem>
                     </TabControl>
                     
@@ -369,225 +558,8 @@
             </Border>
             <!--#endregion-->
 
-            <GridSplitter Grid.Row="2" HorizontalAlignment="Stretch" VerticalAlignment="Center" Height="26" 
-                     Background="Transparent" Cursor="SizeNS" ShowsPreview="False"/>
-
-            <ToggleButton Grid.Row="2" x:Name="BtnToggleDetailContainer"  
-                     IsChecked="{Binding IsBomAreaCollapsed, Mode=TwoWay}"
-                     Height="20" Cursor="Hand"  Margin="8,5" 
-                     ToolTip="隐藏/显示 BOM 明细" 
-                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                     Background="Transparent" BorderBrush="Transparent" BorderThickness="0" 
-                     Click="BtnToggleDetailContainer_Click" VerticalAlignment="Center">
-                <TextBlock Text="订单行" FontSize="9" Foreground="#666" VerticalAlignment="Center" HorizontalAlignment="Left"/>
-            </ToggleButton>
-            
-            <!--#region底部区域-->
-            <Border Grid.Row="3" x:Name="DetailContainer" Margin="5"
-               Background="{DynamicResource  Brush_Control_Background}" CornerRadius="8" 
-                    BorderThickness="1" BorderBrush="{DynamicResource Brush_Border_Light}" >
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    
-                    <StackPanel Orientation="Horizontal"  Grid.Row="0" 
-                               Margin="5,2">
-                        <!-- 订单号标签：绑定到 SelectedOrderHeader.OrderNo，无订单时显示 (无订单) -->
-                        <TextBlock Text="订单号：" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                        <TextBlock Text="{Binding SelectedOrderHeader.单号, TargetNullValue='(无订单号)'}" VerticalAlignment="Center"  Margin="0,0,15,0" Width="120" TextTrimming="CharacterEllipsis"/>
-                        <Separator Margin="5,0"/>
-
-                        <!-- 有BOM时显示的操作按钮区域（获取/保存/删除/筛选） -->
-                        <StackPanel Orientation="Horizontal">
-                            <StackPanel.Style>
-                                <Style TargetType="StackPanel">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasActiveBom}" Value="False">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </StackPanel.Style>
-                            <Button Command="{Binding OpenProductSelectorCommand}" Margin="0,0,5,0" 
-                                   Content="获取"
-                                   Style="{StaticResource ButtonPrimary}"
-                                   mt:ButtonAssist.IconSize="12"
-                                   mt:ButtonAssist.Icon="{StaticResource Icon.Add}"/>
-
-                            <Button Command="{Binding SaveBomCommand}" Margin="0,0,5,0"
-                                   Content="保存"
-                                   Style="{StaticResource ButtonSuccess}"
-                                   mt:ButtonAssist.IconSize="12"
-                                   mt:ButtonAssist.Icon="{StaticResource Icon.Save}"/>
-                            <!--<Button Command="{Binding RemoveBomItemCommand}" Margin="0,0,5,0"
-                                   Content="删除"
-                                   Style="{StaticResource ButtonDanger}"
-                                   mt:ButtonAssist.IconSize="12"
-                                   mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"/>-->
-                            <Separator Margin="5,0"/>
-                            <TextBlock Text="筛选：" VerticalAlignment="Center" Margin="5,0,2,0"/>
-                            <TextBox Width="180" Text="{Binding BomSearchText, UpdateSourceTrigger=PropertyChanged}" 
-                                    VerticalContentAlignment="Center" 
-                                    mt:TextBoxAssist.Placeholder="内存极速筛选"
-                                    mt:TextBoxAssist.ShowClearButton="True"/>
-                        </StackPanel>
-
-                        <!-- 无BOM时显示的新建BOM按钮 -->
-                        <Button Command="{Binding CreateBomCommand}" Margin="0,0,5,0"
-                               Content="新建BOM"
-                               mt:ButtonAssist.IconSize="12"
-                               mt:ButtonAssist.Icon="{StaticResource Icon.Add}">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasActiveBom}" Value="False">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                    </StackPanel>
-
-
-                        <!--明细DataGrid-->
-
-                    <Grid Grid.Row="1">
-                        <!-- 次级明细 DataGrid：绑定到 CurrentOrderLines.Items -->
-                        <DataGrid x:Name="DetailDataGrid" Margin="0,5,0,0"
-                                      Style="{StaticResource  FullRowDataGrid}"
-                                                 ItemsSource="{Binding CurrentOrderLines.Items}"
-                                                 SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
-                                                 HorizontalScrollBarVisibility="Auto" HeadersVisibility="All" 
-                                                 RowHeight="40" 
-                                                 SelectionUnit="FullRow"
-                                                 EnableRowVirtualization="False"
-                                                 EnableColumnVirtualization="False"
-                                                 mt:DataGridAssist.ShowRowNumber="True" 
-                                                 mt:UndoManager.IsUndoEnabled="True"
-                                                 mt:DataGridAssist.AutoScrollToNewItem="True"
-                                                 mt:DataGridAssist.EnableSoftValidation="True"
-                                                 mt:DataGridExcelAssist.EnableDirtyTracking="True">
-                            
-                            <DataGrid.Columns>
-                                <!-- 次表列：绑定到 SalesOrderLineModel 的属性 -->
-                                <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}" CellTemplate="{StaticResource ImageCellTemplate}" Width="64" />
-
-                                <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="160" />
-                                <DataGridTextColumn Header="订单号(行)" Binding="{Binding OrderNo}" Width="140" />
-                                <DataGridTextColumn Header="客户型号" Binding="{Binding CustomerPdSku}" Width="140" />
-                                <DataGridTextColumn Header="描述" Binding="{Binding CustomerPdDescription}" Width="240" />
-                                <DataGridTextColumn Header="表面处理" Binding="{Binding CustomerPdFinish}" Width="120" />
-                                <DataGridTextColumn Header="产品特性" Binding="{Binding CustomerPdFeatures}" Width="200" />
-
-                                <DataGridTextColumn Header="数量" Binding="{Binding QTY, StringFormat=N0}" Width="80" />
-                                <DataGridTextColumn Header="已发货" Binding="{Binding ShippedQty, StringFormat=N0}" Width="80" />
-                                <DataGridTextColumn Header="未发货" Binding="{Binding UnshippedQty, StringFormat=N0}" Width="80" />
-
-                                <DataGridTextColumn Header="每箱数量" Binding="{Binding PcsOfCarton}" Width="100" />
-                                <DataGridTextColumn Header="每箱净重" Binding="{Binding NwOfCarton}" Width="100" />
-                                <DataGridTextColumn Header="每箱毛重" Binding="{Binding GwOfCarton}" Width="100" />
-                                <DataGridTextColumn Header="每箱体积" Binding="{Binding CbmOfCarton}" Width="100" />
-                                <DataGridTextColumn Header="箱数" Binding="{Binding Ctns}" Width="80" />
-
-                                <DataGridTextColumn Header="净重小计" Binding="{Binding NwSubTotal, StringFormat=N2}" Width="100" />
-                                <DataGridTextColumn Header="毛重小计" Binding="{Binding GwSubTotal, StringFormat=N2}" Width="100" />
-                                <DataGridTextColumn Header="体积小计" Binding="{Binding CbmSubTotal, StringFormat=N3}" Width="100" />
-
-                                <DataGridTextColumn Header="USD单价" Binding="{Binding UsdPrice, StringFormat=N2}" Width="100" />
-                                <DataGridTextColumn Header="USD金额" Binding="{Binding UsdAmount, StringFormat=N2}" Width="120" />
-                                <DataGridTextColumn Header="RMB单价" Binding="{Binding RmbPrice, StringFormat=N2}" Width="100" />
-                                <DataGridTextColumn Header="RMB金额" Binding="{Binding RmbAmount, StringFormat=N2}" Width="120" />
-
-                                <DataGridTextColumn Header="行号" Binding="{Binding LineNumber}" Width="80" />
-                                <DataGridTextColumn Header="行ID" Binding="{Binding Id}" Width="80" />
-                                <DataGridTextColumn Header="状态" Binding="{Binding State}" Width="100" />
-                                <DataGridCheckBoxColumn Header="部分发货" Binding="{Binding IsPartiallyShipped}" Width="100" />
-                                <DataGridCheckBoxColumn Header="已全部发货" Binding="{Binding IsFullyShipped}" Width="100" />
-
-                                <DataGridTextColumn EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}" Header="备注" Binding="{Binding SubRemark, UpdateSourceTrigger=PropertyChanged}" Width="300" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                        <!--快速搜索产品-->
-                        <Popup x:Name="PopupForSubModel"
-                                               IsOpen="{Binding IsPopupOpen}"
-                                               Placement="Bottom"
-                                               StaysOpen="False"
-                                               AllowsTransparency="True"
-                                               Focusable="False">
-
-                            <Border BorderBrush="{DynamicResource Brush_Border_Default}"
-                                                    Background="{DynamicResource Brush_Bck_Card}"
-                                                    BorderThickness="1"
-                                            CornerRadius="8"
-                                            Padding="4"
-                                                    SnapsToDevicePixels="True">
-
-                                <ListBox ItemsSource="{Binding BomPopItemSource}"
-                                                     SelectedItem="{Binding BomPopSelectedItem}"
-                                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                                     BorderThickness="0"
-                                                     Focusable="False"
-                                                     MinWidth="280"
-                                                     MinHeight="60"
-                                                     MaxHeight="260">
-
-                                    <!-- 每项模板：图片 + SKU + 描述 -->
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <DockPanel Margin="2,3">
-                                                <Image DockPanel.Dock="Left"
-                                                                       Width="32" Height="32"
-                                                                       Margin="0,0,8,0"
-                                                                       Stretch="Uniform"
-                                                                       VerticalAlignment="Center"
-                                                                       Source="{Binding MainImage, Converter={StaticResource ImgPathToImgConverter}}"/>
-
-                                                <StackPanel VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Sku}"
-                                                                               FontWeight="SemiBold"
-                                                                               FontSize="12"/>
-                                                    <TextBlock Text="{Binding Description}"
-                                                                               Foreground="#888"
-                                                                               FontSize="11"
-                                                                               TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
-                                            </DockPanel>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-
-                                    <ListBox.ItemContainerStyle>
-                                        <Style TargetType="ListBoxItem">
-                                            <Setter Property="Padding" Value="2"/>
-                                            <Setter Property="Cursor" Value="Hand"/>
-                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                        </Style>
-                                    </ListBox.ItemContainerStyle>
-
-                                </ListBox>
-                            </Border>
-                        </Popup>
-                    </Grid>
-
-                    <StatusBar Grid.Row="2" Background="Transparent" 
-                          BorderThickness="0,0,0,0" BorderBrush="{DynamicResource Brush_Border_Light}" Padding="10,2">
-                        <StatusBarItem>
-                            <TextBlock Text="就绪" Foreground="#888"/>
-                        </StatusBarItem>
-                        <StatusBarItem HorizontalAlignment="Right">
-                            <TextBlock Text="{Binding CurrentBomItems.Count, StringFormat='BOM 明细总数：{0} 项'}" 
-                                  Foreground="{DynamicResource Brush_Txt_Primary}" FontWeight="SemiBold"/>
-                        </StatusBarItem>
-                    </StatusBar>
-                </Grid>
-            </Border>
-
         </Grid>
         <!--#endregion-->
-        <mt:DialogHost Grid.Column="1" Grid.RowSpan="4" />
+        <mt:DialogHost Grid.Column="1" Grid.RowSpan="4" d:IsHidden="True" />
     </Grid>
 </UserControl>

@@ -38,7 +38,6 @@
                     <!-- 虽然是事件驱动，但 IsExpanded 依然可以用绑定到 Model 简化递归 UI 操作 -->
                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
                     <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
-                    <Setter Property="IsExpanded" Value="True"/>
                 </Style>
             </TreeView.ItemContainerStyle>
             <TreeView.ItemTemplate>

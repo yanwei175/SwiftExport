@@ -30,10 +30,15 @@ public static class DependencyInjection
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
         services.AddScoped<ISalesOrderService, SalesOrderService>();
+        services.AddScoped<IRequirementPoolService, RequirementPoolService>();
+        services.AddScoped<IDocumentNoService, DocumentNoService>();
         services.AddScoped<ISysDicCurrencyService, SysDicCurrencyService>();
         services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();
         // 视图路由配置服务
         services.AddScoped<ISysViewRouteService, SysViewRouteService>();
+        services.AddScoped<ISalesOrderLineSourceService, SalesOrderLineSourceService>();
+        services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
+        services.AddScoped<IReceiveService, ReceiveService>();
 
         return services;
     }

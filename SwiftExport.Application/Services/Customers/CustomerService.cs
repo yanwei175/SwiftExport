@@ -5,6 +5,7 @@ using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
 
@@ -30,7 +31,7 @@ public class CustomerService(ICustomerRepository repository, ServiceBaseContext 
         }
 
         // 2. 调用当前业务专用的 Repository 方法查重
-        // 注意：因为基类的 _repository 是泛型 IRepository<T>，这里需要向下转型为 ICustomerRepository
+        // 注意：因为基类的 _rpRepository 是泛型 IRepository<T>，这里需要向下转型为 ICustomerRepository
         var repo = (ICustomerRepository)_repository;
         var existedCodes = await repo.GetExistingCustomerCodesAsync(needAddCodes);
 
@@ -101,5 +102,55 @@ public class CustomerService(ICustomerRepository repository, ServiceBaseContext 
         var nonExistentCodes = allCodesSet.Except(existingCodesSet).ToList();
 
         return ServiceResult<IReadOnlyList<string>>.Ok(nonExistentCodes);
+    }
+
+    public async Task<ServiceResult<PagedResultDto<CustomerDto>>> GetPagedAsync(PagedRequestDto request)
+    {
+
+        // 1. 实例化底层查询对象
+        var criteria = new QueryCriteria();
+
+        // ==========================================
+        // 处理批量搜索
+        // ==========================================
+        if (!string.IsNullOrWhiteSpace(request.BatchSearchTexts))
+        {
+            // 1. 分割字符串：支持 换行符(\n, \r) 和 逗号(,)
+            var batchList = request.BatchSearchTexts
+                .Split(['\r', '\n', ','], StringSplitOptions.RemoveEmptyEntries)
+                .Select(k => k.Trim())           // 去除首尾空格
+                .Where(k => !string.IsNullOrEmpty(k)) // 再次确保没有空字符串
+                .Distinct()                      // 去重
+                .ToList();
+
+            if (batchList.Count > 0)
+            {
+                // 逻辑：(SKU IN (...) OR CSKU IN (...))
+                criteria.AddOrGroup(
+                    ("CustomerCode", 查询操作符.包含某值, batchList),
+                    ("CustomerName", 查询操作符.包含某值, batchList),
+                    ("ContactPerson", 查询操作符.包含某值, batchList)
+                );
+            }
+        }
+
+        // ==========================================
+        // 处理单个关键字模糊搜索
+        // ==========================================
+        if (!string.IsNullOrWhiteSpace(request.SearchText))
+        {
+            criteria.AddOrGroup(
+                ("CustomerCode", 查询操作符.模糊匹配, request.SearchText),
+                ("CustomerName", 查询操作符.模糊匹配, request.SearchText),
+                ("ContactPerson", 查询操作符.模糊匹配, request.SearchText)
+            );
+        }
+
+        // 4. 处理分页默认值保护
+        int pageIndex = request.PageIndex > 0 ? request.PageIndex : 1;
+        int pageSize = request.PageSize > 0 ? request.PageSize : 50;
+
+        // 5. 核心：调用基类提供的泛型分页方法，完成数据库查询和 DTO 映射
+        return await base.GetPagedListAsync(criteria, pageIndex, pageSize, "CustomerCode ASC");
     }
 }

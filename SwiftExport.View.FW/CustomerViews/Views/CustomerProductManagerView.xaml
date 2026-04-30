@@ -233,9 +233,13 @@
                     <DataGridTextColumn Header="币种" Width="80"
                                         Binding="{Binding Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
-                    <!-- 专用单价 -->
-                    <DataGridTextColumn Header="专用单价" Width="90"
-                                        Binding="{Binding Price, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- 美元单价 -->
+                    <DataGridTextColumn Header="USD单价" Width="90"
+                                        Binding="{Binding USDPrice, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <!-- 人民币单价 -->
+                    <DataGridTextColumn Header="CNY单价" Width="90"
+                                        Binding="{Binding CNYPrice, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <!-- 条码1码制 -->
                     <DataGridTextColumn Header="条码1码制" Width="90"

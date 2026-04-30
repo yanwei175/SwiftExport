@@ -311,7 +311,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         // ============= 辅助 ==============
 
         /// <summary>
-        /// 统计叶子节点（真实字典类型）数量
+        /// 统计叶子节点（真实字典类型）QTY
         /// </summary>
         private int CountLeafNodes(IEnumerable<DictTypeNavNode> nodes)
         {

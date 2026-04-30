@@ -63,48 +63,61 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             set => SetProperty(ref _mainImage, value);
         }
 
-        private string _单号;
-        public string 单号
+        private int _salesOrderId;
+        public int SalesOrderId
         {
-            get => _单号;
-            set => SetProperty(ref _单号, value);
+            get => _salesOrderId;
+            set => SetProperty(ref _salesOrderId, value);
         }
 
-        private string _物料编码 = string.Empty;
-        public string 物料编码
+        private string _orderNo;
+        public string OrderNo
         {
-            get => _物料编码;
-            set => SetProperty(ref _物料编码, value);
+            get => _orderNo;
+            set => SetProperty(ref _orderNo, value);
         }
 
-        private string _客户型号;
-        public string 客户型号
+        private string _sku = string.Empty;
+        public string Sku
         {
-            get => _客户型号;
-            set => SetProperty(ref _客户型号, value);
+            get => _sku;
+            set => SetProperty(ref _sku, value);
         }
 
-        private string _描述 = string.Empty;
-        public string 描述
+        private string _customerCode;
+        public string CustomerSKU
         {
-            get => _描述;
-            set => SetProperty(ref _描述, value);
+            get => _customerCode;
+            set => SetProperty(ref _customerCode, value);
         }
 
-        private string _颜色 = string.Empty;
-        public string 颜色
+        private string _descriptionEn = string.Empty;
+        public string DescriptionEn
         {
-            get => _颜色;
-            set => SetProperty(ref _颜色, value);
+            get => _descriptionEn;
+            set => SetProperty(ref _descriptionEn, value);
         }
 
-        private string _配置 = string.Empty;
-        public string 配置
+        private string _colorNameEn = string.Empty;
+        public string ColorNameEn
         {
-            get => _配置;
-            set => SetProperty(ref _配置, value);
+            get => _colorNameEn;
+            set => SetProperty(ref _colorNameEn, value);
         }
 
+        private string _featuresEn = string.Empty;
+        public string FeaturesEn
+        {
+            get => _featuresEn;
+            set => SetProperty(ref _featuresEn, value);
+        }
+
+        private string _materialType = string.Empty;
+        public string MaterialType
+        {
+            get => _materialType;
+            set => SetProperty(ref _materialType, value);
+        }
         #endregion
 
         #region 计算相关字段
@@ -118,57 +131,57 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         #region 数量 / 单价 / 金额（保留原样）
 
-        private decimal _数量 = 0;
-        public decimal 数量
+        private decimal _qty = 0;
+        public decimal QTY
         {
-            get => _数量;
+            get => _qty;
             set
             {
-                if (SetProperty(ref _数量, value))
+                if (SetProperty(ref _qty, value))
                     RecalculateAll();
             }
         }
 
-        private decimal _美金单价;
-        public decimal 美金单价
+        private decimal _usdPrice;
+        public decimal USDPrice
         {
-            get => _美金单价;
+            get => _usdPrice;
             set
             {
-                if (SetProperty(ref _美金单价, value))
+                if (SetProperty(ref _usdPrice, value))
                     RecalculateAll();
             }
         }
 
-        private decimal _人民币单价;
-        public decimal 人民币单价
+        private decimal _cnyPrice;
+        public decimal CNYPrice
         {
-            get => _人民币单价;
+            get => _cnyPrice;
             set
             {
-                if (SetProperty(ref _人民币单价, value))
+                if (SetProperty(ref _cnyPrice, value))
                     RecalculateAll();
             }
         }
 
-        private decimal _美金小计;
-        public decimal 美金小计
+        private decimal _usdAmount;
+        public decimal USDAmount
         {
-            get => _美金小计;
+            get => _usdAmount;
             set
             {
-                if (SetProperty(ref _美金小计, value) && !是否程序内部修改)
+                if (SetProperty(ref _usdAmount, value) && !是否程序内部修改)
                     _启动美金小计计算 = true;
             }
         }
 
-        private decimal _人民币小计;
-        public decimal 人民币小计
+        private decimal _cnyAmount;
+        public decimal CNYAmount
         {
-            get => _人民币小计;
+            get => _cnyAmount;
             set
             {
-                if (SetProperty(ref _人民币小计, value) && !是否程序内部修改)
+                if (SetProperty(ref _cnyAmount, value) && !是否程序内部修改)
                     _启动人民币小计计算 = true;
             }
         }
@@ -176,36 +189,36 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         #endregion
 
         #region 发货状态（新加字段，用于界面显示和逻辑判断）
-        private decimal _已发货数量;
-        public decimal 已发货数量
+        private decimal _shippedQTY;
+        public decimal ShippedQTY
         {
-            get => _已发货数量;
+            get => _shippedQTY;
             set
             {
-                if (SetProperty(ref _已发货数量, value))
+                if (SetProperty(ref _shippedQTY, value))
                     RecalculateAll();
             }
         }
 
-        private decimal _未发货数量;
-        public decimal 未发货数量
+        private decimal _unShippedQTY;
+        public decimal UnshippedQty
         {
-            get => _未发货数量;
-            set => SetProperty(ref _未发货数量, value);
+            get => _unShippedQTY;
+            set => SetProperty(ref _unShippedQTY, value);
         }
 
-        private bool _是否部分发货;
-        public bool 是否部分发货
+        private bool _isPartiallyShipped;
+        public bool IsPartiallyShipped
         {
-            get => _是否部分发货;
-            set => SetProperty(ref _是否部分发货, value);
+            get => _isPartiallyShipped;
+            set => SetProperty(ref _isPartiallyShipped, value);
         }
 
-        private bool _是否全部发货;
-        public bool 是否全部发货
+        private bool _isFullyShipped;
+        public bool IsFullyShipped
         {
-            get => _是否全部发货;
-            set => SetProperty(ref _是否全部发货, value);
+            get => _isFullyShipped;
+            set => SetProperty(ref _isFullyShipped, value);
         }
 
 
@@ -216,100 +229,100 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         #region 包装运输信息（保留原样）
 
-        private int _行号;
-        public int 行号
+        private int _lineNumber;
+        public int LineNumber
         {
-            get => _行号;
-            set => SetProperty(ref _行号, value);
+            get => _lineNumber;
+            set => SetProperty(ref _lineNumber, value);
         }
 
-        private string _备注 = string.Empty;
-        public string 备注
+        private string _subNote = string.Empty;
+        public string SubNote
         {
-            get => _备注;
-            set => SetProperty(ref _备注, value);
+            get => _subNote;
+            set => SetProperty(ref _subNote, value);
         }
 
-        private decimal _每箱数量;
-        public decimal 每箱数量
+        private decimal _pcsOfCarton;
+        public decimal PcsOfCarton
         {
-            get => _每箱数量;
+            get => _pcsOfCarton;
             set
             {
-                if (SetProperty(ref _每箱数量, value))
+                if (SetProperty(ref _pcsOfCarton, value))
                     RecalculateAll();
             }
         }
 
-        private decimal _每箱净重;
-        public decimal 每箱净重
+        private decimal _nwOfCarton;
+        public decimal NwOfCarton
         {
-            get => _每箱净重;
+            get => _nwOfCarton;
             set
             {
-                if (SetProperty(ref _每箱净重, value))
+                if (SetProperty(ref _nwOfCarton, value))
                     RecalculateAll();
             }
         }
 
-        private decimal _每箱毛重;
-        public decimal 每箱毛重
+        private decimal _gwOfCarton;
+        public decimal GwOfCarton
         {
-            get => _每箱毛重;
+            get => _gwOfCarton;
             set
             {
-                if (SetProperty(ref _每箱毛重, value))
+                if (SetProperty(ref _gwOfCarton, value))
                     RecalculateAll();
             }
         }
 
-        private decimal _每箱体积;
-        public decimal 每箱体积
+        private decimal _cbmOfCarton;
+        public decimal CbmOfCarton
         {
-            get => _每箱体积;
+            get => _cbmOfCarton;
             set
             {
-                if (SetProperty(ref _每箱体积, value))
+                if (SetProperty(ref _cbmOfCarton, value))
                     RecalculateAll();
             }
         }
 
-        private decimal _箱数;
-        public decimal 箱数
+        private decimal _ctns;
+        public decimal Ctns
         {
-            get => _箱数;
-            private set => SetProperty(ref _箱数, value);
+            get => _ctns;
+            private set => SetProperty(ref _ctns, value);
         }
 
-        private decimal _净重小计;
-        public decimal 净重小计
+        private decimal _nwSubTotal;
+        public decimal NwSubTotal
         {
-            get => _净重小计;
+            get => _nwSubTotal;
             set
             {
-                if (SetProperty(ref _净重小计, value) && !是否程序内部修改)
+                if (SetProperty(ref _nwSubTotal, value) && !是否程序内部修改)
                     _启动净重小计计算 = true;
             }
         }
 
-        private decimal _毛重小计;
-        public decimal 毛重小计
+        private decimal _gwSubTotal;
+        public decimal GwSubTotal
         {
-            get => _毛重小计;
+            get => _gwSubTotal;
             set
             {
-                if (SetProperty(ref _毛重小计, value) && !是否程序内部修改)
+                if (SetProperty(ref _gwSubTotal, value) && !是否程序内部修改)
                     _启动毛重小计计算 = true;
             }
         }
 
-        private decimal _体积小计;
-        public decimal 体积小计
+        private decimal _cbmSubTotal;
+        public decimal CbmSubTotal
         {
-            get => _体积小计;
+            get => _cbmSubTotal;
             set
             {
-                if (SetProperty(ref _体积小计, value) && !是否程序内部修改)
+                if (SetProperty(ref _cbmSubTotal, value) && !是否程序内部修改)
                     _启动体积小计计算 = true;
             }
         }
@@ -337,58 +350,58 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         {
             if (!_启动已发货数量计算)
             {
-                未发货数量 = 数量 - 已发货数量;
-                是否全部发货 = 已发货数量 >= 数量;
-                是否部分发货 = 已发货数量 > 0 && 已发货数量 < 数量;
+                UnshippedQty = QTY - ShippedQTY;
+                IsFullyShipped = ShippedQTY >= QTY;
+                IsPartiallyShipped = ShippedQTY > 0 && ShippedQTY < QTY;
             }
         }
 
 
-        // 计算箱数（箱数） = 订单数量（数量） / 每箱数量（每箱数量），向上取整
+        // 计算箱数（Ctns） = 订单数量（QTY） / PcsOfCarton（PcsOfCarton），向上取整
         private void CalculateCarton()
         {
-            if (每箱数量 <= 0)
+            if (PcsOfCarton <= 0)
             {
-                箱数 = 0;
+                Ctns = 0;
                 return;
             }
 
-            箱数 = Math.Ceiling(数量 / 每箱数量);
+            Ctns = Math.Ceiling(QTY / PcsOfCarton);
         }
 
-        // 计算净重小计 = 箱数（箱数） * 每箱净重（每箱净重），保留两位小数，四舍五入
+        // 计算净重小计 = Ctns（Ctns） * NwOfCarton（NwOfCarton），保留两位小数，四舍五入
         private void CalculateNwSubTotal()
         {
             if (!_启动净重小计计算)
-                净重小计 = Math.Round(箱数 * 每箱净重, 2, MidpointRounding.AwayFromZero);
+                NwSubTotal = Math.Round(Ctns * NwOfCarton, 2, MidpointRounding.AwayFromZero);
         }
 
-        // 计算毛重小计 = 箱数（箱数） * 每箱毛重（每箱毛重），保留两位小数，四舍五入
+        // 计算毛重小计 = Ctns（Ctns） * GwOfCarton（GwOfCarton），保留两位小数，四舍五入
         private void CalculateGwSubTotal()
         {
             if (!_启动毛重小计计算)
-                毛重小计 = Math.Round(箱数 * 每箱毛重, 2, MidpointRounding.AwayFromZero);
+                GwSubTotal = Math.Round(Ctns * GwOfCarton, 2, MidpointRounding.AwayFromZero);
         }
 
-        // 计算体积小计 = 箱数（箱数） * 每箱体积（每箱体积），保留三位小数，四舍五入
+        // 计算体积小计 = Ctns（Ctns） * CbmOfCarton（CbmOfCarton），保留三位小数，四舍五入
         private void CalculateCbmSubTotal()
         {
             if (!_启动体积小计计算)
-                体积小计 = Math.Round(箱数 * 每箱体积, 3, MidpointRounding.AwayFromZero);
+                CbmSubTotal = Math.Round(Ctns * CbmOfCarton, 3, MidpointRounding.AwayFromZero);
         }
 
-        // 计算美金总金额 = 订单数量（数量） * 单位价格（美金单价），保留两位小数，四舍五入
+        // 计算美金总金额 = 订单数量（QTY） * 单位价格（USDPrice），保留两位小数，四舍五入
         private void CalculateUsdAmount()
         {
             if (!_启动美金小计计算)
-                美金小计 = Math.Round(数量 * 美金单价, 2, MidpointRounding.AwayFromZero);
+                USDAmount = Math.Round(QTY * USDPrice, 2, MidpointRounding.AwayFromZero);
         }
 
-        // 计算人民币总金额 = 订单数量（数量） * 单位价格（人民币单价），保留两位小数，四舍五入
+        // 计算人民币总金额 = 订单数量（QTY） * 单位价格（CNYPrice），保留两位小数，四舍五入
         private void CalculateRmbAmount()
         {
             if (!_启动人民币小计计算)
-                人民币小计 = Math.Round(数量 * 人民币单价, 2, MidpointRounding.AwayFromZero);
+                CNYAmount = Math.Round(QTY * CNYPrice, 2, MidpointRounding.AwayFromZero);
         }
         #endregion
 
@@ -407,13 +420,13 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         {
             get
             {
-                if (columnName == nameof(物料编码) && string.IsNullOrWhiteSpace(物料编码))
-                    return "产品 SKU 不能为空";
+                if (columnName == nameof(CustomerSKU) && string.IsNullOrWhiteSpace(CustomerSKU))
+                    return "客户产品编号不能为空";
 
-                if (columnName == nameof(数量) && 数量 <= 0)
+                if (columnName == nameof(QTY) && QTY <= 0)
                     return "订单数量必须大于 0";
 
-                if (columnName == nameof(美金单价) && 美金单价 <= 0)
+                if (columnName == nameof(USDPrice) && USDPrice <= 0)
                     return "单位价格必须大于 0";
 
                 return null;
@@ -429,7 +442,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         public override string ValidateRow()
         {
             //// 示例：数量和单价必须同时有效
-            //if (数量 > 0 && 美金单价 > 0)
+            //if (QTY > 0 && USDPrice > 0)
             return null;
 
             //return "数量和单价必须同时有效";
@@ -444,7 +457,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         public override async Task<string> ValidateAsync()
         {
             // 示例（伪代码）：
-            // if (!await ProductService.ExistsAsync(物料编码))
+            // if (!await ProductService.ExistsAsync(Sku))
             //     return "SKU 不存在于数据库";
 
             return null; // 默认无错误

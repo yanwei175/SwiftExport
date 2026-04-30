@@ -23,11 +23,7 @@ public interface ICustomerProductRepository : IRepository<CustomerProduct>
     ///   - 普通字段（CustomerId / CustomerSku / Sku 等）→ 映射到 cp.字段
     ///   - CategoryId → 映射到 p.CategoryId
     /// </summary>
-    new Task<PagedResult<CustomerProductDto>> GetPagedListAsync(
-        QueryCriteria criteria,
-        int pageIndex,
-        int pageSize,
-        string orderBy = "cp.Id DESC");
+    Task<PagedResult<CustomerProductDto>> GetPagedCustomerProductAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "cp.Id DESC");
 
     // ============================================================
     // 其他特有查询

@@ -223,6 +223,9 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     {
         ArgumentNullException.ThrowIfNull(entity);
 
+        entity.CreatedDate ??= DateTime.Now;
+        entity.UpdatedDate ??= DateTime.Now;
+        entity.IsDeleted = false; // 确保新增时 IsDeleted 字段为 false
         // 使用静态缓存的属性列表，不用每次都反射
         var columns = string.Join(", ", _writeableProps.Select(p => $"[{p}]"));
         var paramsName = string.Join(", ", _writeableProps.Select(p => $"@{p}"));
@@ -241,6 +244,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     public virtual async Task<int> UpdateAsync(T entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
+        entity.UpdatedDate ??= DateTime.Now;
 
         // 拼接 SET 语句
         var setClause = string.Join(", ", _writeableProps.Select(p => $"[{p}] = @{p}"));
@@ -251,14 +255,22 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
 
     public virtual async Task<int> DeleteSoftAsync(int id)
     {
-        var sql = $"UPDATE [{TableName}] SET IsDeleted = 1 WHERE [Id] = @Id";
-        return await Connection.ExecuteAsync(sql, new { Id = id }, transaction: Transaction);
+        var sql = $"UPDATE [{TableName}] SET UpdatedDate = {DateTime.Now}, IsDeleted = 1 WHERE [Id] = @Id";
+        return await Connection.ExecuteAsync(sql, new { Id = id}, transaction: Transaction);
     }
 
-    public virtual async Task<int> DeleteAsync(int id)
+    public virtual async Task<int> DeleteAsync(int id, bool softDelete = true)
     {
-        var sql = $"DELETE FROM [{TableName}] WHERE [Id] = @Id";
-        return await Connection.ExecuteAsync(sql, new { Id = id }, transaction: Transaction);
+        string sql;
+        if (softDelete)
+        {
+            sql = $"UPDATE [{TableName}] SET UpdatedDate = {DateTime.Now}, IsDeleted = 1 WHERE [Id] = @Id";
+        }
+        else
+        {
+            sql = $"DELETE FROM [{TableName}] WHERE [Id] = @Id";
+        }
+        return await Connection.ExecuteAsync(sql, new { Id = id}, transaction: Transaction);
     }
 
     // =============================================================
@@ -270,6 +282,19 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         var entityList = entities.ToList();
         if (entityList.Count == 0) return [];
 
+        //遍历实体设置 UpdatedDate（如果有这个属性的话），确保批量插入时这个字段不为 null
+        foreach (var entity in entityList)
+        {
+            if (entity.CreatedDate == null)
+            {
+                entity.CreatedDate = DateTime.Now;
+            }
+            if (entity.UpdatedDate == null)
+            {
+                entity.UpdatedDate = DateTime.Now;
+            }
+            entity.IsDeleted=false; // 确保批量插入时 IsDeleted 字段为 false
+        }
         // 1. 预先获取 PropertyInfo
         // 这里的 _writeableProps 是我们在类里定义的静态 List<string>
         var props = _writeableProps
@@ -323,12 +348,19 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         return newIds;
     }
 
-    public virtual async Task<int> DeleteRangeAsync(IEnumerable<int> idList)
+    public virtual async Task<int> DeleteRangeAsync(IEnumerable<int> idList, bool softDelete = true)
     {
         if (idList == null || !idList.Any()) return 0;
 
-        var sql = $"DELETE FROM [{TableName}] WHERE Id IN @IdList";
-
+        string sql;
+        if (softDelete)
+        {
+            sql = $"UPDATE [{TableName}] SET IsDeleted = 1 WHERE Id IN @IdList";
+        }
+        else
+        {
+            sql = $"DELETE FROM [{TableName}] WHERE Id IN @IdList";
+        }
         // 直接用 Connection 和 Transaction 属性
         return await Connection.ExecuteAsync(sql, new { IdList = idList }, transaction: Transaction);
     }
@@ -346,7 +378,14 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         if (entities == null) throw new ArgumentException("实体集合不能为空");
         var entityList = entities.ToList();
         if (entityList.Count == 0) return 0;
-
+        //遍历实体设置 UpdatedDate（如果有这个属性的话），确保批量更新时这个字段不为 null
+        foreach (var entity in entityList)
+        {
+            if (entity.UpdatedDate == null)
+            {
+                entity.UpdatedDate = DateTime.Now;
+            }
+        }
         // 1. 准备属性
         var updateProps = _writeableProps
             .Select(name => typeof(T).GetProperty(name))
@@ -505,12 +544,6 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         // 清理了刚才在这里的残余错误代码！！！
         return sqlBuilder.ToString();
     }
-
-
-
-
-
-
 
 
 }

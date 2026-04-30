@@ -91,20 +91,49 @@ namespace SwiftExport.View.FW.ProductViews.Models
         }
 
         // 价格字段（与 DTO 对应）
-        private decimal _rmbPrice;
-        /// <summary>人民币单价</summary>
-        public decimal RmbPrice
+        private decimal _cnyPrice;
+        /// <summary>CNYPrice</summary>
+        public decimal CNYPrice
         {
-            get => _rmbPrice;
-            set => SetProperty(ref _rmbPrice, value);
+            get => _cnyPrice;
+            set => SetProperty(ref _cnyPrice, value);
         }
 
         private decimal _usdPrice;
         /// <summary>美元单价</summary>
-        public decimal UsdPrice
+        public decimal USDPrice
         {
             get => _usdPrice;
             set => SetProperty(ref _usdPrice, value);
+        }
+
+        // 装箱基础数据（供销售订单行带出）
+        private decimal? _pcsOfCarton;
+        public decimal? PcsOfCarton
+        {
+            get => _pcsOfCarton;
+            set => SetProperty(ref _pcsOfCarton, value);
+        }
+
+        private decimal? _nwOfCarton;
+        public decimal? NwOfCarton
+        {
+            get => _nwOfCarton;
+            set => SetProperty(ref _nwOfCarton, value);
+        }
+
+        private decimal? _gwOfCarton;
+        public decimal? GwOfCarton
+        {
+            get => _gwOfCarton;
+            set => SetProperty(ref _gwOfCarton, value);
+        }
+
+        private decimal? _cbmOfCarton;
+        public decimal? CbmOfCarton
+        {
+            get => _cbmOfCarton;
+            set => SetProperty(ref _cbmOfCarton, value);
         }
 
         private string _supplyType = string.Empty;
