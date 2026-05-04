@@ -416,6 +416,7 @@
                             <Grid Grid.Row="2" 
                                   d:Visibility="Visible"
                                   MinHeight="350"
+                                  MaxHeight="350"
                                   Visibility="{Binding IsBomAreaCollapsed,Converter={StaticResource BoolToVis}}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>

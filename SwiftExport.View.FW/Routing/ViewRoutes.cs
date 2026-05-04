@@ -42,7 +42,7 @@ namespace SwiftExport.View.FW.Routing
                 ["GenericDictDataView"] = typeof(GenericDictDataManagerViewModel),
 
                 // ===== 订单拆解中间表 =====
-                ["SalesOrderDecomposeBridgeView"] = typeof(RequirementPoolManagerViewModel),
+                ["SalesOrderDecomposeBridgeView"] = typeof(DependentDemandManagerViewModel),
                 ["PackingListManagerView"] = typeof(PackingListManagerViewModel),
 
             };

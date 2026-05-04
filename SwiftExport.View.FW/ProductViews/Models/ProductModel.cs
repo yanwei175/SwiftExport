@@ -149,6 +149,17 @@ namespace SwiftExport.View.FW.ProductViews.Models
             }
         }
 
+        private int _bomVersion;
+        public int BomVersion
+        {
+            get => _bomVersion;
+            set
+            {
+                if (SetProperty(ref _bomVersion, value))
+                    RaisePropertyChanged(nameof(BomNo));
+            }
+        }
+
         private string _bomNo = string.Empty;
         public string BomNo
         {
@@ -241,16 +252,11 @@ namespace SwiftExport.View.FW.ProductViews.Models
         /// <returns>返回错误信息；无错误返回 null。</returns>
         public override string ValidateRow()
         {
-            // 供应类型去除首尾空格后参与判断，避免因为输入空格导致规则失效。
-            var supplyType = (SupplyType ?? string.Empty).Trim();
-
-            // 业务规则：只要不是“直接采购”，就必须填写 BOM 编号。
-            // 供应类型为空时由字段级校验处理，这里不重复报错。
-            if (!string.IsNullOrWhiteSpace(supplyType)
-                && !string.Equals(supplyType, SupplyTypeEnums.直接采购, StringComparison.Ordinal)
-                && string.IsNullOrWhiteSpace(BomNo))
+            // 中文注释：BOM校验改为依据BomVersion，不再依据SupplyType。
+            // 规则：BomVersion > 0 表示有BOM，此时BomNo必须填写。
+            if (BomVersion > 0 && string.IsNullOrWhiteSpace(BomNo))
             {
-                return "当供应类型不为“直接采购”时，BOM编号不能为空";
+                return "当BOM版本大于0时，BOM编号不能为空";
             }
 
             return null;

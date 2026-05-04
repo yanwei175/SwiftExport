@@ -2,7 +2,6 @@ using Mapster;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
-using SwiftExport.Contracts.DTOs.Orders.RequirementPools;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
@@ -11,12 +10,11 @@ using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
-using System.Text;
 
 namespace SwiftExport.Application.Services.Orders;
 
 /// <summary>
-/// ÏúÊÛ¶©µ¥Ó¦ÓÃ·şÎñÊµÏÖ¡£
+/// é”€å”®è®¢å•åº”ç”¨æœåŠ¡å®ç°ã€‚
 /// </summary>
 public class SalesOrderService(
     ISalesOrderRepository salesOrderRepository,
@@ -24,8 +22,8 @@ public class SalesOrderService(
     IRepository<SalesOrderLine> lineRepository,
     IRepository<Customer> customerRepository,
     ISalesOrderLineSourceService salesOrderLineSourceService,
-    IRequirementPoolService requirementPoolSService,
     IDocumentNoService documentNoService,
+    IIndependentDemandRepository salesDemandRepository,
     ServiceBaseContext context)
     : BaseService<SalesOrderHeader, SalesOrderDto>(headerRepository, context), ISalesOrderService
 {
@@ -33,13 +31,12 @@ public class SalesOrderService(
     private readonly IRepository<SalesOrderLine> _lineRepository = lineRepository;
     private readonly IRepository<Customer> _customerRepository = customerRepository;
     private readonly ISalesOrderLineSourceService _salesOrderLineSourceService = salesOrderLineSourceService;
-    private readonly IRequirementPoolService _requirementPoolSService = requirementPoolSService;
     private readonly IDocumentNoService _documentNoService = documentNoService;
-
-    #region ¼æÈİ¾É½Ó¿Ú£¨ÒÑÓĞ£©
+    private readonly IIndependentDemandRepository _demandRepo = salesDemandRepository;
+    #region å…¼å®¹æ—§æ¥å£ï¼ˆå·²æœ‰ï¼‰
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º·ÖÒ³²éÑ¯ÏúÊÛ¶©µ¥ÁĞ±í£¨¾É DTO£¬±£Áô¼æÈİ£©¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šåˆ†é¡µæŸ¥è¯¢é”€å”®è®¢å•åˆ—è¡¨ï¼ˆæ—§ DTOï¼Œä¿ç•™å…¼å®¹ï¼‰ã€‚
     /// </summary>
     public async Task<ServiceResult<PagedResultDto<SalesOrderDto>>> GetSalesOrderPagedListAsync(SalesOrderSearchDto search)
     {
@@ -65,13 +62,13 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º»ñÈ¡ÏúÊÛ¶©µ¥ÏêÇé£¨¶©µ¥Í· + Ã÷Ï¸ĞĞ£©¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šè·å–é”€å”®è®¢å•è¯¦æƒ…ï¼ˆè®¢å•å¤´ + æ˜ç»†è¡Œï¼‰ã€‚
     /// </summary>
     public async Task<ServiceResult<SalesOrderDetailDto>> GetSalesOrderDetailAsync(int orderId)
     {
         var header = await _repository.GetByIdAsync(orderId);
         if (header == null)
-            return ServiceResult<SalesOrderDetailDto>.Fail("Î´ÕÒµ½ÏúÊÛ¶©µ¥");
+            return ServiceResult<SalesOrderDetailDto>.Fail("æœªæ‰¾åˆ°é”€å”®è®¢å•");
 
         var lines = await GetLinesByOrderNoAsync(header.OrderNo);
 
@@ -83,7 +80,7 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º´´½¨ÏúÊÛ¶©µ¥¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šåˆ›å»ºé”€å”®è®¢å•ã€‚
     /// </summary>
     public async Task<ServiceResult<int>> CreateSalesOrderAsync(SalesOrderDetailDto request)
     {
@@ -91,7 +88,7 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º¸üĞÂÏúÊÛ¶©µ¥¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šæ›´æ–°é”€å”®è®¢å•ã€‚
     /// </summary>
     public async Task<ServiceResult<bool>> UpdateSalesOrderAsync(int orderId, SalesOrderDetailDto request)
     {
@@ -102,7 +99,7 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£ºÉ¾³ıµ¥¸öÏúÊÛ¶©µ¥£¨Í¬²½É¾³ıÃ÷Ï¸£©¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šåˆ é™¤å•ä¸ªé”€å”®è®¢å•ï¼ˆåŒæ­¥åˆ é™¤æ˜ç»†ï¼‰ã€‚
     /// </summary>
     public async Task<ServiceResult<bool>> DeleteSalesOrderAsync(int orderId)
     {
@@ -113,7 +110,7 @@ public class SalesOrderService(
             if (header == null)
             {
                 _session.Transaction.Rollback();
-                return ServiceResult<bool>.Fail("¶©µ¥²»´æÔÚ");
+                return ServiceResult<bool>.Fail("è®¢å•ä¸å­˜åœ¨");
             }
 
             var lines = await GetLinesByOrderNoAsync(header.OrderNo);
@@ -139,7 +136,7 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£ºÅúÁ¿É¾³ıÏúÊÛ¶©µ¥£¨Öğµ¥¼¶ÁªÉ¾³ıÃ÷Ï¸£©¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šæ‰¹é‡åˆ é™¤é”€å”®è®¢å•ï¼ˆé€å•çº§è”åˆ é™¤æ˜ç»†ï¼‰ã€‚
     /// </summary>
     public async Task<ServiceResult<bool>> BatchDeleteSalesOrderAsync(List<int> orderIds)
     {
@@ -180,10 +177,10 @@ public class SalesOrderService(
 
     #endregion
 
-    #region ¶©µ¥¹ÜÀíÒ³£¨Ö÷´Ó±í£©
+    #region è®¢å•ç®¡ç†é¡µï¼ˆä¸»ä»è¡¨ï¼‰
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º·ÖÒ³²éÑ¯¶©µ¥Í·ÁĞ±í£¨ÓÃÓÚÖ÷±í£©¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šåˆ†é¡µæŸ¥è¯¢è®¢å•å¤´åˆ—è¡¨ï¼ˆç”¨äºä¸»è¡¨ï¼‰ã€‚
     /// </summary>
     public async Task<ServiceResult<PagedResultDto<SalesOrderHeaderDto>>> GetSalesOrderHeaderPagedListAsync(SalesOrderManagerSearchDto search)
     {
@@ -206,20 +203,20 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º¸ù¾İ¶©µ¥ ID »ñÈ¡¶©µ¥ĞĞÁĞ±í¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šæ ¹æ®è®¢å• ID è·å–è®¢å•è¡Œåˆ—è¡¨ã€‚
     /// </summary>
     public async Task<ServiceResult<List<SalesOrderLineDto>>> GetSalesOrderLinesAsync(int orderId)
     {
         var header = await _repository.GetByIdAsync(orderId);
         if (header == null)
-            return ServiceResult<List<SalesOrderLineDto>>.Fail("¶©µ¥²»´æÔÚ");
+            return ServiceResult<List<SalesOrderLineDto>>.Fail("è®¢å•ä¸å­˜åœ¨");
 
         var lines = await GetLinesByOrderNoAsync(header.OrderNo);
         return ServiceResult<List<SalesOrderLineDto>>.Ok(lines.Adapt<List<SalesOrderLineDto>>());
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º¶©µ¥¹ÜÀíÒ³±£´æ½Ó¿Ú£¨Í·ÅúÁ¿ + µ±Ç°¶©µ¥ĞĞÅúÁ¿£©¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šè®¢å•ç®¡ç†é¡µä¿å­˜æ¥å£ï¼ˆå¤´æ‰¹é‡ + å½“å‰è®¢å•è¡Œæ‰¹é‡ï¼‰ã€‚
     /// </summary>
     public async Task<ServiceResult<bool>> SaveSalesOrderManagerAsync(SalesOrderManagerSaveDto request)
     {
@@ -228,7 +225,7 @@ public class SalesOrderService(
         _session.Transaction = _session.Connection.BeginTransaction();
         try
         {
-            // ÖĞÎÄ×¢ÊÍ£º´¦Àí¶©µ¥Í·ĞÂÔö¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šå¤„ç†è®¢å•å¤´æ–°å¢ã€‚
             if (request.HeaderChanges?.AddList?.Count > 0)
             {
                 var addHeaders = request.HeaderChanges.AddList.Adapt<List<SalesOrderHeader>>();
@@ -241,7 +238,7 @@ public class SalesOrderService(
                 await _repository.AddRangeAsync(addHeaders);
             }
 
-            // ÖĞÎÄ×¢ÊÍ£º´¦Àí¶©µ¥Í·¸üĞÂ¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šå¤„ç†è®¢å•å¤´æ›´æ–°ã€‚
             if (request.HeaderChanges?.UpdateList?.Count > 0)
             {
                 var updateHeaders = request.HeaderChanges.UpdateList.Adapt<List<SalesOrderHeader>>();
@@ -253,7 +250,7 @@ public class SalesOrderService(
                 await _repository.UpdateRangeAsync(updateHeaders);
             }
 
-            // ÖĞÎÄ×¢ÊÍ£º´¦Àí¶©µ¥Í·É¾³ı£¨¼¶ÁªÉ¾³ıĞĞ£©¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šå¤„ç†è®¢å•å¤´åˆ é™¤ï¼ˆçº§è”åˆ é™¤è¡Œï¼‰ã€‚
             if (request.HeaderChanges?.DeleteIdList?.Count > 0)
             {
                 foreach (var deleteHeaderId in request.HeaderChanges.DeleteIdList.Distinct())
@@ -268,15 +265,15 @@ public class SalesOrderService(
                     }
                 }
 
-                await _repository.DeleteRangeAsync(request.HeaderChanges.DeleteIdList.Distinct().ToList());
+                await _repository.DeleteRangeAsync([.. request.HeaderChanges.DeleteIdList.Distinct()]);
             }
 
-            // ÖĞÎÄ×¢ÊÍ£º´¦Àíµ±Ç°Ñ¡ÖĞ¶©µ¥µÄĞĞÅúÁ¿±ä¸ü¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šå¤„ç†å½“å‰é€‰ä¸­è®¢å•çš„è¡Œæ‰¹é‡å˜æ›´ã€‚
             if (request.CurrentOrderId.HasValue && request.LineChanges != null)
             {
                 var header = await _repository.GetByIdAsync(request.CurrentOrderId.Value);
                 if (header == null)
-                    return ServiceResult<bool>.Fail("µ±Ç°¶©µ¥²»´æÔÚ£¬ÎŞ·¨±£´æÃ÷Ï¸ĞĞ");
+                    return ServiceResult<bool>.Fail("å½“å‰è®¢å•ä¸å­˜åœ¨ï¼Œæ— æ³•ä¿å­˜æ˜ç»†è¡Œ");
 
                 string orderNo = header.OrderNo;
 
@@ -305,7 +302,7 @@ public class SalesOrderService(
 
                 if (request.LineChanges.DeleteIdList?.Count > 0)
                 {
-                    await _lineRepository.DeleteRangeAsync(request.LineChanges.DeleteIdList.Distinct().ToList());
+                    await _lineRepository.DeleteRangeAsync([.. request.LineChanges.DeleteIdList.Distinct()]);
                 }
             }
 
@@ -324,55 +321,23 @@ public class SalesOrderService(
         }
     }
 
-    /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º»ñÈ¡¶©µ¥×´Ì¬É¸Ñ¡×Öµä¡£
-    /// </summary>
-    public Task<ServiceResult<List<SalesOrderStatusOptionDto>>> GetOrderStatusOptionsAsync()
-    {
-        var options = new List<SalesOrderStatusOptionDto>
-        {
-            new() { Name = SalesOrderStatusEnums.Î´·¢»õ, Value = SalesOrderStatusEnums.Î´·¢»õ, Sort = 1 },
-            new() { Name = SalesOrderStatusEnums.²¿·Ö·¢»õ, Value = SalesOrderStatusEnums.²¿·Ö·¢»õ, Sort = 2 },
-            new() { Name = SalesOrderStatusEnums.È«²¿·¢Íê, Value = SalesOrderStatusEnums.È«²¿·¢Íê, Sort = 3 },
-            new() { Name = SalesOrderStatusEnums.ÊÕµ½»õÎï, Value = SalesOrderStatusEnums.ÊÕµ½»õÎï, Sort = 4 },
-            new() { Name = SalesOrderStatusEnums.Íê³É, Value = SalesOrderStatusEnums.Íê³É, Sort = 5 }
-        };
 
-        return Task.FromResult(ServiceResult<List<SalesOrderStatusOptionDto>>.Ok(options));
-    }
-
-    /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º»ñÈ¡ÉóÅú×´Ì¬É¸Ñ¡×Öµä¡£
-    /// </summary>
-    public Task<ServiceResult<List<SalesOrderStatusOptionDto>>> GetApprovalStatusOptionsAsync()
-    {
-        var options = new List<SalesOrderStatusOptionDto>
-        {
-            new() { Name = ApprovalStatusEnums.²İ¸å, Value = ApprovalStatusEnums.²İ¸å, Sort = 1 },
-            new() { Name = ApprovalStatusEnums.´ıÉóÅú, Value = ApprovalStatusEnums.´ıÉóÅú, Sort = 2 },
-            new() { Name = ApprovalStatusEnums.ÒÑÅú×¼, Value = ApprovalStatusEnums.ÒÑÅú×¼, Sort = 3 },
-            new() { Name = ApprovalStatusEnums.ÒÑ²µ»Ø, Value = ApprovalStatusEnums.ÒÑ²µ»Ø, Sort = 4 },
-            new() { Name = ApprovalStatusEnums.ÒÑÈ¡Ïû, Value = ApprovalStatusEnums.ÒÑÈ¡Ïû, Sort = 5 }
-        };
-
-        return Task.FromResult(ServiceResult<List<SalesOrderStatusOptionDto>>.Ok(options));
-    }
 
 
 
     #endregion
 
-    #region ¶©µ¥ÏêÇéÒ³£¨µ¥¾İ±à¼­£©
+    #region è®¢å•è¯¦æƒ…é¡µï¼ˆå•æ®ç¼–è¾‘ï¼‰
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£ºÏêÇéÒ³Ò»¼ü±£´æ£¨Header.Id > 0 ÊÓÎª¸üĞÂ£¬·ñÔòÊÓÎªĞÂÔö£©¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šè¯¦æƒ…é¡µä¸€é”®ä¿å­˜ï¼ˆHeader.Id > 0 è§†ä¸ºæ›´æ–°ï¼Œå¦åˆ™è§†ä¸ºæ–°å¢ï¼‰ã€‚
     /// </summary>
     public async Task<ServiceResult<int>> SaveSalesOrderDetailAsync(SalesOrderDetailDto request)
     {
-        //Èç¹û¶©µ¥Í·ĞÅÏ¢²»´æÔÚ£¬Ö±½Ó·µ»ØÊ§°Ü½á¹û
+        //å¦‚æœè®¢å•å¤´ä¿¡æ¯ä¸å­˜åœ¨ï¼Œç›´æ¥è¿”å›å¤±è´¥ç»“æœ
         if (request?.Header == null)
-            return ServiceResult<int>.Fail("¶©µ¥Í·²»ÄÜÎª¿Õ");
-        //Èç¹û¶©µ¥Í· ID ´óÓÚ 0£¬ÊÓÎª¸üĞÂ²Ù×÷£»·ñÔòÊÓÎª´´½¨²Ù×÷
+            return ServiceResult<int>.Fail("è®¢å•å¤´ä¸èƒ½ä¸ºç©º");
+        //å¦‚æœè®¢å•å¤´ ID å¤§äº 0ï¼Œè§†ä¸ºæ›´æ–°æ“ä½œï¼›å¦åˆ™è§†ä¸ºåˆ›å»ºæ“ä½œ
         if (request.Header.Id > 0)
         {
             var updateRst = await SaveAsUpdateAsync(request.Header.Id, request);
@@ -380,14 +345,14 @@ public class SalesOrderService(
                 ? ServiceResult<int>.Ok(request.Header.Id)
                 : ServiceResult<int>.Fail(updateRst.Message);
         }
-        //´´½¨²Ù×÷
+        //åˆ›å»ºæ“ä½œ
         return await SaveAsCreateAsync(request);
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£ºÏúÊÛ¶©µ¥ĞĞÊı¾İÔ´·ÖÒ³²éÑ¯¡£
-    /// Êµ¼Ê²éÑ¯ÓÉ×¨ÓÃ SalesOrderLineSourceService ³Ğµ££¬
-    /// ÕâÀï±£³Ö ISalesOrderService ¶ÔÍâÄÜÁ¦ÍêÕû£¬±ãÓÚ Controller Óë Refit Í³Ò»µ÷ÓÃ¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šé”€å”®è®¢å•è¡Œæ•°æ®æºåˆ†é¡µæŸ¥è¯¢ã€‚
+    /// å®é™…æŸ¥è¯¢ç”±ä¸“ç”¨ SalesOrderLineSourceService æ‰¿æ‹…ï¼Œ
+    /// è¿™é‡Œä¿æŒ ISalesOrderService å¯¹å¤–èƒ½åŠ›å®Œæ•´ï¼Œä¾¿äº Controller ä¸ Refit ç»Ÿä¸€è°ƒç”¨ã€‚
     /// </summary>
     public async Task<ServiceResult<PagedResultDto<SalesOrderLineDto>>> GetSalesOrderLineSourcePagedListAsync(SalesOrderLineSourceSearchDto search)
     {
@@ -395,7 +360,7 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º»ñÈ¡ÏúÊÛ¶©µ¥ÏÂÒ»µ¥ºÅ¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šè·å–é”€å”®è®¢å•ä¸‹ä¸€å•å·ã€‚
     /// </summary>
     public async Task<ServiceResult<DocumentNoResultDto>> GetNextOrderNoAsync(DocumentNoRequestDto request)
     {
@@ -405,67 +370,49 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// Åú×¼ÏúÊÛ¶©µ¥¡£
+    /// æ‰¹å‡†é”€å”®è®¢å•ã€‚
     /// </summary>
-    /// <param name="orderId">¶©µ¥ID</param>
-    /// <returns>²Ù×÷½á¹û</returns>
+    /// <param name="orderId">è®¢å•ID</param>
+    /// <returns>æ“ä½œç»“æœ</returns>
     public async Task<ServiceResult<bool>> ApproveSalesOrderAsync(int orderId)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
         try
         {
-            // 1. »ñÈ¡²¢Ëø¶¨Êı¾İ
+            // 1. è·å–å¹¶é”å®šæ•°æ®
             var order = await _repository.GetByIdAsync(orderId);
             if (order == null)
             {
                 _session.Transaction.Rollback();
-                return ServiceResult<bool>.Fail("¶©µ¥²»´æÔÚ");
+                return ServiceResult<bool>.Fail("è®¢å•ä¸å­˜åœ¨");
             }
 
-            // 2. »ù´¡×´Ì¬Ğ£ÑéÖ»ÄÜÊÇ ²İ¸å »ò ´ıÉóÅú ×´Ì¬¡£
-            if(order.ApprovalStatus != ApprovalStatusEnums.²İ¸å && order.ApprovalStatus != ApprovalStatusEnums.´ıÉóÅú)
+            // 2. åŸºç¡€çŠ¶æ€æ ¡éªŒåªèƒ½æ˜¯ è‰ç¨¿ æˆ– å¾…å®¡æ‰¹ çŠ¶æ€ã€‚
+            if (order.ApprovalStatus != ApprovalStatusEnums.è‰ç¨¿ && order.ApprovalStatus != ApprovalStatusEnums.å¾…å®¡æ‰¹)
             {
                 _session.Transaction.Rollback();
-                return ServiceResult<bool>.Fail("¶©µ¥×´Ì¬²»ºÏ·¨£¬Ö»ÓĞ²İ¸å»ò´ıÉóÅú×´Ì¬µÄ¶©µ¥²ÅÄÜÉóÅú");
+                return ServiceResult<bool>.Fail("è®¢å•çŠ¶æ€ä¸åˆæ³•ï¼Œåªæœ‰è‰ç¨¿æˆ–å¾…å®¡æ‰¹çŠ¶æ€çš„è®¢å•æ‰èƒ½å®¡æ‰¹");
             }
- 
+
+            // ä¸­æ–‡æ³¨é‡Šï¼šå®¡æ‰¹å‰æ‰§è¡Œé€è¡Œä¸šåŠ¡æ ¡éªŒï¼Œé¿å…é—æ¼åç»­å¼‚å¸¸è¡Œã€‚
             var orderLines = await GetLinesByOrderNoAsync(order.OrderNo);
-            if (orderLines.Count == 0)
-            {
-                _session.Transaction.Rollback();
-                return ServiceResult<bool>.Fail("´Ë¶©µ¥ÎŞ¶©µ¥ĞĞ");
-            }
-
-
-            // 3. ÒµÎñ¹æÔòĞ£Ñé (ERP ºËĞÄ)ÔÚÕæÕıÕ¨ BOM Ö®Ç°£¬±ØĞëÈ·±£Êı¾İÊÇÍêÕûµÄ¡£
             var validateRst = await ValidateBusinessRulesAsync(order, orderLines);
             if (!validateRst.Success)
             {
                 _session.Transaction.Rollback();
                 return ServiceResult<bool>.Fail(validateRst.Message);
             }
-            // 4. Ö´ĞĞ BOM ²ğ½âÓëĞ´ÈëĞèÇó³Ø
-            var decomposeRequest = new DecomposeRequestDto
-            {
-                SourceType = OrderTypeEnums.ÏúÊÛ¶©µ¥,
-                SourceNo = order.OrderNo,
-                Lines = [.. orderLines.Select(line => new DecomposeLineRequestDto
-                {
-                    SourceLineId = line.Id,
-                    Sku = line.Sku,
-                    Quantity = line.QTY ?? 0,
-                    RequiredDate = order.ReplyDate ?? order.DeliveryDate
-                })]
-            };
-            var decomposeRst = await _requirementPoolSService.ExecuteDecomposeToPoolAsync(decomposeRequest);
-            if (!decomposeRst.Success)
+
+            // 3. åŒæ­¥è¯¥è®¢å•å¯¹åº”é”€å”®éœ€æ±‚çŠ¶æ€ä¸ºâ€œå¾…å¤„ç†â€ï¼ˆå®¡æ‰¹é€šè¿‡åç”± IndependentDemand é©±åŠ¨åç»­æ‹†è§£ï¼‰ã€‚
+            var updateDemandRst = await UpdateDemandStatusBySourceNoAsync(OrderTypeEnums.é”€å”®è®¢å•, order.OrderNo ?? string.Empty, RequirementStatusEnums.å¾…å¤„ç†);
+            if (!updateDemandRst.Success)
             {
                 _session.Transaction.Rollback();
-                return ServiceResult<bool>.Fail($"²ğ½âĞèÇó³ØÊ§°Ü£º{decomposeRst.Message}");
+                return ServiceResult<bool>.Fail(updateDemandRst.Message);
             }
 
-            // 5. ¸üĞÂ¶©µ¥×´Ì¬
-            order.ApprovalStatus = ApprovalStatusEnums.ÒÑÅú×¼;
+            // 4. æ›´æ–°è®¢å•å®¡æ‰¹çŠ¶æ€ã€‚
+            order.ApprovalStatus = ApprovalStatusEnums.å·²æ‰¹å‡†;
             order.UpdatedDate = DateTime.Now;
             await _repository.UpdateAsync(order);
 
@@ -475,7 +422,7 @@ public class SalesOrderService(
         catch (Exception)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<bool>.Fail("ÉóÅú¶©µ¥Ê§°Ü");
+            return ServiceResult<bool>.Fail("å®¡æ‰¹è®¢å•å¤±è´¥");
         }
         finally
         {
@@ -485,58 +432,54 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ²µ»ØÏúÊÛ¶©µ¥
+    /// é©³å›é”€å”®è®¢å•
     /// </summary>
     /// <param name="orderId"></param>
     /// <returns></returns>
-    public Task<ServiceResult<bool>> RejectSalesOrderAsync(int orderId)
+    public async Task<ServiceResult<bool>> RejectSalesOrderAsync(int orderId)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
         try
         {
-            var order = _repository.GetByIdAsync(orderId).GetAwaiter().GetResult();
+            var order = await _repository.GetByIdAsync(orderId);
             if (order == null)
             {
                 _session.Transaction.Rollback();
-                return Task.FromResult(ServiceResult<bool>.Fail("¶©µ¥²»´æÔÚ"));
+                return ServiceResult<bool>.Fail("è®¢å•ä¸å­˜åœ¨");
             }
 
-            if (order.ApprovalStatus == ApprovalStatusEnums.ÒÑÅú×¼)
+            if (order.ApprovalStatus == ApprovalStatusEnums.å·²æ‰¹å‡†)
             {
-                // ÖĞÎÄ×¢ÊÍ£ºÒÑÅú×¼»ØÍËÇ°ÏÈÅĞ¶ÏĞèÇó³ØÖ´ĞĞ×´Ì¬¡£
-                var canRollbackRst = _requirementPoolSService
-                    .CanRollbackBySourceAsync(OrderTypeEnums.ÏúÊÛ¶©µ¥, order.OrderNo)
-                    .GetAwaiter().GetResult();
+                // ä¸­æ–‡æ³¨é‡Šï¼šå·²æ‰¹å‡†å›é€€å‰å…ˆåˆ¤æ–­é”€å”®éœ€æ±‚æ˜¯å¦å·²è¿›å…¥æ‰§è¡Œæ€ã€‚
+                var canRejectRst = await CanRejectApprovedOrderByDemandStatusAsync(OrderTypeEnums.é”€å”®è®¢å•, order.OrderNo ?? string.Empty);
 
-                if (!canRollbackRst.Success || !canRollbackRst.Data)
+                if (!canRejectRst.Success || !canRejectRst.Data)
                 {
                     _session.Transaction.Rollback();
-                    return Task.FromResult(ServiceResult<bool>.Fail(canRollbackRst.Message));
+                    return ServiceResult<bool>.Fail(canRejectRst.Message);
                 }
 
-                // ÖĞÎÄ×¢ÊÍ£º¿É»ØÍËÊ±É¾³ı¸ÃÀ´Ô´ĞèÇó³ØÊı¾İ¡£
-                var removeRst = _requirementPoolSService
-                    .RemoveBySourceAsync(OrderTypeEnums.ÏúÊÛ¶©µ¥, order.OrderNo)
-                    .GetAwaiter().GetResult();
+                // ä¸­æ–‡æ³¨é‡Šï¼šå›é€€å®¡æ‰¹æ—¶ï¼Œå°†é”€å”®éœ€æ±‚çŠ¶æ€æ¢å¤ä¸ºâ€œè‰ç¨¿â€ï¼Œé¿å…æœªå®¡æ‰¹è®¢å•è¢«æ‰§è¡Œæ‹†è§£ã€‚
+                var rollbackDemandRst = await UpdateDemandStatusBySourceNoAsync(OrderTypeEnums.é”€å”®è®¢å•, order.OrderNo ?? string.Empty, RequirementStatusEnums.è‰ç¨¿);
 
-                if (!removeRst.Success)
+                if (!rollbackDemandRst.Success)
                 {
                     _session.Transaction.Rollback();
-                    return Task.FromResult(ServiceResult<bool>.Fail($"ÇåÀíĞèÇó³ØÊ§°Ü£º{removeRst.Message}"));
+                    return ServiceResult<bool>.Fail($"å›é€€é”€å”®éœ€æ±‚çŠ¶æ€å¤±è´¥ï¼š{rollbackDemandRst.Message}");
                 }
             }
 
-            order.ApprovalStatus = ApprovalStatusEnums.ÒÑ²µ»Ø;
+            order.ApprovalStatus = ApprovalStatusEnums.å·²é©³å›;
             order.UpdatedDate = DateTime.Now;
-            _repository.UpdateAsync(order).GetAwaiter().GetResult();
+            await _repository.UpdateAsync(order);
 
             _session.Transaction.Commit();
-            return Task.FromResult(ServiceResult<bool>.Ok(true));
+            return ServiceResult<bool>.Ok(true);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return Task.FromResult(ServiceResult<bool>.Fail($"²µ»ØÊ§°Ü£º{ex.Message}"));
+            return ServiceResult<bool>.Fail($"é©³å›å¤±è´¥ï¼š{ex.Message}");
         }
         finally
         {
@@ -546,14 +489,14 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ÅúÁ¿Åú×¼ÏúÊÛ¶©µ¥
+    /// æ‰¹é‡æ‰¹å‡†é”€å”®è®¢å•
     /// </summary>
-    /// <param name="orderIds">¶©µ¥IDÁĞ±í</param>
-    /// <returns>²Ù×÷½á¹û</returns>
-    public async Task<ServiceResult<List<string>>> BatchApproveSalesOrdersAsync(List<int> orderIds)
+    /// <param name="orderIds">è®¢å•IDåˆ—è¡¨</param>
+    /// <returns>æ“ä½œç»“æœ</returns>
+    public async Task<ServiceResult<List<int>>> BatchApproveSalesOrdersAsync(List<int> orderIds)
     {
         if (orderIds == null || orderIds.Count == 0)
-            return ServiceResult<List<string>>.Fail("¶©µ¥IDÁĞ±í²»ÄÜÎª¿Õ");
+            return ServiceResult<List<int>>.Fail("è®¢å•IDåˆ—è¡¨ä¸èƒ½ä¸ºç©º");
 
         var failed = new List<string>();
         foreach (var orderId in orderIds.Distinct())
@@ -564,19 +507,19 @@ public class SalesOrderService(
         }
 
         if (failed.Count > 0)
-            return ServiceResult<List<string>>.Fail("²¿·ÖÉóÅúÊ§°Ü£º" + string.Join("; ", failed));
+            return ServiceResult<List<int>>.Fail("éƒ¨åˆ†å®¡æ‰¹å¤±è´¥ï¼š" + string.Join("; ", failed));
 
-        return ServiceResult<List<string>>.Ok(failed);
+        return ServiceResult<List<int>>.Ok(orderIds);
     }
     /// <summary>
-    /// ÅúÁ¿²µ»ØÏúÊÛ¶©µ¥
+    /// æ‰¹é‡é©³å›é”€å”®è®¢å•
     /// </summary>
-    /// <param name="orderIds">¶©µ¥IDÁĞ±í</param>
-    /// <returns>²Ù×÷½á¹û</returns>
+    /// <param name="orderIds">è®¢å•IDåˆ—è¡¨</param>
+    /// <returns>æ“ä½œç»“æœ</returns>
     public async Task<ServiceResult<List<string>>> BatchRejectSalesOrdersAsync(List<int> orderIds)
     {
         if (orderIds == null || orderIds.Count == 0)
-            return ServiceResult<List<string>>.Fail("¶©µ¥IDÁĞ±í²»ÄÜÎª¿Õ");
+            return ServiceResult<List<string>>.Fail("è®¢å•IDåˆ—è¡¨ä¸èƒ½ä¸ºç©º");
 
         var failed = new List<string>();
         foreach (var orderId in orderIds.Distinct())
@@ -587,21 +530,18 @@ public class SalesOrderService(
         }
 
         if (failed.Count > 0)
-            return ServiceResult<List<string>>.Fail("²¿·Ö²µ»ØÊ§°Ü£º" + string.Join("; ", failed));
+            return ServiceResult<List<string>>.Fail("éƒ¨åˆ†é©³å›å¤±è´¥ï¼š" + string.Join("; ", failed));
 
         return ServiceResult<List<string>>.Ok(failed);
     }
 
 
-
-
-
     #endregion
 
-    #region Ë½ÓĞ¸¨Öú·½·¨
+    #region ç§æœ‰è¾…åŠ©æ–¹æ³•
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º¹¹Ôì¾É·ÖÒ³½Ó¿ÚµÄ²éÑ¯Ìõ¼ş¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šæ„é€ æ—§åˆ†é¡µæ¥å£çš„æŸ¥è¯¢æ¡ä»¶ã€‚
     /// </summary>
     private static QueryCriteria BuildLegacySearchCriteria(SalesOrderSearchDto search)
     {
@@ -611,45 +551,45 @@ public class SalesOrderService(
         if (!string.IsNullOrWhiteSpace(search.Keyword))
         {
             criteria.AddOrGroup(
-                ("OrderNo", ²éÑ¯²Ù×÷·û.Ä£ºıÆ¥Åä, search.Keyword),
-                ("CustomerCode", ²éÑ¯²Ù×÷·û.Ä£ºıÆ¥Åä, search.Keyword),
-                ("InvoiceNo", ²éÑ¯²Ù×÷·û.Ä£ºıÆ¥Åä, search.Keyword),
-                ("Remark", ²éÑ¯²Ù×÷·û.Ä£ºıÆ¥Åä, search.Keyword)
+                ("OrderNo", æŸ¥è¯¢æ“ä½œç¬¦.æ¨¡ç³ŠåŒ¹é…, search.Keyword),
+                ("CustomerCode", æŸ¥è¯¢æ“ä½œç¬¦.æ¨¡ç³ŠåŒ¹é…, search.Keyword),
+                ("InvoiceNo", æŸ¥è¯¢æ“ä½œç¬¦.æ¨¡ç³ŠåŒ¹é…, search.Keyword),
+                ("Remark", æŸ¥è¯¢æ“ä½œç¬¦.æ¨¡ç³ŠåŒ¹é…, search.Keyword)
             );
         }
 
         if (!string.IsNullOrWhiteSpace(search.OrderNo))
-            criteria.Add("OrderNo", ²éÑ¯²Ù×÷·û.Ä£ºıÆ¥Åä, search.OrderNo);
+            criteria.Add("OrderNo", æŸ¥è¯¢æ“ä½œç¬¦.æ¨¡ç³ŠåŒ¹é…, search.OrderNo);
 
         if (search.CustomerId.HasValue)
-            criteria.Add("CustomerId", ²éÑ¯²Ù×÷·û.µÈÓÚ, search.CustomerId.Value);
+            criteria.Add("CustomerId", æŸ¥è¯¢æ“ä½œç¬¦.ç­‰äº, search.CustomerId.Value);
 
         if (search.OrderDateFrom.HasValue)
-            criteria.Add("OrderDate", ²éÑ¯²Ù×÷·û.´óÓÚµÈÓÚ, search.OrderDateFrom.Value);
+            criteria.Add("OrderDate", æŸ¥è¯¢æ“ä½œç¬¦.å¤§äºç­‰äº, search.OrderDateFrom.Value);
 
         if (search.OrderDateTo.HasValue)
-            criteria.Add("OrderDate", ²éÑ¯²Ù×÷·û.Ğ¡ÓÚµÈÓÚ, search.OrderDateTo.Value);
+            criteria.Add("OrderDate", æŸ¥è¯¢æ“ä½œç¬¦.å°äºç­‰äº, search.OrderDateTo.Value);
 
         if (search.DeliveryDateFrom.HasValue)
-            criteria.Add("DeliveryDate", ²éÑ¯²Ù×÷·û.´óÓÚµÈÓÚ, search.DeliveryDateFrom.Value);
+            criteria.Add("DeliveryDate", æŸ¥è¯¢æ“ä½œç¬¦.å¤§äºç­‰äº, search.DeliveryDateFrom.Value);
 
         if (search.DeliveryDateTo.HasValue)
-            criteria.Add("DeliveryDate", ²éÑ¯²Ù×÷·û.Ğ¡ÓÚµÈÓÚ, search.DeliveryDateTo.Value);
+            criteria.Add("DeliveryDate", æŸ¥è¯¢æ“ä½œç¬¦.å°äºç­‰äº, search.DeliveryDateTo.Value);
 
         if (!string.IsNullOrWhiteSpace(search.OrderStatus))
-            criteria.Add("OrderStatus", ²éÑ¯²Ù×÷·û.µÈÓÚ, search.OrderStatus);
+            criteria.Add("OrderStatus", æŸ¥è¯¢æ“ä½œç¬¦.ç­‰äº, search.OrderStatus);
 
         if (search.TotalAmountFrom.HasValue)
-            criteria.Add("TotalAmountLocalCurrency", ²éÑ¯²Ù×÷·û.´óÓÚµÈÓÚ, search.TotalAmountFrom.Value);
+            criteria.Add("TotalAmountLocalCurrency", æŸ¥è¯¢æ“ä½œç¬¦.å¤§äºç­‰äº, search.TotalAmountFrom.Value);
 
         if (search.TotalAmountTo.HasValue)
-            criteria.Add("TotalAmountLocalCurrency", ²éÑ¯²Ù×÷·û.Ğ¡ÓÚµÈÓÚ, search.TotalAmountTo.Value);
+            criteria.Add("TotalAmountLocalCurrency", æŸ¥è¯¢æ“ä½œç¬¦.å°äºç­‰äº, search.TotalAmountTo.Value);
 
         return criteria;
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º¹¹Ôì¶©µ¥¹ÜÀíÒ³²éÑ¯Ìõ¼ş¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šæ„é€ è®¢å•ç®¡ç†é¡µæŸ¥è¯¢æ¡ä»¶ã€‚
     /// </summary>
     private async Task<QueryCriteria> BuildManagerSearchCriteriaAsync(SalesOrderManagerSearchDto search)
     {
@@ -659,33 +599,33 @@ public class SalesOrderService(
         if (!string.IsNullOrWhiteSpace(search.Keyword))
         {
             criteria.AddOrGroup(
-                ("OrderNo", ²éÑ¯²Ù×÷·û.Ä£ºıÆ¥Åä, search.Keyword),
-                ("CustomerCode", ²éÑ¯²Ù×÷·û.Ä£ºıÆ¥Åä, search.Keyword),
-                ("InvoiceNo", ²éÑ¯²Ù×÷·û.Ä£ºıÆ¥Åä, search.Keyword),
-                ("Remark", ²éÑ¯²Ù×÷·û.Ä£ºıÆ¥Åä, search.Keyword)
+                ("OrderNo", æŸ¥è¯¢æ“ä½œç¬¦.æ¨¡ç³ŠåŒ¹é…, search.Keyword),
+                ("CustomerCode", æŸ¥è¯¢æ“ä½œç¬¦.æ¨¡ç³ŠåŒ¹é…, search.Keyword),
+                ("InvoiceNo", æŸ¥è¯¢æ“ä½œç¬¦.æ¨¡ç³ŠåŒ¹é…, search.Keyword),
+                ("Remark", æŸ¥è¯¢æ“ä½œç¬¦.æ¨¡ç³ŠåŒ¹é…, search.Keyword)
             );
         }
 
         if (!string.IsNullOrWhiteSpace(search.CustomerCode))
-            criteria.Add("CustomerCode", ²éÑ¯²Ù×÷·û.µÈÓÚ, search.CustomerCode);
+            criteria.Add("CustomerCode", æŸ¥è¯¢æ“ä½œç¬¦.ç­‰äº, search.CustomerCode);
 
         if (!string.IsNullOrWhiteSpace(search.OrderNo))
-            criteria.Add("OrderNo", ²éÑ¯²Ù×÷·û.Ä£ºıÆ¥Åä, search.OrderNo);
+            criteria.Add("OrderNo", æŸ¥è¯¢æ“ä½œç¬¦.æ¨¡ç³ŠåŒ¹é…, search.OrderNo);
 
         if (!string.IsNullOrWhiteSpace(search.InvoiceNo))
-            criteria.Add("InvoiceNo", ²éÑ¯²Ù×÷·û.Ä£ºıÆ¥Åä, search.InvoiceNo);
+            criteria.Add("InvoiceNo", æŸ¥è¯¢æ“ä½œç¬¦.æ¨¡ç³ŠåŒ¹é…, search.InvoiceNo);
 
         if (search.OrderDateFrom.HasValue)
-            criteria.Add("OrderDate", ²éÑ¯²Ù×÷·û.´óÓÚµÈÓÚ, search.OrderDateFrom.Value);
+            criteria.Add("OrderDate", æŸ¥è¯¢æ“ä½œç¬¦.å¤§äºç­‰äº, search.OrderDateFrom.Value);
 
         if (search.OrderDateTo.HasValue)
-            criteria.Add("OrderDate", ²éÑ¯²Ù×÷·û.Ğ¡ÓÚµÈÓÚ, search.OrderDateTo.Value);
+            criteria.Add("OrderDate", æŸ¥è¯¢æ“ä½œç¬¦.å°äºç­‰äº, search.OrderDateTo.Value);
 
         if (search.OrderStatuses?.Count > 0)
-            criteria.Add("OrderStatus", ²éÑ¯²Ù×÷·û.°üº¬Ä³Öµ, search.OrderStatuses.Distinct().ToList());
+            criteria.Add("OrderStatus", æŸ¥è¯¢æ“ä½œç¬¦.åŒ…å«æŸå€¼, search.OrderStatuses.Distinct().ToList());
 
         if (search.ApprovalStatuses?.Count > 0)
-            criteria.Add("ApprovalStatus", ²éÑ¯²Ù×÷·û.°üº¬Ä³Öµ, search.ApprovalStatuses.Distinct().ToList());
+            criteria.Add("ApprovalStatus", æŸ¥è¯¢æ“ä½œç¬¦.åŒ…å«æŸå€¼, search.ApprovalStatuses.Distinct().ToList());
 
         if (!string.IsNullOrWhiteSpace(search.IncludeSkus))
         {
@@ -709,11 +649,11 @@ public class SalesOrderService(
 
                 if (matchedOrderNos.Count == 0)
                 {
-                    criteria.Add("Id", ²éÑ¯²Ù×÷·û.µÈÓÚ, -1);
+                    criteria.Add("Id", æŸ¥è¯¢æ“ä½œç¬¦.ç­‰äº, -1);
                 }
                 else
                 {
-                    criteria.Add("OrderNo", ²éÑ¯²Ù×÷·û.°üº¬Ä³Öµ, matchedOrderNos);
+                    criteria.Add("OrderNo", æŸ¥è¯¢æ“ä½œç¬¦.åŒ…å«æŸå€¼, matchedOrderNos);
                 }
             }
         }
@@ -722,7 +662,7 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º°´¶©µ¥ºÅ²éÑ¯Ã÷Ï¸ĞĞ¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šæŒ‰è®¢å•å·æŸ¥è¯¢æ˜ç»†è¡Œã€‚
     /// </summary>
     private async Task<List<SalesOrderLine>> GetLinesByOrderNoAsync(string? orderNo)
     {
@@ -733,41 +673,65 @@ public class SalesOrderService(
     }
 
 
-
-
     /// <summary>
-    /// ´´½¨Ò»ÕÅ¶©µ¥£¨º¬ĞĞ£©ÊÂÎñ¡£
+    /// åˆ›å»ºä¸€å¼ è®¢å•ï¼ˆå«è¡Œï¼‰äº‹åŠ¡ã€‚
     /// </summary>
     private async Task<ServiceResult<int>> SaveAsCreateAsync(SalesOrderDetailDto request)
     {
         if (request?.Header == null)
-            return ServiceResult<int>.Fail("¶©µ¥Í·²»ÄÜÎª¿Õ");
+            return ServiceResult<int>.Fail("è®¢å•å¤´ä¸èƒ½ä¸ºç©º");
 
         _session.Transaction = _session.Connection.BeginTransaction();
         try
         {
+            //è½¬æ¢æˆå•å¤´å®ä½“å’Œè¡Œå®ä½“
             var header = request.Header.Adapt<SalesOrderHeader>();
-            header.CreatedDate ??= DateTime.Now;
-            header.IsDeleted = false;
-            header.OrderStatus = SalesOrderStatusEnums.Î´·¢»õ;
-            header.ApprovalStatus = ApprovalStatusEnums.²İ¸å;
-            header.OrderNo = header.OrderNo;
-
-            int newId = await _repository.AddAsync(header);
-
             var lines = (request.Lines ?? []).Adapt<List<SalesOrderLine>>();
+
+            //æ ¡éªŒè®¢å•è¡Œæ•°æ®æ˜¯å¦åˆæ³•ï¼ˆå¦‚æœæœ‰è®¢å•è¡Œçš„è¯ï¼‰
+            var validateRst = await ValidateBusinessRulesAsync(header, lines);
+            if (!validateRst.Success)
+            {
+                _session.Transaction.Rollback();
+                return ServiceResult<int>.Fail(validateRst.Message);
+            }
+
+
+            //è½¬æ¢æˆå•å¤´å®ä½“å¹¶è¡¥å…¨é»˜è®¤å€¼
+            header.IsDeleted = false;
+            header.IsLocked = false;
+            header.OrderStatus = SalesOrderStatusEnums.æœªå‘è´§;
+            header.ApprovalStatus = ApprovalStatusEnums.è‰ç¨¿;
+
+            //è·å–ä¸€ä¸ªæ–°çš„SOå•å·ï¼ˆå¦‚æœè¯·æ±‚ä¸­æ²¡æœ‰æä¾›çš„è¯ï¼‰
+            if (string.IsNullOrWhiteSpace(header.OrderNo))
+            {
+                var newOrderNo = await _documentNoService.GetNextDocumentNoAsync(new DocumentNoRequestDto { DocType = DocumentTypeStaticEnums.SalesOrder });
+                if (!newOrderNo.Success)
+                {
+                    _session.Transaction.Rollback();
+                    return ServiceResult<int>.Fail($"è·å–æ–°å•å·å¤±è´¥ï¼š{newOrderNo.Message}");
+                }
+                header.OrderNo = newOrderNo.Data.DocumentNo;
+            }
+
+            //æ–°å¢åˆ°æ•°æ®åº“å¹¶è·å–æ–°ç”Ÿæˆçš„è®¢å•ID
+            int newId = await _repository.AddAsync(header);
+            //æ‰¹é‡æ–°å¢è®¢å•è¡Œ
+
             if (lines.Count > 0)
             {
                 int lineNumber = 0;
                 foreach (var line in lines)
                 {
-                    line.LineNumber= lineNumber++;
+                    line.LineNumber = lineNumber++;
                     line.SalesOrderId = newId;
                     line.OrderNo = header.OrderNo;
                     line.IsDeleted = false;
                 }
 
                 await _lineRepository.AddRangeAsync(lines);
+                await CreateDemandByLineListAsync(lines);//åŒæ­¥åˆ›å»ºéœ€æ±‚è¡Œï¼ˆå¦‚æœæœ‰è®¢å•è¡Œçš„è¯ï¼‰
             }
 
             _session.Transaction.Commit();
@@ -786,71 +750,88 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ¸üĞÂÒ»ÕÅ¶©µ¥£¨º¬ĞĞ£©ÊÂÎñ¡£
+    /// æ›´æ–°ä¸€å¼ è®¢å•ï¼ˆå«è¡Œï¼‰äº‹åŠ¡ã€‚
     /// </summary>
     private async Task<ServiceResult<bool>> SaveAsUpdateAsync(int orderId, SalesOrderDetailDto request)
     {
         if (request?.Header == null)
-            return ServiceResult<bool>.Fail("¶©µ¥Í·²»ÄÜÎª¿Õ");
+            return ServiceResult<bool>.Fail("è®¢å•å¤´ä¸èƒ½ä¸ºç©º");
+        if (request.Header.ApprovalStatus == ApprovalStatusEnums.å·²æ‰¹å‡†)
+            return ServiceResult<bool>.Fail("å·²æ‰¹å‡†çš„è®¢å•ä¸å…è®¸ä¿®æ”¹");
 
         _session.Transaction = _session.Connection.BeginTransaction();
         try
         {
-            //Ê×ÏÈ»ñÈ¡Êı¾İ¿âÖĞ¶©µ¥Í·ĞÅÏ¢£¬Èç¹û²»´æÔÚÔò»Ø¹ö²¢·µ»ØÊ§°Ü½á¹û
+            //è½¬æ¢æˆå®ä½“
+            var processedLines = (request.Lines ?? []).Adapt<List<SalesOrderLine>>();
+            //æ ¡éªŒè®¢å•è¡Œæ•°æ®æ˜¯å¦åˆæ³•ï¼ˆå¦‚æœæœ‰è®¢å•è¡Œçš„è¯ï¼‰
+            var checkrst = await CheckLineListCanBeDeleteOrUpdatedAsync(OrderTypeEnums.é”€å”®è®¢å•, processedLines.Select(l => l.Id));//æ£€æŸ¥è®¢å•è¡Œæ˜¯å¦éƒ½å…è®¸è¢«ä¿®æ”¹æˆ–åˆ é™¤ï¼ˆå¦‚æœæœ‰è®¢å•è¡Œè¢«ä¿®æ”¹æˆ–åˆ é™¤çš„è¯ï¼‰
+
+            //æ ¡éªŒé€šè¿‡
+            if (!checkrst.Success)
+            {
+                _session.Transaction.Rollback();
+                return ServiceResult<bool>.Fail(checkrst.Message);
+            }
+            //é¦–å…ˆè·å–æ•°æ®åº“ä¸­è®¢å•å¤´ä¿¡æ¯ï¼Œå¦‚æœä¸å­˜åœ¨åˆ™å›æ»šå¹¶è¿”å›å¤±è´¥ç»“æœ
             var existingHeader = await _repository.GetByIdAsync(orderId);
             if (existingHeader == null)
             {
                 _session.Transaction.Rollback();
-                return ServiceResult<bool>.Fail("¶©µ¥²»´æÔÚ");
+                return ServiceResult<bool>.Fail("è®¢å•ä¸å­˜åœ¨");
             }
 
-            //Dto×ª»»³ÉÊµÌå
+            //æŠŠè¯·æ±‚ä½“é‡Œçš„ä¿¡æ¯è¦†ç›–åˆ°æ•°æ®åº“ä¸­æŸ¥è¯¢å‡ºæ¥çš„è®¢å•å¤´å®ä½“ä¸Šï¼ˆåªè¦†ç›–å¯ä¿®æ”¹çš„å­—æ®µï¼‰ï¼Œå¹¶è®¾ç½®è®¢å•IDï¼Œå‡†å¤‡æ›´æ–°åˆ°æ•°æ®åº“
             request.Header.Adapt(existingHeader);
             existingHeader.Id = orderId;
-            existingHeader.UpdatedDate = DateTime.Now;
-            existingHeader.OrderNo = existingHeader.OrderNo;
 
-            //¸üĞÂ¶©µ¥Í·ĞÅÏ¢
+            //æ›´æ–°è®¢å•å¤´ä¿¡æ¯
             await _repository.UpdateAsync(existingHeader);
 
-            //É¾³ı¶©µ¥ĞĞ£ºÈç¹ûÇëÇóÖĞÌá¹©ÁË DeletedLineIds ÁĞ±í£¬ÔòÉ¾³ı¶ÔÓ¦µÄ¶©µ¥ĞĞ£»·ñÔò²»É¾³ıÈÎºÎĞĞ£¨±£³ÖÀúÊ·Êı¾İ²»±ä£©
-            var deleteLines = request.DeletedLineIds.Count > 0 ? request.DeletedLineIds : null;
-            if (deleteLines != null)
-            {
 
-                await _lineRepository.DeleteRangeAsync(deleteLines, false);
+            // 3. å¤„ç†åˆ é™¤è¡Œï¼ˆå¦‚æœæœ‰è®¢å•è¡Œè¢«åˆ é™¤çš„è¯ï¼‰
+            if (request.DeletedLineIds?.Count > 0)
+            {
+                await _lineRepository.DeleteRangeAsync(request.DeletedLineIds, false);
+                await _demandRepo.DeleteRangeBySourceTypeAndSourceIdListAsync(OrderTypeEnums.é”€å”®è®¢å•, request.DeletedLineIds);
             }
 
-            //ÅúÁ¿ĞÂÔö¶©µ¥ĞĞ
-            var newLines = (request.Lines ?? []).Adapt<List<SalesOrderLine>>();
-            if (newLines.Count > 0)
+            //4.å¤„ç†æ–°å¢è¡Œå’Œæ›´æ–°è¡Œ
+            var addLins = new List<SalesOrderLine>();
+            var updateLines = new List<SalesOrderLine>();
+            //æŒ‰ç…§Idæ˜¯å¦å¤§äº0æ¥åŒºåˆ†æ–°å¢è¡Œå’Œæ›´æ–°è¡Œï¼Œå¹¶è®¾ç½®è®¢å•è¡Œçš„OrderNoä¸ºè®¢å•å¤´çš„OrderNoï¼Œå‡†å¤‡åç»­æ‰¹é‡æ–°å¢æˆ–æ‰¹é‡æ›´æ–°åˆ°æ•°æ®åº“
+            foreach (var line in processedLines)
             {
-                foreach (var line in newLines)
+                line.OrderNo = existingHeader.OrderNo;
+                line.SalesOrderId = orderId;
+                line.IsDeleted = false;
+                if (line.Id <= 0)
                 {
                     line.Id = 0;
-                    line.OrderNo = existingHeader.OrderNo;
-                    line.CreatedDate ??= DateTime.Now;
-                    line.IsDeleted = false;
+                    addLins.Add(line);
                 }
-
-                await _lineRepository.AddRangeAsync(newLines);
+                else
+                {
+                    updateLines.Add(line);
+                }
             }
 
-            //ÅúÁ¿¸üĞÂ¶©µ¥ĞĞ
-            var updateLines = (request.Lines ?? []).Adapt<List<SalesOrderLine>>();
+            if (addLins.Count > 0)
+            {
+                await _lineRepository.AddRangeAsync(addLins);
+                await CreateDemandByLineListAsync(addLins);//åŒæ­¥åˆ›å»ºéœ€æ±‚è¡Œï¼ˆå¦‚æœæœ‰è®¢å•è¡Œè¢«æ–°å¢çš„è¯ï¼‰
+            }
+
+            //5.å¤„ç†æ›´æ–°
+            string outRst1 = "è®¢å•æ›´æ–°æˆåŠŸ";
             if (updateLines.Count > 0)
             {
-                foreach (var line in updateLines)
-                {
-                    line.OrderNo = existingHeader.OrderNo;
-                    line.UpdatedDate = DateTime.Now;
-                    line.IsDeleted = false;
-                }
-                await _lineRepository.UpdateRangeAsync(updateLines);
+                var rst1 = await _lineRepository.UpdateRangeAsync(updateLines);
+                var rst2 = await UpdateDemandAsync(updateLines); //åŒæ­¥æ›´æ–°éœ€æ±‚è¡Œï¼ˆå¦‚æœæœ‰è®¢å•è¡Œè¢«ä¿®æ”¹çš„è¯ï¼‰
+                if (rst1 != rst2) outRst1 += "éœ€æ±‚è¡Œæ›´æ–°ç»“æœä¸ä¸€è‡´ï¼Œè¯·æ ¸æŸ¥è®¢å•è¡Œå’Œéœ€æ±‚è¡Œæ•°æ®";
             }
-
             _session.Transaction.Commit();
-            return ServiceResult<bool>.Ok(true);
+            return ServiceResult<bool>.Ok(true, outRst1);
         }
         catch (Exception ex)
         {
@@ -863,33 +844,108 @@ public class SalesOrderService(
             _session.Transaction = null;
         }
     }
-
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£ºÉú³É»ò·µ»Ø¶©µ¥ºÅ¡£
+    /// ç§æœ‰è¾…åŠ©ï¼šåŒæ­¥åˆ›å»ºéœ€æ±‚è¡Œ
     /// </summary>
-    private string EnsureOrderNo(string? orderNo)
+    private async Task CreateDemandByLineListAsync(List<SalesOrderLine> lineList)
     {
-        if (!string.IsNullOrWhiteSpace(orderNo)) return orderNo;
+        if (lineList == null || lineList.Count == 0) return;
 
-        var rst = _documentNoService.GetNextDocumentNoAsync(new DocumentNoRequestDto
+        var existingDemands = await _demandRepo.GetListBySourceTypeAndSourceIdAsync(OrderTypeEnums.é”€å”®è®¢å•, [.. lineList.Select(l => l.Id)]);
+        foreach (var demand in existingDemands)
         {
-            DocType = DocumentTypeStaticEnums.SalesOrder,
-            BusinessDate = DateTime.Now,
-            SerialWidth = 4,
-            Operator = "system"
-        }).GetAwaiter().GetResult();
-
-        if (rst.Success && rst.Data != null && !string.IsNullOrWhiteSpace(rst.Data.DocumentNo))
-        {
-            return rst.Data.DocumentNo;
+            if (demand.StatusFlag != RequirementStatusEnums.å¾…å¤„ç† && demand.StatusFlag != RequirementStatusEnums.è‰ç¨¿)
+            {
+                throw new Exception($"æ— æ³•åˆ›å»ºè®¢å•è¡Œ[{demand.SourceLineId}]ï¼Œå› ä¸ºå·²æäº¤è¿‡éœ€æ±‚å¹¶ç›¸å…³éœ€æ±‚è¡Œå·²è¿›å…¥å¤„ç†æµç¨‹");
+            }
         }
 
-        // ÖĞÎÄ×¢ÊÍ£º¶µµ×·½°¸£¬·ÀÖ¹µ¥ºÅ·şÎñ²»¿ÉÓÃµ¼ÖÂ±£´æÖĞ¶Ï¡£
-        return $"{DocumentTypeStaticEnums.SalesOrder}{DateTime.Now:yyyyMM}{DateTime.Now:ddHHmmss}";
+        List<IndependentDemand> entitys = [];
+        foreach (var line in lineList)
+        {
+            var demand = new IndependentDemand
+            {
+                Id = 0,
+                SourceType = OrderTypeEnums.é”€å”®è®¢å•,
+                SourceLineId = line.Id,
+                SourceNo = line.OrderNo ?? string.Empty,
+                SalesOrderId = line.SalesOrderId,
+                Sku = line.Sku,
+                Description = line.DescriptionEn,
+                ColorName = line.ColorNameEn,
+                Features = line.FeaturesEn,
+                IsDeleted = false,
+                OriginalQty = line.QTY ?? 0,
+                FilledQty = 0,
+                ShippedQty = 0,
+                // ä¸­æ–‡æ³¨é‡Šï¼šå®¡æ‰¹å‰ä»…ç”Ÿæˆâ€œæ¯›éœ€æ±‚â€è®°å½•ï¼ŒçŠ¶æ€åº”ä¿æŒè‰ç¨¿ã€‚
+                StatusFlag = RequirementStatusEnums.è‰ç¨¿,
+                IsDecomposed = false,
+                DecomposedTime = null,
+                HopefulDate = line.ExpectedDeliveryDate
+            };
+            entitys.Add(demand);
+        }
+        await _demandRepo.AddRangeAsync(entitys);
+    }
+
+    private async Task<int> UpdateDemandAsync(List<SalesOrderLine> lineList)
+    {
+        // 1. è·å–æ•°æ®åº“ä¸­ç°æœ‰çš„éœ€æ±‚è¡Œï¼ˆæ ¹æ®æ¥æºå•å·/IDï¼‰
+        var existingDemands = await _demandRepo.GetListBySourceTypeAndSourceIdAsync(OrderTypeEnums.é”€å”®è®¢å•, [.. lineList.Select(l => l.Id)]);
+
+        // 2. å°†è®¢å•è¡Œ DTO è½¬æ¢ä¸ºå­—å…¸ï¼Œæ–¹ä¾¿å†…å­˜æ¯”å¯¹
+        var lineDict = lineList.ToDictionary(l => l.Id);
+
+        foreach (var demand in existingDemands)
+        {
+            // åªæœ‰åœ¨ lineDict ä¸­èƒ½æ‰¾åˆ°ï¼Œä¸” SourceLineId åŒ¹é…çš„æ‰å¤„ç†æ›´æ–°
+            if (lineDict.TryGetValue(demand.SourceLineId, out var lineEntity))
+            {
+                // --- ä¸šåŠ¡å®ˆå«ï¼šæ£€æŸ¥è¯¥è¡Œæ˜¯å¦å…è®¸æ›´æ–° ---
+                if (demand.FilledQty > 0 || (demand.StatusFlag != RequirementStatusEnums.å¾…å¤„ç† && demand.StatusFlag != RequirementStatusEnums.è‰ç¨¿))
+                {
+                    throw new Exception($"æ— æ³•æ›´æ–°è®¢å•è¡Œ[{demand.SourceLineId}]ï¼Œå› ä¸ºå·²æäº¤è¿‡éœ€æ±‚å¹¶ç›¸å…³éœ€æ±‚è¡Œå·²è¿›å…¥å¤„ç†æµç¨‹æˆ–å·²æœ‰ç”Ÿäº§è®°å½•");
+                }
+
+                // --- é€‰æ‹©æ€§æ›´æ–°å­—æ®µ ---
+                demand.OriginalQty = lineEntity.QTY ?? 0;
+                demand.Sku = lineEntity.Sku;
+                demand.HopefulDate = lineEntity.ExpectedDeliveryDate;
+                demand.Remark = lineEntity.SubNote;
+                // å¦‚æœæ˜¯éæ ‡ä»¶ï¼ŒåŒæ­¥æè¿°ä¿¡æ¯
+                demand.Description = lineEntity.DescriptionEn;
+                demand.ColorName = lineEntity.ColorNameEn;
+                demand.Features = lineEntity.FeaturesEn;
+            }
+        }
+
+        // 3. è°ƒç”¨ä»“å‚¨çš„æ‰¹é‡æ›´æ–°ï¼ˆä¸€æ¬¡æ€§å‘å¾€æ•°æ®åº“ï¼‰
+        return await _demandRepo.UpdateRangeAsync(existingDemands);
+    }
+    public async Task<ServiceResult<bool>> CheckLineListCanBeDeleteOrUpdatedAsync(string sourceType, IEnumerable<int> sourceIds)
+    {
+        var rst = await _demandRepo.GetListBySourceTypeAndSourceIdAsync(sourceType, sourceIds);
+        if (rst.Count > 0)
+        {
+            foreach (var demand in rst)
+            {
+                // 2. æ ¸å¿ƒçº¢çº¿æ ¡éªŒ
+                if (demand.StatusFlag != RequirementStatusEnums.å¾…å¤„ç† && demand.StatusFlag != RequirementStatusEnums.è‰ç¨¿)
+                    return ServiceResult<bool>.Fail($"è¡Œ {demand.SourceLineId} å·²è¿›å…¥æµç¨‹ï¼Œç¦æ­¢ç›´æ¥ä¿®æ”¹æˆ–åˆ é™¤ã€‚");
+
+                if (demand.FilledQty > 0)
+                    return ServiceResult<bool>.Fail($"è¡Œ  {demand.SourceLineId}  å·²æœ‰ç”Ÿäº§è®°å½•æ•°é‡ï¼Œç¦æ­¢ç›´æ¥ä¿®æ”¹æˆ–åˆ é™¤ã€‚");
+
+                if (demand.ShippedQty > 0)
+                    return ServiceResult<bool>.Fail($"è¡Œ  {demand.SourceLineId} å·²æœ‰å‘è´§è®°å½•ï¼Œç¦æ­¢ç›´æ¥ä¿®æ”¹æˆ–åˆ é™¤ã€‚");
+            }
+        }
+        return ServiceResult<bool>.Ok(true);
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º¿Í»§Ãû³Æ×Öµä»º´æ¹¹½¨¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šå®¢æˆ·åç§°å­—å…¸ç¼“å­˜æ„å»ºã€‚
     /// </summary>
     private async Task<Dictionary<int, string>> BuildCustomerNameMapAsync()
     {
@@ -901,7 +957,7 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£ºÊµÌåÓ³Éäµ½¾É°æ¶©µ¥ DTO¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šå®ä½“æ˜ å°„åˆ°æ—§ç‰ˆè®¢å• DTOã€‚
     /// </summary>
     private static SalesOrderDto MapToSalesOrderDto(SalesOrderHeader header, Dictionary<int, string> customerNameMap)
     {
@@ -928,31 +984,98 @@ public class SalesOrderService(
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£ºÉóÅúÇ°ÒµÎñ¹æÔòĞ£Ñé¡£
-    /// ¹æÔò£º
-    /// 1) ¶©µ¥Í·¹Ø¼ü×Ö¶Î±ØĞë´æÔÚ¡£
-    /// 2) ¶©µ¥±ØĞë´æÔÚÓĞĞ§Ã÷Ï¸ĞĞ¡£
-    /// 3) Ã÷Ï¸ĞĞ SKU/ÊıÁ¿±ØĞëÓĞĞ§¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šå®¡æ‰¹å‰ä¸šåŠ¡è§„åˆ™æ ¡éªŒã€‚
+    /// è§„åˆ™ï¼š
+    /// 1) è®¢å•å¤´å…³é”®å­—æ®µå¿…é¡»å­˜åœ¨ã€‚
+    /// 2) è®¢å•å¿…é¡»å­˜åœ¨æœ‰æ•ˆæ˜ç»†è¡Œã€‚
+    /// 3) æ˜ç»†è¡Œ SKU/æ•°é‡å¿…é¡»æœ‰æ•ˆã€‚
     /// </summary>
     private static Task<ServiceResult<bool>> ValidateBusinessRulesAsync(SalesOrderHeader order, List<SalesOrderLine> orderLines)
     {
         if (order == null)
-            return Task.FromResult(ServiceResult<bool>.Fail("¶©µ¥²»´æÔÚ"));
+            return Task.FromResult(ServiceResult<bool>.Fail("è®¢å•å¤´ä¸å­˜åœ¨"));
 
         if (string.IsNullOrWhiteSpace(order.OrderNo))
-            return Task.FromResult(ServiceResult<bool>.Fail("¶©µ¥ºÅ²»ÄÜÎª¿Õ"));
+            return Task.FromResult(ServiceResult<bool>.Fail("è®¢å•å·ä¸èƒ½ä¸ºç©º"));
 
         if (string.IsNullOrWhiteSpace(order.CustomerCode) && !order.CustomerId.HasValue)
-            return Task.FromResult(ServiceResult<bool>.Fail("¶©µ¥È±ÉÙ¿Í»§ĞÅÏ¢"));
+            return Task.FromResult(ServiceResult<bool>.Fail("è®¢å•ç¼ºå°‘å®¢æˆ·ä¿¡æ¯"));
 
         if (orderLines == null || orderLines.Count == 0)
-            return Task.FromResult(ServiceResult<bool>.Fail("¶©µ¥Ã÷Ï¸²»ÄÜÎª¿Õ"));
+            return Task.FromResult(ServiceResult<bool>.Fail("è®¢å•æ˜ç»†ä¸èƒ½ä¸ºç©º"));
 
-        var invalidLine = orderLines.FirstOrDefault(x => string.IsNullOrWhiteSpace(x.Sku) || (x.QTY ?? 0) <= 0);
-        if (invalidLine != null)
-            return Task.FromResult(ServiceResult<bool>.Fail($"¶©µ¥ĞĞ[{invalidLine.LineNumber}] SKU»òÊıÁ¿ÎŞĞ§"));
+        foreach (var line in orderLines)
+        {
+            // ä¸­æ–‡æ³¨é‡Šï¼šæ•°é‡å¿…é¡»å¤§äº0ã€‚
+            if ((line.QTY ?? 0) <= 0)
+                return Task.FromResult(ServiceResult<bool>.Fail($"è®¢å•è¡Œ[{line.LineNumber}] æ•°é‡æ— æ•ˆ"));
+
+            //CustomerSkuå’ŒSkuè‡³å°‘è¦æœ‰ä¸€ä¸ªä¸ä¸ºç©ºï¼Œå¦åˆ™æ— æ³•è¯†åˆ«è®¢å•è¡Œçš„ç‰©æ–™ä¿¡æ¯
+            if (string.IsNullOrWhiteSpace(line.CustomerSku) && string.IsNullOrWhiteSpace(line.Sku))
+                return Task.FromResult(ServiceResult<bool>.Fail($"è®¢å•è¡Œ[{line.LineNumber}] SKUå’Œå®¢æˆ·SKUä¸èƒ½åŒæ—¶ä¸ºç©º"));
+
+            //ä»¥ä¸‹æ˜¯Skuä¸ºç©ºæ—¶çš„ç‰¹æ®Šæ ¡éªŒé€»è¾‘ï¼Œé€‚ç”¨äºéæ ‡ä»¶åœºæ™¯
+            if (!string.IsNullOrWhiteSpace(line.Sku))
+                continue;
+
+            // ä¸­æ–‡æ³¨é‡Šï¼šéæ ‡ä»¶æ”¯æŒâ€”â€”SKUä¸ºç©ºæ—¶ï¼Œè¦æ±‚è‡³å°‘æœ‰æè¿°æˆ–è§„æ ¼ä¿¡æ¯ï¼Œé¿å…å‡ºç°æ— æ ‡è¯†éœ€æ±‚ã€‚
+            var isNonStandardValid = xNotNullOrWhiteSpace(line.DescriptionEn)
+                                     || xNotNullOrWhiteSpace(line.FeaturesEn)
+                                     || xNotNullOrWhiteSpace(line.ColorNameEn);
+
+            if (!isNonStandardValid)
+                return Task.FromResult(ServiceResult<bool>.Fail($"è®¢å•è¡Œ[{line.LineNumber}] SKUä¸ºç©ºä¸”éæ ‡æè¿°ä¿¡æ¯ä¸å®Œæ•´"));
+        }
 
         return Task.FromResult(ServiceResult<bool>.Ok(true));
+
+        static bool xNotNullOrWhiteSpace(string? value)
+        {
+            return !string.IsNullOrWhiteSpace(value);
+        }
+    }
+
+    /// <summary>
+    /// ä¸­æ–‡æ³¨é‡Šï¼šæŒ‰æ¥æºå•å·æ‰¹é‡æ›´æ–°é”€å”®éœ€æ±‚çŠ¶æ€ã€‚
+    /// </summary>
+    private async Task<ServiceResult<bool>> UpdateDemandStatusBySourceNoAsync(string sourceType, string sourceNo, string statusFlag)
+    {
+        if (string.IsNullOrWhiteSpace(sourceType) || string.IsNullOrWhiteSpace(sourceNo))
+            return ServiceResult<bool>.Fail("æ¥æºç±»å‹å’Œæ¥æºå•å·ä¸èƒ½ä¸ºç©º");
+
+        var demands = await _demandRepo.GetListBySourceTypeAndSourceNoAsync(sourceType, sourceNo);
+        if (demands == null || demands.Count == 0)
+            return ServiceResult<bool>.Fail("æœªæ‰¾åˆ°å¯¹åº”çš„é”€å”®éœ€æ±‚è®°å½•");
+
+        foreach (var demand in demands)
+        {
+            demand.StatusFlag = statusFlag;
+            demand.UpdatedDate = DateTime.Now;
+        }
+
+        await _demandRepo.UpdateRangeAsync(demands);
+        return ServiceResult<bool>.Ok(true);
+    }
+
+    /// <summary>
+    /// ä¸­æ–‡æ³¨é‡Šï¼šå·²æ‰¹å‡†è®¢å•é©³å›å‰æ£€æŸ¥é”€å”®éœ€æ±‚æ˜¯å¦å…è®¸å›é€€ã€‚
+    /// è§„åˆ™ï¼šå­˜åœ¨æ‰§è¡Œæ€ï¼ˆéè‰ç¨¿/å¾…å¤„ç†ï¼‰æˆ–å·²æœ‰å¡«å……/å‘è´§æ•°é‡æ—¶ï¼Œä¸å…è®¸é©³å›ã€‚
+    /// </summary>
+    private async Task<ServiceResult<bool>> CanRejectApprovedOrderByDemandStatusAsync(string sourceType, string sourceNo)
+    {
+        var demands = await _demandRepo.GetListBySourceTypeAndSourceNoAsync(sourceType, sourceNo);
+        if (demands == null || demands.Count == 0)
+            return ServiceResult<bool>.Ok(true);
+
+        var hasExecuted = demands.Any(x => x.StatusFlag != RequirementStatusEnums.è‰ç¨¿ && x.StatusFlag != RequirementStatusEnums.å¾…å¤„ç†);
+        if (hasExecuted)
+            return ServiceResult<bool>.Fail("è®¢å•ä¸­å­˜åœ¨å·²æ‰§è¡Œéœ€æ±‚ï¼Œä¸å…è®¸é©³å›");
+
+        var hasBusinessData = demands.Any(x => x.FilledQty > 0 || x.ShippedQty > 0);
+        if (hasBusinessData)
+            return ServiceResult<bool>.Fail("è®¢å•ä¸­å­˜åœ¨å·²å¡«å……æˆ–å·²å‘è´§éœ€æ±‚ï¼Œä¸å…è®¸é©³å›");
+
+        return ServiceResult<bool>.Ok(true);
     }
 
 

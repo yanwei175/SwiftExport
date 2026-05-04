@@ -55,6 +55,7 @@
     <Compile Include="AttachedProperties\CalendarFormatInfo.cs" />
     <Compile Include="AttachedProperties\DataGridColumnAssist.cs" />
     <Compile Include="AttachedProperties\DataGridDropdownAssist.cs" />
+    <Compile Include="AttachedProperties\DataGridSyncAttach.cs" />
     <Compile Include="AttachedProperties\DataGridTextColumnAssist.cs" />
     <Compile Include="AttachedProperties\DateDisplay.cs" />
     <Compile Include="AttachedProperties\DatePickerAssist.cs" />
@@ -134,6 +135,7 @@
     <Compile Include="Converters\ThicknessCloneConverter.cs" />
     <Compile Include="DispatcherProvider.cs" />
     <Compile Include="Common\PrefixSuffixVisibility.cs" />
+    <Compile Include="Mvvm\SummaryRow.cs" />
     <Compile Include="Services\Dialogs\DialogProvider.cs" />
     <Compile Include="Services\Dialogs\DialogViewModels.cs" />
     <Compile Include="AttachedProperties\VisualTreeExtensions.cs" />

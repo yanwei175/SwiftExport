@@ -1,6 +1,4 @@
 using SwiftExport.Contracts.Apis.SalesOrderApis;
-using SwiftExport.Contracts.DTOs.Customers;
-using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.View.FW.DI;
 using System;
@@ -31,7 +29,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Controls
         {
             InitializeComponent();
 
-            _salesOrderApi = IocProvider.Get<ISalesOrderApi>();
+            _salesOrderApi = IocProvider.GetService<ISalesOrderApi>();
             _searchDebounceTimer.Tick += SearchDebounceTimer_Tick;
         }
 

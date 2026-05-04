@@ -56,15 +56,8 @@ public interface ISalesOrderService : IBaseService<SalesOrderHeader, SalesOrderD
     /// </summary>
     Task<ServiceResult<bool>> SaveSalesOrderManagerAsync(SalesOrderManagerSaveDto request);
 
-    /// <summary>
-    /// 订单管理页：订单状态筛选字典。
-    /// </summary>
-    Task<ServiceResult<List<SalesOrderStatusOptionDto>>> GetOrderStatusOptionsAsync();
 
-    /// <summary>
-    /// 订单管理页：审批状态筛选字典。
-    /// </summary>
-    Task<ServiceResult<List<SalesOrderStatusOptionDto>>> GetApprovalStatusOptionsAsync();
+
 
     /// <summary>
     /// 订单详情页：新增/编辑统一保存。
@@ -89,7 +82,7 @@ public interface ISalesOrderService : IBaseService<SalesOrderHeader, SalesOrderD
     /// </summary>
     /// <param name="orderIds">订单ID列表</param>
     /// <returns>操作结果</returns>
-    Task<ServiceResult<List<string>>> BatchApproveSalesOrdersAsync(List<int> orderIds);
+    Task<ServiceResult<List<int>>> BatchApproveSalesOrdersAsync(List<int> orderIds);
     /// <summary>
     /// 批量驳回销售订单
     /// </summary>

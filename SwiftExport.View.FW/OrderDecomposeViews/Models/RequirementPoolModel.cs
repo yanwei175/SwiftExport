@@ -1,5 +1,6 @@
 using Mapster;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.View.FW.Mvvm;
 using System;
 using System.ComponentModel;
@@ -10,7 +11,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.Models
     /// <summary>
     /// 需求池行模型。
     /// </summary>
-    public class RequirementPoolModel : BaseLineModel, IDataErrorInfo
+    public class DependentDemandModel : BaseLineModel, IDataErrorInfo
     {
         /// <summary>
         /// 从 DTO 加载数据。
@@ -255,8 +256,8 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.Models
             }
         }
 
-        private int _statusFlag;
-        public int StatusFlag
+        private string _statusFlag = RequirementStatusEnums.待处理;
+        public string StatusFlag
         {
             get => _statusFlag;
             set => SetProperty(ref _statusFlag, value);

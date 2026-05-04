@@ -12,7 +12,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Text;
 
-namespace SwiftExport.Infrastructure.Repositories.Orders.SalesOrders
+namespace SwiftExport.Infrastructure.Repositories.Orders
 {
     public class SalesOrderRepository(RepositoryBaseContext context) :DapperRepository<SalesOrderHeader>(context), ISalesOrderRepository
     {

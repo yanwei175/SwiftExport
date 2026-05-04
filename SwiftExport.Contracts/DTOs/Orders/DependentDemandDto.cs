@@ -4,9 +4,9 @@ using System;
 namespace SwiftExport.Contracts.DTOs.Orders
 {
     /// <summary>
-    /// 销售订单拆解中间表 DTO。
+    /// 拆解BOM之后的依赖需求 DTO。
     /// </summary>
-    public class RequirementPoolDto : BaseDto
+    public class DependentDemandDto : BaseDto
     {
         #region 来源信息 (Source)
 
@@ -34,6 +34,21 @@ namespace SwiftExport.Contracts.DTOs.Orders
         /// 当前物料 SKU
         /// </summary>
         public string Sku { get; set; } = string.Empty;
+
+        /// <summary>
+        /// 物料描述（用于非标件或补充说明）。
+        /// </summary>
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>
+        /// 颜色名称（用于非标件或颜色补充）。
+        /// </summary>
+        public string ColorName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// 规格特征（用于非标件或型号补充）。
+        /// </summary>
+        public string Features { get; set; } = string.Empty;
 
         /// <summary>
         /// 物料主图（用于前端图片列显示）。
@@ -92,9 +107,9 @@ namespace SwiftExport.Contracts.DTOs.Orders
         public DateTime? RequiredDate { get; set; }
 
         /// <summary>
-        /// 状态 (0-待处理, 1-执行中, 2-已完成, 9-关闭/作废)
+        /// 状态（RequirementStatusEnums：草稿/待处理/采购中/已到货/已完成）
         /// </summary>
-        public int StatusFlag { get; set; }
+        public string StatusFlag { get; set; } = string.Empty;
 
         /// <summary>
         /// 是否齐套（针对 BomLevel=0 的行，判断其下方所有子项是否 ReceivedQty >= GrossQty）

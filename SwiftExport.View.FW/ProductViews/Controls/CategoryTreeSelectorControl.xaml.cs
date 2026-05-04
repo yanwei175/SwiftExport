@@ -1,4 +1,3 @@
-using MateWpfThemes.FW.Controls;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.View.FW.DI;
@@ -65,7 +64,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
             control.SearchText = string.Empty;
         }
 
-   
+
 
         // 内部数据源
         private readonly List<CategoryTreeModel> _allRawNodes = new List<CategoryTreeModel>();
@@ -87,7 +86,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
         {
             try
             {
-                var api = IocProvider.Get<IProductCategoryApi>();
+                var api = IocProvider.GetService<IProductCategoryApi>();
                 var result = await api?.GetAllAsync();
                 if (result?.Success == true && result.Data != null)
                 {

@@ -22,7 +22,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Data;
 using System.Windows.Input;
-using System.Windows.Navigation;
 using System.Windows.Threading;
 
 namespace SwiftExport.View.FW.ProductViews.ViewModels
@@ -253,7 +252,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         public ObservableCollection<CustomerDto> CustomerList { get; private set; } = new ObservableCollection<CustomerDto>();// 客户编码的下拉列表数据集合
         public ObservableCollection<SupplierDto> SupplierList { get; private set; } = new ObservableCollection<SupplierDto>();// 供应商编码的下拉列表数据集合
         public ObservableCollection<string> SupplyTypeList { get; private set; } = new ObservableCollection<string>();// 供应类型的下拉列表数据集合
-        public ObservableCollection<string> MaterialTypeList {  get; private set; }=new ObservableCollection<string>();//物料类型
+        public ObservableCollection<string> MaterialTypeList { get; private set; } = new ObservableCollection<string>();//物料类型
         public ObservableCollection<string> FilterMaterialTypeList { get; private set; } = new ObservableCollection<string>();
 
         #region 翻页
@@ -480,7 +479,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                         CustomerCodes = string.IsNullOrWhiteSpace(cCode) ? null : new List<string>() { cCode },
 
                         ColorCodeUnique = FilterColorDto != null && FilterColorDto.ColorNameZh != "全部颜色" && !string.IsNullOrWhiteSpace(FilterColorDto.ColorCode) ? FilterColorDto.ColorCode : null,
-                        MaterialType = FilterMaterialTypeSelected !=null ? FilterMaterialTypeSelected : null,
+                        MaterialType = FilterMaterialTypeSelected != null ? FilterMaterialTypeSelected : null,
                         //// 按分类名筛选（支持包含子集）
                         CategoryId = FilterCategory != null && FilterCategory.Id > 0 ? FilterCategory.Id : 0,
                         // 绑定到当前页面索引
@@ -556,7 +555,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         {
             using (BusyScope())
             {
-                FilterMaterialTypeSelected=null;
+                FilterMaterialTypeSelected = null;
                 FilterCategory = null;
                 FilterCategorySearchText = string.Empty;
                 FilterColorDto = null;
@@ -957,7 +956,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
 
         private void AddBomItem()
         {
-            if (SelectedBomItem == null) return;
+            //if (SelectedBomItem == null) return;
             if (SelectedProduct == null) return;
             if (SelectedProduct.SupplyType == SupplyTypeEnums.直接采购) return;
             if (SelectedProduct.BomNo == null) return;

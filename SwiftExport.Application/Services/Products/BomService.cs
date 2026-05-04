@@ -3,30 +3,36 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
+using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
 using SwiftExport.Contracts.DTOs.Products;
-using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
+using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
-using System.Collections;
 
 namespace SwiftExport.Application.Services.Products;
 
-public class BomService(IBomRepository bomRepo, IProductRepository pdRepo, ServiceBaseContext context) : BaseService<Bom, BomDto>(bomRepo, context), IBomService
+public class BomService(
+    IBomRepository bomRepo,
+    IProductRepository pdRepo,
+    ISupplierRepository supplierRepo,
+    ServiceBaseContext context) : BaseService<Bom, BomDto>(bomRepo, context), IBomService
 {
     private readonly IBomRepository _bomRepo = bomRepo;
     private readonly IProductRepository _pdRepo = pdRepo;
+    private readonly ISupplierRepository _supplierRepo = supplierRepo;
 
     protected override bool IsSoftDelete => false;
 
+    #region BOM管理CRUD操作
     public override async Task<ServiceResult<int>> AddAsync(BomDto dto)
     {
         var entity = dto.Adapt<Bom>();
 
         //检查这条BOM是否在数据库中对应BomNo和ProductSku已经存在了，如果存在了就不允许新增
         //根据这条bom的BomNo和ProductSku去数据库中查询，如果查询到了数据就说明已经存在了，就不允许新增了
-        var rst = await _bomRepo.IsBomItemExistAsync(entity.BomNo, entity.SubSku); 
+        var rst = await _bomRepo.IsBomItemExistAsync(entity.BomNo, entity.SubSku);
 
         if (rst)
         {
@@ -34,6 +40,7 @@ public class BomService(IBomRepository bomRepo, IProductRepository pdRepo, Servi
             {
                 Logger.LogWarning("尝试新增 {EntityName} 数据失败，原因：BomNo和ProductSku的组合已经存在！BomNo: {BomNo}, ProductSku: {ProductSku}", EntityName, entity.BomNo, entity.SubSku);
             }
+
             return ServiceResult<int>.Fail("相同BomNo和ProductSku的记录已存在，无法新增！");
         }
 
@@ -51,7 +58,6 @@ public class BomService(IBomRepository bomRepo, IProductRepository pdRepo, Servi
 
         return ServiceResult<int>.Ok(id);
     }
-
 
     public async Task<ServiceResult<int>> DeleteBomByBomNoAsync(string bomNo)
     {
@@ -142,7 +148,7 @@ public class BomService(IBomRepository bomRepo, IProductRepository pdRepo, Servi
         var pd = await _pdRepo.GetBySkuAsync(productSku);
         if (pd == null || string.IsNullOrEmpty(pd.BomNo))
         {
-            return ServiceResult<IEnumerable<BomTreeDto>>.Ok(new List<BomTreeDto>());
+            return ServiceResult<IEnumerable<BomTreeDto>>.Ok([]);
         }
 
         var visited = new HashSet<string>();
@@ -171,15 +177,15 @@ public class BomService(IBomRepository bomRepo, IProductRepository pdRepo, Servi
                 dto.MainImage = subPd.MainImage;
                 // 如果你有 Finish (表面处理/颜色)，这里可以补齐：
                 // 这取决于你的底层模型。例如如果需要查询 Color，可在这里处理
-                
+
                 // 判断是否继续递归拆解
                 // 条件：实体有BomNo 且 本身的类型不是"止拆"
-                if (string.Equals(subPd.SupplyType, SupplyTypeEnums.按BOM拆分, StringComparison.OrdinalIgnoreCase) && 
-                    !string.IsNullOrEmpty(subPd.BomNo))
+                if (subPd.BomVersion > 0 && !string.IsNullOrEmpty(subPd.BomNo))
                 {
                     dto.Children = await BuildBomTreeAsync(subPd.BomNo, visited);
                 }
-            }else
+            }
+            else
             {
                 // 如果子件在产品表里找不到，仍然添加这个节点，但可以考虑标记一下（例如设置Description为"未知产品"）
                 dto.Description = "未知Sku";
@@ -190,39 +196,335 @@ public class BomService(IBomRepository bomRepo, IProductRepository pdRepo, Servi
         visited.Remove(bomNo);
         return resultList;
     }
-
-    //public async Task<ServiceResult<int>> SyncBomItemsAsync(IEnumerable<Bom> items)
-    //{
-    //    // 1. 开启事务
-    //    _session.Transaction = _session.Connection.BeginTransaction();
-    //    try
-    //    {
-
-    //        var affectedRows = await _bomRepo.SyncBomItemsAsync(items);
-
-    //        // 提交事务
-    //        _session.Transaction.Commit();
-
-    //        if (Logger.IsEnabled(LogLevel.Information))
-    //        {
-    //            Logger.LogInformation("[{EntityName}] 同步失败！", EntityName);
-    //        }
-
-    //        return ServiceResult<int>.Ok(affectedRows);
-
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _session.Transaction.Rollback();
-    //        if (Logger.IsEnabled(LogLevel.Error)) Logger.LogError(ex, "[{EntityName}] 同步发生致命异常，事务已回滚！", EntityName);
-    //        throw;
-    //    }
-    //    finally
-    //    {
-    //        _session.Transaction.Dispose();
-    //        _session.Transaction = null;
-    //    }
+    #endregion
 
 
-    //}
+
+
+    #region 拆解BOM
+
+    //==========拆解BOM入口========
+
+    /// <summary>
+    /// 计算BOM拆解结果。
+    /// 仅执行缓存加载与内存递归计算，不负责最终写库提交。
+    /// </summary>
+    /// <param name="request">拆解请求对象</param>
+    /// <returns>BOM拆解后的实体对象列表</returns>
+    public async Task<List<DependentDemand>> CalculateDecomposeAsync(DecomposeRequestDto request)
+    {
+        if (request == null || request.Lines == null || request.Lines.Count == 0)
+            return [];
+        // 1. 构建拆解缓存（一次性加载相关产品、BOM、供应商数据到内存，避免递归中的N+1查询）
+        // 目前接口设计是单次请求一个SourceNo，如果未来有批量需求，可以改成一次加载多个SourceNo相关的缓存。
+        var cache = await 构建需求缓存Async([request]);
+
+        var addList = new List<DependentDemand>();
+
+        foreach (var line in request.Lines)
+        {
+            if (line.Quantity <= 0) continue;
+
+            // 中文注释：非标件规则——当SKU为空时，按非标件直接落依赖需求，不做BOM拆解。
+            if (string.IsNullOrWhiteSpace(line.Sku))
+            {
+                addList.Add(Build非标件需求(request, line, null));
+                continue;
+            }
+            // 2. 从缓存中获取根产品信息，如果找不到则跳过（也可以考虑记录日志）
+            var rootProduct = cache.GetProductBySku(line.Sku);
+            if (rootProduct == null)
+                continue;
+
+            // 3. 递归拆解当前行，结果直接累加到addList中
+            await 递归拆解需求Async(
+                request,
+                line,
+                rootProduct,
+                line.Quantity,
+                0,
+                parentSku: null,
+                addList,
+                parentAddedByCustomerPart: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                cache);
+        }
+
+        return addList;
+    }
+
+
+
+    //==========拆解BOM核心逻辑========
+    /// <summary>
+    /// 中文注释：构建拆解缓存。
+    /// 目标：将递归拆解中频繁访问的 Product/BOM/Supplier 统一拉到内存，避免 N+1 查询。
+    /// </summary>
+    private async Task<DecomposeCache> 构建需求缓存Async(List<DecomposeRequestDto> sourceList)
+    {
+        var rootSkus = sourceList
+            .Where(x => x?.Lines != null)
+            .SelectMany(x => x.Lines)
+            .Where(x => !string.IsNullOrWhiteSpace(x.Sku))
+            .Select(x => x.Sku.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (rootSkus.Count == 0)
+            return new DecomposeCache([], [], []);
+
+        var productBySku = new Dictionary<string, Product>(StringComparer.OrdinalIgnoreCase);
+        var bomByBomNo = new Dictionary<string, List<Bom>>(StringComparer.OrdinalIgnoreCase);
+        var loadedBomNos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var pendingSkus = new HashSet<string>(rootSkus, StringComparer.OrdinalIgnoreCase);
+        while (pendingSkus.Count > 0)
+        {
+            var skuBatch = pendingSkus.ToList();
+            pendingSkus.Clear();
+
+            var products = await _pdRepo.GetBySkuListAsync(skuBatch);
+            foreach (var product in products)
+            {
+                if (!string.IsNullOrWhiteSpace(product.Sku))
+                    productBySku[product.Sku] = product;
+            }
+
+            var toLoadBomNos = products
+                .Where(x => !string.IsNullOrWhiteSpace(x.BomNo) && x.BomVersion > 0)
+                .Select(x => x.BomNo!)
+                .Where(x => !loadedBomNos.Contains(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (toLoadBomNos.Count == 0)
+                continue;
+
+            foreach (var bomNo in toLoadBomNos)
+                loadedBomNos.Add(bomNo);
+
+            var bomMap = await _bomRepo.Get一堆BomBy一堆Bom号(toLoadBomNos);
+            var nextLevelSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var kv in bomMap)
+            {
+                var bomNo = kv.Key;
+                var bomList = kv.Value?.ToList() ?? [];
+                bomByBomNo[bomNo] = bomList;
+
+                foreach (var bom in bomList)
+                {
+                    if (string.IsNullOrWhiteSpace(bom.SubSku))
+                        continue;
+
+                    if (!productBySku.ContainsKey(bom.SubSku))
+                        nextLevelSkus.Add(bom.SubSku);
+                }
+            }
+
+            foreach (var sku in nextLevelSkus)
+                pendingSkus.Add(sku);
+        }
+
+        var supplierCodes = productBySku.Values
+            .Where(x => !string.IsNullOrWhiteSpace(x.SupplierCode))
+            .Select(x => x.SupplierCode!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var suppliers = supplierCodes.Count > 0 ? await _supplierRepo.GetBySupplierCodeListAsync(supplierCodes) : [];
+        return new DecomposeCache(productBySku.Values, bomByBomNo.Values.SelectMany(x => x), suppliers);
+    }
+
+    /// <summary>
+    /// 中文注释：按BOM版本递归拆解单行。
+    /// 递归终止条件：BomVersion<=0 或 BomNo 为空。
+    /// </summary>
+    private static async Task 递归拆解需求Async(DecomposeRequestDto source, DecomposeLineRequestDto sourceLine, Product currentProduct,
+        decimal currentQty, int bomLevel, string? parentSku, List<DependentDemand> addList,
+        HashSet<string> parentAddedByCustomerPart, DecomposeCache cache)
+    {
+        //如果BomVersion<=0 或 BomNo 为空，视为无BOM结构，按标准件处理直接落需求池，不再继续递归。
+        if (currentProduct.BomVersion <= 0 || string.IsNullOrWhiteSpace(currentProduct.BomNo))
+        {
+            addList.Add(Build标准件需求(source, sourceLine, currentProduct, currentQty, bomLevel, parentSku, null, null));
+            return;
+        }
+
+        // 标准件处理：先落当前行，再继续递归拆解子件。此需求是成品需求,bomLevel是0,父级SKU是null,备注和送货地点先不填，后续如果有客供件会更新备注和送货地点
+        addList.Add(Build标准件需求(source, sourceLine, currentProduct, currentQty, bomLevel, parentSku, null, null));
+
+        // 从缓存中获取当前产品的BOM项列表，如果没有则视为无BOM结构直接返回。
+        var bomList = cache.GetBomByBomNo(currentProduct.BomNo).ToList();
+        if (bomList.Count == 0)
+            return;
+
+        //遍历BOM项，计算子件需求并递归拆解。
+        foreach (var bom in bomList)
+        {
+            if (string.IsNullOrWhiteSpace(bom.SubSku) || bom.Denominator == 0)
+                continue;
+            // 从缓存中获取子件信息，如果找不到则跳过（也可以考虑记录日志）
+            var childProduct = cache.GetProductBySku(bom.SubSku);
+            if (childProduct == null)
+                continue;
+
+            var childQty = currentQty * bom.Numerator / bom.Denominator;
+            var remark = bom.Note;
+
+            // 中文注释：客供件逻辑：
+            // 1) 客供件子件正常入池；
+            // 2) 额外将父级再加入一次（无论客供件型号个数，只加一次）；
+            // 3) 客供件备注写“货好后送往父级.供应商名称”。
+
+            if (childProduct.MaterialType == MaterialTypeEnums.客供件)
+            {
+                var supplierName = cache.ResolveSupplierName(childProduct.SupplierCode);
+                remark = $"货好后送往{currentProduct.Sku}.{supplierName}";
+                var parentOnceKey = $"{source.SourceNo}|{sourceLine.SourceLineId}|{currentProduct.Sku}";
+                if (parentAddedByCustomerPart.Add(parentOnceKey))
+                {
+                    addList.Add(Build标准件需求(source, sourceLine, currentProduct, currentQty, bomLevel, parentSku, "含客供件", childProduct.SupplierCode));
+                }
+            }
+
+            // 中文注释：子件正常入池。
+            addList.Add(Build标准件需求(source, sourceLine, childProduct, childQty, bomLevel + 1, currentProduct.Sku, remark, null));
+
+            // 中文注释：继续向下递归拆解（仅按BOM拆分/含客供BOM且存在BomNo时才会继续）。
+            await 递归拆解需求Async(
+                source,
+                sourceLine,
+                childProduct,
+                childQty,
+                bomLevel + 1,
+                currentProduct.Sku,
+                addList,
+                parentAddedByCustomerPart,
+                cache);
+        }
+    }
+
+    /// <summary>
+    /// 组装依赖需求实体。
+    /// </summary>
+    private static DependentDemand Build标准件需求(DecomposeRequestDto source, DecomposeLineRequestDto sourceLine,
+        Product product, decimal qty, int bomLevel, string? parentSku, string? remark, string? shipToLocation)
+    {
+        return new DependentDemand
+        {
+            SourceType = source.SourceType,
+            SourceNo = source.SourceNo,
+            SourceLineId = sourceLine.SourceLineId,
+            Sku = product.Sku,
+            Description = product.DescriptionEn,
+            ColorName = null,
+            Features = product.FeaturesEn,
+            ParentSku = parentSku ?? string.Empty,
+            BomLevel = bomLevel,
+            SupplyType = string.IsNullOrWhiteSpace(product.SupplyType) ? SupplyTypeEnums.采购 : product.SupplyType,
+            GrossQty = qty,
+            NetQty = qty,
+            ExecutedQty = 0,
+            ReceivedQty = 0,
+            RequiredDate = sourceLine.RequiredDate,
+            StatusFlag = RequirementStatusEnums.待处理,
+            Remark = remark,
+            TargetNo = null,
+            SupplierCode = product.SupplierCode,
+            SupplierName = null,
+            TargetLineId = null,
+            IsDeleted = false,
+            CreatedDate = DateTime.Now,
+            ChangeTime = DateTime.Now,
+            ShipToLocation = shipToLocation,
+            Even = null,
+            Status = null
+        };
+    }
+
+    /// <summary>
+    /// 组装非标件依赖需求实体（SKU 为空时直接落池）。
+    /// </summary>
+    private static DependentDemand Build非标件需求(DecomposeRequestDto source, DecomposeLineRequestDto sourceLine, string? shipToLocation)
+    {
+        return new DependentDemand
+        {
+            SourceType = source.SourceType,
+            SourceNo = source.SourceNo,
+            SourceLineId = sourceLine.SourceLineId,
+            Sku = string.Empty,
+            Description = sourceLine.Description,
+            ColorName = sourceLine.ColorName,
+            Features = sourceLine.Features,
+            ParentSku = string.Empty,
+            BomLevel = 0,
+            SupplyType = SupplyTypeEnums.采购,
+            GrossQty = sourceLine.Quantity,
+            NetQty = sourceLine.Quantity,
+            ExecutedQty = 0,
+            ReceivedQty = 0,
+            RequiredDate = sourceLine.RequiredDate,
+            StatusFlag = RequirementStatusEnums.待处理,
+            Remark = "非标件需求(Sku为空)",
+            TargetNo = null,
+            SupplierCode = null,
+            SupplierName = null,
+            TargetLineId = null,
+            IsDeleted = false,
+            CreatedDate = DateTime.Now,
+            ChangeTime = DateTime.Now,
+            ShipToLocation = shipToLocation
+        };
+    }
+
+    /// <summary>
+    /// 中文注释：拆解运行时缓存对象。
+    /// </summary>
+    private sealed class DecomposeCache
+    {
+        private readonly Dictionary<string, Product> _productBySku;
+        private readonly Dictionary<string, List<Bom>> _bomByBomNo;
+        private readonly Dictionary<string, Supplier> _supplierByCode;
+
+        public DecomposeCache(IEnumerable<Product> products, IEnumerable<Bom> boms, IEnumerable<Supplier> suppliers)
+        {
+            _productBySku = products
+                .Where(x => !string.IsNullOrWhiteSpace(x.Sku))
+                .GroupBy(x => x.Sku!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            _bomByBomNo = boms
+                .Where(x => !string.IsNullOrWhiteSpace(x.BomNo))
+                .GroupBy(x => x.BomNo!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            _supplierByCode = suppliers
+                .Select(x => new { Supplier = x, SupplierCode = x.SupplierCode?.Trim() })
+                .Where(x => !string.IsNullOrWhiteSpace(x.SupplierCode))
+                .GroupBy(x => x.SupplierCode!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Supplier, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public Product? GetProductBySku(string sku)
+        {
+            if (string.IsNullOrWhiteSpace(sku)) return null;
+            _productBySku.TryGetValue(sku, out var product);
+            return product;
+        }
+
+        public IEnumerable<Bom> GetBomByBomNo(string? bomNo)
+        {
+            if (string.IsNullOrWhiteSpace(bomNo)) return [];
+            return _bomByBomNo.TryGetValue(bomNo, out var list) ? list : [];
+        }
+
+        public string ResolveSupplierName(string? supplierCode)
+        {
+            if (string.IsNullOrWhiteSpace(supplierCode)) return "未知供应商";
+            if (!_supplierByCode.TryGetValue(supplierCode, out var supplier)) return supplierCode;
+            return string.IsNullOrWhiteSpace(supplier.SupplierName) ? supplierCode : supplier.SupplierName;
+        }
+    }
+
+    #endregion 
 }

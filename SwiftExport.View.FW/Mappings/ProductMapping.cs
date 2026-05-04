@@ -27,6 +27,7 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.FeaturesEn, dto => dto.FeaturesEn)
                 .Map(dest => dest.Finish, dto => dto.Finish)
                 .Map(dest => dest.SupplyType, dto => dto.SupplyType)
+                .Map(dest => dest.BomVersion, dto => dto.BomVersion)
                 .Map(dest => dest.BomNo, dto => dto.BomNo)
                 .Map(dest => dest.Note, dto => dto.Note)
                 .Map(dest => dest.LinkSku, dto => dto.LinkSku)

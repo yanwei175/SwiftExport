@@ -15,9 +15,9 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
     {
         var sql = @"SELECT 
                         t1.*, 
-                        t2.Description, 
+                        t2.DescriptionZh, 
                         t3.ColorNameZh as Finish,
-                        t2.Features,
+                        t2.FeaturesZh,
                         t2.MainImage
                     FROM Bom t1
                     LEFT JOIN Product t2 ON t1.SubSkuId = t2.Id

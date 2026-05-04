@@ -87,10 +87,10 @@ namespace SwiftExport.View.FW
             // ================== 销售订单模块 ==================
             services.AddTransient<SalesOrderManagerViewModel>();
             services.AddTransient<SalesOrderDetailViewModel>();
-            services.AddTransient<RequirementPoolManagerViewModel>();
+            services.AddTransient<DependentDemandManagerViewModel>();
             services.AddTransient<SalesOrderManagerView>();
             services.AddTransient<SalesOrderDetailView>();
-            services.AddTransient<RequirementPoolView>();
+            services.AddTransient<DependentDemandView>();
 
             // ================== 采购订单模块 ==================
             services.AddTransient<PurchaseOrderManagerViewModel>();

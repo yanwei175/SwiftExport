@@ -1,4 +1,4 @@
-﻿// SwiftExport.Application/DependencyInjection.cs
+// SwiftExport.Application/DependencyInjection.cs
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
@@ -30,7 +30,8 @@ public static class DependencyInjection
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
         services.AddScoped<ISalesOrderService, SalesOrderService>();
-        services.AddScoped<IRequirementPoolService, RequirementPoolService>();
+        services.AddScoped<IIndependentDemandServices, IndependentDemandService>();
+        services.AddScoped<IDependentDemandService, DependentDemandService>();
         services.AddScoped<IDocumentNoService, DocumentNoService>();
         services.AddScoped<ISysDicCurrencyService, SysDicCurrencyService>();
         services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();

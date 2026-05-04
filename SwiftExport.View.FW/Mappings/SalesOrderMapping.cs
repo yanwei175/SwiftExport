@@ -135,10 +135,10 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.GwSubTotal, src => src.GwSubTotal ?? 0m)
                 .Map(dest => dest.CbmSubTotal, src => src.CbmSubTotal ?? 0m)
                 .Map(dest => dest.SubNote, src => src.SubNote)
+                .Map(dest => dest.MainImage, src => src.MainImage)
                 .Ignore(dest => dest.State)
                 .Ignore(dest => dest.是否程序内部修改)
                 .Ignore(dest => dest.IsChecked)
-                .TwoWays()
                 .IgnoreNonMapped(true);
 
             config.NewConfig<SalesOrderLineModel, SalesOrderLineDto>()
@@ -165,6 +165,7 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.NwSubTotal, src => (decimal?)src.NwSubTotal)
                 .Map(dest => dest.GwSubTotal, src => (decimal?)src.GwSubTotal)
                 .Map(dest => dest.CbmSubTotal, src => (decimal?)src.CbmSubTotal)
+                .Map(dest => dest.MainImage, src => src.MainImage)
                 .Map(dest => dest.SubNote, src => src.SubNote)
                 .IgnoreNonMapped(true);
         }

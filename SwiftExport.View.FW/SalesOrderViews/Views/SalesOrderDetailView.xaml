@@ -6,7 +6,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
-        
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
         xmlns:mtControls="clr-namespace:MateWpfThemes.FW.Controls;assembly=MateWpfThemes.FW"
         xmlns:controls="clr-namespace:SwiftExport.View.FW.ProductViews.Controls"
@@ -24,13 +24,13 @@
 
     <UserControl.Resources>
         <mvvm:BindingProxy x:Key="VmProxy" Data="{Binding}"/>
-        
-        <converters:ImgPathToImgConverter x:Key="ImgPathToImgConverter"/>
-        
-        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        
-        <mvvm:BindingProxy x:Key="SelectionUnitProxy" Data="{Binding IsChecked, ElementName=BtnToggleSelectionUnit}"/>
 
+        <converters:ImgPathToImgConverter x:Key="ImgPathToImgConverter"/>
+
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+        <mvvm:BindingProxy x:Key="SelectionUnitProxy" Data="{Binding IsChecked, ElementName=BtnToggleSelectionUnit}"/>
+                
         <Style TargetType="StackPanel">
             <Setter Property="Orientation" Value="Horizontal"/>
             <Setter Property="Margin" Value="2"/>
@@ -77,12 +77,12 @@
                          MinWidth="80"
                          d:Text="1007-TM"
                          mt:TextBoxAssist.Placeholder="输入客户代码"/>
-                
+
                 <Button Margin="0" Padding="0" 
                     Style="{StaticResource ButtonIcon}"
                     Command="{Binding CostomerSelectorCommand}"
                     mt:ButtonAssist.Icon="{StaticResource Icon.MoreVert}"/>
-                
+
             </StackPanel>
 
             <StackPanel>
@@ -119,7 +119,7 @@
         </WrapPanel>
         <!-- 订单头区域：字段较多，使用可滚动表单承载 -->
 
-        <ScrollViewer Grid.Row="1" MaxHeight="220" d:MaxHeight="220"
+        <ScrollViewer Grid.Row="1" MaxHeight="220" d:MaxHeight="390"
                       VerticalScrollBarVisibility="Auto" >
             <StackPanel Margin="10,0" Orientation="Vertical">
                 <!-- 基本信息 -->
@@ -213,7 +213,12 @@
                         <WrapPanel Grid.Row="1">
                             <StackPanel>
                                 <TextBlock Text="币种:" />
-                                <TextBox Text="{Binding OrderHeader.Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+                                <ComboBox Height="30" 
+                                    ItemsSource="{Binding CurrencyList.Items}"
+                                    DisplayMemberPath="CurrencyNameEn"
+                                    SelectedValue="{Binding OrderHeader.Currency}"
+                                    SelectedValuePath="CurrencyNameEn"
+                                          />
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="汇率:" />
@@ -221,11 +226,15 @@
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="支付方式:"/>
-                                <TextBox   Text="{Binding OrderHeader.PaymentMethod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+                                <ComboBox Height="30" 
+                                          ItemsSource="{Binding PaymentMethodList}"
+                                            SelectedItem="{Binding OrderHeader.PaymentMethod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="贸易条款:" />
-                                <TextBox Text="{Binding OrderHeader.Incoterm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+                                <ComboBox 
+                                    ItemsSource="{Binding IncotermList}" 
+                                    SelectedItem="{Binding OrderHeader.Incoterm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="条款地点:" />
@@ -284,6 +293,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
@@ -335,136 +345,109 @@
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource Brush_Txt_Primary}"
                                Margin="20,0,0,0"/>
-
-                <TextBlock x:Name="订单总数量" Text="{Binding OrderHeader.TotalQty, StringFormat='订单数量: {0:F2}'}"
-                               VerticalAlignment="Center"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource Brush_Primary}"
-                               Margin="20,0,0,0"/>
-
-                <TextBlock x:Name="订单总金额USD" Text="{Binding OrderLines.TotalUsdAmount, StringFormat='USD总额: {0:F2}'}"
-                               VerticalAlignment="Center"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource Brush_Primary}"
-                               Margin="20,0,0,0"/>
-
-                <TextBlock x:Name="订单总金额RMB" Text="{Binding OrderLines.TotalRmbAmount, StringFormat='RMB总额: {0:F2}'}"
-                               VerticalAlignment="Center"
-                               FontWeight="SemiBold"
-                               Visibility="{Binding OrderHeader.IsRmbCurrency,Converter={StaticResource BooleanToVisibilityConverter}}"
-                               Foreground="{DynamicResource Brush_Primary}"
-                               Margin="20,0,0,0"/>
-
-                <TextBlock x:Name="订单总箱数" Text="{Binding OrderLines.TotalCtns, StringFormat='总箱数: {0:F2}'}"
-                               VerticalAlignment="Center"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource Brush_Primary}"
-                               Margin="20,0,0,0"/>
-
-                <TextBlock x:Name="订单总体积" Text="{Binding OrderLines.TotalCbm, StringFormat='总CBM: {0:F3}'}"
-                               VerticalAlignment="Center"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource Brush_Primary}"
-                               Margin="20,0,0,0"/>
             </StackPanel>
 
             <StackPanel Grid.Column="2" >
             </StackPanel>
 
+            <Grid Grid.Row="1" Grid.ColumnSpan="3" Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto" MinHeight="40"/>
+                </Grid.RowDefinitions>
 
-            <DataGrid x:Name="DetailGrid" Grid.Row="1" Grid.ColumnSpan="3" Margin="8"  
+                <DataGrid x:Name="DetailGrid" Grid.Row="0" Margin="0"  
                           Tag="{Binding OrderHeader.IsRmbCurrency}"
                           ItemsSource="{Binding OrderLines.Items}"
-                          SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
+                          SelectedItem="{Binding SelectedLine,  Mode=TwoWay}"
                           HorizontalScrollBarVisibility="Auto"
                           HeadersVisibility="All"
                           RowHeight="64"
                           RowHeaderWidth="3"
                           EnableRowVirtualization="False"
                           EnableColumnVirtualization="False"
-                      
+                          mt:DataGridSyncAttach.SyncTarget="{Binding ElementName=SummaryGrid}"
                           mt:DataGridAssist.ShowRowNumber="False"
                           mt:DataGridAssist.AutoScrollToNewItem="True"
                           mt:DataGridExcelAssist.EnableExcelShortcuts="{Binding IsChecked, ElementName=BtnToggleSelectionUnit}"
                           mt:DataGridAssist.EnableSoftValidation="True">
 
-                <DataGrid.Style>
-                    <Style TargetType="DataGrid" BasedOn="{StaticResource BaseDataGrid}">
-                        <Setter Property="SelectionUnit" Value="FullRow"/>
-                        <Style.Triggers>
-                             <!--中文注释：切到 CellOrRowHeader，便于单元格编辑场景。--> 
-                            <DataTrigger Binding="{Binding IsChecked, ElementName=BtnToggleSelectionUnit}" Value="True">
-                                <Setter Property="SelectionUnit" Value="CellOrRowHeader"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.Style>
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource BaseDataGrid}">
+                            <Setter Property="SelectionUnit" Value="FullRow"/>
+                            <Style.Triggers>
+                                <!--中文注释：切到 CellOrRowHeader，便于单元格编辑场景。-->
+                                <DataTrigger Binding="{Binding IsChecked, ElementName=BtnToggleSelectionUnit}" Value="True">
+                                    <Setter Property="SelectionUnit" Value="CellOrRowHeader"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
 
-                
 
-                <DataGrid.Columns>
 
-                    <mtControls:CheckBoxDataGridTemplateColumn                          
+                    <DataGrid.Columns>
+
+                        <mtControls:CheckBoxDataGridTemplateColumn                          
                                             AllCheckedPropertyName="OrderLines.IsAllChecked"
                                             ItemCheckedPropertyName="IsChecked"
                                             ItemCheckedCommandName="ItemCheckedChangedCommand"
                                             HeaderCheckBoxMargin="3,0"
                                             HeaderCheckBoxToolTip="全选/全不选"/>
 
-
-                    <DataGridTextColumn Header="行号" Visibility="Visible" Binding="{Binding LineNumber}" 
+                        <DataGridTextColumn Header="行号" Visibility="Visible" Binding="{Binding LineNumber}" 
                                             SortMemberPath="LineNumber"
                                             Width="35" IsReadOnly="True"/>
 
-                    <!-- 产品表：直接绑定到 SalesOrderLineModel 的字段 -->
-                    <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}" 
+                        <!-- 产品表：直接绑定到 SalesOrderLineModel 的字段 -->
+                        <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}" 
                                                                     CellTemplate="{StaticResource ImageCellTemplate}" Width="64"/>
 
-                    <!-- 客户SKU列：同样支持触发联想 Popup（与 SKU 列行为一致） -->
-                    <DataGridTextColumn Header="客户SKU"
-                                        Width="100"
-                                        Binding="{Binding CustomerSKU, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource MultiLineDataGridTextBlockStyle}">
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Margin" Value="4,0"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                        <DataGridTextColumn.EditingElementStyle>
-                            <Style TargetType="TextBox" BasedOn="{StaticResource DataGridTextBox}">
-                                <!-- 中文注释：注入 DataGridDropdownAssist，下拉候选来自缓存Key，回写启用严格匹配（忽略大小写）。 -->
-                                <Setter Property="mt:DataGridDropdownAssist.ItemsSource"
-                                        Value="{Binding DataContext.CustomerSkuCacheKeys, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
-                                <Setter Property="mt:DataGridDropdownAssist.RequireItemMatch" Value="True"/>
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="TextBox">
-                                            <Grid>
-                                                <Border CornerRadius="4"
-                                                        BorderBrush="{TemplateBinding BorderBrush}"
-                                                        BorderThickness="{TemplateBinding BorderThickness}"
-                                                        Background="{TemplateBinding Background}">
-                                                    <ScrollViewer x:Name="PART_ContentHost" Margin="2,0,24,0"/>
-                                                </Border>
-                                                <Button Width="20"
-                                                        Height="20"
-                                                        HorizontalAlignment="Right"
-                                                        VerticalAlignment="Center"
-                                                        Margin="0,0,2,0"
-                                                        Padding="0"
-                                                        Focusable="False"
-                                                        Content="🔍"
-                                                        ToolTip="搜索客户SKU"
-                                                        Command="{Binding DataContext.TriggerPopupButtonInCurrentCellCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                        CommandParameter="{Binding RelativeSource={RelativeSource TemplatedParent}}"/>
-                                            </Grid>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </DataGridTextColumn.EditingElementStyle>
-                        
-                    </DataGridTextColumn>
+                        <!-- 客户SKU列：同样支持触发联想 Popup（与 SKU 列行为一致） -->
+                        <DataGridTextColumn Header="客户SKU"
+                    Width="100"
+                    Binding="{Binding CustomerSKU, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource MultiLineDataGridTextBlockStyle}">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Margin" Value="4,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                            <DataGridTextColumn.EditingElementStyle>
+                                <Style TargetType="TextBox" BasedOn="{StaticResource DataGridTextBox}">
+                                    <!-- 中文注释：注入 DataGridDropdownAssist，下拉候选来自缓存Key，回写启用严格匹配（忽略大小写）。 -->
+                                    <Setter Property="mt:DataGridDropdownAssist.ItemsSource"
+                    Value="{Binding DataContext.CustomerSkuCacheKeys, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                                    <Setter Property="mt:DataGridDropdownAssist.RequireItemMatch" Value="True"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="TextBox">
+                                                <Grid>
+                                                    <Border CornerRadius="4"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    Background="{TemplateBinding Background}">
+                                                        <ScrollViewer x:Name="PART_ContentHost" Margin="2,0,24,0"/>
+                                                    </Border>
+                                                    <Button Width="20"
+                                    Height="20"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,2,0"
+                                    Padding="0"
+                                    Focusable="False"
+                                    Content="🔍"
+                                    ToolTip="搜索客户SKU"
+                                    Command="{Binding DataContext.TriggerPopupButtonInCurrentCellCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                    CommandParameter="{Binding RelativeSource={RelativeSource TemplatedParent}}"/>
+                                                </Grid>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </DataGridTextColumn.EditingElementStyle>
+
+                        </DataGridTextColumn>
 
 
                     <!-- 链接物料编号（使用 DataGridTextColumn 保留原生编辑能力） -->
@@ -515,92 +498,157 @@
                         </DataGridTextColumn.EditingElementStyle>
                     </DataGridTextColumn>
 
-                    <DataGridTextColumn Header="客户描述" 
+                        <DataGridTextColumn Header="客户描述" 
                                             ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
                                             EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}"
                                             Binding="{Binding DescriptionEn, UpdateSourceTrigger=PropertyChanged}"
                                             Width="160"/>
-                    
-                    <DataGridTextColumn Header="颜色" 
+
+                        <DataGridTextColumn Header="颜色" 
                                             ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
                                             EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}"
                                             Binding="{Binding ColorNameEn, UpdateSourceTrigger=PropertyChanged}"
                                             Width="80"/>
-                    
-                    <DataGridTextColumn Header="配置" 
+
+                        <DataGridTextColumn Header="配置" 
                                             ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"
                                             EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}"
                                             Binding="{Binding FeaturesEn, UpdateSourceTrigger=PropertyChanged}"
                                             Width="120"/>
-                    
-                    <DataGridTextColumn Header="USD单价"
-                                            Binding="{Binding USDPrice, StringFormat=F2, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
+
+                        <DataGridTextColumn Header="USD单价"
+                                            Binding="{Binding USDPrice, StringFormat=F2, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"
                                             Width="65"/>
-                    <DataGridTextColumn Header="CNY单价"
-                                            mt:DataGridColumnAssist.BindableVisibility="{Binding Data.OrderHeader.IsRmbCurrency, Source={StaticResource VmProxy}}"
-                                            Binding="{Binding CNYPrice, StringFormat=F2, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
+                        <DataGridTextColumn Header="CNY单价"
+                                            mt:DataGridColumnAssist.BindableVisibility="{Binding Data.OrderHeader.IsRmbCurrency, Source={StaticResource VmProxy},FallbackValue=false}"
+                                            Binding="{Binding CNYPrice, StringFormat=F2, UpdateSourceTrigger=LostFocus,  TargetNullValue=''}"
                                             Width="65"/>
-                    <DataGridTextColumn Header="数量"
-                                            Binding="{Binding QTY, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
+                        <DataGridTextColumn Header="数量"
+                                            Binding="{Binding QTY, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"
                                             Width="65"/>
-                    <DataGridTextColumn Header="USD金额"
-                                            Binding="{Binding USDAmount, StringFormat=F2, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
+                        <DataGridTextColumn Header="USD金额"
+                                            IsReadOnly="True"
+                                            Binding="{Binding USDAmount, StringFormat=F2, UpdateSourceTrigger=LostFocus,TargetNullValue=''}"
+                                             Width="65"/>
+                        <DataGridTextColumn Header="RMB金额"
+                                            IsReadOnly="True"                                            
+                                            mt:DataGridColumnAssist.BindableVisibility="{Binding Data.OrderHeader.IsRmbCurrency, Source={StaticResource VmProxy},FallbackValue=false}"
+                                            Binding="{Binding CNYAmount, StringFormat=F2, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"
                                             Width="65"/>
-                    <DataGridTextColumn Header="RMB金额"
-                                            mt:DataGridColumnAssist.BindableVisibility="{Binding Data.OrderHeader.IsRmbCurrency, Source={StaticResource VmProxy}}"
-                                            Binding="{Binding CNYAmount, StringFormat=F2, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
+                        <DataGridTextColumn Header="每箱数量"
+                                            Binding="{Binding PcsOfCarton, StringFormat=F0, UpdateSourceTrigger=LostFocus,  TargetNullValue=''}"
                                             Width="65"/>
-                    <DataGridTextColumn Header="每箱数量"
-                                            Binding="{Binding PcsOfCarton, StringFormat=F0, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
-                                            Width="65"/>
-                    <DataGridTextColumn Header="每箱净重"
+                        <DataGridTextColumn Header="每箱净重"
                                             Visibility="Hidden"
-                                            Binding="{Binding NwOfCarton, StringFormat=F2, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
+                                            Binding="{Binding NwOfCarton, StringFormat=F2, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"
                                             Width="65"/>
-                    <DataGridTextColumn Header="每箱毛重"
-                                            Binding="{Binding GwOfCarton, StringFormat=F2, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
+                        <DataGridTextColumn Header="每箱毛重"
+                                            Binding="{Binding GwOfCarton, StringFormat=F2, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"
                                             Width="65"/>
-                    <DataGridTextColumn Header="每箱体积"
-                                                Binding="{Binding CbmOfCarton, StringFormat=F3, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
+                        <DataGridTextColumn Header="每箱体积"
+                                                Binding="{Binding CbmOfCarton, StringFormat=F3, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"
                                                 Width="65"/>
-                    <DataGridTextColumn Header="箱数"
-                                                Binding="{Binding Ctns, StringFormat=F0, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
-                                                Width="65"
-                                                IsReadOnly="True"/>
-                    <DataGridTextColumn Header="净重小计"
+                        <DataGridTextColumn Header="箱数"
+                                            IsReadOnly="True"                                            
+                                                Binding="{Binding Ctns, StringFormat=F0, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"                                    
+                                                Width="65"/>
+                        <DataGridTextColumn Header="净重小计"
                                             Visibility="Hidden"
-                                            Binding="{Binding NwSubTotal, StringFormat=F2, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
+                                            IsReadOnly="True"                                            
+                                            Binding="{Binding NwSubTotal, StringFormat=F2, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"
                                             Width="80"/>
-                    <DataGridTextColumn Header="毛重小计"
-                                            Binding="{Binding GwSubTotal, StringFormat=F2, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
+                        <DataGridTextColumn Header="毛重小计"
+                                            IsReadOnly="True"
+                                            Binding="{Binding GwSubTotal, StringFormat=F2, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"
                                             Width="80"/>
-                    <DataGridTextColumn Header="体积小计"
-                                            Binding="{Binding CbmSubTotal, StringFormat=F3, UpdateSourceTrigger=LostFocus, ValidatesOnDataErrors=True, TargetNullValue=''}"
+                        <DataGridTextColumn Header="体积小计"
+                                            IsReadOnly="True"
+                                            Binding="{Binding CbmSubTotal, StringFormat=F3, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"
                                             Width="80"/>
-                    <DataGridTextColumn Header="备注"
+                        <DataGridTextColumn Header="备注"
                                             Binding="{Binding SubNote, UpdateSourceTrigger=PropertyChanged}"
                                             Width="*"/>
-                </DataGrid.Columns>
-            </DataGrid>
-
-            <TextBlock Grid.Row="2" Text="订单备注:" VerticalAlignment="Top" Margin="8,2,5,0"/>
-            <TextBox  Grid.Row="2" Grid.Column="1" 
-                                    Text="{Binding OrderHeader.Remark, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
-                                     Height="50" Margin="0,3,0,0"
-                                     TextWrapping="Wrap"
-                                     AcceptsReturn="True"
-                                     VerticalContentAlignment="Top"
-                                     mt:TextBoxAssist.Placeholder="输入订单备注"/>
-            <StackPanel Grid.Row="2" Grid.Column="2">
-            </StackPanel>
-
-            <customerControls:SalesOrderLinePopupSelectorControl x:Name="CustomerProductPopupSelector"
+                    </DataGrid.Columns>
+                </DataGrid>
+                
+                <customerControls:SalesOrderLinePopupSelectorControl x:Name="CustomerProductPopupSelector"
                                                                   IsOpen="{Binding IsPopupOpen, Mode=TwoWay}"
                                                                   PopupPlacementTarget="{Binding PopupPlacementTarget}"
                                                                   RowContext="{Binding SelectedLine}"
                                                                   CustomerId="{Binding OrderHeader.CustomerId}"
                                                                   CustomerCode="{Binding OrderHeader.CustomerCode}"
                                                                   SubmitCommand="{Binding CommitPopupSelectionCommand}"/>
+
+                <DataGrid x:Name="SummaryGrid" 
+                                 Style="{StaticResource SummaryDataGrid}"
+                                  Grid.Row="1"
+                                RowHeight="35"
+                                  Height="35">
+                    <DataGrid.Columns>
+                        <!--checkbox-->
+                        <DataGridTextColumn/> 
+                        <!--LinNod-->
+                        <DataGridTextColumn/> 
+                        <!--Pic-->
+                        <DataGridTextColumn/> 
+                        <!--cSku-->
+                        <DataGridTextColumn/>
+                        <!--sku-->
+                        <DataGridTextColumn/>
+                        <!--desc-->
+                        <DataGridTextColumn/>
+                        <!--color-->
+                        <DataGridTextColumn/>
+                        <!--features-->
+                        <DataGridTextColumn Header="汇总标签"  Binding="{Binding Source='总计:'}" />
+                        <!--USD单价-->
+                        <DataGridTextColumn/>
+                        <!--CNY单价-->
+                        <DataGridTextColumn mt:DataGridColumnAssist.BindableVisibility="{Binding Data.OrderHeader.IsRmbCurrency, Source={StaticResource VmProxy}}"/>
+                        <!--TotalQty-->
+                        <DataGridTextColumn Header="TotalQty"
+                                            Binding="{Binding DataContext.OrderHeader.TotalQty, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+
+                        <!--TotalUsdAmount-->
+                        <DataGridTextColumn Header="TotalUsdAmount" 
+                                            Binding="{Binding DataContext.OrderLines.TotalUsdAmount, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                        <!--TotalRmbAmount-->
+                        <DataGridTextColumn Header="TotalRmbAmount" 
+                                            Binding="{Binding DataContext.OrderLines.TotalRmbAmount, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            mt:DataGridColumnAssist.BindableVisibility="{Binding Data.OrderHeader.IsRmbCurrency, Source={StaticResource VmProxy}}"/>
+                        <!--每箱数量-->
+                        <DataGridTextColumn/>
+                        <!--每箱净重-->
+                        <DataGridTextColumn/>
+                        <!--每箱毛重-->
+                        <DataGridTextColumn/>
+                        <!--每箱体积-->
+                        <DataGridTextColumn/>
+                        <!--箱数-->
+                        <DataGridTextColumn Binding="{Binding DataContext.OrderLines.TotalCtns, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                        <!--净重-->
+                        <DataGridTextColumn Binding="{Binding DataContext.OrderLines.TotalNw, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                        <!--毛重-->
+                        <DataGridTextColumn Binding="{Binding DataContext.OrderLines.TotalGw, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                        <!--体积-->
+                        <DataGridTextColumn Binding="{Binding DataContext.OrderLines.TotalCbm, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                        <!--备注-->
+                        <DataGridTextColumn />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+
+
+            <TextBlock Grid.Row="3" Text="订单备注:" VerticalAlignment="Top" Margin="8,2,5,0"/>
+            <TextBox  Grid.Row="3" Grid.Column="1" 
+                                    Text="{Binding OrderHeader.Remark, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
+                                     Height="50" Margin="0,3,0,0"
+                                     TextWrapping="Wrap"
+                                     AcceptsReturn="True"
+                                     VerticalContentAlignment="Top"
+                                     mt:TextBoxAssist.Placeholder="输入订单备注"/>
+
+
         </Grid>
 
 

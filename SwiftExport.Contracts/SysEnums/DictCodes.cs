@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace SwiftExport.Contracts.SysEnums
 {
@@ -19,9 +17,18 @@ namespace SwiftExport.Contracts.SysEnums
         public const string Currency = "Currency"; //货币
         public const string CustomerType = "CustomerType"; //客户类型
         public const string Incoterm = "Incoterm"; //国际贸易术语
+        public const string ProductColor = "ProductColor"; //产品颜色
+        public const string ProductType = "ProductType"; //产品类型
+        public const string PaymentMethod = "PaymentMethod"; //支付方式
+        public const string IncotermSortRemark = "IncotermSortRemark"; //支付方式
+        public const string IncotermLocation = "IncotermLocation"; //支付方式
+        public const string ProductCategory = "ProductCategory"; //支付方式
         #endregion
 
-
+        public static List<string> DictCodeList => new List<string>
+        {
+            "Currency","CustomerType","Incoterm","ProductColor","ProductType","PaymentMethod","IncotermSortRemark","IncotermLocation","ProductCategory"
+        };
     }
 
 

@@ -2,12 +2,10 @@ using GalaSoft.MvvmLight.Command;
 using Mapster;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.SalesOrders;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.View.FW.Mvvm;
 using SwiftExport.View.FW.SalesOrderViews.Models;
-using SwiftExport.View.FW.SalesOrderViews.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -61,18 +59,19 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         #region 构造函数
 
-        public SalesOrderManagerViewModel() : this(null, null)
+        [Obsolete("仅供 XAML 设计器使用", true)]
+        internal SalesOrderManagerViewModel()
         {
         }
 
-        public SalesOrderManagerViewModel(ISalesOrderApi salesOrderApi, IDialogService dialogService)
+        public SalesOrderManagerViewModel(ISalesOrderApi salesOrderApi, IDialogService dialogService, SalesOrderDetailViewModel salesOrderDetailViewModel)
         {
             _salesOrderApi = salesOrderApi;
             _msg = dialogService;
 
             OrderHeaders = new SalesOrderHeaderList();
             CurrentOrderLines = new SalesOrderLineList();
-            EmbeddedDetailViewModel = new SalesOrderDetailViewModel(0, _salesOrderApi, _msg, null, null, true);
+            EmbeddedDetailViewModel = salesOrderDetailViewModel;
 
             OrderHeaders.PropertyChanged += OrderHeaders_PropertyChanged;
             CurrentOrderLines.PropertyChanged += CurrentOrderLines_PropertyChanged;

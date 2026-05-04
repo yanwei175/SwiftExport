@@ -1,5 +1,4 @@
-using Mapster;
-using SwiftExport.Contracts.DTOs.SystemDtos;
+﻿using Mapster;
 using SwiftExport.View.FW.Mvvm;
 using System;
 using System.ComponentModel;
@@ -105,7 +104,7 @@ namespace SwiftExport.View.FW.SystemViews.Models
                     roundedValue = roundedValue / 1.000000000000000000000000000000000m;
                     SetProperty(ref _rateToBase, roundedValue);
                 }
-            } 
+            }
         }
 
         #endregion

@@ -8,7 +8,6 @@ using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.View.FW.Http;
 using System;
-using System.Net.Http;
 
 namespace SwiftExport.View.FW
 {
@@ -34,8 +33,8 @@ namespace SwiftExport.View.FW
                         : TimeSpan.FromSeconds(30);
                 })
                 .AddHttpMessageHandler<HttpLoggingHandler>();
-                // 启用 Token 注入时取消以下注释：
-                // .AddHttpMessageHandler<AuthTokenHandler>();
+            // 启用 Token 注入时取消以下注释：
+            // .AddHttpMessageHandler<AuthTokenHandler>();
         }
     }
 
@@ -50,7 +49,7 @@ namespace SwiftExport.View.FW
         ///
         /// 新增 API 时：在对应业务分组末尾追加一行 services.AddErpApi 即可。
         /// </summary>
-        private static IServiceCollection AddViewApis(this IServiceCollection services)
+        public static IServiceCollection AddViewApis(this IServiceCollection services)
         {
             // HTTP 日志拦截器（Transient：每次 HttpClient 创建时注入一个新实例）
             services.AddTransient<HttpLoggingHandler>();
@@ -84,7 +83,8 @@ namespace SwiftExport.View.FW
 
             // ================== 销售订单模块 ==================
             services.AddErpApi<ISalesOrderApi>(apiBaseUrl + "/api/SalesOrder");
-            services.AddErpApi<IRequirementPoolApi>(apiBaseUrl + "/api/SalesOrderDecomposeBridge");
+            services.AddErpApi<IIndependentDemandApi>(apiBaseUrl + "/api/IndependentDemand");
+            services.AddErpApi<IDependentDemandApi>(apiBaseUrl + "/api/DependentDemand");
             services.AddErpApi<IPurchaseOrderApi>(apiBaseUrl + "/api/PurchaseOrder");
             services.AddErpApi<IReceiveApi>(apiBaseUrl + "/api/Receive");
             services.AddErpApi<IPackingListApi>(apiBaseUrl + "/api/PackingList");

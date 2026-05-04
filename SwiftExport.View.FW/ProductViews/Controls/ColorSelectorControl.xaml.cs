@@ -1,9 +1,7 @@
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.View.FW.DI;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -66,7 +64,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
         {
             try
             {
-                var api = IocProvider.Get<IProductColorApi>();
+                var api = IocProvider.GetService<IProductColorApi>();
                 if (api == null) return;
 
                 var result = await api.GetAllAsync();

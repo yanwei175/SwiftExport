@@ -1,0 +1,23 @@
+using SwiftExport.Contracts.DTOs.SalesOrders;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.Orders;
+using SwiftExport.Contracts.DTOs.Orders;
+
+namespace SwiftExport.Application.Interfaces
+{
+    /// <summary>
+    /// 独立需求服务接口（流程编排层）。
+    /// </summary>
+    public interface IIndependentDemandServices : IBaseService<IndependentDemand, IndependentDemandDto>
+    {
+        Task<ServiceResult<bool>> UpdateFilledQtyAsync(int id, decimal addQty);
+
+        /// <summary>
+        /// 按来源单据执行销售需求拆解（由毛需求驱动，拆解结果写入需求池）。
+        /// </summary>
+        /// <param name="sourceType">来源单据类型</param>
+        /// <param name="sourceNo">来源单号</param>
+        /// <returns>拆解后的需求池明细</returns>
+        Task<ServiceResult<List<DependentDemandDto>>> ExecuteDecomposeBySourceAsync(string sourceType, string sourceNo);
+    }
+}

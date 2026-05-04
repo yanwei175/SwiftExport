@@ -18,48 +18,48 @@ namespace SwiftExport.Infrastructure.Repositories.Systems
         public async Task<DocumentSequence> GetNextAsync(string docType, string yearMonth, string? updatedBy)
         {
             const string sql = @"
-DECLARE @newNo TABLE(CurrentNo INT);
+                                    DECLARE @newNo TABLE(CurrentNo INT);
 
-UPDATE [DocumentSequence]
-SET [CurrentNo] = [CurrentNo] + 1,
-    [UpdatedDate] = SYSUTCDATETIME(),
-    [UpdatedBy] = @UpdatedBy
-OUTPUT INSERTED.CurrentNo INTO @newNo(CurrentNo)
-WHERE [DocType] = @DocType AND [YearMonth] = @YearMonth;
+                                    UPDATE [DocumentSequence]
+                                    SET [CurrentNo] = [CurrentNo] + 1,
+                                        [UpdatedDate] = SYSUTCDATETIME(),
+                                        [UpdatedBy] = @UpdatedBy
+                                    OUTPUT INSERTED.CurrentNo INTO @newNo(CurrentNo)
+                                    WHERE [DocType] = @DocType AND [YearMonth] = @YearMonth;
 
-IF @@ROWCOUNT = 0
-BEGIN
-    INSERT INTO [DocumentSequence]
-    (
-        [DocType],
-        [YearMonth],
-        [CurrentNo],
-        [IsDeleted],
-        [CreatedDate],
-        [CreatedBy],
-        [UpdatedDate],
-        [UpdatedBy],
-        [Even],
-        [Status]
-    )
-    VALUES
-    (
-        @DocType,
-        @YearMonth,
-        1,
-        0,
-        SYSUTCDATETIME(),
-        @UpdatedBy,
-        NULL,
-        NULL,
-        NULL,
-        NULL
-    );
+                                    IF @@ROWCOUNT = 0
+                                    BEGIN
+                                        INSERT INTO [DocumentSequence]
+                                        (
+                                            [DocType],
+                                            [YearMonth],
+                                            [CurrentNo],
+                                            [IsDeleted],
+                                            [CreatedDate],
+                                            [CreatedBy],
+                                            [UpdatedDate],
+                                            [UpdatedBy],
+                                            [Even],
+                                            [Status]
+                                        )
+                                        VALUES
+                                        (
+                                            @DocType,
+                                            @YearMonth,
+                                            1,
+                                            0,
+                                            SYSUTCDATETIME(),
+                                            @UpdatedBy,
+                                            NULL,
+                                            NULL,
+                                            NULL,
+                                            NULL
+                                        );
 
-    INSERT INTO @newNo(CurrentNo) VALUES (1);
-END
+                                        INSERT INTO @newNo(CurrentNo) VALUES (1);
+                                    END
 
-SELECT TOP 1 CurrentNo FROM @newNo;";
+                                    SELECT TOP 1 CurrentNo FROM @newNo;";
 
             var currentNo = await Connection.QueryFirstAsync<int>(
                 sql,

@@ -1,4 +1,4 @@
-﻿using SwiftExport.View.FW.CustomerViews.Views;
+using SwiftExport.View.FW.CustomerViews.Views;
 using SwiftExport.View.FW.DictViews.Views;
 using SwiftExport.View.FW.ProductViews.Views;
 using SwiftExport.View.FW.SalesOrderViews.Views;
@@ -173,7 +173,7 @@ namespace SwiftExport.DevApp
 
         private void Button_Click_10(object sender, RoutedEventArgs e)
         {
-            var view = DiServices.GetService<RequirementPoolView>();
+            var view = DiServices.GetService<DependentDemandView>();
             var window = new Window
             {
                 Title = "需求池",

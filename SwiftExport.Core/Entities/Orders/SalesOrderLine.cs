@@ -36,11 +36,13 @@ public class SalesOrderLine : BaseEntity
 
     public string? SubNote { get; set; }
 
-    public decimal? ShippedQTY { get; set; }
-    public decimal? UnshippedQty { get; set; }
-    public bool IsPartiallyShipped { get; set; }
-    public bool IsFullyShipped { get; set; }
+    /// <summary>
+    /// 最后一次发货日期
+    /// </summary>
     public DateTime? LastShippedDate { get; set; }
+    /// <summary>
+    /// 预计交货日期
+    /// </summary>
     public DateTime? ExpectedDeliveryDate { get; set; }
     public string? MainImage { get; set; }
 

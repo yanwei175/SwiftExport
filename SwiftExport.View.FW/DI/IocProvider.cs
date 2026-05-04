@@ -1,16 +1,48 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace SwiftExport.View.FW.DI
 {
     public static class IocProvider
     {
-        // 这是一个空的委托，由主项目来负责给它赋值
-        public static Func<Type, object> GetServiceFunc { get; set; }
+        private static readonly object _lock = new object();
+        private static IServiceProvider _provider;
+        public static IServiceProvider Provider
+        {
+            get
+            {
+                if (_provider == null)
+                    throw new InvalidOperationException("ServiceProvider 尚未初始化，请先调用 AppServices.Init()");
+                return _provider;
+            }
+        }
 
-        public static T Get<T>() => (T)GetServiceFunc?.Invoke(typeof(T));
+        public static void Init(IServiceProvider provider)
+        {
+            if (_provider != null)
+                return; // 防止重复初始化
+
+            lock (_lock)
+            {
+                if (_provider == null)
+                    _provider = provider;
+            }
+        }
+        /// <summary>
+        /// 获取服务的快捷方法
+        /// </summary>
+        public static T GetService<T>()
+        {
+            // GetRequiredService 如果找不到服务会抛出异常，比 GetService (返回 null) 更容易排查错误
+            return Provider.GetRequiredService<T>();
+        }
+
+        /// <summary>
+        /// 重置内部 Provider，便于 ThisAddIn.Shutdown 时释放单例持有的资源（例如 Excel COM 对象）。
+        /// </summary>
+        public static void Reset()
+        {
+            _provider = null;
+        }
     }
 }

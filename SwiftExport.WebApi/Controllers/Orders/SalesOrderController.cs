@@ -5,8 +5,6 @@ using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.WebApi.Controllers.Base;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace SwiftExport.WebApi.Controllers.Orders;
 
@@ -108,23 +106,6 @@ public class SalesOrderController(ISalesOrderService service)
         return await service.SaveSalesOrderManagerAsync(request);
     }
 
-    /// <summary>
-    /// 中文注释：获取“订单状态”筛选字典项（用于多选筛选控件）。
-    /// </summary>
-    [HttpGet("dict/order-status")]
-    public async Task<ServiceResult<List<SalesOrderStatusOptionDto>>> GetOrderStatusOptionsAsync()
-    {
-        return await service.GetOrderStatusOptionsAsync();
-    }
-
-    /// <summary>
-    /// 中文注释：获取“审批状态”筛选字典项（用于多选筛选控件）。
-    /// </summary>
-    [HttpGet("dict/approval-status")]
-    public async Task<ServiceResult<List<SalesOrderStatusOptionDto>>> GetApprovalStatusOptionsAsync()
-    {
-        return await service.GetApprovalStatusOptionsAsync();
-    }
 
     #endregion
 
@@ -180,7 +161,7 @@ public class SalesOrderController(ISalesOrderService service)
     /// 批量批准销售订单。
     /// </summary>
     [HttpPost("batch-approve")]
-    public async Task<ServiceResult<List<string>>> BatchApproveSalesOrdersAsync([FromBody] List<int> orderIds)
+    public async Task<ServiceResult<List<int>>> BatchApproveSalesOrdersAsync([FromBody] List<int> orderIds)
     {
         return await service.BatchApproveSalesOrdersAsync(orderIds);
     }

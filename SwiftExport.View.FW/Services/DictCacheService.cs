@@ -1,12 +1,10 @@
 ﻿using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.SystemDtos;
-using SwiftExport.Contracts.SysEnums;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,97 +12,110 @@ namespace SwiftExport.View.FW.Services
 {
     public interface IDictCacheService
     {
+        /// <summary>
+        ///  预加载：如果指定了 codes 则按需刷新，否则执行全量刷新
+        /// </summary>
+        /// <param name="dictCodes"></param>
+        /// <returns></returns>
         Task PreloadAsync(IEnumerable<string> dictCodes = null);
+
+        /// <summary>
+        ///  局部刷新：仅重新获取单个字典
+        /// </summary>
+        /// <param name="dictCode"></param>
+        /// <returns></returns>
         Task RefreshAsync(string dictCode);
+
+        /// <summary>
+        /// 一次性获取所有字典明细，并在内存中完成分组
+        /// </summary>
+        /// <returns></returns>
         Task RefreshAllAsync();
+
+        /// <summary>
+        /// 获取字典明细
+        /// </summary>
+        /// <param name="dictCode"></param>
+        /// <returns></returns>
         IReadOnlyList<SysDictDataDto> GetItems(string dictCode);
-        IReadOnlyList<string> GetValues(string dictCode);
+        /// <summary>
+        /// 返回指定字典的所有值（DataNameEn），去除空白和重复项，如果缓存中不存在或 dictCode 无效，则返回空列表
+        /// </summary>
+        /// <param name="dictCode"></param>
+        /// <returns></returns>
+        IReadOnlyList<string> GetEnValues(string dictCode);
+        IReadOnlyList<string> GetZhValues(string dictCode);
+
     }
 
     public class DictCacheService : IDictCacheService
     {
-        // 核心字典代码列表，预加载时默认使用该列表，如果需要加载其他字典，可以在调用 PreloadAsync 时指定 dictCodes 参数
-        private static readonly string[] CoreDictCodes =
-        {
-            DictCodes.Currency,
-            DictCodes.CustomerType
-        };
-
         private readonly ISysDictDataApi _dictDataApi;
         private readonly ConcurrentDictionary<string, List<SysDictDataDto>> _cache = new ConcurrentDictionary<string, List<SysDictDataDto>>(StringComparer.OrdinalIgnoreCase);
         private readonly SemaphoreSlim _locker = new SemaphoreSlim(1, 1);
-
         public DictCacheService(ISysDictDataApi dictDataApi)
         {
             _dictDataApi = dictDataApi;
         }
-   /// <summary>
-   /// 中文注释
-   ///  重新获取指定字典的数据并更新缓存，如果获取失败则保持原有数据不变；如果 dictCodes 为空或 null，则预加载 CoreDictCodes 中的字典数据
-   /// </summary>
-   /// <param name="dictCodes"></param>
-   /// <returns></returns>
+
+        /// <summary>
+        /// 预加载：如果指定了 codes 则按需刷新，否则执行全量刷新
+        /// </summary>
         public async Task PreloadAsync(IEnumerable<string> dictCodes = null)
         {
-            var targets = (dictCodes ?? CoreDictCodes)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            foreach (var code in targets)
+            if (dictCodes == null || !dictCodes.Any())
             {
-                await RefreshAsync(code).ConfigureAwait(false);
+                await RefreshAllAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                // 如果只想要特定的几个字典，可以循环刷新，也可以简单执行全量刷新
+                foreach (var code in dictCodes.Distinct())
+                {
+                    await RefreshAsync(code).ConfigureAwait(false);
+                }
             }
         }
- 
 
-        //刷新所有核心字典数据，适用于需要确保核心字典数据最新的场景，该方法会捕获并记录所有异常，确保调用者不受影响
 
+        /// <summary>
+        /// 一次性获取所有字典明细，并在内存中完成分组
+        /// </summary>
         public async Task RefreshAllAsync()
         {
-            await PreloadAsync(CoreDictCodes).ConfigureAwait(false);
-        }
-        /// <summary>
-        /// 重新获取指定字典的数据并更新缓存，如果获取失败则保持原有数据不变,该方法会捕获并记录所有异常，确保调用者不受影响
-        /// </summary>
-        /// <param name="dictCode"></param>
-        /// <returns></returns>
- 
-        public async Task RefreshAsync(string dictCode)
-        {
-            if (string.IsNullOrWhiteSpace(dictCode)) return;
-
             await _locker.WaitAsync().ConfigureAwait(false);
             try
             {
-                try
+                Debug.WriteLine("[DictCache] Starting global refresh...");
+                var result = await _dictDataApi.GetAllAsync().ConfigureAwait(false);
+
+                if (result?.Success == true && result.Data != null)
                 {
-                    var result = await _dictDataApi.GetByCodeAsync(dictCode).ConfigureAwait(false);
-                    if (result == null)
-                    {
-                        Debug.WriteLine($"[DictCache] Refresh '{dictCode}' failed: result is null.");
-                        return;
-                    }
+                    // 1. 在内存中进行分组和排序
+                    var groupedData = result.Data
+                        .OrderBy(x => x.SortOrder)
+                        .ThenBy(x => x.Id)
+                        .GroupBy(x => x.DictCode, StringComparer.OrdinalIgnoreCase);
 
-                    if (!result.Success)
+                    // 2. 清空当前缓存并批量填充
+                    _cache.Clear();
+                    foreach (var group in groupedData)
                     {
-                        Debug.WriteLine($"[DictCache] Refresh '{dictCode}' failed: {result.Message}");
-                        return;
+                        if (!string.IsNullOrWhiteSpace(group.Key))
+                        {
+                            _cache.TryAdd(group.Key, group.ToList());
+                        }
                     }
-
-                    if (result.Data == null)
-                    {
-                        Debug.WriteLine($"[DictCache] Refresh '{dictCode}' failed: data is null.");
-                        return;
-                    }
-
-                    var items = result.Data.OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToList();
-                    _cache.AddOrUpdate(dictCode, items, (k, old) => items);
+                    Debug.WriteLine($"[DictCache] Global refresh completed. {_cache.Count} dictionaries loaded.");
                 }
-                catch (Exception ex)
+                else
                 {
-                    Debug.WriteLine($"[DictCache] Refresh '{dictCode}' exception: {ex.Message}");
+                    Debug.WriteLine($"[DictCache] Global refresh failed: {result?.Message ?? "Unknown error"}");
                 }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DictCache] RefreshAllAsync exception: {ex.Message}");
             }
             finally
             {
@@ -112,29 +123,71 @@ namespace SwiftExport.View.FW.Services
             }
         }
 
+        /// <summary>
+        /// 局部刷新：仅重新获取单个字典
+        /// </summary>
+        public async Task RefreshAsync(string dictCode)
+        {
+            if (string.IsNullOrWhiteSpace(dictCode)) return;
 
-        /// 获取指定字典的所有数据项，如果缓存中不存在或 dictCode 无效，则返回空列表
+            await _locker.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                var result = await _dictDataApi.GetByCodeAsync(dictCode).ConfigureAwait(false);
+                if (result?.Success == true && result.Data != null)
+                {
+                    var items = result.Data.OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToList();
+                    _cache.AddOrUpdate(dictCode, items, (k, old) => items);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DictCache] Refresh '{dictCode}' exception: {ex.Message}");
+            }
+            finally
+            {
+                _locker.Release();
+            }
+        }
+        /// <summary>
+        /// 获取字典明细
+        /// </summary>
         public IReadOnlyList<SysDictDataDto> GetItems(string dictCode)
         {
             if (string.IsNullOrWhiteSpace(dictCode)) return Array.Empty<SysDictDataDto>();
 
-            List<SysDictDataDto> items;
-            if (!_cache.TryGetValue(dictCode, out items) || items == null)
+            if (!_cache.TryGetValue(dictCode, out List<SysDictDataDto> items) || items == null)
             {
                 return Array.Empty<SysDictDataDto>();
             }
 
             return items;
         }
-
-        // 获取指定字典的所有值（DictValue），去除空白和重复项，如果缓存中不存在或 dictCode 无效，则返回空列表
-        public IReadOnlyList<string> GetValues(string dictCode)
+        /// <summary>
+        /// 获取字典值的字符串集合
+        /// </summary>
+        public IReadOnlyList<string> GetEnValues(string dictCode)
         {
             return GetItems(dictCode)
-                .Select(x => x.DataNameEn)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+                            .Select(x => x.DataNameEn) // 统一取英文名
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
         }
+
+        /// <summary>
+        /// 获取字典值的字符串集合
+        /// </summary>
+        public IReadOnlyList<string> GetZhValues(string dictCode)
+        {
+            return GetItems(dictCode)
+                            .Select(x => x.DataNameZh) // 中文名
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+        }
+
+
+
     }
 }

@@ -21,7 +21,7 @@ public class PackingListService(
     IPurchaseReceiveLineRepository receiveLineRepository,
     IPurchaseOrderLineRepository purchaseOrderLineRepository,
     IRepository<SalesOrderHeader> salesOrderHeaderRepository,
-    IRepository<SalesOrderLine> salesOrderLineRepository,
+    IIndependentDemandRepository salesDemandRepository,
     IRepository<Product> productRepository,
     IBomRepository bomRepository,
     IInventoryRepository inventoryRepository,
@@ -37,7 +37,7 @@ public class PackingListService(
     private readonly IPurchaseReceiveLineRepository _receiveLineRepository = receiveLineRepository;
     private readonly IPurchaseOrderLineRepository _purchaseOrderLineRepository = purchaseOrderLineRepository;
     private readonly IRepository<SalesOrderHeader> _salesOrderHeaderRepository = salesOrderHeaderRepository;
-    private readonly IRepository<SalesOrderLine> _salesOrderLineRepository = salesOrderLineRepository;
+    private readonly IIndependentDemandRepository _salesDemandRepository = salesDemandRepository;
     private readonly IRepository<Product> _productRepository = productRepository;
     private readonly IBomRepository _bomRepository = bomRepository;
     private readonly IInventoryRepository _inventoryRepository = inventoryRepository;
@@ -153,7 +153,7 @@ public class PackingListService(
             if (oldLines.Count > 0)
                 await _lineRepository.DeleteRangeAsync(oldLines.Select(x => x.Id), false);
 
-            var newLines = (request.Lines ?? new List<PackingListLineDto>())
+            var newLines = (request.Lines ?? [])
                 .Where(x => !string.IsNullOrWhiteSpace(x.Sku) && x.Qty > 0)
                 .Select(x =>
                 {
@@ -309,24 +309,35 @@ public class PackingListService(
                 throw new InvalidOperationException(decrease.Message);
         }
 
-        var touchedOrderNos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var soGroup in lines.Where(x => x.SoLineId.HasValue).GroupBy(x => x.SoLineId!.Value))
         {
-            if (soGroup.Key > int.MaxValue) continue;
-            var soLine = await _salesOrderLineRepository.GetByIdAsync((int)soGroup.Key);
-            if (soLine == null) continue;
+            if (soGroup.Key <= 0 || soGroup.Key > int.MaxValue) continue;
 
-            soLine.ShippedQTY = (soLine.ShippedQTY ?? 0m) + soGroup.Sum(x => x.Qty);
-            soLine.UnshippedQty = Math.Max((soLine.QTY ?? 0m) - (soLine.ShippedQTY ?? 0m), 0m);
-            soLine.IsFullyShipped = soLine.UnshippedQty <= 0;
-            soLine.IsPartiallyShipped = !soLine.IsFullyShipped && (soLine.ShippedQTY ?? 0m) > 0;
-            soLine.LastShippedDate = DateTime.Now;
-            soLine.ChangeTime = DateTime.Now;
-            await _salesOrderLineRepository.UpdateAsync(soLine);
+            var demands = await _salesDemandRepository.GetListBySourceTypeAndSourceIdAsync(OrderTypeEnums.销售订单, [(int)soGroup.Key]);
+            if (demands == null || demands.Count == 0) continue;
+            var demand = demands[0];
 
-            if (!string.IsNullOrWhiteSpace(soLine.OrderNo))
-                touchedOrderNos.Add(soLine.OrderNo);
+            demand.ShippedQty += soGroup.Sum(x => x.Qty);
+            demand.LastShippedDate = DateTime.Now;
+            demand.ChangeTime = DateTime.Now;
+
+            // 中文注释：IndependentDemand状态闭环——已到货后发货满额转“已完成”，未到货时保持“采购中”。
+            if (demand.ShippedQty >= demand.OriginalQty)
+            {
+                demand.StatusFlag = demand.FilledQty >= demand.OriginalQty
+                    ? RequirementStatusEnums.已完成
+                    : RequirementStatusEnums.采购中;
+            }
+
+            demand.UpdatedDate = DateTime.Now;
+            await _salesDemandRepository.UpdateAsync(demand);
         }
+
+        var touchedOrderNos = lines
+            .Where(x => !string.IsNullOrWhiteSpace(x.SalesOrderNo))
+            .Select(x => x.SalesOrderNo!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         foreach (var orderNo in touchedOrderNos)
         {
@@ -337,9 +348,9 @@ public class PackingListService(
     private async Task WriteOffComponentsAsync(PackingListHead head, List<PackingListLine> lines, bool allowNegativeStock)
     {
         var requirements = await BuildComponentRequirementsAsync(lines);
-        foreach (var req in requirements)
+        foreach (var (Sku, Qty) in requirements)
         {
-            var result = await _stockService.DecreaseStockAsync(VirtualWhseCode, head.SupplierCode.Trim(), req.Sku, req.Qty, allowNegativeStock, "PackingListWriteOff", head.PackingListNo);
+            var result = await _stockService.DecreaseStockAsync(VirtualWhseCode, head.SupplierCode.Trim(), Sku, Qty, allowNegativeStock, "PackingListWriteOff", head.PackingListNo);
             if (!result.Success)
                 throw new InvalidOperationException(result.Message);
         }
@@ -350,19 +361,19 @@ public class PackingListService(
         var requirements = await BuildComponentRequirementsAsync(lines);
         var shortages = new List<PackingListStockShortageDto>();
 
-        foreach (var req in requirements)
+        foreach (var (Sku, Qty) in requirements)
         {
-            var stock = await _inventoryRepository.GetByWhseLocationSkuAsync(VirtualWhseCode, head.SupplierCode.Trim(), req.Sku);
+            var stock = await _inventoryRepository.GetByWhseLocationSkuAsync(VirtualWhseCode, head.SupplierCode.Trim(), Sku);
             var onhand = stock?.OnhandQty ?? 0m;
-            if (onhand < req.Qty)
+            if (onhand < Qty)
             {
                 shortages.Add(new PackingListStockShortageDto
                 {
-                    Sku = req.Sku,
+                    Sku = Sku,
                     SupplierCode = head.SupplierCode,
-                    RequiredQty = req.Qty,
+                    RequiredQty = Qty,
                     OnhandQty = onhand,
-                    ShortageQty = req.Qty - onhand
+                    ShortageQty = Qty - onhand
                 });
             }
         }
@@ -400,14 +411,15 @@ public class PackingListService(
             }
         }
 
-        return requirements.Select(x => (x.Key, x.Value)).ToList();
+        return [.. requirements.Select(x => (x.Key, x.Value))];
     }
 
     private async Task<Product?> FindProductBySkuAsync(string? sku)
     {
         if (string.IsNullOrWhiteSpace(sku)) return null;
         var items = await _productRepository.GetListAsync(new { Sku = sku.Trim() });
-        return items.FirstOrDefault();
+        if (items == null || items.Count == 0) return null;
+        return items[0];
     }
 
     private static bool ShouldDeductComponent(Product? component, Bom bom)
@@ -474,12 +486,12 @@ END";
     private async Task UpdateSalesOrderStatusAsync(string orderNo)
     {
         var headers = await _salesOrderHeaderRepository.GetListAsync(new { OrderNo = orderNo });
-        var header = headers.FirstOrDefault();
-        if (header == null) return;
+        if (headers == null || headers.Count == 0) return;
+        var header = headers[0];
 
-        var lines = await _salesOrderLineRepository.GetListAsync(new { OrderNo = orderNo });
-        var totalQty = lines.Sum(x => x.QTY ?? 0m);
-        var shippedQty = lines.Sum(x => x.ShippedQTY ?? 0m);
+        var demands = await _salesDemandRepository.GetListBySourceTypeAndSourceNoAsync(OrderTypeEnums.销售订单, orderNo);
+        var totalQty = demands.Sum(x => x.OriginalQty);
+        var shippedQty = demands.Sum(x => x.ShippedQty);
 
         header.TotalShippedQty = shippedQty;
         header.TotalUnshippedQty = Math.Max(totalQty - shippedQty, 0m);
@@ -497,7 +509,7 @@ END";
     {
         var result = await _documentNoService.GetNextDocumentNoAsync(new DocumentNoRequestDto
         {
-            DocType = DocumentTypeStaticEnums.RequirementPool,
+            DocType = DocumentTypeStaticEnums.OutboundOrder,
             BusinessDate = businessDate ?? DateTime.Now,
             SerialWidth = 4,
             Operator = "system"
@@ -508,7 +520,7 @@ END";
             : "PLRV" + DateTime.Now.ToString("yyyyMMddHHmmss");
     }
 
-    private Task<string> CreatePackingListNoAsync()
+    private static Task<string> CreatePackingListNoAsync()
     {
         return Task.FromResult("PL" + DateTime.Now.ToString("yyyyMMddHHmmss"));
     }

@@ -80,18 +80,6 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         [Post("/manager/save")]
         Task<ServiceResult<bool>> SaveSalesOrderManagerAsync([Body] SalesOrderManagerSaveDto request);
 
-        /// <summary>
-        /// 中文注释：获取“订单状态”筛选字典项（用于多选筛选控件）。
-        /// </summary>
-        [Get("/dict/order-status")]
-        Task<ServiceResult<List<SalesOrderStatusOptionDto>>> GetOrderStatusOptionsAsync();
-
-        /// <summary>
-        /// 中文注释：获取“审批状态”筛选字典项（用于多选筛选控件）。
-        /// </summary>
-        [Get("/dict/approval-status")]
-        Task<ServiceResult<List<SalesOrderStatusOptionDto>>> GetApprovalStatusOptionsAsync();
-
         #endregion
 
         #region 订单详情页（单据编辑）

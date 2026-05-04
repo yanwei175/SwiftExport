@@ -1,6 +1,4 @@
 using Mapster;
-using SwiftExport.Contracts.DTOs.SalesOrders;
-using SwiftExport.Contracts.SysEnums;
 using SwiftExport.View.FW.Mvvm;
 using System;
 using System.ComponentModel;
@@ -9,20 +7,19 @@ using System.Threading.Tasks;
 namespace SwiftExport.View.FW.SalesOrderViews.Models
 {
     public class SalesOrderLineModel : BaseLineModel, IDataErrorInfo
-    { 
+    {
         #region 加载数据
         /// <summary>
         /// 中文注释：从 DTO 加载到行模型。
         /// 这里使用 程序内部修改Scope 包裹，确保“加载数据库数据”不会被识别成用户修改。
         /// 同时在加载结束后重置手工输入标记，避免后续数量/单价变化时自动计算失效。
         /// </summary>
-        public override void LoadFromDto<SalesOrderLineDto>(SalesOrderLineDto dto, bool 抑制清理脏数据 = false)
+        public override void LoadFromDto<T>(T dto, bool 抑制清理脏数据 = false)
         {
             if (dto == null) return;
 
             using (程序内部修改Scope())
             {
-
                 dto.Adapt(this);//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
                 if (this.Id == 0)
                 { this.MarkAsAdded(); }
@@ -56,7 +53,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         #region 基础字段
 
-        private string _mainImage = string.Empty;
+        private string _mainImage;
         public string MainImage
         {
             get => _mainImage;

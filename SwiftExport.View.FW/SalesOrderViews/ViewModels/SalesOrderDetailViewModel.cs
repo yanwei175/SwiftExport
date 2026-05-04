@@ -1,10 +1,12 @@
-using GalaSoft.MvvmLight.Command;
+ï»¿using GalaSoft.MvvmLight.Command;
 using Mapster;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
+using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.CustomerViews.ViewModels;
@@ -13,12 +15,14 @@ using SwiftExport.View.FW.DI;
 using SwiftExport.View.FW.Mvvm;
 using SwiftExport.View.FW.SalesOrderViews.Controls;
 using SwiftExport.View.FW.SalesOrderViews.Models;
+using SwiftExport.View.FW.Services;
+using SwiftExport.View.FW.SystemViews.Models;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
-using System.Runtime.Remoting.Messaging;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -27,17 +31,17 @@ using System.Windows.Input;
 namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 {
     /// <summary>
-    /// ÏúÊÛ¶©µ¥ÏêÇé±à¼­ ViewModel
-    /// ¸ºÔğ£º
-    /// 1. Ö÷±í×Ö¶Î£¨¶©µ¥Í·£©
-    /// 2. ĞĞ¼¯ºÏÄ£ĞÍ£¨SalesOrderLineList£©
-    /// 3. ±£´æ°´Å¥×´Ì¬£¨CanSave£©
-    /// 4. API µ÷ÓÃ£¨±£´æ/¼ÓÔØ£©
+    /// é”€å”®è®¢å•è¯¦æƒ…ç¼–è¾‘ ViewModel
+    /// è´Ÿè´£ï¼š
+    /// 1. ä¸»è¡¨å­—æ®µï¼ˆè®¢å•å¤´ï¼‰
+    /// 2. è¡Œé›†åˆæ¨¡å‹ï¼ˆSalesOrderLineListï¼‰
+    /// 3. ä¿å­˜æŒ‰é’®çŠ¶æ€ï¼ˆCanSaveï¼‰
+    /// 4. API è°ƒç”¨ï¼ˆä¿å­˜/åŠ è½½ï¼‰
     /// </summary>
     public class SalesOrderDetailViewModel : ViewModelBaseEx
     {
-        // ===================== SKUÁª¶¯»º´æ =====================
-        // ÖĞÎÄ×¢ÊÍ£ºÖ§³Ö¡°SKU¡±ºÍ¡°¿Í»§SKU¡±Á½ÖÖÈë¿ÚµÄ¿ìËÙÆ¥Åä»º´æ¡£
+        // ===================== SKUè”åŠ¨ç¼“å­˜ =====================
+        // ä¸­æ–‡æ³¨é‡Šï¼šæ”¯æŒâ€œSKUâ€å’Œâ€œå®¢æˆ·SKUâ€ä¸¤ç§å…¥å£çš„å¿«é€ŸåŒ¹é…ç¼“å­˜ã€‚
         private readonly Dictionary<string, SalesOrderLineDto> _skuProductCache = new Dictionary<string, SalesOrderLineDto>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, SalesOrderLineDto> _customerSkuProductCache = new Dictionary<string, SalesOrderLineDto>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<SalesOrderLineModel> _linkingRows = new HashSet<SalesOrderLineModel>();
@@ -47,7 +51,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         private static readonly TimeSpan CacheFetchDebounceWindow = TimeSpan.FromMilliseconds(600);
 
         /// <summary>
-        /// ÖĞÎÄ×¢ÊÍ£ºSKU»º´æ¼üÁĞ±í£¬¹© DataGridDropdownAssist ÏÂÀ­ºòÑ¡Ê¹ÓÃ¡£
+        /// ä¸­æ–‡æ³¨é‡Šï¼šSKUç¼“å­˜é”®åˆ—è¡¨ï¼Œä¾› DataGridDropdownAssist ä¸‹æ‹‰å€™é€‰ä½¿ç”¨ã€‚
         /// </summary>
         private List<string> _skuCacheKeys = new List<string>();
         public List<string> SkuCacheKeys
@@ -57,7 +61,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ÖĞÎÄ×¢ÊÍ£º¿Í»§SKU»º´æ¼üÁĞ±í£¬¹© DataGridDropdownAssist ÏÂÀ­ºòÑ¡Ê¹ÓÃ¡£
+        /// ä¸­æ–‡æ³¨é‡Šï¼šå®¢æˆ·SKUç¼“å­˜é”®åˆ—è¡¨ï¼Œä¾› DataGridDropdownAssist ä¸‹æ‹‰å€™é€‰ä½¿ç”¨ã€‚
         /// </summary>
         private List<string> _customerSkuCacheKeys = new List<string>();
         public List<string> CustomerSkuCacheKeys
@@ -67,74 +71,80 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
 
-        #region ĞèÒªµÄÃ¶¾Ù
-        //====¾²Ì¬Ã¶¾Ù====
+        #region éœ€è¦çš„æšä¸¾
+        //====é™æ€æšä¸¾====
         //OrderStatus
         //ApprovalStatusEnums
 
-        //===ÓÃ»§Ã¶¾Ù====
-        //±ÒÖÖ
-        //¸¶¿î·½Ê½
+        //===ç”¨æˆ·æšä¸¾====
+        //å¸ç§
+        //ä»˜æ¬¾æ–¹å¼
         //Incoterm
         //ColorNameEn
 
-        //====¶¯Ì¬===
-        //¿Í»§ÊµÌåÁĞ±í(ÓÃapiÊµÊ±·µ»Ø°É)
+        //====åŠ¨æ€===
+        //å®¢æˆ·å®ä½“åˆ—è¡¨(ç”¨apiå®æ—¶è¿”å›å§)
 
 
 
         #endregion
 
-        #region ×Ö¶Î / ÊÂ¼ş
+        #region å­—æ®µ / äº‹ä»¶
 
-        // ÖĞÎÄ×¢ÊÍ£º±£Áô¶©µ¥ ID Óë·şÎñÒÀÀµ£¬¼æÈİÏÖÓĞµ÷ÓÃÈë¿Ú¡£
-        private readonly int _salesOrderId;
+        // ä¸­æ–‡æ³¨é‡Šï¼šä¿ç•™è®¢å• ID ä¸æœåŠ¡ä¾èµ–ï¼Œå…¼å®¹ç°æœ‰è°ƒç”¨å…¥å£ã€‚
+        public int SalesOrderId { get; set; }
         private readonly ISalesOrderApi _salesOrderApi;
         private readonly ICustomerApi _customerApi;
         private readonly ICustomerProductApi _customerProductApi;
         private readonly IDialogService _msg;
-
+        private readonly ISysDicCurrencyApi _sysDicCurrencyApi;
+        private readonly IDictCacheService _dictCacheService;
         /// <summary>
-        /// ÊÇ·ñÇ¶ÈëÄ£Ê½¡£
-        /// true£º×÷Îª UserControl Ç¶Èë£¬²»´¥·¢´°¿Ú¹Ø±ÕÓïÒå£»
-        /// false£º¶ÀÁ¢µ¯´°Ä£Ê½£¬±£Áô¹Ø±ÕÊÂ¼ş¡£
+        /// æ˜¯å¦åµŒå…¥æ¨¡å¼ã€‚
+        /// trueï¼šä½œä¸º UserControl åµŒå…¥ï¼Œä¸è§¦å‘çª—å£å…³é—­è¯­ä¹‰ï¼›
+        /// falseï¼šç‹¬ç«‹å¼¹çª—æ¨¡å¼ï¼Œä¿ç•™å…³é—­äº‹ä»¶ã€‚
         /// </summary>
         public bool IsEmbeddedMode { get; set; }
 
-        // ÖĞÎÄ×¢ÊÍ£ºÓÉ View ¶©ÔÄ£¬ÓÃÓÚÔÚ±£´æÍê³Éºó¹Ø±Õµ¯´°²¢·µ»Ø½á¹û¡£
+        // ä¸­æ–‡æ³¨é‡Šï¼šç”± View è®¢é˜…ï¼Œç”¨äºåœ¨ä¿å­˜å®Œæˆåå…³é—­å¼¹çª—å¹¶è¿”å›ç»“æœã€‚
         public event Action<bool?> CloseWindow;
 
         #endregion
 
-        #region ¹¹Ôìº¯Êı
-
-        public SalesOrderDetailViewModel() : this(0, null, null, null, null)
+        #region æ„é€ å‡½æ•°
+        [Obsolete("ä»…ä¾› XAML è®¾è®¡å™¨ä½¿ç”¨", true)]
+        internal SalesOrderDetailViewModel()
         {
         }
 
-        public SalesOrderDetailViewModel(int salesOrderId, ISalesOrderApi salesOrderApi, IDialogService dialogService, ICustomerApi customerApi = null, ICustomerProductApi customerProductApi = null, bool isEmbeddedMode = false)
+        public SalesOrderDetailViewModel(ISalesOrderApi salesOrderApi, IDialogService dialogService, ICustomerApi customerApi, ISysDicCurrencyApi sysDicCurrencyApi, IDictCacheService dictCacheService, ICustomerProductApi customerProductApi = null, bool isEmbeddedMode = false)
         {
-            _salesOrderId = salesOrderId;
-            _salesOrderApi = salesOrderApi ?? IocProvider.Get<ISalesOrderApi>();
+            _salesOrderApi = salesOrderApi ?? IocProvider.GetService<ISalesOrderApi>();
             _customerProductApi = customerProductApi;
             _msg = dialogService;
             IsEmbeddedMode = isEmbeddedMode;
-            // ÖĞÎÄ×¢ÊÍ£ºÓÅÏÈÊ¹ÓÃ¹¹Ôì×¢Èë£¬È±Ê¡Ê±»ØÍËµ½È«¾Ö IoC£¬È·±£ÏêÇéÒ³µ¯´°¶ÀÁ¢¿ÉÓÃ¡£
-            _customerApi = customerApi ?? IocProvider.Get<ICustomerApi>();
+            // åœ¨è¿™é‡Œå±€éƒ¨è·å–æœåŠ¡ï¼Œä¸è¦æ±¡æŸ“ ViewModel çš„æ„é€ å‡½æ•°
+            _sysDicCurrencyApi = sysDicCurrencyApi;
+            _dictCacheService = dictCacheService;
 
-            // ³õÊ¼»¯ĞĞ¼¯ºÏÄ£ĞÍ
+
+            // ä¸­æ–‡æ³¨é‡Šï¼šä¼˜å…ˆä½¿ç”¨æ„é€ æ³¨å…¥ï¼Œç¼ºçœæ—¶å›é€€åˆ°å…¨å±€ IoCï¼Œç¡®ä¿è¯¦æƒ…é¡µå¼¹çª—ç‹¬ç«‹å¯ç”¨ã€‚
+            _customerApi = customerApi;
+
+            CurrencyList = new CurrencyList();
+            // åˆå§‹åŒ–è¡Œé›†åˆæ¨¡å‹
             OrderLines = new SalesOrderLineList();
 
-            // ÖĞÎÄ×¢ÊÍ£º³õÊ¼»¯¶©µ¥Í·£¬²¢Á¢¼´ÓëÃ÷Ï¸¼¯ºÏ½¨Á¢°ó¶¨¹ØÏµ£¬
-            // ÕâÑùĞĞ¼¯ºÏ»ã×Ü±ä»¯Ê±¿ÉÒÔ×Ô¶¯»ØĞ´µ½¶©µ¥Í·¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šåˆå§‹åŒ–è®¢å•å¤´ï¼Œå¹¶ç«‹å³ä¸æ˜ç»†é›†åˆå»ºç«‹ç»‘å®šå…³ç³»ï¼Œ
+            // è¿™æ ·è¡Œé›†åˆæ±‡æ€»å˜åŒ–æ—¶å¯ä»¥è‡ªåŠ¨å›å†™åˆ°è®¢å•å¤´ã€‚
             OrderHeader = new SalesOrderHeaderModel();
             OrderLines.BindHeader(OrderHeader);
 
-            // Ô¤Áô£ºµ¥Ôª¸ñÄ£Ê½Áª¶¯£¨µ±Ç°°´ĞèÇó½ûÓÃ£©
+            // é¢„ç•™ï¼šå•å…ƒæ ¼æ¨¡å¼è”åŠ¨ï¼ˆå½“å‰æŒ‰éœ€æ±‚ç¦ç”¨ï¼‰
             OrderLines.Items.CollectionChanged += OrderLineItems_CollectionChanged;
             AttachItemHandlers(OrderLines.Items);
 
-            // ³õÊ¼»¯ÃüÁî
+            // åˆå§‹åŒ–å‘½ä»¤
             AddLineCommand = new RelayCommand(AddLine);
             RegisterBusyNotifyCommand(AddLineCommand);
 
@@ -154,28 +164,96 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             GetNewSoNoCommand = new RelayCommand(async () => await GetNewSoNo());
 
 
-            // ÖĞÎÄ×¢ÊÍ£º´ò¿ª¿Í»§Ñ¡Ôñ¶Ô»°¿ò£¬¹©µ¥¾İÖĞÑ¡Ôñ¿Í»§²¢×Ô¶¯´ø³ö¿Í»§Ä¬ÈÏĞÅÏ¢¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šæ‰“å¼€å®¢æˆ·é€‰æ‹©å¯¹è¯æ¡†ï¼Œä¾›å•æ®ä¸­é€‰æ‹©å®¢æˆ·å¹¶è‡ªåŠ¨å¸¦å‡ºå®¢æˆ·é»˜è®¤ä¿¡æ¯ã€‚
             CostomerSelectorCommand = new RelayCommand(OpenCustomerSelectorDialog);
 
-            // ÖĞÎÄ×¢ÊÍ£ºÍ³Ò»¼àÌı¶©µ¥ĞĞÁĞ±í×´Ì¬±ä»¯£¬¼¯ÖĞË¢ĞÂ VM ´úÀíÊôĞÔ¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šç»Ÿä¸€ç›‘å¬è®¢å•è¡Œåˆ—è¡¨çŠ¶æ€å˜åŒ–ï¼Œé›†ä¸­åˆ·æ–° VM ä»£ç†å±æ€§ã€‚
             OrderLines.ListStateChanged += OnOrderLinesListStateChanged;
 
-            // ÖĞÎÄ×¢ÊÍ£ºPopup Ìá½»ÃüÁîÓÉ×Ô¶¨Òå¿Ø¼ş»Ø´«Ñ¡ÖĞÏî¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šPopup æäº¤å‘½ä»¤ç”±è‡ªå®šä¹‰æ§ä»¶å›ä¼ é€‰ä¸­é¡¹ã€‚
             CommitPopupSelectionCommand = new RelayCommand<object>(CommitPopupSelection);
             OpenPopupCommand = new RelayCommand<object>(OpenPopupForRow);
             TriggerPopupButtonInCurrentCellCommand = new RelayCommand<object>(TriggerPopupButtonInCurrentCell);
 
             OrderHeader.Currency = "USD";
+            _ = LoadFilterDataAsync();
         }
 
         #endregion
+        #region å­—å…¸ä¸ä¸‹æ‹‰æ•°æ®åŠ è½½ (Dictionary & Lookups)
+        //è´§å¸ä¸‹æ‹‰æ¡†æ•°æ®æº
+        public CurrencyList CurrencyList { get; }
+        private ObservableCollection<string> _incotermList = new ObservableCollection<string>();
+        public ObservableCollection<string> IncotermList
+        {
+            get => _incotermList;
+            set { _incotermList = value; RaisePropertyChanged(nameof(IncotermList)); } // å¿…é¡»å‘é€šçŸ¥
+        }
+        private ObservableCollection<string> _paymentMethodList = new ObservableCollection<string>();
+        public ObservableCollection<string> PaymentMethodList
+        {
+            get => _paymentMethodList;
+            set { _paymentMethodList = value; RaisePropertyChanged(nameof(PaymentMethodList)); } // å¿…é¡»å‘é€šçŸ¥
+        }
+
+
+        private async Task LoadFilterDataAsync()
+        {
+            try
+            {
+                if (_sysDicCurrencyApi != null)
+                {
+                    var currencyResult = await _sysDicCurrencyApi.GetEnabledListAsync();
+                    if (currencyResult?.Data != null)
+                    {
+                        var data = currencyResult.Data as IEnumerable<SysDicCurrencyDto>;
+                        // ç¡®ä¿å›åˆ° UI çº¿ç¨‹æ›´æ–°é›†åˆï¼Œé˜²æ­¢çº¿ç¨‹å†²çªå¯¼è‡´å›¾ç‰‡æ¶ˆå¤±
+                        DispatcherProvider.Invoke(() =>
+                        {
+                            CurrencyList.ReLoadRangeFromDtoList(data.ToList());
+                        });
+                    }
+                }
+
+                if (_dictCacheService != null)
+                {
+                    var incdata = _dictCacheService.GetEnValues(DictCodes.Incoterm);
+                    if (incdata != null)
+                    {
+                        DispatcherProvider.Invoke(() =>
+                        {
+                            IncotermList = new ObservableCollection<string>(incdata);
+                        });
+                    }
+
+                    var paydata = _dictCacheService.GetEnValues(DictCodes.PaymentMethod);
+                    if (paydata != null)
+                    {
+                        DispatcherProvider.Invoke(() =>
+                        {
+                            PaymentMethodList = new ObservableCollection<string>(paydata);
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // é™é»˜å¤„ç†æˆ–æ‰“æ—¥å¿—ï¼Œä¸å½±å“ä¸»æµç¨‹
+            }
+        }
+
+
+        #endregion
+
+
+
 
         // ============================================================
-        // ¶©µ¥Í·£¨Header£©
+        // è®¢å•å¤´ï¼ˆHeaderï¼‰
         // ============================================================
-        #region ¶©µ¥Í·,xaml°ó¶¨µ½¼¯ºÏÏÂÃæµÄÊôĞÔÉÏ.
+        #region è®¢å•å¤´,xamlç»‘å®šåˆ°é›†åˆä¸‹é¢çš„å±æ€§ä¸Š.
         /// <summary>
-        /// ¶©µ¥Í·£¨Header£©
+        /// è®¢å•å¤´ï¼ˆHeaderï¼‰
         /// </summary>
         private SalesOrderHeaderModel _orderHeader;
         public SalesOrderHeaderModel OrderHeader
@@ -185,7 +263,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             {
                 if (_orderHeader == value) return;
 
-                // ÖĞÎÄ×¢ÊÍ£ºÇĞ»» Header Ê±ÏÈ½â³ı¾É¶ÔÏóÊÂ¼ş£¬±ÜÃâÖØ¸´¶©ÔÄ¡£
+                // ä¸­æ–‡æ³¨é‡Šï¼šåˆ‡æ¢ Header æ—¶å…ˆè§£é™¤æ—§å¯¹è±¡äº‹ä»¶ï¼Œé¿å…é‡å¤è®¢é˜…ã€‚
                 if (_orderHeader != null)
                     _orderHeader.PropertyChanged -= Header_PropertyChanged;
 
@@ -194,7 +272,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     if (_orderHeader != null)
                         _orderHeader.PropertyChanged += Header_PropertyChanged;
 
-                    // ÖĞÎÄ×¢ÊÍ£ºHeader Ìæ»»ºó£¬Ã÷Ï¸¼¯ºÏĞèÒªÖØĞÂ°ó¶¨ĞÂµÄ¶©µ¥Í·ÊµÀı¡£
+                    // ä¸­æ–‡æ³¨é‡Šï¼šHeader æ›¿æ¢åï¼Œæ˜ç»†é›†åˆéœ€è¦é‡æ–°ç»‘å®šæ–°çš„è®¢å•å¤´å®ä¾‹ã€‚
                     OrderLines?.BindHeader(_orderHeader);
 
                     RaisePropertyChanged(nameof(CanSave));
@@ -204,10 +282,10 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ÖĞÎÄ×¢ÊÍ£ºÏêÇéÒ³×´Ì¬ÌáÊ¾ĞÅÏ¢¡£
-        /// µ±Ç°Ö÷ÒªÓÃÓÚµ¯³öËÑË÷Ç°µÄÇ°ÖÃĞ£ÑéÌáÊ¾£¨ÀıÈçÎ´Ñ¡Ôñ¿Í»§£©¡£
+        /// ä¸­æ–‡æ³¨é‡Šï¼šè¯¦æƒ…é¡µçŠ¶æ€æç¤ºä¿¡æ¯ã€‚
+        /// å½“å‰ä¸»è¦ç”¨äºå¼¹å‡ºæœç´¢å‰çš„å‰ç½®æ ¡éªŒæç¤ºï¼ˆä¾‹å¦‚æœªé€‰æ‹©å®¢æˆ·ï¼‰ã€‚
         /// </summary>
-        private string _statusMessage = "×¼±¸¾ÍĞ÷";
+        private string _statusMessage = "å‡†å¤‡å°±ç»ª";
         public string StatusMessage
         {
             get => _statusMessage;
@@ -216,7 +294,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         private void Header_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            // ÖĞÎÄ×¢ÊÍ£ºHeader ÈÎÒâ×Ö¶Î±ä»¯¶¼¿ÉÄÜÓ°ÏìÖ÷±íĞ£ÑéºÍÔà×´Ì¬£¬Òò´ËÍ³Ò»Ë¢ĞÂ CanSave¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šHeader ä»»æ„å­—æ®µå˜åŒ–éƒ½å¯èƒ½å½±å“ä¸»è¡¨æ ¡éªŒå’Œè„çŠ¶æ€ï¼Œå› æ­¤ç»Ÿä¸€åˆ·æ–° CanSaveã€‚
             RaisePropertyChanged(nameof(CanSave));
             SaveCommand.RaiseCanExecuteChanged();
         }
@@ -224,14 +302,14 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         #endregion
 
         // ============================================================
-        // ´Ó±í£¨OrderLines£©
+        // ä»è¡¨ï¼ˆOrderLinesï¼‰
         // ============================================================
-        #region ĞĞ¼¯ºÏÄ£ĞÍ
+        #region è¡Œé›†åˆæ¨¡å‹
         public SalesOrderLineList OrderLines { get; }
 
         private SalesOrderLineModel _selectedLine;
         /// <summary>
-        /// µ±Ç°Ñ¡ÖĞĞĞ
+        /// å½“å‰é€‰ä¸­è¡Œ
         /// </summary>
         public SalesOrderLineModel SelectedLine
         {
@@ -244,9 +322,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ÖĞÎÄ×¢ÊÍ£º±íÍ·È«Ñ¡¸´Ñ¡¿ò´úÀíÊôĞÔ¡£
-        /// XAML ÖĞµÄ CheckBoxDataGridTemplateColumn Ö±½Ó°ó¶¨ VM µÄ IsAllChecked£¬
-        /// Êµ¼ÊÂß¼­ÓÉ OrderLines Í³Ò»Î¬»¤¡£
+        /// ä¸­æ–‡æ³¨é‡Šï¼šè¡¨å¤´å…¨é€‰å¤é€‰æ¡†ä»£ç†å±æ€§ã€‚
+        /// XAML ä¸­çš„ CheckBoxDataGridTemplateColumn ç›´æ¥ç»‘å®š VM çš„ IsAllCheckedï¼Œ
+        /// å®é™…é€»è¾‘ç”± OrderLines ç»Ÿä¸€ç»´æŠ¤ã€‚
         /// </summary>
         public bool IsAllChecked
         {
@@ -264,18 +342,18 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ÖĞÎÄ×¢ÊÍ£ºµ±Ç°ÒÑ¹´Ñ¡ĞĞÊı£¬Ö÷ÒªÓÃÓÚ¹¤¾ßÀ¸»ò×´Ì¬À¸Õ¹Ê¾¡£
+        /// ä¸­æ–‡æ³¨é‡Šï¼šå½“å‰å·²å‹¾é€‰è¡Œæ•°ï¼Œä¸»è¦ç”¨äºå·¥å…·æ æˆ–çŠ¶æ€æ å±•ç¤ºã€‚
         /// </summary>
         public int SelectedCount => OrderLines.CheckedCount;
 
         /// <summary>
-        /// ÖĞÎÄ×¢ÊÍ£ºÊÇ·ñ´æÔÚ¹´Ñ¡Ïî£¬¿ÉÓÃÓÚÅúÁ¿²Ù×÷°´Å¥ÆôÓÃ×´Ì¬¡£
+        /// ä¸­æ–‡æ³¨é‡Šï¼šæ˜¯å¦å­˜åœ¨å‹¾é€‰é¡¹ï¼Œå¯ç”¨äºæ‰¹é‡æ“ä½œæŒ‰é’®å¯ç”¨çŠ¶æ€ã€‚
         /// </summary>
         public bool HasSelectedItems => OrderLines.CheckedCount > 0;
 
         /// <summary>
-        /// ÖĞÎÄ×¢ÊÍ£º¶©µ¥ĞĞ¼¯ºÏ×´Ì¬Í³Ò»»Øµ÷¡£
-        /// ÕâÀï¼¯ÖĞË¢ĞÂ Save/Ñ¡ÔñÏà¹Ø´úÀíÊôĞÔ£¬±ÜÃâÔÚ¶à¸öÊÂ¼şÀïÖØ¸´Ğ´Í¬ÑùÂß¼­¡£
+        /// ä¸­æ–‡æ³¨é‡Šï¼šè®¢å•è¡Œé›†åˆçŠ¶æ€ç»Ÿä¸€å›è°ƒã€‚
+        /// è¿™é‡Œé›†ä¸­åˆ·æ–° Save/é€‰æ‹©ç›¸å…³ä»£ç†å±æ€§ï¼Œé¿å…åœ¨å¤šä¸ªäº‹ä»¶é‡Œé‡å¤å†™åŒæ ·é€»è¾‘ã€‚
         /// </summary>
         private void OnOrderLinesListStateChanged()
         {
@@ -290,15 +368,15 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         #endregion
         // ============================================================
-        // ±£´æ°´Å¥×´Ì¬
+        // ä¿å­˜æŒ‰é’®çŠ¶æ€
         // ============================================================
-        #region ±£´æ°´Å¥×´Ì¬£¨CanSave£©
+        #region ä¿å­˜æŒ‰é’®çŠ¶æ€ï¼ˆCanSaveï¼‰
 
         /// <summary>
-        /// ±£´æ°´Å¥ÊÇ·ñ¿ÉÓÃ£º
-        /// 1. Ö÷±í×Ö¶ÎÓĞĞ§
-        /// 2. ĞĞ¼¯ºÏÈ«²¿ÓĞĞ§£¨IsAllValid£©
-        /// 3. ´æÔÚÔàÊı¾İ£¨Ö÷±í»òĞĞ£©
+        /// ä¿å­˜æŒ‰é’®æ˜¯å¦å¯ç”¨ï¼š
+        /// 1. ä¸»è¡¨å­—æ®µæœ‰æ•ˆ
+        /// 2. è¡Œé›†åˆå…¨éƒ¨æœ‰æ•ˆï¼ˆIsAllValidï¼‰
+        /// 3. å­˜åœ¨è„æ•°æ®ï¼ˆä¸»è¡¨æˆ–è¡Œï¼‰
         /// </summary>
         public bool CanSave =>
             OrderHeader != null &&
@@ -309,16 +387,16 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         #endregion
 
         // ============================================================
-        // ÃüÁî
+        // å‘½ä»¤
         // ============================================================
-        #region ÃüÁî
+        #region å‘½ä»¤
 
         public RelayCommand AddLineCommand { get; }
         public RelayCommand DeleteLineCommand { get; }
         public RelayCommand SaveCommand { get; }
         public RelayCommand CancelCommand { get; }
         public RelayCommand CostomerSelectorCommand { get; }
-        public ICommand ItemCheckedChangedCommand { get; }//Ö»ÊÇÎªÁËxamlÀï²»´¥·¢°ó¶¨¾¯¸æ
+        public ICommand ItemCheckedChangedCommand { get; }//åªæ˜¯ä¸ºäº†xamlé‡Œä¸è§¦å‘ç»‘å®šè­¦å‘Š
         public RelayCommand InvertCheckCommand { get; }
         public RelayCommand GetNewSoNoCommand { get; }
         public RelayCommand<object> CommitPopupSelectionCommand { get; }
@@ -327,9 +405,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         #endregion
         // ============================================================
-        // ĞĞ²Ù×÷
+        // è¡Œæ“ä½œ
         // ============================================================
-        #region ĞĞ²Ù×÷
+        #region è¡Œæ“ä½œ
 
         private void AddLine()
         {
@@ -375,15 +453,15 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
 
         /// <summary>
-        /// ÖĞÎÄ×¢ÊÍ£º·´Ñ¡µ±Ç°ËùÓĞ¿É¼û¶©µ¥ĞĞ¡£
-        /// µ±Ç°ÏêÇéÒ³Èç¹ûºóĞøĞèÒªÅúÁ¿É¾³ı¡¢ÅúÁ¿µ¼³ö£¬¿ÉÖ±½Ó¸´ÓÃÕâ¸öÄÜÁ¦¡£
+        /// ä¸­æ–‡æ³¨é‡Šï¼šåé€‰å½“å‰æ‰€æœ‰å¯è§è®¢å•è¡Œã€‚
+        /// å½“å‰è¯¦æƒ…é¡µå¦‚æœåç»­éœ€è¦æ‰¹é‡åˆ é™¤ã€æ‰¹é‡å¯¼å‡ºï¼Œå¯ç›´æ¥å¤ç”¨è¿™ä¸ªèƒ½åŠ›ã€‚
         /// </summary>
         private void InvertCheck() => OrderLines.InvertCheckAll();
 
 
         /// <summary>
-        /// ÖĞÎÄ×¢ÊÍ£ºµ¯³ö¿Í»§Ñ¡Ôñ¶Ô»°¿ò£¬ÓÃ»§È·ÈÏºó½«¿Í»§»ù´¡ĞÅÏ¢»ØÌîµ½¶©µ¥Í·¡£
-        /// ¸ÃÈë¿ÚÎªºóĞø¡°Ñ¡Ôñ¿Í»§´ø³ö¸ü¶àĞÅÏ¢¡±Ô¤ÁôÁËÍ³Ò»À©Õ¹µã¡£
+        /// ä¸­æ–‡æ³¨é‡Šï¼šå¼¹å‡ºå®¢æˆ·é€‰æ‹©å¯¹è¯æ¡†ï¼Œç”¨æˆ·ç¡®è®¤åå°†å®¢æˆ·åŸºç¡€ä¿¡æ¯å›å¡«åˆ°è®¢å•å¤´ã€‚
+        /// è¯¥å…¥å£ä¸ºåç»­â€œé€‰æ‹©å®¢æˆ·å¸¦å‡ºæ›´å¤šä¿¡æ¯â€é¢„ç•™äº†ç»Ÿä¸€æ‰©å±•ç‚¹ã€‚
         /// </summary>
         private void OpenCustomerSelectorDialog()
         {
@@ -392,7 +470,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 return;
             }
 
-            // ÖĞÎÄ×¢ÊÍ£ºÖ±½Ó´´½¨¿Í»§Ñ¡Ôñ¶Ô»°¿ò VM Óë Window£¬±£³ÖÓë²úÆ·Ñ¡ÔñÆ÷Ò»ÖÂµÄ½»»¥·ç¸ñ¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šç›´æ¥åˆ›å»ºå®¢æˆ·é€‰æ‹©å¯¹è¯æ¡† VM ä¸ Windowï¼Œä¿æŒä¸äº§å“é€‰æ‹©å™¨ä¸€è‡´çš„äº¤äº’é£æ ¼ã€‚
             var vm = new CustomerSelectorDialogViewModel(_customerApi);
             var window = new CustomerSelectorDialogWindow(vm);
             var result = window.ShowDialog();
@@ -402,14 +480,14 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 return;
             }
 
-            // ÖĞÎÄ×¢ÊÍ£ºÓÃ»§È·ÈÏºó»ØÌî¶©µ¥Í·×Ö¶Î¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šç”¨æˆ·ç¡®è®¤åå›å¡«è®¢å•å¤´å­—æ®µã€‚
             ApplySelectedCustomerToOrderHeader(window.SelectedCustomer);
         }
 
         /// <summary>
-        /// ÖĞÎÄ×¢ÊÍ£º½«¿Í»§Ö÷Êı¾İ»ØÌîµ½¶©µ¥Í·¡£
-        /// µ±Ç°ÏÈ»ØÌî³£ÓÃ×Ö¶Î£¨¿Í»§±êÊ¶¡¢ÊÕ»õĞÅÏ¢¡¢Ã³Ò×Ìõ¿îÄ¬ÈÏÖµµÈ£©£¬
-        /// ºóĞøÈçĞèÀ©Õ¹¸ü¶à¡°´ø³ö¡±×Ö¶Î£¬¿ÉÔÚ´Ë·½·¨¼¯ÖĞ×·¼Ó¡£
+        /// ä¸­æ–‡æ³¨é‡Šï¼šå°†å®¢æˆ·ä¸»æ•°æ®å›å¡«åˆ°è®¢å•å¤´ã€‚
+        /// å½“å‰å…ˆå›å¡«å¸¸ç”¨å­—æ®µï¼ˆå®¢æˆ·æ ‡è¯†ã€æ”¶è´§ä¿¡æ¯ã€è´¸æ˜“æ¡æ¬¾é»˜è®¤å€¼ç­‰ï¼‰ï¼Œ
+        /// åç»­å¦‚éœ€æ‰©å±•æ›´å¤šâ€œå¸¦å‡ºâ€å­—æ®µï¼Œå¯åœ¨æ­¤æ–¹æ³•é›†ä¸­è¿½åŠ ã€‚
         /// </summary>
         private void ApplySelectedCustomerToOrderHeader(CustomerDto customer)
         {
@@ -421,12 +499,12 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             OrderHeader.CustomerId = customer.Id;
             OrderHeader.CustomerCode = customer.CustomerCode;
 
-            // ÖĞÎÄ×¢ÊÍ£º¿Í»§»ù´¡ÁªÏµĞÅÏ¢Ó³Éäµ½¶©µ¥ÊÕ»õĞÅÏ¢£¬¼õÉÙÊÖ¹¤ÖØ¸´Â¼Èë¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šå®¢æˆ·åŸºç¡€è”ç³»ä¿¡æ¯æ˜ å°„åˆ°è®¢å•æ”¶è´§ä¿¡æ¯ï¼Œå‡å°‘æ‰‹å·¥é‡å¤å½•å…¥ã€‚
             OrderHeader.ShipToName = customer.ContactPerson;
             OrderHeader.ShipToAddress = customer.Address;
             OrderHeader.ShipToPhone = customer.PhoneNumber;
 
-            // ÖĞÎÄ×¢ÊÍ£ºÃ³Ò×Ìõ¿îÏà¹ØÄ¬ÈÏÖµ»ØÌî¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šè´¸æ˜“æ¡æ¬¾ç›¸å…³é»˜è®¤å€¼å›å¡«ã€‚
             OrderHeader.IncotermSortRemark = customer.IncotermSortRemark;
             OrderHeader.Incoterm = customer.Incoterm;
             OrderHeader.Incotermlocation = customer.IncotermLocation;
@@ -436,7 +514,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             OrderHeader.EtdSortRemark = customer.EtdSortRemark;
             OrderHeader.ShippedBy = customer.ShippedBy;
 
-            // ÖĞÎÄ×¢ÊÍ£ºµ±¿Í»§Ä¬ÈÏ±ÒÖÖÓĞÖµÊ±¸²¸Ç¶©µ¥±ÒÖÖ£»ÎŞÖµÔò±£Áôµ±Ç°¶©µ¥ÉèÖÃ¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šå½“å®¢æˆ·é»˜è®¤å¸ç§æœ‰å€¼æ—¶è¦†ç›–è®¢å•å¸ç§ï¼›æ— å€¼åˆ™ä¿ç•™å½“å‰è®¢å•è®¾ç½®ã€‚
             if (!string.IsNullOrWhiteSpace(customer.Currency))
             {
                 OrderHeader.Currency = customer.Currency;
@@ -449,7 +527,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             if (rst == null || !rst.Success || rst.Data == null)
             {
                 if (_msg != null)
-                    await _msg.ShowErrorAsync("»ñÈ¡¶©µ¥±àºÅÊ§°Ü£º" + (rst?.Message ?? "Î´Öª´íÎó"));
+                    await _msg.ShowErrorAsync("è·å–è®¢å•ç¼–å·å¤±è´¥ï¼š" + (rst?.Message ?? "æœªçŸ¥é”™è¯¯"));
                 return;
             }
             DispatcherProvider.Invoke(() =>
@@ -461,9 +539,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         #endregion
 
         // ============================================================
-        // ¼ÓÔØ¶©µ¥£¨´Ó DTO£©
+        // åŠ è½½è®¢å•ï¼ˆä» DTOï¼‰
         // ============================================================
-        #region ¼ÓÔØ¶©µ¥
+        #region åŠ è½½è®¢å•
 
         public void LoadFromDto(SalesOrderDetailDto dto)
         {
@@ -472,7 +550,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             if (dto.Header != null)
                 OrderHeader.LoadFromDto(dto.Header);
 
-            // ÖĞÎÄ×¢ÊÍ£ºÃ÷Ï¸¼¯ºÏÍ³Ò»½»¸ø¼¯ºÏÄ£ĞÍ×ÔÉí¼ÓÔØ£¬±ÜÃâ ViewModel ÖØ¸´Î¬»¤Ã÷Ï¸×°ÔØÂß¼­¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šæ˜ç»†é›†åˆç»Ÿä¸€äº¤ç»™é›†åˆæ¨¡å‹è‡ªèº«åŠ è½½ï¼Œé¿å… ViewModel é‡å¤ç»´æŠ¤æ˜ç»†è£…è½½é€»è¾‘ã€‚
             OrderLines.ReLoadRangeFromDtoList(dto.Lines);
 
             RaisePropertyChanged(nameof(CanSave));
@@ -483,13 +561,13 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         #endregion
 
         // ============================================================
-        // ±£´æ¶©µ¥
+        // ä¿å­˜è®¢å•
         // ============================================================
-        #region ±£´æ¶©µ¥
+        #region ä¿å­˜è®¢å•
 
         private async Task SaveAsync()
         {
-            // ÖĞÎÄ×¢ÊÍ£ºÏÈ×öÒì²½Ğ£Ñé£¬±ÜÃâÎŞĞ§Êı¾İ¼ÌĞøÌá½»¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šå…ˆåšå¼‚æ­¥æ ¡éªŒï¼Œé¿å…æ— æ•ˆæ•°æ®ç»§ç»­æäº¤ã€‚
             var asyncError = await OrderLines.ValidateAllAsync();
             if (!string.IsNullOrEmpty(asyncError))
             {
@@ -500,40 +578,40 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             if (!OrderHeader.IsValid)
             {
                 if (_msg != null)
-                    await _msg.ShowWarningAsync("¶©µ¥Í·ĞÅÏ¢ÓĞÎó£¬Çë¼ì²é±ØÌî×Ö¶ÎºÍ×Ö¶Î¸ñÊ½¡£");
+                    await _msg.ShowWarningAsync("è®¢å•å¤´ä¿¡æ¯æœ‰è¯¯ï¼Œè¯·æ£€æŸ¥å¿…å¡«å­—æ®µå’Œå­—æ®µæ ¼å¼ã€‚");
                 return;
             }
 
-            // ÖĞÎÄ×¢ÊÍ£º»ñÈ¡µ±Ç°ĞĞ±ä¸ü¼¯ºÏ£¬ºóĞø¿ÉÖ±½ÓÓÃÓÚ×é×° DTO ²¢µ÷ÓÃ API¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šè·å–å½“å‰è¡Œå˜æ›´é›†åˆï¼Œåç»­å¯ç›´æ¥ç”¨äºç»„è£… DTO å¹¶è°ƒç”¨ APIã€‚
             var changeSet = OrderLines.GetChangeSet();
             if (OrderHeader.State == ModelState.Unchanged && !changeSet.HasChanges)
             {
                 if (_msg != null)
-                    await _msg.ShowWarningAsync("Ã»ÓĞÈÎºÎ±ä¸ü£¬ÎŞĞè±£´æ¡£");
+                    await _msg.ShowWarningAsync("æ²¡æœ‰ä»»ä½•å˜æ›´ï¼Œæ— éœ€ä¿å­˜ã€‚");
                 return;
             }
 
-            // ÖĞÎÄ×¢ÊÍ£º½«ĞèÒªÉ¾³ıµÄĞĞ ID Ìí¼Óµ½ DTO µÄ DeletedLineIds ¼¯ºÏÖĞ¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šå°†éœ€è¦åˆ é™¤çš„è¡Œ ID æ·»åŠ åˆ° DTO çš„ DeletedLineIds é›†åˆä¸­ã€‚
             var saveDto = new SalesOrderDetailDto
             {
                 Header = OrderHeader.Adapt<SalesOrderHeaderDto>(),
-                Lines= OrderLines.Items.Select(line => line.Adapt<SalesOrderLineDto>()).ToList(),
+                Lines = OrderLines.Items.Select(line => line.Adapt<SalesOrderLineDto>()).ToList(),
                 DeletedLineIds = changeSet.DeleteIdList
             };
 
-            // ·¢ËÍ¸ø API
+            // å‘é€ç»™ API
             var result = await _salesOrderApi.SaveSalesOrderDetailAsync(saveDto);
 
             if (result.Success)
             {
-                _msg?.ShowCardAsync("±£´æ³É¹¦,¶©µ¥ÒÑ±£´æµ½·şÎñÆ÷¡£ÕıÔÚË¢ĞÂÊı¾İ...", 2000);
-                var rst= await _salesOrderApi.GetSalesOrderDetailAsync(OrderHeader.Id);
+                _msg?.ShowCardAsync("ä¿å­˜æˆåŠŸ,è®¢å•å·²ä¿å­˜åˆ°æœåŠ¡å™¨ã€‚æ­£åœ¨åˆ·æ–°æ•°æ®...", 2000);
+                var rst = await _salesOrderApi.GetSalesOrderDetailAsync(OrderHeader.Id);
                 if (rst.Success)
                 {
                     this.LoadFromDto(rst.Data);
                 }
 
-                // ÖĞÎÄ×¢ÊÍ£ºÍ¨Öª´°¿ÚÒÔ¡°±£´æ³É¹¦¡±½á¹û¹Ø±Õ£¬¼æÈİÏÖÓĞ ShowDialog Á÷³Ì¡£
+                // ä¸­æ–‡æ³¨é‡Šï¼šé€šçŸ¥çª—å£ä»¥â€œä¿å­˜æˆåŠŸâ€ç»“æœå…³é—­ï¼Œå…¼å®¹ç°æœ‰ ShowDialog æµç¨‹ã€‚
                 CloseWindow?.Invoke(true);
             }
 
@@ -542,18 +620,18 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         #endregion
 
         // ============================================================
-        // ³·Ïú±à¼­
+        // æ’¤é”€ç¼–è¾‘
         // ============================================================
         private void CancelEdit()
         {
-            // ÖĞÎÄ×¢ÊÍ£ºµ±Ç°ÏêÇé´°¿ÚÎªµ¯´°Ä£Ê½£¬È¡ÏûÊ±Ö±½Ó¹Ø±Õ²¢·ÅÆú±¾´Î±à¼­¼´¿É¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šå½“å‰è¯¦æƒ…çª—å£ä¸ºå¼¹çª—æ¨¡å¼ï¼Œå–æ¶ˆæ—¶ç›´æ¥å…³é—­å¹¶æ”¾å¼ƒæœ¬æ¬¡ç¼–è¾‘å³å¯ã€‚
             CloseWindow?.Invoke(false);
         }
 
 
 
 
-        #region PopupÇøÓò
+        #region PopupåŒºåŸŸ
         public bool IsPopupOpen
         {
             get => _isPopupOpen;
@@ -563,7 +641,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         private UIElement _popupPlacementTarget;
         /// <summary>
-        /// Popup Ãªµã¿Ø¼ş£¨Í¨³£ÊÇµ¥Ôª¸ñÖĞµÄ¡°ËÑË÷°´Å¥¡±£©¡£
+        /// Popup é”šç‚¹æ§ä»¶ï¼ˆé€šå¸¸æ˜¯å•å…ƒæ ¼ä¸­çš„â€œæœç´¢æŒ‰é’®â€ï¼‰ã€‚
         /// </summary>
         public UIElement PopupPlacementTarget
         {
@@ -572,15 +650,15 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ´ò¿ªĞĞ¼¶ Popup£¨ÓÉµ¥Ôª¸ñ°´Å¥´¥·¢£©¡£
+        /// æ‰“å¼€è¡Œçº§ Popupï¼ˆç”±å•å…ƒæ ¼æŒ‰é’®è§¦å‘ï¼‰ã€‚
         /// </summary>
         private void OpenPopupForRow(object rowObj)
         {
             var anchor = rowObj as FrameworkElement;
             if (anchor is TextBox)
             {
-                // ÖĞÎÄ×¢ÊÍ£º±à¼­Ì¬ TextBox ¿ÉÄÜÔÚÊ§½¹ºó±» DataGrid »ØÊÕ£¬
-                // ÕâÀïÌáÉıÃªµãµ½ÎÈ¶¨µÄ DataGridCell£¬±ÜÃâ Popup ÅÜµ½ÆÁÄ»×óÉÏ½Ç¡£
+                // ä¸­æ–‡æ³¨é‡Šï¼šç¼–è¾‘æ€ TextBox å¯èƒ½åœ¨å¤±ç„¦åè¢« DataGrid å›æ”¶ï¼Œ
+                // è¿™é‡Œæå‡é”šç‚¹åˆ°ç¨³å®šçš„ DataGridCellï¼Œé¿å… Popup è·‘åˆ°å±å¹•å·¦ä¸Šè§’ã€‚
                 anchor = FindAncestor<DataGridCell>(anchor);
             }
 
@@ -595,8 +673,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ÔÚµ±Ç°±à¼­µ¥Ôª¸ñÖĞ´¥·¢ÓÒ²à¡°ËÑË÷°´Å¥¡±µÄµã»÷Âß¼­¡£
-        /// ÓÃÓÚ DataGridTextColumn ÓÒ²à°´Å¥Èë¿Ú£¨²»ĞÂÔö¶ÀÁ¢ÁĞ£©¡£
+        /// åœ¨å½“å‰ç¼–è¾‘å•å…ƒæ ¼ä¸­è§¦å‘å³ä¾§â€œæœç´¢æŒ‰é’®â€çš„ç‚¹å‡»é€»è¾‘ã€‚
+        /// ç”¨äº DataGridTextColumn å³ä¾§æŒ‰é’®å…¥å£ï¼ˆä¸æ–°å¢ç‹¬ç«‹åˆ—ï¼‰ã€‚
         /// </summary>
         private void TriggerPopupButtonInCurrentCell(object senderObj)
         {
@@ -609,7 +687,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ¿ÉÊÓÊ÷ÏòÉÏ²éÕÒ¸¸¼¶ÔªËØ¡£
+        /// å¯è§†æ ‘å‘ä¸ŠæŸ¥æ‰¾çˆ¶çº§å…ƒç´ ã€‚
         /// </summary>
         private static T FindAncestor<T>(DependencyObject current) where T : DependencyObject
         {
@@ -625,7 +703,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ½ÓÊÕ Popup ¿Ø¼şµÄÌá½»½á¹û²¢»ØÌîµ±Ç°¶©µ¥ĞĞ¡£
+        /// æ¥æ”¶ Popup æ§ä»¶çš„æäº¤ç»“æœå¹¶å›å¡«å½“å‰è®¢å•è¡Œã€‚
         /// </summary>
         private void CommitPopupSelection(object submitObj)
         {
@@ -640,15 +718,15 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 {
                     try
                     {
-                        // ÖĞÎÄ×¢ÊÍ£ºÓÅÏÈÊ¹ÓÃ¿Ø¼ş»Ø´«µÄĞĞ¶ÔÏó£»
-                        // µ¥Ôª¸ñÄ£Ê½ÏÂ SelectedLine ¿ÉÄÜÎª null£¬Òò´ËÔÙ¶µµ×µ±Ç°µ¥Ôª¸ñĞĞ¡£
+                        // ä¸­æ–‡æ³¨é‡Šï¼šä¼˜å…ˆä½¿ç”¨æ§ä»¶å›ä¼ çš„è¡Œå¯¹è±¡ï¼›
+                        // å•å…ƒæ ¼æ¨¡å¼ä¸‹ SelectedLine å¯èƒ½ä¸º nullï¼Œå› æ­¤å†å…œåº•å½“å‰å•å…ƒæ ¼è¡Œã€‚
                         var row = args.RowContext as SalesOrderLineModel
                                   ?? SelectedLine
                                   ?? GetCurrentCellRow();
                         if (row == null) return;
                         row.CustomerSKU = selectedPopupProduct.CustomerSKU;
                         //row.LoadFromDto(selectedPopupProduct);
-                        // ÖĞÎÄ×¢ÊÍ£º½«Áª²é½á¹û×Ö¶Î»ØÌîµ½¶©µ¥ĞĞÄ£ĞÍ£¬±£³ÖÓë SalesOrderLineModel ×Ö¶ÎÓïÒåÒ»ÖÂ¡£
+                        // ä¸­æ–‡æ³¨é‡Šï¼šå°†è”æŸ¥ç»“æœå­—æ®µå›å¡«åˆ°è®¢å•è¡Œæ¨¡å‹ï¼Œä¿æŒä¸ SalesOrderLineModel å­—æ®µè¯­ä¹‰ä¸€è‡´ã€‚
                         //row.Sku = selectedPopupProduct.Sku;
                         //row.CustomerSKU = selectedPopupProduct.CustomerSKU;
                         //row.DescriptionEn = selectedPopupProduct.DescriptionEn;
@@ -658,7 +736,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                         //row.CNYPrice = selectedPopupProduct.CNYPrice ?? 0m;
                         //row.MainImage = selectedPopupProduct.MainImage;
 
-                        // ÖĞÎÄ×¢ÊÍ£ºĞÂĞĞÊ×´ÎÑ¡Æ·Ê±£¬ÈôÊıÁ¿Î´ÌîĞ´ÔòÄ¬ÈÏÖÃÎª 1£¬±ãÓÚ¿ìËÙÂ¼µ¥¡£
+                        // ä¸­æ–‡æ³¨é‡Šï¼šæ–°è¡Œé¦–æ¬¡é€‰å“æ—¶ï¼Œè‹¥æ•°é‡æœªå¡«å†™åˆ™é»˜è®¤ç½®ä¸º 1ï¼Œä¾¿äºå¿«é€Ÿå½•å•ã€‚
                         if (row.QTY <= 0)
                         {
                             row.QTY = 1;
@@ -677,8 +755,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ÔÚµ¥Ôª¸ñÄ£Ê½ÏÂ£¬´ÓÖ÷´°¿Ú½¹µãÁ´Â·¶µµ×»ñÈ¡µ±Ç° DataGrid ĞĞ¶ÔÏó¡£
-        /// ËµÃ÷£ºCtrl+D/Õ³ÌùµÈ Excel ¿ì½İ²Ù×÷²»ÒÀÀµ SelectedItem£¬ÕâÀïÓÃÓÚ Popup Ìá½»¶µµ×¡£
+        /// åœ¨å•å…ƒæ ¼æ¨¡å¼ä¸‹ï¼Œä»ä¸»çª—å£ç„¦ç‚¹é“¾è·¯å…œåº•è·å–å½“å‰ DataGrid è¡Œå¯¹è±¡ã€‚
+        /// è¯´æ˜ï¼šCtrl+D/ç²˜è´´ç­‰ Excel å¿«æ·æ“ä½œä¸ä¾èµ– SelectedItemï¼Œè¿™é‡Œç”¨äº Popup æäº¤å…œåº•ã€‚
         /// </summary>
         private SalesOrderLineModel GetCurrentCellRow()
         {
@@ -699,17 +777,17 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             }
             catch
             {
-                // ÖĞÎÄ×¢ÊÍ£º¶µµ×Ê§°Ü²»Å×Òì³££¬½»ÓÉÉÏ²ã null ÅĞ¶Ï¡£
+                // ä¸­æ–‡æ³¨é‡Šï¼šå…œåº•å¤±è´¥ä¸æŠ›å¼‚å¸¸ï¼Œäº¤ç”±ä¸Šå±‚ null åˆ¤æ–­ã€‚
             }
 
             return null;
         }
 
-        #region Ô¤ÁôÁª¶¯Âß¼­£¨µ±Ç°°´ĞèÇó½ûÓÃ£¬½ö±£ÁôÎ´À´¿ÉÓÃĞÔ£©
+        #region é¢„ç•™è”åŠ¨é€»è¾‘ï¼ˆå½“å‰æŒ‰éœ€æ±‚ç¦ç”¨ï¼Œä»…ä¿ç•™æœªæ¥å¯ç”¨æ€§ï¼‰
 
 
         /// <summary>
-        /// ¼àÌıÁĞ±íĞÂÔö/ÒÆ³ı£¬Î¬»¤Ã¿ĞĞ PropertyChanged ¶©ÔÄ¡£
+        /// ç›‘å¬åˆ—è¡¨æ–°å¢/ç§»é™¤ï¼Œç»´æŠ¤æ¯è¡Œ PropertyChanged è®¢é˜…ã€‚
         /// </summary>
         private void OrderLineItems_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
@@ -732,7 +810,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ³õÊ¼»¯Ê±ÎªÒÑÓĞĞĞ°ó¶¨ÊÂ¼ş¡£
+        /// åˆå§‹åŒ–æ—¶ä¸ºå·²æœ‰è¡Œç»‘å®šäº‹ä»¶ã€‚
         /// </summary>
         private void AttachItemHandlers(IEnumerable<SalesOrderLineModel> items)
         {
@@ -745,7 +823,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// µ± CustomerSKU »ò Sku ½áÊø±à¼­ºó£¨LostFocus Ìá½»£©´¥·¢Áª¶¯¡£
+        /// å½“ CustomerSKU æˆ– Sku ç»“æŸç¼–è¾‘åï¼ˆLostFocus æäº¤ï¼‰è§¦å‘è”åŠ¨ã€‚
         /// </summary>
         private async void SalesOrderLineItem_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
@@ -754,10 +832,10 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 && e.PropertyName != nameof(SalesOrderLineModel.Sku))
                 return;
 
-            var row = sender as SalesOrderLineModel;// µ±Ç°ĞĞ¶ÔÏó£¬¿ÉÄÜÎª null£¨ÀıÈçµ¥Ôª¸ñÄ£Ê½ÏÂ SelectedItem ¿ÉÄÜÎª null£©£¬ºóĞøÁª¶¯Âß¼­ĞèÏÈĞĞ null ÅĞ¶Ï¡£
+            var row = sender as SalesOrderLineModel;// å½“å‰è¡Œå¯¹è±¡ï¼Œå¯èƒ½ä¸º nullï¼ˆä¾‹å¦‚å•å…ƒæ ¼æ¨¡å¼ä¸‹ SelectedItem å¯èƒ½ä¸º nullï¼‰ï¼Œåç»­è”åŠ¨é€»è¾‘éœ€å…ˆè¡Œ null åˆ¤æ–­ã€‚
             if (row == null) return;
 
-            // ÖĞÎÄ×¢ÊÍ£º³ÌĞò»ØÌî½×¶Î²»ÔÙ´¥·¢¶ş´ÎÁª¶¯£¬±ÜÃâÖØ¸´Í¨ÖªÓëÖØ¸´ API ÇëÇó¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šç¨‹åºå›å¡«é˜¶æ®µä¸å†è§¦å‘äºŒæ¬¡è”åŠ¨ï¼Œé¿å…é‡å¤é€šçŸ¥ä¸é‡å¤ API è¯·æ±‚ã€‚
             if (_suppressLineNotifyRows.Contains(row))
                 return;
 
@@ -765,7 +843,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ¸ù¾İĞĞÄÚ Sku ³¢ÊÔÁª¶¯²úÆ·ĞÅÏ¢¡£
+        /// æ ¹æ®è¡Œå†… Sku å°è¯•è”åŠ¨äº§å“ä¿¡æ¯ã€‚
         /// </summary>
         private async Task TryApplyLinkageAsync(SalesOrderLineModel row, string changedProperty)
         {
@@ -776,7 +854,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             var inputCustomerSku = (row.CustomerSKU ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(inputSku) && string.IsNullOrWhiteSpace(inputCustomerSku))
             {
-                // ÖĞÎÄ×¢ÊÍ£ºµ± Sku ±»Çå¿ÕÊ±£¬Í¬²½Çå¿ÕÁª¶¯×Ö¶Î£¬±ÜÃâ¾ÉÖµ²ĞÁô¡£
+                // ä¸­æ–‡æ³¨é‡Šï¼šå½“ Sku è¢«æ¸…ç©ºæ—¶ï¼ŒåŒæ­¥æ¸…ç©ºè”åŠ¨å­—æ®µï¼Œé¿å…æ—§å€¼æ®‹ç•™ã€‚
                 DispatcherProvider.Invoke(() =>
                 {
                     row.Id = 0;
@@ -794,7 +872,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 SalesOrderLineDto product = null;
                 var lookupKey = changedProperty == nameof(SalesOrderLineModel.Sku) ? inputSku : inputCustomerSku;
 
-                // ÖĞÎÄ×¢ÊÍ£ºÓÅÏÈ°´¡°´¥·¢×Ö¶Î¡±ÃüÖĞ»º´æ£¬±ÜÃâÎóÆ¥Åä¡£
+                // ä¸­æ–‡æ³¨é‡Šï¼šä¼˜å…ˆæŒ‰â€œè§¦å‘å­—æ®µâ€å‘½ä¸­ç¼“å­˜ï¼Œé¿å…è¯¯åŒ¹é…ã€‚
                 if (changedProperty == nameof(SalesOrderLineModel.Sku) && !string.IsNullOrWhiteSpace(inputSku))
                 {
                     _skuProductCache.TryGetValue(inputSku, out product);
@@ -806,7 +884,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
                 if (product == null)
                 {
-                    // ÖĞÎÄ×¢ÊÍ£º»º´æÎ´ÃüÖĞÊ±£¬°´ÓÃ»§ÊäÈë¹Ø¼ü´Ê×ßÒ»´Î API À­È¡²¢¸üĞÂ»º´æ¡£
+                    // ä¸­æ–‡æ³¨é‡Šï¼šç¼“å­˜æœªå‘½ä¸­æ—¶ï¼ŒæŒ‰ç”¨æˆ·è¾“å…¥å…³é”®è¯èµ°ä¸€æ¬¡ API æ‹‰å–å¹¶æ›´æ–°ç¼“å­˜ã€‚
                     await EnsureCacheByKeywordAsync(lookupKey);
                     product = TryResolveProductFromCache(lookupKey);
                 }
@@ -827,7 +905,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             }
             catch
             {
-                // ÖĞÎÄ×¢ÊÍ£ºÁª¶¯Ê§°Ü²»´ò¶Ï±à¼­Á÷³Ì£¬±£³Ö¾²Ä¬¡£
+                // ä¸­æ–‡æ³¨é‡Šï¼šè”åŠ¨å¤±è´¥ä¸æ‰“æ–­ç¼–è¾‘æµç¨‹ï¼Œä¿æŒé™é»˜ã€‚
             }
             finally
             {
@@ -836,7 +914,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ¸ù¾İ¹Ø¼ü×Ö´Ó±¾µØ»º´æÖĞÑÏ¸ñÆ¥Åä£¨ºöÂÔ´óĞ¡Ğ´¡¢±ØĞëÈ«Æ¥Åä£©¡£
+        /// æ ¹æ®å…³é”®å­—ä»æœ¬åœ°ç¼“å­˜ä¸­ä¸¥æ ¼åŒ¹é…ï¼ˆå¿½ç•¥å¤§å°å†™ã€å¿…é¡»å…¨åŒ¹é…ï¼‰ã€‚
         /// </summary>
         private SalesOrderLineDto TryResolveProductFromCache(string keyword)
         {
@@ -853,7 +931,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ÓÃ»§ÊäÈëÊ±Í¨¹ı API À­È¡ºòÑ¡²¢Ğ´Èë»º´æ¡£
+        /// ç”¨æˆ·è¾“å…¥æ—¶é€šè¿‡ API æ‹‰å–å€™é€‰å¹¶å†™å…¥ç¼“å­˜ã€‚
         /// </summary>
         private async Task EnsureCacheByKeywordAsync(string keyword)
         {
@@ -862,7 +940,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             var normalizedKeyword = keyword.Trim();
             if (normalizedKeyword.Length == 0) return;
 
-            // ÖĞÎÄ×¢ÊÍ£ºÇëÇó¼¶·À¶¶¡£ÏàÍ¬¹Ø¼ü×ÖÔÚ¶Ì´°¿ÚÄÚ²»ÖØ¸´ÇëÇó¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šè¯·æ±‚çº§é˜²æŠ–ã€‚ç›¸åŒå…³é”®å­—åœ¨çŸ­çª—å£å†…ä¸é‡å¤è¯·æ±‚ã€‚
             DateTime lastFetchAt;
             if (_cacheFetchTimes.TryGetValue(normalizedKeyword, out lastFetchAt))
             {
@@ -870,7 +948,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     return;
             }
 
-            // ÖĞÎÄ×¢ÊÍ£ºÍ¬Ò»¹Ø¼ü×ÖÇëÇóÈ¥ÖØ¡£ÈôÒÑÓĞ½øĞĞÖĞµÄÇëÇóÔò¸´ÓÃ¸ÃÈÎÎñ¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šåŒä¸€å…³é”®å­—è¯·æ±‚å»é‡ã€‚è‹¥å·²æœ‰è¿›è¡Œä¸­çš„è¯·æ±‚åˆ™å¤ç”¨è¯¥ä»»åŠ¡ã€‚
             if (_inflightCacheFetchTasks.TryGetValue(normalizedKeyword, out Task inflightTask))
             {
                 await inflightTask;
@@ -891,7 +969,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// Êµ¼ÊÖ´ĞĞ»º´æÀ­È¡¡£
+        /// å®é™…æ‰§è¡Œç¼“å­˜æ‹‰å–ã€‚
         /// </summary>
         private async Task EnsureCacheByKeywordCoreAsync(string normalizedKeyword)
         {
@@ -912,7 +990,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// Ğ´Èë SKU / ¿Í»§SKU Ë«»º´æ¡£
+        /// å†™å…¥ SKU / å®¢æˆ·SKU åŒç¼“å­˜ã€‚
         /// </summary>
         private void CacheCustomerProducts(IEnumerable<SalesOrderLineDto> items)
         {
@@ -925,13 +1003,13 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     _customerSkuProductCache[item.CustomerSKU.Trim()] = item;
             }
 
-            // ÖĞÎÄ×¢ÊÍ£º»º´æ¸üĞÂºóÍ¬²½Ë¢ĞÂÓÃÓÚÏÂÀ­ÁªÏëµÄ¼ü¼¯ºÏ¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šç¼“å­˜æ›´æ–°ååŒæ­¥åˆ·æ–°ç”¨äºä¸‹æ‹‰è”æƒ³çš„é”®é›†åˆã€‚
             SkuCacheKeys = _skuProductCache.Keys.OrderBy(x => x).ToList();
             CustomerSkuCacheKeys = _customerSkuProductCache.Keys.OrderBy(x => x).ToList();
         }
 
         /// <summary>
-        /// Ó¦ÓÃ²úÆ·Áª¶¯×Ö¶Îµ½µ±Ç°¿Í»§²úÆ·ĞĞ¡£
+        /// åº”ç”¨äº§å“è”åŠ¨å­—æ®µåˆ°å½“å‰å®¢æˆ·äº§å“è¡Œã€‚
         /// </summary>
         private void ApplyProductLinkage(SalesOrderLineModel row, SalesOrderLineDto product)
         {
@@ -941,7 +1019,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             try
             {
                 row.LoadFromDto(product);
-                //// ÖĞÎÄ×¢ÊÍ£º³ÌĞò»ØÌî½×¶ÎÍ³Ò»ÒÖÖÆĞĞÊôĞÔÍ¨ÖªÒı·¢µÄ¶ş´ÎÁª¶¯¡£
+                //// ä¸­æ–‡æ³¨é‡Šï¼šç¨‹åºå›å¡«é˜¶æ®µç»Ÿä¸€æŠ‘åˆ¶è¡Œå±æ€§é€šçŸ¥å¼•å‘çš„äºŒæ¬¡è”åŠ¨ã€‚
                 //row.Sku = product.Sku;
                 //row.CustomerSKU = product.CustomerSKU;
                 //row.DescriptionEn = product.DescriptionEn;
@@ -963,7 +1041,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         /// <summary>
-        /// ÓÃ»§ÊäÈë Sku/CustomerSKU Î´Æ¥ÅäÊ±£¬Çå¿Õ¸ÃĞĞÁª¶¯×Ö¶Î£¬±ÜÃâ²ĞÁô¾ÉÊı¾İ¡£
+        /// ç”¨æˆ·è¾“å…¥ Sku/CustomerSKU æœªåŒ¹é…æ—¶ï¼Œæ¸…ç©ºè¯¥è¡Œè”åŠ¨å­—æ®µï¼Œé¿å…æ®‹ç•™æ—§æ•°æ®ã€‚
         /// </summary>
         private void ClearLinkedFieldsWhenNoMatch(SalesOrderLineModel row, string changedProperty)
         {
@@ -972,7 +1050,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             _suppressLineNotifyRows.Add(row);
             try
             {
-                // ÖĞÎÄ×¢ÊÍ£º±£ÁôÓÃ»§¸Õ±à¼­µÄ×Ö¶ÎÖµ£¬Çå¿ÕÆäÓàÁª¶¯×Ö¶Î¡£
+                // ä¸­æ–‡æ³¨é‡Šï¼šä¿ç•™ç”¨æˆ·åˆšç¼–è¾‘çš„å­—æ®µå€¼ï¼Œæ¸…ç©ºå…¶ä½™è”åŠ¨å­—æ®µã€‚
                 if (changedProperty == nameof(SalesOrderLineModel.Sku))
                 {
                     row.CustomerSKU = string.Empty;

@@ -6,7 +6,11 @@ using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Orders;
-
+/// <summary>
+/// 出入库扣减应用服务。
+/// </summary>
+/// <param name="inventoryRepository"></param>
+/// <param name="context"></param>
 public class StockService(IInventoryRepository inventoryRepository, ServiceBaseContext context) : IStockService
 {
     private readonly IInventoryRepository _inventoryRepository = inventoryRepository;
@@ -54,11 +58,11 @@ public class StockService(IInventoryRepository inventoryRepository, ServiceBaseC
     private async Task WriteInventoryTransactionIfExistsAsync(string whseCode, string locationCode, string sku, decimal qty, string bizType, string? bizNo)
     {
         const string sql = @"IF OBJECT_ID('dbo.InventoryTransaction','U') IS NOT NULL
-BEGIN
-    INSERT INTO [dbo].[InventoryTransaction]
-    ([WhseCode],[LocationCode],[Sku],[Qty],[BizType],[BizNo],[CreatedDate])
-    VALUES (@WhseCode,@LocationCode,@Sku,@Qty,@BizType,@BizNo,@CreatedDate)
-END";
+                                            BEGIN
+                                                INSERT INTO [dbo].[InventoryTransaction]
+                                                ([WhseCode],[LocationCode],[Sku],[Qty],[BizType],[BizNo],[CreatedDate])
+                                                VALUES (@WhseCode,@LocationCode,@Sku,@Qty,@BizType,@BizNo,@CreatedDate)
+                                            END";
 
         await _session.Connection.ExecuteAsync(
             sql,

@@ -13,7 +13,15 @@ public class Product : BaseEntity
     public string? FeaturesEn { get; set; }
     public string? FeaturesZh { get; set; }
     public string? MaterialType { get; set; }
+    /// <summary>
+    /// 供应方式（仅表示采购/生产/外协，不再承担“是否有BOM”的语义）。
+    /// </summary>
     public string SupplyType { get; set; } = default!;
+    /// <summary>
+    /// BOM版本号。
+    /// 约定：0 表示无BOM，>0 表示存在对应版本BOM。
+    /// </summary>
+    public int BomVersion { get; set; }
     public string? BomNo { get; set; }
     public string? Note { get; set; }
     public string? LinkSku { get; set; }

@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using SwiftExport.Contracts.SysEnums;
 using SwiftExport.View.FW;
 using SwiftExport.View.FW.DI;
 using SwiftExport.View.FW.Routing;
@@ -7,7 +6,6 @@ using SwiftExport.View.FW.Services;
 using System;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Threading;
 
 namespace SwiftExport.DevApp
 {
@@ -20,7 +18,7 @@ namespace SwiftExport.DevApp
         // true  = 启动时不做任何远程 API 调用（适合在家/断网/后端未启动时调前端）
         // false = 正常联调模式
         private const bool StartupOfflineMode = false;
-        
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
@@ -36,9 +34,9 @@ namespace SwiftExport.DevApp
                 var services = new ServiceCollection();
                 services.AddAppServices();  // uiDispatcher 留空 = 自动捕获当前 UI 线程 Dispatcher
                 var provider = services.BuildServiceProvider();
-                
-                IocProvider.GetServiceFunc = (type) => provider.GetService(type);// 将 DI 容器提供器传递给控件静态类供控件使用.
 
+                //IocProvider.GetServiceFunc = (type) => provider.GetService(type);// 将 DI 容器提供器传递给控件静态类供控件使用.
+                IocProvider.Init(provider);
                 DiServices.Init(provider);
 
                 // 中文注释：先显示主窗体，避免因后端不可用导致启动阶段阻塞，看起来像“程序没弹出来”。
@@ -71,11 +69,7 @@ namespace SwiftExport.DevApp
 
             try
             {
-                await dictCache.PreloadAsync(new[]
-                {
-                    DictCodes.Currency,
-                    DictCodes.CustomerType
-                });
+                await dictCache.PreloadAsync();
             }
             catch (Exception ex)
             {

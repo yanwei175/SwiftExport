@@ -1,6 +1,7 @@
 using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -10,13 +11,13 @@ namespace SwiftExport.Contracts.Apis.Orders
     /// <summary>
     /// 销售订单拆解中间表 API。
     /// </summary>
-    public interface IRequirementPoolApi : IGenericApi<RequirementPoolDto>
+    public interface IDependentDemandApi : IGenericApi<DependentDemandDto>
     {
         /// <summary>
         /// 分页查询拆解中间表。
         /// </summary>
         [Post("/search")]
-        Task<ServiceResult<PagedResultDto<RequirementPoolDto>>> GetPagedListAsync([Body] RequirementPoolSearchDto search);
+        Task<ServiceResult<PagedResultDto<DependentDemandDto>>> GetPagedListAsync([Body] DependentDemandSearchDto search);
 
         /// <summary>
         /// 按销售单号触发拆解写入中间表。
@@ -33,7 +34,31 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// <summary>
         /// 将某个来源单据下的需求按供应商分组转为采购单。
         /// </summary>
-        [Post("/convert-to-po/{sourceNo}")]
-        Task<ServiceResult<List<string>>> ConvertSourceToPurchaseOrdersAsync(string sourceNo);
+        [Post("/convert-to-po/{sourceType}/{sourceNo}")]
+        Task<ServiceResult<List<string>>> ConvertSourceToPurchaseOrdersAsync(string sourceType, string sourceNo);
+
+        /// <summary>
+        /// 将指定需求池行按选中范围转为采购单。
+        /// </summary>
+        [Post("/convert-to-po/by-ids")]
+        Task<ServiceResult<List<string>>> ConvertByDependentDemandIdsAsync([Body] List<int> requirementPoolIds);
+
+        /// <summary>
+        /// 一键将需求池中全部待采购需求转为采购单。
+        /// </summary>
+        [Post("/convert-to-po-all")]
+        Task<ServiceResult<List<string>>> ConvertAllPendingToPurchaseOrdersAsync();
+
+        /// <summary>
+        /// 通用转采购接口（支持多种分组条件）。
+        /// </summary>
+        [Post("/convert-to-po")]
+        Task<ServiceResult<List<string>>> ConvertToPurchaseOrdersAsync([Body] DependentDemandConvertToPurchaseRequestDto request);
+
+        /// <summary>
+        /// 手工更新需求池行供应商信息。
+        /// </summary>
+        [Post("/{id}/set-supplier")]
+        Task<ServiceResult<bool>> UpdateSupplierAsync(int id, [Query] string supplierCode, [Query] string supplierName = "");
     }
 }

@@ -13,7 +13,7 @@ namespace SwiftExport.Core.Entities.Systems
         /// <summary>
         /// 单据类型（例如 SO/PO/MO）。
         /// </summary>
-        public string DocType { get; set; } = string.Empty;
+        public required string DocType { get; set; }
 
         /// <summary>
         /// 年月分段（yyyyMM）。

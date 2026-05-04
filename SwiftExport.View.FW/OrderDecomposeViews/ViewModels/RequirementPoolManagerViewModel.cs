@@ -1,6 +1,7 @@
 using GalaSoft.MvvmLight.Command;
 using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.Mvvm;
 using SwiftExport.View.FW.OrderDecomposeViews.Models;
@@ -15,21 +16,21 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
     /// <summary>
     /// 需求池管理页 ViewModel（背靠背采购任务清单模式）。
     /// </summary>
-    public class RequirementPoolManagerViewModel : ViewModelBaseEx
+    public class DependentDemandManagerViewModel : ViewModelBaseEx
     {
-        private readonly IRequirementPoolApi _decomposeApi;
+        private readonly IDependentDemandApi _decomposeApi;
         private readonly IDialogService _msg;
 
-        public RequirementPoolManagerViewModel() : this(null, null)
+        public DependentDemandManagerViewModel() : this(null, null)
         {
         }
 
-        public RequirementPoolManagerViewModel(IRequirementPoolApi decomposeApi, IDialogService msg)
+        public DependentDemandManagerViewModel(IDependentDemandApi decomposeApi, IDialogService msg)
         {
             _decomposeApi = decomposeApi;
             _msg = msg;
 
-            BridgeList = new RequirementPoolList();
+            BridgeList = new DependentDemandList();
 
             LoadCommand = new RelayCommand(async () => await LoadAsync(), () => IsNotBusy);
             RegisterBusyNotifyCommand(LoadCommand);
@@ -48,18 +49,18 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             RegisterBusyNotifyCommand(BatchIssueProductionCommand);
 
             // 目标执行单跳转与手工指定供应商。
-            OpenTargetCommand = new RelayCommand<RequirementPoolModel>(OnOpenTarget);
-            SetSupplierCommand = new RelayCommand<RequirementPoolModel>(async x => await OnSetSupplierAsync(x));
+            OpenTargetCommand = new RelayCommand<DependentDemandModel>(OnOpenTarget);
+            SetSupplierCommand = new RelayCommand<DependentDemandModel>(async x => await OnSetSupplierAsync(x));
 
             // 一键转采购命令。
             ConvertSelectedSourceToPurchaseCommand = new RelayCommand(async () => await ConvertSelectedSourceToPurchaseAsync(), () => IsNotBusy && !string.IsNullOrWhiteSpace(SelectedSourceNo));
             RegisterBusyNotifyCommand(ConvertSelectedSourceToPurchaseCommand);
 
             // 中文注释：背靠背任务看板默认仅展示待处理任务。
-            StatusFlag = 0;
+            StatusFlag = RequirementStatusEnums.待处理;
         }
 
-        public RequirementPoolList BridgeList { get; }
+        public DependentDemandList BridgeList { get; }
 
         /// <summary>
         /// 左侧来源单任务列表（按日期倒序）。
@@ -69,7 +70,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         /// <summary>
         /// 右侧明细列表（按左侧来源单过滤后）。
         /// </summary>
-        public ObservableCollection<RequirementPoolModel> DetailItems { get; } = new ObservableCollection<RequirementPoolModel>();
+        public ObservableCollection<DependentDemandModel> DetailItems { get; } = new ObservableCollection<DependentDemandModel>();
 
         private SourceNoTaskItem _selectedSourceTask;
         public SourceNoTaskItem SelectedSourceTask
@@ -102,8 +103,8 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             }
         }
 
-        private RequirementPoolModel _selectedItem;
-        public RequirementPoolModel SelectedItem
+        private DependentDemandModel _selectedItem;
+        public DependentDemandModel SelectedItem
         {
             get => _selectedItem;
             set => SetProperty(ref _selectedItem, value);
@@ -177,8 +178,8 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             set => SetProperty(ref _supplierKeyword, value);
         }
 
-        private int? _statusFlag;
-        public int? StatusFlag
+        private string _statusFlag;
+        public string StatusFlag
         {
             get => _statusFlag;
             set
@@ -191,12 +192,12 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         }
 
         /// <summary>
-        /// 是否显示已完成任务（StatusFlag != 0）。默认 false。
+        /// 是否显示已完成任务（StatusFlag 为空表示不过滤）。默认 false。
         /// </summary>
         public bool ShowCompleted
         {
-            get => !StatusFlag.HasValue;
-            set => StatusFlag = value ? (int?)null : 0;
+            get => string.IsNullOrWhiteSpace(StatusFlag);
+            set => StatusFlag = value ? string.Empty : RequirementStatusEnums.待处理;
         }
 
         private bool? _isKitted;
@@ -265,8 +266,8 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         public RelayCommand BatchIssuePurchaseCommand { get; }
         public RelayCommand BatchIssueProductionCommand { get; }
         public RelayCommand ConvertSelectedSourceToPurchaseCommand { get; }
-        public RelayCommand<RequirementPoolModel> OpenTargetCommand { get; }
-        public RelayCommand<RequirementPoolModel> SetSupplierCommand { get; }
+        public RelayCommand<DependentDemandModel> OpenTargetCommand { get; }
+        public RelayCommand<DependentDemandModel> SetSupplierCommand { get; }
 
         /// <summary>
         /// 当前筛选结果的平均齐套率（百分比文本）。
@@ -282,7 +283,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         {
             if (_decomposeApi == null)
             {
-                StatusMessage = "RequirementPoolApi 未注入";
+                StatusMessage = "DependentDemandApi 未注入";
                 return;
             }
 
@@ -290,7 +291,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             {
                 try
                 {
-                    var search = new RequirementPoolSearchDto
+                    var search = new DependentDemandSearchDto
                     {
                         Keyword = Keyword,
                         SourceNo = SourceNo,
@@ -308,7 +309,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
                     var result = await _decomposeApi.GetPagedListAsync(search);
                     if (result.Success && result.Data != null)
                     {
-                        BridgeList.ReLoadRangeFromDtoList<RequirementPoolDto>(result.Data.Items);
+                        BridgeList.ReLoadRangeFromDtoList<DependentDemandDto>(result.Data.Items);
                         TotalCount = result.Data.TotalCount;
 
                         RefreshSourceTasks();
@@ -355,7 +356,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         /// <summary>
         /// 打开目标执行单：若为空提示可转采购/工单，否则提示跳转目标。
         /// </summary>
-        private void OnOpenTarget(RequirementPoolModel row)
+        private void OnOpenTarget(DependentDemandModel row)
         {
             if (row == null) return;
 
@@ -372,7 +373,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         /// <summary>
         /// 右键菜单：手工指定供应商。
         /// </summary>
-        private async Task OnSetSupplierAsync(RequirementPoolModel row)
+        private async Task OnSetSupplierAsync(DependentDemandModel row)
         {
             if (row == null) return;
 
@@ -380,9 +381,23 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             if (string.IsNullOrWhiteSpace(supplierCode)) return;
 
             var supplierName = await _msg.ShowInputAsync("请输入供应商名称", "手动指定供应商");
+
+            if (_decomposeApi == null)
+            {
+                await _msg.ShowWarningAsync("需求池API未注入，无法保存供应商");
+                return;
+            }
+
+            var saveRst = await _decomposeApi.UpdateSupplierAsync(row.Id, supplierCode.Trim(), (supplierName ?? string.Empty).Trim());
+            if (!saveRst.Success)
+            {
+                await _msg.ShowWarningAsync("保存供应商失败：" + saveRst.Message);
+                return;
+            }
+
             row.SupplierCode = supplierCode.Trim();
             row.SupplierName = (supplierName ?? string.Empty).Trim();
-            _msg.ShowCardAsync("已为 " + row.Sku + " 指定供应商：" + row.SupplierCode + "-" + row.SupplierName, 3000);
+            _msg.ShowCardAsync("已为 " + row.Sku + " 指定并保存供应商：" + row.SupplierCode + "-" + row.SupplierName, 3000);
         }
 
         /// <summary>
@@ -414,7 +429,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
                 {
                     SourceNo = g.Key,
                     RequiredDate = g.Where(x => x.RequiredDate.HasValue).Select(x => x.RequiredDate.Value).DefaultIfEmpty(DateTime.MinValue).Max(),
-                    PendingCount = g.Count(x => x.StatusFlag == 0),
+                    PendingCount = g.Count(x => x.StatusFlag == RequirementStatusEnums.待处理),
                     TotalCount = g.Count()
                 })
                 .OrderByDescending(x => x.RequiredDate)
@@ -443,7 +458,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         {
             DetailItems.Clear();
 
-            IEnumerable<RequirementPoolModel> rows = BridgeList.Items;
+            IEnumerable<DependentDemandModel> rows = BridgeList.Items;
             if (!string.IsNullOrWhiteSpace(SelectedSourceNo))
             {
                 rows = rows.Where(x => string.Equals(x.SourceNo, SelectedSourceNo, StringComparison.OrdinalIgnoreCase));
@@ -474,7 +489,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             var sourceNo = SelectedSourceNo.Trim();
             var purchaseRows = DetailItems
                 .Where(x => string.Equals(x.SourceNo, sourceNo, StringComparison.OrdinalIgnoreCase)
-                            && x.StatusFlag == 0
+                            && x.StatusFlag == RequirementStatusEnums.待处理
                             && IsPurchaseSupplyType(x.SupplyType))
                 .ToList();
 
@@ -502,7 +517,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             {
                 try
                 {
-                    var result = await _decomposeApi.ConvertSourceToPurchaseOrdersAsync(sourceNo);
+                    var result = await _decomposeApi.ConvertSourceToPurchaseOrdersAsync(OrderTypeEnums.销售订单, sourceNo);
                     if (result.Success)
                     {
                         var poNos = result.Data ?? new List<string>();
@@ -531,7 +546,8 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         {
             if (string.IsNullOrWhiteSpace(supplyType)) return false;
             return string.Equals(supplyType, "Purchase", StringComparison.OrdinalIgnoreCase)
-                   || string.Equals(supplyType, "直接采购", StringComparison.OrdinalIgnoreCase);
+                   || string.Equals(supplyType, SupplyTypeEnums.直接采购, StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(supplyType, SupplyTypeEnums.采购, StringComparison.OrdinalIgnoreCase);
         }
 
         private async Task TriggerDecomposeAsync()

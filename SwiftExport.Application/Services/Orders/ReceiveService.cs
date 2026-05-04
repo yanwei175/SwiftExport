@@ -2,6 +2,7 @@ using Dapper;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
@@ -16,7 +17,8 @@ namespace SwiftExport.Application.Services.Orders
         IPurchaseReceiveHeadRepository receiveHeadRepository,
         IPurchaseReceiveLineRepository receiveLineRepository,
         IPurchaseOrderLineRepository purchaseOrderLineRepository,
-        IRequirementPoolRepository requirementPoolRepository,
+        IDependentDemandRepository requirementPoolRepository,
+        IIndependentDemandRepository salesDemandRepository,
         IInventoryRepository inventoryRepository,
         IDocumentNoService documentNoService,
         ServiceBaseContext context)
@@ -25,7 +27,8 @@ namespace SwiftExport.Application.Services.Orders
         private readonly IPurchaseReceiveHeadRepository _receiveHeadRepository = receiveHeadRepository;
         private readonly IPurchaseReceiveLineRepository _receiveLineRepository = receiveLineRepository;
         private readonly IPurchaseOrderLineRepository _purchaseOrderLineRepository = purchaseOrderLineRepository;
-        private readonly IRequirementPoolRepository _requirementPoolRepository = requirementPoolRepository;
+        private readonly IDependentDemandRepository _requirementPoolRepository = requirementPoolRepository;
+        private readonly IIndependentDemandRepository _salesDemandRepository = salesDemandRepository;
         private readonly IInventoryRepository _inventoryRepository = inventoryRepository;
         private readonly IDocumentNoService _documentNoService = documentNoService;
         private readonly SwiftExport.Infrastructure.Data.DbSession _session = context.Session;
@@ -35,7 +38,8 @@ namespace SwiftExport.Application.Services.Orders
         /// 1) 生成入库头/行；
         /// 2) 回写采购行 RecQty；
         /// 3) 回写需求池 ReceivedQty；
-        /// 4) 更新虚拟库库存（WhseCode=V_WH，LocationCode=SupplierCode）。
+        /// 4) 回写销售需求 FilledQty；
+        /// 5) 更新虚拟库库存（WhseCode=V_WH，LocationCode=SupplierCode）。
         /// 全流程在同一事务中执行。
         /// </summary>
         public async Task<ServiceResult<string>> ExecutePurchaseReceiveAsync(PurchaseReceiveExecuteRequestDto request)
@@ -55,10 +59,10 @@ namespace SwiftExport.Application.Services.Orders
             _session.Transaction = _session.Connection.BeginTransaction();
             try
             {
-                // 中文注释：生成入库单号，沿用单号服务，类型暂使用 RequirementPool 避免改动字典配置。
-                var receiveNoResult = await _documentNoService.GetNextDocumentNoAsync(new Contracts.DTOs.SystemDtos.DocumentNoRequestDto
+                // 中文注释：生成入库单号，沿用单号服务，类型暂使用 DependentDemand 避免改动字典配置。
+                var receiveNoResult = await _documentNoService.GetNextDocumentNoAsync(new DocumentNoRequestDto
                 {
-                    DocType = DocumentTypeStaticEnums.RequirementPool,
+                    DocType = DocumentTypeStaticEnums.InboundOrder,
                     BusinessDate = request.ReceiveDate ?? DateTime.Now,
                     SerialWidth = 4,
                     Operator = request.Handler
@@ -67,7 +71,7 @@ namespace SwiftExport.Application.Services.Orders
                 if (!receiveNoResult.Success || receiveNoResult.Data == null)
                     throw new Exception("生成入库单号失败：" + receiveNoResult.Message);
 
-                var receiveNo = "RV" + receiveNoResult.Data.DocumentNo;
+                var receiveNo = receiveNoResult.Data.DocumentNo;
 
                 // 1) 生成入库头
                 var head = new PurchaseReceiveHead
@@ -131,12 +135,71 @@ namespace SwiftExport.Application.Services.Orders
 
                 foreach (var so in soUpdates)
                 {
-                    var rp = await _requirementPoolRepository.GetBySourceSoLineIdAsync(so.SoLineId);
-                    if (rp == null) continue;
+                    // 中文注释：智能回写——同一销售行可能拆成多条需求池记录，按未入库缺口比例分摊本次入库数量。
+                    var rpList = (await _requirementPoolRepository.GetListBySourceSoLineIdAsync(OrderTypeEnums.销售订单, so.SoLineId)).ToList();
+                    if (rpList.Count == 0) continue;
 
-                    rp.ReceivedQty += so.Qty;
-                    rp.ChangeTime = DateTime.Now;
-                    await _requirementPoolRepository.UpdateAsync(rp);
+                    var pendingRows = rpList
+                        .Select(x => new
+                        {
+                            Row = x,
+                            Gap = Math.Max(x.NetQty - x.ReceivedQty, 0m)
+                        })
+                        .Where(x => x.Gap > 0)
+                        .ToList();
+
+                    if (pendingRows.Count == 0) continue;
+
+                    var totalGap = pendingRows.Sum(x => x.Gap);
+                    var leftQty = so.Qty;
+
+                    for (int i = 0; i < pendingRows.Count; i++)
+                    {
+                        var item = pendingRows[i];
+
+                        decimal allocateQty;
+                        if (i == pendingRows.Count - 1)
+                        {
+                            allocateQty = Math.Min(item.Gap, leftQty);
+                        }
+                        else
+                        {
+                            var ratioQty = totalGap <= 0 ? 0 : Math.Round(so.Qty * item.Gap / totalGap, 4, MidpointRounding.AwayFromZero);
+                            allocateQty = Math.Min(item.Gap, ratioQty);
+                            if (allocateQty > leftQty) allocateQty = leftQty;
+                        }
+
+                        if (allocateQty <= 0) continue;
+
+                        item.Row.ReceivedQty = Math.Min(item.Row.NetQty, item.Row.ReceivedQty + allocateQty);
+                        item.Row.ChangeTime = DateTime.Now;
+
+                        if (item.Row.ReceivedQty >= item.Row.NetQty)
+                        {
+                            item.Row.StatusFlag = RequirementStatusEnums.已到货;
+                        }
+
+                        await _requirementPoolRepository.UpdateAsync(item.Row);
+                        leftQty -= allocateQty;
+
+                        if (leftQty <= 0) break;
+                    }
+                }
+
+                // 4.1) 回写 IndependentDemand FilledQty（按来源类型 + SoLineId 聚合），避免来源类型硬编码。
+                var demandIncreaseBySourceType = request.Lines
+                    .Where(x => x.SoLineId.HasValue && x.SoLineId > 0 && x.SoLineId <= int.MaxValue && x.Qty > 0)
+                    .GroupBy(x => string.IsNullOrWhiteSpace(x.SourceType) ? OrderTypeEnums.销售订单 : x.SourceType.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => (IDictionary<int, decimal>)g
+                            .GroupBy(x => (int)x.SoLineId!.Value)
+                            .ToDictionary(x => x.Key, x => x.Sum(y => y.Qty)),
+                        StringComparer.OrdinalIgnoreCase);
+
+                if (demandIncreaseBySourceType.Count > 0)
+                {
+                    await _salesDemandRepository.BatchIncreaseFilledQtyAsync(demandIncreaseBySourceType);
                 }
 
                 // 5) 更新库存：WhseCode='V_WH'、LocationCode=SupplierCode、Sku
@@ -144,9 +207,9 @@ namespace SwiftExport.Application.Services.Orders
                     .GroupBy(x => new { SupplierCode = request.SupplierCode.Trim(), Sku = x.Sku.Trim(), x.Unit })
                     .Select(g => new
                     {
-                        SupplierCode = g.Key.SupplierCode,
-                        Sku = g.Key.Sku,
-                        Unit = g.Key.Unit,
+                        g.Key.SupplierCode,
+                        g.Key.Sku,
+                        g.Key.Unit,
                         Qty = g.Sum(x => x.Qty)
                     })
                     .ToList();
@@ -181,11 +244,11 @@ namespace SwiftExport.Application.Services.Orders
                 try
                 {
                     const string txSql = @"IF OBJECT_ID('dbo.InventoryTransaction','U') IS NOT NULL
-BEGIN
-    INSERT INTO [dbo].[InventoryTransaction]
-    ([WhseCode],[LocationCode],[Sku],[Qty],[BizType],[BizNo],[CreatedDate])
-    VALUES (@WhseCode,@LocationCode,@Sku,@Qty,@BizType,@BizNo,@CreatedDate)
-END";
+                                                    BEGIN
+                                                        INSERT INTO [dbo].[InventoryTransaction]
+                                                        ([WhseCode],[LocationCode],[Sku],[Qty],[BizType],[BizNo],[CreatedDate])
+                                                        VALUES (@WhseCode,@LocationCode,@Sku,@Qty,@BizType,@BizNo,@CreatedDate)
+                                                    END";
 
                     foreach (var inv in inventoryUpdates)
                     {
@@ -195,8 +258,8 @@ END";
                             {
                                 WhseCode = "V_WH",
                                 LocationCode = inv.SupplierCode,
-                                Sku = inv.Sku,
-                                Qty = inv.Qty,
+                                inv.Sku,
+                                inv.Qty,
                                 BizType = "Receive",
                                 BizNo = receiveNo,
                                 CreatedDate = DateTime.Now

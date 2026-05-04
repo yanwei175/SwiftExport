@@ -1,12 +1,13 @@
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Common;
 
 namespace SwiftExport.Core.Entities.Orders;
 
 /// <summary>
-/// 销售订单拆解中间表实体。
+/// 拆解独立需求之后的依赖需求实体
 /// 用于承接“销售订单行 -> 采购/生产执行单”的拆解与跟踪数据。
 /// </summary>
-public class RequirementPool : BaseEntity
+public class DependentDemand : BaseEntity
 {
     #region 来源信息 (Source)
 
@@ -25,6 +26,11 @@ public class RequirementPool : BaseEntity
     /// </summary>
     public long SourceLineId { get; set; }
 
+    /// <summary>
+    /// 关联的独立需求 ID (毛需求 ID)
+    /// </summary>
+    public long IndependentDemandId { get; set; }
+
     #endregion
 
 
@@ -34,6 +40,22 @@ public class RequirementPool : BaseEntity
     /// 当前物料 SKU
     /// </summary>
     public string Sku { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 物料描述（用于非标件或补充说明）。
+    /// </summary>
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// 颜色名称（用于非标件或颜色补充）。
+    /// </summary>
+    public string? ColorName { get; set; }
+
+    /// <summary>
+    /// 规格特征（用于非标件或型号补充）。
+    /// </summary>
+    public string? Features { get; set; }
+
     /// <summary>
     /// 父项 SKU（所属成品）
     /// </summary>
@@ -73,10 +95,10 @@ public class RequirementPool : BaseEntity
     public decimal ReceivedQty { get; set; }
 
     /// <summary>
-    /// 已发货数量（仅针对 BomLevel=0 的成品行有意义）
+    /// 最终送货至（具体地址或仓库编码）
+    /// 贸易场景下：可能直发客户，也可能入库
     /// </summary>
-    public decimal ShippedQty { get; set; }
-
+    public string? ShipToLocation { get; set; } = string.Empty;
     #endregion
 
     #region 执行状态 (Execution)
@@ -87,14 +109,10 @@ public class RequirementPool : BaseEntity
     public DateTime? RequiredDate { get; set; }
 
     /// <summary>
-    /// 状态 (0-待处理, 1-执行中, 2-已完成, 9-关闭/作废)
+    /// 状态（RequirementStatusEnums：采购中/已到货/已完成）
     /// </summary>
-    public int StatusFlag { get; set; }
+    public string StatusFlag { get; set; } = RequirementStatusEnums.待处理;
 
-    /// <summary>
-    /// 是否齐套（针对 BomLevel=0 的行，判断其下方所有子项是否 ReceivedQty >= GrossQty）
-    /// </summary>
-    public bool IsKitted { get; set; }
 
     /// <summary>
     /// 备注
@@ -112,6 +130,16 @@ public class RequirementPool : BaseEntity
     /// 理由：背靠背模式下，方便直接从需求池跳到采购单。
     /// </summary>
     public string? TargetNo { get; set; }
+
+    /// <summary>
+    /// 手工指定供应商编码（优先于产品默认供应商）。
+    /// </summary>
+    public string? SupplierCode { get; set; }
+
+    /// <summary>
+    /// 手工指定供应商名称。
+    /// </summary>
+    public string? SupplierName { get; set; }
 
     /// <summary>
     /// 目标执行行 ID

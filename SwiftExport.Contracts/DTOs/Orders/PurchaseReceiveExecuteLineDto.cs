@@ -29,5 +29,10 @@ namespace SwiftExport.Contracts.DTOs.Orders
         /// 关联销售单行ID（用于回写需求池 ReceivedQty）。
         /// </summary>
         public long? SoLineId { get; set; }
+
+        /// <summary>
+        /// 来源类型（用于回写 IndependentDemand 时避免硬编码来源）。
+        /// </summary>
+        public string SourceType { get; set; } = string.Empty;
     }
 }

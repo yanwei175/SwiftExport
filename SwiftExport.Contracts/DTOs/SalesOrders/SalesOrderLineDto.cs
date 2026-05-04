@@ -1,11 +1,11 @@
-using SwiftExport.Contracts.DTOs.Base;
+ï»¿using SwiftExport.Contracts.DTOs.Base;
 using System;
 
 namespace SwiftExport.Contracts.DTOs.SalesOrders
 {
     /// <summary>
-    /// ÏúÊÛ¶©µ¥ĞĞÃ÷Ï¸ DTO£¨Êı¾İ´«Êä¶ÔÏó£©¡£
-    /// ÓÃÓÚÇ°ºó¶Ë½»»¥£¬´ú±í¶©µ¥ÖĞµÄµ¥¸ö²úÆ·Ïî¡£
+    /// é”€å”®è®¢å•è¡Œæ˜ç»† DTOï¼ˆæ•°æ®ä¼ è¾“å¯¹è±¡ï¼‰ã€‚
+    /// ç”¨äºå‰åç«¯äº¤äº’ï¼Œä»£è¡¨è®¢å•ä¸­çš„å•ä¸ªäº§å“é¡¹ã€‚
     /// </summary>
     public class SalesOrderLineDto : BaseDto
     {
@@ -18,41 +18,41 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public string MaterialType { get; set; }
 
         /// <summary>
-        /// ¿Í»§²úÆ·Ö÷¼ü Id£¨À´Ô´ÓÚ CustomerProduct.Id£¬ÓÃÓÚÇ°¶ËºóĞøÁª¶¯»ò»ØÌîÊ±¶¨Î»£©¡£
+        /// å®¢æˆ·äº§å“ä¸»é”® Idï¼ˆæ¥æºäº CustomerProduct.Idï¼Œç”¨äºå‰ç«¯åç»­è”åŠ¨æˆ–å›å¡«æ—¶å®šä½ï¼‰ã€‚
         /// </summary>
         public int? CustomerProductId { get; set; }
 
         /// <summary>
-        /// ²úÆ·Ö÷¼ü Id£¨À´Ô´ÓÚ Product.Id£©¡£
+        /// äº§å“ä¸»é”® Idï¼ˆæ¥æºäº Product.Idï¼‰ã€‚
         /// </summary>
         public int? ProductId { get; set; }
 
         public string CustomerSKU { get; set; }
 
         /// <summary>
-        /// ²úÆ·Ó¢ÎÄÃèÊö£¨¶ÔÓ¦ Product.DescriptionEn£©¡£
+        /// äº§å“è‹±æ–‡æè¿°ï¼ˆå¯¹åº” Product.DescriptionEnï¼‰ã€‚
         /// </summary>
         public string DescriptionEn { get; set; }
 
         /// <summary>
-        /// ²úÆ·Ó¢ÎÄÑÕÉ«Ãû£¨¶ÔÓ¦ ProductColor.ColorNameEn£©¡£
+        /// äº§å“è‹±æ–‡é¢œè‰²åï¼ˆå¯¹åº” ProductColor.ColorNameEnï¼‰ã€‚
         /// </summary>
         public string ColorNameEn { get; set; }
 
         /// <summary>
-        /// ²úÆ·Ó¢ÎÄÌØĞÔ£¨¶ÔÓ¦ Product.FeaturesEn£©¡£
+        /// äº§å“è‹±æ–‡ç‰¹æ€§ï¼ˆå¯¹åº” Product.FeaturesEnï¼‰ã€‚
         /// </summary>
         public string FeaturesEn { get; set; }
 
         /// <summary>
-        /// ÈËÃñ±Òµ¥¼Û£¨×Ö¶ÎÃüÃûÍ³Ò»Îª CNY£©¡£
+        /// äººæ°‘å¸å•ä»·ï¼ˆå­—æ®µå‘½åç»Ÿä¸€ä¸º CNYï¼‰ã€‚
         /// </summary>
         public decimal? CNYPrice { get; set; }
         public decimal? USDPrice { get; set; }
         public decimal? QTY { get; set; }
 
         /// <summary>
-        /// ÈËÃñ±Ò½ğ¶î£¨×Ö¶ÎÃüÃûÍ³Ò»Îª CNY£©¡£
+        /// äººæ°‘å¸é‡‘é¢ï¼ˆå­—æ®µå‘½åç»Ÿä¸€ä¸º CNYï¼‰ã€‚
         /// </summary>
         public decimal? CNYAmount { get; set; }
         public decimal? USDAmount { get; set; }
@@ -66,12 +66,8 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public decimal? NwSubTotal { get; set; }
         public decimal? GwSubTotal { get; set; }
         public decimal? CbmSubTotal { get; set; }
-            
+
         public string SubNote { get; set; }
-        public decimal? ShippedQTY { get; set; }
-        public decimal? UnshippedQty { get; set; }
-        public bool IsPartiallyShipped { get; set; }
-        public bool IsFullyShipped { get; set; }
         public DateTime? LastShippedDate { get; set; }
         public DateTime? ExpectedDeliveryDate { get; set; }
         public string MainImage { get; set; }

@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
@@ -10,7 +10,6 @@ using SwiftExport.Infrastructure.Repositories.Products;
 using SwiftExport.Infrastructure.Repositories.Suppliers;
 using SwiftExport.Infrastructure.Repositories.Systems;
 using SwiftExport.Infrastructure.Repositories.SystemRepositories;
-using SwiftExport.Infrastructure.Repositories.Orders.SalesOrders;
 
 namespace SwiftExport.Infrastructure;
 
@@ -42,7 +41,8 @@ public static class DependencyInjection
         // 视图路由配置仓储
         services.AddScoped<ISysViewRouteRepository, SysViewRouteRepository>();
         services.AddScoped<ISalesOrderLineSourceRepository, SalesOrderLineSourceRepository>();
-        services.AddScoped<IRequirementPoolRepository, RequirementPoolRepository>();
+        services.AddScoped<IDependentDemandRepository, DependentDemandRepository>();
+        services.AddScoped<IIndependentDemandRepository, IndependentDemandRepository>();
         services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
         services.AddScoped<IPurchaseOrderLineRepository, PurchaseOrderLineRepository>();

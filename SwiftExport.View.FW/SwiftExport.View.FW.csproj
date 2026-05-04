@@ -49,6 +49,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AppRuntimeOptions.cs" />
+    <Compile Include="PurchaseOrderViews\Controls\PurchaseOrderLinePopupSelectorControl.xaml.cs">
+      <DependentUpon>PurchaseOrderLinePopupSelectorControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="PurchaseOrderViews\Models\PurchaseOrderHeadModel.cs" />
     <Compile Include="PurchaseOrderViews\Models\PurchaseOrderLineList.cs" />
     <Compile Include="PurchaseOrderViews\Models\PurchaseOrderLineModel.cs" />
@@ -57,7 +60,11 @@
     <Compile Include="PackingListViews\Views\PackingListManagerView.xaml.cs">
       <DependentUpon>PackingListManagerView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="PurchaseOrderViews\ViewModels\PurchaseOrderDetailViewModel.cs" />
     <Compile Include="PurchaseOrderViews\ViewModels\PurchaseOrderManagerViewModel.cs" />
+    <Compile Include="PurchaseOrderViews\Views\PurchaseOrderDetailView.xaml.cs">
+      <DependentUpon>PurchaseOrderDetailView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="PurchaseOrderViews\Views\PurchaseOrderManagerView.xaml.cs">
       <DependentUpon>PurchaseOrderManagerView.xaml</DependentUpon>
     </Compile>
@@ -224,6 +231,14 @@
     <Compile Include="SystemViews\Views\SysViewRouteManagerView.xaml.cs">
       <DependentUpon>SysViewRouteManagerView.xaml</DependentUpon>
     </Compile>
+    <Page Include="PurchaseOrderViews\Controls\PurchaseOrderLinePopupSelectorControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="PurchaseOrderViews\Views\PurchaseOrderDetailView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="PurchaseOrderViews\Views\PurchaseOrderManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -56,7 +56,7 @@
                     Background="{TemplateBinding Background}" 
                     BorderBrush="{TemplateBinding BorderBrush}" 
                     BorderThickness="{TemplateBinding BorderThickness}" 
-                    CornerRadius="8" 
+                    CornerRadius="4" 
                     SnapsToDevicePixels="true"/>
 
             <Border Grid.Column="1" Margin="0,6,0,6" 
@@ -86,7 +86,7 @@
             <Trigger Property="IsChecked" Value="True">
                 <Setter TargetName="templateRoot" Property="BorderBrush" Value="{DynamicResource Primary5Brush}"/>
                 <Setter TargetName="arrow" Property="Stroke" Value="{DynamicResource Primary5Brush}"/>
-                <Setter TargetName="templateRoot" Property="CornerRadius" Value="8,8,0,0"/>
+                <Setter TargetName="templateRoot" Property="CornerRadius" Value="4,4,0,0"/>
                 <Setter TargetName="arrow" Property="RenderTransform">
                     <Setter.Value>
                         <RotateTransform Angle="180" CenterX="5" CenterY="3"/>
@@ -124,8 +124,6 @@
                                       BorderThickness="{TemplateBinding BorderThickness}" 
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" 
                                       Template="{StaticResource ComboBoxToggleButtonTemplate}"/>
-
-
                         <ContentPresenter x:Name="contentPresenter" 
                                           Grid.Column="0" 
                                           Margin="{TemplateBinding Padding}" 
@@ -137,7 +135,6 @@
                                           ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" 
                                           IsHitTestVisible="false" 
                                           SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
-
                         <TextBox x:Name="PART_EditableTextBox"
                                  Grid.Column="0"
                                  Margin="{TemplateBinding Padding}"
@@ -167,7 +164,7 @@
                                     Background="{DynamicResource Brush_Bck_Popup}" 
                                     BorderBrush="{DynamicResource Brush_Border_Light}" 
                                     BorderThickness="1,0,1,1" 
-                                    CornerRadius="0,0,8,8"
+                                    CornerRadius="0,0,4,4"
                                     Margin="10"
                                     MaxHeight="{TemplateBinding MaxDropDownHeight}" 
                                     MinWidth="{Binding ActualWidth, ElementName=templateRoot}">

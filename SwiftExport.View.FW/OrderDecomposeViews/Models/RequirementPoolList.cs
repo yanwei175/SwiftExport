@@ -12,11 +12,11 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.Models
     /// <summary>
     /// 需求池集合模型。
     /// </summary>
-    public class RequirementPoolList : ViewModelBaseEx
+    public class DependentDemandList : ViewModelBaseEx
     {
-        public ObservableCollection<RequirementPoolModel> Items { get; } = new ObservableCollection<RequirementPoolModel>();
+        public ObservableCollection<DependentDemandModel> Items { get; } = new ObservableCollection<DependentDemandModel>();
 
-        public RequirementPoolList()
+        public DependentDemandList()
         {
             Items.CollectionChanged += Items_CollectionChanged;
         }
@@ -25,13 +25,13 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.Models
         {
             if (e.NewItems != null)
             {
-                foreach (var item in e.NewItems.OfType<RequirementPoolModel>())
+                foreach (var item in e.NewItems.OfType<DependentDemandModel>())
                     item.PropertyChanged += Item_PropertyChanged;
             }
 
             if (e.OldItems != null)
             {
-                foreach (var item in e.OldItems.OfType<RequirementPoolModel>())
+                foreach (var item in e.OldItems.OfType<DependentDemandModel>())
                     item.PropertyChanged -= Item_PropertyChanged;
             }
 
@@ -41,7 +41,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.Models
 
         private void Item_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(RequirementPoolModel.State))
+            if (e.PropertyName == nameof(DependentDemandModel.State))
             {
                 RaisePropertyChanged(nameof(IsAllValid));
             }
@@ -65,7 +65,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.Models
 
             foreach (var dto in dtos)
             {
-                var model = dto.Adapt<RequirementPoolModel>();
+                var model = dto.Adapt<DependentDemandModel>();
                 model.State = ModelState.Unchanged;
                 model.CommitChanges();
                 Items.Add(model);

@@ -26,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Repositories\Orders\SalesOrders\" />
     <Folder Include="Repositories\Settings\" />
   </ItemGroup>
 

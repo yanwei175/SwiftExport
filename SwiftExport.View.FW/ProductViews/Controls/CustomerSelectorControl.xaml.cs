@@ -1,6 +1,4 @@
-using GalaSoft.MvvmLight.Ioc;
 using SwiftExport.Contracts.Apis.CustomerApis;
-using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.View.FW.DI;
 using System.Collections.ObjectModel;
@@ -101,7 +99,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
         {
             try
             {
-                var api = IocProvider.Get<ICustomerApi>(); // 获取 API 接口实例
+                var api = IocProvider.GetService<ICustomerApi>(); // 获取 API 接口实例
                 if (api == null) return;
 
                 var result = await api.GetAllAsync();

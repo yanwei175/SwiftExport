@@ -3,11 +3,11 @@ using System.Windows.Controls;
 namespace SwiftExport.View.FW.OrderDecomposeViews.Views
 {
     /// <summary>
-    /// RequirementPoolView.xaml 的交互逻辑
+    /// DependentDemandView.xaml 的交互逻辑
     /// </summary>
-    public partial class RequirementPoolView : UserControl
+    public partial class DependentDemandView : UserControl
     {
-        public RequirementPoolView()
+        public DependentDemandView()
         {
             InitializeComponent();
         }

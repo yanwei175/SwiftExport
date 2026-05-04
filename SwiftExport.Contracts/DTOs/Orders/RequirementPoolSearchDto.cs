@@ -3,7 +3,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
     /// <summary>
     /// 需求池分页查询参数。
     /// </summary>
-    public class RequirementPoolSearchDto
+    public class DependentDemandSearchDto
     {
         /// <summary>
         /// 关键字（匹配来源单号/SKU/目标执行单号）。
@@ -41,9 +41,9 @@ namespace SwiftExport.Contracts.DTOs.Orders
         public string SupplierKeyword { get; set; }
 
         /// <summary>
-        /// 状态标记。
+        /// 状态标记（RequirementStatusEnums）。
         /// </summary>
-        public int? StatusFlag { get; set; }
+        public string StatusFlag { get; set; }
 
         /// <summary>
         /// 是否齐套。
