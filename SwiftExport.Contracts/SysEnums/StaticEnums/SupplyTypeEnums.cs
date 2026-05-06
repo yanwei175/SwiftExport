@@ -2,6 +2,7 @@
 
 namespace SwiftExport.Contracts.SysEnums.StaticEnums
 {
+    //供货类型枚举,新语义：生产供给、采购供给、外协供给
     public static class SupplyTypeEnums
     {
         /// <summary>

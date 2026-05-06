@@ -321,10 +321,6 @@ public class SalesOrderService(
         }
     }
 
-
-
-
-
     #endregion
 
     #region 订单详情页（单据编辑）
@@ -365,7 +361,7 @@ public class SalesOrderService(
     public async Task<ServiceResult<DocumentNoResultDto>> GetNextOrderNoAsync(DocumentNoRequestDto request)
     {
         request ??= new DocumentNoRequestDto();
-        request.DocType = DocumentTypeStaticEnums.SalesOrder;
+        request.DocType = DocumentTypeStaticsEnum.SalesOrder;
         return await _documentNoService.GetNextDocumentNoAsync(request);
     }
 
@@ -388,7 +384,7 @@ public class SalesOrderService(
             }
 
             // 2. 基础状态校验只能是 草稿 或 待审批 状态。
-            if (order.ApprovalStatus != ApprovalStatusEnums.草稿 && order.ApprovalStatus != ApprovalStatusEnums.待审批)
+            if (order.ApprovalStatus != ApprovalStatusEnum.草稿 && order.ApprovalStatus != ApprovalStatusEnum.待审批)
             {
                 _session.Transaction.Rollback();
                 return ServiceResult<bool>.Fail("订单状态不合法，只有草稿或待审批状态的订单才能审批");
@@ -404,7 +400,7 @@ public class SalesOrderService(
             }
 
             // 3. 同步该订单对应销售需求状态为“待处理”（审批通过后由 IndependentDemand 驱动后续拆解）。
-            var updateDemandRst = await UpdateDemandStatusBySourceNoAsync(OrderTypeEnums.销售订单, order.OrderNo ?? string.Empty, RequirementStatusEnums.待处理);
+            var updateDemandRst = await UpdateDemandStatusBySourceNoAsync(OrderTypesEnum.销售订单, order.OrderNo ?? string.Empty, IndependentDemandStatusEnum.已确认);
             if (!updateDemandRst.Success)
             {
                 _session.Transaction.Rollback();
@@ -412,7 +408,7 @@ public class SalesOrderService(
             }
 
             // 4. 更新订单审批状态。
-            order.ApprovalStatus = ApprovalStatusEnums.已批准;
+            order.ApprovalStatus = ApprovalStatusEnum.已批准;
             order.UpdatedDate = DateTime.Now;
             await _repository.UpdateAsync(order);
 
@@ -448,10 +444,10 @@ public class SalesOrderService(
                 return ServiceResult<bool>.Fail("订单不存在");
             }
 
-            if (order.ApprovalStatus == ApprovalStatusEnums.已批准)
+            if (order.ApprovalStatus == ApprovalStatusEnum.已批准)
             {
                 // 中文注释：已批准回退前先判断销售需求是否已进入执行态。
-                var canRejectRst = await CanRejectApprovedOrderByDemandStatusAsync(OrderTypeEnums.销售订单, order.OrderNo ?? string.Empty);
+                var canRejectRst = await CanRejectApprovedOrderByDemandStatusAsync(OrderTypesEnum.销售订单, order.OrderNo ?? string.Empty);
 
                 if (!canRejectRst.Success || !canRejectRst.Data)
                 {
@@ -460,7 +456,7 @@ public class SalesOrderService(
                 }
 
                 // 中文注释：回退审批时，将销售需求状态恢复为“草稿”，避免未审批订单被执行拆解。
-                var rollbackDemandRst = await UpdateDemandStatusBySourceNoAsync(OrderTypeEnums.销售订单, order.OrderNo ?? string.Empty, RequirementStatusEnums.草稿);
+                var rollbackDemandRst = await UpdateDemandStatusBySourceNoAsync(OrderTypesEnum.销售订单, order.OrderNo ?? string.Empty, IndependentDemandStatusEnum.草稿);
 
                 if (!rollbackDemandRst.Success)
                 {
@@ -469,7 +465,7 @@ public class SalesOrderService(
                 }
             }
 
-            order.ApprovalStatus = ApprovalStatusEnums.已驳回;
+            order.ApprovalStatus = ApprovalStatusEnum.已驳回;
             order.UpdatedDate = DateTime.Now;
             await _repository.UpdateAsync(order);
 
@@ -576,7 +572,7 @@ public class SalesOrderService(
         if (search.DeliveryDateTo.HasValue)
             criteria.Add("DeliveryDate", 查询操作符.小于等于, search.DeliveryDateTo.Value);
 
-        if (!string.IsNullOrWhiteSpace(search.OrderStatus))
+        if (search.OrderStatus>=0)
             criteria.Add("OrderStatus", 查询操作符.等于, search.OrderStatus);
 
         if (search.TotalAmountFrom.HasValue)
@@ -700,13 +696,13 @@ public class SalesOrderService(
             //转换成单头实体并补全默认值
             header.IsDeleted = false;
             header.IsLocked = false;
-            header.OrderStatus = SalesOrderStatusEnums.未发货;
-            header.ApprovalStatus = ApprovalStatusEnums.草稿;
+            header.OrderStatus = SalesOrderStatusEnum.草稿;
+            header.ApprovalStatus = ApprovalStatusEnum.草稿;
 
             //获取一个新的SO单号（如果请求中没有提供的话）
             if (string.IsNullOrWhiteSpace(header.OrderNo))
             {
-                var newOrderNo = await _documentNoService.GetNextDocumentNoAsync(new DocumentNoRequestDto { DocType = DocumentTypeStaticEnums.SalesOrder });
+                var newOrderNo = await _documentNoService.GetNextDocumentNoAsync(new DocumentNoRequestDto { DocType = DocumentTypeStaticsEnum.SalesOrder });
                 if (!newOrderNo.Success)
                 {
                     _session.Transaction.Rollback();
@@ -756,7 +752,7 @@ public class SalesOrderService(
     {
         if (request?.Header == null)
             return ServiceResult<bool>.Fail("订单头不能为空");
-        if (request.Header.ApprovalStatus == ApprovalStatusEnums.已批准)
+        if (request.Header.ApprovalStatus == ApprovalStatusEnum.已批准)
             return ServiceResult<bool>.Fail("已批准的订单不允许修改");
 
         _session.Transaction = _session.Connection.BeginTransaction();
@@ -765,7 +761,7 @@ public class SalesOrderService(
             //转换成实体
             var processedLines = (request.Lines ?? []).Adapt<List<SalesOrderLine>>();
             //校验订单行数据是否合法（如果有订单行的话）
-            var checkrst = await CheckLineListCanBeDeleteOrUpdatedAsync(OrderTypeEnums.销售订单, processedLines.Select(l => l.Id));//检查订单行是否都允许被修改或删除（如果有订单行被修改或删除的话）
+            var checkrst = await CheckLineListCanBeDeleteOrUpdatedAsync(OrderTypesEnum.销售订单, processedLines.Select(l => l.Id));//检查订单行是否都允许被修改或删除（如果有订单行被修改或删除的话）
 
             //校验通过
             if (!checkrst.Success)
@@ -793,7 +789,7 @@ public class SalesOrderService(
             if (request.DeletedLineIds?.Count > 0)
             {
                 await _lineRepository.DeleteRangeAsync(request.DeletedLineIds, false);
-                await _demandRepo.DeleteRangeBySourceTypeAndSourceIdListAsync(OrderTypeEnums.销售订单, request.DeletedLineIds);
+                await _demandRepo.DeleteRangeBySourceTypeAndSourceIdListAsync(OrderTypesEnum.销售订单, request.DeletedLineIds);
             }
 
             //4.处理新增行和更新行
@@ -844,6 +840,7 @@ public class SalesOrderService(
             _session.Transaction = null;
         }
     }
+
     /// <summary>
     /// 私有辅助：同步创建需求行
     /// </summary>
@@ -851,10 +848,10 @@ public class SalesOrderService(
     {
         if (lineList == null || lineList.Count == 0) return;
 
-        var existingDemands = await _demandRepo.GetListBySourceTypeAndSourceIdAsync(OrderTypeEnums.销售订单, [.. lineList.Select(l => l.Id)]);
+        var existingDemands = await _demandRepo.GetListBySourceTypeAndSourceIdAsync(OrderTypesEnum.销售订单, [.. lineList.Select(l => l.Id)]);
         foreach (var demand in existingDemands)
         {
-            if (demand.StatusFlag != RequirementStatusEnums.待处理 && demand.StatusFlag != RequirementStatusEnums.草稿)
+            if (demand.StatusFlag != IndependentDemandStatusEnum.草稿)
             {
                 throw new Exception($"无法创建订单行[{demand.SourceLineId}]，因为已提交过需求并相关需求行已进入处理流程");
             }
@@ -866,7 +863,7 @@ public class SalesOrderService(
             var demand = new IndependentDemand
             {
                 Id = 0,
-                SourceType = OrderTypeEnums.销售订单,
+                SourceType = OrderTypesEnum.销售订单,
                 SourceLineId = line.Id,
                 SourceNo = line.OrderNo ?? string.Empty,
                 SalesOrderId = line.SalesOrderId,
@@ -879,7 +876,7 @@ public class SalesOrderService(
                 FilledQty = 0,
                 ShippedQty = 0,
                 // 中文注释：审批前仅生成“毛需求”记录，状态应保持草稿。
-                StatusFlag = RequirementStatusEnums.草稿,
+                StatusFlag = IndependentDemandStatusEnum.草稿,
                 IsDecomposed = false,
                 DecomposedTime = null,
                 HopefulDate = line.ExpectedDeliveryDate
@@ -889,21 +886,27 @@ public class SalesOrderService(
         await _demandRepo.AddRangeAsync(entitys);
     }
 
+    /// <summary>
+    /// 同步更新需求行,
+    /// </summary>
+    /// <param name="lineList"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
     private async Task<int> UpdateDemandAsync(List<SalesOrderLine> lineList)
     {
         // 1. 获取数据库中现有的需求行（根据来源单号/ID）
-        var existingDemands = await _demandRepo.GetListBySourceTypeAndSourceIdAsync(OrderTypeEnums.销售订单, [.. lineList.Select(l => l.Id)]);
+        var existingDemands = await _demandRepo.GetListBySourceTypeAndSourceIdAsync(OrderTypesEnum.销售订单, [.. lineList.Select(l => l.Id)]);
 
-        // 2. 将订单行 DTO 转换为字典，方便内存比对
+        // 2. 将订单行DTO转换为字典，方便内存比对
         var lineDict = lineList.ToDictionary(l => l.Id);
 
         foreach (var demand in existingDemands)
         {
-            // 只有在 lineDict 中能找到，且 SourceLineId 匹配的才处理更新
+            // 只有在 lineDict 中能找到，且 DemandId 匹配的才处理更新
             if (lineDict.TryGetValue(demand.SourceLineId, out var lineEntity))
             {
                 // --- 业务守卫：检查该行是否允许更新 ---
-                if (demand.FilledQty > 0 || (demand.StatusFlag != RequirementStatusEnums.待处理 && demand.StatusFlag != RequirementStatusEnums.草稿))
+                if (demand.FilledQty > 0 || demand.StatusFlag != IndependentDemandStatusEnum.草稿)
                 {
                     throw new Exception($"无法更新订单行[{demand.SourceLineId}]，因为已提交过需求并相关需求行已进入处理流程或已有生产记录");
                 }
@@ -923,6 +926,13 @@ public class SalesOrderService(
         // 3. 调用仓储的批量更新（一次性发往数据库）
         return await _demandRepo.UpdateRangeAsync(existingDemands);
     }
+
+    /// <summary>
+    /// 确认需求行是否可以删除,
+    /// </summary>
+    /// <param name="sourceType"></param>
+    /// <param name="sourceIds"></param>
+    /// <returns></returns>
     public async Task<ServiceResult<bool>> CheckLineListCanBeDeleteOrUpdatedAsync(string sourceType, IEnumerable<int> sourceIds)
     {
         var rst = await _demandRepo.GetListBySourceTypeAndSourceIdAsync(sourceType, sourceIds);
@@ -931,7 +941,7 @@ public class SalesOrderService(
             foreach (var demand in rst)
             {
                 // 2. 核心红线校验
-                if (demand.StatusFlag != RequirementStatusEnums.待处理 && demand.StatusFlag != RequirementStatusEnums.草稿)
+                if (demand.StatusFlag != IndependentDemandStatusEnum.草稿)
                     return ServiceResult<bool>.Fail($"行 {demand.SourceLineId} 已进入流程，禁止直接修改或删除。");
 
                 if (demand.FilledQty > 0)
@@ -975,7 +985,7 @@ public class SalesOrderService(
             OrderDate = orderDate,
             DeliveryDate = header.DeliveryDate,
             TotalAmount = header.TotalAmountLocalCurrency ?? header.TotalAmountOriginalCurrency ?? 0m,
-            OrderStatus = header.OrderStatus ?? string.Empty,
+            OrderStatus = header.OrderStatus,
             Remark = header.Remark ?? string.Empty,
             LineCount = header.LineCount ?? 0,
             CreatedTime = header.CreatedDate ?? orderDate,
@@ -1038,7 +1048,7 @@ public class SalesOrderService(
     /// <summary>
     /// 中文注释：按来源单号批量更新销售需求状态。
     /// </summary>
-    private async Task<ServiceResult<bool>> UpdateDemandStatusBySourceNoAsync(string sourceType, string sourceNo, string statusFlag)
+    private async Task<ServiceResult<bool>> UpdateDemandStatusBySourceNoAsync(string sourceType, string sourceNo, int statusFlag)
     {
         if (string.IsNullOrWhiteSpace(sourceType) || string.IsNullOrWhiteSpace(sourceNo))
             return ServiceResult<bool>.Fail("来源类型和来源单号不能为空");
@@ -1067,7 +1077,7 @@ public class SalesOrderService(
         if (demands == null || demands.Count == 0)
             return ServiceResult<bool>.Ok(true);
 
-        var hasExecuted = demands.Any(x => x.StatusFlag != RequirementStatusEnums.草稿 && x.StatusFlag != RequirementStatusEnums.待处理);
+        var hasExecuted = demands.Any(x => x.StatusFlag > 0);
         if (hasExecuted)
             return ServiceResult<bool>.Fail("订单中存在已执行需求，不允许驳回");
 

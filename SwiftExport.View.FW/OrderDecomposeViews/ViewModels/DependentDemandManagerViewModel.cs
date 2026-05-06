@@ -57,7 +57,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             RegisterBusyNotifyCommand(ConvertSelectedSourceToPurchaseCommand);
 
             // 中文注释：背靠背任务看板默认仅展示待处理任务。
-            StatusFlag = RequirementStatusEnums.待处理;
+            StatusFlag = DependentDemandStatusEnum.已转为正式单据;
         }
 
         public DependentDemandList BridgeList { get; }
@@ -178,8 +178,8 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             set => SetProperty(ref _supplierKeyword, value);
         }
 
-        private string _statusFlag;
-        public string StatusFlag
+        private int _statusFlag;
+        public int StatusFlag
         {
             get => _statusFlag;
             set
@@ -196,8 +196,8 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         /// </summary>
         public bool ShowCompleted
         {
-            get => string.IsNullOrWhiteSpace(StatusFlag);
-            set => StatusFlag = value ? string.Empty : RequirementStatusEnums.待处理;
+            get => StatusFlag == -1;
+            set => StatusFlag = value ? -1 : DependentDemandStatusEnum.已转为正式单据;
         }
 
         private bool? _isKitted;
@@ -429,7 +429,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
                 {
                     SourceNo = g.Key,
                     RequiredDate = g.Where(x => x.RequiredDate.HasValue).Select(x => x.RequiredDate.Value).DefaultIfEmpty(DateTime.MinValue).Max(),
-                    PendingCount = g.Count(x => x.StatusFlag == RequirementStatusEnums.待处理),
+                    PendingCount = g.Count(x => x.StatusFlag > 0),
                     TotalCount = g.Count()
                 })
                 .OrderByDescending(x => x.RequiredDate)
@@ -489,7 +489,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             var sourceNo = SelectedSourceNo.Trim();
             var purchaseRows = DetailItems
                 .Where(x => string.Equals(x.SourceNo, sourceNo, StringComparison.OrdinalIgnoreCase)
-                            && x.StatusFlag == RequirementStatusEnums.待处理
+                            && x.StatusFlag == DependentDemandStatusEnum.已转为正式单据
                             && IsPurchaseSupplyType(x.SupplyType))
                 .ToList();
 
@@ -517,7 +517,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             {
                 try
                 {
-                    var result = await _decomposeApi.ConvertSourceToPurchaseOrdersAsync(OrderTypeEnums.销售订单, sourceNo);
+                    var result = await _decomposeApi.ConvertSourceToPurchaseOrdersAsync(OrderTypesEnum.销售订单, sourceNo);
                     if (result.Success)
                     {
                         var poNos = result.Data ?? new List<string>();
@@ -546,7 +546,6 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         {
             if (string.IsNullOrWhiteSpace(supplyType)) return false;
             return string.Equals(supplyType, "Purchase", StringComparison.OrdinalIgnoreCase)
-                   || string.Equals(supplyType, SupplyTypeEnums.直接采购, StringComparison.OrdinalIgnoreCase)
                    || string.Equals(supplyType, SupplyTypeEnums.采购, StringComparison.OrdinalIgnoreCase);
         }
 

@@ -4,7 +4,10 @@ using System.Text;
 
 namespace SwiftExport.Contracts.SysEnums.StaticEnums
 {
-    public class OrderTypeEnums
+    /// <summary>
+    /// 单据类型枚举
+    /// </summary>
+    public class OrderTypesEnum
     {
         public const string 销售订单 = "销售订单";
         public const string 采购订单 = "采购订单";

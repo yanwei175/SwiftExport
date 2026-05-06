@@ -7,11 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Interfaces\ICustomersPoDetailsService.cs" />
     <Compile Remove="Interfaces\IExcelSheetFieldsMappingService.cs" />
     <Compile Remove="Interfaces\IViewUserRoleService.cs" />
     <Compile Remove="Interfaces\IWhiteListServices.cs" />
-    <Compile Remove="Services\Orders\CustomersPoDetailsService.cs" />
     <Compile Remove="Services\Settings\ExcelSheetFieldsMappingService.cs" />
     <Compile Remove="Services\Settings\ViewUserRoleService.cs" />
     <Compile Remove="Services\Settings\WhiteListServices.cs" />

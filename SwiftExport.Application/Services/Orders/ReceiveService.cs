@@ -22,7 +22,7 @@ namespace SwiftExport.Application.Services.Orders
         IInventoryRepository inventoryRepository,
         IDocumentNoService documentNoService,
         ServiceBaseContext context)
-        : IReceiveService
+        : IReceiptService
     {
         private readonly IPurchaseReceiveHeadRepository _receiveHeadRepository = receiveHeadRepository;
         private readonly IPurchaseReceiveLineRepository _receiveLineRepository = receiveLineRepository;
@@ -62,7 +62,7 @@ namespace SwiftExport.Application.Services.Orders
                 // 中文注释：生成入库单号，沿用单号服务，类型暂使用 DependentDemand 避免改动字典配置。
                 var receiveNoResult = await _documentNoService.GetNextDocumentNoAsync(new DocumentNoRequestDto
                 {
-                    DocType = DocumentTypeStaticEnums.InboundOrder,
+                    DocType = DocumentTypeStaticsEnum.InboundOrder,
                     BusinessDate = request.ReceiveDate ?? DateTime.Now,
                     SerialWidth = 4,
                     Operator = request.Handler
@@ -126,7 +126,7 @@ namespace SwiftExport.Application.Services.Orders
                     await _purchaseOrderLineRepository.UpdateAsync(poLine);
                 }
 
-                // 4) 回写需求池 ReceivedQty（按 SoLineId 聚合）
+                // 4) 回写需求池 ReceivedQty（按 DemandId 聚合）
                 var soUpdates = request.Lines
                     .Where(x => x.SoLineId.HasValue)
                     .GroupBy(x => x.SoLineId!.Value)
@@ -136,7 +136,7 @@ namespace SwiftExport.Application.Services.Orders
                 foreach (var so in soUpdates)
                 {
                     // 中文注释：智能回写——同一销售行可能拆成多条需求池记录，按未入库缺口比例分摊本次入库数量。
-                    var rpList = (await _requirementPoolRepository.GetListBySourceSoLineIdAsync(OrderTypeEnums.销售订单, so.SoLineId)).ToList();
+                    var rpList = (await _requirementPoolRepository.GetListBySourceSoLineIdAsync(OrderTypesEnum.销售订单, so.SoLineId)).ToList();
                     if (rpList.Count == 0) continue;
 
                     var pendingRows = rpList
@@ -176,7 +176,7 @@ namespace SwiftExport.Application.Services.Orders
 
                         if (item.Row.ReceivedQty >= item.Row.NetQty)
                         {
-                            item.Row.StatusFlag = RequirementStatusEnums.已到货;
+                            item.Row.StatusFlag = IndependentDemandStatusEnum.已到货;
                         }
 
                         await _requirementPoolRepository.UpdateAsync(item.Row);
@@ -186,10 +186,10 @@ namespace SwiftExport.Application.Services.Orders
                     }
                 }
 
-                // 4.1) 回写 IndependentDemand FilledQty（按来源类型 + SoLineId 聚合），避免来源类型硬编码。
+                // 4.1) 回写 IndependentDemand FilledQty（按来源类型 + DemandId 聚合），避免来源类型硬编码。
                 var demandIncreaseBySourceType = request.Lines
                     .Where(x => x.SoLineId.HasValue && x.SoLineId > 0 && x.SoLineId <= int.MaxValue && x.Qty > 0)
-                    .GroupBy(x => string.IsNullOrWhiteSpace(x.SourceType) ? OrderTypeEnums.销售订单 : x.SourceType.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .GroupBy(x => string.IsNullOrWhiteSpace(x.SourceType) ? OrderTypesEnum.销售订单 : x.SourceType.Trim(), StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(
                         g => g.Key,
                         g => (IDictionary<int, decimal>)g
@@ -199,7 +199,7 @@ namespace SwiftExport.Application.Services.Orders
 
                 if (demandIncreaseBySourceType.Count > 0)
                 {
-                    await _salesDemandRepository.BatchIncreaseFilledQtyAsync(demandIncreaseBySourceType);
+                    await _salesDemandRepository.批量更新完工数量Async(demandIncreaseBySourceType);
                 }
 
                 // 5) 更新库存：WhseCode='V_WH'、LocationCode=SupplierCode、Sku

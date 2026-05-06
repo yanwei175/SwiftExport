@@ -39,7 +39,8 @@ public static class DependencyInjection
         services.AddScoped<ISysViewRouteService, SysViewRouteService>();
         services.AddScoped<ISalesOrderLineSourceService, SalesOrderLineSourceService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
-        services.AddScoped<IReceiveService, ReceiveService>();
+        services.AddScoped<IFollowUpService, FollowUpService>();
+        services.AddScoped<IReceiptService, ReceiveService>();
         services.AddScoped<IStockService, StockService>();
         services.AddScoped<IPackingListService, PackingListService>();
 

@@ -90,7 +90,7 @@ namespace SwiftExport.View.FW
             services.AddTransient<DependentDemandManagerViewModel>();
             services.AddTransient<SalesOrderManagerView>();
             services.AddTransient<SalesOrderDetailView>();
-            services.AddTransient<DependentDemandView>();
+            services.AddTransient<DependentDemandManagerView>();
 
             // ================== 采购订单模块 ==================
             services.AddTransient<PurchaseOrderManagerViewModel>();

@@ -74,7 +74,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         #region 需要的枚举
         //====静态枚举====
         //OrderStatus
-        //ApprovalStatusEnums
+        //ApprovalStatusEnum
 
         //===用户枚举====
         //币种
@@ -236,7 +236,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     }
                 }
             }
-            catch (Exception ex)
+            catch 
             {
                 // 静默处理或打日志，不影响主流程
             }
@@ -523,7 +523,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         private async Task GetNewSoNo()
         {
-            var rst = await _salesOrderApi.GetNextOrderNoAsync(new DocumentNoRequestDto() { DocType = DocumentTypeStaticEnums.SalesOrder });
+            var rst = await _salesOrderApi.GetNextOrderNoAsync(new DocumentNoRequestDto() { DocType = DocumentTypeStaticsEnum.SalesOrder });
             if (rst == null || !rst.Success || rst.Data == null)
             {
                 if (_msg != null)

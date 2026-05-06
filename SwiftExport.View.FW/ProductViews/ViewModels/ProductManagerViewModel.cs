@@ -586,9 +586,9 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             }
             if (MaterialTypeList.Count == 0)
             {
-                MaterialTypeList.Refresh(MaterialTypeEnums.MaterialTypes);
+                MaterialTypeList.Refresh(MaterialTypesEnum.MaterialTypes);
             }
-            if (FilterMaterialTypeList.Count == 0) { FilterMaterialTypeList.Refresh(MaterialTypeEnums.MaterialTypes); }
+            if (FilterMaterialTypeList.Count == 0) { FilterMaterialTypeList.Refresh(MaterialTypesEnum.MaterialTypes); }
         }
 
 
@@ -908,7 +908,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             NeedCreatBom = false;
 
             // 1. 初步预判 (同步逻辑)
-            if (product == null || product.SupplyType == SupplyTypeEnums.直接采购)
+            if (product == null || product.BomVersion <= 0)
             {
                 NeedCreatBom = false;
                 return;
@@ -958,7 +958,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         {
             //if (SelectedBomItem == null) return;
             if (SelectedProduct == null) return;
-            if (SelectedProduct.SupplyType == SupplyTypeEnums.直接采购) return;
+            if (SelectedProduct.BomVersion > 0) return;
             if (SelectedProduct.BomNo == null) return;
 
             var item = new BomItemModel

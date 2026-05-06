@@ -1,10 +1,9 @@
 namespace SwiftExport.Contracts.SysEnums.StaticEnums
 {
     /// <summary>
-    /// 单据类型字符串枚举（禁止使用 C# enum）。
-    /// 用于单号规则、流程分发与权限控制等场景。
+    /// 单据首字母类型枚举
     /// </summary>
-    public static class DocumentTypeStaticEnums
+    public static class DocumentTypeStaticsEnum
     {
         /// <summary>
         /// 销售订单。

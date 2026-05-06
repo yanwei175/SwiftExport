@@ -56,11 +56,11 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         // ============================================================
         #region 基本信息
 
-        private string _orderStatus;
+        private int _orderStatus;
         /// <summary>
         /// OrderStatus（未发货/部分发货/已发货）
         /// </summary>
-        public string OrderStatus
+        public int OrderStatus
         {
             get => _orderStatus;
             set => SetProperty(ref _orderStatus, value);
@@ -466,11 +466,11 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             set => SetProperty(ref _versionNo, value);
         }
 
-        private string _approvalStatus;
+        private int _approvalStatus;
         /// <summary>
-        /// ApprovalStatusEnums（未审批/已审批/驳回）
+        /// ApprovalStatusEnum（未审批/已审批/驳回）
         /// </summary>
-        public string ApprovalStatus
+        public int ApprovalStatus
         {
             get => _approvalStatus;
             set => SetProperty(ref _approvalStatus, value);

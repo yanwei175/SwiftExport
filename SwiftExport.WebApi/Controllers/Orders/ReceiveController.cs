@@ -10,7 +10,7 @@ namespace SwiftExport.WebApi.Controllers.Orders
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    public class ReceiveController(IReceiveService receiveService) : ControllerBase
+    public class ReceiveController(IReceiptService receiveService) : ControllerBase
     {
         /// <summary>
         /// 执行采购入库。

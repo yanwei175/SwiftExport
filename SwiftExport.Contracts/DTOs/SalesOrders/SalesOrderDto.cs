@@ -28,7 +28,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public decimal TotalAmount { get; set; }
 
         // 中文注释：订单状态（待审核、已审核、已发货、已收货、已取消等）
-        public string OrderStatus { get; set; }
+        public int OrderStatus { get; set; }
 
         // 中文注释：备注/特殊需求描述
         public string Remark { get; set; }

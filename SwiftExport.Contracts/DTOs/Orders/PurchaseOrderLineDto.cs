@@ -34,7 +34,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
         public string SupplyType { get; set; }
 
         /// <summary>
-        /// 物料分类（MaterialTypeEnums 字符串值）。
+        /// 物料分类（MaterialTypesEnum 字符串值）。
         /// </summary>
         public string MaterialType { get; set; }
 

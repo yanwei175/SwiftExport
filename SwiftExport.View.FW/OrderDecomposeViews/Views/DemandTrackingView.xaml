@@ -1,0 +1,16 @@
+﻿<UserControl x:Class="SwiftExport.View.FW.OrderDecomposeViews.Views.DemandTrackingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SwiftExport.View.FW.OrderDecomposeViews.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+
+    <!--展示 IndependentDemand 列表。
+        关键功能：选中一个独立需求，下方显示其拆解后的所有 DependentDemand 
+        执行进度（进度条显示 ReceivedQty / NetQty）。-->
+    <Grid>
+            
+    </Grid>
+</UserControl>

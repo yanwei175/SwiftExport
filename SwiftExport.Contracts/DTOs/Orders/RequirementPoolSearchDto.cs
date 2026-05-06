@@ -41,9 +41,9 @@ namespace SwiftExport.Contracts.DTOs.Orders
         public string SupplierKeyword { get; set; }
 
         /// <summary>
-        /// 状态标记（RequirementStatusEnums）。
+        /// 状态标记（DependentDemandStatusEnums）。
         /// </summary>
-        public string StatusFlag { get; set; }
+        public int StatusFlag { get; set; }
 
         /// <summary>
         /// 是否齐套。

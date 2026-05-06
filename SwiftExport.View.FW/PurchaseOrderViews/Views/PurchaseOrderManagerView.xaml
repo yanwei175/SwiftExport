@@ -13,7 +13,25 @@
              d:DataContext="{d:DesignInstance vm:PurchaseOrderManagerViewModel}"
              Background="{DynamicResource Brush_Bck_Page}">
 
-    <UserControl.Resources>
+    <!--布局：上下分层，上方选单，下方显示 PurchaseOrderLine。
+        交互：允许在表格中直接修改 ReadyQty、FollowUpRemarks 和 FollowExpectedDate。
+        自动汇总：在状态栏实时显示当前选中订单的 TotalReadyCBM (逻辑：ReadyQty * UnitCBM) 和 TotalReadyWeight。-->
+    <!--在 PurchaseOrderLine 的 DataGrid 中，将 ReadyQty, FollowUpRemarks, FollowExpectedDate 设置为可编辑。
+实时汇总面板：在 DataGrid 下方增加一个统计栏，实时计算选中订单中所有行的 Sum(ReadyQty * UnitCBM) 和 Sum(ReadyQty * UnitWeight)。
+颜色提示：
+若 ReadyQty > 0 但
+    <QTY，ReadyQty 背景设为淡蓝色。
+若 ReadyQty >= QTY，背景设为淡绿色。
+若 FollowExpectedDate 晚于订单交期，该日期显示为红色。
+2. 批量保存：
+
+实现一个 SaveFollowUpCommand，一键保存用户在表格中修改的所有备注和进度。-->
+
+
+
+
+
+        <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
         <!-- 中文注释：定柜提示文字样式，达到阈值时使用红色强调。 -->

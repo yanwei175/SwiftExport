@@ -1,4 +1,5 @@
 using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Orders;
 
@@ -37,10 +38,8 @@ public class IndependentDemand : BaseEntity
     public decimal OriginalQty { get; set; }  // 原始订单数量[cite: 2]
     public decimal FilledQty { get; set; }    // 已填充数量（已匹配采购或库存的数量）
     public decimal ShippedQty { get; set; }   // 已发货数量[cite: 1, 2]
-
     public bool IsKitted { get; set; }        // 是否齐套[cite: 1]
-    public string StatusFlag { get; set; } = "待处理";       // 内部执行状态 (0:待处理, 1:采购中, 2:已到货, 3:已完成)
-
+    public int StatusFlag { get; set; }      // 内部执行状态 (0:待处理, 1:采购中, 2:已到货, 3:已完成)
     public DateTime? HopefulDate { get; set; }    // 期望交期
     public DateTime? LastShippedDate { get; set; } // 最后发货日期[cite: 2]
     public DateTime? ChangeTime { get; set; }      // 增量同步时间[cite: 1, 2]

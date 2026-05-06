@@ -7,7 +7,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
 {
     public class SalesOrderHeaderDto : BaseDto
     {
-        public string OrderStatus { get; set; }
+        public int OrderStatus { get; set; }
         public string OrderNo { get; set; }
         public int CustomerId { get; set; }
         public string CustomerCode { get; set; }
@@ -33,7 +33,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public int LeadTimeDays { get; set; }// 交货周期（天数）
         public string PaymentMethod { get; set; }// 付款方式
         public string VersionNo { get; set; }
-        public string ApprovalStatus { get; set; }
+        public int ApprovalStatus { get; set; }
         public string SoFolder { get; set; }
         public string Remark { get; set; }
         public bool IsDeleted { get; set; }

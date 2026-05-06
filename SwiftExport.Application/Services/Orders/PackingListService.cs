@@ -313,7 +313,7 @@ public class PackingListService(
         {
             if (soGroup.Key <= 0 || soGroup.Key > int.MaxValue) continue;
 
-            var demands = await _salesDemandRepository.GetListBySourceTypeAndSourceIdAsync(OrderTypeEnums.销售订单, [(int)soGroup.Key]);
+            var demands = await _salesDemandRepository.GetListBySourceTypeAndSourceIdAsync(OrderTypesEnum.销售订单, [(int)soGroup.Key]);
             if (demands == null || demands.Count == 0) continue;
             var demand = demands[0];
 
@@ -325,8 +325,8 @@ public class PackingListService(
             if (demand.ShippedQty >= demand.OriginalQty)
             {
                 demand.StatusFlag = demand.FilledQty >= demand.OriginalQty
-                    ? RequirementStatusEnums.已完成
-                    : RequirementStatusEnums.采购中;
+                    ? IndependentDemandStatusEnum.已完成
+                    : IndependentDemandStatusEnum.采购中;
             }
 
             demand.UpdatedDate = DateTime.Now;
@@ -489,17 +489,17 @@ END";
         if (headers == null || headers.Count == 0) return;
         var header = headers[0];
 
-        var demands = await _salesDemandRepository.GetListBySourceTypeAndSourceNoAsync(OrderTypeEnums.销售订单, orderNo);
+        var demands = await _salesDemandRepository.GetListBySourceTypeAndSourceNoAsync(OrderTypesEnum.销售订单, orderNo);
         var totalQty = demands.Sum(x => x.OriginalQty);
         var shippedQty = demands.Sum(x => x.ShippedQty);
 
         header.TotalShippedQty = shippedQty;
         header.TotalUnshippedQty = Math.Max(totalQty - shippedQty, 0m);
-        header.OrderStatus = shippedQty <= 0
-            ? SalesOrderStatusEnums.未发货
-            : shippedQty >= totalQty
-                ? SalesOrderStatusEnums.全部发完
-                : SalesOrderStatusEnums.部分发货;
+        //header.OrderStatus = shippedQty <= 0
+        //    ? SalesOrderStatusEnum.草稿
+        //    : shippedQty >= totalQty
+        //        ? SalesOrderStatusEnum.全部发完
+        //        : SalesOrderStatusEnum.部分发货;
         header.UpdatedDate = DateTime.Now;
 
         await _salesOrderHeaderRepository.UpdateAsync(header);
@@ -509,7 +509,7 @@ END";
     {
         var result = await _documentNoService.GetNextDocumentNoAsync(new DocumentNoRequestDto
         {
-            DocType = DocumentTypeStaticEnums.OutboundOrder,
+            DocType = DocumentTypeStaticsEnum.OutboundOrder,
             BusinessDate = businessDate ?? DateTime.Now,
             SerialWidth = 4,
             Operator = "system"

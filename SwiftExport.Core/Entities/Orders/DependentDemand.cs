@@ -111,7 +111,7 @@ public class DependentDemand : BaseEntity
     /// <summary>
     /// 状态（RequirementStatusEnums：采购中/已到货/已完成）
     /// </summary>
-    public string StatusFlag { get; set; } = RequirementStatusEnums.待处理;
+    public int StatusFlag { get; set; }
 
 
     /// <summary>
@@ -120,8 +120,6 @@ public class DependentDemand : BaseEntity
     public string? Remark { get; set; }
 
     #endregion
-
-
 
     #region 执行关联 (Execution Link)
 

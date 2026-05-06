@@ -30,7 +30,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         public DateTime? DeliveryDateTo { get; set; }
 
         // 中文注释：OrderStatus（待审核、已审核、已发货、已收货、已取消等）
-        public string OrderStatus { get; set; }
+        public int OrderStatus { get; set; } = -1; // -1 表示不筛选订单状态
 
         // 中文注释：订单总金额范围 - 最小值
         public decimal? TotalAmountFrom { get; set; }
@@ -65,7 +65,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             OrderDateTo = null;
             DeliveryDateFrom = null;
             DeliveryDateTo = null;
-            OrderStatus = null;
+            OrderStatus = -1;
             TotalAmountFrom = null;
             TotalAmountTo = null;
             Keyword = null;
@@ -88,7 +88,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
                 || OrderDateTo.HasValue
                 || DeliveryDateFrom.HasValue
                 || DeliveryDateTo.HasValue
-                || !string.IsNullOrWhiteSpace(OrderStatus)
+                || OrderStatus != -1
                 || TotalAmountFrom.HasValue
                 || TotalAmountTo.HasValue
                 || !string.IsNullOrWhiteSpace(Keyword);

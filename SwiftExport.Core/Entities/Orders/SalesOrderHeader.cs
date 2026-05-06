@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.Orders;
 
 public class SalesOrderHeader : BaseEntity
 {
-    public string OrderStatus { get; set; } = SalesOrderStatusEnums.未发货;
+    public int OrderStatus { get; set; } = SalesOrderStatusEnum.草稿;
     public required string OrderNo { get; set; }
 
     public int? CustomerId { get; set; }
@@ -39,7 +39,7 @@ public class SalesOrderHeader : BaseEntity
     public string? PaymentMethod { get; set; }// 如 "预付款", "信用证", "月结" 等
 
     public string? VersionNo { get; set; }
-    public string? ApprovalStatus { get; set; }// 如 "未审批", "审批中", "已审批", "驳回" 等
+    public int ApprovalStatus { get; set; }// 如 "未审批", "审批中", "已审批", "驳回" 等
     public string? SoFolder { get; set; }
     public string? Remark { get; set; }
 

@@ -42,7 +42,7 @@ public interface IIndependentDemandRepository : IRepository<IndependentDemand>
     /// </summary>
     /// <param name="sourceTypeLineQtyMap">来源类型 -> 来源行ID与增量数量映射</param>
     /// <returns>受影响行数</returns>
-    Task<int> BatchIncreaseFilledQtyAsync(IDictionary<string, IDictionary<int, decimal>> sourceTypeLineQtyMap);
+    Task<int> 批量更新完工数量Async(IDictionary<string, IDictionary<int, decimal>> sourceTypeLineQtyMap);
 
     /// <summary>
     /// 并发防重：尝试将指定来源行标记为已拆解。

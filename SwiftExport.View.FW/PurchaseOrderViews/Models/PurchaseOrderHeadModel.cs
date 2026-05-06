@@ -52,8 +52,8 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
             set { SetProperty(ref _salesOrderNo, value); }
         }
 
-        private string _approvalStatus;
-        public string ApprovalStatus
+        private int _approvalStatus;
+        public int ApprovalStatus
         {
             get { return _approvalStatus; }
             set { SetProperty(ref _approvalStatus, value); }

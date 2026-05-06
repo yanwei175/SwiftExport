@@ -5,12 +5,12 @@ namespace SwiftExport.Contracts.DTOs.Orders.DependentDemands
     /// <summary>
     /// 需求池转采购请求。
     /// </summary>
-    public class DependentDemandConvertToPurchaseRequestDto
+    public class 净需求转采购单请求Dto
     {
         /// <summary>
         /// 分组模式：BySourceNo / BySupplierCode / ByDependentDemandIds。
         /// </summary>
-        public string GroupMode { get; set; } = DependentDemandConvertGroupModes.BySourceNo;
+        public string GroupMode { get; set; } = 净需求转采购分组模式.BySourceNo;
 
         /// <summary>
         /// 可选：来源类型过滤（不传则不过滤）。
@@ -36,7 +36,7 @@ namespace SwiftExport.Contracts.DTOs.Orders.DependentDemands
     /// <summary>
     /// 需求池转采购分组模式常量。
     /// </summary>
-    public static class DependentDemandConvertGroupModes
+    public static class 净需求转采购分组模式
     {
         /// <summary>
         /// 按来源单号（每个来源单号内再按供应商拆单）。

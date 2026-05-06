@@ -33,7 +33,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public DateTime? DeliveryDateTo { get; set; }
 
         // 中文注释：订单状态
-        public string OrderStatus { get; set; }
+        public int OrderStatus { get; set; }
 
         // 中文注释：订单总金额范围 - 最小值
         public decimal? TotalAmountFrom { get; set; }

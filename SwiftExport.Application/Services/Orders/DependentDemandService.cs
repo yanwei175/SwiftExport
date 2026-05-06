@@ -3,7 +3,6 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Orders;
-using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
@@ -46,7 +45,7 @@ public class DependentDemandService(
     /// <summary>
     /// 批量保存拆解结果到依赖需求池。
     /// </summary>
-    public async Task<ServiceResult<int>> SaveToPoolAsync(List<DependentDemand> demands)
+    public async Task<ServiceResult<int>> SaveToDependentDemandAsync(List<DependentDemand> demands)
     {
         if (demands == null || demands.Count == 0)
             return ServiceResult<int>.Ok(0);
@@ -62,25 +61,15 @@ public class DependentDemandService(
     {
         var config = new TypeAdapterConfig();
         config.NewConfig<DependentDemand, PurchaseOrderLine>()
+            .Map(dest => dest.SourceType, src => src.SourceType)
+            .Map(dest => dest.SourceNo, src => src.SourceNo)
+            .Map(dest => dest.DemandId, src => src.SourceLineId)
             .Map(dest => dest.Sku, src => src.Sku)
             .Map(dest => dest.QTY, src => src.NetQty)
-            .Map(dest => dest.SoLineId, src => src.SourceLineId)
             .Map(dest => dest.SupplyType, src => src.SupplyType)
             .Map(dest => dest.FollowExpectedDate, src => src.RequiredDate)
             .Map(dest => dest.SubNote, src => src.Remark);
         return config;
-    }
-
-    /// <summary>
-    /// 中文注释：一键将需求池中所有待采购需求转为采购单。
-    /// 规则：仅处理 StatusFlag=待处理 且 SupplyType=采购 的行。
-    /// </summary>
-    public async Task<List<string>> ConvertAllPendingToPurchaseOrdersAsync()
-    {
-        return await ConvertToPurchaseOrdersAsync(new DependentDemandConvertToPurchaseRequestDto
-        {
-            GroupMode = DependentDemandConvertGroupModes.BySourceNo
-        });
     }
 
     /// <summary>
@@ -131,7 +120,6 @@ public class DependentDemandService(
         });
     }
 
-
     /// <summary>
     /// 构建分页查询条件。
     /// </summary>
@@ -160,8 +148,8 @@ public class DependentDemandService(
                 criteria.Add("BomLevel", 查询操作符.等于, search.BomLevel.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(search.StatusFlag))
-            criteria.Add("StatusFlag", 查询操作符.等于, search.StatusFlag.Trim());
+        if (search.StatusFlag < 0)
+            criteria.Add("StatusFlag", 查询操作符.等于, IndependentDemandStatusEnum.草稿);
 
         if (search.IsKitted.HasValue)
             criteria.Add("IsKitted", 查询操作符.等于, search.IsKitted.Value);
@@ -186,44 +174,6 @@ public class DependentDemandService(
         return criteria;
     }
 
-
-    /// <summary>
-    /// 兼容旧入口：拆解并写入依赖需求池（委托至BomService计算 + SaveToPool持久化）。
-    /// </summary>
-    public async Task<ServiceResult<List<DependentDemand>>> ExecuteDecomposeToPoolAsync(DecomposeRequestDto source)
-    {
-        if (source == null)
-            return ServiceResult<List<DependentDemand>>.Fail("拆解源不能为空");
-
-        var list = await ExecuteDecomposeToPoolAsync([source]);
-        return list;
-    }
-
-    /// <summary>
-    /// 兼容旧入口：批量拆解并写入依赖需求池。
-    /// </summary>
-    public async Task<ServiceResult<List<DependentDemand>>> ExecuteDecomposeToPoolAsync(List<DecomposeRequestDto> sourceList)
-    {
-        if (sourceList == null || sourceList.Count == 0)
-            return ServiceResult<List<DependentDemand>>.Fail("拆解源列表不能为空");
-
-        var result = new List<DependentDemand>();
-        foreach (var source in sourceList)
-        {
-            var computed = await _bomService.CalculateDecomposeAsync(source);
-            if (computed.Count == 0)
-                continue;
-
-            var saveRst = await SaveToPoolAsync(computed);
-            if (!saveRst.Success)
-                return ServiceResult<List<DependentDemand>>.Fail(saveRst.Message);
-
-            result.AddRange(computed);
-        }
-
-        return ServiceResult<List<DependentDemand>>.Ok(result);
-    }
-
     /// <summary>
     /// 根据来源单据判断是否允许回退审批。
     /// 规则：需求池中存在执行态（StatusFlag != 待处理）则不允许回退。
@@ -237,7 +187,7 @@ public class DependentDemandService(
         if (pools == null || pools.Count == 0)
             return ServiceResult<bool>.Ok(true);
 
-        var hasExecuted = pools.Any(x => x.StatusFlag != RequirementStatusEnums.待处理);
+        var hasExecuted = pools.Any(x => x.StatusFlag != DependentDemandStatusEnum.草稿);
         if (hasExecuted)
             return ServiceResult<bool>.Fail("订单中存在已执行记录，不允许回退审批");
 
@@ -261,64 +211,124 @@ public class DependentDemandService(
         return ServiceResult<int>.Ok(deleteCount);
     }
 
-    /// <summary>
-    /// 将某个来源单据下的待采购需求按供应商分组转为采购单。
-    /// 逻辑：
-    /// 1) 仅处理 SupplyType=Purchase/直接采购 且 StatusFlag=待处理 的行；
-    /// 2) 按 VendorCode 分组，一组生成一张采购单；
-    /// 3) 回写 DependentDemand 的 TargetNo 与 StatusFlag=采购中。
-    /// </summary>
-    public async Task<List<string>> ConvertSourceToPurchaseOrdersAsync(string sourceType, string sourceNo)
+    public async Task<ServiceResult<List<string>>> 根据单据类型和单据号转采购单Async(string sourceType, string sourceNo)
     {
-        return await ConvertToPurchaseOrdersAsync(new DependentDemandConvertToPurchaseRequestDto
+        try
         {
-            GroupMode = DependentDemandConvertGroupModes.BySourceNo,
-            SourceType = sourceType,
-            SourceNos = [sourceNo]
-        });
+            var criteria = new QueryCriteria();
+            criteria.Add("StatusFlag", 查询操作符.等于, DependentDemandStatusEnum.草稿);
+            criteria.Add("SupplyType", 查询操作符.等于, SupplyTypeEnums.采购);
+            criteria.Add("SourceType", 查询操作符.等于, sourceType);
+            criteria.Add("SourceNo", 查询操作符.等于, sourceNo);
+
+            List<DependentDemand> request = [.. await _rpRepository.GetListAsync(criteria)];
+
+            if (request == null || request.Count == 0)
+                return ServiceResult<List<string>>.Fail("未找到符合条件的需求池记录");
+
+            var 净需求列表 = 校验净需求是否适合转采购单(request);
+
+            var OrderNoList = await 转换成采购订单Async(净需求列表);
+
+            return ServiceResult<List<string>>.Ok(OrderNoList);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<List<string>>.Fail("转单失败：" + ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<List<string>>> 根据指定净需求行转采购单Async(List<int> 净需求行IdList)
+    {
+        try
+        {
+            if (净需求行IdList == null || 净需求行IdList.Count == 0)
+                return ServiceResult<List<string>>.Fail("净需求行列表不能为空");
+
+            var request = await _rpRepository.GetByIdListAsync(净需求行IdList);
+
+            if (request == null || request.Count == 0)
+                return ServiceResult<List<string>>.Fail("未找到对应的净需求行记录");
+
+            request = 校验净需求是否适合转采购单(request);
+
+            var OrderNoList = await 转换成采购订单Async(request);
+
+            return ServiceResult<List<string>>.Ok(OrderNoList);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<List<string>>.Fail("转单失败：" + ex.Message);
+        }
+
+    }
+
+    private static List<DependentDemand> 校验净需求是否适合转采购单(IReadOnlyList<DependentDemand> 净需求列表)
+    {
+        if (净需求列表 == null || 净需求列表.Count == 0)
+            return [];
+
+        foreach (var item in 净需求列表)
+        {
+            if (item == null)
+                throw new Exception("需求池行记录不能为空");
+            if (item.StatusFlag != DependentDemandStatusEnum.草稿)
+                throw new Exception($"需求池行Id={item.Id}的状态({item.StatusFlag})不符合转采购单要求");
+            if (!判断是否为采购类型(item.SupplyType))
+                throw new Exception($"需求池行Id={item.Id}的供应类型({item.SupplyType})不符合转采购单要求");
+        }
+        return [.. 净需求列表];
     }
 
     /// <summary>
-    /// 通用转采购入口：支持按来源单号、按供应商、按选中需求池ID集合分组。
+    /// 注意内部有开启事务.
+    /// 私有转采购单方法：接收一个集合合的需求池行，按供应商分组生成采购单，并回写需求池行状态与目标单号。
     /// </summary>
-    public async Task<List<string>> ConvertToPurchaseOrdersAsync(DependentDemandConvertToPurchaseRequestDto request)
+    /// <returns>返回生成的采购单号列表</returns>
+    private async Task<List<string>> 转换成采购订单Async(IEnumerable<DependentDemand> request)
     {
-        request ??= new DependentDemandConvertToPurchaseRequestDto();
-
-        var pools = await LoadPendingPurchasePoolsAsync(request);
+        var pools = request.ToList();
         if (pools.Count == 0)
             return [];
 
-        // 中文注释：先构建产品索引，用于价格回填；供应商优先取需求池行手工指定值，未指定时再回退到产品默认供应商。
+        #region 先获取前置Sku依赖的信息，避免后续循环中重复查询数据库,先构建产品索引，用于价格回填；供应商优先取需求池行手工指定值，未指定时再回退到产品默认供应商。
+        //根据Sku列表查询产品信息，构建SKU到产品的字典索引
         var products = await _productRepository.GetBySkuListAsync([.. pools
             .Where(x => !string.IsNullOrWhiteSpace(x.Sku))
             .Select(x => x.Sku)
             .Distinct(StringComparer.OrdinalIgnoreCase)]);
-
+        //构建Key=Sku, Value=Product的字典索引（不区分大小写），用于后续转单时解析产品信息与单价
         var productBySku = products
             .Where(x => !string.IsNullOrWhiteSpace(x.Sku))
             .ToDictionary(x => x.Sku!, x => x, StringComparer.OrdinalIgnoreCase);
-
+        //构建Key=Sku, Value=SupplierCode的默认供应商字典索引（不区分大小写），用于后续转单时解析供应商编码
         var defaultSupplierBySku = products
             .Where(x => !string.IsNullOrWhiteSpace(x.Sku) && !string.IsNullOrWhiteSpace(x.SupplierCode))
             .ToDictionary(x => x.Sku!, x => x.SupplierCode!, StringComparer.OrdinalIgnoreCase);
+        #endregion
 
+        #region 解析供应商校验,
+        // 中文注释：校验所有待转单行必须能解析出供应商编码（行内指定 > 产品默认），否则无法转单。
         var invalidRows = pools
             .Where(x => string.IsNullOrWhiteSpace(ResolveSupplierCode(x, defaultSupplierBySku)))
             .Select(x => $"Id={x.Id},SourceNo={x.SourceNo},LineId={x.SourceLineId},Sku={(string.IsNullOrWhiteSpace(x.Sku) ? "(空SKU)" : x.Sku)}")
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        // 中文注释：若存在未指定供应商的行，直接抛出异常提示用户先补齐供应商信息（方案A要求手工指定，方案B可先完善产品档案）。
         if (invalidRows.Count > 0)
             throw new Exception("以下需求池行未指定供应商，请先手工指定后再转单：" + string.Join("; ", invalidRows));
+        #endregion
 
+        //根据供应商编码分组，准备生成采购单
         var supplierCodes = pools
             .Select(x => ResolveSupplierCode(x, defaultSupplierBySku))
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-
+        //根据供应商编码列表查询供应商信息，构建供应商编码到供应商名称的字典索引（不区分大小写）
         var supplierList = await _supplierRepository.GetBySupplierCodeListAsync(supplierCodes);
+        //构建供应商编码到供应商名称的字典索引（不区分大小写）
         var supplierNameByCode = supplierList
             .Where(x => !string.IsNullOrWhiteSpace(x.SupplierCode))
             .ToDictionary(
@@ -326,51 +336,46 @@ public class DependentDemandService(
                 x => string.IsNullOrWhiteSpace(x.SupplierName) ? x.SupplierCode! : x.SupplierName,
                 StringComparer.OrdinalIgnoreCase);
 
-        var groups = request.GroupMode switch
-        {
-            DependentDemandConvertGroupModes.BySupplierCode => [.. pools.GroupBy(x => ResolveSupplierCode(x, defaultSupplierBySku), StringComparer.OrdinalIgnoreCase)],
+        //根据请求的分组模式对需求池行进行分组
+        var groups = pools.GroupBy(x => ResolveSupplierCode(x, defaultSupplierBySku), StringComparer.OrdinalIgnoreCase).ToList();
 
-            DependentDemandConvertGroupModes.ByDependentDemandIds => [.. pools.GroupBy(x => (x.SourceNo ?? string.Empty).Trim() + "||" + ResolveSupplierCode(x, defaultSupplierBySku), StringComparer.OrdinalIgnoreCase)],
-
-            _ => pools
-                .GroupBy(x => (x.SourceNo ?? string.Empty).Trim() + "||" + ResolveSupplierCode(x, defaultSupplierBySku), StringComparer.OrdinalIgnoreCase)
-                .ToList()
-        };
-
+        // 中文注释：逐组生成采购单，回写需求池行状态，并收集生成的采购单号列表返回。
         var createdOrderNos = new List<string>();
         _session.Transaction = _session.Connection.BeginTransaction();
         try
         {
             foreach (var group in groups)
             {
-                var groupList = group.ToList();
+                var groupList = group.ToList();//转一次List，避免后续多次枚举
                 if (groupList.Count == 0) continue;
 
-                var first = groupList[0];
+                var first = groupList[0];//每组取第一行作为代表，解析供应商等公共信息
+                // 生成订单号（系统内码）
                 var orderNo = await BuildOrderNoByDocumentServiceAsync();
-
+                // 解析供应商信息
                 var supplierCode = ResolveSupplierCode(first, defaultSupplierBySku);
                 var supplierName = supplierNameByCode.TryGetValue(supplierCode, out var name) ? name : supplierCode;
-                var supplier = supplierList.FirstOrDefault(x => string.Equals(x.SupplierCode, supplierCode, StringComparison.OrdinalIgnoreCase));
 
+                var supplier = supplierList.FirstOrDefault(x => string.Equals(x.SupplierCode, supplierCode, StringComparison.OrdinalIgnoreCase));
+                // 收集来源单号列表（去重），用于采购单备注回写
                 var sourceNoList = groupList
                     .Where(x => !string.IsNullOrWhiteSpace(x.SourceNo))
                     .Select(x => x.SourceNo.Trim())
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
-
+                // 解析期望到货日期：优先取需求池行的 RequiredDate，若无则取供应商默认交期（DefaultLeadTime）加成后的日期。
                 var expectedDate = groupList
                     .Where(x => x.RequiredDate.HasValue)
                     .Select(x => x.RequiredDate!.Value)
                     .DefaultIfEmpty(DateTime.Now)
                     .Min();
-
+                // 中文注释：若期望到货日期无效（如全行未指定），则用供应商默认交期加成后的日期作为期望到货日期。
                 if (expectedDate <= DateTime.MinValue)
                 {
                     var leadTime = supplier?.DefaultLeadTime ?? 0;
                     expectedDate = DateTime.Now.AddDays(leadTime > 0 ? leadTime : 0);
                 }
-
+                // 创建采购单头
                 var po = new PurchaseOrderHead
                 {
                     PoNo = orderNo,
@@ -391,13 +396,15 @@ public class DependentDemandService(
                     Even = null
                 };
                 await _purchaseOrderRepository.AddAsync(po);
-
+                // 创建采购单行
                 var itemList = groupList.Select(x =>
                 {
                     productBySku.TryGetValue(x.Sku, out var product);
                     var unitPrice = ResolveUnitPriceBySku(x.Sku, productBySku);
                     var item = x.Adapt<PurchaseOrderLine>(DependentDemandToPurchaseOrderLineMapConfig);
-
+                    item.SourceType = x.SourceType;
+                    item.SourceNo = x.SourceNo;
+                    item.DemandId = x.SourceLineId;
                     item.OrderNo = orderNo;
                     item.UnitPrice = unitPrice;
                     item.UnitAmount = unitPrice * x.NetQty;
@@ -410,17 +417,16 @@ public class DependentDemandService(
                     item.CreatedDate = DateTime.Now;
                     item.Status = null;
                     item.Even = null;
-
                     return item;
                 }).ToList();
 
                 if (itemList.Count > 0)
                     await _purchaseOrderItemRepository.AddRangeAsync(itemList);
-
+                // 回写需求池行状态与目标单号
                 foreach (var rp in groupList)
                 {
                     rp.TargetNo = orderNo;
-                    rp.StatusFlag = RequirementStatusEnums.采购中;
+                    rp.StatusFlag = DependentDemandStatusEnum.已转为正式单据;
                     rp.ChangeTime = DateTime.Now;
                 }
                 await _rpRepository.UpdateRangeAsync(groupList);
@@ -444,64 +450,14 @@ public class DependentDemandService(
     }
 
     /// <summary>
-    /// 加载待处理采购需求池行，并按请求进行范围过滤。
-    /// </summary>
-    private async Task<List<DependentDemand>> LoadPendingPurchasePoolsAsync(DependentDemandConvertToPurchaseRequestDto request)
-    {
-        List<DependentDemand> pools;
-
-        if (request.DependentDemandIds?.Count > 0)
-        {
-            var ids = request.DependentDemandIds.Where(x => x > 0).Distinct().ToList();
-            if (ids.Count == 0) return [];
-            pools = [.. await _rpRepository.GetByIdListAsync(ids)];
-        }
-        else
-        {
-            var criteria = new QueryCriteria();
-            criteria.Add("StatusFlag", 查询操作符.等于, RequirementStatusEnums.待处理);
-            pools = [.. await _rpRepository.GetListAsync(criteria)];
-        }
-
-        pools = [.. pools
-            .Where(x => x != null && x.StatusFlag == RequirementStatusEnums.待处理)
-            .Where(x => IsPurchaseSupplyType(x.SupplyType))];
-
-        if (!string.IsNullOrWhiteSpace(request.SourceType))
-        {
-            var sourceType = request.SourceType.Trim();
-            pools = [.. pools.Where(x => string.Equals(x.SourceType, sourceType, StringComparison.OrdinalIgnoreCase))];
-        }
-
-        if (request.SourceNos?.Count > 0)
-        {
-            var sourceNoSet = new HashSet<string>(request.SourceNos
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => x.Trim()), StringComparer.OrdinalIgnoreCase);
-
-            pools = [.. pools.Where(x => !string.IsNullOrWhiteSpace(x.SourceNo) && sourceNoSet.Contains(x.SourceNo.Trim()))];
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.SupplierCode))
-        {
-            var supplierCode = request.SupplierCode.Trim();
-            pools = [.. pools.Where(x => string.Equals(x.SupplierCode, supplierCode, StringComparison.OrdinalIgnoreCase))];
-        }
-
-        return pools;
-    }
-
-    /// <summary>
     /// 判断是否采购类型（兼容历史英文值与新枚举值）。
     /// </summary>
-    private static bool IsPurchaseSupplyType(string? supplyType)
+    private static bool 判断是否为采购类型(string? supplyType)
     {
         if (string.IsNullOrWhiteSpace(supplyType))
             return false;
 
         return string.Equals(supplyType, SupplyTypeEnums.采购, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(supplyType, SupplyTypeEnums.生产, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(supplyType, SupplyTypeEnums.外协, StringComparison.OrdinalIgnoreCase)
                || string.Equals(supplyType, "Purchase", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -512,7 +468,7 @@ public class DependentDemandService(
     {
         var rst = await _documentNoService.GetNextDocumentNoAsync(new Contracts.DTOs.SystemDtos.DocumentNoRequestDto
         {
-            DocType = DocumentTypeStaticEnums.PurchaseOrder,
+            DocType = DocumentTypeStaticsEnum.PurchaseOrder,
             BusinessDate = DateTime.Now,
             SerialWidth = 4,
             Operator = "system"

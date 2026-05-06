@@ -32,7 +32,7 @@ public class PurchaseOrderHead : BaseEntity
     public string? LogoType { get; set; }
 
     public string? ReviewedBy { get; set; }
-    public string? ApprovalStatus { get; set; }
+    public int ApprovalStatus { get; set; }
     public string? ApprovedBy { get; set; }
     public string? PoFolder { get; set; }
     public string? ZheKouBeiZhu { get; set; }

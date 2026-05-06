@@ -41,7 +41,7 @@ public class IndependentDemandRepository(RepositoryBaseContext context) : Dapper
         return [.. rst];
     }
 
-    public async Task<int> BatchIncreaseFilledQtyAsync(IDictionary<string, IDictionary<int, decimal>> sourceTypeLineQtyMap)
+    public async Task<int> 批量更新完工数量Async(IDictionary<string, IDictionary<int, decimal>> sourceTypeLineQtyMap)
     {
         if (sourceTypeLineQtyMap == null || sourceTypeLineQtyMap.Count == 0)
             return 0;
@@ -67,12 +67,11 @@ public class IndependentDemandRepository(RepositoryBaseContext context) : Dapper
 
                 demand.FilledQty += addQty;
 
-                if (demand.FilledQty >= demand.OriginalQty && demand.StatusFlag != RequirementStatusEnums.已完成)
-                    demand.StatusFlag = RequirementStatusEnums.已到货;
+                if (demand.FilledQty >= demand.OriginalQty && demand.StatusFlag != IndependentDemandStatusEnum.已完成)
+                    demand.StatusFlag = IndependentDemandStatusEnum.已到货;
 
                 if (demand.FilledQty >= demand.OriginalQty && demand.ShippedQty >= demand.OriginalQty)
-                    demand.StatusFlag = RequirementStatusEnums.已完成;
-
+                    demand.StatusFlag = IndependentDemandStatusEnum.已完成;
                 demand.UpdatedDate = DateTime.Now;
                 demand.ChangeTime = DateTime.Now;
             }

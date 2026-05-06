@@ -2,7 +2,10 @@
 
 namespace SwiftExport.Contracts.SysEnums.StaticEnums
 {
-    public class MaterialTypeEnums
+    /// <summary>
+    /// 物料类型枚举
+    /// </summary>
+    public class MaterialTypesEnum
     {
         public const string 成品 = "成品";
         public const string 零件 = "零件";

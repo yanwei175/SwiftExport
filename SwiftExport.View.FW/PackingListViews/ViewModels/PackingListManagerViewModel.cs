@@ -412,7 +412,6 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
                         Sku = line.Sku,
                         CustomerSku = line.CustomerSKU,
                         Description = line.DescriptionEn,
-                        Qty = Math.Max((line.QTY ?? 0m) - (line.ShippedQTY ?? 0m), 0m),
                         SoLineId = line.Id,
                         SalesOrderNo = detail.Data.Header.OrderNo
                     });

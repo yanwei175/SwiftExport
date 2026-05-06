@@ -13,7 +13,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
         public string Even { get; set; }
         public string Status { get; set; }
 
-        public string OrderStatus { get; set; }
+        public int OrderStatus { get; set; }
         public string PoNo { get; set; }
         public string SalesOrderNo { get; set; }
         public string CustomerPoNo { get; set; }
@@ -32,7 +32,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
         public string LogoType { get; set; }
 
         public string ReviewedBy { get; set; }
-        public string ApprovalStatus { get; set; }
+        public int ApprovalStatus { get; set; }
         public string ApprovedBy { get; set; }
         public string PoFolder { get; set; }
         public string ZheKouBeiZhu { get; set; }

@@ -109,7 +109,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
         /// <summary>
         /// 状态（RequirementStatusEnums：草稿/待处理/采购中/已到货/已完成）
         /// </summary>
-        public string StatusFlag { get; set; } = string.Empty;
+        public int StatusFlag { get; set; } 
 
         /// <summary>
         /// 是否齐套（针对 BomLevel=0 的行，判断其下方所有子项是否 ReceivedQty >= GrossQty）

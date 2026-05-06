@@ -1,4 +1,4 @@
-<UserControl x:Class="SwiftExport.View.FW.OrderDecomposeViews.Views.RequirementPoolView"
+<UserControl x:Class="SwiftExport.View.FW.OrderDecomposeViews.Views.DependentDemandManagerView"
              x:Name="Root"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -9,7 +9,7 @@
              mc:Ignorable="d"
              d:DesignHeight="780"
              d:DesignWidth="1500"
-             d:DataContext="{d:DesignInstance vm:RequirementPoolManagerViewModel}">
+             d:DataContext="{d:DesignInstance vm:DependentDemandManagerViewModel}">
 
     <UserControl.Resources>
         <!-- 任务清单行样式：供应商缺失高亮、层级配色、选中样式。 -->

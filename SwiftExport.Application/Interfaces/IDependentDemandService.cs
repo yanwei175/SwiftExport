@@ -16,20 +16,11 @@ namespace SwiftExport.Application.Interfaces
         Task<ServiceResult<PagedResultDto<DependentDemandDto>>> GetPagedListAsync(DependentDemandSearchDto search);
 
         /// <summary>
-        /// 按来源单据单号拆解BOM并写入依赖需求。
-        /// </summary>
-        Task<ServiceResult<List<DependentDemand>>> ExecuteDecomposeToPoolAsync(DecomposeRequestDto source);
-        /// <summary>
-        /// 按来源单据单号批量拆解并写入依赖需求。
-        /// </summary>
-        Task<ServiceResult<List<DependentDemand>>> ExecuteDecomposeToPoolAsync(List<DecomposeRequestDto> sourceList);
-
-        /// <summary>
         /// 批量保存拆解后的依赖需求。
         /// </summary>
         /// <param name="demands">待保存依赖需求集合</param>
         /// <returns>保存结果</returns>
-        Task<ServiceResult<int>> SaveToPoolAsync(List<DependentDemand> demands);
+        Task<ServiceResult<int>> SaveToDependentDemandAsync(List<DependentDemand> demands);
 
         /// <summary>
         /// 根据来源单据判断是否允许回退审批。
@@ -43,25 +34,19 @@ namespace SwiftExport.Application.Interfaces
         Task<ServiceResult<int>> RemoveBySourceAsync(string sourceType, string sourceNo);
 
         /// <summary>
-        /// 将某个来源单据下的待采购需求按供应商分组转为采购单。
+        /// 根据单据类型和单据号转采购单。
         /// </summary>
         /// <param name="sourceType">来源类型</param>
         /// <param name="sourceNo">来源单号</param>
         /// <returns>生成的采购单号列表</returns>
-        Task<List<string>> ConvertSourceToPurchaseOrdersAsync(string sourceType, string sourceNo);
+        Task<ServiceResult<List<string>>> 根据单据类型和单据号转采购单Async(string sourceType, string sourceNo);
 
         /// <summary>
-        /// 按指定分组策略将需求池行转为采购单。
+        /// 根据指定净需求行Id集合转采购单
         /// </summary>
-        /// <param name="request">转采购请求（支持按来源单号/供应商/指定需求池ID列表分组）</param>
+        /// <param name="净需求行IdList">净需求行Id集合</param>
         /// <returns>生成的采购单号列表</returns>
-        Task<List<string>> ConvertToPurchaseOrdersAsync(DependentDemandConvertToPurchaseRequestDto request);
-
-        /// <summary>
-        /// 一键将需求池中待采购需求转为采购单（不限定来源单号）。
-        /// </summary>
-        /// <returns>生成的采购单号列表</returns>
-        Task<List<string>> ConvertAllPendingToPurchaseOrdersAsync();
+        Task<ServiceResult<List<string>>> 根据指定净需求行转采购单Async(List<int> 净需求行IdList);
 
         /// <summary>
         /// 更新需求池行的手工指定供应商。

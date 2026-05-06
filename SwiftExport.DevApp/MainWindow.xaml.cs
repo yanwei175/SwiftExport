@@ -173,7 +173,7 @@ namespace SwiftExport.DevApp
 
         private void Button_Click_10(object sender, RoutedEventArgs e)
         {
-            var view = DiServices.GetService<DependentDemandView>();
+            var view = DiServices.GetService<DependentDemandManagerView>();
             var window = new Window
             {
                 Title = "需求池",

@@ -256,8 +256,8 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.Models
             }
         }
 
-        private string _statusFlag = RequirementStatusEnums.待处理;
-        public string StatusFlag
+        private int _statusFlag;
+        public int StatusFlag
         {
             get => _statusFlag;
             set => SetProperty(ref _statusFlag, value);

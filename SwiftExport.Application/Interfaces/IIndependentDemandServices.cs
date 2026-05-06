@@ -18,6 +18,6 @@ namespace SwiftExport.Application.Interfaces
         /// <param name="sourceType">来源单据类型</param>
         /// <param name="sourceNo">来源单号</param>
         /// <returns>拆解后的需求池明细</returns>
-        Task<ServiceResult<List<DependentDemandDto>>> ExecuteDecomposeBySourceAsync(string sourceType, string sourceNo);
+        Task<ServiceResult<List<DependentDemandDto>>> 根据来源单据拆解至净需求Async(string sourceType, string sourceNo);
     }
 }

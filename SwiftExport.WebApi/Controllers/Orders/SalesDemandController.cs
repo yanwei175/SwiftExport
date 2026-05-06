@@ -22,6 +22,6 @@ public class IndependentDemandController(IIndependentDemandServices service)
     public async Task<ServiceResult<List<DependentDemandDto>>> ExecuteDecomposeBySourceAsync([FromBody] IndependentDemandDecomposeRequestDto request)
     {
         request ??= new IndependentDemandDecomposeRequestDto();
-        return await service.ExecuteDecomposeBySourceAsync(request.SourceType, request.SourceNo);
+        return await service.根据来源单据拆解至净需求Async(request.SourceType, request.SourceNo);
     }
 }

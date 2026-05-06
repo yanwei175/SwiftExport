@@ -2,6 +2,7 @@ using GalaSoft.MvvmLight.Command;
 using Mapster;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.SalesOrders;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.View.FW.Mvvm;
@@ -20,30 +21,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
     /// </summary>
     public class SalesOrderManagerViewModel : ViewModelBaseEx
     {
-        #region 状态定义（静态常量）
-
-        /// <summary>
-        /// 审批状态常量。
-        /// </summary>
-        public static class ApprovalStates
-        {
-            public const string Draft = "草稿";
-            public const string Pending = "待审核";
-            public const string Approved = "已审核";
-            public const string Rejected = "已驳回";
-        }
-
-        /// <summary>
-        /// 订单状态常量。
-        /// </summary>
-        public static class OrderStates
-        {
-            public const string Open = "执行中";
-            public const string Completed = "已完成";
-            public const string Closed = "已关闭";
-        }
-
-        #endregion
+       
 
         #region 字段 / 事件
 
@@ -104,21 +82,21 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             InvertCheckCommand = new RelayCommand(InvertCheck);
             ItemCheckedChangedCommand = new RelayCommand(OnItemCheckedChanged);
 
-            // 默认筛选项。
-            ApprovalStatusOptions = new ObservableCollection<string>
-            {
-                ApprovalStates.Draft,
-                ApprovalStates.Pending,
-                ApprovalStates.Approved,
-                ApprovalStates.Rejected
-            };
+            //// 默认筛选项。
+            //ApprovalStatusOptions = new ObservableCollection<string>
+            //{
+            //    ApprovalStates.Draft,
+            //    ApprovalStates.Pending,
+            //    ApprovalStates.Approved,
+            //    ApprovalStates.Rejected
+            //};
 
-            OrderStatusOptions = new ObservableCollection<string>
-            {
-                OrderStates.Open,
-                OrderStates.Completed,
-                OrderStates.Closed
-            };
+            //OrderStatusOptions = new ObservableCollection<string>
+            //{
+            //    OrderStates.Open,
+            //    OrderStates.Completed,
+            //    OrderStates.Closed
+            //};
         }
 
         #endregion
@@ -305,7 +283,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             {
                 var selected = SelectedItems;
                 if (selected.Count == 0) return false;
-                return selected.All(x => x.ApprovalStatus == ApprovalStates.Draft || x.ApprovalStatus == ApprovalStates.Pending);
+                return selected.All(x => x.ApprovalStatus == ApprovalStatusEnum.草稿 || x.ApprovalStatus == ApprovalStatusEnum.待审批);
             }
         }
 
@@ -318,7 +296,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             {
                 var selected = SelectedItems;
                 if (selected.Count == 0) return false;
-                return selected.All(x => x.ApprovalStatus == ApprovalStates.Draft || x.ApprovalStatus == ApprovalStates.Pending);
+                return selected.All(x => x.ApprovalStatus == ApprovalStatusEnum.草稿 || x.ApprovalStatus == ApprovalStatusEnum.待审批);
             }
         }
 
@@ -498,7 +476,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             }
 
             // 中文注释：拦截已审核订单，禁止重复审批。
-            var invalid = selected.Where(x => x.ApprovalStatus == ApprovalStates.Approved).ToList();
+            var invalid = selected.Where(x => x.ApprovalStatus == ApprovalStatusEnum.已批准).ToList();
             if (invalid.Count > 0)
             {
                 await _msg.ShowWarningAsync("选中订单中包含“已审核”单据，禁止重复审批。", "批量审批");

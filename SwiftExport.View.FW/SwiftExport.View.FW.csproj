@@ -49,6 +49,18 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AppRuntimeOptions.cs" />
+    <Compile Include="OrderDecomposeViews\Models\DependentDemandList.cs" />
+    <Compile Include="OrderDecomposeViews\Models\DependentDemandModel.cs" />
+    <Compile Include="OrderDecomposeViews\ViewModels\DependentDemandManagerViewModel.cs" />
+    <Compile Include="OrderDecomposeViews\Views\DemandTrackingView.xaml.cs">
+      <DependentUpon>DemandTrackingView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="OrderDecomposeViews\Views\DependentDemandManagerView.xaml.cs">
+      <DependentUpon>DependentDemandManagerView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="OrderDecomposeViews\Views\PurchaseFollowUpView.xaml.cs">
+      <DependentUpon>PurchaseFollowUpView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="PurchaseOrderViews\Controls\PurchaseOrderLinePopupSelectorControl.xaml.cs">
       <DependentUpon>PurchaseOrderLinePopupSelectorControl.xaml</DependentUpon>
     </Compile>
@@ -148,12 +160,6 @@
     <Compile Include="Mvvm\BaseTreeNodeModel.cs" />
     <Compile Include="Mvvm\CollectionExtensions.cs" />
     <Compile Include="Mvvm\ITreeModelService.cs" />
-    <Compile Include="OrderDecomposeViews\Models\RequirementPoolList.cs" />
-    <Compile Include="OrderDecomposeViews\Models\RequirementPoolModel.cs" />
-    <Compile Include="OrderDecomposeViews\ViewModels\RequirementPoolManagerViewModel.cs" />
-    <Compile Include="OrderDecomposeViews\Views\RequirementPoolView.xaml.cs">
-      <DependentUpon>RequirementPoolView.xaml</DependentUpon>
-    </Compile>
     <Compile Include="ProductViews\Assists\BomSubSkuSearchAssist.cs" />
     <Compile Include="ProductViews\Assists\PopupPlacementService.cs" />
     <Compile Include="ProductViews\Controls\CategoryTreeSelectorControl.xaml.cs">
@@ -231,6 +237,18 @@
     <Compile Include="SystemViews\Views\SysViewRouteManagerView.xaml.cs">
       <DependentUpon>SysViewRouteManagerView.xaml</DependentUpon>
     </Compile>
+    <Page Include="OrderDecomposeViews\Views\DemandTrackingView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="OrderDecomposeViews\Views\DependentDemandManagerView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="OrderDecomposeViews\Views\PurchaseFollowUpView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="PurchaseOrderViews\Controls\PurchaseOrderLinePopupSelectorControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -285,10 +303,6 @@
     <Page Include="DictViews\Views\UnitDictUserControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="OrderDecomposeViews\Views\RequirementPoolView.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
     </Page>
     <Page Include="ProductViews\Controls\CategoryTreeSelectorControl.xaml">
       <Generator>XamlIntelliSenseFileGenerator</Generator>

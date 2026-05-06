@@ -53,7 +53,7 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// 通用转采购接口（支持多种分组条件）。
         /// </summary>
         [Post("/convert-to-po")]
-        Task<ServiceResult<List<string>>> ConvertToPurchaseOrdersAsync([Body] DependentDemandConvertToPurchaseRequestDto request);
+        Task<ServiceResult<List<string>>> ConvertToPurchaseOrdersAsync([Body] 净需求转采购单请求Dto request);
 
         /// <summary>
         /// 手工更新需求池行供应商信息。

@@ -215,42 +215,82 @@ public class BomService(
     {
         if (request == null || request.Lines == null || request.Lines.Count == 0)
             return [];
-        // 1. 构建拆解缓存（一次性加载相关产品、BOM、供应商数据到内存，避免递归中的N+1查询）
-        // 目前接口设计是单次请求一个SourceNo，如果未来有批量需求，可以改成一次加载多个SourceNo相关的缓存。
-        var cache = await 构建需求缓存Async([request]);
+        // 中文注释：兼容旧入口，内部仅做请求模型转换，再统一走“毛需求集合拆解”主流程。
+        var independentDemands = request.Lines.Select(line => new IndependentDemand
+        {
+            SourceType = request.SourceType,
+            SourceNo = request.SourceNo,
+            SourceLineId = Convert.ToInt32(line.SourceLineId),
+            Sku = line.Sku,
+            Description = line.Description,
+            ColorName = line.ColorName,
+            Features = line.Features,
+            OriginalQty = line.Quantity,
+            HopefulDate = line.RequiredDate
+        }).ToList();
+
+        return await 根据毛需求集合拆解成净需求(independentDemands);
+    }
+
+
+    public async Task<List<DependentDemand>> 根据毛需求集合拆解成净需求(List<IndependentDemand> request)
+    {
+        if (request == null || request.Count <= 0)
+            return [];
+        // 中文注释：该入参可能包含不同来源单据，缓存构建只按“所有根 SKU 的并集”执行，不依赖来源单据分组。
+        var rootSkus = request
+            .Where(x => !string.IsNullOrWhiteSpace(x.Sku))
+            .Select(x => x.Sku!.Trim())
+            .ToList();
+
+        // 中文注释：构建拆解缓存（一次性加载相关产品、BOM、供应商数据到内存，避免递归中的 N+1 查询）。
+        var cache = await 构建需求缓存Async(rootSkus);
 
         var addList = new List<DependentDemand>();
 
-        foreach (var line in request.Lines)
+        // 中文注释：按毛需求逐行拆解，保持每一行都由调用方提供，BomService 内部不再要求调用方传 DTO。
+        foreach (var line in request)
         {
-            if (line.Quantity <= 0) continue;
+            // 中文注释：数量口径统一按毛需求原始数量（OriginalQty）参与拆解。
+            if (line.OriginalQty <= 0) continue;
 
-            // 中文注释：非标件规则——当SKU为空时，按非标件直接落依赖需求，不做BOM拆解。
+            // 中文注释：记录当前行拆解前的结果下标，用于回填 IndependentDemandId（毛需求主键）。
+            var startIndex = addList.Count;
+
+            // 中文注释：非标件规则——当 SKU 为空时，按非标件直接落依赖需求，不做 BOM 递归。
             if (string.IsNullOrWhiteSpace(line.Sku))
             {
-                addList.Add(Build非标件需求(request, line, null));
-                continue;
+                addList.Add(Build非标件需求(line, null));
             }
-            // 2. 从缓存中获取根产品信息，如果找不到则跳过（也可以考虑记录日志）
-            var rootProduct = cache.GetProductBySku(line.Sku);
-            if (rootProduct == null)
-                continue;
+            else
+            {
+                // 中文注释：从缓存中获取根产品；找不到产品时跳过当前行（可由上层决定是否记录异常）。
+                var rootProduct = cache.GetProductBySku(line.Sku);
+                if (rootProduct == null)
+                    continue;
 
-            // 3. 递归拆解当前行，结果直接累加到addList中
-            await 递归拆解需求Async(
-                request,
-                line,
-                rootProduct,
-                line.Quantity,
-                0,
-                parentSku: null,
-                addList,
-                parentAddedByCustomerPart: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-                cache);
+                // 中文注释：递归拆解当前行，结果直接累加到 addList。
+                await 递归拆解需求Async(
+                    line,
+                    rootProduct,
+                    line.OriginalQty,
+                    0,
+                    parentSku: null,
+                    addList,
+                    parentAddedByCustomerPart: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                    cache);
+            }
+
+            // 中文注释：将当前毛需求行生成的所有依赖需求统一回填关联键，便于后续追踪“毛需求 -> 净需求”。
+            for (var i = startIndex; i < addList.Count; i++)
+            {
+                addList[i].IndependentDemandId = line.Id;
+            }
         }
 
         return addList;
     }
+
 
 
 
@@ -259,24 +299,23 @@ public class BomService(
     /// 中文注释：构建拆解缓存。
     /// 目标：将递归拆解中频繁访问的 Product/BOM/Supplier 统一拉到内存，避免 N+1 查询。
     /// </summary>
-    private async Task<DecomposeCache> 构建需求缓存Async(List<DecomposeRequestDto> sourceList)
+    /// <param name="rootSkus">需要参与拆解的根 SKU 集合（可跨来源单据）。</param>
+    private async Task<DecomposeCache> 构建需求缓存Async(IEnumerable<string> rootSkus)
     {
-        var rootSkus = sourceList
-            .Where(x => x?.Lines != null)
-            .SelectMany(x => x.Lines)
-            .Where(x => !string.IsNullOrWhiteSpace(x.Sku))
-            .Select(x => x.Sku.Trim())
+        var normalizedRootSkus = rootSkus
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (rootSkus.Count == 0)
+        if (normalizedRootSkus.Count == 0)
             return new DecomposeCache([], [], []);
 
         var productBySku = new Dictionary<string, Product>(StringComparer.OrdinalIgnoreCase);
         var bomByBomNo = new Dictionary<string, List<Bom>>(StringComparer.OrdinalIgnoreCase);
         var loadedBomNos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var pendingSkus = new HashSet<string>(rootSkus, StringComparer.OrdinalIgnoreCase);
+        var pendingSkus = new HashSet<string>(normalizedRootSkus, StringComparer.OrdinalIgnoreCase);
         while (pendingSkus.Count > 0)
         {
             var skuBatch = pendingSkus.ToList();
@@ -339,19 +378,19 @@ public class BomService(
     /// 中文注释：按BOM版本递归拆解单行。
     /// 递归终止条件：BomVersion<=0 或 BomNo 为空。
     /// </summary>
-    private static async Task 递归拆解需求Async(DecomposeRequestDto source, DecomposeLineRequestDto sourceLine, Product currentProduct,
+    private static async Task 递归拆解需求Async(IndependentDemand sourceLine, Product currentProduct,
         decimal currentQty, int bomLevel, string? parentSku, List<DependentDemand> addList,
         HashSet<string> parentAddedByCustomerPart, DecomposeCache cache)
     {
         //如果BomVersion<=0 或 BomNo 为空，视为无BOM结构，按标准件处理直接落需求池，不再继续递归。
         if (currentProduct.BomVersion <= 0 || string.IsNullOrWhiteSpace(currentProduct.BomNo))
         {
-            addList.Add(Build标准件需求(source, sourceLine, currentProduct, currentQty, bomLevel, parentSku, null, null));
+            addList.Add(Build标准件需求(sourceLine, currentProduct, currentQty, bomLevel, parentSku, null, null));
             return;
         }
 
         // 标准件处理：先落当前行，再继续递归拆解子件。此需求是成品需求,bomLevel是0,父级SKU是null,备注和送货地点先不填，后续如果有客供件会更新备注和送货地点
-        addList.Add(Build标准件需求(source, sourceLine, currentProduct, currentQty, bomLevel, parentSku, null, null));
+        addList.Add(Build标准件需求(sourceLine, currentProduct, currentQty, bomLevel, parentSku, null, null));
 
         // 从缓存中获取当前产品的BOM项列表，如果没有则视为无BOM结构直接返回。
         var bomList = cache.GetBomByBomNo(currentProduct.BomNo).ToList();
@@ -376,23 +415,22 @@ public class BomService(
             // 2) 额外将父级再加入一次（无论客供件型号个数，只加一次）；
             // 3) 客供件备注写“货好后送往父级.供应商名称”。
 
-            if (childProduct.MaterialType == MaterialTypeEnums.客供件)
+            if (childProduct.MaterialType == MaterialTypesEnum.客供件)
             {
                 var supplierName = cache.ResolveSupplierName(childProduct.SupplierCode);
                 remark = $"货好后送往{currentProduct.Sku}.{supplierName}";
-                var parentOnceKey = $"{source.SourceNo}|{sourceLine.SourceLineId}|{currentProduct.Sku}";
+                var parentOnceKey = $"{sourceLine.SourceNo}|{sourceLine.SourceLineId}|{currentProduct.Sku}";
                 if (parentAddedByCustomerPart.Add(parentOnceKey))
                 {
-                    addList.Add(Build标准件需求(source, sourceLine, currentProduct, currentQty, bomLevel, parentSku, "含客供件", childProduct.SupplierCode));
+                    addList.Add(Build标准件需求(sourceLine, currentProduct, currentQty, bomLevel, parentSku, "含客供件", childProduct.SupplierCode));
                 }
             }
 
             // 中文注释：子件正常入池。
-            addList.Add(Build标准件需求(source, sourceLine, childProduct, childQty, bomLevel + 1, currentProduct.Sku, remark, null));
+            addList.Add(Build标准件需求(sourceLine, childProduct, childQty, bomLevel + 1, currentProduct.Sku, remark, null));
 
-            // 中文注释：继续向下递归拆解（仅按BOM拆分/含客供BOM且存在BomNo时才会继续）。
+            // 中文注释：继续向下递归拆解（BomVersion<=0且存在BomNo时才会继续）。
             await 递归拆解需求Async(
-                source,
                 sourceLine,
                 childProduct,
                 childQty,
@@ -407,14 +445,15 @@ public class BomService(
     /// <summary>
     /// 组装依赖需求实体。
     /// </summary>
-    private static DependentDemand Build标准件需求(DecomposeRequestDto source, DecomposeLineRequestDto sourceLine,
+    private static DependentDemand Build标准件需求(IndependentDemand sourceLine,
         Product product, decimal qty, int bomLevel, string? parentSku, string? remark, string? shipToLocation)
     {
         return new DependentDemand
         {
-            SourceType = source.SourceType,
-            SourceNo = source.SourceNo,
+            SourceType = sourceLine.SourceType,
+            SourceNo = sourceLine.SourceNo,
             SourceLineId = sourceLine.SourceLineId,
+            IndependentDemandId = sourceLine.Id,
             Sku = product.Sku,
             Description = product.DescriptionEn,
             ColorName = null,
@@ -426,8 +465,8 @@ public class BomService(
             NetQty = qty,
             ExecutedQty = 0,
             ReceivedQty = 0,
-            RequiredDate = sourceLine.RequiredDate,
-            StatusFlag = RequirementStatusEnums.待处理,
+            RequiredDate = sourceLine.HopefulDate,
+            StatusFlag = DependentDemandStatusEnum.草稿,
             Remark = remark,
             TargetNo = null,
             SupplierCode = product.SupplierCode,
@@ -445,13 +484,14 @@ public class BomService(
     /// <summary>
     /// 组装非标件依赖需求实体（SKU 为空时直接落池）。
     /// </summary>
-    private static DependentDemand Build非标件需求(DecomposeRequestDto source, DecomposeLineRequestDto sourceLine, string? shipToLocation)
+    private static DependentDemand Build非标件需求(IndependentDemand sourceLine, string? shipToLocation)
     {
         return new DependentDemand
         {
-            SourceType = source.SourceType,
-            SourceNo = source.SourceNo,
+            SourceType = sourceLine.SourceType,
+            SourceNo = sourceLine.SourceNo,
             SourceLineId = sourceLine.SourceLineId,
+            IndependentDemandId = sourceLine.Id,
             Sku = string.Empty,
             Description = sourceLine.Description,
             ColorName = sourceLine.ColorName,
@@ -459,12 +499,12 @@ public class BomService(
             ParentSku = string.Empty,
             BomLevel = 0,
             SupplyType = SupplyTypeEnums.采购,
-            GrossQty = sourceLine.Quantity,
-            NetQty = sourceLine.Quantity,
+            GrossQty = sourceLine.OriginalQty,
+            NetQty = sourceLine.OriginalQty,
             ExecutedQty = 0,
             ReceivedQty = 0,
-            RequiredDate = sourceLine.RequiredDate,
-            StatusFlag = RequirementStatusEnums.待处理,
+            RequiredDate = sourceLine.HopefulDate,
+            StatusFlag = DependentDemandStatusEnum.草稿,
             Remark = "非标件需求(Sku为空)",
             TargetNo = null,
             SupplierCode = null,

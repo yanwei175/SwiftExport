@@ -32,7 +32,7 @@ public class PurchaseOrderLine : BaseEntity
     public string? SupplyType { get; set; }
 
     /// <summary>
-    /// 物料分类（MaterialTypeEnums 字符串值）。
+    /// 物料分类（MaterialTypesEnum 字符串值）。
     /// </summary>
     public string? MaterialType { get; set; }
 
@@ -56,9 +56,21 @@ public class PurchaseOrderLine : BaseEntity
     public DateTime? ChangeTime { get; set; }
 
     /// <summary>
-    /// 来源销售行ID（回写需求池关键字段）。
+    /// 来源需求池ID（回写需求池关键字段）。
     /// </summary>
-    public long? SoLineId { get; set; }
+    public long? DemandId { get; set; }
+
+    /// <summary>
+    /// 冗余字段,方便查询和统计分析，回写需求池时同步更新（SourceType + SourceNo 唯一索引）。
+    /// </summary>
+    public string SourceType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 冗余字段,方便查询和统计分析，回写需求池时同步更新（SourceType + SourceNo 唯一索引）。
+    /// </summary>
+    public string SourceNo { get; set; } = string.Empty;
+
+
 
     /// <summary>
     /// 财务实收数量。

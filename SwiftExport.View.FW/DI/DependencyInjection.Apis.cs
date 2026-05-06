@@ -86,6 +86,7 @@ namespace SwiftExport.View.FW
             services.AddErpApi<IIndependentDemandApi>(apiBaseUrl + "/api/IndependentDemand");
             services.AddErpApi<IDependentDemandApi>(apiBaseUrl + "/api/DependentDemand");
             services.AddErpApi<IPurchaseOrderApi>(apiBaseUrl + "/api/PurchaseOrder");
+            services.AddErpApi<IFollowUpApi>(apiBaseUrl + "/api/FollowUp");
             services.AddErpApi<IReceiveApi>(apiBaseUrl + "/api/Receive");
             services.AddErpApi<IPackingListApi>(apiBaseUrl + "/api/PackingList");
 
