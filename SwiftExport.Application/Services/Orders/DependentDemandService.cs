@@ -25,7 +25,7 @@ public class DependentDemandService(
     ISupplierRepository supplierRepository,
     IDocumentNoService documentNoService,
     ServiceBaseContext context)
-    : BaseService<DependentDemand, DependentDemandDto>(repository, context), IDependentDemandService
+    : BaseService<DependentDemand, IndependentDemandDto>(repository, context), IDependentDemandService
 {
     /// <summary>
     /// 中文注释：需求池转采购行的专用 Mapster 配置。
@@ -63,7 +63,6 @@ public class DependentDemandService(
         config.NewConfig<DependentDemand, PurchaseOrderLine>()
             .Map(dest => dest.SourceType, src => src.SourceType)
             .Map(dest => dest.SourceNo, src => src.SourceNo)
-            .Map(dest => dest.DemandId, src => src.SourceLineId)
             .Map(dest => dest.Sku, src => src.Sku)
             .Map(dest => dest.QTY, src => src.NetQty)
             .Map(dest => dest.SupplyType, src => src.SupplyType)
@@ -101,7 +100,7 @@ public class DependentDemandService(
     /// </summary>
     /// <param name="search">查询条件</param>
     /// <returns>分页结果</returns>
-    public async Task<ServiceResult<PagedResultDto<DependentDemandDto>>> GetPagedListAsync(DependentDemandSearchDto search)
+    public async Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync(DependentDemandSearchDto search)
     {
         search ??= new DependentDemandSearchDto();
 
@@ -111,9 +110,9 @@ public class DependentDemandService(
 
         var paged = await _rpRepository.GetPagedListAsync(criteria, pageIndex, pageSize, "Id DESC");
 
-        return ServiceResult<PagedResultDto<DependentDemandDto>>.Ok(new PagedResultDto<DependentDemandDto>
+        return ServiceResult<PagedResultDto<IndependentDemandDto>>.Ok(new PagedResultDto<IndependentDemandDto>
         {
-            Items = paged.Items.Adapt<List<DependentDemandDto>>(),
+            Items = paged.Items.Adapt<List<IndependentDemandDto>>(),
             TotalCount = paged.TotalCount,
             PageIndex = paged.PageIndex,
             PageSize = paged.PageSize
@@ -287,13 +286,13 @@ public class DependentDemandService(
     /// <returns>返回生成的采购单号列表</returns>
     private async Task<List<string>> 转换成采购订单Async(IEnumerable<DependentDemand> request)
     {
-        var pools = request.ToList();
-        if (pools.Count == 0)
+        var dependList = request.ToList();
+        if (dependList.Count == 0)
             return [];
 
         #region 先获取前置Sku依赖的信息，避免后续循环中重复查询数据库,先构建产品索引，用于价格回填；供应商优先取需求池行手工指定值，未指定时再回退到产品默认供应商。
         //根据Sku列表查询产品信息，构建SKU到产品的字典索引
-        var products = await _productRepository.GetBySkuListAsync([.. pools
+        var products = await _productRepository.GetBySkuListAsync([.. dependList
             .Where(x => !string.IsNullOrWhiteSpace(x.Sku))
             .Select(x => x.Sku)
             .Distinct(StringComparer.OrdinalIgnoreCase)]);
@@ -309,7 +308,7 @@ public class DependentDemandService(
 
         #region 解析供应商校验,
         // 中文注释：校验所有待转单行必须能解析出供应商编码（行内指定 > 产品默认），否则无法转单。
-        var invalidRows = pools
+        var invalidRows = dependList
             .Where(x => string.IsNullOrWhiteSpace(ResolveSupplierCode(x, defaultSupplierBySku)))
             .Select(x => $"Id={x.Id},SourceNo={x.SourceNo},LineId={x.SourceLineId},Sku={(string.IsNullOrWhiteSpace(x.Sku) ? "(空SKU)" : x.Sku)}")
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -321,7 +320,7 @@ public class DependentDemandService(
         #endregion
 
         //根据供应商编码分组，准备生成采购单
-        var supplierCodes = pools
+        var supplierCodes = dependList
             .Select(x => ResolveSupplierCode(x, defaultSupplierBySku))
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -337,13 +336,14 @@ public class DependentDemandService(
                 StringComparer.OrdinalIgnoreCase);
 
         //根据请求的分组模式对需求池行进行分组
-        var groups = pools.GroupBy(x => ResolveSupplierCode(x, defaultSupplierBySku), StringComparer.OrdinalIgnoreCase).ToList();
+        var groups = dependList.GroupBy(x => ResolveSupplierCode(x, defaultSupplierBySku), StringComparer.OrdinalIgnoreCase).ToList();
 
         // 中文注释：逐组生成采购单，回写需求池行状态，并收集生成的采购单号列表返回。
         var createdOrderNos = new List<string>();
         _session.Transaction = _session.Connection.BeginTransaction();
         try
         {
+            //遍历按照供应商分组之后的groups，每个group对应一个供应商的一组需求池行，生成一张采购单
             foreach (var group in groups)
             {
                 var groupList = group.ToList();//转一次List，避免后续多次枚举
@@ -378,12 +378,12 @@ public class DependentDemandService(
                 // 创建采购单头
                 var po = new PurchaseOrderHead
                 {
-                    PoNo = orderNo,
+                    SupplierCode = supplierCode,
+                    BoNo = orderNo,
                     SalesOrderNo = sourceNoList.Count == 1 ? sourceNoList[0] : string.Empty,
                     OrderNo = orderNo,
                     OrderDate = DateTime.Now,
                     ExpectedDate = expectedDate,
-                    SupplierCode = supplierCode,
                     SupplierName = supplierName,
                     Currency = supplier?.Currency,
                     Remark = "来源单据：" + string.Join(",", sourceNoList),
@@ -395,45 +395,75 @@ public class DependentDemandService(
                     Status = null,
                     Even = null
                 };
-                await _purchaseOrderRepository.AddAsync(po);
-                // 创建采购单行
-                var itemList = groupList.Select(x =>
+                var newid = await _purchaseOrderRepository.AddAsync(po);
+                // 创建采购单行：按业务键聚合净需求（数量求和），并保存“采购行 -> 需求池行集合”映射。
+                // 说明：需求池是未分组行，采购单行为分组结果，因此 TargetLineId 需要回写到每条原始需求池行。
+
+                var groupedBuckets = groupList
+                    .GroupBy(x => new
+                    {
+                        x.Sku,
+                        x.SourceType
+                    })
+                    .ToList();
+
+                var itemList = new List<PurchaseOrderLine>();
+                var demandLinePairs = new List<(List<DependentDemand> Demands, PurchaseOrderLine Line)>();
+
+                foreach (var bucket in groupedBuckets)
                 {
-                    productBySku.TryGetValue(x.Sku, out var product);
-                    var unitPrice = ResolveUnitPriceBySku(x.Sku, productBySku);
-                    var item = x.Adapt<PurchaseOrderLine>(DependentDemandToPurchaseOrderLineMapConfig);
-                    item.SourceType = x.SourceType;
-                    item.SourceNo = x.SourceNo;
-                    item.DemandId = x.SourceLineId;
+                    var demandRows = bucket.ToList();
+                    if (demandRows.Count == 0) continue;
+
+                    var firstDemand = demandRows[0];
+                    productBySku.TryGetValue(firstDemand.Sku, out var product);
+                    var unitPrice = ResolveUnitPriceBySku(firstDemand.Sku, productBySku);
+                    var qtySum = demandRows.Sum(x => x.NetQty);
+
+                    var item = firstDemand.Adapt<PurchaseOrderLine>(DependentDemandToPurchaseOrderLineMapConfig);
+                    item.SourceType = firstDemand.SourceType;
+                    item.SourceNo = string.Join("\r\n", demandRows
+                                            .Select(x => x.SourceNo)
+                                            .Where(x => !string.IsNullOrEmpty(x))
+                                            .Distinct());
+                    item.PurchaseOrderId = newid;
                     item.OrderNo = orderNo;
+                    item.QTY = qtySum;
                     item.UnitPrice = unitPrice;
-                    item.UnitAmount = unitPrice * x.NetQty;
+                    item.UnitAmount = unitPrice * qtySum;
                     item.MaterialType = product?.MaterialType;
-                    item.UnitCBM = product?.UnitCBM;
-                    item.UnitWeight = product?.UnitWeight;
                     item.ReadyQty = 0;
                     item.RecQty = 0;
                     item.IsDeleted = false;
                     item.CreatedDate = DateTime.Now;
                     item.Status = null;
                     item.Even = null;
-                    return item;
-                }).ToList();
+
+                    itemList.Add(item);
+                    // 记录 【当前聚合的采购行】 与 【参与聚合的所有净需求行】 的对应关系
+                    demandLinePairs.Add((demandRows, item));
+                }
 
                 if (itemList.Count > 0)
-                    await _purchaseOrderItemRepository.AddRangeAsync(itemList);
-                // 回写需求池行状态与目标单号
-                foreach (var rp in groupList)
                 {
-                    rp.TargetNo = orderNo;
-                    rp.StatusFlag = DependentDemandStatusEnum.已转为正式单据;
-                    rp.ChangeTime = DateTime.Now;
+                    // 中文注释：批量插入采购行后，实体 Line.Id 会被仓储层回填。
+                    await _purchaseOrderItemRepository.AddRangeAsync(itemList);
+
+                    // 【修改点3】：遍历聚合关系，把生成的采购单行 Id 回写到所有对应的净需求行中
+                    foreach (var (Demands, Line) in demandLinePairs)
+                    {
+                        foreach (var demand in Demands)
+                        {
+                            demand.TargetLineId = Line.Id; // 回写生成的采购单行ID
+                            demand.TargetNo = orderNo;          // 回写目标单号
+                            demand.StatusFlag = DependentDemandStatusEnum.已转为正式单据;
+                            demand.ChangeTime = DateTime.Now;
+                        }
+                    }
                 }
                 await _rpRepository.UpdateRangeAsync(groupList);
-
                 createdOrderNos.Add(orderNo);
             }
-
             _session.Transaction.Commit();
             return createdOrderNos;
         }

@@ -9,6 +9,7 @@ namespace SwiftExport.Contracts.SysEnums.StaticEnums
     public static class DependentDemandStatusEnum
     {
         public const int 草稿 = 0;
+        public const int 待处理 = 1;
         public const int 已转为正式单据 = 3;
         public const int 已关闭 = 9;
 

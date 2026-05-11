@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Interfaces;
+using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -14,6 +15,7 @@ namespace SwiftExport.Infrastructure.Repositories.Base;
 public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T> where T : BaseEntity
 {
     private readonly DbSession _session = context.Session ?? throw new ArgumentNullException(nameof(context.Session));
+    private readonly IAuditStampService _auditStamp = context.AuditStamp;
 
     private ILogger? _loggerInstance;
     protected ILogger Logger => _loggerInstance ??= context.LoggerFactory.CreateLogger(GetType());
@@ -46,24 +48,27 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         var sql = $"SELECT COUNT(1) FROM [{TableName}] WITH(NOLOCK) WHERE [Id] = @Id";
         return await Connection.ExecuteScalarAsync<int>(sql, new { Id = id }, transaction: Transaction) > 0;
     }
-    public virtual async Task<IReadOnlyList<int>> GetExistingIdListAsync(IEnumerable<int> idList)
+    public virtual async Task<IReadOnlyList<int>> GetExistingIdListAsync(IEnumerable<int> idList, bool withUpdLock = false)
     {
         if (idList == null || !idList.Any()) return [];
-        var sql = $"SELECT [Id] FROM [{TableName}] WITH(NOLOCK) WHERE [Id] IN @Ids";
+        var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+        var sql = $"SELECT [Id] FROM [{TableName}] {lockHint} WHERE [Id] IN @Ids";
         var rst = await Connection.QueryAsync<int>(sql, new { Ids = idList }, transaction: Transaction);
         return [.. rst];
     }
 
-    public virtual async Task<T?> GetByIdAsync(int id)
+    public virtual async Task<T?> GetByIdAsync(int id, bool withUpdLock = false)
     {
-        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE [Id] = @Id AND (IsDeleted = 0 OR IsDeleted IS NULL)";
+        var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [Id] = @Id AND (IsDeleted = 0 OR IsDeleted IS NULL)";
         return await Connection.QuerySingleOrDefaultAsync<T>(sql, new { Id = id }, transaction: Transaction);
     }
 
-    public virtual async Task<IReadOnlyList<T>> GetByIdListAsync(IEnumerable<int> idList)
+    public virtual async Task<IReadOnlyList<T>> GetByIdListAsync(IEnumerable<int> idList, bool withUpdLock = false)
     {
         if (idList == null || !idList.Any()) return [];
-        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE [Id] IN @Ids AND (IsDeleted = 0 OR IsDeleted IS NULL)";
+        var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [Id] IN @Ids AND (IsDeleted = 0 OR IsDeleted IS NULL)";
         var rst = await Connection.QueryAsync<T>(sql, new { Ids = idList }, transaction: Transaction);
         return [.. rst];
     }
@@ -82,10 +87,13 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         var rst = await Connection.QueryAsync<T>(sql, transaction: Transaction);
         return [.. rst];
     }
-    public virtual async Task<IReadOnlyList<T>> GetListAsync(string whereSql, object? param = null)
+    public virtual async Task<IReadOnlyList<T>> GetListAsync(string whereSql, object? param = null, bool withUpdLock = false)
     {
+        // 根据参数决定用 NOLOCK 还是 UPDLOCK
+        string lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+
         // 1. 基础 SQL 已经包含了 WHERE (IsDeleted = 0 OR IsDeleted IS NULL)
-        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE IsDeleted = 0 OR IsDeleted IS NULL";
+        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE IsDeleted = 0 OR IsDeleted IS NULL";
 
         if (!string.IsNullOrWhiteSpace(whereSql))
         {
@@ -108,9 +116,10 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         return rst.AsList(); // 或者 return [.. rst]; (C# 12写法)
     }
 
-    public virtual async Task<IReadOnlyList<T>> GetListAsync(object noNameObj)
+    public virtual async Task<IReadOnlyList<T>> GetListAsync(object noNameObj, bool withUpdLock = false)
     {
-        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE (IsDeleted = 0 OR IsDeleted IS NULL)";
+        var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE (IsDeleted = 0 OR IsDeleted IS NULL)";
         if (noNameObj != null)
         {
             var props = noNameObj.GetType().GetProperties();
@@ -124,9 +133,10 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         return [.. rst];
     }
 
-    public virtual async Task<IReadOnlyList<T>> GetListAsync(QueryCriteria criteria)
+    public virtual async Task<IReadOnlyList<T>> GetListAsync(QueryCriteria criteria, bool withUpdLock = false)
     {
-        var sb = new StringBuilder($"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE IsDeleted = 0 OR IsDeleted IS NULL");
+        var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+        var sb = new StringBuilder($"SELECT * FROM [{TableName}] {lockHint} WHERE IsDeleted = 0 OR IsDeleted IS NULL");
         var parameters = new DynamicParameters();
 
         var whereClause = ParseQueryCriteria(criteria, parameters);
@@ -223,8 +233,8 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     {
         ArgumentNullException.ThrowIfNull(entity);
 
-        entity.CreatedDate ??= DateTime.Now;
-        entity.UpdatedDate ??= DateTime.Now;
+        // 自动填充审计字段（CreatedBy/CreatedDate/UpdatedBy/UpdatedDate）
+        _auditStamp.StampForInsert(entity);
         entity.IsDeleted = false; // 确保新增时 IsDeleted 字段为 false
         // 使用静态缓存的属性列表，不用每次都反射
         var columns = string.Join(", ", _writeableProps.Select(p => $"[{p}]"));
@@ -244,7 +254,8 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     public virtual async Task<int> UpdateAsync(T entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
-        entity.UpdatedDate ??= DateTime.Now;
+        // 自动填充审计字段（UpdatedBy/UpdatedDate 强制刷新）
+        _auditStamp.StampForUpdate(entity);
 
         // 拼接 SET 语句
         var setClause = string.Join(", ", _writeableProps.Select(p => $"[{p}] = @{p}"));
@@ -285,15 +296,9 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         //遍历实体设置 UpdatedDate（如果有这个属性的话），确保批量插入时这个字段不为 null
         foreach (var entity in entityList)
         {
-            if (entity.CreatedDate == null)
-            {
-                entity.CreatedDate = DateTime.Now;
-            }
-            if (entity.UpdatedDate == null)
-            {
-                entity.UpdatedDate = DateTime.Now;
-            }
-            entity.IsDeleted=false; // 确保批量插入时 IsDeleted 字段为 false
+            // 自动审计打戳（CreatedBy/CreatedDate/UpdatedBy/UpdatedDate）
+            _auditStamp.StampForInsert(entity);            
+            entity.IsDeleted = false; // 确保批量插入时 IsDeleted 字段为 false
         }
         // 1. 预先获取 PropertyInfo
         // 这里的 _writeableProps 是我们在类里定义的静态 List<string>
@@ -324,10 +329,10 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         }
 
         var sql = $@"
-        INSERT INTO [{TableName}] ({columns})
-        OUTPUT INSERTED.ID
-        VALUES {string.Join(", ", valueRows)};
-    ";
+                    INSERT INTO [{TableName}] ({columns})
+                    OUTPUT INSERTED.ID
+                    VALUES {string.Join(", ", valueRows)};
+                    ";
 
         // 3. 执行 (直接用 Connection 和 Transaction 属性)
         var newIds = (await Connection.QueryAsync<int>(
@@ -376,15 +381,13 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     public virtual async Task<int> UpdateRangeAsync(IEnumerable<T> entities)
     {
         if (entities == null) throw new ArgumentException("实体集合不能为空");
-        var entityList = entities.ToList();
+        var entityList = entities.OrderBy(x=>x.Id).ToList();
         if (entityList.Count == 0) return 0;
         //遍历实体设置 UpdatedDate（如果有这个属性的话），确保批量更新时这个字段不为 null
         foreach (var entity in entityList)
         {
-            if (entity.UpdatedDate == null)
-            {
-                entity.UpdatedDate = DateTime.Now;
-            }
+            // 自动审计打戳（UpdatedBy/UpdatedDate 强制刷新）
+            _auditStamp.StampForUpdate(entity);
         }
         // 1. 准备属性
         var updateProps = _writeableProps
@@ -415,7 +418,13 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         }
 
         // 直接用 Connection 和 Transaction 属性
-        return await Connection.ExecuteAsync(sqlBuilder.ToString(), parameters, transaction: Transaction);
+        var affectedRows= await Connection.ExecuteAsync(sqlBuilder.ToString(), parameters, transaction: Transaction);
+        // 只有当受影响行数小于传入实体数时，才说明有数据“失踪”或“条件不符”
+        if (affectedRows < entityList.Count)
+        {
+            throw new Exception("并发操作冲突：部分单据已被删除或状态已改变。");
+        }
+        return affectedRows;
     }
 
     /// <summary>

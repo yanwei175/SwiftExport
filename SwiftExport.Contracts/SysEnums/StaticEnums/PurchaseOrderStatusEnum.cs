@@ -15,6 +15,9 @@ namespace SwiftExport.Contracts.SysEnums.StaticEnums
         public const int 全部完成 = 3;
         public const int 已关闭 = 9;
 
+        /// <summary>
+        /// value(int) - name(string) 键值对列表，供前端下拉框等使用。
+        /// </summary>
         public static readonly IReadOnlyList<KeyValuePair<int, string>> Items = new List<KeyValuePair<int, string>>
             {
                 new KeyValuePair<int, string>(草稿, "草稿"),

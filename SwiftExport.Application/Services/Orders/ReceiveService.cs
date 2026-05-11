@@ -59,7 +59,7 @@ namespace SwiftExport.Application.Services.Orders
             _session.Transaction = _session.Connection.BeginTransaction();
             try
             {
-                // 中文注释：生成入库单号，沿用单号服务，类型暂使用 DependentDemand 避免改动字典配置。
+                // 中文注释：生成入库单号.
                 var receiveNoResult = await _documentNoService.GetNextDocumentNoAsync(new DocumentNoRequestDto
                 {
                     DocType = DocumentTypeStaticsEnum.InboundOrder,
@@ -126,7 +126,48 @@ namespace SwiftExport.Application.Services.Orders
                     await _purchaseOrderLineRepository.UpdateAsync(poLine);
                 }
 
-                // 4) 回写需求池 ReceivedQty（按 DemandId 聚合）
+                // 4) 回写需求池 ReceivedQty
+                // 4.1 优先路径：按 TargetLineId(=PoLineId) 精确回写到净需求行。
+                // 4.2 兜底路径：若未建立 TargetLineId 关联，则按 SoLineId 比例分摊（历史兼容）。
+
+                // 4.1 精确回写（TargetLineId / DemandId）
+                var demandByTargetLine = request.Lines
+                    .Where(x => x.PoLineId.HasValue && x.PoLineId > 0 && x.PoLineId <= int.MaxValue)
+                    .GroupBy(x => (int)x.PoLineId!.Value)
+                    .Select(g => new { TargetLineId = g.Key, Qty = g.Sum(x => x.Qty) })
+                    .ToList();
+
+                foreach (var target in demandByTargetLine)
+                {
+                    // 中文注释：先查采购行 SourceLineId（这里保存的是需求池行Id锚点）；
+                    // 若无法命中，再降级按 TargetLineId 关联。
+                    var poLine = await _purchaseOrderLineRepository.GetByIdAsync(target.TargetLineId);
+
+                    DependentDemand? rp = null;
+                    if (poLine?.SourceLineId.HasValue == true && poLine.SourceLineId.Value > 0)
+                    {
+                        rp = await _requirementPoolRepository.GetByIdAsync(poLine.SourceLineId.Value);
+                    }
+
+                    if (rp == null)
+                    {
+                        var list = await _requirementPoolRepository.GetListAsync(new { TargetLineId = target.TargetLineId });
+                        rp = list?.FirstOrDefault(x => x.TargetLineId == target.TargetLineId && (x.IsDeleted == false));
+                    }
+
+                    if (rp == null) continue;
+
+                    rp.ReceivedQty = Math.Min(rp.NetQty, rp.ReceivedQty + target.Qty);
+                    rp.ChangeTime = DateTime.Now;
+                    if (rp.ReceivedQty >= rp.NetQty)
+                    {
+                        rp.StatusFlag = IndependentDemandStatusEnum.已到货;
+                    }
+
+                    await _requirementPoolRepository.UpdateAsync(rp);
+                }
+
+                // 4.2 兜底分摊（SoLineId）
                 var soUpdates = request.Lines
                     .Where(x => x.SoLineId.HasValue)
                     .GroupBy(x => x.SoLineId!.Value)

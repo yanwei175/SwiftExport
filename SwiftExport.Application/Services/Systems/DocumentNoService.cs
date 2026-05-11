@@ -15,7 +15,7 @@ namespace SwiftExport.Application.Services.Systems
         /// <summary>
         /// 获取下一个可用单号。
         /// 规则：{DocType}{yyyyMM}{序号补零}。
-        /// </summary>
+        /// </summary> 
         public async Task<ServiceResult<DocumentNoResultDto>> GetNextDocumentNoAsync(DocumentNoRequestDto request)
         {
             request ??= new DocumentNoRequestDto();

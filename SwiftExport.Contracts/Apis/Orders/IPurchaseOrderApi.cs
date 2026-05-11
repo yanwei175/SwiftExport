@@ -10,13 +10,13 @@ namespace SwiftExport.Contracts.Apis.Orders
     /// <summary>
     /// 采购订单 API。
     /// </summary>
-    public interface IPurchaseOrderApi : IGenericApi<PurchaseOrderDto>
+    public interface IPurchaseOrderApi : IGenericApi<PurchaseOrderHeadDto>
     {
         /// <summary>
         /// 分页查询采购订单头。
         /// </summary>
         [Post("/search")]
-        Task<ServiceResult<PagedResultDto<PurchaseOrderDto>>> GetPagedListAsync([Body] PurchaseOrderSearchDto search);
+        Task<ServiceResult<PagedResultDto<PurchaseOrderHeadDto>>> GetPagedListAsync([Body] PurchaseOrderSearchDto search);
 
         /// <summary>
         /// 根据头表ID获取采购订单详情。

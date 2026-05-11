@@ -38,7 +38,8 @@ namespace SwiftExport.View.FW.Http
     }
 
     /// <summary>
-    /// Bearer Token 注入拦截器（当前预留，实际启用时取消注释并实现 Token 获取逻辑）。
+    /// Bearer Token 注入拦截器。
+    /// 登录后 <see cref="AuthTokenStore"/> 中有 Token 时，自动在每个请求头加上 Authorization: Bearer ...
     /// 挂载方式：在 RefitExtensions.AddErpApi 中 .AddHttpMessageHandler&lt;AuthTokenHandler&gt;()
     /// </summary>
     public class AuthTokenHandler : DelegatingHandler
@@ -46,13 +47,13 @@ namespace SwiftExport.View.FW.Http
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            // TODO：替换为从全局缓存或安全存储中获取最新 Token
-            string latestToken = string.Empty;
+            // 从全局缓存读取 Token，登录后自动携带，无需 ViewModel 层感知
+            string token = AuthTokenStore.Get();
 
-            if (!string.IsNullOrEmpty(latestToken))
+            if (!string.IsNullOrEmpty(token))
             {
                 request.Headers.Authorization =
-                    new AuthenticationHeaderValue("Bearer", latestToken);
+                    new AuthenticationHeaderValue("Bearer", token);
             }
 
             return await base.SendAsync(request, cancellationToken);

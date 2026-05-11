@@ -1,8 +1,12 @@
-﻿using Serilog;
-using Serilog.Events;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Serilog;
 using SwiftExport.Application;
+using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure;
 using SwiftExport.WebApi.Middlewares;
+using SwiftExport.WebApi.Services;
+using System.Text;
 
 
 
@@ -38,6 +42,16 @@ try
     Log.Information("SwiftExport 后端 Web API 启动中...");
     var builder = WebApplication.CreateBuilder(args);
 
+    // ══════════════════════════════════════════════════════
+    // 生产安全检查：禁止生产环境使用 DevUser（防裸奔）
+    // ══════════════════════════════════════════════════════
+    if (!builder.Environment.IsDevelopment()
+        && builder.Configuration.GetValue<bool>("Auth:UseDevUser"))
+    {
+        throw new InvalidOperationException(
+            "[安全阻断] 生产环境禁止开启 Auth:UseDevUser=true！请检查 appsettings.Production.json 配置。");
+    }
+
     // ★ 告诉框架使用 Serilog 替代默认日志
     builder.Host.UseSerilog();
 
@@ -47,9 +61,34 @@ try
     // 2. 注册应用逻辑
     builder.Services.AddApplicationServices();
 
-    // ==========================================
-    // 3. 注册 Web API 核心服务
-    // ==========================================
+    // ══════════════════════════════════════════════════════
+    // 3. 注册认证与 ICurrentUser
+    // ══════════════════════════════════════════════════════
+    var jwtKey = builder.Configuration["Auth:JwtKey"]
+        ?? throw new InvalidOperationException("Auth:JwtKey 未配置！");
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = builder.Configuration["Auth:JwtIssuer"],
+                ValidAudience = builder.Configuration["Auth:JwtAudience"],
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            };
+        });
+
+    // HttpContextAccessor 是 ICurrentUser 的依赖，必须注册
+    builder.Services.AddHttpContextAccessor();
+    // 注册 ICurrentUser（Scoped，每次请求从 HttpContext 读取）
+    builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+
+    // ══════════════════════════════════════════════════════
+    // 4. 注册 Web API 核心服务
+    // ══════════════════════════════════════════════════════
     #region 添加 Web 服务
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
@@ -66,6 +105,10 @@ try
     // 这样才能确保接住后面所有中间件和 Controller 抛出的异常。
     app.UseMiddleware<GlobalExceptionMiddleware>();
 
+    // DevUser 免登录注入（仅 Development 且 UseDevUser=true 时激活）
+    // 注意：必须在 UseAuthentication 之前，这样才能覆盖 HttpContext.User
+    app.UseMiddleware<DevUserMiddleware>();
+
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();
@@ -73,7 +116,8 @@ try
     }
 
     app.UseHttpsRedirection();
-    app.UseAuthorization();
+    app.UseAuthentication();   // ← 先认证（解析 JWT）
+    app.UseAuthorization();    // ← 再授权
     app.MapControllers();
 
     app.Run();

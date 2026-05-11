@@ -1,27 +1,171 @@
 ﻿<Window x:Class="SwiftExport.DevApp.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:SwiftExport.DevApp"
+        xmlns:vm="clr-namespace:SwiftExport.DevApp.ViewModels"
         mc:Ignorable="d"
         WindowStartupLocation="CenterScreen"
-        Title="MainWindow" Height="450" Width="800">
+        WindowState="Maximized"
+        Title="SwiftExport ERP"
+        d:DataContext="{d:DesignInstance vm:ShellViewModel}">
 
-    <WrapPanel>
-        <Button Height="74" MinWidth="66" Content="字典窗体" Click="Button_Click"/>
-        <Button Height="35" MinWidth="66" Content="供应商窗体" Margin="5,5,5,5" Click="Button_Click_1"></Button>
-        <Button Height="35" MinWidth="66" Content="客户PO项管理" Margin="5,5,5,5" Click="Button_Click_2"></Button>
-        <Button Height="35" MinWidth="66" Content="产品分类树" Margin="5,5,5,5" Click="Button_Click_3"></Button>
-        <Button Height="35" MinWidth="66" Content="产品管理" Margin="5,5,5,5" Click="Button_Click_4"></Button>
-        <Button Height="35" MinWidth="66" Content="控件测试" Margin="5,5,5,5" Click="Button_Click_5"></Button>
-        <Button Height="35" MinWidth="66" Content="销售订单测试1" Margin="5,5,5,5" Click="Button_Click_6"></Button>
-        <Button Height="35" MinWidth="66" Content="销售订单测试2" Margin="5,5,5,5" Click="Button_Click_7"></Button>
-        <Button Height="35" MinWidth="66" Content="销售订单测试3" Margin="5,5,5,5" Click="Button_Click_8"></Button>
-        <Button Height="35" MinWidth="66" Content="客户窗体" Margin="5,5,5,5" Click="Button_Click_9"></Button>
-        <Button Height="35" MinWidth="66" Content="需求池" Margin="5,5,5,5" Click="Button_Click_10"></Button>
-        <Button Height="35" MinWidth="66" Content="供应商管理" Margin="5,5,5,5" Click="Button_Click_11"></Button>
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
 
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- 顶部导航栏 -->
+            <RowDefinition Height="52"/>
+            <!-- 内容区 -->
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-    </WrapPanel>
+        <!-- ══════════════════════════════════════════════
+             顶部导航栏
+             ══════════════════════════════════════════════ -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource Brush_Primary}"
+                Padding="16,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>  <!-- Logo / 系统名 -->
+                    <ColumnDefinition Width="*"/>     <!-- 占位 -->
+                    <ColumnDefinition Width="Auto"/>  <!-- 用户信息 + 操作按钮 -->
+                </Grid.ColumnDefinitions>
+
+                <!-- 系统名称 -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="SwiftExport"
+                               FontSize="18" FontWeight="Bold"
+                               Foreground="White" VerticalAlignment="Center"/>
+                    <TextBlock Text=" ERP"
+                               FontSize="14"
+                               Foreground="#CCFFFFFF" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- 右侧：用户信息区 -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal"
+                            VerticalAlignment="Center">
+
+                    <!-- 已登录状态 -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                Visibility="{Binding IsLoggedIn, Converter={StaticResource BoolToVis}}">
+
+                        <!-- 角色标签 -->
+                        <Border Background="#33FFFFFF" CornerRadius="3"
+                                Padding="6,2" Margin="0,0,8,0"
+                                Visibility="{Binding RoleTag, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{Binding RoleTag}"
+                                       FontSize="11" Foreground="#FFFFFFFF"/>
+                        </Border>
+
+                        <!-- 昵称 + 登录名 -->
+                        <TextBlock VerticalAlignment="Center" Foreground="White" FontSize="13">
+                            <Run Text="{Binding DisplayName, Mode=OneWay}" FontWeight="SemiBold"/>
+                            <Run Text=" ("/><Run Text="{Binding LoginName, Mode=OneWay}"/><Run Text=")"/>
+                        </TextBlock>
+
+                        <!-- 分隔线 -->
+                        <Rectangle Width="1" Fill="#55FFFFFF" Margin="12,8,12,8"/>
+
+                        <!-- 切换用户 -->
+                        <Button Content="切换用户"
+                                Command="{Binding SwitchUserCommand}"
+                                Style="{StaticResource ButtonBase}"
+                                Foreground="White" Background="Transparent"
+                                BorderThickness="0"
+                                FontSize="12" Padding="8,0" Height="32"/>
+
+                        <!-- 退出登录 -->
+                        <Button Content="退出登录"
+                                Command="{Binding LogoutCommand}"
+                                Style="{StaticResource ButtonBase}"
+                                Foreground="#FFCC99" Background="Transparent"
+                                BorderThickness="0"
+                                FontSize="12" Padding="8,0" Height="32"/>
+                    </StackPanel>
+
+                    <!-- 未登录状态 -->
+                    <Button Content="点击登录"
+                            x:Name="BtnTopLogin"
+                            Visibility="{Binding IsNotLoggedIn, Converter={StaticResource BoolToVis}}"
+                            Style="{StaticResource ButtonBase}"
+                            Foreground="White" Background="#33FFFFFF"
+                            FontSize="12" Padding="16,0" Height="34"
+                            Click="BtnTopLogin_Click"/>
+
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ══════════════════════════════════════════════
+             内容区（开发测试用按钮面板）
+             ══════════════════════════════════════════════ -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20,16">
+
+                <!-- 认证操作 -->
+                <TextBlock Text="认证" FontSize="12"
+                           Foreground="{DynamicResource Brush_Txt_Secondary}" Margin="0,0,0,8"/>
+                <WrapPanel Margin="0,0,0,20">
+                    <Button Height="35" MinWidth="80" Content="登 录"
+                            Style="{StaticResource ButtonPrimary}"
+                            Margin="0,0,8,8" Click="Button_Click_13"/>
+                    <Button Height="35" MinWidth="80" Content="注 册"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_14"/>
+                </WrapPanel>
+
+                <!-- 功能模块 -->
+                <TextBlock Text="功能模块" FontSize="12"
+                           Foreground="{DynamicResource Brush_Txt_Secondary}" Margin="0,0,0,8"/>
+                <WrapPanel>
+                    <Button Height="35" MinWidth="100" Content="字典管理"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click"/>
+                    <Button Height="35" MinWidth="100" Content="供应商"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_1"/>
+                    <Button Height="35" MinWidth="100" Content="客户PO配置"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_2"/>
+                    <Button Height="35" MinWidth="100" Content="产品分类"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_3"/>
+                    <Button Height="35" MinWidth="100" Content="产品管理"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_4"/>
+                    <Button Height="35" MinWidth="100" Content="控件测试"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_5"/>
+                    <Button Height="35" MinWidth="100" Content="销售订单1"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_6"/>
+                    <Button Height="35" MinWidth="100" Content="销售订单2"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_7"/>
+                    <Button Height="35" MinWidth="100" Content="销售订单3"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_8"/>
+                    <Button Height="35" MinWidth="100" Content="客户管理"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_9"/>
+                    <Button Height="35" MinWidth="100" Content="需求池"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_10"/>
+                    <Button Height="35" MinWidth="100" Content="供应商管理"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_11"/>
+                    <Button Height="35" MinWidth="100" Content="采购管理"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_12"/>
+                </WrapPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+    </Grid>
 </Window>

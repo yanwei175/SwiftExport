@@ -52,22 +52,37 @@ public class QueryItem(string field, QueryCondition condition)
 
 public class QueryCriteria
 {
-    // 1. 【AND 区域】换成 List！彻底解决同名字段冲突！
+    /// <summary>
+    /// And区域条件
+    /// </summary>
     public List<QueryItem> Items { get; set; } = [];
 
     // 2. 【OR 区域】换成 List<List<QueryItem>>！同理，解决 OR 组内的字段冲突！ 
     // 逻辑: (Main AND Main) AND (Group1_A OR Group1_B) AND (Group2_C OR Group2_D)
+    /// <summary>
+    /// Or区域条件
+    /// </summary>
     public List<List<QueryItem>> OrGroups { get; set; } = [];
 
 
-    // 方便添加条件的辅助方法
+    /// <summary>
+    /// 快捷添加条件的方法
+    /// </summary>
+    /// <param name="field">字段名</param>
+    /// <param name="condition">条件对象</param>
     public void Add(string field, QueryCondition condition)
     {
         // 直接往 List 塞，绝对不会覆盖！
         Items.Add(new QueryItem(field, condition));
     }
 
-    // 快捷添加方法 (语法糖)
+    /// <summary>
+    /// 快捷添加条件的语法糖方法，简化调用者的代码。
+    /// </summary>
+    /// <param name="field">字段名</param>
+    /// <param name="op">查询操作符</param>
+    /// <param name="v1">值1</param>
+    /// <param name="v2">值2(如果有Between条件,否则留空)</param>
     public void Add(string field, 查询操作符 op, object v1, object? v2 = null)
     {
         this.Add(field, new QueryCondition { 操作符 = op, 值1 = v1, 值2 = v2 });

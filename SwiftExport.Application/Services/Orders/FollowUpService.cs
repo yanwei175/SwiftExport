@@ -72,9 +72,9 @@ public class FollowUpService(
 
             // 中文注释：若采购行关联到净需求，则按 ReadyQty 的增量同步回写 ReceivedQty。
             // 业务语义：ReceivedQty 作为过程进度累计值，允许正向增加，也允许回调时减少（delta 可能为负）。
-            if (line.DemandId.HasValue && line.DemandId.Value > 0 && delta != 0)
+            if (line.SourceLineId.HasValue && line.SourceLineId.Value > 0 && delta != 0)
             {
-                var dependentDemand = await _dependentDemandRepository.GetByIdAsync((int)line.DemandId.Value);
+                var dependentDemand = await _dependentDemandRepository.GetByIdAsync((int)line.SourceLineId.Value);
                 if (dependentDemand != null && !dependentDemand.IsDeleted)
                 {
                     dependentDemand.ReceivedQty += delta;

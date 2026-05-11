@@ -1,204 +1,203 @@
+﻿using SwiftExport.DevApp.ViewModels;
 using SwiftExport.View.FW.CustomerViews.Views;
 using SwiftExport.View.FW.DictViews.Views;
+using SwiftExport.View.FW.DictViews.ViewModels;
+using SwiftExport.View.FW.Http;
+using SwiftExport.View.FW.OrderDecomposeViews.Views;
 using SwiftExport.View.FW.ProductViews.Views;
+using SwiftExport.View.FW.PurchaseOrderViews.Views;
 using SwiftExport.View.FW.SalesOrderViews.Views;
-using SwiftExport.View.FW.SalesOrderViews.ViewModels;
+using SwiftExport.View.FW.SystemViews.ViewModels;
+using SwiftExport.View.FW.SystemViews.Views;
 using SwiftExport.View.FW.SupplierViews.Views;
 using System.Windows;
-using SwiftExport.Contracts.Apis.CustomerApis;
-using SwiftExport.View.FW.CustomerViews.ViewModels;
-using SwiftExport.View.FW.DictViews.ViewModels;
-using SwiftExport.View.FW.SystemViews.Views;
-using SwiftExport.View.FW.OrderDecomposeViews.Views;
 
 namespace SwiftExport.DevApp
 {
     /// <summary>
-    /// MainWindow.xaml 的交互逻辑
+    /// 主窗口 Shell。
+    /// 顶栏绑定 ShellViewModel 显示用户信息与退出/切换命令。
+    /// 启动时若未登录，强制弹出登录窗口（主窗口保持隐藏直到登录成功）。
     /// </summary>
     public partial class MainWindow : Window
     {
-        public MainWindow()
+        private readonly ShellViewModel _shellVm;
+
+        public MainWindow(ShellViewModel shellVm)
         {
             InitializeComponent();
+
+            _shellVm = shellVm;
+            DataContext = _shellVm;
+
+            // ShellViewModel 请求显示登录窗口（退出 / 切换用户后触发）
+            _shellVm.ShowLoginRequested += () => ShowLoginWindow();
+
+            // 窗口加载完成后，若未登录则强制弹出登录框
+            Loaded += OnMainWindowLoaded;
         }
+
+        // ──────────────────────────────────────────────────────
+        // 启动时强制登录
+        // ──────────────────────────────────────────────────────
+
+        private void OnMainWindowLoaded(object sender, RoutedEventArgs e)
+        {
+            if (!AuthTokenStore.IsLoggedIn)
+                ShowLoginWindow(title: "请登录以继续");
+        }
+
+        // ──────────────────────────────────────────────────────
+        // 顶栏"点击登录"按钮（未登录状态显示）
+        // ──────────────────────────────────────────────────────
+
+        private void BtnTopLogin_Click(object sender, RoutedEventArgs e)
+        {
+            ShowLoginWindow();
+        }
+
+        // ──────────────────────────────────────────────────────
+        // 登录 / 注册弹窗（内容区按钮）
+        // ──────────────────────────────────────────────────────
+
+        /// <summary>内容区"登录"按钮</summary>
+        private void Button_Click_13(object sender, RoutedEventArgs e) => ShowLoginWindow();
+
+        /// <summary>内容区"注册"按钮</summary>
+        private void Button_Click_14(object sender, RoutedEventArgs e)
+        {
+            var view = DiServices.GetService<RegisterView>();
+            var win = new Window
+            {
+                Title = "注册新用户",
+                Width = 520,
+                Height = 560,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                ResizeMode = ResizeMode.NoResize,
+                Content = view
+            };
+            win.ShowDialog();
+        }
+
+        // ──────────────────────────────────────────────────────
+        // 功能模块按钮
+        // ──────────────────────────────────────────────────────
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            var view = DiServices.GetService<SysViewRouteManagerView>();
-            var win = new Window
-            {
-                Title = "页面路由",
-                Content = view,
-                Width = 900,
-                Height = 600,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen
-            };
-            win.ShowDialog();
+            OpenFullWindow("字典管理", DiServices.GetService<SysViewRouteManagerView>());
         }
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
-            var view = DiServices.GetService<SupplierManagerView>();
-            var win = new Window
-            {
-                Title = "供应商管理",
-                Content = view,
-                Width = 1920,
-                Height = 920,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen
-            };
-            win.ShowDialog();
+            OpenFullWindow("供应商", DiServices.GetService<SupplierManagerView>());
         }
 
         private void Button_Click_2(object sender, RoutedEventArgs e)
         {
-            var win = DiServices.GetService<CustomerPoConfigManagerView>();
-            win.ShowDialog();
+            DiServices.GetService<SwiftExport.View.FW.CustomerViews.Views.CustomerPoConfigManagerView>().ShowDialog();
         }
 
         private void Button_Click_3(object sender, RoutedEventArgs e)
         {
-            // ProductCategoryManagerView 已改为 UserControl，用匿名 Window 包裹后以对话框方式打开
-            var view = DiServices.GetService<ProductCategoryManagerView>();
-            var win = new Window
-            {
-                Title = "产品分类管理",
-                Content = view,
-                Width = 900,
-                Height = 600,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen
-            };
-            win.ShowDialog();
+            OpenWindow("产品分类", DiServices.GetService<ProductCategoryManagerView>(), 900, 600);
         }
 
         private void Button_Click_4(object sender, RoutedEventArgs e)
         {
-            var win = DiServices.GetService<ProductManagerView>();
-
-            var newwin = new Window
-            {
-                Title = "产品与BOM管理中心 - 独立测试环境",
-                Width = 1920,  // 稍微给大一点，主从表挤在小窗口不好看
-                Height = 920,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen, // 启动时屏幕居中
-                
-                // ★ 核心修复：直接把 UserControl 塞给 Window，它天生就会 100% 完美撑满！绝对不需要 DockPanel！
-                Content = win
-                
-            };
-
-            newwin.ShowDialog();
+            OpenFullWindow("产品管理", DiServices.GetService<ProductManagerView>());
         }
 
         private void Button_Click_5(object sender, RoutedEventArgs e)
         {
-            var win = new TestWindow();
-            win.ShowDialog();
+            new TestWindow().ShowDialog();
         }
 
-        /// <summary>
-        /// 中文注释：销售订单管理 - 主表列表测试
-        /// </summary>
         private void Button_Click_6(object sender, RoutedEventArgs e)
         {
-            var view = DiServices.GetService<SalesOrderManagerView>();
-            var window = new Window
-            {
-                Title = "Sales Order Management - Test Environment",
-                Width = 1920,
-                Height = 920,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Content = view
-            };
-
-            window.ShowDialog();
+            OpenFullWindow("销售订单", DiServices.GetService<SalesOrderManagerView>());
         }
 
-        /// <summary>
-        /// 中文注释：销售订单详情 - 新增订单测试（orderId = 0）
-        /// </summary>
         private void Button_Click_7(object sender, RoutedEventArgs e)
         {
-
-
-            var view = DiServices.GetService<SalesOrderDetailView>();
-            var window = new Window
-            {
-                Title = "销售详情",
-                Width = 1920,
-                Height = 920,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Content = view
-            };
-
-            window.ShowDialog();
-
-
+            OpenFullWindow("销售订单详情", DiServices.GetService<SalesOrderDetailView>());
         }
 
-        /// <summary>
-        /// 中文注释：销售订单详情 - 编辑订单测试（orderId = 1）
-        /// </summary>
         private void Button_Click_8(object sender, RoutedEventArgs e)
         {
-            var view = DiServices.GetService<DataDictManagerView>();
-            var window = new Window
-            {
-                Title = "Sales Order Management - Test Environment",
-                Width = 1920,
-                Height = 920,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Content = view
-            };
-
-            window.ShowDialog();
+            OpenFullWindow("数据字典", DiServices.GetService<DataDictManagerView>());
         }
 
         private void Button_Click_9(object sender, RoutedEventArgs e)
         {
-
-            var view = DiServices.GetService<CustomerManagerView>();
-            var window = new Window
-            {
-                Title = "客户管理窗体",
-                Width = 1920,
-                Height = 920,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Content = view
-            };
-
-            window.ShowDialog();
+            OpenFullWindow("客户管理", DiServices.GetService<CustomerManagerView>());
         }
 
         private void Button_Click_10(object sender, RoutedEventArgs e)
         {
-            var view = DiServices.GetService<DependentDemandManagerView>();
-            var window = new Window
-            {
-                Title = "需求池",
-                Width = 1920,
-                Height = 920,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Content = view
-            };
-
-            window.ShowDialog();
+            OpenFullWindow("需求池", DiServices.GetService<DependentDemandManagerView>());
         }
 
         private void Button_Click_11(object sender, RoutedEventArgs e)
         {
-            var view = DiServices.GetService<SupplierManagerView>();
-            var window = new Window
+            OpenFullWindow("供应商管理", DiServices.GetService<SupplierManagerView>());
+        }
+
+        private void Button_Click_12(object sender, RoutedEventArgs e)
+        {
+            OpenFullWindow("采购管理", DiServices.GetService<PurchaseOrderManagerView>());
+        }
+
+        // ──────────────────────────────────────────────────────
+        // 公共辅助方法
+        // ──────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 弹出登录窗口。登录成功后刷新 ShellViewModel 顶栏用户信息。
+        /// </summary>
+        private void ShowLoginWindow(string title = "登录")
+        {
+            var view = DiServices.GetService<LoginView>();
+            Window loginWin = null;
+            loginWin = new Window
             {
-                Title = "供应商管理",
-                Width = 1920,
-                Height = 920,
+                Title = title,
+                Width = 480,
+                Height = 420,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                ResizeMode = ResizeMode.NoResize,
                 Content = view
             };
 
-            window.ShowDialog();
+            // 登录成功：刷新顶栏 + 关闭登录窗口
+            if (view.DataContext is LoginViewModel vm)
+            {
+                vm.LoginSucceeded += () =>
+                {
+                    _shellVm.RefreshUserInfo();
+                    loginWin?.Close();
+                };
+            }
+
+            loginWin.ShowDialog();
+        }
+
+        /// <summary>全屏（1920×920）弹出子窗口</summary>
+        private static void OpenFullWindow(string title, object content)
+            => OpenWindow(title, content, 1920, 920);
+
+        /// <summary>指定大小弹出子窗口</summary>
+        private static void OpenWindow(string title, object content, double width, double height)
+        {
+            var win = new Window
+            {
+                Title = title,
+                Width = width,
+                Height = height,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Content = content
+            };
+            win.ShowDialog();
         }
     }
 }

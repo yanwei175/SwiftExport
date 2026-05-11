@@ -309,7 +309,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
                     var result = await _decomposeApi.GetPagedListAsync(search);
                     if (result.Success && result.Data != null)
                     {
-                        BridgeList.ReLoadRangeFromDtoList<DependentDemandDto>(result.Data.Items);
+                        BridgeList.ReLoadRangeFromDtoList<IndependentDemandDto>(result.Data.Items);
                         TotalCount = result.Data.TotalCount;
 
                         RefreshSourceTasks();

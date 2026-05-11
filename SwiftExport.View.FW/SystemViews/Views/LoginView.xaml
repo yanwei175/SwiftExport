@@ -1,0 +1,74 @@
+<UserControl x:Class="SwiftExport.View.FW.SystemViews.Views.LoginView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
+             xmlns:vm="clr-namespace:SwiftExport.View.FW.SystemViews.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance vm:LoginViewModel}"
+             d:Height="480" d:Width="420"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <!-- 登录卡片居中 -->
+    <Grid>
+        <Border Width="380" VerticalAlignment="Center" HorizontalAlignment="Center"
+                Padding="36,32,36,28" CornerRadius="8"
+                Background="{DynamicResource Brush_Control_Background}"
+                mt:ShadowAssist.Level="High">
+            <StackPanel>
+
+                <!-- 标题 -->
+                <TextBlock Text="SwiftExport"
+                           FontSize="22" FontWeight="Bold"
+                           Foreground="{DynamicResource Brush_Primary}"
+                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                <TextBlock Text="请登录以继续"
+                           FontSize="13"
+                           Foreground="{DynamicResource Brush_Txt_Secondary}"
+                           HorizontalAlignment="Center" Margin="0,0,0,28"/>
+
+                <!-- 用户名 -->
+                <TextBlock Text="用户名" FontSize="12"
+                           Foreground="{DynamicResource Brush_Txt_Secondary}"
+                           Margin="0,0,0,4"/>
+                <TextBox Text="{Binding UserName, UpdateSourceTrigger=PropertyChanged}"
+                         mt:TextBoxAssist.Placeholder="请输入用户名"
+                         mt:TextBoxAssist.ShowClearButton="True"
+                         Height="32" VerticalContentAlignment="Center" Padding="6,0"
+                         Margin="0,0,0,16"/>
+
+                <!-- 密码（PasswordBox 不支持双向绑定，由 code-behind 的 CommandParameter 处理）-->
+                <TextBlock Text="密码" FontSize="12"
+                           Foreground="{DynamicResource Brush_Txt_Secondary}"
+                           Margin="0,0,0,4"/>
+                <PasswordBox x:Name="PwdBox"
+                             Height="32" Padding="6,0"
+                             Margin="0,0,0,24"/>
+
+                <!-- 登录按钮（CommandParameter 绑定 PasswordBox.Password）-->
+                <Button Content="登 录"
+                        IsEnabled="{Binding IsNotBusy}"
+                        x:Name="LoginBtn"
+                        Style="{StaticResource ButtonPrimary}"
+                        Height="40" FontSize="15" Margin="0,0,0,16"/>
+
+                <!-- 状态提示（有内容才显示）-->
+                <TextBlock x:Name="StatusTxt"
+                           Text="{Binding StatusMessage}"
+                           FontSize="12" TextWrapping="Wrap"
+                           HorizontalAlignment="Center"
+                           Foreground="{DynamicResource Brush_Danger}"/>
+
+                <!-- 忙碌进度条 -->
+                <ProgressBar IsIndeterminate="True" Height="2" Margin="0,12,0,0"
+                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
+
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

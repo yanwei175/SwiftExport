@@ -10,7 +10,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
         public string PoNo { get; set; }
         public string SalesOrderNo { get; set; }
         public string SupplierCode { get; set; }
-        public string Status { get; set; }
+        public int OrderStatus { get; set; }
 
         public int PageIndex { get; set; } = 1;
         public int PageSize { get; set; } = 50;

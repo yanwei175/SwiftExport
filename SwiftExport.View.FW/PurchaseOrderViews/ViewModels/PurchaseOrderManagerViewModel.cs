@@ -1,9 +1,11 @@
 using GalaSoft.MvvmLight.Command;
+using Mapster;
 using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Models;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.Mvvm;
 using SwiftExport.View.FW.PurchaseOrderViews.Models;
@@ -36,14 +38,6 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
             _receiveApi = receiveApi;
             _supplierApi = supplierApi;
             _msg = msg;
-
-            StatusOptions = new ObservableCollection<string>
-            {
-                "",
-                "草稿",
-                "待收货",
-                "完成"
-            };
 
             SupplierItems = new ObservableCollection<SupplierDto>();
             HeadItems = new ObservableCollection<PurchaseOrderHeadModel>();
@@ -80,17 +74,22 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
 
         public ObservableCollection<SupplierDto> SupplierItems { get; }
 
-        private SupplierDto _selectedSupplier;
-        public SupplierDto SelectedSupplier
+        private string _selectedSupplier;
+        public string SelectedSupplier
         {
             get { return _selectedSupplier; }
             set { SetProperty(ref _selectedSupplier, value); }
         }
 
-        public ObservableCollection<string> StatusOptions { get; }
+        public IReadOnlyList<KeyValuePair<int, string>> StatusOptions { get; }
+          = new List<KeyValuePair<int, string>>
+          {
+            new KeyValuePair<int, string>(-1, ""),   // 空选项
+          }.Concat(PurchaseOrderStatusEnum.Items).ToList();
 
-        private string _selectedStatus = "";
-        public string SelectedStatus
+
+        private int _selectedStatus ;
+        public int SelectedStatus
         {
             get { return _selectedStatus; }
             set { SetProperty(ref _selectedStatus, value); }
@@ -336,7 +335,7 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
                 {
                     var request = new PurchaseReceiveExecuteRequestDto
                     {
-                        PoNo = SelectedHead.PoNo,
+                        PoNo = SelectedHead.BoNo,
                         OrderNo = SelectedHead.OrderNo,
                         SupplierCode = SelectedHead.SupplierCode,
                         ReceiveDate = DateTime.Now,
@@ -348,7 +347,7 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
                             Qty = x.ReadyQty,
                             Unit = null,
                             PoLineId = x.Id,
-                            SoLineId = x.SoLineId
+                            SoLineId = x.DemandId
                         }).ToList()
                     };
 
@@ -395,10 +394,10 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
                 {
                     var search = new PurchaseOrderSearchDto
                     {
-                        SupplierCode = SelectedSupplier == null ? null : SelectedSupplier.SupplierCode,
-                        Status = string.IsNullOrWhiteSpace(SelectedStatus) ? null : SelectedStatus,
+                        SupplierCode = SelectedSupplier,
                         PoNo = string.IsNullOrWhiteSpace(SearchPoNo) ? null : SearchPoNo.Trim(),
                         SalesOrderNo = string.IsNullOrWhiteSpace(SearchSalesOrderNo) ? null : SearchSalesOrderNo.Trim(),
+                        OrderStatus = SelectedStatus,
                         PageIndex = PageIndex,
                         PageSize = PageSize
                     };
@@ -411,7 +410,7 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
                         var filtered = ApplyDateFilter(rst.Data.Items);
                         foreach (var dto in filtered)
                         {
-                            HeadItems.Add(PurchaseOrderHeadModel.FromDto(dto));
+                            HeadItems.Add(dto.Adapt<PurchaseOrderHeadModel>());
                         }
 
                         TotalCount = rst.Data.TotalCount;
@@ -438,9 +437,9 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
         /// <summary>
         /// 中文注释：日期范围过滤（前端二次过滤，兼容当前查询 DTO 未提供日期字段）。
         /// </summary>
-        private List<PurchaseOrderDto> ApplyDateFilter(List<PurchaseOrderDto> source)
+        private List<PurchaseOrderHeadDto> ApplyDateFilter(List<PurchaseOrderHeadDto> source)
         {
-            var result = source ?? new List<PurchaseOrderDto>();
+            var result = source ?? new List<PurchaseOrderHeadDto>();
 
             if (OrderDateFrom.HasValue)
             {
@@ -542,8 +541,8 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
             {
                 try
                 {
-                    var headDto = SelectedHead.ToDto();
-                    var allLines = LineItems.Items.Select(x => x.ToDto()).ToList();
+                    var headDto = SelectedHead.Adapt<PurchaseOrderHeadDto>();
+                    var allLines = LineItems.Items.Select(x => x.Adapt<PurchaseOrderLineDto>()).ToList();
 
                     var req = new PurchaseOrderDetailDto
                     {
@@ -609,7 +608,7 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
                     // 中文注释：快速入库仅提交当前选中行，数量取 ReadyQty。
                     var request = new PurchaseReceiveExecuteRequestDto
                     {
-                        PoNo = SelectedHead.PoNo,
+                        PoNo = SelectedHead.BoNo,
                         OrderNo = SelectedHead.OrderNo,
                         SupplierCode = SelectedHead.SupplierCode,
                         ReceiveDate = DateTime.Now,
@@ -673,8 +672,8 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
         {
             var lines = LineItems.Items.ToList();
 
-            TotalReadyGw = lines.Sum(x => x.ReadyQty * (x.UnitWeight ?? 0m));
-            TotalReadyCbm = lines.Sum(x => x.ReadyQty * (x.UnitCBM ?? 0m));
+            //TotalReadyGw = lines.Sum(x => x.ReadyQty * (x.UnitWeight ?? 0m));
+            //TotalReadyCbm = lines.Sum(x => x.ReadyQty * (x.UnitCBM ?? 0m));
 
             var near28 = Math.Abs(TotalReadyCbm - 28m) <= 1.5m;
             var near68 = Math.Abs(TotalReadyCbm - 68m) <= 2m;

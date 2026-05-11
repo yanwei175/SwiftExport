@@ -1,145 +1,145 @@
-﻿using SwiftExport.View.FW.Mvvm;
+﻿using SwiftExport.Contracts.DTOs.Suppliers;
+using SwiftExport.View.FW.Mvvm;
 
 namespace SwiftExport.View.FW.SupplierViews.Models
 {
-    public class SupplierModel : ViewModelBaseEx, IBaseModel
+    /// <summary>
+    /// 供应商行模型：继承 BaseLineModel，统一复用
+    /// 1) 行状态机（Added/Modified/Deleted）
+    /// 2) ChangeTracker
+    /// 3) 验证体系
+    /// </summary>
+    public class SupplierModel : BaseLineModel
     {
-
-        public int Id { get; set; }
-
-        private ModelState _state = ModelState.Unchanged;
-
-        public ModelState State
-        {
-            get => _state;
-            set { _state = value; RaisePropertyChanged(nameof(State)); }
-        }
-
         // ================= 业务数据区 =================
 
         private string _supplierCode;
         public string SupplierCode
         {
             get => _supplierCode;
-            set { if (_supplierCode != value) { _supplierCode = value; MarkAsModified(); RaisePropertyChanged(nameof(SupplierCode)); } }
+            set => SetProperty(ref _supplierCode, value);
         }
 
         private string _name;
         public string Name
         {
             get => _name;
-            set { if (_name != value) { _name = value; MarkAsModified(); RaisePropertyChanged(nameof(Name)); } }
+            set => SetProperty(ref _name, value);
         }
 
         private string _docRelateNo;
         public string DocRelateNo
         {
             get => _docRelateNo;
-            set { if (_docRelateNo != value) { _docRelateNo = value; MarkAsModified(); RaisePropertyChanged(nameof(DocRelateNo)); } }
+            set => SetProperty(ref _docRelateNo, value);
         }
 
         private string _contactPerson;
         public string ContactPerson
         {
             get => _contactPerson;
-            set { if (_contactPerson != value) { _contactPerson = value; MarkAsModified(); RaisePropertyChanged(nameof(ContactPerson)); } }
+            set => SetProperty(ref _contactPerson, value);
         }
 
         private string _contactPhone;
         public string ContactPhone
         {
             get => _contactPhone;
-            set { if (_contactPhone != value) { _contactPhone = value; MarkAsModified(); RaisePropertyChanged(nameof(ContactPhone)); } }
+            set => SetProperty(ref _contactPhone, value);
         }
 
         private string _contactEmail;
         public string ContactEmail
         {
             get => _contactEmail;
-            set { if (_contactEmail != value) { _contactEmail = value; MarkAsModified(); RaisePropertyChanged(nameof(ContactEmail)); } }
+            set => SetProperty(ref _contactEmail, value);
         }
 
         private string _address;
         public string Address
         {
             get => _address;
-            set { if (_address != value) { _address = value; MarkAsModified(); RaisePropertyChanged(nameof(Address)); } }
+            set => SetProperty(ref _address, value);
         }
 
         private decimal _zheKou;
         public decimal ZheKou
         {
             get => _zheKou;
-            set { if (_zheKou != value) { _zheKou = value; MarkAsModified(); RaisePropertyChanged(nameof(ZheKou)); } }
+            set => SetProperty(ref _zheKou, value);
         }
 
         private string _currency = "CNY";
         public string Currency
         {
             get => _currency;
-            set { if (_currency != value) { _currency = value; MarkAsModified(); RaisePropertyChanged(nameof(Currency)); } }
+            set => SetProperty(ref _currency, value);
         }
 
         private decimal _taxRate;
         public decimal TaxRate
         {
             get => _taxRate;
-            set { if (_taxRate != value) { _taxRate = value; MarkAsModified(); RaisePropertyChanged(nameof(TaxRate)); } }
+            set => SetProperty(ref _taxRate, value);
         }
 
         private int _defaultLeadTime;
         public int DefaultLeadTime
         {
             get => _defaultLeadTime;
-            set { if (_defaultLeadTime != value) { _defaultLeadTime = value; MarkAsModified(); RaisePropertyChanged(nameof(DefaultLeadTime)); } }
+            set => SetProperty(ref _defaultLeadTime, value);
         }
 
         private string _paymentTerms;
         public string PaymentTerms
         {
             get => _paymentTerms;
-            set { if (_paymentTerms != value) { _paymentTerms = value; MarkAsModified(); RaisePropertyChanged(nameof(PaymentTerms)); } }
+            set => SetProperty(ref _paymentTerms, value);
         }
 
         private string _zheKouBeiZhu;
         public string ZheKouBeiZhu
         {
             get => _zheKouBeiZhu;
-            set { if (_zheKouBeiZhu != value) { _zheKouBeiZhu = value; MarkAsModified(); RaisePropertyChanged(nameof(ZheKouBeiZhu)); } }
-        }
-
-        private bool _isChecked;
-        public bool IsChecked
-        {
-            get => _isChecked;
-            set
-            {
-                _isChecked = value;
-                RaisePropertyChanged(nameof(IsChecked));
-            }
+            set => SetProperty(ref _zheKouBeiZhu, value);
         }
 
         // ================= 验证逻辑区 =================
 
-        public bool IsValid
+        public override string ValidateRow()
         {
-            get
-            {
-                return !string.IsNullOrWhiteSpace(SupplierCode) &&
-                     !string.IsNullOrWhiteSpace(Name) &&
-                     !string.IsNullOrWhiteSpace(DocRelateNo);
-
-            }
+            if (string.IsNullOrWhiteSpace(SupplierCode)) return "供应商代码不能为空";
+            if (string.IsNullOrWhiteSpace(Name)) return "供应商名称不能为空";
+            if (string.IsNullOrWhiteSpace(DocRelateNo)) return "单据关联号不能为空";
+            return null;
         }
 
-        // ================= 辅助方法 =================
-
-        private void MarkAsModified()
+        public override void LoadFromDto<Tdto>(Tdto dto, bool 抑制清理脏数据 = false)
         {
-            if (State == ModelState.Unchanged)
+            var source = dto as SupplierDto;
+            if (source == null) return;
+
+            using (程序内部修改Scope())
             {
-                State = ModelState.Modified;
+                Id = source.Id;
+                SupplierCode = source.SupplierCode ?? string.Empty;
+                Name = source.SupplierName ?? string.Empty;
+                DocRelateNo = source.DocRelateNo ?? string.Empty;
+                ContactPerson = source.ContactPerson ?? string.Empty;
+                ContactPhone = source.ContactPhone ?? string.Empty;
+                ContactEmail = source.ContactEmail ?? string.Empty;
+                Address = source.Address ?? string.Empty;
+                ZheKou = source.ZheKou ?? 0m;
+                Currency = string.IsNullOrWhiteSpace(source.Currency) ? "CNY" : source.Currency;
+                TaxRate = source.TaxRate ?? 0m;
+                DefaultLeadTime = source.DefaultLeadTime ?? 0;
+                PaymentTerms = source.PaymentTerms ?? string.Empty;
+                ZheKouBeiZhu = source.ZheKouBeiZhu ?? string.Empty;
             }
+
+            State = ModelState.Unchanged;
+            if (!抑制清理脏数据)
+                CommitChanges();
         }
     }
 }

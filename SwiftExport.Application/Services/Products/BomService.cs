@@ -258,7 +258,7 @@ public class BomService(
             var startIndex = addList.Count;
 
             // 中文注释：非标件规则——当 SKU 为空时，按非标件直接落依赖需求，不做 BOM 递归。
-            if (string.IsNullOrWhiteSpace(line.Sku))
+            if (line.IsNonStandard)
             {
                 addList.Add(Build非标件需求(line, null));
             }
@@ -295,84 +295,7 @@ public class BomService(
 
 
     //==========拆解BOM核心逻辑========
-    /// <summary>
-    /// 中文注释：构建拆解缓存。
-    /// 目标：将递归拆解中频繁访问的 Product/BOM/Supplier 统一拉到内存，避免 N+1 查询。
-    /// </summary>
-    /// <param name="rootSkus">需要参与拆解的根 SKU 集合（可跨来源单据）。</param>
-    private async Task<DecomposeCache> 构建需求缓存Async(IEnumerable<string> rootSkus)
-    {
-        var normalizedRootSkus = rootSkus
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
 
-        if (normalizedRootSkus.Count == 0)
-            return new DecomposeCache([], [], []);
-
-        var productBySku = new Dictionary<string, Product>(StringComparer.OrdinalIgnoreCase);
-        var bomByBomNo = new Dictionary<string, List<Bom>>(StringComparer.OrdinalIgnoreCase);
-        var loadedBomNos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        var pendingSkus = new HashSet<string>(normalizedRootSkus, StringComparer.OrdinalIgnoreCase);
-        while (pendingSkus.Count > 0)
-        {
-            var skuBatch = pendingSkus.ToList();
-            pendingSkus.Clear();
-
-            var products = await _pdRepo.GetBySkuListAsync(skuBatch);
-            foreach (var product in products)
-            {
-                if (!string.IsNullOrWhiteSpace(product.Sku))
-                    productBySku[product.Sku] = product;
-            }
-
-            var toLoadBomNos = products
-                .Where(x => !string.IsNullOrWhiteSpace(x.BomNo) && x.BomVersion > 0)
-                .Select(x => x.BomNo!)
-                .Where(x => !loadedBomNos.Contains(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (toLoadBomNos.Count == 0)
-                continue;
-
-            foreach (var bomNo in toLoadBomNos)
-                loadedBomNos.Add(bomNo);
-
-            var bomMap = await _bomRepo.Get一堆BomBy一堆Bom号(toLoadBomNos);
-            var nextLevelSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var kv in bomMap)
-            {
-                var bomNo = kv.Key;
-                var bomList = kv.Value?.ToList() ?? [];
-                bomByBomNo[bomNo] = bomList;
-
-                foreach (var bom in bomList)
-                {
-                    if (string.IsNullOrWhiteSpace(bom.SubSku))
-                        continue;
-
-                    if (!productBySku.ContainsKey(bom.SubSku))
-                        nextLevelSkus.Add(bom.SubSku);
-                }
-            }
-
-            foreach (var sku in nextLevelSkus)
-                pendingSkus.Add(sku);
-        }
-
-        var supplierCodes = productBySku.Values
-            .Where(x => !string.IsNullOrWhiteSpace(x.SupplierCode))
-            .Select(x => x.SupplierCode!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var suppliers = supplierCodes.Count > 0 ? await _supplierRepo.GetBySupplierCodeListAsync(supplierCodes) : [];
-        return new DecomposeCache(productBySku.Values, bomByBomNo.Values.SelectMany(x => x), suppliers);
-    }
 
     /// <summary>
     /// 中文注释：按BOM版本递归拆解单行。
@@ -454,6 +377,7 @@ public class BomService(
             SourceNo = sourceLine.SourceNo,
             SourceLineId = sourceLine.SourceLineId,
             IndependentDemandId = sourceLine.Id,
+            SourceSku = sourceLine.SourceSku,
             Sku = product.Sku,
             Description = product.DescriptionEn,
             ColorName = null,
@@ -492,7 +416,8 @@ public class BomService(
             SourceNo = sourceLine.SourceNo,
             SourceLineId = sourceLine.SourceLineId,
             IndependentDemandId = sourceLine.Id,
-            Sku = string.Empty,
+            SourceSku = sourceLine.SourceSku,
+            Sku = sourceLine.Sku,
             Description = sourceLine.Description,
             ColorName = sourceLine.ColorName,
             Features = sourceLine.Features,
@@ -505,7 +430,7 @@ public class BomService(
             ReceivedQty = 0,
             RequiredDate = sourceLine.HopefulDate,
             StatusFlag = DependentDemandStatusEnum.草稿,
-            Remark = "非标件需求(Sku为空)",
+            Remark = "非标件需求",
             TargetNo = null,
             SupplierCode = null,
             SupplierName = null,
@@ -516,7 +441,84 @@ public class BomService(
             ShipToLocation = shipToLocation
         };
     }
+    /// <summary>
+    /// 中文注释：构建拆解缓存。
+    /// 目标：将递归拆解中频繁访问的 Product/BOM/Supplier 统一拉到内存，避免 N+1 查询。
+    /// </summary>
+    /// <param name="rootSkus">需要参与拆解的根 SKU 集合（可跨来源单据）。</param>
+    private async Task<DecomposeCache> 构建需求缓存Async(IEnumerable<string> rootSkus)
+    {
+        var normalizedRootSkus = rootSkus
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
+        if (normalizedRootSkus.Count == 0)
+            return new DecomposeCache([], [], []);
+
+        var productBySku = new Dictionary<string, Product>(StringComparer.OrdinalIgnoreCase);
+        var bomByBomNo = new Dictionary<string, List<Bom>>(StringComparer.OrdinalIgnoreCase);
+        var loadedBomNos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var pendingSkus = new HashSet<string>(normalizedRootSkus, StringComparer.OrdinalIgnoreCase);
+        while (pendingSkus.Count > 0)
+        {
+            var skuBatch = pendingSkus.ToList();
+            pendingSkus.Clear();
+
+            var products = await _pdRepo.GetBySkuListAsync(skuBatch);
+            foreach (var product in products)
+            {
+                if (!string.IsNullOrWhiteSpace(product.Sku))
+                    productBySku[product.Sku] = product;
+            }
+
+            var toLoadBomNos = products
+                .Where(x => !string.IsNullOrWhiteSpace(x.BomNo) && x.BomVersion > 0)
+                .Select(x => x.BomNo!)
+                .Where(x => !loadedBomNos.Contains(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (toLoadBomNos.Count == 0)
+                continue;
+
+            foreach (var bomNo in toLoadBomNos)
+                loadedBomNos.Add(bomNo);
+
+            var bomMap = await _bomRepo.Get一堆BomBy一堆Bom号(toLoadBomNos);
+            var nextLevelSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var kv in bomMap)
+            {
+                var bomNo = kv.Key;
+                var bomList = kv.Value?.ToList() ?? [];
+                bomByBomNo[bomNo] = bomList;
+
+                foreach (var bom in bomList)
+                {
+                    if (string.IsNullOrWhiteSpace(bom.SubSku))
+                        continue;
+
+                    if (!productBySku.ContainsKey(bom.SubSku))
+                        nextLevelSkus.Add(bom.SubSku);
+                }
+            }
+
+            foreach (var sku in nextLevelSkus)
+                pendingSkus.Add(sku);
+        }
+
+        var supplierCodes = productBySku.Values
+            .Where(x => !string.IsNullOrWhiteSpace(x.SupplierCode))
+            .Select(x => x.SupplierCode!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var suppliers = supplierCodes.Count > 0 ? await _supplierRepo.GetBySupplierCodeListAsync(supplierCodes) : [];
+        return new DecomposeCache(productBySku.Values, bomByBomNo.Values.SelectMany(x => x), suppliers);
+    }
     /// <summary>
     /// 中文注释：拆解运行时缓存对象。
     /// </summary>

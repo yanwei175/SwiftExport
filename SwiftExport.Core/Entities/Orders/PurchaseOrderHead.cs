@@ -9,18 +9,24 @@ namespace SwiftExport.Core.Entities.Orders;
 [Table("PurchaseOrderHead")]
 public class PurchaseOrderHead : BaseEntity
 {
-    public string? SoPerson { get; set; }
-    public string? PoPerson { get; set; }
 
-    public string? OrderStatus { get; set; }
-    public string? PoNo { get; set; }
+    /// <summary>
+    /// 关联字段：与明细保持一致，便于链路追踪。
+    /// </summary>
+    public required string OrderNo { get; set; }
+
+    public int OrderStatus { get; set; }
+    public string? BoNo { get; set; }
     public string? SalesOrderNo { get; set; }
     public string? CustomerPoNo { get; set; }
     public string? CustomerCode { get; set; }
     public string? Currency { get; set; }
 
-    public string SupplierCode { get; set; } = string.Empty;
-    public string SupplierName { get; set; } = string.Empty;
+    public required string SupplierCode { get; set; }
+    public string? SupplierName { get; set; }
+    public string? SoPerson { get; set; }
+    public string? PoPerson { get; set; }
+
 
     public string? InletrHoseType { get; set; }
     public string? AeratorType { get; set; }
@@ -44,7 +50,7 @@ public class PurchaseOrderHead : BaseEntity
     public decimal? TotalQty { get; set; }
     public decimal? TotalShippedQty { get; set; }
     public decimal? TotalUnshippedQty { get; set; }
-    public decimal? TotalPartiallyShippedQty { get; set; }
+    public decimal? TotalReadyQty { get; set; }
 
     public DateTime? OrderDate { get; set; }
     public DateTime? ExpectedDate { get; set; }
@@ -54,8 +60,5 @@ public class PurchaseOrderHead : BaseEntity
     public decimal? ZhiJieYouHuiJinE { get; set; }
     public decimal? ZheKou { get; set; }
 
-    /// <summary>
-    /// 关联字段：与明细保持一致，便于链路追踪。
-    /// </summary>
-    public string OrderNo { get; set; } = string.Empty;
+
 }

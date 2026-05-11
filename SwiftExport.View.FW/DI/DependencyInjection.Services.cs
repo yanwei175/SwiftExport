@@ -22,6 +22,9 @@ namespace SwiftExport.View.FW
             // 字典数据缓存服务：应用启动时预加载常用字典，避免每次下拉都走 API
             services.AddSingleton<IDictCacheService, DictCacheService>();
 
+            // 会话服务：管理退出登录和切换用户，Singleton 保证事件订阅全局唯一
+            services.AddSingleton<ISessionService, SessionService>();
+
             return services;
         }
     }

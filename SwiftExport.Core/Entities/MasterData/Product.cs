@@ -1,4 +1,7 @@
-﻿using SwiftExport.Core.Common;
+﻿using Microsoft.VisualBasic;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
+using SwiftExport.Core.Common;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
@@ -6,7 +9,7 @@ namespace SwiftExport.Core.Entities.MasterData;
 public class Product : BaseEntity
 {
     public string? MasterSku { get; set; } // 逻辑外键：直接存字符串 "AT010011"
-    public string Sku { get; set; } = default!;
+    public required string Sku { get; set; }
     public string? DescriptionEn { get; set; }
     public string? DescriptionZh { get; set; }
     public int ColorId { get; set; }
@@ -52,6 +55,10 @@ public class Product : BaseEntity
     public string? SupplierCode { get; set; }
     public string? SSku { get; set; }
     public int CategoryId { get; set; }
+
+
+    // Dapper 不会映射这个，因为它没有 setter
+    public bool IsNonStandard => !string.IsNullOrWhiteSpace(Sku) && Sku.StartsWith(DocumentTypeStaticsEnum.NonStandardPart);
 
 
 }

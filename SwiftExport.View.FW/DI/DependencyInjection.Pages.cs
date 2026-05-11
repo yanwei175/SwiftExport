@@ -58,6 +58,13 @@ namespace SwiftExport.View.FW
             services.AddTransient<SysViewRouteManagerViewModel>();
             services.AddTransient<SysViewRouteManagerView>();
 
+            // ================== 认证模块：登录 / 注册 ==================
+            services.AddTransient<LoginViewModel>();
+            services.AddTransient<LoginView>();
+
+            services.AddTransient<RegisterViewModel>();
+            services.AddTransient<RegisterView>();
+
             // ================== 产品模块 ==================
             services.AddTransient<ProductManagerViewModel>();
             services.AddTransient<ProductManagerView>(); 

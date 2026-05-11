@@ -342,7 +342,7 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
                 }
 
                 EnsureHeader();
-                SelectedHeader.PoNo = rst.Data.Header.PoNo;
+                SelectedHeader.PoNo = rst.Data.Header.BoNo;
                 SelectedHeader.PurchaseOrderNo = rst.Data.Header.OrderNo;
                 SelectedHeader.SupplierCode = rst.Data.Header.SupplierCode;
                 SelectedHeader.SupplierName = rst.Data.Header.SupplierName;
@@ -358,8 +358,8 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
                         Description = line.DescriptionZh,
                         Qty = Math.Max(line.ReadyQty, line.QTY - line.RecQty),
                         PoLineId = line.Id,
-                        SoLineId = line.SoLineId,
-                        PoNo = rst.Data.Header.PoNo,
+                        SoLineId = line.DemandId,
+                        PoNo = rst.Data.Header.BoNo,
                         PurchaseOrderNo = rst.Data.Header.OrderNo,
                         SalesOrderNo = rst.Data.Header.SalesOrderNo
                     });

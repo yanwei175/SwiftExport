@@ -63,5 +63,7 @@ public interface IIndependentDemandRepository : IRepository<IndependentDemand>
     /// <returns>更新成功行数</returns>
     Task<int> RollbackDecomposedMarkAsync(string sourceType, string sourceNo, IEnumerable<int> sourceLineIds);
 
+    Task<bool> CanCanceAsync(IEnumerable<int> independIds);
+
 
 }

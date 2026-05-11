@@ -7,9 +7,9 @@ public interface IRepository<T> where T : BaseEntity
 {
     // 基础查询
     Task<bool> ExistsIdAsync(int id);
-    Task<IReadOnlyList<int>> GetExistingIdListAsync(IEnumerable<int> idList);
-    Task<T?> GetByIdAsync(int id);
-    Task<IReadOnlyList<T>> GetByIdListAsync(IEnumerable<int> idList);
+    Task<IReadOnlyList<int>> GetExistingIdListAsync(IEnumerable<int> idList, bool withUpdLock = false);
+    Task<T?> GetByIdAsync(int id, bool withUpdLock = false);
+    Task<IReadOnlyList<T>> GetByIdListAsync(IEnumerable<int> idList, bool withUpdLock = false);
     /// <summary>
     /// 泛型仓库,获取单个实体,主要是为了拿字段名
     /// </summary>
@@ -27,7 +27,7 @@ public interface IRepository<T> where T : BaseEntity
     /// <param name="whereSql"></param>
     /// <param name="param"></param>
     /// <returns>实体列表</returns>
-    Task<IReadOnlyList<T>> GetListAsync(string whereSql, object? param = null);
+    Task<IReadOnlyList<T>> GetListAsync(string whereSql, object? param = null, bool withUpdLock = false);
     /// <summary>
     /// 动态SQL查询
     /// </summary>
@@ -36,11 +36,11 @@ public interface IRepository<T> where T : BaseEntity
     /// 字典的Key为待查询的数据库字段名，value为QueryCondition对象,对象里是 比对条件,条件值
     /// </param>
     /// <returns>一个对象列表,如果条件为空则返回所有IsDelete<>1的数据</returns>
-    Task<IReadOnlyList<T>> GetListAsync(QueryCriteria criteria);
+    Task<IReadOnlyList<T>> GetListAsync(QueryCriteria criteria, bool withUpdLock = false);
     /// <summary>
     /// 通用查询：传入匿名对象，属性名对应字段名，值为相等条件
     /// </summary>
-    Task<IReadOnlyList<T>> GetListAsync(object noNameObj);
+    Task<IReadOnlyList<T>> GetListAsync(object noNameObj, bool withUpdLock = false);
 
 
 

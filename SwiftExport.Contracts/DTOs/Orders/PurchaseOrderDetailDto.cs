@@ -7,7 +7,12 @@ namespace SwiftExport.Contracts.DTOs.Orders
     /// </summary>
     public class PurchaseOrderDetailDto
     {
-        public PurchaseOrderDto Header { get; set; } = new PurchaseOrderDto();
+        public PurchaseOrderHeadDto Header { get; set; } = new PurchaseOrderHeadDto();
         public List<PurchaseOrderLineDto> Lines { get; set; } = new List<PurchaseOrderLineDto>();
+        /// <summary>
+        /// 扩展字段：专门用于保存时告知后端哪些行需要被物理删除
+        /// 只有在“保存”请求时才会用到这个字段
+        /// </summary>
+        public List<int> DeletedLineIds { get; set; } = new List<int>();
     }
 }

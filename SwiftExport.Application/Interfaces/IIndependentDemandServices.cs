@@ -12,12 +12,18 @@ namespace SwiftExport.Application.Interfaces
     {
         Task<ServiceResult<bool>> UpdateFilledQtyAsync(int id, decimal addQty);
 
+        //获取分页数据
+        Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync(InDependSearchReq search);
         /// <summary>
         /// 按来源单据执行销售需求拆解（由毛需求驱动，拆解结果写入需求池）。
         /// </summary>
         /// <param name="sourceType">来源单据类型</param>
         /// <param name="sourceNo">来源单号</param>
         /// <returns>拆解后的需求池明细</returns>
-        Task<ServiceResult<List<DependentDemandDto>>> 根据来源单据拆解至净需求Async(string sourceType, string sourceNo);
+        Task<ServiceResult<List<IndependentDemandDto>>> 根据来源单据拆解至净需求Async(string sourceType, string sourceNo);
+        Task<ServiceResult<List<IndependentDemandDto>>> 根据选定毛需求拆解至净需求Async(List<int> ids);
+
+        Task<ServiceResult<List<IndependentDemandDto>>> 批量回退草稿(List<int> ids);
+
     }
 }

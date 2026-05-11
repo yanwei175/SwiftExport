@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Core.Interfaces;
+using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
+using SwiftExport.Infrastructure.Repositories.Auth;
 using SwiftExport.Infrastructure.Repositories.Base;
 using SwiftExport.Infrastructure.Repositories.Customers;
 using SwiftExport.Infrastructure.Repositories.MasterData;
@@ -10,6 +12,7 @@ using SwiftExport.Infrastructure.Repositories.Products;
 using SwiftExport.Infrastructure.Repositories.Suppliers;
 using SwiftExport.Infrastructure.Repositories.Systems;
 using SwiftExport.Infrastructure.Repositories.SystemRepositories;
+using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Infrastructure;
 
@@ -22,6 +25,18 @@ public static class DependencyInjection
         services.AddScoped<DbSession>();
         services.AddScoped<RepositoryBaseContext>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // ══════════════════════════════════════════════════════
+        // 认证相关服务
+        // ══════════════════════════════════════════════════════
+        // AuditStampService 依赖 ICurrentUser，ICurrentUser 在 WebApi 层注册（读 HttpContext）
+        // Infrastructure 层只依赖接口，不依赖具体实现，保持分层干净
+        services.AddScoped<IAuditStampService, AuditStampService>();
+        services.AddScoped<ISysUserRepository, SysUserRepository>();
+        // 角色主表仓储
+        services.AddScoped<ISysRoleRepository, SysRoleRepository>();
+        // 用户-角色关联仓储
+        services.AddScoped<ISysUserRoleRepository, SysUserRoleRepository>();
 
 
         services.AddScoped(typeof(IRepository<>), typeof(DapperRepository<>));

@@ -49,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AppRuntimeOptions.cs" />
+    <Compile Include="Http\AuthTokenStore.cs" />
     <Compile Include="OrderDecomposeViews\Models\DependentDemandList.cs" />
     <Compile Include="OrderDecomposeViews\Models\DependentDemandModel.cs" />
     <Compile Include="OrderDecomposeViews\ViewModels\DependentDemandManagerViewModel.cs" />
@@ -215,6 +216,9 @@
     <Compile Include="Security\PermissionManager.cs" />
     <Compile Include="Services\DialogService.cs" />
     <Compile Include="Services\DictCacheService.cs" />
+    <Compile Include="Services\ISessionService.cs" />
+    <Compile Include="Services\SessionService.cs" />
+    <Compile Include="SupplierViews\Models\SupplierListModel.cs" />
     <Compile Include="SupplierViews\Models\SupplierModel.cs" />
     <Compile Include="SupplierViews\ViewModels\SupplierManagerViewModel.cs" />
     <Compile Include="SupplierViews\Views\SupplierManagerView.xaml.cs">
@@ -229,8 +233,16 @@
     <Compile Include="SystemViews\Models\CurrencyModel.cs" />
     <Compile Include="SystemViews\Models\SysViewRouteList.cs" />
     <Compile Include="SystemViews\Models\SysViewRouteModel.cs" />
+    <Compile Include="SystemViews\ViewModels\LoginViewModel.cs" />
+    <Compile Include="SystemViews\ViewModels\RegisterViewModel.cs" />
     <Compile Include="SystemViews\ViewModels\SysDicCurrencyViewModel.cs" />
     <Compile Include="SystemViews\ViewModels\SysViewRouteManagerViewModel.cs" />
+    <Compile Include="SystemViews\Views\LoginView.xaml.cs">
+      <DependentUpon>LoginView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SystemViews\Views\RegisterView.xaml.cs">
+      <DependentUpon>RegisterView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="SystemViews\Views\SysDicCurrencyView.xaml.cs">
       <DependentUpon>SysDicCurrencyView.xaml</DependentUpon>
     </Compile>
@@ -337,6 +349,12 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="SupplierViews\Views\SupplierProductManagerView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SystemViews\Views\LoginView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SystemViews\Views\RegisterView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="SystemViews\Views\SysDicCurrencyView.xaml">

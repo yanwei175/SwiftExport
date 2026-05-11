@@ -35,6 +35,11 @@ namespace SwiftExport.Contracts.SysEnums.StaticEnums
         /// </summary> 
         public const string OutboundOrder = "OB";
 
+        /// <summary>
+        /// 非标件编号,很多地方基于这个开头判断是否为非标件，所以这个值不能随意修改
+        /// </summary> 
+        public const string NonStandardPart = "非标件";
+
 
     }
 }

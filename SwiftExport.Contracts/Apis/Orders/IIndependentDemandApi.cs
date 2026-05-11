@@ -17,6 +17,6 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// 按来源单据触发销售毛需求拆解。
         /// </summary>
         [Post("/decompose-by-source")]
-        Task<ServiceResult<List<DependentDemandDto>>> ExecuteDecomposeBySourceAsync([Body] IndependentDemandDecomposeRequestDto request);
+        Task<ServiceResult<List<DTOs.Orders.IndependentDemandDto>>> ExecuteDecomposeBySourceAsync([Body] IndependentDemandDecomposeRequestDto request);
     }
 }

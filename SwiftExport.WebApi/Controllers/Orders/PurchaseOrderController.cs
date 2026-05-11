@@ -11,10 +11,10 @@ namespace SwiftExport.WebApi.Controllers.Orders
     /// 采购订单控制器。
     /// </summary>
     public class PurchaseOrderController(IPurchaseOrderService service)
-        : BaseController<PurchaseOrderHead, PurchaseOrderDto>(service)
+        : BaseController<PurchaseOrderHead, PurchaseOrderHeadDto>(service)
     {
         [HttpPost("search")]
-        public async Task<ServiceResult<PagedResultDto<PurchaseOrderDto>>> GetPagedListAsync([FromBody] PurchaseOrderSearchDto search)
+        public async Task<ServiceResult<PagedResultDto<PurchaseOrderHeadDto>>> GetPagedListAsync([FromBody] PurchaseOrderSearchDto search)
         {
             return await service.GetPagedListAsync(search);
         }
@@ -22,7 +22,7 @@ namespace SwiftExport.WebApi.Controllers.Orders
         [HttpGet("{id}/detail")]
         public async Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByIdAsync(int id)
         {
-            return await service.GetDetailByIdAsync(id);
+            return await service.GetDetailByHeadIdAsync(id);
         }
 
         [HttpGet("by-orderno/{orderNo}")]
@@ -34,7 +34,7 @@ namespace SwiftExport.WebApi.Controllers.Orders
         [HttpGet("by-pono/{poNo}")]
         public async Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByPoNoAsync(string poNo)
         {
-            return await service.GetDetailByPoNoAsync(poNo);
+            return await service.GetDetailByBoNoAsync(poNo);
         }
 
         [HttpPost("detail/save")]

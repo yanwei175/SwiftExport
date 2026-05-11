@@ -10,16 +10,16 @@ using SwiftExport.WebApi.Controllers.Base;
 namespace SwiftExport.WebApi.Controllers.Orders
 {
     /// <summary>
-    /// 销售订单拆解中间表控制器。
+    /// 净需求控制器。
     /// </summary>
     public class DependentDemandController(IDependentDemandService service)
-        : BaseController<DependentDemand, DependentDemandDto>(service)
+        : BaseController<DependentDemand, IndependentDemandDto>(service)
     {
         /// <summary>
-        /// 分页查询拆解中间表。
+        /// 分页查询净需求。
         /// </summary>
         [HttpPost("search")]
-        public async Task<ServiceResult<PagedResultDto<DependentDemandDto>>> GetPagedListAsync([FromBody] DependentDemandSearchDto search)
+        public async Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync([FromBody] DependentDemandSearchDto search)
         {
             return await service.GetPagedListAsync(search);
         }

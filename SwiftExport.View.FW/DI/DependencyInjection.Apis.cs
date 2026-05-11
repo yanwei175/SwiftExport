@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Refit;
+using SwiftExport.Contracts.Apis.AuthApis;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.Apis.ProductApis;
@@ -18,7 +19,7 @@ namespace SwiftExport.View.FW
     public static class RefitExtensions
     {
         /// <summary>
-        /// 注册一个 Refit API 客户端，自动挂载 HTTP 日志拦截器。
+        /// 注册一个 Refit API 客户端，自动挂载日志拦截器和 Token 注入拦截器。
         /// </summary>
         public static IHttpClientBuilder AddErpApi<T>(
             this IServiceCollection services, string baseAddress) where T : class
@@ -27,14 +28,12 @@ namespace SwiftExport.View.FW
                 .ConfigureHttpClient(c =>
                 {
                     c.BaseAddress = new Uri(baseAddress);
-                    // 离线模式下缩短超时，避免点击后长时间无响应
                     c.Timeout = AppRuntimeOptions.DisableRemoteApi
                         ? TimeSpan.FromSeconds(2)
                         : TimeSpan.FromSeconds(30);
                 })
-                .AddHttpMessageHandler<HttpLoggingHandler>();
-            // 启用 Token 注入时取消以下注释：
-            // .AddHttpMessageHandler<AuthTokenHandler>();
+                .AddHttpMessageHandler<HttpLoggingHandler>()
+                .AddHttpMessageHandler<AuthTokenHandler>(); // ← Token 已启用，登录后自动带 Bearer
         }
     }
 
@@ -53,11 +52,21 @@ namespace SwiftExport.View.FW
         {
             // HTTP 日志拦截器（Transient：每次 HttpClient 创建时注入一个新实例）
             services.AddTransient<HttpLoggingHandler>();
-            // Token 注入拦截器（预留，启用时取消注释）
-            // services.AddTransient<AuthTokenHandler>();
+            // Token 注入拦截器（已启用：登录后自动为所有 API 请求附加 Bearer Token）
+            services.AddTransient<AuthTokenHandler>();
 
             // TODO：后续从 appsettings / 配置中心读取，避免硬编码
             const string apiBaseUrl = "https://localhost:7086";
+
+            // ================== 认证模块（无需 BaseUrl 前缀，单独注册）==================
+            services.AddRefitClient<IAuthApi>()
+                .ConfigureHttpClient(c =>
+                {
+                    c.BaseAddress = new Uri(apiBaseUrl);
+                    c.Timeout = TimeSpan.FromSeconds(15);
+                })
+                .AddHttpMessageHandler<HttpLoggingHandler>();
+            // 注意：IAuthApi 的 login 接口不挂 AuthTokenHandler，避免循环依赖
 
             // ================== 系统模块 ==================
             services.AddErpApi<ISysDictTypeApi>(apiBaseUrl + "/api/SysDictType");

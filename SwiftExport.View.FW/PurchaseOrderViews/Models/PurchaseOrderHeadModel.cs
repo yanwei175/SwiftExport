@@ -17,11 +17,11 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
             set { SetProperty(ref _id, value); }
         }
 
-        private string _poNo;
-        public string PoNo
+        private string _boNo;
+        public string BoNo
         {
-            get { return _poNo; }
-            set { SetProperty(ref _poNo, value); }
+            get { return _boNo; }
+            set { SetProperty(ref _boNo, value); }
         }
 
         private string _orderNo;
@@ -59,11 +59,11 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
             set { SetProperty(ref _approvalStatus, value); }
         }
 
-        private string _status;
-        public string Status
+        private int _orderStatus;
+        public int OrderStatus
         {
-            get { return _status; }
-            set { SetProperty(ref _status, value); }
+            get { return _orderStatus; }
+            set { SetProperty(ref _orderStatus, value); }
         }
 
         private DateTime? _orderDate;
@@ -73,11 +73,50 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
             set { SetProperty(ref _orderDate, value); }
         }
 
+        private DateTime? _expectedDate;
+        /// <summary>
+        /// 预计交货日期
+        /// </summary>
+        public DateTime? ExpectedDate
+        {
+            get { return _expectedDate; }
+            set { SetProperty(ref _expectedDate, value); }
+        }
+        private DateTime? _replyDate;
+        /// <summary>
+        /// 回复交货日期
+        /// </summary>
+        public DateTime? ReplyDate
+        {
+            get { return _replyDate; }
+            set { SetProperty(ref _replyDate, value); }
+        }
+
         private decimal? _totalQty;
         public decimal? TotalQty
         {
             get { return _totalQty; }
             set { SetProperty(ref _totalQty, value); }
+        }
+
+        private decimal? _totalShippedQty;
+        public decimal? TotalShippedQty
+        {
+            get { return _totalShippedQty; }
+            set { SetProperty(ref _totalShippedQty, value); }
+        }
+        private decimal? _totalUnshippedQty;
+        public decimal? TotalUnshippedQty
+        {
+            get { return _totalUnshippedQty; }
+            set { SetProperty(ref _totalUnshippedQty, value); }
+        }
+
+        private decimal? _totalReadyQty;
+        public decimal? TotalReadyQty
+        {
+            get { return _totalReadyQty; }
+            set { SetProperty(ref _totalReadyQty, value); }
         }
 
         private decimal? _totalAmountLocalCurrency;
@@ -97,48 +136,5 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
             set { SetProperty(ref _isChecked, value); }
         }
 
-        /// <summary>
-        /// 中文注释：DTO 转 UI 模型。
-        /// </summary>
-        public static PurchaseOrderHeadModel FromDto(PurchaseOrderDto dto)
-        {
-            if (dto == null) return null;
-
-            return new PurchaseOrderHeadModel
-            {
-                Id = dto.Id,
-                PoNo = dto.PoNo,
-                OrderNo = dto.OrderNo,
-                SupplierCode = dto.SupplierCode,
-                SupplierName = dto.SupplierName,
-                SalesOrderNo = dto.SalesOrderNo,
-                ApprovalStatus = dto.ApprovalStatus,
-                Status = dto.Status,
-                OrderDate = dto.OrderDate,
-                TotalQty = dto.TotalQty,
-                TotalAmountLocalCurrency = dto.TotalAmountLocalCurrency
-            };
-        }
-
-        /// <summary>
-        /// 中文注释：UI 模型回写 DTO（保存明细时复用头信息）。
-        /// </summary>
-        public PurchaseOrderDto ToDto()
-        {
-            return new PurchaseOrderDto
-            {
-                Id = Id,
-                PoNo = PoNo,
-                OrderNo = OrderNo,
-                SupplierCode = SupplierCode,
-                SupplierName = SupplierName,
-                SalesOrderNo = SalesOrderNo,
-                ApprovalStatus = ApprovalStatus,
-                Status = Status,
-                OrderDate = OrderDate,
-                TotalQty = TotalQty,
-                TotalAmountLocalCurrency = TotalAmountLocalCurrency
-            };
-        }
     }
 }

@@ -179,11 +179,30 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             set => SetProperty(ref _orderDateTo, value);
         }
 
-        public ObservableCollection<string> ApprovalStatusOptions { get; }
-        public ObservableCollection<string> OrderStatusOptions { get; }
 
-        public ObservableCollection<string> SelectedApprovalStatuses { get; } = new ObservableCollection<string>();
-        public ObservableCollection<string> SelectedOrderStatuses { get; } = new ObservableCollection<string>();
+        public IReadOnlyList<KeyValuePair<int, string>> ApprovalStatusOptions { get; }
+                                                      = new List<KeyValuePair<int, string>>
+                                                      {
+                                                                new KeyValuePair<int, string>(-1, ""),   // 空选项
+                                                      }.Concat(ApprovalStatusEnum.Items).ToList();
+        public IReadOnlyList<KeyValuePair<int, string>> OrderStatusOptions { get; }
+                                                      = new List<KeyValuePair<int, string>>
+                                                      {
+                                                                new KeyValuePair<int, string>(-1, ""),   // 空选项
+                                                      }.Concat(SalesOrderStatusEnum.Items).ToList();
+        private string _selectedApprovalStatuses;
+        public string SelectedApprovalStatuses
+        {
+            get => _selectedApprovalStatuses;
+            set => SetProperty(ref _selectedApprovalStatuses, value);
+        }
+
+        private string _selectedOrderStatuses;
+        public string SelectedOrderStatuses
+        {
+            get => _selectedOrderStatuses;
+            set => SetProperty(ref _selectedOrderStatuses, value);
+        }
 
         #endregion
 
@@ -350,8 +369,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                         InvoiceNo = SelectedInvNoFilter,
                         OrderDateFrom = OrderDateFrom,
                         OrderDateTo = OrderDateTo,
-                        ApprovalStatuses = SelectedApprovalStatuses.ToList(),
-                        OrderStatuses = SelectedOrderStatuses.ToList(),
+                        ApprovalStatuses = new List<string> { SelectedApprovalStatuses },
+                        OrderStatuses = new List<string> { SelectedOrderStatuses },
                         PageIndex = PageIndex,
                         PageSize = PageSize
                     };

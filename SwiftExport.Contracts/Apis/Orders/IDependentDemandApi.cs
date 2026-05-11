@@ -11,13 +11,13 @@ namespace SwiftExport.Contracts.Apis.Orders
     /// <summary>
     /// 销售订单拆解中间表 API。
     /// </summary>
-    public interface IDependentDemandApi : IGenericApi<DependentDemandDto>
+    public interface IDependentDemandApi : IGenericApi<IndependentDemandDto>
     {
         /// <summary>
         /// 分页查询拆解中间表。
         /// </summary>
         [Post("/search")]
-        Task<ServiceResult<PagedResultDto<DependentDemandDto>>> GetPagedListAsync([Body] DependentDemandSearchDto search);
+        Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync([Body] DependentDemandSearchDto search);
 
         /// <summary>
         /// 按销售单号触发拆解写入中间表。
@@ -48,12 +48,6 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// </summary>
         [Post("/convert-to-po-all")]
         Task<ServiceResult<List<string>>> ConvertAllPendingToPurchaseOrdersAsync();
-
-        /// <summary>
-        /// 通用转采购接口（支持多种分组条件）。
-        /// </summary>
-        [Post("/convert-to-po")]
-        Task<ServiceResult<List<string>>> ConvertToPurchaseOrdersAsync([Body] 净需求转采购单请求Dto request);
 
         /// <summary>
         /// 手工更新需求池行供应商信息。

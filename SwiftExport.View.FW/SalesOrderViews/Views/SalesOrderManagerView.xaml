@@ -112,7 +112,8 @@
                     <ComboBox x:Name="OrderStatusComboBox"
                             ItemsSource="{Binding OrderStatusOptions}"
                             mt:MultiSelectComboBoxAssist.Enable="True"
-                            mt:MultiSelectComboBoxAssist.SelectedItems="{Binding SelectedOrderStatuses, Mode=TwoWay}" />
+                            mt:MultiSelectComboBoxAssist.SelectedItems="{Binding SelectedOrderStatuses, Mode=TwoWay}" 
+                           />
 
                     <TextBlock Text="下单日期(起)" FontWeight="SemiBold" Margin="0,8,0,2"/>
                     <DatePicker SelectedDate="{Binding OrderDateFrom, Mode=TwoWay}"/>

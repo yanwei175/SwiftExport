@@ -24,22 +24,23 @@ public class DependentDemand : BaseEntity
     /// <summary>
     /// 来源单据行 ID
     /// </summary>
-    public long SourceLineId { get; set; }
+    public int SourceLineId { get; set; }
 
     /// <summary>
     /// 关联的独立需求 ID (毛需求 ID)
     /// </summary>
-    public long IndependentDemandId { get; set; }
+    public int IndependentDemandId { get; set; }
 
     #endregion
 
 
     #region 物料与层级 (Material & BOM)
+    public string? SourceSku { get; set; }//非标件需要有一个来源的sku,比如客户的型号
 
     /// <summary>
     /// 当前物料 SKU
     /// </summary>
-    public string Sku { get; set; } = string.Empty;
+    public required string Sku { get; set; }
 
     /// <summary>
     /// 物料描述（用于非标件或补充说明）。
@@ -90,15 +91,23 @@ public class DependentDemand : BaseEntity
     public decimal ExecutedQty { get; set; }
 
     /// <summary>
-    /// 已入库/完工数量
+    /// 已入库数量
     /// </summary>
     public decimal ReceivedQty { get; set; }
+
+    /// <summary>
+    /// 已完工数量
+    /// </summary>
+    public decimal ReadyQty { get; set; }
+
+
 
     /// <summary>
     /// 最终送货至（具体地址或仓库编码）
     /// 贸易场景下：可能直发客户，也可能入库
     /// </summary>
     public string? ShipToLocation { get; set; } = string.Empty;
+
     #endregion
 
     #region 执行状态 (Execution)
@@ -142,7 +151,7 @@ public class DependentDemand : BaseEntity
     /// <summary>
     /// 目标执行行 ID
     /// </summary>
-    public long? TargetLineId { get; set; }
+    public int? TargetLineId { get; set; }
 
     #endregion
 
@@ -151,4 +160,8 @@ public class DependentDemand : BaseEntity
     /// 业务变更时间（用于外部系统增量同步）。
     /// </summary>
     public DateTime? ChangeTime { get; set; }
+
+
+    public bool IsNonStandard => !string.IsNullOrWhiteSpace(Sku) && Sku.StartsWith(DocumentTypeStaticsEnum.NonStandardPart);
+
 }

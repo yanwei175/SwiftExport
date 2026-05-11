@@ -6,7 +6,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
     /// <summary>
     /// 拆解BOM之后的依赖需求 DTO。
     /// </summary>
-    public class DependentDemandDto : BaseDto
+    public class IndependentDemandDto : BaseDto
     {
         #region 来源信息 (Source)
 

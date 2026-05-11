@@ -2,12 +2,17 @@
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.UiInterface;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.View.FW.Mvvm;
 using SwiftExport.View.FW.SupplierViews.Models;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Data;
+using System.Windows.Threading;
 
 namespace SwiftExport.View.FW.SupplierViews.ViewModels
 {
@@ -20,28 +25,67 @@ namespace SwiftExport.View.FW.SupplierViews.ViewModels
         SupplierProducts = 1
     }
 
-    public class SupplierManagerViewModel : BaseSmallDataManagerViewModel<SupplierModel, SupplierDto>
+    /// <summary>
+    /// 供应商管理页 ViewModel。
+    /// 重构目标：脱离 BaseSmallDataManagerViewModel，改为组合 SupplierListModel + 显式命令编排。
+    /// </summary>
+    public class SupplierManagerViewModel : ViewModelBaseEx
     {
         private readonly ISupplierApi _myApi;
         private readonly IDialogService _msg;
+        private readonly SupplierListModel _list;
+        private readonly Dispatcher _dispatcher;
 
-        // 注入泛型 API，并把路由丢给基类！
-        public SupplierManagerViewModel(ISupplierApi api, IDialogService dialogService) : base(api, dialogService)
+        private bool _isLoading;
+        private string _statusMessage = "准备就绪";
+
+        private System.Threading.CancellationTokenSource _debounceCts;
+
+        // 注入 API + 列表模型 + 对话服务
+        public SupplierManagerViewModel(ISupplierApi api, IDialogService dialogService)
         {
             _msg = dialogService;
             _myApi = api;
+            _dispatcher = DispatcherProvider.UI ?? Dispatcher.CurrentDispatcher;
 
-            AddSupplierCommand = AddNewRowCommand;
-            BatchSaveSupplierAsyncCommand = BatchSaveCommand;
-            LoadSupplierAsyncCommand = LoadCommand;
+            _list = new SupplierListModel();
+            _list.ListStateChanged += OnListStateChanged;
+
+            // DataGrid 绑定入口：ItemsView（对齐原 XAML）
+            ItemsView = CollectionViewSource.GetDefaultView(_list.Items);
+
+            AddSupplierCommand = new RelayCommand(AddSupplier);
+            BatchSaveSupplierAsyncCommand = new RelayCommand(async () => await BatchSaveSupplierAsync(), () => HasChanges && !IsLoading);
+            LoadSupplierAsyncCommand = new RelayCommand(async () => await LoadSupplierAsync(), () => !IsLoading);
+            DeleteCheckedCommand = new RelayCommand(async () => await DeleteCheckedAsync(), () => _list.CheckedCount > 0 && !IsLoading);
+
             InvertCheckSupplierCommand = new RelayCommand(() =>
             {
-                foreach (var item in AllItems)
-                {
-                    item.IsChecked = !item.IsChecked;
-                }
-                EvaluateChanges();
+                _list.InvertCheckAll();
+                RaiseListFacadeProperties();
             });
+
+            _ = LoadSupplierAsync();
+        }
+
+        private void OnListStateChanged()
+        {
+            RaiseListFacadeProperties();
+        }
+
+        private void RaiseListFacadeProperties()
+        {
+            RaisePropertyChanged(nameof(AllItems));
+            RaisePropertyChanged(nameof(HasChanges));
+            RaisePropertyChanged(nameof(IsAllChecked));
+            RaisePropertyChanged(nameof(TotalSupplierCount));
+            RaisePropertyChanged(nameof(PageSupplierIndex));
+            RaisePropertyChanged(nameof(PageSupplierSize));
+            RaisePropertyChanged(nameof(CheckedCount));
+
+            BatchSaveSupplierAsyncCommand.RaiseCanExecuteChanged();
+            LoadSupplierAsyncCommand.RaiseCanExecuteChanged();
+            DeleteCheckedCommand.RaiseCanExecuteChanged();
         }
 
         private SupplierManagerTabs _activeTab;
@@ -65,12 +109,79 @@ namespace SwiftExport.View.FW.SupplierViews.ViewModels
         }
 
         /// <summary>
+        /// DataGrid 显示集合（兼容原 XAML 绑定名 AllItems）。
+        /// </summary>
+        public ObservableCollection<SupplierModel> AllItems => _list.Items;
+
+        /// <summary>
+        /// DataGrid 视图（用于本地过滤）。
+        /// </summary>
+        public ICollectionView ItemsView { get; }
+
+        /// <summary>
+        /// 全选状态（供 CheckBoxDataGridTemplateColumn 绑定）。
+        /// </summary>
+        public bool IsAllChecked
+        {
+            get => _list.IsAllChecked;
+            set
+            {
+                _list.IsAllChecked = value;
+                RaiseListFacadeProperties();
+            }
+        }
+
+        /// <summary>
+        /// 已勾选条数。
+        /// </summary>
+        public int CheckedCount => _list.CheckedCount;
+
+        /// <summary>
+        /// 是否存在未保存变更。
+        /// </summary>
+        public bool HasChanges => _list.IsDirty;
+
+        /// <summary>
+        /// 是否正在加载/保存。
+        /// </summary>
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set => SetProperty(ref _isLoading, value);
+        }
+
+        /// <summary>
+        /// 状态栏文案。
+        /// </summary>
+        public string StatusMessage
+        {
+            get => _statusMessage;
+            set => SetProperty(ref _statusMessage, value);
+        }
+
+        /// <summary>
         /// 供应商搜索文本（业务语义命名）。
         /// </summary>
         public string SearchSupplierText
         {
             get => SearchText;
             set => SearchText = value;
+        }
+
+        private string _searchText;
+        /// <summary>
+        /// 搜索关键字（内部绑定）。
+        /// </summary>
+        public string SearchText
+        {
+            get => _searchText;
+            set
+            {
+                if (SetProperty(ref _searchText, value))
+                {
+                    DebounceFilter(value);
+                }
+            }
         }
 
         /// <summary>
@@ -93,17 +204,102 @@ namespace SwiftExport.View.FW.SupplierViews.ViewModels
         public RelayCommand BatchSaveSupplierAsyncCommand { get; }
         public RelayCommand LoadSupplierAsyncCommand { get; }
         public RelayCommand InvertCheckSupplierCommand { get; }
+        public RelayCommand DeleteCheckedCommand { get; }
 
-        //实现一下怎么搜索供应商
-        protected override bool FilterItem(SupplierModel item, string searchText)
+        /// <summary>
+        /// 供应商搜索过滤规则。
+        /// </summary>
+        protected bool FilterItem(SupplierModel item, string searchText)
         {
-            return (item.SupplierCode?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                   (item.Name?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                   (item.DocRelateNo?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                   (item.ContactPerson?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0);
+            return _list.MatchSearch(item, searchText);
         }
 
-        protected override async Task<bool> ValidateBeforeSaveAsync(List<SupplierModel> dirtyModels)
+        private void DebounceFilter(string text)
+        {
+            _debounceCts?.Cancel();
+            _debounceCts = new System.Threading.CancellationTokenSource();
+
+            Task.Delay(350, _debounceCts.Token).ContinueWith(t =>
+            {
+                if (t.IsCanceled) return;
+
+                DispatcherProvider.Invoke(() =>
+                {
+                    ItemsView.Filter = obj => string.IsNullOrWhiteSpace(text) || FilterItem((SupplierModel)obj, text);
+                    ItemsView.Refresh();
+                });
+            }, TaskScheduler.Default);
+        }
+
+        private void AddSupplier()
+        {
+            _list.AddNewOnTop();
+            StatusMessage = "已新增一行供应商，请填写后保存。";
+            if (!string.IsNullOrWhiteSpace(SearchText))
+            {
+                SearchText = string.Empty;
+            }
+
+            RaiseListFacadeProperties();
+        }
+
+        private async Task LoadSupplierAsync()
+        {
+            if (HasChanges)
+            {
+                var okReload = await _msg.ShowConfirmAsync("当前有未保存的修改，刷新将丢失这些数据，是否继续？");
+                if (!okReload) return;
+            }
+
+            IsLoading = true;
+            StatusMessage = "正在加载供应商数据...";
+            try
+            {
+                var rst = await _myApi.GetAllAsync();
+                DispatcherProvider.Invoke(() =>
+                {
+                    if (rst.Success && rst.Data != null)
+                    {
+                        _list.ReloadFromDtoList(rst.Data.ToList());
+                        DebounceFilter(SearchText);
+                        StatusMessage = $"加载成功，共 {TotalSupplierCount} 条供应商。";
+                    }
+                    else
+                    {
+                        StatusMessage = "加载失败：" + rst.Message;
+                    }
+
+                    RaiseListFacadeProperties();
+                });
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = "加载异常：" + ex.Message;
+            }
+            finally
+            {
+                IsLoading = false;
+                RaiseListFacadeProperties();
+            }
+        }
+
+        private async Task DeleteCheckedAsync()
+        {
+            if (_list.CheckedCount <= 0)
+            {
+                await _msg.ShowInfoAsync("请先勾选要删除的供应商行。");
+                return;
+            }
+
+            var ok = await _msg.ShowConfirmAsync($"确定删除已勾选的 {_list.CheckedCount} 行吗？");
+            if (!ok) return;
+
+            var deletedCount = _list.DeleteChecked();
+            StatusMessage = $"已标记删除 {deletedCount} 行，点击保存后生效。";
+            RaiseListFacadeProperties();
+        }
+
+        private async Task<bool> ValidateBeforeSaveAsync(List<SupplierModel> dirtyModels)
         {
             // 1. 必填项空值拦截 (这是替代了以前前端红框的防线)
             var emptyItems = dirtyModels.Where(x => !x.IsValid).ToList();
@@ -141,12 +337,86 @@ namespace SwiftExport.View.FW.SupplierViews.ViewModels
             return true;
         }
 
-        protected override Task AfterSaveSuccessAsync()
+        private async Task BatchSaveSupplierAsync()
         {
-            RaisePropertyChanged(nameof(TotalSupplierCount));
-            RaisePropertyChanged(nameof(PageSupplierIndex));
-            RaisePropertyChanged(nameof(PageSupplierSize));
-            return base.AfterSaveSuccessAsync();
+            // 抓取脏数据
+            var changeSet = _list.GetChangeSet();
+            var dirtyModels = _list.Items
+                .Where(x => x.State == ModelState.Added || x.State == ModelState.Modified || x.State == ModelState.Deleted)
+                .ToList();
+
+            if (!dirtyModels.Any())
+            {
+                await _msg.ShowInfoAsync("没有需要保存的变动。", "提示");
+                return;
+            }
+
+            // 保存前校验（删除行不参与必填校验）
+            var modelsToValidate = dirtyModels.Where(x => x.State != ModelState.Deleted).ToList();
+            if (modelsToValidate.Any(x => !x.IsValid))
+            {
+                await _msg.ShowWarningAsync("存在未填写完整的数据。", "校验失败");
+                return;
+            }
+
+            var isValid = await ValidateBeforeSaveAsync(modelsToValidate);
+            if (!isValid) return;
+
+            var ok = await _msg.ShowConfirmAsync("确定要保存供应商变更吗？");
+            if (!ok) return;
+
+            IsLoading = true;
+            StatusMessage = "正在保存供应商变更...";
+            try
+            {
+                var request = new BatchRequestGeneric<SupplierDto>
+                {
+                    AddList = changeSet.AddList.Select(ToDto).ToList(),
+                    UpdateList = changeSet.UpdateList.Select(ToDto).ToList(),
+                    DeleteIdList = changeSet.DeleteIdList
+                };
+
+                var rst = await _myApi.BatchSaveAsync(request);
+                if (rst.Success)
+                {
+                    await _msg.ShowInfoAsync("保存成功！");
+                    await LoadSupplierAsync();
+                }
+                else
+                {
+                    await _msg.ShowErrorAsync("保存失败：" + rst.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                await _msg.ShowErrorAsync("保存异常：" + ex.Message);
+            }
+            finally
+            {
+                IsLoading = false;
+                RaiseListFacadeProperties();
+            }
+        }
+
+        private static SupplierDto ToDto(SupplierModel x)
+        {
+            return new SupplierDto
+            {
+                Id = x.Id,
+                SupplierCode = x.SupplierCode ?? string.Empty,
+                SupplierName = x.Name ?? string.Empty,
+                DocRelateNo = x.DocRelateNo ?? string.Empty,
+                ContactPerson = x.ContactPerson ?? string.Empty,
+                ContactPhone = x.ContactPhone ?? string.Empty,
+                ContactEmail = x.ContactEmail ?? string.Empty,
+                Address = x.Address ?? string.Empty,
+                ZheKou = x.ZheKou,
+                Currency = x.Currency ?? "CNY",
+                TaxRate = x.TaxRate,
+                DefaultLeadTime = x.DefaultLeadTime,
+                PaymentTerms = x.PaymentTerms ?? string.Empty,
+                ZheKouBeiZhu = x.ZheKouBeiZhu ?? string.Empty
+            };
         }
     }
 }

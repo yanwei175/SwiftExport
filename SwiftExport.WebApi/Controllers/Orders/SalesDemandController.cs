@@ -19,7 +19,7 @@ public class IndependentDemandController(IIndependentDemandServices service)
     /// 说明：审批通过后的销售需求由该接口驱动拆解进入需求池。
     /// </summary>
     [HttpPost("decompose-by-source")]
-    public async Task<ServiceResult<List<DependentDemandDto>>> ExecuteDecomposeBySourceAsync([FromBody] IndependentDemandDecomposeRequestDto request)
+    public async Task<ServiceResult<List<Contracts.DTOs.Orders.IndependentDemandDto>>> ExecuteDecomposeBySourceAsync([FromBody] IndependentDemandDecomposeRequestDto request)
     {
         request ??= new IndependentDemandDecomposeRequestDto();
         return await service.根据来源单据拆解至净需求Async(request.SourceType, request.SourceNo);

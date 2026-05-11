@@ -1,3 +1,4 @@
+using Mapster;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.View.FW.Mvvm;
 using System.Collections.Generic;
@@ -26,7 +27,7 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
         {
             return Items
                 .Where(x => x.State == ModelState.Added || x.State == ModelState.Modified)
-                .Select(x => x.ToDto())
+                .Select(x => x.Adapt<PurchaseOrderLineDto>())
                 .ToList();
         }
     }

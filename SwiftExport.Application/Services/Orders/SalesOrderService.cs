@@ -1020,29 +1020,15 @@ public class SalesOrderService(
             if ((line.QTY ?? 0) <= 0)
                 return Task.FromResult(ServiceResult<bool>.Fail($"订单行[{line.LineNumber}] 数量无效"));
 
-            //CustomerSku和Sku至少要有一个不为空，否则无法识别订单行的物料信息
-            if (string.IsNullOrWhiteSpace(line.CustomerSku) && string.IsNullOrWhiteSpace(line.Sku))
-                return Task.FromResult(ServiceResult<bool>.Fail($"订单行[{line.LineNumber}] SKU和客户SKU不能同时为空"));
+            //Sku至少要有一个不为空，否则无法识别订单行的物料信息
+            if (string.IsNullOrWhiteSpace(line.Sku))
+                return Task.FromResult(ServiceResult<bool>.Fail($"订单行[{line.LineNumber}] SKU不能为空"));
 
-            //以下是Sku为空时的特殊校验逻辑，适用于非标件场景
-            if (!string.IsNullOrWhiteSpace(line.Sku))
-                continue;
-
-            // 中文注释：非标件支持——SKU为空时，要求至少有描述或规格信息，避免出现无标识需求。
-            var isNonStandardValid = xNotNullOrWhiteSpace(line.DescriptionEn)
-                                     || xNotNullOrWhiteSpace(line.FeaturesEn)
-                                     || xNotNullOrWhiteSpace(line.ColorNameEn);
-
-            if (!isNonStandardValid)
-                return Task.FromResult(ServiceResult<bool>.Fail($"订单行[{line.LineNumber}] SKU为空且非标描述信息不完整"));
         }
 
         return Task.FromResult(ServiceResult<bool>.Ok(true));
 
-        static bool xNotNullOrWhiteSpace(string? value)
-        {
-            return !string.IsNullOrWhiteSpace(value);
-        }
+
     }
 
     /// <summary>

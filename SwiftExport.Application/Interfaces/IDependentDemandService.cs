@@ -8,12 +8,12 @@ namespace SwiftExport.Application.Interfaces
     /// <summary>
     /// 销售订单拆解依赖需求应用服务接口。
     /// </summary>
-    public interface IDependentDemandService : IBaseService<DependentDemand, DependentDemandDto>
+    public interface IDependentDemandService : IBaseService<DependentDemand, IndependentDemandDto>
     {
         /// <summary>
         /// 分页查询拆解依赖需求。
         /// </summary>
-        Task<ServiceResult<PagedResultDto<DependentDemandDto>>> GetPagedListAsync(DependentDemandSearchDto search);
+        Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync(DependentDemandSearchDto search);
 
         /// <summary>
         /// 批量保存拆解后的依赖需求。

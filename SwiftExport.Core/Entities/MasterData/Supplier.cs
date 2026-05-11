@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
-[Table("Suppliers")]
+[Table("Supplier")]
 public class Supplier : BaseEntity
 {
     public required string SupplierCode { get; set; }

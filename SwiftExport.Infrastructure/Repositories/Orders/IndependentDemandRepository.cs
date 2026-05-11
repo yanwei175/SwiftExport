@@ -134,5 +134,14 @@ public class IndependentDemandRepository(RepositoryBaseContext context) : Dapper
         }, transaction: Transaction);
     }
 
-
+    public async Task<bool> CanCanceAsync(IEnumerable<int> independIds)
+    {
+        //判断净需求下对应毛需求的状态是否为草稿，如果毛需求不是草稿，则不允许取消净需求
+        var sql = @"SELECT COUNT(1) FROM [IndependentDemand]
+                    WHERE Id IN @independIds
+                      AND IsDeleted = 0
+                      AND (ExecutedQty>0 OR ReceivedQty>0 OR ShippedQty>0 OR StatusFlag >1)";
+        var rst = await Connection.ExecuteScalarAsync<int>(sql, new { independIds = independIds.ToList(), draftStatus = IndependentDemandStatusEnum.草稿 }, transaction: Transaction);
+        return  rst==0;
+    }
 }
