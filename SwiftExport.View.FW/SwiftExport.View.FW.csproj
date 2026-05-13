@@ -227,6 +227,16 @@
     <Compile Include="SupplierViews\Views\SupplierProductManagerView.xaml.cs">
       <DependentUpon>SupplierProductManagerView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="WarehouseViews\Converters\AwaitingInboundPendingQtyConverter.cs" />
+    <Compile Include="WarehouseViews\Messages\AwatingInboundSelectionResultMessage.cs" />
+    <Compile Include="WarehouseViews\Models\ReceiptLineInputModel.cs" />
+    <Compile Include="WarehouseViews\Models\ReceiveDetailModel.cs" />
+    <Compile Include="WarehouseViews\Models\ReceiveHeadList.cs" />
+    <Compile Include="WarehouseViews\Models\ReceiveHeadModel.cs" />
+    <Compile Include="WarehouseViews\Models\ReceiveLineList.cs" />
+    <Compile Include="WarehouseViews\Models\ReceiveLineModel.cs" />
+    <Compile Include="WarehouseViews\ViewModels\AwatingInboundViewModel.cs" />
+    <Compile Include="WarehouseViews\ViewModels\ReceiptDetailViewModel.cs" />
     <Compile Include="SystemViews\Models\CurrencyExchangeList.cs" />
     <Compile Include="SystemViews\Models\CurrencyExchangeModel.cs" />
     <Compile Include="SystemViews\Models\CurrencyList.cs" />
@@ -248,6 +258,16 @@
     </Compile>
     <Compile Include="SystemViews\Views\SysViewRouteManagerView.xaml.cs">
       <DependentUpon>SysViewRouteManagerView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="WarehouseViews\ViewModels\ReceiptManagerViewModel.cs" />
+    <Compile Include="WarehouseViews\Views\AwatingInboundView.xaml.cs">
+      <DependentUpon>AwatingInboundView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="WarehouseViews\Views\ReceiptDetailView.xaml.cs">
+      <DependentUpon>ReceiptDetailView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="WarehouseViews\Views\ReceiptManagerView.xaml.cs">
+      <DependentUpon>ReceiptManagerView.xaml</DependentUpon>
     </Compile>
     <Page Include="OrderDecomposeViews\Views\DemandTrackingView.xaml">
       <SubType>Designer</SubType>
@@ -363,6 +383,18 @@
     <Page Include="SystemViews\Views\SysViewRouteManagerView.xaml">
       <Generator>XamlIntelliSenseFileGenerator</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="WarehouseViews\Views\AwatingInboundView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="WarehouseViews\Views\ReceiptDetailView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>XamlIntelliSenseFileGenerator</Generator>
+    </Page>
+    <Page Include="WarehouseViews\Views\ReceiptManagerView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Resource Include="Properties\DesignTimeResources.xaml">
       <SubType>Designer</SubType>

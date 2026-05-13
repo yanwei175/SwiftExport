@@ -1,0 +1,151 @@
+﻿<UserControl x:Class="SwiftExport.View.FW.WarehouseViews.Views.ReceiptDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
+             xmlns:vm="clr-namespace:SwiftExport.View.FW.WarehouseViews.ViewModels"
+             d:DataContext="{d:DesignInstance vm:ReceiptDetailViewModel}"
+             mc:Ignorable="d"
+             Background="{DynamicResource Brush_Bck_Page}"
+             d:DesignHeight="760" d:DesignWidth="1280">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <TextBlock Grid.Row="0" Text="入库单详情" 
+                   HorizontalAlignment="Center"
+                   FontSize="25" 
+                   FontWeight="Bold" 
+                   Margin="0,0,0,20"/>
+        
+        <!-- 单头信息 -->
+        <Border Grid.Row="1" Padding="12" Margin="0,0,0,8"
+                Background="{DynamicResource Brush_Control_Background}"
+                BorderBrush="{DynamicResource Brush_Border_Light}" 
+                BorderThickness="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="40"/>
+                    <RowDefinition Height="60"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="220"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="220"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="160"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="160"/>
+                    <ColumnDefinition Width="20"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="入库单号：" VerticalAlignment="Center" Style="{StaticResource BoldTextBlock}"/>
+                <TextBox Grid.Row="0" Grid.Column="1" Height="30" IsReadOnly="True"
+                         Text="{Binding ReceiveDate}"/>
+                
+                <TextBlock Grid.Row="0" Grid.Column="3" Text="供应商：" VerticalAlignment="Center" Style="{StaticResource BoldTextBlock}"/>
+                <TextBox Grid.Row="0" Grid.Column="4" Height="30" IsReadOnly="True"
+                         Text="{Binding SupplierCode}"/>
+
+                <TextBlock Grid.Row="0" Grid.Column="6" Text="入库日期：" VerticalAlignment="Center" Style="{StaticResource BoldTextBlock}"/>
+                <DatePicker Grid.Row="0" Grid.Column="7" Height="30" SelectedDate="{Binding ReceiveDate}"/>
+
+                <TextBlock Grid.Row="0" Grid.Column="9" Text="操作人：" VerticalAlignment="Center" Style="{StaticResource BoldTextBlock}"/>
+                <TextBox Grid.Row="0" Grid.Column="10" Height="30" Text="{Binding Handler}"/>
+                
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="备注：" VerticalAlignment="Center" Style="{StaticResource BoldTextBlock}"/>
+                <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4" 
+                         Style="{StaticResource  MultiLineTextBoxStyle}"
+                         VerticalAlignment="Stretch"
+                         Text="{Binding Remark}"/>
+            </Grid>
+        </Border>
+        
+        <StackPanel Grid.Row="2" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Left" 
+                    Margin="8">
+            <Button Content="获取" Margin="0,0,8,0"
+                    Style="{StaticResource ButtonPrimary}"
+                    Command="{Binding GetAwaitingInboundCommand}"
+                    mt:ButtonAssist.IconSize="10"
+                    mt:ButtonAssist.Icon="{StaticResource Icon.Add}"/>
+            <Button Content="删除" Margin="0,0,8,0"
+                    Style="{StaticResource ButtonPrimary}"
+                    Command="{Binding DeleteLineCommand}"
+                    mt:ButtonAssist.IconSize="10"
+                    mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"/>
+        </StackPanel>
+        
+        <!-- 行列表 -->
+        <DataGrid Grid.Row="3"
+                  ItemsSource="{Binding LineTable.Items}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  SelectionMode="Extended"
+                  SelectionUnit="FullRow"
+                  RowHeight="64"
+                  mt:DataGridAssist.ShowRowNumber="True">
+            <DataGrid.Columns>
+                <mt:CheckBoxDataGridTemplateColumn                          
+                     AllCheckedPropertyName="LineTable.IsAllChecked"
+                     ItemCheckedPropertyName="IsChecked"
+                     ItemCheckedCommandName="ItemCheckedChangedCommand"
+                     HeaderCheckBoxMargin="3,0"
+                     HeaderCheckBoxToolTip="全选/全不选"/>
+                <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}" 
+                                       CellTemplate="{StaticResource ImageCellTemplate}" Width="64"/>
+                
+                <DataGridTextColumn Header="系统采购单号" Binding="{Binding PoNo}" Width="120" IsReadOnly="True"/>
+                <DataGridTextColumn Header="自定义采购单号" Binding="{Binding BoNo}" Width="120" IsReadOnly="True"/>
+                <DataGridTextColumn Header="采购行ID" Binding="{Binding PoLineId}" Width="90" IsReadOnly="True" Visibility="Collapsed"/>
+                <DataGridTextColumn Header="Sku" Binding="{Binding Sku}" Width="180" IsReadOnly="True"/>
+                <DataGridTextColumn Header="本次入库数量" Width="100"
+                                    Binding="{Binding Qty, 
+                                    UpdateSourceTrigger=PropertyChanged, 
+                                    StringFormat=N2}"/>
+                <DataGridTextColumn Header="订单数量" Binding="{Binding PoQty, StringFormat=N2}" Width="90" IsReadOnly="True"/>
+                <DataGridTextColumn Header="已收数量" Binding="{Binding RecQty, StringFormat=N2}" Width="90" IsReadOnly="True"/>
+                <DataGridTextColumn Header="可收数量" Binding="{Binding MaxCanReceive, StringFormat=N2}" Width="90" IsReadOnly="True"/>
+
+                <DataGridTextColumn Header="完工数量" Binding="{Binding ReadyQty, StringFormat=N2}" Width="90" IsReadOnly="True"/>
+                <DataGridTextColumn Header="单位" Binding="{Binding Unit, UpdateSourceTrigger=PropertyChanged}" Width="80" Visibility="Collapsed"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- 底部操作区 -->
+        <Border Grid.Row="4" Padding="12" Margin="0,8,0,0"
+                Background="{DynamicResource Brush_Control_Background}"
+                BorderBrush="{DynamicResource Brush_Border_Light}" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center"
+                           Foreground="{DynamicResource Brush_Txt_Secondary}"
+                           Text="{Binding StatusMessage}"/>
+                
+                <Button Grid.Column="3" Height="34" MinWidth="120"
+                        Content="保存"
+                        Style="{StaticResource ButtonSuccess}"
+                        Command="{Binding SaveDetailCommand}"/>
+            </Grid>
+        </Border>
+        
+        <mt:DialogHost/>
+    </Grid>
+</UserControl>

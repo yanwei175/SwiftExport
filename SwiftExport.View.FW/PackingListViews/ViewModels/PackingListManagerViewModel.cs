@@ -358,7 +358,6 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
                         Description = line.DescriptionZh,
                         Qty = Math.Max(line.ReadyQty, line.QTY - line.RecQty),
                         PoLineId = line.Id,
-                        SoLineId = line.DemandId,
                         PoNo = rst.Data.Header.BoNo,
                         PurchaseOrderNo = rst.Data.Header.OrderNo,
                         SalesOrderNo = rst.Data.Header.SalesOrderNo

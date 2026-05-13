@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.View.FW.DI;
@@ -28,10 +29,10 @@ namespace SwiftExport.View.FW.SalesOrderViews.Controls
         public SalesOrderLinePopupSelectorControl()
         {
             InitializeComponent();
-
-            _salesOrderApi = IocProvider.GetService<ISalesOrderApi>();
             _searchDebounceTimer.Tick += SearchDebounceTimer_Tick;
+            _salesOrderApi = IocProvider.GetService<ISalesOrderApi>();
         }
+
 
         #region 对外依赖属性
 

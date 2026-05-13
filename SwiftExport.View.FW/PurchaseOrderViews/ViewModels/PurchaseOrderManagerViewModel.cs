@@ -4,6 +4,7 @@ using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Suppliers;
+using SwiftExport.Contracts.DTOs.Warehouses;
 using SwiftExport.Contracts.Models;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
@@ -341,13 +342,12 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
                         ReceiveDate = DateTime.Now,
                         Handler = Environment.UserName,
                         Remark = "采购管理工作台-批量快速入库",
-                        Lines = validLines.Select(x => new PurchaseReceiveExecuteLineDto
+                        Lines = validLines.Select(x => new ReceiveLineDto
                         {
                             Sku = x.Sku,
                             Qty = x.ReadyQty,
                             Unit = null,
                             PoLineId = x.Id,
-                            SoLineId = x.DemandId
                         }).ToList()
                     };
 
@@ -614,15 +614,14 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
                         ReceiveDate = DateTime.Now,
                         Handler = Environment.UserName,
                         Remark = "采购管理工作台-快速入库",
-                        Lines = new List<PurchaseReceiveExecuteLineDto>
+                        Lines = new List<ReceiveLineDto>
                         {
-                            new PurchaseReceiveExecuteLineDto
+                            new ReceiveLineDto
                             {
                                 Sku = SelectedLine.Sku,
                                 Qty = SelectedLine.ReadyQty,
                                 Unit = null,
-                                PoLineId = SelectedLine.Id,
-                                SoLineId = null
+                                PoLineId = SelectedLine.Id
                             }
                         }
                     };

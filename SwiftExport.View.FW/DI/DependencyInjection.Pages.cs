@@ -17,6 +17,8 @@ using SwiftExport.View.FW.SupplierViews.ViewModels;
 using SwiftExport.View.FW.SupplierViews.Views;
 using SwiftExport.View.FW.SystemViews.ViewModels;
 using SwiftExport.View.FW.SystemViews.Views;
+using SwiftExport.View.FW.WarehouseViews.ViewModels;
+using SwiftExport.View.FW.WarehouseViews.Views;
 
 namespace SwiftExport.View.FW
 {
@@ -105,6 +107,11 @@ namespace SwiftExport.View.FW
             services.AddTransient<PackingListManagerViewModel>();
             services.AddTransient<PackingListManagerView>();
 
+            // ================== 仓库模块 ==================
+            services.AddTransient<ReceiptDetailViewModel>();
+            services.AddTransient<ReceiptDetailView>();
+            services.AddTransient<AwatingInboundViewModel>();
+            services.AddTransient<AwatingInboundView>();
             return services;
         }
     }

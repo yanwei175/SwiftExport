@@ -17,8 +17,8 @@ namespace SwiftExport.Application.Services.Orders;
 public class PackingListService(
     IPackingListHeadRepository headRepository,
     IPackingListLineRepository lineRepository,
-    IPurchaseReceiveHeadRepository receiveHeadRepository,
-    IPurchaseReceiveLineRepository receiveLineRepository,
+    IReceiveHeadRepository receiveHeadRepository,
+    IReceiveLineRepository receiveLineRepository,
     IPurchaseOrderLineRepository purchaseOrderLineRepository,
     IRepository<SalesOrderHeader> salesOrderHeaderRepository,
     IIndependentDemandRepository salesDemandRepository,
@@ -33,8 +33,8 @@ public class PackingListService(
     private const string VirtualWhseCode = "V_WH";
     private readonly IPackingListHeadRepository _headRepository = headRepository;
     private readonly IPackingListLineRepository _lineRepository = lineRepository;
-    private readonly IPurchaseReceiveHeadRepository _receiveHeadRepository = receiveHeadRepository;
-    private readonly IPurchaseReceiveLineRepository _receiveLineRepository = receiveLineRepository;
+    private readonly IReceiveHeadRepository _receiveHeadRepository = receiveHeadRepository;
+    private readonly IReceiveLineRepository _receiveLineRepository = receiveLineRepository;
     private readonly IPurchaseOrderLineRepository _purchaseOrderLineRepository = purchaseOrderLineRepository;
     private readonly IRepository<SalesOrderHeader> _salesOrderHeaderRepository = salesOrderHeaderRepository;
     private readonly IIndependentDemandRepository _salesDemandRepository = salesDemandRepository;
@@ -161,7 +161,7 @@ public class PackingListService(
                     line.Id = 0;
                     line.PackingListHeadId = persisted.Id;
                     line.PackingListNo = persisted.PackingListNo;
-                    line.PoNo = string.IsNullOrWhiteSpace(line.PoNo) ? persisted.PoNo : line.PoNo;
+                    line.PoNo = string.IsNullOrWhiteSpace(line.PoNo) ? persisted.CustomerPoNo : line.PoNo;
                     line.PurchaseOrderNo = string.IsNullOrWhiteSpace(line.PurchaseOrderNo) ? persisted.PurchaseOrderNo : line.PurchaseOrderNo;
                     line.SalesOrderNo = string.IsNullOrWhiteSpace(line.SalesOrderNo) ? persisted.SalesOrderNo : line.SalesOrderNo;
                     line.CreatedDate = DateTime.Now;
@@ -256,10 +256,10 @@ public class PackingListService(
 
     private async Task CreateVirtualReceiveAsync(PackingListHead head, List<PackingListLine> lines, string receiveNo, string? handler)
     {
-        await _receiveHeadRepository.AddAsync(new PurchaseReceiveHead
+        await _receiveHeadRepository.AddAsync(new ReceiveHead
         {
             ReceiveNo = receiveNo,
-            PoNo = head.PoNo,
+            PoNo = head.CustomerPoNo,
             OrderNo = head.PurchaseOrderNo,
             SupplierCode = head.SupplierCode,
             ReceiveDate = head.PackingDate ?? DateTime.Now,
@@ -269,14 +269,14 @@ public class PackingListService(
             IsDeleted = false
         });
 
-        var receiveLines = lines.Select(x => new PurchaseReceiveLine
+        var receiveLines = lines.Select(x => new ReceiveLine
         {
             ReceiveNo = receiveNo,
             Sku = x.Sku.Trim(),
             Qty = x.Qty,
             Unit = x.Unit,
             PoLineId = x.PoLineId,
-            SoLineId = x.SoLineId,
+            IndependLineId = x.SoLineId,
             CreatedDate = DateTime.Now,
             IsDeleted = false
         }).ToList();

@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using Refit;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.WebApi.Controllers.Base;
@@ -35,6 +37,11 @@ namespace SwiftExport.WebApi.Controllers.Orders
         public async Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByPoNoAsync(string poNo)
         {
             return await service.GetDetailByBoNoAsync(poNo);
+        }
+        [HttpGet("awaiting-inbound-suppliers")]
+       public async Task<ServiceResult<List<SupplierDto>>> GetAwatingInboudSuppliersAsync()
+        {
+            return await service.GetAwaitingInboundSuppliersAsync();
         }
 
         [HttpPost("detail/save")]

@@ -14,12 +14,11 @@
         xmlns:converters="clr-namespace:MateWpfThemes.FW.Converters;assembly=MateWpfThemes.FW"
         xmlns:enums="clr-namespace:SwiftExport.Contracts.SysEnums.StaticEnums;assembly=SwiftExport.Contracts"
         xmlns:mvvm="clr-namespace:SwiftExport.View.FW.Mvvm"
-        
         mc:Ignorable="d"
         d:Height="1000"
         d:Width="1600"
         xmlns:vm="clr-namespace:SwiftExport.View.FW.SalesOrderViews.ViewModels"
-        d:DataContext="{d:DesignInstance Type=vm:SalesOrderDetailViewModel, IsDesignTimeCreatable=True}"
+        d:DataContext="{d:DesignInstance vm:SalesOrderDetailViewModel}"
         Background="{DynamicResource Brush_Btn_Default_Background}">
 
     <UserControl.Resources>
@@ -577,7 +576,7 @@
                                                                   RowContext="{Binding SelectedLine}"
                                                                   CustomerId="{Binding OrderHeader.CustomerId}"
                                                                   CustomerCode="{Binding OrderHeader.CustomerCode}"
-                                                                  SubmitCommand="{Binding CommitPopupSelectionCommand}"/>
+                                                                  SubmitCommand="{Binding CommitPopupSelectionCommand}" d:IsHidden="True"/>
 
                 <DataGrid x:Name="SummaryGrid" 
                                  Style="{StaticResource SummaryDataGrid}"

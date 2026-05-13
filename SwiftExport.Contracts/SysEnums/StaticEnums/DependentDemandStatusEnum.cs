@@ -11,12 +11,19 @@ namespace SwiftExport.Contracts.SysEnums.StaticEnums
         public const int 草稿 = 0;
         public const int 待处理 = 1;
         public const int 已转为正式单据 = 3;
+        public const int 部分到货 = 5;
+        public const int 已到货 = 6;
+        public const int 已完成 = 8;
         public const int 已关闭 = 9;
 
         public static readonly IReadOnlyList<KeyValuePair<int, string>> Items = new List<KeyValuePair<int, string>>
         {
             new KeyValuePair<int, string>(草稿, "草稿"),
+            new KeyValuePair<int, string>(待处理, "待处理"),
             new KeyValuePair<int, string>(已转为正式单据, "已转为正式单据"),
+            new KeyValuePair<int, string>(部分到货, "部分到货"),
+            new KeyValuePair<int, string>(已到货, "已到货"),
+            new KeyValuePair<int, string>(已完成, "已完成"),
             new KeyValuePair<int, string>(已关闭, "已关闭")
         };
     }

@@ -7,7 +7,7 @@ namespace SwiftExport.Core.Entities.Orders;
 /// 采购入库行实体（对应 dbo.PurchaseReceiveLine）。
 /// </summary>
 [Table("PurchaseReceiveLine")]
-public class PurchaseReceiveLine : BaseEntity
+public class ReceiveLine : BaseEntity
 {
     /// <summary>
     /// 关联头表单号。
@@ -32,10 +32,10 @@ public class PurchaseReceiveLine : BaseEntity
     /// <summary>
     /// 关联采购单行ID（用于回写采购行实收数量）。
     /// </summary>
-    public long? PoLineId { get; set; }
+    public int? PoLineId { get; set; }
 
     /// <summary>
-    /// 关联销售单行ID（用于回写需求池已收货数量）。
+    /// 冗余单号：方便不查询 Join 也能知道这行货是哪个采购单的。
     /// </summary>
-    public long? SoLineId { get; set; }
+    public string? PoNo { get; set; }      // 该行属于哪个采购单号
 }

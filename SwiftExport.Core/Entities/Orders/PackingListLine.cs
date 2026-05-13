@@ -9,17 +9,33 @@ namespace SwiftExport.Core.Entities.Orders;
 [Table("PackingListLine")]
 public class PackingListLine : BaseEntity
 {
-    public string PackingListNo { get; set; } = string.Empty;
-    public int? PackingListHeadId { get; set; }
-    public string Sku { get; set; } = string.Empty;
+    public required string PackingListNo { get; set; }
+    public required int PackingListHeadId { get; set; }
     public string? CustomerSku { get; set; }
-    public string? Description { get; set; }
-    public decimal Qty { get; set; }
-    public string? Unit { get; set; }
-    public int? PoLineId { get; set; }
-    public long? SoLineId { get; set; }
-    public string? PoNo { get; set; }
-    public string? PurchaseOrderNo { get; set; }
+    public required string Sku { get; set; }
+    public required decimal Qty { get; set; } = 0;
+    public string? ContainerNo { get; set; }
+    public string? SealNo { get; set; }
+    public string? InvoiceNo { get; set; }
     public string? SalesOrderNo { get; set; }
+    public int? SoLineId { get; set; }
+
+
+
+    public string? DescriptionEn { get; set; }
+    public string? FinishEn { get; set; }
+    public int PcsPerPackage { get; set; } = 1;
+    public decimal? Nw_KG { get; set; }
+    public decimal? Gw_KG { get; set; }
+    public decimal? Cbm_m3 { get; set; }
+    public decimal? TotalCtns { get; set; }
+    public decimal? TotalNw_KG { get; set; }
+    public decimal? TotalGw_KG { get; set; }
+    public decimal? TotalCbm_m3 { get; set; }
+
+    public string? Unit { get; set; }
     public string? Remark { get; set; }
+
+
+
 }

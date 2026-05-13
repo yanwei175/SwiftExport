@@ -16,13 +16,16 @@ namespace SwiftExport.Core.Interfaces
         /// <summary>
         /// 根据来源类型与来源销售单行 Id 查询中间表记录（可能多行）。
         /// </summary>
-        Task<IReadOnlyList<DependentDemand>> GetListBySourceSoLineIdAsync(string sourceType, long sourceSoLineId);
+        Task<IReadOnlyList<DependentDemand>> GetListBySourceSoLineIdAsync(string sourceType, int sourceSoLineId);
 
         /// <summary>
         /// 根据来源类型与来源单号查询需求池记录。
         /// </summary>
         Task<IReadOnlyList<DependentDemand>> GetBySourceAsync(string sourceType, string sourceNo);
 
+        Task<IReadOnlyList<DependentDemand>> GetListByTargetLineIdsAsync(IEnumerable<int> targetIdList, bool withUpdLock = false);
+
+        Task<int> ResetByTargetLineIdsAsync(IEnumerable<int> targetIdList);
         /// <summary>
         /// 删除来源类型与来源单号对应的需求池记录。
         /// </summary>

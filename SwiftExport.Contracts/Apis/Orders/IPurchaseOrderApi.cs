@@ -1,6 +1,7 @@
 using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -35,6 +36,10 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// </summary>
         [Get("/by-pono/{poNo}")]
         Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByPoNoAsync(string poNo);
+
+        [Get("/awaiting-inbound-suppliers")]
+        Task<ServiceResult<List<SupplierDto>>> GetAwatingInboudSuppliersAsync();
+
 
         /// <summary>
         /// 保存采购订单详情。

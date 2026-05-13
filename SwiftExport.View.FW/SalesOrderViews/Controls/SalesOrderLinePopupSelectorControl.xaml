@@ -6,6 +6,7 @@
              xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
              xmlns:converters="clr-namespace:MateWpfThemes.FW.Converters;assembly=MateWpfThemes.FW"
              mc:Ignorable="d"
+             d:Background="White"
              d:DesignHeight="80"
              d:DesignWidth="280">
 

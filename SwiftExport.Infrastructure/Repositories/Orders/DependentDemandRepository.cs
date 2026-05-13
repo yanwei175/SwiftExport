@@ -1,9 +1,10 @@
+using Azure.Core;
+using Dapper;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
-using Dapper;
 
 namespace SwiftExport.Infrastructure.Repositories.Orders
 {
@@ -27,7 +28,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
         /// <summary>
         /// 根据来源类型与来源销售单行 Id 查询（可能多行）。
         /// </summary>
-        public async Task<IReadOnlyList<DependentDemand>> GetListBySourceSoLineIdAsync(string sourceType, long sourceSoLineId)
+        public async Task<IReadOnlyList<DependentDemand>> GetListBySourceSoLineIdAsync(string sourceType, int sourceSoLineId)
         {
             if (string.IsNullOrWhiteSpace(sourceType) || sourceSoLineId <= 0)
                 return [];
@@ -61,7 +62,19 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
             return await Connection.ExecuteAsync(sql, new { SourceType = sourceType.Trim(), SourceNo = sourceNo.Trim() }, transaction: Transaction);
         }
 
+        public async Task<IReadOnlyList<DependentDemand>> GetListByTargetLineIdsAsync(IEnumerable<int> targetIdList, bool withUpdLock = false)
+        {
+            var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+            var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [TargetLineId] IN @TargetIdList AND (IsDeleted = 0 OR IsDeleted IS NULL)";
+            var rst= await Connection.QueryAsync<DependentDemand>(sql, new { TargetIdList = targetIdList }, transaction: Transaction);
+            return [.. rst];
+        }
 
-
+        public Task<int> ResetByTargetLineIdsAsync(IEnumerable<int> targetIdList)
+        {
+            var sql = $"UPDATE [{TableName}] SET TargetLineId = NULL, TargetNo = NULL, StatusFlag = 1 " +
+                      $"WHERE TargetLineId IN @TargetIdList";
+            return Connection.ExecuteAsync(sql, new { TargetIdList = targetIdList }, transaction: Transaction);
+        }
     }
 }

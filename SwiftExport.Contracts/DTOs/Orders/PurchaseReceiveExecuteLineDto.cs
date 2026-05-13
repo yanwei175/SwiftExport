@@ -6,6 +6,11 @@ namespace SwiftExport.Contracts.DTOs.Orders
     public class PurchaseReceiveExecuteLineDto
     {
         /// <summary>
+        /// 关联采购单号（冗余字段，便于入库头 RelatedPoNos 聚合与行追溯）。
+        /// </summary>
+        public string PoNo { get; set; } = string.Empty;
+
+        /// <summary>
         /// 物料 SKU。
         /// </summary>
         public string Sku { get; set; } = string.Empty;
@@ -23,12 +28,12 @@ namespace SwiftExport.Contracts.DTOs.Orders
         /// <summary>
         /// 关联采购单行ID（用于回写采购行 RecQty）。
         /// </summary>
-        public long? PoLineId { get; set; }
+        public int? PoLineId { get; set; }
 
         /// <summary>
         /// 关联销售单行ID（用于回写需求池 ReceivedQty）。
         /// </summary>
-        public long? SoLineId { get; set; }
+        public int? SoLineId { get; set; }
 
         /// <summary>
         /// 来源类型（用于回写 IndependentDemand 时避免硬编码来源）。

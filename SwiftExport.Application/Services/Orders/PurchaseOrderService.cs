@@ -3,6 +3,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
@@ -36,6 +37,8 @@ public class PurchaseOrderService(
     private readonly IRepository<FollowUpLog> _followUpRepository = followUpRepository;
     private readonly IDependentDemandRepository _dependentDemandRepository = dependentDemandRepository;
 
+
+    #region ======Get======
     /// <summary>
     /// 分页获取订单头
     /// </summary>
@@ -125,6 +128,27 @@ public class PurchaseOrderService(
 
         return await BuildDetailByOrderNoAsync(header.OrderNo); ;
     }
+
+    public async Task<ServiceResult<List<SupplierDto>>> GetAwaitingInboundSuppliersAsync()
+    {
+        try
+        {
+
+            var rst = await _lineRepository.GetAwaitingInboundSuppliersAsync();
+            return ServiceResult<List<SupplierDto>>.Ok(rst);
+
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<List<SupplierDto>>.Fail(ex.Message);
+
+        }
+    }
+    #endregion
+
+
+    #region ======Post======
+
     /// <summary>
     /// 保存一张采购单，包括头信息和行信息。支持新增和更新操作。
     /// </summary>
@@ -150,6 +174,12 @@ public class PurchaseOrderService(
 
     }
 
+
+    #endregion
+
+
+
+
     /// <summary>
     /// 创建一张订单（含行）事务。
     /// </summary>
@@ -159,7 +189,6 @@ public class PurchaseOrderService(
             return ServiceResult<int>.Fail("订单头不能为空");
 
         var headerEntity = request.Header.Adapt<PurchaseOrderHead>();
-        var lines = request.Lines.Adapt<List<PurchaseOrderLine>>();
 
         if (string.IsNullOrWhiteSpace(headerEntity.OrderNo))
             return ServiceResult<int>.Fail("采购单号不能为空");
@@ -173,12 +202,9 @@ public class PurchaseOrderService(
         if (supplier == null)
             return ServiceResult<int>.Fail("供应商不存在");
 
-        var vladRst = 核对采购单行是否符合规则(lines, cache);
+        var vladRst = 核对采购单行是否符合规则(request.Lines, cache);
         if (!vladRst.Success)
             return ServiceResult<int>.Fail(vladRst.Message);
-
-
-
 
         //补全默认值
         headerEntity.BoNo = string.IsNullOrWhiteSpace(headerEntity.BoNo) ? null : headerEntity.BoNo.Trim();
@@ -188,7 +214,7 @@ public class PurchaseOrderService(
         headerEntity.ApprovalStatus = ApprovalStatusEnum.草稿;
         headerEntity.ApprovedBy = string.Empty;
 
-        headerEntity.LineCount = lines.Count;
+        headerEntity.LineCount = request.Lines.Count;
         headerEntity.TotalShippedQty = 0;
         headerEntity.TotalUnshippedQty = 0;
 
@@ -220,48 +246,55 @@ public class PurchaseOrderService(
 
             //新增到数据库并获取新生成的订单ID
             int newId = await _repository.AddAsync(headerEntity);
-            //批量新增订单行
-            if (lines.Count > 0)
+
+            //=========在新增采购单行的时候,需要尝试去净需求里找到对应的记录,把采购单行Id回写到净需求里,以建立订单行和净需求的关联关系,方便后续根据订单行去跟踪净需求的执行状态========
+            // 2. 准备采购行数据与映射关系
+            var lineItems = new List<PurchaseOrderLine>();
+            var lineToDemandMapping = new List<(PurchaseOrderLine Entity, List<int> DemandIds)>();
+
+            int lineNumber = 0;
+            foreach (var lineDto in request.Lines)
             {
-                // 1. 提取所有关联的净需求 ID
-                var demandIds = lines
-                    .Where(x => x.SourceLineId.HasValue && x.SourceLineId.Value > 0)
-                    .Select(x => x.SourceLineId!.Value)
-                    .Distinct()
-                    .OrderBy(id => id) // 排序防止死锁
-                    .ToList();
+                var lineEntity = lineDto.Adapt<PurchaseOrderLine>();
+                lineEntity.PurchaseOrderId = newId;
+                lineEntity.OrderNo = headerEntity.OrderNo;
+                lineEntity.LineNumber = lineNumber++;
+                lineEntity.IsDeleted = false;
 
-                if (demandIds.Count > 0)
+                lineItems.Add(lineEntity);
+
+                if (lineDto.DemandIdList?.Count > 0)
+                    lineToDemandMapping.Add((lineEntity, lineDto.DemandIdList));
+            }
+
+            // 3. 【核心】先保存采购行，利用 AddRangeAsync 回写 lineEntity.Id
+            if (lineItems.Count > 0)
+            {
+                await _lineRepository.AddRangeAsync(lineItems);
+            }
+
+            // 4. 【倒推重写】现在 lineEntity.Id 有值了，更新净需求
+            var allDemandIds = lineToDemandMapping.SelectMany(m => m.DemandIds).Distinct().ToList();
+            if (allDemandIds.Count > 0)
+            {
+                var demands = await _dependentDemandRepository.GetByIdListAsync(allDemandIds, true);
+                var demandDict = demands.ToDictionary(d => d.Id, d => d);
+
+                foreach (var mapping in lineToDemandMapping)
                 {
-                    // 2. 锁定并获取净需求实体
-                    var depends = await _dependentDemandRepository.GetByIdListAsync(demandIds, true);
-                    var depDict = depends.ToDictionary(x => x.Id, x => x);
-
-                    // 3. 建立关联逻辑
-                    foreach (var line in lines.Where(x => x.SourceLineId.HasValue && x.SourceLineId.Value > 0))
+                    foreach (var dId in mapping.DemandIds)
                     {
-                        if (depDict.TryGetValue(line.SourceLineId!.Value, out var dep))
+                        if (demandDict.TryGetValue(dId, out var demand))
                         {
-                            dep.TargetNo = headerEntity.OrderNo; // 核心：回写采购单号，防止重复下单
-                            dep.TargetLineId = line.Id;
-                            dep.ExecutedQty = line.QTY;
-                            dep.ShipToLocation = line.DeliveryTo;
+                            demand.TargetNo = headerEntity.OrderNo;
+                            demand.TargetLineId = mapping.Entity.Id; // 使用新生成的 ID
+                            demand.StatusFlag = (int)DependentDemandStatusEnum.已转为正式单据;
+                            demand.ChangeTime = DateTime.Now;
+                            demand.ExecutedQty = demand.NetQty; // 标记全部执行
                         }
                     }
-                    // 4. 批量回写净需求状态
-                    await _dependentDemandRepository.UpdateRangeAsync(depends);
                 }
-
-                // 5. 补齐行数据并保存采购行
-                int lineNumber = 0;
-                foreach (var line in lines)
-                {
-                    line.LineNumber = lineNumber++;
-                    line.PurchaseOrderId = newId;
-                    line.OrderNo = headerEntity.OrderNo;
-                    line.IsDeleted = false;
-                }
-                await _lineRepository.AddRangeAsync(lines);
+                await _dependentDemandRepository.UpdateRangeAsync(demands);
             }
 
             _session.Transaction.Commit();
@@ -291,7 +324,6 @@ public class PurchaseOrderService(
             return ServiceResult<int>.Fail("已批准的订单不允许修改");
 
         var headerEntity = request.Header.Adapt<PurchaseOrderHead>();
-        var lines = request.Lines.Adapt<List<PurchaseOrderLine>>();
 
         if (string.IsNullOrWhiteSpace(headerEntity.OrderNo))
             return ServiceResult<int>.Fail("采购单号不能为空");
@@ -305,7 +337,7 @@ public class PurchaseOrderService(
         if (supplier == null)
             return ServiceResult<int>.Fail("供应商不存在");
 
-        var vladRst = 核对采购单行是否符合规则(lines, cache);
+        var vladRst = 核对采购单行是否符合规则(request.Lines, cache);
         if (!vladRst.Success)
             return ServiceResult<int>.Fail(vladRst.Message);
 
@@ -341,32 +373,41 @@ public class PurchaseOrderService(
                 return ServiceResult<int>.Fail("订单不存在");
             }
 
-            //4.处理新增行和更新行
-            var addLins = new List<PurchaseOrderLine>();
+            // 1. 处理删除行 (释放净需求)
+            if (request.DeletedLineIds?.Count > 0)
+            {
+                // 在物理删除采购行之前，先找到指向这些行的净需求并清空关联
+                await _dependentDemandRepository.ResetByTargetLineIdsAsync(request.DeletedLineIds);
+                await _lineRepository.DeleteRangeAsync(request.DeletedLineIds, true);
+            }
+            // 2. 区分新增和更新行
+            var addLines = new List<(PurchaseOrderLine Entity, List<int> DemandIds)>();
             var updateLines = new List<PurchaseOrderLine>();
-            //按照Id是否大于0来区分新增行和更新行，并设置订单行的OrderNo为订单头的OrderNo，准备后续批量新增或批量更新到数据库
-            foreach (var line in lines)
+            foreach (var lineDto in request.Lines)
             {
-                line.OrderNo = headerEntity.OrderNo;
-                line.PurchaseOrderId = headerEntity.Id;
-                line.IsDeleted = false;
-                if (line.Id <= 0)
-                {
-                    line.Id = 0;
-                    addLins.Add(line);
-                }
+
+                var lineEntity = lineDto.Adapt<PurchaseOrderLine>();
+
+                lineEntity.OrderNo = headerEntity.OrderNo;
+                lineEntity.PurchaseOrderId = headerEntity.Id;
+                lineEntity.IsDeleted = false;
+
+                if (lineEntity.Id <= 0)
+                    addLines.Add((lineEntity, lineDto.DemandIdList));
                 else
-                {
-                    updateLines.Add(line);
-                }
+                    updateLines.Add(lineEntity);
             }
 
-            if (addLins.Count > 0)
+            // 3. 处理新增行 (逻辑同 Create)
+            if (addLines.Count > 0)
             {
-                await _lineRepository.AddRangeAsync(addLins);
+                var entities = addLines.Select(x => x.Entity).ToList();
+                await _lineRepository.AddRangeAsync(entities);
+
+                // 回写新行的需求关联... (参考 Create 逻辑)
             }
 
-            //5.处理更新
+            // 4. 处理更新行
             if (updateLines.Count > 0)
             {
                 //获取旧的订单行数据，并按照订单行ID建立一个字典，方便后续对比每行的ReadyQty是否有变更，以及如果关联了净需求的话，计算ReadyQty的增量值（delta），准备后续同步更新回净需求的ReceivedQty字段。
@@ -376,19 +417,13 @@ public class PurchaseOrderService(
                     _session.Transaction.Rollback();
                     return ServiceResult<int>.Fail("部分订单行不存在，无法更新");
                 }
-                var dictOldLines = oldLines.ToDictionary(x => x.Id, x=>x);
+                var dictOldLines = oldLines.ToDictionary(x => x.Id, x => x);
                 //准备一个列表来收集所有完工数量有变更的订单行，以及对应的跟进日志记录，后续批量新增跟进日志和批量更新订单行。
                 var readyQtyChangedLines = new List<PurchaseFollowUpUpdateDto>();
                 //跟进日志
                 var flogList = new List<FollowUpLog>();
                 //净需求更新列表
-                var dependNeedToUpdate = new List<DependentDemand>();
-                var dependids = updateLines.Where(x => x.SourceLineId.HasValue && x.SourceLineId.Value > 0)
-                                            .Select(x => x.Id)
-                                            .OrderBy(id => id)
-                                            .ToList();
-                var depends = await _dependentDemandRepository.GetByIdListAsync(dependids, true);
-                var dependDict = depends.ToDictionary(x => x.Id, x => x);
+                var dependNeedToUpdate = await _dependentDemandRepository.GetListByTargetLineIdsAsync([.. updateLines.Select(l => l.Id)], true);
 
                 //遍历每一行更新数据，检查完工数量是否有变更，如果有变更则记录跟进日志，并且如果关联了净需求的话，计算增量值并同步更新回净需求的ReceivedQty字段。
                 foreach (var line in updateLines)
@@ -397,8 +432,8 @@ public class PurchaseOrderService(
                     {
                         var delta = line.ReadyQty - oldEntity.ReadyQty;
 
-                        if (line.ReadyQty != oldEntity.ReadyQty 
-                            || line.FollowExpectedDate?.Date != oldEntity.FollowExpectedDate?.Date 
+                        if (line.ReadyQty != oldEntity.ReadyQty
+                            || line.FollowExpectedDate?.Date != oldEntity.FollowExpectedDate?.Date
                             || !string.Equals(line.FollowUpRemarks, oldEntity.FollowUpRemarks, StringComparison.OrdinalIgnoreCase))
                         {
                             var changes = new List<string>();
@@ -418,25 +453,24 @@ public class PurchaseOrderService(
                             {
                                 RefLineId = line.Id,
                                 NoteContent = noteContent,
-                                CreatedDate = DateTime.Now,                                
+                                CreatedDate = DateTime.Now,
                                 IsDeleted = false
                             });
                             line.FollowUpTime = DateTime.Now;
                         }
                         // 中文注释：若采购行关联到净需求，则按 ReadyQty 的增量同步回写 ReceivedQty。
                         // 业务语义：ReceivedQty 作为过程进度累计值，允许正向增加，也允许回调时减少（delta 可能为负）。
-                        if (dependDict.TryGetValue(line.Id, out var dep))
+                        foreach (var dep in dependNeedToUpdate.Where(d => d.TargetLineId == line.Id))
                         {
                             if (dep != null && !dep.IsDeleted && line.ReadyQty != oldEntity.ReadyQty)
                             {
                                 dep.ReadyQty = line.ReadyQty;
-                                dependNeedToUpdate.Add(dep);
                             }
                         }
                     }
 
                 }
-                
+
                 //如果有完工数量变更的订单行，则批量新增跟进日志
                 if (flogList.Count > 0)
                 {
@@ -448,16 +482,9 @@ public class PurchaseOrderService(
                     await _dependentDemandRepository.UpdateRangeAsync(dependNeedToUpdate);
                 }
 
-                //处理删除订单行行（如果有订单行被删除的话）
-                if (request.DeletedLineIds?.Count > 0)
-                {
-                    await _lineRepository.DeleteRangeAsync(request.DeletedLineIds, true);
-                }
-                
-                //更新订单头信息
                 headerEntity.TotalReadyQty = updateLines.Sum(x => x.ReadyQty);
+                //更新订单
                 await _repository.UpdateAsync(headerEntity);
-                //更新订单行
                 await _lineRepository.UpdateRangeAsync(updateLines);
             }
 
@@ -475,7 +502,7 @@ public class PurchaseOrderService(
             _session.Transaction = null;
         }
     }
-    private static ServiceResult<bool> 核对采购单行是否符合规则(IEnumerable<PurchaseOrderLine> purchaseOrderLines, DecomposeCache cache)
+    private static ServiceResult<bool> 核对采购单行是否符合规则(IEnumerable<PurchaseOrderLineDto> purchaseOrderLines, DecomposeCache cache)
     {
 
         foreach (var line in purchaseOrderLines)
@@ -526,6 +553,8 @@ public class PurchaseOrderService(
 
         return new DecomposeCache(pds, sps);
     }
+
+
 
 
 

@@ -1,5 +1,6 @@
 using SwiftExport.Contracts.DTOs.Base;
 using System;
+using System.Collections.Generic;
 
 namespace SwiftExport.Contracts.DTOs.Orders
 {
@@ -59,11 +60,6 @@ namespace SwiftExport.Contracts.DTOs.Orders
         public DateTime? ChangeTime { get; set; }
 
         /// <summary>
-        /// 来源需求池ID（回写需求池关键字段）。
-        /// </summary>
-        public int? DemandId { get; set; }
-
-        /// <summary>
         /// 冗余字段，便于追溯来源。
         /// </summary>
         public string SourceType { get; set; } = string.Empty;
@@ -82,5 +78,11 @@ namespace SwiftExport.Contracts.DTOs.Orders
         public DateTime? FollowUpTime { get; set; }
         public DateTime? FollowExpectedDate { get; set; }
         public string MainImage { get; set; }=string.Empty;
+
+
+        /// <summary>
+        /// 手动创建或修改时，关联的净需求 ID 集合
+        /// </summary>
+        public List<int> DemandIdList { get; set; } = new List<int>();
     }
 }

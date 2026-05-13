@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Warehouses;
 using System;
 using System.Collections.Generic;
 
@@ -41,6 +42,6 @@ namespace SwiftExport.Contracts.DTOs.Orders
         /// <summary>
         /// 入库行列表。
         /// </summary>
-        public List<PurchaseReceiveExecuteLineDto> Lines { get; set; } = new List<PurchaseReceiveExecuteLineDto>();
+        public List<ReceiveLineDto> Lines { get; set; } = new List<ReceiveLineDto>();
     }
 }

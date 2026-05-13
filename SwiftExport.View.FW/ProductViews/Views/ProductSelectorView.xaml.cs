@@ -76,16 +76,6 @@ namespace SwiftExport.View.FW.ProductViews.Views
 
                 SearchTextBox.Focus();
                 SearchTextBox.CaretIndex = (SearchTextBox.Text ?? string.Empty).Length;
-
-                //// 中文注释：关闭 IME，尽可能进入英文输入状态；若系统策略不允许则忽略异常。
-                //try
-                //{
-                //    InputMethod.SetPreferredImeState(SearchTextBox, InputMethodState.Off);
-                //    InputMethod.SetIsInputMethodEnabled(SearchTextBox, false);
-                //}
-                //catch
-                //{
-                //}
             }, DispatcherPriority.ContextIdle);
         }
 

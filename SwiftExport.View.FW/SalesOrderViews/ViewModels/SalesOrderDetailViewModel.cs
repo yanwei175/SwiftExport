@@ -112,10 +112,11 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         #endregion
 
         #region 构造函数
-        [Obsolete("仅供 XAML 设计器使用", true)]
-        internal SalesOrderDetailViewModel()
-        {
-        }
+
+        //[Obsolete("仅供 XAML 设计器使用", true)]
+        //internal SalesOrderDetailViewModel()
+        //{
+        //}
 
         public SalesOrderDetailViewModel(ISalesOrderApi salesOrderApi, IDialogService dialogService, ICustomerApi customerApi, ISysDicCurrencyApi sysDicCurrencyApi, IDictCacheService dictCacheService, ICustomerProductApi customerProductApi = null, bool isEmbeddedMode = false)
         {

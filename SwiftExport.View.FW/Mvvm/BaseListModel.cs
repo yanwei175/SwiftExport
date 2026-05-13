@@ -244,11 +244,18 @@ namespace SwiftExport.View.FW.Mvvm
                 DeleteIdList = _allItems.Where(x => x.State == ModelState.Deleted).Select(x => x.Id).ToList()
             };
         }
+        public List<int> GetDeletedItems()
+        {
+            return _allItems.Where(x => x.State == ModelState.Deleted).Select(x => x.Id).ToList();
+        }
         public List<T> GetCheckedItems()
         {
             return Items.Where(x => x.IsChecked).ToList();
         }
-
+        public List<T> GetAllItems()
+        {
+            return _allItems.ToList();
+        }
 
 
         public virtual void ReLoadRangeFromDtoList<Tdto>(List<Tdto> dtos)

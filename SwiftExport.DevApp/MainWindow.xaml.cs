@@ -11,6 +11,7 @@ using SwiftExport.View.FW.SystemViews.ViewModels;
 using SwiftExport.View.FW.SystemViews.Views;
 using SwiftExport.View.FW.SupplierViews.Views;
 using System.Windows;
+using SwiftExport.View.FW.WarehouseViews.Views;
 
 namespace SwiftExport.DevApp
 {
@@ -43,8 +44,8 @@ namespace SwiftExport.DevApp
 
         private void OnMainWindowLoaded(object sender, RoutedEventArgs e)
         {
-            if (!AuthTokenStore.IsLoggedIn)
-                ShowLoginWindow(title: "请登录以继续");
+            //if (!AuthTokenStore.IsLoggedIn)
+            //    ShowLoginWindow(title: "请登录以继续");
         }
 
         // ──────────────────────────────────────────────────────
@@ -198,6 +199,11 @@ namespace SwiftExport.DevApp
                 Content = content
             };
             win.ShowDialog();
+        }
+
+        private void Button_Click_15(object sender, RoutedEventArgs e)
+        {
+            OpenFullWindow("入库单", DiServices.GetService<ReceiptDetailView>());
         }
     }
 }

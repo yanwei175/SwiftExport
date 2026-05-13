@@ -9,16 +9,25 @@ namespace SwiftExport.Core.Entities.Orders;
 [Table("PackingListHead")]
 public class PackingListHead : BaseEntity
 {
-    public string PackingListNo { get; set; } = string.Empty;
-    public string? PoNo { get; set; }
-    public string? PurchaseOrderNo { get; set; }
-    public string? SalesOrderNo { get; set; }
-    public string SupplierCode { get; set; } = string.Empty;
-    public string? SupplierName { get; set; }
-    public DateTime? PackingDate { get; set; }
-    public bool IsPosted { get; set; }
+    public required string PackingListNo { get; set; }
+    public required string CustomerCode { get; set; }
+
+    /// <summary>
+    /// 这个发票号是为了应付老板的特殊需求,千万不要用这个发票号来执行业务逻辑
+    /// </summary>
+    public string? InvoiceNo { get; set; }
+    public string? ShipToName { get; set; }
+    public string? ShipToAddress { get; set; }
+    public string? ShipToPhone { get; set; }
+    public string? Attention { get; set; }
+
+    public string? ContainerNo { get; set; }
+    public string? SealNo { get; set; }
+    public DateTime? ETD { get; set; }           // 预计发货日
+    public DateTime? ETA { get; set; }           // 预计抵达日
+    public bool IsPosted { get; set; }           // 是否过账（触发入库/回写的开关）
     public DateTime? PostedDate { get; set; }
     public string? PostedBy { get; set; }
-    public string? ReceiveNo { get; set; }
+    public DateTime? PackingDate { get; set; }
     public string? Remark { get; set; }
 }
