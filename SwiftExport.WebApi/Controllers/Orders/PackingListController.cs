@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.PackingLists;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.WebApi.Controllers.Base;
@@ -8,12 +9,12 @@ using SwiftExport.WebApi.Controllers.Base;
 namespace SwiftExport.WebApi.Controllers.Orders;
 
 public class PackingListController(IPackingListService service)
-    : BaseController<PackingListHead, PackingListDto>(service)
+    : BaseController<PackingListHead, PackingListHeadDto>(service)
 {
     [HttpPost("search")]
-    public async Task<ServiceResult<PagedResultDto<PackingListDto>>> GetPagedListAsync([FromBody] PackingListSearchDto search)
+    public async Task<ServiceResult<PagedResultDto<PackingListHeadDto>>> GetPagedListAsync([FromBody] PackingListSearchDto search)
     {
-        return await service.GetPagedListAsync(search);
+        return await service.GetHeadPagedListAsync(search);
     }
 
     [HttpGet("{id}/detail")]

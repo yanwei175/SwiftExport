@@ -92,22 +92,6 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
         #region 搜索条件
 
-        private string _searchText;
-        /// <summary>
-        /// 关键字搜索（CustomerCode/名称/联系人）。
-        /// </summary>
-        public string SearchText
-        {
-            get => _searchText;
-            set
-            {
-                if (SetProperty(ref _searchText, value))
-                {
-                    TriggerSearch();
-                }
-            }
-        }
-
         private string _batchSearchText;
         /// <summary>
         /// 批量搜索（多行文本，每行一项）。
@@ -190,10 +174,14 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             {
                 try
                 {
+                    List<string> keywords = BatchSearchText?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(k => k.Trim())
+                        .Where(k => !string.IsNullOrEmpty(k))
+                        .ToList() ?? new List<string>();
+
                     var request = new PagedRequestDto
                     {
-                        SearchText = SearchText,
-                        BatchSearchTexts = BatchSearchText,
+                        BatchKeywords = keywords?.Count > 0 ? keywords : null,
                         PageIndex = _currentPage,
                         PageSize = _pageSize
                     };

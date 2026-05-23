@@ -20,35 +20,18 @@ public class SupplierController(ISupplierService service) : BaseController<Suppl
         // ==========================================
         // 处理批量搜索
         // ==========================================
-        if (!string.IsNullOrWhiteSpace(request.BatchSearchTexts))
+        if (request.BatchKeywords != null && request.BatchKeywords.Count > 0)
         {
-            // 1. 分割字符串：支持 换行符(\n, \r) 和 逗号(,)
-            var batchList = request.BatchSearchTexts
-                .Split(['\r', '\n', ','], StringSplitOptions.RemoveEmptyEntries)
-                .Select(k => k.Trim())           // 去除首尾空格
-                .Where(k => !string.IsNullOrEmpty(k)) // 再次确保没有空字符串
-                .Distinct()                      // 去重
-                .ToList();
 
-            if (batchList.Count > 0)
+
+            foreach (var keyword in request.BatchKeywords)
             {
                 // 逻辑：(SKU IN (...) OR CSKU IN (...))
                 criteria.AddOrGroup(
-                    ("SupplierCode", 查询操作符.包含某值, batchList),
-                    ("Name", 查询操作符.包含某值, batchList)
+                    ("SupplierCode", 查询操作符.包含某值, keyword),
+                    ("Name", 查询操作符.包含某值, keyword)
                 );
             }
-        }
-
-        // ==========================================
-        // 处理单个关键字模糊搜索
-        // ==========================================
-        if (!string.IsNullOrWhiteSpace(request.SearchText))
-        {
-            criteria.AddOrGroup(
-                ("SupplierCode", 查询操作符.模糊匹配, request.SearchText),
-                ("Name", 查询操作符.模糊匹配, request.SearchText)
-            );
         }
 
         // 4. 处理分页默认值保护

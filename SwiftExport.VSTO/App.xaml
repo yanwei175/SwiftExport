@@ -1,14 +1,12 @@
 ﻿<Application x:Class="SwiftExport.VSTO.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:SwiftExport.VSTO">
     <Application.Resources>
-        <!--<ResourceDictionary>
+        <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/SwiftExport.VSTO;component/Resources/Styles/Colors.xaml" />
-                <ResourceDictionary Source="/SwiftExport.VSTO;component/Resources/Styles/Brushes.xaml" />
-                <ResourceDictionary Source="/SwiftExport.VSTO;component/Resources/Styles/Icons.xaml" />
-                <ResourceDictionary Source="/SwiftExport.VSTO;component/Resources/Styles/Controls.xaml" />
-            </ResourceDictionary.MergedDictionaries>
-        </ResourceDictionary>-->
+                <ResourceDictionary Source="pack://application:,,,/MateWpfThemes.FW;component/Themes/MateThemes.xaml" />
+                  </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

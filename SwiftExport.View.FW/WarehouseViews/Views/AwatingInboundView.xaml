@@ -35,9 +35,9 @@
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="160"/>
-                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="8"/>
                 <ColumnDefinition x:Name="待选表格" Width="7*"/>
-                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="8"/>
                 <ColumnDefinition x:Name="选定表格" Width="4*"/>
             </Grid.ColumnDefinitions>
 
@@ -45,16 +45,19 @@
                        Style="{StaticResource BoldTextBlock}"/>
 
             <ListBox Grid.Row="1" x:Name="SupplierFilter"
+                     Margin="5"
                      ItemsSource="{Binding SupplierList}"
                      DisplayMemberPath="SupplierName"
                      SelectedValuePath="SupplierCode"
-                     SelectedValue="{Binding SelectedSupplierCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"> 
+                     SelectedValue="{Binding SelectedSupplierCode}"> 
             </ListBox>
 
-            <GridSplitter Grid.RowSpan="2" Grid.Column="1" HorizontalAlignment="Stretch"/>
+            <GridSplitter Grid.RowSpan="2" Grid.Column="1" HorizontalAlignment="Center" 
+                          Width="1"/>
 
             <StackPanel x:Name="筛选条件" Grid.Row="0" Grid.Column="2"
                         Height="40"
+                        Margin="0,5,0,5"
                         Orientation="Horizontal">
                 <TextBlock Text="物料类型" Margin="0,0,8,0" VerticalAlignment="Center"/>
                 <ComboBox Margin="0,0,8,0"
@@ -80,11 +83,11 @@
                       IsReadOnly="True"
                       SelectionMode="Extended"
                       SelectionUnit="FullRow"
+                      GridLinesVisibility="Horizontal"
                       SelectionChanged="SourceDataGrid_SelectionChanged"
                       MouseDoubleClick="SourceDataGrid_MouseDoubleClick"
                       PreviewKeyDown="SourceDataGrid_PreviewKeyDown"
                       ScrollViewer.ScrollChanged="DataGrid_ScrollChanged">
-
                 <DataGrid.Columns>
                     <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}"
                                             CellTemplate="{StaticResource ImageCellTemplate}" Width="64"/>
@@ -118,7 +121,7 @@
                 </DataGrid.Columns>
             </DataGrid>
 
-            <GridSplitter Grid.RowSpan="2" Grid.Column="3" HorizontalAlignment="Stretch"/>
+            <GridSplitter Grid.RowSpan="2" Grid.Column="3" HorizontalAlignment="Center" Width="1"/>
 
             <DataGrid x:Name="TargetDataGrid"
                       Grid.Row="1" Grid.Column="4"

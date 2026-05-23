@@ -250,8 +250,10 @@ namespace SwiftExport.View.FW.Mvvm
                 {
                     PageIndex = this.PageIndex,
                     PageSize = this.PageSize,
-                    SearchText = this.SearchText,
-                    BatchSearchTexts = this.BatchSearchTexts // 装载批量精准查询参数
+                    BatchKeywords = this.BatchSearchTexts?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(k => k.Trim())
+                        .Where(k => !string.IsNullOrEmpty(k))
+                        .ToList() // 装载批量精准查询参数
                 };
 
                 var rst = await FetchDataAsync(request);

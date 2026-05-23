@@ -20,58 +20,36 @@ public class ProductColorController(IProductColorService service) : BaseControll
         // ==========================================
         // 处理批量搜索
         // ==========================================
-        if (!string.IsNullOrWhiteSpace(request.BatchSearchTexts))
+        if (request.BatchKeywords != null && request.BatchKeywords.Count > 0)
         {
-            // 1. 分割字符串：支持 换行符(\n, \r) 和 逗号(,)
-            var batchList = request.BatchSearchTexts
-                .Split(['\r', '\n', ','], StringSplitOptions.RemoveEmptyEntries)
-                .Select(k => k.Trim())           // 去除首尾空格
-                .Where(k => !string.IsNullOrEmpty(k)) // 再次确保没有空字符串
-                .Distinct()                      // 去重
-                .ToList();
 
-            if (batchList.Count > 0)
+
+            foreach (var keyword in request.BatchKeywords)
             {
-                // 逻辑：(SKU IN (...) OR CSKU IN (...))
-                criteria.AddOrGroup(
-                    ("ColorCodeUnique", 查询操作符.包含某值, batchList),
-                    ("ColorCode", 查询操作符.包含某值, batchList),
-                    ("ColorNameEn", 查询操作符.包含某值, batchList),
-                    ("ColorNameZh", 查询操作符.包含某值, batchList)
-                );
+                {
+                    // 逻辑：(SKU IN (...) OR CSKU IN (...))
+                    criteria.AddOrGroup(
+                        ("ColorCodeUnique", 查询操作符.包含某值, keyword),
+                        ("ColorCode", 查询操作符.包含某值, keyword),
+                        ("ColorNameEn", 查询操作符.包含某值, keyword),
+                        ("ColorNameZh", 查询操作符.包含某值, keyword)
+                    );
+                }
             }
         }
+            // 4. 处理分页默认值保护
+            int pageIndex = request.PageIndex > 0 ? request.PageIndex : 1;
+            int pageSize = request.PageSize > 0 ? request.PageSize : 50;
 
-        // ==========================================
-        // 处理单个关键字模糊搜索
-        // ==========================================
-        if (!string.IsNullOrWhiteSpace(request.SearchText))
-        {
-            criteria.AddOrGroup(
-                ("ColorCodeUnique", 查询操作符.模糊匹配, request.SearchText),
-                ("ColorCode", 查询操作符.模糊匹配, request.SearchText),
-                ("ColorNameEn", 查询操作符.模糊匹配, request.SearchText),
-                ("ColorNameZh", 查询操作符.模糊匹配, request.SearchText)
-            );
+            // 5. 核心：调用基类提供的泛型分页方法，完成数据库查询和 DTO 映射
+            return await _service.GetPagedListAsync(criteria, pageIndex, pageSize, "ColorCodeUnique ASC");
         }
 
-        // 4. 处理分页默认值保护
-        int pageIndex = request.PageIndex > 0 ? request.PageIndex : 1;
-        int pageSize = request.PageSize > 0 ? request.PageSize : 50;
-
-        // 5. 核心：调用基类提供的泛型分页方法，完成数据库查询和 DTO 映射
-        return await _service.GetPagedListAsync(criteria, pageIndex, pageSize, "ColorCodeUnique ASC");
-    }
-
-    [HttpGet("all")]
-    public async Task<ServiceResult<IReadOnlyList<ProductColorDto>>> GetAll()
-    {
-        return await service.GetAllAsync();
-    }
-
-
-
-
+        [HttpGet("all")]
+        public async Task<ServiceResult<IReadOnlyList<ProductColorDto>>> GetAll()
+        {
+            return await service.GetAllAsync();
+        }
 
 
 }

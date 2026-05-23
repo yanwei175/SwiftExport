@@ -1,12 +1,191 @@
 ﻿<UserControl x:Class="SwiftExport.View.FW.WarehouseViews.Views.ReceiptManagerView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:SwiftExport.View.FW.WarehouseViews.Views"
-             mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
+             xmlns:vm="clr-namespace:SwiftExport.View.FW.WarehouseViews.ViewModels"
+             d:DataContext="{d:DesignInstance vm:ReceiptManagerViewModel}"
+             mc:Ignorable="d"
+             d:Background="White"
+             d:DesignHeight="800" d:DesignWidth="1400"
+             >
+
+    <UserControl.Resources>
+
+    </UserControl.Resources>
     <Grid>
+        <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="入库管理"
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,10"
+                   FontSize="24"
+                   FontWeight="Bold"/>
+
+        <!-- 筛选区 -->
+        <Border Grid.Row="1" Padding="12" Margin="0,0,0,8"
+                Background="{DynamicResource Brush_Control_Background}"
+                BorderBrush="{DynamicResource Brush_Border_Light}" BorderThickness="1">
+            <StackPanel Orientation="Horizontal">
+
+
+                <TextBlock Text="供应商 " VerticalAlignment="Center"/>
+                <TextBox Height="30" Width="120" Text="{Binding FilterSupplierCode, UpdateSourceTrigger=PropertyChanged}"/>
+
+                <TextBlock Text="关键字 " VerticalAlignment="Center"/>
+                <Grid Height="30" Width="180">
+                    <TextBox x:Name="FilterTextBoxSmall"
+                             Style="{StaticResource MultiLineTextBoxStyle}"
+                             Text="{Binding FilterText, UpdateSourceTrigger=LostFocus}"
+                             GotFocus="FilterTextBoxSmall_GotFocus"
+                             IsReadOnly="True"
+                             VerticalAlignment="Top"/>
+                    <Popup x:Name="FilterPopup"
+                           PlacementTarget="{Binding ElementName=FilterTextBoxSmall}"
+                           Placement="Relative" VerticalOffset="0" HorizontalOffset="0"
+                           AllowsTransparency="True"
+                           StaysOpen="False"
+                           Opened="FilterPopup_Opened">
+                        <TextBox x:Name="FilterPopupTextBox"
+                                 Height="120"
+                                 Width="{Binding ActualWidth, ElementName=FilterTextBoxSmall}"
+                                 Text="{Binding FilterText, UpdateSourceTrigger=LostFocus}"
+                                 VerticalAlignment="Top" Margin="0"
+                                 AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 LostFocus="FilterPopupTextBox_LostFocus"
+                                 Style="{StaticResource MultiLineTextBoxStyle}"/>
+                    </Popup>
+                </Grid>
+
+
+
+                <TextBlock Text="PO号 " VerticalAlignment="Center"/>
+                <TextBox  Height="30" Width="100"
+                         Style="{StaticResource MultiLineTextBoxStyle}"
+                         Text="{Binding FilterPoNo, UpdateSourceTrigger=PropertyChanged}"/>
+
+                <TextBlock  Text="开始日期 " VerticalAlignment="Center"/>
+                <DatePicker  Height="30" Width="120" SelectedDate="{Binding FilterFromDate}"/>
+
+                <TextBlock  Text="结束日期 " VerticalAlignment="Center"/>
+                <DatePicker  Height="30" Width="120" SelectedDate="{Binding FilterToDate}"/>
+
+                <CheckBox Margin="0,0,10,0" VerticalAlignment="Center"
+                          Width="100"
+                          Content="仅已过账" IsChecked="{Binding FilterPosted}"/>
+
+                <Button Margin="0,0,8,0" MinWidth="80" Height="30"
+                        Content="查询" Style="{StaticResource ButtonPrimary}"
+                        Command="{Binding SearchCommand}"/>
+
+                <Button MinWidth="80" Height="30"
+                        Content="重置" Style="{StaticResource ButtonBase}"
+                        Command="{Binding ResetFilterCommand}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 操作按钮 -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Content="新建" Margin="0,0,8,0"
+                    Style="{StaticResource ButtonPrimary}"
+                    Command="{Binding CreatReceiptDetailCommand}"/>
+            <Button Content="编辑" Margin="0,0,8,0"
+                    Style="{StaticResource ButtonBase}"
+                    Command="{Binding EditReceiptDetailCommand}"/>
+            <Button Content="删除" Margin="0,0,8,0"
+                    Style="{StaticResource ButtonDanger}"
+                    Command="{Binding DeleteReceiptDetailCommand}"/>
+            <Button Content="刷新" Margin="0,0,8,0"
+                    Style="{StaticResource ButtonBase}"
+                    Command="{Binding RefreshReceiptDetailCommand}"/>
+            <Button Content="过账" Margin="0,0,8,0"
+                    Style="{StaticResource ButtonSuccess}"
+                    Command="{Binding PostReceiptDetailCommand}"/>
+
+            <TextBlock Margin="16,0,0,0" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Brush_Txt_Secondary}"
+                       Text="{Binding StatusMessage}"/>
+        </StackPanel>
+         
             
+            
+            <!-- 主体：头表 + 行表 -->
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="5*" MinHeight="200"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="5*" MinHeight="200"/>
+            </Grid.RowDefinitions>
+
+            <DataGrid Grid.Row="0"
+                      ItemsSource="{Binding HeadTable.Items}"
+                      SelectedItem="{Binding SelectedHeadModel, Mode=TwoWay}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      RowHeight="34"
+                      SelectionUnit="FullRow"
+                      mt:DataGridAssist.ShowRowNumber="True">
+                <DataGrid.Columns>
+                    <mt:CheckBoxDataGridTemplateColumn
+                        AllCheckedPropertyName="HeadTable.IsAllChecked"
+                        ItemCheckedPropertyName="IsChecked"
+                        ItemCheckedCommandName="{x:Null}"
+                        HeaderCheckBoxMargin="3,0"
+                        HeaderCheckBoxToolTip="全选/全不选"/>
+                    <DataGridTextColumn Header="入库单号" Binding="{Binding ReceiveNo}" Width="160"/>
+                    <DataGridTextColumn Header="供应商" Binding="{Binding SupplierCode}" Width="140"/>
+                    <DataGridTextColumn Header="入库日期" Binding="{Binding ReceiveDate, StringFormat=yyyy-MM-dd}" Width="120"/>
+                    <DataGridTextColumn Header="操作人" Binding="{Binding Handler}" Width="100"/>
+                    <DataGridCheckBoxColumn Header="已过账" Binding="{Binding IsPosted}" Width="70"/>
+                    <DataGridTextColumn Header="关联PO" Binding="{Binding RelatedPoNos}" Width="260"/>
+                    <DataGridTextColumn Header="备注" Binding="{Binding Remark}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            
+                <!-- 底部分页 -->
+                <mt:PageNavigator Grid.Row="1" Margin="0,8,0,0"
+                      HorizontalAlignment="Right"
+                      TotalCount="{Binding TotalCount}"
+                      PageIndex="{Binding PageIndex, Mode=OneWay}"
+                      PageSize="{Binding PageSize, Mode=OneWay}"
+                      PageChangeCommand="{Binding PageChangeCommand}"/>
+            
+             <GridSplitter Grid.Row="2" 
+                           Height="1"
+                           HorizontalAlignment="Stretch" 
+                           VerticalAlignment="Center"/>
+
+            <DataGrid Grid.Row="3"
+                      ItemsSource="{Binding LineTable.Items}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      RowHeight="34"
+                      mt:DataGridAssist.ShowRowNumber="True">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}" 
+                               CellTemplate="{StaticResource ImageCellTemplate}" Width="64"/>
+                    <DataGridTextColumn Header="入库单号" Binding="{Binding ReceiveNo}" Width="160"/>
+                    <DataGridTextColumn Header="PO号" Binding="{Binding PoNo}" Width="140"/>
+                    <DataGridTextColumn Header="采购行ID" Binding="{Binding PoLineId}" Width="100"/>
+                    <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="200"/>
+                    <DataGridTextColumn Header="数量" Binding="{Binding Qty, StringFormat=N2}" Width="100"/>
+                    <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="80"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+
+
+    </Grid>
+    <mt:DialogHost d:IsHidden="True"/>
     </Grid>
 </UserControl>

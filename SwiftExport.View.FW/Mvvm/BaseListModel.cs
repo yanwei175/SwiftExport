@@ -17,13 +17,20 @@ namespace SwiftExport.View.FW.Mvvm
         public ObservableCollection<T> Items { get; } = new ObservableCollection<T>();
         protected readonly List<T> _allItems = new List<T>();
 
+        /// <summary>
+        /// 行级别事件委托,切换行的时候才会触发.
+        /// </summary>
         public event Action ListStateChanged;
 
         public BaseListModel()
         {
             Items.CollectionChanged += OnCollectionChanged;
         }
-
+        /// <summary>
+        /// 集合变更事件处理器，负责同步 _allItems 池和订阅行级 PropertyChanged 事件。
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void OnCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.NewItems != null)

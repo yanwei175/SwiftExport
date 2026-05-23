@@ -36,19 +36,20 @@
         {
             this.tabSwiftExport = this.Factory.CreateRibbonTab();
             this.MainMenuGroup = this.Factory.CreateRibbonGroup();
-            this.BtnTest = this.Factory.CreateRibbonButton();
-            this.button1 = this.Factory.CreateRibbonButton();
             this.BaseSettingMenuGroup = this.Factory.CreateRibbonGroup();
             this.ProductMenuGroup = this.Factory.CreateRibbonGroup();
+            this.SalesMenuGroup = this.Factory.CreateRibbonGroup();
+            this.PurchaseMenuGroup = this.Factory.CreateRibbonGroup();
+            this.BtnLogin = this.Factory.CreateRibbonButton();
+            this.button1 = this.Factory.CreateRibbonButton();
             this.ProductSettingMenu = this.Factory.CreateRibbonMenu();
             this.ProductColorManager = this.Factory.CreateRibbonButton();
-            this.SalesMenuGroup = this.Factory.CreateRibbonGroup();
             this.SalesSettingMenu = this.Factory.CreateRibbonMenu();
             this.CustomerManager = this.Factory.CreateRibbonButton();
-            this.PurchaseMenuGroup = this.Factory.CreateRibbonGroup();
             this.PurchaseSettingMenu = this.Factory.CreateRibbonMenu();
             this.SupplierManager = this.Factory.CreateRibbonButton();
             this.PoConfigManager = this.Factory.CreateRibbonButton();
+            this.button2 = this.Factory.CreateRibbonButton();
             this.tabSwiftExport.SuspendLayout();
             this.MainMenuGroup.SuspendLayout();
             this.ProductMenuGroup.SuspendLayout();
@@ -69,26 +70,10 @@
             // 
             // MainMenuGroup
             // 
-            this.MainMenuGroup.Items.Add(this.BtnTest);
+            this.MainMenuGroup.Items.Add(this.BtnLogin);
             this.MainMenuGroup.Items.Add(this.button1);
             this.MainMenuGroup.Label = "首页";
             this.MainMenuGroup.Name = "MainMenuGroup";
-            // 
-            // BtnTest
-            // 
-            this.BtnTest.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.BtnTest.Label = "Test";
-            this.BtnTest.Name = "BtnTest";
-            this.BtnTest.ShowImage = true;
-            this.BtnTest.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.BtnTest_Click);
-            // 
-            // button1
-            // 
-            this.button1.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.button1.Label = "Test";
-            this.button1.Name = "button1";
-            this.button1.ShowImage = true;
-            this.button1.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Button1_Click);
             // 
             // BaseSettingMenuGroup
             // 
@@ -100,6 +85,35 @@
             this.ProductMenuGroup.Items.Add(this.ProductSettingMenu);
             this.ProductMenuGroup.Label = "产品";
             this.ProductMenuGroup.Name = "ProductMenuGroup";
+            // 
+            // SalesMenuGroup
+            // 
+            this.SalesMenuGroup.Items.Add(this.SalesSettingMenu);
+            this.SalesMenuGroup.Label = "销售";
+            this.SalesMenuGroup.Name = "SalesMenuGroup";
+            // 
+            // PurchaseMenuGroup
+            // 
+            this.PurchaseMenuGroup.Items.Add(this.PurchaseSettingMenu);
+            this.PurchaseMenuGroup.Items.Add(this.button2);
+            this.PurchaseMenuGroup.Label = "采购";
+            this.PurchaseMenuGroup.Name = "PurchaseMenuGroup";
+            // 
+            // BtnLogin
+            // 
+            this.BtnLogin.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.BtnLogin.Label = "登录";
+            this.BtnLogin.Name = "BtnLogin";
+            this.BtnLogin.ShowImage = true;
+            this.BtnLogin.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.BtnLogin_Click);
+            // 
+            // button1
+            // 
+            this.button1.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.button1.Label = "Test";
+            this.button1.Name = "button1";
+            this.button1.ShowImage = true;
+            this.button1.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Button1_Click);
             // 
             // ProductSettingMenu
             // 
@@ -114,12 +128,6 @@
             this.ProductColorManager.ShowImage = true;
             this.ProductColorManager.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.ProductColorManager_Click);
             // 
-            // SalesMenuGroup
-            // 
-            this.SalesMenuGroup.Items.Add(this.SalesSettingMenu);
-            this.SalesMenuGroup.Label = "销售";
-            this.SalesMenuGroup.Name = "SalesMenuGroup";
-            // 
             // SalesSettingMenu
             // 
             this.SalesSettingMenu.Items.Add(this.CustomerManager);
@@ -132,12 +140,6 @@
             this.CustomerManager.Name = "CustomerManager";
             this.CustomerManager.ShowImage = true;
             this.CustomerManager.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.CustomerManager_Click);
-            // 
-            // PurchaseMenuGroup
-            // 
-            this.PurchaseMenuGroup.Items.Add(this.PurchaseSettingMenu);
-            this.PurchaseMenuGroup.Label = "采购";
-            this.PurchaseMenuGroup.Name = "PurchaseMenuGroup";
             // 
             // PurchaseSettingMenu
             // 
@@ -159,6 +161,14 @@
             this.PoConfigManager.Name = "PoConfigManager";
             this.PoConfigManager.ShowImage = true;
             this.PoConfigManager.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.PoConfigManager_Click);
+            // 
+            // button2
+            // 
+            this.button2.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.button2.Label = "Test";
+            this.button2.Name = "button2";
+            this.button2.ShowImage = true;
+            this.button2.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.Buttontes_Click);
             // 
             // RibbonSwift
             // 
@@ -184,7 +194,7 @@
 
         internal Microsoft.Office.Tools.Ribbon.RibbonTab tabSwiftExport;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup MainMenuGroup;
-        internal Microsoft.Office.Tools.Ribbon.RibbonButton BtnTest;
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton BtnLogin;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton button1;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup ProductMenuGroup;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup SalesMenuGroup;
@@ -197,6 +207,7 @@
         internal Microsoft.Office.Tools.Ribbon.RibbonMenu ProductSettingMenu;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton ProductColorManager;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton PoConfigManager;
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton button2;
     }
 
     partial class ThisRibbonCollection

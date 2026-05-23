@@ -26,7 +26,7 @@ namespace SwiftExport.View.FW.WarehouseViews.Views
             get
             {
                 if (DialogResult != true) return null;
-                return ViewModel?.AwingOutPutList?.ToList();
+                return ViewModel?.ResultData?.ToList();
             }
         }
 

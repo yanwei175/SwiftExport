@@ -18,6 +18,7 @@ namespace SwiftExport.View.FW.Mappings
             config.NewConfig<ProductDto, ProductModel>()
                 // 基础标识字段
                 .Map(dest => dest.Id, dto => dto.Id)
+                .Map(dest => dest.Version, src => src.Version)
                 .Map(dest => dest.IsChecked, dto => false)  // 初始化 UI 勾选状态
                 .Map(dest => dest.State, dto => ModelState.Unchanged)  // 初始化状态为未修改
                 // SKU 级别管理字段

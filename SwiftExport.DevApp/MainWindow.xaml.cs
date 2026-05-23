@@ -12,6 +12,7 @@ using SwiftExport.View.FW.SystemViews.Views;
 using SwiftExport.View.FW.SupplierViews.Views;
 using System.Windows;
 using SwiftExport.View.FW.WarehouseViews.Views;
+using SwiftExport.View.FW.PackingListViews.Views;
 
 namespace SwiftExport.DevApp
 {
@@ -68,16 +69,7 @@ namespace SwiftExport.DevApp
         private void Button_Click_14(object sender, RoutedEventArgs e)
         {
             var view = DiServices.GetService<RegisterView>();
-            var win = new Window
-            {
-                Title = "注册新用户",
-                Width = 520,
-                Height = 560,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                ResizeMode = ResizeMode.NoResize,
-                Content = view
-            };
-            win.ShowDialog();
+            view.ShowDialog();
         }
 
         // ──────────────────────────────────────────────────────
@@ -159,28 +151,18 @@ namespace SwiftExport.DevApp
         private void ShowLoginWindow(string title = "登录")
         {
             var view = DiServices.GetService<LoginView>();
-            Window loginWin = null;
-            loginWin = new Window
-            {
-                Title = title,
-                Width = 480,
-                Height = 420,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                ResizeMode = ResizeMode.NoResize,
-                Content = view
-            };
 
-            // 登录成功：刷新顶栏 + 关闭登录窗口
-            if (view.DataContext is LoginViewModel vm)
-            {
-                vm.LoginSucceeded += () =>
-                {
-                    _shellVm.RefreshUserInfo();
-                    loginWin?.Close();
-                };
-            }
+            //// 登录成功：刷新顶栏 + 关闭登录窗口
+            //if (view.DataContext is LoginViewModel vm)
+            //{
+            //    vm.LoginSucceeded += () =>
+            //    {
+            //        _shellVm.RefreshUserInfo();
+            //        view?.Close();
+            //    };
+            //}
 
-            loginWin.ShowDialog();
+            view.ShowDialog();
         }
 
         /// <summary>全屏（1920×920）弹出子窗口</summary>
@@ -204,6 +186,36 @@ namespace SwiftExport.DevApp
         private void Button_Click_15(object sender, RoutedEventArgs e)
         {
             OpenFullWindow("入库单", DiServices.GetService<ReceiptDetailView>());
+        }
+
+        private void Button_Click_16(object sender, RoutedEventArgs e)
+        {
+            OpenFullWindow("入库管理", DiServices.GetService<ReceiptManagerView>());
+
+        }
+
+        private void Button_Click_17(object sender, RoutedEventArgs e)
+        {
+            var win = DiServices.GetService<AwatingInboundView>();
+            win.ShowDialog();
+        }
+
+        private void Button_Click_18(object sender, RoutedEventArgs e)
+        {
+            OpenFullWindow("箱单管理", DiServices.GetService<PackingListManagerView>());
+        }
+
+        private void Button_Click_19(object sender, RoutedEventArgs e)
+        {
+            var win = DiServices.GetService<PackingListDetailView>();
+            win.ShowDialog();
+        }
+
+        private void Button_Click_20(object sender, RoutedEventArgs e)
+        {
+            var win = DiServices.GetService<UnshippedView>();
+            win.ShowDialog();
+
         }
     }
 }

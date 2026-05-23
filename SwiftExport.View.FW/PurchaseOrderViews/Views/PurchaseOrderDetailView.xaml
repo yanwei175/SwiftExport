@@ -177,7 +177,7 @@
             <TextBox Margin="5,0,0,0" Grid.Row="2" Grid.Column="7" d:Text="说明书" />
             <TextBox Margin="5,0,0,0" Grid.Row="3" Grid.Column="7" d:Text="外箱" />
 
-            <TextBox  Grid.Row="0" Grid.Column="9" d:Text="光标" Grid.RowSpan="4" />
+            <TextBox  Grid.Row="0" Grid.Column="9" d:Text="光标" Grid.RowSpan="4" VerticalAlignment="Stretch" />
 
         </Grid>
 

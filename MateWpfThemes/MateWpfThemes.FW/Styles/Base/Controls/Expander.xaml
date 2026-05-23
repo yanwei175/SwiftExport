@@ -71,9 +71,11 @@
                         <Trigger Property="IsMouseOver" Value="true">
                             <Setter Property="Background" TargetName="borderDown" Value="{DynamicResource Brush_Primary_Subtle}"/>
                             <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush_Primary}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="true">
                             <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary_Pressed}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush_Primary_Pressed}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="false">
                             <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Btn_Primary_Disabled_Fck}"/>
@@ -119,9 +121,11 @@
                         <Trigger Property="IsMouseOver" Value="true">
                             <Setter Property="Background" TargetName="borderUp" Value="{DynamicResource Brush_Primary_Subtle}"/>
                             <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush_Primary}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="true">
                             <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary_Pressed}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush_Primary_Pressed}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="false">
                             <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Btn_Primary_Disabled_Fck}"/>
@@ -167,9 +171,11 @@
                         <Trigger Property="IsMouseOver" Value="true">
                             <Setter Property="Background" TargetName="borderLeft" Value="{DynamicResource Brush_Primary_Subtle}"/>
                             <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush_Primary}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="true">
                             <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary_Pressed}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush_Primary_Pressed}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="false">
                             <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Btn_Primary_Disabled_Fck}"/>
@@ -215,9 +221,13 @@
                         <Trigger Property="IsMouseOver" Value="true">
                             <Setter Property="Background" TargetName="borderRight" Value="{DynamicResource Brush_Primary_Subtle}"/>
                             <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush_Primary}"/>
+
                         </Trigger>
                         <Trigger Property="IsPressed" Value="true">
                             <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Primary_Pressed}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush_Primary_Pressed}"/>
+
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="false">
                             <Setter Property="Stroke" TargetName="arrow" Value="{DynamicResource Brush_Btn_Primary_Disabled_Fck}"/>

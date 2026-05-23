@@ -11,6 +11,27 @@ namespace SwiftExport.View.FW.WarehouseViews.Models
     /// </summary>
     public class ReceiveHeadModel : BaseLineModel
     {
+        public override void LoadFromDto<Tdto>(Tdto dto, bool 抑制清理脏数据 = false)
+        {
+            var headDto = dto as ReceiveHeadDto;
+            if (headDto == null) return;
+
+            using (程序内部修改Scope())
+            {
+                headDto.Adapt(this);
+                if (Id == 0)
+                {
+                    MarkAsAdded();
+                }
+
+                if (!抑制清理脏数据)
+                {
+                    CommitChanges();
+                }
+            }
+        }
+
+
         private string _receiveNo;
         public string ReceiveNo
         {
@@ -94,24 +115,6 @@ namespace SwiftExport.View.FW.WarehouseViews.Models
             return null;
         }
 
-        public override void LoadFromDto<Tdto>(Tdto dto, bool 抑制清理脏数据 = false)
-        {
-            var headDto = dto as ReceiveHeadDto;
-            if (headDto == null) return;
 
-            using (程序内部修改Scope())
-            {
-                headDto.Adapt(this);
-                if (Id == 0)
-                {
-                    MarkAsAdded();
-                }
-
-                if (!抑制清理脏数据)
-                {
-                    CommitChanges();
-                }
-            }
-        }
     }
 }

@@ -7,9 +7,13 @@ using SwiftExport.Contracts.DTOs.Warehouses;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.View.FW.DI;
+using SwiftExport.View.FW.Http;
 using SwiftExport.View.FW.Mvvm;
 using SwiftExport.View.FW.WarehouseViews.Models;
+using SwiftExport.View.FW.WarehouseViews.Views;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -30,12 +34,17 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
         private readonly ISupplierApi _supplierApi;
         private readonly IDialogService _dialog;
 
+        /// <summary> 弹窗后的结果</summary>
+        public int ResultData { get; set; }
+
+        /// <summary> 关闭弹窗的委托 </summary>
+        public event EventHandler<bool> RequestClose;
+
         public ObservableCollection<SupplierDto> Suppliers { get; } = new ObservableCollection<SupplierDto>();
         public ObservableCollection<string> MaterialTypes { get; } = new ObservableCollection<string>();
 
         public ReceiveLineList LineTable { get; } = new ReceiveLineList();
-        public ReceiveHeadModel ReceiveHead { get; }
-        public ReceiveDetailModel ReceiveDetail { get; set; }
+        public ReceiveHeadModel ReceiveHead { get; set; } = new ReceiveHeadModel();
 
         private string _materialType = MaterialTypesEnum.客供件;
         public string MaterialType
@@ -50,8 +59,10 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
             get => _statusMessage;
             set => SetProperty(ref _statusMessage, value);
         }
-
+        public RelayCommand GetAwaitingInboundCommand { get; }
+        public RelayCommand DeleteLineCommand { get; }
         public RelayCommand SaveDetailCommand { get; }
+        public RelayCommand CloseWindowCommand { get; }
 
         public ReceiptDetailViewModel(IPurchaseOrderApi purchaseOrderApi, IReceiveApi receiveApi, ISupplierApi supplierApi, IDialogService dialog)
         {
@@ -62,10 +73,58 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
 
             foreach (var item in MaterialTypesEnum.MaterialTypes)
                 MaterialTypes.Add(item);
+            GetAwaitingInboundCommand = new RelayCommand(GetAwaitingInbound);
+            DeleteLineCommand = new RelayCommand(DeleteLine);
+            SaveDetailCommand = new RelayCommand(async () => await SaveDetailAsync(), CanSaveDetil);
+            CloseWindowCommand = new RelayCommand(CloseWindow, CanCloseWindow);
 
-            SaveDetailCommand = new RelayCommand(async () => await SaveDetailAsync());
 
             _ = 加载依赖数据();
+        }
+
+        /// <summary>
+        /// 新增模式初始化。
+        /// </summary>
+        public void InitForCreate()
+        {
+            ReceiveHead = new ReceiveHeadModel();
+            ReceiveHead.ReceiveDate = DateTime.Now;
+            ReceiveHead.Handler = AuthTokenStore.CurrentUserName ?? AuthTokenStore.CurrentNickName;
+            LineTable.Clear();
+            StatusMessage = "新建入库单";
+        }
+
+        /// <summary>
+        /// 编辑模式初始化：带入头信息并加载行明细。
+        /// </summary>
+        public async Task InitForEditAsync(ReceiveHeadModel head)
+        {
+            if (head == null) return;
+
+            ReceiveHead = new ReceiveHeadModel
+            {
+                Id = head.Id,
+                ReceiveNo = head.ReceiveNo,
+                SupplierCode = head.SupplierCode,
+                ReceiveDate = head.ReceiveDate,
+                Handler = head.Handler,
+                Remark = head.Remark,
+                RelatedPoNos = head.RelatedPoNos,
+                IsPosted = head.IsPosted,
+                Version = head.Version
+            };
+
+            LineTable.Clear();
+            var rst = await _receiveApi.GetLinesByHeadIdAsync(head.Id);
+            if (rst.Success && rst.Data != null)
+            {
+                LineTable.ReLoadRangeFromDtoList(rst.Data.ToList());
+                StatusMessage = $"编辑入库单：{head.ReceiveNo}";
+            }
+            else
+            {
+                StatusMessage = "加载入库明细失败：" + rst.Message;
+            }
         }
 
 
@@ -91,9 +150,62 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
             }
         }
 
+        private void GetAwaitingInbound()
+        {
+            try
+            {
+
+                var win = IocProvider.GetService<AwatingInboundView>();
+                var vm = win.DataContext as AwatingInboundViewModel;
+                vm.RequestClose += (s, result) =>
+                {
+                    if (result) win.DialogResult = true; // 设置 DialogResult 会自动关闭窗口
+                    win.Close();
+                };
+                // 阻塞式打开
+                if (win.ShowDialog() == true)
+                {
+                    // 窗口关闭后，直接从 vm 里拿数据
+                    var finalResult = vm.ResultData;
+
+                    if (finalResult == null || finalResult.Count <= 0) { return; }
+
+                    var r = _receiveApi.GetLinesByHeadIdAsync(ReceiveHead.Id).Result;
+                    if (r == null) return;
+
+                    List<ReceiveLineModel> f = new List<ReceiveLineModel>();
+                    foreach (var line in finalResult)
+                    {
+                        var model = new ReceiveLineModel();
+                        model.LoadFromDto(line);
+                        f.Add(model);
+                    }
+
+                    LineTable.AddRangeFromModelList(f);
+                }
+
+            }
+            catch
+            {
+
+            }
+
+        }
+        private void DeleteLine()
+        {
+            var selected = LineTable.Items.Where(x => x.IsChecked).ToList();
+            if (selected.Count == 0)
+            {
+                _dialog.ShowInfoAsync("请先勾选要删除的行。");
+                return;
+            }
+            foreach (var item in selected)
+                LineTable.Remove(item);
+        }
+
         public bool CanSaveDetil()
         {
-          return !ReceiveDetail.ReceiveHeadModel.IsPosted;
+            return !ReceiveHead.IsPosted;
         }
         private async Task SaveDetailAsync()
         {
@@ -117,12 +229,12 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            var changedSet = ReceiveDetail.ReceiveLineList.GetChangeSet();
+            var changedSet = LineTable.GetChangeSet();
             var req = new SaveDocumentRequestBase<ReceiveHeadDto, ReceiveLineDto>
             {
-                Header = ReceiveDetail.ReceiveHeadModel.Adapt<ReceiveHeadDto>(),
+                Header = ReceiveHead.Adapt<ReceiveHeadDto>(),
                 AddLines = changedSet.AddList.Select(x => x.Adapt<ReceiveLineDto>()).ToList(),
-                UpdateLines = changedSet.UpdateList.Select(x => x.Adapt<ReceiveLineDto>()).ToList(),                
+                UpdateLines = changedSet.UpdateList.Select(x => x.Adapt<ReceiveLineDto>()).ToList(),
                 DeleteLineIds = changedSet.DeleteIdList
             };
 
@@ -134,8 +246,12 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
                     var rst = await _receiveApi.SaveDetailAsync(req);
                     if (rst.Success)
                     {
-                        StatusMessage = "保存成功，单号：" + rst.Data;
+                        StatusMessage = "保存成功";
+
                         await _dialog.ShowInfoAsync(StatusMessage);
+
+                        ResultData = rst.Data; //将新单号Id传回调用者
+                        RequestClose?.Invoke(this, true);
                     }
                     else
                     {
@@ -149,6 +265,15 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
                     await _dialog.ShowErrorAsync(StatusMessage);
                 }
             }
+        }
+        public bool CanCloseWindow()
+        {
+            return !ReceiveHead.IsDirty;
+        }
+        private void CloseWindow()
+        {
+            ResultData = -1;
+            RequestClose?.Invoke(this, true);
         }
     }
 }

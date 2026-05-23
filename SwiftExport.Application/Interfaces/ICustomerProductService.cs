@@ -22,7 +22,7 @@ public interface ICustomerProductService
     Task<ServiceResult<CustomerProductDto>> GetByCustomerSkuAsync(string customerSku, int customerId);
 
     /// <summary>联表分页查询</summary>
-    Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetPagedCustomerProductAsync(ProductSearchDto search);
+    Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetPagedCustomerProductAsync(ProductSearchDto req);
 
     /// <summary>获取所有有产品记录的客户列表</summary>
     Task<ServiceResult<IReadOnlyList<CustomerDto>>> GetAllHaveProductCustomerListAsync();

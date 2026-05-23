@@ -1,13 +1,15 @@
 using GalaSoft.MvvmLight.Command;
+using Mapster;
 using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
-using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.PackingLists;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.Models;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.Mvvm;
+using SwiftExport.View.FW.PackingListViews.Models;
 using System;
-using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -35,8 +37,10 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
             _salesOrderApi = salesOrderApi;
             _dialogService = dialogService;
 
-            HeaderItems = new ObservableCollection<PackingListDto>();
-            LineItems = new ObservableCollection<PackingListLineDto>();
+            HeaderItems = new PackingListHeadList();
+            LineItems = new PackingListLineList();
+
+
 
             LoadCommand = new RelayCommand(async () => await LoadAsync(), () => IsNotBusy);
             SaveCommand = new RelayCommand(async () => await SaveAsync(), () => IsNotBusy);
@@ -57,11 +61,11 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
             _ = LoadAsync();
         }
 
-        public ObservableCollection<PackingListDto> HeaderItems { get; private set; }
-        public ObservableCollection<PackingListLineDto> LineItems { get; private set; }
+        public PackingListHeadList HeaderItems { get; private set; }
+        public PackingListLineList LineItems { get; private set; }
 
-        private PackingListDto _selectedHeader;
-        public PackingListDto SelectedHeader
+        private PackingListHeadModel _selectedHeader;
+        public PackingListHeadModel SelectedHeader
         {
             get { return _selectedHeader; }
             set
@@ -74,8 +78,8 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
             }
         }
 
-        private PackingListLineDto _selectedLine;
-        public PackingListLineDto SelectedLine
+        private PackingListLineModel _selectedLine;
+        public PackingListLineModel SelectedLine
         {
             get { return _selectedLine; }
             set
@@ -133,7 +137,7 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
             get { return _statusMessage; }
             set { SetProperty(ref _statusMessage, value); }
         }
-
+        public RelayCommand CreatDetailCommand { get; set; }
         public RelayCommand LoadCommand { get; private set; }
         public RelayCommand SaveCommand { get; private set; }
         public RelayCommand PostCommand { get; private set; }
@@ -167,9 +171,9 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
             {
                 try
                 {
-                    var rst = await _packingListApi.GetPagedListAsync(new PackingListSearchDto
+                    var rst = await _packingListApi.GetHeadPagedListAsync(new PackingListSearchDto
                     {
-                        Keyword = string.IsNullOrWhiteSpace(SearchText) ? null : SearchText.Trim(),
+                        //BatchKeywords =
                         PageIndex = PageIndex,
                         PageSize = PageSize
                     });
@@ -179,12 +183,18 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
 
                     if (rst.Success && rst.Data != null)
                     {
+                        var hds = new List<PackingListHeadModel>();
                         foreach (var item in rst.Data.Items)
-                            HeaderItems.Add(item);
+                        {
+                            var hd = new PackingListHeadModel();
+                            hd.LoadFromDto(item);
+                            hds.Add(hd);
+                        }
+                        HeaderItems.AddRangeFromModelList(hds);
 
                         TotalCount = rst.Data.TotalCount;
                         StatusMessage = "装箱单加载完成，共 " + TotalCount + " 条。";
-                        SelectedHeader = HeaderItems.FirstOrDefault();
+                        //SelectedHeader = HeaderItems.Items[0];
                     }
                     else
                     {
@@ -209,8 +219,13 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
                 var rst = await _packingListApi.GetDetailByIdAsync(SelectedHeader.Id);
                 if (rst.Success && rst.Data != null)
                 {
+                    var hds = new List<PackingListLineModel>();
                     foreach (var line in rst.Data.Lines)
-                        LineItems.Add(line);
+                    {
+                        var hd = new PackingListLineModel();
+                        hd.LoadFromDto(line);
+                    }
+                    LineItems.AddRangeFromModelList(hds);
                 }
                 else
                 {
@@ -225,13 +240,17 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
 
         private void AddNew()
         {
-            SelectedHeader = new PackingListDto
-            {
-                PackingDate = DateTime.Now,
-                Status = "草稿"
-            };
-            LineItems.Clear();
-            StatusMessage = "已新建装箱单草稿。";
+            var nw = new PackingListHeadModel();
+            nw.MarkAsAdded();
+            nw.ShipToName = "ceshi1";
+            HeaderItems.AddModelToFirst(nw);
+            //SelectedHeader = new PackingListHeadDto
+            //{
+            //    PackingDate = DateTime.Now,
+            //    Status = "草稿"
+            //};
+            //LineItems.Clear();
+            //StatusMessage = "已新建装箱单草稿。";
         }
 
         private async Task SaveAsync()
@@ -239,7 +258,7 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
             if (_packingListApi == null || SelectedHeader == null)
                 return;
 
-            if (LineItems.Count == 0)
+            if (LineItems.Items.Count == 0)
             {
                 await _dialogService.ShowWarningAsync("请先从采购单或销售单引入明细。");
                 return;
@@ -251,8 +270,8 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
                 {
                     var rst = await _packingListApi.SaveDetailAsync(new PackingListDetailDto
                     {
-                        Header = SelectedHeader,
-                        Lines = LineItems.ToList()
+                        Header = SelectedHeader.Adapt<PackingListHeadDto>(),
+                        Lines = LineItems.GetAllItems().Adapt<List<PackingListLineDto>>()
                     });
 
                     if (rst.Success)
@@ -341,25 +360,22 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
                     return;
                 }
 
-                EnsureHeader();
-                SelectedHeader.PoNo = rst.Data.Header.BoNo;
-                SelectedHeader.PurchaseOrderNo = rst.Data.Header.OrderNo;
-                SelectedHeader.SupplierCode = rst.Data.Header.SupplierCode;
-                SelectedHeader.SupplierName = rst.Data.Header.SupplierName;
-                SelectedHeader.SalesOrderNo = rst.Data.Header.SalesOrderNo;
+                //EnsureHeader();
+                //SelectedHeader.PoNo = rst.Data.Header.BoNo;
+                //SelectedHeader.PurchaseOrderNo = rst.Data.Header.OrderNo;
+                //SelectedHeader.SupplierCode = rst.Data.Header.SupplierCode;
+                //SelectedHeader.SupplierName = rst.Data.Header.SupplierName;
+                //SelectedHeader.SalesOrderNo = rst.Data.Header.SalesOrderNo;
                 SourceSalesOrderNo = rst.Data.Header.SalesOrderNo;
 
                 foreach (var line in rst.Data.Lines)
                 {
-                    LineItems.Add(new PackingListLineDto
+                    LineItems.AddModelToFirst(new PackingListLineModel
                     {
                         Sku = line.Sku,
                         CustomerSku = line.CustomerSku,
-                        Description = line.DescriptionZh,
                         Qty = Math.Max(line.ReadyQty, line.QTY - line.RecQty),
-                        PoLineId = line.Id,
-                        PoNo = rst.Data.Header.BoNo,
-                        PurchaseOrderNo = rst.Data.Header.OrderNo,
+
                         SalesOrderNo = rst.Data.Header.SalesOrderNo
                     });
                 }
@@ -402,15 +418,16 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
                 }
 
                 EnsureHeader();
-                SelectedHeader.SalesOrderNo = detail.Data.Header.OrderNo;
+
 
                 foreach (var line in detail.Data.Lines)
                 {
-                    LineItems.Add(new PackingListLineDto
+
+                    LineItems.AddModelToFirst(new PackingListLineModel
                     {
                         Sku = line.Sku,
                         CustomerSku = line.CustomerSKU,
-                        Description = line.DescriptionEn,
+                        DescriptionEn = line.DescriptionEn,
                         SoLineId = line.Id,
                         SalesOrderNo = detail.Data.Header.OrderNo
                     });
@@ -428,7 +445,7 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
         private void RemoveSelectedLine()
         {
             if (SelectedLine == null) return;
-            LineItems.Remove(SelectedLine);
+            LineItems.Items.Remove(SelectedLine);
             SelectedLine = null;
         }
 

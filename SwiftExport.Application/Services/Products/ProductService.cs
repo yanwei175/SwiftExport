@@ -41,7 +41,7 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
         return ServiceResult<ProductDto>.Ok(entity.Adapt<ProductDto>());
     }
 
-    public async Task<ServiceResult<PagedResultDto<ProductDto>>> GetPagedListAsync(ProductSearchDto search)
+    public async Task<ServiceResult<PagedResultDto<ProductDto>>> GetPagedListAsync(ProductSearchDto req)
     {
         // 1. 实例化底层查询对象
         var criteria = new QueryCriteria();
@@ -49,84 +49,65 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
         // ==========================================
         // 处理批量搜索 (BatchKeywords) - 新增逻辑
         // ==========================================
-        if (!string.IsNullOrWhiteSpace(search.BatchKeywords))
+        if (req.BatchKeywords != null && req.BatchKeywords.Count > 0)
         {
-            // 1. 分割字符串：支持 换行符(\n, \r) 和 逗号(,)
-            var batchList = search.BatchKeywords
-                .Split(['\r', '\n', ','], StringSplitOptions.RemoveEmptyEntries)
-                .Select(k => k.Trim())           // 去除首尾空格
-                .Where(k => !string.IsNullOrEmpty(k)) // 再次确保没有空字符串
-                .Distinct()                      // 去重
-                .ToList();
 
-            if (batchList.Count > 0)
+            foreach (var keyword in req.BatchKeywords) 
             {
                 // 场景 A：只匹配 SKU (性能最高，最常用)
-                // criteria.Add("SKU", 查询操作符.包含某值, batchList);
+                // criteria.Add("SKU", 查询操作符.模糊匹配, batchList);
 
                 // 场景 B：匹配 SKU 或 客户型号 (更灵活)
                 // 逻辑：(SKU IN (...) OR CSKU IN (...))
                 criteria.AddOrGroup(
-                    ("Sku", 查询操作符.包含某值, batchList),
-                    ("CSku", 查询操作符.包含某值, batchList)
+                    ("Sku", 查询操作符.模糊匹配, keyword),
+                    ("CSku", 查询操作符.模糊匹配, keyword)
                 );
             }
         }
 
-        // ==========================================
-        // 处理单个关键字模糊搜索
-        // ==========================================
-        if (!string.IsNullOrWhiteSpace(search.Keyword))
-        {
-            criteria.AddOrGroup(
-                ("Sku", 查询操作符.模糊匹配, search.Keyword),
-                ("DescriptionEn", 查询操作符.模糊匹配, search.Keyword),
-                ("DescriptionZh", 查询操作符.模糊匹配, search.Keyword),
-                ("CSku", 查询操作符.模糊匹配, search.Keyword)
-            );
-        }
 
         // ==========================================
         // 处理精确匹配条件
         // ==========================================
-        if (!string.IsNullOrWhiteSpace(search.ColorCodeUnique))
+        if (!string.IsNullOrWhiteSpace(req.ColorCodeUnique))
         {
-            criteria.Add("ColorCodeUnique", 查询操作符.等于, search.ColorCodeUnique);
+            criteria.Add("ColorCodeUnique", 查询操作符.等于, req.ColorCodeUnique);
         }
-        if (search.CustomerIds != null && search.CustomerIds.Count > 0)
+        if (req.CustomerIds != null && req.CustomerIds.Count > 0)
         {
-            criteria.Add("CustomerId", 查询操作符.包含某值, search.CustomerIds);
+            criteria.Add("CustomerId", 查询操作符.包含某值, req.CustomerIds);
         }
-        if (search.CustomerCodes != null && search.CustomerCodes.Count > 0)
+        if (req.CustomerCodes != null && req.CustomerCodes.Count > 0)
         {
-            criteria.Add("CustomerCode", 查询操作符.包含某值, search.CustomerCodes);
+            criteria.Add("CustomerCode", 查询操作符.包含某值, req.CustomerCodes);
         }
-        if (search.CategoryId > 0)
+        if (req.CategoryId > 0)
         {
-            List<ProductCategory> ids = (await _categoryRepository.GetSubById(search.CategoryId)).ToList();
-            if (search.CategoryIds == null) search.CategoryIds = new List<int>();
-            search.CategoryIds.AddRange(ids.Select(c => c.Id));
-            search.CategoryIds.Add(search.CategoryId);
-        }
-
-        if (search.CategoryIds != null && search.CategoryIds.Count > 0)
-        {
-            criteria.Add("CategoryId", 查询操作符.包含某值, search.CategoryIds);
+            List<ProductCategory> ids = (await _categoryRepository.GetSubById(req.CategoryId)).ToList();
+            if (req.CategoryIds == null) req.CategoryIds = new List<int>();
+            req.CategoryIds.AddRange(ids.Select(c => c.Id));
+            req.CategoryIds.Add(req.CategoryId);
         }
 
-        else if (!string.IsNullOrWhiteSpace(search.CategoryName))
+        if (req.CategoryIds != null && req.CategoryIds.Count > 0)
         {
-            criteria.Add("CategoryName", 查询操作符.等于, search.CategoryName);
+            criteria.Add("CategoryId", 查询操作符.包含某值, req.CategoryIds);
+        }
+
+        else if (!string.IsNullOrWhiteSpace(req.CategoryName))
+        {
+            criteria.Add("CategoryName", 查询操作符.等于, req.CategoryName);
         }
         
-        if (!string.IsNullOrWhiteSpace(search.MaterialType))
+        if (!string.IsNullOrWhiteSpace(req.MaterialType))
         {
-            criteria.Add("MaterialType", 查询操作符.等于, search.MaterialType);
+            criteria.Add("MaterialType", 查询操作符.等于, req.MaterialType);
         }
 
         // 4. 处理分页默认值保护
-        int pageIndex = search.PageIndex > 0 ? search.PageIndex : 1;
-        int pageSize = search.PageSize > 0 ? search.PageSize : 50;
+        int pageIndex = req.PageIndex > 0 ? req.PageIndex : 1;
+        int pageSize = req.PageSize > 0 ? req.PageSize : 50;
 
         var paged = await _productRepository.GetPagedProductDtoAsync(criteria, pageIndex, pageSize, "ID DESC");
 

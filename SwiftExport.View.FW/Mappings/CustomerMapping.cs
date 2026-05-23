@@ -43,6 +43,7 @@ namespace SwiftExport.View.FW.Mappings
 
                 // 基类字段映射（由 BaseDto 提供）
                 .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.Version, src => src.Version)
                 .IgnoreNullValues(true);
 
             // Model → DTO 映射（逆向）
@@ -72,6 +73,7 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.ShippedBy, src => src.ShippedBy)
 
                 .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.Version, src => src.Version)
                 .IgnoreNullValues(true);
         }
     }

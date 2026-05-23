@@ -64,6 +64,9 @@ namespace SwiftExport.View.FW
             services.AddTransient<LoginViewModel>();
             services.AddTransient<LoginView>();
 
+            services.AddTransient<ResetPasswdViewModel>();
+            services.AddTransient<ResetPasswdView>();
+
             services.AddTransient<RegisterViewModel>();
             services.AddTransient<RegisterView>();
 
@@ -104,14 +107,23 @@ namespace SwiftExport.View.FW
             // ================== 采购订单模块 ==================
             services.AddTransient<PurchaseOrderManagerViewModel>();
             services.AddTransient<PurchaseOrderManagerView>();
+
+            // ================== 出货箱单模块 ==================
             services.AddTransient<PackingListManagerViewModel>();
             services.AddTransient<PackingListManagerView>();
+            services.AddTransient<PackingListDetailViewModel>();
+            services.AddTransient<PackingListDetailView>();
+            services.AddTransient<UnshippedViewModel>();
+            services.AddTransient<UnshippedView>();
 
             // ================== 仓库模块 ==================
+            services.AddTransient<ReceiptManagerViewModel>();
+            services.AddTransient<ReceiptManagerView>();
             services.AddTransient<ReceiptDetailViewModel>();
             services.AddTransient<ReceiptDetailView>();
             services.AddTransient<AwatingInboundViewModel>();
             services.AddTransient<AwatingInboundView>();
+            
             return services;
         }
     }

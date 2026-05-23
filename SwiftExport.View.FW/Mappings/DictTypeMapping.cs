@@ -17,6 +17,7 @@ namespace SwiftExport.View.FW.Mappings
             config.NewConfig<SysDictTypeDto, DictTypeModel>()
                 // 基础字段
                 .Map(dest => dest.Id, dto => dto.Id)
+                .Map(dest => dest.Version, src => src.Version)
                 .Map(dest => dest.DictCode, dto => dto.DictCode)
                 .Map(dest => dest.DictName, dto => dto.DictName)
                 .Map(dest => dest.IsSystem, dto => dto.IsSystem)

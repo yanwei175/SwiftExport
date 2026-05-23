@@ -1,4 +1,5 @@
 using Dapper;
+using SwiftExport.Contracts.DTOs.PackingLists;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
@@ -22,5 +23,10 @@ public class PackingListHeadRepository(RepositoryBaseContext context)
             sql,
             new { PackingListNo = packingListNo.Trim() },
             transaction: Transaction);
+    }
+
+    public Task<PackingListDetailDto?> GetDetailByHeadIdAsync(int headId)
+    {
+        throw new NotImplementedException();
     }
 }

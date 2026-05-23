@@ -30,5 +30,12 @@ namespace SwiftExport.Contracts.Apis.AuthApis
         /// </summary>
         [Post("/api/auth/register")]
         Task<ServiceResult<int>> RegisterAsync([Body] RegisterRequestDto request);
+
+        /// <summary>
+        /// POST /api/auth/reset-password
+        /// 匿名重置密码，校验码需为任一管理员账号密码。
+        /// </summary>
+        [Post("/api/auth/reset-password")]
+        Task<ResetPasswordResultDto> ResetPasswordAsync([Body] ResetPasswordRequestDto request);
     }
 }

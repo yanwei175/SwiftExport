@@ -38,6 +38,10 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
         /// 通知 View 将左侧 DataGrid 滚动到顶部。
         /// </summary>
         public event Action RequestScrollToTop;
+        /// <summary> 弹窗后的结果</summary>
+        public List<AwatingInboundDto> ResultData { get; } = new List<AwatingInboundDto>();
+        /// <summary> 关闭弹窗的委托 </summary>
+        public event EventHandler<bool> RequestClose;
 
         public AwatingInboundViewModel(IReceiveApi receiveApi, IPurchaseOrderApi purchaseOrderApi)
         {
@@ -45,14 +49,13 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
             _purchaseOrderApi = purchaseOrderApi;
 
             SupplierList = new ObservableCollection<SupplierDto>();
-            MaterialTypes = new ObservableCollection<string>();
+
             AwatingInboundList = new ObservableCollection<AwatingInboundDto>();
             SelectedInboundLines = new ObservableCollection<AwatingInboundDto>();
 
             TempSelectedSourceItems = new List<AwatingInboundDto>();
             TempSelectedTargetItems = new List<AwatingInboundDto>();
-            foreach (var item in MaterialTypesEnum.MaterialTypes)
-                MaterialTypes.Add(item);
+
 
             _selectedMaterialType = MaterialTypesEnum.客供件;
 
@@ -67,8 +70,6 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
             _ = LoadSuppliersAsync();
         }
 
-        public List<AwatingInboundDto> AwingOutPutList { get; } = new List<AwatingInboundDto>();
-
         public RelayCommand LoadDataCommand { get; }
         public RelayCommand SelectItemsCommand { get; }
         public RelayCommand SelectAllCommand { get; }
@@ -78,7 +79,9 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
         public RelayCommand CancelCommand { get; }
 
         public ObservableCollection<SupplierDto> SupplierList { get; }
-        public ObservableCollection<string> MaterialTypes { get; }
+
+        public List<string> MaterialTypes { get; }= new List<string> {""}.Concat(MaterialTypesEnum.MaterialTypes).ToList();
+
         public ObservableCollection<AwatingInboundDto> AwatingInboundList { get; }
         public ObservableCollection<AwatingInboundDto> SelectedInboundLines { get; }
 
@@ -280,16 +283,17 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
                 }
             }
 
-            AwingOutPutList.Clear();
+            ResultData.Clear();
             foreach (var x in SelectedInboundLines)
-                AwingOutPutList.Add(x);
+                ResultData.Add(x);
 
-            Messenger.Send(new AwatingInboundSelectionResultMessage(SelectedInboundLines.ToList()), this);
+            RequestClose?.Invoke(this, true);
         }
 
         private void Cancel()
         {
-            Messenger.Send(new AwatingInboundSelectionResultMessage(null), this);
+            ResultData.Clear();
+            RequestClose?.Invoke(this, true);
         }
     }
 }

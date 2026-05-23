@@ -9,7 +9,7 @@ namespace SwiftExport.Contracts.DTOs.SystemDtos
     public class DocumentNoRequestDto : BaseDto
     {
         /// <summary>
-        /// 单据类型（SO/PO/MO...）。
+        /// DocumentTypeStaticsEnum 单据类型（SO/PO/MO...）。
         /// </summary>
         public string DocType { get; set; }
 

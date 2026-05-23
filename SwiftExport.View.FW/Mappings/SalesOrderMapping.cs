@@ -21,6 +21,7 @@ namespace SwiftExport.View.FW.Mappings
         {
             config.NewConfig<SalesOrderHeaderDto, SalesOrderHeaderModel>()
                 .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.Version, src => src.Version)
                 .Map(dest => dest.OrderStatus, src => src.OrderStatus)
                 .Map(dest => dest.OrderNo, src => src.OrderNo)
                 .Map(dest => dest.CustomerId, src => src.CustomerId)
@@ -65,6 +66,7 @@ namespace SwiftExport.View.FW.Mappings
 
             config.NewConfig<SalesOrderHeaderModel, SalesOrderHeaderDto>()
                 .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.Version, src => src.Version)
                 .Map(dest => dest.OrderStatus, src => src.OrderStatus)
                 .Map(dest => dest.OrderNo, src => src.OrderNo)
                 .Map(dest => dest.CustomerId, src => src.CustomerId)
@@ -112,6 +114,7 @@ namespace SwiftExport.View.FW.Mappings
         {
             config.NewConfig<SalesOrderLineDto, SalesOrderLineModel>()
                 .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.Version, src => src.Version)
                 .Map(dest => dest.LineNumber, src => src.LineNumber)
                 .Map(dest => dest.SalesOrderId, src => src.SalesOrderId)
                 .Map(dest => dest.OrderNo, src => src.OrderNo)
@@ -143,6 +146,7 @@ namespace SwiftExport.View.FW.Mappings
 
             config.NewConfig<SalesOrderLineModel, SalesOrderLineDto>()
                 .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.Version, src => src.Version)
                 .Map(dest => dest.LineNumber, src => src.LineNumber)
                 .Map(dest => dest.SalesOrderId, src => src.SalesOrderId)
                 .Map(dest => dest.OrderNo, src => src.OrderNo)

@@ -381,10 +381,13 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                 {
                     var search = new ProductSearchDto
                     {
-                        Keyword = SearchProductTxt,
                         CustomerId = CurrentCustomer.Id,
                         PageIndex = PageIndex,
-                        PageSize = PageSize
+                        PageSize = PageSize,
+                        BatchKeywords = SearchProductTxt?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                                        .Select(k => k.Trim())
+                                        .Where(k => !string.IsNullOrEmpty(k))
+                                        .ToList() // 装载批量精准查询参数
                     };
 
                     _msg.ShowCardAsync("正在加载数据...");
@@ -486,9 +489,13 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                 {
                     var productSearchDto = new ProductSearchDto
                     {
-                        Keyword = keyword,
+                       
                         PageIndex = 1,
-                        PageSize = 20
+                        PageSize = 20,
+                        BatchKeywords = keyword?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(k => k.Trim())
+                        .Where(k => !string.IsNullOrEmpty(k))
+                        .ToList() // 装载批量精准查询参数
                     };
                     var result = await _productApi.GetProductPagedListAsync(productSearchDto);
 

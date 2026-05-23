@@ -4,6 +4,7 @@ using System.Text;
 
 namespace SwiftExport.Contracts.SysEnums.StaticEnums
 {
+    /// <summary>库存流水类型</summary>
     public static class BizTypesEnum
     {
         public const string 采购入库 = "采购入库";

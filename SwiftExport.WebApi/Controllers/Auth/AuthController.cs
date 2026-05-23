@@ -157,6 +157,78 @@ public class AuthController(
     }
 
     // ──────────────────────────────────────────────────────
+    // POST /api/auth/reset-password  （匿名）
+    // ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 忘记密码场景重置用户密码。
+    /// 业务规则：VerificationCode 需匹配任一 Admin 账号密码。
+    /// </summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        // ① 基础校验
+        if (string.IsNullOrWhiteSpace(request.UserName)
+            || string.IsNullOrWhiteSpace(request.NewPassword)
+            || string.IsNullOrWhiteSpace(request.VerificationCode))
+        {
+            return BadRequest(new { message = "用户名、新密码、校验码不能为空" });
+        }
+
+        if (request.NewPassword.Length < 6)
+            return BadRequest(new { message = "新密码长度不能少于6位" });
+
+        // ② 查询目标用户
+        var targetUser = await _userRepo.GetByUserNameAsync(request.UserName);
+        if (targetUser == null)
+            return NotFound(new { message = "目标用户不存在" });
+
+        // ③ 使用管理员密码作为校验码（匹配任一 Admin 账号密码哈希即通过）
+        const string adminPwdSql = """
+            SELECT su.PasswordHash
+            FROM [SysUser] su WITH(NOLOCK)
+            INNER JOIN [SysUser_Roles] ur WITH(NOLOCK) ON ur.UserId = su.Id
+            WHERE ur.RoleName = 'Admin'
+              AND (ur.IsDeleted = 0 OR ur.IsDeleted IS NULL)
+              AND su.IsActive = 1
+              AND (su.IsDeleted = 0 OR su.IsDeleted IS NULL)
+              AND su.PasswordHash IS NOT NULL
+              AND su.PasswordHash <> ''
+            """;
+
+        var adminPasswordHashes = (await _dbSession.Connection.QueryAsync<string>(adminPwdSql)).ToList();
+        if (adminPasswordHashes.Count == 0)
+            return StatusCode(500, new { message = "系统中未配置管理员账号，无法校验重置请求" });
+
+        var verified = adminPasswordHashes.Any(hash => BCrypt.Net.BCrypt.Verify(request.VerificationCode, hash));
+        if (!verified)
+            return Unauthorized(new { message = "校验码错误" });
+
+        // ④ 更新目标用户密码哈希
+        var newHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        const string updateSql = """
+            UPDATE [SysUser]
+            SET PasswordHash = @PasswordHash,
+                UpdatedDate = GETDATE(),
+                UpdatedBy = @UpdatedBy
+            WHERE Id = @Id
+            """;
+
+        var rows = await _dbSession.Connection.ExecuteAsync(updateSql, new
+        {
+            PasswordHash = newHash,
+            UpdatedBy = "ResetPasswordApi",
+            Id = targetUser.Id
+        });
+
+        if (rows <= 0)
+            return StatusCode(500, new { message = "密码重置失败，请稍后重试" });
+
+        return Ok(new { Success = true, Message = "密码重置成功" });
+    }
+
+    // ──────────────────────────────────────────────────────
     // 私有：生成 JWT
     // ──────────────────────────────────────────────────────
 
@@ -200,3 +272,9 @@ public record RegisterRequest(
     string NickName,
     string Email,
     string PhoneNumber);
+
+/// <summary>重置密码请求体</summary>
+public record ResetPasswordRequest(
+    string UserName,
+    string NewPassword,
+    string VerificationCode);

@@ -9,7 +9,7 @@ public class SalesOrderLine : BaseEntity
     public required int SalesOrderId { get; set; }
     public string? OrderNo { get; set; }
 
-    public string? Sku { get; set; }
+    public required string Sku { get; set; }
     public string? LinkSku { get; set; }
 
     public string? CustomerSku { get; set; }

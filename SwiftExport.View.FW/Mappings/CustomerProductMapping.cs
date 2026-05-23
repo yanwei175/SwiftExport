@@ -44,6 +44,7 @@ namespace SwiftExport.View.FW.Mappings
                 // 状态字段 - 直接映射
                 .Map(dest => dest.IsActive, dto => dto.IsActive)
                 .Map(dest => dest.IsDeleted, dto => dto.IsDeleted)
+                .Map(dest => dest.Version, src => src.Version)
                 .TwoWays();
 
         }

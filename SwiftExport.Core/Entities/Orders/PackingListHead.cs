@@ -26,7 +26,7 @@ public class PackingListHead : BaseEntity
     public DateTime? ETD { get; set; }           // 预计发货日
     public DateTime? ETA { get; set; }           // 预计抵达日
     public bool IsPosted { get; set; }           // 是否过账（触发入库/回写的开关）
-    public DateTime? PostedDate { get; set; }
+    public DateTime? PostedDate { get; set; } // 过账日期
     public string? PostedBy { get; set; }
     public DateTime? PackingDate { get; set; }
     public string? Remark { get; set; }

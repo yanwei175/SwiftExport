@@ -590,11 +590,11 @@
                                                Focusable="False">
 
                                         <Border BorderBrush="{DynamicResource Brush_Border_Default}"
-                                                    Background="{DynamicResource Brush_Bck_Card}"
-                                                    BorderThickness="1"
-                                            CornerRadius="8"
-                                            Padding="4"
-                                                    SnapsToDevicePixels="True">
+                                                Background="{DynamicResource Brush_Bck_Card}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="4"
+                                                SnapsToDevicePixels="True">
 
                                             <ListBox ItemsSource="{Binding BomPopItemSource}"
                                                      SelectedItem="{Binding BomPopSelectedItem}"
@@ -610,11 +610,11 @@
                                                     <DataTemplate>
                                                         <DockPanel Margin="2,3">
                                                             <Image DockPanel.Dock="Left"
-                                                                       Width="32" Height="32"
-                                                                       Margin="0,0,8,0"
-                                                                       Stretch="Uniform"
-                                                                       VerticalAlignment="Center"
-                                                                       Source="{Binding MainImage, Converter={StaticResource ImgPathToImgConverter}}"/>
+                                                                   Width="32" Height="32"
+                                                                   Margin="0,0,8,0"
+                                                                   Stretch="Uniform"
+                                                                   VerticalAlignment="Center"
+                                                                   Source="{Binding MainImage, Converter={StaticResource ImgPathToImgConverter}}"/>
 
                                                             <StackPanel VerticalAlignment="Center">
                                                                 <TextBlock Text="{Binding Sku}"

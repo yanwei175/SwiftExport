@@ -196,7 +196,7 @@
   -->
   <ItemGroup>
     <Compile Include="Common\WindowHelper.cs" />
-    <Compile Include="DependencyInjection.cs" />
+    <Compile Include="DependencyInjectionVSTO.cs" />
     <Compile Include="DiServices.cs" />
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
@@ -218,54 +218,6 @@
     </Compile>
     <Compile Include="SwiftExportTaskPane\TaskPaneManager.cs" />
     <Compile Include="SwiftExportTaskPane\TaskPaneRegistrar.cs" />
-    <Compile Include="UserControls\PaginationControl.xaml.cs">
-      <DependentUpon>PaginationControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UserWindow\Converters\SelectedCellsToModelsConverter.cs" />
-    <Compile Include="UserWindow\CustomerViews\Models\CustomerPoConfigModel.cs" />
-    <Compile Include="UserWindow\CustomerViews\ViewModels\CustomerPoConfigDesignViewModel.cs" />
-    <Compile Include="UserWindow\CustomerViews\ViewModels\CustomerPoConfigViewModel.cs" />
-    <Compile Include="UserWindow\CustomerViews\Views\CustomerPoConfigManagerView.xaml.cs">
-      <DependentUpon>CustomerPoConfigManagerView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UserWindow\Mvvm\BaseManagerViewModel.cs" />
-    <Compile Include="UserWindow\Mvvm\BaseSmallDataManagerViewModel.cs" />
-    <Compile Include="UserWindow\Mvvm\ModelState.cs" />
-    <Compile Include="UserWindow\Mvvm\IBaseModel.cs" />
-    <Compile Include="UserWindow\ProductViews\Models\ProductColorModel.cs" />
-    <Compile Include="UserWindow\CustomerViews\Models\CustomerModel.cs" />
-    <Compile Include="UserWindow\ProductViews\ViewModels\ProductColorManagerViewModel.cs" />
-    <Compile Include="UserWindow\SupplierViews\Models\SupplierModel.cs" />
-    <Compile Include="UserWindow\SupplierViews\ViewModels\SupplierManagerViewModel.cs" />
-    <Compile Include="UserWindow\CustomerViews\ViewModels\CustomerManagerViewModel.cs" />
-    <Compile Include="UserWindow\ProductViews\Views\ProductColorManagerView.xaml.cs">
-      <DependentUpon>ProductColorManagerView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UserWindow\CustomerViews\Views\CustomerManagerView.xaml.cs">
-      <DependentUpon>CustomerManagerView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UserWindow\Dialog\DialogHelper.cs" />
-    <Compile Include="UserWindow\ProductViews\Views\ProductSelectorView.xaml.cs">
-      <DependentUpon>ProductSelectorView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UserWindow\Dialog\InputBoxWindow.xaml.cs">
-      <DependentUpon>InputBoxWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UserWindow\Dialog\Msg.cs" />
-    <Compile Include="UserWindow\Dialog\MsgBoxWindow.xaml.cs">
-      <DependentUpon>MsgBoxWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UserWindow\ProductViews\ViewModels\ProductSelectorViewModel.cs" />
-    <Compile Include="UserWindow\Mvvm\LocalImagePathConverter.cs" />
-    <Compile Include="UserWindow\Mvvm\RelayCommandGeneric.cs" />
-    <Compile Include="UserWindow\SupplierViews\Views\SupplierManagerView.xaml.cs">
-      <DependentUpon>SupplierManagerView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UserWindow\TestWindow.xaml.cs">
-      <DependentUpon>TestWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UserWindow\Mvvm\RelayCommand.cs" />
-    <Compile Include="UserWindow\Mvvm\ViewModelBase.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -296,6 +248,7 @@
     <Compile Include="RibbonSwift.Designer.cs">
       <DependentUpon>RibbonSwift.cs</DependentUpon>
     </Compile>
+    <Compile Include="SwiftExportWindowHelps\WpfWindowHelp.cs" />
     <Compile Include="ThisAddIn.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -309,34 +262,6 @@
     <AppDesigner Include="Properties\" />
   </ItemGroup>
   <ItemGroup>
-    <Page Include="Resources\Styles\Buttons.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Resources\Styles\ComboBoxs.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Resources\Styles\DataGrids.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Resources\Styles\Icons.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Resources\Styles\Colors.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Resources\Styles\CheckBoxs.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Resources\Styles\Inputs.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Page Include="App.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -345,56 +270,23 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="UserControls\PaginationControl.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="UserWindow\CustomerViews\Views\CustomerPoConfigManagerView.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="UserWindow\ProductViews\Views\ProductColorManagerView.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="UserWindow\CustomerViews\Views\CustomerManagerView.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="UserWindow\ProductViews\Views\ProductSelectorView.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="UserWindow\Dialog\InputBoxWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="UserWindow\Dialog\MsgBoxWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Resources\Styles\ErpTheme.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="UserWindow\SupplierViews\Views\SupplierManagerView.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="UserWindow\TestWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\MateWpfThemes\MateWpfThemes.FW\MateWpfThemes.FW.csproj">
+      <Project>{b3628874-4979-473d-b483-cedd4740f830}</Project>
+      <Name>MateWpfThemes.FW</Name>
+    </ProjectReference>
     <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj">
       <Project>{73faa5c6-c278-4c02-80d0-27a24a6b831a}</Project>
       <Name>SwiftExport.Contracts</Name>
     </ProjectReference>
+    <ProjectReference Include="..\SwiftExport.View.FW\SwiftExport.View.FW.csproj">
+      <Project>{c1efb3ce-47eb-4f67-a289-d50a3c30ba10}</Project>
+      <Name>SwiftExport.View.FW</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Assets\" />
-    <Folder Include="UserWindow\SettingViews\" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Mapster">
@@ -473,7 +365,7 @@
     <ManifestKeyFile>SwiftExport.VSTO_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>4B157198099CF0146A56C5EBEF68165072F1D9EE</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>DC6DA8FE8AF54152EDB44C9681574056A66A401A</ManifestCertificateThumbprint>
   </PropertyGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Include additional build rules for an Office application add-in. -->

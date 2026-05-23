@@ -20,39 +20,19 @@ public class ProductCategoryController(IProductCategoryService service) : BaseCo
         // ==========================================
         // 处理批量搜索
         // ==========================================
-        if (!string.IsNullOrWhiteSpace(request.BatchSearchTexts))
+        if (request.BatchKeywords != null && request.BatchKeywords.Count > 0)
         {
-            // 1. 分割字符串：支持 换行符(\n, \r) 和 逗号(,)
-            var batchList = request.BatchSearchTexts
-                .Split(['\r', '\n', ','], StringSplitOptions.RemoveEmptyEntries)
-                .Select(k => k.Trim())           // 去除首尾空格
-                .Where(k => !string.IsNullOrEmpty(k)) // 再次确保没有空字符串
-                .Distinct()                      // 去重
-                .ToList();
 
-            if (batchList.Count > 0)
+            foreach (var keyword in request.BatchKeywords)
             {
                 // 逻辑：(SKU IN (...) OR CSKU IN (...))
                 criteria.AddOrGroup(
-                    ("ColorCodeUnique", 查询操作符.包含某值, batchList),
-                    ("ColorCode", 查询操作符.包含某值, batchList),
-                    ("ColorNameEn", 查询操作符.包含某值, batchList),
-                    ("ColorNameZh", 查询操作符.包含某值, batchList)
+                    ("ColorCodeUnique", 查询操作符.包含某值, keyword),
+                    ("ColorCode", 查询操作符.包含某值, keyword),
+                    ("ColorNameEn", 查询操作符.包含某值, keyword),
+                    ("ColorNameZh", 查询操作符.包含某值, keyword)
                 );
             }
-        }
-
-        // ==========================================
-        // 处理单个关键字模糊搜索
-        // ==========================================
-        if (!string.IsNullOrWhiteSpace(request.SearchText))
-        {
-            criteria.AddOrGroup(
-                ("ColorCodeUnique", 查询操作符.模糊匹配, request.SearchText),
-                ("ColorCode", 查询操作符.模糊匹配, request.SearchText),
-                ("ColorNameEn", 查询操作符.模糊匹配, request.SearchText),
-                ("ColorNameZh", 查询操作符.模糊匹配, request.SearchText)
-            );
         }
 
         // 4. 处理分页默认值保护

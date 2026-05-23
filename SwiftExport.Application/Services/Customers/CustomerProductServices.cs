@@ -61,50 +61,36 @@ public class CustomerProductServices(
     }
 
     /// <summary>联表分页查询</summary>
-    public async Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetPagedCustomerProductAsync(ProductSearchDto search)
+    public async Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetPagedCustomerProductAsync(ProductSearchDto req)
     {
         var criteria = new QueryCriteria();
 
         // 批量关键字搜索（换行 / 逗号分隔）
-        if (!string.IsNullOrWhiteSpace(search.BatchKeywords))
+        if (req.BatchKeywords != null && req.BatchKeywords.Count > 0)
         {
-            var batchList = search.BatchKeywords
-                .Split(['\r', '\n', ','], StringSplitOptions.RemoveEmptyEntries)
-                .Select(k => k.Trim())
-                .Where(k => !string.IsNullOrEmpty(k))
-                .Distinct()
-                .ToList();
 
-            if (batchList.Count > 0)
+            foreach (var keyword in req.BatchKeywords) 
             {
                 // (Sku IN (...) OR CustomerSku IN (...))
                 criteria.AddOrGroup(
-                    ("Sku", 查询操作符.包含某值, batchList),
-                    ("CustomerSku", 查询操作符.包含某值, batchList));
+                    ("Sku", 查询操作符.包含某值, keyword),
+                     ("CustomerPdDescription", 查询操作符.模糊匹配, keyword),
+                    ("CustomerSku", 查询操作符.包含某值, keyword));
             }
         }
 
-        // 单关键字模糊搜索
-        if (!string.IsNullOrWhiteSpace(search.Keyword))
-        {
-            criteria.AddOrGroup(
-                ("Sku", 查询操作符.模糊匹配, search.Keyword),
-                ("CustomerPdDescription", 查询操作符.模糊匹配, search.Keyword),
-                ("CustomerSku", 查询操作符.模糊匹配, search.Keyword));
-        }
-
         // 精确条件
-        if (search.CustomerId > 0)
-            criteria.Add("CustomerId", 查询操作符.等于, search.CustomerId);
+        if (req.CustomerId > 0)
+            criteria.Add("CustomerId", 查询操作符.等于, req.CustomerId);
 
-        if (search.CustomerIds != null && search.CustomerIds.Count > 0)
-            criteria.Add("CustomerId", 查询操作符.包含某值, search.CustomerIds);
+        if (req.CustomerIds != null && req.CustomerIds.Count > 0)
+            criteria.Add("CustomerId", 查询操作符.包含某值, req.CustomerIds);
 
-        if (search.CategoryIds != null && search.CategoryIds.Count > 0)
-            criteria.Add("CategoryId", 查询操作符.包含某值, search.CategoryIds);
+        if (req.CategoryIds != null && req.CategoryIds.Count > 0)
+            criteria.Add("CategoryId", 查询操作符.包含某值, req.CategoryIds);
 
-        int pageIndex = search.PageIndex > 0 ? search.PageIndex : 1;
-        int pageSize = search.PageSize > 0 ? search.PageSize : 50;
+        int pageIndex = req.PageIndex > 0 ? req.PageIndex : 1;
+        int pageSize = req.PageSize > 0 ? req.PageSize : 50;
 
         var paged = await _repo.GetPagedCustomerProductAsync(criteria, pageIndex, pageSize, "cp.Id DESC");
 

@@ -1,69 +1,95 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using SwiftExport.VSTO.UserWindow;
-using SwiftExport.VSTO.UserWindow.ProductViews.Views;
+using SwiftExport.View.FW;
+using SwiftExport.View.FW.DI;
+using SwiftExport.View.FW.Routing;
+using SwiftExport.View.FW.Services;
 using System;
+using System.Threading.Tasks;
 
 namespace SwiftExport.VSTO
 {
     public partial class ThisAddIn
     {
-        //产品选择器窗口实例（如果需要在多个地方访问，可以放在这里）
-        public ProductSelectorWindow _productSelectorWindow;
+        // 离线模式开关：true = 不发起任何远程 API 调用（断网/后端未启动时使用），false = 正常联调模式
+        private const bool StartupOfflineMode = false;
+
         private async void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
-            //初始化WPF环境
-            await App.EnsureApplication();
-
-            //注册依赖
-            var services = new ServiceCollection();
-
-            services.AddVstoServices();
-
-            var provider = services.BuildServiceProvider();
-            // 注册到全局
-            DiServices.Init(provider);
-
-            WarmUpWPF();
+            await InitializeWpfAsync();
         }
 
         private void ThisAddIn_Shutdown(object sender, System.EventArgs e)
         {
+            // 释放单例持有的资源（如 Excel COM 对象引用）
+            DiServices.Reset();
+            // 显式关闭 WPF Dispatcher，防止 Excel 退出后进程假死在后台
+            System.Windows.Application.Current?.Shutdown();
         }
-        private void WarmUpWPF()
+
+        /// <summary>
+        /// WPF 环境与 DI 容器初始化，职责收拢于此，保持 ThisAddIn_Startup 简洁。
+        /// </summary>
+        private async Task InitializeWpfAsync()
         {
+            // 1. 确保 WPF Application 实例存在，触发 App.xaml 主题资源字典加载
+            App.EnsureApplication();
+
+            // 2. 同步离线模式配置（必须在 AddVstoServices 之前设置）
+            AppRuntimeOptions.DisableRemoteApi = StartupOfflineMode;
+
+            // 3. 构建 DI 容器（AddVstoServices 内部自动捕获当前 UI 线程 Dispatcher）
+            var services = new ServiceCollection();
+            services.AddVstoServices();
+            var provider = services.BuildServiceProvider();
+
+            // 4. 初始化全局服务定位器
+            IocProvider.Init(provider);
+            DiServices.Init(provider);
+
+            // 5. 后台预加载字典与路由缓存（不阻塞启动，离线模式跳过）
+            if (!AppRuntimeOptions.DisableRemoteApi)
+            {
+                _ = TryPreloadDictAsync();
+                _ = TryPreloadViewRoutesAsync();
+            }
+
+
+  
+        }
+
+        /// <summary>
+        /// 后台预加载字典缓存，失败仅记录日志，不影响主流程。
+        /// </summary>
+        private static async Task TryPreloadDictAsync()
+        {
+            var dictCache = DiServices.GetService<IDictCacheService>();
+            if (dictCache == null) return;
             try
             {
-                // 1. 创建一个“牺牲品”窗口
-                // 这个窗口必须引用了 样式（最好就是你要用的那个 TestWindow）
-                var dummy = new TestWindow
-                {
-                    // 2. 把在这个窗口彻底“隐形”
-                    Width = 0,
-                    Height = 0,
-                    WindowStyle = System.Windows.WindowStyle.None,
-                    ShowInTaskbar = false,
-                    Opacity = 0, // 透明度设为 0，双重保险
-                    AllowsTransparency = true // 有些环境需要这个才能彻底透明
-                };
-
-                // 3. 强行显示它
-                // 这一步会触发 WPF 解析所有 MD 的资源字典、加载字体、JIT 编译
-                dummy.Show();
-
-                // 4. 立即关闭并销毁
-                dummy.Close();
-                dummy = null;
-                System.Diagnostics.Debug.WriteLine("资源预热成功: ");
-                // 强制 GC 清理一下（可选）
-                GC.Collect();
+                await dictCache.PreloadAsync();
             }
             catch (Exception ex)
             {
-                // 预热失败不要崩，静默处理
-                System.Diagnostics.Debug.WriteLine("WPF 预热失败: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine("[ThisAddIn] Dict preload failed: " + ex.Message);
             }
         }
 
+        /// <summary>
+        /// 后台预加载视图路由缓存，失败自动降级到静态 ViewRoutes.cs 兜底。
+        /// </summary>
+        private static async Task TryPreloadViewRoutesAsync()
+        {
+            var routeService = DiServices.GetService<IViewRouteService>();
+            if (routeService == null) return;
+            try
+            {
+                await routeService.RefreshAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[ThisAddIn] ViewRoute preload failed: " + ex.Message);
+            }
+        }
 
         #region VSTO 生成的代码
 

@@ -1,4 +1,5 @@
 using Refit;
+using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Warehouses;
 using SwiftExport.Contracts.Wrappers;
@@ -10,7 +11,7 @@ namespace SwiftExport.Contracts.Apis.Orders
     /// <summary>
     /// 采购入库 API。
     /// </summary>
-    public interface IReceiveApi
+    public interface IReceiveApi 
     {
         /// <summary>
         /// 分页查询采购订单头。
@@ -23,6 +24,10 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// </summary>
         [Get("/awating-inbound-lines")]
         Task<ServiceResult<IReadOnlyList<AwatingInboundDto>>> GetAwatingInboundLinesAsync([Query] string supplierCode, [Query] string materialType = null);
+        
+        [Get("/lines-by-head-id")]
+        Task<ServiceResult<IReadOnlyList<ReceiveLineDto>>> GetLinesByHeadIdAsync([Query] int receiveHeadId);
+
 
         /// <summary>
         /// 执行采购入库。
@@ -34,6 +39,12 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// 保存采购入库单据。
         /// </summary>
         [Post("/save-receive-detail")]
-        Task<ServiceResult<string>> SaveDetailAsync([Body] SaveDocumentRequestBase<ReceiveHeadDto, ReceiveLineDto> request);
+        Task<ServiceResult<int>> SaveDetailAsync([Body] SaveDocumentRequestBase<ReceiveHeadDto, ReceiveLineDto> request);
+
+        [Post("/post-receive-by-head-id-list")]
+        Task<ServiceResult<List<PostReceiveResultDto>>> PostReceiveByHeadIdListAsync([Body] List<int> ids);
+
+        [Get("/head-by-id")]
+        Task<ServiceResult<ReceiveHeadDto>> GetHeadByIdAsync([Query] int finalResult);
     }
 }

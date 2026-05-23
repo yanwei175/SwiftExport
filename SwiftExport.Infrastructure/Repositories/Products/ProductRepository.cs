@@ -74,47 +74,47 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         parameters.Add("@Limit", pageSize);
 
         string baseQuery = $@"
-        SELECT 
-            p.*, 
-            pat.CategoryName, 
-            pat.FakeName, 
-            pc.ColorCodeUnique, 
-            pc.ColorCode, 
-            pc.ColorNameEn, 
-            pc.ColorNameZh as Finish,
-            -- 下面这些字段从 APPLY 的别名 pkg 中获取
-            pkg.PcsOfCarton,
-            pkg.NwOfCarton,
-            pkg.GwOfCarton,
-            pkg.CbmOfCarton
-        FROM [{TableName}] p WITH(NOLOCK)
-        LEFT JOIN [ProductColor] pc WITH(NOLOCK) ON p.ColorId = pc.Id AND pc.IsDeleted = 0
-        LEFT JOIN [ProductCategory] pat WITH(NOLOCK) ON p.CategoryId = pat.Id AND pat.IsDeleted = 0
+                            SELECT 
+                                p.*, 
+                                pat.CategoryName, 
+                                pat.FakeName, 
+                                pc.ColorCodeUnique, 
+                                pc.ColorCode, 
+                                pc.ColorNameEn, 
+                                pc.ColorNameZh as Finish,
+                                -- 下面这些字段从 APPLY 的别名 pkg 中获取
+                                pkg.PcsOfCarton,
+                                pkg.NwOfCarton,
+                                pkg.GwOfCarton,
+                                pkg.CbmOfCarton
+                            FROM [{TableName}] p WITH(NOLOCK)
+                            LEFT JOIN [ProductColor] pc WITH(NOLOCK) ON p.ColorId = pc.Id AND pc.IsDeleted = 0
+                            LEFT JOIN [ProductCategory] pat WITH(NOLOCK) ON p.CategoryId = pat.Id AND pat.IsDeleted = 0
     
-        -- 使用 OUTER APPLY 代替 LEFT JOIN
-        OUTER APPLY (
-            SELECT TOP 1 
-                pp.PcsPerPackage as PcsOfCarton,
-                pp.Nw_KG as NwOfCarton,
-                pp.Gw_KG as GwOfCarton,
-                pp.Cbm as CbmOfCarton
-            FROM [ProductPackage] pp 
-            WHERE pp.ProductId = p.Id 
-              AND pp.IsDeleted = 0
-            -- 核心逻辑：优先取默认的，如果没有默认的，取装数最多的（通常是外箱）
-            ORDER BY pp.IsDefault DESC, pp.PcsPerPackage DESC 
-        ) pkg
-    ";
+                            -- 使用 OUTER APPLY 代替 LEFT JOIN
+                            OUTER APPLY (
+                                SELECT TOP 1 
+                                    pp.PcsPerPackage as PcsOfCarton,
+                                    pp.Nw_KG as NwOfCarton,
+                                    pp.Gw_KG as GwOfCarton,
+                                    pp.Cbm as CbmOfCarton
+                                FROM [ProductPackage] pp 
+                                WHERE pp.ProductId = p.Id 
+                                  AND pp.IsDeleted = 0
+                                -- 核心逻辑：优先取默认的，如果没有默认的，取装数最多的（通常是外箱）
+                                ORDER BY pp.IsDefault DESC, pp.PcsPerPackage DESC 
+                            ) pkg
+                        ";
 
         // 5. 组合最终 SQL
         // 使用派生表 t 包装后，外部的 sb (WHERE t.xxx) 就能完美执行
         string derivedTable = $"({baseQuery}) t";
 
         var sql = $@"
-        SELECT COUNT(1) FROM {derivedTable} {sb};
-        SELECT * FROM {derivedTable} {sb} 
-        ORDER BY {orderBy} 
-        OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
+                    SELECT COUNT(1) FROM {derivedTable} {sb};
+                    SELECT * FROM {derivedTable} {sb} 
+                    ORDER BY {orderBy} 
+                    OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
 
         using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
         var totalCount = await multi.ReadFirstAsync<int>();

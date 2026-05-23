@@ -35,22 +35,13 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="搜索 (客户代码/名称/联系人):" Foreground="{DynamicResource Brush_Txt_Primary}" Margin="0,0,0,4"/>
-                    <TextBox x:Name="SearchTextBox"
-                             Height="30"
-                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                             PreviewKeyDown="SearchTextBox_PreviewKeyDown"
-                             mt:TextBoxAssist.Placeholder="输入关键字进行查询"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="2">
                     <TextBlock Text="批量查询 (支持多行):" Foreground="{DynamicResource Brush_Txt_Primary}" Margin="0,0,0,4"/>
-                    <TextBox Text="{Binding BatchSearchText, UpdateSourceTrigger=PropertyChanged}"
+                    <TextBox x:Name="SearchTextBox" Text="{Binding BatchSearchText, UpdateSourceTrigger=PropertyChanged}"
                              AcceptsReturn="True"
                              VerticalScrollBarVisibility="Auto"
                              Height="80"
                              Padding="4"
-                             mt:TextBoxAssist.Placeholder="每行输入一个客户代码或关键字"/>
+                             mt:TextBoxAssist.Placeholder="输入关键字进行查询,批量查询请换行"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -72,8 +63,8 @@
                       mt:DataGridAssist.ShowRowNumber="True">
 
 
-                    
-                    <DataGrid.Columns>
+
+                <DataGrid.Columns>
                     <DataGridTextColumn Header="客户代码" Binding="{Binding CustomerCode}" Width="120" ElementStyle="{StaticResource DataGridTextBlockStyle}"/>
                     <DataGridTextColumn Header="客户名称" Binding="{Binding CustomerName}" Width="220" ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"/>
                     <DataGridTextColumn Header="联系人" Binding="{Binding ContactPerson}" Width="120" ElementStyle="{StaticResource DataGridTextBlockStyle}"/>
@@ -86,14 +77,6 @@
                     <DataGridTextColumn Header="条款地点" Binding="{Binding IncotermLocation}" Width="120" ElementStyle="{StaticResource DataGridTextBlockStyle}"/>
                 </DataGrid.Columns>
             </DataGrid>
-
-            <Grid Background="Transparent" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
-                <TextBlock Text="正在查询客户..."
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           FontSize="16"
-                           Foreground="#0078D4"/>
-            </Grid>
         </Grid>
 
         <!-- 底部操作区 -->
@@ -118,6 +101,6 @@
             </Grid>
         </Border>
 
-        <mt:DialogHost />
+        <mt:DialogHost d:IsHidden="True" />
     </Grid>
 </Window>

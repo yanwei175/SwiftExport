@@ -1,6 +1,4 @@
-﻿using Mapster;
-using SwiftExport.Contracts.DTOs.Base;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -40,6 +38,13 @@ namespace SwiftExport.View.FW.Mvvm
             set => SetProperty(ref _state, value);
         }
 
+        private int _version = 1;
+        public int Version
+        {
+            get => _version;
+            set => SetProperty(ref _version, value);
+        }
+
         private bool _isChecked;
         public bool IsChecked
         {
@@ -53,7 +58,8 @@ namespace SwiftExport.View.FW.Mvvm
             }
         }
 
-
+        public bool IsDirty => State != ModelState.Unchanged;
+        
 
         // ============================================================
         // 2. 程序内部修改抑制器（用于计算属性）

@@ -74,7 +74,10 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             if (_productApi == null) return;
             var search = new ProductSearchDto
             {
-                Keyword = SearchText,
+                BatchKeywords = SearchText?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(k => k.Trim())
+                    .Where(k => !string.IsNullOrEmpty(k))
+                    .ToList(),
                 ColorCodeUnique = SelectedColorFilter != null ? SelectedColorFilter.ColorCodeUnique : null,
                 PageIndex = PageIndex,
                 PageSize = PageSize

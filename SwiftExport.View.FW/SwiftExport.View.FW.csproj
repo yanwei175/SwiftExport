@@ -40,6 +40,7 @@
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.Security" />
     <Reference Include="System.Xaml">
       <RequiredTargetFramework>4.0</RequiredTargetFramework>
     </Reference>
@@ -61,6 +62,19 @@
     </Compile>
     <Compile Include="OrderDecomposeViews\Views\PurchaseFollowUpView.xaml.cs">
       <DependentUpon>PurchaseFollowUpView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="PackingListViews\Models\PackingListDetailModel.cs" />
+    <Compile Include="PackingListViews\Models\PackingListHeadList.cs" />
+    <Compile Include="PackingListViews\Models\PackingListHeadModel.cs" />
+    <Compile Include="PackingListViews\Models\PackingListLineList.cs" />
+    <Compile Include="PackingListViews\Models\PackingListLineModel.cs" />
+    <Compile Include="PackingListViews\ViewModels\UnshippedViewModel.cs" />
+    <Compile Include="PackingListViews\ViewModels\PackingListDetailViewModel.cs" />
+    <Compile Include="PackingListViews\Views\UnshippedView.xaml.cs">
+      <DependentUpon>UnshippedView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="PackingListViews\Views\PackingListDetailView.xaml.cs">
+      <DependentUpon>PackingListDetailView.xaml</DependentUpon>
     </Compile>
     <Compile Include="PurchaseOrderViews\Controls\PurchaseOrderLinePopupSelectorControl.xaml.cs">
       <DependentUpon>PurchaseOrderLinePopupSelectorControl.xaml</DependentUpon>
@@ -227,6 +241,10 @@
     <Compile Include="SupplierViews\Views\SupplierProductManagerView.xaml.cs">
       <DependentUpon>SupplierProductManagerView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="SystemViews\ViewModels\ResetPasswdViewModel.cs" />
+    <Compile Include="SystemViews\Views\ResetPasswdView.xaml.cs">
+      <DependentUpon>ResetPasswdView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="WarehouseViews\Converters\AwaitingInboundPendingQtyConverter.cs" />
     <Compile Include="WarehouseViews\Messages\AwatingInboundSelectionResultMessage.cs" />
     <Compile Include="WarehouseViews\Models\ReceiptLineInputModel.cs" />
@@ -278,6 +296,14 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="OrderDecomposeViews\Views\PurchaseFollowUpView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="PackingListViews\Views\UnshippedView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="PackingListViews\Views\PackingListDetailView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -375,6 +401,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="SystemViews\Views\RegisterView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SystemViews\Views\ResetPasswdView.xaml">
+      <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="SystemViews\Views\SysDicCurrencyView.xaml">

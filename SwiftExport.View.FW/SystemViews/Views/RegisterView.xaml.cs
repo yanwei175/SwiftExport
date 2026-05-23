@@ -1,6 +1,7 @@
 using SwiftExport.View.FW.SystemViews.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace SwiftExport.View.FW.SystemViews.Views
 {
@@ -10,7 +11,7 @@ namespace SwiftExport.View.FW.SystemViews.Views
     /// 将 Password + ConfirmPassword 拼接成 "pwd|confirmPwd" 字符串传给 RegisterCommand。
     /// 非 admin 账号登录时：表单区置灰、显示警告横幅。
     /// </summary>
-    public partial class RegisterView : UserControl
+    public partial class RegisterView : Window
     {
         public RegisterView()
         {
@@ -65,6 +66,14 @@ namespace SwiftExport.View.FW.SystemViews.Views
                 // 非管理员：显示警告，表单禁用
                 AdminWarningBorder.Visibility = Visibility.Visible;
                 FormPanel.IsEnabled = false;
+            }
+        }
+
+        private void Border_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                this.DragMove(); // 允许用户点击背景拖动窗口
             }
         }
     }

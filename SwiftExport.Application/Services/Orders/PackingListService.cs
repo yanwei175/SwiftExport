@@ -4,6 +4,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.PackingLists;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
@@ -28,7 +29,7 @@ public class PackingListService(
     IStockService stockService,
     IDocumentNoService documentNoService,
     ServiceBaseContext context)
-    : BaseService<PackingListHead, PackingListDto>(headRepository, context), IPackingListService
+    : BaseService<PackingListHead, PackingListHeadDto>(headRepository, context), IPackingListService
 {
     private const string VirtualWhseCode = "V_WH";
     private readonly IPackingListHeadRepository _headRepository = headRepository;
@@ -44,43 +45,35 @@ public class PackingListService(
     private readonly IStockService _stockService = stockService;
     private readonly IDocumentNoService _documentNoService = documentNoService;
 
-    public async Task<ServiceResult<PagedResultDto<PackingListDto>>> GetPagedListAsync(PackingListSearchDto search)
+    public async Task<ServiceResult<PagedResultDto<PackingListHeadDto>>> GetHeadPagedListAsync(PackingListSearchDto search)
     {
         search ??= new PackingListSearchDto();
         var criteria = new QueryCriteria();
 
-        if (!string.IsNullOrWhiteSpace(search.Keyword))
+        if (search.BatchKeywords != null && search.BatchKeywords.Count > 0)
         {
-            var keyword = search.Keyword.Trim();
-            criteria.AddOrGroup(
-                ("PackingListNo", 查询操作符.模糊匹配, keyword),
-                ("PoNo", 查询操作符.模糊匹配, keyword),
-                ("SalesOrderNo", 查询操作符.模糊匹配, keyword),
-                ("SupplierCode", 查询操作符.模糊匹配, keyword));
+            foreach (var keyword in search.BatchKeywords)
+            {
+                var trimmedKeyword = keyword.Trim();
+                criteria.AddOrGroup(
+                    ("Sku", 查询操作符.模糊匹配, trimmedKeyword),
+                    ("DescriptionEn", 查询操作符.模糊匹配, trimmedKeyword),
+                    ("SalesOrderNo", 查询操作符.模糊匹配, trimmedKeyword),
+                    ("SupplierCode", 查询操作符.模糊匹配, trimmedKeyword));
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(search.PackingListNo))
             criteria.Add("PackingListNo", 查询操作符.模糊匹配, search.PackingListNo.Trim());
-        if (!string.IsNullOrWhiteSpace(search.SupplierCode))
-            criteria.Add("SupplierCode", 查询操作符.等于, search.SupplierCode.Trim());
-        if (!string.IsNullOrWhiteSpace(search.PoNo))
-            criteria.Add("PoNo", 查询操作符.模糊匹配, search.PoNo.Trim());
         if (!string.IsNullOrWhiteSpace(search.SalesOrderNo))
             criteria.Add("SalesOrderNo", 查询操作符.模糊匹配, search.SalesOrderNo.Trim());
         if (search.IsPosted.HasValue)
             criteria.Add("IsPosted", 查询操作符.等于, search.IsPosted.Value);
 
         var paged = await _headRepository.GetPagedListAsync(criteria, search.PageIndex <= 0 ? 1 : search.PageIndex, search.PageSize <= 0 ? 50 : search.PageSize, "Id DESC");
-        var items = paged.Items.Adapt<List<PackingListDto>>();
+        var items = paged.Items.Adapt<List<PackingListHeadDto>>();
 
-        foreach (var dto in items)
-        {
-            var lines = await _lineRepository.GetByPackingListNoAsync(dto.PackingListNo);
-            dto.LineCount = lines.Count;
-            dto.TotalQty = lines.Sum(x => x.Qty);
-        }
-
-        return ServiceResult<PagedResultDto<PackingListDto>>.Ok(new PagedResultDto<PackingListDto>
+        return ServiceResult<PagedResultDto<PackingListHeadDto>>.Ok(new PagedResultDto<PackingListHeadDto>
         {
             Items = items,
             TotalCount = paged.TotalCount,
@@ -89,18 +82,16 @@ public class PackingListService(
         });
     }
 
-    public async Task<ServiceResult<PackingListDetailDto>> GetDetailByIdAsync(int id)
+    public async Task<ServiceResult<PackingListDetailDto>> GetDetailByIdAsync(int headid)
     {
-        var head = await _headRepository.GetByIdAsync(id);
+       
+        if (headid <= 0)
+            return ServiceResult<PackingListDetailDto>.Fail("装箱单ID无效");
+        var head = await _headRepository.GetDetailByHeadIdAsync(headid);
         if (head == null)
             return ServiceResult<PackingListDetailDto>.Fail("装箱单不存在");
+        return ServiceResult<PackingListDetailDto>.Ok(head);
 
-        var lines = await _lineRepository.GetByPackingListNoAsync(head.PackingListNo);
-        return ServiceResult<PackingListDetailDto>.Ok(new PackingListDetailDto
-        {
-            Header = BuildHeaderDto(head, lines),
-            Lines = lines.Adapt<List<PackingListLineDto>>()
-        });
     }
 
     public async Task<ServiceResult<int>> SaveDetailAsync(PackingListDetailDto request)
@@ -161,10 +152,6 @@ public class PackingListService(
                     line.Id = 0;
                     line.PackingListHeadId = persisted.Id;
                     line.PackingListNo = persisted.PackingListNo;
-                    line.PoNo = string.IsNullOrWhiteSpace(line.PoNo) ? persisted.CustomerPoNo : line.PoNo;
-                    line.PurchaseOrderNo = string.IsNullOrWhiteSpace(line.PurchaseOrderNo) ? persisted.PurchaseOrderNo : line.PurchaseOrderNo;
-                    line.SalesOrderNo = string.IsNullOrWhiteSpace(line.SalesOrderNo) ? persisted.SalesOrderNo : line.SalesOrderNo;
-                    line.CreatedDate = DateTime.Now;
                     line.IsDeleted = false;
                     return line;
                 })
@@ -198,8 +185,6 @@ public class PackingListService(
             return ServiceResult<PackingListPostResultDto>.Fail("装箱单不存在");
         if (head.IsPosted)
             return ServiceResult<PackingListPostResultDto>.Fail("装箱单已过账");
-        if (string.IsNullOrWhiteSpace(head.SupplierCode))
-            return ServiceResult<PackingListPostResultDto>.Fail("装箱单缺少供应商");
 
         var lines = (await _lineRepository.GetByPackingListNoAsync(head.PackingListNo)).Where(x => x.Qty > 0).ToList();
         if (lines.Count == 0)
@@ -229,7 +214,6 @@ public class PackingListService(
             head.Status = "已过账";
             head.PostedDate = DateTime.Now;
             head.PostedBy = request.Operator;
-            head.ReceiveNo = receiveNo;
             head.UpdatedDate = DateTime.Now;
             await _headRepository.UpdateAsync(head);
 
@@ -256,104 +240,17 @@ public class PackingListService(
 
     private async Task CreateVirtualReceiveAsync(PackingListHead head, List<PackingListLine> lines, string receiveNo, string? handler)
     {
-        await _receiveHeadRepository.AddAsync(new ReceiveHead
-        {
-            ReceiveNo = receiveNo,
-            PoNo = head.CustomerPoNo,
-            OrderNo = head.PurchaseOrderNo,
-            SupplierCode = head.SupplierCode,
-            ReceiveDate = head.PackingDate ?? DateTime.Now,
-            Handler = handler,
-            Remark = "Packing List 虚拟入库：" + head.PackingListNo,
-            CreatedDate = DateTime.Now,
-            IsDeleted = false
-        });
-
-        var receiveLines = lines.Select(x => new ReceiveLine
-        {
-            ReceiveNo = receiveNo,
-            Sku = x.Sku.Trim(),
-            Qty = x.Qty,
-            Unit = x.Unit,
-            PoLineId = x.PoLineId,
-            IndependLineId = x.SoLineId,
-            CreatedDate = DateTime.Now,
-            IsDeleted = false
-        }).ToList();
-
-        await _receiveLineRepository.AddRangeAsync(receiveLines);
-
-        foreach (var poGroup in lines.Where(x => x.PoLineId.HasValue).GroupBy(x => x.PoLineId!.Value))
-        {
-            var poLine = await _purchaseOrderLineRepository.GetByIdAsync(poGroup.Key);
-            if (poLine == null) continue;
-
-            poLine.RecQty += poGroup.Sum(x => x.Qty);
-            poLine.LastRecDate = head.PackingDate ?? DateTime.Now;
-            poLine.ChangeTime = DateTime.Now;
-            await _purchaseOrderLineRepository.UpdateAsync(poLine);
-        }
-
-        foreach (var group in lines.GroupBy(x => new { Sku = x.Sku.Trim(), x.Unit }))
-        {
-            await IncreaseInventoryAsync(VirtualWhseCode, head.SupplierCode.Trim(), group.Key.Sku, group.Sum(x => x.Qty), group.Key.Unit, "PackingListReceive", receiveNo);
-        }
+        
     }
 
     private async Task CreateSalesShipmentAsync(PackingListHead head, List<PackingListLine> lines)
     {
-        foreach (var group in lines.GroupBy(x => x.Sku.Trim()))
-        {
-            var decrease = await _stockService.DecreaseStockAsync(VirtualWhseCode, head.SupplierCode.Trim(), group.Key, group.Sum(x => x.Qty), false, "PackingListShip", head.PackingListNo);
-            if (!decrease.Success)
-                throw new InvalidOperationException(decrease.Message);
-        }
-
-        foreach (var soGroup in lines.Where(x => x.SoLineId.HasValue).GroupBy(x => x.SoLineId!.Value))
-        {
-            if (soGroup.Key <= 0 || soGroup.Key > int.MaxValue) continue;
-
-            var demands = await _salesDemandRepository.GetListBySourceTypeAndSourceIdAsync(OrderTypesEnum.销售订单, [(int)soGroup.Key]);
-            if (demands == null || demands.Count == 0) continue;
-            var demand = demands[0];
-
-            demand.ShippedQty += soGroup.Sum(x => x.Qty);
-            demand.LastShippedDate = DateTime.Now;
-            demand.ChangeTime = DateTime.Now;
-
-            // 中文注释：IndependentDemand状态闭环——已到货后发货满额转“已完成”，未到货时保持“采购中”。
-            if (demand.ShippedQty >= demand.OriginalQty)
-            {
-                demand.StatusFlag = demand.FilledQty >= demand.OriginalQty
-                    ? IndependentDemandStatusEnum.已完成
-                    : IndependentDemandStatusEnum.采购中;
-            }
-
-            demand.UpdatedDate = DateTime.Now;
-            await _salesDemandRepository.UpdateAsync(demand);
-        }
-
-        var touchedOrderNos = lines
-            .Where(x => !string.IsNullOrWhiteSpace(x.SalesOrderNo))
-            .Select(x => x.SalesOrderNo!.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        foreach (var orderNo in touchedOrderNos)
-        {
-            await UpdateSalesOrderStatusAsync(orderNo);
-        }
+       
     }
 
     private async Task WriteOffComponentsAsync(PackingListHead head, List<PackingListLine> lines, bool allowNegativeStock)
     {
-        var requirements = await BuildComponentRequirementsAsync(lines);
-        foreach (var (Sku, Qty) in requirements)
-        {
-            var result = await _stockService.DecreaseStockAsync(VirtualWhseCode, head.SupplierCode.Trim(), Sku, Qty, allowNegativeStock, "PackingListWriteOff", head.PackingListNo);
-            if (!result.Success)
-                throw new InvalidOperationException(result.Message);
-        }
+
     }
 
     private async Task<List<PackingListStockShortageDto>> CheckComponentShortagesAsync(PackingListHead head, List<PackingListLine> lines)
@@ -363,14 +260,14 @@ public class PackingListService(
 
         foreach (var (Sku, Qty) in requirements)
         {
-            var stock = await _inventoryRepository.GetByWhseLocationSkuAsync(VirtualWhseCode, head.SupplierCode.Trim(), Sku);
+
+            Inventory stock = new Inventory();
             var onhand = stock?.OnhandQty ?? 0m;
             if (onhand < Qty)
             {
                 shortages.Add(new PackingListStockShortageDto
                 {
                     Sku = Sku,
-                    SupplierCode = head.SupplierCode,
                     RequiredQty = Qty,
                     OnhandQty = onhand,
                     ShortageQty = Qty - onhand
@@ -465,11 +362,11 @@ public class PackingListService(
         }
 
         const string txSql = @"IF OBJECT_ID('dbo.InventoryTransaction','U') IS NOT NULL
-BEGIN
-    INSERT INTO [dbo].[InventoryTransaction]
-    ([WhseCode],[LocationCode],[Sku],[Qty],[BizType],[BizNo],[CreatedDate])
-    VALUES (@WhseCode,@LocationCode,@Sku,@Qty,@BizType,@BizNo,@CreatedDate)
-END";
+                            BEGIN
+                                INSERT INTO [dbo].[InventoryTransaction]
+                                ([WhseCode],[LocationCode],[Sku],[Qty],[BizType],[BizNo],[CreatedDate])
+                                VALUES (@WhseCode,@LocationCode,@Sku,@Qty,@BizType,@BizNo,@CreatedDate)
+                            END";
 
         await _session.Connection.ExecuteAsync(txSql, new
         {
@@ -516,20 +413,13 @@ END";
         });
 
         return result.Success && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.DocumentNo)
-            ? "PLRV" + result.Data.DocumentNo
-            : "PLRV" + DateTime.Now.ToString("yyyyMMddHHmmss");
+            ? "OB" + result.Data.DocumentNo
+            : "OB" + DateTime.Now.ToString("yyyyMMddHHmmss");
     }
 
     private static Task<string> CreatePackingListNoAsync()
     {
-        return Task.FromResult("PL" + DateTime.Now.ToString("yyyyMMddHHmmss"));
+        return Task.FromResult("OB" + DateTime.Now.ToString("yyyyMMddHHmmss"));
     }
 
-    private static PackingListDto BuildHeaderDto(PackingListHead head, IReadOnlyList<PackingListLine> lines)
-    {
-        var dto = head.Adapt<PackingListDto>();
-        dto.LineCount = lines.Count;
-        dto.TotalQty = lines.Sum(x => x.Qty);
-        return dto;
-    }
 }

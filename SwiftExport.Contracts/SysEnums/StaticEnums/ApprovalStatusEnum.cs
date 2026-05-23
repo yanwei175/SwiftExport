@@ -11,7 +11,7 @@ namespace SwiftExport.Contracts.SysEnums.StaticEnums
         public const int 草稿 = 0;
         public const int 待审批 = 1;
         public const int 已批准 = 2;
-        public const int 已驳回 = 3;
+        public const int 已驳回 = 8;
         public const int 已取消 = 9;
 
         public static readonly IReadOnlyList<KeyValuePair<int, string>> Items = new List<KeyValuePair<int, string>>

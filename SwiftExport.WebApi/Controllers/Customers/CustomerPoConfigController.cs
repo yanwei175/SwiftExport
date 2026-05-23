@@ -19,17 +19,11 @@ public class CustomerPoConfigController(ICustomerPoConfigService service) : Base
         // ==========================================
         // 处理批量搜索
         // ==========================================
-        if (!string.IsNullOrWhiteSpace(request.BatchSearchTexts))
+        if (request.BatchKeywords!=null && request.BatchKeywords.Count>0)
         {
-            // 1. 分割字符串：支持 换行符(\n, \r) 和 逗号(,)
-            var batchList = request.BatchSearchTexts
-                .Split(['\r', '\n', ','], StringSplitOptions.RemoveEmptyEntries)
-                .Select(k => k.Trim())           // 去除首尾空格
-                .Where(k => !string.IsNullOrEmpty(k)) // 再次确保没有空字符串
-                .Distinct()                      // 去重
-                .ToList();
 
-            if (batchList.Count > 0)
+
+            foreach (var keyword in request.BatchKeywords)
             {
                 // 场景 A：只匹配 SKU (性能最高，最常用)
                 // criteria.Add("SKU", 查询操作符.包含某值, batchList);
@@ -37,26 +31,14 @@ public class CustomerPoConfigController(ICustomerPoConfigService service) : Base
                 // 场景 B：匹配 SKU 或 客户型号 (更灵活)
                 // 逻辑：(SKU IN (...) OR CSKU IN (...))
                 criteria.AddOrGroup(
-                    ("CustomerCode", 查询操作符.包含某值, batchList),
-                    ("SalesPerson", 查询操作符.包含某值, batchList),
-                    ("Purchaser", 查询操作符.包含某值, batchList),
-                    ("SupplierCode", 查询操作符.包含某值, batchList)
+                    ("CustomerCode", 查询操作符.包含某值, keyword),
+                    ("SalesPerson", 查询操作符.包含某值, keyword),
+                    ("Purchaser", 查询操作符.包含某值, keyword),
+                    ("SupplierCode", 查询操作符.包含某值, keyword)
                 );
             }
         }
 
-        // ==========================================
-        // 处理单个关键字模糊搜索
-        // ==========================================
-        if (!string.IsNullOrWhiteSpace(request.SearchText))
-        {
-            criteria.AddOrGroup(
-                ("CustomerCode", 查询操作符.模糊匹配, request.SearchText),
-                ("SalesPerson", 查询操作符.模糊匹配, request.SearchText),
-                ("Purchaser", 查询操作符.模糊匹配, request.SearchText),
-                ("SupplierCode", 查询操作符.模糊匹配, request.SearchText)
-            );
-        }
 
         // 4. 处理分页默认值保护
         int pageIndex = request.PageIndex > 0 ? request.PageIndex : 1;

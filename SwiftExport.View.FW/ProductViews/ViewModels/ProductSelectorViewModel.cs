@@ -244,9 +244,12 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 {
                     ProductSearchDto searchArgs = new ProductSearchDto
                     {
-                        Keyword = SearchText,
+                       
                         //CustomerCode = SelectedCustomer,
-                        BatchKeywords = BatchSearchText,
+                        BatchKeywords = BatchSearchText?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(k => k.Trim())
+                            .Where(k => !string.IsNullOrEmpty(k))
+                            .ToList(),
                         PageIndex = _currentPage,
                         PageSize = _pageSize
                     };

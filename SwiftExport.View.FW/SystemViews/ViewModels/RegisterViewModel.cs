@@ -72,7 +72,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
         /// <summary>非管理员时显示的提示语</summary>
         public string AdminHint => IsAdmin
             ? string.Empty
-            : "仅拥有 Admin 角色的账号可注册新用户，请联系管理员或切换账号。";
+            : "仅拥有管理员角色的账号可注册新用户，请联系管理员或切换账号。";
 
         // ============= 命令 =============
 

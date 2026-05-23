@@ -9,6 +9,7 @@ using SwiftExport.View.FW.CustomerViews.Enums;
 using SwiftExport.View.FW.CustomerViews.Models;
 using SwiftExport.View.FW.Mvvm;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Threading;
@@ -337,7 +338,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                 {
                     var requestDto = new PagedRequestDto
                     {
-                        SearchText = SearchCustomerText,
+                        BatchKeywords = new List<string> { SearchCustomerText },
                         // 绑定到当前页面索引
                         PageIndex = PageCustomerTableIndex,
                         // 绑定到当前的页面行数(PageCustomerTableSize)

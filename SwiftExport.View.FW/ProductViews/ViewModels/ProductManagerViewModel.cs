@@ -473,7 +473,10 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                     var search = new ProductSearchDto
                     {
                         // 获取搜索关键字
-                        Keyword = SearchProductTxt,
+                        BatchKeywords = SearchProductTxt?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(k => k.Trim())
+                            .Where(k => !string.IsNullOrEmpty(k))
+                            .ToList(),
 
                         //// 如果选中的是"全部客户"，则不传过滤条件
                         CustomerCodes = string.IsNullOrWhiteSpace(cCode) ? null : new List<string>() { cCode },
@@ -737,7 +740,10 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             {
                 var productSearchDto = new ProductSearchDto
                 {
-                    Keyword = keyword,
+                    BatchKeywords = keyword?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(k => k.Trim())
+                        .Where(k => !string.IsNullOrEmpty(k))
+                        .ToList(),
                     PageIndex = 1,
                     PageSize = 20
                 };

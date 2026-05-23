@@ -19,7 +19,7 @@
         <ResourceDictionary Source="../Styles/Base/Controls/ScrollBar.xaml" />
         <ResourceDictionary Source="../Styles/Base/Controls/ToggleSwitch.xaml" />
         <ResourceDictionary Source="../Styles/Base/Controls/RadioButton.xaml" />
-        <ResourceDictionary Source="../Styles/Base/Controls/Card.xaml" />
+        <ResourceDictionary Source="../Styles/Base/Controls/Border.xaml" />
         <ResourceDictionary Source="../Styles/Base/Controls/ListBox.xaml" />
         <ResourceDictionary Source="../Styles/Base/Controls/Dialog.xaml" />
         <ResourceDictionary Source="../Styles/Base/Controls/Slider.xaml" />
