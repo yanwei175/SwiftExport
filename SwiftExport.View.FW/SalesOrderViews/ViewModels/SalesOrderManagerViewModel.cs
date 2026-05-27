@@ -1,12 +1,24 @@
-using GalaSoft.MvvmLight.Command;
+ï»¿using GalaSoft.MvvmLight.Command;
 using Mapster;
+using SwiftExport.Contracts.Apis.CustomerApis;
+using SwiftExport.Contracts.Apis.Orders;
+using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
+using SwiftExport.Contracts.Apis.SystemApis;
+using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.View.FW.DI;
 using SwiftExport.View.FW.Mvvm;
+using SwiftExport.View.FW.ProductViews.Models;
 using SwiftExport.View.FW.SalesOrderViews.Models;
+using SwiftExport.View.FW.SalesOrderViews.Views;
+using SwiftExport.View.FW.Services;
+using SwiftExport.View.FW.SystemViews.Models;
+using SwiftExport.View.FW.WarehouseViews.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -17,56 +29,61 @@ using System.Threading.Tasks;
 namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 {
     /// <summary>
-    /// ÏúÊÛ¶©µ¥¹ÜÀí ViewModel£¨Ö§³ÖÉóÅúÁ÷¡¢×´Ì¬¹ÜÀí¡¢Ö÷´ÓÁª¶¯£©¡£
+    /// é”€å”®è®¢å•ç®¡ç†å·¥ä½œå° ViewModelã€‚
+    /// èŒè´£ï¼šåˆ†é¡µæŸ¥è¯¢è®¢å•å¤´åˆ—è¡¨ã€æ‰¹é‡å®¡æ‰¹/é©³å›ã€åˆ é™¤ã€å¿«é€Ÿä¿å­˜ Header å­—æ®µï¼Œ
+    /// ä»¥åŠé€šè¿‡å¼¹å‡º SalesOrderDetailWindow å®Œæˆæ–°å»ºå’Œç¼–è¾‘æ“ä½œã€‚
+    /// è¡Œçº§ç¼–è¾‘é€»è¾‘å®Œå…¨ä¸‹æ²‰åˆ° SalesOrderDetailViewModelï¼Œæœ¬ VM ä¸æŒæœ‰è¡Œé›†åˆã€‚
     /// </summary>
     public class SalesOrderManagerViewModel : ViewModelBaseEx
     {
-       
-
-        #region ×Ö¶Î / ÊÂ¼ş
+        #region å­—æ®µ / ä¾èµ–
 
         private readonly ISalesOrderApi _salesOrderApi;
+        private readonly ICustomerApi _customerApi;
+        private readonly ISysDicCurrencyApi _sysDicCurrencyApi;
+        private readonly IDictCacheService _dictCacheService;
         private readonly IDialogService _msg;
-
-        /// <summary>
-        /// µ±Ñ¡ÖĞ¶©µ¥±ä»¯²¢Ã÷Ï¸Ë¢ĞÂºó´¥·¢£¬¹© Tab Ò³Ë¢ĞÂÁª¶¯¡£
-        /// </summary>
-        public event Action SelectedOrderHeaderChanged;
+        private readonly IProductColorApi _pdColorApi;
 
         #endregion
 
-        #region ¹¹Ôìº¯Êı
+        #region æ„é€ å‡½æ•°
 
-        [Obsolete("½ö¹© XAML Éè¼ÆÆ÷Ê¹ÓÃ", true)]
-        internal SalesOrderManagerViewModel()
-        {
-        }
+        [Obsolete("ä»…ä¾› XAML è®¾è®¡å™¨ä½¿ç”¨", true)]
+        internal SalesOrderManagerViewModel() { }
 
-        public SalesOrderManagerViewModel(ISalesOrderApi salesOrderApi, IDialogService dialogService, SalesOrderDetailViewModel salesOrderDetailViewModel)
+        public SalesOrderManagerViewModel(
+            ISalesOrderApi salesOrderApi,
+            IDialogService dialogService,
+            ICustomerApi customerApi,
+            ISysDicCurrencyApi sysDicCurrencyApi,
+            IProductColorApi productColorApi,
+            IDictCacheService dictCacheService)
         {
             _salesOrderApi = salesOrderApi;
             _msg = dialogService;
+            _customerApi = customerApi;
+            _sysDicCurrencyApi = sysDicCurrencyApi;
+            _dictCacheService = dictCacheService;
+            _pdColorApi = productColorApi;
 
             OrderHeaders = new SalesOrderHeaderList();
-            CurrentOrderLines = new SalesOrderLineList();
-            EmbeddedDetailViewModel = salesOrderDetailViewModel;
-
             OrderHeaders.PropertyChanged += OrderHeaders_PropertyChanged;
-            CurrentOrderLines.PropertyChanged += CurrentOrderLines_PropertyChanged;
-            CurrentOrderLines.Items.CollectionChanged += (s, e) =>
-            {
-                RaisePropertyChanged(nameof(CanSave));
-                RaisePropertyChanged(nameof(StatusSummaryText));
-                SaveCommand?.RaiseCanExecuteChanged();
-            };
 
+            // ä¸­æ–‡æ³¨é‡Šï¼šåŠ è½½å‘½ä»¤ï¼Œå¸¦ BusyScope ä¿æŠ¤ï¼Œé˜²æ­¢é‡å¤è§¦å‘ã€‚
             LoadCommand = new RelayCommand(async () => await LoadAsync(), () => IsNotBusy);
             RegisterBusyNotifyCommand(LoadCommand);
 
-            AddLineCommand = new RelayCommand(AddLine);
-            DeleteLineCommand = new RelayCommand(DeleteLine, () => SelectedLine != null);
+            // ä¸­æ–‡æ³¨é‡Šï¼šæ–°å»ºè®¢å•â€”â€”å¼¹å‡ºç©ºç™½ DetailWindowã€‚
+            CreateOrderCommand = new RelayCommand(OpenCreateOrderWindow, () => IsNotBusy);
+            RegisterBusyNotifyCommand(CreateOrderCommand);
 
-            SaveCommand = new RelayCommand(async () => await SaveAsync(), () => CanSave);
+            // ä¸­æ–‡æ³¨é‡Šï¼šç¼–è¾‘è®¢å•â€”â€”å¼¹å‡ºå·²åŠ è½½æ•°æ®çš„ DetailWindowã€‚
+            EditOrderCommand = new RelayCommand(async () => await OpenEditOrderWindowAsync(), () => IsNotBusy && SelectedOrderHeader != null);
+            RegisterBusyNotifyCommand(EditOrderCommand);
+
+            // ä¸­æ–‡æ³¨é‡Šï¼šHeader çº§å¿«é€Ÿä¿å­˜ï¼ˆåªæäº¤ Header å˜æ›´ï¼Œä¸æ¶‰åŠè¡Œï¼‰ã€‚
+            SaveCommand = new RelayCommand(async () => await SaveHeaderAsync(), () => CanSave);
             RegisterBusyNotifyCommand(SaveCommand);
 
             BatchApproveCommand = new RelayCommand(async () => await BatchApproveAsync(), () => CanBatchApprove);
@@ -75,45 +92,31 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             BatchRejectCommand = new RelayCommand(async () => await BatchRejectAsync(), () => CanBatchReject);
             RegisterBusyNotifyCommand(BatchRejectCommand);
 
-            // Ö÷±í¹¤¾ßÀ¸¼æÈİÃüÁî¡£
-            AddNewRowCommand = new RelayCommand(AddNewRow);
-            BatchSaveCommand = new RelayCommand(async () => await SaveAsync(), () => CanSave);
-            DeleteCheckedCommand = new RelayCommand(DeleteChecked, () => HasSelectedItems);
+            DeleteCheckedCommand = new RelayCommand(async () => await DeleteCheckedAsync(), () => HasSelectedItems && IsNotBusy);
+            RegisterBusyNotifyCommand(DeleteCheckedCommand);
+
             InvertCheckCommand = new RelayCommand(InvertCheck);
             ItemCheckedChangedCommand = new RelayCommand(OnItemCheckedChanged);
 
-            //// Ä¬ÈÏÉ¸Ñ¡Ïî¡£
-            //ApprovalStatusOptions = new ObservableCollection<string>
-            //{
-            //    ApprovalStates.Draft,
-            //    ApprovalStates.Pending,
-            //    ApprovalStates.Approved,
-            //    ApprovalStates.Rejected
-            //};
+            // ä¸­æ–‡æ³¨é‡Šï¼šè®¢é˜…å¤šé€‰é€‰é¡¹çš„ IsSelected å˜åŒ–ï¼Œå®æ—¶åˆ·æ–° ToggleButton ä¸Šçš„æ‘˜è¦æ–‡å­—ã€‚
+            foreach (var item in ApprovalStatusOptions)
+                item.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(CheckableItem<int>.IsSelected)) RaisePropertyChanged(nameof(SelectedApprovalStatuses)); };
+            foreach (var item in OrderStatusOptions)
+                item.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(CheckableItem<int>.IsSelected)) RaisePropertyChanged(nameof(SelectedOrderStatuses)); };
 
-            //OrderStatusOptions = new ObservableCollection<string>
-            //{
-            //    OrderStates.Open,
-            //    OrderStates.Completed,
-            //    OrderStates.Closed
-            //};
+            _ = LoadCustomersAsync();
+            _= LoadColorsAsync();
         }
 
         #endregion
 
-        #region ÁĞ±íÓëÑ¡ÖĞ
+        #region åˆ—è¡¨ä¸é€‰ä¸­
 
+        /// <summary> è®¢å•å¤´é›†åˆï¼Œç»‘å®šåˆ° Manager DataGridã€‚</summary>
         public SalesOrderHeaderList OrderHeaders { get; }
-        public SalesOrderLineList CurrentOrderLines { get; }
-        /// <summary>
-        /// Ö±½ÓÇ¶Èë Tab µÄ¶©µ¥ÏêÇé ViewModel¡£
-        /// </summary>
-        public SalesOrderDetailViewModel EmbeddedDetailViewModel { get; }
 
         private SalesOrderHeaderModel _selectedOrderHeader;
-        /// <summary>
-        /// µ±Ç°Ñ¡ÖĞ¶©µ¥Í·£¬±ä»¯Ê±×Ô¶¯¼ÓÔØ¶©µ¥ĞĞ²¢Í¨ÖªÏêÇéÒ³Ë¢ĞÂ¡£
-        /// </summary>
+        /// <summary> å½“å‰é€‰ä¸­è®¢å•å¤´ï¼Œåˆ‡æ¢æ—¶åˆ·æ–°å‘½ä»¤çŠ¶æ€ã€‚</summary>
         public SalesOrderHeaderModel SelectedOrderHeader
         {
             get => _selectedOrderHeader;
@@ -121,28 +124,35 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             {
                 if (SetProperty(ref _selectedOrderHeader, value))
                 {
-                    LoadOrderLinesForSelectedHeader();
                     RaisePropertyChanged(nameof(CanSave));
                     RaisePropertyChanged(nameof(StatusSummaryText));
                     SaveCommand?.RaiseCanExecuteChanged();
+                    EditOrderCommand?.RaiseCanExecuteChanged();
+                    _ = LoadLinesByHeadIdAsync(value?.Id ?? 0);
                 }
             }
         }
 
+        private SalesOrderLineList _currentOrderLines;
+        public SalesOrderLineList CurrentOrderLines
+        {
+            get => _currentOrderLines;
+            set => SetProperty(ref _currentOrderLines, value);
+        }
         private SalesOrderLineModel _selectedLine;
         public SalesOrderLineModel SelectedLine
         {
             get => _selectedLine;
-            set
-            {
-                if (SetProperty(ref _selectedLine, value))
-                    DeleteLineCommand?.RaiseCanExecuteChanged();
-            }
+            set => SetProperty(ref _selectedLine, value);
         }
+        public ObservableCollection<CustomerDto> CustomerFilterItems { get; } = new ObservableCollection<CustomerDto>();
+        public ObservableCollection<ProductColorDto> ColorList { get; } = new ObservableCollection<ProductColorDto>();
 
+        public ObservableCollection<string> OrderNoList { get; } = new ObservableCollection<string>();
+        public ObservableCollection<string> InvNoList { get; } = new ObservableCollection<string>();
         #endregion
 
-        #region É¸Ñ¡×Ö¶Î
+        #region ç­›é€‰å­—æ®µ
 
         private string _selectedCustomerFilter;
         public string SelectedCustomerFilter
@@ -165,6 +175,13 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             set => SetProperty(ref _selectedInvNoFilter, value);
         }
 
+        private string _searchText;
+        public string SearchText
+        {
+            get => _searchText;
+            set => SetProperty(ref _searchText, value);
+        }
+
         private DateTime? _orderDateFrom;
         public DateTime? OrderDateFrom
         {
@@ -179,34 +196,67 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             set => SetProperty(ref _orderDateTo, value);
         }
 
-
-        public IReadOnlyList<KeyValuePair<int, string>> ApprovalStatusOptions { get; }
-                                                      = new List<KeyValuePair<int, string>>
-                                                      {
-                                                                new KeyValuePair<int, string>(-1, ""),   // ¿ÕÑ¡Ïî
-                                                      }.Concat(ApprovalStatusEnum.Items).ToList();
-        public IReadOnlyList<KeyValuePair<int, string>> OrderStatusOptions { get; }
-                                                      = new List<KeyValuePair<int, string>>
-                                                      {
-                                                                new KeyValuePair<int, string>(-1, ""),   // ¿ÕÑ¡Ïî
-                                                      }.Concat(SalesOrderStatusEnum.Items).ToList();
-        private string _selectedApprovalStatuses;
-        public string SelectedApprovalStatuses
+        private string _lineSearchText;
+        public string LineSearchText
         {
-            get => _selectedApprovalStatuses;
-            set => SetProperty(ref _selectedApprovalStatuses, value);
+            get => _lineSearchText;
+            set
+            {
+                if (SetProperty(ref _lineSearchText, value))
+                {
+                    //å†…å­˜ç­›é€‰CurrentOrderLines,å¯èƒ½è¦å»ºä¸€ä¸ªè§†å›¾ç­›é€‰æ¨¡å‹
+
+                    
+                }    
+            }
         }
 
-        private string _selectedOrderStatuses;
-        public string SelectedOrderStatuses
+        // ä¸­æ–‡æ³¨é‡Šï¼šå®¡æ‰¹çŠ¶æ€å¤šé€‰é€‰é¡¹ï¼Œæ¯é¡¹æ˜¯ CheckableItem<int>ï¼ŒIsSelected åŒå‘ç»‘å®šåˆ° CheckBoxã€‚
+        // PropertyChanged è®¢é˜…åœ¨æ„é€ å‡½æ•°ä¸­å®Œæˆï¼Œå˜åŒ–æ—¶è‡ªåŠ¨é€šçŸ¥æ‘˜è¦å±æ€§åˆ·æ–°ã€‚
+        public ObservableCollection<CheckableItem<int>> ApprovalStatusOptions { get; }
+            = new ObservableCollection<CheckableItem<int>>
+              {
+                  new CheckableItem<int> { Value = ApprovalStatusEnum.è‰ç¨¿,   Label = "è‰ç¨¿"   },
+                  new CheckableItem<int> { Value = ApprovalStatusEnum.å¾…å®¡æ‰¹, Label = "å¾…å®¡æ‰¹" },
+                  new CheckableItem<int> { Value = ApprovalStatusEnum.å·²æ‰¹å‡†, Label = "å·²æ‰¹å‡†" },
+                  new CheckableItem<int> { Value = ApprovalStatusEnum.å·²é©³å›, Label = "å·²é©³å›" },
+                  new CheckableItem<int> { Value = ApprovalStatusEnum.å·²å–æ¶ˆ, Label = "å·²å–æ¶ˆ" },
+              };
+
+        // ä¸­æ–‡æ³¨é‡Šï¼šå®¡æ‰¹çŠ¶æ€æ‘˜è¦æ–‡å­—ï¼Œç»‘å®šåˆ° ToggleButton ä¸Šçš„ TextBlock.Textã€‚
+        public string SelectedApprovalStatuses =>
+            ApprovalStatusOptions.Where(x => x.IsSelected) is var sel && sel.Any()
+                ? string.Join("ã€", sel.Select(x => x.Label))
+                : "å…¨éƒ¨";
+
+        // ä¸­æ–‡æ³¨é‡Šï¼šè®¢å•çŠ¶æ€å¤šé€‰é€‰é¡¹ã€‚
+        public ObservableCollection<CheckableItem<int>> OrderStatusOptions { get; }
+            = new ObservableCollection<CheckableItem<int>>
+              {
+                  new CheckableItem<int> { Value = SalesOrderStatusEnum.è‰ç¨¿,     Label = "è‰ç¨¿"     },
+                  new CheckableItem<int> { Value = SalesOrderStatusEnum.å·²ç¡®è®¤,   Label = "å·²ç¡®è®¤"   },
+                  new CheckableItem<int> { Value = SalesOrderStatusEnum.éƒ¨åˆ†å‘è´§, Label = "éƒ¨åˆ†å‘è´§" },
+                  new CheckableItem<int> { Value = SalesOrderStatusEnum.å…¨éƒ¨å‘è´§, Label = "å…¨éƒ¨å‘è´§" },
+                  new CheckableItem<int> { Value = SalesOrderStatusEnum.å·²å…³é—­,   Label = "å·²å…³é—­"   },
+              };
+
+        // ä¸­æ–‡æ³¨é‡Šï¼šè®¢å•çŠ¶æ€æ‘˜è¦æ–‡å­—ã€‚
+        public string SelectedOrderStatuses =>
+            OrderStatusOptions.Where(x => x.IsSelected) is var sel2 && sel2.Any()
+                ? string.Join("ã€", sel2.Select(x => x.Label))
+                : "å…¨éƒ¨";
+
+
+        private string _batchCustomerSkuText;
+        public string BatchCustomerSkuText
         {
-            get => _selectedOrderStatuses;
-            set => SetProperty(ref _selectedOrderStatuses, value);
+            get => _batchCustomerSkuText;
+            set => SetProperty(ref _batchCustomerSkuText, value);
         }
 
         #endregion
 
-        #region ·ÖÒ³Óë×´Ì¬À¸
+        #region åˆ†é¡µä¸çŠ¶æ€æ 
 
         private int _pageIndex = 1;
         public int PageIndex
@@ -229,29 +279,30 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             set => SetProperty(ref _totalCount, value);
         }
 
-        private string _statusMessage = "×¼±¸¾ÍĞ÷";
+        private string _statusMessage = "å‡†å¤‡å°±ç»ª";
         public string StatusMessage
         {
             get => _statusMessage;
             set => SetProperty(ref _statusMessage, value);
         }
 
-        /// <summary>
-        /// µ×²¿×´Ì¬À¸»ã×Ü£ºµ±Ç°Ñ¡ÖĞ¶©µ¥ĞĞÊıÓë½ğ¶î¡£
-        /// </summary>
+        /// <summary> çŠ¶æ€æ æ±‡æ€»æ–‡æœ¬ï¼Œæ˜¾ç¤ºå½“å‰é€‰ä¸­è®¢å•çš„åŸºç¡€ä¿¡æ¯ã€‚</summary>
         public string StatusSummaryText
         {
             get
             {
-                var lineCount = CurrentOrderLines.Items.Count;
-                var totalAmount = SelectedOrderHeader != null ? SelectedOrderHeader.TotalAmountOriginalCurrency : 0m;
-                return string.Format("µ±Ç°¶©µ¥»ã×Ü£ºĞĞÊı {0}£¬×Ü½ğ¶î {1:N2}", lineCount, totalAmount);
+                if (SelectedOrderHeader == null) return string.Empty;
+                return string.Format("è®¢å•ï¼š{0}  å®¢æˆ·ï¼š{1}  é‡‘é¢ï¼š{2:N2} {3}",
+                    SelectedOrderHeader.OrderNo,
+                    SelectedOrderHeader.CustomerCode,
+                    SelectedOrderHeader.TotalAmountOriginalCurrency,
+                    SelectedOrderHeader.Currency);
             }
         }
 
         #endregion
 
-        #region Ñ¡Ôñ×´Ì¬£¨Ö÷±í¹´Ñ¡£©
+        #region å‹¾é€‰çŠ¶æ€ä¸æ‰¹é‡é€‰æ‹©
 
         private bool _isAllChecked;
         public bool IsAllChecked
@@ -262,9 +313,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 if (SetProperty(ref _isAllChecked, value))
                 {
                     foreach (var item in OrderHeaders.Items)
-                    {
                         item.IsChecked = value;
-                    }
                     RefreshSelectionState();
                 }
             }
@@ -284,77 +333,113 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             set => SetProperty(ref _hasSelectedItems, value);
         }
 
-        /// <summary>
-        /// µ±Ç°¹´Ñ¡¶©µ¥¼¯ºÏ¡£
-        /// </summary>
-        public List<SalesOrderHeaderModel> SelectedItems => OrderHeaders.Items.Where(x => x.IsChecked).ToList();
+        /// <summary> å½“å‰å·²å‹¾é€‰çš„è®¢å•å¤´å¿«ç…§åˆ—è¡¨ã€‚</summary>
+        public List<SalesOrderHeaderModel> SelectedItems
+            => OrderHeaders.Items.Where(x => x.IsChecked).ToList();
 
         #endregion
 
-        #region °´Å¥¿ÉÓÃĞÔ
+        #region å‘½ä»¤å¯ç”¨æ¡ä»¶
 
-        /// <summary>
-        /// ÅúÁ¿ÉóÅú¿ÉÓÃÌõ¼ş£ºÓĞÑ¡ÖĞÏî£¬ÇÒËùÓĞÑ¡ÖĞÏîÉóÅú×´Ì¬Ö»ÄÜÊÇ²İ¸å»ò´ıÉóºË¡£
-        /// </summary>
+        /// <summary> æ‰¹é‡å®¡æ‰¹ï¼šå…¨éƒ¨å‹¾é€‰é¡¹å‡ä¸ºè‰ç¨¿æˆ–é©³å›çŠ¶æ€æ‰å¯æ“ä½œã€‚</summary>
         public bool CanBatchApprove
         {
             get
             {
                 var selected = SelectedItems;
                 if (selected.Count == 0) return false;
-                return selected.All(x => x.ApprovalStatus == ApprovalStatusEnum.²İ¸å || x.ApprovalStatus == ApprovalStatusEnum.´ıÉóÅú);
+                return selected.All(x =>
+                    x.ApprovalStatus == ApprovalStatusEnum.è‰ç¨¿ ||
+                    x.ApprovalStatus == ApprovalStatusEnum.å·²é©³å›);
             }
         }
 
-        /// <summary>
-        /// ÅúÁ¿²µ»Ø¿ÉÓÃÌõ¼ş£ºÓĞÑ¡ÖĞÏî£¬ÇÒËùÓĞÑ¡ÖĞÏîÉóÅú×´Ì¬Ö»ÄÜÊÇ²İ¸å»ò´ıÉóºË¡£
-        /// </summary>
+        /// <summary> æ‰¹é‡é©³å›ï¼šå…¨éƒ¨å‹¾é€‰é¡¹å‡ä¸ºè‰ç¨¿æˆ–å¾…å®¡æ‰¹çŠ¶æ€æ‰å¯æ“ä½œã€‚</summary>
         public bool CanBatchReject
         {
             get
             {
                 var selected = SelectedItems;
                 if (selected.Count == 0) return false;
-                return selected.All(x => x.ApprovalStatus == ApprovalStatusEnum.²İ¸å || x.ApprovalStatus == ApprovalStatusEnum.´ıÉóÅú);
+                return selected.All(x =>
+                    x.ApprovalStatus == ApprovalStatusEnum.è‰ç¨¿ ||
+                    x.ApprovalStatus == ApprovalStatusEnum.å¾…å®¡æ‰¹);
             }
         }
 
+        /// <summary> Header å¿«é€Ÿä¿å­˜ï¼šæœ‰é€‰ä¸­è¡Œä¸”å­˜åœ¨è„æ•°æ®ã€‚</summary>
         public bool CanSave =>
             SelectedOrderHeader != null &&
-            SelectedOrderHeader.IsValid &&
-            CurrentOrderLines.IsAllValid &&
-            (SelectedOrderHeader.State != ModelState.Unchanged ||
-             OrderHeaders.IsDirty ||
-             CurrentOrderLines.IsDirty);
+            (SelectedOrderHeader.State != ModelState.Unchanged || OrderHeaders.IsDirty);
 
         #endregion
 
-        #region ÃüÁî
+        #region å‘½ä»¤
 
         public RelayCommand LoadCommand { get; }
-
-        public RelayCommand AddLineCommand { get; }
-        public RelayCommand DeleteLineCommand { get; }
+        public RelayCommand CreateOrderCommand { get; }
+        public RelayCommand EditOrderCommand { get; }
         public RelayCommand SaveCommand { get; }
-
         public RelayCommand BatchApproveCommand { get; }
         public RelayCommand BatchRejectCommand { get; }
-
-        public RelayCommand AddNewRowCommand { get; }
-        public RelayCommand BatchSaveCommand { get; }
         public RelayCommand DeleteCheckedCommand { get; }
         public RelayCommand InvertCheckCommand { get; }
         public RelayCommand ItemCheckedChangedCommand { get; }
 
         #endregion
 
-        #region ¼ÓÔØÓëÖ÷´ÓÁª¶¯
+        #region åŠ è½½æ•°æ®
+        private async Task LoadCustomersAsync()
+        {
+            try
+            {
+                var result = await _customerApi.GetAllAsync();
 
+                if (result?.Success == true && result.Data != null)
+                {
+                    var customers = result.Data;
+                    DispatcherProvider.Invoke(() =>
+                    {
+                        CustomerFilterItems.Clear();
+                        foreach (var customer in customers)
+                        {
+                            CustomerFilterItems.Add(customer);
+                        }
+                    });
+                }
+            }
+            catch
+            {
+            }
+        }
+        private async Task LoadColorsAsync()
+        {
+            try
+            {
+                var result = await _pdColorApi.GetAllAsync();
+
+                if (result?.Success == true && result.Data != null)
+                {
+                    var colors = result.Data;
+                    DispatcherProvider.Invoke(() =>
+                    {
+                        ColorList.Clear();
+                        foreach (var color in colors)
+                        {
+                            ColorList.Add(color);
+                        }
+                    });
+                }
+            }
+            catch
+            {
+            }
+        }
         private async Task LoadAsync()
         {
             if (_salesOrderApi == null)
             {
-                StatusMessage = "SalesOrderApi Î´×¢Èë";
+                StatusMessage = "SalesOrderApi æœªæ³¨å†Œ";
                 return;
             }
 
@@ -367,10 +452,24 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                         CustomerCode = SelectedCustomerFilter,
                         OrderNo = SelectedOrderNoFilter,
                         InvoiceNo = SelectedInvNoFilter,
+                        Keyword = SearchText,
                         OrderDateFrom = OrderDateFrom,
                         OrderDateTo = OrderDateTo,
-                        ApprovalStatuses = new List<string> { SelectedApprovalStatuses },
-                        OrderStatuses = new List<string> { SelectedOrderStatuses },
+                        // ä¸­æ–‡æ³¨é‡Šï¼šå°† CheckableItem ä¸­è¢«å‹¾é€‰çš„æšä¸¾å€¼è½¬æ¢ä¸ºæ•´æ•°åˆ—è¡¨ä¼ ç»™åç«¯ã€‚
+                        ApprovalStatuses = ApprovalStatusOptions
+                            .Where(x => x.IsSelected)
+                            .Select(x => x.Value)
+                            .ToList(),
+                        OrderStatuses = OrderStatusOptions
+                            .Where(x => x.IsSelected)
+                            .Select(x => x.Value)
+                            .ToList(),
+                        
+                        BatchCustomerSkuList = BatchCustomerSkuText?.Split(new[] { '\n', '\r', ',', 'ï¼›', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(x => x.Trim())
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList(),
                         PageIndex = PageIndex,
                         PageSize = PageSize
                     };
@@ -378,137 +477,259 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     var rst = await _salesOrderApi.GetSalesOrderHeaderPagedListAsync(search);
                     if (rst.Success && rst.Data != null)
                     {
-                        OrderHeaders.LoadFromDto(rst.Data.Items);
+                        OrderHeaders.ReLoadRangeFromDtoList(rst.Data.Items);
                         TotalCount = rst.Data.TotalCount;
                         RefreshSelectionState();
-
                         SelectedOrderHeader = OrderHeaders.Items.FirstOrDefault();
-                        StatusMessage = string.Format("¼ÓÔØ³É¹¦£¬¹² {0} Ìõ¡£", TotalCount);
+                        StatusMessage = string.Format("åŠ è½½æˆåŠŸï¼Œå…± {0} æ¡", TotalCount);
                     }
                     else
                     {
-                        OrderHeaders.LoadFromDto(null);
-                        CurrentOrderLines.LoadFromDto(null);
+                        OrderHeaders.Clear();
                         TotalCount = 0;
                         RefreshSelectionState();
-                        StatusMessage = "¼ÓÔØÊ§°Ü£º" + rst.Message;
+                        StatusMessage = "åŠ è½½å¤±è´¥ï¼š" + rst.Message;
                     }
                 }
                 catch (Exception ex)
                 {
-                    StatusMessage = "¼ÓÔØÒì³££º" + ex.Message;
+                    StatusMessage = "åŠ è½½å¼‚å¸¸ï¼š" + ex.Message;
                 }
             }
         }
 
-        private void LoadOrderLinesForSelectedHeader()
+        /// <summary>
+        /// ä¸­æ–‡æ³¨é‡Šï¼šå¼¹çª—å…³é—­åä»…åˆ·æ–°å½“å‰é€‰ä¸­è¡Œï¼Œé¿å…é‡è½½å…¨è¡¨ã€‚
+        /// è‹¥è®¢å• ID èƒ½åœ¨ç°æœ‰åˆ—è¡¨ä¸­æ‰¾åˆ°åˆ™å±€éƒ¨æ›´æ–°ï¼›å¦åˆ™åˆ·æ–°å…¨è¡¨ã€‚
+        /// </summary>
+        private async Task RefreshSingleOrderAsync(int orderId)
         {
-            if (_selectedOrderHeader == null)
+            if (orderId <= 0)
             {
-                CurrentOrderLines.BindHeader(null);
-                CurrentOrderLines.LoadFromDto(null);
-                SelectedOrderHeaderChanged?.Invoke();
-                SyncEmbeddedDetailViewModel();
-                return;
-            }
-
-            CurrentOrderLines.BindHeader(_selectedOrderHeader);
-
-            // ÖĞÎÄ×¢ÊÍ£º¹ÜÀíÒ³ÏêÇé¼ÓÔØÎªÒì²½£¬²»×èÈûÑ¡ÖĞÇĞ»»½»»¥¡£
-            _ = LoadLinesAsync(_selectedOrderHeader.Id);
-        }
-
-        private async Task LoadLinesAsync(int orderId)
-        {
-            if (_salesOrderApi == null || orderId <= 0)
-            {
-                CurrentOrderLines.LoadFromDto(null);
-                RaisePropertyChanged(nameof(StatusSummaryText));
-                SelectedOrderHeaderChanged?.Invoke();
-                SyncEmbeddedDetailViewModel();
+                await LoadAsync();
                 return;
             }
 
             try
             {
-                var rst = await _salesOrderApi.GetSalesOrderLinesAsync(orderId);
-                if (rst.Success)
+                var rst = await _salesOrderApi.GetSalesOrderHeaderPagedListAsync(new SalesOrderManagerSearchDto
                 {
-                    CurrentOrderLines.LoadFromDto(rst.Data);
-                }
-                else
+                    OrderId = orderId,
+                    PageIndex = 1,
+                    PageSize = 1
+                });
+
+                if (rst?.Success == true && rst.Data?.Items?.Count > 0)
                 {
-                    CurrentOrderLines.LoadFromDto(null);
-                    StatusMessage = "¼ÓÔØ¶©µ¥ĞĞÊ§°Ü£º" + rst.Message;
+                    var updated = rst.Data.Items[0];
+                    var existing = OrderHeaders.Items.FirstOrDefault(x => x.Id == orderId);
+                    if (existing != null)
+                    {
+                        existing.LoadFromDto(updated, false);
+                        SelectedOrderHeader = existing;
+                        RaisePropertyChanged(nameof(StatusSummaryText));
+                    }
+                    else
+                    {
+                        await LoadAsync();
+                    }
                 }
+            }
+            catch
+            {
+                await LoadAsync();
+            }
+        }
+
+        private async Task LoadLinesByHeadIdAsync(int orderId)
+        {
+
+            using (BusyScope())
+            {
+                try
+                {
+                    if (orderId <= 0)
+                    {
+                        CurrentOrderLines.Clear();
+                        return;
+                    }
+
+                    var rst = await _salesOrderApi.GetSalesOrderLinesAsync(orderId);
+                    if (rst?.Success == true && rst.Data != null)
+                    {
+                        CurrentOrderLines = new SalesOrderLineList();
+                        CurrentOrderLines.ReLoadRangeFromDtoList(rst.Data);
+                    }
+                    else
+                    {
+                        CurrentOrderLines = new SalesOrderLineList();
+                        StatusMessage = "åŠ è½½è®¢å•è¡Œå¤±è´¥ï¼š" + rst?.Message;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    CurrentOrderLines = new SalesOrderLineList();
+                    StatusMessage = "åŠ è½½è®¢å•è¡Œå¼‚å¸¸ï¼š" + ex.Message;
+                }
+            }
+        }
+        #endregion
+
+        #region æ–°å»º / ç¼–è¾‘å¼¹çª—
+
+        /// <summary>
+        /// ä¸­æ–‡æ³¨é‡Šï¼šæ‰“å¼€æ–°å»ºè®¢å•å¼¹çª—ï¼ŒDetail VM æ„é€ ä¸ºç©ºç™½çŠ¶æ€ã€‚
+        /// ç¡®è®¤ä¿å­˜åå±€éƒ¨åˆ·æ–°åˆ—è¡¨ã€‚
+        /// </summary>
+        private async void OpenCreateOrderWindow()
+        {
+
+            try
+            {
+                var vm=IocProvider.GetService<SalesOrderDetailViewModel>();
+                vm.InitForCreate();
+                var win = new SalesOrderDetailWindow(vm);
+                var result = win.ShowDialog();
+                if (result == true && vm.ResultData > 0)
+                {
+                    var rst= await _salesOrderApi.GetSalesOrderDetailAsync(vm.ResultData);
+                    if(rst?.Success == true && rst.Data != null)
+                    {
+                        SelectedOrderHeader.LoadFromDto(rst.Data.Header, false);
+                        CurrentOrderLines.ReLoadRangeFromDtoList(rst.Data.Lines);
+                    }
+                    else
+                    {
+                        await LoadAsync();
+                    }
+                }
+
             }
             catch (Exception ex)
             {
-                CurrentOrderLines.LoadFromDto(null);
-                StatusMessage = "¼ÓÔØ¶©µ¥ĞĞÒì³££º" + ex.Message;
-            }
-            finally
-            {
-                RaisePropertyChanged(nameof(StatusSummaryText));
-                SelectedOrderHeaderChanged?.Invoke();
-                SyncEmbeddedDetailViewModel();
+                _msg.ShowCardAsync("æ‰“å¼€æ–°å»ºçª—å£å¤±è´¥ï¼š" + ex.Message);
             }
         }
 
         /// <summary>
-        /// Í¬²½Ö÷´Ó¹ÜÀíÒ³µ±Ç°Êı¾İµ½ÄÚÇ¶ÏêÇéÒ³ VM¡£
+        /// ä¸­æ–‡æ³¨é‡Šï¼šæŒ‰å½“å‰é€‰ä¸­è®¢å• ID åŠ è½½è¯¦æƒ…ï¼Œå¼¹å‡ºç¼–è¾‘çª—å£ã€‚
+        /// ä¿å­˜åå±€éƒ¨åˆ·æ–°è¯¥è¡Œï¼›å–æ¶ˆåˆ™ä¸åˆ·æ–°ã€‚
         /// </summary>
-        private void SyncEmbeddedDetailViewModel()
+        private async Task OpenEditOrderWindowAsync()
         {
-            if (EmbeddedDetailViewModel == null)
-                return;
+            if (SelectedOrderHeader == null) return;
 
-            if (SelectedOrderHeader == null)
+            var orderId = SelectedOrderHeader.Id;
+            if (orderId <= 0) return;
+            try
             {
-                EmbeddedDetailViewModel.LoadFromDto(new SalesOrderDetailDto
+                var vm = IocProvider.GetService<SalesOrderDetailViewModel>();
+                await vm.InitForEditAsync(SelectedOrderHeader);
+                var win = new SalesOrderDetailWindow(vm);
+                var result = win.ShowDialog();
+                if (result == true && vm.OrderHeader != null)
                 {
-                    Header = new SalesOrderHeaderDto(),
-                    Lines = new List<SalesOrderLineDto>()
-                });
-                return;
-            }
+                    _ = RefreshSingleOrderAsync(vm.OrderHeader.Id);
+                }
 
-            var dto = new SalesOrderDetailDto
+            }
+            catch (Exception ex)
             {
-                Header = SelectedOrderHeader.Adapt<SalesOrderHeaderDto>(),
-                Lines = CurrentOrderLines.Items.Select(x => x.Adapt<SalesOrderLineDto>()).ToList()
-            };
-            EmbeddedDetailViewModel.LoadFromDto(dto);
+                _msg.ShowCardAsync("æ‰“å¼€æ–°å»ºçª—å£å¤±è´¥ï¼š" + ex.Message);
+            }
         }
 
         #endregion
 
-        #region ÅúÁ¿ÉóÅúÁ÷
+        #region Header å¿«é€Ÿä¿å­˜
+
+        /// <summary>
+        /// ä¸­æ–‡æ³¨é‡Šï¼šä»…æäº¤ Header å­—æ®µå˜æ›´ï¼ˆä¸æ¶‰åŠè¡Œï¼‰ï¼Œç”¨äºåœ¨ Manager åˆ—è¡¨å†…å¿«é€Ÿä¿®æ”¹çŠ¶æ€ã€å¤‡æ³¨ç­‰ã€‚
+        /// </summary>
+        private async Task SaveHeaderAsync()
+        {
+            if (SelectedOrderHeader == null) return;
+            if (_salesOrderApi == null)
+            {
+                StatusMessage = "SalesOrderApi æœªæ³¨å†Œ";
+                return;
+            }
+
+            using (BusyScope())
+            {
+                try
+                {
+                    var changeSet = OrderHeaders.GetChangeSet();
+                    if (!changeSet.HasChanges)
+                    {
+                        StatusMessage = "æ²¡æœ‰å˜æ›´ï¼Œæ— éœ€ä¿å­˜";
+                        return;
+                    }
+
+                    // ä¸­æ–‡æ³¨é‡Šï¼šå°† Model åˆ—è¡¨æ˜ å°„ä¸º DTO åˆ—è¡¨åæ„å»ºä¿å­˜è¯·æ±‚ã€‚
+                    var saveDto = new SalesOrderManagerSaveDto
+                    {
+                        CurrentOrderId = SelectedOrderHeader.Id,
+                        HeaderChanges = new BatchRequestGeneric<SalesOrderHeaderDto>
+                        {
+                            AddList = changeSet.AddList.Select(m => m.Adapt<SalesOrderHeaderDto>()).ToList(),
+                            UpdateList = changeSet.UpdateList.Select(m => m.Adapt<SalesOrderHeaderDto>()).ToList(),
+                            DeleteIdList = changeSet.DeleteIdList
+                        },
+                        LineChanges = new BatchRequestGeneric<SalesOrderLineDto>()
+                    };
+
+                    var rst = await _salesOrderApi.SaveSalesOrderManagerAsync(saveDto);
+                    if (rst.Success)
+                    {
+                        StatusMessage = "ä¿å­˜æˆåŠŸ";
+                        _msg?.ShowCardAsync(StatusMessage, 2500);
+                        SelectedOrderHeader.CommitChanges();
+                        RaisePropertyChanged(nameof(CanSave));
+                        SaveCommand?.RaiseCanExecuteChanged();
+                    }
+                    else
+                    {
+                        StatusMessage = "ä¿å­˜å¤±è´¥ï¼š" + rst.Message;
+                        await _msg?.ShowWarningAsync(StatusMessage);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = "ä¿å­˜å¼‚å¸¸ï¼š" + ex.Message;
+                    await _msg?.ShowErrorAsync(StatusMessage);
+                }
+            }
+        }
+
+        #endregion
+
+        #region æ‰¹é‡å®¡æ‰¹ / é©³å›
 
         private async Task BatchApproveAsync()
         {
             var selected = SelectedItems;
             if (selected.Count == 0)
             {
-                await _msg.ShowWarningAsync("ÇëÏÈ¹´Ñ¡ÒªÉóÅúµÄ¶©µ¥¡£", "ÅúÁ¿ÉóÅú");
+                await _msg.ShowWarningAsync("è¯·å…ˆå‹¾é€‰è¦å®¡æ‰¹çš„è®¢å•ã€‚", "æ“ä½œæç¤º");
                 return;
             }
 
-            // ÖĞÎÄ×¢ÊÍ£ºÀ¹½ØÒÑÉóºË¶©µ¥£¬½ûÖ¹ÖØ¸´ÉóÅú¡£
-            var invalid = selected.Where(x => x.ApprovalStatus == ApprovalStatusEnum.ÒÑÅú×¼).ToList();
+            var invalid = selected.Where(x => x.ApprovalStatus == ApprovalStatusEnum.å·²æ‰¹å‡†).ToList();
             if (invalid.Count > 0)
             {
-                await _msg.ShowWarningAsync("Ñ¡ÖĞ¶©µ¥ÖĞ°üº¬¡°ÒÑÉóºË¡±µ¥¾İ£¬½ûÖ¹ÖØ¸´ÉóÅú¡£", "ÅúÁ¿ÉóÅú");
+                await _msg.ShowWarningAsync("é€‰ä¸­è®¢å•ä¸­åŒ…å«å·²å®¡æ‰¹è®¢å•ï¼Œç¦æ­¢é‡å¤å®¡æ‰¹ã€‚", "æ“ä½œæç¤º");
                 return;
             }
 
             if (!CanBatchApprove)
             {
-                await _msg.ShowWarningAsync("½öÔÊĞíÉóÅú²İ¸å/´ıÉóºË×´Ì¬¶©µ¥¡£", "ÅúÁ¿ÉóÅú");
+                await _msg.ShowWarningAsync("åªæœ‰è‰ç¨¿/é©³å›çŠ¶æ€çš„è®¢å•æ‰å¯å®¡æ‰¹ã€‚", "æ“ä½œæç¤º");
                 return;
             }
 
-            var confirm = await _msg.ShowConfirmAsync(string.Format("È·ÈÏÅúÁ¿ÉóÅú {0} ÕÅ¶©µ¥£¿", selected.Count), "ÅúÁ¿ÉóÅúÈ·ÈÏ");
+            var confirm = await _msg.ShowConfirmAsync(
+                string.Format("ç¡®è®¤å®¡æ‰¹é€‰ä¸­çš„ {0} æ¡è®¢å•ï¼Ÿ", selected.Count), "æ‰¹é‡å®¡æ‰¹ç¡®è®¤");
             if (!confirm) return;
 
             using (BusyScope())
@@ -517,22 +738,29 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 {
                     var ids = selected.Select(x => x.Id).Distinct().ToList();
                     var rst = await _salesOrderApi.BatchApproveSalesOrdersAsync(ids);
-                    if (rst.Success)
+                    if (rst.Success && (rst.Data == null || rst.Data.Count == 0))
                     {
-                        StatusMessage = "ÅúÁ¿ÉóÅú³É¹¦£¬ÒÑ´¥·¢ĞèÇó³Ø²ğ½â¡£";
+                        StatusMessage = "æ‰¹é‡å®¡æ‰¹æˆåŠŸã€‚";
                         _msg.ShowCardAsync(StatusMessage, 3500);
+                        await LoadAsync();
+                    }
+                    else if (rst.Data != null && rst.Data.Count > 0)
+                    {
+                        // ä¸­æ–‡æ³¨é‡Šï¼šData ä¸­å­˜æ”¾çš„æ˜¯é€æ¡å¤±è´¥åŸå› ï¼Œå±•ç¤ºç¬¬ä¸€æ¡å³å¯
+                        StatusMessage = "æ‰¹é‡å®¡æ‰¹éƒ¨åˆ†å¤±è´¥ï¼š" + rst.Data[0];
+                        await _msg.ShowWarningAsync(StatusMessage, "æ“ä½œå¤±è´¥");
                         await LoadAsync();
                     }
                     else
                     {
-                        StatusMessage = "ÅúÁ¿ÉóÅúÊ§°Ü£º" + rst.Message;
-                        await _msg.ShowWarningAsync(StatusMessage, "ÅúÁ¿ÉóÅú");
+                        StatusMessage = "æ‰¹é‡å®¡æ‰¹å¤±è´¥ï¼š" + rst.Message;
+                        await _msg.ShowWarningAsync(StatusMessage, "æ“ä½œå¤±è´¥");
                     }
                 }
                 catch (Exception ex)
                 {
-                    StatusMessage = "ÅúÁ¿ÉóÅúÒì³££º" + ex.Message;
-                    await _msg.ShowErrorAsync(StatusMessage, "ÅúÁ¿ÉóÅú");
+                    StatusMessage = "æ‰¹é‡å®¡æ‰¹å¼‚å¸¸ï¼š" + ex.Message;
+                    await _msg.ShowErrorAsync(StatusMessage, "æ“ä½œå¼‚å¸¸");
                 }
             }
         }
@@ -542,17 +770,18 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             var selected = SelectedItems;
             if (selected.Count == 0)
             {
-                await _msg.ShowWarningAsync("ÇëÏÈ¹´Ñ¡Òª²µ»ØµÄ¶©µ¥¡£", "ÅúÁ¿²µ»Ø");
+                await _msg.ShowWarningAsync("è¯·å…ˆå‹¾é€‰è¦é©³å›çš„è®¢å•ã€‚", "æ“ä½œæç¤º");
                 return;
             }
 
             if (!CanBatchReject)
             {
-                await _msg.ShowWarningAsync("½öÔÊĞí²µ»Ø²İ¸å/´ıÉóºË×´Ì¬¶©µ¥¡£", "ÅúÁ¿²µ»Ø");
+                await _msg.ShowWarningAsync("åªæœ‰è‰ç¨¿/å¾…å®¡æ‰¹çŠ¶æ€çš„è®¢å•æ‰å¯é©³å›ã€‚", "æ“ä½œæç¤º");
                 return;
             }
 
-            var confirm = await _msg.ShowConfirmAsync(string.Format("È·ÈÏÅúÁ¿²µ»Ø {0} ÕÅ¶©µ¥£¿", selected.Count), "ÅúÁ¿²µ»ØÈ·ÈÏ");
+            var confirm = await _msg.ShowConfirmAsync(
+                string.Format("ç¡®è®¤é©³å›é€‰ä¸­çš„ {0} æ¡è®¢å•ï¼Ÿ", selected.Count), "æ‰¹é‡é©³å›ç¡®è®¤");
             if (!confirm) return;
 
             using (BusyScope())
@@ -561,151 +790,84 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 {
                     var ids = selected.Select(x => x.Id).Distinct().ToList();
                     var rst = await _salesOrderApi.BatchRejectSalesOrdersAsync(ids);
-                    if (rst.Success)
+                    if (rst.Success && (rst.Data == null || rst.Data.Count == 0))
                     {
-                        StatusMessage = "ÅúÁ¿²µ»Ø³É¹¦¡£";
+                        StatusMessage = "æ‰¹é‡é©³å›æˆåŠŸã€‚";
                         _msg.ShowCardAsync(StatusMessage, 3000);
+                        await LoadAsync();
+                    }
+                    else if (rst.Data != null && rst.Data.Count > 0)
+                    {
+                        StatusMessage = "æ‰¹é‡é©³å›éƒ¨åˆ†å¤±è´¥ï¼š" + rst.Data[0];
+                        await _msg.ShowWarningAsync(StatusMessage, "æ“ä½œå¤±è´¥");
                         await LoadAsync();
                     }
                     else
                     {
-                        StatusMessage = "ÅúÁ¿²µ»ØÊ§°Ü£º" + rst.Message;
-                        await _msg.ShowWarningAsync(StatusMessage, "ÅúÁ¿²µ»Ø");
+                        StatusMessage = "æ‰¹é‡é©³å›å¤±è´¥ï¼š" + rst.Message;
+                        await _msg.ShowWarningAsync(StatusMessage, "æ“ä½œå¤±è´¥");
                     }
                 }
                 catch (Exception ex)
                 {
-                    StatusMessage = "ÅúÁ¿²µ»ØÒì³££º" + ex.Message;
-                    await _msg.ShowErrorAsync(StatusMessage, "ÅúÁ¿²µ»Ø");
+                    StatusMessage = "æ‰¹é‡é©³å›å¼‚å¸¸ï¼š" + ex.Message;
+                    await _msg.ShowErrorAsync(StatusMessage, "æ“ä½œå¼‚å¸¸");
                 }
             }
         }
 
         #endregion
 
-        #region Ã÷Ï¸±à¼­
+        #region åˆ é™¤å‹¾é€‰
 
-        private void AddLine()
+        private async Task DeleteCheckedAsync()
         {
-            if (SelectedOrderHeader == null)
-            {
-                _msg?.ShowWarningAsync("ÇëÏÈÑ¡ÔñÒ»¸ö¶©µ¥");
-                return;
-            }
+            var selected = SelectedItems;
+            if (selected.Count == 0) return;
 
-            var line = new SalesOrderLineModel();
-            line.MarkAsAdded();
-
-            CurrentOrderLines.Items.Add(line);
-            SelectedLine = line;
-        }
-
-        private void DeleteLine()
-        {
-            if (SelectedLine == null)
-                return;
-
-            CurrentOrderLines.Remove(SelectedLine);
-            SelectedLine = null;
-        }
-
-        private async Task SaveAsync()
-        {
-            if (SelectedOrderHeader == null)
-            {
-                if (_msg != null)
-                    await _msg.ShowWarningAsync("ÇëÏÈÑ¡ÔñÒ»¸ö¶©µ¥");
-                return;
-            }
-
-            var asyncError = await CurrentOrderLines.ValidateAllAsync();
-            if (!string.IsNullOrEmpty(asyncError))
-            {
-                if (_msg != null)
-                    await _msg.ShowWarningAsync(asyncError);
-                return;
-            }
-
-            if (_salesOrderApi == null)
-            {
-                StatusMessage = "SalesOrderApi Î´×¢Èë";
-                return;
-            }
+            var confirm = await _msg.ShowConfirmAsync(
+                string.Format("ç¡®è®¤åˆ é™¤é€‰ä¸­çš„ {0} æ¡è®¢å•ï¼Ÿæ­¤æ“ä½œä¸å¯æ¢å¤ã€‚", selected.Count), "åˆ é™¤ç¡®è®¤");
+            if (!confirm) return;
 
             using (BusyScope())
             {
                 try
                 {
-                    var saveDto = new SalesOrderManagerSaveDto
+                    var ids = selected.Select(x => x.Id).Where(id => id > 0).Distinct().ToList();
+                    if (ids.Count > 0)
                     {
-                        CurrentOrderId = SelectedOrderHeader.Id,
-                        HeaderChanges = OrderHeaders.GetChangeSet().Adapt<BatchRequestGeneric<SalesOrderHeaderDto>>(),
-                        LineChanges = CurrentOrderLines.GetChangeSet().Adapt<BatchRequestGeneric<SalesOrderLineDto>>()
-                    };
-
-                    var rst = await _salesOrderApi.SaveSalesOrderManagerAsync(saveDto);
-                    if (rst.Success)
-                    {
-                        StatusMessage = "±£´æ³É¹¦";
-                        _msg.ShowCardAsync(StatusMessage, 2500);
-
-                        SelectedOrderHeader.CommitChanges();
-                        foreach (var line in CurrentOrderLines.Items)
+                        var rst = await _salesOrderApi.BatchDeleteSalesOrderAsync(ids);
+                        if (!rst.Success)
                         {
-                            line.CommitChanges();
+                            StatusMessage = "åˆ é™¤å¤±è´¥ï¼š" + rst.Message;
+                            await _msg.ShowWarningAsync(StatusMessage, "æ“ä½œå¤±è´¥");
+                            return;
                         }
+                    }
 
-                        await LoadAsync();
-                    }
-                    else
-                    {
-                        StatusMessage = "±£´æÊ§°Ü£º" + rst.Message;
-                        await _msg.ShowWarningAsync(StatusMessage);
-                    }
+                    foreach (var item in selected.Where(x => x.Id <= 0))
+                        OrderHeaders.Delete(item);
+
+                    StatusMessage = "åˆ é™¤æˆåŠŸ";
+                    _msg.ShowCardAsync(StatusMessage, 2500);
+                    await LoadAsync();
                 }
                 catch (Exception ex)
                 {
-                    StatusMessage = "±£´æÒì³££º" + ex.Message;
-                    await _msg.ShowErrorAsync(StatusMessage);
+                    StatusMessage = "åˆ é™¤å¼‚å¸¸ï¼š" + ex.Message;
+                    await _msg.ShowErrorAsync(StatusMessage, "æ“ä½œå¼‚å¸¸");
                 }
             }
         }
 
         #endregion
 
-        #region Ö÷±í¹´Ñ¡²Ù×÷
-
-        private void AddNewRow()
-        {
-            var newHeader = new SalesOrderHeaderModel();
-            newHeader.MarkAsAdded();
-            OrderHeaders.Items.Insert(0, newHeader);
-            SelectedOrderHeader = newHeader;
-            RefreshSelectionState();
-        }
-
-        private void DeleteChecked()
-        {
-            var selected = SelectedItems;
-            if (selected.Count == 0) return;
-
-            foreach (var item in selected)
-            {
-                OrderHeaders.Delete(item);
-            }
-
-            RefreshSelectionState();
-            RaisePropertyChanged(nameof(CanSave));
-            SaveCommand?.RaiseCanExecuteChanged();
-        }
+        #region å‹¾é€‰è¾…åŠ©
 
         private void InvertCheck()
         {
             foreach (var item in OrderHeaders.Items)
-            {
                 item.IsChecked = !item.IsChecked;
-            }
-
             RefreshSelectionState();
         }
 
@@ -722,9 +884,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
             _isAllChecked = OrderHeaders.Items.Count > 0 && count == OrderHeaders.Items.Count;
             RaisePropertyChanged(nameof(IsAllChecked));
-
             RaisePropertyChanged(nameof(CanBatchApprove));
             RaisePropertyChanged(nameof(CanBatchReject));
+
             BatchApproveCommand?.RaiseCanExecuteChanged();
             BatchRejectCommand?.RaiseCanExecuteChanged();
             DeleteCheckedCommand?.RaiseCanExecuteChanged();
@@ -732,22 +894,12 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         #endregion
 
-        #region ÊÂ¼ş»Øµ÷
+        #region äº‹ä»¶å›è°ƒ
 
         private void OrderHeaders_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(OrderHeaders.IsDirty) ||
                 e.PropertyName == nameof(OrderHeaders.IsAllValid))
-            {
-                RaisePropertyChanged(nameof(CanSave));
-                SaveCommand?.RaiseCanExecuteChanged();
-            }
-        }
-
-        private void CurrentOrderLines_PropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == nameof(CurrentOrderLines.IsDirty) ||
-                e.PropertyName == nameof(CurrentOrderLines.IsAllValid))
             {
                 RaisePropertyChanged(nameof(CanSave));
                 SaveCommand?.RaiseCanExecuteChanged();

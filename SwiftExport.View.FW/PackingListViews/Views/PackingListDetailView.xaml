@@ -285,9 +285,7 @@
 
                 <DataGrid x:Name="SummaryGrid" 
                          Style="{StaticResource SummaryDataGrid}"
-                         Grid.Row="4"
-                         RowHeight="35"
-                         Height="35">
+                         Grid.Row="4" RowHeight="35" Height="35">
                     <DataGrid.Columns>
                         <!--checkbox-->
                         <DataGridTextColumn/>

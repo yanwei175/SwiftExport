@@ -81,11 +81,11 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             set => SetProperty(ref _sku, value);
         }
 
-        private string _customerCode;
-        public string CustomerSKU
+        private string _customerSku;
+        public string CustomerSku
         {
-            get => _customerCode;
-            set => SetProperty(ref _customerCode, value);
+            get => _customerSku;
+            set => SetProperty(ref _customerSku, value);
         }
 
         private string _descriptionEn = string.Empty;
@@ -129,7 +129,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         #region 数量 / 单价 / 金额（保留原样）
 
         private decimal _qty = 0;
-        public decimal QTY
+        public decimal Qty
         {
             get => _qty;
             set
@@ -140,7 +140,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         }
 
         private decimal _usdPrice;
-        public decimal USDPrice
+        public decimal UsdPrice
         {
             get => _usdPrice;
             set
@@ -151,7 +151,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         }
 
         private decimal _cnyPrice;
-        public decimal CNYPrice
+        public decimal CnyPrice
         {
             get => _cnyPrice;
             set
@@ -162,7 +162,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         }
 
         private decimal _usdAmount;
-        public decimal USDAmount
+        public decimal UsdAmount
         {
             get => _usdAmount;
             set
@@ -173,7 +173,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         }
 
         private decimal _cnyAmount;
-        public decimal CNYAmount
+        public decimal CnyAmount
         {
             get => _cnyAmount;
             set
@@ -186,22 +186,22 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         #endregion
 
         #region 发货状态（新加字段，用于界面显示和逻辑判断）
-        private decimal _shippedQTY;
-        public decimal ShippedQTY
+        private decimal _shippedQty;
+        public decimal ShippedQty
         {
-            get => _shippedQTY;
+            get => _shippedQty;
             set
             {
-                if (SetProperty(ref _shippedQTY, value))
+                if (SetProperty(ref _shippedQty, value))
                     RecalculateAll();
             }
         }
 
-        private decimal _unShippedQTY;
+        private decimal _unShippedQty;
         public decimal UnshippedQty
         {
-            get => _unShippedQTY;
-            set => SetProperty(ref _unShippedQTY, value);
+            get => _unShippedQty;
+            set => SetProperty(ref _unShippedQty, value);
         }
 
         private bool _isPartiallyShipped;
@@ -347,9 +347,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         {
             if (!_启动已发货数量计算)
             {
-                UnshippedQty = QTY - ShippedQTY;
-                IsFullyShipped = ShippedQTY >= QTY;
-                IsPartiallyShipped = ShippedQTY > 0 && ShippedQTY < QTY;
+                UnshippedQty = Qty - ShippedQty;
+                IsFullyShipped = ShippedQty >= Qty;
+                IsPartiallyShipped = ShippedQty > 0 && ShippedQty < Qty;
             }
         }
 
@@ -363,7 +363,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
                 return;
             }
 
-            Ctns = Math.Ceiling(QTY / PcsOfCarton);
+            Ctns = Math.Ceiling(Qty / PcsOfCarton);
         }
 
         // 计算净重小计 = Ctns（Ctns） * NwOfCarton（NwOfCarton），保留两位小数，四舍五入
@@ -391,14 +391,14 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         private void CalculateUsdAmount()
         {
             if (!_启动美金小计计算)
-                USDAmount = Math.Round(QTY * USDPrice, 2, MidpointRounding.AwayFromZero);
+                UsdAmount = Math.Round(Qty * UsdPrice, 2, MidpointRounding.AwayFromZero);
         }
 
         // 计算人民币总金额 = 订单数量（QTY） * 单位价格（CNYPrice），保留两位小数，四舍五入
         private void CalculateRmbAmount()
         {
             if (!_启动人民币小计计算)
-                CNYAmount = Math.Round(QTY * CNYPrice, 2, MidpointRounding.AwayFromZero);
+                CnyAmount = Math.Round(Qty * CnyPrice, 2, MidpointRounding.AwayFromZero);
         }
         #endregion
 
@@ -417,13 +417,13 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         {
             get
             {
-                if (columnName == nameof(CustomerSKU) && string.IsNullOrWhiteSpace(CustomerSKU))
+                if (columnName == nameof(CustomerSku) && string.IsNullOrWhiteSpace(CustomerSku))
                     return "客户产品编号不能为空";
 
-                if (columnName == nameof(QTY) && QTY <= 0)
+                if (columnName == nameof(Qty) && Qty <= 0)
                     return "订单数量必须大于 0";
 
-                if (columnName == nameof(USDPrice) && USDPrice <= 0)
+                if (columnName == nameof(UsdPrice) && UsdPrice <= 0)
                     return "单位价格必须大于 0";
 
                 return null;

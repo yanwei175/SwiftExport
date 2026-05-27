@@ -17,6 +17,12 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public string BatchKeywords { get; set; }
 
         /// <summary>
+        /// 客户SKU精确匹配（支持换行或逗号分隔）。
+        /// 用于“客户型号精确匹配”场景，和 Keyword 的模糊检索互补。
+        /// </summary>
+        public string ExactCustomerSkuBatch { get; set; }
+
+        /// <summary>
         /// 客户 Id（必填）。
         /// </summary>
         public int CustomerId { get; set; }

@@ -18,31 +18,29 @@ namespace SwiftExport.Application.Services.Orders
         /// <summary>
         /// 分页查询订单行候选数据。
         /// </summary>
-        public async Task<ServiceResult<PagedResultDto<SalesOrderLineDto>>> GetPagedSalesOrderLineSourceDtoAsync(SalesOrderLineSourceSearchDto search)
-        {
-            search ??= new SalesOrderLineSourceSearchDto();
+        //public async Task<ServiceResult<PagedResultDto<SalesOrderLineDto>>> GetPagedSalesOrderLineSourceDtoAsync(SalesOrderLineSourceSearchDto search)
+        //{
+        //    search ??= new SalesOrderLineSourceSearchDto();
 
-            // 中文注释：CustomerId 是联查的核心过滤条件，避免跨客户串数据。
-            if (search.CustomerId <= 0)
-            {
-                return ServiceResult<PagedResultDto<SalesOrderLineDto>>.Fail("CustomerId 必须大于 0");
-            }
+        //    // 中文注释：业务调整后 CustomerId 允许为空（<=0）。
+        //    // - CustomerId > 0：走客户产品维度（CustomerProduct + Product）。
+        //    // - CustomerId <= 0：走产品主数据维度（以 Product 为主）。
 
-            var criteria = BuildCriteria(search);
+        //    var criteria = BuildCriteria(search);
 
-            int pageIndex = search.PageIndex > 0 ? search.PageIndex : 1;
-            int pageSize = search.PageSize > 0 ? search.PageSize : 20;
+        //    int pageIndex = search.PageIndex > 0 ? search.PageIndex : 1;
+        //    int pageSize = search.PageSize > 0 ? search.PageSize : 20;
 
-            var paged = await _repository.GetPagedSalesOrderLineSourceDtoAsync(criteria, pageIndex, pageSize, "cp.Id DESC");
+        //    var paged = await _repository.GetPagedSalesOrderLineSourceDtoAsync(criteria, pageIndex, pageSize, "cp.Id DESC");
 
-            return ServiceResult<PagedResultDto<SalesOrderLineDto>>.Ok(new PagedResultDto<SalesOrderLineDto>
-            {
-                Items = [.. paged.Items],
-                TotalCount = paged.TotalCount,
-                PageIndex = paged.PageIndex,
-                PageSize = paged.PageSize
-            });
-        }
+        //    return ServiceResult<PagedResultDto<SalesOrderLineDto>>.Ok(new PagedResultDto<SalesOrderLineDto>
+        //    {
+        //        Items = [.. paged.Items],
+        //        TotalCount = paged.TotalCount,
+        //        PageIndex = paged.PageIndex,
+        //        PageSize = paged.PageSize
+        //    });
+        //}
 
         /// <summary>
         /// 构建查询条件。
@@ -50,9 +48,12 @@ namespace SwiftExport.Application.Services.Orders
         private static QueryCriteria BuildCriteria(SalesOrderLineSourceSearchDto search)
         {
             var criteria = new QueryCriteria();
+            if (search.CustomerId > 0)
+            {
+                // 必选客户过滤
+                criteria.Add("CustomerId", 查询操作符.等于, search.CustomerId);
 
-            // 必选客户过滤
-            criteria.Add("CustomerId", 查询操作符.等于, search.CustomerId);
+            }
 
             // 可选客户编码过滤（用于双保险）
             if (!string.IsNullOrWhiteSpace(search.CustomerCode))
@@ -67,7 +68,7 @@ namespace SwiftExport.Application.Services.Orders
                     .Split(['\r', '\n', ','], StringSplitOptions.RemoveEmptyEntries)
                     .Select(k => k.Trim())
                     .Where(k => !string.IsNullOrWhiteSpace(k))
-                    .Distinct()
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
                 if (batchList.Count > 0)
@@ -75,6 +76,22 @@ namespace SwiftExport.Application.Services.Orders
                     criteria.AddOrGroup(
                         ("Sku", 查询操作符.包含某值, batchList),
                         ("CustomerSku", 查询操作符.包含某值, batchList));
+                }
+            }
+
+            // 客户SKU精确匹配：换行/逗号分割后按精确值过滤 CustomerSku
+            if (!string.IsNullOrWhiteSpace(search.ExactCustomerSkuBatch))
+            {
+                var exactCustomerSkuList = search.ExactCustomerSkuBatch
+                    .Split(['\r', '\n', ','], StringSplitOptions.RemoveEmptyEntries)
+                    .Select(k => k.Trim())
+                    .Where(k => !string.IsNullOrWhiteSpace(k))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (exactCustomerSkuList.Count > 0)
+                {
+                    criteria.Add("CustomerSku", 查询操作符.包含某值, exactCustomerSkuList);
                 }
             }
 
@@ -94,6 +111,53 @@ namespace SwiftExport.Application.Services.Orders
             }
 
             return criteria;
+        }
+        public async Task<ServiceResult<PagedResultDto<SalesProductDto>>> GetSalesProductPagedListAsync(SalesProductSearchDto request)
+        {
+            try
+            {
+                request ??= new SalesProductSearchDto();
+
+                // 中文注释：服务层仅做请求参数标准化，具体 SQL 条件由仓储层直解析 SalesProductSearchDto。
+                request.CustomerCode = string.IsNullOrWhiteSpace(request.CustomerCode)
+                    ? null
+                    : request.CustomerCode.Trim();
+
+                if (request.BatchCustomerSkuList != null)
+                {
+                    request.BatchCustomerSkuList = request.BatchCustomerSkuList
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(x => x.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
+
+                if (request.BatchKeywords != null)
+                {
+                    request.BatchKeywords = request.BatchKeywords
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(x => x.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
+
+                request.PageIndex = request.PageIndex > 0 ? request.PageIndex : 1;
+                request.PageSize = request.PageSize > 0 ? request.PageSize : 50;
+
+                var rst = await _repository.GetSalesProductPagedListAsync(request);
+                return ServiceResult<PagedResultDto<SalesProductDto>>.Ok(new PagedResultDto<SalesProductDto>
+                {
+                    Items = rst.Items,
+                    TotalCount = rst.TotalCount,
+                    PageIndex = rst.PageIndex,
+                    PageSize = rst.PageSize
+                });
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<PagedResultDto<SalesProductDto>>.Fail("查询失败: " + ex.Message);
+            }
+
         }
     }
 }

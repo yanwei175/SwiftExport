@@ -158,7 +158,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
 
 
     [System.Text.RegularExpressions.GeneratedRegex(@"[^a-zA-Z0-9_,\s\.\[\]]")]
-    private static partial System.Text.RegularExpressions.Regex OrderByRegex();
+    protected static partial System.Text.RegularExpressions.Regex OrderByRegex();
     /// <summary>
     /// 泛型分页查询 (基于 QueryCriteria)
     /// </summary>

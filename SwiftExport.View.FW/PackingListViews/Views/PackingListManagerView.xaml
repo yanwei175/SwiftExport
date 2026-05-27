@@ -40,28 +40,28 @@
                         <TextBlock Margin="0,0,8,0" Text="关键字 " VerticalAlignment="Center"/>
                         <Grid Margin="0,0,8,0" Height="30" Width="180">
                             <TextBox x:Name="FilterTextBoxSmall"
-                                             Style="{StaticResource MultiLineTextBoxStyle}"
-                                             Text="{Binding FilterText, UpdateSourceTrigger=LostFocus}"
-                                             GotFocus="FilterTextBoxSmall_GotFocus"
-                                             IsReadOnly="True"
-                                             mt:TextBoxAssist.Placeholder="支持Sku(换行是批量),客户,单号等搜索"
-                                             VerticalAlignment="Top"/>
+                                     Style="{StaticResource MultiLineTextBoxStyle}"
+                                     Text="{Binding FilterText, UpdateSourceTrigger=LostFocus}"
+                                     GotFocus="FilterTextBoxSmall_GotFocus"
+                                     IsReadOnly="True"
+                                     mt:TextBoxAssist.Placeholder="支持Sku(换行是批量),客户,单号等搜索"
+                                     VerticalAlignment="Top"/>
                             <Popup x:Name="FilterPopup"
-                                           PlacementTarget="{Binding ElementName=FilterTextBoxSmall}"
-                                           Placement="Relative" VerticalOffset="0" HorizontalOffset="0"
-                                           AllowsTransparency="True"
-                                           StaysOpen="False"
-                                           Opened="FilterPopup_Opened">
+                                   PlacementTarget="{Binding ElementName=FilterTextBoxSmall}"
+                                   Placement="Relative" VerticalOffset="0" HorizontalOffset="0"
+                                   AllowsTransparency="True"
+                                   StaysOpen="False"
+                                   Opened="FilterPopup_Opened">
                                 <TextBox x:Name="FilterPopupTextBox"
-                                                 Height="120"
-                                                 Width="{Binding ActualWidth, ElementName=FilterTextBoxSmall}"
-                                                 Text="{Binding FilterText, UpdateSourceTrigger=LostFocus}"
-                                                 VerticalAlignment="Top" Margin="0"
-                                                 AcceptsReturn="True"
-                                                 VerticalScrollBarVisibility="Auto"
-                                                 HorizontalScrollBarVisibility="Auto"
-                                                 LostFocus="FilterPopupTextBox_LostFocus"
-                                                 Style="{StaticResource MultiLineTextBoxStyle}"/>
+                                         Height="120"
+                                         Width="{Binding ActualWidth, ElementName=FilterTextBoxSmall}"
+                                         Text="{Binding FilterText, UpdateSourceTrigger=LostFocus}"
+                                         VerticalAlignment="Top" Margin="0"
+                                         AcceptsReturn="True"
+                                         VerticalScrollBarVisibility="Auto"
+                                         HorizontalScrollBarVisibility="Auto"
+                                         LostFocus="FilterPopupTextBox_LostFocus"
+                                         Style="{StaticResource MultiLineTextBoxStyle}"/>
                             </Popup>
                         </Grid>
 

@@ -9,13 +9,8 @@ namespace SwiftExport.Application.Interfaces;
 /// 销售订单应用服务接口。
 /// 统一承载：基础 CRUD（继承基类）+ 订单管理页 + 订单详情页。
 /// </summary>
-public interface ISalesOrderService : IBaseService<SalesOrderHeader, SalesOrderDto>
+public interface ISalesOrderHeadService : IBaseService<SalesOrderHeader, SalesOrderHeaderDto>
 {
-    /// <summary>
-    /// 兼容旧接口：分页查询销售订单列表。
-    /// </summary>
-    Task<ServiceResult<PagedResultDto<SalesOrderDto>>> GetSalesOrderPagedListAsync(SalesOrderSearchDto search);
-
     /// <summary>
     /// 兼容旧接口：获取订单详情（头+行）。
     /// </summary>
@@ -92,10 +87,7 @@ public interface ISalesOrderService : IBaseService<SalesOrderHeader, SalesOrderD
 
 
 
-    /// <summary>
-    /// 销售订单行数据源：分页查询（CustomerProduct + Product 联查）。
-    /// </summary>
-    Task<ServiceResult<PagedResultDto<SalesOrderLineDto>>> GetSalesOrderLineSourcePagedListAsync(SalesOrderLineSourceSearchDto search);
+ 
 
     /// <summary>
     /// 获取销售订单下一单号。

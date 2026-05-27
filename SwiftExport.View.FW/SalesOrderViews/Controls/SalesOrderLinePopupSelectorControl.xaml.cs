@@ -1,3 +1,4 @@
+using Mapster;
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.SalesOrders;
@@ -186,21 +187,20 @@ namespace SwiftExport.View.FW.SalesOrderViews.Controls
 
             try
             {
-                var searchDto = new SalesOrderLineSourceSearchDto
+                var searchDto = new SalesProductSearchDto
                 {
-                    Keyword = keyword,
                     CustomerId = CustomerId,
                     PageIndex = 1,
                     PageSize = 20
                 };
 
-                var result = await _salesOrderApi.GetSalesOrderLineSourcePagedListAsync(searchDto);
+                var result = await _salesOrderApi.GetSalesProductPagedListAsync(searchDto);
                 Items.Clear();
 
                 if (result?.Success == true && result.Data?.Items != null)
                 {
                     foreach (var dto in result.Data.Items)
-                        Items.Add(dto);
+                        Items.Add(dto.Adapt<SalesOrderLineDto>());
 
                     SelectedItem = Items.FirstOrDefault();
                 }

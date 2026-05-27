@@ -35,6 +35,9 @@ namespace MateWpfThemes.FW.AttachedProperties
             }
         }
 
+        // 节流标志：防止 LayoutUpdated 在同一布局周期内被反复执行
+        private static bool _syncPending = false;
+
         private static void Subscribe(DataGrid main, DataGrid summary)
         {
             // 1. 初始化 Summary 样式
@@ -45,7 +48,20 @@ namespace MateWpfThemes.FW.AttachedProperties
             main.Columns.CollectionChanged += (s, e) => SyncAllColumns(main, summary);
 
             // 3. 监听布局变化（捕获列宽拖动、窗口缩放）
-            main.LayoutUpdated += (s, e) => SyncColumnWidths(main, summary);
+            //    使用节流保护：每次布局周期最多执行一次 SyncColumnWidths，
+            //    避免列宽赋值本身触发新一轮 LayoutUpdated 形成级联循环
+            main.LayoutUpdated += (s, e) =>
+            {
+                if (_syncPending) return;
+                _syncPending = true;
+                main.Dispatcher.BeginInvoke(
+                    System.Windows.Threading.DispatcherPriority.Background,
+                    new Action(() =>
+                    {
+                        SyncColumnWidths(main, summary);
+                        _syncPending = false;
+                    }));
+            };
 
             // 4. 监听属性变化（冻结列等）
             DependencyPropertyDescriptor.FromProperty(DataGrid.FrozenColumnCountProperty, typeof(DataGrid))

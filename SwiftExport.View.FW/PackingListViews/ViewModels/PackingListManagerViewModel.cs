@@ -426,7 +426,7 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
                     LineItems.AddModelToFirst(new PackingListLineModel
                     {
                         Sku = line.Sku,
-                        CustomerSku = line.CustomerSKU,
+                        CustomerSku = line.CustomerSku,
                         DescriptionEn = line.DescriptionEn,
                         SoLineId = line.Id,
                         SalesOrderNo = detail.Data.Header.OrderNo

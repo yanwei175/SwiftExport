@@ -141,13 +141,17 @@
                     <Button Height="35" MinWidth="100" Content="控件测试"
                             Style="{StaticResource ButtonBase}"
                             Margin="0,0,8,8" Click="Button_Click_5"/>
-                    <Button Height="35" MinWidth="100" Content="销售订单1"
+                    <Button Height="35" MinWidth="100" Content="销售订单管理"
                             Style="{StaticResource ButtonBase}"
                             Margin="0,0,8,8" Click="Button_Click_6"/>
-                    <Button Height="35" MinWidth="100" Content="销售订单2"
+                    <Button Height="35" MinWidth="100" Content="销售订单详情"
                             Style="{StaticResource ButtonBase}"
                             Margin="0,0,8,8" Click="Button_Click_7"/>
-                    <Button Height="35" MinWidth="100" Content="销售订单3"
+                    <Button Height="35" MinWidth="100" Content="销售产品选择"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_SalesProductSelector"/>
+                    
+                    <Button Height="35" MinWidth="100" Content="数据字典"
                             Style="{StaticResource ButtonBase}"
                             Margin="0,0,8,8" Click="Button_Click_8"/>
                     <Button Height="35" MinWidth="100" Content="客户管理"

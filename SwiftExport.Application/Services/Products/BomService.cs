@@ -340,12 +340,12 @@ public class BomService(
 
             if (childProduct.MaterialType == MaterialTypesEnum.客供件)
             {
-                var supplierName = cache.ResolveSupplierName(childProduct.SupplierCode);
+                var supplierName = cache.ResolveSupplierName(childProduct.DefaultSupplierCode);
                 remark = $"货好后送往{currentProduct.Sku}.{supplierName}";
                 var parentOnceKey = $"{sourceLine.SourceNo}|{sourceLine.SourceLineId}|{currentProduct.Sku}";
                 if (parentAddedByCustomerPart.Add(parentOnceKey))
                 {
-                    addList.Add(Build标准件需求(sourceLine, currentProduct, currentQty, bomLevel, parentSku, "含客供件", childProduct.SupplierCode));
+                    addList.Add(Build标准件需求(sourceLine, currentProduct, currentQty, bomLevel, parentSku, "含客供件", childProduct.DefaultSupplierCode));
                 }
             }
 
@@ -393,7 +393,7 @@ public class BomService(
             StatusFlag = DependentDemandStatusEnum.草稿,
             Remark = remark,
             TargetNo = null,
-            SupplierCode = product.SupplierCode,
+            SupplierCode = product.DefaultSupplierCode,
             SupplierName = null,
             TargetLineId = null,
             IsDeleted = false,
@@ -511,8 +511,8 @@ public class BomService(
         }
 
         var supplierCodes = productBySku.Values
-            .Where(x => !string.IsNullOrWhiteSpace(x.SupplierCode))
-            .Select(x => x.SupplierCode!)
+            .Where(x => !string.IsNullOrWhiteSpace(x.DefaultSupplierCode))
+            .Select(x => x.DefaultSupplierCode!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 

@@ -46,10 +46,10 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.ColorId, dto => dto.ColorId)
                 .Map(dest => dest.SupplierName, dto => dto.SupplierName)
                 // 旧系统兼容字段
-                .Map(dest => dest.CustomerCode, dto => dto.CustomerCode)
-                .Map(dest => dest.CSku, dto => dto.CSku)
-                .Map(dest => dest.SupplierCode, dto => dto.SupplierCode)
-                .Map(dest => dest.SSku, dto => dto.SSku)
+                .Map(dest => dest.CustomerCode, dto => dto.DefaultCustomerCode)
+                .Map(dest => dest.CSku, dto => dto.DefaultCustomerSku)
+                .Map(dest => dest.SupplierCode, dto => dto.DefaultSupplierCode)
+                .Map(dest => dest.SSku, dto => dto.DefaultSupplierSku)
                 // 图片
                 .Map(dest => dest.MainImage, dto => dto.MainImage)
                 .TwoWays();

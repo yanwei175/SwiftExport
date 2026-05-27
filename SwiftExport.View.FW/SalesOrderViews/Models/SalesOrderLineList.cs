@@ -145,6 +145,18 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             get => _totalCbm;
             private set => SetProperty(ref _totalCbm, value);
         }
+        private decimal _totalShippedQty;
+        public decimal TotalShippedQty
+        {
+            get => _totalShippedQty;
+            private set => SetProperty(ref _totalShippedQty, value);
+        }
+        private decimal _totalUnshippedQty;
+        public decimal TotalUnshippedQty
+        {
+            get => _totalUnshippedQty;
+            private set => SetProperty(ref _totalUnshippedQty, value);
+        }
 
         #endregion
 
@@ -197,9 +209,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             if (_isSuppressingTotals) return;
 
             // 中文注释：合计字段统一在 UI 线程刷新，避免跨线程更新绑定属性。
-            TotalUsdAmount = Items.Sum(x => x.USDAmount);
-            TotalRmbAmount = Items.Sum(x => x.CNYAmount);
-            TotalQty = Items.Sum(x => x.QTY);
+            TotalUsdAmount = Items.Sum(x => x.UsdAmount);
+            TotalRmbAmount = Items.Sum(x => x.CnyAmount);
+            TotalQty = Items.Sum(x => x.Qty);
             TotalCtns = Items.Sum(x => x.Ctns);
             TotalNw = Items.Sum(x => x.NwSubTotal);
             TotalGw = Items.Sum(x => x.GwSubTotal);
@@ -215,7 +227,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         private void SyncHeaderSummary()
         {
             if (_header == null) return;
-            var totalQty = Items.Sum(x => x.QTY);
+            var totalQty = Items.Sum(x => x.Qty);
             var lineCount = Items.Count;
             var totalAmountOriginalCurrency = ResolveOriginalCurrencyAmount();
             var totalAmountLocalCurrency = ResolveLocalCurrencyAmount(totalAmountOriginalCurrency);

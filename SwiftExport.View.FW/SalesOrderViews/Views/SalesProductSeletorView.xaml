@@ -1,0 +1,246 @@
+﻿<Window x:Class="SwiftExport.View.FW.SalesOrderViews.Views.SalesProductSeletorView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SwiftExport.View.FW.SalesOrderViews.Views"
+        xmlns:mt="https://MateWpfTheme.com/wpf/framework/themes"
+        xmlns:vm="clr-namespace:SwiftExport.View.FW.SalesOrderViews.ViewModels" 
+        d:DataContext="{d:DesignInstance Type=vm:SalesProductSelectorViewModel}"
+        mc:Ignorable="d"
+        Height="800" Width="1400"
+        WindowStyle="SingleBorderWindow"
+        WindowStartupLocation="CenterScreen"
+        Title="产品选择器"
+        Background="Transparent">
+
+    <Window.Resources>
+
+    </Window.Resources>
+
+    <Border Padding="5" Background="{DynamicResource Brush_Bck_Page}">
+        <Grid>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="60" MinHeight="60" MaxHeight="300"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="7*" MinWidth="550"/>
+                    <ColumnDefinition Width="55" />
+                    <ColumnDefinition Width="4*" MinWidth="450"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Padding="5" >
+                    <StackPanel x:Name="筛选条件" Orientation="Horizontal" Margin="0,5">
+                        <mt:SearchableTextBox x:Name="CustomerFilter" Width="180" Height="30"  Margin="5"
+                                              Placeholder="指定客户"
+                                              VerticalAlignment="Top"
+                                              ItemsSource="{Binding CustomerList}"
+                                              DisplayMemberPath="CustomerName"
+                                              FilterMemberPaths="CustomerCode,CustomerName,Address,PhoneNumber,ContactPerson"
+                                              RequireItemMatch="False"
+                                              SelectedValuePath="Id"
+                                              SelectedValue="{Binding SelectedCustomerId}"/>
+
+                        <mt:SearchableTextBox x:Name="ColorFilter" Width="180" Height="30"  Margin="5"
+                                              Placeholder="指定颜色"
+                                              VerticalAlignment="Top"
+                                              ItemsSource="{Binding ColorList}"
+                                              DisplayMemberPath="ColorNameZh"
+                                              FilterMemberPaths="ColorCodeUnique,ColorCode,ColorNameEn,ColorNameZh"
+                                              RequireItemMatch="True"
+                                              SelectedValuePath="Id"
+                                              SelectedValue="{Binding SelectedColorId}"/>
+
+                        <TextBox x:Name="SearchBox"  Margin="5" VerticalAlignment="Stretch" Width="200"
+                                 Style="{StaticResource MultiLineTextBoxStyle}"                                 
+                                 Cursor="IBeam"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 PreviewKeyDown="SearchBox_PreviewKeyDown"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 VerticalScrollBarVisibility="Auto"
+                                 mt:TextBoxAssist.Placeholder="搜索(物料/描述,支持物料换行)"
+                                 mt:TextBoxAssist.ShowClearButton="True"
+                                 VerticalContentAlignment="Top"/>
+
+                        <Separator Height="1" Background="{DynamicResource Brush_Txt_Secondary}">
+                            <Separator.LayoutTransform>
+                                <RotateTransform Angle="90"/>
+                            </Separator.LayoutTransform>
+                        </Separator>
+
+                        <Grid Margin="5">
+                            <TextBox Width="240" x:Name="MatchCustomerSku"
+                                     Style="{StaticResource MultiLineTextBoxStyle}"
+                                    Cursor="IBeam" VerticalAlignment="Stretch"
+                                    mt:TextBoxAssist.ShowClearButton="True"                                     
+                                    mt:TextBoxAssist.Placeholder="输入客户型号精确查找(支持换行或逗号分隔)"
+                                    Text="{Binding MatchCustomerSkuText, UpdateSourceTrigger=PropertyChanged}" />
+                            
+                            <Popup x:Name="FilterPopup" d:Visibility="Visible"
+                                   PlacementTarget="{Binding ElementName=MatchCustomerSku}"
+                                   Placement="Bottom" 
+                                   VerticalOffset="0" HorizontalOffset="0"
+                                   AllowsTransparency="True"
+                                   StaysOpen="False"
+                                   IsOpen="{Binding IsMatchCustomerSkuPopupOpen}">
+                                <ListView x:Name="匹配结果" ItemsSource="{Binding MatchResultCollection}" Width="{Binding ActualWidth, ElementName=MatchCustomerSku}">
+                                    <!--如果未匹配,则让那一行的字体颜色设置为红色-->
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem" BasedOn="{StaticResource ListViewItem}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding MatchResult}" Value="未匹配">
+                                                    <Setter Property="Foreground" Value="Red"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Header="客户型号" DisplayMemberBinding="{Binding CustomerSku}" Width="120"/>
+                                            <GridViewColumn Header="匹配结果" DisplayMemberBinding="{Binding MatchResult}" Width="80"/>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </Popup>
+                            
+                        </Grid>
+                        <Button Content="查看匹配结果" Margin="5"
+                                Style="{StaticResource ButtonOutline}" 
+                                Command="{Binding ToggleMatchCustomerSkuPopupCommand}"/>
+                        
+                        <Separator Height="1" Background="{DynamicResource Brush_Txt_Secondary}">
+                            <Separator.LayoutTransform>
+                                <RotateTransform Angle="90"/>
+                            </Separator.LayoutTransform>
+                        </Separator>
+                        
+                        <Button Content="立即查询" Margin="5"
+                                Style="{StaticResource ButtonPrimary}" 
+                                Command="{Binding ExecuteQueryCommand}"/>
+                    </StackPanel>
+                </Border>
+
+                <Separator Grid.Row="1" Grid.ColumnSpan="4"  VerticalAlignment="Top"/>                
+                <GridSplitter Grid.Row="1" Grid.ColumnSpan="4" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent"/>
+
+                <DataGrid x:Name="SourceDataGrid" Grid.Row="2" Grid.Column="0"
+                          ItemsSource="{Binding UnshippedList}"                          
+                          Style="{StaticResource FullRowDataGrid}"
+                          EnableColumnVirtualization="False"
+                          EnableRowVirtualization="False"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          IsReadOnly="True"
+                          SelectionMode="Extended"
+                          SelectionUnit="FullRow"
+                          GridLinesVisibility="Horizontal"
+                          RowHeight="64"
+                          SelectionChanged="SourceDataGrid_SelectionChanged"
+                          MouseDoubleClick="SourceDataGrid_MouseDoubleClick"
+                          PreviewKeyDown="SourceDataGrid_PreviewKeyDown">
+
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}"
+                                    CellTemplate="{StaticResource ImageCellTemplate}" Width="64"/>
+
+                        <DataGridTextColumn Header="所属客户" Binding="{Binding CustomerCode}" Width="80"
+                            ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"/>
+                        
+                        <DataGridTextColumn Header="客户Sku" Binding="{Binding CustomerSku}" Width="150"
+                            ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"/>
+
+                        <DataGridTextColumn Header="Sku" Binding="{Binding Sku}" Width="150"
+                            ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"/>
+
+                        <DataGridTextColumn Header="描述" Binding="{Binding DescriptionEn}" Width="*"
+                            ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"/>
+
+                        <DataGridTextColumn Header="表面处理" Binding="{Binding ColorNameEn}" Width="120"
+                            ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"/>
+
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- 中文注释：候选数据显式分页控件，替代触底加载逻辑 -->
+                <mt:PaginationControl Grid.Row="3" Grid.Column="0"
+                                      HorizontalAlignment="Left"
+                                      Margin="0,8,0,8"
+                                      PageIndex="{Binding PageIndex, Mode=TwoWay}"
+                                      PageSize="{Binding PageSize, Mode=TwoWay}"
+                                      TotalCount="{Binding TotalCount, Mode=OneWay}"
+                                      PageChangedCommand="{Binding PageChangedCommand}"/>
+
+                <GridSplitter Grid.Row="2" Grid.RowSpan="3" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent"/>
+
+                <StackPanel Margin="8" Grid.Row="2" Grid.RowSpan="3" Grid.Column="1" VerticalAlignment="Center">
+                    <Button Margin="0,0,0,15"
+                               Content=">>" 
+                               Style="{StaticResource ButtonPrimary}"
+                               Command="{Binding SelectAllCommand}" />
+                    <Button Margin="0,0,0,30"
+                               Content=">" 
+                               Style="{StaticResource ButtonPrimary}"
+                                Command="{Binding SelectItemsCommand}" />
+                    <Button  Margin="0,0,0,15"
+                                   Content="&lt;" 
+                                    Style="{StaticResource ButtonDanger}"
+                                   Command="{Binding RemoveItemsCommand}" />
+                    <Button Style="{StaticResource ButtonDanger}"
+                                Content="&lt;&lt;"
+                                Command="{Binding RemoveAllCommand}" />
+                </StackPanel>
+
+                <DataGrid x:Name="TargetDataGrid" Grid.Row="2" Grid.Column="2"
+                          ItemsSource="{Binding SelectedOutboundLines}"
+                          Style="{StaticResource FullRowDataGrid}"
+                          EnableColumnVirtualization="False"
+                          EnableRowVirtualization="False"
+                          GridLinesVisibility="Horizontal"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          IsReadOnly="True"
+                          SelectionMode="Extended"
+                          SelectionUnit="FullRow" RowHeight="64"
+                          SelectionChanged="TargetDataGrid_SelectionChanged"
+                          MouseDoubleClick="TargetDataGrid_MouseDoubleClick"
+                          mt:DataGridAssist.ShowRowNumber="True">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Width="64" Header="图片" CellStyle="{StaticResource ZeroPaddingCell}" CellTemplate="{StaticResource ImageCellTemplate}" />
+                        <DataGridTextColumn Width="150" Header="客户Sku" Binding="{Binding CustomerSku}"  ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"/>
+                        <DataGridTextColumn Width="150" Header="Sku" Binding="{Binding Sku}"  ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"/>
+                        <DataGridTextColumn Width="120" Header="描述" Binding="{Binding DescriptionEn}"  ElementStyle="{StaticResource MultiLineDataGridTextBlockStyle}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!--底部-->
+                <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,8">
+
+                    <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Margin="0,0,15,0"
+                                    Foreground="{DynamicResource Brush_Txt_Secondary}"/>
+                    <Button Content="确认" Margin="0,0,8,0"
+                                Style="{StaticResource ButtonSuccess}"
+                                mt:ButtonAssist.IconSize="10"
+                                mt:ButtonAssist.Icon="{StaticResource Icon.Check}"
+                                Command="{Binding ConfirmCommand}"/>
+                    <Button Content="取消" Margin="0,0,8,0"
+                                Style="{StaticResource ButtonDanger}"
+                                mt:ButtonAssist.IconSize="10"
+                                mt:ButtonAssist.Icon="{StaticResource Icon.Close}"
+                                Command="{Binding CancelCommand}"/>
+                </StackPanel>
+            </Grid>
+
+
+
+            <mt:DialogHost d:IsHidden="True"/>
+        </Grid>
+
+    </Border>
+
+</Window>

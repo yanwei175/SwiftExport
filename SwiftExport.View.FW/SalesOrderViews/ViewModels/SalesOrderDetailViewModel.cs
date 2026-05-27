@@ -1,6 +1,7 @@
 ﻿using GalaSoft.MvvmLight.Command;
 using Mapster;
 using SwiftExport.Contracts.Apis.CustomerApis;
+using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.Customers;
@@ -13,19 +14,18 @@ using SwiftExport.View.FW.CustomerViews.ViewModels;
 using SwiftExport.View.FW.CustomerViews.Views;
 using SwiftExport.View.FW.DI;
 using SwiftExport.View.FW.Mvvm;
-using SwiftExport.View.FW.SalesOrderViews.Controls;
 using SwiftExport.View.FW.SalesOrderViews.Models;
+using SwiftExport.View.FW.SalesOrderViews.Views;
 using SwiftExport.View.FW.Services;
 using SwiftExport.View.FW.SystemViews.Models;
+using SwiftExport.View.FW.WarehouseViews.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 
 namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
@@ -40,83 +40,11 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
     /// </summary>
     public class SalesOrderDetailViewModel : ViewModelBaseEx
     {
-        // ===================== SKU联动缓存 =====================
-        // 中文注释：支持“SKU”和“客户SKU”两种入口的快速匹配缓存。
-        private readonly Dictionary<string, SalesOrderLineDto> _skuProductCache = new Dictionary<string, SalesOrderLineDto>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, SalesOrderLineDto> _customerSkuProductCache = new Dictionary<string, SalesOrderLineDto>(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<SalesOrderLineModel> _linkingRows = new HashSet<SalesOrderLineModel>();
-        private readonly HashSet<SalesOrderLineModel> _suppressLineNotifyRows = new HashSet<SalesOrderLineModel>();
-        private readonly Dictionary<string, DateTime> _cacheFetchTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, Task> _inflightCacheFetchTasks = new Dictionary<string, Task>(StringComparer.OrdinalIgnoreCase);
-        private static readonly TimeSpan CacheFetchDebounceWindow = TimeSpan.FromMilliseconds(600);
+        /// <summary> 弹窗后的结果, 通常为新建或编辑的订单 ID </summary>
+        public int ResultData { get; set; }
 
-        /// <summary>
-        /// 中文注释：SKU缓存键列表，供 DataGridDropdownAssist 下拉候选使用。
-        /// </summary>
-        private List<string> _skuCacheKeys = new List<string>();
-        public List<string> SkuCacheKeys
-        {
-            get => _skuCacheKeys;
-            private set => SetProperty(ref _skuCacheKeys, value);
-        }
-
-        /// <summary>
-        /// 中文注释：客户SKU缓存键列表，供 DataGridDropdownAssist 下拉候选使用。
-        /// </summary>
-        private List<string> _customerSkuCacheKeys = new List<string>();
-        public List<string> CustomerSkuCacheKeys
-        {
-            get => _customerSkuCacheKeys;
-            private set => SetProperty(ref _customerSkuCacheKeys, value);
-        }
-
-
-        #region 需要的枚举
-        //====静态枚举====
-        //OrderStatus
-        //ApprovalStatusEnum
-
-        //===用户枚举====
-        //币种
-        //付款方式
-        //Incoterm
-        //ColorNameEn
-
-        //====动态===
-        //客户实体列表(用api实时返回吧)
-
-
-
-        #endregion
-
-        #region 字段 / 事件
-
-        // 中文注释：保留订单 ID 与服务依赖，兼容现有调用入口。
-        public int SalesOrderId { get; set; }
-        private readonly ISalesOrderApi _salesOrderApi;
-        private readonly ICustomerApi _customerApi;
-        private readonly ICustomerProductApi _customerProductApi;
-        private readonly IDialogService _msg;
-        private readonly ISysDicCurrencyApi _sysDicCurrencyApi;
-        private readonly IDictCacheService _dictCacheService;
-        /// <summary>
-        /// 是否嵌入模式。
-        /// true：作为 UserControl 嵌入，不触发窗口关闭语义；
-        /// false：独立弹窗模式，保留关闭事件。
-        /// </summary>
-        public bool IsEmbeddedMode { get; set; }
-
-        // 中文注释：由 View 订阅，用于在保存完成后关闭弹窗并返回结果。
-        public event Action<bool?> CloseWindow;
-
-        #endregion
-
-        #region 构造函数
-
-        //[Obsolete("仅供 XAML 设计器使用", true)]
-        //internal SalesOrderDetailViewModel()
-        //{
-        //}
+        /// <summary> 关闭弹窗的委托 </summary>
+        public event EventHandler<bool> RequestClose;
 
         public SalesOrderDetailViewModel(ISalesOrderApi salesOrderApi, IDialogService dialogService, ICustomerApi customerApi, ISysDicCurrencyApi sysDicCurrencyApi, IDictCacheService dictCacheService, ICustomerProductApi customerProductApi = null, bool isEmbeddedMode = false)
         {
@@ -141,13 +69,11 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             OrderHeader = new SalesOrderHeaderModel();
             OrderLines.BindHeader(OrderHeader);
 
-            // 预留：单元格模式联动（当前按需求禁用）
-            OrderLines.Items.CollectionChanged += OrderLineItems_CollectionChanged;
-            AttachItemHandlers(OrderLines.Items);
-
             // 初始化命令
             AddLineCommand = new RelayCommand(AddLine);
             RegisterBusyNotifyCommand(AddLineCommand);
+
+            BatchGetSalesProductCommand = new RelayCommand(BatchGetSalesProduct);
 
             SaveCommand = new RelayCommand(async () => await SaveAsync(), () => CanSave);
             RegisterBusyNotifyCommand(SaveCommand);
@@ -160,6 +86,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             InvertCheckCommand = new RelayCommand(InvertCheck, () => OrderLines.Items.Count > 0);
             OrderLines.RegisterCheckedNotifyCommand(InvertCheckCommand);
 
+
             CancelCommand = new RelayCommand(CancelEdit);
 
             GetNewSoNoCommand = new RelayCommand(async () => await GetNewSoNo());
@@ -168,19 +95,37 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             // 中文注释：打开客户选择对话框，供单据中选择客户并自动带出客户默认信息。
             CostomerSelectorCommand = new RelayCommand(OpenCustomerSelectorDialog);
 
+            SearchSuggestionsProductCommand = new RelayCommand<string>(async keyword => await SearchSuggestionsProductAsync(keyword));
+
             // 中文注释：统一监听订单行列表状态变化，集中刷新 VM 代理属性。
             OrderLines.ListStateChanged += OnOrderLinesListStateChanged;
-
-            // 中文注释：Popup 提交命令由自定义控件回传选中项。
-            CommitPopupSelectionCommand = new RelayCommand<object>(CommitPopupSelection);
-            OpenPopupCommand = new RelayCommand<object>(OpenPopupForRow);
-            TriggerPopupButtonInCurrentCellCommand = new RelayCommand<object>(TriggerPopupButtonInCurrentCell);
 
             OrderHeader.Currency = "USD";
             _ = LoadFilterDataAsync();
         }
 
+        #region 字段 / 事件
+
+        // 中文注释：保留订单 ID 与服务依赖，兼容现有调用入口。
+        public int SalesOrderId { get; set; }
+        private readonly ISalesOrderApi _salesOrderApi;
+        private readonly ICustomerApi _customerApi;
+        private readonly ICustomerProductApi _customerProductApi;
+        private readonly IDialogService _msg;
+        private readonly ISysDicCurrencyApi _sysDicCurrencyApi;
+        private readonly IDictCacheService _dictCacheService;
+        /// <summary>
+        /// 是否嵌入模式。
+        /// true：作为 UserControl 嵌入，不触发窗口关闭语义；
+        /// false：独立弹窗模式，保留关闭事件。
+        /// </summary>
+        public bool IsEmbeddedMode { get; set; }
+
+        // 中文注释：由 View 订阅，用于在保存完成后关闭弹窗并返回结果。
+        public event Action<bool?> CloseWindow;
+
         #endregion
+
         #region 字典与下拉数据加载 (Dictionary & Lookups)
         //货币下拉框数据源
         public CurrencyList CurrencyList { get; }
@@ -237,7 +182,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     }
                 }
             }
-            catch 
+            catch
             {
                 // 静默处理或打日志，不影响主流程
             }
@@ -393,6 +338,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         #region 命令
 
         public RelayCommand AddLineCommand { get; }
+        public RelayCommand BatchGetSalesProductCommand { get; }
         public RelayCommand DeleteLineCommand { get; }
         public RelayCommand SaveCommand { get; }
         public RelayCommand CancelCommand { get; }
@@ -400,9 +346,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         public ICommand ItemCheckedChangedCommand { get; }//只是为了xaml里不触发绑定警告
         public RelayCommand InvertCheckCommand { get; }
         public RelayCommand GetNewSoNoCommand { get; }
-        public RelayCommand<object> CommitPopupSelectionCommand { get; }
-        public RelayCommand<object> OpenPopupCommand { get; }
-        public RelayCommand<object> TriggerPopupButtonInCurrentCellCommand { get; }
 
         #endregion
         // ============================================================
@@ -444,7 +387,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             }
             else
             {
-                foreach (var item in OrderLines.Items)
+                // 中文注释：批量删除勾选行，先快照再逐项删除，避免迭代中修改集合抛出异常。
+                var toDelete = checkItems.ToList();
+                foreach (var item in toDelete)
                 {
                     OrderLines.Remove(item);
                 }
@@ -452,6 +397,100 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             }
         }
 
+        private void BatchGetSalesProduct()
+        {
+
+
+            try
+            {
+                // 中文注释：创建销售产品选择器 VM，初始客户默认取当前订单客户。
+                var selectorVm = new SalesProductSelectorViewModel(_salesOrderApi, _customerApi, null);
+
+                if (OrderHeader != null && OrderHeader.CustomerId > 0)
+                {
+                    selectorVm.SelectedCustomerId = OrderHeader.CustomerId;
+                }
+                var selectorWindow = new SalesProductSeletorView(selectorVm);
+
+                // 中文注释：以对话框方式打开，确认后读取 ViewModel.ResultData。
+                var dialogResult = selectorWindow.ShowDialog();
+                if (dialogResult != true)
+                {
+                    return;
+                }
+
+                var selectedDtos = selectorVm.ResultData ?? new List<SalesProductDto>();
+                if (selectedDtos.Count == 0)
+                {
+                    StatusMessage = "未选择任何产品";
+                    return;
+                }
+
+                ApplySelectedProductsToOrderLines(selectedDtos);
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"打开产品选择器失败: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// 将选择器返回的产品列表批量回填到订单行。
+        /// </summary>
+        private void ApplySelectedProductsToOrderLines(IList<SalesProductDto> selectedDtos)
+        {
+            if (selectedDtos == null || selectedDtos.Count == 0)
+            {
+                return;
+            }
+
+            // 中文注释：按 SKU + 客户SKU 去重，避免重复添加相同行。
+            var existingKeys = new HashSet<string>(
+                OrderLines.Items.Select(x => BuildLineUniqueKey(x.Sku, x.CustomerSku)),
+                StringComparer.OrdinalIgnoreCase);
+
+            int addedCount = 0;
+            foreach (var dto in selectedDtos)
+            {
+                var key = BuildLineUniqueKey(dto.Sku, dto.CustomerSku);
+                if (existingKeys.Contains(key))
+                {
+                    continue;
+                }
+
+                var model = new SalesOrderLineModel();
+                model.LoadFromDto(dto, true);
+
+                // 中文注释：新加行强制标记为新增状态，确保保存时可提交。
+                model.MarkAsAdded();
+                model.SalesOrderId = OrderHeader.Id;
+                model.OrderNo = OrderHeader.OrderNo;
+
+                OrderLines.Items.Add(model);
+                existingKeys.Add(key);
+                addedCount++;
+            }
+
+            if (addedCount > 0)
+            {
+                SelectedLine = OrderLines.Items.LastOrDefault();
+                StatusMessage = $"已添加 {addedCount} 条产品到订单明细";
+            }
+            else
+            {
+                StatusMessage = "所选产品均已存在于当前订单明细中";
+            }
+        }
+
+        /// <summary>
+        /// 构建订单行唯一键（SKU + 客户SKU）。
+        /// </summary>
+        private static string BuildLineUniqueKey(string sku, string customerSku)
+        {
+            var skuPart = (sku ?? string.Empty).Trim();
+            var customerSkuPart = (customerSku ?? string.Empty).Trim();
+            return $"{skuPart}||{customerSkuPart}";
+        }
 
         /// <summary>
         /// 中文注释：反选当前所有可见订单行。
@@ -520,6 +559,25 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             {
                 OrderHeader.Currency = customer.Currency;
             }
+
+            //调用Api查找对应客户的所有产品信息填充到缓存
+            _ = LoadCustomerProductsToCacheAsync(customer.Id);
+
+        }
+
+        private async Task LoadCustomerProductsToCacheAsync(int id)
+        {
+            var result = await _salesOrderApi.GetSalesProductPagedListAsync(
+                new SalesProductSearchDto
+                {
+                    CustomerId = id,
+                    PageIndex = 1,
+                    PageSize = 1000
+                });
+
+            if (result?.Success != true || result.Data?.Items == null) return;
+
+            CacheProducts(result.Data.Items.Adapt<List<SalesOrderLineDto>>());
         }
 
         private async Task GetNewSoNo()
@@ -559,6 +617,36 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         }
 
+
+        public void InitForCreate()
+        {
+            OrderHeader = new SalesOrderHeaderModel
+            {
+                OrderDate = DateTime.Now
+            };
+            OrderLines.Items.Clear();
+        }
+
+        public async Task InitForEditAsync(SalesOrderHeaderModel head)
+        {
+            if (head == null) return;
+
+            OrderHeader = head;
+
+            OrderLines.Clear();
+            var rst = await _salesOrderApi.GetSalesOrderLinesAsync(head.Id);
+            if (rst.Success && rst.Data != null)
+            {
+                OrderLines.ReLoadRangeFromDtoList(rst.Data.ToList());
+                StatusMessage = $"编辑订单：{head.OrderNo}";
+            }
+            else
+            {
+                StatusMessage = "加载订单明细失败：" + rst.Message;
+            }
+        }
+
+
         #endregion
 
         // ============================================================
@@ -568,54 +656,55 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         private async Task SaveAsync()
         {
-            // 中文注释：先做异步校验，避免无效数据继续提交。
-            var asyncError = await OrderLines.ValidateAllAsync();
-            if (!string.IsNullOrEmpty(asyncError))
+            using (BusyScope())
             {
-                if (_msg != null)
-                    await _msg.ShowWarningAsync(asyncError);
-                return;
-            }
-            if (!OrderHeader.IsValid)
-            {
-                if (_msg != null)
-                    await _msg.ShowWarningAsync("订单头信息有误，请检查必填字段和字段格式。");
-                return;
-            }
-
-            // 中文注释：获取当前行变更集合，后续可直接用于组装 DTO 并调用 API。
-            var changeSet = OrderLines.GetChangeSet();
-            if (OrderHeader.State == ModelState.Unchanged && !changeSet.HasChanges)
-            {
-                if (_msg != null)
-                    await _msg.ShowWarningAsync("没有任何变更，无需保存。");
-                return;
-            }
-
-            // 中文注释：将需要删除的行 ID 添加到 DTO 的 DeletedLineIds 集合中。
-            var saveDto = new SalesOrderDetailDto
-            {
-                Header = OrderHeader.Adapt<SalesOrderHeaderDto>(),
-                Lines = OrderLines.Items.Select(line => line.Adapt<SalesOrderLineDto>()).ToList(),
-                DeletedLineIds = changeSet.DeleteIdList
-            };
-
-            // 发送给 API
-            var result = await _salesOrderApi.SaveSalesOrderDetailAsync(saveDto);
-
-            if (result.Success)
-            {
-                _msg?.ShowCardAsync("保存成功,订单已保存到服务器。正在刷新数据...", 2000);
-                var rst = await _salesOrderApi.GetSalesOrderDetailAsync(OrderHeader.Id);
-                if (rst.Success)
+                // 中文注释：先做异步校验，避免无效数据继续提交。
+                var asyncError = await OrderLines.ValidateAllAsync();
+                if (!string.IsNullOrEmpty(asyncError))
                 {
-                    this.LoadFromDto(rst.Data);
+                    if (_msg != null)
+                        await _msg.ShowWarningAsync(asyncError);
+                    return;
+                }
+                if (!OrderHeader.IsValid)
+                {
+                    if (_msg != null)
+                        await _msg.ShowWarningAsync("订单头信息有误，请检查必填字段和字段格式。");
+                    return;
                 }
 
-                // 中文注释：通知窗口以“保存成功”结果关闭，兼容现有 ShowDialog 流程。
-                CloseWindow?.Invoke(true);
-            }
+                // 中文注释：获取当前行变更集合，后续可直接用于组装 DTO 并调用 API。
+                var changeSet = OrderLines.GetChangeSet();
+                if (OrderHeader.State == ModelState.Unchanged && !changeSet.HasChanges)
+                {
+                    if (_msg != null)
+                        await _msg.ShowWarningAsync("没有任何变更，无需保存。");
+                    return;
+                }
 
+                // 中文注释：将需要删除的行 ID 添加到 DTO 的 DeletedLineIds 集合中。
+                var saveDto = new SalesOrderDetailDto
+                {
+                    Header = OrderHeader.Adapt<SalesOrderHeaderDto>(),
+                    Lines = OrderLines.Items.Select(line => line.Adapt<SalesOrderLineDto>()).ToList(),
+                    DeletedLineIds = changeSet.DeleteIdList
+                };
+
+                // 发送给 API
+                var result = await _salesOrderApi.SaveSalesOrderDetailAsync(saveDto);
+
+                if (result.Success)
+                {
+                    _msg?.ShowCardAsync("保存成功,订单已保存到服务器。正在刷新数据...", 2000);
+                    ResultData = result.Data;
+                    // 中文注释：通知窗口以“保存成功”结果关闭，兼容现有 ShowDialog 流程。
+                    CloseWindow?.Invoke(true);
+                }
+                else
+                {
+                    await _msg.ShowErrorAsync("保存失败: " + result.Message);
+                }
+            }
 
         }
         #endregion
@@ -629,456 +718,168 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             CloseWindow?.Invoke(false);
         }
 
-
-
-
         #region Popup区域
-        public bool IsPopupOpen
+        private SalesOrderLineDto _selectedSuggestionsProduct;
+        public SalesOrderLineDto SelectedSuggestionsProduct
         {
-            get => _isPopupOpen;
-            set => SetProperty(ref _isPopupOpen, value);
-        }
-        private bool _isPopupOpen;
-
-        private UIElement _popupPlacementTarget;
-        /// <summary>
-        /// Popup 锚点控件（通常是单元格中的“搜索按钮”）。
-        /// </summary>
-        public UIElement PopupPlacementTarget
-        {
-            get => _popupPlacementTarget;
-            set => SetProperty(ref _popupPlacementTarget, value);
-        }
-
-        /// <summary>
-        /// 打开行级 Popup（由单元格按钮触发）。
-        /// </summary>
-        private void OpenPopupForRow(object rowObj)
-        {
-            var anchor = rowObj as FrameworkElement;
-            if (anchor is TextBox)
+            get => _selectedSuggestionsProduct;
+            set
             {
-                // 中文注释：编辑态 TextBox 可能在失焦后被 DataGrid 回收，
-                // 这里提升锚点到稳定的 DataGridCell，避免 Popup 跑到屏幕左上角。
-                anchor = FindAncestor<DataGridCell>(anchor);
-            }
-
-            var row = anchor?.DataContext as SalesOrderLineModel
-                      ?? rowObj as SalesOrderLineModel
-                      ?? SelectedLine;
-            if (row == null) return;
-
-            SelectedLine = row;
-            PopupPlacementTarget = anchor;
-            IsPopupOpen = true;
-        }
-
-        /// <summary>
-        /// 在当前编辑单元格中触发右侧“搜索按钮”的点击逻辑。
-        /// 用于 DataGridTextColumn 右侧按钮入口（不新增独立列）。
-        /// </summary>
-        private void TriggerPopupButtonInCurrentCell(object senderObj)
-        {
-            var textBox = senderObj as TextBox;
-            if (textBox == null)
-                return;
-
-            var anchorCell = FindAncestor<DataGridCell>(textBox);
-            OpenPopupForRow(anchorCell ?? (object)textBox);
-        }
-
-        /// <summary>
-        /// 可视树向上查找父级元素。
-        /// </summary>
-        private static T FindAncestor<T>(DependencyObject current) where T : DependencyObject
-        {
-            while (current != null)
-            {
-                if (current is T target)
-                    return target;
-
-                current = System.Windows.Media.VisualTreeHelper.GetParent(current);
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// 接收 Popup 控件的提交结果并回填当前订单行。
-        /// </summary>
-        private void CommitPopupSelection(object submitObj)
-        {
-            var args = submitObj as SalesOrderLinePopupSelectorSubmitArgs;
-            var selectedPopupProduct = args?.SelectedItem;
-            if (args == null || selectedPopupProduct == null)
-                return;
-
-            using (BusyScope())
-            {
-                DispatcherProvider.BeginInvoke(() =>
+                if (SetProperty(ref _selectedSuggestionsProduct, value) && value != null && SelectedLine != null)
                 {
-                    try
-                    {
-                        // 中文注释：优先使用控件回传的行对象；
-                        // 单元格模式下 SelectedLine 可能为 null，因此再兜底当前单元格行。
-                        var row = args.RowContext as SalesOrderLineModel
-                                  ?? SelectedLine
-                                  ?? GetCurrentCellRow();
-                        if (row == null) return;
-                        row.CustomerSKU = selectedPopupProduct.CustomerSKU;
-                        //row.LoadFromDto(selectedPopupProduct);
-                        // 中文注释：将联查结果字段回填到订单行模型，保持与 SalesOrderLineModel 字段语义一致。
-                        //row.Sku = selectedPopupProduct.Sku;
-                        //row.CustomerSKU = selectedPopupProduct.CustomerSKU;
-                        //row.DescriptionEn = selectedPopupProduct.DescriptionEn;
-                        //row.ColorNameEn = selectedPopupProduct.ColorNameEn;
-                        //row.FeaturesEn = selectedPopupProduct.FeaturesEn;
-                        //row.USDPrice = selectedPopupProduct.USDPrice ?? 0m;
-                        //row.CNYPrice = selectedPopupProduct.CNYPrice ?? 0m;
-                        //row.MainImage = selectedPopupProduct.MainImage;
-
-                        // 中文注释：新行首次选品时，若数量未填写则默认置为 1，便于快速录单。
-                        if (row.QTY <= 0)
-                        {
-                            row.QTY = 1;
-                        }
-
-                        SelectedLine = row;
-                        IsPopupOpen = false;
-                    }
-                    finally
-                    {
-
-                    }
-                });
+                    // 用户选择建议后回填行数据
+                    ApplyProductLinkage(value);
+                }
             }
-
+        }
+        /// <summary>
+        /// 应用产品联动字段到当前客户产品行。
+        /// </summary>
+        private void ApplyProductLinkage(SalesOrderLineDto product)
+        {
+            if (SelectedLine == null) return;
+            SelectedLine.LoadFromDto(product);
         }
 
-        /// <summary>
-        /// 在单元格模式下，从主窗口焦点链路兜底获取当前 DataGrid 行对象。
-        /// 说明：Ctrl+D/粘贴等 Excel 快捷操作不依赖 SelectedItem，这里用于 Popup 提交兜底。
-        /// </summary>
-        private SalesOrderLineModel GetCurrentCellRow()
+        // ===================== SKU联动缓存 =====================
+        // 中文注释：支持“SKU”和“客户SKU”两种入口的快速匹配缓存。
+        private readonly Dictionary<string, SalesOrderLineDto> _skuProductCache = new Dictionary<string, SalesOrderLineDto>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, SalesOrderLineDto> _customerSkuProductCache = new Dictionary<string, SalesOrderLineDto>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, DateTime> _cacheFetchTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Task> _inflightCacheFetchTasks = new Dictionary<string, Task>(StringComparer.OrdinalIgnoreCase);
+        private static readonly TimeSpan CacheFetchDebounceWindow = TimeSpan.FromMilliseconds(30);
+
+        public ObservableCollection<SalesOrderLineDto> ProductSuggestions { get; } = new ObservableCollection<SalesOrderLineDto>();
+        public ICommand SearchSuggestionsProductCommand { get; }
+        private CancellationTokenSource _cts;
+        private async Task SearchSuggestionsProductAsync(string keyword)
         {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                ProductSuggestions.Clear();
+                return;
+            }
+
+            _cts?.Cancel();
+            _cts = new CancellationTokenSource();
+            var token = _cts.Token;
+
             try
             {
-                var focused = Keyboard.FocusedElement as DependencyObject;
-                while (focused != null)
-                {
-                    var cell = focused as DataGridCell;
-                    if (cell != null)
-                    {
-                        var row = DataGridRow.GetRowContainingElement(cell);
-                        return row?.Item as SalesOrderLineModel;
-                    }
+                // 1. 先查本地缓存，即时响应
+                var local = SearchFromCache(keyword).Take(20).ToList();
+                if (local.Count > 0)
+                    ResetCollection(ProductSuggestions, local);
 
-                    focused = System.Windows.Media.VisualTreeHelper.GetParent(focused);
-                }
+                // 2. 后台补充 API，拉取后写入缓存
+                await EnsureCacheByKeywordAsync(keyword);
+
+                // CancellationToken 已取消则不刷新 UI
+                if (token.IsCancellationRequested) return;
+
+                var merged = SearchFromCache(keyword).Take(20).ToList();
+                ResetCollection(ProductSuggestions, merged);
             }
-            catch
+            catch (OperationCanceledException) { }
+            catch (Exception)
             {
-                // 中文注释：兜底失败不抛异常，交由上层 null 判断。
+                // 静默，不打断编辑流程
             }
-
-            return null;
         }
 
-        #region 预留联动逻辑（当前按需求禁用，仅保留未来可用性）
-
-
-        /// <summary>
-        /// 监听列表新增/移除，维护每行 PropertyChanged 订阅。
-        /// </summary>
-        private void OrderLineItems_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        /// <summary> 本地缓存搜索（SKU + 客户SKU 两个缓存都查）</summary>
+        private IEnumerable<SalesOrderLineDto> SearchFromCache(string keyword)
         {
-            if (e?.NewItems != null)
+            var key = (keyword ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(key))
+                return Enumerable.Empty<SalesOrderLineDto>();
+
+            // 用 Sku 去重（同一产品在两个缓存中均存在时，以 Sku 作为唯一标识避免重复）
+            // 注意：不能用 Id 去重，因为候选 DTO 的 Id 可能全为 0，导致只能取到一条
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var results = new List<SalesOrderLineDto>();
+            foreach (var kv in _customerSkuProductCache)
             {
-                foreach (var item in e.NewItems.OfType<SalesOrderLineModel>())
-                {
-                    item.PropertyChanged -= SalesOrderLineItem_PropertyChanged;
-                    item.PropertyChanged += SalesOrderLineItem_PropertyChanged;
-                }
+                if (kv.Key.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0
+                    && seen.Add(kv.Value.Sku ?? kv.Key))
+                    results.Add(kv.Value);
             }
 
-            if (e?.OldItems != null)
+            foreach (var kv in _skuProductCache)
             {
-                foreach (var item in e.OldItems.OfType<SalesOrderLineModel>())
-                {
-                    item.PropertyChanged -= SalesOrderLineItem_PropertyChanged;
-                }
+                if (kv.Key.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0
+                    && seen.Add(kv.Value.Sku ?? kv.Key))
+                    results.Add(kv.Value);
             }
+
+            return results;
         }
-
-        /// <summary>
-        /// 初始化时为已有行绑定事件。
-        /// </summary>
-        private void AttachItemHandlers(IEnumerable<SalesOrderLineModel> items)
-        {
-            if (items == null) return;
-            foreach (var item in items)
-            {
-                item.PropertyChanged -= SalesOrderLineItem_PropertyChanged;
-                item.PropertyChanged += SalesOrderLineItem_PropertyChanged;
-            }
-        }
-
-        /// <summary>
-        /// 当 CustomerSKU 或 Sku 结束编辑后（LostFocus 提交）触发联动。
-        /// </summary>
-        private async void SalesOrderLineItem_PropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if (e == null) return;
-            if (e.PropertyName != nameof(SalesOrderLineModel.CustomerSKU)
-                && e.PropertyName != nameof(SalesOrderLineModel.Sku))
-                return;
-
-            var row = sender as SalesOrderLineModel;// 当前行对象，可能为 null（例如单元格模式下 SelectedItem 可能为 null），后续联动逻辑需先行 null 判断。
-            if (row == null) return;
-
-            // 中文注释：程序回填阶段不再触发二次联动，避免重复通知与重复 API 请求。
-            if (_suppressLineNotifyRows.Contains(row))
-                return;
-
-            await TryApplyLinkageAsync(row, e.PropertyName);
-        }
-
-        /// <summary>
-        /// 根据行内 Sku 尝试联动产品信息。
-        /// </summary>
-        private async Task TryApplyLinkageAsync(SalesOrderLineModel row, string changedProperty)
-        {
-            if (row == null) return;
-            if (_linkingRows.Contains(row)) return;
-
-            var inputSku = (row.Sku ?? string.Empty).Trim();
-            var inputCustomerSku = (row.CustomerSKU ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(inputSku) && string.IsNullOrWhiteSpace(inputCustomerSku))
-            {
-                // 中文注释：当 Sku 被清空时，同步清空联动字段，避免旧值残留。
-                DispatcherProvider.Invoke(() =>
-                {
-                    row.Id = 0;
-                    row.CustomerSKU = string.Empty;
-                    row.DescriptionEn = string.Empty;
-                    row.MaterialType = string.Empty;
-                    row.MainImage = string.Empty;
-                });
-                return;
-            }
-
-            _linkingRows.Add(row);
-            try
-            {
-                SalesOrderLineDto product = null;
-                var lookupKey = changedProperty == nameof(SalesOrderLineModel.Sku) ? inputSku : inputCustomerSku;
-
-                // 中文注释：优先按“触发字段”命中缓存，避免误匹配。
-                if (changedProperty == nameof(SalesOrderLineModel.Sku) && !string.IsNullOrWhiteSpace(inputSku))
-                {
-                    _skuProductCache.TryGetValue(inputSku, out product);
-                }
-                else if (changedProperty == nameof(SalesOrderLineModel.CustomerSKU) && !string.IsNullOrWhiteSpace(inputCustomerSku))
-                {
-                    _customerSkuProductCache.TryGetValue(inputCustomerSku, out product);
-                }
-
-                if (product == null)
-                {
-                    // 中文注释：缓存未命中时，按用户输入关键词走一次 API 拉取并更新缓存。
-                    await EnsureCacheByKeywordAsync(lookupKey);
-                    product = TryResolveProductFromCache(lookupKey);
-                }
-
-                if (product == null)
-                {
-                    DispatcherProvider.Invoke(() =>
-                    {
-                        ClearLinkedFieldsWhenNoMatch(row, changedProperty);
-                    });
-                    return;
-                }
-
-                DispatcherProvider.Invoke(() =>
-                {
-                    ApplyProductLinkage(row, product);
-                });
-            }
-            catch
-            {
-                // 中文注释：联动失败不打断编辑流程，保持静默。
-            }
-            finally
-            {
-                _linkingRows.Remove(row);
-            }
-        }
-
-        /// <summary>
-        /// 根据关键字从本地缓存中严格匹配（忽略大小写、必须全匹配）。
-        /// </summary>
-        private SalesOrderLineDto TryResolveProductFromCache(string keyword)
-        {
-            if (string.IsNullOrWhiteSpace(keyword)) return null;
-
-            var key = keyword.Trim();
-            if (_skuProductCache.TryGetValue(key, out var bySku))
-                return bySku;
-
-            if (_customerSkuProductCache.TryGetValue(key, out var byCustomerSku))
-                return byCustomerSku;
-
-            return null;
-        }
-
-        /// <summary>
-        /// 用户输入时通过 API 拉取候选并写入缓存。
-        /// </summary>
+        /// <summary>用户输入时通过 API 拉取候选并写入缓存.</summary>
         private async Task EnsureCacheByKeywordAsync(string keyword)
         {
             if (_salesOrderApi == null || string.IsNullOrWhiteSpace(keyword)) return;
 
-            var normalizedKeyword = keyword.Trim();
-            if (normalizedKeyword.Length == 0) return;
+            var key = keyword.Trim();
 
-            // 中文注释：请求级防抖。相同关键字在短窗口内不重复请求。
-            DateTime lastFetchAt;
-            if (_cacheFetchTimes.TryGetValue(normalizedKeyword, out lastFetchAt))
-            {
-                if (DateTime.Now - lastFetchAt < CacheFetchDebounceWindow)
-                    return;
-            }
+            if (_cacheFetchTimes.TryGetValue(key, out var last)
+                && DateTime.Now - last < CacheFetchDebounceWindow)
+                return;
 
-            // 中文注释：同一关键字请求去重。若已有进行中的请求则复用该任务。
-            if (_inflightCacheFetchTasks.TryGetValue(normalizedKeyword, out Task inflightTask))
+            if (_inflightCacheFetchTasks.TryGetValue(key, out var inflight))
             {
-                await inflightTask;
+                await inflight;
                 return;
             }
 
-            var fetchTask = EnsureCacheByKeywordCoreAsync(normalizedKeyword);
-            _inflightCacheFetchTasks[normalizedKeyword] = fetchTask;
-
-            try
-            {
-                await fetchTask;
-            }
-            finally
-            {
-                _inflightCacheFetchTasks.Remove(normalizedKeyword);
-            }
+            var task = EnsureCacheByKeywordCoreAsync(key);
+            _inflightCacheFetchTasks[key] = task;
+            try { await task; }
+            finally { _inflightCacheFetchTasks.Remove(key); }
         }
 
-        /// <summary>
-        /// 实际执行缓存拉取。
-        /// </summary>
-        private async Task EnsureCacheByKeywordCoreAsync(string normalizedKeyword)
+        /// <summary>实际执行缓存拉取。</summary>
+        private async Task EnsureCacheByKeywordCoreAsync(string key)
         {
-            _cacheFetchTimes[normalizedKeyword] = DateTime.Now;
+            _cacheFetchTimes[key] = DateTime.Now;
 
-            var result = await _salesOrderApi.GetSalesOrderLineSourcePagedListAsync(new SalesOrderLineSourceSearchDto
-            {
-                Keyword = normalizedKeyword,
-                CustomerId = OrderHeader?.CustomerId ?? 0,
-                PageIndex = 1,
-                PageSize = 100
-            });
+            var result = await _salesOrderApi.GetSalesProductPagedListAsync(
+                new SalesProductSearchDto
+                {
+                    BatchKeywords = new List<string> { key },
+                    CustomerId = OrderHeader?.CustomerId ?? 0,
+                    PageIndex = 1,
+                    PageSize = 100
+                });
 
-            if (!result.Success || result.Data == null || result.Data.Items == null || result.Data.Items.Count == 0)
-                return;
+            if (result?.Success != true || result.Data?.Items == null) return;
 
-            CacheCustomerProducts(result.Data.Items);
+            CacheProducts(result.Data.Items.Adapt<IEnumerable<SalesOrderLineDto>>());
         }
 
-        /// <summary>
-        /// 写入 SKU / 客户SKU 双缓存。
-        /// </summary>
-        private void CacheCustomerProducts(IEnumerable<SalesOrderLineDto> items)
+        private void CacheProducts(IEnumerable<SalesOrderLineDto> items)
         {
             foreach (var item in items ?? Enumerable.Empty<SalesOrderLineDto>())
             {
                 if (!string.IsNullOrWhiteSpace(item.Sku))
                     _skuProductCache[item.Sku.Trim()] = item;
 
-                if (!string.IsNullOrWhiteSpace(item.CustomerSKU))
-                    _customerSkuProductCache[item.CustomerSKU.Trim()] = item;
+                if (!string.IsNullOrWhiteSpace(item.CustomerSku))
+                    _customerSkuProductCache[item.CustomerSku.Trim()] = item;
             }
-
-            // 中文注释：缓存更新后同步刷新用于下拉联想的键集合。
-            SkuCacheKeys = _skuProductCache.Keys.OrderBy(x => x).ToList();
-            CustomerSkuCacheKeys = _customerSkuProductCache.Keys.OrderBy(x => x).ToList();
         }
 
-        /// <summary>
-        /// 应用产品联动字段到当前客户产品行。
-        /// </summary>
-        private void ApplyProductLinkage(SalesOrderLineModel row, SalesOrderLineDto product)
+        /// <summary> 重新设置待选内容 </summary>
+        private static void ResetCollection<T>(ObservableCollection<T> collection, IList<T> newItems)
         {
-            if (row == null || product == null) return;
-
-            _suppressLineNotifyRows.Add(row);
-            try
+            DispatcherProvider.BeginInvoke(() =>
             {
-                row.LoadFromDto(product);
-                //// 中文注释：程序回填阶段统一抑制行属性通知引发的二次联动。
-                //row.Sku = product.Sku;
-                //row.CustomerSKU = product.CustomerSKU;
-                //row.DescriptionEn = product.DescriptionEn;
-                //row.ColorNameEn = product.ColorNameEn;
-                //row.MaterialType = product.DescriptionEn;
-                //row.FeaturesEn = product.FeaturesEn;
-                //row.USDPrice = product.USDPrice ?? row.USDPrice;
-                //row.CNYPrice = product.CNYPrice ?? row.CNYPrice;
-                //row.MainImage = product.MainImage;
-                if (row.QTY <= 0)
-                {
-                    row.QTY = 1;
-                }
-            }
-            finally
-            {
-                _suppressLineNotifyRows.Remove(row);
-            }
-        }
-
-        /// <summary>
-        /// 用户输入 Sku/CustomerSKU 未匹配时，清空该行联动字段，避免残留旧数据。
-        /// </summary>
-        private void ClearLinkedFieldsWhenNoMatch(SalesOrderLineModel row, string changedProperty)
-        {
-            if (row == null) return;
-
-            _suppressLineNotifyRows.Add(row);
-            try
-            {
-                // 中文注释：保留用户刚编辑的字段值，清空其余联动字段。
-                if (changedProperty == nameof(SalesOrderLineModel.Sku))
-                {
-                    row.CustomerSKU = string.Empty;
-                }
-                else if (changedProperty == nameof(SalesOrderLineModel.CustomerSKU))
-                {
-                    row.Sku = string.Empty;
-                }
-                row.DescriptionEn = string.Empty;
-                row.ColorNameEn = string.Empty;
-                row.FeaturesEn = string.Empty;
-                row.USDPrice = 0m;
-                row.CNYPrice = 0m;
-                row.PcsOfCarton = 0m;
-                row.NwOfCarton = 0m;
-                row.GwOfCarton = 0m;
-                row.CbmOfCarton = 0m;
-                row.MainImage = string.Empty;
-            }
-            finally
-            {
-                _suppressLineNotifyRows.Remove(row);
-            }
+                collection.Clear();
+                foreach (var item in newItems)
+                    collection.Add(item);
+            });
         }
 
 
-        #endregion
 
         #endregion
 

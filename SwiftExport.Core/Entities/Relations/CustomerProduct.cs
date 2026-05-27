@@ -23,6 +23,7 @@ public class CustomerProduct : BaseEntity
     public string? CustomerBarcode1 { get; set; }           // 客户条码1
     public string? CustomerBarcode2 { get; set; }           // 客户条码2
     public string? CustomerSkuUnit { get; set; }            // 客户那边的单位（如：Set/Pc）
+    public string? Note { get; set; }            // 客户那边的单位（如：Set/Pc）
 
     // ============================================================
     // 3. 商务与物流
@@ -38,7 +39,9 @@ public class CustomerProduct : BaseEntity
     // ============================================================
     public bool IsActive { get; set; } = true;               // 是否启用
 
+    public string? DescriptionEn { get; set; }
 
+    public string? FeaturesEn { get; set; }
 
 }
 

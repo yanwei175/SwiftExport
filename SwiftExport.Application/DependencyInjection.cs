@@ -29,7 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IProductCategoryService, ProductCategoryService>();
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
-        services.AddScoped<ISalesOrderService, SalesOrderService>();
+        services.AddScoped<ISalesOrderHeadService, SalesOrderHeadService>();
         services.AddScoped<IIndependentDemandServices, IndependentDemandService>();
         services.AddScoped<IDependentDemandService, DependentDemandService>();
         services.AddScoped<IDocumentNoService, DocumentNoService>();

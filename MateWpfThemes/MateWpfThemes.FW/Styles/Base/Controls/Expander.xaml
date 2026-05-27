@@ -334,5 +334,6 @@
         </Style.Triggers>
     </Style>
 
+
     <Style TargetType="Expander" BasedOn="{StaticResource BaseExpanderStyle}"/> 
 </ResourceDictionary>

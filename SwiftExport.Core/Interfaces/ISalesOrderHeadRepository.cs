@@ -6,8 +6,8 @@ using System.Text;
 
 namespace SwiftExport.Core.Interfaces
 {
-    public interface ISalesOrderRepository
+    public interface ISalesOrderHeadRepository
     {
-        //Task<ServiceResult<int>> SaveSalesOrderDetailAsync(SalesOrderDetailDto request);
+        Task<PagedResultDto<SalesOrderHeaderDto>> GetSalesOrderHeaderPagedListAsync(SalesOrderManagerSearchDto request, string orderBy = "h.CreatedDate DESC");
     }
 }

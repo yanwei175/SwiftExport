@@ -27,7 +27,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         /// </summary>
         public int? ProductId { get; set; }
 
-        public string CustomerSKU { get; set; }
+        public string CustomerSku { get; set; }
 
         /// <summary>
         /// 产品英文描述（对应 Product.DescriptionEn）。
@@ -47,15 +47,15 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         /// <summary>
         /// 人民币单价（字段命名统一为 CNY）。
         /// </summary>
-        public decimal? CNYPrice { get; set; }
-        public decimal? USDPrice { get; set; }
-        public decimal? QTY { get; set; }
+        public decimal? CnyPrice { get; set; }
+        public decimal? UsdPrice { get; set; }
+        public decimal? Qty { get; set; }
 
         /// <summary>
         /// 人民币金额（字段命名统一为 CNY）。
         /// </summary>
-        public decimal? CNYAmount { get; set; }
-        public decimal? USDAmount { get; set; }
+        public decimal? CnyAmount { get; set; }
+        public decimal? UsdAmount { get; set; }
 
         public decimal? PcsOfCarton { get; set; }
         public decimal? NwOfCarton { get; set; }

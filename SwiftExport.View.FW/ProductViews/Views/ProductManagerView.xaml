@@ -535,8 +535,7 @@
                                                     HeaderCheckBoxMargin="2,0,0,0"
                                                     HeaderCheckBoxToolTip="全选/全不选"/>
 
-                                            <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}" 
-                                           CellTemplate="{StaticResource ImageCellTemplate}" Width="60"/>
+                                            <DataGridTemplateColumn Header="图片" CellStyle="{StaticResource ZeroPaddingCell}" CellTemplate="{StaticResource ImageCellTemplate}" Width="60"/>
 
                                             <DataGridTemplateColumn Header="子件型号" Width="150" SortMemberPath="SubSku">
 

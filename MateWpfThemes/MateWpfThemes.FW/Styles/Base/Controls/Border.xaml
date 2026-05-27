@@ -59,7 +59,13 @@
         </Style.Triggers>
     </Style>
 
-
+    <Style x:Key="BaseBorder" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Brush_Control_Background}"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush_Border_Light}"/>
+    </Style>
+    
     <Style x:Key="OutLineButtonStyleBorder" TargetType="Border">
         <Setter Property="CornerRadius" Value="4" />
         <Setter Property="Background" Value="{DynamicResource Brush_Btn_Default_Background}" />

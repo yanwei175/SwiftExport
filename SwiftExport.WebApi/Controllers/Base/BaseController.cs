@@ -2,6 +2,7 @@
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
+using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.Base // 你的实际命名空间
 {
@@ -23,12 +24,14 @@ namespace SwiftExport.WebApi.Controllers.Base // 你的实际命名空间
         }
 
         [HttpPost]
+        [PreventDuplicateRequest] // 中文注释：防抖式防重复提交，默认 3 秒冷却窗口。
         public virtual async Task<ServiceResult<int>> Create([FromBody] TDto dto)
         {
             return await _service.AddAsync(dto);
         }
 
         [HttpPut("{id}")]
+        [PreventDuplicateRequest] // 中文注释：防抖式防重复提交，同接口 3 秒冷却。
         public virtual async Task<ServiceResult<int>> Update(int id, [FromBody] TDto dto)
         {
             // 你可以在基类里做一些统一拦截，比如 ID 校验
@@ -36,6 +39,7 @@ namespace SwiftExport.WebApi.Controllers.Base // 你的实际命名空间
         }
 
         [HttpDelete("{id}")]
+        [PreventDuplicateRequest] // 中文注释：防抖式防重复提交，防止重复删除。
         public virtual async Task<ServiceResult<int>> Delete(int id)
         {
             return await _service.DeleteAsync(id);
@@ -50,6 +54,7 @@ namespace SwiftExport.WebApi.Controllers.Base // 你的实际命名空间
 
 
         [HttpPost("batch-save")]
+        [PreventDuplicateRequest(WindowSeconds = 5)] // 中文注释：批量保存冷却窗口适当延长至 5 秒。
         public virtual async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestGeneric<TDto> req)
         {
             // 直接调用泛型服务里的批量事务处理

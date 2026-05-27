@@ -40,10 +40,10 @@ namespace SwiftExport.Contracts.DTOs.Products
         public string SupplierName { get; set; }
 
         // 你的旧系统特定字段 (用于兼容 Excel 导入导出)
-        public string CustomerCode { get; set; }
-        public string CSku { get; set; }
-        public string SupplierCode { get; set; }
-        public string SSku { get; set; }
+        public string DefaultCustomerCode { get; set; }
+        public string DefaultCustomerSku { get; set; }
+        public string DefaultSupplierCode { get; set; }
+        public string DefaultSupplierSku { get; set; }
 
         // 图片路径 (如果有)
         public string MainImage { get; set; }

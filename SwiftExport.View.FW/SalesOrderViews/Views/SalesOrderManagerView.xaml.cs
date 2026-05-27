@@ -1,35 +1,33 @@
-using SwiftExport.View.FW.ProductViews.ViewModels;
-using SwiftExport.View.FW.SalesOrderViews.Models;
-using SwiftExport.View.FW.SalesOrderViews.ViewModels;
+ï»¿using SwiftExport.View.FW.SalesOrderViews.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 
 namespace SwiftExport.View.FW.SalesOrderViews.Views
-
-{    /// <summary>
-     /// SalesOrderManagerView.xaml µÄ½»»¥Âß¼­
-     /// ÏúÊÛ¶©µ¥¹ÜÀíÁĞ±í½çÃæ
-     /// </summary>
+{
+    /// <summary>
+    /// SalesOrderManagerView.xaml çš„äº¤äº’é€»è¾‘
+    /// é”€å”®è®¢å•ç®¡ç†åˆ—è¡¨è§†å›¾ï¼ˆUserControlï¼‰
+    /// </summary>
     public partial class SalesOrderManagerView : UserControl
     {
-        // ¼ÇÂ¼ÕÛµşÇ°µÄ¸ß¶È£¬ÒÔ±ãÕ¹¿ªÊ±»Ö¸´
-        // ÖĞÎÄ×¢ÊÍ£ºÖ÷ÇøÓòºÍ BOM ÇøÓò·Ö±ğ»º´æ£¬±ÜÃâÊ¹ÓÃÍ¬Ò»¸ö±äÁ¿µ¼ÖÂ»¥Ïà¸²¸Ç¡£
+        // ä¸­æ–‡æ³¨é‡Šï¼šè®°å½•ä¸»åˆ—åŒºå½“å‰çš„é«˜åº¦ï¼Œä»¥ä¾¿æŠ˜å åå±•å¼€æ—¶æ¢å¤ã€‚
         private GridLength _cachedMasterHeight = new GridLength(6, GridUnitType.Star);
 
-        // ÖĞÎÄ×¢ÊÍ£ºÈ·±£Ê×´Î½¹µãÂß¼­Ö»Ö´ĞĞÒ»´Î£¬±ÜÃâÇĞ»»¿É¼ûĞÔÊ±Æµ·±ÇÀ½¹µãÓ°ÏìÌåÑé¡£
+        // ä¸­æ–‡æ³¨é‡Šï¼šç¡®ä¿é¦–æ¬¡åŠ è½½é€»è¾‘åªæ‰§è¡Œä¸€æ¬¡ï¼Œé˜²æ­¢åˆ‡æ¢é¡µé¢æ—¶é¢‘ç¹è§¦å‘å½±å“æ€§èƒ½ã€‚
         private bool _hasInitializedFirstFocus;
+
         public SalesOrderManagerView()
         {
             InitializeComponent();
         }
-        public SalesOrderManagerView(SalesOrderManagerViewModel vm):this()
+
+        public SalesOrderManagerView(SalesOrderManagerViewModel vm) : this()
         {
-            
             this.DataContext = vm;
 
-            // ÖĞÎÄ×¢ÊÍ£º¿Ø¼şÊ×´Î¼ÓÔØÍê³Éºó£¬×Ô¶¯¾Û½¹µ½Ö÷±íÄ£ºıËÑË÷¿ò¡£
+            // ä¸­æ–‡æ³¨é‡Šï¼šæ§ä»¶é¦–æ¬¡åŠ è½½å®Œæˆåè‡ªåŠ¨èšç„¦æœç´¢æ¡†ï¼Œæå‡é”®ç›˜æ“ä½œæ•ˆç‡ã€‚
             this.Loaded += SalesOrderManagerView_Loaded;
         }
 
@@ -42,7 +40,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Views
         }
 
         /// <summary>
-        /// ÖĞÎÄ×¢ÊÍ£º¾Û½¹Ö÷±íËÑË÷¿ò¡£
+        /// ä¸­æ–‡æ³¨é‡Šï¼šèšç„¦ä¸»æœç´¢æ–‡æœ¬æ¡†ã€‚
         /// </summary>
         private void FocusMainSearchTextBox()
         {
@@ -54,35 +52,5 @@ namespace SwiftExport.View.FW.SalesOrderViews.Views
                 MainSearchTextBox.CaretIndex = (MainSearchTextBox.Text ?? string.Empty).Length;
             }, DispatcherPriority.ContextIdle);
         }
-
-        // ´¦Àí·Ö¸îÏßÉÏ ToggleButton µÄµã»÷ÊÂ¼ş
-
-        private void BtnToggleMasterBorder_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as ToggleButton;
-            if (btn.IsChecked == true)
-            {
-                // ÕÛµş£º±£´æµ±Ç°¸ß¶È
-                _cachedMasterHeight = MasterRow.Height;
-
-                // ¡ï ºËĞÄĞŞ¸´£ºÕÛµşÊ±Í¬²½½µµÍ×îĞ¡¸ß¶È£¬±ÜÃâĞĞÈÔÕ¼¾İ²¼¾Ö¿Õ¼ä¡£
-                MasterRow.MinHeight = 0;
-                MasterRow.Height = new GridLength(0);
-
-                MasterBorder.Visibility = Visibility.Collapsed;
-                btn.Content = new TextBlock { Text = "Õ¹¿ª¡ø", FontSize = 9, Foreground = System.Windows.Media.Brushes.Gray };
-            }
-            else
-            {
-                // Õ¹¿ª£º»Ö¸´Ö®Ç°µÄ¸ß¶ÈºÍ×îĞ¡¸ß¶È£¨Óë XAML ÀïµÄÄ¬ÈÏ×îĞ¡¸ß¶È±£³ÖÒ»ÖÂ£©
-                MasterRow.MinHeight = 40;
-                MasterRow.Height = _cachedMasterHeight;
-
-                MasterBorder.Visibility = Visibility.Visible;
-                btn.Content = new TextBlock { Text = "ÕÛµş¨‹", FontSize = 9, Foreground = System.Windows.Media.Brushes.Gray };
-            }
-        }
     }
-
-
 }

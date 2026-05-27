@@ -46,9 +46,6 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         return [.. rst];
     }
 
-    [System.Text.RegularExpressions.GeneratedRegex(@"[^a-zA-Z0-9_,\s\.\[\]]")]
-    private static partial System.Text.RegularExpressions.Regex OrderByRegex();
-
     public async Task<PagedResult<ProductDto>> GetPagedProductDtoAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Id DESC")
     {
         // 1. 规范化排序字段（如果外部传的是 Id，变为 t.Id 防止多表冲突）

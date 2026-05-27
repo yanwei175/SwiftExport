@@ -17,12 +17,12 @@ public class SalesOrderLine : BaseEntity
     public string? ColorNameEn { get; set; }
     public string? FeaturesEn { get; set; }
 
-    public decimal? CNYPrice { get; set; }
-    public decimal? USDPrice { get; set; }
-    public decimal? QTY { get; set; }
+    public decimal? CnyPrice { get; set; }
+    public decimal? UsdPrice { get; set; }
+    public decimal? Qty { get; set; }
 
-    public decimal? CNYAmount { get; set; }
-    public decimal? USDAmount { get; set; }
+    public decimal? CnyAmount { get; set; }
+    public decimal? UsdAmount { get; set; }
 
     public decimal? PcsOfCarton { get; set; }
     public decimal? NwOfCarton { get; set; }

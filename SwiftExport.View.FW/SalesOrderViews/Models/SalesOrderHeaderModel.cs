@@ -16,8 +16,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
     /// 4. 字段级验证（IDataErrorInfo）
     /// </summary>
     public class SalesOrderHeaderModel : BaseLineModel, IDataErrorInfo
-
-
     {
         public bool IsRmbCurrency => Currency == "CNY" || Currency == "RMB"; //提供一个给UI判断是否显示某些字段的属性
         public override void LoadFromDto<SalesOrderHeaderDto>(SalesOrderHeaderDto dto, bool 抑制清理脏数据 = false) //加载数据方法
@@ -100,7 +98,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// <summary>
         /// 客户 PO 号（客户下单编号）
         /// </summary>
-        public string PoNo
+        public string CustomerPoNo
         {
             get => _customerPoNo;
             set => SetProperty(ref _customerPoNo, value);

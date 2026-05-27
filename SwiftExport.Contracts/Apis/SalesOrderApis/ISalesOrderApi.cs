@@ -14,7 +14,7 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
     /// 1. 订单管理页（主从表）
     /// 2. 订单详情页（单据编辑）
     /// </summary>
-    public interface ISalesOrderApi : IGenericApi<SalesOrderDto>
+    public interface ISalesOrderApi : IGenericApi<SalesOrderHeaderDto>
     {
         #region 兼容旧接口（已有）
 
@@ -90,12 +90,13 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         [Post("/detail/save")]
         Task<ServiceResult<int>> SaveSalesOrderDetailAsync([Body] SalesOrderDetailDto request);
 
+
         /// <summary>
         /// 中文注释：销售订单行数据源分页查询。
         /// 从 CustomerProduct 与 Product 联查结果中返回可用于“新增订单行”的基础数据。
         /// </summary>
-        [Post("/lines/source/search")]
-        Task<ServiceResult<PagedResultDto<SalesOrderLineDto>>> GetSalesOrderLineSourcePagedListAsync([Body] SalesOrderLineSourceSearchDto search);
+        [Post("/lines/sales-products/search")]
+        Task<ServiceResult<PagedResultDto<SalesProductDto>>> GetSalesProductPagedListAsync([Body] SalesProductSearchDto request);
 
         /// <summary>
         /// 获取销售订单下一单号。

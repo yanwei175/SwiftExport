@@ -51,6 +51,9 @@
   <ItemGroup>
     <Compile Include="AppRuntimeOptions.cs" />
     <Compile Include="Http\AuthTokenStore.cs" />
+    <Compile Include="Mappings\SalesProductDtoToSalesLinDto.cs" />
+    <Compile Include="Mvvm\AsyncRelayCommand.cs" />
+    <Compile Include="Mvvm\CheckableItem.cs" />
     <Compile Include="OrderDecomposeViews\Models\DependentDemandList.cs" />
     <Compile Include="OrderDecomposeViews\Models\DependentDemandModel.cs" />
     <Compile Include="OrderDecomposeViews\ViewModels\DependentDemandManagerViewModel.cs" />
@@ -219,11 +222,18 @@
     <Compile Include="SalesOrderViews\ViewModels\SalesOrderDetailViewModel.cs" />
     <Compile Include="SalesOrderViews\ViewModels\SalesOrderManagerViewModel.cs" />
     <Compile Include="Mvvm\BindingProxy.cs" />
+    <Compile Include="SalesOrderViews\ViewModels\SalesProductSelectorViewModel.cs" />
     <Compile Include="SalesOrderViews\Views\SalesOrderDetailView.xaml.cs">
       <DependentUpon>SalesOrderDetailView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="SalesOrderViews\Views\SalesOrderDetailWindow.xaml.cs">
+      <DependentUpon>SalesOrderDetailWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="SalesOrderViews\Views\SalesOrderManagerView.xaml.cs">
       <DependentUpon>SalesOrderManagerView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SalesOrderViews\Views\SalesProductSeletorView.xaml.cs">
+      <DependentUpon>SalesProductSeletorView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Security\AuthEnableExtension.cs" />
     <Compile Include="Security\AuthVisExtension.cs" />
@@ -393,6 +403,13 @@
     <Page Include="ProductViews\Views\ProductSelectorView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="SalesOrderViews\Views\SalesOrderDetailWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SalesOrderViews\Views\SalesProductSeletorView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="SupplierViews\Views\SupplierProductManagerView.xaml">
       <Generator>MSBuild:Compile</Generator>

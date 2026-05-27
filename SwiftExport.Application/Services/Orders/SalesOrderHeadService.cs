@@ -1,4 +1,5 @@
 using Mapster;
+using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
@@ -16,8 +17,8 @@ namespace SwiftExport.Application.Services.Orders;
 /// <summary>
 /// 销售订单应用服务实现。
 /// </summary>
-public class SalesOrderService(
-    ISalesOrderRepository salesOrderRepository,
+public class SalesOrderHeadService(
+    ISalesOrderHeadRepository salesOrderRepository,
     IRepository<SalesOrderHeader> headerRepository,
     IRepository<SalesOrderLine> lineRepository,
     IRepository<Customer> customerRepository,
@@ -25,41 +26,15 @@ public class SalesOrderService(
     IDocumentNoService documentNoService,
     IIndependentDemandRepository salesDemandRepository,
     ServiceBaseContext context)
-    : BaseService<SalesOrderHeader, SalesOrderDto>(headerRepository, context), ISalesOrderService
+    : BaseService<SalesOrderHeader, SalesOrderHeaderDto>(headerRepository, context), ISalesOrderHeadService
 {
-    private readonly ISalesOrderRepository _salesOrderRepo = salesOrderRepository;
+    private readonly ISalesOrderHeadRepository _salesOrderRepo = salesOrderRepository;
     private readonly IRepository<SalesOrderLine> _lineRepository = lineRepository;
     private readonly IRepository<Customer> _customerRepository = customerRepository;
     private readonly ISalesOrderLineSourceService _salesOrderLineSourceService = salesOrderLineSourceService;
     private readonly IDocumentNoService _documentNoService = documentNoService;
     private readonly IIndependentDemandRepository _demandRepo = salesDemandRepository;
     #region 兼容旧接口（已有）
-
-    /// <summary>
-    /// 中文注释：分页查询销售订单列表（旧 DTO，保留兼容）。
-    /// </summary>
-    public async Task<ServiceResult<PagedResultDto<SalesOrderDto>>> GetSalesOrderPagedListAsync(SalesOrderSearchDto search)
-    {
-        var criteria = BuildLegacySearchCriteria(search);
-        int pageIndex = search?.PageIndex > 0 ? search.PageIndex : 1;
-        int pageSize = search?.PageSize > 0 ? search.PageSize : 50;
-
-        string sortBy = string.IsNullOrWhiteSpace(search?.SortBy) ? "OrderDate" : search.SortBy;
-        string orderBy = $"{sortBy} {(search?.SortAscending == true ? "ASC" : "DESC")}";
-
-        var paged = await _repository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
-        var customerNameMap = await BuildCustomerNameMapAsync();
-
-        var dto = new PagedResultDto<SalesOrderDto>
-        {
-            Items = [.. paged.Items.Select(x => MapToSalesOrderDto(x, customerNameMap))],
-            TotalCount = paged.TotalCount,
-            PageIndex = paged.PageIndex,
-            PageSize = paged.PageSize
-        };
-
-        return ServiceResult<PagedResultDto<SalesOrderDto>>.Ok(dto);
-    }
 
     /// <summary>
     /// 中文注释：获取销售订单详情（订单头 + 明细行）。
@@ -182,24 +157,27 @@ public class SalesOrderService(
     /// <summary>
     /// 中文注释：分页查询订单头列表（用于主表）。
     /// </summary>
-    public async Task<ServiceResult<PagedResultDto<SalesOrderHeaderDto>>> GetSalesOrderHeaderPagedListAsync(SalesOrderManagerSearchDto search)
+    public async Task<ServiceResult<PagedResultDto<SalesOrderHeaderDto>>> GetSalesOrderHeaderPagedListAsync(SalesOrderManagerSearchDto req)
     {
-        var criteria = await BuildManagerSearchCriteriaAsync(search);
-        int pageIndex = search?.PageIndex > 0 ? search.PageIndex : 1;
-        int pageSize = search?.PageSize > 0 ? search.PageSize : 50;
-
-        string sortBy = string.IsNullOrWhiteSpace(search?.SortBy) ? "OrderDate" : search.SortBy;
-        string orderBy = $"{sortBy} {(search?.SortAscending == true ? "ASC" : "DESC")}";
-
-        var paged = await _repository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
-
-        return ServiceResult<PagedResultDto<SalesOrderHeaderDto>>.Ok(new PagedResultDto<SalesOrderHeaderDto>
+        try
         {
-            Items = paged.Items.Adapt<List<SalesOrderHeaderDto>>(),
-            TotalCount = paged.TotalCount,
-            PageIndex = paged.PageIndex,
-            PageSize = paged.PageSize
-        });
+            string sortBy = string.IsNullOrWhiteSpace(req.SortBy) ? "CreatedDate" : req.SortBy;
+            string orderBy = $"{sortBy} {(req.SortAscending == true ? "ASC" : "DESC")}";
+            var rst = await _salesOrderRepo.GetSalesOrderHeaderPagedListAsync(req, orderBy);
+            if (rst != null)
+            {
+                return ServiceResult<PagedResultDto<SalesOrderHeaderDto>>.Ok(rst);
+            }
+            else
+            {
+                return ServiceResult<PagedResultDto<SalesOrderHeaderDto>>.Fail("查询订单列表失败");
+            }
+        }
+        catch(Exception ex)
+        {
+            return ServiceResult<PagedResultDto<SalesOrderHeaderDto>>.Fail(ex.Message);
+        }
+
     }
 
     /// <summary>
@@ -345,15 +323,6 @@ public class SalesOrderService(
         return await SaveAsCreateAsync(request);
     }
 
-    /// <summary>
-    /// 中文注释：销售订单行数据源分页查询。
-    /// 实际查询由专用 SalesOrderLineSourceService 承担，
-    /// 这里保持 ISalesOrderService 对外能力完整，便于 Controller 与 Refit 统一调用。
-    /// </summary>
-    public async Task<ServiceResult<PagedResultDto<SalesOrderLineDto>>> GetSalesOrderLineSourcePagedListAsync(SalesOrderLineSourceSearchDto search)
-    {
-        return await _salesOrderLineSourceService.GetPagedSalesOrderLineSourceDtoAsync(search);
-    }
 
     /// <summary>
     /// 中文注释：获取销售订单下一单号。
@@ -536,126 +505,9 @@ public class SalesOrderService(
 
     #region 私有辅助方法
 
-    /// <summary>
-    /// 中文注释：构造旧分页接口的查询条件。
-    /// </summary>
-    private static QueryCriteria BuildLegacySearchCriteria(SalesOrderSearchDto search)
-    {
-        search ??= new SalesOrderSearchDto();
-        var criteria = new QueryCriteria();
+    
 
-        if (!string.IsNullOrWhiteSpace(search.Keyword))
-        {
-            criteria.AddOrGroup(
-                ("OrderNo", 查询操作符.模糊匹配, search.Keyword),
-                ("CustomerCode", 查询操作符.模糊匹配, search.Keyword),
-                ("InvoiceNo", 查询操作符.模糊匹配, search.Keyword),
-                ("Remark", 查询操作符.模糊匹配, search.Keyword)
-            );
-        }
-
-        if (!string.IsNullOrWhiteSpace(search.OrderNo))
-            criteria.Add("OrderNo", 查询操作符.模糊匹配, search.OrderNo);
-
-        if (search.CustomerId.HasValue)
-            criteria.Add("CustomerId", 查询操作符.等于, search.CustomerId.Value);
-
-        if (search.OrderDateFrom.HasValue)
-            criteria.Add("OrderDate", 查询操作符.大于等于, search.OrderDateFrom.Value);
-
-        if (search.OrderDateTo.HasValue)
-            criteria.Add("OrderDate", 查询操作符.小于等于, search.OrderDateTo.Value);
-
-        if (search.DeliveryDateFrom.HasValue)
-            criteria.Add("DeliveryDate", 查询操作符.大于等于, search.DeliveryDateFrom.Value);
-
-        if (search.DeliveryDateTo.HasValue)
-            criteria.Add("DeliveryDate", 查询操作符.小于等于, search.DeliveryDateTo.Value);
-
-        if (search.OrderStatus>=0)
-            criteria.Add("OrderStatus", 查询操作符.等于, search.OrderStatus);
-
-        if (search.TotalAmountFrom.HasValue)
-            criteria.Add("TotalAmountLocalCurrency", 查询操作符.大于等于, search.TotalAmountFrom.Value);
-
-        if (search.TotalAmountTo.HasValue)
-            criteria.Add("TotalAmountLocalCurrency", 查询操作符.小于等于, search.TotalAmountTo.Value);
-
-        return criteria;
-    }
-
-    /// <summary>
-    /// 中文注释：构造订单管理页查询条件。
-    /// </summary>
-    private async Task<QueryCriteria> BuildManagerSearchCriteriaAsync(SalesOrderManagerSearchDto search)
-    {
-        search ??= new SalesOrderManagerSearchDto();
-        var criteria = new QueryCriteria();
-
-        if (!string.IsNullOrWhiteSpace(search.Keyword))
-        {
-            criteria.AddOrGroup(
-                ("OrderNo", 查询操作符.模糊匹配, search.Keyword),
-                ("CustomerCode", 查询操作符.模糊匹配, search.Keyword),
-                ("InvoiceNo", 查询操作符.模糊匹配, search.Keyword),
-                ("Remark", 查询操作符.模糊匹配, search.Keyword)
-            );
-        }
-
-        if (!string.IsNullOrWhiteSpace(search.CustomerCode))
-            criteria.Add("CustomerCode", 查询操作符.等于, search.CustomerCode);
-
-        if (!string.IsNullOrWhiteSpace(search.OrderNo))
-            criteria.Add("OrderNo", 查询操作符.模糊匹配, search.OrderNo);
-
-        if (!string.IsNullOrWhiteSpace(search.InvoiceNo))
-            criteria.Add("InvoiceNo", 查询操作符.模糊匹配, search.InvoiceNo);
-
-        if (search.OrderDateFrom.HasValue)
-            criteria.Add("OrderDate", 查询操作符.大于等于, search.OrderDateFrom.Value);
-
-        if (search.OrderDateTo.HasValue)
-            criteria.Add("OrderDate", 查询操作符.小于等于, search.OrderDateTo.Value);
-
-        if (search.OrderStatuses?.Count > 0)
-            criteria.Add("OrderStatus", 查询操作符.包含某值, search.OrderStatuses.Distinct().ToList());
-
-        if (search.ApprovalStatuses?.Count > 0)
-            criteria.Add("ApprovalStatus", 查询操作符.包含某值, search.ApprovalStatuses.Distinct().ToList());
-
-        if (!string.IsNullOrWhiteSpace(search.IncludeSkus))
-        {
-            var skuKeywords = search.IncludeSkus
-                .Split([',', '\r', '\n', ';', ' '], StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => x.Trim())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (skuKeywords.Count > 0)
-            {
-                var allLines = await _lineRepository.GetAllAsync();
-                var matchedOrderNos = allLines
-                    .Where(l => !string.IsNullOrWhiteSpace(l.OrderNo)
-                                && !string.IsNullOrWhiteSpace(l.Sku)
-                                && skuKeywords.Any(k => l.Sku!.Contains(k, StringComparison.OrdinalIgnoreCase)))
-                    .Select(l => l.OrderNo!)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                if (matchedOrderNos.Count == 0)
-                {
-                    criteria.Add("Id", 查询操作符.等于, -1);
-                }
-                else
-                {
-                    criteria.Add("OrderNo", 查询操作符.包含某值, matchedOrderNos);
-                }
-            }
-        }
-
-        return criteria;
-    }
+  
 
     /// <summary>
     /// 中文注释：按订单号查询明细行。
@@ -872,7 +724,7 @@ public class SalesOrderService(
                 ColorName = line.ColorNameEn,
                 Features = line.FeaturesEn,
                 IsDeleted = false,
-                OriginalQty = line.QTY ?? 0,
+                OriginalQty = line.Qty ?? 0,
                 FilledQty = 0,
                 ShippedQty = 0,
                 // 中文注释：审批前仅生成“毛需求”记录，状态应保持草稿。
@@ -912,7 +764,7 @@ public class SalesOrderService(
                 }
 
                 // --- 选择性更新字段 ---
-                demand.OriginalQty = lineEntity.QTY ?? 0;
+                demand.OriginalQty = lineEntity.Qty ?? 0;
                 demand.Sku = lineEntity.Sku;
                 demand.HopefulDate = lineEntity.ExpectedDeliveryDate;
                 demand.Remark = lineEntity.SubNote;
@@ -1017,7 +869,7 @@ public class SalesOrderService(
         foreach (var line in orderLines)
         {
             // 中文注释：数量必须大于0。
-            if ((line.QTY ?? 0) <= 0)
+            if ((line.Qty ?? 0) <= 0)
                 return Task.FromResult(ServiceResult<bool>.Fail($"订单行[{line.LineNumber}] 数量无效"));
 
             //Sku至少要有一个不为空，否则无法识别订单行的物料信息
@@ -1073,6 +925,7 @@ public class SalesOrderService(
 
         return ServiceResult<bool>.Ok(true);
     }
+
 
 
 

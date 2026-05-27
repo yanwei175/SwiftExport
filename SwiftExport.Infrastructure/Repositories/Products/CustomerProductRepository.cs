@@ -209,8 +209,5 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
         return [.. rst];
     }
 
-    // 正则安全过滤（orderBy 字段名白名单）
-    [System.Text.RegularExpressions.GeneratedRegex(@"[^a-zA-Z0-9_,\s\.\[\]]")]
-    private static partial System.Text.RegularExpressions.Regex OrderByRegex();
 }
 

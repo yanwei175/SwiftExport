@@ -171,18 +171,18 @@
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type Button}">
                     <Border x:Name="Border"
-                  Background="Transparent"
-                  BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}"
-                  SnapsToDevicePixels="True">
+                              Background="Transparent"
+                              BorderBrush="{TemplateBinding BorderBrush}"
+                              BorderThickness="{TemplateBinding BorderThickness}"
+                              SnapsToDevicePixels="True">
                         <Polygon x:Name="Arrow"
-                     Margin="8,8,3,3"
-                     HorizontalAlignment="Right"
-                     VerticalAlignment="Bottom"
-                     Fill="{DynamicResource  Brush_Control_Background}"
-                     Opacity="0.5"
-                     Points="0,10 10,10 10,0"
-                     Stretch="Uniform" />
+                                 Margin="8,8,3,3"
+                                 HorizontalAlignment="Right"
+                                 VerticalAlignment="Bottom"
+                                 Fill="{DynamicResource  Brush_Control_Background}"
+                                 Opacity="0.5"
+                                 Points="0,10 10,10 10,0"
+                                 Stretch="Uniform" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -226,9 +226,9 @@
                 <ControlTemplate TargetType="DataGridColumnHeader">
                     <Grid>
                         <Border Background="{TemplateBinding Background}" 
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="0" 
-                            Padding="10,5">
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="0" 
+                                Padding="10,5">
                             <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" />
                         </Border>
                     </Grid>
@@ -279,7 +279,6 @@
 
 
     <Style TargetType="DataGridRow" BasedOn="{StaticResource BaseDataGridRow}">
-
         <Style.Triggers>
             <!-- 业务层行级状态变更反馈样式 (Added / Modified / Deleted) -->
             <DataTrigger Binding="{Binding State, FallbackValue=None}" Value="Added">
@@ -297,7 +296,7 @@
 
     </Style>
     
-    <Style x:Key="ReadOnlyDataGridRow" TargetType="DataGridRow" >
+    <Style x:Key="ReadOnlyDataGridRow" TargetType="DataGridRow">
         <Setter Property="Background" Value="Transparent"/>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
@@ -536,6 +535,19 @@
     </Style>
 
     <Style x:Key="FullRowDataGrid" TargetType="DataGrid" BasedOn="{StaticResource BaseDataGrid}">
+        <Style.Resources>
+            <Style TargetType="DataGridRow">
+                <Setter Property="Background" Value="Transparent"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource Brush_DataGridMouseOver}"/>
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource Brush_DataGridSelectionCell}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        </Style.Resources>
         <Setter Property="SelectionUnit" Value="FullRow"/>
         <Setter Property="SelectionMode" Value="Extended"/>
     </Style>
@@ -545,10 +557,10 @@
         <Style.Resources>
             <Style TargetType="TextBlock" BasedOn="{StaticResource  DataGridTextBlockStyle}"/>
             <Style TargetType="CheckBox" BasedOn="{StaticResource DataGridCheckBoxStyle}"/>
+            <Style TargetType="DataGridRow" BasedOn="{StaticResource ReadOnlyDataGridRow}" />
+            <Style TargetType="DataGridCell" BasedOn="{StaticResource ReadOnlyDataGridCell}" />
         </Style.Resources>
         
-        <Setter Property="CellStyle" Value="{StaticResource ReadOnlyDataGridCell}"/>
-        <Setter Property="RowStyle" Value="{StaticResource ReadOnlyDataGridRow}"/>
         <Setter Property="ColumnHeaderStyle" Value="{StaticResource ReadOnlyDataGridColumnHeader}"/>
         
         <Setter Property="GridLinesVisibility" Value="Horizontal"/>

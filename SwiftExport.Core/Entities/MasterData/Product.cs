@@ -50,10 +50,10 @@ public class Product : BaseEntity
     /// </summary>
     public decimal? UnitWeight { get; set; }
 
-    public string? CustomerCode { get; set; }
-    public string? CSku { get; set; }
-    public string? SupplierCode { get; set; }
-    public string? SSku { get; set; }
+    public string? DefaultCustomerCode { get; set; }
+    public string? DefaultCustomerSku { get; set; }
+    public string? DefaultSupplierCode { get; set; }
+    public string? DefaultSupplierSku { get; set; }
     public int CategoryId { get; set; }
 
 

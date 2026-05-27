@@ -217,5 +217,11 @@ namespace SwiftExport.DevApp
             win.ShowDialog();
 
         }
+
+        private void Button_Click_SalesProductSelector(object sender, RoutedEventArgs e)
+        {
+            var win = DiServices.GetService<SalesProductSeletorView>();
+            win.ShowDialog();
+        }
     }
 }

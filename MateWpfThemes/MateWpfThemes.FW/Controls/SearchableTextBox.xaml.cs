@@ -396,9 +396,12 @@ namespace MateWpfThemes.FW.Controls
 
             if (value != null)
             {
-                // 中文注释：先写选中项，再静默同步文本，避免事件回环。
+                // 中文注释：停止防抖计时器，防止选中后计时器仍触发 ResolveSelectionByText 导致重复通知。
+                _debounceTimer.Stop();
+
+                // 中文注释：设置 SelectedItem 后，OnSelectedItemChanged 回调会自动同步 SelectedValue，
+                // 此处不再重复赋值，避免 SelectedValue 双重变更引发外部 ViewModel 属性通知两次。
                 SelectedItem = item;
-                SelectedValue = GetSelectedValue(item);
 
                 SetInputTextSilently(value);
                 SyncTextDependencySilently(value);
@@ -430,15 +433,15 @@ namespace MateWpfThemes.FW.Controls
 
                     if (string.Equals((value ?? string.Empty).Trim(), text, StringComparison.OrdinalIgnoreCase))
                     {
+                        // 中文注释：OnSelectedItemChanged 回调负责同步 SelectedValue，此处不重复赋值。
                         SelectedItem = item;
-                        SelectedValue = GetSelectedValue(item);
                         return true;
                     }
                 }
             }
 
             SelectedItem = null;
-            SelectedValue = null;
+            // 中文注释：OnSelectedItemChanged(null) 回调已处理 SelectedValue = null，无需重复。
             return false;
         }
 

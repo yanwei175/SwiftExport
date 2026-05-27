@@ -90,6 +90,8 @@ try
     // 4. 注册 Web API 核心服务
     // ══════════════════════════════════════════════════════
     #region 添加 Web 服务
+    // 中文注释：注册内存缓存，供 PreventDuplicateRequestAttribute 防抖 Filter 使用。
+    builder.Services.AddMemoryCache();
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();

@@ -302,8 +302,8 @@ public class DependentDemandService(
             .ToDictionary(x => x.Sku!, x => x, StringComparer.OrdinalIgnoreCase);
         //构建Key=Sku, Value=SupplierCode的默认供应商字典索引（不区分大小写），用于后续转单时解析供应商编码
         var defaultSupplierBySku = products
-            .Where(x => !string.IsNullOrWhiteSpace(x.Sku) && !string.IsNullOrWhiteSpace(x.SupplierCode))
-            .ToDictionary(x => x.Sku!, x => x.SupplierCode!, StringComparer.OrdinalIgnoreCase);
+            .Where(x => !string.IsNullOrWhiteSpace(x.Sku) && !string.IsNullOrWhiteSpace(x.DefaultSupplierCode))
+            .ToDictionary(x => x.Sku!, x => x.DefaultSupplierCode!, StringComparer.OrdinalIgnoreCase);
         #endregion
 
         #region 解析供应商校验,

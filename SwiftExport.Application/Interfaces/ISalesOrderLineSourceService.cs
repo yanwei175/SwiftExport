@@ -13,6 +13,9 @@ namespace SwiftExport.Application.Interfaces
         /// <summary>
         /// 分页查询销售订单行数据源。
         /// </summary>
-        Task<ServiceResult<PagedResultDto<SalesOrderLineDto>>> GetPagedSalesOrderLineSourceDtoAsync(SalesOrderLineSourceSearchDto search);
+        //Task<ServiceResult<PagedResultDto<SalesOrderLineDto>>> GetPagedSalesOrderLineSourceDtoAsync(SalesOrderLineSourceSearchDto search);
+
+        Task<ServiceResult<PagedResultDto<SalesProductDto>>> GetSalesProductPagedListAsync(SalesProductSearchDto request);
+
     }
 }
