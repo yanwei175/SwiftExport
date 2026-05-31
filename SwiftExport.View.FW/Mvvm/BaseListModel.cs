@@ -11,21 +11,19 @@ using System.Threading.Tasks;
 
 namespace SwiftExport.View.FW.Mvvm
 {
-    public abstract class BaseListModel<T> : ViewModelBaseEx
-        where T : BaseLineModel, new()
+    public abstract class BaseListModel<T> : ViewModelBaseEx where T : BaseLineModel, new()
     {
         public ObservableCollection<T> Items { get; } = new ObservableCollection<T>();
         protected readonly List<T> _allItems = new List<T>();
 
-        /// <summary>
-        /// 行级别事件委托,切换行的时候才会触发.
-        /// </summary>
+        /// <summary>行级别事件委托,切换行的时候才会触发.</summary>
         public event Action ListStateChanged;
 
         public BaseListModel()
         {
             Items.CollectionChanged += OnCollectionChanged;
         }
+
         /// <summary>
         /// 集合变更事件处理器，负责同步 _allItems 池和订阅行级 PropertyChanged 事件。
         /// </summary>
@@ -79,15 +77,12 @@ namespace SwiftExport.View.FW.Mvvm
             ListStateChanged?.Invoke();
         }
 
+        #region Valid 验证 状态,验证逻辑在具体的Model里.
 
- 
+        /// <summary>是否全部通过验证</summary>
+        public bool IsAllValid => Items.Where(x => x.State != ModelState.Deleted).All(x => x.IsValid);
 
-
-        // ============================
-        // 验证 & 脏数据
-        // ============================
-        public bool IsAllValid =>
-            Items.Where(x => x.State != ModelState.Deleted).All(x => x.IsValid);
+        /// <summary>验证所有行</summary>
         public async Task<string> ValidateAllAsync()
         {
             foreach (var itemModel in Items)
@@ -100,27 +95,30 @@ namespace SwiftExport.View.FW.Mvvm
             return null;
         }
 
-        /// <summary>
-        /// 列表级 Dirty（任何行 Added/Modified/Deleted）
-        /// </summary>
-        public bool IsDirty =>
-            _allItems.Any(x =>
+        #endregion
+
+
+        #region    Dirty 状态 & 命令
+
+
+        /// <summary>列表级 Dirty（任何行 Added/Modified/Deleted）</summary>
+        public bool IsDirty => _allItems.Any(x =>
                 x.State == ModelState.Added ||
                 x.State == ModelState.Modified ||
                 x.State == ModelState.Deleted);
 
-        // ============================
-        // Dirty 命令系统
-        // ============================
-
+        /// <summary>列表级Dirty变更通知系统，允许外部命令注册以在行状态变化时自动刷新 CanExecute。</summary>
         private readonly List<RelayCommand> _dirtyNotifyCommands = new List<RelayCommand>();
 
+
+        /// <summary>注意只是通知..还需另外去实现CanExecute,注册一个命令,在行的脏状态变化时通知它刷新 CanExecute。</summary>
         public void RegisterDirtyNotifyCommand(RelayCommand command)
         {
             if (command != null && !_dirtyNotifyCommands.Contains(command))
                 _dirtyNotifyCommands.Add(command);
         }
 
+        /// <summary>刷新脏状态相关的属性和命令，适用于批量操作后的一次性通知，避免重复触发。</summary>
         private void RaiseDirtyChanged()
         {
             RaisePropertyChanged(nameof(IsDirty));
@@ -129,9 +127,11 @@ namespace SwiftExport.View.FW.Mvvm
                 cmd.RaiseCanExecuteChanged();
         }
 
-        // ============================
-        // 全选 / 反选
-        // ============================
+        #endregion
+
+
+        #region   Checked 状态 & 命令
+        /// <summary>全选 反选 命令绑定 </summary>
         public bool IsAllChecked
         {
             get => Items.Count > 0 && Items.All(x => x.IsChecked);
@@ -156,7 +156,8 @@ namespace SwiftExport.View.FW.Mvvm
         public void CheckAll() => IsAllChecked = true;
         public void UncheckAll() => IsAllChecked = false;
         public void ToggleCheckAll() => IsAllChecked = !IsAllChecked;
-        
+
+        /// <summary>反选命令绑定 </summary>
         public void InvertCheckAll()
         {
             _suppressItemChangedEvents = true;
@@ -175,17 +176,16 @@ namespace SwiftExport.View.FW.Mvvm
             RaisePropertyChanged(nameof(CheckedCount));
         }
 
-        // ============================
-        // Checked 命令系统（类似 Dirty）
-        // ============================
+        /// <summary>Checked 命令系统（类似 Dirty）</summary>
         private readonly List<RelayCommand> _checkedNotifyCommands = new List<RelayCommand>();
-
+        /// <summary>注意只是通知..还需另外去实现CanExecute,注册一个命令，在勾选状态变化时通知它刷新 CanExecute。</summary>
         public void RegisterCheckedNotifyCommand(RelayCommand command)
         {
             if (command != null && !_checkedNotifyCommands.Contains(command))
                 _checkedNotifyCommands.Add(command);
         }
 
+        /// <summary>刷新勾选状态相关的属性和命令，适用于批量操作后的一次性通知，避免重复触发。</summary>
         private void RaiseCheckedChanged()
         {
             RaisePropertyChanged(nameof(IsAllChecked));
@@ -195,12 +195,11 @@ namespace SwiftExport.View.FW.Mvvm
                 cmd.RaiseCanExecuteChanged();
         }
 
+        #endregion
 
+        #region   对集合的操作
 
-
-        // ============================
-        // 删除
-        // ============================
+        /// <summary>移除UI可见行</summary>
         public void Remove(T item)
         {
             if (item == null) return;
@@ -219,7 +218,7 @@ namespace SwiftExport.View.FW.Mvvm
 
             RaiseAllState();
         }
-
+        /// <summary>删除UI以及后台行</summary>
         public void Delete(T item)
         {
             if (item == null) return;
@@ -229,7 +228,7 @@ namespace SwiftExport.View.FW.Mvvm
             RaiseAllState();
         }
 
-
+        /// <summary>清空集合并移除内部事件和状态，适用于批量加载前的预处理。</summary>
         public void Clear()
         {
             foreach (var item in _allItems)
@@ -239,9 +238,7 @@ namespace SwiftExport.View.FW.Mvvm
             RaiseAllState();
         }
 
-        // ============================
-        // ChangeSet
-        // ============================
+        /// <summary>获取脏数据变更集，包括新增、修改和删除的项，供批量提交使用。</summary>
         public BatchRequestGeneric<T> GetChangeSet()
         {
             return new BatchRequestGeneric<T>
@@ -251,24 +248,31 @@ namespace SwiftExport.View.FW.Mvvm
                 DeleteIdList = _allItems.Where(x => x.State == ModelState.Deleted).Select(x => x.Id).ToList()
             };
         }
+
+        /// <summary>获取已删除项的 ID 列表。</summary>
         public List<int> GetDeletedItems()
         {
             return _allItems.Where(x => x.State == ModelState.Deleted).Select(x => x.Id).ToList();
         }
+        /// <summary>获取已选中项的列表。</summary>
         public List<T> GetCheckedItems()
         {
             return Items.Where(x => x.IsChecked).ToList();
         }
+
+        /// <summary>获取所有项的列表，包括已标记为删除的项。</summary>
         public List<T> GetAllItems()
         {
             return _allItems.ToList();
         }
 
-
-        public virtual void ReLoadRangeFromDtoList<Tdto>(List<Tdto> dtos)
+        public virtual void ReLoadRangeFromDtoList<Tdto>(List<Tdto> dtos, bool 抑制清理脏数据 = false)
         {
             // 清空现有数据后批量加载新数据以提升性能
             Clear();
+            using(DisabledStateScope())
+            {
+
             if (dtos != null && dtos.Count > 0)
             {
                 // 预分配内部列表容量以减少扩容
@@ -279,7 +283,7 @@ namespace SwiftExport.View.FW.Mvvm
                 {
                     var model = new T();
                     // 在批量加载时抑制每行的 CommitChanges，统一在批量完成后提交
-                    model.LoadFromDto(dto, 抑制清理脏数据: false);
+                    model.LoadFromDto(dto, 抑制清理脏数据);
 
                     models.Add(model);
 
@@ -296,6 +300,7 @@ namespace SwiftExport.View.FW.Mvvm
 
             // 最终刷新状态
             RaiseAllState();
+            }
         }
         /// <summary>
         /// 批量添加项以减少 CollectionChanged/通知开销。
@@ -355,6 +360,8 @@ namespace SwiftExport.View.FW.Mvvm
             // 批量完成后一次性刷新状态
             RaiseAllState();
         }
+
+        /// <summary>添加一个视图模型到集合最前面</summary>
         public void AddModelToFirst(T item)
         {
             if (item == null) return;
@@ -401,10 +408,12 @@ namespace SwiftExport.View.FW.Mvvm
                 // 恢复集合变更监听
                 Items.CollectionChanged += OnCollectionChanged;
             }
-  
+
             // 一次性刷新状态
             RaiseAllState();
         }
+
+        /// <summary>刷新所有状态相关的属性和命令，适用于批量操作后的一次性通知，避免重复触发。</summary>
         protected void RaiseAllState()
         {
             RaiseDirtyChanged();// ★ 列表级 Dirty 自动通知命令
@@ -413,8 +422,6 @@ namespace SwiftExport.View.FW.Mvvm
             RaisePropertyChanged(nameof(IsAllChecked));
             RaisePropertyChanged(nameof(CheckedCount));
         }
-
-
 
         /// <summary>
         /// 检查全局池（包括已标记为删除的项）中是否已存在符合条件的项
@@ -434,7 +441,7 @@ namespace SwiftExport.View.FW.Mvvm
             return _allItems.FirstOrDefault(predicate);
         }
 
-
+        #endregion
 
 
     }

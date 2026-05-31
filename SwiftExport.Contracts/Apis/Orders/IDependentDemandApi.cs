@@ -1,7 +1,7 @@
 using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
+using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Contracts.DTOs.Orders;
-using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
 using System.Threading.Tasks;

@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.Wrappers;
 
@@ -17,7 +17,7 @@ public class InDependentDemandController(IIndependentDemandServices service) : C
     /// 分页查询净需求。
     /// </summary>
     [HttpPost("search")]
-    public async Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync([FromBody] InDependSearchReq search)
+    public async Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync([FromBody] IndependSearchRequest search)
     {
         return await service.GetPagedListAsync(search);
     }

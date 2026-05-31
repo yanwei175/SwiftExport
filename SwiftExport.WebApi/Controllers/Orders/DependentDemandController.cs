@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
+using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
 using SwiftExport.Contracts.SysEnums.StaticEnums;

@@ -13,6 +13,7 @@ using SwiftExport.View.FW.SupplierViews.Views;
 using System.Windows;
 using SwiftExport.View.FW.WarehouseViews.Views;
 using SwiftExport.View.FW.PackingListViews.Views;
+using SwiftExport.View.FW.Independent.Views;
 
 namespace SwiftExport.DevApp
 {
@@ -222,6 +223,11 @@ namespace SwiftExport.DevApp
         {
             var win = DiServices.GetService<SalesProductSeletorView>();
             win.ShowDialog();
+        }
+
+        private void Button_Click_IndependentDemandManager(object sender, RoutedEventArgs e)
+        {
+            OpenWindow("独立需求池", DiServices.GetService<IndependentDemandManagerView>(), 1200, 800);
         }
     }
 }

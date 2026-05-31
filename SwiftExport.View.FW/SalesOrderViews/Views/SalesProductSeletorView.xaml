@@ -75,10 +75,10 @@
                         <Grid Margin="5">
                             <TextBox Width="240" x:Name="MatchCustomerSku"
                                      Style="{StaticResource MultiLineTextBoxStyle}"
-                                    Cursor="IBeam" VerticalAlignment="Stretch"
-                                    mt:TextBoxAssist.ShowClearButton="True"                                     
-                                    mt:TextBoxAssist.Placeholder="输入客户型号精确查找(支持换行或逗号分隔)"
-                                    Text="{Binding MatchCustomerSkuText, UpdateSourceTrigger=PropertyChanged}" />
+                                     Cursor="IBeam" VerticalAlignment="Stretch"
+                                     mt:TextBoxAssist.ShowClearButton="True"                                     
+                                     mt:TextBoxAssist.Placeholder="输入客户型号精确查找(支持换行或逗号分隔)"
+                                     Text="{Binding MatchCustomerSkuText, UpdateSourceTrigger=PropertyChanged}" />
                             
                             <Popup x:Name="FilterPopup" d:Visibility="Visible"
                                    PlacementTarget="{Binding ElementName=MatchCustomerSku}"

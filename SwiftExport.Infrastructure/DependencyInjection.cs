@@ -55,7 +55,7 @@ public static class DependencyInjection
         services.AddScoped<ISysDictDataRepository, SysDictDataRepository>();
         // 视图路由配置仓储
         services.AddScoped<ISysViewRouteRepository, SysViewRouteRepository>();
-        services.AddScoped<ISalesOrderLineSourceRepository, SalesOrderLineSourceRepository>();
+        services.AddScoped<ISalesOrderLineRepository, SalesOrderLineRepository>();
         services.AddScoped<IDependentDemandRepository, DependentDemandRepository>();
         services.AddScoped<IIndependentDemandRepository, IndependentDemandRepository>();
         services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();

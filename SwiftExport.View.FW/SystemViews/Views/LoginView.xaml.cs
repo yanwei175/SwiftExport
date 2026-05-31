@@ -35,6 +35,7 @@ namespace SwiftExport.View.FW.SystemViews.Views
             // 中文注释：明文输入框改动时，同步回 PasswordBox（仅在明文可见状态下）。
             PwdTextBox.TextChanged += (s, e) =>
             {
+                
                 if (_isPasswordVisible && PwdBox.Password != PwdTextBox.Text)
                 {
                     PwdBox.Password = PwdTextBox.Text;

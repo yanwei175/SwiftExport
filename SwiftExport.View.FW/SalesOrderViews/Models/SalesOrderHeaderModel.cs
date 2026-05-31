@@ -1,6 +1,4 @@
 ﻿using Mapster;
-using MS.WindowsAPICodePack.Internal;
-using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.View.FW.Mvvm;
 using System;
 using System.ComponentModel;
@@ -22,7 +20,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         {
             if (dto == null) return;
 
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
 
                 dto.Adapt(this);//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
@@ -41,7 +39,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// </summary>
         public void UpdateSummaryFromLines(decimal totalQty, int lineCount, decimal totalAmountOriginalCurrency, decimal totalAmountLocalCurrency)
         {
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 TotalQty = totalQty;
                 LineCount = lineCount;
@@ -454,16 +452,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         // ============================================================
         #region 系统字段
 
-        private string _versionNo;
-        /// <summary>
-        /// VersionNo（用于并发控制）
-        /// </summary>
-        public string VersionNo
-        {
-            get => _versionNo;
-            set => SetProperty(ref _versionNo, value);
-        }
-
         private int _approvalStatus;
         /// <summary>
         /// ApprovalStatusEnum（未审批/已审批/驳回）
@@ -531,21 +519,5 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         #endregion
 
 
-        // ============================================================
-        // 状态管理（提交/撤销）
-        // ============================================================
-        #region 状态管理
-
-        public override void CommitChanges()
-        {
-            base.CommitChanges();
-        }
-
-        public override void RollbackChanges()
-        {
-            base.RollbackChanges();
-        }
-
-        #endregion
     }
 }

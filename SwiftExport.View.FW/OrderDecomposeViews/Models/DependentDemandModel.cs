@@ -20,7 +20,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.Models
         {
             if (dto == null) return;
 
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 dto.Adapt(this);
                 if (Id == 0)

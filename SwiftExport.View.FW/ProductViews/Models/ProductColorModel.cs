@@ -16,7 +16,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
         {
             if (dto == null) return;
 
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 dto.Adapt(this);  // 使用 Mapster 映射 DTO → Model
                 if (this.Id == 0)

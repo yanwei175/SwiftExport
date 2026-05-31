@@ -18,7 +18,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         {
             if (dto == null) return;
 
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 dto.Adapt(this);//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
                 if (this.Id == 0)
@@ -27,11 +27,12 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
                 // 根据调用方需要决定是否立即提交/清理脏数据
                 if (!抑制清理脏数据)
                     CommitChanges();
+                // DTO 本身没有“手工覆盖金额/小计”的状态字段，
+                // 加载完成后统一恢复为自动计算模式，避免打开单据后自动计算被锁死。
+                重置计算标识();
             }
 
-            // DTO 本身没有“手工覆盖金额/小计”的状态字段，
-            // 加载完成后统一恢复为自动计算模式，避免打开单据后自动计算被锁死。
-            重置计算标识();
+
         }
         #endregion
 
@@ -52,6 +53,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         }
 
         #region 基础字段
+
 
         private string _mainImage;
         public string MainImage
@@ -167,7 +169,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             get => _usdAmount;
             set
             {
-                if (SetProperty(ref _usdAmount, value) && !是否程序内部修改)
+                if (SetProperty(ref _usdAmount, value) && !DisabledState)
                     _启动美金小计计算 = true;
             }
         }
@@ -178,7 +180,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             get => _cnyAmount;
             set
             {
-                if (SetProperty(ref _cnyAmount, value) && !是否程序内部修改)
+                if (SetProperty(ref _cnyAmount, value) && !DisabledState)
                     _启动人民币小计计算 = true;
             }
         }
@@ -297,7 +299,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             get => _nwSubTotal;
             set
             {
-                if (SetProperty(ref _nwSubTotal, value) && !是否程序内部修改)
+                if (SetProperty(ref _nwSubTotal, value) && !DisabledState)
                     _启动净重小计计算 = true;
             }
         }
@@ -308,7 +310,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             get => _gwSubTotal;
             set
             {
-                if (SetProperty(ref _gwSubTotal, value) && !是否程序内部修改)
+                if (SetProperty(ref _gwSubTotal, value) && !DisabledState)
                     _启动毛重小计计算 = true;
             }
         }
@@ -319,7 +321,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             get => _cbmSubTotal;
             set
             {
-                if (SetProperty(ref _cbmSubTotal, value) && !是否程序内部修改)
+                if (SetProperty(ref _cbmSubTotal, value) && !DisabledState)
                     _启动体积小计计算 = true;
             }
         }
@@ -331,7 +333,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         private void RecalculateAll()
         {
             // 使用 程序内部修改Scope 控制程序计算不要触发数据修改状态改变，避免不必要的保存提示
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 CalculateCarton();
                 CalculateNwSubTotal();

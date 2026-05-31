@@ -119,7 +119,7 @@ namespace SwiftExport.View.FW.SupplierViews.Models
             var source = dto as SupplierDto;
             if (source == null) return;
 
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 Id = source.Id;
                 SupplierCode = source.SupplierCode ?? string.Empty;

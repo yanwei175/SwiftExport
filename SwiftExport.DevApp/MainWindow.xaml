@@ -184,6 +184,9 @@
                     <Button Height="35" MinWidth="100" Content="待出货列表"
                             Style="{StaticResource ButtonBase}"
                             Margin="0,0,8,8" Click="Button_Click_20"/>
+                    <Button Height="35" MinWidth="100" Content="独立需求管理"
+                            Style="{StaticResource ButtonBase}"
+                            Margin="0,0,8,8" Click="Button_Click_IndependentDemandManager"/>
                 </WrapPanel>
 
             </StackPanel>

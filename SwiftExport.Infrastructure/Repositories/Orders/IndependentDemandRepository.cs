@@ -67,11 +67,11 @@ public class IndependentDemandRepository(RepositoryBaseContext context) : Dapper
 
                 demand.FilledQty += addQty;
 
-                if (demand.FilledQty >= demand.OriginalQty && demand.StatusFlag != IndependentDemandStatusEnum.已完成)
-                    demand.StatusFlag = IndependentDemandStatusEnum.已到货;
+                if (demand.FilledQty >= demand.OriginalQty && demand.OrderStatus != IndependentDemandStatusEnum.已完成)
+                    demand.OrderStatus = IndependentDemandStatusEnum.已到货;
 
                 if (demand.FilledQty >= demand.OriginalQty && demand.ShippedQty >= demand.OriginalQty)
-                    demand.StatusFlag = IndependentDemandStatusEnum.已完成;
+                    demand.OrderStatus = IndependentDemandStatusEnum.已完成;
                 demand.UpdatedDate = DateTime.Now;
                 demand.ChangeTime = DateTime.Now;
             }

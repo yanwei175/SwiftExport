@@ -65,33 +65,29 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// <summary>
         /// 从 DTO 加载行集合（用于加载订单）
         /// </summary>
-        public override void ReLoadRangeFromDtoList<SalesOrderLineDto>(List<SalesOrderLineDto> dtos)
+        public override void ReLoadRangeFromDtoList<SalesOrderLineDto>(List<SalesOrderLineDto> dtos, bool 抑制清理脏数据 = false)
         {
-            _isSuppressingTotals = true; // 锁定计算
-            try
+            using (DisabledStateScope())
             {
-                // 中文注释：直接复用基类批量加载逻辑，避免重复维护 _allItems 与事件订阅。
-                base.ReLoadRangeFromDtoList(dtos);
+                _isSuppressingTotals = true; // 锁定计算
+                try
+                {
+                    // 中文注释：直接复用基类批量加载逻辑，避免重复维护 _allItems 与事件订阅。
+                    base.ReLoadRangeFromDtoList(dtos, 抑制清理脏数据);
 
-                // 中文注释：重置临时行号种子，保证之后新增行仍从负数开始分配。
-                _tempLineNumber = -1;
+                    // 中文注释：重置临时行号种子，保证之后新增行仍从负数开始分配。
+                    _tempLineNumber = -1;
+                }
+                finally
+                {
+                    _isSuppressingTotals = false;
+                    RecalculateTotals(); // 统一计算一次
+                }
+                RaiseAllState();//最终刷新状态，确保 UI 绑定的合计字段、校验状态、保存按钮等都能正确响应。
             }
-            finally
-            {
-                _isSuppressingTotals = false;
-                RecalculateTotals(); // 统一计算一次
-            }
-            RaiseAllState();//最终刷新状态，确保 UI 绑定的合计字段、校验状态、保存按钮等都能正确响应。
+
         }
 
-        /// <summary>
-        /// 中文注释：兼容旧调用入口的加载方法。
-        /// 外部仍可通过 LoadFromDto 传入明细 DTO 列表，内部统一走重载批量加载逻辑。
-        /// </summary>
-        public void LoadFromDto(List<SalesOrderLineDto> dtos)
-        {
-            ReLoadRangeFromDtoList(dtos);
-        }
 
         // ============================================================
         // 1. 合计字段（UI 可绑定）

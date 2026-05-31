@@ -5,14 +5,12 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
-
              xmlns:mt ="https://MateWpfTheme.com/wpf/framework/themes"
              xmlns:mtControls="clr-namespace:MateWpfThemes.FW.Controls;assembly=MateWpfThemes.FW"
              xmlns:assists="clr-namespace:SwiftExport.View.FW.ProductViews.Assists"
              xmlns:mtPopup="clr-namespace:MateWpfThemes.FW.AttachedProperties;assembly=MateWpfThemes.FW"
              xmlns:mvvm="clr-namespace:SwiftExport.View.FW.Mvvm"
-             xmlns:salesViews="clr-namespace:SwiftExport.View.FW.SalesOrderViews.Views"
-             
+             xmlns:salesViews="clr-namespace:SwiftExport.View.FW.SalesOrderViews.Views"             
              xmlns:local="clr-namespace:SwiftExport.View.FW.SalesOrderViews.ViewModels"
              d:DataContext="{d:DesignInstance local:SalesOrderManagerViewModel}"
              
@@ -376,7 +374,7 @@
                                 <DataGridTextColumn Header="创建人" Binding="{Binding CreatedBy}" Width="120"  IsReadOnly="True"/>
                                 <DataGridTextColumn Header="更新时间" Binding="{Binding UpdatedDate, StringFormat=g}" Width="140"  IsReadOnly="True"/>
                                 <DataGridTextColumn Header="文件夹" Binding="{Binding SoFolder}" Width="160"  IsReadOnly="True"/>
-                                <DataGridTextColumn Header="版本号" Binding="{Binding VersionNo}" Width="100"  IsReadOnly="True"/>
+                                <DataGridTextColumn Header="版本号" Binding="{Binding Version}" Width="100"  IsReadOnly="True"/>
                                 <DataGridTemplateColumn Header="审批状态" Width="120">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>

@@ -15,18 +15,16 @@ public class IndependentDemand : BaseEntity
     /// <summary>
     /// 来源单据类型（枚举：SalesOrder, SampleOrder, Forecast, StockPlan 等）
     /// </summary>
-    public string SourceType { get; set; } = string.Empty;
+    public required string SourceType { get; set; } 
 
     /// <summary>
     /// 来源单号（SO号、样品单号等）
     /// </summary>
-    public string SourceNo { get; set; } = string.Empty;
+    public required string SourceNo { get; set; }
 
-    /// <summary>
-    /// 来源单据行 ID
-    /// </summary>
+    /// <summary>来源单据行 ID</summary>
     public int SourceLineId { get; set; }
-    public int SalesOrderId { get; set; }     // 如果是销售单，关联头ID
+    public required bool IsNonStandard { get; set; } 
 
     #endregion
 
@@ -40,7 +38,7 @@ public class IndependentDemand : BaseEntity
     public decimal FilledQty { get; set; }    // 已填充数量（已匹配采购或库存的数量）
     public decimal ShippedQty { get; set; }   // 已发货数量[cite: 1, 2]
     public bool IsKitted { get; set; }        // 是否齐套[cite: 1]
-    public int StatusFlag { get; set; } = IndependentDemandStatusEnum.草稿;     // 内部执行状态 (0:待处理, 1:采购中, 2:已到货, 3:已完成)
+    public int OrderStatus { get; set; } = IndependentDemandStatusEnum.草稿;     // 内部执行状态 (0:待处理, 1:采购中, 2:已到货, 3:已完成)
     public DateTime? HopefulDate { get; set; }    // 期望交期
     public DateTime? LastShippedDate { get; set; } // 最后发货日期[cite: 2]
     public DateTime? ChangeTime { get; set; }      // 增量同步时间[cite: 1, 2]
@@ -58,5 +56,4 @@ public class IndependentDemand : BaseEntity
     /// </summary>
     public DateTime? DecomposedTime { get; set; }
 
-    public bool IsNonStandard => Sku.StartsWith(DocumentTypeStaticsEnum.NonStandardPart);
 }

@@ -21,7 +21,7 @@ namespace SwiftExport.View.FW.PackingListViews.Models
         {
             if (dto == null) return;
 
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 dto.Adapt(this);//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
                 if (this.Id == 0)

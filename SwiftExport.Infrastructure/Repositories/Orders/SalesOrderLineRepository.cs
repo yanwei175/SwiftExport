@@ -1,7 +1,7 @@
 using Dapper;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Core.Common;
-using SwiftExport.Core.Entities.Relations;
+using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
@@ -13,10 +13,25 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
     /// 销售订单行数据源仓储实现。
     /// 基于 CustomerProduct 与 Product 联查，为订单行编辑提供候选数据。
     /// </summary>
-    public partial class SalesOrderLineSourceRepository(RepositoryBaseContext context)
-        : DapperRepository<CustomerProduct>(context), ISalesOrderLineSourceRepository
+    public partial class SalesOrderLineRepository(RepositoryBaseContext context) : DapperRepository<SalesOrderLine>(context), ISalesOrderLineRepository
     {
-      
+
+
+        public async Task<List<SalesOrderLine>> GetLinesByOrderIdAsync(int orderId, bool withUpdLock = false)
+        {
+            // 根据参数决定用 NOLOCK 还是 UPDLOCK
+            string lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+
+            // 1. 基础 SQL 已经包含了 WHERE (IsDeleted = 0 OR IsDeleted IS NULL)
+            var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE (IsDeleted = 0 OR IsDeleted IS NULL) AND SalesOrderId = @OrderId ORDER BY LineNumber ASC";
+
+            var param = new { OrderId = orderId };
+
+            // 4. 执行查询
+            var rst = await Connection.QueryAsync<SalesOrderLine>(sql, param, transaction: Transaction);
+            return rst.AsList(); // 或者 return [.. rst]; (C# 12写法)
+        }
+
         public async Task<PagedResult<SalesProductDto>> GetSalesProductPagedListAsync(SalesProductSearchDto request, string orderBy = "p.Sku DESC")
         {
             request ??= new SalesProductSearchDto();
@@ -182,6 +197,8 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
                 PageSize = pageSize
             };
         }
+
+
         #region 备份
         /// <summary>
         /// 联查分页查询。

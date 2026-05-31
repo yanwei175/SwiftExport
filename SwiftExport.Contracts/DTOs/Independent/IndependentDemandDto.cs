@@ -1,10 +1,10 @@
 using SwiftExport.Contracts.DTOs.Base;
 using System;
 
-namespace SwiftExport.Contracts.DTOs.Orders
+namespace SwiftExport.Contracts.DTOs.Independent
 {
     /// <summary>
-    /// 拆解BOM之后的依赖需求 DTO。
+    /// 毛需求 DTO。
     /// </summary>
     public class IndependentDemandDto : BaseDto
     {
@@ -102,14 +102,14 @@ namespace SwiftExport.Contracts.DTOs.Orders
         #region 执行状态 (Execution)
 
         /// <summary>
-        /// 需求日期（什么时候要用）
+        /// 期望日期（什么时候要用）
         /// </summary>
-        public DateTime? RequiredDate { get; set; }
+        public DateTime? HopefulDate { get; set; }
 
         /// <summary>
         /// 状态（RequirementStatusEnums：草稿/待处理/采购中/已到货/已完成）
         /// </summary>
-        public int StatusFlag { get; set; } 
+        public int OrderStatus { get; set; } 
 
         /// <summary>
         /// 是否齐套（针对 BomLevel=0 的行，判断其下方所有子项是否 ReceivedQty >= GrossQty）
@@ -126,7 +126,6 @@ namespace SwiftExport.Contracts.DTOs.Orders
 
 
         #region 执行关联 (Execution Link)
-
         /// <summary>
         /// 目标执行单号（如采购单号 PO-2024001）
         /// 理由：背靠背模式下，方便直接从需求池跳到采购单。
@@ -140,11 +139,6 @@ namespace SwiftExport.Contracts.DTOs.Orders
 
         #endregion
 
-        #region 用于界面显示和交互
-        public string SupplierCode { get; set; } // 用户在界面选中的供应商代码
-        public string SupplierName { get; set; } // 供应商名称
-        public string Unit { get; set; }       // 物料单位，采购需要看
-        #endregion
 
 
     }

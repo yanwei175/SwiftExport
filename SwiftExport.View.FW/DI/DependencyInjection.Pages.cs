@@ -3,6 +3,8 @@ using SwiftExport.View.FW.CustomerViews.ViewModels;
 using SwiftExport.View.FW.CustomerViews.Views;
 using SwiftExport.View.FW.DictViews.ViewModels;
 using SwiftExport.View.FW.DictViews.Views;
+using SwiftExport.View.FW.Independent.ViewModels;
+using SwiftExport.View.FW.Independent.Views;
 using SwiftExport.View.FW.OrderDecomposeViews.ViewModels;
 using SwiftExport.View.FW.OrderDecomposeViews.Views;
 using SwiftExport.View.FW.PackingListViews.ViewModels;
@@ -106,6 +108,11 @@ namespace SwiftExport.View.FW
             services.AddTransient<SalesOrderDetailWindow>();
             services.AddTransient<SalesProductSeletorView>();
             services.AddTransient<DependentDemandManagerView>();
+
+            //================== 毛需求,工单模块 ==================
+            services.AddTransient<IndependentDemandManagerViewModel>();
+            services.AddTransient<IndependentDemandManagerView>();
+
 
             // ================== 采购订单模块 ==================
             services.AddTransient<PurchaseOrderManagerViewModel>();

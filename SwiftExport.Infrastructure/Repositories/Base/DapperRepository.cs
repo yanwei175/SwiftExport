@@ -264,29 +264,40 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         var originalVersion = entity.Version <= 0 ? 1 : entity.Version;
         entity.Version = originalVersion + 1;
 
-        // 拼接 SET 语句
-        var setClause = string.Join(", ", _writeableProps.Select(p => $"[{p}] = @{p}"));
-        var sql = $"UPDATE [{TableName}] SET {setClause} WHERE [Id] = @Id AND [Version] = @OriginalVersion";
+        // ★ Version 从 writeableProps 排除，由数据库自增
+        var setClause = string.Join(", ",
+            _writeableProps
+                .Where(p => p != "Version")
+                .Select(p => $"[{p}] = @{p}"))
+            + ", [Version] = [Version] + 1";
+
+
+        var sql = $@"
+                    UPDATE [{TableName}] 
+                    SET {setClause}
+                    OUTPUT INSERTED.[Id], INSERTED.[Version]
+                    WHERE [Id] = @Id AND [Version] = @OriginalVersion";
 
         var parameters = new DynamicParameters(entity);
         parameters.Add("OriginalVersion", originalVersion);
-
-        var rows = await Connection.ExecuteAsync(sql, parameters, transaction: Transaction);
-
-        if (rows <= 0)
+        var result = await Connection.QuerySingleOrDefaultAsync<UpdateResult>(sql, parameters, transaction: Transaction);
+        if (result == null)
         {
-            // 恢复对象版本，避免调用方拿到错误状态
-            entity.Version = originalVersion;
-            throw new DBConcurrencyException($"[{TableName}] 更新失败：数据已被其他用户修改（Id={entity.Id}, Version={originalVersion}）。");
+            throw new DBConcurrencyException(
+                $"[{TableName}] 更新失败：数据已被其他用户修改（Id={entity.Id}, Version={originalVersion}）。");
         }
 
-        return rows;
+        // ★ 用数据库返回值更新实体
+        entity.Version = result.Version;
+
+        return 1;
+
     }
 
     public virtual async Task<int> DeleteSoftAsync(int id)
     {
         var sql = $"UPDATE [{TableName}] SET UpdatedDate = {DateTime.Now}, IsDeleted = 1 WHERE [Id] = @Id";
-        return await Connection.ExecuteAsync(sql, new { Id = id}, transaction: Transaction);
+        return await Connection.ExecuteAsync(sql, new { Id = id }, transaction: Transaction);
     }
 
     public virtual async Task<int> DeleteAsync(int id, bool softDelete = true)
@@ -300,7 +311,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         {
             sql = $"DELETE FROM [{TableName}] WHERE [Id] = @Id";
         }
-        return await Connection.ExecuteAsync(sql, new { Id = id}, transaction: Transaction);
+        return await Connection.ExecuteAsync(sql, new { Id = id }, transaction: Transaction);
     }
 
     // =============================================================
@@ -316,7 +327,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         foreach (var entity in entityList)
         {
             // 自动审计打戳（CreatedBy/CreatedDate/UpdatedBy/UpdatedDate）
-            _auditStamp.StampForInsert(entity);            
+            _auditStamp.StampForInsert(entity);
             entity.IsDeleted = false; // 确保批量插入时 IsDeleted 字段为 false
             if (entity.Version <= 0) entity.Version = 1;
         }
@@ -401,70 +412,89 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     public virtual async Task<int> UpdateRangeAsync(IEnumerable<T> entities)
     {
         if (entities == null) throw new ArgumentException("实体集合不能为空");
-        var entityList = entities.OrderBy(x=>x.Id).ToList();
+        var entityList = entities.OrderBy(x => x.Id).ToList();
         if (entityList.Count == 0) return 0;
         //遍历实体设置 UpdatedDate（如果有这个属性的话），确保批量更新时这个字段不为 null
+
+        // 自动审计打戳（UpdatedBy/UpdatedDate 强制刷新）
         foreach (var entity in entityList)
-        {
-            // 自动审计打戳（UpdatedBy/UpdatedDate 强制刷新）
             _auditStamp.StampForUpdate(entity);
-        }
+
         // 1. 准备属性
         var updateProps = _writeableProps
             .Select(name => typeof(T).GetProperty(name))
-            .Where(p => p != null)
+            .Where(p => p != null && p.Name != "Version")// ★ Version 排除，让数据库自增
             .Select(p => p!)
             .ToList();
 
         var idProp = typeof(T).GetProperty("Id") ?? throw new InvalidOperationException("实体必须包含 ID 属性才能进行批量更新");
+        var versionProp = typeof(T).GetProperty("Version")
+            ?? throw new InvalidOperationException("实体必须包含 Version 属性");
+
         var parameters = new DynamicParameters();
         var sqlBuilder = new StringBuilder();
         var originalVersionMap = new Dictionary<int, int>();
 
         for (int i = 0; i < entityList.Count; i++)
         {
-            var setClauses = new List<string>();
-            var originalVersion = entityList[i].Version <= 0 ? 1 : entityList[i].Version;
-            entityList[i].Version = originalVersion + 1;
-            originalVersionMap[entityList[i].Id] = originalVersion;
+            var entity = entityList[i];
+            var originalVersion = entity.Version <= 0 ? 1 : entity.Version;
 
-            foreach (var prop in updateProps)
-            {
-                var paramName = $"p{i}_{prop.Name}";
-                setClauses.Add($"[{prop.Name}] = @{paramName}");
-                parameters.Add(paramName, prop.GetValue(entityList[i]));
-            }
+            originalVersionMap[entity.Id] = originalVersion;
+
+            var setClauses = updateProps
+                             .Select(prop =>
+                             {
+                                 var paramName = $"p{i}_{prop.Name}";
+                                 parameters.Add(paramName, prop.GetValue(entity));
+                                 return $"[{prop.Name}] = @{paramName}";
+                             }).ToList();
+            // ★ Version 由数据库自增
+            setClauses.Add("[Version] = [Version] + 1");
 
             var idParamName = $"p{i}_Id";
-            parameters.Add(idParamName, idProp.GetValue(entityList[i]));
             var verParamName = $"p{i}_OriginalVersion";
+            parameters.Add(idParamName, idProp.GetValue(entity));
             parameters.Add(verParamName, originalVersion);
-
-            sqlBuilder.AppendLine($"UPDATE [{TableName}] SET {string.Join(", ", setClauses)} OUTPUT INSERTED.[Id] WHERE [Id] = @{idParamName} AND [Version] = @{verParamName};");
+            // ★ OUTPUT 同时返回 Id 和新 Version
+            sqlBuilder.AppendLine($@"
+                                    UPDATE [{TableName}]
+                                    SET {string.Join(", ", setClauses)}
+                                    OUTPUT INSERTED.[Id], INSERTED.[Version]
+                                    WHERE [Id] = @{idParamName} AND [Version] = @{verParamName};");
         }
+        var results = new List<UpdateResult>();
 
-        // 直接用 Connection 和 Transaction 属性
-        var updatedIds = (await Connection.QueryAsync<int>(sqlBuilder.ToString(), parameters, transaction: Transaction)).Distinct().ToList();
-
-        // 只有当更新成功的 Id 数量小于传入实体数时，才说明存在并发冲突
-        if (updatedIds.Count < entityList.Count)
+        using (var multi = await Connection.QueryMultipleAsync(
+            sqlBuilder.ToString(), parameters, transaction: Transaction))
         {
-            var expectedIds = entityList.Select(x => x.Id).Distinct().ToList();
-            var conflictIds = expectedIds.Except(updatedIds).ToList();
-
-            // 回滚内存中的 Version，避免调用方拿到错误版本号
-            foreach (var entity in entityList)
+            // 每条 UPDATE 对应一个结果集，逐个读取
+            while (!multi.IsConsumed)
             {
-                if (conflictIds.Contains(entity.Id) && originalVersionMap.TryGetValue(entity.Id, out var ov))
-                {
-                    entity.Version = ov;
-                }
+                var row = await multi.ReadSingleOrDefaultAsync<UpdateResult>();
+                if (row != null)
+                    results.Add(row);
             }
+        }
+        // 并发冲突检测
+        if (results.Count < entityList.Count)
+        {
+            var updatedIds = results.Select(x => x.Id).ToHashSet();
+            var conflictIds = entityList.Select(x => x.Id)
+                                        .Where(id => !updatedIds.Contains(id))
+                                        .ToList();
 
-            throw new DBConcurrencyException($"并发操作冲突：以下 Id 更新失败（可能被他人修改）=> {string.Join(",", conflictIds)}");
+            throw new DBConcurrencyException(
+                $"并发冲突：以下 Id 更新失败（可能已被他人修改）=> {string.Join(",", conflictIds)}");
         }
 
-        return updatedIds.Count;
+        // ★ 用数据库返回的新 Version 更新实体，不靠应用层猜
+        foreach (var result in results)
+        {
+            var entity = entityList.First(x => x.Id == result.Id);
+            versionProp.SetValue(entity, result.Version);
+        }
+        return results.Count;
     }
 
     /// <summary>
@@ -593,6 +623,10 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         // 返回拼接后的 WHERE 条件片段（不包含 WHERE 关键字）
         return sqlBuilder.ToString();
     }
-
+    private class UpdateResult
+    {
+        public int Id { get; set; }
+        public int Version { get; set; }
+    }
 
 }

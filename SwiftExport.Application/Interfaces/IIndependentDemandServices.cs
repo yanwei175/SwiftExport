@@ -1,7 +1,7 @@
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
-using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.Independent;
 
 namespace SwiftExport.Application.Interfaces
 {
@@ -13,7 +13,7 @@ namespace SwiftExport.Application.Interfaces
         Task<ServiceResult<bool>> UpdateFilledQtyAsync(int id, decimal addQty);
 
         //获取分页数据
-        Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync(InDependSearchReq search);
+        Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync(IndependSearchRequest search);
         /// <summary>
         /// 按来源单据执行销售需求拆解（由毛需求驱动，拆解结果写入需求池）。
         /// </summary>

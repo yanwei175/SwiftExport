@@ -42,7 +42,6 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.DepositRate, src => src.DepositRate)
                 .Map(dest => dest.LeadTimeDays, src => src.LeadTimeDays)
                 .Map(dest => dest.PaymentMethod, src => src.PaymentMethod)
-                .Map(dest => dest.VersionNo, src => src.VersionNo)
                 .Map(dest => dest.ApprovalStatus, src => src.ApprovalStatus)
                 .Map(dest => dest.SoFolder, src => src.SoFolder)
                 .Map(dest => dest.Remark, src => src.Remark)
@@ -59,7 +58,7 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.UpdatedDate, src => src.UpdatedDate)
                 // 中文注释：以下为 BaseLineModel / IDataErrorInfo 的运行时字段，不参与数据映射。
                 .Ignore(dest => dest.State)
-                .Ignore(dest => dest.是否程序内部修改)
+                .Ignore(dest => dest.DisabledState)
                 .Ignore(dest => dest.IsChecked)
                 .Ignore(dest => dest.Error)
                 .IgnoreNonMapped(true);
@@ -86,7 +85,6 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.DepositRate, src => src.DepositRate)
                 .Map(dest => dest.LeadTimeDays, src => src.LeadTimeDays)
                 .Map(dest => dest.PaymentMethod, src => src.PaymentMethod)
-                .Map(dest => dest.VersionNo, src => src.VersionNo)
                 .Map(dest => dest.ApprovalStatus, src => src.ApprovalStatus)
                 .Map(dest => dest.SoFolder, src => src.SoFolder)
                 .Map(dest => dest.Remark, src => src.Remark)
@@ -140,7 +138,7 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.SubNote, src => src.SubNote)
                 .Map(dest => dest.MainImage, src => src.MainImage)
                 .Ignore(dest => dest.State)
-                .Ignore(dest => dest.是否程序内部修改)
+                .Ignore(dest => dest.DisabledState)
                 .Ignore(dest => dest.IsChecked)
                 .IgnoreNonMapped(true);
 

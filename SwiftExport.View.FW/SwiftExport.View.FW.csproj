@@ -51,6 +51,12 @@
   <ItemGroup>
     <Compile Include="AppRuntimeOptions.cs" />
     <Compile Include="Http\AuthTokenStore.cs" />
+    <Compile Include="Independent\Models\IndependentDemandListModel.cs" />
+    <Compile Include="Independent\Models\IndependentDemandModel.cs" />
+    <Compile Include="Independent\ViewModels\IndependentDemandManagerViewModel.cs" />
+    <Compile Include="Independent\Views\IndependentDemandManagerView.xaml.cs">
+      <DependentUpon>IndependentDemandManagerView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Mappings\SalesProductDtoToSalesLinDto.cs" />
     <Compile Include="Mvvm\AsyncRelayCommand.cs" />
     <Compile Include="Mvvm\CheckableItem.cs" />
@@ -297,6 +303,10 @@
     <Compile Include="WarehouseViews\Views\ReceiptManagerView.xaml.cs">
       <DependentUpon>ReceiptManagerView.xaml</DependentUpon>
     </Compile>
+    <Page Include="Independent\Views\IndependentDemandManagerView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="OrderDecomposeViews\Views\DemandTrackingView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

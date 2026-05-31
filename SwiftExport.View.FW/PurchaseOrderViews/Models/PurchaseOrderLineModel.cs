@@ -18,7 +18,7 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
         {
             if (!(dto is PurchaseOrderLineDto lineDto)) return;
 
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 lineDto.Adapt(this);
                 if (this.Id == 0)

@@ -16,7 +16,7 @@ namespace SwiftExport.View.FW.WarehouseViews.Models
             var headDto = dto as ReceiveHeadDto;
             if (headDto == null) return;
 
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 headDto.Adapt(this);
                 if (Id == 0)

@@ -19,7 +19,7 @@ namespace SwiftExport.View.FW.SystemViews.Models
         {
             if (dto == null) return;
 
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 // Mapster 将 DTO 属性值映射到 this
                 dto.Adapt(this);

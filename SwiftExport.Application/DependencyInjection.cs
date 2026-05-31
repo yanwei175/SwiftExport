@@ -37,7 +37,7 @@ public static class DependencyInjection
         services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();
         // 视图路由配置服务
         services.AddScoped<ISysViewRouteService, SysViewRouteService>();
-        services.AddScoped<ISalesOrderLineSourceService, SalesOrderLineSourceService>();
+        services.AddScoped<ISalesOrderLineService, SalesOrderLineSourceService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<IFollowUpService, FollowUpService>();
         services.AddScoped<IReceiptService, ReceiveService>();

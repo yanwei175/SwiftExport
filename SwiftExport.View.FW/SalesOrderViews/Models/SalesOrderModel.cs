@@ -41,7 +41,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
             // 中文注释：确保行集合始终绑定当前 Header，加载明细后自动刷新主表汇总字段。
             Lines.BindHeader(Header);
-            Lines.LoadFromDto(dto.Lines);
+            Lines.ReLoadRangeFromDtoList(dto.Lines);
         }
     }
 }

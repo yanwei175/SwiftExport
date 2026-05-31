@@ -2,7 +2,7 @@ using Mapster;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
-using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
@@ -24,10 +24,10 @@ public class IndependentDemandService(
     private readonly IDependentDemandService _dependentService = dependentDemandService;
     private readonly IDependentDemandRepository _dependentRepository = dependentDemandRepository;
 
-    public async Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync(InDependSearchReq search)
+    public async Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync(IndependSearchRequest search)
     {
 
-        search ??= new InDependSearchReq();
+        search ??= new IndependSearchRequest();
 
         var criteria = BuildCriteria(search);
         int pageIndex = search.PageIndex > 0 ? search.PageIndex : 1;
@@ -46,44 +46,21 @@ public class IndependentDemandService(
     /// <summary>
     /// 构建分页查询条件。
     /// </summary>
-    private static QueryCriteria BuildCriteria(InDependSearchReq search)
+    private static QueryCriteria BuildCriteria(IndependSearchRequest search)
     {
         var criteria = new QueryCriteria();
 
         if (!string.IsNullOrWhiteSpace(search.SourceNo))
             criteria.Add("SourceNo", 查询操作符.模糊匹配, search.SourceNo.Trim());
 
-        if (!string.IsNullOrWhiteSpace(search.SourceType))
-            criteria.Add("SourceType", 查询操作符.等于, search.SourceType.Trim());
 
         if (!string.IsNullOrWhiteSpace(search.Sku))
             criteria.Add("Sku", 查询操作符.模糊匹配, search.Sku.Trim());
 
-        if (!string.IsNullOrWhiteSpace(search.SupplyType))
-            criteria.Add("SupplyType", 查询操作符.等于, search.SupplyType.Trim());
-
-        if (search.BomLevel.HasValue)
-        {
-            // 中文注释：层级过滤支持“成品/子件”工作台筛选。
-            if (search.BomLevel.Value == 1)
-                criteria.Add("BomLevel", 查询操作符.大于等于, 1);
-            else
-                criteria.Add("BomLevel", 查询操作符.等于, search.BomLevel.Value);
-        }
 
         if (search.StatusFlag < 0)
             criteria.Add("StatusFlag", 查询操作符.等于, IndependentDemandStatusEnum.草稿);
 
-        if (search.IsKitted.HasValue)
-            criteria.Add("IsKitted", 查询操作符.等于, search.IsKitted.Value);
-
-        if (!string.IsNullOrWhiteSpace(search.SupplierKeyword))
-        {
-            var supplierKeyword = search.SupplierKeyword.Trim();
-            criteria.AddOrGroup(
-                ("SupplierCode", 查询操作符.模糊匹配, supplierKeyword),
-                ("SupplierName", 查询操作符.模糊匹配, supplierKeyword));
-        }
 
         if (!string.IsNullOrWhiteSpace(search.Keyword))
         {
@@ -113,16 +90,16 @@ public class IndependentDemandService(
             entity.UpdatedDate = DateTime.Now;
 
             // 中文注释：状态闭环规则1：FilledQty 达到 OriginalQty 视为“已到货”。
-            if (entity.StatusFlag != IndependentDemandStatusEnum.已完成)
+            if (entity.OrderStatus != IndependentDemandStatusEnum.已完成)
             {
                 if (entity.FilledQty >= entity.OriginalQty)
-                    entity.StatusFlag = IndependentDemandStatusEnum.已到货;
+                    entity.OrderStatus = IndependentDemandStatusEnum.已到货;
                 else if (entity.FilledQty > 0 && entity.FilledQty < entity.OriginalQty)
-                    entity.StatusFlag = IndependentDemandStatusEnum.部分到货;
+                    entity.OrderStatus = IndependentDemandStatusEnum.部分到货;
             }
             // 中文注释：状态闭环规则2：仅当到货后并且发货数量达到原始数量，才视为“已完成”。
             if (entity.FilledQty >= entity.OriginalQty && entity.ShippedQty >= entity.OriginalQty)
-                entity.StatusFlag = IndependentDemandStatusEnum.已完成;
+                entity.OrderStatus = IndependentDemandStatusEnum.已完成;
 
             var rst = await _repository.UpdateAsync(entity);
             if (rst > 0) return ServiceResult<bool>.Ok(true);
@@ -160,9 +137,9 @@ public class IndependentDemandService(
             return ServiceResult<List<IndependentDemandDto>>.Fail($"需求已拆解，禁止重复执行。来源行：{decomposedLineIdsText}");
         }
 
-        var 原需求行是否为待处理 = 原需求行List.FirstOrDefault(x => x.StatusFlag != IndependentDemandStatusEnum.已确认);
+        var 原需求行是否为待处理 = 原需求行List.FirstOrDefault(x => x.OrderStatus != IndependentDemandStatusEnum.已确认);
         if (原需求行是否为待处理 != null)
-            return ServiceResult<List<IndependentDemandDto>>.Fail($"需求行[{原需求行是否为待处理.SourceLineId}]状态为[{原需求行是否为待处理.StatusFlag}]，仅“已确认”状态可执行拆解");
+            return ServiceResult<List<IndependentDemandDto>>.Fail($"需求行[{原需求行是否为待处理.SourceLineId}]状态为[{原需求行是否为待处理.OrderStatus}]，仅“已确认”状态可执行拆解");
 
         var 真实可拆原需求 = 原需求行List
             .Where(x => x.OriginalQty > 0 && !string.IsNullOrWhiteSpace(x.Sku))
@@ -199,7 +176,7 @@ public class IndependentDemandService(
 
             foreach (var demand in 真实可拆原需求)
             {
-                demand.StatusFlag = IndependentDemandStatusEnum.采购中;
+                demand.OrderStatus = IndependentDemandStatusEnum.采购中;
                 demand.IsDecomposed = true;
                 demand.DecomposedTime = 拆解时间;
                 demand.UpdatedDate = DateTime.Now;
@@ -244,9 +221,9 @@ public class IndependentDemandService(
             return ServiceResult<List<IndependentDemandDto>>.Fail($"需求已拆解，禁止重复执行。来源行：{decomposedLineIdsText}");
         }
 
-        var 原需求行是否为待处理 = 原毛需求行List.FirstOrDefault(x => x.StatusFlag != IndependentDemandStatusEnum.已确认);
+        var 原需求行是否为待处理 = 原毛需求行List.FirstOrDefault(x => x.OrderStatus != IndependentDemandStatusEnum.已确认);
         if (原需求行是否为待处理 != null)
-            return ServiceResult<List<IndependentDemandDto>>.Fail($"需求行[{原需求行是否为待处理.SourceLineId}]状态为[{原需求行是否为待处理.StatusFlag}]，仅“已确认”状态可执行拆解");
+            return ServiceResult<List<IndependentDemandDto>>.Fail($"需求行[{原需求行是否为待处理.SourceLineId}]状态为[{原需求行是否为待处理.OrderStatus}]，仅“已确认”状态可执行拆解");
 
         var 真实可拆原需求 = 原毛需求行List
             .Where(x => x.OriginalQty > 0             //要求数量必须大于0
@@ -318,7 +295,7 @@ public class IndependentDemandService(
 
             foreach (var demand in 真实可拆原需求)
             {
-                demand.StatusFlag = IndependentDemandStatusEnum.采购中;
+                demand.OrderStatus = IndependentDemandStatusEnum.采购中;
                 demand.IsDecomposed = true;
                 demand.DecomposedTime = 拆解时间;
                 demand.UpdatedDate = DateTime.Now;
@@ -361,7 +338,7 @@ public class IndependentDemandService(
             foreach (var item in items)
             {
                 item.ApprovalStatus = ApprovalStatusEnum.已批准;
-                if (item.StatusFlag != IndependentDemandStatusEnum.已确认 
+                if (item.OrderStatus != IndependentDemandStatusEnum.已确认 
                     || item.FilledQty>0
                     || item.ShippedQty >0
                     || item.IsDecomposed)
@@ -369,7 +346,7 @@ public class IndependentDemandService(
                     _session.Transaction.Rollback();
                     return ServiceResult<List<IndependentDemandDto>>.Fail($"已经产生下游流程");
                 }
-                item.StatusFlag = IndependentDemandStatusEnum.草稿;
+                item.OrderStatus = IndependentDemandStatusEnum.草稿;
             }
             //校验净需求允许回退不
             //var allowRollback = await _dependentService.CanCancelAsync(items.Select(x => x.SourceNo).ToList());

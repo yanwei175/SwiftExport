@@ -1,5 +1,6 @@
 using GalaSoft.MvvmLight.Command;
 using SwiftExport.Contracts.Apis.Orders;
+using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
@@ -309,7 +310,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
                     var result = await _decomposeApi.GetPagedListAsync(search);
                     if (result.Success && result.Data != null)
                     {
-                        BridgeList.ReLoadRangeFromDtoList<IndependentDemandDto>(result.Data.Items);
+                        BridgeList.ReLoadRangeFromDtoList(result.Data.Items);
                         TotalCount = result.Data.TotalCount;
 
                         RefreshSourceTasks();

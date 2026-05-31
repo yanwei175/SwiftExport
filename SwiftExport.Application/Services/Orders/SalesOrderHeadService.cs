@@ -1,5 +1,4 @@
 using Mapster;
-using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
@@ -7,7 +6,6 @@ using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
@@ -18,20 +16,19 @@ namespace SwiftExport.Application.Services.Orders;
 /// 销售订单应用服务实现。
 /// </summary>
 public class SalesOrderHeadService(
-    ISalesOrderHeadRepository salesOrderRepository,
-    IRepository<SalesOrderHeader> headerRepository,
-    IRepository<SalesOrderLine> lineRepository,
-    IRepository<Customer> customerRepository,
-    ISalesOrderLineSourceService salesOrderLineSourceService,
+    ISalesOrderHeadRepository headRepo,
+    ISalesOrderLineRepository lineRepo,
+    ICustomerRepository customerRepository,
+    ISalesOrderLineService salesOrderLineService,
     IDocumentNoService documentNoService,
     IIndependentDemandRepository salesDemandRepository,
     ServiceBaseContext context)
-    : BaseService<SalesOrderHeader, SalesOrderHeaderDto>(headerRepository, context), ISalesOrderHeadService
+    : BaseService<SalesOrderHeader, SalesOrderHeaderDto>(headRepo, context), ISalesOrderHeadService
 {
-    private readonly ISalesOrderHeadRepository _salesOrderRepo = salesOrderRepository;
-    private readonly IRepository<SalesOrderLine> _lineRepository = lineRepository;
-    private readonly IRepository<Customer> _customerRepository = customerRepository;
-    private readonly ISalesOrderLineSourceService _salesOrderLineSourceService = salesOrderLineSourceService;
+    private readonly ISalesOrderHeadRepository _headRepo = headRepo;
+    private readonly ISalesOrderLineRepository _lineRepo = lineRepo;
+    private readonly ICustomerRepository _customerRepository = customerRepository;
+    private readonly ISalesOrderLineService _salesOrderLineService = salesOrderLineService;
     private readonly IDocumentNoService _documentNoService = documentNoService;
     private readonly IIndependentDemandRepository _demandRepo = salesDemandRepository;
     #region 兼容旧接口（已有）
@@ -41,11 +38,11 @@ public class SalesOrderHeadService(
     /// </summary>
     public async Task<ServiceResult<SalesOrderDetailDto>> GetSalesOrderDetailAsync(int orderId)
     {
-        var header = await _repository.GetByIdAsync(orderId);
+        var header = await _headRepo.GetByIdAsync(orderId);
         if (header == null)
             return ServiceResult<SalesOrderDetailDto>.Fail("未找到销售订单");
 
-        var lines = await GetLinesByOrderNoAsync(header.OrderNo);
+        var lines = await _lineRepo.GetLinesByOrderIdAsync(header.Id);
 
         return ServiceResult<SalesOrderDetailDto>.Ok(new SalesOrderDetailDto
         {
@@ -91,7 +88,7 @@ public class SalesOrderHeadService(
             var lines = await GetLinesByOrderNoAsync(header.OrderNo);
             if (lines.Count > 0)
             {
-                await _lineRepository.DeleteRangeAsync(lines.Select(x => x.Id));
+                await _lineRepo.DeleteRangeAsync(lines.Select(x => x.Id));
             }
 
             await _repository.DeleteAsync(orderId);
@@ -129,7 +126,7 @@ public class SalesOrderHeadService(
                 var lines = await GetLinesByOrderNoAsync(header.OrderNo);
                 if (lines.Count > 0)
                 {
-                    await _lineRepository.DeleteRangeAsync(lines.Select(x => x.Id));
+                    await _lineRepo.DeleteRangeAsync(lines.Select(x => x.Id));
                 }
 
                 await _repository.DeleteAsync(orderId);
@@ -163,7 +160,7 @@ public class SalesOrderHeadService(
         {
             string sortBy = string.IsNullOrWhiteSpace(req.SortBy) ? "CreatedDate" : req.SortBy;
             string orderBy = $"{sortBy} {(req.SortAscending == true ? "ASC" : "DESC")}";
-            var rst = await _salesOrderRepo.GetSalesOrderHeaderPagedListAsync(req, orderBy);
+            var rst = await _headRepo.GetSalesOrderHeaderPagedListAsync(req, orderBy);
             if (rst != null)
             {
                 return ServiceResult<PagedResultDto<SalesOrderHeaderDto>>.Ok(rst);
@@ -173,7 +170,7 @@ public class SalesOrderHeadService(
                 return ServiceResult<PagedResultDto<SalesOrderHeaderDto>>.Fail("查询订单列表失败");
             }
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             return ServiceResult<PagedResultDto<SalesOrderHeaderDto>>.Fail(ex.Message);
         }
@@ -239,7 +236,7 @@ public class SalesOrderHeadService(
                     var lines = await GetLinesByOrderNoAsync(header.OrderNo);
                     if (lines.Count > 0)
                     {
-                        await _lineRepository.DeleteRangeAsync(lines.Select(x => x.Id));
+                        await _lineRepo.DeleteRangeAsync(lines.Select(x => x.Id));
                     }
                 }
 
@@ -264,7 +261,7 @@ public class SalesOrderHeadService(
                         line.CreatedDate ??= DateTime.Now;
                         line.IsDeleted = false;
                     }
-                    await _lineRepository.AddRangeAsync(addLines);
+                    await _lineRepo.AddRangeAsync(addLines);
                 }
 
                 if (request.LineChanges.UpdateList?.Count > 0)
@@ -275,12 +272,12 @@ public class SalesOrderHeadService(
                         line.OrderNo = orderNo;
                         line.UpdatedDate = DateTime.Now;
                     }
-                    await _lineRepository.UpdateRangeAsync(updateLines);
+                    await _lineRepo.UpdateRangeAsync(updateLines);
                 }
 
                 if (request.LineChanges.DeleteIdList?.Count > 0)
                 {
-                    await _lineRepository.DeleteRangeAsync([.. request.LineChanges.DeleteIdList.Distinct()]);
+                    await _lineRepo.DeleteRangeAsync([.. request.LineChanges.DeleteIdList.Distinct()]);
                 }
             }
 
@@ -505,9 +502,9 @@ public class SalesOrderHeadService(
 
     #region 私有辅助方法
 
-    
 
-  
+
+
 
     /// <summary>
     /// 中文注释：按订单号查询明细行。
@@ -516,7 +513,7 @@ public class SalesOrderHeadService(
     {
         if (string.IsNullOrWhiteSpace(orderNo)) return [];
 
-        var lines = await _lineRepository.GetListAsync(new { OrderNo = orderNo });
+        var lines = await _lineRepo.GetListAsync(new { OrderNo = orderNo });
         return [.. lines.OrderBy(x => x.LineNumber)];
     }
 
@@ -564,7 +561,7 @@ public class SalesOrderHeadService(
             }
 
             //新增到数据库并获取新生成的订单ID
-            int newId = await _repository.AddAsync(header);
+            int newId = await _headRepo.AddAsync(header);
             //批量新增订单行
 
             if (lines.Count > 0)
@@ -578,8 +575,8 @@ public class SalesOrderHeadService(
                     line.IsDeleted = false;
                 }
 
-                await _lineRepository.AddRangeAsync(lines);
-                await CreateDemandByLineListAsync(lines);//同步创建需求行（如果有订单行的话）
+                await _lineRepo.AddRangeAsync(lines);
+                //await CreateDemandByLineListAsync(lines);//同步创建需求行（如果有订单行的话）
             }
 
             _session.Transaction.Commit();
@@ -622,7 +619,7 @@ public class SalesOrderHeadService(
                 return ServiceResult<bool>.Fail(checkrst.Message);
             }
             //首先获取数据库中订单头信息，如果不存在则回滚并返回失败结果
-            var existingHeader = await _repository.GetByIdAsync(orderId);
+            var existingHeader = await _headRepo.GetByIdAsync(orderId);
             if (existingHeader == null)
             {
                 _session.Transaction.Rollback();
@@ -631,17 +628,15 @@ public class SalesOrderHeadService(
 
             //把请求体里的信息覆盖到数据库中查询出来的订单头实体上（只覆盖可修改的字段），并设置订单ID，准备更新到数据库
             request.Header.Adapt(existingHeader);
-            existingHeader.Id = orderId;
 
             //更新订单头信息
-            await _repository.UpdateAsync(existingHeader);
-
+            await _headRepo.UpdateAsync(existingHeader);
 
             // 3. 处理删除行（如果有订单行被删除的话）
             if (request.DeletedLineIds?.Count > 0)
             {
-                await _lineRepository.DeleteRangeAsync(request.DeletedLineIds, false);
-                await _demandRepo.DeleteRangeBySourceTypeAndSourceIdListAsync(OrderTypesEnum.销售订单, request.DeletedLineIds);
+                await _lineRepo.DeleteRangeAsync(request.DeletedLineIds, false);
+                //await _demandRepo.DeleteRangeBySourceTypeAndSourceIdListAsync(OrderTypesEnum.销售订单, request.DeletedLineIds);
             }
 
             //4.处理新增行和更新行
@@ -666,17 +661,17 @@ public class SalesOrderHeadService(
 
             if (addLins.Count > 0)
             {
-                await _lineRepository.AddRangeAsync(addLins);
-                await CreateDemandByLineListAsync(addLins);//同步创建需求行（如果有订单行被新增的话）
+                await _lineRepo.AddRangeAsync(addLins);
+                //await CreateDemandByLineListAsync(addLins);//同步创建需求行（如果有订单行被新增的话）
             }
 
             //5.处理更新
             string outRst1 = "订单更新成功";
             if (updateLines.Count > 0)
             {
-                var rst1 = await _lineRepository.UpdateRangeAsync(updateLines);
-                var rst2 = await UpdateDemandAsync(updateLines); //同步更新需求行（如果有订单行被修改的话）
-                if (rst1 != rst2) outRst1 += "需求行更新结果不一致，请核查订单行和需求行数据";
+                var rst1 = await _lineRepo.UpdateRangeAsync(updateLines);
+                //var rst2 = await UpdateDemandAsync(updateLines); //同步更新需求行（如果有订单行被修改的话）
+                //if (rst1 != rst2) outRst1 += "需求行更新结果不一致，请核查订单行和需求行数据";
             }
             _session.Transaction.Commit();
             return ServiceResult<bool>.Ok(true, outRst1);
@@ -703,7 +698,7 @@ public class SalesOrderHeadService(
         var existingDemands = await _demandRepo.GetListBySourceTypeAndSourceIdAsync(OrderTypesEnum.销售订单, [.. lineList.Select(l => l.Id)]);
         foreach (var demand in existingDemands)
         {
-            if (demand.StatusFlag != IndependentDemandStatusEnum.草稿)
+            if (demand.OrderStatus != IndependentDemandStatusEnum.草稿)
             {
                 throw new Exception($"无法创建订单行[{demand.SourceLineId}]，因为已提交过需求并相关需求行已进入处理流程");
             }
@@ -718,7 +713,6 @@ public class SalesOrderHeadService(
                 SourceType = OrderTypesEnum.销售订单,
                 SourceLineId = line.Id,
                 SourceNo = line.OrderNo ?? string.Empty,
-                SalesOrderId = line.SalesOrderId,
                 Sku = line.Sku,
                 Description = line.DescriptionEn,
                 ColorName = line.ColorNameEn,
@@ -728,7 +722,7 @@ public class SalesOrderHeadService(
                 FilledQty = 0,
                 ShippedQty = 0,
                 // 中文注释：审批前仅生成“毛需求”记录，状态应保持草稿。
-                StatusFlag = IndependentDemandStatusEnum.草稿,
+                OrderStatus = IndependentDemandStatusEnum.草稿,
                 IsDecomposed = false,
                 DecomposedTime = null,
                 HopefulDate = line.ExpectedDeliveryDate
@@ -758,7 +752,7 @@ public class SalesOrderHeadService(
             if (lineDict.TryGetValue(demand.SourceLineId, out var lineEntity))
             {
                 // --- 业务守卫：检查该行是否允许更新 ---
-                if (demand.FilledQty > 0 || demand.StatusFlag != IndependentDemandStatusEnum.草稿)
+                if (demand.FilledQty > 0 || demand.OrderStatus != IndependentDemandStatusEnum.草稿)
                 {
                     throw new Exception($"无法更新订单行[{demand.SourceLineId}]，因为已提交过需求并相关需求行已进入处理流程或已有生产记录");
                 }
@@ -793,7 +787,7 @@ public class SalesOrderHeadService(
             foreach (var demand in rst)
             {
                 // 2. 核心红线校验
-                if (demand.StatusFlag != IndependentDemandStatusEnum.草稿)
+                if (demand.OrderStatus != IndependentDemandStatusEnum.草稿)
                     return ServiceResult<bool>.Fail($"行 {demand.SourceLineId} 已进入流程，禁止直接修改或删除。");
 
                 if (demand.FilledQty > 0)
@@ -818,32 +812,6 @@ public class SalesOrderHeadService(
             .ToDictionary(g => g.Key, g => g.First().CustomerName ?? g.First().CustomerCode ?? string.Empty);
     }
 
-    /// <summary>
-    /// 中文注释：实体映射到旧版订单 DTO。
-    /// </summary>
-    private static SalesOrderDto MapToSalesOrderDto(SalesOrderHeader header, Dictionary<int, string> customerNameMap)
-    {
-        int customerId = header.CustomerId ?? 0;
-        DateTime orderDate = header.OrderDate ?? DateTime.Now;
-
-        return new SalesOrderDto
-        {
-            Id = header.Id,
-            OrderNo = header.OrderNo ?? string.Empty,
-            CustomerId = customerId,
-            CustomerName = customerNameMap.TryGetValue(customerId, out var name)
-                ? name
-                : (header.CustomerCode ?? string.Empty),
-            OrderDate = orderDate,
-            DeliveryDate = header.DeliveryDate,
-            TotalAmount = header.TotalAmountLocalCurrency ?? header.TotalAmountOriginalCurrency ?? 0m,
-            OrderStatus = header.OrderStatus,
-            Remark = header.Remark ?? string.Empty,
-            LineCount = header.LineCount ?? 0,
-            CreatedTime = header.CreatedDate ?? orderDate,
-            ModifiedTime = header.UpdatedDate ?? orderDate
-        };
-    }
 
     /// <summary>
     /// 中文注释：审批前业务规则校验。
@@ -897,7 +865,7 @@ public class SalesOrderHeadService(
 
         foreach (var demand in demands)
         {
-            demand.StatusFlag = statusFlag;
+            demand.OrderStatus = statusFlag;
             demand.UpdatedDate = DateTime.Now;
         }
 
@@ -915,7 +883,7 @@ public class SalesOrderHeadService(
         if (demands == null || demands.Count == 0)
             return ServiceResult<bool>.Ok(true);
 
-        var hasExecuted = demands.Any(x => x.StatusFlag > 0);
+        var hasExecuted = demands.Any(x => x.OrderStatus > 0);
         if (hasExecuted)
             return ServiceResult<bool>.Fail("订单中存在已执行需求，不允许驳回");
 

@@ -44,25 +44,20 @@ namespace SwiftExport.View.FW.Mvvm
             public void Dispose() => _action?.Invoke();
         }
 
-        // ===========================
-        // 2. Busy 影响的命令管理
-        // ===========================
+
+        /// <summary>Busy 影响的命令管理</summary>
         private readonly List<(RelayCommand Command, bool AffectedByBusy)> _busyNotifyCommands
             = new List<(RelayCommand, bool)>();
 
 
-        /// <summary>
-        /// 注册命令，并指定是否受 Busy 限制
-        /// </summary>
+        /// <summary>注意只是通知..还需另外去实现CanExecute,注册一个命令，绑定它的CanExecute是否受到IsBusy的影响。</summary>
         protected void RegisterBusyNotifyCommand(RelayCommand command, bool affectedByBusy = true)
         {
             if (command != null)
                 _busyNotifyCommands.Add((command, affectedByBusy));
         }
 
-        /// <summary>
-        /// Busy 状态改变时刷新命令
-        /// </summary>
+        /// <summary>Busy 状态改变时刷新命令 </summary>
         private void RaiseBusyChanged()
         {
             RaisePropertyChanged(nameof(IsBusy));
@@ -74,10 +69,6 @@ namespace SwiftExport.View.FW.Mvvm
                     cmd.RaiseCanExecuteChanged();
             }
         }
-
-
-
-
 
 
         #endregion
@@ -112,6 +103,35 @@ namespace SwiftExport.View.FW.Mvvm
             RaisePropertyChanged(propertyName);
             return true;
         }
+
+
+
+        // ===========================
+        // 5. SuppressDirty 状态
+        // ===========================
+
+        #region 设置程序内部修改抑制器（用于计算属性）
+
+        private int _suppressDirtyCount = 0;
+
+        /// <summary>
+        ///  指示当前是否处于禁用状态（当内部抑制计数大于零时为 true）。
+        /// </summary>
+        /// <remarks>用于在抑制变更通知或临时禁止脏标记期间判断组件行为。内部字段 _suppressDirtyCount 为计数器，递增表示进入禁用状态，递减表示退出。</remarks>
+        public bool DisabledState => _suppressDirtyCount > 0;
+
+        /// <summary>
+        /// 用于程序自动计算的一些属性又不想触发脏数据变更时，可以在计算时使用这个方法包裹起来，来抑制脏数据变更的触发。
+        /// </summary>
+        protected IDisposable DisabledStateScope()
+        {
+            Interlocked.Increment(ref _suppressDirtyCount);
+            return new ActionOnDispose(() =>
+                Interlocked.Decrement(ref _suppressDirtyCount));
+        }
+
+        #endregion
+
 
     }
 }

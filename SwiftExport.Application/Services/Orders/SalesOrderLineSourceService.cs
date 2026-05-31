@@ -11,9 +11,9 @@ namespace SwiftExport.Application.Services.Orders
     /// 提供“CustomerProduct + Product 联查”的分页查询能力，
     /// 为订单行编辑界面提供可直接回填的基础数据。
     /// </summary>
-    public class SalesOrderLineSourceService(ISalesOrderLineSourceRepository repository) : ISalesOrderLineSourceService
+    public class SalesOrderLineSourceService(ISalesOrderLineRepository repository) : ISalesOrderLineService
     {
-        private readonly ISalesOrderLineSourceRepository _repository = repository;
+        private readonly ISalesOrderLineRepository _repository = repository;
 
         /// <summary>
         /// 分页查询订单行候选数据。

@@ -1,5 +1,6 @@
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Core.Common;
+using SwiftExport.Core.Entities.Orders;
 
 namespace SwiftExport.Core.Interfaces;
 
@@ -7,7 +8,7 @@ namespace SwiftExport.Core.Interfaces;
 /// 销售订单行数据源仓储接口。
 /// 负责 CustomerProduct + Product 联查分页。
 /// </summary>
-public interface ISalesOrderLineSourceRepository
+public interface ISalesOrderLineRepository : IRepository<SalesOrderLine>
 {
     ///// <summary>
     ///// 联查分页：返回可直接映射为 SalesOrderLineDto 的读模型。
@@ -25,7 +26,6 @@ public interface ISalesOrderLineSourceRepository
     /// 2. BatchCustomerSkuList 做客户SKU精确匹配；
     /// 3. BatchKeywords 做 SKU/描述/特性/客户SKU 模糊匹配。
     /// </summary>
-    Task<PagedResult<SalesProductDto>> GetSalesProductPagedListAsync(
-        SalesProductSearchDto request,
-        string orderBy = "cp.Id DESC");
+    Task<PagedResult<SalesProductDto>> GetSalesProductPagedListAsync(SalesProductSearchDto request, string orderBy = "cp.Id DESC");
+    Task<List<SalesOrderLine>> GetLinesByOrderIdAsync(int orderId, bool withUpdLock = false);
 }

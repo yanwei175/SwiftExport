@@ -71,7 +71,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
             // 初始化命令
             AddLineCommand = new RelayCommand(AddLine);
-            RegisterBusyNotifyCommand(AddLineCommand);
 
             BatchGetSalesProductCommand = new RelayCommand(BatchGetSalesProduct);
 
@@ -328,7 +327,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             OrderHeader != null &&
             OrderHeader.IsValid &&
             OrderLines.IsAllValid &&
-            (OrderHeader.State != ModelState.Unchanged || OrderLines.IsDirty);
+            (OrderHeader.IsDirty || OrderLines.IsDirty);
 
         #endregion
 
@@ -357,7 +356,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         {
             var line = new SalesOrderLineModel();
             line.MarkAsAdded();
-
+            line.LineNumber = OrderLines.Items.Count + 1;
             OrderLines.Items.Add(line);
             SelectedLine = line;
         }
@@ -627,18 +626,22 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             OrderLines.Items.Clear();
         }
 
-        public async Task InitForEditAsync(SalesOrderHeaderModel head)
+        public async Task InitForEditAsync(int headId)
         {
-            if (head == null) return;
+            if (headId <= 0) return;
 
-            OrderHeader = head;
+            var hdRst = await _salesOrderApi.GetByIdAsync(headId);
+            if (hdRst == null || !hdRst.Success || hdRst.Data == null) return;
+
+            OrderHeader = new SalesOrderHeaderModel();
+            OrderHeader.LoadFromDto(hdRst.Data);
 
             OrderLines.Clear();
-            var rst = await _salesOrderApi.GetSalesOrderLinesAsync(head.Id);
+            var rst = await _salesOrderApi.GetSalesOrderLinesAsync(headId);
             if (rst.Success && rst.Data != null)
             {
                 OrderLines.ReLoadRangeFromDtoList(rst.Data.ToList());
-                StatusMessage = $"编辑订单：{head.OrderNo}";
+                StatusMessage = $"编辑订单：{OrderHeader.OrderNo}";
             }
             else
             {
@@ -658,51 +661,58 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         {
             using (BusyScope())
             {
-                // 中文注释：先做异步校验，避免无效数据继续提交。
-                var asyncError = await OrderLines.ValidateAllAsync();
-                if (!string.IsNullOrEmpty(asyncError))
+                try
                 {
-                    if (_msg != null)
-                        await _msg.ShowWarningAsync(asyncError);
-                    return;
-                }
-                if (!OrderHeader.IsValid)
-                {
-                    if (_msg != null)
-                        await _msg.ShowWarningAsync("订单头信息有误，请检查必填字段和字段格式。");
-                    return;
-                }
+                    // 中文注释：先做异步校验，避免无效数据继续提交。
+                    var asyncError = await OrderLines.ValidateAllAsync();
+                    if (!string.IsNullOrEmpty(asyncError))
+                    {
+                        if (_msg != null)
+                            await _msg.ShowWarningAsync(asyncError);
+                        return;
+                    }
+                    if (!OrderHeader.IsValid)
+                    {
+                        if (_msg != null)
+                            await _msg.ShowWarningAsync("订单头信息有误，请检查必填字段和字段格式。");
+                        return;
+                    }
 
-                // 中文注释：获取当前行变更集合，后续可直接用于组装 DTO 并调用 API。
-                var changeSet = OrderLines.GetChangeSet();
-                if (OrderHeader.State == ModelState.Unchanged && !changeSet.HasChanges)
-                {
-                    if (_msg != null)
-                        await _msg.ShowWarningAsync("没有任何变更，无需保存。");
-                    return;
+                    // 中文注释：获取当前行变更集合，后续可直接用于组装 DTO 并调用 API。
+                    var changeSet = OrderLines.GetChangeSet();
+                    if (!OrderHeader.IsDirty && !changeSet.HasChanges)
+                    {
+                        if (_msg != null)
+                            await _msg.ShowWarningAsync("没有任何变更，无需保存。");
+                        return;
+                    }
+
+                    // 中文注释：将需要删除的行 ID 添加到 DTO 的 DeletedLineIds 集合中。
+                    var saveDto = new SalesOrderDetailDto
+                    {
+                        Header = OrderHeader.Adapt<SalesOrderHeaderDto>(),
+                        Lines = OrderLines.Items.Adapt<List<SalesOrderLineDto>>(),
+                        DeletedLineIds = changeSet.DeleteIdList
+                    };
+
+                    // 发送给 API
+                    var result = await _salesOrderApi.SaveSalesOrderDetailAsync(saveDto);
+
+                    if (result.Success)
+                    {
+                        _msg?.ShowCardAsync("保存成功,订单已保存到服务器。正在刷新数据...", 2000);
+                        ResultData = result.Data;
+                        // 中文注释：通知窗口以“保存成功”结果关闭，兼容现有 ShowDialog 流程。
+                        CloseWindow?.Invoke(true);
+                    }
+                    else
+                    {
+                        await _msg.ShowErrorAsync("保存失败: " + result.Message);
+                    }
                 }
-
-                // 中文注释：将需要删除的行 ID 添加到 DTO 的 DeletedLineIds 集合中。
-                var saveDto = new SalesOrderDetailDto
+                catch (Exception ex)
                 {
-                    Header = OrderHeader.Adapt<SalesOrderHeaderDto>(),
-                    Lines = OrderLines.Items.Select(line => line.Adapt<SalesOrderLineDto>()).ToList(),
-                    DeletedLineIds = changeSet.DeleteIdList
-                };
-
-                // 发送给 API
-                var result = await _salesOrderApi.SaveSalesOrderDetailAsync(saveDto);
-
-                if (result.Success)
-                {
-                    _msg?.ShowCardAsync("保存成功,订单已保存到服务器。正在刷新数据...", 2000);
-                    ResultData = result.Data;
-                    // 中文注释：通知窗口以“保存成功”结果关闭，兼容现有 ShowDialog 流程。
-                    CloseWindow?.Invoke(true);
-                }
-                else
-                {
-                    await _msg.ShowErrorAsync("保存失败: " + result.Message);
+                    await _msg.ShowErrorAsync("保存过程中发生异常: " + ex.Message);
                 }
             }
 

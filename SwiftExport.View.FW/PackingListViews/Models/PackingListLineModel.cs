@@ -18,7 +18,7 @@ namespace SwiftExport.View.FW.PackingListViews.Models
         {
             if (dto == null) return;
 
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 dto.Adapt(this);//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
                 if (this.Id == 0)
@@ -55,7 +55,7 @@ namespace SwiftExport.View.FW.PackingListViews.Models
         private void RecalculateAll()
         {
             // 使用 程序内部修改Scope 控制程序计算不要触发数据修改状态改变，避免不必要的保存提示
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 CalculateCarton();
                 CalculateNwSubTotal();
@@ -367,7 +367,7 @@ namespace SwiftExport.View.FW.PackingListViews.Models
             get => _totalNw_KG;
             set
             {
-                if (SetProperty(ref _totalNw_KG, value) && !是否程序内部修改)
+                if (SetProperty(ref _totalNw_KG, value) && !DisabledState)
                     _启动净重小计计算 = true;
             }
         }
@@ -379,7 +379,7 @@ namespace SwiftExport.View.FW.PackingListViews.Models
             get => _totalGw_KG;
             set
             {
-                if (SetProperty(ref _totalGw_KG, value) && !是否程序内部修改)
+                if (SetProperty(ref _totalGw_KG, value) && !DisabledState)
                     _启动毛重小计计算 = true;
             }
         }
@@ -391,7 +391,7 @@ namespace SwiftExport.View.FW.PackingListViews.Models
             get => _totalCbm_m3;
             set
             {
-                if (SetProperty(ref _totalCbm_m3, value) && !是否程序内部修改)
+                if (SetProperty(ref _totalCbm_m3, value) && !DisabledState)
                     _启动体积小计计算 = true;
             }
         }

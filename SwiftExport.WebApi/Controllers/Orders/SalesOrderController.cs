@@ -13,7 +13,7 @@ namespace SwiftExport.WebApi.Controllers.Orders;
 /// 销售订单控制器。
 /// 覆盖 ISalesOrderApi 中定义的所有路由与行为。
 /// </summary>
-public class SalesOrderController(ISalesOrderHeadService service,ISalesOrderLineSourceService lineService)
+public class SalesOrderController(ISalesOrderHeadService service,ISalesOrderLineService lineService)
     : BaseController<SalesOrderHeader, SalesOrderHeaderDto>(service)
 {
     #region 兼容旧接口（已有）

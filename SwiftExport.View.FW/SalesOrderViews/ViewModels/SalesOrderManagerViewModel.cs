@@ -502,45 +502,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         /// 中文注释：弹窗关闭后仅刷新当前选中行，避免重载全表。
         /// 若订单 ID 能在现有列表中找到则局部更新；否则刷新全表。
         /// </summary>
-        private async Task RefreshSingleOrderAsync(int orderId)
-        {
-            if (orderId <= 0)
-            {
-                await LoadAsync();
-                return;
-            }
-
-            try
-            {
-                var rst = await _salesOrderApi.GetSalesOrderHeaderPagedListAsync(new SalesOrderManagerSearchDto
-                {
-                    OrderId = orderId,
-                    PageIndex = 1,
-                    PageSize = 1
-                });
-
-                if (rst?.Success == true && rst.Data?.Items?.Count > 0)
-                {
-                    var updated = rst.Data.Items[0];
-                    var existing = OrderHeaders.Items.FirstOrDefault(x => x.Id == orderId);
-                    if (existing != null)
-                    {
-                        existing.LoadFromDto(updated, false);
-                        SelectedOrderHeader = existing;
-                        RaisePropertyChanged(nameof(StatusSummaryText));
-                    }
-                    else
-                    {
-                        await LoadAsync();
-                    }
-                }
-            }
-            catch
-            {
-                await LoadAsync();
-            }
-        }
-
+       
         private async Task LoadLinesByHeadIdAsync(int orderId)
         {
 
@@ -624,12 +586,21 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             try
             {
                 var vm = IocProvider.GetService<SalesOrderDetailViewModel>();
-                await vm.InitForEditAsync(SelectedOrderHeader);
+                await vm.InitForEditAsync(orderId);
                 var win = new SalesOrderDetailWindow(vm);
                 var result = win.ShowDialog();
-                if (result == true && vm.OrderHeader != null)
+                if (result == true && vm.ResultData >0)
                 {
-                    _ = RefreshSingleOrderAsync(vm.OrderHeader.Id);
+                    var rst = await _salesOrderApi.GetSalesOrderDetailAsync(vm.ResultData);
+                    if (rst?.Success == true && rst.Data != null)
+                    {
+                        SelectedOrderHeader.LoadFromDto(rst.Data.Header, false);
+                        CurrentOrderLines.ReLoadRangeFromDtoList(rst.Data.Lines);
+                    }
+                    else
+                    {
+                        await LoadAsync();
+                    }
                 }
 
             }

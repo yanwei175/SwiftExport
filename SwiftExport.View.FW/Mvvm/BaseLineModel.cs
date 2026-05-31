@@ -1,7 +1,9 @@
-﻿using System;
+﻿using Mapster;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SwiftExport.View.FW.Mvvm
@@ -20,29 +22,66 @@ namespace SwiftExport.View.FW.Mvvm
     public abstract class BaseLineModel : ViewModelBaseEx, IBaseModel, IDataErrorInfo
 
     {
-        public abstract void LoadFromDto<Tdto>(Tdto dto, bool 抑制清理脏数据 = false);//加载数据方法
-
-        // ============================================================
-        // 1. IBaseModel 基础字段
-        // ============================================================
-
-        /// <summary>
-        /// 行主键（数据库 ID）
-        /// </summary>
-        public int Id { get; set; }
-
-        private ModelState _state = ModelState.Unchanged;
-        public ModelState State
+        public virtual void LoadFromDto<Tdto>(Tdto dto, bool 抑制清理脏数据 = false)
         {
-            get => _state;
-            set => SetProperty(ref _state, value);
+            if (dto == null) return;
+
+            using (DisabledStateScope())
+            {
+
+                dto.Adapt(this);//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
+                if (this.Id <= 0)
+                { this.MarkAsAdded(); }
+
+                // 根据调用方需要决定是否立即提交/清理脏数据
+                if (!抑制清理脏数据)
+                    CommitChanges();
+            }
         }
+
+        #region   后端字段
+        public int Id { get; set; }
 
         private int _version = 1;
         public int Version
         {
             get => _version;
             set => SetProperty(ref _version, value);
+        }
+        private DateTime? _createdDate;
+        public DateTime? CreatedDate
+        {
+            get => _createdDate;
+            set => SetProperty(ref _createdDate, value);
+        }
+
+        private DateTime? _updatedDate;
+        public DateTime? UpdatedDate
+        {
+            get => _updatedDate;
+            set => SetProperty(ref _updatedDate, value);
+        }
+        private string _createdBy;
+        public string CreatedBy
+        {
+            get => _createdBy;
+            set => SetProperty(ref _createdBy, value);
+        }
+
+        private string _updatedBy;
+        public string UpdatedBy
+        {
+            get => _updatedBy;
+            set => SetProperty(ref _updatedBy, value);
+        }
+        #endregion
+
+        #region   前端属性
+        private ModelState _state = ModelState.Unchanged;
+        public ModelState State
+        {
+            get => _state;
+            set => SetProperty(ref _state, value);
         }
 
         private bool _isChecked;
@@ -51,7 +90,8 @@ namespace SwiftExport.View.FW.Mvvm
             get => _isChecked;
             set
             {
-                using (程序内部修改Scope())
+                //是否选中不应该触发脏数据变化.
+                using (DisabledStateScope())
                 {
                     SetProperty(ref _isChecked, value);
                 }
@@ -59,27 +99,14 @@ namespace SwiftExport.View.FW.Mvvm
         }
 
         public bool IsDirty => State != ModelState.Unchanged;
-        
+
+        #endregion
+
+
 
         // ============================================================
-        // 2. 程序内部修改抑制器（用于计算属性）
+        // 2. 程序内部修改抑制器（用于计算属性, LoadFromDto, RollbackChanges 等）
         // ============================================================
-
-        /// <summary>
-        /// true = 程序内部修改（不触发 Modified）
-        /// false = 用户修改（触发 Modified）
-        /// </summary>
-        public bool 是否程序内部修改 { get; private set; }
-
-        /// <summary>
-        /// 使用 using(程序内部修改Scope()) 包裹计算逻辑，
-        /// 这样计算属性不会触发 Modified。
-        /// </summary>
-        protected IDisposable 程序内部修改Scope()
-        {
-            是否程序内部修改 = true;
-            return new ActionOnDispose(() => 是否程序内部修改 = false);
-        }
 
         private class ActionOnDispose : IDisposable
         {
@@ -119,9 +146,10 @@ namespace SwiftExport.View.FW.Mvvm
             RaisePropertyChanged("Item[]"); // 【关键修复】通知 WPF 绑定引擎重新计算 IDataErrorInfo 的 this[propName]
 
             // 用户修改才触发 Modified
-            if (!是否程序内部修改)
-                MarkAsModified();
+            if (DisabledState)
+                return true;
 
+                MarkAsModified();
             return true;
         }
 
@@ -131,6 +159,8 @@ namespace SwiftExport.View.FW.Mvvm
         // ============================================================
         protected virtual void MarkAsModified()
         {
+            if (DisabledState)
+                return;
             if (State == ModelState.Unchanged)
                 State = ModelState.Modified;
         }
@@ -210,7 +240,7 @@ namespace SwiftExport.View.FW.Mvvm
 
         public virtual void RollbackChanges()
         {
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 // 1. 恢复所有被 SetProperty 修改过的属性
                 foreach (var kv in _原始值字典)
@@ -244,10 +274,22 @@ namespace SwiftExport.View.FW.Mvvm
         }
 
         public virtual void CommitChanges()
-        {   // 清理原始值快照
-            _原始值字典.Clear();
-            // 状态重置
-            State = ModelState.Unchanged;
+        {   
+            // 快速退出：已无改变且字典为空
+            if (_state == ModelState.Unchanged && _原始值字典.Count == 0) return;
+
+            // 抑制被 SetProperty 识别为“用户修改”
+            using (DisabledStateScope())
+            {
+                // 直接设置 backing field 避免再次记录原始值 / 触发 MarkAsModified
+                _state = ModelState.Unchanged;
+
+                if (_原始值字典.Count > 0)
+                    _原始值字典.Clear();
+            }
+
+            // 仅在需要时通知一次 State 变化
+            RaisePropertyChanged(nameof(State));
 
         }
     }

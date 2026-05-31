@@ -14,7 +14,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
         public override void LoadFromDto<TDto>(TDto dto, bool 抑制清理脏数据 = false)
         {
             if (dto == null) return;
-            using (程序内部修改Scope())
+            using (DisabledStateScope())
             {
                 Mapster.TypeAdapter.Adapt(dto, this);
                 if (this.Id == 0)
