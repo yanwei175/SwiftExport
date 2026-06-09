@@ -1,24 +1,21 @@
 ﻿using GalaSoft.MvvmLight.Command;
-using Mapster;
 using SwiftExport.Contracts.Apis.CustomerApis;
-using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.Apis.SystemApis;
+using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.SalesOrders;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
-using SwiftExport.Contracts.Wrappers;
 using SwiftExport.View.FW.DI;
 using SwiftExport.View.FW.Mvvm;
-using SwiftExport.View.FW.ProductViews.Models;
+using SwiftExport.View.FW.Mvvm.Helpers;
 using SwiftExport.View.FW.SalesOrderViews.Models;
 using SwiftExport.View.FW.SalesOrderViews.Views;
 using SwiftExport.View.FW.Services;
-using SwiftExport.View.FW.SystemViews.Models;
-using SwiftExport.View.FW.WarehouseViews.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -67,8 +64,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             _dictCacheService = dictCacheService;
             _pdColorApi = productColorApi;
 
-            OrderHeaders = new SalesOrderHeaderList();
-            OrderHeaders.PropertyChanged += OrderHeaders_PropertyChanged;
+            OrderHeaders = new SalesOrderHeaderManagerList();
 
             // 中文注释：加载命令，带 BusyScope 保护，防止重复触发。
             LoadCommand = new RelayCommand(async () => await LoadAsync(), () => IsNotBusy);
@@ -86,26 +82,26 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             SaveCommand = new RelayCommand(async () => await SaveHeaderAsync(), () => CanSave);
             RegisterBusyNotifyCommand(SaveCommand);
 
-            BatchApproveCommand = new RelayCommand(async () => await BatchApproveAsync(), () => CanBatchApprove);
-            RegisterBusyNotifyCommand(BatchApproveCommand);
+            ConfirmCommand = new RelayCommand(async () => await ConfirmAsync(), () => CanConfirm);
+            RegisterBusyNotifyCommand(ConfirmCommand);
 
-            BatchRejectCommand = new RelayCommand(async () => await BatchRejectAsync(), () => CanBatchReject);
-            RegisterBusyNotifyCommand(BatchRejectCommand);
+            CancelConfirmCommand = new RelayCommand(async () => await CancelConfirmAsync(), () => CanCancelConfirm);
+            RegisterBusyNotifyCommand(CancelConfirmCommand);
 
-            DeleteCheckedCommand = new RelayCommand(async () => await DeleteCheckedAsync(), () => HasSelectedItems && IsNotBusy);
-            RegisterBusyNotifyCommand(DeleteCheckedCommand);
+            DeleteSelectedHeadCommand = new RelayCommand(async () => await DeleteSelectedHeadAsync(), () => SelectedOrderHeader != null && IsNotBusy);
+            RegisterBusyNotifyCommand(DeleteSelectedHeadCommand);
 
-            InvertCheckCommand = new RelayCommand(InvertCheck);
-            ItemCheckedChangedCommand = new RelayCommand(OnItemCheckedChanged);
+            InvertCheckCommand = new RelayCommand(OrderHeaders.InvertCheckAll);
+
 
             // 中文注释：订阅多选选项的 IsSelected 变化，实时刷新 ToggleButton 上的摘要文字。
-            foreach (var item in ApprovalStatusOptions)
-                item.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(CheckableItem<int>.IsSelected)) RaisePropertyChanged(nameof(SelectedApprovalStatuses)); };
+            foreach (var item in ConfirmStatusOptions)
+                item.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(CheckableItem<ConfirmationStatusEnum>.IsSelected)) RaisePropertyChanged(nameof(SelectedConfirmStatuses)); };
             foreach (var item in OrderStatusOptions)
-                item.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(CheckableItem<int>.IsSelected)) RaisePropertyChanged(nameof(SelectedOrderStatuses)); };
+                item.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(CheckableItem<SalesOrderStatusEnum>.IsSelected)) RaisePropertyChanged(nameof(SelectedOrderStatuses)); };
 
             _ = LoadCustomersAsync();
-            _= LoadColorsAsync();
+            _ = LoadColorsAsync();
         }
 
         #endregion
@@ -113,11 +109,11 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         #region 列表与选中
 
         /// <summary> 订单头集合，绑定到 Manager DataGrid。</summary>
-        public SalesOrderHeaderList OrderHeaders { get; }
+        public SalesOrderHeaderManagerList OrderHeaders { get; }
 
-        private SalesOrderHeaderModel _selectedOrderHeader;
+        private SalesOrderHeaderManagerModel _selectedOrderHeader;
         /// <summary> 当前选中订单头，切换时刷新命令状态。</summary>
-        public SalesOrderHeaderModel SelectedOrderHeader
+        public SalesOrderHeaderManagerModel SelectedOrderHeader
         {
             get => _selectedOrderHeader;
             set
@@ -128,19 +124,21 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     RaisePropertyChanged(nameof(StatusSummaryText));
                     SaveCommand?.RaiseCanExecuteChanged();
                     EditOrderCommand?.RaiseCanExecuteChanged();
-                    _ = LoadLinesByHeadIdAsync(value?.Id ?? 0);
+                    DeleteSelectedHeadCommand?.RaiseCanExecuteChanged();
+                    _ = LoadLinesByHeadIdAsync(value?.Uid ?? Guid.Empty);
                 }
             }
         }
 
-        private SalesOrderLineList _currentOrderLines;
-        public SalesOrderLineList CurrentOrderLines
+        private SalesOrderLineManagerList _currentOrderLines;
+        public SalesOrderLineManagerList CurrentOrderLines
         {
             get => _currentOrderLines;
             set => SetProperty(ref _currentOrderLines, value);
         }
-        private SalesOrderLineModel _selectedLine;
-        public SalesOrderLineModel SelectedLine
+
+        private SalesOrderLineManagerModel _selectedLine;
+        public SalesOrderLineManagerModel SelectedLine
         {
             get => _selectedLine;
             set => SetProperty(ref _selectedLine, value);
@@ -206,41 +204,26 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 {
                     //内存筛选CurrentOrderLines,可能要建一个视图筛选模型
 
-                    
-                }    
+
+                }
             }
         }
 
-        // 中文注释：审批状态多选选项，每项是 CheckableItem<int>，IsSelected 双向绑定到 CheckBox。
+        // 中文注释：审批状态多选选项，每项是 CheckableItem<ConfirmationStatusEnum>，IsSelected 双向绑定到 CheckBox。
         // PropertyChanged 订阅在构造函数中完成，变化时自动通知摘要属性刷新。
-        public ObservableCollection<CheckableItem<int>> ApprovalStatusOptions { get; }
-            = new ObservableCollection<CheckableItem<int>>
-              {
-                  new CheckableItem<int> { Value = ApprovalStatusEnum.草稿,   Label = "草稿"   },
-                  new CheckableItem<int> { Value = ApprovalStatusEnum.待审批, Label = "待审批" },
-                  new CheckableItem<int> { Value = ApprovalStatusEnum.已批准, Label = "已批准" },
-                  new CheckableItem<int> { Value = ApprovalStatusEnum.已驳回, Label = "已驳回" },
-                  new CheckableItem<int> { Value = ApprovalStatusEnum.已取消, Label = "已取消" },
-              };
+        public ObservableCollection<CheckableItem<ConfirmationStatusEnum>> ConfirmStatusOptions { get; } = EnumOptionHelper.ToCheckableItems<ConfirmationStatusEnum>();
 
         // 中文注释：审批状态摘要文字，绑定到 ToggleButton 上的 TextBlock.Text。
-        public string SelectedApprovalStatuses =>
-            ApprovalStatusOptions.Where(x => x.IsSelected) is var sel && sel.Any()
+        public string SelectedConfirmStatuses =>
+            ConfirmStatusOptions.Where(x => x.IsSelected) is var sel && sel.Any()
                 ? string.Join("、", sel.Select(x => x.Label))
                 : "全部";
 
         // 中文注释：订单状态多选选项。
-        public ObservableCollection<CheckableItem<int>> OrderStatusOptions { get; }
-            = new ObservableCollection<CheckableItem<int>>
-              {
-                  new CheckableItem<int> { Value = SalesOrderStatusEnum.草稿,     Label = "草稿"     },
-                  new CheckableItem<int> { Value = SalesOrderStatusEnum.已确认,   Label = "已确认"   },
-                  new CheckableItem<int> { Value = SalesOrderStatusEnum.部分发货, Label = "部分发货" },
-                  new CheckableItem<int> { Value = SalesOrderStatusEnum.全部发货, Label = "全部发货" },
-                  new CheckableItem<int> { Value = SalesOrderStatusEnum.已关闭,   Label = "已关闭"   },
-              };
+        public ObservableCollection<CheckableItem<SalesOrderStatusEnum>> OrderStatusOptions { get; } = EnumOptionHelper.ToCheckableItems<SalesOrderStatusEnum>();
 
-        // 中文注释：订单状态摘要文字。
+
+        // 中文注释：订单状态摘要文字。绑定到 ToggleButton 上的 TextBlock.Text。
         public string SelectedOrderStatuses =>
             OrderStatusOptions.Where(x => x.IsSelected) is var sel2 && sel2.Any()
                 ? string.Join("、", sel2.Select(x => x.Label))
@@ -302,69 +285,20 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         #endregion
 
-        #region 勾选状态与批量选择
-
-        private bool _isAllChecked;
-        public bool IsAllChecked
-        {
-            get => _isAllChecked;
-            set
-            {
-                if (SetProperty(ref _isAllChecked, value))
-                {
-                    foreach (var item in OrderHeaders.Items)
-                        item.IsChecked = value;
-                    RefreshSelectionState();
-                }
-            }
-        }
-
-        private int _selectedCount;
-        public int SelectedCount
-        {
-            get => _selectedCount;
-            set => SetProperty(ref _selectedCount, value);
-        }
-
-        private bool _hasSelectedItems;
-        public bool HasSelectedItems
-        {
-            get => _hasSelectedItems;
-            set => SetProperty(ref _hasSelectedItems, value);
-        }
-
-        /// <summary> 当前已勾选的订单头快照列表。</summary>
-        public List<SalesOrderHeaderModel> SelectedItems
-            => OrderHeaders.Items.Where(x => x.IsChecked).ToList();
-
-        #endregion
-
         #region 命令启用条件
 
-        /// <summary> 批量审批：全部勾选项均为草稿或驳回状态才可操作。</summary>
-        public bool CanBatchApprove
+        /// <summary> 确认命令是否可用。</summary>
+        public bool CanConfirm
         {
-            get
-            {
-                var selected = SelectedItems;
-                if (selected.Count == 0) return false;
-                return selected.All(x =>
-                    x.ApprovalStatus == ApprovalStatusEnum.草稿 ||
-                    x.ApprovalStatus == ApprovalStatusEnum.已驳回);
-            }
+            get => SelectedOrderHeader != null &&
+              SelectedOrderHeader.ConfirmationStatus != ConfirmationStatusEnum.已确认 && IsNotBusy;
+
         }
 
-        /// <summary> 批量驳回：全部勾选项均为草稿或待审批状态才可操作。</summary>
-        public bool CanBatchReject
+        /// <summary> 取消确认命令是否可用。</summary>
+        public bool CanCancelConfirm
         {
-            get
-            {
-                var selected = SelectedItems;
-                if (selected.Count == 0) return false;
-                return selected.All(x =>
-                    x.ApprovalStatus == ApprovalStatusEnum.草稿 ||
-                    x.ApprovalStatus == ApprovalStatusEnum.待审批);
-            }
+            get => SelectedOrderHeader != null && SelectedOrderHeader.ConfirmationStatus == ConfirmationStatusEnum.已确认 && IsNotBusy;
         }
 
         /// <summary> Header 快速保存：有选中行且存在脏数据。</summary>
@@ -380,9 +314,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         public RelayCommand CreateOrderCommand { get; }
         public RelayCommand EditOrderCommand { get; }
         public RelayCommand SaveCommand { get; }
-        public RelayCommand BatchApproveCommand { get; }
-        public RelayCommand BatchRejectCommand { get; }
-        public RelayCommand DeleteCheckedCommand { get; }
+        public RelayCommand ConfirmCommand { get; }
+        public RelayCommand CancelConfirmCommand { get; }
+        public RelayCommand DeleteSelectedHeadCommand { get; }
         public RelayCommand InvertCheckCommand { get; }
         public RelayCommand ItemCheckedChangedCommand { get; }
 
@@ -456,15 +390,14 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                         OrderDateFrom = OrderDateFrom,
                         OrderDateTo = OrderDateTo,
                         // 中文注释：将 CheckableItem 中被勾选的枚举值转换为整数列表传给后端。
-                        ApprovalStatuses = ApprovalStatusOptions
+                        ConfirmStatuses = ConfirmStatusOptions
                             .Where(x => x.IsSelected)
-                            .Select(x => x.Value)
+                            .Select(x => (int)x.Value)
                             .ToList(),
                         OrderStatuses = OrderStatusOptions
                             .Where(x => x.IsSelected)
-                            .Select(x => x.Value)
+                            .Select(x => (int)x.Value)
                             .ToList(),
-                        
                         BatchCustomerSkuList = BatchCustomerSkuText?.Split(new[] { '\n', '\r', ',', '；', ',' }, StringSplitOptions.RemoveEmptyEntries)
                             .Select(x => x.Trim())
                             .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -474,20 +407,19 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                         PageSize = PageSize
                     };
 
-                    var rst = await _salesOrderApi.GetSalesOrderHeaderPagedListAsync(search);
+                    var rst = await _salesOrderApi.GetSalesOrderHeaderManagerPagedListAsync(search);
                     if (rst.Success && rst.Data != null)
                     {
                         OrderHeaders.ReLoadRangeFromDtoList(rst.Data.Items);
                         TotalCount = rst.Data.TotalCount;
-                        RefreshSelectionState();
                         SelectedOrderHeader = OrderHeaders.Items.FirstOrDefault();
                         StatusMessage = string.Format("加载成功，共 {0} 条", TotalCount);
                     }
                     else
                     {
-                        OrderHeaders.Clear();
+                        OrderHeaders?.Clear();
+                        CurrentOrderLines?.Clear();
                         TotalCount = 0;
-                        RefreshSelectionState();
                         StatusMessage = "加载失败：" + rst.Message;
                     }
                 }
@@ -502,39 +434,39 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         /// 中文注释：弹窗关闭后仅刷新当前选中行，避免重载全表。
         /// 若订单 ID 能在现有列表中找到则局部更新；否则刷新全表。
         /// </summary>
-       
-        private async Task LoadLinesByHeadIdAsync(int orderId)
-        {
 
+        private async Task LoadLinesByHeadIdAsync(Guid orderId)
+        {
             using (BusyScope())
             {
                 try
                 {
-                    if (orderId <= 0)
+                    if (orderId == Guid.Empty)
                     {
                         CurrentOrderLines.Clear();
                         return;
                     }
 
-                    var rst = await _salesOrderApi.GetSalesOrderLinesAsync(orderId);
+                    var rst = await _salesOrderApi.GetSalesOrderLineManagerAsync(orderId);
                     if (rst?.Success == true && rst.Data != null)
                     {
-                        CurrentOrderLines = new SalesOrderLineList();
+                        CurrentOrderLines = new SalesOrderLineManagerList();
                         CurrentOrderLines.ReLoadRangeFromDtoList(rst.Data);
                     }
                     else
                     {
-                        CurrentOrderLines = new SalesOrderLineList();
+                        CurrentOrderLines = new SalesOrderLineManagerList();
                         StatusMessage = "加载订单行失败：" + rst?.Message;
                     }
                 }
                 catch (Exception ex)
                 {
-                    CurrentOrderLines = new SalesOrderLineList();
+                    CurrentOrderLines = new SalesOrderLineManagerList();
                     StatusMessage = "加载订单行异常：" + ex.Message;
                 }
             }
         }
+
         #endregion
 
         #region 新建 / 编辑弹窗
@@ -545,20 +477,18 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         /// </summary>
         private async void OpenCreateOrderWindow()
         {
-
             try
             {
-                var vm=IocProvider.GetService<SalesOrderDetailViewModel>();
+                var vm = IocProvider.GetService<SalesOrderDetailViewModel>();
                 vm.InitForCreate();
                 var win = new SalesOrderDetailWindow(vm);
                 var result = win.ShowDialog();
-                if (result == true && vm.ResultData > 0)
+                if (result == true && vm.ResultData != Guid.Empty)
                 {
-                    var rst= await _salesOrderApi.GetSalesOrderDetailAsync(vm.ResultData);
-                    if(rst?.Success == true && rst.Data != null)
+                    var rst = await _salesOrderApi.GetSalesOrderHeaderManagerByIdAsync(vm.ResultData);
+                    if (rst?.Success == true && rst.Data != null)
                     {
-                        SelectedOrderHeader.LoadFromDto(rst.Data.Header, false);
-                        CurrentOrderLines.ReLoadRangeFromDtoList(rst.Data.Lines);
+                        SelectedOrderHeader.LoadFromDto(rst.Data, false);
                     }
                     else
                     {
@@ -581,21 +511,20 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         {
             if (SelectedOrderHeader == null) return;
 
-            var orderId = SelectedOrderHeader.Id;
-            if (orderId <= 0) return;
+            var orderId = SelectedOrderHeader.Uid;
+            if (orderId == Guid.Empty) return;
             try
             {
                 var vm = IocProvider.GetService<SalesOrderDetailViewModel>();
                 await vm.InitForEditAsync(orderId);
                 var win = new SalesOrderDetailWindow(vm);
                 var result = win.ShowDialog();
-                if (result == true && vm.ResultData >0)
+                if (result == true && vm.ResultData != Guid.Empty)
                 {
-                    var rst = await _salesOrderApi.GetSalesOrderDetailAsync(vm.ResultData);
+                    var rst = await _salesOrderApi.GetSalesOrderHeaderManagerByIdAsync(vm.ResultData);
                     if (rst?.Success == true && rst.Data != null)
                     {
-                        SelectedOrderHeader.LoadFromDto(rst.Data.Header, false);
-                        CurrentOrderLines.ReLoadRangeFromDtoList(rst.Data.Lines);
+                        SelectedOrderHeader.LoadFromDto(rst.Data, false);
                     }
                     else
                     {
@@ -619,169 +548,110 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         /// </summary>
         private async Task SaveHeaderAsync()
         {
-            if (SelectedOrderHeader == null) return;
-            if (_salesOrderApi == null)
-            {
-                StatusMessage = "SalesOrderApi 未注册";
-                return;
-            }
-
-            using (BusyScope())
-            {
-                try
-                {
-                    var changeSet = OrderHeaders.GetChangeSet();
-                    if (!changeSet.HasChanges)
-                    {
-                        StatusMessage = "没有变更，无需保存";
-                        return;
-                    }
-
-                    // 中文注释：将 Model 列表映射为 DTO 列表后构建保存请求。
-                    var saveDto = new SalesOrderManagerSaveDto
-                    {
-                        CurrentOrderId = SelectedOrderHeader.Id,
-                        HeaderChanges = new BatchRequestGeneric<SalesOrderHeaderDto>
-                        {
-                            AddList = changeSet.AddList.Select(m => m.Adapt<SalesOrderHeaderDto>()).ToList(),
-                            UpdateList = changeSet.UpdateList.Select(m => m.Adapt<SalesOrderHeaderDto>()).ToList(),
-                            DeleteIdList = changeSet.DeleteIdList
-                        },
-                        LineChanges = new BatchRequestGeneric<SalesOrderLineDto>()
-                    };
-
-                    var rst = await _salesOrderApi.SaveSalesOrderManagerAsync(saveDto);
-                    if (rst.Success)
-                    {
-                        StatusMessage = "保存成功";
-                        _msg?.ShowCardAsync(StatusMessage, 2500);
-                        SelectedOrderHeader.CommitChanges();
-                        RaisePropertyChanged(nameof(CanSave));
-                        SaveCommand?.RaiseCanExecuteChanged();
-                    }
-                    else
-                    {
-                        StatusMessage = "保存失败：" + rst.Message;
-                        await _msg?.ShowWarningAsync(StatusMessage);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    StatusMessage = "保存异常：" + ex.Message;
-                    await _msg?.ShowErrorAsync(StatusMessage);
-                }
-            }
+            await _msg.ShowInfoAsync("Header 快速保存功能待实现，当前仅模拟保存成功的提示。", "提示");
         }
 
         #endregion
 
-        #region 批量审批 / 驳回
+        #region 确认,取消确认
 
-        private async Task BatchApproveAsync()
+        private async Task ConfirmAsync()
         {
-            var selected = SelectedItems;
-            if (selected.Count == 0)
+            if (SelectedOrderHeader == null) return;
+
+            var current = SelectedOrderHeader;
+            if (current == null)
             {
-                await _msg.ShowWarningAsync("请先勾选要审批的订单。", "操作提示");
+                await _msg.ShowWarningAsync("请先选择要取消确认的订单。", "操作提示");
                 return;
             }
 
-            var invalid = selected.Where(x => x.ApprovalStatus == ApprovalStatusEnum.已批准).ToList();
-            if (invalid.Count > 0)
+            if (current.ConfirmationStatus == ConfirmationStatusEnum.已确认)
             {
-                await _msg.ShowWarningAsync("选中订单中包含已审批订单，禁止重复审批。", "操作提示");
+                await _msg.ShowWarningAsync("该订单已确认，禁止重复确认。", "操作提示");
                 return;
             }
-
-            if (!CanBatchApprove)
-            {
-                await _msg.ShowWarningAsync("只有草稿/驳回状态的订单才可审批。", "操作提示");
-                return;
-            }
-
-            var confirm = await _msg.ShowConfirmAsync(
-                string.Format("确认审批选中的 {0} 条订单？", selected.Count), "批量审批确认");
+            var confirm = await _msg.ShowConfirmAsync($"确认选中的订单【{current.OrderNo}】？", "操作提示");
             if (!confirm) return;
+
 
             using (BusyScope())
             {
                 try
                 {
-                    var ids = selected.Select(x => x.Id).Distinct().ToList();
-                    var rst = await _salesOrderApi.BatchApproveSalesOrdersAsync(ids);
-                    if (rst.Success && (rst.Data == null || rst.Data.Count == 0))
+                    var req = new ConfirmationItemRequest
                     {
-                        StatusMessage = "批量审批成功。";
+                        Uid = current.Uid,
+                        Version = current.Version
+                    };
+
+                    var rst = await _salesOrderApi.ConfirmSalesOrdersAsync(req);
+                    if (rst.Success && rst.Data != null)
+                    {
+                        current.ConfirmationStatus = rst.Data.NewStatus;
+                        current.Version = rst.Data.Version; // 本地版本号自增，保持与后端一致，避免后续编辑时的版本冲突
+                        StatusMessage = $"订单 {current.OrderNo} 确认成功：{rst.Data.Message}";
                         _msg.ShowCardAsync(StatusMessage, 3500);
-                        await LoadAsync();
-                    }
-                    else if (rst.Data != null && rst.Data.Count > 0)
-                    {
-                        // 中文注释：Data 中存放的是逐条失败原因，展示第一条即可
-                        StatusMessage = "批量审批部分失败：" + rst.Data[0];
-                        await _msg.ShowWarningAsync(StatusMessage, "操作失败");
-                        await LoadAsync();
                     }
                     else
                     {
-                        StatusMessage = "批量审批失败：" + rst.Message;
+                        StatusMessage = "确认失败：" + rst.Data.Message;
                         await _msg.ShowWarningAsync(StatusMessage, "操作失败");
                     }
                 }
                 catch (Exception ex)
                 {
-                    StatusMessage = "批量审批异常：" + ex.Message;
+                    StatusMessage = "确认异常：" + ex.Message;
                     await _msg.ShowErrorAsync(StatusMessage, "操作异常");
                 }
             }
         }
 
-        private async Task BatchRejectAsync()
+        private async Task CancelConfirmAsync()
         {
-            var selected = SelectedItems;
-            if (selected.Count == 0)
-            {
-                await _msg.ShowWarningAsync("请先勾选要驳回的订单。", "操作提示");
-                return;
-            }
+            if (SelectedOrderHeader == null) return;
 
-            if (!CanBatchReject)
+            var current = SelectedOrderHeader;
+            if (current == null)
             {
-                await _msg.ShowWarningAsync("只有草稿/待审批状态的订单才可驳回。", "操作提示");
+                await _msg.ShowWarningAsync("请先选择要取消确认的订单。", "操作提示");
                 return;
             }
 
             var confirm = await _msg.ShowConfirmAsync(
-                string.Format("确认驳回选中的 {0} 条订单？", selected.Count), "批量驳回确认");
+                $"确认取消确认选中的订单【{current.OrderNo}】？", "取消确认");
             if (!confirm) return;
 
             using (BusyScope())
             {
                 try
                 {
-                    var ids = selected.Select(x => x.Id).Distinct().ToList();
-                    var rst = await _salesOrderApi.BatchRejectSalesOrdersAsync(ids);
-                    if (rst.Success && (rst.Data == null || rst.Data.Count == 0))
+                    var req = new ConfirmationItemRequest
                     {
-                        StatusMessage = "批量驳回成功。";
-                        _msg.ShowCardAsync(StatusMessage, 3000);
-                        await LoadAsync();
-                    }
-                    else if (rst.Data != null && rst.Data.Count > 0)
+                        Uid = current.Uid,
+                        Version = current.Version
+                    };
+
+                    var rst = await _salesOrderApi.CancelConfirmSalesOrdersAsync(req);
+                    if (rst.Success && rst.Data != null)
                     {
-                        StatusMessage = "批量驳回部分失败：" + rst.Data[0];
-                        await _msg.ShowWarningAsync(StatusMessage, "操作失败");
-                        await LoadAsync();
+                        current.ConfirmationStatus = rst.Data.NewStatus;
+                        current.Version = rst.Data.Version > 0
+                            ? rst.Data.Version
+                            : current.Version + 1;
+
+                        StatusMessage = $"订单 {current.OrderNo} 取消确认成功：{rst.Data.Message}";
+                        _msg.ShowCardAsync(StatusMessage, 3500);
                     }
                     else
                     {
-                        StatusMessage = "批量驳回失败：" + rst.Message;
+                        StatusMessage = $"订单 {current.OrderNo} 取消确认失败：{rst.Message}";
                         await _msg.ShowWarningAsync(StatusMessage, "操作失败");
                     }
                 }
                 catch (Exception ex)
                 {
-                    StatusMessage = "批量驳回异常：" + ex.Message;
+                    StatusMessage = $"订单 {current.OrderNo} 取消确认异常：{ex.Message}";
                     await _msg.ShowErrorAsync(StatusMessage, "操作异常");
                 }
             }
@@ -791,37 +661,44 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         #region 删除勾选
 
-        private async Task DeleteCheckedAsync()
+        private async Task DeleteSelectedHeadAsync()
         {
-            var selected = SelectedItems;
-            if (selected.Count == 0) return;
+            if (SelectedOrderHeader == null) return;
+            var selected = SelectedOrderHeader;
+            if (selected.Uid == Guid.Empty)
+            {
+                OrderHeaders.Delete(selected);
+                StatusMessage = "删除成功";
+                _msg.ShowCardAsync(StatusMessage, 1000);
+                return;
+            }
+
+            if (selected.ConfirmationStatus == ConfirmationStatusEnum.已确认)
+            {
+                await _msg.ShowWarningAsync("已确认的订单禁止删除。", "操作提示");
+                return;
+            }
 
             var confirm = await _msg.ShowConfirmAsync(
-                string.Format("确认删除选中的 {0} 条订单？此操作不可恢复。", selected.Count), "删除确认");
+                string.Format("确认删除选中的订单？此操作不可恢复。", selected.OrderNo), "删除确认");
             if (!confirm) return;
 
             using (BusyScope())
             {
                 try
                 {
-                    var ids = selected.Select(x => x.Id).Where(id => id > 0).Distinct().ToList();
-                    if (ids.Count > 0)
+                    var rst = await _salesOrderApi.DeleteSalesOrderAsync(selected.Uid);
+                    if (!rst.Success)
                     {
-                        var rst = await _salesOrderApi.BatchDeleteSalesOrderAsync(ids);
-                        if (!rst.Success)
-                        {
-                            StatusMessage = "删除失败：" + rst.Message;
-                            await _msg.ShowWarningAsync(StatusMessage, "操作失败");
-                            return;
-                        }
+                        StatusMessage = "删除失败：" + rst.Message;
+                        await _msg.ShowWarningAsync(StatusMessage, "操作失败");
+                        return;
                     }
 
-                    foreach (var item in selected.Where(x => x.Id <= 0))
-                        OrderHeaders.Delete(item);
-
+                    OrderHeaders.Delete(selected);
+                    CurrentOrderLines.Clear();
                     StatusMessage = "删除成功";
                     _msg.ShowCardAsync(StatusMessage, 2500);
-                    await LoadAsync();
                 }
                 catch (Exception ex)
                 {
@@ -833,50 +710,5 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         #endregion
 
-        #region 勾选辅助
-
-        private void InvertCheck()
-        {
-            foreach (var item in OrderHeaders.Items)
-                item.IsChecked = !item.IsChecked;
-            RefreshSelectionState();
-        }
-
-        private void OnItemCheckedChanged()
-        {
-            RefreshSelectionState();
-        }
-
-        private void RefreshSelectionState()
-        {
-            var count = OrderHeaders.Items.Count(x => x.IsChecked);
-            SelectedCount = count;
-            HasSelectedItems = count > 0;
-
-            _isAllChecked = OrderHeaders.Items.Count > 0 && count == OrderHeaders.Items.Count;
-            RaisePropertyChanged(nameof(IsAllChecked));
-            RaisePropertyChanged(nameof(CanBatchApprove));
-            RaisePropertyChanged(nameof(CanBatchReject));
-
-            BatchApproveCommand?.RaiseCanExecuteChanged();
-            BatchRejectCommand?.RaiseCanExecuteChanged();
-            DeleteCheckedCommand?.RaiseCanExecuteChanged();
-        }
-
-        #endregion
-
-        #region 事件回调
-
-        private void OrderHeaders_PropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == nameof(OrderHeaders.IsDirty) ||
-                e.PropertyName == nameof(OrderHeaders.IsAllValid))
-            {
-                RaisePropertyChanged(nameof(CanSave));
-                SaveCommand?.RaiseCanExecuteChanged();
-            }
-        }
-
-        #endregion
     }
 }

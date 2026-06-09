@@ -19,11 +19,11 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
     /// <summary>
     /// 按 ID 联表查询，返回含 CustomerCode / DescriptionEn / CategoryName 等联表字段的完整 DTO。
     /// </summary>
-    public async Task<CustomerProductDto?> GetDtoByIdAsync(int id)
+    public async Task<CustomerProductDto?> GetDtoByIdAsync(Guid uid)
     {
         const string sql = @"
             SELECT
-                cp.Id,
+                cp.Uid,
                 cp.CustomerId,
                 cp.SkuId,
                 cp.Sku,
@@ -48,13 +48,13 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
                 p.MainImage,
                 pc.CategoryName
             FROM [CustomerProduct] cp WITH(NOLOCK)
-            LEFT JOIN [Product]         p  WITH(NOLOCK) ON cp.SkuId     = p.Id
-            LEFT JOIN [Customer]        c  WITH(NOLOCK) ON cp.CustomerId = c.Id
-            LEFT JOIN [ProductCategory] pc WITH(NOLOCK) ON p.CategoryId  = pc.Id
-            WHERE cp.Id = @Id AND (cp.IsDeleted = 0 OR cp.IsDeleted IS NULL)";
+            LEFT JOIN [Product]         p  WITH(NOLOCK) ON cp.SkuId     = p.Uid
+            LEFT JOIN [Customer]        c  WITH(NOLOCK) ON cp.CustomerId = c.Uid
+            LEFT JOIN [ProductCategory] pc WITH(NOLOCK) ON p.CategoryId  = pc.Uid
+            WHERE cp.Uid = @Uid AND (cp.IsDeleted = 0 OR cp.IsDeleted IS NULL)";
 
         return await Connection.QueryFirstOrDefaultAsync<CustomerProductDto>(
-            sql, new { Id = id }, transaction: Transaction);
+            sql, new { Uid = uid }, transaction: Transaction);
     }
 
     // ============================================================
@@ -63,18 +63,18 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
     /// <summary>
     /// 联表分页查询，返回 CustomerProductPagedItem 读模型。
     /// 关联：CustomerProduct cp
-    ///        LEFT JOIN Product  p  ON cp.SkuId = p.Id
-    ///        LEFT JOIN Customer c  ON cp.CustomerId = c.Id
-    ///        LEFT JOIN ProductCategory pc ON p.CategoryId = pc.Id
+    ///        LEFT JOIN Product  p  ON cp.SkuId = p.Uid
+    ///        LEFT JOIN Customer c  ON cp.CustomerId = c.Uid
+    ///        LEFT JOIN ProductCategory pc ON p.CategoryId = pc.Uid
     /// criteria 字段说明：
     ///   - 直接写字段名（如 CustomerId / CustomerSku / Sku）→ 映射到 cp.字段
     ///   - CategoryId → 映射到 p.CategoryId
     /// </summary>
-    public  async Task<PagedResult<CustomerProductDto>> GetPagedCustomerProductAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "cp.Id DESC")
+    public  async Task<PagedResult<CustomerProductDto>> GetPagedCustomerProductAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "cp.CreatedDate DESC")
     {
         // 🛡️ orderBy 安全清洗
         if (string.IsNullOrWhiteSpace(orderBy))
-            orderBy = "cp.Id DESC";
+            orderBy = "cp.CreatedDate DESC";
         else
             orderBy = OrderByRegex().Replace(orderBy, "");
 
@@ -112,9 +112,9 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
         // ----------------------------------------------------------------
         const string joinClause = @"
             FROM [CustomerProduct] cp WITH(NOLOCK)
-            LEFT JOIN [Product]         p   WITH(NOLOCK) ON cp.SkuId      = p.Id
-            LEFT JOIN [Customer]        c   WITH(NOLOCK) ON cp.CustomerId  = c.Id
-            LEFT JOIN [ProductCategory] pc  WITH(NOLOCK) ON p.CategoryId   = pc.Id";
+            LEFT JOIN [Product]         p   WITH(NOLOCK) ON cp.SkuId      = p.Uid
+            LEFT JOIN [Customer]        c   WITH(NOLOCK) ON cp.CustomerId  = c.Uid
+            LEFT JOIN [ProductCategory] pc  WITH(NOLOCK) ON p.CategoryId   = pc.Uid";
 
         // 分页参数
         if (pageIndex < 1) pageIndex = 1;
@@ -126,7 +126,7 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
             SELECT COUNT(1) {joinClause} {whereClause};
 
             SELECT
-                cp.Id,
+                cp.Uid,
                 cp.CustomerId,
                 cp.SkuId,
                 cp.Sku,
@@ -192,7 +192,7 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
     /// <summary>
     /// 按客户料号 + 客户 ID 精确查找一条客户产品记录
     /// </summary>
-    public async Task<CustomerProduct?> GetByCustomerSkuAsync(string customerSku, int customerId)
+    public async Task<CustomerProduct?> GetByCustomerSkuAsync(string customerSku, Guid customerId)
     {
         var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE [CustomerSku] = @Sku AND [CustomerId] = @CustomerId AND IsDeleted = 0";
         return await Connection.QueryFirstOrDefaultAsync<CustomerProduct>(
@@ -202,7 +202,7 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
     /// <summary>
     /// 批量检查客户料号是否已存在（用于新增前去重校验）
     /// </summary>
-    public async Task<IReadOnlyList<string>> GetExistingCustomerSkuListAsync(IEnumerable<string> skuList, int customerId)
+    public async Task<IReadOnlyList<string>> GetExistingCustomerSkuListAsync(IEnumerable<string> skuList, Guid customerId)
     {
         var sql = $"SELECT CustomerSku FROM [{TableName}] WHERE CustomerSku IN @SkuList AND CustomerId = @CustomerId AND IsDeleted = 0";
         var rst = await Connection.QueryAsync<string>(sql, new { SkuList = skuList, CustomerId = customerId }, transaction: Transaction);

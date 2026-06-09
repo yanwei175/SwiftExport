@@ -1,4 +1,5 @@
 using SwiftExport.Contracts.Wrappers;
+using System;
 
 namespace SwiftExport.Contracts.DTOs.SalesOrders
 {
@@ -11,16 +12,16 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         /// <summary>
         /// 主表变更集合（订单头）
         /// </summary>
-        public BatchRequestGeneric<SalesOrderHeaderDto> HeaderChanges { get; set; } = new BatchRequestGeneric<SalesOrderHeaderDto>();
+        public BatchRequestDto<SalesOrderHeaderDto> HeaderChanges { get; set; } = new BatchRequestDto<SalesOrderHeaderDto>();
 
         /// <summary>
         /// 当前编辑订单 ID（用于后端上下文定位当前从表变更对应的订单）
         /// </summary>
-        public int? CurrentOrderId { get; set; }
+        public Guid? CurrentOrderId { get; set; }
 
         /// <summary>
         /// 当前编辑订单的行变更集合
         /// </summary>
-        public BatchRequestGeneric<SalesOrderLineDto> LineChanges { get; set; } = new BatchRequestGeneric<SalesOrderLineDto>();
+        public BatchRequestDto<SalesOrderLineDto> LineChanges { get; set; } = new BatchRequestDto<SalesOrderLineDto>();
     }
 }

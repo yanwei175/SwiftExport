@@ -113,33 +113,5 @@ namespace SwiftExport.View.FW.SupplierViews.Models
             if (string.IsNullOrWhiteSpace(DocRelateNo)) return "单据关联号不能为空";
             return null;
         }
-
-        public override void LoadFromDto<Tdto>(Tdto dto, bool 抑制清理脏数据 = false)
-        {
-            var source = dto as SupplierDto;
-            if (source == null) return;
-
-            using (DisabledStateScope())
-            {
-                Id = source.Id;
-                SupplierCode = source.SupplierCode ?? string.Empty;
-                Name = source.SupplierName ?? string.Empty;
-                DocRelateNo = source.DocRelateNo ?? string.Empty;
-                ContactPerson = source.ContactPerson ?? string.Empty;
-                ContactPhone = source.ContactPhone ?? string.Empty;
-                ContactEmail = source.ContactEmail ?? string.Empty;
-                Address = source.Address ?? string.Empty;
-                ZheKou = source.ZheKou ?? 0m;
-                Currency = string.IsNullOrWhiteSpace(source.Currency) ? "CNY" : source.Currency;
-                TaxRate = source.TaxRate ?? 0m;
-                DefaultLeadTime = source.DefaultLeadTime ?? 0;
-                PaymentTerms = source.PaymentTerms ?? string.Empty;
-                ZheKouBeiZhu = source.ZheKouBeiZhu ?? string.Empty;
-            }
-
-            State = ModelState.Unchanged;
-            if (!抑制清理脏数据)
-                CommitChanges();
-        }
     }
 }

@@ -19,7 +19,9 @@ namespace SwiftExport.Core.Entities.Systems
 
         /// <summary>货币符号，如 $、¥、€</summary>
         public string? CurrencySymbol { get; set; }
+        /// <summary>精确度，如 2 表示保留两位小数</summary>
         public int Precision { get; set; } = 2;
+        /// <summary>相对于本位币的汇率</summary>
         public decimal RateToBase { get; set; }
 
         /// <summary>是否本位币（系统中只能有一个）</summary>

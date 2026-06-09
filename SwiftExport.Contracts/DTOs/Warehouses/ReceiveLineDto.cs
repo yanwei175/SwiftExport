@@ -1,4 +1,5 @@
 ﻿using SwiftExport.Contracts.DTOs.Base;
+using System;
 
 namespace SwiftExport.Contracts.DTOs.Warehouses
 {
@@ -21,7 +22,7 @@ namespace SwiftExport.Contracts.DTOs.Warehouses
         public string Unit { get; set; }
 
         /// <summary>关联采购单行ID。</summary>
-        public int? PoLineId { get; set; }
+        public Guid? PoLineId { get; set; }
 
         /// <summary>冗余采购单号。</summary>
         public string PoNo { get; set; }

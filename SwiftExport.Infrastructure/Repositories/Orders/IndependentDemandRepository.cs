@@ -1,4 +1,5 @@
 using Dapper;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
@@ -9,17 +10,17 @@ namespace SwiftExport.Infrastructure.Repositories.Orders;
 
 public class IndependentDemandRepository(RepositoryBaseContext context) : DapperRepository<IndependentDemand>(context), IIndependentDemandRepository
 {
-    public async Task<bool> DeleteRangeBySourceTypeAndSourceIdListAsync(string sourceType, IEnumerable<int> sourceIds)
+    public async Task<bool> DeleteRangeBySourceTypeAndSourceIdListAsync(string sourceType, IEnumerable<Guid> sourceIds)
     {
         var sql = $"DELETE FROM [IndependentDemand] WHERE SourceType =@sourceType AND SourceLineId IN @sourceIds";
         var rst = await Connection.ExecuteAsync(sql, new { sourceType, sourceIds }, transaction: Transaction);
         return rst > 0;
     }
 
-    public async Task<IReadOnlyList<IndependentDemand>> GetListBySourceTypeAndSourceIdAsync(string sourceType, IEnumerable<int> sourceIds)
+    public async Task<IReadOnlyList<IndependentDemand>> GetListBySourceTypeAndSourceUidAsync(string sourceType, Guid uid)
     {
-        var sql = $"SELECT * FROM [IndependentDemand] WHERE SourceType =@sourceType AND SourceLineId IN @sourceIds AND IsDeleted = 0";
-        var rst = await Connection.QueryAsync<IndependentDemand>(sql, new { sourceType, sourceIds }, transaction: Transaction);
+        var sql = $"SELECT * FROM [IndependentDemand] WHERE SourceType =@sourceType AND SourceUid = @uid AND IsDeleted = 0";
+        var rst = await Connection.QueryAsync<IndependentDemand>(sql, new { sourceType, uid }, transaction: Transaction);
         return [.. rst];
     }
 
@@ -30,7 +31,7 @@ public class IndependentDemandRepository(RepositoryBaseContext context) : Dapper
         return [.. rst];
     }
 
-    public async Task<IReadOnlyList<IndependentDemand>> GetListBySourceTypeAndSourceLineIdsAsync(string sourceType, IEnumerable<int> sourceLineIds)
+    public async Task<IReadOnlyList<IndependentDemand>> GetListBySourceTypeAndSourceLineIdsAsync(string sourceType, IEnumerable<Guid> sourceLineIds)
     {
         var ids = (sourceLineIds ?? []).Distinct().ToList();
         if (ids.Count == 0)
@@ -41,7 +42,7 @@ public class IndependentDemandRepository(RepositoryBaseContext context) : Dapper
         return [.. rst];
     }
 
-    public async Task<int> 批量更新完工数量Async(IDictionary<string, IDictionary<int, decimal>> sourceTypeLineQtyMap)
+    public async Task<int> 批量更新完工数量Async(IDictionary<string, IDictionary<Guid, decimal>> sourceTypeLineQtyMap)
     {
         if (sourceTypeLineQtyMap == null || sourceTypeLineQtyMap.Count == 0)
             return 0;
@@ -72,8 +73,6 @@ public class IndependentDemandRepository(RepositoryBaseContext context) : Dapper
 
                 if (demand.FilledQty >= demand.OriginalQty && demand.ShippedQty >= demand.OriginalQty)
                     demand.OrderStatus = IndependentDemandStatusEnum.已完成;
-                demand.UpdatedDate = DateTime.Now;
-                demand.ChangeTime = DateTime.Now;
             }
 
             totalAffected += await UpdateRangeAsync(demands);
@@ -82,7 +81,7 @@ public class IndependentDemandRepository(RepositoryBaseContext context) : Dapper
         return totalAffected;
     }
 
-    public async Task<int> TryMarkDecomposedAsync(string sourceType, string sourceNo, IEnumerable<int> sourceLineIds, DateTime decomposedTime)
+    public async Task<int> TryMarkDecomposedAsync(string sourceType, string sourceNo, IEnumerable<Guid> sourceLineIds, DateTime decomposedTime)
     {
         var ids = (sourceLineIds ?? []).Distinct().ToList();
         if (string.IsNullOrWhiteSpace(sourceType) || string.IsNullOrWhiteSpace(sourceNo) || ids.Count == 0)
@@ -108,7 +107,7 @@ public class IndependentDemandRepository(RepositoryBaseContext context) : Dapper
         }, transaction: Transaction);
     }
 
-    public async Task<int> RollbackDecomposedMarkAsync(string sourceType, string sourceNo, IEnumerable<int> sourceLineIds)
+    public async Task<int> RollbackDecomposedMarkAsync(string sourceType, string sourceNo, IEnumerable<Guid> sourceLineIds)
     {
         var ids = (sourceLineIds ?? []).Distinct().ToList();
         if (string.IsNullOrWhiteSpace(sourceType) || string.IsNullOrWhiteSpace(sourceNo) || ids.Count == 0)
@@ -134,14 +133,14 @@ public class IndependentDemandRepository(RepositoryBaseContext context) : Dapper
         }, transaction: Transaction);
     }
 
-    public async Task<bool> CanCanceAsync(IEnumerable<int> independIds)
+    public async Task<bool> CanCanceAsync(IEnumerable<Guid> independIds)
     {
         //判断净需求下对应毛需求的状态是否为草稿，如果毛需求不是草稿，则不允许取消净需求
         var sql = @"SELECT COUNT(1) FROM [IndependentDemand]
                     WHERE Id IN @independIds
                       AND IsDeleted = 0
                       AND (ExecutedQty>0 OR ReceivedQty>0 OR ShippedQty>0 OR StatusFlag >1)";
-        var rst = await Connection.ExecuteScalarAsync<int>(sql, new { independIds = independIds.ToList(), draftStatus = IndependentDemandStatusEnum.草稿 }, transaction: Transaction);
+        var rst = await Connection.ExecuteScalarAsync<int>(sql, new { independIds = independIds.ToList(), draftStatus = IndependentDemandStatusEnum.未确认 }, transaction: Transaction);
         return  rst==0;
     }
 }

@@ -47,7 +47,7 @@ namespace SwiftExport.Application.Interfaces
         /// </summary>
         /// <param name="净需求行IdList">净需求行Id集合</param>
         /// <returns>生成的采购单号列表</returns>
-        Task<ServiceResult<List<string>>> 根据指定净需求行转采购单Async(List<int> 净需求行IdList);
+        Task<ServiceResult<List<string>>> 根据指定净需求行转采购单Async(List<Guid> 净需求行IdList);
 
         /// <summary>
         /// 更新需求池行的手工指定供应商。
@@ -56,7 +56,7 @@ namespace SwiftExport.Application.Interfaces
         /// <param name="supplierCode">供应商编码</param>
         /// <param name="supplierName">供应商名称</param>
         /// <returns>是否成功</returns>
-        Task<ServiceResult<bool>> UpdateSupplierAsync(int id, string supplierCode, string? supplierName);
+        Task<ServiceResult<bool>> UpdateSupplierAsync(Guid id, string supplierCode, string? supplierName);
 
     }
 }

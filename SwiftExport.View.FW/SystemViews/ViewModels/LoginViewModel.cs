@@ -96,7 +96,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
                         Password = password
                     });
 
-                    if (tokenDto == null || string.IsNullOrEmpty(tokenDto.access_token))
+                    if (tokenDto == null || string.IsNullOrEmpty(tokenDto.Access_token))
                     {
                         StatusMessage = "登录失败：服务器未返回 Token";
                         IsError = true;
@@ -105,12 +105,12 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
 
                     // 直接从 JWT Payload 解析用户名，无需再请求 /me
                     // 避免 /me 权限问题导致显示错误用户名
-                    var parsedUserName = ParseUserNameFromJwt(tokenDto.access_token);
+                    var parsedUserName = ParseUserNameFromJwt(tokenDto.Access_token);
                     var displayName = !string.IsNullOrEmpty(parsedUserName)
                         ? parsedUserName
                         : UserName.Trim();
 
-                    AuthTokenStore.Set(tokenDto.access_token, displayName);
+                    AuthTokenStore.Set(tokenDto.Access_token, displayName);
 
                     // 调用 /me 补充 UserId、NickName 和角色列表（失败不影响登录）
                     try
@@ -118,7 +118,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
                         var me = await _authApi.GetMeAsync();
                         if (me != null)
                         {
-                            AuthTokenStore.Set(tokenDto.access_token, me.UserName, me.UserId, me.NickName);
+                            AuthTokenStore.Set(tokenDto.Access_token, me.UserName, me.UserId, me.NickName);
                             // 写入角色列表，供全局权限判断使用（如 AuthTokenStore.IsAdmin）
                             AuthTokenStore.SetRoles(me.Roles ?? new System.Collections.Generic.List<string>());
                         }

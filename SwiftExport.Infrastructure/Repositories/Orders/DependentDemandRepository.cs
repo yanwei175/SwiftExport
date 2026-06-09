@@ -17,20 +17,20 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
         /// <summary>
         /// 根据来源类型与来源销售单号查询。
         /// </summary>
-        public async Task<IReadOnlyList<DependentDemand>> GetBySourceSoNoAsync(string sourceType, string sourceSoNo)
+        public async Task<IReadOnlyList<DependentDemand>> GetListBySourceTypeAndSourceUidAsync(string sourceType, Guid sourceUid)
         {
-            if (string.IsNullOrWhiteSpace(sourceType) || string.IsNullOrWhiteSpace(sourceSoNo)) return [];
+            if (string.IsNullOrWhiteSpace(sourceType) || sourceUid == Guid.Empty) return [];
 
-            var list = await GetListAsync(new { SourceType = sourceType.Trim(), SourceNo = sourceSoNo.Trim() });
+            var list = await GetListAsync(new { SourceType = sourceType.Trim(), SourceUid = sourceUid });
             return [.. list];
         }
 
         /// <summary>
         /// 根据来源类型与来源销售单行 Id 查询（可能多行）。
         /// </summary>
-        public async Task<IReadOnlyList<DependentDemand>> GetListBySourceSoLineIdAsync(string sourceType, int sourceSoLineId)
+        public async Task<IReadOnlyList<DependentDemand>> GetListBySourceSoLineIdAsync(string sourceType, Guid sourceSoLineId)
         {
-            if (string.IsNullOrWhiteSpace(sourceType) || sourceSoLineId <= 0)
+            if (string.IsNullOrWhiteSpace(sourceType) || sourceSoLineId == Guid.Empty)
                 return [];
 
             var list = await GetListAsync(new { SourceType = sourceType.Trim(), SourceLineId = sourceSoLineId });
@@ -62,7 +62,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
             return await Connection.ExecuteAsync(sql, new { SourceType = sourceType.Trim(), SourceNo = sourceNo.Trim() }, transaction: Transaction);
         }
 
-        public async Task<IReadOnlyList<DependentDemand>> GetListByTargetLineIdsAsync(IEnumerable<int> targetIdList, bool withUpdLock = false)
+        public async Task<IReadOnlyList<DependentDemand>> GetListByTargetLineIdsAsync(IEnumerable<Guid> targetIdList, bool withUpdLock = false)
         {
             var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
             var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [TargetLineId] IN @TargetIdList AND (IsDeleted = 0 OR IsDeleted IS NULL)";
@@ -70,7 +70,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
             return [.. rst];
         }
 
-        public Task<int> ResetByTargetLineIdsAsync(IEnumerable<int> targetIdList)
+        public Task<int> ResetByTargetLineIdsAsync(IEnumerable<Guid> targetIdList)
         {
             var sql = $"UPDATE [{TableName}] SET TargetLineId = NULL, TargetNo = NULL, StatusFlag = 1 " +
                       $"WHERE TargetLineId IN @TargetIdList";

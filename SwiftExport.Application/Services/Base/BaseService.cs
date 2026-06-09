@@ -11,9 +11,7 @@ using System.Text;
 
 namespace SwiftExport.Application.Services.Base;
 
-public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, ServiceBaseContext context) : IBaseService<TEntity, TDto>
-    where TEntity : BaseEntity
-    where TDto : BaseDto
+public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, ServiceBaseContext context) : IBaseService<TEntity, TDto> where TEntity : BaseEntity where TDto : BaseDto
 {
     protected readonly IRepository<TEntity> _repository = repository;
     protected readonly DbSession _session = context.Session;
@@ -22,36 +20,36 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
 
     protected string EntityName => typeof(TEntity).Name;
 
-    public virtual async Task<bool> ExistsIdAsync(int id)
+    public virtual async Task<bool> ExistsIdAsync(Guid uid)
     {
-        return await _repository.ExistsIdAsync(id);
+        return await _repository.ExistsIdAsync(uid);
     }
 
-    public virtual async Task<ServiceResult<IReadOnlyList<int>>> GetExistingIdListAsync(IEnumerable<int> idList)
+    public virtual async Task<ServiceResult<IReadOnlyList<Guid>>> GetExistingIdListAsync(IEnumerable<Guid> uidList)
     {
         try
         {
-            var rst = await _repository.GetExistingIdListAsync(idList);
-            if (!rst.Any()) return ServiceResult<IReadOnlyList<int>>.Fail("未找到数据");
-            return ServiceResult<IReadOnlyList<int>>.Ok(rst);
+            var rst = await _repository.GetExistingIdListAsync(uidList);
+            if (!rst.Any()) return ServiceResult<IReadOnlyList<Guid>>.Fail("未找到数据");
+            return ServiceResult<IReadOnlyList<Guid>>.Ok(rst);
         }
         catch (Exception ex)
         {
-            return ServiceResult<IReadOnlyList<int>>.Fail(ex.Message);
+            return ServiceResult<IReadOnlyList<Guid>>.Fail(ex.Message);
         }
     }
 
-    public virtual async Task<ServiceResult<TDto>> GetByIdAsync(int id)
+    public virtual async Task<ServiceResult<TDto>> GetByIdAsync(Guid uid)
     {
         try
         {
-            var entity = await _repository.GetByIdAsync(id);
+            var entity = await _repository.GetByIdAsync(uid);
             if (entity == null)
             {
                 // ★ 包裹 Warning 级别
                 if (Logger.IsEnabled(LogLevel.Warning))
                 {
-                    Logger.LogWarning("查询失败：未找到 ID 为 {Id} 的 {EntityName} 数据", id, EntityName);
+                    Logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", uid, EntityName);
                 }
                 return ServiceResult<TDto>.Fail("未找到数据");
             }
@@ -64,13 +62,11 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
         }
     }
 
-    public virtual async Task<ServiceResult<IReadOnlyList<TDto>>> GetByIdListAsync(IEnumerable<int> idList)
+    public virtual async Task<ServiceResult<IReadOnlyList<TDto>>> GetByIdListAsync(IEnumerable<Guid> uidList)
     {
         try
         {
-
-
-            var entities = await _repository.GetByIdListAsync(idList);
+            var entities = await _repository.GetByIdListAsync(uidList);
             if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
 
             return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
@@ -85,8 +81,6 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     {
         try
         {
-
-
             var entity = await _repository.GetSingleEntityAsync();
             return entity == null ? ServiceResult<TDto?>.Fail("未找到数据") : ServiceResult<TDto?>.Ok(entity.Adapt<TDto>());
         }
@@ -100,8 +94,6 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     {
         try
         {
-
-
             var entities = await _repository.GetAllAsync();
             if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
 
@@ -117,8 +109,6 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     {
         try
         {
-
-
             var entities = await _repository.GetListAsync(whereSql, param);
             if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
 
@@ -134,8 +124,6 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     {
         try
         {
-
-
             var entities = await _repository.GetListAsync(criteria);
             if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
 
@@ -162,7 +150,7 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
         }
     }
 
-    public virtual async Task<ServiceResult<PagedResultDto<TDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "ID DESC")
+    public virtual async Task<ServiceResult<PagedResultDto<TDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
     {
         try
         {
@@ -183,28 +171,29 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
 
     }
 
-    public virtual async Task<ServiceResult<int>> AddAsync(TDto dto)
+    public virtual async Task<ServiceResult<Guid>> AddAsync(TDto dto)
     {
         try
         {
+
             var entity = dto.Adapt<TEntity>();
 
             entity.CreatedDate = DateTime.Now;
             entity.IsDeleted = false;
 
-            var id = await _repository.AddAsync(entity);
+            var uid = await _repository.AddAsync(entity);
 
             // ★ 包裹 Information 级别
             if (Logger.IsEnabled(LogLevel.Information))
             {
-                Logger.LogInformation("成功新增 {EntityName} 数据，生成的 ID: {Id}", EntityName, id);
+                Logger.LogInformation("成功新增 {EntityName} 数据，生成的 Uid: {Uid}", EntityName, uid);
             }
 
-            return ServiceResult<int>.Ok(id);
+            return ServiceResult<Guid>.Ok(uid);
         }
         catch (Exception ex)
         {
-            return ServiceResult<int>.Fail(ex.Message);
+            return ServiceResult<Guid>.Fail(ex.Message);
         }
     }
 
@@ -212,14 +201,12 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     {
         try
         {
-
-
-            var existing = await _repository.GetByIdAsync(dto.Id);
+            var existing = await _repository.GetByIdAsync(dto.Uid);
             if (existing == null)
             {
                 if (Logger.IsEnabled(LogLevel.Warning))
                 {
-                    Logger.LogWarning("修改失败：未找到 ID 为 {Id} 的 {EntityName} 数据", dto.Id, EntityName);
+                    Logger.LogWarning("修改失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", dto.Uid, EntityName);
                 }
                 return ServiceResult<int>.Fail("数据不存在");
             }
@@ -229,10 +216,10 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
 
             if (Logger.IsEnabled(LogLevel.Information))
             {
-                Logger.LogInformation("成功修改 {EntityName} 数据，ID: {Id}", EntityName, dto.Id);
+                Logger.LogInformation("成功修改 {EntityName} 数据，Uid: {Uid}", EntityName, dto.Uid);
             }
 
-            return ServiceResult<int>.Ok(rst);
+            return ServiceResult<int>.Ok(1);
         }
         catch (Exception ex)
         {
@@ -240,17 +227,15 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
         }
     }
 
-    public virtual async Task<ServiceResult<int>> DeleteSoftAsync(int id)
+    public virtual async Task<ServiceResult<int>> DeleteSoftAsync(Guid uid)
     {
         try
         {
-
-
-            var rst = await _repository.DeleteSoftAsync(id);
+            var rst = await _repository.DeleteSoftAsync(uid);
 
             if (Logger.IsEnabled(LogLevel.Information))
             {
-                Logger.LogInformation("成功逻辑删除 {EntityName} 数据，ID: {Id}", EntityName, id);
+                Logger.LogInformation("成功逻辑删除 {EntityName} 数据，Uid: {Uid}", EntityName, uid);
             }
             return ServiceResult<int>.Ok(rst);
         }
@@ -260,17 +245,15 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
         }
     }
 
-    public virtual async Task<ServiceResult<int>> DeleteAsync(int id)
+    public virtual async Task<ServiceResult<int>> DeleteAsync(Guid uid)
     {
         try
         {
-
-
-            var rst = await _repository.DeleteAsync(id);
+            var rst = await _repository.DeleteAsync(uid);
 
             if (Logger.IsEnabled(LogLevel.Information))
             {
-                Logger.LogInformation("成功物理删除 {EntityName} 数据，ID: {Id}", EntityName, id);
+                Logger.LogInformation("成功物理删除 {EntityName} 数据，Uid: {Uid}", EntityName, uid);
             }
             return ServiceResult<int>.Ok(rst);
         }
@@ -280,39 +263,37 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
         }
     }
 
-    public virtual async Task<ServiceResult<IReadOnlyList<int>>> AddRangeAsync(IEnumerable<TDto> dtoList)
+    public virtual async Task<ServiceResult<IReadOnlyList<Guid>>> AddRangeAsync(IEnumerable<TDto> dtoList)
     {
         try
         {
-
-
             var entities = dtoList.Adapt<List<TEntity>>();
 
-            var ids = await _repository.AddRangeAsync(entities);
+            var uids = await _repository.AddRangeAsync(entities);
 
             if (Logger.IsEnabled(LogLevel.Information))
             {
                 Logger.LogInformation("成功批量新增 {Count} 条 {EntityName} 数据", entities.Count, EntityName);
             }
 
-            return ServiceResult<IReadOnlyList<int>>.Ok(ids);
+            return ServiceResult<IReadOnlyList<Guid>>.Ok(uids);
         }
         catch (Exception ex)
         {
-            return ServiceResult<IReadOnlyList<int>>.Fail(ex.Message);
+            return ServiceResult<IReadOnlyList<Guid>>.Fail(ex.Message);
         }
     }
 
-    public virtual async Task<ServiceResult<int>> DeleteRangeAsync(IEnumerable<int> idList)
+    public virtual async Task<ServiceResult<int>> DeleteRangeAsync(IEnumerable<Guid> uidList)
     {
         try
         {
-            var ids = idList.ToList();
-            var rst = await _repository.DeleteRangeAsync(ids);
+            var uids = uidList.ToList();
+            var rst = await _repository.DeleteRangeAsync(uids);
 
             if (Logger.IsEnabled(LogLevel.Information))
             {
-                Logger.LogInformation("成功批量物理删除 {Count} 条 {EntityName} 数据", ids.Count, EntityName);
+                Logger.LogInformation("成功批量物理删除 {Count} 条 {EntityName} 数据", uids.Count, EntityName);
             }
             return ServiceResult<int>.Ok(rst);
         }
@@ -322,16 +303,16 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
         }
     }
 
-    public virtual async Task<ServiceResult<int>> DeleteRangeSoftAsync(IEnumerable<int> idList)
+    public virtual async Task<ServiceResult<int>> DeleteRangeSoftAsync(IEnumerable<Guid> uidList)
     {
         try
         {
-            var ids = idList.ToList();
-            var rst = await _repository.DeleteRangeSoftAsync(ids);
+            var uids = uidList.ToList();
+            var rst = await _repository.DeleteRangeSoftAsync(uids);
 
             if (Logger.IsEnabled(LogLevel.Information))
             {
-                Logger.LogInformation("成功批量逻辑删除 {Count} 条 {EntityName} 数据", ids.Count, EntityName);
+                Logger.LogInformation("成功批量逻辑删除 {Count} 条 {EntityName} 数据", uids.Count, EntityName);
             }
             return ServiceResult<int>.Ok(rst);
         }
@@ -345,7 +326,6 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     {
         try
         {
-
             var entities = dtoList.Adapt<List<TEntity>>();
             var rst = await _repository.UpdateRangeAsync(entities);
 
@@ -379,14 +359,14 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     protected virtual async Task<string?> ValidateBeforeUpdateAsync(List<TEntity> entities) => await Task.FromResult<string?>(null);
 
     /// <summary>删除前的特定业务校验</summary>
-    protected virtual async Task<string?> ValidateBeforeDeleteAsync(List<int> ids) => await Task.FromResult<string?>(null);
+    protected virtual async Task<string?> ValidateBeforeDeleteAsync(List<Guid> uids) => await Task.FromResult<string?>(null);
 
     /// <summary>
-    /// 批量保存,新增没写校验,更新写了防止Id为空的校验,删除没写校验
+            // 批量保存,新增不做并发校验,更新走 Uid+Version 乐观并发,删除按 Uid 执行
     /// </summary>
     /// <param name="batchReq"></param>
     /// <returns></returns>
-    public virtual async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestGeneric<TDto> batchReq)
+    public virtual async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<TDto> batchReq)
     {
         if (Logger.IsEnabled(LogLevel.Information))
         {
@@ -421,15 +401,15 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
 
             if (updateList != null && updateList.Count != 0)
             {
-                // 基础的 ID 校验
-                var invalidIds = updateList.Where(x => x.Id <= 0).Select(x => x.Id).ToList();
-                if (invalidIds.Count != 0) errorMsg.AppendLine($"修改失败：包含无效ID {string.Join(",", invalidIds)}");
+                // 基础的 Uid 校验
+                var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
 
                 // 检查数据库是否存在
-                var needUpdateIds = updateList.Select(x => x.Id).ToList();
-                var existingIds = await _repository.GetExistingIdListAsync(needUpdateIds);
-                var nonExistentIds = needUpdateIds.Except(existingIds).ToList();
-                if (nonExistentIds.Count != 0) errorMsg.AppendLine($"修改失败：以下ID在数据库中不存在 {string.Join(",", nonExistentIds)}");
+                var needUpdateUids = updateList.Select(x => x.Uid).ToList();
+                var existingUids = await _repository.GetExistingIdListAsync(needUpdateUids);
+                var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
+                if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
 
                 // 调用子类特定的修改校验逻辑
                 var customError = await ValidateBeforeUpdateAsync(updateList);
@@ -438,8 +418,8 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
 
             if (deleteIds != null && deleteIds.Count != 0)
             {
-                var invalidIds = deleteIds.Where(id => id <= 0).ToList();
-                if (invalidIds.Count != 0) errorMsg.AppendLine($"删除失败：包含无效ID {string.Join(",", invalidIds)}");
+                var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
 
                 // 调用子类特定的删除校验逻辑
                 var customError = await ValidateBeforeDeleteAsync(deleteIds);
@@ -466,7 +446,7 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
             if (updateList != null && updateList.Count > 0)
             {
                 totalRowsAffected += await _repository.UpdateRangeAsync(updateList);
-                batchResultDto.UpdateIdList = [.. updateList.Select(x => x.Id)];
+                batchResultDto.UpdateIdList = [.. updateList.Select(x => x.Uid)];
             }
 
             if (deleteIds != null && deleteIds.Count > 0)

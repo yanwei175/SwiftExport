@@ -72,7 +72,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         public async Task LoadDataAsync()
         {
             if (_productApi == null) return;
-            var search = new ProductSearchDto
+            var search = new ProductSearchRequest
             {
                 BatchKeywords = SearchText?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(k => k.Trim())
@@ -86,15 +86,15 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             if (SelectedCategoryFilter != null && SelectedCategoryFilter.IncludedChildren != null && SelectedCategoryFilter.IncludedChildren.Any())
             {
                 search.CategoryIds = SelectedCategoryFilter.IncludedChildren
-                    .Where(x => x != null && x.Id > 0)
-                    .Select(x => x.Id)
+                    .Where(x => x != null && x.Uid != Guid.Empty)
+                    .Select(x => x.Uid)
                     .Distinct()
                     .ToList();
             }
 
-            if (SelectedCustomerFilter != null && SelectedCustomerFilter.Id > 0)
+            if (SelectedCustomerFilter != null && SelectedCustomerFilter.Uid != Guid.Empty)
             {
-                search.CustomerIds = new System.Collections.Generic.List<int> { SelectedCustomerFilter.Id };
+                search.CustomerIds = new System.Collections.Generic.List<Guid> { SelectedCustomerFilter.Uid };
             }
 
             var result = await _productApi.GetProductPagedListAsync(search);
@@ -125,11 +125,11 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 return;
             }
 
-            var request = new BatchRequestGeneric<ProductDto>
+            var request = new BatchRequestDto<ProductDto>
             {
                 AddList = Items.Where(x => x.State == ModelState.Added).Select(x => { var dto = new ProductDto(); Mapster.TypeAdapter.Adapt(x, dto); return dto; }).ToList(),
                 UpdateList = Items.Where(x => x.State == ModelState.Modified).Select(x => { var dto = new ProductDto(); Mapster.TypeAdapter.Adapt(x, dto); return dto; }).ToList(),
-                DeleteIdList = Items.Where(x => x.State == ModelState.Deleted).Select(x => x.Id).ToList()
+                DeleteIdList = Items.Where(x => x.State == ModelState.Deleted).Select(x => x.Uid).ToList()
             };
 
             var rst = await _productApi.BatchSaveAsync(request);

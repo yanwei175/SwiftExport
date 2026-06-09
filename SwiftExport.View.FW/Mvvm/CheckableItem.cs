@@ -2,6 +2,15 @@ using System.ComponentModel;
 
 namespace SwiftExport.View.FW.Mvvm
 {
+
+    public class OptionItem<T>
+    {
+        public T Value { get; set; }
+        public string Label { get; set; } = string.Empty;
+
+        public override string ToString() => Label;
+    }
+
     /// <summary>
     /// 通用多选选项包装类，用于多选下拉框（ToggleButton + Popup + CheckBox）的 CheckBox 绑定。
     /// T 通常为 int（枚举值）或 string，Label 是显示给用户的文本。

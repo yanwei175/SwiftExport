@@ -257,7 +257,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             if (ProductList == null) return;
             var model = new CustomerProductModel
             {
-                CustomerId = CurrentCustomer.Id,
+                CustomerId = CurrentCustomer.Uid,
                 CustomerCode = CurrentCustomer.CustomerCode,
                 CustomerSku = "NEW-",
                 IsActive= true
@@ -282,7 +282,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             }
 
             StatusMessage = "正在保存更改...";
-            var req = dirtyModels.Adapt<BatchRequestGeneric<CustomerProductDto>>();
+            var req = dirtyModels.Adapt<BatchRequestDto<CustomerProductDto>>();
             try
             {
                 var result = await _customerProductApi.BatchSaveAsync(req);
@@ -318,7 +318,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             {
                 if (SelectedProduct == null) return;
 
-                if (SelectedProduct.Id <= 0)
+                if (SelectedProduct.Uid == Guid.Empty)
                 {
                     // 新建行直接从本地集合移除
                     var tempIndex = ProductList.Items.IndexOf(SelectedProduct);
@@ -343,9 +343,9 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                     string.Format("确定要删除选中的 {0} 条记录吗？", waitToDelete.Count), "确认删除"))
                     return;
 
-                var req = new BatchRequestGeneric<CustomerProductDto>
+                var req = new BatchRequestDto<CustomerProductDto>
                 {
-                    DeleteIdList = waitToDelete.Select(x => x.Id).ToList()
+                    DeleteIdList = waitToDelete.Select(x => x.Uid).ToList()
                 };
 
                 var rst = await _customerProductApi.BatchSaveAsync(req);
@@ -379,9 +379,9 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
                 try
                 {
-                    var search = new ProductSearchDto
+                    var search = new ProductSearchRequest
                     {
-                        CustomerId = CurrentCustomer.Id,
+                        CustomerId = CurrentCustomer.Uid,
                         PageIndex = PageIndex,
                         PageSize = PageSize,
                         BatchKeywords = SearchProductTxt?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
@@ -487,7 +487,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
                 try
                 {
-                    var productSearchDto = new ProductSearchDto
+                    var productSearchDto = new ProductSearchRequest
                     {
                        
                         PageIndex = 1,
@@ -558,7 +558,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                         if (selectedPopupProduct == null) return;
 
                         // 中文注释：当前策略：仅行模式 Popup 选择时写入关联字段。
-                        row.SkuId = selectedPopupProduct.Id;
+                        row.SkuId = selectedPopupProduct.Uid;
                         row.Sku = selectedPopupProduct.Sku;
                         row.LinkSku = selectedPopupProduct.LinkSku;
                         row.Description = selectedPopupProduct.DescriptionEn;

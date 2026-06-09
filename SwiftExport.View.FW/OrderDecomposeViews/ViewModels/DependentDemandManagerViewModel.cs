@@ -2,6 +2,7 @@ using GalaSoft.MvvmLight.Command;
 using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.Mvvm;
@@ -179,8 +180,8 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             set => SetProperty(ref _supplierKeyword, value);
         }
 
-        private int _statusFlag;
-        public int StatusFlag
+        private DependentDemandStatusEnum _statusFlag;
+        public DependentDemandStatusEnum StatusFlag
         {
             get => _statusFlag;
             set
@@ -197,8 +198,8 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         /// </summary>
         public bool ShowCompleted
         {
-            get => StatusFlag == -1;
-            set => StatusFlag = value ? -1 : DependentDemandStatusEnum.已转为正式单据;
+            get => StatusFlag == DependentDemandStatusEnum.已转为正式单据;
+            set => StatusFlag = value ? DependentDemandStatusEnum.已转为正式单据 : DependentDemandStatusEnum.已转为正式单据;
         }
 
         private bool? _isKitted;
@@ -389,7 +390,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
                 return;
             }
 
-            var saveRst = await _decomposeApi.UpdateSupplierAsync(row.Id, supplierCode.Trim(), (supplierName ?? string.Empty).Trim());
+            var saveRst = await _decomposeApi.UpdateSupplierAsync(row.Uid, supplierCode.Trim(), (supplierName ?? string.Empty).Trim());
             if (!saveRst.Success)
             {
                 await _msg.ShowWarningAsync("保存供应商失败：" + saveRst.Message);

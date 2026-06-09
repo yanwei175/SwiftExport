@@ -23,7 +23,7 @@ public class ProductController(IProductService service) : BaseController<Product
     // 2. 分页搜索产品
     // 由于查询条件中包含 List，使用 FromQuery 传参有些 HTTP 客户端容易拼错。因此改用 POST 查询
     [HttpPost("search")]
-    public async Task<ServiceResult<PagedResultDto<ProductDto>>> GetProductPagedList([FromBody] ProductSearchDto search)
+    public async Task<ServiceResult<PagedResultDto<ProductDto>>> GetProductPagedList([FromBody] ProductSearchRequest search)
     {
         return await service.GetPagedListAsync(search);
     }

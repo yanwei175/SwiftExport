@@ -1,4 +1,5 @@
 using SwiftExport.Core.Entities.Orders;
+using System;
 
 namespace SwiftExport.Core.Interfaces
 {
@@ -11,11 +12,11 @@ namespace SwiftExport.Core.Interfaces
         /// <summary>
         /// 新增一条库存流水。
         /// </summary>
-        Task<int> AddAsync(InventoryTransaction entity);
+        Task<Guid> AddAsync(InventoryTransaction entity);
 
         /// <summary>
         /// 批量新增库存流水。
         /// </summary>
-        Task<IReadOnlyList<int>> AddRangeAsync(IEnumerable<InventoryTransaction> entities);
+        Task<IReadOnlyList<Guid>> AddRangeAsync(IEnumerable<InventoryTransaction> entities);
     }
 }

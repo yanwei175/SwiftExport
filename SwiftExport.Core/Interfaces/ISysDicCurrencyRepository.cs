@@ -16,7 +16,7 @@ namespace SwiftExport.Core.Interfaces
         /// 用于校验"本位币唯一性"约束
         /// </summary>
         /// <param name="excludeIds">需要排除的 ID（通常是正在更新的行自身）</param>
-        Task<IReadOnlyList<int>> GetBaseIsBaseCurrencyIdsAsync(IEnumerable<int>? excludeIds = null);
+        Task<IReadOnlyList<Guid>> GetBaseIsBaseCurrencyIdsAsync(IEnumerable<Guid>? excludeIds = null);
 
         /// <summary>
         /// 校验货币代码是否已存在（用于新增去重）

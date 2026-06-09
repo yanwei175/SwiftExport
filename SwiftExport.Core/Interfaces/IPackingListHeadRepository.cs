@@ -10,6 +10,6 @@ public interface IPackingListHeadRepository : IRepository<PackingListHead>
     #endregion
 
     #region 整单操作
-    Task<PackingListDetailDto?> GetDetailByHeadIdAsync(int headId);
+    Task<PackingListDetailDto?> GetDetailByHeadIdAsync(Guid headId);
     #endregion
 }

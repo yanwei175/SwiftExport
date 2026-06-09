@@ -352,7 +352,7 @@ namespace SwiftExport.View.FW.Mvvm
             StatusMessage = "正在保存...";
 
             // 4. 组装发给后端的真实请求
-            var request = new BatchRequestGeneric<TDto>
+            var request = new BatchRequestDto<TDto>
             {
                 AddList = addedItems.Adapt<List<TDto>>(),
                 UpdateList = dirtyModels.Where(x => x.State == ModelState.Modified).Adapt<List<TDto>>()
@@ -462,7 +462,7 @@ namespace SwiftExport.View.FW.Mvvm
 
         private void AddNewRow()
         {
-            var newModel = new TModel { Id = 0, State = ModelState.Added };
+            var newModel = new TModel { Uid = Guid.Empty, State = ModelState.Added };
             AllItems.Insert(0, newModel);
             StatusMessage = "已添加新行，请录入数据。";
         }
@@ -493,13 +493,13 @@ namespace SwiftExport.View.FW.Mvvm
                     // ★ 智能分发：1个走 Delete，多个走 BatchSave
                     if (dbItems.Count == 1)
                     {
-                        var rst = await _api.DeleteAsync(dbItems.First().Id);
+                        var rst = await _api.DeleteAsync(dbItems.First().Uid);
                         isSuccess = rst.Success;
                         errMsg = rst.Message;
                     }
                     else
                     {
-                        var req = new BatchRequestGeneric<TDto> { DeleteIdList = dbItems.Select(x => x.Id).ToList() };
+                        var req = new BatchRequestDto<TDto> { DeleteIdList = dbItems.Select(x => x.Uid).ToList() };
                         var rst = await _api.BatchSaveAsync(req);
                         isSuccess = rst.Success;
                         errMsg = rst.Message;

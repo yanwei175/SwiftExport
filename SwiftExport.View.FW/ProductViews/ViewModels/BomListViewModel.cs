@@ -71,11 +71,11 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 return;
             }
 
-            var request = new BatchRequestGeneric<BomDto>
+            var request = new BatchRequestDto<BomDto>
             {
                 AddList = Items.Where(x => x.State == ModelState.Added).Select(x => { var dto = new BomDto(); Mapster.TypeAdapter.Adapt(x, dto); return dto; }).ToList(),
                 UpdateList = Items.Where(x => x.State == ModelState.Modified).Select(x => { var dto = new BomDto(); Mapster.TypeAdapter.Adapt(x, dto); return dto; }).ToList(),
-                DeleteIdList = Items.Where(x => x.State == ModelState.Deleted).Select(x => x.Id).ToList()
+                DeleteIdList = Items.Where(x => x.State == ModelState.Deleted).Select(x => x.Uid).ToList()
             };
 
             var rst = await _bomApi.BatchSaveAsync(request);

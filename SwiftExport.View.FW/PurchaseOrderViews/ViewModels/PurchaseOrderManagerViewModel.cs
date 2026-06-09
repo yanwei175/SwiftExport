@@ -6,9 +6,11 @@ using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Warehouses;
 using SwiftExport.Contracts.Models;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.Mvvm;
+using SwiftExport.View.FW.Mvvm.Helpers;
 using SwiftExport.View.FW.PurchaseOrderViews.Models;
 using System;
 using System.Collections.Generic;
@@ -82,11 +84,7 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
             set { SetProperty(ref _selectedSupplier, value); }
         }
 
-        public IReadOnlyList<KeyValuePair<int, string>> StatusOptions { get; }
-          = new List<KeyValuePair<int, string>>
-          {
-            new KeyValuePair<int, string>(-1, ""),   // 空选项
-          }.Concat(PurchaseOrderStatusEnum.Items).ToList();
+        public ObservableCollection<CheckableItem<PurchaseOrderStatusEnum>> StatusOptions { get; }=EnumOptionHelper.ToCheckableItems<PurchaseOrderStatusEnum>();
 
 
         private int _selectedStatus ;
@@ -347,7 +345,7 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
                             Sku = x.Sku,
                             Qty = x.ReadyQty,
                             Unit = null,
-                            PoLineId = x.Id,
+                            PoLineId = x.Uid,
                         }).ToList()
                     };
 
@@ -621,7 +619,7 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
                                 Sku = SelectedLine.Sku,
                                 Qty = SelectedLine.ReadyQty,
                                 Unit = null,
-                                PoLineId = SelectedLine.Id
+                                PoLineId = SelectedLine.Uid
                             }
                         }
                     };

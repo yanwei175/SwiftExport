@@ -1,136 +1,103 @@
 ﻿using SwiftExport.View.FW.Mvvm;
+using System;
 
 namespace SwiftExport.View.FW.CustomerViews.Models
 {
-    public class CustomerPoConfigModel : ViewModelBaseEx, IBaseModel
+    public class CustomerPoConfigModel : BaseLineModel
     {
-        public int Id { get; set; }
-
-        private ModelState _state = ModelState.Unchanged;
-        public ModelState State
-        {
-            get => _state;
-            set { _state = value; RaisePropertyChanged(nameof(State)); }
-        }
+        #region  字段
 
         private string _customerCode;
         public string CustomerCode
         {
             get => _customerCode;
-            set { if (_customerCode != value) { _customerCode = value; MarkAsModified(); RaisePropertyChanged(nameof(CustomerCode)); } }
+            set => SetProperty(ref _customerCode, value);
         }
 
         private string _supplierCode;
         public string SupplierCode
         {
             get => _supplierCode;
-            set { if (_supplierCode != value) { _supplierCode = value; MarkAsModified(); RaisePropertyChanged(nameof(SupplierCode)); } }
+            set => SetProperty(ref _supplierCode, value);
         }
 
         private string _inletHoseType;
         public string InletHoseType
         {
             get => _inletHoseType;
-            set { if (_inletHoseType != value) { _inletHoseType = value; MarkAsModified(); RaisePropertyChanged(nameof(InletHoseType)); } }
+            set => SetProperty(ref _inletHoseType, value);
         }
 
         private string _aeratorType;
         public string AeratorType
         {
             get => _aeratorType;
-            set { if (_aeratorType != value) { _aeratorType = value; MarkAsModified(); RaisePropertyChanged(nameof(AeratorType)); } }
+            set => SetProperty(ref _aeratorType, value);
         }
 
         private string _palletType;
         public string PalletType
         {
             get => _palletType;
-            set { if (_palletType != value) { _palletType = value; MarkAsModified(); RaisePropertyChanged(nameof(PalletType)); } }
+            set => SetProperty(ref _palletType, value);
         }
 
         private string _boxType;
         public string BoxType
         {
             get => _boxType;
-            set { if (_boxType != value) { _boxType = value; MarkAsModified(); RaisePropertyChanged(nameof(BoxType)); } }
+            set => SetProperty(ref _boxType, value);
         }
 
         private string _labelType;
         public string LabelType
         {
             get => _labelType;
-            set { if (_labelType != value) { _labelType = value; MarkAsModified(); RaisePropertyChanged(nameof(LabelType)); } }
+            set => SetProperty(ref _labelType, value);
         }
 
         private string _imType;
         public string IMType
         {
             get => _imType;
-            set { if (_imType != value) { _imType = value; MarkAsModified(); RaisePropertyChanged(nameof(IMType)); } }
+            set => SetProperty(ref _imType, value);
         }
 
         private string _cartonType;
         public string CartonType
         {
             get => _cartonType;
-            set { if (_cartonType != value) { _cartonType = value; MarkAsModified(); RaisePropertyChanged(nameof(CartonType)); } }
+            set => SetProperty(ref _cartonType, value);
         }
 
         private string _logoType;
         public string LogoType
         {
             get => _logoType;
-            set { if (_logoType != value) { _logoType = value; MarkAsModified(); RaisePropertyChanged(nameof(LogoType)); } }
+            set => SetProperty(ref _logoType, value);
         }
 
         private string _salesPerson;
         public string SalesPerson
         {
             get => _salesPerson;
-            set { if (_salesPerson != value) { _salesPerson = value; MarkAsModified(); RaisePropertyChanged(nameof(SalesPerson)); } }
+            set => SetProperty(ref _salesPerson, value);
         }
 
         private string _purchaser;
         public string Purchaser
         {
             get => _purchaser;
-            set { if (_purchaser != value) { _purchaser = value; MarkAsModified(); RaisePropertyChanged(nameof(Purchaser)); } }
+            set => SetProperty(ref _purchaser, value);
         }
 
         private string _note;
         public string Note
         {
             get => _note;
-            set { if (_note != value) { _note = value; MarkAsModified(); RaisePropertyChanged(nameof(Note)); } }
+            set => SetProperty(ref _note, value);
         }
 
-
-        public bool IsValid
-        {
-            get
-            {
-                return !string.IsNullOrWhiteSpace(CustomerCode) &&
-                            !string.IsNullOrWhiteSpace(SupplierCode);
-            }
-        }
-
-        private bool _isChecked;
-        public bool IsChecked
-        {
-            get => _isChecked;
-            set
-            {
-                _isChecked = value;
-                RaisePropertyChanged(nameof(IsChecked));
-            }
-        }
-
-        private void MarkAsModified()
-        {
-            if (State == ModelState.Unchanged)
-            {
-                State = ModelState.Modified;
-            }
-        }
+        #endregion 
     }
 }

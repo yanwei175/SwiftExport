@@ -5,6 +5,7 @@ using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
@@ -26,7 +27,7 @@ public class BomService(
     protected override bool IsSoftDelete => false;
 
     #region BOM管理CRUD操作
-    public override async Task<ServiceResult<int>> AddAsync(BomDto dto)
+    public override async Task<ServiceResult<Guid>> AddAsync(BomDto dto)
     {
         var entity = dto.Adapt<Bom>();
 
@@ -41,22 +42,22 @@ public class BomService(
                 Logger.LogWarning("尝试新增 {EntityName} 数据失败，原因：BomNo和ProductSku的组合已经存在！BomNo: {BomNo}, ProductSku: {ProductSku}", EntityName, entity.BomNo, entity.SubSku);
             }
 
-            return ServiceResult<int>.Fail("相同BomNo和ProductSku的记录已存在，无法新增！");
+            return ServiceResult<Guid>.Fail("相同BomNo和ProductSku的记录已存在，无法新增！");
         }
 
 
         entity.CreatedDate = DateTime.Now;
         entity.IsDeleted = false;
 
-        var id = await _repository.AddAsync(entity);
+        var uid = await _repository.AddAsync(entity);
 
         // Information 级别
         if (Logger.IsEnabled(LogLevel.Information))
         {
-            Logger.LogInformation("成功新增 {EntityName} 数据，生成的 ID: {Id}", EntityName, id);
+            Logger.LogInformation("成功新增 {EntityName} 数据，生成的 Uid: {Uid}", EntityName, uid);
         }
 
-        return ServiceResult<int>.Ok(id);
+        return ServiceResult<Guid>.Ok(uid);
     }
 
     public async Task<ServiceResult<int>> DeleteBomByBomNoAsync(string bomNo)
@@ -105,7 +106,7 @@ public class BomService(
         // 3. 子件存在性
         foreach (var item in bomItems)
         {
-            var exists = await _pdRepo.ExistsIdAsync(Convert.ToInt32(item.SubSkuId));
+            var exists = await _pdRepo.ExistsIdAsync(item.SubSkuId);
             if (!exists) return ServiceResult<bool>.Fail($"子项{item.SubSku}的Id不存在");
         }
 
@@ -205,33 +206,6 @@ public class BomService(
 
     //==========拆解BOM入口========
 
-    /// <summary>
-    /// 计算BOM拆解结果。
-    /// 仅执行缓存加载与内存递归计算，不负责最终写库提交。
-    /// </summary>
-    /// <param name="request">拆解请求对象</param>
-    /// <returns>BOM拆解后的实体对象列表</returns>
-    public async Task<List<DependentDemand>> CalculateDecomposeAsync(DecomposeRequestDto request)
-    {
-        if (request == null || request.Lines == null || request.Lines.Count == 0)
-            return [];
-        // 中文注释：兼容旧入口，内部仅做请求模型转换，再统一走“毛需求集合拆解”主流程。
-        var independentDemands = request.Lines.Select(line => new IndependentDemand
-        {
-            SourceType = request.SourceType,
-            SourceNo = request.SourceNo,
-            SourceLineId = Convert.ToInt32(line.SourceLineId),
-            Sku = line.Sku,
-            Description = line.Description,
-            ColorName = line.ColorName,
-            Features = line.Features,
-            OriginalQty = line.Quantity,
-            HopefulDate = line.RequiredDate
-        }).ToList();
-
-        return await 根据毛需求集合拆解成净需求(independentDemands);
-    }
-
 
     public async Task<List<DependentDemand>> 根据毛需求集合拆解成净需求(List<IndependentDemand> request)
     {
@@ -284,15 +258,12 @@ public class BomService(
             // 中文注释：将当前毛需求行生成的所有依赖需求统一回填关联键，便于后续追踪“毛需求 -> 净需求”。
             for (var i = startIndex; i < addList.Count; i++)
             {
-                addList[i].IndependentDemandId = line.Id;
+                addList[i].IndependentDemandId = line.Uid;
             }
         }
 
         return addList;
     }
-
-
-
 
     //==========拆解BOM核心逻辑========
 
@@ -373,10 +344,11 @@ public class BomService(
     {
         return new DependentDemand
         {
+            SourceUid = sourceLine.SourceUid,
             SourceType = sourceLine.SourceType,
             SourceNo = sourceLine.SourceNo,
             SourceLineId = sourceLine.SourceLineId,
-            IndependentDemandId = sourceLine.Id,
+            IndependentDemandId = sourceLine.Uid,
             SourceSku = sourceLine.SourceSku,
             Sku = product.Sku,
             Description = product.DescriptionEn,
@@ -390,7 +362,7 @@ public class BomService(
             ExecutedQty = 0,
             ReceivedQty = 0,
             RequiredDate = sourceLine.HopefulDate,
-            StatusFlag = DependentDemandStatusEnum.草稿,
+            OrderStatus = DependentDemandStatusEnum.未确认,
             Remark = remark,
             TargetNo = null,
             SupplierCode = product.DefaultSupplierCode,
@@ -411,11 +383,12 @@ public class BomService(
     private static DependentDemand Build非标件需求(IndependentDemand sourceLine, string? shipToLocation)
     {
         return new DependentDemand
-        {
+        {   
+            SourceUid = sourceLine.SourceUid,
             SourceType = sourceLine.SourceType,
             SourceNo = sourceLine.SourceNo,
             SourceLineId = sourceLine.SourceLineId,
-            IndependentDemandId = sourceLine.Id,
+            IndependentDemandId = sourceLine.Uid,
             SourceSku = sourceLine.SourceSku,
             Sku = sourceLine.Sku,
             Description = sourceLine.Description,
@@ -429,7 +402,7 @@ public class BomService(
             ExecutedQty = 0,
             ReceivedQty = 0,
             RequiredDate = sourceLine.HopefulDate,
-            StatusFlag = DependentDemandStatusEnum.草稿,
+            OrderStatus = DependentDemandStatusEnum.未确认,
             Remark = "非标件需求",
             TargetNo = null,
             SupplierCode = null,

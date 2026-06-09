@@ -1,4 +1,5 @@
-﻿using SwiftExport.Contracts.SysEnums.StaticEnums;
+﻿using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using System;
 using System.Collections.Generic;
@@ -13,7 +14,7 @@ namespace SwiftExport.Contracts.DTOs.Independent
         public DateTime? EndDate { get; set; }
         public bool IsDecomposed { get; set; } = false;
         public string Sku { get; set; }
-        public int StatusFlag { get; set; }= IndependentDemandStatusEnum.已确认;
+        public IndependentDemandStatusEnum StatusFlag { get; set; }
 
     }
 }

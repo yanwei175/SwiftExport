@@ -13,7 +13,7 @@ namespace SwiftExport.Application.Interfaces
     public interface IPurchaseOrderService : IBaseService<PurchaseOrderHead, PurchaseOrderHeadDto>
     {
         Task<ServiceResult<PagedResultDto<PurchaseOrderHeadDto>>> GetPagedListAsync(PurchaseOrderSearchDto search);
-        Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByHeadIdAsync(int id);
+        Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByHeadIdAsync(Guid id);
         Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByBoNoAsync(string boNo);
         Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByOrderNoAsync(string orderNo);
         Task<ServiceResult<List<SupplierDto>>> GetAwaitingInboundSuppliersAsync();
@@ -22,7 +22,7 @@ namespace SwiftExport.Application.Interfaces
         /// </summary>
         /// <param name="request"></param>
         /// <returns>返回订单的ID</returns>
-        Task<ServiceResult<int>> SaveDetailAsync(PurchaseOrderDetailDto request);
+        Task<ServiceResult<Guid>> SaveDetailAsync(PurchaseOrderDetailDto request);
 
  
 

@@ -7,7 +7,7 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
     /// 虚拟入库记录模型。
     /// 中文注释：当前阶段用于 Tab 展示占位，后续可替换为真实入库 API。
     /// </summary>
-    public class PurchaseReceiptRecordModel : ViewModelBaseEx
+    public class PurchaseReceiptRecordModel : BaseLineModel
     {
         private string _receiptNo;
         public string ReceiptNo

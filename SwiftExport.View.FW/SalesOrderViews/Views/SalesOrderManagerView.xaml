@@ -26,18 +26,18 @@
             <mt:ImgPathToImgConverter x:Key="ImgPathToImgConverter"/>
             <mvvm:BindingProxy x:Key="SelectionUnitProxy" Data="{Binding IsChecked, ElementName=BtnToggleSelectionUnit}"/>
 
-            <!-- 审批状态标签样式：已审核-绿色，待审核-橙色，已驳回-红色。 -->
-            <Style x:Key="ApprovalStatusBadgeTextStyle" TargetType="TextBlock">
+            <!-- 确认状态标签样式：已确认-绿色，待确认-橙色，已驳回-红色。 -->
+            <Style x:Key="ConfirmationStatusBadgeTextStyle" TargetType="TextBlock">
                 <Setter Property="Foreground" Value="{DynamicResource Brush_Txt_Primary}"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
                 <Style.Triggers>
-                    <DataTrigger Binding="{Binding ApprovalStatus}" Value="已审核">
+                    <DataTrigger Binding="{Binding ConfirmationStatus}" Value="已确认">
                         <Setter Property="Foreground" Value="#FF2E7D32"/>
                     </DataTrigger>
-                    <DataTrigger Binding="{Binding ApprovalStatus}" Value="待审核">
+                    <DataTrigger Binding="{Binding ConfirmationStatus}" Value="待确认">
                         <Setter Property="Foreground" Value="#FFF57C00"/>
                     </DataTrigger>
-                    <DataTrigger Binding="{Binding ApprovalStatus}" Value="已驳回">
+                    <DataTrigger Binding="{Binding ConfirmationStatus}" Value="已取消">
                         <Setter Property="Foreground" Value="#FFC62828"/>
                     </DataTrigger>
                 </Style.Triggers>
@@ -75,6 +75,8 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
+    <Grid>
+
     <Grid Margin="0">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="220" MinWidth="220"/>
@@ -108,14 +110,14 @@
                         <ToggleButton x:Name="StatusFilter" Style="{StaticResource MutiSelectButtonStyle}" Padding="10,5"
                                       Cursor="Hand" BorderThickness="1">
                             <TextBlock Style="{StaticResource MultiLineDataGridTextBlockStyle}"
-                                     Text="{Binding DataContext.SelectedApprovalStatuses, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                     Text="{Binding DataContext.SelectedConfirmStatuses, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                         </ToggleButton>
                         <!-- Popup 负责折叠的内容 -->
                         <Popup IsOpen="{Binding IsChecked, ElementName=StatusFilter}" StaysOpen="False"  AllowsTransparency="True"
                                PopupAnimation="Slide" Placement="Bottom">
                             <Border Background="{DynamicResource Brush_Bck_Card}" BorderBrush="{DynamicResource Brush_Border_Light}" BorderThickness="1" CornerRadius="4" Padding="8">
                                 <StackPanel>
-                                    <ItemsControl ItemsSource="{Binding ApprovalStatusOptions}">
+                                    <ItemsControl ItemsSource="{Binding ConfirmStatusOptions}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <CheckBox Content="{Binding}" 
@@ -230,27 +232,27 @@
                                mt:ButtonAssist.IconSize="12"
                                mt:ButtonAssist.Icon="{StaticResource Icon.Save}">
                         </Button>
-                        <Separator Margin="5,0"/>
-                        <Button Command="{Binding DeleteCheckedCommand}" Margin="0,0,5,0"
-                               Style="{StaticResource   ButtonDanger}"
+                        <Rectangle Width="1" Fill="#E0E0E0" Margin="5,5,15,5" VerticalAlignment="Stretch"/>
+                        <Button Command="{Binding DeleteSelectedHeadCommand}" Margin="0,0,5,0"
+                               Style="{StaticResource ButtonDanger}"
                                Content="删除"
                                mt:ButtonAssist.IconSize="12"
                                mt:ButtonAssist.Icon="{StaticResource Icon.Delete}">
                         </Button>
 
-                        <Button Command="{Binding BatchApproveCommand}" Margin="0,0,5,0"
+                        <Button Command="{Binding ConfirmCommand}" Margin="0,0,5,0"
                                Style="{StaticResource ButtonSuccess}"
-                               Content="审批通过"
+                               Content="确认"
                                mt:ButtonAssist.IconSize="12"
                                mt:ButtonAssist.Icon="{StaticResource Icon.Check}"/>
 
-                        <Button Command="{Binding BatchRejectCommand}" Margin="0,0,5,0"
+                        <Button Command="{Binding CancelConfirmCommand}" Margin="0,0,5,0"
                                Style="{StaticResource ButtonDanger}"
-                               Content="驳回"
+                               Content="取消确认"
                                mt:ButtonAssist.IconSize="12"
                                mt:ButtonAssist.Icon="{StaticResource Icon.Close}"/>
                         <Button Command="{Binding LoadCommand}" Margin="0,0,5,0" 
-                                Style="{StaticResource   ButtonBase}"
+                                Style="{StaticResource ButtonBase}"
                                Content="刷新"
                                mt:ButtonAssist.IconSize="12"
                                mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}">
@@ -259,14 +261,14 @@
                         <Rectangle Width="1" Fill="#E0E0E0" Margin="5,5,15,5" VerticalAlignment="Stretch"/>
 
                         <Button Command="{Binding InvertCheckCommand}"  Margin="0,0,5,0" Style="{StaticResource ButtonBase}"
-                                                         Content="反选"
+                                 Content="反选"
                              mt:ButtonAssist.IconSize="12"
                              mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}">
                         </Button>
 
                         <Border Style="{StaticResource OutLineButtonStyleBorder}">
-                            <Grid Margin="0,0,0,0" x:Name="更多功能下拉框">
-                                <ToggleButton x:Name="MenuButton" Content="功能" Style="{StaticResource ExpanderUpHeaderStyle}" Padding="10,5"/>
+                            <Grid Margin="0,0,0,0" x:Name="更多功能">
+                                <ToggleButton x:Name="MenuButton" Content="更多" Style="{StaticResource ExpanderUpHeaderStyle}" Padding="10,5"/>
                                 <!-- Popup 负责折叠的内容 -->
                                 <Popup IsOpen="{Binding IsChecked, ElementName=MenuButton}" 
                                        StaysOpen="False" 
@@ -277,8 +279,8 @@
                                             BorderBrush="{DynamicResource Brush_Border_Light}" 
                                             BorderThickness="1" CornerRadius="4" Padding="8">
                                         <StackPanel Width="180">
-                                            <Button Margin="1" Content="批量修改属性" Style="{StaticResource ButtonOutline}" IsEnabled="{Binding HasSelectedItems}"/>
-                                            <Button Margin="1" Content="批量导出数据" Style="{StaticResource ButtonOutline}" IsEnabled="{Binding HasSelectedItems}"/>
+                                            <Button Margin="1" Content="批量修改属性" Style="{StaticResource ButtonOutline}"/>
+                                            <Button Margin="1" Content="批量导出数据" Style="{StaticResource ButtonOutline}"/>
                                         </StackPanel>
                                     </Border>
                                 </Popup>
@@ -331,61 +333,47 @@
 
                             <DataGrid.Columns>
                                 <mtControls:CheckBoxDataGridTemplateColumn 
-                                            AllCheckedPropertyName="IsAllChecked"
+                                            AllCheckedPropertyName="OrderHeaders.IsAllChecked"
                                             ItemCheckedPropertyName="IsChecked"
-                                            ItemCheckedCommandName="ItemCheckedChangedCommand"
+                                            ItemCheckedCommandName="{x:Null}"
                                             HeaderCheckBoxMargin="4,0"
                                             HeaderCheckBoxToolTip="全选/全不选"/>
 
-                                <!-- 主表列：绑定到 SalesOrderHeaderModel 的属性 -->
+                                <!-- 主表列：绑定到 SalesOrderHeaderManagerModel 的属性 -->
+                                <DataGridTextColumn Header="订单状态" Binding="{Binding OrderStatusText}" Width="80"  IsReadOnly="True"/>
                                 <DataGridTextColumn Header="订单编号" Binding="{Binding OrderNo}" Width="120"  IsReadOnly="True"/>
-                                <DataGridTextColumn Header="PiNo" Binding="{Binding InvoiceNo}" Width="80" />
-                                <DataGridTextColumn Header="订单状态" Binding="{Binding OrderStatus}" Width="80"  IsReadOnly="True"/>
+                                <DataGridTextColumn Header="InvoiceNo" Binding="{Binding InvoiceNo}" Width="80" />
                                 <DataGridTextColumn Header="下单日期" Binding="{Binding OrderDate, StringFormat=d}" Width="120" IsReadOnly="True" />
                                 <DataGridTextColumn Header="预计交期" Binding="{Binding DeliverDate, StringFormat=d}" Width="120" IsReadOnly="True" />
                                 <DataGridTextColumn Header="回复日期" Binding="{Binding ReplyDate, StringFormat=d}" Width="120" IsReadOnly="True" />
                                 <DataGridTextColumn Header="客户代码" Binding="{Binding CustomerCode}" Width="100"  IsReadOnly="True"/>
                                 <DataGridTextColumn Header="客户PO号" Binding="{Binding CustomerPoNo}" Width="120" />
+                                
                                 <DataGridTextColumn Header="总数量" Binding="{Binding TotalQty}" Width="100"  IsReadOnly="True"/>
                                 <DataGridTextColumn Header="已发货数量" Binding="{Binding TotalShippedQty}" Width="100"  IsReadOnly="True"/>
                                 <DataGridTextColumn Header="未发货数量" Binding="{Binding TotalUnshippedQty}" Width="100"  IsReadOnly="True"/>
-                                <DataGridTextColumn Header="部分发货数量" Binding="{Binding TotalPartiallyShippedQty}" Width="100"  IsReadOnly="True"/>
-
                                 <DataGridTextColumn Header="原币总额" Binding="{Binding TotalAmountOriginalCurrency, StringFormat=N2}" Width="120"  IsReadOnly="True"/>
                                 <DataGridTextColumn Header="本币总额" Binding="{Binding TotalAmountLocalCurrency, StringFormat=N2}" Width="120"  IsReadOnly="True"/>
 
                                 <DataGridTextColumn Header="备注" Binding="{Binding Remark}" Width="200" />
-                                <DataGridTextColumn Header="客户ID" Binding="{Binding CustomerId}" Width="100"  IsReadOnly="True"/>
-                                <DataGridTextColumn Header="承运方式" Binding="{Binding ShippedBy}" Width="120" />
                                 <DataGridTextColumn Header="币种" Binding="{Binding Currency}" Width="80" />
                                 <DataGridTextColumn Header="汇率" Binding="{Binding ExchangeRate, StringFormat=N4}" Width="100" />
-                                <DataGridTextColumn Header="收货人" Binding="{Binding ShipToName}" Width="140" />
-                                <DataGridTextColumn Header="收货地址" Binding="{Binding ShipToAddress}" Width="200" />
-                                <DataGridTextColumn Header="收货电话" Binding="{Binding ShipToPhone}" Width="120" />
-                                <DataGridTextColumn Header="贸易条款" Binding="{Binding Incoterm}" Width="80" />
-                                <DataGridTextColumn Header="条款地点" Binding="{Binding Incotermlocation}" Width="120" />
-                                <DataGridTextColumn Header="定金比例" Binding="{Binding DepositRate}" Width="80" />
                                 <DataGridTextColumn Header="生产周期(天)" Binding="{Binding LeadTimeDays}" Width="100"  IsReadOnly="True"/>
-                                <DataGridTextColumn Header="付款方式" Binding="{Binding PaymentMethod}" Width="100" />
-                                <DataGridTextColumn Header="ETA" Binding="{Binding ETA, StringFormat=g}" Width="140" />
-                                <DataGridTextColumn Header="ETD" Binding="{Binding ETD, StringFormat=g}" Width="140" />
+                                <DataGridTextColumn Header="文件夹" Binding="{Binding SoFolder}" Width="160"  IsReadOnly="True"/>
 
-                                <DataGridTextColumn Header="行数" Binding="{Binding LineCount}" Width="80"  IsReadOnly="True"/>
                                 <DataGridTextColumn Header="创建人" Binding="{Binding CreatedBy}" Width="120"  IsReadOnly="True"/>
                                 <DataGridTextColumn Header="更新时间" Binding="{Binding UpdatedDate, StringFormat=g}" Width="140"  IsReadOnly="True"/>
-                                <DataGridTextColumn Header="文件夹" Binding="{Binding SoFolder}" Width="160"  IsReadOnly="True"/>
-                                <DataGridTextColumn Header="版本号" Binding="{Binding Version}" Width="100"  IsReadOnly="True"/>
-                                <DataGridTemplateColumn Header="审批状态" Width="120">
+                                <DataGridTextColumn Header="更新人" Binding="{Binding UpdatedBy}" Width="120"  IsReadOnly="True"/>
+                                <DataGridTextColumn Header="创建时间" Binding="{Binding CreatedDate, StringFormat=g}" Width="140"  IsReadOnly="True"/>
+                                
+                                <DataGridTemplateColumn Header="确认状态" Width="120">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding ApprovalStatus}" Style="{StaticResource ApprovalStatusBadgeTextStyle}"/>
+                                            <TextBlock Text="{Binding ConfirmationStatusText}" Style="{StaticResource ConfirmationStatusBadgeTextStyle}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridCheckBoxColumn Header="已删除" Binding="{Binding IsDeleted}" Width="80"  IsReadOnly="True"/>
-                                <DataGridCheckBoxColumn Header="已锁定" Binding="{Binding IsLocked}" Width="80"  IsReadOnly="True"/>
-                                <DataGridTextColumn Header="更新人" Binding="{Binding UpdatedBy}" Width="120"  IsReadOnly="True"/>
-                                <DataGridTextColumn Header="创建时间" Binding="{Binding CreatedDate, StringFormat=g}" Width="140"  IsReadOnly="True"/>
+
                             </DataGrid.Columns>
                         </DataGrid>
 
@@ -444,10 +432,10 @@
                             <DataGridTextColumn Header="数量" Binding="{Binding Qty, StringFormat=N0}" Width="80" />
                             <DataGridTextColumn Header="已发货数量" Binding="{Binding ShippedQty, StringFormat=N0}" Width="80" />
                             <DataGridTextColumn Header="未发货数量" Binding="{Binding UnshippedQty, StringFormat=N0}" Width="80" />
-                            <DataGridTextColumn Header="USD单价" Binding="{Binding UsdPrice, StringFormat=N2}" Width="120" />
-                            <DataGridTextColumn Header="CNY单价" Binding="{Binding CnyPrice, StringFormat=N2}" Width="120" />
-                            <DataGridTextColumn Header="USD金额" Binding="{Binding UsdAmount, StringFormat=N2}" Width="120" />
-                            <DataGridTextColumn Header="CNY金额" Binding="{Binding CnyAmount, StringFormat=N2}" Width="120" />
+                            <DataGridTextColumn Header="美金单价" Binding="{Binding UsdPrice, StringFormat=N2}" Width="120" />
+                            <DataGridTextColumn Header="人民币单价" Binding="{Binding CnyPrice, StringFormat=N2}" Width="120" />
+                            <DataGridTextColumn Header="美金金额" Binding="{Binding UsdAmount, StringFormat=N2}" Width="120" />
+                            <DataGridTextColumn Header="人民币金额" Binding="{Binding CnyAmount, StringFormat=N2}" Width="120" />
                             <DataGridTextColumn Header="备注" Binding="{Binding SubNote}" Width="260" />
                         </DataGrid.Columns>
                     </DataGrid>
@@ -459,13 +447,13 @@
                             <DataGridTextColumn Header="客户型号" />
                             <DataGridTextColumn Header="描述" />
                             <DataGridTextColumn Header="颜色" Binding="{Binding Source='总计:'}"/>
-                            <DataGridTextColumn Header="总数量" Binding="{Binding DataContext.CurrentOrderLines.TotalQty, StringFormat=N0}"/>
-                            <DataGridTextColumn Header="已发货汇总" Binding="{Binding DataContext.CurrentOrderLines.TotalShippedQty, StringFormat=N0}"/>
-                            <DataGridTextColumn Header="未发货汇总" Binding="{Binding DataContext.CurrentOrderLines.TotalUnshippedQty, StringFormat=N0}"/>
-                            <DataGridTextColumn Header="USD单价"/>
-                            <DataGridTextColumn Header="CNY单价"/>
-                            <DataGridTextColumn Header="USD金额汇总" Binding="{Binding DataContext.CurrentOrderLines.TotalUsdAmount, StringFormat=N2}"/>
-                            <DataGridTextColumn Header="CNY金额汇总" Binding="{Binding DataContext.CurrentOrderLines.TotalRmbAmount, StringFormat=N2}"/>
+                            <DataGridTextColumn Header="总数量" Binding="{Binding DataContext.CurrentOrderLines.SummaryQty, StringFormat=N0, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                            <DataGridTextColumn Header="已发货汇总" Binding="{Binding DataContext.CurrentOrderLines.SummaryShippedQty, StringFormat=N0, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                            <DataGridTextColumn Header="未发货汇总" Binding="{Binding DataContext.CurrentOrderLines.SummaryUnshippedQty, StringFormat=N0, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                            <DataGridTextColumn Header="美金单价"/>
+                            <DataGridTextColumn Header="人民币单价"/>
+                            <DataGridTextColumn Header="美金金额汇总" Binding="{Binding DataContext.CurrentOrderLines.SummaryUsdAmount, StringFormat=N2, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                            <DataGridTextColumn Header="人民币金额汇总" Binding="{Binding DataContext.CurrentOrderLines.SummaryCnyAmount, StringFormat=N2, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
                             <DataGridTextColumn Header="备注" />
                         </DataGrid.Columns>
                     </DataGrid>
@@ -483,6 +471,8 @@
         <!--#endregion-->
 
 
-        <mt:DialogHost Grid.Column="1" Grid.RowSpan="4" d:IsHidden="True" />
+    </Grid>
+
+        <mt:DialogHost d:IsHidden="False" />
     </Grid>
 </UserControl>

@@ -8,14 +8,8 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
     /// 采购订单头 UI 模型。
     /// 中文注释：该模型用于采购工作台主表展示与行选择，不做复杂校验。
     /// </summary>
-    public class PurchaseOrderHeadModel : ViewModelBaseEx
+    public class PurchaseOrderHeadModel : BaseLineModel
     {
-        private int _id;
-        public int Id
-        {
-            get { return _id; }
-            set { SetProperty(ref _id, value); }
-        }
 
         private string _boNo;
         public string BoNo
@@ -124,16 +118,6 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
         {
             get { return _totalAmountLocalCurrency; }
             set { SetProperty(ref _totalAmountLocalCurrency, value); }
-        }
-
-        /// <summary>
-        /// 中文注释：用于主表多选勾选。
-        /// </summary>
-        private bool _isChecked;
-        public bool IsChecked
-        {
-            get { return _isChecked; }
-            set { SetProperty(ref _isChecked, value); }
         }
 
     }

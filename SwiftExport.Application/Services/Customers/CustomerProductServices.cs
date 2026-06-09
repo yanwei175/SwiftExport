@@ -34,19 +34,19 @@ public class CustomerProductServices(
     // ============================================================
 
     /// <summary>按 ID 联表查询单条（含 CustomerCode / DescriptionEn / CategoryName 等）</summary>
-    public async Task<ServiceResult<CustomerProductDto>> GetByIdAsync(int id)
+    public async Task<ServiceResult<CustomerProductDto>> GetByIdAsync(Guid id)
     {
         var dto = await _repo.GetDtoByIdAsync(id);
         if (dto == null)
         {
-            Logger.LogWarning("查询失败：未找到 ID 为 {Id} 的客户产品", id);
+            Logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的客户产品", id);
             return ServiceResult<CustomerProductDto>.Fail("未找到数据");
         }
         return ServiceResult<CustomerProductDto>.Ok(dto);
     }
 
     /// <summary>按客户料号 + 客户 ID 精确查询（调用仓储联表版本确保字段完整）</summary>
-    public async Task<ServiceResult<CustomerProductDto>> GetByCustomerSkuAsync(string customerSku, int customerId)
+    public async Task<ServiceResult<CustomerProductDto>> GetByCustomerSkuAsync(string customerSku, Guid customerId)
     {
         // 先拿实体拿到 Id，再走联表查询保证 DTO 字段完整
         var entity = await _repo.GetByCustomerSkuAsync(customerSku, customerId);
@@ -56,12 +56,12 @@ public class CustomerProductServices(
             return ServiceResult<CustomerProductDto>.Fail($"未找到客户产品型号为 {customerSku} 的产品");
         }
 
-        var dto = await _repo.GetDtoByIdAsync(entity.Id);
+        var dto = await _repo.GetDtoByIdAsync(entity.Uid);
         return ServiceResult<CustomerProductDto>.Ok(dto!);
     }
 
     /// <summary>联表分页查询</summary>
-    public async Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetPagedCustomerProductAsync(ProductSearchDto req)
+    public async Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetPagedCustomerProductAsync(ProductSearchRequest req)
     {
         var criteria = new QueryCriteria();
 
@@ -80,7 +80,7 @@ public class CustomerProductServices(
         }
 
         // 精确条件
-        if (req.CustomerId > 0)
+        if (req.CustomerId != Guid.Empty)
             criteria.Add("CustomerId", 查询操作符.等于, req.CustomerId);
 
         if (req.CustomerIds != null && req.CustomerIds.Count > 0)
@@ -92,7 +92,7 @@ public class CustomerProductServices(
         int pageIndex = req.PageIndex > 0 ? req.PageIndex : 1;
         int pageSize = req.PageSize > 0 ? req.PageSize : 50;
 
-        var paged = await _repo.GetPagedCustomerProductAsync(criteria, pageIndex, pageSize, "cp.Id DESC");
+        var paged = await _repo.GetPagedCustomerProductAsync(criteria, pageIndex, pageSize, "cp.CreatedDate DESC");
 
         return ServiceResult<PagedResultDto<CustomerProductDto>>.Ok(new PagedResultDto<CustomerProductDto>
         {
@@ -110,7 +110,7 @@ public class CustomerProductServices(
         if (ids == null || ids.Count == 0)
             return ServiceResult<IReadOnlyList<CustomerDto>>.Fail("暂无客户产品记录");
 
-        var list = await _customerRepository.GetByIdListAsync(ids);
+        var list = await _customerRepository.GetByIdListAsync(ids.Select(x => Guid.Empty));
         if (list == null || list.Count == 0)
             return ServiceResult<IReadOnlyList<CustomerDto>>.Fail("未找到对应客户");
 
@@ -126,7 +126,7 @@ public class CustomerProductServices(
     /// DTO → Entity 手动映射，只写 CustomerProduct 表的真实列，
     /// 联表字段（CustomerCode / DescriptionEn / CategoryName 等）不会写入。
     /// </summary>
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestGeneric<CustomerProductDto> batchReq)
+    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<CustomerProductDto> batchReq)
     {
         Logger.LogInformation(
             "开始执行 [CustomerProduct] 批量保存事务，计划新增: {AddCount}，修改: {UpdateCount}，删除: {DeleteCount}",
@@ -154,7 +154,7 @@ public class CustomerProductServices(
                     {
                         CustomerId = dto.CustomerId,
                         CustomerCode= dto.CustomerCode,
-                        SkuId = dto.SkuId == 0 ? null : dto.SkuId,
+                        SkuId = dto.SkuId == Guid.Empty ? null : dto.SkuId,
                         Sku = dto.Sku,
                         LinkSku = dto.LinkSku,
                         CustomerSku = dto.CustomerSku,
@@ -184,9 +184,9 @@ public class CustomerProductServices(
             if (batchReq.UpdateList != null && batchReq.UpdateList.Count > 0)
             {
                 // 基础校验：Id 必须有效
-                var invalidIds = batchReq.UpdateList.Where(x => x.Id <= 0).ToList();
+                var invalidIds = batchReq.UpdateList.Where(x => x.Uid == Guid.Empty).ToList();
                 if (invalidIds.Count > 0)
-                    errorMsg.AppendLine("修改列表中包含无效 ID（Id <= 0），请检查");
+                    errorMsg.AppendLine("修改列表中包含无效 Uid（Uid == Guid.Empty），请检查");
 
                 if (errorMsg.Length == 0)
                 {
@@ -200,16 +200,16 @@ public class CustomerProductServices(
                     foreach (var dto in batchReq.UpdateList)
                     {
                         // 先从数据库取现有实体，再只覆盖可编辑字段
-                        var existing = await _repo.GetByIdAsync(dto.Id);
+                        var existing = await _repo.GetByIdAsync(dto.Uid);
                         if (existing == null)
                         {
-                            errorMsg.AppendLine($"ID {dto.Id} 的客户产品不存在，无法修改");
+                            errorMsg.AppendLine($"Uid {dto.Uid} 的客户产品不存在，无法修改");
                             break;
                         }
 
                         // 手动赋值：只更新 CustomerProduct 表自身的字段
                         existing.CustomerId = dto.CustomerId;
-                        existing.SkuId = dto.SkuId == 0 ? null : dto.SkuId;
+                        existing.SkuId = dto.SkuId == Guid.Empty ? null : dto.SkuId;
                         existing.Sku = dto.Sku;
                         existing.LinkSku = dto.LinkSku;
                         existing.CustomerSku = dto.CustomerSku;
@@ -228,7 +228,7 @@ public class CustomerProductServices(
                         existing.IsActive = dto.IsActive;
 
                         await _repo.UpdateAsync(existing);
-                        result.UpdateIdList.Add(existing.Id);
+                        result.UpdateIdList.Add(existing.Uid);
                     }
 
                     if (errorMsg.Length == 0)
@@ -283,7 +283,7 @@ public class CustomerProductServices(
         var codes = new List<string>();
         foreach (var dto in dtos)
         {
-            if (dto.CustomerId <= 0)
+            if (dto.CustomerId == Guid.Empty)
                 return "没有指定客户";
             if (string.IsNullOrWhiteSpace(dto.CustomerSku))
                 return "客户产品型号不能为空";
@@ -304,7 +304,7 @@ public class CustomerProductServices(
     {
         foreach (var dto in dtos)
         {
-            if (dto.CustomerId <= 0)
+            if (dto.CustomerId == Guid.Empty)
                 return "客户产品必须指定客户";
             if (string.IsNullOrWhiteSpace(dto.CustomerSku))
                 return "客户产品型号不能为空";
@@ -315,6 +315,6 @@ public class CustomerProductServices(
     }
 
     /// <summary>删除前校验（预留扩展点，默认放行）</summary>
-    private async Task<string?> ValidateBeforeDeleteAsync(List<int> ids)
+    private async Task<string?> ValidateBeforeDeleteAsync(List<Guid> ids)
         => await Task.FromResult<string?>(null);
 }

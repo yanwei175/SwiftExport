@@ -22,7 +22,7 @@ namespace SwiftExport.WebApi.Controllers.Orders
         }
 
         [HttpGet("{id}/detail")]
-        public async Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByIdAsync(int id)
+        public async Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByIdAsync(Guid id)
         {
             return await service.GetDetailByHeadIdAsync(id);
         }
@@ -45,7 +45,7 @@ namespace SwiftExport.WebApi.Controllers.Orders
         }
 
         [HttpPost("detail/save")]
-        public async Task<ServiceResult<int>> SaveDetailAsync([FromBody] PurchaseOrderDetailDto request)
+        public async Task<ServiceResult<Guid>> SaveDetailAsync([FromBody] PurchaseOrderDetailDto request)
         {
             return await service.SaveDetailAsync(request);
         }

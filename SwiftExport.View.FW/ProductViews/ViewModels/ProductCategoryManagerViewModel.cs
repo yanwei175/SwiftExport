@@ -89,7 +89,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                                             .OrderBy(dto => dto.SortNo)
                                             .Select(dto => new CategoryTreeModel
                                             {
-                                                Id = dto.Id,
+                                                Uid = dto.Uid,
                                                 ParentId = dto.ParentId,
                                                 CategoryName = dto.CategoryName,
                                                 CategoryCode = dto.CategoryCode,
@@ -122,11 +122,11 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
 
             // 2. 分拣出新增和修改的数据
             var addList = allNodes.Where(x => x.State == ModelState.Added)
-                                  .Select(x => new ProductCategoryDto { ParentId = x.ParentId > 0 ? x.ParentId : null, CategoryName = x.CategoryName, FakeName = x.FakeName, CategoryCode = x.CategoryCode, SortNo = x.SortNo })
+                                  .Select(x => new ProductCategoryDto { ParentId = x.ParentId != Guid.Empty ? x.ParentId : null, CategoryName = x.CategoryName, FakeName = x.FakeName, CategoryCode = x.CategoryCode, SortNo = x.SortNo })
                                   .ToList();
 
             var updateList = allNodes.Where(x => x.State == ModelState.Modified)
-                                     .Select(x => new ProductCategoryDto { Id = x.Id, ParentId = x.ParentId, CategoryName = x.CategoryName, FakeName = x.FakeName, CategoryCode = x.CategoryCode, SortNo = x.SortNo })
+                                     .Select(x => new ProductCategoryDto { Uid = x.Uid, ParentId = x.ParentId != Guid.Empty ? x.ParentId : null, CategoryName = x.CategoryName, FakeName = x.FakeName, CategoryCode = x.CategoryCode, SortNo = x.SortNo })
                                      .ToList();
 
 
@@ -139,9 +139,9 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
 
 
             // 3. 组装标准批量请求
-            var deleteIdList = _deletedNodes.Where(x => x.Id > 0).Select(x => x.Id).ToList();
+            var deleteIdList = _deletedNodes.Where(x => x.Uid != Guid.Empty).Select(x => x.Uid).ToList();
 
-            var batchReq = new BatchRequestGeneric<ProductCategoryDto>
+            var batchReq = new BatchRequestDto<ProductCategoryDto>
             {
                 AddList = addList,
                 UpdateList = updateList,
@@ -150,16 +150,15 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
 
             //把AddList和UpdateList以及DeleteIdList转成带换行的字符串,弹窗给用户确认是否要修改或新增
             string addStr = addList.Any() ? "新增:\n" + string.Join("\n", addList.Select(x => $"[新增] {x.CategoryName} (ParentId: {x.ParentId}, SortNo: {x.SortNo})")) : "";
-            addStr += updateList.Any() ? "\n修改:\n" + string.Join("\n", updateList.Select(x => $"[修改] {x.CategoryName} (Id: {x.Id}, ParentId: {x.ParentId}, SortNo: {x.SortNo})")) : "";
-            addStr += _deletedNodes.Any() ? "\n删除:\n" + string.Join("\n", _deletedNodes.Select(x => $"[删除] {x.CategoryName} (Id: {x.Id}, ParentId: {x.ParentId}, SortNo: {x.SortNo})")) : "";
+            addStr += updateList.Any() ? "\n修改:\n" + string.Join("\n", updateList.Select(x => $"[修改] {x.CategoryName} (Uid: {x.Uid}, ParentId: {x.ParentId}, SortNo: {x.SortNo})")) : "";
+            addStr += _deletedNodes.Any() ? "\n删除:\n" + string.Join("\n", _deletedNodes.Select(x => $"[删除] {x.CategoryName} (Uid: {x.Uid}, ParentId: {x.ParentId}, SortNo: {x.SortNo})")) : "";
 
-            var ok = await _msg.ShowConfirmAsync($"{addStr}", "确认操作!");
+            var ok = await _msg.ShowConfirmAsync("确认操作!");
             if (!ok)
             {
                 StatusMessage = "用户已取消保存。";
                 return;
             }
-
 
             try
             {
@@ -189,7 +188,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         {
             // 1. 确定要把新节点塞进哪个集合里，以及它的爹是谁
             ObservableCollection<CategoryTreeModel> targetCollection;
-            int? targetParentId;
+            Guid? targetParentId;
 
             if (node == null)
             {
@@ -213,7 +212,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             // 3. 实例化新节点
             var newNode = new CategoryTreeModel
             {
-                Id = _tempIdCounter--,
+                Uid = Guid.Empty,
                 ParentId = targetParentId,
                 // 做个小细节：根据场景给个不同的默认名字
                 CategoryName = node == null ? "新建一级分类" : "新建分类",
@@ -231,7 +230,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         {
             if (node == null) return;
             var newSortNo = node.Children.Any() ? node.Children.Max(x => x.SortNo) + 10 : 10;
-            var newNode = new CategoryTreeModel { Id = _tempIdCounter--, ParentId = node.Id, CategoryName = "新建子分类", SortNo = newSortNo, State = ModelState.Added };
+            var newNode = new CategoryTreeModel { Uid = Guid.Empty, ParentId = node.Uid, CategoryName = "新建子分类", SortNo = newSortNo, State = ModelState.Added };
             node.Children.Add(newNode);
             node.IsExpanded = true;
             CurrentCategory = newNode;
@@ -241,7 +240,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         private async void DeleteCategory(CategoryTreeModel node)
         {
             if (node == null) return;
-            if (node.Id > 0)
+            if (node.Uid != Guid.Empty)
             {
                 var ok = await _msg.ShowConfirmAsync($"确定要删除【{node.CategoryName}】及所有子分类吗？", "警告");
                 if (!ok) { return; }
@@ -357,7 +356,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 if (dynamicPos == RelativeInsertPosition.TargetItemCenter)
                 {
                     // 【绝对命中变儿子逻辑】
-                    sourceItem.ParentId = targetItem.Id;
+                    sourceItem.ParentId = targetItem.Uid;
                     targetItem.Children.Add(sourceItem);
                     targetItem.IsExpanded = true;
                     ShuffleSortNo(targetItem.Children);
@@ -423,7 +422,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
 
         private void CollectDeletedIds(CategoryTreeModel node)
         {
-            if (node.Id > 0)
+            if (node.Uid != Guid.Empty)
             {
                 _deletedNodes.Add(node);
             }
@@ -436,11 +435,11 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         private void BuildTree(List<CategoryTreeModel> flatList)
         {
             CategoryTree.Clear();
-            var dict = flatList.ToDictionary(x => x.Id);
+            var dict = flatList.ToDictionary(x => x.Uid);
 
             foreach (var item in flatList)
             {
-                if (item.ParentId == null || item.ParentId <= 0 || !dict.ContainsKey(item.ParentId.Value))
+                if (item.ParentId == null || item.ParentId == Guid.Empty || !dict.ContainsKey(item.ParentId.Value))
                 {
                     CategoryTree.Add(item);
                 }

@@ -7,9 +7,9 @@ public class CustomerProduct : BaseEntity
     // ============================================================
     // 1. 核心关联（外键）
     // ============================================================
-    public int CustomerId { get; set; }  // 关联客户主表 ID
+    public Guid CustomerId { get; set; }  // 关联客户主表 ID
     public required string CustomerCode { get; set; }  // 关联客户主表编码   
-    public int? SkuId { get; set; }       // 关联咱们的产品主表 ID
+    public Guid? SkuId { get; set; }       // 关联咱们的产品主表 ID
     public string? Sku { get; set; }
     public string? LinkSku { get; set; }
     // ============================================================

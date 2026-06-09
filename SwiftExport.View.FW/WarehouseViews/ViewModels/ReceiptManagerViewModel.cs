@@ -84,7 +84,7 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
             }
         }
 
-        private async Task LoadLineDataAsync(int receiveHeadId)
+        private async Task LoadLineDataAsync(Guid receiveHeadId)
         {
             using (BusyScope())
             {
@@ -121,7 +121,7 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
                 {
                     if (value != null)
                     {
-                        _ = LoadLineDataAsync(value.Id);
+                        _ = LoadLineDataAsync(value.Uid);
                     }
                     else
                     {
@@ -252,14 +252,14 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
                     // 窗口关闭后，直接从 vm 里拿数据
                     var finalResult = vm.ResultData;
 
-                    if (finalResult < 0) { return; }
+                    if (finalResult == Guid.Empty) { return; }
 
                     var dto = await _receiveApi.GetHeadByIdAsync(finalResult);
                     if (dto.Success && dto.Data != null)
                     {
                         var newModel = new ReceiveHeadModel
                         {
-                            Id = dto.Data.Id
+                            Uid = dto.Data.Uid
                             
                         };
                         newModel.LoadFromDto(dto.Data);
@@ -308,7 +308,7 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
                     // 窗口关闭后，直接从 vm 里拿数据
                     var finalResult = vm.ResultData;
 
-                    if (finalResult < 0) { return; }
+                    if (finalResult == Guid.Empty) { return; }
 
                     var dto = await _receiveApi.GetHeadByIdAsync(finalResult);
                     if (dto.Success && dto.Data != null)
@@ -318,7 +318,7 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
                 }
                 LineTable.Clear();
                 if (SelectedHeadModel != null)
-                    await LoadLineDataAsync(SelectedHeadModel.Id);
+                    await LoadLineDataAsync(SelectedHeadModel.Uid);
             }
             catch (Exception ex)
             {
@@ -340,8 +340,8 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
         {
             var checkedHeads = HeadTable.GetCheckedItems();
             var ids = checkedHeads.Count > 0
-                ? checkedHeads.Select(x => x.Id).Distinct().ToList()
-                : (SelectedHeadModel != null ? new List<int> { SelectedHeadModel.Id } : new List<int>());
+                ? checkedHeads.Select(x => x.Uid).Distinct().ToList()
+                : (SelectedHeadModel != null ? new List<Guid> { SelectedHeadModel.Uid } : new List<Guid>());
 
             if (ids.Count == 0)
             {
@@ -363,7 +363,7 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
                         await _msg.ShowInfoAsync(StatusMessage);
                         await LoadHeadDataAsync();
                         if (SelectedHeadModel != null)
-                            await LoadLineDataAsync(SelectedHeadModel.Id);
+                            await LoadLineDataAsync(SelectedHeadModel.Uid);
                     }
                     else
                     {

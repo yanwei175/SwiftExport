@@ -12,7 +12,7 @@ public class Product : BaseEntity
     public required string Sku { get; set; }
     public string? DescriptionEn { get; set; }
     public string? DescriptionZh { get; set; }
-    public int ColorId { get; set; }
+    public Guid ColorId { get; set; }
     public string? FeaturesEn { get; set; }
     public string? FeaturesZh { get; set; }
     public string? MaterialType { get; set; }
@@ -54,7 +54,7 @@ public class Product : BaseEntity
     public string? DefaultCustomerSku { get; set; }
     public string? DefaultSupplierCode { get; set; }
     public string? DefaultSupplierSku { get; set; }
-    public int CategoryId { get; set; }
+    public Guid CategoryId { get; set; }
 
 
     // Dapper 不会映射这个，因为它没有 setter

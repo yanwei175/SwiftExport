@@ -12,7 +12,7 @@ public class PurchaseOrderLine : BaseEntity
 {
     public int ReadyStatus { get; set; }
     public int LineNumber { get; set; }
-    public int? PurchaseOrderId { get; set; }
+    public required Guid PurchaseOrderId { get; set; }
     public string OrderNo { get; set; } = string.Empty;
     public string Sku { get; set; } = string.Empty;
     public string? CustomerSku { get; set; }

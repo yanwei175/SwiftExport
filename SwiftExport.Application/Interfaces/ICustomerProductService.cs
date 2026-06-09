@@ -1,6 +1,7 @@
 ﻿using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.Wrappers;
+using System;
 
 namespace SwiftExport.Application.Interfaces;
 
@@ -16,13 +17,13 @@ public interface ICustomerProductService
     // ============================================================
 
     /// <summary>按 ID 联表查询单条客户产品</summary>
-    Task<ServiceResult<CustomerProductDto>> GetByIdAsync(int id);
+    Task<ServiceResult<CustomerProductDto>> GetByIdAsync(Guid id);
 
     /// <summary>按客户料号 + 客户 ID 精确查询</summary>
-    Task<ServiceResult<CustomerProductDto>> GetByCustomerSkuAsync(string customerSku, int customerId);
+    Task<ServiceResult<CustomerProductDto>> GetByCustomerSkuAsync(string customerSku, Guid customerId);
 
     /// <summary>联表分页查询</summary>
-    Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetPagedCustomerProductAsync(ProductSearchDto req);
+    Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetPagedCustomerProductAsync(ProductSearchRequest req);
 
     /// <summary>获取所有有产品记录的客户列表</summary>
     Task<ServiceResult<IReadOnlyList<CustomerDto>>> GetAllHaveProductCustomerListAsync();
@@ -32,5 +33,5 @@ public interface ICustomerProductService
     // ============================================================
 
     /// <summary>批量保存（新增 / 修改 / 删除），事务保护</summary>
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestGeneric<CustomerProductDto> batchReq);
+    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<CustomerProductDto> batchReq);
 }

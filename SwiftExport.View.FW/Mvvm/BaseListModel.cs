@@ -73,8 +73,11 @@ namespace SwiftExport.View.FW.Mvvm
             {
                 RaiseCheckedChanged();
             }
+
             RaiseAllState();
+            
             ListStateChanged?.Invoke();
+
         }
 
         #region Valid 验证 状态,验证逻辑在具体的Model里.
@@ -204,7 +207,7 @@ namespace SwiftExport.View.FW.Mvvm
         {
             if (item == null) return;
 
-            if (item.Id == 0)//如果Id为0，说明是新添加的行，直接从集合中移除
+            if (item.Uid == Guid.Empty)//如果 Uid 为空，说明是新添加的行，直接从集合中移除
             {
                 item.PropertyChanged -= OnItemChanged;
                 _allItems.Remove(item);
@@ -239,20 +242,20 @@ namespace SwiftExport.View.FW.Mvvm
         }
 
         /// <summary>获取脏数据变更集，包括新增、修改和删除的项，供批量提交使用。</summary>
-        public BatchRequestGeneric<T> GetChangeSet()
+        public BatchRequestDto<T> GetChangeSet()
         {
-            return new BatchRequestGeneric<T>
+            return new BatchRequestDto<T>
             {
                 AddList = _allItems.Where(x => x.State == ModelState.Added).ToList(),
                 UpdateList = _allItems.Where(x => x.State == ModelState.Modified).ToList(),
-                DeleteIdList = _allItems.Where(x => x.State == ModelState.Deleted).Select(x => x.Id).ToList()
+                DeleteIdList = _allItems.Where(x => x.State == ModelState.Deleted).Select(x => x.Uid).ToList()
             };
         }
 
         /// <summary>获取已删除项的 ID 列表。</summary>
-        public List<int> GetDeletedItems()
+        public List<Guid> GetDeletedItems()
         {
-            return _allItems.Where(x => x.State == ModelState.Deleted).Select(x => x.Id).ToList();
+            return _allItems.Where(x => x.State == ModelState.Deleted).Select(x => x.Uid).ToList();
         }
         /// <summary>获取已选中项的列表。</summary>
         public List<T> GetCheckedItems()
@@ -319,21 +322,20 @@ namespace SwiftExport.View.FW.Mvvm
                 {
                     if (item == null) continue;
 
-                    // 策略 A：按数据库 ID 去重 (针对 Id > 0 的项)
-                    if (item.Id > 0)
+                    // 策略 A：按数据库 Uid 去重 (针对 Uid 非空的项)
+                    if (item.Uid != Guid.Empty)
                     {
-                        // 寻找池中是否有相同 ID 的项（包括那些已标记为 Deleted 的）
-                        var existingById = _allItems.FirstOrDefault(x => x.Id == item.Id);
-                        if (existingById != null)
+                        // 寻找池中是否有相同 Uid 的项（包括那些已标记为 Deleted 的）
+                        var existingByUid = _allItems.FirstOrDefault(x => x.Uid == item.Uid);
+                        if (existingByUid != null)
                         {
-                            // 场景：你删除了 ID 为 100 的行，现在由于某种原因（如刷新）又加载了 ID 为 100 的行。
-                            // 必须踢掉旧的，否则后端会收到“删除 100”和“查询/更新 100”的冲突指令。
-                            existingById.PropertyChanged -= OnItemChanged;
-                            _allItems.Remove(existingById);
-                            Items.Remove(existingById);
+                            // 场景：删除某行后又因刷新加载同 Uid 的行，需移除旧实例避免冲突指令。
+                            existingByUid.PropertyChanged -= OnItemChanged;
+                            _allItems.Remove(existingByUid);
+                            Items.Remove(existingByUid);
                         }
                     }
-                    // 策略 B：按内存引用去重 (针对所有项，特别是 Id = 0 的新增项)
+                    // 策略 B：按内存引用去重 (针对所有项，特别是 Uid 为空的新增项)
                     else if (_allItems.Contains(item))
                     {
                         // 如果这个【特定的内存实例】已经在池子里了，直接跳过，防止重复订阅事件。
@@ -370,15 +372,15 @@ namespace SwiftExport.View.FW.Mvvm
             Items.CollectionChanged -= OnCollectionChanged;
             try
             {
-                // 1. 处理逻辑冲突：按 ID 查找并彻底清理旧实例
-                if (item.Id > 0)
+                // 1. 处理逻辑冲突：按 Uid 查找并彻底清理旧实例
+                if (item.Uid != Guid.Empty)
                 {
-                    var existingById = _allItems.FirstOrDefault(x => x.Id == item.Id);
-                    if (existingById != null)
+                    var existingByUid = _allItems.FirstOrDefault(x => x.Uid == item.Uid);
+                    if (existingByUid != null)
                     {
-                        existingById.PropertyChanged -= OnItemChanged;
-                        _allItems.Remove(existingById);
-                        Items.Remove(existingById); // 确保 UI 也不重复
+                        existingByUid.PropertyChanged -= OnItemChanged;
+                        _allItems.Remove(existingByUid);
+                        Items.Remove(existingByUid); // 确保 UI 也不重复
                     }
                 }
 

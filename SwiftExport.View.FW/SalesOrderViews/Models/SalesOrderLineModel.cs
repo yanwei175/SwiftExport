@@ -1,4 +1,5 @@
 using Mapster;
+using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.View.FW.Mvvm;
 using System;
 using System.ComponentModel;
@@ -6,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace SwiftExport.View.FW.SalesOrderViews.Models
 {
-    public class SalesOrderLineModel : BaseLineModel, IDataErrorInfo
+    public class SalesOrderLineModel : BaseLineModel
     {
         #region 加载数据
         /// <summary>
@@ -14,14 +15,14 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// 这里使用 程序内部修改Scope 包裹，确保“加载数据库数据”不会被识别成用户修改。
         /// 同时在加载结束后重置手工输入标记，避免后续数量/单价变化时自动计算失效。
         /// </summary>
-        public override void LoadFromDto<T>(T dto, bool 抑制清理脏数据 = false)
+        public override void LoadFromDto(object dto, bool 抑制清理脏数据 = false)
         {
             if (dto == null) return;
 
             using (DisabledStateScope())
             {
-                dto.Adapt(this);//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
-                if (this.Id == 0)
+                dto.Adapt(this, dto.GetType(), GetType());//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
+                if (this.Uid == Guid.Empty)
                 { this.MarkAsAdded(); }
 
                 // 根据调用方需要决定是否立即提交/清理脏数据
@@ -49,7 +50,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             _启动体积小计计算 = false;
             _启动美金小计计算 = false;
             _启动人民币小计计算 = false;
-            _启动已发货数量计算 = false;
         }
 
         #region 基础字段
@@ -62,8 +62,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             set => SetProperty(ref _mainImage, value);
         }
 
-        private int _salesOrderId;
-        public int SalesOrderId
+        private Guid _salesOrderId;
+        public Guid SalesOrderId
         {
             get => _salesOrderId;
             set => SetProperty(ref _salesOrderId, value);
@@ -126,7 +126,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         private bool _启动体积小计计算;
         private bool _启动美金小计计算;
         private bool _启动人民币小计计算;
-        private bool _启动已发货数量计算;
 
         #region 数量 / 单价 / 金额（保留原样）
 
@@ -187,44 +186,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
         #endregion
 
-        #region 发货状态（新加字段，用于界面显示和逻辑判断）
-        private decimal _shippedQty;
-        public decimal ShippedQty
-        {
-            get => _shippedQty;
-            set
-            {
-                if (SetProperty(ref _shippedQty, value))
-                    RecalculateAll();
-            }
-        }
-
-        private decimal _unShippedQty;
-        public decimal UnshippedQty
-        {
-            get => _unShippedQty;
-            set => SetProperty(ref _unShippedQty, value);
-        }
-
-        private bool _isPartiallyShipped;
-        public bool IsPartiallyShipped
-        {
-            get => _isPartiallyShipped;
-            set => SetProperty(ref _isPartiallyShipped, value);
-        }
-
-        private bool _isFullyShipped;
-        public bool IsFullyShipped
-        {
-            get => _isFullyShipped;
-            set => SetProperty(ref _isFullyShipped, value);
-        }
-
-
-
-
-
-        #endregion
 
         #region 包装运输信息（保留原样）
 
@@ -341,19 +302,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
                 CalculateCbmSubTotal();
                 CalculateUsdAmount();
                 CalculateRmbAmount();
-                CalculateUnshipped();
             }
         }
 
-        private void CalculateUnshipped()
-        {
-            if (!_启动已发货数量计算)
-            {
-                UnshippedQty = Qty - ShippedQty;
-                IsFullyShipped = ShippedQty >= Qty;
-                IsPartiallyShipped = ShippedQty > 0 && ShippedQty < Qty;
-            }
-        }
 
 
         // 计算箱数（Ctns） = 订单数量（QTY） / PcsOfCarton（PcsOfCarton），向上取整

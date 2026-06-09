@@ -1,4 +1,5 @@
 ﻿using SwiftExport.Contracts.DTOs.Base;
+using SwiftExport.Contracts.SysEnums;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -22,12 +23,12 @@ namespace SwiftExport.Contracts.DTOs.Orders.DependentDemands
         /// <summary>
         /// 来源单据行 ID
         /// </summary>
-        public int SourceLineId { get; set; }
+        public Guid SourceLineId { get; set; }
 
         /// <summary>
         /// 关联的独立需求 ID (毛需求 ID)
         /// </summary>
-        public int IndependentDemandId { get; set; }
+        public Guid IndependentDemandId { get; set; }
 
         #endregion
 
@@ -118,7 +119,7 @@ namespace SwiftExport.Contracts.DTOs.Orders.DependentDemands
         /// <summary>
         /// 状态（RequirementStatusEnums：采购中/已到货/已完成）
         /// </summary>
-        public int StatusFlag { get; set; }
+        public DependentDemandStatusEnum OrderStatus { get; set; }
 
 
         /// <summary>
@@ -149,7 +150,7 @@ namespace SwiftExport.Contracts.DTOs.Orders.DependentDemands
         /// <summary>
         /// 目标执行行 ID
         /// </summary>
-        public int TargetLineId { get; set; }
+        public Guid TargetLineId { get; set; }
 
         #endregion
 

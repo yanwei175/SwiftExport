@@ -1,15 +1,16 @@
 ﻿using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
+using System;
 
 namespace SwiftExport.Application.Interfaces;
 
 public interface IBaseService<TEntity, TDto> where TEntity : class where TDto : class
 {
     // 基础查询
-    Task<bool> ExistsIdAsync(int id);
-    Task<ServiceResult<IReadOnlyList<int>>> GetExistingIdListAsync(IEnumerable<int> idList);
-    Task<ServiceResult<TDto>> GetByIdAsync(int id);
-    Task<ServiceResult<IReadOnlyList<TDto>>> GetByIdListAsync(IEnumerable<int> idList);
+    Task<bool> ExistsIdAsync(Guid uid);
+    Task<ServiceResult<IReadOnlyList<Guid>>> GetExistingIdListAsync(IEnumerable<Guid> uidList);
+    Task<ServiceResult<TDto>> GetByIdAsync(Guid uid);
+    Task<ServiceResult<IReadOnlyList<TDto>>> GetByIdListAsync(IEnumerable<Guid> uidList);
     Task<ServiceResult<TDto?>> GetSingleEntityAsync();
     Task<ServiceResult<IReadOnlyList<TDto>>> GetAllAsync();
     /// <summary>
@@ -40,20 +41,20 @@ public interface IBaseService<TEntity, TDto> where TEntity : class where TDto : 
     /// <param name="whereSql">SQL 过滤条件 (如: CustomerName LIKE @Key)</param>
     /// <param name="parameters">参数对象</param>
     /// <param name="orderBy">排序字段 (必填，因为 OFFSET 需要顺序)</param>
-    Task<ServiceResult<PagedResultDto<TDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "ID DESC");
+    Task<ServiceResult<PagedResultDto<TDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC");
 
     // 增删改 (返回 ID 或 受影响行数)
-    Task<ServiceResult<int>> AddAsync(TDto dto);
+    Task<ServiceResult<Guid>> AddAsync(TDto dto);
     Task<ServiceResult<int>> UpdateAsync(TDto dto);
-    Task<ServiceResult<int>> DeleteSoftAsync(int id);
-    Task<ServiceResult<int>> DeleteAsync(int id);
+    Task<ServiceResult<int>> DeleteSoftAsync(Guid uid);
+    Task<ServiceResult<int>> DeleteAsync(Guid uid);
 
     // 批量增删改 (返回 ID 或 受影响行数)
-    Task<ServiceResult<IReadOnlyList<int>>> AddRangeAsync(IEnumerable<TDto> dtoList);
-    Task<ServiceResult<int>> DeleteRangeAsync(IEnumerable<int> idList);
-    Task<ServiceResult<int>> DeleteRangeSoftAsync(IEnumerable<int> idList);
+    Task<ServiceResult<IReadOnlyList<Guid>>> AddRangeAsync(IEnumerable<TDto> dtoList);
+    Task<ServiceResult<int>> DeleteRangeAsync(IEnumerable<Guid> uidList);
+    Task<ServiceResult<int>> DeleteRangeSoftAsync(IEnumerable<Guid> uidList);
     Task<ServiceResult<int>> UpdateRangeAsync(IEnumerable<TDto> dtoList);
 
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestGeneric<TDto> batchReq);
+    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<TDto> batchReq);
 
 }

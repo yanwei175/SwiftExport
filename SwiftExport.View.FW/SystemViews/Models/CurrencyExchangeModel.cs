@@ -9,28 +9,9 @@ namespace SwiftExport.View.FW.SystemViews.Models
     /// 汇率行模型
     /// 继承 BaseLineModel，支持脏数据追踪与字段级校验
     /// </summary>
-    public class CurrencyExchangeModel : BaseLineModel, IBaseModel, IDataErrorInfo
+    public class CurrencyExchangeModel : BaseLineModel
     {
-        /// <summary>
-        /// 从 DTO 加载数据到 Model（Mapster 映射）
-        /// </summary>
-        public override void LoadFromDto<TDto>(TDto dto, bool 抑制清理脏数据 = false)
-        {
-            if (dto == null) return;
 
-            using (DisabledStateScope())
-            {
-                dto.Adapt(this);
-
-                if (Id == 0)
-                {
-                    MarkAsAdded();
-                }
-
-                if (!抑制清理脏数据)
-                    CommitChanges();
-            }
-        }
 
         private bool _isEnabled = true;
         public bool IsEnabled

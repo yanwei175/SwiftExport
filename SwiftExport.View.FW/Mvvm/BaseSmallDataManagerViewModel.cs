@@ -224,12 +224,12 @@ namespace SwiftExport.View.FW.Mvvm
             StatusMessage = "正在保存...";
 
             // 组装批量请求
-            var request = new BatchRequestGeneric<TDto>
+            var request = new BatchRequestDto<TDto>
             {
                 AddList = dirtyModels.Where(x => x.State == ModelState.Added).Adapt<List<TDto>>(),
                 UpdateList = dirtyModels.Where(x => x.State == ModelState.Modified).Adapt<List<TDto>>(),
-                // ★ 把标记删除的行的 Id 提取出来发送给后端
-                DeleteIdList = dirtyModels.Where(x => x.State == ModelState.Deleted).Select(x => x.Id).ToList()
+                // ★ 把标记删除的行的 Uid 提取出来发送给后端
+                DeleteIdList = dirtyModels.Where(x => x.State == ModelState.Deleted).Select(x => x.Uid).ToList()
             };
 
             try
@@ -259,7 +259,7 @@ namespace SwiftExport.View.FW.Mvvm
 
         protected virtual void AddNewRow()
         {
-            var newModel = new TModel { Id = 0, State = ModelState.Added };
+            var newModel = new TModel { Uid = Guid.Empty, State = ModelState.Added };
             AllItems.Insert(0, newModel);
             StatusMessage = "已添加新行，请录入数据。";
 

@@ -10,7 +10,7 @@ namespace SwiftExport.Core.Entities.Orders;
 public class PackingListLine : BaseEntity
 {
     public required string PackingListNo { get; set; }
-    public required int PackingListHeadId { get; set; }
+    public required Guid PackingListHeadId { get; set; }
     public string? CustomerSku { get; set; }
     public required string Sku { get; set; }
     public required decimal Qty { get; set; } = 0;

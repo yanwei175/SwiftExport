@@ -1,5 +1,6 @@
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.Orders;
 
 namespace SwiftExport.Application.Interfaces
 {
@@ -10,12 +11,7 @@ namespace SwiftExport.Application.Interfaces
     /// </summary>
     public interface ISalesOrderLineService
     {
-        /// <summary>
-        /// 分页查询销售订单行数据源。
-        /// </summary>
-        //Task<ServiceResult<PagedResultDto<SalesOrderLineDto>>> GetPagedSalesOrderLineSourceDtoAsync(SalesOrderLineSourceSearchDto search);
-
-        Task<ServiceResult<PagedResultDto<SalesProductDto>>> GetSalesProductPagedListAsync(SalesProductSearchDto request);
+        Task<ServiceResult<List<SalesOrderLineDto>>> GetLineListByHeadUidAsync(Guid headUid);
 
     }
 }

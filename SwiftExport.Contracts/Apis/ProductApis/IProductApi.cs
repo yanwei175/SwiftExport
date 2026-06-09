@@ -16,7 +16,7 @@ namespace SwiftExport.Contracts.Apis.ProductApis
         // 2. 搜索产品 (分页)
         // Refit 会把 SearchDto 序列化为 JSON 放到 Body 中传递，避开了复杂对象的 URL 序列化问题
         [Post("/search")]
-        Task<ServiceResult<PagedResultDto<ProductDto>>> GetProductPagedListAsync([Body] ProductSearchDto search);
+        Task<ServiceResult<PagedResultDto<ProductDto>>> GetProductPagedListAsync([Body] ProductSearchRequest search);
 
         // 3. 获取单个详情
         [Get("/customerCodes")]

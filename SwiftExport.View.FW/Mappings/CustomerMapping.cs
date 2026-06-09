@@ -42,7 +42,7 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.ShippedBy, src => src.ShippedBy)
 
                 // 基类字段映射（由 BaseDto 提供）
-                .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.Uid, src => src.Uid)
                 .Map(dest => dest.Version, src => src.Version)
                 .IgnoreNullValues(true);
 
@@ -72,7 +72,7 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.EtdSortRemark, src => src.EtdSortRemark)
                 .Map(dest => dest.ShippedBy, src => src.ShippedBy)
 
-                .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.Uid, src => src.Uid)
                 .Map(dest => dest.Version, src => src.Version)
                 .IgnoreNullValues(true);
         }

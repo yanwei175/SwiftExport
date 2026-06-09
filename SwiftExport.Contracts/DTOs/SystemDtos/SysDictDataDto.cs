@@ -8,10 +8,7 @@ namespace SwiftExport.Contracts.DTOs.SystemDtos
     /// </summary>
     public class SysDictDataDto : BaseDto
     {
-        /// <summary>
-        /// 业务变更时间
-        /// </summary>
-        public DateTime? ChangeTime { get; set; }
+
 
         /// <summary>
         /// 字典编码（关联字典类型）

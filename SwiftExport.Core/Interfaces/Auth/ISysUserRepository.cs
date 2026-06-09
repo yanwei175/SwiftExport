@@ -1,4 +1,5 @@
 using SwiftExport.Core.Entities.Auth;
+using System;
 
 namespace SwiftExport.Core.Interfaces.Auth;
 
@@ -10,6 +11,6 @@ public interface ISysUserRepository
     /// <summary>根据用户名查询用户（含 PasswordHash），用于登录验证。</summary>
     Task<SysUser?> GetByUserNameAsync(string userName);
 
-    /// <summary>根据 ID 查询用户。</summary>
-    Task<SysUser?> GetByIdAsync(int id);
+    /// <summary>根据 Uid 查询用户。</summary>
+    Task<SysUser?> GetByIdAsync(Guid uid);
 }

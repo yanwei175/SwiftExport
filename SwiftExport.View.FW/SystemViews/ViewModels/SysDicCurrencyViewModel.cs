@@ -300,7 +300,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
                 StatusMessage = "保存中...";
                 try
                 {
-                    if (EditingItem.Id <= 0)
+                    if (EditingItem.Uid == Guid.Empty)
                     {
                         var addRst = await _currencyApi.CreateAsync(dto);
                         if (!addRst.Success)
@@ -312,7 +312,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
                     }
                     else
                     {
-                        var updRst = await _currencyApi.UpdateAsync(dto.Id, dto);
+                        var updRst = await _currencyApi.UpdateAsync(dto.Uid, dto);
                         if (!updRst.Success)
                         {
                             StatusMessage = "保存失败: " + updRst.Message;
@@ -438,7 +438,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
         private void Create()
         {
             
-            var model = new CurrencyModel { Id = 0 };
+            var model = new CurrencyModel { Uid = Guid.Empty };
             model.MarkAsAdded();
             EditingItem = model;
             IsEditDialogOpen = true;
@@ -458,7 +458,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
         {
             if (item == null) return;
 
-            if (item.Id <= 0)
+            if (item.Uid == Guid.Empty)
             {
                 CurrentTable.Remove(item);
                 return;
@@ -472,7 +472,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
                 StatusMessage = $"正在删除 {item.CurrencyCode} ...";
                 try
                 {
-                    var rst = await _currencyApi.DeleteAsync(item.Id);
+                    var rst = await _currencyApi.DeleteAsync(item.Uid);
                     if (!rst.Success)
                     {
                         StatusMessage = "删除失败: " + rst.Message;

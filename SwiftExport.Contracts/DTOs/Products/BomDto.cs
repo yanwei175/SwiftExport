@@ -8,7 +8,7 @@ namespace SwiftExport.Contracts.DTOs.Products
     public class BomDto : BaseDto
     {
         public string BomNo { get; set; } 
-        public int SubSkuId { get; set; }
+        public Guid SubSkuId { get; set; }
         public string SubSku { get; set; }
         public int Numerator { get; set; } 
         public int Denominator { get; set; }

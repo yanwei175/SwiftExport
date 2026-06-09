@@ -30,7 +30,7 @@ namespace SwiftExport.WebApi.Controllers.Orders
         /// 按选中需求池ID列表转采购。
         /// </summary>
         [HttpPost("convert-to-po/by-ids")]
-        public async Task<ServiceResult<List<string>>> CoverToPoByIdList([FromBody] List<int> req)
+        public async Task<ServiceResult<List<string>>> CoverToPoByIdList([FromBody] List<Guid> req)
         {
             return await service.根据指定净需求行转采购单Async(req);
         }
@@ -62,7 +62,7 @@ namespace SwiftExport.WebApi.Controllers.Orders
         /// 手工指定需求池行供应商并持久化。
         /// </summary>
         [HttpPost("{id}/set-supplier")]
-        public async Task<ServiceResult<bool>> UpdateSupplierAsync(int id, [FromQuery] string supplierCode, [FromQuery] string supplierName = "")
+        public async Task<ServiceResult<bool>> UpdateSupplierAsync(Guid id, [FromQuery] string supplierCode, [FromQuery] string supplierName = "")
         {
             return await service.UpdateSupplierAsync(id, supplierCode, supplierName);
         }

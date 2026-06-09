@@ -18,13 +18,13 @@ public class PackingListController(IPackingListService service)
     }
 
     [HttpGet("{id}/detail")]
-    public async Task<ServiceResult<PackingListDetailDto>> GetDetailByIdAsync(int id)
+    public async Task<ServiceResult<PackingListDetailDto>> GetDetailByIdAsync(Guid id)
     {
         return await service.GetDetailByIdAsync(id);
     }
 
     [HttpPost("detail/save")]
-    public async Task<ServiceResult<int>> SaveDetailAsync([FromBody] PackingListDetailDto request)
+    public async Task<ServiceResult<Guid>> SaveDetailAsync([FromBody] PackingListDetailDto request)
     {
         return await service.SaveDetailAsync(request);
     }

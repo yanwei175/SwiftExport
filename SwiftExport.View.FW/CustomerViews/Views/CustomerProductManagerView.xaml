@@ -8,6 +8,7 @@
              xmlns:vm="clr-namespace:SwiftExport.View.FW.CustomerViews.ViewModels"
              xmlns:mvvm="clr-namespace:SwiftExport.View.FW.Mvvm"
              mc:Ignorable="d"
+             d:Background="White"
              d:DesignHeight="600" d:DesignWidth="1200"
              d:DataContext="{d:DesignInstance vm:CustomerProductManagerViewModel}">
 

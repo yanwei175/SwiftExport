@@ -2,6 +2,7 @@ using Dapper;
 using SwiftExport.Core.Entities.Auth;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure.Data;
+using System;
 
 namespace SwiftExport.Infrastructure.Repositories.Auth;
 
@@ -16,7 +17,7 @@ public class SysUserRepository(DbSession session) : ISysUserRepository
     public async Task<SysUser?> GetByUserNameAsync(string userName)
     {
         const string sql = """
-            SELECT Id, UserName, NickName, PasswordHash, Email, PhoneNumber,
+            SELECT Uid, UserName, NickName, PasswordHash, Email, PhoneNumber,
                    IsActive, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy, IsDeleted
             FROM [SysUser] WITH(NOLOCK)
             WHERE UserName = @UserName AND IsActive = 1 AND (IsDeleted = 0 OR IsDeleted IS NULL)
@@ -24,15 +25,15 @@ public class SysUserRepository(DbSession session) : ISysUserRepository
         return await _session.Connection.QuerySingleOrDefaultAsync<SysUser>(sql, new { UserName = userName });
     }
 
-    /// <summary>根据 ID 查询用户</summary>
-    public async Task<SysUser?> GetByIdAsync(int id)
+    /// <summary>根据 Uid 查询用户</summary>
+    public async Task<SysUser?> GetByIdAsync(Guid uid)
     {
         const string sql = """
-            SELECT Id, UserName, NickName, PasswordHash, Email, PhoneNumber,
+            SELECT Uid, UserName, NickName, PasswordHash, Email, PhoneNumber,
                    IsActive, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy, IsDeleted
             FROM [SysUser] WITH(NOLOCK)
-            WHERE Id = @Id AND IsActive = 1 AND (IsDeleted = 0 OR IsDeleted IS NULL)
+            WHERE Uid = @Uid AND IsActive = 1 AND (IsDeleted = 0 OR IsDeleted IS NULL)
             """;
-        return await _session.Connection.QuerySingleOrDefaultAsync<SysUser>(sql, new { Id = id });
+        return await _session.Connection.QuerySingleOrDefaultAsync<SysUser>(sql, new { Uid = uid });
     }
 }

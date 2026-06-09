@@ -6,7 +6,7 @@ public class PlanOrderItem : BaseEntity
 {
     public string? PlanOrderNo { get; set; } = default!;
     public string? SoNo { get; set; }
-    public long? SoLineID { get; set; }
+    public Guid? SoLineID { get; set; }
     public string? SKU { get; set; }
     public decimal QTY { get; set; } = default!;
     public string? DeliveryTo { get; set; }

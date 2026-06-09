@@ -29,7 +29,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         public SalesOrderModel()
         {
             Header = new SalesOrderHeaderModel();
-            Lines = new SalesOrderLineList(Header);
+            Lines = new SalesOrderLineList();
         }
 
         public void LoadFromDto(SalesOrderDetailDto dto)
@@ -38,9 +38,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
             if (dto.Header != null)
                 Header.LoadFromDto(dto.Header);
-
-            // 中文注释：确保行集合始终绑定当前 Header，加载明细后自动刷新主表汇总字段。
-            Lines.BindHeader(Header);
             Lines.ReLoadRangeFromDtoList(dto.Lines);
         }
     }

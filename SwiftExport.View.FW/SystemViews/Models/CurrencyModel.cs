@@ -9,31 +9,8 @@ namespace SwiftExport.View.FW.SystemViews.Models
     /// 货币行模型
     /// 继承 BaseLineModel，自动获得：状态机、脏数据追踪、撤销/提交、IDataErrorInfo 验证
     /// </summary>
-    public class CurrencyModel : BaseLineModel, IBaseModel, IDataErrorInfo
+    public class CurrencyModel : BaseLineModel
     {
-        /// <summary>
-        /// 从 DTO 加载数据到 Model（Mapster 映射）
-        /// 抑制清理脏数据 = true 时：映射完不立即 CommitChanges（用于 UI 新增行场景）
-        /// </summary>
-        public override void LoadFromDto<TDto>(TDto dto, bool 抑制清理脏数据 = false)
-        {
-            if (dto == null) return;
-
-            using (DisabledStateScope())
-            {
-                // Mapster 将 DTO 属性值映射到 this
-                dto.Adapt(this);
-
-                if (this.Id == 0)
-                {
-                    this.MarkAsAdded(); // 新行标记为 Added 状态
-                }
-
-                // 根据调用方决定是否立即清理脏数据
-                if (!抑制清理脏数据)
-                    CommitChanges();
-            }
-        }
 
         // ============================================================
         // 字段属性区域

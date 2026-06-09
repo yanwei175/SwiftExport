@@ -1,7 +1,7 @@
-﻿using Mapster;
+﻿using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.View.FW.Mvvm;
 using System;
-using System.ComponentModel;
 
 namespace SwiftExport.View.FW.SalesOrderViews.Models
 {
@@ -13,70 +13,46 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
     /// 3. CommitChanges / RollbackChanges
     /// 4. 字段级验证（IDataErrorInfo）
     /// </summary>
-    public class SalesOrderHeaderModel : BaseLineModel, IDataErrorInfo
+    public class SalesOrderHeaderModel : BaseLineModel
     {
-        public bool IsRmbCurrency => Currency == "CNY" || Currency == "RMB"; //提供一个给UI判断是否显示某些字段的属性
-        public override void LoadFromDto<SalesOrderHeaderDto>(SalesOrderHeaderDto dto, bool 抑制清理脏数据 = false) //加载数据方法
-        {
-            if (dto == null) return;
+        public bool IsRmbCurrency => Currency == CurrencyEnum.CNY || Currency == "RMB"; //提供一个给UI判断是否显示某些字段的属性
 
-            using (DisabledStateScope())
-            {
-
-                dto.Adapt(this);//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
-                if (this.Id == 0)
-                { this.MarkAsAdded(); }
-
-                // 根据调用方需要决定是否立即提交/清理脏数据
-                if (!抑制清理脏数据)
-                    CommitChanges();
-            }
-        }
-
-        /// <summary>
-        /// 明细行变化时调用，更新汇总字段（TotalQty、总金额等）
-        /// 这里使用 程序内部修改Scope 包裹，避免“行变化导致的汇总回写”把 Header 误标成用户修改。
-        /// </summary>
-        public void UpdateSummaryFromLines(decimal totalQty, int lineCount, decimal totalAmountOriginalCurrency, decimal totalAmountLocalCurrency)
-        {
-            using (DisabledStateScope())
-            {
-                TotalQty = totalQty;
-                LineCount = lineCount;
-                TotalAmountOriginalCurrency = totalAmountOriginalCurrency;
-                TotalAmountLocalCurrency = totalAmountLocalCurrency;
-            }
-        }
         // ============================================================
         // 基本信息
         // ============================================================
         #region 基本信息
 
-        private int _orderStatus;
-        /// <summary>
-        /// OrderStatus（未发货/部分发货/已发货）
-        /// </summary>
-        public int OrderStatus
+        private SalesOrderStatusEnum _orderStatus;
+        public SalesOrderStatusEnum OrderStatus
         {
             get => _orderStatus;
             set => SetProperty(ref _orderStatus, value);
         }
+        public string OrderStatusText => OrderStatus.ToString(); //直接使用枚举的 ToString() 方法，或者你也可以自定义文本映射逻辑
+
+
+        private ConfirmationStatusEnum _confirmationStatus;
+        public ConfirmationStatusEnum ConfirmationStatus
+        {
+            get => _confirmationStatus;
+            set => SetProperty(ref _confirmationStatus, value);
+        }
+        public string ConfirmationStatusText => ConfirmationStatus.ToString();
+
+
 
         private string _orderNo;
-        /// <summary>
-        /// OrderNo（系统生成或手工录入）
-        /// </summary>
         public string OrderNo
         {
             get => _orderNo;
             set => SetProperty(ref _orderNo, value);
         }
 
-        private int _customerId;
+        private Guid _customerId;
         /// <summary>
         /// 客户 ID（外键）
         /// </summary>
-        public int CustomerId
+        public Guid CustomerId
         {
             get => _customerId;
             set => SetProperty(ref _customerId, value);
@@ -148,7 +124,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             }
         }
 
-
         private decimal _exchangeRate;
         /// <summary>
         /// ExchangeRate（用于本币金额计算）
@@ -190,65 +165,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         }
 
         #endregion
-
-        // ============================================================
-        // 汇总冗余字段（UI 可绑定，自动计算）
-        // ============================================================
-        #region 汇总冗余字段
-        /// <summary>
-        /// 订单总数量（由行集合自动计算）
-        /// </summary>
-        /// <remarks>
-        /// 该属性由行集合自动计算得出，无需手动设置。
-        /// </remarks>
-        private decimal _totalQty;
-        public decimal TotalQty
-        {
-            get => _totalQty;
-            set => SetProperty(ref _totalQty, value);
-        }
-        /// <summary>
-        /// LineCount(由行集合自动计算)
-        /// </summary>
-        private int _lineCount;
-        public int LineCount
-        {
-            get => _lineCount;
-            set => SetProperty(ref _lineCount, value);
-        }
-        /// <summary>
-        /// 订单总发货数量（由行集合自动计算）
-        /// </summary>
-        private decimal _totalShippedQty;
-        public decimal TotalShippedQty
-        {
-            get => _totalShippedQty;
-            set => SetProperty(ref _totalShippedQty, value);
-        }
-
-        /// <summary>
-        /// 订单未发货数量（由行集合自动计算）
-        /// </summary>
-        private decimal _totalUnshippedQty;
-        public decimal TotalUnshippedQty
-        {
-            get => _totalUnshippedQty;
-            set => SetProperty(ref _totalUnshippedQty, value);
-        }
-
-        /// <summary>
-        /// 订单部分发货数量（由行集合自动计算）
-        /// </summary>
-
-        private decimal _totalPartiallyShippedQty;
-        public decimal TotalPartiallyShippedQty
-        {
-            get => _totalPartiallyShippedQty;
-            set => SetProperty(ref _totalPartiallyShippedQty, value);
-        }
-
-        #endregion
-
 
 
         // ============================================================
@@ -452,15 +368,16 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         // ============================================================
         #region 系统字段
 
-        private int _approvalStatus;
+        private ApprovalStatusEnum _approvalStatus;
         /// <summary>
         /// ApprovalStatusEnum（未审批/已审批/驳回）
         /// </summary>
-        public int ApprovalStatus
+        public ApprovalStatusEnum ApprovalStatus
         {
             get => _approvalStatus;
             set => SetProperty(ref _approvalStatus, value);
         }
+        public string ApprovalStatusText => ApprovalStatus.ToString();
 
         /// <summary>
         /// 是否删除（软删除）
@@ -472,17 +389,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// </summary>
         public bool IsLocked { get; set; }
 
-        public string CreatedBy { get; set; }
-        public string UpdatedBy { get; set; }
-
-        public DateTime? CreatedDate { get; set; }
-        public DateTime? UpdatedDate { get; set; }
 
         #endregion
-
-
-
-
 
 
         // ============================================================

@@ -8,10 +8,6 @@ namespace SwiftExport.Core.Entities.Systems
     /// </summary>
     public class SysDictData : BaseEntity
     {
-        /// <summary>
-        /// 业务变更时间
-        /// </summary>
-        public DateTime? ChangeTime { get; set; }
 
         /// <summary>
         /// 字典编码（关联字典类型）

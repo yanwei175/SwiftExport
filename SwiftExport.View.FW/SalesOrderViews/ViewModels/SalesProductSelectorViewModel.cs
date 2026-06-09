@@ -93,8 +93,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             set => SetProperty(ref _matchResultCollection, value);
         }
 
-        private int? _selectedCustomerId;
-        public int? SelectedCustomerId
+        private Guid? _selectedCustomerId;
+        public Guid? SelectedCustomerId
         {
             get => _selectedCustomerId;
             set
@@ -105,8 +105,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 }
             }
         }
-        private int? _selectedColorId;
-        public int? SelectedColorId
+        private Guid? _selectedColorId;
+        public Guid? SelectedColorId
         {
             get => _selectedColorId;
             set
@@ -336,8 +336,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         {
             return new SalesProductSearchDto
             {
-                CustomerId = SelectedCustomerId ?? 0,
-                ColorId = SelectedColorId ?? 0,
+                CustomerId = SelectedCustomerId ?? Guid.Empty,
+                ColorId = SelectedColorId ?? Guid.Empty,
                 BatchKeywords = SplitLines(SearchText),
                 BatchCustomerSkuList = SplitLines(MatchCustomerSkuText),
                 PageIndex = PageIndex,

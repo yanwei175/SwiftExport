@@ -25,7 +25,7 @@ public class PackingListHeadRepository(RepositoryBaseContext context)
             transaction: Transaction);
     }
 
-    public Task<PackingListDetailDto?> GetDetailByHeadIdAsync(int headId)
+    public Task<PackingListDetailDto?> GetDetailByHeadIdAsync(Guid headId)
     {
         throw new NotImplementedException();
     }

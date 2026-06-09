@@ -20,8 +20,8 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
                         t2.FeaturesZh,
                         t2.MainImage
                     FROM Bom t1
-                    LEFT JOIN Product t2 ON t1.SubSkuId = t2.Id
-                    LEFT JOIN ProductColor t3 ON t2.ColorId = t3.Id
+                    LEFT JOIN Product t2 ON t1.SubSkuId = t2.Uid
+                    LEFT JOIN ProductColor t3 ON t2.ColorId = t3.Uid
                     WHERE t1.BomNo = @BomNo";
 
         return await Connection.QueryAsync<BomDto>(sql, new { BomNo = bomNo });

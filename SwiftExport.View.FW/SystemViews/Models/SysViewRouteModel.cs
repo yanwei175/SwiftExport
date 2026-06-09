@@ -1,31 +1,12 @@
 ﻿using Mapster;
 using SwiftExport.View.FW.Mvvm;
+using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 namespace SwiftExport.View.FW.SystemViews.Models
 {
-    public class SysViewRouteModel : BaseLineModel, IDataErrorInfo
+    public class SysViewRouteModel : BaseLineModel
     {
-        public override void LoadFromDto<Tdto>(Tdto dto, bool 抑制清理脏数据 = false)
-        {
-            if (dto == null) return;
-
-            using (DisabledStateScope())
-            {
-                // Mapster 将 DTO 属性值映射到 this
-                dto.Adapt(this);
-
-                if (this.Id == 0)
-                {
-                    this.MarkAsAdded(); // 新行标记为 Added 状态
-                }
-
-                // 根据调用方决定是否立即清理脏数据
-                if (!抑制清理脏数据)
-                    CommitChanges();
-            }
-        }
-
         #region 字段属性
 
         private string _targetViewKey;

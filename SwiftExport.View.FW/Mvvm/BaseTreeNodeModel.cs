@@ -115,9 +115,9 @@ namespace SwiftExport.View.FW.Mvvm
         /// <summary>
         /// 获取该节点及其下所有子节点的 ID 列表（用于批量操作）
         /// </summary>
-        public List<int> GetDescendantIds()
+        public List<Guid> GetDescendantIds()
         {
-            var ids = new List<int> { this.Id };
+            var ids = new List<Guid> { this.Uid };
             foreach (var child in Children)
             {
                 ids.AddRange(child.GetDescendantIds());

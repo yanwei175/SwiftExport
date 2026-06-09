@@ -26,7 +26,7 @@ public class InDependentDemandController(IIndependentDemandServices service) : C
     /// 按选中需求池ID列表转采购。
     /// </summary>
     [HttpPost("convert-to-do/by-ids")]
-    public async Task<ServiceResult<List<IndependentDemandDto>>> CoverToDependByIdList([FromBody] List<int> req)
+    public async Task<ServiceResult<List<IndependentDemandDto>>> CoverToDependByIdList([FromBody] List<Guid> req)
     {
         return await service.根据选定毛需求拆解至净需求Async(req);
     }
@@ -37,7 +37,7 @@ public class InDependentDemandController(IIndependentDemandServices service) : C
     /// <param name="orderIds">请求回退Id列表</param>
     /// <returns>回退成功列表</returns>
     [HttpPost("batch-rollback")]
-    public async Task<ServiceResult<List<IndependentDemandDto>>> BatchRollBackAsync([FromBody] List<int> orderIds)
+    public async Task<ServiceResult<List<IndependentDemandDto>>> BatchRollBackAsync([FromBody] List<Guid> orderIds)
     {
         return await service.批量回退草稿(orderIds);
     }

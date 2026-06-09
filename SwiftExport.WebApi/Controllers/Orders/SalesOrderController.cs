@@ -1,71 +1,20 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
+using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Entities.Orders;
-using SwiftExport.WebApi.Controllers.Base;
 using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.Orders;
 
 /// <summary>
-/// 销售订单控制器。
-/// 覆盖 ISalesOrderApi 中定义的所有路由与行为。
+/// 采购入库控制器。
 /// </summary>
-public class SalesOrderController(ISalesOrderHeadService service,ISalesOrderLineService lineService)
-    : BaseController<SalesOrderHeader, SalesOrderHeaderDto>(service)
+[ApiController]
+[Route("api/[controller]")]
+public class SalesOrderController(ISalesOrderManagerService managerService, ISalesOrderDetailService detailService, ISalesOrderLineService lineService) : ControllerBase
 {
-    #region 兼容旧接口（已有）
-
-    /// <summary>
-    /// 中文注释：获取销售订单详情（订单头 + 明细行）。
-    /// </summary>
-    [HttpGet("{orderId}/detail")]
-    public async Task<ServiceResult<SalesOrderDetailDto>> GetSalesOrderDetailAsync(int orderId)
-    {
-        return await service.GetSalesOrderDetailAsync(orderId);
-    }
-
-    /// <summary>
-    /// 中文注释：创建销售订单。
-    /// </summary>
-    [HttpPost("create")]
-    [PreventDuplicateRequest]
-    public async Task<ServiceResult<int>> CreateSalesOrderAsync([FromBody] SalesOrderDetailDto request)
-    {
-        return await service.CreateSalesOrderAsync(request);
-    }
-
-    /// <summary>
-    /// 中文注释：更新销售订单。
-    /// </summary>
-    [HttpPut("{orderId}/update")]
-    [PreventDuplicateRequest]
-    public async Task<ServiceResult<bool>> UpdateSalesOrderAsync(int orderId, [FromBody] SalesOrderDetailDto request)
-    {
-        return await service.UpdateSalesOrderAsync(orderId, request);
-    }
-
-    /// <summary>
-    /// 中文注释：删除单个销售订单。
-    /// </summary>
-    [HttpDelete("{orderId}")]
-    public async Task<ServiceResult<bool>> DeleteSalesOrderAsync(int orderId)
-    {
-        return await service.DeleteSalesOrderAsync(orderId);
-    }
-
-    /// <summary>
-    /// 中文注释：批量删除销售订单。
-    /// </summary>
-    [HttpPost("batch-delete")]
-    public async Task<ServiceResult<bool>> BatchDeleteSalesOrderAsync([FromBody] List<int> orderIds)
-    {
-        return await service.BatchDeleteSalesOrderAsync(orderIds);
-    }
-
-    #endregion
 
     #region 订单管理页（主从表）
 
@@ -73,32 +22,58 @@ public class SalesOrderController(ISalesOrderHeadService service,ISalesOrderLine
     /// 中文注释：分页查询订单头列表（用于 SalesOrderManagerViewModel 主表）。
     /// 支持多选状态、订单号/发票号、客户代码、颜色、包含 SKU 等筛选条件。
     /// </summary>
-    [HttpPost("headers/search")]
-    public async Task<ServiceResult<PagedResultDto<SalesOrderHeaderDto>>> GetSalesOrderHeaderPagedListAsync([FromBody] SalesOrderManagerSearchDto search)
+    [HttpPost("headers/search-manager")]
+    public async Task<ServiceResult<PagedResultDto<SalesOrderHeaderManagerDto>>> GetSalesOrderHeaderManagerPagedListAsync([FromBody] SalesOrderManagerSearchDto search)
     {
-        return await service.GetSalesOrderHeaderPagedListAsync(search);
+        return await managerService.GetSalesOrderHeaderManagerPagedListAsync(search);
+    }
+
+    /// <summary>根据订单 ID 获取订单头信息（用于 SalesOrderManagerViewModel 从表动态加载）。</summary>
+    [HttpGet("{orderId}/header-manager")]
+    public async Task<ServiceResult<SalesOrderHeaderManagerDto>> GetSalesOrderHeaderManagerByIdAsync(Guid orderId)
+    {
+        return await managerService.GetSalesOrderHeaderManagerByIdAsync(orderId);
+    }
+
+    /// <summary>根据订单 ID 获取订单行列表（用于 SalesOrderManagerViewModel 从表动态加载）。</summary>
+    [HttpGet("{orderId}/line-manager")]
+    public async Task<ServiceResult<List<SalesOrderLineManagerDto>>> GetSalesOrderLineManagerAsync(Guid orderId)
+    {
+        return await managerService.GetSalesOrderLineManagerAsync(orderId);
     }
 
     /// <summary>
-    /// 中文注释：根据订单 ID 获取订单行列表（用于 SalesOrderManagerViewModel 从表动态加载）。
+    /// 删除单个销售订单
     /// </summary>
-    [HttpGet("{orderId}/lines")]
-    public async Task<ServiceResult<List<SalesOrderLineDto>>> GetSalesOrderLinesAsync(int orderId)
+    [HttpDelete("{orderId}")]
+    public async Task<ServiceResult<bool>> DeleteSalesOrderAsync(Guid orderId)
     {
-        return await service.GetSalesOrderLinesAsync(orderId);
+        return ServiceResult<bool>.Fail("false");
+        //return await managerService.DeleteSalesOrderAsync(orderId);
     }
 
-    /// <summary>
-    /// 中文注释：订单管理页保存接口。
-    /// 一次提交：
-    /// 1. 主表头批量变更（新增/更新/删除）
-    /// 2. 当前选中订单的行变更（新增/更新/删除）
-    /// </summary>
-    [HttpPost("manager/save")]
+    /// <summary>批准一张销售订单。</summary>
+    [HttpPost("confirm")]
     [PreventDuplicateRequest]
-    public async Task<ServiceResult<bool>> SaveSalesOrderManagerAsync([FromBody] SalesOrderManagerSaveDto request)
+    public async Task<ServiceResult<ConfirmationItemResponse>> ConfirmSalesOrderAsync([FromBody] ConfirmationItemRequest request)
     {
-        return await service.SaveSalesOrderManagerAsync(request);
+        return await managerService.ConfirmSalesOrderAsync(request);
+    }
+
+    /// <summary>批量批准销售订单。</summary>
+    [HttpPost("batch-confirm")]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<BatchConfirmationResponse>> BatchConfirmSalesOrdersAsync([FromBody] BatchConfirmationRequest request)
+    {
+        return await managerService.BatchConfirmSalesOrdersAsync(request);
+    }
+
+    /// <summary>驳回一张销售订单。</summary>
+    [HttpPost("/cancel-confirm")]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<ConfirmationItemResponse>> CancelConfirmSalesOrderAsync([FromBody] ConfirmationItemRequest request)
+    {
+        return await managerService.CancelConfirmSalesOrderAsync(request);
     }
 
 
@@ -107,70 +82,47 @@ public class SalesOrderController(ISalesOrderHeadService service,ISalesOrderLine
     #region 订单详情页（单据编辑）
 
     /// <summary>
+    /// 中文注释：获取销售订单详情（订单头 + 明细行）。
+    /// </summary>
+    [HttpGet("{orderId}/detail")]
+    public async Task<ServiceResult<SalesOrderDetailDto>> GetSalesOrderDetailAsync(Guid orderId)
+    {
+        return await detailService.GetSalesOrderDetailByHeadIdAsync(orderId);
+    }
+
+    /// <summary>
     /// 中文注释：订单详情页一键保存接口（新增/编辑由后端根据 Header.Id 判断）。
     /// </summary>
     [HttpPost("detail/save")]
     [PreventDuplicateRequest]
-    public async Task<ServiceResult<int>> SaveSalesOrderDetailAsync([FromBody] SalesOrderDetailDto request)
+    public async Task<ServiceResult<SalesOrderSaveDetailResponse>> SaveSalesOrderDetailAsync([FromBody] SalesOrderSaveDetailRequest request)
     {
-        return await service.SaveSalesOrderDetailAsync(request);
+        return await detailService.SaveSalesOrderAsync(request);
     }
 
+    /// <summary>中文注释：根据订单 ID 获取订单行列表。 </summary>
+    [HttpGet("{orderId}/lines")]
+    public async Task<ServiceResult<List<SalesOrderLineDto>>> GetSalesOrderLinesAsync(Guid orderId)
+    {
+        return await lineService.GetLineListByHeadUidAsync(orderId);
+    }
 
     [HttpPost("lines/sales-products/search")]
     public async Task<ServiceResult<PagedResultDto<SalesProductDto>>> GetSalesProductPagedListAsync([FromBody] SalesProductSearchDto request)
     {
-        return await lineService.GetSalesProductPagedListAsync(request);
+        return await detailService.GetSalesProductPagedListAsync(request);
     }
 
-    /// <summary>
-    /// 中文注释：获取销售订单下一单号（SO）。
-    /// </summary>
+    /// <summary>中文注释：获取销售订单下一单号(SO)</summary>
     [HttpPost("next-order-no")]
-    public async Task<ServiceResult<DocumentNoResultDto>> GetNextOrderNoAsync([FromBody] DocumentNoRequestDto request)
-    {
-        return await service.GetNextOrderNoAsync(request);
-    }
-
-    /// <summary>
-    /// 批准一张销售订单。
-    /// </summary>
-    [HttpPost("{orderId}/approve")]
-    [PreventDuplicateRequest]   
-    public async Task<ServiceResult<bool>> ApproveSalesOrderAsync(int orderId)
-    {
-        return await service.ApproveSalesOrderAsync(orderId);
-    }
-
-    /// <summary>
-    /// 驳回一张销售订单。
-    /// </summary>
-    [HttpPost("{orderId}/reject")]
     [PreventDuplicateRequest]
-    public async Task<ServiceResult<bool>> RejectSalesOrderAsync(int orderId)
+    public async Task<ServiceResult<DocumentNoResultDto>> GetNextOrderNoAsync()
     {
-        return await service.RejectSalesOrderAsync(orderId);
+        return await detailService.GetNextSalesOrderNoAsync();
     }
 
-    /// <summary>
-    /// 批量批准销售订单。
-    /// </summary>
-    [HttpPost("batch-approve")]
-    [PreventDuplicateRequest]
-    public async Task<ServiceResult<List<int>>> BatchApproveSalesOrdersAsync([FromBody] List<int> orderIds)
-    {
-        return await service.BatchApproveSalesOrdersAsync(orderIds);
-    }
 
-    /// <summary>
-    /// 批量驳回销售订单。
-    /// </summary>
-    [HttpPost("batch-reject")]
-    [PreventDuplicateRequest]
-    public async Task<ServiceResult<List<string>>> BatchRejectSalesOrdersAsync([FromBody] List<int> orderIds)
-    {
-        return await service.BatchRejectSalesOrdersAsync(orderIds);
-    }
+
 
     #endregion
 }

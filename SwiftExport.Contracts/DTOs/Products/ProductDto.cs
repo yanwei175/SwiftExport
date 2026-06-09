@@ -1,4 +1,5 @@
 ﻿using SwiftExport.Contracts.DTOs.Base;
+using System;
 
 
 namespace SwiftExport.Contracts.DTOs.Products
@@ -33,8 +34,8 @@ namespace SwiftExport.Contracts.DTOs.Products
         public decimal? CbmOfCarton { get; set; }
 
         // 聚合信息 (由后端 SQL Join 查好填进来，UI 直接显示)
-        public int CategoryId { get; set; }
-        public int ColorId { get; set; }
+        public Guid CategoryId { get; set; }
+        public Guid ColorId { get; set; }
 
         public string CategoryName { get; set; }
         public string SupplierName { get; set; }

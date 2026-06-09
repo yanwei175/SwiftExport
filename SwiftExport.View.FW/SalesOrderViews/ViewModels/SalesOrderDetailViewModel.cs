@@ -1,14 +1,12 @@
 ﻿using GalaSoft.MvvmLight.Command;
 using Mapster;
 using SwiftExport.Contracts.Apis.CustomerApis;
-using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.CustomerViews.ViewModels;
 using SwiftExport.View.FW.CustomerViews.Views;
@@ -18,11 +16,9 @@ using SwiftExport.View.FW.SalesOrderViews.Models;
 using SwiftExport.View.FW.SalesOrderViews.Views;
 using SwiftExport.View.FW.Services;
 using SwiftExport.View.FW.SystemViews.Models;
-using SwiftExport.View.FW.WarehouseViews.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,18 +26,10 @@ using System.Windows.Input;
 
 namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 {
-    /// <summary>
-    /// 销售订单详情编辑 ViewModel
-    /// 负责：
-    /// 1. 主表字段（订单头）
-    /// 2. 行集合模型（SalesOrderLineList）
-    /// 3. 保存按钮状态（CanSave）
-    /// 4. API 调用（保存/加载）
-    /// </summary>
     public class SalesOrderDetailViewModel : ViewModelBaseEx
     {
-        /// <summary> 弹窗后的结果, 通常为新建或编辑的订单 ID </summary>
-        public int ResultData { get; set; }
+        /// <summary> 弹窗后的结果, 通常为新建或编辑的订单 Uid </summary>
+        public Guid ResultData { get; set; }
 
         /// <summary> 关闭弹窗的委托 </summary>
         public event EventHandler<bool> RequestClose;
@@ -64,10 +52,12 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             // 初始化行集合模型
             OrderLines = new SalesOrderLineList();
 
-            // 中文注释：初始化订单头，并立即与明细集合建立绑定关系，
-            // 这样行集合汇总变化时可以自动回写到订单头。
             OrderHeader = new SalesOrderHeaderModel();
-            OrderLines.BindHeader(OrderHeader);
+            OrderHeader.PropertyChanged += (s, e) =>
+            {
+                RaisePropertyChanged(nameof(CanSave));
+                SaveCommand.RaiseCanExecuteChanged();
+            };
 
             // 初始化命令
             AddLineCommand = new RelayCommand(AddLine);
@@ -77,6 +67,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             SaveCommand = new RelayCommand(async () => await SaveAsync(), () => CanSave);
             RegisterBusyNotifyCommand(SaveCommand);
             OrderLines.RegisterDirtyNotifyCommand(SaveCommand);
+            
+
 
             DeleteLineCommand = new RelayCommand(DeleteLine, () => (OrderLines.CheckedCount > 0 && IsNotBusy) || SelectedLine != null);
             OrderLines.RegisterCheckedNotifyCommand(DeleteLineCommand);
@@ -96,17 +88,16 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
             SearchSuggestionsProductCommand = new RelayCommand<string>(async keyword => await SearchSuggestionsProductAsync(keyword));
 
-            // 中文注释：统一监听订单行列表状态变化，集中刷新 VM 代理属性。
-            OrderLines.ListStateChanged += OnOrderLinesListStateChanged;
+            OrderHeader.Currency = CurrencyEnum.USD;
 
-            OrderHeader.Currency = "USD";
             _ = LoadFilterDataAsync();
+
         }
 
         #region 字段 / 事件
 
-        // 中文注释：保留订单 ID 与服务依赖，兼容现有调用入口。
-        public int SalesOrderId { get; set; }
+        // 中文注释：保留订单 Uid 与服务依赖，兼容现有调用入口。
+        public Guid SalesOrderId { get; set; }
         private readonly ISalesOrderApi _salesOrderApi;
         private readonly ICustomerApi _customerApi;
         private readonly ICustomerProductApi _customerProductApi;
@@ -132,13 +123,13 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         public ObservableCollection<string> IncotermList
         {
             get => _incotermList;
-            set { _incotermList = value; RaisePropertyChanged(nameof(IncotermList)); } // 必须发通知
+            set => Set(ref _incotermList, value);
         }
         private ObservableCollection<string> _paymentMethodList = new ObservableCollection<string>();
         public ObservableCollection<string> PaymentMethodList
         {
             get => _paymentMethodList;
-            set { _paymentMethodList = value; RaisePropertyChanged(nameof(PaymentMethodList)); } // 必须发通知
+            set => Set(ref _paymentMethodList, value);
         }
 
 
@@ -191,45 +182,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         #endregion
 
 
+        #region 行集合模型
 
-
-        // ============================================================
-        // 订单头（Header）
-        // ============================================================
-        #region 订单头,xaml绑定到集合下面的属性上.
-        /// <summary>
-        /// 订单头（Header）
-        /// </summary>
-        private SalesOrderHeaderModel _orderHeader;
-        public SalesOrderHeaderModel OrderHeader
-        {
-            get => _orderHeader;
-            set
-            {
-                if (_orderHeader == value) return;
-
-                // 中文注释：切换 Header 时先解除旧对象事件，避免重复订阅。
-                if (_orderHeader != null)
-                    _orderHeader.PropertyChanged -= Header_PropertyChanged;
-
-                if (SetProperty(ref _orderHeader, value))
-                {
-                    if (_orderHeader != null)
-                        _orderHeader.PropertyChanged += Header_PropertyChanged;
-
-                    // 中文注释：Header 替换后，明细集合需要重新绑定新的订单头实例。
-                    OrderLines?.BindHeader(_orderHeader);
-
-                    RaisePropertyChanged(nameof(CanSave));
-                    SaveCommand?.RaiseCanExecuteChanged();
-                }
-            }
-        }
-
-        /// <summary>
-        /// 中文注释：详情页状态提示信息。
-        /// 当前主要用于弹出搜索前的前置校验提示（例如未选择客户）。
-        /// </summary>
         private string _statusMessage = "准备就绪";
         public string StatusMessage
         {
@@ -237,78 +191,28 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             set => SetProperty(ref _statusMessage, value);
         }
 
-        private void Header_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private SalesOrderHeaderModel _orderHeader;
+        public SalesOrderHeaderModel OrderHeader
         {
-            // 中文注释：Header 任意字段变化都可能影响主表校验和脏状态，因此统一刷新 CanSave。
-            RaisePropertyChanged(nameof(CanSave));
-            SaveCommand.RaiseCanExecuteChanged();
+            get => _orderHeader;
+            set => SetProperty(ref _orderHeader, value);
         }
 
-        #endregion
-
-        // ============================================================
-        // 从表（OrderLines）
-        // ============================================================
-        #region 行集合模型
         public SalesOrderLineList OrderLines { get; }
 
         private SalesOrderLineModel _selectedLine;
-        /// <summary>
-        /// 当前选中行
-        /// </summary>
+
+        /// <summary>当前选中行</summary>
         public SalesOrderLineModel SelectedLine
         {
             get => _selectedLine;
             set
             {
                 if (SetProperty(ref _selectedLine, value))
+                {
                     DeleteLineCommand.RaiseCanExecuteChanged();
+                }
             }
-        }
-
-        /// <summary>
-        /// 中文注释：表头全选复选框代理属性。
-        /// XAML 中的 CheckBoxDataGridTemplateColumn 直接绑定 VM 的 IsAllChecked，
-        /// 实际逻辑由 OrderLines 统一维护。
-        /// </summary>
-        public bool IsAllChecked
-        {
-            get => OrderLines.IsAllChecked;
-            set
-            {
-                if (OrderLines.IsAllChecked == value)
-                    return;
-
-                OrderLines.IsAllChecked = value;
-                RaisePropertyChanged(nameof(IsAllChecked));
-                RaisePropertyChanged(nameof(SelectedCount));
-                RaisePropertyChanged(nameof(HasSelectedItems));
-            }
-        }
-
-        /// <summary>
-        /// 中文注释：当前已勾选行数，主要用于工具栏或状态栏展示。
-        /// </summary>
-        public int SelectedCount => OrderLines.CheckedCount;
-
-        /// <summary>
-        /// 中文注释：是否存在勾选项，可用于批量操作按钮启用状态。
-        /// </summary>
-        public bool HasSelectedItems => OrderLines.CheckedCount > 0;
-
-        /// <summary>
-        /// 中文注释：订单行集合状态统一回调。
-        /// 这里集中刷新 Save/选择相关代理属性，避免在多个事件里重复写同样逻辑。
-        /// </summary>
-        private void OnOrderLinesListStateChanged()
-        {
-            RaisePropertyChanged(nameof(CanSave));
-            RaisePropertyChanged(nameof(IsAllChecked));
-            RaisePropertyChanged(nameof(SelectedCount));
-            RaisePropertyChanged(nameof(HasSelectedItems));
-            SaveCommand?.RaiseCanExecuteChanged();
-            DeleteLineCommand?.RaiseCanExecuteChanged();
-            InvertCheckCommand?.RaiseCanExecuteChanged();
         }
 
         #endregion
@@ -317,12 +221,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         // ============================================================
         #region 保存按钮状态（CanSave）
 
-        /// <summary>
-        /// 保存按钮是否可用：
-        /// 1. 主表字段有效
-        /// 2. 行集合全部有效（IsAllValid）
-        /// 3. 存在脏数据（主表或行）
-        /// </summary>
         public bool CanSave =>
             OrderHeader != null &&
             OrderHeader.IsValid &&
@@ -331,9 +229,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         #endregion
 
-        // ============================================================
-        // 命令
-        // ============================================================
         #region 命令
 
         public RelayCommand AddLineCommand { get; }
@@ -342,14 +237,12 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         public RelayCommand SaveCommand { get; }
         public RelayCommand CancelCommand { get; }
         public RelayCommand CostomerSelectorCommand { get; }
-        public ICommand ItemCheckedChangedCommand { get; }//只是为了xaml里不触发绑定警告
         public RelayCommand InvertCheckCommand { get; }
         public RelayCommand GetNewSoNoCommand { get; }
-
+        public RelayCommand MatchProductByCustomerSkuCommand { get; } = new RelayCommand(() => { /* 预留 SKU 联动命令实现 */ });
+        public RelayCommand MatchProductBySkuCommand { get; } = new RelayCommand(() => { /* 预留 SKU 联动命令实现 */ });
         #endregion
-        // ============================================================
-        // 行操作
-        // ============================================================
+
         #region 行操作
 
         private void AddLine()
@@ -367,14 +260,16 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             if (checkItems.Count == 0)
             {
                 if (SelectedLine == null) return;
-                if (SelectedLine.Id <= 0)
+
+                if (SelectedLine.Uid == Guid.Empty)
                 {
-                    var tempIndex = OrderLines.Items.IndexOf(SelectedLine);
-                    OrderLines.Remove(SelectedLine);
+                    var item = SelectedLine;
+                    SelectedLine = null;
+                    var tempIndex = OrderLines.Items.IndexOf(item);
+                    OrderLines.Remove(item);
                     try
                     {
-                        SelectedLine = OrderLines.Items[tempIndex];
-
+                        SelectedLine = OrderLines.Items[tempIndex - 1];
                     }
                     catch
                     {
@@ -399,13 +294,12 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         private void BatchGetSalesProduct()
         {
 
-
             try
             {
                 // 中文注释：创建销售产品选择器 VM，初始客户默认取当前订单客户。
                 var selectorVm = new SalesProductSelectorViewModel(_salesOrderApi, _customerApi, null);
 
-                if (OrderHeader != null && OrderHeader.CustomerId > 0)
+                if (OrderHeader != null && OrderHeader.CustomerId != Guid.Empty)
                 {
                     selectorVm.SelectedCustomerId = OrderHeader.CustomerId;
                 }
@@ -462,7 +356,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
                 // 中文注释：新加行强制标记为新增状态，确保保存时可提交。
                 model.MarkAsAdded();
-                model.SalesOrderId = OrderHeader.Id;
+                model.SalesOrderId = Guid.Empty;
                 model.OrderNo = OrderHeader.OrderNo;
 
                 OrderLines.Items.Add(model);
@@ -535,7 +429,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 return;
             }
 
-            OrderHeader.CustomerId = customer.Id;
+            OrderHeader.CustomerId = customer?.Uid ?? Guid.Empty;
             OrderHeader.CustomerCode = customer.CustomerCode;
 
             // 中文注释：客户基础联系信息映射到订单收货信息，减少手工重复录入。
@@ -560,11 +454,11 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             }
 
             //调用Api查找对应客户的所有产品信息填充到缓存
-            _ = LoadCustomerProductsToCacheAsync(customer.Id);
+            _ = LoadCustomerProductsToCacheAsync(customer?.Uid ?? Guid.Empty);
 
         }
 
-        private async Task LoadCustomerProductsToCacheAsync(int id)
+        private async Task LoadCustomerProductsToCacheAsync(Guid id)
         {
             var result = await _salesOrderApi.GetSalesProductPagedListAsync(
                 new SalesProductSearchDto
@@ -581,7 +475,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         private async Task GetNewSoNo()
         {
-            var rst = await _salesOrderApi.GetNextOrderNoAsync(new DocumentNoRequestDto() { DocType = DocumentTypeStaticsEnum.SalesOrder });
+            var rst = await _salesOrderApi.GetNextOrderNoAsync();
             if (rst == null || !rst.Success || rst.Data == null)
             {
                 if (_msg != null)
@@ -626,9 +520,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             OrderLines.Items.Clear();
         }
 
-        public async Task InitForEditAsync(int headId)
+        public async Task InitForEditAsync(Guid headId)
         {
-            if (headId <= 0) return;
+            if (headId == Guid.Empty) return;
 
             var hdRst = await _salesOrderApi.GetByIdAsync(headId);
             if (hdRst == null || !hdRst.Success || hdRst.Data == null) return;
@@ -687,21 +581,20 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                         return;
                     }
 
-                    // 中文注释：将需要删除的行 ID 添加到 DTO 的 DeletedLineIds 集合中。
-                    var saveDto = new SalesOrderDetailDto
+                    var saveRequest = new SalesOrderSaveDetailRequest
                     {
                         Header = OrderHeader.Adapt<SalesOrderHeaderDto>(),
-                        Lines = OrderLines.Items.Adapt<List<SalesOrderLineDto>>(),
-                        DeletedLineIds = changeSet.DeleteIdList
+                        Items = OrderLines.Items.Adapt<List<SalesOrderLineDto>>(),
+                        DeletedItemIds = changeSet.DeleteIdList
                     };
 
                     // 发送给 API
-                    var result = await _salesOrderApi.SaveSalesOrderDetailAsync(saveDto);
+                    var result = await _salesOrderApi.SaveSalesOrderDetailAsync(saveRequest);
 
                     if (result.Success)
                     {
                         _msg?.ShowCardAsync("保存成功,订单已保存到服务器。正在刷新数据...", 2000);
-                        ResultData = result.Data;
+                        ResultData = result.Data.Header.Uid;
                         // 中文注释：通知窗口以“保存成功”结果关闭，兼容现有 ShowDialog 流程。
                         CloseWindow?.Invoke(true);
                     }
@@ -856,7 +749,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 new SalesProductSearchDto
                 {
                     BatchKeywords = new List<string> { key },
-                    CustomerId = OrderHeader?.CustomerId ?? 0,
+                    CustomerId = OrderHeader?.CustomerId ?? Guid.Empty,
                     PageIndex = 1,
                     PageSize = 100
                 });

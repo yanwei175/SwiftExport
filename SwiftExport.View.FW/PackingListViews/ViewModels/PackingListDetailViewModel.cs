@@ -44,14 +44,14 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
             OrderHead = new PackingListHeadModel();
             LineTable.Clear();
         }
-        public async Task InitFromEdit(int headId)
+        public async Task InitFromEdit(Guid headUid)
         {
-            var rst = await _pkApi.GetDetailByIdAsync(headId);
+            var rst = await _pkApi.GetDetailByUidAsync(headUid);
             if (rst != null)
             {
                 using (BusyScope())
                 {
-                    OrderHead.LoadFromDto<PackingListHeadDto>(rst.Data.Header);
+                    OrderHead.LoadFromDto(rst.Data.Header);
                     LineTable.ReLoadRangeFromDtoList(rst.Data.Lines);
 
                 }
@@ -174,8 +174,8 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
         private void ItemCheckedChanged() { }
         private async void RefreshLineTable()
         {
-            if (OrderHead.Id == 0) return;
-            var rst = await _pkApi.GetLinesByHeadIdAsync(OrderHead.Id);
+            if (OrderHead.Uid == Guid.Empty) return;
+            var rst = await _pkApi.GetLinesByHeadUidAsync(OrderHead.Uid);
             if (rst != null)
             {
                 using (BusyScope())

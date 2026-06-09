@@ -14,15 +14,12 @@ namespace SwiftExport.Contracts.DTOs.Orders
         /// </summary>
         public int ReadyStatus { get; set; }
 
-        public string Even { get; set; }
-        public string Status { get; set; }
-
         /// <summary>
         /// 行号。
         /// </summary>
         public int LineNumber { get; set; }
 
-        public int? PurchaseOrderId { get; set; }
+        public Guid? PurchaseOrderId { get; set; }
         public string OrderNo { get; set; } = string.Empty;
         public string Sku { get; set; } = string.Empty;
         public string CustomerSku { get; set; }
@@ -83,6 +80,6 @@ namespace SwiftExport.Contracts.DTOs.Orders
         /// <summary>
         /// 手动创建或修改时，关联的净需求 ID 集合
         /// </summary>
-        public List<int> DemandIdList { get; set; } = new List<int>();
+        public List<Guid> DemandIdList { get; set; } = new List<Guid>();
     }
 }

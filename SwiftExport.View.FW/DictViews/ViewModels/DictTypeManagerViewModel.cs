@@ -111,7 +111,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         {
             var model = new DictTypeModel
             {
-                Id = 0, // 新增行 ID 默认为 0 或负数，表示未持久化
+                Uid = Guid.Empty, // 新增时 UID 为空，保存时由后端生成
                 DictCode = "",
                 DictName = "",
                 IsSystem = false
@@ -129,8 +129,8 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         {
 
             if (item == null) return;
-            var id = item.Id;
-            if (id <= 0)
+            var uid = item.Uid;
+            if (uid == Guid.Empty)
             {
                 CurrentTable.Remove(item);
                 return;
@@ -144,7 +144,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
                 StatusMessage = $"正在删除 {item.DictName} ...";
                 try
                 {
-                    var rst = await _dictTypeApi.DeleteAsync(id);
+                    var rst = await _dictTypeApi.DeleteAsync(uid);
 
                     if (!rst.Success)
                     {
@@ -279,7 +279,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
                 StatusMessage = "保存中...";
                 try
                 {
-                    if (EditingItem.Id <= 0)
+                    if (EditingItem.Uid == Guid.Empty)
                     {
                         // 新增
                         var addRst = await _dictTypeApi.CreateAsync(dto);
@@ -292,7 +292,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
                     }
                     else
                     {
-                        var rst = await _dictTypeApi.UpdateAsync(dto.Id, dto);
+                        var rst = await _dictTypeApi.UpdateAsync(dto.Uid, dto);
                         if (!rst.Success)
                         {
                             StatusMessage = "保存失败: " + rst.Message;

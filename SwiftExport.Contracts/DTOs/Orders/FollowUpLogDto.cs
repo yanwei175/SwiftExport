@@ -1,4 +1,5 @@
 using SwiftExport.Contracts.DTOs.Base;
+using System;
 
 namespace SwiftExport.Contracts.DTOs.Orders
 {
@@ -10,7 +11,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
         /// <summary>
         /// 关联的采购订单行 Id。
         /// </summary>
-        public int RefLineId { get; set; }
+        public Guid RefLineId { get; set; }
 
         /// <summary>
         /// 跟进备注内容。

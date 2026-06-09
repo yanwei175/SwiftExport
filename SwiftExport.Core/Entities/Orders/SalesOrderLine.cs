@@ -6,8 +6,9 @@ namespace SwiftExport.Core.Entities.Orders;
 public class SalesOrderLine : BaseEntity
 {
     public int LineNumber { get; set; }
-    public required int SalesOrderId { get; set; }
+    public required Guid SalesOrderId { get; set; }
     public string? OrderNo { get; set; }
+    public bool IsNonStandard { get; set; } = false;
 
     public required string Sku { get; set; }
     public string? LinkSku { get; set; }
@@ -19,7 +20,7 @@ public class SalesOrderLine : BaseEntity
 
     public decimal? CnyPrice { get; set; }
     public decimal? UsdPrice { get; set; }
-    public decimal? Qty { get; set; }
+    public decimal Qty { get; set; }
 
     public decimal? CnyAmount { get; set; }
     public decimal? UsdAmount { get; set; }

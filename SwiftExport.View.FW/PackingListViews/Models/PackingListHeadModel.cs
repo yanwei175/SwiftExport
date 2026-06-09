@@ -14,25 +14,6 @@ namespace SwiftExport.View.FW.PackingListViews.Models
     /// </summary>
     public class PackingListHeadModel : BaseLineModel
     {
-        /// <summary>
-        /// 中文注释：DTO 装载入口，当前类尚未实现映射逻辑。
-        /// </summary>
-        public override void LoadFromDto<Tdto>(Tdto dto, bool 抑制清理脏数据 = false)
-        {
-            if (dto == null) return;
-
-            using (DisabledStateScope())
-            {
-                dto.Adapt(this);//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
-                if (this.Id == 0)
-                { this.MarkAsAdded(); }
-
-                // 根据调用方需要决定是否立即提交/清理脏数据
-                if (!抑制清理脏数据)
-                    CommitChanges();
-            }
-        }
-
         #region 属性
 
         /// <summary>装箱单号</summary>

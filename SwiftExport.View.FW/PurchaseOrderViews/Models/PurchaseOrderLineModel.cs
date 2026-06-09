@@ -11,44 +11,12 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
     /// </summary>
     public class PurchaseOrderLineModel : BaseLineModel
     {
-        /// <summary>
-        /// 中文注释：从 DTO 加载，兼容 BaseListModel 的批量装载机制。
-        /// </summary>
-        public override void LoadFromDto<Tdto>(Tdto dto, bool 抑制清理脏数据 = false)
-        {
-            if (!(dto is PurchaseOrderLineDto lineDto)) return;
-
-            using (DisabledStateScope())
-            {
-                lineDto.Adapt(this);
-                if (this.Id == 0)
-                { this.MarkAsAdded(); }
-                if (!抑制清理脏数据)
-                {
-                    CommitChanges();
-                }
-            }
-        }
 
         private int _readyStatus;
         public int ReadyStatus
         {
             get { return _readyStatus; }
             set { SetProperty(ref _readyStatus, value); }
-        }
-
-        private string _even;
-        public string Even
-        {
-            get { return _even; }
-            set { SetProperty(ref _even, value); }
-        }
-
-        private string _status;
-        public string Status
-        {
-            get { return _status; }
-            set { SetProperty(ref _status, value); }
         }
 
         private int _lineNumber;
@@ -58,8 +26,8 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
             set { SetProperty(ref _lineNumber, value); }
         }
 
-        private int? _purchaseOrderId;
-        public int? PurchaseOrderId
+        private Guid? _purchaseOrderId;
+        public Guid? PurchaseOrderId
         {
             get { return _purchaseOrderId; }
             set { SetProperty(ref _purchaseOrderId, value); }
@@ -221,8 +189,8 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.Models
             set { SetProperty(ref _supplyType, value); }
         }
 
-        private int? _demandId;
-        public int? DemandId
+        private Guid? _demandId;
+        public Guid? DemandId
         {
             get { return _demandId; }
             set { SetProperty(ref _demandId, value); }

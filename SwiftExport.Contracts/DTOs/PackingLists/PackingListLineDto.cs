@@ -8,14 +8,14 @@ namespace SwiftExport.Contracts.DTOs.PackingLists
     public class PackingListLineDto : BaseDto
     {
         public  string PackingListNo { get; set; }
-        public  int PackingListHeadId { get; set; }
+        public  Guid PackingListHeadId { get; set; }
         public  string Sku { get; set; }
         public  decimal Qty { get; set; } = 0;
         public string CustomerSku { get; set; }
         public string SealNo { get; set; }
         public string InvoiceNo { get; set; }
         public string SalesOrderNo { get; set; }
-        public int? SoLineId { get; set; }
+        public Guid? SoLineId { get; set; }
 
         public string DescriptionEn { get; set; }
         public string FinishEn { get; set; }

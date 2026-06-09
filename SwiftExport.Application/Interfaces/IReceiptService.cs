@@ -23,7 +23,7 @@ namespace SwiftExport.Application.Interfaces
         /// <summary>
         /// 执行采购入库：生成入库单、回写采购行与需求池、更新库存。
         /// </summary>
-        Task<ServiceResult<SaveReceiveDetailResultDto>> PostReceiveDetialAsync(int headId);
+        Task<ServiceResult<SaveReceiveDetailResultDto>> PostReceiveDetialAsync(Guid headId);
 
         Task<ServiceResult<SaveReceiveDetailResultDto>> SaveDetailAsync(SaveDocumentRequestBase<ReceiveHeadDto, ReceiveLineDto> request);
     }

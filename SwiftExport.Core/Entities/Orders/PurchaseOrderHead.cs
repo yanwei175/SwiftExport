@@ -1,3 +1,5 @@
+using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -9,13 +11,15 @@ namespace SwiftExport.Core.Entities.Orders;
 [Table("PurchaseOrderHead")]
 public class PurchaseOrderHead : BaseEntity
 {
+    public PurchaseOrderStatusEnum OrderStatus { get; set; } = PurchaseOrderStatusEnum.未确认;
+    public ConfirmationStatusEnum ConfirmationStatus { get; set; } = ConfirmationStatusEnum.待确认;
+
 
     /// <summary>
     /// 关联字段：与明细保持一致，便于链路追踪。
     /// </summary>
     public required string OrderNo { get; set; }
 
-    public int OrderStatus { get; set; }
     public string? BoNo { get; set; }
     public string? SalesOrderNo { get; set; }
     public string? CustomerPoNo { get; set; }
@@ -38,8 +42,6 @@ public class PurchaseOrderHead : BaseEntity
     public string? LogoType { get; set; }
 
     public string? ReviewedBy { get; set; }
-    public int ApprovalStatus { get; set; }
-    public string? ApprovedBy { get; set; }
     public string? PoFolder { get; set; }
     public string? ZheKouBeiZhu { get; set; }
     public string? Remark { get; set; }

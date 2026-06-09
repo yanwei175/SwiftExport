@@ -1,5 +1,6 @@
 using Dapper;
 using SwiftExport.Infrastructure.Data;
+using System;
 using System.Security.Claims;
 
 namespace SwiftExport.WebApi.Middlewares;
@@ -18,8 +19,8 @@ public class DevUserMiddleware(
     private readonly IConfiguration _config = config;
     private readonly IWebHostEnvironment _env = env;
 
-    // 缓存 dev 用户 ID，避免每次请求都查 DB
-    private static int? _cachedDevUserId;
+    // 缓存 dev 用户 Uid，避免每次请求都查 DB
+    private static Guid? _cachedDevUserId;
     private static readonly SemaphoreSlim _semaphore = new(1, 1);
 
     public async Task InvokeAsync(HttpContext context)
@@ -58,8 +59,8 @@ public class DevUserMiddleware(
         return authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>从 DB 查询 dev 用户 ID（线程安全缓存）</summary>
-    private static async Task<int?> GetDevUserIdAsync(HttpContext context, string devUserName)
+    /// <summary>从 DB 查询 dev 用户 Uid（线程安全缓存）</summary>
+    private static async Task<Guid?> GetDevUserIdAsync(HttpContext context, string devUserName)
     {
         if (_cachedDevUserId.HasValue)
             return _cachedDevUserId;
@@ -75,12 +76,12 @@ public class DevUserMiddleware(
             if (dbSession == null) return null;
 
             const string sql = """
-                SELECT TOP 1 Id FROM [SysUser] WITH(NOLOCK)
+                SELECT TOP 1 Uid FROM [SysUser] WITH(NOLOCK)
                 WHERE UserName = @UserName AND IsActive = 1 AND (IsDeleted = 0 OR IsDeleted IS NULL)
                 """;
-            var id = await dbSession.Connection.ExecuteScalarAsync<int?>(sql, new { UserName = devUserName });
-            _cachedDevUserId = id;
-            return id;
+            var uid = await dbSession.Connection.ExecuteScalarAsync<Guid?>(sql, new { UserName = devUserName });
+            _cachedDevUserId = uid;
+            return uid;
         }
         finally
         {

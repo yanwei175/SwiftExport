@@ -207,7 +207,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         {
             var model = new DictDataModel
             {
-                Id = 0,
+                Uid = Guid.Empty,
                 DictCode = DictCode,
                 DataNameEn = string.Empty,
                 DataNameZh = string.Empty,
@@ -300,7 +300,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
                 StatusMessage = "±£¥Ê÷–...";
                 try
                 {
-                    if (EditingItem.Id <= 0)
+                    if (EditingItem.Uid == Guid.Empty)
                     {
                         var addRst = await _dictDataApi.CreateAsync(dto);
                         if (!addRst.Success)
@@ -312,7 +312,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
                     }
                     else
                     {
-                        var updRst = await _dictDataApi.UpdateAsync(dto.Id, dto);
+                        var updRst = await _dictDataApi.UpdateAsync(dto.Uid, dto);
                         if (!updRst.Success)
                         {
                             StatusMessage = "±£¥Ê ß∞‹: " + updRst.Message;
@@ -343,7 +343,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
         {
             if (item == null) return;
 
-            if (item.Id <= 0)
+            if (item.Uid == Guid.Empty)
             {
                 CurrentTable.Remove(item);
                 return;
@@ -363,7 +363,7 @@ namespace SwiftExport.View.FW.DictViews.ViewModels
                 StatusMessage = "…æ≥˝÷–...";
                 try
                 {
-                    var rst = await _dictDataApi.DeleteAsync(item.Id);
+                    var rst = await _dictDataApi.DeleteAsync(item.Uid);
                     if (!rst.Success)
                     {
                         StatusMessage = "…æ≥˝ ß∞‹: " + rst.Message;

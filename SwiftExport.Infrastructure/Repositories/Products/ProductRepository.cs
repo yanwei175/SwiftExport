@@ -46,16 +46,16 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         return [.. rst];
     }
 
-    public async Task<PagedResult<ProductDto>> GetPagedProductDtoAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Id DESC")
+    public async Task<PagedResult<ProductDto>> GetPagedProductDtoAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "CreatedDate DESC")
     {
-        // 1. 规范化排序字段（如果外部传的是 Id，变为 t.Id 防止多表冲突）
+        // 1. 规范化排序字段（如果外部传的是 Id，变为 t.Uid 防止多表冲突）
         if (string.IsNullOrWhiteSpace(orderBy))
-            orderBy = "t.Id DESC";
+            orderBy = "t.CreatedDate DESC";
         else
             orderBy = $"t.{OrderByRegex().Replace(orderBy, "")}";
 
         if (string.IsNullOrWhiteSpace(orderBy))
-            orderBy = "Id DESC";
+            orderBy = "CreatedDate DESC";
 
         var sb = new System.Text.StringBuilder("WHERE (t.IsDeleted = 0 OR t.IsDeleted IS NULL)");
         var parameters = new DynamicParameters();
@@ -85,8 +85,8 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
                                 pkg.GwOfCarton,
                                 pkg.CbmOfCarton
                             FROM [{TableName}] p WITH(NOLOCK)
-                            LEFT JOIN [ProductColor] pc WITH(NOLOCK) ON p.ColorId = pc.Id AND pc.IsDeleted = 0
-                            LEFT JOIN [ProductCategory] pat WITH(NOLOCK) ON p.CategoryId = pat.Id AND pat.IsDeleted = 0
+                            LEFT JOIN [ProductColor] pc WITH(NOLOCK) ON p.ColorId = pc.Uid AND pc.IsDeleted = 0
+                            LEFT JOIN [ProductCategory] pat WITH(NOLOCK) ON p.CategoryId = pat.Uid AND pat.IsDeleted = 0
     
                             -- 使用 OUTER APPLY 代替 LEFT JOIN
                             OUTER APPLY (
@@ -96,7 +96,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
                                     pp.Gw_KG as GwOfCarton,
                                     pp.Cbm as CbmOfCarton
                                 FROM [ProductPackage] pp 
-                                WHERE pp.ProductId = p.Id 
+                                WHERE pp.ProductId = p.Uid 
                                   AND pp.IsDeleted = 0
                                 -- 核心逻辑：优先取默认的，如果没有默认的，取装数最多的（通常是外箱）
                                 ORDER BY pp.IsDefault DESC, pp.PcsPerPackage DESC 

@@ -211,12 +211,12 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
         private async Task LoadDetailAsync()
         {
             LineItems.Clear();
-            if (_packingListApi == null || SelectedHeader == null || SelectedHeader.Id <= 0)
+            if (_packingListApi == null || SelectedHeader == null || SelectedHeader.Uid == Guid.Empty)
                 return;
 
             try
             {
-                var rst = await _packingListApi.GetDetailByIdAsync(SelectedHeader.Id);
+                var rst = await _packingListApi.GetDetailByUidAsync(SelectedHeader.Uid);
                 if (rst.Success && rst.Data != null)
                 {
                     var hds = new List<PackingListLineModel>();
@@ -297,10 +297,10 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
             if (_packingListApi == null || SelectedHeader == null)
                 return;
 
-            if (SelectedHeader.Id <= 0)
+            if (SelectedHeader.Uid == Guid.Empty)
             {
                 await SaveAsync();
-                if (SelectedHeader == null || SelectedHeader.Id <= 0)
+                if (SelectedHeader == null || SelectedHeader.Uid == Guid.Empty)
                     return;
             }
 
@@ -315,7 +315,7 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
                 {
                     var rst = await _packingListApi.PostPackingListAsync(new PackingListPostRequestDto
                     {
-                        PackingListId = SelectedHeader.Id,
+                        PackingListId = SelectedHeader.Uid,
                         AllowNegativeStock = allowNegativeStock,
                         Operator = Environment.UserName
                     });
@@ -410,7 +410,7 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
                     return;
                 }
 
-                var detail = await _salesOrderApi.GetSalesOrderDetailAsync(header.Id);
+                var detail = await _salesOrderApi.GetSalesOrderDetailAsync(header.Uid);
                 if (!detail.Success || detail.Data == null)
                 {
                     await _dialogService.ShowWarningAsync("引入销售单失败：" + detail.Message);
@@ -428,7 +428,7 @@ namespace SwiftExport.View.FW.PackingListViews.ViewModels
                         Sku = line.Sku,
                         CustomerSku = line.CustomerSku,
                         DescriptionEn = line.DescriptionEn,
-                        SoLineId = line.Id,
+                        SoLineId = line.Uid,
                         SalesOrderNo = detail.Data.Header.OrderNo
                     });
                 }

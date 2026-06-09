@@ -10,7 +10,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
     public class SalesOrderLineDto : BaseDto
     {
         public int LineNumber { get; set; }
-        public int SalesOrderId { get; set; }
+        public Guid SalesOrderId { get; set; }
         public string OrderNo { get; set; }
 
         public string Sku { get; set; }
@@ -20,12 +20,12 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         /// <summary>
         /// 客户产品主键 Id（来源于 CustomerProduct.Id，用于前端后续联动或回填时定位）。
         /// </summary>
-        public int? CustomerProductId { get; set; }
+        public Guid? CustomerProductId { get; set; }
 
         /// <summary>
         /// 产品主键 Id（来源于 Product.Id）。
         /// </summary>
-        public int? ProductId { get; set; }
+        public Guid? ProductId { get; set; }
 
         public string CustomerSku { get; set; }
 

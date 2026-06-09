@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using Microsoft.Extensions.Logging;
+using SwiftExport.Contracts.Common;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auth;
@@ -34,7 +35,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         // 这里的排除列表你可以根据自己的 BaseEntity 随意调整
         var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "Id", "IsDeleted", "CreateTime", "UpdateTime", "CreatedTime", "UpdatedTime"
+                "IsDeleted", "CreateTime", "UpdateTime", "CreatedTime", "UpdatedTime"
             };
 
         return [.. typeof(T).GetProperties()
@@ -43,33 +44,33 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     }
 
 
-    public virtual async Task<bool> ExistsIdAsync(int id)
+    public virtual async Task<bool> ExistsIdAsync(Guid uid)
     {
-        var sql = $"SELECT COUNT(1) FROM [{TableName}] WITH(NOLOCK) WHERE [Id] = @Id";
-        return await Connection.ExecuteScalarAsync<int>(sql, new { Id = id }, transaction: Transaction) > 0;
+        var sql = $"SELECT COUNT(1) FROM [{TableName}] WITH(NOLOCK) WHERE [Uid] = @Uid";
+        return await Connection.ExecuteScalarAsync<int>(sql, new { Uid = uid }, transaction: Transaction) > 0;
     }
-    public virtual async Task<IReadOnlyList<int>> GetExistingIdListAsync(IEnumerable<int> idList, bool withUpdLock = false)
+    public virtual async Task<IReadOnlyList<Guid>> GetExistingIdListAsync(IEnumerable<Guid> uidList, bool withUpdLock = false)
     {
-        if (idList == null || !idList.Any()) return [];
+        if (uidList == null || !uidList.Any()) return [];
         var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
-        var sql = $"SELECT [Id] FROM [{TableName}] {lockHint} WHERE [Id] IN @Ids";
-        var rst = await Connection.QueryAsync<int>(sql, new { Ids = idList }, transaction: Transaction);
+        var sql = $"SELECT [Uid] FROM [{TableName}] {lockHint} WHERE [Uid] IN @Uids";
+        var rst = await Connection.QueryAsync<Guid>(sql, new { Uids = uidList }, transaction: Transaction);
         return [.. rst];
     }
 
-    public virtual async Task<T?> GetByIdAsync(int id, bool withUpdLock = false)
+    public virtual async Task<T?> GetByIdAsync(Guid uid, bool withUpdLock = false)
     {
         var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
-        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [Id] = @Id AND (IsDeleted = 0 OR IsDeleted IS NULL)";
-        return await Connection.QuerySingleOrDefaultAsync<T>(sql, new { Id = id }, transaction: Transaction);
+        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [Uid] = @Uid AND (IsDeleted = 0 OR IsDeleted IS NULL)";
+        return await Connection.QuerySingleOrDefaultAsync<T>(sql, new { Uid = uid }, transaction: Transaction);
     }
 
-    public virtual async Task<IReadOnlyList<T>> GetByIdListAsync(IEnumerable<int> idList, bool withUpdLock = false)
+    public virtual async Task<IReadOnlyList<T>> GetByIdListAsync(IEnumerable<Guid> uidList, bool withUpdLock = false)
     {
-        if (idList == null || !idList.Any()) return [];
+        if (uidList == null || !uidList.Any()) return [];
         var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
-        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [Id] IN @Ids AND (IsDeleted = 0 OR IsDeleted IS NULL)";
-        var rst = await Connection.QueryAsync<T>(sql, new { Ids = idList }, transaction: Transaction);
+        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [Uid] IN @Uids AND (IsDeleted = 0 OR IsDeleted IS NULL)";
+        var rst = await Connection.QueryAsync<T>(sql, new { Uids = uidList }, transaction: Transaction);
         return [.. rst];
     }
 
@@ -167,12 +168,12 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     /// <param name="pageSize">每页条数</param>
     /// <param name="orderBy">排序字段 (例如 "ID DESC")，必填，否则分页会报错</param>
     /// <returns>分页结果</returns>
-    public virtual async Task<PagedResult<T>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Id DESC")
+    public virtual async Task<PagedResult<T>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
     {
         // 🛡️ 安全墙：清洗 orderBy
         if (string.IsNullOrWhiteSpace(orderBy))
         {
-            orderBy = "Id DESC";
+            orderBy = "CreatedDate DESC";
         }
         else
         {
@@ -229,30 +230,26 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     // 增删改 (Write) - 使用 Output 这里的 Id 为 int
     // =============================================================
 
-    public virtual async Task<int> AddAsync(T entity)
+    public virtual async Task<Guid> AddAsync(T entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
 
         // 自动填充审计字段（CreatedBy/CreatedDate/UpdatedBy/UpdatedDate）
         _auditStamp.StampForInsert(entity);
         entity.IsDeleted = false; // 确保新增时 IsDeleted 字段为 false
+        entity.Uid = GuidSequentialGenerator.NewGuid(); // 预先生成 Uid，避免后续查询时无法获取到主键值
         if (entity.Version <= 0) entity.Version = 1;
         // 使用静态缓存的属性列表，不用每次都反射
         var columns = string.Join(", ", _writeableProps.Select(p => $"[{p}]"));
         var paramsName = string.Join(", ", _writeableProps.Select(p => $"@{p}"));
 
-        var sql = $@"INSERT INTO [{TableName}] ({columns}) VALUES ({paramsName});
-                         SELECT CAST(SCOPE_IDENTITY() AS INT);";
+        var sql = $@"INSERT INTO [{TableName}] ({columns}) VALUES ({paramsName});";
 
-        var newId = await Connection.ExecuteScalarAsync<int>(sql, entity, transaction: Transaction);
+        await Connection.ExecuteAsync(sql, entity, transaction: Transaction);
 
-        // 回写 Id
-        var idProp = typeof(T).GetProperty("Id");
-        if (idProp != null && idProp.CanWrite) idProp.SetValue(entity, newId);
-
-        return newId;
+        return entity.Uid;
     }
-    public virtual async Task<int> UpdateAsync(T entity)
+    public virtual async Task<T> UpdateAsync(T entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
         // 自动填充审计字段（UpdatedBy/UpdatedDate 强制刷新）
@@ -267,7 +264,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         // ★ Version 从 writeableProps 排除，由数据库自增
         var setClause = string.Join(", ",
             _writeableProps
-                .Where(p => p != "Version")
+                .Where(p => p != "Version" && p != "Uid")
                 .Select(p => $"[{p}] = @{p}"))
             + ", [Version] = [Version] + 1";
 
@@ -275,49 +272,44 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         var sql = $@"
                     UPDATE [{TableName}] 
                     SET {setClause}
-                    OUTPUT INSERTED.[Id], INSERTED.[Version]
-                    WHERE [Id] = @Id AND [Version] = @OriginalVersion";
+                    OUTPUT INSERTED.*
+                    WHERE [Uid] = @Uid AND [Version] = @OriginalVersion";
 
         var parameters = new DynamicParameters(entity);
         parameters.Add("OriginalVersion", originalVersion);
-        var result = await Connection.QuerySingleOrDefaultAsync<UpdateResult>(sql, parameters, transaction: Transaction);
+        var result = await Connection.QuerySingleOrDefaultAsync<T>(sql, parameters, transaction: Transaction);
         if (result == null)
         {
             throw new DBConcurrencyException(
-                $"[{TableName}] 更新失败：数据已被其他用户修改（Id={entity.Id}, Version={originalVersion}）。");
+                $"[{TableName}] 更新失败：数据已被其他用户修改（Uid={entity.Uid}, Version={originalVersion}）。");
         }
-
-        // ★ 用数据库返回值更新实体
-        entity.Version = result.Version;
-
-        return 1;
-
+        return result;
     }
 
-    public virtual async Task<int> DeleteSoftAsync(int id)
+    public virtual async Task<int> DeleteSoftAsync(Guid uid)
     {
-        var sql = $"UPDATE [{TableName}] SET UpdatedDate = {DateTime.Now}, IsDeleted = 1 WHERE [Id] = @Id";
-        return await Connection.ExecuteAsync(sql, new { Id = id }, transaction: Transaction);
+        var sql = $"UPDATE [{TableName}] SET UpdatedDate = {DateTime.Now}, IsDeleted = 1 WHERE [Uid] = @Uid";
+        return await Connection.ExecuteAsync(sql, new { Uid = uid }, transaction: Transaction);
     }
 
-    public virtual async Task<int> DeleteAsync(int id, bool softDelete = true)
+    public virtual async Task<int> DeleteAsync(Guid uid, bool softDelete = true)
     {
         string sql;
         if (softDelete)
         {
-            sql = $"UPDATE [{TableName}] SET UpdatedDate = {DateTime.Now}, IsDeleted = 1 WHERE [Id] = @Id";
+            sql = $"UPDATE [{TableName}] SET UpdatedDate = {DateTime.Now}, IsDeleted = 1 WHERE [Uid] = @Uid";
         }
         else
         {
-            sql = $"DELETE FROM [{TableName}] WHERE [Id] = @Id";
+            sql = $"DELETE FROM [{TableName}] WHERE [Uid] = @Uid";
         }
-        return await Connection.ExecuteAsync(sql, new { Id = id }, transaction: Transaction);
+        return await Connection.ExecuteAsync(sql, new { Uid = uid }, transaction: Transaction);
     }
 
     // =============================================================
     // 批量操作 (Batch Write)
     // =============================================================
-    public virtual async Task<IReadOnlyList<int>> AddRangeAsync(IEnumerable<T> entities)
+    public virtual async Task<IReadOnlyList<Guid>> AddRangeAsync(IEnumerable<T> entities)
     {
         if (entities == null) throw new ArgumentException("实体集合不能为空");
         var entityList = entities.ToList();
@@ -329,6 +321,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
             // 自动审计打戳（CreatedBy/CreatedDate/UpdatedBy/UpdatedDate）
             _auditStamp.StampForInsert(entity);
             entity.IsDeleted = false; // 确保批量插入时 IsDeleted 字段为 false
+            entity.Uid = GuidSequentialGenerator.NewGuid(); // 预先生成 Uid，避免后续查询时无法获取到主键值
             if (entity.Version <= 0) entity.Version = 1;
         }
         // 1. 预先获取 PropertyInfo
@@ -361,58 +354,58 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
 
         var sql = $@"
                     INSERT INTO [{TableName}] ({columns})
-                    OUTPUT INSERTED.ID
+                    OUTPUT INSERTED.[Uid]
                     VALUES {string.Join(", ", valueRows)};
                     ";
 
         // 3. 执行 (直接用 Connection 和 Transaction 属性)
-        var newIds = (await Connection.QueryAsync<int>(
+        var newUids = (await Connection.QueryAsync<Guid>(
                             sql,
                             parameters,
                             transaction: Transaction)).ToList();
 
-        // 4. 回写 ID
-        var idProperty = typeof(T).GetProperty("Id");
-        if (idProperty != null && idProperty.CanWrite)
+        // 4. 回写 Uid
+        var uidProperty = typeof(T).GetProperty("Uid");
+        if (uidProperty != null && uidProperty.CanWrite)
         {
-            for (int i = 0; i < newIds.Count && i < entityList.Count; i++)
+            for (int i = 0; i < newUids.Count && i < entityList.Count; i++)
             {
-                idProperty.SetValue(entityList[i], newIds[i]);
+                uidProperty.SetValue(entityList[i], newUids[i]);
             }
         }
 
-        return newIds;
+        return newUids;
     }
 
-    public virtual async Task<int> DeleteRangeAsync(IEnumerable<int> idList, bool softDelete = true)
+    public virtual async Task<int> DeleteRangeAsync(IEnumerable<Guid> uidList, bool softDelete = true)
     {
-        if (idList == null || !idList.Any()) return 0;
+        if (uidList == null || !uidList.Any()) return 0;
 
         string sql;
         if (softDelete)
         {
-            sql = $"UPDATE [{TableName}] SET IsDeleted = 1 WHERE Id IN @IdList";
+            sql = $"UPDATE [{TableName}] SET IsDeleted = 1 WHERE Uid IN @UidList";
         }
         else
         {
-            sql = $"DELETE FROM [{TableName}] WHERE Id IN @IdList";
+            sql = $"DELETE FROM [{TableName}] WHERE Uid IN @UidList";
         }
         // 直接用 Connection 和 Transaction 属性
-        return await Connection.ExecuteAsync(sql, new { IdList = idList }, transaction: Transaction);
+        return await Connection.ExecuteAsync(sql, new { UidList = uidList }, transaction: Transaction);
     }
-    public virtual async Task<int> DeleteRangeSoftAsync(IEnumerable<int> idList)
+    public virtual async Task<int> DeleteRangeSoftAsync(IEnumerable<Guid> uidList)
     {
-        if (idList == null || !idList.Any()) return 0;
+        if (uidList == null || !uidList.Any()) return 0;
 
-        var sql = $"UPDATE [{TableName}] SET IsDeleted=1 WHERE Id IN @IdList";
+        var sql = $"UPDATE [{TableName}] SET IsDeleted=1 WHERE Uid IN @UidList";
 
         // 直接用 Connection 和 Transaction 属性
-        return await Connection.ExecuteAsync(sql, new { IdList = idList }, transaction: Transaction);
+        return await Connection.ExecuteAsync(sql, new { UidList = uidList }, transaction: Transaction);
     }
     public virtual async Task<int> UpdateRangeAsync(IEnumerable<T> entities)
     {
         if (entities == null) throw new ArgumentException("实体集合不能为空");
-        var entityList = entities.OrderBy(x => x.Id).ToList();
+        var entityList = entities.OrderBy(x => x.Uid).ToList();
         if (entityList.Count == 0) return 0;
         //遍历实体设置 UpdatedDate（如果有这个属性的话），确保批量更新时这个字段不为 null
 
@@ -423,24 +416,21 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         // 1. 准备属性
         var updateProps = _writeableProps
             .Select(name => typeof(T).GetProperty(name))
-            .Where(p => p != null && p.Name != "Version")// ★ Version 排除，让数据库自增
+            .Where(p => p != null && p.Name != "Version" && p.Name != "Uid")// ★ Version/Uid 排除
             .Select(p => p!)
             .ToList();
 
-        var idProp = typeof(T).GetProperty("Id") ?? throw new InvalidOperationException("实体必须包含 ID 属性才能进行批量更新");
+        var uidProp = typeof(T).GetProperty("Uid") ?? throw new InvalidOperationException("实体必须包含 Uid 属性才能进行批量更新");
         var versionProp = typeof(T).GetProperty("Version")
             ?? throw new InvalidOperationException("实体必须包含 Version 属性");
 
         var parameters = new DynamicParameters();
         var sqlBuilder = new StringBuilder();
-        var originalVersionMap = new Dictionary<int, int>();
 
         for (int i = 0; i < entityList.Count; i++)
         {
             var entity = entityList[i];
             var originalVersion = entity.Version <= 0 ? 1 : entity.Version;
-
-            originalVersionMap[entity.Id] = originalVersion;
 
             var setClauses = updateProps
                              .Select(prop =>
@@ -452,16 +442,16 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
             // ★ Version 由数据库自增
             setClauses.Add("[Version] = [Version] + 1");
 
-            var idParamName = $"p{i}_Id";
+            var uidParamName = $"p{i}_Uid";
             var verParamName = $"p{i}_OriginalVersion";
-            parameters.Add(idParamName, idProp.GetValue(entity));
+            parameters.Add(uidParamName, uidProp.GetValue(entity));
             parameters.Add(verParamName, originalVersion);
-            // ★ OUTPUT 同时返回 Id 和新 Version
+            // ★ OUTPUT 同时返回 Uid 和新 Version
             sqlBuilder.AppendLine($@"
                                     UPDATE [{TableName}]
                                     SET {string.Join(", ", setClauses)}
-                                    OUTPUT INSERTED.[Id], INSERTED.[Version]
-                                    WHERE [Id] = @{idParamName} AND [Version] = @{verParamName};");
+                                    OUTPUT INSERTED.[Uid], INSERTED.[Version]
+                                    WHERE [Uid] = @{uidParamName} AND [Version] = @{verParamName};");
         }
         var results = new List<UpdateResult>();
 
@@ -479,19 +469,19 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         // 并发冲突检测
         if (results.Count < entityList.Count)
         {
-            var updatedIds = results.Select(x => x.Id).ToHashSet();
-            var conflictIds = entityList.Select(x => x.Id)
-                                        .Where(id => !updatedIds.Contains(id))
+            var updatedUids = results.Select(x => x.Uid).ToHashSet();
+            var conflictUids = entityList.Select(x => x.Uid)
+                                        .Where(uid => !updatedUids.Contains(uid))
                                         .ToList();
 
             throw new DBConcurrencyException(
-                $"并发冲突：以下 Id 更新失败（可能已被他人修改）=> {string.Join(",", conflictIds)}");
+                $"并发冲突：以下 Uid 更新失败（可能已被他人修改）=> {string.Join(",", conflictUids)}");
         }
 
         // ★ 用数据库返回的新 Version 更新实体，不靠应用层猜
         foreach (var result in results)
         {
-            var entity = entityList.First(x => x.Id == result.Id);
+            var entity = entityList.First(x => x.Uid == result.Uid);
             versionProp.SetValue(entity, result.Version);
         }
         return results.Count;
@@ -625,7 +615,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     }
     private class UpdateResult
     {
-        public int Id { get; set; }
+        public Guid Uid { get; set; }
         public int Version { get; set; }
     }
 

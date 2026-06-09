@@ -22,7 +22,7 @@
         Background="{DynamicResource Brush_Btn_Default_Background}">
 
     <UserControl.Resources>
-        <mvvm:BindingProxy x:Key="VmProxy" Data="{Binding}"/>
+        <mvvm:BindingProxy x:Key="VmProxy" Data="{Binding }"/>
 
         <converters:ImgPathToImgConverter x:Key="ImgPathToImgConverter"/>
 
@@ -107,10 +107,9 @@
                     <TextBox Text="{Binding OrderHeader.OrderNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
                         MinWidth="110"
                         d:Text="SO2026050001"/>
-                    <Button Margin="0" Padding="0" 
-                    Style="{StaticResource ButtonIcon}"
-                    Command="{Binding GetNewSoNoCommand}"
-                    mt:ButtonAssist.Icon="{StaticResource Icon.MoreVert}"/>
+                    <Button Margin="0" Padding="0" Style="{StaticResource ButtonIcon}"
+                            Command="{Binding GetNewSoNoCommand}"
+                            mt:ButtonAssist.Icon="{StaticResource Icon.MoreVert}"/>
                 </StackPanel>
 
                 <StackPanel>
@@ -121,9 +120,9 @@
                          mt:TextBoxAssist.Placeholder="输入客户代码"/>
 
                     <Button Margin="0" Padding="0" 
-                    Style="{StaticResource ButtonIcon}"
-                    Command="{Binding CostomerSelectorCommand}"
-                    mt:ButtonAssist.Icon="{StaticResource Icon.MoreVert}"/>
+                            Style="{StaticResource ButtonIcon}"
+                            Command="{Binding CostomerSelectorCommand}"
+                            mt:ButtonAssist.Icon="{StaticResource Icon.MoreVert}"/>
 
                 </StackPanel>
 
@@ -145,17 +144,16 @@
 
                 <StackPanel>
                     <TextBlock Text="订单状态:" Foreground="{DynamicResource Brush_Txt_Secondary}"/>
-                    <TextBox Width="110" Text="{Binding OrderHeader.OrderDate, Mode=TwoWay}"
-                         
-                                                    d:Text="未完全发货"
-                                                    IsReadOnly="True"
-                                                     MinWidth="90"/>
+                    <TextBox Width="110" Text="{Binding OrderHeader.OrderStatusText, Mode=OneWay}"
+                             d:Text="未完全发货"
+                             IsReadOnly="True"
+                              MinWidth="90"/>
                 </StackPanel>
 
                 <StackPanel>
-                    <TextBlock Text="审批状态:" Foreground="{DynamicResource Brush_Txt_Secondary}"/>
+                    <TextBlock Text="确认状态:" Foreground="{DynamicResource Brush_Txt_Secondary}"/>
                     <TextBox Width="110" IsReadOnly="True"                               
-                                        Text="{Binding OrderHeader.ApprovalStatus, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+                                        Text="{Binding OrderHeader.ConfirmationStatusText, Mode=OneWay}"/>
                 </StackPanel>
 
             </WrapPanel>
@@ -362,10 +360,10 @@
                         mt:ButtonAssist.Icon="{StaticResource Icon.Delete}"/>
 
                     <Button Command="{Binding InvertCheckCommand}" Margin="0,0,5,0"
-                        mt:ButtonAssist.IconSize="12"
-                        Style="{StaticResource ButtonBase}"
-                        Content="反选"
-                        mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"/>
+                            mt:ButtonAssist.IconSize="12"
+                            Style="{StaticResource ButtonBase}"
+                            Content="反选"
+                            mt:ButtonAssist.Icon="{StaticResource Icon.Refresh}"/>
 
                     <!-- 主表选择模式切换按钮（整行选择 / 单元格+行头选择）。
                    使用 ToggleButton 的 IsChecked 来驱动 DataGrid.SelectionUnit，避免代码后台事件切换。 -->
@@ -408,7 +406,7 @@
 
                                         <Button Margin="1" Content="按客户型号匹配" 
                                             Style="{StaticResource ButtonOutline}"
-                                            Command="{Binding MatchProductByCskuCommand}"/>
+                                            Command="{Binding MatchProductByCustomerSkuCommand}"/>
 
                                         <Button Margin="1" Content="按Sku匹配" 
                                             Style="{StaticResource ButtonOutline}"
@@ -468,7 +466,7 @@
                             <mtControls:CheckBoxDataGridTemplateColumn                          
                                     AllCheckedPropertyName="OrderLines.IsAllChecked"
                                     ItemCheckedPropertyName="IsChecked"
-                                    ItemCheckedCommandName="ItemCheckedChangedCommand"
+                                    ItemCheckedCommandName="{x:Null}"
                                     HeaderCheckBoxMargin="3,0"
                                     HeaderCheckBoxToolTip="全选/全不选"/>
 
@@ -498,21 +496,21 @@
                                             EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}"
                                             Binding="{Binding FeaturesEn, UpdateSourceTrigger=PropertyChanged}"/>
 
-                            <DataGridTextColumn Width="65" Header="USD单价"
+                            <DataGridTextColumn Width="65" Header="美金单价"
                                             Binding="{Binding UsdPrice, StringFormat=F2, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"/>
 
-                            <DataGridTextColumn Width="65" Header="CNY单价"
+                            <DataGridTextColumn Width="65" Header="人民币单价"
                                             mt:DataGridColumnAssist.BindableVisibility="{Binding Data.OrderHeader.IsRmbCurrency, Source={StaticResource VmProxy},FallbackValue=false}"
-                                            Binding="{Binding CnyPrice, StringFormat=F2, UpdateSourceTrigger=LostFocus,  TargetNullValue=''}"/>
+                                            Binding="{Binding CnyPrice, StringFormat=F2, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"/>
 
                             <DataGridTextColumn Width="65" Header="数量"
                                             Binding="{Binding Qty, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"/>
 
-                            <DataGridTextColumn Width="65" Header="USD金额"
+                            <DataGridTextColumn Width="65" Header="美金金额"
                                             IsReadOnly="True"
                                             Binding="{Binding UsdAmount, StringFormat=F2, UpdateSourceTrigger=LostFocus,TargetNullValue=''}"/>
 
-                            <DataGridTextColumn Width="65" Header="RMB金额"
+                            <DataGridTextColumn Width="65" Header="人民币金额"
                                             IsReadOnly="True"                                            
                                             mt:DataGridColumnAssist.BindableVisibility="{Binding Data.OrderHeader.IsRmbCurrency, Source={StaticResource VmProxy},FallbackValue=false}"
                                             Binding="{Binding CnyAmount, StringFormat=F2, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"/>
@@ -578,7 +576,7 @@
                             <DataGridTextColumn mt:DataGridColumnAssist.BindableVisibility="{Binding Data.OrderHeader.IsRmbCurrency, Source={StaticResource VmProxy}}"/>
                             <!--TotalQty-->
                             <DataGridTextColumn Header="TotalQty"
-                                            Binding="{Binding DataContext.OrderHeader.TotalQty, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                                            Binding="{Binding DataContext.OrderLines.TotalQty, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
 
                             <!--TotalUsdAmount-->
                             <DataGridTextColumn Header="TotalUsdAmount" 

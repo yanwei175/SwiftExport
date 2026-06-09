@@ -1,3 +1,5 @@
+using System;
+
 namespace SwiftExport.Contracts.DTOs.Orders
 {
     /// <summary>
@@ -6,7 +8,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
     public class AwatingInboundDto
     {
         public string PoNo { get; set; } = string.Empty;
-        public int PoLineId { get; set; }
+        public Guid PoLineId { get; set; }
         public string Sku { get; set; } = string.Empty;
         public decimal PoQty { get; set; }
         public decimal RecQty { get; set; }

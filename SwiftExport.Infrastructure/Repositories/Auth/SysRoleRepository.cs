@@ -13,7 +13,7 @@ public class SysRoleRepository(DbSession session) : ISysRoleRepository
     private readonly DbSession _session = session;
 
     private const string SelectColumns = """
-        Id, RoleName, Description, ParentRoleId, ChangeTime,
+        Uid, RoleName, Description, ParentRoleId, ChangeTime,
         IsDeleted, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy
         """;
 
@@ -30,14 +30,14 @@ public class SysRoleRepository(DbSession session) : ISysRoleRepository
     }
 
     /// <summary>根据 ID 查询角色</summary>
-    public async Task<SysRole?> GetByIdAsync(int id)
+    public async Task<SysRole?> GetByIdAsync(Guid uid)
     {
         const string sql = $"""
             SELECT {SelectColumns}
             FROM [SysRoles] WITH(NOLOCK)
-            WHERE Id = @Id AND (IsDeleted = 0 OR IsDeleted IS NULL)
+            WHERE Uid = @Uid AND (IsDeleted = 0 OR IsDeleted IS NULL)
             """;
-        return await _session.Connection.QuerySingleOrDefaultAsync<SysRole>(sql, new { Id = id });
+        return await _session.Connection.QuerySingleOrDefaultAsync<SysRole>(sql, new { Uid = uid });
     }
 
     /// <summary>根据角色名查询（精确匹配）</summary>
@@ -53,7 +53,7 @@ public class SysRoleRepository(DbSession session) : ISysRoleRepository
     }
 
     /// <summary>获取指定父角色的所有子角色</summary>
-    public async Task<IEnumerable<SysRole>> GetChildrenAsync(int parentRoleId)
+    public async Task<IEnumerable<SysRole>> GetChildrenAsync(Guid parentRoleId)
     {
         const string sql = $"""
             SELECT {SelectColumns}
@@ -65,18 +65,18 @@ public class SysRoleRepository(DbSession session) : ISysRoleRepository
     }
 
     /// <summary>新增角色，返回新 Id</summary>
-    public async Task<int> AddAsync(SysRole role)
+    public async Task<Guid> AddAsync(SysRole role)
     {
         const string sql = """
             INSERT INTO [SysRoles]
                 (RoleName, Description, ParentRoleId, ChangeTime,
                  IsDeleted, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy)
-            OUTPUT INSERTED.Id
+            OUTPUT INSERTED.Uid
             VALUES
                 (@RoleName, @Description, @ParentRoleId, @ChangeTime,
                  0, @CreatedDate, @CreatedBy, @UpdatedDate, @UpdatedBy)
             """;
-        return await _session.Connection.ExecuteScalarAsync<int>(sql, role);
+        return await _session.Connection.ExecuteScalarAsync<Guid>(sql, role);
     }
 
     /// <summary>更新角色信息</summary>
@@ -90,35 +90,35 @@ public class SysRoleRepository(DbSession session) : ISysRoleRepository
                 ChangeTime   = @ChangeTime,
                 UpdatedDate  = @UpdatedDate,
                 UpdatedBy    = @UpdatedBy
-            WHERE Id = @Id AND (IsDeleted = 0 OR IsDeleted IS NULL)
+            WHERE Uid = @Uid AND (IsDeleted = 0 OR IsDeleted IS NULL)
             """;
         var rows = await _session.Connection.ExecuteAsync(sql, role);
         return rows > 0;
     }
 
     /// <summary>软删除角色</summary>
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(Guid uid)
     {
         const string sql = """
             UPDATE [SysRoles]
             SET IsDeleted = 1, UpdatedDate = GETDATE()
-            WHERE Id = @Id
+            WHERE Uid = @Uid
             """;
-        var rows = await _session.Connection.ExecuteAsync(sql, new { Id = id });
+        var rows = await _session.Connection.ExecuteAsync(sql, new { Uid = uid });
         return rows > 0;
     }
 
     /// <summary>判断角色名是否已存在（新增或重命名时用于唯一性校验）</summary>
-    public async Task<bool> ExistsAsync(string roleName, int? excludeId = null)
+    public async Task<bool> ExistsAsync(string roleName, Guid? excludeUid = null)
     {
         const string sql = """
             SELECT COUNT(1) FROM [SysRoles] WITH(NOLOCK)
             WHERE RoleName = @RoleName
               AND (IsDeleted = 0 OR IsDeleted IS NULL)
-              AND (@ExcludeId IS NULL OR Id <> @ExcludeId)
+              AND (@ExcludeUid IS NULL OR Uid <> @ExcludeUid)
             """;
         var count = await _session.Connection.ExecuteScalarAsync<int>(
-            sql, new { RoleName = roleName, ExcludeId = excludeId });
+            sql, new { RoleName = roleName, ExcludeUid = excludeUid });
         return count > 0;
     }
 }

@@ -1,4 +1,5 @@
 using SwiftExport.Core.Interfaces.Auth;
+using System;
 using System.Security.Claims;
 
 namespace SwiftExport.WebApi.Services;
@@ -22,14 +23,14 @@ public class CurrentUser(IHttpContextAccessor httpContextAccessor) : ICurrentUse
         ?? Principal?.FindFirstValue("unique_name")
         ?? "system";
 
-    /// <summary>用户 ID，取 sub claim；未认证返回 null</summary>
-    public int? UserId
+    /// <summary>用户 Uid，取 sub claim；未认证返回 null</summary>
+    public Guid? UserId
     {
         get
         {
             var sub = Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
                    ?? Principal?.FindFirstValue("sub");
-            return int.TryParse(sub, out var id) ? id : null;
+            return Guid.TryParse(sub, out var uid) ? uid : null;
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using SwiftExport.Contracts.DTOs.Products;
+using System;
 
 namespace SwiftExport.Contracts.DTOs.SalesOrders
 {
@@ -8,12 +9,12 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         /// <summary>
         /// 客户产品主键 Id（来源于 CustomerProduct.Id，用于前端后续联动或回填时定位）。
         /// </summary>
-        public int? CustomerProductId { get; set; }
+        public Guid? CustomerProductId { get; set; }
 
         /// <summary>
         /// 产品主键 Id（来源于 Product.Id）。
         /// </summary>
-        public int? ProductId { get; set; }
+        public Guid? ProductId { get; set; }
         public string CustomerCode { get; set; }
 
         public string CustomerSku { get; set; }

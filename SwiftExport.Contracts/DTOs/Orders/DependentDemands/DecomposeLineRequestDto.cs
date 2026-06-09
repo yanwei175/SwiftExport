@@ -7,7 +7,7 @@ namespace SwiftExport.Contracts.DTOs.Orders.DependentDemands
     /// </summary>
     public class DecomposeLineRequestDto
     {
-        public long SourceLineId { get; set; } // 来源行的数据库 ID
+        public Guid SourceLineId { get; set; } // 来源行的数据库 ID
         public string Sku { get; set; } = string.Empty;// 产品 SKU
         /// <summary>
         /// 物料描述（SKU 为空的非标件场景用于直接落需求池）。

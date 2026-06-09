@@ -4,6 +4,7 @@ using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Contracts.DTOs.SalesOrders;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
@@ -59,7 +60,7 @@ public class IndependentDemandService(
 
 
         if (search.StatusFlag < 0)
-            criteria.Add("StatusFlag", 查询操作符.等于, IndependentDemandStatusEnum.草稿);
+            criteria.Add("StatusFlag", 查询操作符.等于, IndependentDemandStatusEnum.未确认);
 
 
         if (!string.IsNullOrWhiteSpace(search.Keyword))
@@ -79,7 +80,7 @@ public class IndependentDemandService(
     /// <param name="id"></param>
     /// <param name="addQty"></param>
     /// <returns></returns>
-    public async Task<ServiceResult<bool>> UpdateFilledQtyAsync(int id, decimal addQty)
+    public async Task<ServiceResult<bool>> UpdateFilledQtyAsync(Guid id, decimal addQty)
     {
         try
         {
@@ -102,7 +103,7 @@ public class IndependentDemandService(
                 entity.OrderStatus = IndependentDemandStatusEnum.已完成;
 
             var rst = await _repository.UpdateAsync(entity);
-            if (rst > 0) return ServiceResult<bool>.Ok(true);
+            if (rst != null) return ServiceResult<bool>.Ok(true);
             return ServiceResult<bool>.Fail("更新失败");
         }
         catch (Exception ex)
@@ -148,7 +149,7 @@ public class IndependentDemandService(
         if (真实可拆原需求.Count == 0)
             return ServiceResult<List<IndependentDemandDto>>.Fail("无可拆解需求：请检查需求数量，且至少维护SKU或非标描述信息");
 
-        var lineIds = 真实可拆原需求.Select(x => (int)x.SourceLineId).Distinct().ToList();
+        var lineIds = 真实可拆原需求.Select(x => x.SourceLineId).Distinct().ToList();
         var 拆解时间 = DateTime.Now;
 
         // 调用需求头仓库先标记为已拆解，防止重复拆解。若标记失败（返回值小于实际行数），则说明存在并发操作导致部分行已被标记，需禁止本次拆解并提示用户。
@@ -176,7 +177,7 @@ public class IndependentDemandService(
 
             foreach (var demand in 真实可拆原需求)
             {
-                demand.OrderStatus = IndependentDemandStatusEnum.采购中;
+                demand.OrderStatus = IndependentDemandStatusEnum.执行中;
                 demand.IsDecomposed = true;
                 demand.DecomposedTime = 拆解时间;
                 demand.UpdatedDate = DateTime.Now;
@@ -204,7 +205,7 @@ public class IndependentDemandService(
     /// </summary>
     /// <param name="ids">毛需求行ID集合</param>
     /// <returns>净需求Dto集合</returns>
-    public async Task<ServiceResult<List<IndependentDemandDto>>> 根据选定毛需求拆解至净需求Async(List<int> ids)
+    public async Task<ServiceResult<List<IndependentDemandDto>>> 根据选定毛需求拆解至净需求Async(List<Guid> ids)
     {
         if (ids == null || ids.Count == 0)
             return ServiceResult<List<IndependentDemandDto>>.Fail("请选择要拆解的毛需求行");
@@ -248,7 +249,7 @@ public class IndependentDemandService(
             .ToList();
 
         var 拆解时间 = DateTime.Now;
-        var 已成功标记分组 = new List<(string SourceType, string SourceNo, List<int> LineIds)>();
+        var 已成功标记分组 = new List<(string SourceType, string SourceNo, List<Guid> LineIds)>();
 
         async Task 回滚已成功标记分组Async()
         {
@@ -295,7 +296,7 @@ public class IndependentDemandService(
 
             foreach (var demand in 真实可拆原需求)
             {
-                demand.OrderStatus = IndependentDemandStatusEnum.采购中;
+                demand.OrderStatus = IndependentDemandStatusEnum.执行中;
                 demand.IsDecomposed = true;
                 demand.DecomposedTime = 拆解时间;
                 demand.UpdatedDate = DateTime.Now;
@@ -318,7 +319,7 @@ public class IndependentDemandService(
         }
     }
 
-    public async Task<ServiceResult<List<IndependentDemandDto>>> 批量回退草稿(List<int> ids)
+    public async Task<ServiceResult<List<IndependentDemandDto>>> 批量回退草稿(List<Guid> ids)
     {
         if (ids == null || ids.Count == 0)
             return ServiceResult<List<IndependentDemandDto>>.Fail("Id列表不能为空");
@@ -337,7 +338,7 @@ public class IndependentDemandService(
             //校验状态
             foreach (var item in items)
             {
-                item.ApprovalStatus = ApprovalStatusEnum.已批准;
+                item.ConfirmationStatus = ConfirmationStatusEnum.已确认;
                 if (item.OrderStatus != IndependentDemandStatusEnum.已确认 
                     || item.FilledQty>0
                     || item.ShippedQty >0
@@ -346,7 +347,7 @@ public class IndependentDemandService(
                     _session.Transaction.Rollback();
                     return ServiceResult<List<IndependentDemandDto>>.Fail($"已经产生下游流程");
                 }
-                item.OrderStatus = IndependentDemandStatusEnum.草稿;
+                item.OrderStatus = IndependentDemandStatusEnum.未确认;
             }
             //校验净需求允许回退不
             //var allowRollback = await _dependentService.CanCancelAsync(items.Select(x => x.SourceNo).ToList());
@@ -365,7 +366,7 @@ public class IndependentDemandService(
             await _independentRepo.UpdateRangeAsync(items);
 
             _session.Transaction.Commit();
-            var rst= await _independentRepo.GetByIdListAsync(items.Select(x=>x.Id).ToList());
+            var rst= await _independentRepo.GetByIdListAsync(items.Select(x=>x.Uid).ToList());
             return ServiceResult<List<IndependentDemandDto>>.Ok(rst.Adapt<List<IndependentDemandDto>>());
         }
         catch (Exception)
@@ -379,7 +380,7 @@ public class IndependentDemandService(
             _session.Transaction = null;
         }
     }
-    private async Task<bool> CanCancelAsync(List<int> ids)
+    private async Task<bool> CanCancelAsync(List<Guid> ids)
     {
         
         return await _independentRepo.CanCanceAsync(ids);

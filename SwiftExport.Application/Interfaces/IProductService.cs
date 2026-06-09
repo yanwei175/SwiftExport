@@ -11,5 +11,5 @@ public interface IProductService : IBaseService<Product, ProductDto>
     // 在这里扩展特有的业务方法
     Task<ServiceResult<ProductDto>> GetBySkuAsync(string sku);
 
-    Task<ServiceResult<PagedResultDto<ProductDto>>> GetPagedListAsync(ProductSearchDto search);
+    Task<ServiceResult<PagedResultDto<ProductDto>>> GetPagedListAsync(ProductSearchRequest search);
 }

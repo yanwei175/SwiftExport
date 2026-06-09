@@ -21,17 +21,16 @@ namespace SwiftExport.Application.Services.Systems
         : BaseService<SysDicCurrency, SysDicCurrencyDto>(repository, context), ISysDicCurrencyService
     {
 
-
         public override async Task<ServiceResult<int>> UpdateAsync(SysDicCurrencyDto newSysDicCurrencyDto)
         {
             var entity = newSysDicCurrencyDto.Adapt<SysDicCurrency>();
             var rst = await _repository.UpdateAsync(entity);
-            if (rst == 0)
+            if (rst == null)
             {
                 Logger.LogWarning("更新失败，未找到匹配的货币代码：{CurrencyCode}", newSysDicCurrencyDto.CurrencyCode);
                 return ServiceResult<int>.Fail("更新失败，未找到匹配的货币代码");
             }
-            return ServiceResult<int>.Ok(rst, "成功更新货币信息");
+            return ServiceResult<int>.Ok(1, "成功更新货币信息");
         }
 
         // ============================================================
@@ -52,14 +51,14 @@ namespace SwiftExport.Application.Services.Systems
                 entity.IsBase = true;
                 var rst = await _repository.UpdateAsync(entity);
                 //var rst = 1;
-                if (rst == 0)
+                if (rst == null)
                 {
                     _session.Transaction.Rollback();
                     Logger.LogWarning("重置本位币失败，未找到匹配的货币代码：{CurrencyCode}", newSysDicCurrencyDto.CurrencyCode);
                     return ServiceResult<int>.Fail("重置本位币失败，未找到匹配的货币代码");
                 }
                 _session.Transaction.Commit();
-                 return ServiceResult<int>.Ok(rst, "成功重置本位币");
+                 return ServiceResult<int>.Ok(1, "成功重置本位币");
             }
             catch (Exception ex)
             {
@@ -170,7 +169,7 @@ namespace SwiftExport.Application.Services.Systems
             if (baseInBatch.Count == 1)
             {
                 // 排除本次要更新的这些行自身（避免误判：原来它就是本位币，现在只是更新其他字段）
-                var updatingIds = entities.Select(x => x.Id).ToList();
+                var updatingIds = entities.Select(x => x.Uid).ToList();
                 var existingBaseIds = await repository.GetBaseIsBaseCurrencyIdsAsync(updatingIds);
 
                 if (existingBaseIds.Count > 0)
@@ -189,8 +188,8 @@ namespace SwiftExport.Application.Services.Systems
             if (!currency.Success)
             {
                
-                var id = currency.Data?.Id ?? 0;
-                if (id == 0) { return ServiceResult<SysDicCurrencyDetailDto>.Fail(currency.Message); }
+                var id = currency.Data?.Uid ?? Guid.Empty;
+                if (id == Guid.Empty) { return ServiceResult<SysDicCurrencyDetailDto>.Fail(currency.Message); }
 
                 var detailDto = new SysDicCurrencyDetailDto { Currency = currency.Data };
 

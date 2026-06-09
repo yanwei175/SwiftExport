@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Common;
 
@@ -9,27 +10,15 @@ namespace SwiftExport.Core.Entities.Orders;
 /// </summary>
 public class DependentDemand : BaseEntity
 {
+    public required DependentDemandStatusEnum OrderStatus { get; set; }
+    public ConfirmationStatusEnum ConfirmationStatus { get; set; } = ConfirmationStatusEnum.待确认;
+
     #region 来源信息 (Source)
 
-    /// <summary>
-    /// 来源单据类型（枚举：SalesOrder, SampleOrder, Forecast, StockPlan 等）
-    /// </summary>
-    public string SourceType { get; set; } = string.Empty;
-
-    /// <summary>
-    /// 来源单号（SO号、样品单号等）
-    /// </summary>
-    public string SourceNo { get; set; } = string.Empty;
-
-    /// <summary>
-    /// 来源单据行 ID
-    /// </summary>
-    public int SourceLineId { get; set; }
-
-    /// <summary>
-    /// 关联的独立需求 ID (毛需求 ID)
-    /// </summary>
-    public int IndependentDemandId { get; set; }
+    public required string SourceType { get; set; }
+    public required Guid SourceUid { get; set; }
+    public required string SourceNo { get; set; } = string.Empty;
+    public required Guid SourceLineId { get; set; }
 
     #endregion
 
@@ -37,67 +26,43 @@ public class DependentDemand : BaseEntity
     #region 物料与层级 (Material & BOM)
     public string? SourceSku { get; set; }//非标件需要有一个来源的sku,比如客户的型号
 
-    /// <summary>
-    /// 当前物料 SKU
-    /// </summary>
+    /// <summary>当前物料 SKU</summary>
     public required string Sku { get; set; }
 
-    /// <summary>
-    /// 物料描述（用于非标件或补充说明）。
-    /// </summary>
+    /// <summary>物料描述（用于非标件或补充说明）。</summary>
     public string? Description { get; set; }
 
-    /// <summary>
-    /// 颜色名称（用于非标件或颜色补充）。
-    /// </summary>
+    /// <summary>颜色名称（用于非标件或颜色补充）。</summary>
     public string? ColorName { get; set; }
 
-    /// <summary>
-    /// 规格特征（用于非标件或型号补充）。
-    /// </summary>
+    /// <summary>规格特征（用于非标件或型号补充）。</summary>
     public string? Features { get; set; }
 
-    /// <summary>
-    /// 父项 SKU（所属成品）
-    /// </summary>
+    /// <summary>父项 SKU（所属成品）</summary>
     public string ParentSku { get; set; } = string.Empty;
 
-    /// <summary>
-    /// BOM 层级（0-成品/需求头, 1-一级子件, 2-二级...）
-    /// </summary>
+    /// <summary> BOM 层级（0-成品/需求头, 1-一级子件, 2-二级...）</summary>
     public int BomLevel { get; set; }
 
-    /// <summary>
-    /// 供货类型（枚举：Purchase-采购, Produce-生产, Outsourcing-委外, Stock-库存）
-    /// </summary>
+    /// <summary> 供货类型（枚举：Purchase-采购, Produce-生产, Outsourcing-委外, Stock-库存）</summary>
     public string SupplyType { get; set; } = string.Empty;
 
     #endregion
 
     #region 数量跟踪 (Quantity Tracking)
-    /// <summary>
-    /// 毛需求数量 (原始需要的量)
-    /// </summary>
+    /// <summary> 毛需求数量 (原始需要的量)</summary>
     public decimal GrossQty { get; set; }
 
-    /// <summary>
-    /// 净需求数量 (考虑库存/在途后的实际建议量)
-    /// </summary>
+    /// <summary> 净需求数量 (考虑库存/在途后的实际建议量)</summary>
     public decimal NetQty { get; set; }
 
-    /// <summary>
-    /// 已转化执行的数量（已生成 PO 的数量或已转生产的数量）
-    /// </summary>
+    /// <summary>已转化执行的数量（已生成 PO 的数量或已转生产的数量）</summary>
     public decimal ExecutedQty { get; set; }
 
-    /// <summary>
-    /// 已入库数量
-    /// </summary>
+    /// <summary>已入库数量</summary>
     public decimal ReceivedQty { get; set; }
 
-    /// <summary>
-    /// 已完工数量
-    /// </summary>
+    /// <summary>已完工数量</summary>
     public decimal ReadyQty { get; set; }
 
 
@@ -112,20 +77,13 @@ public class DependentDemand : BaseEntity
 
     #region 执行状态 (Execution)
 
-    /// <summary>
-    /// 需求日期（什么时候要用）
-    /// </summary>
+    /// <summary> 需求日期（什么时候要用）</summary>
     public DateTime? RequiredDate { get; set; }
 
-    /// <summary>
-    /// 状态（RequirementStatusEnums：采购中/已到货/已完成）
-    /// </summary>
-    public int StatusFlag { get; set; }
 
 
-    /// <summary>
-    /// 备注
-    /// </summary>
+
+    /// <summary>备注</summary>
     public string? Remark { get; set; }
 
     #endregion
@@ -151,7 +109,7 @@ public class DependentDemand : BaseEntity
     /// <summary>
     /// 目标执行行 ID
     /// </summary>
-    public int? TargetLineId { get; set; }
+    public Guid? TargetLineId { get; set; }
 
     #endregion
 

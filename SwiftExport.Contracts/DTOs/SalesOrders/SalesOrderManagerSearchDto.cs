@@ -19,7 +19,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         /// <summary>
         /// 审批状态多选
         /// </summary>
-        public List<int> ApprovalStatuses { get; set; } = new List<int>();
+        public List<int> ConfirmStatuses { get; set; } = new List<int>();
 
         /// <summary>
         /// 订单状态多选
@@ -37,11 +37,6 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public string InvoiceNo { get; set; }
 
         /// <summary>
-        /// 精确查询单条订单（用于弹窗保存后的局部刷新），为 null 时不参与筛选。
-        /// </summary>
-        public int? OrderId { get; set; }
-
-        /// <summary>
         /// 包含产品型号（多行输入，后端可按换行/逗号分词）
         /// </summary>
         public List<string> BatchCustomerSkuList { get; set; } = new List<string>();
@@ -56,14 +51,5 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         /// </summary>
         public DateTime? OrderDateTo { get; set; }
 
-        /// <summary>
-        /// 排序字段
-        /// </summary>
-        public string SortBy { get; set; }
-
-        /// <summary>
-        /// 是否升序（false=降序）
-        /// </summary>
-        public bool SortAscending { get; set; } = false;
     }
 }

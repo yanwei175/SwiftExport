@@ -11,21 +11,21 @@ namespace SwiftExport.Core.Interfaces
         /// <summary>
         /// 根据来源类型与来源单号查询中间表记录。
         /// </summary>
-        Task<IReadOnlyList<DependentDemand>> GetBySourceSoNoAsync(string sourceType, string sourceSoNo);
-
-        /// <summary>
-        /// 根据来源类型与来源销售单行 Id 查询中间表记录（可能多行）。
-        /// </summary>
-        Task<IReadOnlyList<DependentDemand>> GetListBySourceSoLineIdAsync(string sourceType, int sourceSoLineId);
-
+        Task<IReadOnlyList<DependentDemand>> GetListBySourceTypeAndSourceUidAsync(string sourceType, Guid sourceUid);
         /// <summary>
         /// 根据来源类型与来源单号查询需求池记录。
         /// </summary>
         Task<IReadOnlyList<DependentDemand>> GetBySourceAsync(string sourceType, string sourceNo);
 
-        Task<IReadOnlyList<DependentDemand>> GetListByTargetLineIdsAsync(IEnumerable<int> targetIdList, bool withUpdLock = false);
+        /// <summary>
+        /// 根据来源类型与来源销售单行 Id 查询中间表记录（可能多行）。
+        /// </summary>
+        Task<IReadOnlyList<DependentDemand>> GetListBySourceSoLineIdAsync(string sourceType, Guid sourceSoLineId);
 
-        Task<int> ResetByTargetLineIdsAsync(IEnumerable<int> targetIdList);
+
+        Task<IReadOnlyList<DependentDemand>> GetListByTargetLineIdsAsync(IEnumerable<Guid> targetIdList, bool withUpdLock = false);
+
+        Task<int> ResetByTargetLineIdsAsync(IEnumerable<Guid> targetIdList);
         /// <summary>
         /// 删除来源类型与来源单号对应的需求池记录。
         /// </summary>
@@ -38,6 +38,6 @@ namespace SwiftExport.Core.Interfaces
             QueryCriteria criteria,
             int pageIndex,
             int pageSize,
-            string orderBy = "Id DESC");
+            string orderBy = "CreatedDate DESC");
     }
 }

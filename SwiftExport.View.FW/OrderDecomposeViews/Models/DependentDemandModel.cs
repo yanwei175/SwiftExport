@@ -1,5 +1,6 @@
 using Mapster;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.View.FW.Mvvm;
 using System;
@@ -13,23 +14,6 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.Models
     /// </summary>
     public class DependentDemandModel : BaseLineModel, IDataErrorInfo
     {
-        /// <summary>
-        /// 从 DTO 加载数据。
-        /// </summary>
-        public override void LoadFromDto<TDto>(TDto dto, bool 抑制清理脏数据 = false)
-        {
-            if (dto == null) return;
-
-            using (DisabledStateScope())
-            {
-                dto.Adapt(this);
-                if (Id == 0)
-                    MarkAsAdded();
-
-                if (!抑制清理脏数据)
-                    CommitChanges();
-            }
-        }
 
         private string _sourceNo;
         /// <summary>
@@ -51,11 +35,11 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.Models
             set => SetProperty(ref _sourceType, value);
         }
 
-        private long _sourceLineId;
+        private Guid _sourceLineId;
         /// <summary>
         /// 来源行 ID。
         /// </summary>
-        public long SourceLineId
+        public Guid SourceLineId
         {
             get => _sourceLineId;
             set => SetProperty(ref _sourceLineId, value);
@@ -174,11 +158,11 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.Models
             set => SetProperty(ref _targetNo, value);
         }
 
-        private long? _targetLineId;
+        private Guid? _targetLineId;
         /// <summary>
         /// 目标执行行 ID。
         /// </summary>
-        public long? TargetLineId
+        public Guid? TargetLineId
         {
             get => _targetLineId;
             set => SetProperty(ref _targetLineId, value);
@@ -256,8 +240,8 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.Models
             }
         }
 
-        private int _statusFlag;
-        public int StatusFlag
+        private DependentDemandStatusEnum _statusFlag;
+        public DependentDemandStatusEnum StatusFlag
         {
             get => _statusFlag;
             set => SetProperty(ref _statusFlag, value);

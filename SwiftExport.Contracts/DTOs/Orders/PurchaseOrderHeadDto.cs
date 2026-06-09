@@ -72,7 +72,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
         /// <summary>
         /// 审核状态
         /// </summary>
-        public int ApprovalStatus { get; set; } = ApprovalStatusEnum.草稿;
+        public ApprovalStatusEnum ApprovalStatus { get; set; } 
         /// <summary>
         /// 批准人,当 ApprovalStatusEnum 为 已批准 时,该字段不能为空,且记录批准人的名字.
         /// </summary>

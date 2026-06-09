@@ -15,7 +15,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public string OrderNo { get; set; }
 
         // 中文注释：客户 ID（精确匹配）
-        public int? CustomerId { get; set; }
+        public Guid? CustomerId { get; set; }
 
         // 中文注释：客户名称（模糊匹配）
         public string CustomerName { get; set; }

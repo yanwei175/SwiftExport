@@ -1,32 +1,11 @@
 ﻿using SwiftExport.View.FW.Mvvm;
+using System;
 using System.Collections.ObjectModel;
 
 namespace SwiftExport.View.FW.ProductViews.Models
 {
-    public class CategoryTreeModel : ViewModelBaseEx
+    public class CategoryTreeModel : BaseLineModel
     {
-        public int Id { get; set; }
-
-        private ModelState _state = ModelState.Unchanged;
-        public ModelState State
-        {
-            get => _state;
-            set => SetProperty(ref _state, value);
-        }
-
-
-        // ==========================================
-        // ★ 核心魔法：状态拦截器
-        // ==========================================
-        private void MarkAsModified()
-        {
-            // 只有当它原本是 Unchanged (未修改) 时，才把它标记为 Modified。
-            // 如果它本来就是 Added (新增) 或者 Deleted (删除)，千万别覆盖它的状态！
-            if (State == ModelState.Unchanged)
-            {
-                State = ModelState.Modified;
-            }
-        }
 
         // ==========================================
         // 🚀 业务数据属性 (展开 Set 并在里面调用拦截器)
@@ -43,7 +22,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
             }
         }
 
-        public int? ParentId { get; set; }
+        public Guid? ParentId { get; set; }
 
         private string _fakeName;
         public string FakeName

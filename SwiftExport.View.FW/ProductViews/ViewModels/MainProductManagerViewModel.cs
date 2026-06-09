@@ -335,7 +335,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             }
             StatusMessage = "正在保存更改...";
 
-            var req = dirtyModels.Adapt<BatchRequestGeneric<ProductDto>>(); // 先调用Adapt方法进行类型转换，确保所有属性都被正确映射
+            var req = dirtyModels.Adapt<BatchRequestDto<ProductDto>>(); // 先调用Adapt方法进行类型转换，确保所有属性都被正确映射
             try
             {
                 var result = await _productApi.BatchSaveAsync(req);
@@ -368,7 +368,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 if (SelectedBomItem == null)
                     return; // ★ 没有勾选也没有选中 → 直接退出
 
-                if (SelectedBomItem.Id <= 0)
+                if (SelectedBomItem.Uid == Guid.Empty)
                 {
                     // 删除新建行（本地删除）
                     var tempIndex = ProductList.Items.IndexOf(SelectedProduct);
@@ -407,9 +407,9 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                         $"确定要删除选中的 {waitToDelete.Count} 条记录吗？", "确认删除"))
                         return;
 
-                    var req = new BatchRequestGeneric<ProductDto>
+                    var req = new BatchRequestDto<ProductDto>
                     {
-                        DeleteIdList = waitToDelete.Select(x => x.Id).ToList()
+                        DeleteIdList = waitToDelete.Select(x => x.Uid).ToList()
                     };
 
                     var rst = await _productApi.BatchSaveAsync(req);
@@ -452,7 +452,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                     if (FilterCustomerDto != null && FilterCustomerDto.CustomerName != "全部客户" && !string.IsNullOrWhiteSpace(FilterCustomerDto.CustomerName)) { cCode = FilterCustomerDto.CustomerCode; }
 
                     // 构建用于提交给后端的查询条件 DTO
-                    var search = new ProductSearchDto
+                    var search = new ProductSearchRequest
                     {
                         //// 如果选中的是"全部客户"，则不传过滤条件
                         CustomerCodes = string.IsNullOrWhiteSpace(cCode) ? null : new List<string>() { cCode },
@@ -460,7 +460,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                         ColorCodeUnique = FilterColorDto != null && FilterColorDto.ColorNameZh != "全部颜色" && !string.IsNullOrWhiteSpace(FilterColorDto.ColorCode) ? FilterColorDto.ColorCode : null,
 
                         //// 按分类名筛选（支持包含子集）
-                        CategoryId = FilterCategory != null && FilterCategory.Id > 0 ? FilterCategory.Id : 0,
+                        CategoryId = FilterCategory != null && FilterCategory.Uid != Guid.Empty ? FilterCategory.Uid : Guid.Empty,
                         // 绑定到当前页面索引
                         PageIndex = PageIndex,
                         // 绑定到当前的页面行数(PageCustomerTableSize)
@@ -714,7 +714,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
 
             try
             {
-                var productSearchDto = new ProductSearchDto
+                var productSearchRequest = new ProductSearchRequest
                 {
                     BatchKeywords = keyword?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                         .Select(k => k.Trim())
@@ -723,7 +723,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                     PageIndex = 1,
                     PageSize = 20
                 };
-                var result = await _productApi.GetProductPagedListAsync(productSearchDto);
+                var result = await _productApi.GetProductPagedListAsync(productSearchRequest);
 
                 DispatcherProvider.Invoke(() =>
                 {
@@ -822,7 +822,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
 
                     BomList.AddModelToFirst(new BomItemModel
                     {
-                        Id = 0,
+                        Uid = Guid.Empty,
                         SubSku = p.Sku,
                         Description = p.DescriptionZh,
                         Numerator = 1,
@@ -976,7 +976,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             }
             StatusMessage = "正在保存更改...";
 
-            var req = dirtyModels.Adapt<BatchRequestGeneric<BomDto>>(); // 先调用Adapt方法进行类型转换，确保所有属性都被正确映射
+            var req = dirtyModels.Adapt<BatchRequestDto<BomDto>>(); // 先调用Adapt方法进行类型转换，确保所有属性都被正确映射
             try
             {
                 var result = await _bomApi.BatchSaveAsync(req);
@@ -1011,7 +1011,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 if (SelectedBomItem == null)
                     return; // ★ 没有勾选也没有选中 → 直接退出
 
-                if (SelectedBomItem.Id <= 0)
+                if (SelectedBomItem.Uid == Guid.Empty)
                 {
                     // 删除新建行（本地删除）
                     var tempIndex = BomList.Items.IndexOf(SelectedBomItem);
@@ -1049,9 +1049,9 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                         $"确定要删除选中的 {waitToDelete.Count} 条记录吗？", "确认删除"))
                         return;
 
-                    var req = new BatchRequestGeneric<BomDto>
+                    var req = new BatchRequestDto<BomDto>
                     {
-                        DeleteIdList = waitToDelete.Select(x => x.Id).ToList()
+                        DeleteIdList = waitToDelete.Select(x => x.Uid).ToList()
                     };
 
                     var rst = await _bomApi.BatchSaveAsync(req);

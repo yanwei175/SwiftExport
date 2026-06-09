@@ -33,7 +33,7 @@ public class FollowUpService(
         if (request == null)
             return ServiceResult<bool>.Fail("请求参数不能为空");
 
-        if (request.PurchaseOrderLineId <= 0)
+        if (request.PurchaseOrderLineId == Guid.Empty)
             return ServiceResult<bool>.Fail("采购订单行Id不合法");
 
         if (request.ReadyQty < 0)
@@ -63,7 +63,7 @@ public class FollowUpService(
             // 中文注释：写入跟进日志，便于后续追溯每次完工更新的操作记录。
             var log = new FollowUpLog
             {
-                RefLineId = line.Id,
+                RefLineId = line.Uid,
                 NoteContent = request.NoteContent,
                 CreatedDate = DateTime.Now,
                 IsDeleted = false

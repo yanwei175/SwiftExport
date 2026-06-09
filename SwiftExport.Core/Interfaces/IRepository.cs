@@ -6,10 +6,10 @@ namespace SwiftExport.Core.Interfaces;
 public interface IRepository<T> where T : BaseEntity
 {
     // 基础查询
-    Task<bool> ExistsIdAsync(int id);
-    Task<IReadOnlyList<int>> GetExistingIdListAsync(IEnumerable<int> idList, bool withUpdLock = false);
-    Task<T?> GetByIdAsync(int id, bool withUpdLock = false);
-    Task<IReadOnlyList<T>> GetByIdListAsync(IEnumerable<int> idList, bool withUpdLock = false);
+    Task<bool> ExistsIdAsync(Guid uid);
+    Task<IReadOnlyList<Guid>> GetExistingIdListAsync(IEnumerable<Guid> uidList, bool withUpdLock = false);
+    Task<T?> GetByIdAsync(Guid uid, bool withUpdLock = false);
+    Task<IReadOnlyList<T>> GetByIdListAsync(IEnumerable<Guid> uidList, bool withUpdLock = false);
     /// <summary>
     /// 泛型仓库,获取单个实体,主要是为了拿字段名
     /// </summary>
@@ -52,7 +52,7 @@ public interface IRepository<T> where T : BaseEntity
     /// <param name="whereSql">SQL 过滤条件 (如: CustomerName LIKE @Key)</param>
     /// <param name="parameters">参数对象</param>
     /// <param name="orderBy">排序字段 (必填，因为 OFFSET 需要顺序)</param>
-    Task<PagedResult<T>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "ID DESC");
+    Task<PagedResult<T>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "CreatedDate DESC");
 
     
 
@@ -65,7 +65,7 @@ public interface IRepository<T> where T : BaseEntity
     /// 实体对象
     /// </param>
     /// <returns>返回新ID</returns>
-    Task<int> AddAsync(T entity);
+    Task<Guid> AddAsync(T entity);
 
     /// <summary>
     /// 泛型仓库,更新一个实体
@@ -73,8 +73,8 @@ public interface IRepository<T> where T : BaseEntity
     /// <param name="entity">
     /// 一个实体对象
     /// </param>
-    /// <returns>返回受影响的行数</returns>
-    Task<int> UpdateAsync(T entity);
+    /// <returns>返回更新后的实体</returns>
+    Task<T> UpdateAsync(T entity);
 
     /// <summary>
     /// 泛型仓库,根据ID软删除
@@ -83,7 +83,7 @@ public interface IRepository<T> where T : BaseEntity
     /// 整数类型的主键ID
     /// </param>
     /// <returns>返回受影响的行数</returns>
-    Task<int> DeleteSoftAsync(int id);
+    Task<int> DeleteSoftAsync(Guid uid);
     /// <summary>
     /// 泛型仓库,根据ID硬删除
     /// </summary>
@@ -91,7 +91,7 @@ public interface IRepository<T> where T : BaseEntity
     /// 整数类型的主键ID
     /// </param>
     /// <returns>返回受影响的行数</returns>
-    Task<int> DeleteAsync(int id, bool softDelete = true);
+    Task<int> DeleteAsync(Guid uid, bool softDelete = true);
 
 
     // 批量增删改 (返回 ID 或 受影响行数)
@@ -103,8 +103,8 @@ public interface IRepository<T> where T : BaseEntity
     /// 一批实体对象的列表
     /// </param>
     /// <returns>返回新的ID集合</returns>
-    Task<IReadOnlyList<int>> AddRangeAsync(IEnumerable<T> entitieList);
-    Task<int> DeleteRangeSoftAsync(IEnumerable<int> idList);
+    Task<IReadOnlyList<Guid>> AddRangeAsync(IEnumerable<T> entitieList);
+    Task<int> DeleteRangeSoftAsync(IEnumerable<Guid> uidList);
     /// <summary>
     /// 泛型仓库,硬删除一批实体通过ID列表
     /// </summary>
@@ -112,7 +112,7 @@ public interface IRepository<T> where T : BaseEntity
     /// 主键ID的列表
     /// </param>
     /// <returns>受影响行数</returns>
-    Task<int> DeleteRangeAsync(IEnumerable<int> idList,bool softDelete=true);
+    Task<int> DeleteRangeAsync(IEnumerable<Guid> uidList,bool softDelete=true);
 
     /// <summary>
     /// 泛型仓库,批量更新一批实体

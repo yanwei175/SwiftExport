@@ -165,9 +165,9 @@ namespace SwiftExport.View.FW.Mvvm
         /// <summary>
         /// 根据节点 ID 查找节点
         /// </summary>
-        public T FindNodeById(int id)
+        public T FindNodeById(Guid id)
         {
-            return AllNodes.FirstOrDefault(n => n.Id == id);
+            return AllNodes.FirstOrDefault(n => n.Uid == id);
         }
 
         /// <summary>

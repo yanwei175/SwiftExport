@@ -5,6 +5,7 @@ using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
@@ -89,7 +90,7 @@ public class PurchaseOrderService(
     /// </summary>
     /// <param name="id"></param>
     /// <returns></returns>
-    public async Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByHeadIdAsync(int id)
+    public async Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByHeadIdAsync(Guid id)
     {
         var header = await _headRepository.GetByIdAsync(id);
         if (header == null)
@@ -154,20 +155,20 @@ public class PurchaseOrderService(
     /// </summary>
     /// <param name="request">采购单详情请求对象</param>
     /// <returns>成功返回成功Dto,否则返回错误值</returns>
-    public async Task<ServiceResult<int>> SaveDetailAsync(PurchaseOrderDetailDto request)
+    public async Task<ServiceResult<Guid>> SaveDetailAsync(PurchaseOrderDetailDto request)
     {
         //========基础校验========
         if (request == null || request.Header == null || request.Lines == null || request.Lines.Count == 0)
-            return ServiceResult<int>.Fail("采购单头和行不能为空");
+            return ServiceResult<Guid>.Fail("采购单头和行不能为空");
 
 
         //如果订单头 ID 大于 0，视为更新操作；否则视为创建操作
-        if (request.Header.Id > 0)
+        if (request.Header.Uid != Guid.Empty)
         {
             var updateRst = await SaveAsUpdateAsync(request);
             return updateRst.Success
-                ? ServiceResult<int>.Ok(updateRst.Data)
-                : ServiceResult<int>.Fail(updateRst.Message);
+                ? ServiceResult<Guid>.Ok(updateRst.Data)
+                : ServiceResult<Guid>.Fail(updateRst.Message);
         }
         //创建操作
         return await SaveAsCreateAsync(request);
@@ -183,36 +184,35 @@ public class PurchaseOrderService(
     /// <summary>
     /// 创建一张订单（含行）事务。
     /// </summary>
-    private async Task<ServiceResult<int>> SaveAsCreateAsync(PurchaseOrderDetailDto request)
+    private async Task<ServiceResult<Guid>> SaveAsCreateAsync(PurchaseOrderDetailDto request)
     {
         if (request?.Header == null)
-            return ServiceResult<int>.Fail("订单头不能为空");
+            return ServiceResult<Guid>.Fail("订单头不能为空");
 
         var headerEntity = request.Header.Adapt<PurchaseOrderHead>();
 
         if (string.IsNullOrWhiteSpace(headerEntity.OrderNo))
-            return ServiceResult<int>.Fail("采购单号不能为空");
+            return ServiceResult<Guid>.Fail("采购单号不能为空");
         if (string.IsNullOrWhiteSpace(headerEntity.SupplierCode))
-            return ServiceResult<int>.Fail("供应商不能为空");
+            return ServiceResult<Guid>.Fail("供应商不能为空");
 
 
         DecomposeCache cache = await 构建缓存Async(request.Lines.Select(x => x.Sku), [request.Header.SupplierCode]);
         Supplier? supplier = cache.GetSupplierByCode(request.Header.SupplierCode);
 
         if (supplier == null)
-            return ServiceResult<int>.Fail("供应商不存在");
+            return ServiceResult<Guid>.Fail("供应商不存在");
 
         var vladRst = 核对采购单行是否符合规则(request.Lines, cache);
         if (!vladRst.Success)
-            return ServiceResult<int>.Fail(vladRst.Message);
+            return ServiceResult<Guid>.Fail(vladRst.Message);
 
         //补全默认值
         headerEntity.BoNo = string.IsNullOrWhiteSpace(headerEntity.BoNo) ? null : headerEntity.BoNo.Trim();
         headerEntity.IsDeleted = false;
         headerEntity.IsLocked = false;
-        headerEntity.OrderStatus = PurchaseOrderStatusEnum.草稿;
-        headerEntity.ApprovalStatus = ApprovalStatusEnum.草稿;
-        headerEntity.ApprovedBy = string.Empty;
+        headerEntity.OrderStatus = PurchaseOrderStatusEnum.未确认;
+        headerEntity.ConfirmationStatus = ConfirmationStatusEnum.待确认;
 
         headerEntity.LineCount = request.Lines.Count;
         headerEntity.TotalShippedQty = 0;
@@ -235,22 +235,22 @@ public class PurchaseOrderService(
                 if (!newOrderNo.Success)
                 {
                     _session.Transaction.Rollback();
-                    return ServiceResult<int>.Fail(newOrderNo.Message);
+                    return ServiceResult<Guid>.Fail(newOrderNo.Message);
                 }
                 headerEntity.OrderNo = newOrderNo.Data.DocumentNo;
             }
 
             var existingHeaders = await _headRepository.GetListAsync(new { OrderNo = headerEntity.OrderNo.Trim() });
             if (existingHeaders != null && existingHeaders.Count > 0)
-                return ServiceResult<int>.Fail("采购单号已存在，请更换单号后重试");
+                return ServiceResult<Guid>.Fail("采购单号已存在，请更换单号后重试");
 
             //新增到数据库并获取新生成的订单ID
-            int newId = await _repository.AddAsync(headerEntity);
+            Guid newId = await _repository.AddAsync(headerEntity);
 
             //=========在新增采购单行的时候,需要尝试去净需求里找到对应的记录,把采购单行Id回写到净需求里,以建立订单行和净需求的关联关系,方便后续根据订单行去跟踪净需求的执行状态========
             // 2. 准备采购行数据与映射关系
             var lineItems = new List<PurchaseOrderLine>();
-            var lineToDemandMapping = new List<(PurchaseOrderLine Entity, List<int> DemandIds)>();
+            var lineToDemandMapping = new List<(PurchaseOrderLine Entity, List<Guid> DemandIds)>();
 
             int lineNumber = 0;
             foreach (var lineDto in request.Lines)
@@ -278,7 +278,7 @@ public class PurchaseOrderService(
             if (allDemandIds.Count > 0)
             {
                 var demands = await _dependentDemandRepository.GetByIdListAsync(allDemandIds, true);
-                var demandDict = demands.ToDictionary(d => d.Id, d => d);
+                var demandDict = demands.ToDictionary(d => d.Uid, d => d);
 
                 foreach (var mapping in lineToDemandMapping)
                 {
@@ -287,8 +287,8 @@ public class PurchaseOrderService(
                         if (demandDict.TryGetValue(dId, out var demand))
                         {
                             demand.TargetNo = headerEntity.OrderNo;
-                            demand.TargetLineId = mapping.Entity.Id; // 使用新生成的 ID
-                            demand.StatusFlag = (int)DependentDemandStatusEnum.已转为正式单据;
+                            demand.TargetLineId = mapping.Entity.Uid; // 使用新生成的 ID
+                            demand.OrderStatus = DependentDemandStatusEnum.已转为正式单据;
                             demand.ChangeTime = DateTime.Now;
                             demand.ExecutedQty = demand.NetQty; // 标记全部执行
                         }
@@ -298,7 +298,7 @@ public class PurchaseOrderService(
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<int>.Ok(newId);
+            return ServiceResult<Guid>.Ok(newId);
         }
         catch
         {
@@ -316,30 +316,30 @@ public class PurchaseOrderService(
     /// <summary>
     /// 更新一张订单（含行）事务。
     /// </summary>
-    private async Task<ServiceResult<int>> SaveAsUpdateAsync(PurchaseOrderDetailDto request)
+    private async Task<ServiceResult<Guid>> SaveAsUpdateAsync(PurchaseOrderDetailDto request)
     {
         if (request?.Header == null)
-            return ServiceResult<int>.Fail("订单头不能为空");
+            return ServiceResult<Guid>.Fail("订单头不能为空");
         if (request.Header.ApprovalStatus == ApprovalStatusEnum.已批准)
-            return ServiceResult<int>.Fail("已批准的订单不允许修改");
+            return ServiceResult<Guid>.Fail("已批准的订单不允许修改");
 
         var headerEntity = request.Header.Adapt<PurchaseOrderHead>();
 
         if (string.IsNullOrWhiteSpace(headerEntity.OrderNo))
-            return ServiceResult<int>.Fail("采购单号不能为空");
+            return ServiceResult<Guid>.Fail("采购单号不能为空");
         if (string.IsNullOrWhiteSpace(headerEntity.SupplierCode))
-            return ServiceResult<int>.Fail("供应商不能为空");
+            return ServiceResult<Guid>.Fail("供应商不能为空");
 
 
         DecomposeCache cache = await 构建缓存Async(request.Lines.Select(x => x.Sku), [request.Header.SupplierCode]);
         Supplier? supplier = cache.GetSupplierByCode(request.Header.SupplierCode);
 
         if (supplier == null)
-            return ServiceResult<int>.Fail("供应商不存在");
+            return ServiceResult<Guid>.Fail("供应商不存在");
 
         var vladRst = 核对采购单行是否符合规则(request.Lines, cache);
         if (!vladRst.Success)
-            return ServiceResult<int>.Fail(vladRst.Message);
+            return ServiceResult<Guid>.Fail(vladRst.Message);
 
         // 中文注释：PoNo 为用户自定义编号，允许为空；若有值仅作展示，不参与主链路关联。
         if (!string.IsNullOrWhiteSpace(headerEntity.BoNo))
@@ -366,11 +366,11 @@ public class PurchaseOrderService(
             //}
 
             //首先获取数据库中订单头信息，如果不存在则回滚并返回失败结果
-            var existingHeader = await _repository.GetByIdAsync(headerEntity.Id, true);
+            var existingHeader = await _repository.GetByIdAsync(headerEntity.Uid, true);
             if (existingHeader == null)
             {
                 _session.Transaction.Rollback();
-                return ServiceResult<int>.Fail("订单不存在");
+                return ServiceResult<Guid>.Fail("订单不存在");
             }
 
             // 1. 处理删除行 (释放净需求)
@@ -381,7 +381,7 @@ public class PurchaseOrderService(
                 await _lineRepository.DeleteRangeAsync(request.DeletedLineIds, true);
             }
             // 2. 区分新增和更新行
-            var addLines = new List<(PurchaseOrderLine Entity, List<int> DemandIds)>();
+            var addLines = new List<(PurchaseOrderLine Entity, List<Guid> DemandIds)>();
             var updateLines = new List<PurchaseOrderLine>();
             foreach (var lineDto in request.Lines)
             {
@@ -389,10 +389,10 @@ public class PurchaseOrderService(
                 var lineEntity = lineDto.Adapt<PurchaseOrderLine>();
 
                 lineEntity.OrderNo = headerEntity.OrderNo;
-                lineEntity.PurchaseOrderId = headerEntity.Id;
+                lineEntity.PurchaseOrderId = headerEntity.Uid;
                 lineEntity.IsDeleted = false;
 
-                if (lineEntity.Id <= 0)
+                if (lineEntity.Uid == Guid.Empty)
                     addLines.Add((lineEntity, lineDto.DemandIdList));
                 else
                     updateLines.Add(lineEntity);
@@ -411,24 +411,24 @@ public class PurchaseOrderService(
             if (updateLines.Count > 0)
             {
                 //获取旧的订单行数据，并按照订单行ID建立一个字典，方便后续对比每行的ReadyQty是否有变更，以及如果关联了净需求的话，计算ReadyQty的增量值（delta），准备后续同步更新回净需求的ReceivedQty字段。
-                var oldLines = await _lineRepository.GetByIdListAsync([.. updateLines.Select(x => x.Id)], true);
+                var oldLines = await _lineRepository.GetByIdListAsync([.. updateLines.Select(x => x.Uid)], true);
                 if (oldLines == null || oldLines.Count != updateLines.Count)
                 {
                     _session.Transaction.Rollback();
-                    return ServiceResult<int>.Fail("部分订单行不存在，无法更新");
+                    return ServiceResult<Guid>.Fail("部分订单行不存在，无法更新");
                 }
-                var dictOldLines = oldLines.ToDictionary(x => x.Id, x => x);
+                var dictOldLines = oldLines.ToDictionary(x => x.Uid, x => x);
                 //准备一个列表来收集所有完工数量有变更的订单行，以及对应的跟进日志记录，后续批量新增跟进日志和批量更新订单行。
                 var readyQtyChangedLines = new List<PurchaseFollowUpUpdateDto>();
                 //跟进日志
                 var flogList = new List<FollowUpLog>();
                 //净需求更新列表
-                var dependNeedToUpdate = await _dependentDemandRepository.GetListByTargetLineIdsAsync([.. updateLines.Select(l => l.Id)], true);
+                var dependNeedToUpdate = await _dependentDemandRepository.GetListByTargetLineIdsAsync([.. updateLines.Select(l => l.Uid)], true);
 
                 //遍历每一行更新数据，检查完工数量是否有变更，如果有变更则记录跟进日志，并且如果关联了净需求的话，计算增量值并同步更新回净需求的ReceivedQty字段。
                 foreach (var line in updateLines)
                 {
-                    if (dictOldLines.TryGetValue(line.Id, out var oldEntity))
+                    if (dictOldLines.TryGetValue(line.Uid, out var oldEntity))
                     {
                         var delta = line.ReadyQty - oldEntity.ReadyQty;
 
@@ -451,7 +451,7 @@ public class PurchaseOrderService(
 
                             flogList.Add(new FollowUpLog
                             {
-                                RefLineId = line.Id,
+                                RefLineId = line.Uid,
                                 NoteContent = noteContent,
                                 CreatedDate = DateTime.Now,
                                 IsDeleted = false
@@ -460,7 +460,7 @@ public class PurchaseOrderService(
                         }
                         // 中文注释：若采购行关联到净需求，则按 ReadyQty 的增量同步回写 ReceivedQty。
                         // 业务语义：ReceivedQty 作为过程进度累计值，允许正向增加，也允许回调时减少（delta 可能为负）。
-                        foreach (var dep in dependNeedToUpdate.Where(d => d.TargetLineId == line.Id))
+                        foreach (var dep in dependNeedToUpdate.Where(d => d.TargetLineId == line.Uid))
                         {
                             if (dep != null && !dep.IsDeleted && line.ReadyQty != oldEntity.ReadyQty)
                             {
@@ -489,12 +489,12 @@ public class PurchaseOrderService(
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<int>.Ok(headerEntity.Id);
+            return ServiceResult<Guid>.Ok(headerEntity.Uid);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<int>.Fail(ex.Message);
+            return ServiceResult<Guid>.Fail(ex.Message);
         }
         finally
         {
@@ -531,7 +531,7 @@ public class PurchaseOrderService(
         if (header == null)
             return ServiceResult<PurchaseOrderDetailDto>.Fail("采购单不存在");
 
-        var lines = await _lineRepository.GetReadOnlyLinesByPurchaseOrderIdAsync(header.Id);
+        var lines = await _lineRepository.GetReadOnlyLinesByPurchaseOrderIdAsync(header.Uid);
         var detail = new PurchaseOrderDetailDto
         {
             Header = header.Adapt<PurchaseOrderHeadDto>(),

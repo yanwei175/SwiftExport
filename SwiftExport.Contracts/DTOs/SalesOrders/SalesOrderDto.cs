@@ -13,7 +13,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public string OrderNo { get; set; }
 
         // 中文注释：客户 ID（用于关联到客户主表）
-        public int CustomerId { get; set; }
+        public Guid CustomerId { get; set; }
 
         // 中文注释：客户名称（冗余存储便于列表展示）
         public string CustomerName { get; set; }

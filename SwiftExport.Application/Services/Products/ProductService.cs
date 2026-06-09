@@ -41,14 +41,12 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
         return ServiceResult<ProductDto>.Ok(entity.Adapt<ProductDto>());
     }
 
-    public async Task<ServiceResult<PagedResultDto<ProductDto>>> GetPagedListAsync(ProductSearchDto req)
+    public async Task<ServiceResult<PagedResultDto<ProductDto>>> GetPagedListAsync(ProductSearchRequest req)
     {
         // 1. 实例化底层查询对象
         var criteria = new QueryCriteria();
 
-        // ==========================================
-        // 处理批量搜索 (BatchKeywords) - 新增逻辑
-        // ==========================================
+
         if (req.BatchKeywords != null && req.BatchKeywords.Count > 0)
         {
 
@@ -60,8 +58,8 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
                 // 场景 B：匹配 SKU 或 客户型号 (更灵活)
                 // 逻辑：(SKU IN (...) OR CSKU IN (...))
                 criteria.AddOrGroup(
-                    ("Sku", 查询操作符.模糊匹配, keyword),
-                    ("CSku", 查询操作符.模糊匹配, keyword)
+                    (nameof(Product.Sku), 查询操作符.模糊匹配, keyword),
+                    (nameof(Product.DefaultCustomerSku), 查询操作符.模糊匹配, keyword)
                 );
             }
         }
@@ -72,37 +70,37 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
         // ==========================================
         if (!string.IsNullOrWhiteSpace(req.ColorCodeUnique))
         {
-            criteria.Add("ColorCodeUnique", 查询操作符.等于, req.ColorCodeUnique);
+            criteria.Add(nameof(ProductColor.ColorCodeUnique), 查询操作符.等于, req.ColorCodeUnique);
         }
         if (req.CustomerIds != null && req.CustomerIds.Count > 0)
         {
-            criteria.Add("CustomerId", 查询操作符.包含某值, req.CustomerIds);
+            criteria.Add(nameof(Customer.Uid), 查询操作符.包含某值, req.CustomerIds);
         }
         if (req.CustomerCodes != null && req.CustomerCodes.Count > 0)
         {
-            criteria.Add("CustomerCode", 查询操作符.包含某值, req.CustomerCodes);
+            criteria.Add(nameof(Product.DefaultCustomerCode), 查询操作符.包含某值, req.CustomerCodes);
         }
-        if (req.CategoryId > 0)
+        if (req.CategoryId != Guid.Empty)
         {
             List<ProductCategory> ids = (await _categoryRepository.GetSubById(req.CategoryId)).ToList();
-            if (req.CategoryIds == null) req.CategoryIds = new List<int>();
-            req.CategoryIds.AddRange(ids.Select(c => c.Id));
+            if (req.CategoryIds == null) req.CategoryIds = new List<Guid>();
+            req.CategoryIds.AddRange(ids.Select(c => c.Uid));
             req.CategoryIds.Add(req.CategoryId);
         }
 
         if (req.CategoryIds != null && req.CategoryIds.Count > 0)
         {
-            criteria.Add("CategoryId", 查询操作符.包含某值, req.CategoryIds);
+            criteria.Add(nameof(Product.CategoryId), 查询操作符.包含某值, req.CategoryIds);
         }
 
         else if (!string.IsNullOrWhiteSpace(req.CategoryName))
         {
-            criteria.Add("CategoryName", 查询操作符.等于, req.CategoryName);
+            criteria.Add(nameof(ProductCategory.CategoryName), 查询操作符.等于, req.CategoryName);
         }
         
         if (!string.IsNullOrWhiteSpace(req.MaterialType))
         {
-            criteria.Add("MaterialType", 查询操作符.等于, req.MaterialType);
+            criteria.Add(nameof(Product.MaterialType), 查询操作符.等于, req.MaterialType);
         }
 
         // 4. 处理分页默认值保护

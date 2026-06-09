@@ -1,25 +1,12 @@
 ﻿using SwiftExport.Contracts.SysEnums;
 using SwiftExport.View.FW.Mvvm;
+using System;
 using System.ComponentModel;
 
 namespace SwiftExport.View.FW.ProductViews.Models
 {
     public class BomItemModel : BaseLineModel
     {
-        public override void LoadFromDto<BomDto>(BomDto dto, bool 抑制清理脏数据 = false)
-        {
-            if (dto == null) return;
-            using (DisabledStateScope())
-            {
-                Mapster.TypeAdapter.Adapt(dto, this);
-                if (this.Id == 0)
-                { this.MarkAsAdded(); }
-
-                if (!抑制清理脏数据)
-                    CommitChanges();
-            }
-        }
-
         //BomNo不能修改
         public string BomNo { get; set; }
 

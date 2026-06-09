@@ -11,26 +11,6 @@ namespace SwiftExport.View.FW.WarehouseViews.Models
     /// </summary>
     public class ReceiveHeadModel : BaseLineModel
     {
-        public override void LoadFromDto<Tdto>(Tdto dto, bool 抑制清理脏数据 = false)
-        {
-            var headDto = dto as ReceiveHeadDto;
-            if (headDto == null) return;
-
-            using (DisabledStateScope())
-            {
-                headDto.Adapt(this);
-                if (Id == 0)
-                {
-                    MarkAsAdded();
-                }
-
-                if (!抑制清理脏数据)
-                {
-                    CommitChanges();
-                }
-            }
-        }
-
 
         private string _receiveNo;
         public string ReceiveNo
@@ -80,33 +60,7 @@ namespace SwiftExport.View.FW.WarehouseViews.Models
             set => SetProperty(ref _relatedPoNos, value);
         }
 
-        private DateTime? _createdDate;
-        public DateTime? CreatedDate
-        {
-            get => _createdDate;
-            set => SetProperty(ref _createdDate, value);
-        }
 
-        private string _createdBy;
-        public string CreatedBy
-        {
-            get => _createdBy;
-            set => SetProperty(ref _createdBy, value);
-        }
-
-        private DateTime? _updatedDate;
-        public DateTime? UpdatedDate
-        {
-            get => _updatedDate;
-            set => SetProperty(ref _updatedDate, value);
-        }
-
-        private string _updatedBy;
-        public string UpdatedBy
-        {
-            get => _updatedBy;
-            set => SetProperty(ref _updatedBy, value);
-        }
 
         public override string ValidateRow()
         {

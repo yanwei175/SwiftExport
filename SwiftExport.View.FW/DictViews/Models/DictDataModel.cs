@@ -10,29 +10,8 @@ namespace SwiftExport.View.FW.DictViews.Models
     /// <summary>
     /// 字典数据模型 - 对应 SysDictDataDto
     /// </summary>
-    public class DictDataModel : BaseLineModel, IDataErrorInfo
+    public class DictDataModel : BaseLineModel
     {
-        /// <summary>
-        /// 从 DTO 加载数据到 Model
-        /// </summary>
-        public override void LoadFromDto<TDto>(TDto dto, bool 抑制清理脏数据 = false)
-        {
-            if (dto == null) return;
-
-            using (DisabledStateScope())
-            {
-                dto.Adapt(this);
-
-                if (Id == 0)
-                {
-                    MarkAsAdded();
-                }
-
-                if (!抑制清理脏数据)
-                    CommitChanges();
-            }
-        }
-
         private DateTime? _changeTime;
         public DateTime? ChangeTime
         {

@@ -9,6 +9,7 @@ namespace SwiftExport.Core.Interfaces
 {
     public interface ISalesOrderHeadRepository : IRepository<SalesOrderHeader>
     {
-        Task<PagedResultDto<SalesOrderHeaderDto>> GetSalesOrderHeaderPagedListAsync(SalesOrderManagerSearchDto request, string orderBy = "h.CreatedDate DESC");
+        Task<SalesOrderHeaderManagerDto?> GetSalesOrderHeaderManagerByIdAsync(Guid orderId);
+        Task<PagedResultDto<SalesOrderHeaderManagerDto>> GetSalesOrderHeaderManagerPagedListAsync(SalesOrderManagerSearchDto req);
     }
 }

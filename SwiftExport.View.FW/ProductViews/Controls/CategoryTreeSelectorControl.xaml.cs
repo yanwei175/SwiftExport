@@ -93,9 +93,9 @@ namespace SwiftExport.View.FW.ProductViews.Controls
                     var allDtos = result.Data.OrderBy(x => x.SortNo).ToList();
 
                     // 转换为 Model 结构
-                    var byId = allDtos.ToDictionary(x => x.Id, x => new CategoryTreeModel
+                    var byId = allDtos.ToDictionary(x => x.Uid, x => new CategoryTreeModel
                     {
-                        Id = x.Id,
+                        Uid = x.Uid,
                         ParentId = x.ParentId,
                         CategoryName = x.CategoryName,
                         CategoryCode = x.CategoryCode,
@@ -106,7 +106,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
                     _allRawNodes.Clear();
                     foreach (var dto in allDtos)
                     {
-                        if (byId.TryGetValue(dto.Id, out var node))
+                        if (byId.TryGetValue(dto.Uid, out var node))
                         {
                             if (dto.ParentId.HasValue && byId.ContainsKey(dto.ParentId.Value))
                                 byId[dto.ParentId.Value].Children.Add(node);
@@ -165,7 +165,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
 
             var clone = new CategoryTreeModel
             {
-                Id = source.Id,
+                Uid = source.Uid,
                 ParentId = source.ParentId,
                 CategoryName = source.CategoryName,
                 CategoryCode = source.CategoryCode,
@@ -189,7 +189,7 @@ namespace SwiftExport.View.FW.ProductViews.Controls
                 var node = sender as CategoryTreeModel;
                 if (node != null && node.IsSelected)
                 {
-                    var dto = new ProductCategoryDto { Id = node.Id, CategoryName = node.CategoryName, ParentId = node.ParentId };
+                    var dto = new ProductCategoryDto { Uid = node.Uid, CategoryName = node.CategoryName, ParentId = node.ParentId };
                     SelectedItem = dto;
                     OnCategorySelected?.Invoke(dto);
                 }

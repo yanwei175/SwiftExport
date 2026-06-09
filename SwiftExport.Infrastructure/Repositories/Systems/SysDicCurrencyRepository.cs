@@ -26,7 +26,7 @@ namespace SwiftExport.Infrastructure.Repositories.Systems
         /// 查询数据库中已设置为本位币的记录 ID 列表
         /// excludeIds：排除指定 ID（更新场景：排除本次要更新的行自身，避免误报）
         /// </summary>
-        public async Task<IReadOnlyList<int>> GetBaseIsBaseCurrencyIdsAsync(IEnumerable<int>? excludeIds = null)
+        public async Task<IReadOnlyList<Guid>> GetBaseIsBaseCurrencyIdsAsync(IEnumerable<Guid>? excludeIds = null)
         {
             var excludeList = excludeIds?.ToList() ?? [];
 
@@ -39,8 +39,8 @@ namespace SwiftExport.Infrastructure.Repositories.Systems
                 ? (object)new { ExcludeIds = excludeList }
                 : new { };
 
-            var result = await Connection.QueryAsync<int>(sql, param, transaction: Transaction);
-            return [.. result];
+            var result = await Connection.QueryAsync<Guid>(sql, param, transaction: Transaction);
+            return result.ToList();
         }
 
         /// <summary>
@@ -50,7 +50,7 @@ namespace SwiftExport.Infrastructure.Repositories.Systems
         {
             var sql = $"SELECT CurrencyCode FROM [{TableName}] WHERE CurrencyCode IN @Codes AND IsDeleted = 0";
             var result = await Connection.QueryAsync<string>(sql, new { Codes = currencyCodes }, transaction: Transaction);
-            return [.. result];
+            return result.ToList();
         }
 
     }

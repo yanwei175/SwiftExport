@@ -9,7 +9,7 @@ namespace SwiftExport.Contracts.Wrappers
         public THead Header { get; set; } 
         public List<TLine> AddLines { get; set; } = new List<TLine>();
         public List<TLine> UpdateLines { get; set; } = new List<TLine>();
-        public List<int> DeleteLineIds { get; set; } = new List<int>();
+        public List<Guid> DeleteLineIds { get; set; } = new List<Guid>();
 
         public bool HasChanges =>
             AddLines.Count > 0 ||

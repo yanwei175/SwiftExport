@@ -69,11 +69,11 @@ namespace SwiftExport.View.FW.SalesOrderViews.Controls
 
         public static readonly DependencyProperty CustomerIdProperty =
             DependencyProperty.Register(nameof(CustomerId), typeof(int), typeof(SalesOrderLinePopupSelectorControl),
-                new PropertyMetadata(0));
+                new PropertyMetadata(Guid.Empty));
 
-        public int CustomerId
+        public Guid CustomerId
         {
-            get => (int)GetValue(CustomerIdProperty);
+            get => (Guid)GetValue(CustomerIdProperty);
             set => SetValue(CustomerIdProperty, value);
         }
 
@@ -171,7 +171,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Controls
             if (_salesOrderApi == null)
                 return;
 
-            if (CustomerId <= 0)
+            if (CustomerId == Guid.Empty)
             {
                 Items.Clear();
                 SelectedItem = null;

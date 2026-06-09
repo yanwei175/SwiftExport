@@ -16,7 +16,7 @@ namespace SwiftExport.View.FW.Mappings
             // DTO → Model（后端 API 返回数据 → UI 绑定）
             config.NewConfig<SysDictTypeDto, DictTypeModel>()
                 // 基础字段
-                .Map(dest => dest.Id, dto => dto.Id)
+                .Map(dest => dest.Uid, dto => dto.Uid)
                 .Map(dest => dest.Version, src => src.Version)
                 .Map(dest => dest.DictCode, dto => dto.DictCode)
                 .Map(dest => dest.DictName, dto => dto.DictName)

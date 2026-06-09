@@ -35,7 +35,7 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
         private readonly IDialogService _dialog;
 
         /// <summary> 弹窗后的结果</summary>
-        public int ResultData { get; set; }
+        public Guid ResultData { get; set; }
 
         /// <summary> 关闭弹窗的委托 </summary>
         public event EventHandler<bool> RequestClose;
@@ -103,7 +103,7 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
 
             ReceiveHead = new ReceiveHeadModel
             {
-                Id = head.Id,
+                Uid = head.Uid,
                 ReceiveNo = head.ReceiveNo,
                 SupplierCode = head.SupplierCode,
                 ReceiveDate = head.ReceiveDate,
@@ -115,7 +115,7 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
             };
 
             LineTable.Clear();
-            var rst = await _receiveApi.GetLinesByHeadIdAsync(head.Id);
+            var rst = await _receiveApi.GetLinesByHeadIdAsync(head.Uid);
             if (rst.Success && rst.Data != null)
             {
                 LineTable.ReLoadRangeFromDtoList(rst.Data.ToList());
@@ -170,7 +170,7 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
 
                     if (finalResult == null || finalResult.Count <= 0) { return; }
 
-                    var r = _receiveApi.GetLinesByHeadIdAsync(ReceiveHead.Id).Result;
+                    var r = _receiveApi.GetLinesByHeadIdAsync(ReceiveHead.Uid).Result;
                     if (r == null) return;
 
                     List<ReceiveLineModel> f = new List<ReceiveLineModel>();
@@ -272,7 +272,7 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
         }
         private void CloseWindow()
         {
-            ResultData = -1;
+            ResultData = Guid.Empty;
             RequestClose?.Invoke(this, true);
         }
     }

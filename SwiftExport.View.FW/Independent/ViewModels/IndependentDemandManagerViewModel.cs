@@ -101,7 +101,7 @@ namespace SwiftExport.View.FW.Independent.ViewModels
         {
             var md = new IndependentDemandModel
             {
-                Id = -1,
+                Uid = Guid.Empty,
                 SourceNo = "SO123456",
                 SourceType = "SalesOrder",
                 Sku = "PROD001",
@@ -123,7 +123,7 @@ namespace SwiftExport.View.FW.Independent.ViewModels
         }
         private bool CanConfirm()
         {
-            return HeadTable.CheckedCount > 0 && IsNotBusy && !HeadTable.IsDirty && HeadTable.Items.Any(x => x.ApprovalStatus != ApprovalStatusEnum.已批准 && x.ApprovalStatus != ApprovalStatusEnum.已取消);
+            return HeadTable.CheckedCount > 0 && IsNotBusy && !HeadTable.IsDirty && HeadTable.Items.Any(x => x.ConfirmationStatus != ConfirmationStatusEnum.已确认);
         }
         private async Task ConfirmAsync()
         {
@@ -132,7 +132,7 @@ namespace SwiftExport.View.FW.Independent.ViewModels
 
         private bool CanCancelConfirm()
         {
-            return HeadTable.CheckedCount > 0 && IsNotBusy && !HeadTable.IsDirty && HeadTable.Items.Any(x => x.ApprovalStatus == ApprovalStatusEnum.已批准);
+            return HeadTable.CheckedCount > 0 && IsNotBusy && !HeadTable.IsDirty && HeadTable.Items.Any(x => x.ConfirmationStatus == ConfirmationStatusEnum.已确认);
         }
         private async Task CancelConfirmAsync()
         {

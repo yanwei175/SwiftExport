@@ -9,6 +9,7 @@ namespace SwiftExport.Core.Entities.Orders;
 [Table("PurchaseReceiveLine")]
 public class ReceiveLine : BaseEntity
 {
+    public Guid ReceiveId { get; set; }
     /// <summary>
     /// 关联头表单号。
     /// </summary>
@@ -32,7 +33,7 @@ public class ReceiveLine : BaseEntity
     /// <summary>
     /// 关联采购单行ID（用于回写采购行实收数量）。
     /// </summary>
-    public int? PoLineId { get; set; }
+    public Guid? PoLineId { get; set; }
 
     /// <summary>
     /// 冗余单号：方便不查询 Join 也能知道这行货是哪个采购单的。

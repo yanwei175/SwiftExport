@@ -4,6 +4,6 @@ namespace SwiftExport.Core.Interfaces;
 
 public interface IProductCategoryRepository : IRepository<ProductCategory>
 {
-    Task<IReadOnlyList<ProductCategory>> GetSubById(int parentId);
+    Task<IReadOnlyList<ProductCategory>> GetSubById(Guid parentId);
 
 }

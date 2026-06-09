@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
+using SwiftExport.Application.Mappings;
 using SwiftExport.Application.Services.Customers;
 using SwiftExport.Application.Services.Orders;
 using SwiftExport.Application.Services.Products;
@@ -14,6 +15,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
+        // 1. Mapster 对象映射配置（必须最先注册）
+        MapsterConfig.RegisterMappings(services);
+
         services.AddLogging();
 
         services.AddScoped<ServiceBaseContext>();
@@ -30,6 +34,8 @@ public static class DependencyInjection
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
         services.AddScoped<ISalesOrderHeadService, SalesOrderHeadService>();
+        services.AddScoped<ISalesOrderManagerService, SalesOrderManagerService>();
+        services.AddScoped<ISalesOrderDetailService, SalesOrderDetailService>();
         services.AddScoped<IIndependentDemandServices, IndependentDemandService>();
         services.AddScoped<IDependentDemandService, DependentDemandService>();
         services.AddScoped<IDocumentNoService, DocumentNoService>();
@@ -37,7 +43,7 @@ public static class DependencyInjection
         services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();
         // 视图路由配置服务
         services.AddScoped<ISysViewRouteService, SysViewRouteService>();
-        services.AddScoped<ISalesOrderLineService, SalesOrderLineSourceService>();
+        services.AddScoped<ISalesOrderLineService, SalesOrderLineService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<IFollowUpService, FollowUpService>();
         services.AddScoped<IReceiptService, ReceiveService>();

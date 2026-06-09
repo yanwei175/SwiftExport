@@ -6,7 +6,7 @@ namespace SwiftExport.Contracts.DTOs.Warehouses
 {
     public class SaveReceiveDetailResultDto
     {
-        public int Id { get; set; }
+        public Guid Uid { get; set; }
         public string ReceiveNo { get; set; } = string.Empty;
     }
 }

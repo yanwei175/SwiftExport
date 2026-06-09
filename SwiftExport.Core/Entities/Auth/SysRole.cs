@@ -17,7 +17,7 @@ public class SysRole : BaseEntity
     public string? Description { get; set; }
 
     /// <summary>父角色 ID（顶级角色为 null，支持角色层级继承）</summary>
-    public int? ParentRoleId { get; set; }
+    public Guid? ParentRoleId { get; set; }
 
     /// <summary>变更时间</summary>
     public DateTime? ChangeTime { get; set; }

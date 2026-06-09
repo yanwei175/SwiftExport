@@ -1,3 +1,5 @@
+using System;
+
 namespace SwiftExport.Contracts.DTOs.Orders
 {
     /// <summary>
@@ -28,12 +30,12 @@ namespace SwiftExport.Contracts.DTOs.Orders
         /// <summary>
         /// 关联采购单行ID（用于回写采购行 RecQty）。
         /// </summary>
-        public int? PoLineId { get; set; }
+        public Guid? PoLineId { get; set; }
 
         /// <summary>
         /// 关联销售单行ID（用于回写需求池 ReceivedQty）。
         /// </summary>
-        public int? SoLineId { get; set; }
+        public Guid? SoLineId { get; set; }
 
         /// <summary>
         /// 来源类型（用于回写 IndependentDemand 时避免硬编码来源）。

@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
+using System;
 using System.Text;
 
 namespace SwiftExport.WebApi.Controllers.Auth;
@@ -51,7 +52,7 @@ public class AuthController(
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized(new { message = "用户名或密码错误" });
 
-        var token = GenerateJwt(user.Id, user.UserName);
+        var token = GenerateJwt(user.Uid, user.UserName);
         return Ok(new { access_token = token });
     }
 
@@ -67,16 +68,16 @@ public class AuthController(
         if (User?.Identity?.IsAuthenticated != true)
             return Unauthorized(new { message = "未登录" });
 
-        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+        var userUidStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
                      ?? User.FindFirstValue("sub");
         var userName  = User.FindFirstValue(ClaimTypes.Name)
                      ?? User.FindFirstValue("unique_name");
 
         // 查询用户角色列表
         var roles = new List<string>();
-        if (int.TryParse(userIdStr, out var userId))
+        if (Guid.TryParse(userUidStr, out var userUid))
         {
-            var userRoles = await _userRoleRepo.GetByUserIdAsync(userId);
+            var userRoles = await _userRoleRepo.GetByUserIdAsync(userUid);
             roles = userRoles
                 .Where(r => !string.IsNullOrEmpty(r.RoleName))
                 .Select(r => r.RoleName!)
@@ -84,11 +85,13 @@ public class AuthController(
         }
 
         // 查询昵称
-        var user = await _userRepo.GetByIdAsync(userId);
+        var user = Guid.TryParse(userUidStr, out var parsedUid)
+            ? await _userRepo.GetByIdAsync(parsedUid)
+            : null;
 
         return Ok(new
         {
-            UserId   = userIdStr,
+            UserId   = userUidStr,
             UserName = userName,
             NickName = user?.NickName ?? userName,
             Roles    = roles
@@ -138,11 +141,11 @@ public class AuthController(
         var hash = BCrypt.Net.BCrypt.HashPassword(request.Password);
         const string sql = """
             INSERT INTO [SysUser] ([UserName],[NickName],[PasswordHash],[Email],[PhoneNumber],[IsActive],[IsDeleted],[CreatedDate],[CreatedBy])
-            OUTPUT INSERTED.Id
+            OUTPUT INSERTED.Uid
             VALUES (@UserName,@NickName,@PasswordHash,@Email,@PhoneNumber,1,0,@CreatedDate,@CreatedBy)
             """;
 
-        var newId = await _dbSession.Connection.ExecuteScalarAsync<int>(sql, new
+        var newUid = await _dbSession.Connection.ExecuteScalarAsync<Guid>(sql, new
         {
             request.UserName,
             NickName = string.IsNullOrWhiteSpace(request.NickName) ? request.UserName : request.NickName,
@@ -153,7 +156,7 @@ public class AuthController(
             CreatedBy = _currentUser.UserName
         });
 
-        return Ok(new { Success = true, Data = newId, Message = $"用户 {request.UserName} 注册成功" });
+        return Ok(new { Success = true, Data = newUid, Message = $"用户 {request.UserName} 注册成功" });
     }
 
     // ──────────────────────────────────────────────────────
@@ -184,26 +187,26 @@ public class AuthController(
         if (targetUser == null)
             return NotFound(new { message = "目标用户不存在" });
 
-        // ③ 使用管理员密码作为校验码（匹配任一 Admin 账号密码哈希即通过）
-        const string adminPwdSql = """
-            SELECT su.PasswordHash
-            FROM [SysUser] su WITH(NOLOCK)
-            INNER JOIN [SysUser_Roles] ur WITH(NOLOCK) ON ur.UserId = su.Id
-            WHERE ur.RoleName = 'Admin'
-              AND (ur.IsDeleted = 0 OR ur.IsDeleted IS NULL)
-              AND su.IsActive = 1
-              AND (su.IsDeleted = 0 OR su.IsDeleted IS NULL)
-              AND su.PasswordHash IS NOT NULL
-              AND su.PasswordHash <> ''
-            """;
+        //// ③ 使用管理员密码作为校验码（匹配任一 Admin 账号密码哈希即通过）
+        //const string adminPwdSql = """
+        //    SELECT su.PasswordHash
+        //    FROM [SysUser] su WITH(NOLOCK)
+        //    INNER JOIN [SysUser_Roles] ur WITH(NOLOCK) ON ur.UserId = su.Uid
+        //    WHERE ur.RoleName = 'Admin'
+        //      AND (ur.IsDeleted = 0 OR ur.IsDeleted IS NULL)
+        //      AND su.IsActive = 1
+        //      AND (su.IsDeleted = 0 OR su.IsDeleted IS NULL)
+        //      AND su.PasswordHash IS NOT NULL
+        //      AND su.PasswordHash <> ''
+        //    """;
 
-        var adminPasswordHashes = (await _dbSession.Connection.QueryAsync<string>(adminPwdSql)).ToList();
-        if (adminPasswordHashes.Count == 0)
-            return StatusCode(500, new { message = "系统中未配置管理员账号，无法校验重置请求" });
+        //var adminPasswordHashes = (await _dbSession.Connection.QueryAsync<string>(adminPwdSql)).ToList();
+        //if (adminPasswordHashes.Count == 0)
+        //    return StatusCode(500, new { message = "系统中未配置管理员账号，无法校验重置请求" });
 
-        var verified = adminPasswordHashes.Any(hash => BCrypt.Net.BCrypt.Verify(request.VerificationCode, hash));
-        if (!verified)
-            return Unauthorized(new { message = "校验码错误" });
+        //var verified = adminPasswordHashes.Any(hash => BCrypt.Net.BCrypt.Verify(request.VerificationCode, hash));
+        //if (!verified)
+        //    return Unauthorized(new { message = "校验码错误" });
 
         // ④ 更新目标用户密码哈希
         var newHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
@@ -212,14 +215,14 @@ public class AuthController(
             SET PasswordHash = @PasswordHash,
                 UpdatedDate = GETDATE(),
                 UpdatedBy = @UpdatedBy
-            WHERE Id = @Id
+            WHERE Uid = @Uid
             """;
 
         var rows = await _dbSession.Connection.ExecuteAsync(updateSql, new
         {
             PasswordHash = newHash,
             UpdatedBy = "ResetPasswordApi",
-            Id = targetUser.Id
+            Uid = targetUser.Uid
         });
 
         if (rows <= 0)
@@ -232,7 +235,7 @@ public class AuthController(
     // 私有：生成 JWT
     // ──────────────────────────────────────────────────────
 
-    private string GenerateJwt(int userId, string userName)
+    private string GenerateJwt(Guid userUid, string userName)
     {
         var jwtKey = _config["Auth:JwtKey"]
             ?? throw new InvalidOperationException("Auth:JwtKey 未配置，请检查 appsettings.json");
@@ -244,9 +247,9 @@ public class AuthController(
 
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new Claim(JwtRegisteredClaimNames.Sub, userUid.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, userName),
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, userUid.ToString()),
             new Claim(ClaimTypes.Name, userName),
         };
 

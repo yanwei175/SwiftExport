@@ -45,7 +45,7 @@ public class InventoryTransaction : BaseEntity
     /// <summary>
     /// 业务行 ID。关联入库单行或采购行 ID，用于精准定位变动来源。
     /// </summary>
-    public int? BizLineId { get; set; }
+    public Guid? BizLineId { get; set; }
 
     /// <summary>
     /// 进项数量 (仅入库业务为正，其他为 0)

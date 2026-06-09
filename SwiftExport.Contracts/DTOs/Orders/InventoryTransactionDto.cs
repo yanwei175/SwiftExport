@@ -1,4 +1,5 @@
 using SwiftExport.Contracts.DTOs.Base;
+using System;
 
 namespace SwiftExport.Contracts.DTOs.Orders
 {
@@ -14,7 +15,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
 
         public string BizType { get; set; } = string.Empty;
         public string BizNo { get; set; } = string.Empty;
-        public int? BizLineId { get; set; }
+        public Guid? BizLineId { get; set; }
 
         public decimal InQty { get; set; }
         public decimal OutQty { get; set; }

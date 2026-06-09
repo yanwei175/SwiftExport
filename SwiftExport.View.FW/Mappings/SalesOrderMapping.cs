@@ -20,7 +20,7 @@ namespace SwiftExport.View.FW.Mappings
         private static void RegisterHeaderMapping(TypeAdapterConfig config)
         {
             config.NewConfig<SalesOrderHeaderDto, SalesOrderHeaderModel>()
-                .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.Uid, src => src.Uid)
                 .Map(dest => dest.Version, src => src.Version)
                 .Map(dest => dest.OrderStatus, src => src.OrderStatus)
                 .Map(dest => dest.OrderNo, src => src.OrderNo)
@@ -64,7 +64,7 @@ namespace SwiftExport.View.FW.Mappings
                 .IgnoreNonMapped(true);
 
             config.NewConfig<SalesOrderHeaderModel, SalesOrderHeaderDto>()
-                .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.Uid, src => src.Uid)
                 .Map(dest => dest.Version, src => src.Version)
                 .Map(dest => dest.OrderStatus, src => src.OrderStatus)
                 .Map(dest => dest.OrderNo, src => src.OrderNo)
@@ -111,7 +111,7 @@ namespace SwiftExport.View.FW.Mappings
         private static void RegisterLineMapping(TypeAdapterConfig config)
         {
             config.NewConfig<SalesOrderLineDto, SalesOrderLineModel>()
-                .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.Uid, src => src.Uid)
                 .Map(dest => dest.Version, src => src.Version)
                 .Map(dest => dest.LineNumber, src => src.LineNumber)
                 .Map(dest => dest.SalesOrderId, src => src.SalesOrderId)
@@ -143,7 +143,7 @@ namespace SwiftExport.View.FW.Mappings
                 .IgnoreNonMapped(true);
 
             config.NewConfig<SalesOrderLineModel, SalesOrderLineDto>()
-                .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.Uid, src => src.Uid)
                 .Map(dest => dest.Version, src => src.Version)
                 .Map(dest => dest.LineNumber, src => src.LineNumber)
                 .Map(dest => dest.SalesOrderId, src => src.SalesOrderId)

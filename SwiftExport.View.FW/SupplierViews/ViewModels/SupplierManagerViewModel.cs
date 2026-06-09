@@ -369,7 +369,7 @@ namespace SwiftExport.View.FW.SupplierViews.ViewModels
             StatusMessage = "正在保存供应商变更...";
             try
             {
-                var request = new BatchRequestGeneric<SupplierDto>
+                var request = new BatchRequestDto<SupplierDto>
                 {
                     AddList = changeSet.AddList.Select(ToDto).ToList(),
                     UpdateList = changeSet.UpdateList.Select(ToDto).ToList(),
@@ -402,7 +402,7 @@ namespace SwiftExport.View.FW.SupplierViews.ViewModels
         {
             return new SupplierDto
             {
-                Id = x.Id,
+                Uid = x.Uid,
                 SupplierCode = x.SupplierCode ?? string.Empty,
                 SupplierName = x.Name ?? string.Empty,
                 DocRelateNo = x.DocRelateNo ?? string.Empty,

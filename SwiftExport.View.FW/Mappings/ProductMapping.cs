@@ -17,7 +17,7 @@ namespace SwiftExport.View.FW.Mappings
             // 所有字段直接映射，保留原有类型（Model 中的 decimal 字段接收 DTO 中的 decimal 值）
             config.NewConfig<ProductDto, ProductModel>()
                 // 基础标识字段
-                .Map(dest => dest.Id, dto => dto.Id)
+                .Map(dest => dest.Uid, dto => dto.Uid)
                 .Map(dest => dest.Version, src => src.Version)
                 .Map(dest => dest.IsChecked, dto => false)  // 初始化 UI 勾选状态
                 .Map(dest => dest.State, dto => ModelState.Unchanged)  // 初始化状态为未修改

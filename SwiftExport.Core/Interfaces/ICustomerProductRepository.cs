@@ -14,7 +14,7 @@ public interface ICustomerProductRepository : IRepository<CustomerProduct>
     /// 按 ID 联表查询单条，返回含联表字段的完整 DTO。
     /// 隐藏基类 GetByIdAsync（基类只查单表，联表字段为空）。
     /// </summary>
-    Task<CustomerProductDto?> GetDtoByIdAsync(int id);
+    Task<CustomerProductDto?> GetDtoByIdAsync(Guid id);
 
     /// <summary>
     /// 联表分页查询（CustomerProduct JOIN Product JOIN Customer JOIN ProductCategory）
@@ -23,7 +23,7 @@ public interface ICustomerProductRepository : IRepository<CustomerProduct>
     ///   - 普通字段（CustomerId / CustomerSku / Sku 等）→ 映射到 cp.字段
     ///   - CategoryId → 映射到 p.CategoryId
     /// </summary>
-    Task<PagedResult<CustomerProductDto>> GetPagedCustomerProductAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "cp.Id DESC");
+    Task<PagedResult<CustomerProductDto>> GetPagedCustomerProductAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "cp.CreatedDate DESC");
 
     // ============================================================
     // 其他特有查询
@@ -33,9 +33,9 @@ public interface ICustomerProductRepository : IRepository<CustomerProduct>
     Task<IReadOnlyList<int>> GetAllCustomerIdListAsync();
 
     /// <summary>按客户料号 + 客户 ID 精确查找实体（用于写操作前的存在性校验）</summary>
-    Task<CustomerProduct?> GetByCustomerSkuAsync(string customerSku, int customerId);
+    Task<CustomerProduct?> GetByCustomerSkuAsync(string customerSku, Guid customerId);
 
     /// <summary>批量检查客户料号是否已存在（用于新增前去重校验）</summary>
-    Task<IReadOnlyList<string>> GetExistingCustomerSkuListAsync(IEnumerable<string> skuList, int customerId);
+    Task<IReadOnlyList<string>> GetExistingCustomerSkuListAsync(IEnumerable<string> skuList, Guid customerId);
 }
 

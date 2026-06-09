@@ -2,23 +2,24 @@
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.View.FW.Mvvm;
+using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 
 namespace SwiftExport.View.FW.CustomerViews.Models
 {
 
-    public class CustomerModel : BaseLineModel, IBaseModel, IDataErrorInfo
+    public class CustomerModel : BaseLineModel
     {
-        public override void LoadFromDto<CustomerDto>(CustomerDto dto, bool 抑制清理脏数据 = false)//加载数据方法
+        public override void LoadFromDto(object dto, bool 抑制清理脏数据 = false)//加载数据方法
         {
             if (dto == null) return;
 
             using (DisabledStateScope())
             {
 
-                dto.Adapt(this);//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
-                if (this.Id == 0)
+                dto.Adapt(this, dto.GetType(), GetType());//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
+                if (this.Uid == Guid.Empty)
                 { this.MarkAsAdded(); }
 
                 // 根据调用方需要决定是否立即提交/清理脏数据

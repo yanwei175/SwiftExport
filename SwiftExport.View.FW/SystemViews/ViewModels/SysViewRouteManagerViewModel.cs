@@ -162,7 +162,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
             }
             StatusMessage = "正在保存更改...";
 
-            var req = dirtyModels.Adapt<BatchRequestGeneric<SysViewRouteDto>>(); // 先调用Adapt方法进行类型转换，确保所有属性都被正确映射
+            var req = dirtyModels.Adapt<BatchRequestDto<SysViewRouteDto>>(); // 先调用Adapt方法进行类型转换，确保所有属性都被正确映射
             try
             {
                 var result = await _api.BatchSaveAsync(req);
@@ -198,7 +198,7 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
                 if (SelectedRoute == null)
                     return; // ★ 没有勾选也没有选中 → 直接退出
 
-                if (SelectedRoute.Id <= 0)
+                if (SelectedRoute.Uid == Guid.Empty)
                 {
                     // 删除新建行（本地删除）
                     var tempIndex = CurrentTable.Items.IndexOf(SelectedRoute);
@@ -237,9 +237,9 @@ namespace SwiftExport.View.FW.SystemViews.ViewModels
                         $"确定要删除选中的 {waitToDelete.Count} 条记录吗？", "确认删除"))
                         return;
 
-                    var req = new BatchRequestGeneric<SysViewRouteDto>
+                    var req = new BatchRequestDto<SysViewRouteDto>
                     {
-                        DeleteIdList = waitToDelete.Select(x => x.Id).ToList()
+                        DeleteIdList = waitToDelete.Select(x => x.Uid).ToList()
                     };
 
                     var rst = await _api.BatchSaveAsync(req);

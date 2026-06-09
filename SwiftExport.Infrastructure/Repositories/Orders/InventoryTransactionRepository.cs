@@ -16,7 +16,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
         /// <summary>
         /// 新增一条库存流水（只增不改）。
         /// </summary>
-        public Task<int> AddAsync(InventoryTransaction entity)
+        public Task<Guid> AddAsync(InventoryTransaction entity)
         {
             return _repo.AddAsync(entity);
         }
@@ -24,7 +24,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
         /// <summary>
         /// 批量新增库存流水（只增不改）。
         /// </summary>
-        public Task<IReadOnlyList<int>> AddRangeAsync(IEnumerable<InventoryTransaction> entities)
+        public Task<IReadOnlyList<Guid>> AddRangeAsync(IEnumerable<InventoryTransaction> entities)
         {
             return _repo.AddRangeAsync(entities);
         }

@@ -1,3 +1,5 @@
+using System;
+
 namespace SwiftExport.Contracts.DTOs.SalesOrders
 {
     /// <summary>
@@ -25,7 +27,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         /// <summary>
         /// 客户 Id（必填）。
         /// </summary>
-        public int CustomerId { get; set; }
+        public Guid CustomerId { get; set; }
 
         /// <summary>
         /// 客户编码（可选，作为补充过滤条件）。

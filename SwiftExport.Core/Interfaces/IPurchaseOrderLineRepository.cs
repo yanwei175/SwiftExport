@@ -11,5 +11,5 @@ namespace SwiftExport.Core.Interfaces;
 public interface IPurchaseOrderLineRepository : IRepository<PurchaseOrderLine>
 {
     Task<List<SupplierDto>> GetAwaitingInboundSuppliersAsync();
-    Task<List<PurchaseOrderLineDto>> GetReadOnlyLinesByPurchaseOrderIdAsync(int purchaseOrderId);
+    Task<List<PurchaseOrderLineDto>> GetReadOnlyLinesByPurchaseOrderIdAsync(Guid purchaseOrderId);
 }

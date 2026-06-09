@@ -240,7 +240,7 @@
                         <mt:CheckBoxDataGridTemplateColumn                          
                              AllCheckedPropertyName="LineTable.IsAllChecked"
                              ItemCheckedPropertyName="IsChecked"
-                             ItemCheckedCommandName="ItemCheckedChangedCommand"
+                             ItemCheckedCommandName="{x:Null}"
                              HeaderCheckBoxMargin="3,0"
                              HeaderCheckBoxToolTip="全选/全不选"/>
 

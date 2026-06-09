@@ -82,10 +82,10 @@ public class PackingListService(
         });
     }
 
-    public async Task<ServiceResult<PackingListDetailDto>> GetDetailByIdAsync(int headid)
+    public async Task<ServiceResult<PackingListDetailDto>> GetDetailByIdAsync(Guid headid)
     {
        
-        if (headid <= 0)
+        if (headid == Guid.Empty)
             return ServiceResult<PackingListDetailDto>.Fail("装箱单ID无效");
         var head = await _headRepository.GetDetailByHeadIdAsync(headid);
         if (head == null)
@@ -94,10 +94,10 @@ public class PackingListService(
 
     }
 
-    public async Task<ServiceResult<int>> SaveDetailAsync(PackingListDetailDto request)
+    public async Task<ServiceResult<Guid>> SaveDetailAsync(PackingListDetailDto request)
     {
         if (request?.Header == null)
-            return ServiceResult<int>.Fail("装箱单头不能为空");
+            return ServiceResult<Guid>.Fail("装箱单头不能为空");
 
         var head = request.Header.Adapt<PackingListHead>();
         if (string.IsNullOrWhiteSpace(head.PackingListNo))
@@ -107,13 +107,13 @@ public class PackingListService(
         try
         {
             PackingListHead persisted;
-            if (head.Id > 0)
+            if (head.Uid != Guid.Empty)
             {
-                var existing = await _headRepository.GetByIdAsync(head.Id);
+                var existing = await _headRepository.GetByIdAsync(head.Uid);
                 if (existing == null)
                 {
                     _session.Transaction.Rollback();
-                    return ServiceResult<int>.Fail("装箱单不存在，无法更新");
+                    return ServiceResult<Guid>.Fail("装箱单不存在，无法更新");
                 }
 
                 persisted = existing;
@@ -121,7 +121,7 @@ public class PackingListService(
                 if (persisted.IsPosted)
                 {
                     _session.Transaction.Rollback();
-                    return ServiceResult<int>.Fail("装箱单已过账，不能修改");
+                    return ServiceResult<Guid>.Fail("装箱单已过账，不能修改");
                 }
 
                 request.Header.Adapt(persisted);
@@ -137,20 +137,20 @@ public class PackingListService(
                 persisted.Status = string.IsNullOrWhiteSpace(persisted.Status) ? "草稿" : persisted.Status;
                 persisted.CreatedDate = DateTime.Now;
                 persisted.IsDeleted = false;
-                persisted.Id = await _headRepository.AddAsync(persisted);
+                persisted.Uid = await _headRepository.AddAsync(persisted);
             }
 
             var oldLines = await _lineRepository.GetByPackingListNoAsync(persisted.PackingListNo);
             if (oldLines.Count > 0)
-                await _lineRepository.DeleteRangeAsync(oldLines.Select(x => x.Id), false);
+                await _lineRepository.DeleteRangeAsync(oldLines.Select(x => x.Uid), false);
 
             var newLines = (request.Lines ?? [])
                 .Where(x => !string.IsNullOrWhiteSpace(x.Sku) && x.Qty > 0)
                 .Select(x =>
                 {
                     var line = x.Adapt<PackingListLine>();
-                    line.Id = 0;
-                    line.PackingListHeadId = persisted.Id;
+                    line.Uid = Guid.Empty;
+                    line.PackingListHeadId = persisted.Uid;
                     line.PackingListNo = persisted.PackingListNo;
                     line.IsDeleted = false;
                     return line;
@@ -161,12 +161,12 @@ public class PackingListService(
                 await _lineRepository.AddRangeAsync(newLines);
 
             _session.Transaction.Commit();
-            return ServiceResult<int>.Ok(persisted.Id);
+            return ServiceResult<Guid>.Ok(persisted.Uid);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<int>.Fail("保存装箱单失败：" + ex.Message);
+            return ServiceResult<Guid>.Fail("保存装箱单失败：" + ex.Message);
         }
         finally
         {
@@ -177,7 +177,7 @@ public class PackingListService(
 
     public async Task<ServiceResult<PackingListPostResultDto>> PostPackingListAsync(PackingListPostRequestDto request)
     {
-        if (request == null || request.PackingListId <= 0)
+        if (request == null || request.PackingListId == Guid.Empty)
             return ServiceResult<PackingListPostResultDto>.Fail("过账请求无效");
 
         var head = await _headRepository.GetByIdAsync(request.PackingListId);
@@ -390,8 +390,6 @@ public class PackingListService(
         var totalQty = demands.Sum(x => x.OriginalQty);
         var shippedQty = demands.Sum(x => x.ShippedQty);
 
-        header.TotalShippedQty = shippedQty;
-        header.TotalUnshippedQty = Math.Max(totalQty - shippedQty, 0m);
         //header.OrderStatus = shippedQty <= 0
         //    ? SalesOrderStatusEnum.草稿
         //    : shippedQty >= totalQty

@@ -11,8 +11,8 @@ namespace SwiftExport.Contracts.DTOs.Independent
 
     public class IndependentSaveResult
     {
-        public int? TempId { get; set; }
-        public int? Id { get; set; }
+        public Guid? TempId { get; set; }
+        public Guid? Uid { get; set; }
         public bool Success { get; set; }
         public string Message { get; set; }
         public string Operation { get; set; }

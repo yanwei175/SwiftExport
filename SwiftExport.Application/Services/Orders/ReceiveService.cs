@@ -4,6 +4,7 @@ using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.DTOs.Warehouses;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
@@ -75,7 +76,7 @@ namespace SwiftExport.Application.Services.Orders
                     return new AwatingInboundDto
                     {
                         PoNo = string.IsNullOrWhiteSpace(head.BoNo) ? head.OrderNo : head.BoNo,
-                        PoLineId = x.Id,
+                        PoLineId = x.Uid,
                         Sku = x.Sku,
                         PoQty = x.QTY,
                         RecQty = x.RecQty,
@@ -130,7 +131,7 @@ namespace SwiftExport.Application.Services.Orders
             if (!saveRst.Success)
                 return ServiceResult<string>.Fail(saveRst.Message);
 
-            var postRst = await PostReceiveDetialAsync(saveRst.Data.Id);
+            var postRst = await PostReceiveDetialAsync(saveRst.Data.Uid);
             if (!postRst.Success)
                 return ServiceResult<string>.Fail(postRst.Message);
 
@@ -147,9 +148,9 @@ namespace SwiftExport.Application.Services.Orders
         /// 5) 更新虚拟库库存（WhseCode=V_WH，LocationCode=SupplierCode）。
         /// 全流程在同一事务中执行。
         /// </summary>
-        public async Task<ServiceResult<SaveReceiveDetailResultDto>> PostReceiveDetialAsync(int headId)
+        public async Task<ServiceResult<SaveReceiveDetailResultDto>> PostReceiveDetialAsync(Guid headId)
         {
-            if (headId <= 0)
+            if (headId == Guid.Empty)
                 return ServiceResult<SaveReceiveDetailResultDto>.Fail("入库请求不能为空");
 
             var head = await _receiveHeadRepository.GetByIdAsync(headId, withUpdLock: true);
@@ -192,17 +193,19 @@ namespace SwiftExport.Application.Services.Orders
                 var lineEntities = lineList;
 
                 // 3) 回写采购单行 RecQty（按 PoLineId 聚合，批量查询+批量更新）
+                //var poUpdates = new Dictionary<Guid, ReceiveLine>();
                 var poUpdates = lineEntities
-                    .Where(x => x.PoLineId.HasValue && x.PoLineId > 0)
-                    .GroupBy(x => x.PoLineId!.Value)
-                    .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty));
+                                .Where(x => x.PoLineId != Guid.Empty)
+                                .GroupBy(x => x.PoLineId ?? Guid.Empty)
+                                .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty));
+
 
                 if (poUpdates.Count > 0)
                 {
                     var poLineEntities = (await _purchaseOrderLineRepository.GetByIdListAsync(poUpdates.Keys, withUpdLock: true)).ToList();
                     foreach (var poLine in poLineEntities)
                     {
-                        if (!poUpdates.TryGetValue(poLine.Id, out var incQty))
+                        if (!poUpdates.TryGetValue(poLine.Uid, out var incQty))
                             continue;
 
                         poLine.RecQty = (poLine.RecQty <= 0 ? 0 : poLine.RecQty) + incQty;
@@ -220,13 +223,13 @@ namespace SwiftExport.Application.Services.Orders
 
                 // 4.1 精确回写（按 TargetLineId 分组，按 RequiredDate/Id 顺序分摊）
                 var demandByTargetLine = lineEntities
-                    .Where(x => x.PoLineId.HasValue && x.PoLineId > 0)
-                    .GroupBy(x => x.PoLineId!.Value)
+                    .Where(x => x.PoLineId != Guid.Empty)
+                    .GroupBy(x => x.PoLineId ?? Guid.Empty)
                     .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty));
 
                 var targetLineIds = demandByTargetLine.Keys.ToList();
-                var demandRowsByTarget = new Dictionary<int, List<DependentDemand>>();
-                var targetLineWithDemand = new HashSet<int>();
+                var demandRowsByTarget = new Dictionary<Guid, List<DependentDemand>>();
+                var targetLineWithDemand = new HashSet<Guid>();
 
                 if (targetLineIds.Count > 0)
                 {
@@ -238,12 +241,12 @@ namespace SwiftExport.Application.Services.Orders
                         .ToDictionary(
                             g => g.Key,
                             g => g.OrderBy(x => x.RequiredDate ?? DateTime.MaxValue)
-                                  .ThenBy(x => x.Id)
+                                  .ThenBy(x => x.Uid)
                                   .ToList());
 
                     targetLineWithDemand = demandRowsByTarget.Keys.ToHashSet();
 
-                    var changedDemandMap = new Dictionary<int, DependentDemand>();
+                    var changedDemandMap = new Dictionary<Guid, DependentDemand>();
 
                     foreach (var kv in demandByTargetLine)
                     {
@@ -271,9 +274,9 @@ namespace SwiftExport.Application.Services.Orders
 
                             row.ChangeTime = DateTime.Now;
                             if (row.ReceivedQty >= row.NetQty)
-                                row.StatusFlag = IndependentDemandStatusEnum.已到货;
+                                row.OrderStatus = DependentDemandStatusEnum.已到货;
 
-                            changedDemandMap[row.Id] = row;
+                            changedDemandMap[row.Uid] = row;
                             leftQty -= allocQty;
                         }
                     }
@@ -362,7 +365,7 @@ namespace SwiftExport.Application.Services.Orders
                 _session.Transaction.Commit();
                 return ServiceResult<SaveReceiveDetailResultDto>.Ok(new SaveReceiveDetailResultDto
                 {
-                    Id = head.Id,
+                    Uid = head.Uid,
                     ReceiveNo = receiveNo
                 });
             }
@@ -392,8 +395,8 @@ namespace SwiftExport.Application.Services.Orders
             if (request.AddLines.Any(x => string.IsNullOrWhiteSpace(x.Sku) || x.Qty <= 0))
                 return ServiceResult<SaveReceiveDetailResultDto>.Fail("存在无效入库行（SKU 为空或数量<=0）");
 
-            if (request.UpdateLines.Any(x => x.Id <= 0 || string.IsNullOrWhiteSpace(x.Sku) || x.Qty <= 0))
-                return ServiceResult<SaveReceiveDetailResultDto>.Fail("存在无效更新行（Id/SKU/Qty 不合法）");
+            if (request.UpdateLines.Any(x => x.Uid == Guid.Empty || string.IsNullOrWhiteSpace(x.Sku) || x.Qty <= 0))
+                return ServiceResult<SaveReceiveDetailResultDto>.Fail("存在无效更新行（Uid/SKU/Qty 不合法）");
 
             _session.Transaction = _session.Connection.BeginTransaction();
             try
@@ -401,9 +404,9 @@ namespace SwiftExport.Application.Services.Orders
                 ReceiveHead? head;
 
                 // 1) 保存/更新入库头
-                if (request.Header.Id > 0)
+                if (request.Header.Uid != Guid.Empty)
                 {
-                    head = await _receiveHeadRepository.GetByIdAsync(request.Header.Id, withUpdLock: true);
+                    head = await _receiveHeadRepository.GetByIdAsync(request.Header.Uid, withUpdLock: true);
                     if (head == null)
                         return ServiceResult<SaveReceiveDetailResultDto>.Fail("入库单不存在，无法更新");
 
@@ -451,7 +454,7 @@ namespace SwiftExport.Application.Services.Orders
                         CreatedDate = DateTime.Now
                     };
 
-                    head.Id = await _receiveHeadRepository.AddAsync(head);
+                    head.Uid = await _receiveHeadRepository.AddAsync(head);
                 }
 
                 // 2) 删除行
@@ -463,13 +466,13 @@ namespace SwiftExport.Application.Services.Orders
                 // 3) 更新行
                 if (request.UpdateLines != null && request.UpdateLines.Count > 0)
                 {
-                    var updateIds = request.UpdateLines.Select(x => x.Id).Distinct().ToList();
-                    var dbLines = (await _receiveLineRepository.GetByIdListAsync(updateIds, withUpdLock: true)).ToDictionary(x => x.Id);
+                    var updateUids = request.UpdateLines.Select(x => x.Uid).Distinct().ToList();
+                    var dbLines = (await _receiveLineRepository.GetByIdListAsync(updateUids, withUpdLock: true)).ToDictionary(x => x.Uid);
                     var changedLines = new List<ReceiveLine>();
 
                     foreach (var dto in request.UpdateLines)
                     {
-                        if (!dbLines.TryGetValue(dto.Id, out var line))
+                        if (!dbLines.TryGetValue(dto.Uid, out var line))
                             continue;
 
                         line.ReceiveNo = head.ReceiveNo;
@@ -516,7 +519,7 @@ namespace SwiftExport.Application.Services.Orders
                 _session.Transaction.Commit();
                 return ServiceResult<SaveReceiveDetailResultDto>.Ok(new SaveReceiveDetailResultDto
                 {
-                    Id = head.Id,
+                    Uid = head.Uid,
                     ReceiveNo = head.ReceiveNo
                 });
             }

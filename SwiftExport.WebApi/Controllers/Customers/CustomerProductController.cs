@@ -17,18 +17,18 @@ public class CustomerProductController(ICustomerProductService service) : Contro
     // ================= 读操作 =================
 
     /// <summary>按 ID 查询单条客户产品（含联表字段）</summary>
-    [HttpGet("{id:int}")]
-    public async Task<ServiceResult<CustomerProductDto>> GetById(int id)
+    [HttpGet("{id:guid}")]
+    public async Task<ServiceResult<CustomerProductDto>> GetById(Guid id)
         => await service.GetByIdAsync(id);
 
     /// <summary>按客户料号查询</summary>
     [HttpGet("customersku/{sku}")]
-    public async Task<ServiceResult<CustomerProductDto>> GetByCustomerSku(int customerId, string sku)
+    public async Task<ServiceResult<CustomerProductDto>> GetByCustomerSku(Guid customerId, string sku)
         => await service.GetByCustomerSkuAsync(sku, customerId);
 
     /// <summary>联表分页搜索</summary>
     [HttpPost("search")]
-    public async Task<ServiceResult<PagedResultDto<CustomerProductDto>>> Search([FromBody] ProductSearchDto search)
+    public async Task<ServiceResult<PagedResultDto<CustomerProductDto>>> Search([FromBody] ProductSearchRequest search)
         => await service.GetPagedCustomerProductAsync(search);
 
     /// <summary>获取有产品记录的客户列表</summary>
@@ -40,6 +40,6 @@ public class CustomerProductController(ICustomerProductService service) : Contro
 
     /// <summary>批量保存（新增 / 修改 / 删除），事务保护</summary>
     [HttpPost("batch-save")]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestGeneric<CustomerProductDto> req)
+    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<CustomerProductDto> req)
         => await service.BatchSaveAsync(req);
 }

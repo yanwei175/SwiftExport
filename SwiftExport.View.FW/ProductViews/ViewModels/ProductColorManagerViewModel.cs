@@ -100,7 +100,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         {
             var model = new ProductColorModel
             {
-                Id = 0,
+                Uid = Guid.Empty,
                 ColorCodeUnique = "",
                 ColorCode = "",
                 ColorNameEn = "",
@@ -119,8 +119,8 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         {
 
             if (item == null) return;
-            var id = item.Id;
-            if (id <= 0)
+            var id = item.Uid;
+            if (id == Guid.Empty)
             {
                 CurrentTable.Remove(item);
                 return;
@@ -269,7 +269,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 StatusMessage = "保存中...";
                 try
                 {
-                    if (EditingItem.Id <= 0)
+                    if (EditingItem.Uid == Guid.Empty)
                     {
                         var addRst = await _api.CreateAsync(dto);
                         if (!addRst.Success)
@@ -281,7 +281,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                     }
                     else
                     {
-                        var rst = await _api.UpdateAsync(dto.Id, dto);
+                        var rst = await _api.UpdateAsync(dto.Uid, dto);
                         if (!rst.Success)
                         {
                             StatusMessage = "保存失败: " + rst.Message;

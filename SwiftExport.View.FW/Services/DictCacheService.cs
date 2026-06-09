@@ -94,7 +94,7 @@ namespace SwiftExport.View.FW.Services
                     // 1. 在内存中进行分组和排序
                     var groupedData = result.Data
                         .OrderBy(x => x.SortOrder)
-                        .ThenBy(x => x.Id)
+                        .ThenBy(x => x.Uid)
                         .GroupBy(x => x.DictCode, StringComparer.OrdinalIgnoreCase);
 
                     // 2. 清空当前缓存并批量填充
@@ -136,7 +136,7 @@ namespace SwiftExport.View.FW.Services
                 var result = await _dictDataApi.GetByCodeAsync(dictCode).ConfigureAwait(false);
                 if (result?.Success == true && result.Data != null)
                 {
-                    var items = result.Data.OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToList();
+                    var items = result.Data.OrderBy(x => x.SortOrder).ThenBy(x => x.Uid).ToList();
                     _cache.AddOrUpdate(dictCode, items, (k, old) => items);
                 }
             }

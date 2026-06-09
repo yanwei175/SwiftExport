@@ -9,7 +9,7 @@ namespace SwiftExport.Core.Entities.Systems
         public bool IsSystem { get; set; }
         public string? Remark { get; set; }
         // 新增：支撑树形结构
-        public int? ParentId { get; set; }
+        public Guid? ParentId { get; set; }
         // 新增：支撑左侧树的排序
         public int? SortOrder { get; set; }
 

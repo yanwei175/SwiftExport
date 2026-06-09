@@ -112,7 +112,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         /// <summary>
         /// 是否选择了客户（用于控制"客户产品管理"标签页的操作按钮可用性，要求已持久化的客户 Id > 0）
         /// </summary>
-        public bool HasSelectedCustomer => _selectedCustomer != null && _selectedCustomer.Id > 0;
+        public bool HasSelectedCustomer => _selectedCustomer != null && _selectedCustomer.Uid != Guid.Empty;
 
 
         private string _searchCustomerText;
@@ -225,7 +225,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             }
             StatusMessage = "正在保存更改...";
 
-            var req = dirtyModels.Adapt<BatchRequestGeneric<CustomerDto>>(); // 先调用Adapt方法进行类型转换，确保所有属性都被正确映射
+            var req = dirtyModels.Adapt<BatchRequestDto<CustomerDto>>(); // 先调用Adapt方法进行类型转换，确保所有属性都被正确映射
             try
             {
                 var result = await _customerApi.BatchSaveAsync(req);
@@ -258,7 +258,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         public RelayCommand DeleteCustomerAsyncCommand { get; }
         private async Task DeleteCustomerAsync()
         {
-            if (SelectedCustomer != null && SelectedCustomer.Id <= 0)
+            if (SelectedCustomer != null && SelectedCustomer.Uid == Guid.Empty)
             {
                 var tempIndex = CurrentCustomerTable.Items.IndexOf(SelectedCustomer);
                 CurrentCustomerTable.Remove(SelectedCustomer);
@@ -283,11 +283,11 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
             try
             {
                 //删除刚刚新建的行
-                var deleteByNew = checkItems.Where(x => x.Id <= 0).ToList();
+                var deleteByNew = checkItems.Where(x => x.Uid == Guid.Empty).ToList();
                 foreach (var item in deleteByNew) { CurrentCustomerTable.Remove(item); }
 
                 //发API删除数据库的行
-                var apiToDelete = checkItems.Where(x => x.Id > 0).ToList();
+                var apiToDelete = checkItems.Where(x => x.Uid != Guid.Empty).ToList();
                 if (apiToDelete.Count > 0)
                 {
                     if (!await _msg.ShowConfirmAsync($"确定要删除选中的 {apiToDelete.Count} 条记录吗？", "确认删除")) return;
@@ -297,13 +297,13 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
                     if (apiToDelete.Count == 1)
                     {
-                        var rst = await _customerApi.DeleteAsync(apiToDelete.First().Id);
+                        var rst = await _customerApi.DeleteAsync(apiToDelete.First().Uid);
                         isSuccess = rst.Success;
                         errMsg = rst.Message;
                     }
                     else
                     {
-                        var req = new BatchRequestGeneric<CustomerDto> { DeleteIdList = apiToDelete.Select(x => x.Id).ToList() };
+                        var req = new BatchRequestDto<CustomerDto> { DeleteIdList = apiToDelete.Select(x => x.Uid).ToList() };
                         var rst = await _customerApi.BatchSaveAsync(req);
                         isSuccess = rst.Success;
                         errMsg = rst.Message;

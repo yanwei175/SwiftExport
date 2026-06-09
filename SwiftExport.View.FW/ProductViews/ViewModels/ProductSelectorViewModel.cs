@@ -242,7 +242,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             {
                 try
                 {
-                    ProductSearchDto searchArgs = new ProductSearchDto
+                    var searchArgs = new ProductSearchRequest
                     {
                        
                         //CustomerCode = SelectedCustomer,

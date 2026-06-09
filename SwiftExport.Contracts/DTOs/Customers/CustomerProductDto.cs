@@ -9,9 +9,9 @@ namespace SwiftExport.Contracts.DTOs.Customers
     {
 
         // 外键
-        public int CustomerId { get; set; }
+        public Guid CustomerId { get; set; }
         public string CustomerCode { get; set; }
-        public int SkuId { get; set; }
+        public Guid SkuId { get; set; }
         public string Sku { get; set; }
         public string LinkSku { get; set; }
         public string Description { get; set; }

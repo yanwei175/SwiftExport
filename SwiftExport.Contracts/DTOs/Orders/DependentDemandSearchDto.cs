@@ -1,3 +1,5 @@
+using SwiftExport.Contracts.SysEnums;
+
 namespace SwiftExport.Contracts.DTOs.Orders
 {
     /// <summary>
@@ -43,7 +45,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
         /// <summary>
         /// 状态标记（DependentDemandStatusEnums）。
         /// </summary>
-        public int StatusFlag { get; set; }
+        public DependentDemandStatusEnum StatusFlag { get; set; }
 
         /// <summary>
         /// 是否齐套。

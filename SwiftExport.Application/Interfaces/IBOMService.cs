@@ -8,12 +8,7 @@ namespace SwiftExport.Application.Interfaces
 {
     public interface IBomService : IBaseService<Bom, BomDto>
     {
-        /// <summary>
-        /// 计算BOM拆解结果（纯计算，不做最终落库提交）。
-        /// </summary>
-        /// <param name="request">拆解请求对象</param>
-        /// <returns>BOM拆解后的实体对象列表</returns>
-        Task<List<DependentDemand>> CalculateDecomposeAsync(DecomposeRequestDto request);
+
 
         /// <summary>
         /// 根据毛需求集合拆解为净需求集合（核心拆解入口）。

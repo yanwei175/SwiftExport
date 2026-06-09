@@ -20,11 +20,11 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         /// </summary>
         public List<SalesOrderLineDto> Lines { get; set; }
 
-        /// <summary>
-        /// 扩展字段：专门用于保存时告知后端哪些行需要被物理删除
-        /// 只有在“保存”请求时才会用到这个字段
-        /// </summary>
-        public List<int> DeletedLineIds { get; set; } = new List<int>();
+        ///// <summary>
+        ///// 扩展字段：专门用于保存时告知后端哪些行需要被物理删除
+        ///// 只有在“保存”请求时才会用到这个字段
+        ///// </summary>
+        //public List<Guid> DeletedLineIds { get; set; } = new List<Guid>();
     }
 
 }

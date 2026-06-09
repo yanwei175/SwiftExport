@@ -60,6 +60,7 @@
     <Compile Include="Mappings\SalesProductDtoToSalesLinDto.cs" />
     <Compile Include="Mvvm\AsyncRelayCommand.cs" />
     <Compile Include="Mvvm\CheckableItem.cs" />
+    <Compile Include="Mvvm\Helpers\EnumOptionHelper.cs" />
     <Compile Include="OrderDecomposeViews\Models\DependentDemandList.cs" />
     <Compile Include="OrderDecomposeViews\Models\DependentDemandModel.cs" />
     <Compile Include="OrderDecomposeViews\ViewModels\DependentDemandManagerViewModel.cs" />
@@ -220,9 +221,13 @@
     <Compile Include="Routing\ViewRoutes.cs" />
     <Compile Include="Routing\ViewRouteService.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderHeaderList.cs" />
+    <Compile Include="SalesOrderViews\Models\SalesOrderHeaderManagerList.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderHeaderModel.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderLineList.cs" />
+    <Compile Include="SalesOrderViews\Models\SalesOrderLineManagerList.cs" />
+    <Compile Include="SalesOrderViews\Models\SalesOrderLineManagerModel.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderLineModel.cs" />
+    <Compile Include="SalesOrderViews\Models\SalesOrderHeaderManagerModel.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderModel.cs" />
     <Compile Include="SalesOrderViews\Models\SalesOrderQueryFilter.cs" />
     <Compile Include="SalesOrderViews\ViewModels\SalesOrderDetailViewModel.cs" />
@@ -516,9 +521,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Orders\SaleaOrder\Models\" />
-    <Folder Include="Orders\SaleaOrder\ViewModels\" />
-    <Folder Include="Orders\SaleaOrder\Views\" />
     <Folder Include="SettingViews\" />
   </ItemGroup>
   <ItemGroup>

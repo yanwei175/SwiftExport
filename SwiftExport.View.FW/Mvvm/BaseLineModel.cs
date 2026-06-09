@@ -22,15 +22,15 @@ namespace SwiftExport.View.FW.Mvvm
     public abstract class BaseLineModel : ViewModelBaseEx, IBaseModel, IDataErrorInfo
 
     {
-        public virtual void LoadFromDto<Tdto>(Tdto dto, bool 抑制清理脏数据 = false)
+        public virtual void LoadFromDto(object dto, bool 抑制清理脏数据 = false)
         {
             if (dto == null) return;
 
             using (DisabledStateScope())
             {
-
-                dto.Adapt(this);//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
-                if (this.Id <= 0)
+                //找到Model的类型,用Adapt转换
+                dto.Adapt(this, dto.GetType(), GetType());
+                if (this.Uid == Guid.Empty)
                 { this.MarkAsAdded(); }
 
                 // 根据调用方需要决定是否立即提交/清理脏数据
@@ -40,7 +40,12 @@ namespace SwiftExport.View.FW.Mvvm
         }
 
         #region   后端字段
-        public int Id { get; set; }
+        private Guid _uid;
+        public Guid Uid
+        {
+            get => _uid;
+            set => SetProperty(ref _uid, value);
+        }
 
         private int _version = 1;
         public int Version
@@ -265,8 +270,8 @@ namespace SwiftExport.View.FW.Mvvm
         {
             if (State == ModelState.Deleted)
             {
-                // 恢复到 Modified 或 Unchanged，取决于它是否有原始 ID
-                State = Id > 0 ? ModelState.Unchanged : ModelState.Added;
+                // 恢复到 Modified 或 Unchanged，取决于它是否有原始 Uid
+                State = Uid != Guid.Empty ? ModelState.Unchanged : ModelState.Added;
 
                 // 如果需要保留用户在删除前填写的备注，就不调用 RollbackChanges
                 // 仅仅是改变状态机

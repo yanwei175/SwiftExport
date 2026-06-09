@@ -1,4 +1,5 @@
 using SwiftExport.View.FW.Mvvm;
+using System;
 
 namespace SwiftExport.View.FW.WarehouseViews.Models
 {
@@ -21,8 +22,8 @@ namespace SwiftExport.View.FW.WarehouseViews.Models
             set => SetProperty(ref _poNo, value);
         }
 
-        private int? _poLineId;
-        public int? PoLineId
+        private Guid? _poLineId;
+        public Guid? PoLineId
         {
             get => _poLineId;
             set => SetProperty(ref _poLineId, value);

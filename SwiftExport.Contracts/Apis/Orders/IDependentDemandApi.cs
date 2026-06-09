@@ -3,6 +3,7 @@ using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.Wrappers;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -41,7 +42,7 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// 将指定需求池行按选中范围转为采购单。
         /// </summary>
         [Post("/convert-to-po/by-ids")]
-        Task<ServiceResult<List<string>>> ConvertByDependentDemandIdsAsync([Body] List<int> requirementPoolIds);
+        Task<ServiceResult<List<string>>> ConvertByDependentDemandIdsAsync([Body] List<Guid> requirementPoolIds);
 
         /// <summary>
         /// 一键将需求池中全部待采购需求转为采购单。
@@ -53,6 +54,6 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// 手工更新需求池行供应商信息。
         /// </summary>
         [Post("/{id}/set-supplier")]
-        Task<ServiceResult<bool>> UpdateSupplierAsync(int id, [Query] string supplierCode, [Query] string supplierName = "");
+        Task<ServiceResult<bool>> UpdateSupplierAsync(Guid id, [Query] string supplierCode, [Query] string supplierName = "");
     }
 }

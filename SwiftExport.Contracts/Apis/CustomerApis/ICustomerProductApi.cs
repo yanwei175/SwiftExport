@@ -13,7 +13,7 @@ namespace SwiftExport.Contracts.Apis.CustomerApis
     public interface ICustomerProductApi : IGenericApi<CustomerProductDto>
     {
         [Post("/search")]
-        Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetCustomerProductPagedListAsync([Body] ProductSearchDto search);
+        Task<ServiceResult<PagedResultDto<CustomerProductDto>>> GetCustomerProductPagedListAsync([Body] ProductSearchRequest search);
 
         [Get("/haveproductCustomers")]
         Task<ServiceResult<List<CustomerDto>>> GetAllHaveProductCustomerList();

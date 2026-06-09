@@ -6,7 +6,7 @@ namespace SwiftExport.Contracts.DTOs.PackingLists
 {
     public class PackingListPostRequestDto
     {
-        public int PackingListId { get; set; }
+        public Guid PackingListId { get; set; }
         public bool AllowNegativeStock { get; set; }
         public string Operator { get; set; }
     }

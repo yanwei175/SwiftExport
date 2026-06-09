@@ -11,20 +11,6 @@ namespace SwiftExport.View.FW.ProductViews.Models
     /// </summary>
     public class ProductModel : BaseLineModel
     {
-        public override void LoadFromDto<TDto>(TDto dto, bool 抑制清理脏数据 = false)
-        {
-            if (dto == null) return;
-            using (DisabledStateScope())
-            {
-                Mapster.TypeAdapter.Adapt(dto, this);
-                if (this.Id == 0)
-                    this.MarkAsAdded();
-
-                if (!抑制清理脏数据)
-                    CommitChanges();
-            }
-        }
-
         private string _masterSku = string.Empty;
         public string MasterSku
         {
@@ -62,8 +48,8 @@ namespace SwiftExport.View.FW.ProductViews.Models
 
         // 这个颜色得修改成持有ProductColor的Id,需要在修改颜色的时候修改掉这个Id. 因为颜色会有中文和英文名称.
         // 那么怎么在修改颜色的时候即修改掉ID又修改掉这个finish呢?
-        private int _colorId;
-        public int ColorId
+        private Guid _colorId;
+        public Guid ColorId
         {
             get => _colorId;
             set => SetProperty(ref _colorId, value);
@@ -168,8 +154,8 @@ namespace SwiftExport.View.FW.ProductViews.Models
         }
 
         // 这个分类得修改成持有ProductCategory的Id对象,Id是唯一的. 因为分类会有中文和英文名称,如果直接持有名称的话,修改分类名称的时候就麻烦了.
-        private int _categoryId;
-        public int CategoryId
+        private Guid _categoryId;
+        public Guid CategoryId
         {
             get => _categoryId;
             set => SetProperty(ref _categoryId, value);

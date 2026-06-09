@@ -6,7 +6,7 @@ namespace SwiftExport.Core.Entities.Orders;
 public class ReceiptItem : BaseEntity
 {
     public string? PoNo { get; set; }
-    public long? PoLineID { get; set; }
+    public Guid? PoLineID { get; set; }
     public string? Sku { get; set; }
     public string? SupplierCode { get; set; }
     /// <summary>

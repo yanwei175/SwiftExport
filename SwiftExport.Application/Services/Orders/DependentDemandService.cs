@@ -4,6 +4,7 @@ using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
@@ -75,9 +76,9 @@ public class DependentDemandService(
     /// <summary>
     /// 中文注释：更新需求池行手工供应商信息（方案A必需步骤）。
     /// </summary>
-    public async Task<ServiceResult<bool>> UpdateSupplierAsync(int id, string supplierCode, string? supplierName)
+    public async Task<ServiceResult<bool>> UpdateSupplierAsync(Guid id, string supplierCode, string? supplierName)
     {
-        if (id <= 0)
+        if (id == Guid.Empty)
             return ServiceResult<bool>.Fail("需求池ID无效");
 
         if (string.IsNullOrWhiteSpace(supplierCode))
@@ -149,7 +150,7 @@ public class DependentDemandService(
         }
 
         if (search.StatusFlag < 0)
-            criteria.Add("StatusFlag", 查询操作符.等于, IndependentDemandStatusEnum.草稿);
+            criteria.Add("StatusFlag", 查询操作符.等于, IndependentDemandStatusEnum.未确认);
 
         if (search.IsKitted.HasValue)
             criteria.Add("IsKitted", 查询操作符.等于, search.IsKitted.Value);
@@ -187,7 +188,7 @@ public class DependentDemandService(
         if (pools == null || pools.Count == 0)
             return ServiceResult<bool>.Ok(true);
 
-        var hasExecuted = pools.Any(x => x.StatusFlag != DependentDemandStatusEnum.草稿);
+        var hasExecuted = pools.Any(x => x.OrderStatus != DependentDemandStatusEnum.未确认);
         if (hasExecuted)
             return ServiceResult<bool>.Fail("订单中存在已执行记录，不允许回退审批");
 
@@ -216,7 +217,7 @@ public class DependentDemandService(
         try
         {
             var criteria = new QueryCriteria();
-            criteria.Add("StatusFlag", 查询操作符.等于, DependentDemandStatusEnum.草稿);
+            criteria.Add("StatusFlag", 查询操作符.等于, DependentDemandStatusEnum.未确认);
             criteria.Add("SupplyType", 查询操作符.等于, SupplyTypeEnums.采购);
             criteria.Add("SourceType", 查询操作符.等于, sourceType);
             criteria.Add("SourceNo", 查询操作符.等于, sourceNo);
@@ -238,7 +239,7 @@ public class DependentDemandService(
         }
     }
 
-    public async Task<ServiceResult<List<string>>> 根据指定净需求行转采购单Async(List<int> 净需求行IdList)
+    public async Task<ServiceResult<List<string>>> 根据指定净需求行转采购单Async(List<Guid> 净需求行IdList)
     {
         try
         {
@@ -272,10 +273,10 @@ public class DependentDemandService(
         {
             if (item == null)
                 throw new Exception("需求池行记录不能为空");
-            if (item.StatusFlag != DependentDemandStatusEnum.草稿)
-                throw new Exception($"需求池行Id={item.Id}的状态({item.StatusFlag})不符合转采购单要求");
+            if (item.OrderStatus != DependentDemandStatusEnum.未确认)
+                throw new Exception($"需求池行Sku={item.Sku}的状态({item.OrderStatus})不符合转采购单要求");
             if (!判断是否为采购类型(item.SupplyType))
-                throw new Exception($"需求池行Id={item.Id}的供应类型({item.SupplyType})不符合转采购单要求");
+                throw new Exception($"需求池行Sku={item.Sku}的供应类型({item.SupplyType})不符合转采购单要求");
         }
         return [.. 净需求列表];
     }
@@ -311,7 +312,7 @@ public class DependentDemandService(
         // 中文注释：校验所有待转单行必须能解析出供应商编码（行内指定 > 产品默认），否则无法转单。
         var invalidRows = dependList
             .Where(x => string.IsNullOrWhiteSpace(ResolveSupplierCode(x, defaultSupplierBySku)))
-            .Select(x => $"Id={x.Id},SourceNo={x.SourceNo},LineId={x.SourceLineId},Sku={(string.IsNullOrWhiteSpace(x.Sku) ? "(空SKU)" : x.Sku)}")
+            .Select(x => $"Uid={x.Uid},SourceNo={x.SourceNo},LineId={x.SourceLineId},Sku={(string.IsNullOrWhiteSpace(x.Sku) ? "(空SKU)" : x.Sku)}")
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -447,7 +448,7 @@ public class DependentDemandService(
 
                 if (itemList.Count > 0)
                 {
-                    // 中文注释：批量插入采购行后，实体 Line.Id 会被仓储层回填。
+                    // 中文注释：批量插入采购行后，实体 Line.Uid 会被仓储层回填。
                     await _purchaseOrderItemRepository.AddRangeAsync(itemList);
 
                     // 【修改点3】：遍历聚合关系，把生成的采购单行 Id 回写到所有对应的净需求行中
@@ -455,9 +456,9 @@ public class DependentDemandService(
                     {
                         foreach (var demand in Demands)
                         {
-                            demand.TargetLineId = Line.Id; // 回写生成的采购单行ID
+                            demand.TargetLineId = Line.Uid; // 回写生成的采购单行ID
                             demand.TargetNo = orderNo;          // 回写目标单号
-                            demand.StatusFlag = DependentDemandStatusEnum.已转为正式单据;
+                            demand.OrderStatus = DependentDemandStatusEnum.已转为正式单据;
                             demand.ChangeTime = DateTime.Now;
                         }
                     }

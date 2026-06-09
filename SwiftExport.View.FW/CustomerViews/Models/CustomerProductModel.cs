@@ -11,17 +11,17 @@ using System.Threading.Tasks;
 
 namespace SwiftExport.View.FW.CustomerViews.Models
 {
-    public class CustomerProductModel : BaseLineModel, IBaseModel, IDataErrorInfo
+    public class CustomerProductModel : BaseLineModel
     {
-        public override void LoadFromDto<CustomerProductDto>(CustomerProductDto dto, bool 抑制清理脏数据 = false) //加载数据方法
+        public override void LoadFromDto(object dto, bool 抑制清理脏数据 = false) //加载数据方法
         {
             if (dto == null) return;
 
             using (DisabledStateScope())
             {
 
-                dto.Adapt(this);//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
-                if (this.Id == 0)
+                dto.Adapt(this, dto.GetType(), GetType());//使用 Mapster 将 DTO 的属性值映射到 Model(this) 上
+                if (this.Uid == Guid.Empty)
                 { this.MarkAsAdded(); }
 
                 // 根据调用方需要决定是否立即提交/清理脏数据
@@ -32,15 +32,15 @@ namespace SwiftExport.View.FW.CustomerViews.Models
         #region 字段属性
 
         // 外键
-        private int _customerId;
-        public int CustomerId
+        private Guid _customerId;
+        public Guid CustomerId
         {
             get => _customerId;
             set => SetProperty(ref _customerId, value);
         }
 
-        private int _skuId;
-        public int SkuId
+        private Guid _skuId;
+        public Guid SkuId
         {
             get => _skuId;
             set => SetProperty(ref _skuId, value);
@@ -61,8 +61,8 @@ namespace SwiftExport.View.FW.CustomerViews.Models
         }
 
         // 与 DTO 对齐：分类可能为空
-        private int? _categoryId;
-        public int? CategoryId
+        private Guid? _categoryId;
+        public Guid? CategoryId
         {
             get => _categoryId;
             set => SetProperty(ref _categoryId, value);
@@ -233,35 +233,7 @@ namespace SwiftExport.View.FW.CustomerViews.Models
             set => SetProperty(ref _customerCode, value);
         }
 
-        // 审计字段
-        private string _createdBy;
-        public string CreatedBy
-        {
-            get => _createdBy;
-            set => SetProperty(ref _createdBy, value);
-        }
-
-        private DateTime _createdDate;
-        public DateTime CreatedDate
-        {
-            get => _createdDate;
-            set => SetProperty(ref _createdDate, value);
-        }
-
-        private string _updatedBy;
-        public string UpdatedBy
-        {
-            get => _updatedBy;
-            set => SetProperty(ref _updatedBy, value);
-        }
-
-        private DateTime? _updatedDate;
-        public DateTime? UpdatedDate
-        {
-            get => _updatedDate;
-            set => SetProperty(ref _updatedDate, value);
-        }
-
+        
         private string _mainImage;
         public string MainImage
         {

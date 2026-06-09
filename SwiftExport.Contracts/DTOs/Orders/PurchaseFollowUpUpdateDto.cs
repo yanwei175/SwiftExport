@@ -1,3 +1,5 @@
+using System;
+
 namespace SwiftExport.Contracts.DTOs.Orders
 {
     /// <summary>
@@ -9,7 +11,7 @@ namespace SwiftExport.Contracts.DTOs.Orders
         /// <summary>
         /// 采购订单行主键 Id。
         /// </summary>
-        public int PurchaseOrderLineId { get; set; }
+        public Guid PurchaseOrderLineId { get; set; }
 
         /// <summary>
         /// 最新完工数量（ReadyQty）。

@@ -180,15 +180,15 @@ namespace SwiftExport.Application.Services.Systems
             // 过滤任何可能为 null 的元素并构建字典，避免将 null 值转换为不可为 null 的键/值（CS8600）
             var nonNullDictTypes = dictTypes.Where(x => x is not null).Select(x => x!).ToList();
 
-            var nodeDict = nonNullDictTypes.ToDictionary(x => x.Id);
-            var treeNodeDict = new Dictionary<int, DictTypeTreeDto>();
+            var nodeDict = nonNullDictTypes.ToDictionary(x => x.Uid);
+            var treeNodeDict = new Dictionary<Guid, DictTypeTreeDto>();
 
             // 1. 先创建所有树形节点
             foreach (var dictType in nonNullDictTypes.OrderBy(x => x.SortOrder))
             {
                 var treeNode = new DictTypeTreeDto
                 {
-                    Id = dictType.Id,
+                    Uid = dictType.Uid,
                     DictCode = dictType.DictCode,
                     DictName = dictType.DictName,
                     IsSystem = dictType.IsSystem,
@@ -201,25 +201,23 @@ namespace SwiftExport.Application.Services.Systems
                     Children = new List<DictTypeTreeDto>()
                 };
 
-                treeNodeDict[dictType.Id] = treeNode;
+                treeNodeDict[dictType.Uid] = treeNode;
             }
 
             // 2. 建立父子关系（安全处理可空 ParentId，避免 CS8629）
             foreach (var dictType in nonNullDictTypes.OrderBy(x => x.SortOrder))
             {
-                var treeNode = treeNodeDict[dictType.Id];
+                var treeNode = treeNodeDict[dictType.Uid];
 
                 // 使用局部变量并检查 HasValue，保证在使用 Value 前非空
-                var parentId = dictType.ParentId;
-                if (!parentId.HasValue || parentId.Value == 0 || !nodeDict.ContainsKey(parentId.Value))
+                if (dictType.ParentId == null || !Guid.TryParse(dictType.ParentId.ToString(), out var parentUid) || !nodeDict.ContainsKey(parentUid))
                 {
                     // 视为根节点
                     rootNodes.Add(treeNode);
                 }
                 else
                 {
-                    var pid = parentId.Value; // 此处安全，因为已检查 HasValue
-                    if (treeNodeDict.TryGetValue(pid, out DictTypeTreeDto? value))
+                    if (treeNodeDict.TryGetValue(parentUid, out DictTypeTreeDto? value))
                     {
                         value.Children.Add(treeNode);
                     }
@@ -236,7 +234,7 @@ namespace SwiftExport.Application.Services.Systems
 
         // 🚀 你可以在这里重写钩子函数
         // 比如：删除字典大类前，校验下面是不是还有明细数据
-        protected override async Task<string?> ValidateBeforeDeleteAsync(List<int> ids)
+        protected override async Task<string?> ValidateBeforeDeleteAsync(List<Guid> ids)
         {
             // var hasData = await _dataRepository.ExistsAsync(...);
             // if (hasData) return "该字典分类下还有明细数据，禁止删除！";

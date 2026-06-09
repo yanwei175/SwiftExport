@@ -1,6 +1,7 @@
 ﻿using Mapster;
 using SwiftExport.Contracts.DTOs.Warehouses;
 using SwiftExport.View.FW.Mvvm;
+using System;
 
 namespace SwiftExport.View.FW.WarehouseViews.Models
 {
@@ -39,8 +40,8 @@ namespace SwiftExport.View.FW.WarehouseViews.Models
             set => SetProperty(ref _unit, value);
         }
 
-        private int? _poLineId;
-        public int? PoLineId
+        private Guid? _poLineId;
+        public Guid? PoLineId
         {
             get => _poLineId;
             set => SetProperty(ref _poLineId, value);
@@ -97,26 +98,6 @@ namespace SwiftExport.View.FW.WarehouseViews.Models
             if (string.IsNullOrWhiteSpace(Sku)) return "SKU不能为空";
             if (Qty <= 0) return "入库数量必须大于0";
             return null;
-        }
-
-        public override void LoadFromDto<Tdto>(Tdto dto, bool 抑制清理脏数据 = false)
-        {
-            var lineDto = dto as ReceiveLineDto;
-            if (lineDto == null) return;
-
-            using (DisabledStateScope())
-            {
-                lineDto.Adapt(this);
-                if (Id == 0)
-                {
-                    MarkAsAdded();
-                }
-
-                if (!抑制清理脏数据)
-                {
-                    CommitChanges();
-                }
-            }
         }
     }
 }

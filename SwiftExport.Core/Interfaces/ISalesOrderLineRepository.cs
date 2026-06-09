@@ -10,15 +10,6 @@ namespace SwiftExport.Core.Interfaces;
 /// </summary>
 public interface ISalesOrderLineRepository : IRepository<SalesOrderLine>
 {
-    ///// <summary>
-    ///// 联查分页：返回可直接映射为 SalesOrderLineDto 的读模型。
-    ///// </summary>
-    //Task<PagedResult<SalesOrderLineDto>> GetPagedSalesOrderLineSourceDtoAsync(
-    //    QueryCriteria criteria,
-    //    int pageIndex,
-    //    int pageSize,
-    //    string orderBy = "cp.Id DESC");
-
     /// <summary>
     /// 销售产品分页查询。
     /// 直接接收 SalesProductSearchDto，由仓储层按业务规则解析：
@@ -26,6 +17,7 @@ public interface ISalesOrderLineRepository : IRepository<SalesOrderLine>
     /// 2. BatchCustomerSkuList 做客户SKU精确匹配；
     /// 3. BatchKeywords 做 SKU/描述/特性/客户SKU 模糊匹配。
     /// </summary>
-    Task<PagedResult<SalesProductDto>> GetSalesProductPagedListAsync(SalesProductSearchDto request, string orderBy = "cp.Id DESC");
-    Task<List<SalesOrderLine>> GetLinesByOrderIdAsync(int orderId, bool withUpdLock = false);
+    Task<PagedResult<SalesProductDto>> GetSalesProductPagedListAsync(SalesProductSearchDto request, string orderBy = "cp.CreatedDate DESC");
+    Task<IReadOnlyList<SalesOrderLine>> GetLinesByOrderIdAsync(Guid orderId, bool withUpdLock = false);
+    Task<IReadOnlyList<SalesOrderLineManagerDto>> GetSalesOrderLineManagerAsync(Guid orderId);
 }

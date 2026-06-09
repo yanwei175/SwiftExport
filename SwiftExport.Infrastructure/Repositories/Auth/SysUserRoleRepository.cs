@@ -2,6 +2,7 @@ using Dapper;
 using SwiftExport.Core.Entities.Auth;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure.Data;
+using System;
 
 namespace SwiftExport.Infrastructure.Repositories.Auth;
 
@@ -15,12 +16,12 @@ public class SysUserRoleRepository(DbSession session) : ISysUserRoleRepository
 
     // 公共列列表（INSERT 时用）
     private const string SelectColumns = """
-        Id, UserId, UserName, RoleId, RoleName, ChangeTime,
+        Uid, UserId, UserName, RoleId, RoleName, ChangeTime,
         IsDeleted, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy
         """;
 
     /// <summary>获取指定用户的所有角色（未软删除）</summary>
-    public async Task<IEnumerable<SysUserRole>> GetByUserIdAsync(int userId)
+    public async Task<IEnumerable<SysUserRole>> GetByUserIdAsync(Guid userId)
     {
         const string sql = $"""
             SELECT {SelectColumns}
@@ -44,7 +45,7 @@ public class SysUserRoleRepository(DbSession session) : ISysUserRoleRepository
     }
 
     /// <summary>判断用户是否拥有指定角色名（忽略大小写）</summary>
-    public async Task<bool> UserHasRoleAsync(int userId, string roleName)
+    public async Task<bool> UserHasRoleAsync(Guid userId, string roleName)
     {
         const string sql = """
             SELECT COUNT(1)
@@ -59,40 +60,40 @@ public class SysUserRoleRepository(DbSession session) : ISysUserRoleRepository
     }
 
     /// <summary>插入一条用户-角色关联（CreatedDate/CreatedBy 由 AuditStampService 自动填充）</summary>
-    public async Task<int> AddAsync(SysUserRole userRole)
+    public async Task<Guid> AddAsync(SysUserRole userRole)
     {
         const string sql = """
             INSERT INTO [SysUser_Roles]
                 (UserId, UserName, RoleId, RoleName, ChangeTime,
                  IsDeleted, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy)
-            OUTPUT INSERTED.Id
+            OUTPUT INSERTED.Uid
             VALUES
                 (@UserId, @UserName, @RoleId, @RoleName, @ChangeTime,
                  0, @CreatedDate, @CreatedBy, @UpdatedDate, @UpdatedBy)
             """;
-        return await _session.Connection.ExecuteScalarAsync<int>(sql, userRole);
+        return await _session.Connection.ExecuteScalarAsync<Guid>(sql, userRole);
     }
 
     /// <summary>软删除单条关联记录（撤销角色）</summary>
-    public async Task<bool> RemoveAsync(int id)
+    public async Task<bool> RemoveAsync(Guid uid)
     {
         const string sql = """
             UPDATE [SysUser_Roles]
             SET IsDeleted = 1, UpdatedDate = GETDATE()
-            WHERE Id = @Id
+            WHERE Uid = @Uid
             """;
-        var rows = await _session.Connection.ExecuteAsync(sql, new { Id = id });
+        var rows = await _session.Connection.ExecuteAsync(sql, new { Uid = uid });
         return rows > 0;
     }
 
     /// <summary>软删除用户的所有角色关联（重新分配前先清空）</summary>
-    public async Task<int> RemoveAllByUserIdAsync(int userId)
+    public async Task<Guid> RemoveAllByUserIdAsync(Guid userId)
     {
         const string sql = """
             UPDATE [SysUser_Roles]
             SET IsDeleted = 1, UpdatedDate = GETDATE()
             WHERE UserId = @UserId AND (IsDeleted = 0 OR IsDeleted IS NULL)
             """;
-        return await _session.Connection.ExecuteAsync(sql, new { UserId = userId });
+        return await _session.Connection.ExecuteScalarAsync<Guid>(sql, new { UserId = userId });
     }
 }

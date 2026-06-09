@@ -1,4 +1,5 @@
 ﻿using Mapster;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.View.FW.Mvvm;
 using System;
@@ -11,6 +12,20 @@ namespace SwiftExport.View.FW.Independent.Models
 {
     public class IndependentDemandModel : BaseLineModel
     {
+        private ConfirmationStatusEnum _confirmationStatus;
+        public ConfirmationStatusEnum ConfirmationStatus
+        {
+            get => _confirmationStatus;
+            set
+            {
+                if (SetProperty(ref _confirmationStatus, value))
+                {
+                    RaisePropertyChanged(nameof(ConfirmationStatusText));
+                }
+            }
+        }
+        public string ConfirmationStatusText => ConfirmationStatus.ToString();
+
         #region 来源信息 (Source)
 
         private string _sourceType = string.Empty;
@@ -33,11 +48,11 @@ namespace SwiftExport.View.FW.Independent.Models
             set => SetProperty(ref _sourceNo, value);
         }
 
-        private int _sourceLineId;
+        private Guid _sourceLineId;
         /// <summary>
         /// 来源单据行 ID
         /// </summary>
-        public int SourceLineId
+        public Guid SourceLineId
         {
             get => _sourceLineId;
             set => SetProperty(ref _sourceLineId, value);
@@ -149,15 +164,16 @@ namespace SwiftExport.View.FW.Independent.Models
             set => SetProperty(ref _isKitted, value);
         }
 
-        private int _orderStatus = IndependentDemandStatusEnum.草稿;
+        private IndependentDemandStatusEnum _orderStatus = IndependentDemandStatusEnum.未确认;
         /// <summary>
         /// 内部执行状态 (0:待处理, 1:采购中, 2:已到货, 3:已完成)
         /// </summary>
-        public int OrderStatus
+        public IndependentDemandStatusEnum OrderStatus
         {
             get => _orderStatus;
             set => SetProperty(ref _orderStatus, value);
         }
+        public string OrderStatusText => OrderStatus.ToString();
 
         #endregion
 
