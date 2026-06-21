@@ -92,7 +92,16 @@ try
     #region 添加 Web 服务
     // 中文注释：注册内存缓存，供 PreventDuplicateRequestAttribute 防抖 Filter 使用。
     builder.Services.AddMemoryCache();
-    builder.Services.AddControllers();
+    // 中文注释：统一使用 Newtonsoft.Json，与前端 Refit（.NET Framework 4.8）行为完全一致。
+    // 枚举字符串/整数双向支持、驼峰命名、null 忽略等均由 Newtonsoft 处理，无需额外 Converter。
+    builder.Services.AddControllers()
+        .AddNewtonsoftJson(options =>
+        {
+            // 枚举序列化为字符串名称（与前端 Refit 默认行为对齐）
+            options.SerializerSettings.Converters.Add(new Newtonsoft.Json.Converters.StringEnumConverter());
+            // null 值字段仍然输出，保持 API 响应字段完整（前端不需要做额外的 null 判断）
+            options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Include;
+        });
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
     builder.Services.AddRouting(options => options.LowercaseUrls = true);

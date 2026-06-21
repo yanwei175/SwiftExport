@@ -31,8 +31,9 @@
                         <Grid x:Name="PART_ModalLayer" Visibility="Collapsed">
                             <Border Style="{DynamicResource DialogMask}" />
 
-                            <Border Style="{DynamicResource Dialog}" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <ContentControl Content="{TemplateBinding DialogContent}">
+                            <Border Style="{DynamicResource Dialog}" HorizontalAlignment="Center" VerticalAlignment="Center" MaxHeight="520" MaxWidth="760">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ContentControl Content="{TemplateBinding DialogContent}">
                                     <ContentControl.Resources>
 
                                         <!-- ── MsgBoxViewModel 模板（消息 / 确认 / 警告 / 错误）── -->
@@ -65,7 +66,7 @@
                                                             </Style>
                                                         </TextBlock.Style>
                                                     </TextBlock>
-                                                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,0,0,25" LineHeight="20"/>
+                                                    <TextBlock Text="{Binding Message}" TextWrapping="WrapWithOverflow" Margin="0,0,0,25" LineHeight="20"/>
                                                 </StackPanel>
 
                                                 <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
@@ -123,7 +124,7 @@
                                                     </TextBlock.Style>
                                                 </TextBlock>
 
-                                                <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,0,0,15">
+                                                <TextBlock Text="{Binding Message}" TextWrapping="WrapWithOverflow" Margin="0,0,0,15">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Visibility" Value="Visible"/>
@@ -155,6 +156,7 @@
 
                                     </ContentControl.Resources>
                                 </ContentControl>
+                                </ScrollViewer>
                             </Border>
                         </Grid>
 

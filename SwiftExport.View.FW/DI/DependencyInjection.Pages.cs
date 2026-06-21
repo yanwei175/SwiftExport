@@ -74,7 +74,7 @@ namespace SwiftExport.View.FW
 
             // ================== 产品模块 ==================
             services.AddTransient<ProductManagerViewModel>();
-            services.AddTransient<ProductManagerView>(); 
+            services.AddTransient<ProductManagerView>();
             services.AddTransient<MainProductManagerViewModel>();
             services.AddTransient<MainProductManagerView>();
 
@@ -103,6 +103,7 @@ namespace SwiftExport.View.FW
             services.AddTransient<SalesOrderDetailViewModel>();
             services.AddTransient<SalesProductSelectorViewModel>();
             services.AddTransient<DependentDemandManagerViewModel>();
+
             services.AddTransient<SalesOrderManagerView>();
             services.AddTransient<SalesOrderDetailView>();
             services.AddTransient<SalesOrderDetailWindow>();
@@ -133,7 +134,7 @@ namespace SwiftExport.View.FW
             services.AddTransient<ReceiptDetailView>();
             services.AddTransient<AwatingInboundViewModel>();
             services.AddTransient<AwatingInboundView>();
-            
+
             return services;
         }
     }

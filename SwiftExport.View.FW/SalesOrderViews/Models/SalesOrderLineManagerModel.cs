@@ -11,7 +11,12 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             get => _mainImage;
             set => SetProperty(ref _mainImage, value);
         }
-
+        private int _lineNumber;
+        public int LineNumber
+        {
+            get => _lineNumber;
+            set => SetProperty(ref _lineNumber, value);
+        }
         private string _customerSku;
         public string CustomerSku
         {

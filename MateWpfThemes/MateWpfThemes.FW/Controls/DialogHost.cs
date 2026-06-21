@@ -18,8 +18,13 @@ namespace MateWpfThemes.FW.Controls
 
         public DialogHost()
         {
-            // 实例化时，主动向全局服务报到
+            // 中文注释：实例化时，主动向全局服务报到，入栈成为当前活动 Host。
             DialogProvider.RegisterHost(this);
+
+            // 中文注释：控件从视觉树卸载时（如子窗口关闭），主动注销自身。
+            // DialogProvider 会将其从栈中弹出，自动还原到上一层主页 Host，
+            // 修复「打开详情窗口后主页弹窗不显示」的 Bug。
+            this.Unloaded += (s, e) => DialogProvider.UnregisterHost(this);
         }
 
         // ─────────────────────────────────────────────

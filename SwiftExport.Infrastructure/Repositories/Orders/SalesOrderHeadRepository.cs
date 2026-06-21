@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using SwiftExport.Contracts.DTOs.SalesOrders;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
@@ -297,7 +298,130 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
                 sql, parameters, transaction: Transaction);
         }
 
+        public async Task<List<SalesOrderHeaderManagerDto>> GetSalesOrderHeaderManagerListByIdListAsync(List<Guid> uidList)
+        {
+            var sql = $@"SELECT 
+                            h.{nameof(SalesOrderHeader.Uid)} AS {nameof(SalesOrderHeaderManagerDto.Uid)},
+                            h.{nameof(SalesOrderHeader.Version)} AS {nameof(SalesOrderHeaderManagerDto.Version)},
+                            h.{nameof(SalesOrderHeader.CreatedBy)} AS {nameof(SalesOrderHeaderManagerDto.CreatedBy)},
+                            h.{nameof(SalesOrderHeader.CreatedDate)} AS {nameof(SalesOrderHeaderManagerDto.CreatedDate)},
+                            h.{nameof(SalesOrderHeader.UpdatedBy)} AS {nameof(SalesOrderHeaderManagerDto.UpdatedBy)},
+                            h.{nameof(SalesOrderHeader.UpdatedDate)} AS {nameof(SalesOrderHeaderManagerDto.UpdatedDate)},
 
+                            h.{nameof(SalesOrderHeader.OrderStatus)} AS {nameof(SalesOrderHeaderManagerDto.OrderStatus)},
+                            h.{nameof(SalesOrderHeader.ConfirmationStatus)} AS {nameof(SalesOrderHeaderManagerDto.ConfirmationStatus)},
+                            h.{nameof(SalesOrderHeader.OrderNo)} AS {nameof(SalesOrderHeaderManagerDto.OrderNo)},
+                            h.{nameof(SalesOrderHeader.InvoiceNo)} AS {nameof(SalesOrderHeaderManagerDto.InvoiceNo)},
+                            h.{nameof(SalesOrderHeader.CustomerId)} AS {nameof(SalesOrderHeaderManagerDto.CustomerId)},
+                            h.{nameof(SalesOrderHeader.CustomerCode)} AS {nameof(SalesOrderHeaderManagerDto.CustomerCode)},
+                            h.{nameof(SalesOrderHeader.CustomerPoNo)} AS {nameof(SalesOrderHeaderManagerDto.CustomerPoNo)},
 
+                            ISNULL(SUM(l.{nameof(SalesOrderLine.Qty)}), 0) AS {nameof(SalesOrderHeaderManagerDto.TotalQty)},
+                            ISNULL(SUM(d.{nameof(IndependentDemand.ShippedQty)}), 0) AS {nameof(SalesOrderHeaderManagerDto.TotalShippedQty)},
+                            ISNULL(SUM(l.{nameof(SalesOrderLine.Qty)}), 0) - ISNULL(SUM(d.{nameof(IndependentDemand.ShippedQty)}), 0) AS {nameof(SalesOrderHeaderManagerDto.TotalUnshippedQty)},
+
+                            h.{nameof(SalesOrderHeader.Currency)} AS {nameof(SalesOrderHeaderManagerDto.Currency)},
+                            h.{nameof(SalesOrderHeader.ExchangeRate)} AS {nameof(SalesOrderHeaderManagerDto.ExchangeRate)},
+                            h.{nameof(SalesOrderHeader.TotalAmountOriginalCurrency)} AS {nameof(SalesOrderHeaderManagerDto.TotalAmountOriginalCurrency)},
+                            h.{nameof(SalesOrderHeader.TotalAmountLocalCurrency)} AS {nameof(SalesOrderHeaderManagerDto.TotalAmountLocalCurrency)},
+                            h.{nameof(SalesOrderHeader.OrderDate)} AS {nameof(SalesOrderHeaderManagerDto.OrderDate)},
+                            h.{nameof(SalesOrderHeader.DeliveryDate)} AS {nameof(SalesOrderHeaderManagerDto.DeliveryDate)},
+                            h.{nameof(SalesOrderHeader.ReplyDate)} AS {nameof(SalesOrderHeaderManagerDto.ReplyDate)},
+                            h.{nameof(SalesOrderHeader.SoFolder)} AS {nameof(SalesOrderHeaderManagerDto.SoFolder)},
+                            h.{nameof(SalesOrderHeader.Remark)} AS {nameof(SalesOrderHeaderManagerDto.Remark)}
+                        FROM [SalesOrderHeader] h
+                        LEFT JOIN [SalesOrderLine] l 
+                            ON l.{nameof(SalesOrderLine.SalesOrderId)} = h.{nameof(SalesOrderHeader.Uid)}
+                        LEFT JOIN [IndependentDemand] d 
+                            ON d.{nameof(IndependentDemand.SourceType)} = @SourceType 
+                           AND d.{nameof(IndependentDemand.SourceLineId)} = l.{nameof(SalesOrderLine.Uid)}
+                        WHERE h.{nameof(SalesOrderHeader.Uid)} IN @UidList 
+                          AND (h.{nameof(SalesOrderHeader.IsDeleted)} = 0 OR h.{nameof(SalesOrderHeader.IsDeleted)} IS NULL)
+                        GROUP BY
+                            h.{nameof(SalesOrderHeader.Uid)},
+                            h.{nameof(SalesOrderHeader.Version)},
+                            h.{nameof(SalesOrderHeader.CreatedBy)},
+                            h.{nameof(SalesOrderHeader.CreatedDate)},
+                            h.{nameof(SalesOrderHeader.UpdatedBy)},
+                            h.{nameof(SalesOrderHeader.UpdatedDate)},
+                            h.{nameof(SalesOrderHeader.OrderStatus)},
+                            h.{nameof(SalesOrderHeader.ConfirmationStatus)},
+                            h.{nameof(SalesOrderHeader.OrderNo)},
+                            h.{nameof(SalesOrderHeader.InvoiceNo)},
+                            h.{nameof(SalesOrderHeader.CustomerId)},
+                            h.{nameof(SalesOrderHeader.CustomerCode)},
+                            h.{nameof(SalesOrderHeader.CustomerPoNo)},
+                            h.{nameof(SalesOrderHeader.Currency)},
+                            h.{nameof(SalesOrderHeader.ExchangeRate)},
+                            h.{nameof(SalesOrderHeader.TotalAmountOriginalCurrency)},
+                            h.{nameof(SalesOrderHeader.TotalAmountLocalCurrency)},
+                            h.{nameof(SalesOrderHeader.OrderDate)},
+                            h.{nameof(SalesOrderHeader.DeliveryDate)},
+                            h.{nameof(SalesOrderHeader.ReplyDate)},
+                            h.{nameof(SalesOrderHeader.SoFolder)},
+                            h.{nameof(SalesOrderHeader.Remark)};";
+
+            var parameters = new
+            {
+                UidList = uidList,
+                SourceType = OrderTypesEnum.销售订单
+            };
+
+            var rst = await Connection.QueryAsync<SalesOrderHeaderManagerDto>(
+                sql, parameters, transaction: Transaction);
+            return [.. rst];
+        }
+
+        public async Task<bool> DeleteSalesOrderAsync(Guid orderId, int version)
+        {
+
+            const string deleteHeaderSql = $@"
+                                        UPDATE [SalesOrderHeader]
+                                        SET 
+                                            IsDeleted = 1,
+                                            UpdatedDate = @UpdatedDate,
+                                            {nameof(SalesOrderHeader.OrderStatus)} = @OrderStatus,
+                                            Version = Version + 1
+                                        WHERE {nameof(SalesOrderHeader.Uid)} = @OrderId
+                                          AND Version = @Version
+                                          AND IsDeleted = 0;";
+
+            const string deleteLinesSql = $@"
+                                        UPDATE [SalesOrderLine]
+                                        SET 
+                                            IsDeleted = 1,
+                                            UpdatedDate = @UpdatedDate,
+                                            Version = Version + 1
+                                        WHERE {nameof(SalesOrderLine.SalesOrderId)} = @OrderId
+                                          AND IsDeleted = 0;";
+
+            var updatedDate = DateTime.Now;
+
+            // 先删头，确认并发没问题，再删行更安全
+            var headerRows = await Connection.ExecuteAsync(
+                deleteHeaderSql,
+                new
+                {
+                    OrderId = orderId,
+                    Version = version,
+                    OrderStatus = SalesOrderStatusEnum.已关闭,
+                    UpdatedDate = updatedDate
+                },
+                transaction: Transaction);
+
+            if (headerRows == 0)
+                return false;
+
+            await Connection.ExecuteAsync(
+                deleteLinesSql,
+                new
+                {
+                    OrderId = orderId,
+                    UpdatedDate = updatedDate
+                },
+                transaction: Transaction);
+
+            return true;
+        }
     }
 }

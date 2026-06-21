@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Threading.Tasks;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Controls;
 
 namespace MateWpfThemes.FW.Services.Dialogs
@@ -11,21 +11,62 @@ namespace MateWpfThemes.FW.Services.Dialogs
         // Toast 通知默认显示时长（毫秒）
         // ─────────────────────────────────────────────
         private const int DefaultToastDurationMs = 3000;
-        private static Controls.DialogHost _currentHost;
+
+        // 中文注释：用栈管理多层 DialogHost，支持子窗口（如详情弹窗）拥有自己的 Host。
+        // 子窗口的 DialogHost 卸载时调用 UnregisterHost 出栈，自动还原到上一层主页 Host。
+        // 这是修复「子窗口关闭后主页弹窗不显示」Bug 的核心改动：
+        //   根因：_currentHost 被子窗口 Host 覆盖后，子窗口关闭但 _currentHost 仍指向已销毁的 Host。
+        private static readonly System.Collections.Generic.Stack<Controls.DialogHost> _hostStack
+            = new System.Collections.Generic.Stack<Controls.DialogHost>();
+
+        // 中文注释：当前活动 Host 始终是栈顶元素；栈空时返回 null。
+        // 所有依赖 _currentHost 的调用方（ShowMessageAsync 等）无需任何改动。
+        private static Controls.DialogHost _currentHost
+            => _hostStack.Count > 0 ? _hostStack.Peek() : null;
+
         // 用于控制多个 Host 的 ZIndex 值，值越大显示越上层
         private static int _zIndexCounter = 1000;
 
         internal static void RegisterHost(Controls.DialogHost host)
         {
-            _currentHost = host;
+            if (host == null) return;
+
+            // 中文注释：入栈，新 Host 成为当前活动 Host，旧 Host 保留在栈底等待还原。
+            _hostStack.Push(host);
 
             // 中文注释：注册 Host 时顺手初始化控件库级 Dispatcher。
             // 这样在宿主忘记显式 Initialize 的情况下，也能有可用的 UI 调度器。
-            if (host != null)
+            DispatcherProvider.Initialize(host.Dispatcher);
+
+            // 注册 Host 时把它放到最上层，避免后续 Host 被遮挡
+            BringHostToFront();
+        }
+
+        /// <summary>
+        /// 中文注释：注销 Host（在 DialogHost.Unloaded 时调用）。
+        /// 将该 Host 从栈中移除，自动还原到上一层活动 Host，
+        /// 解决子窗口关闭后主页弹窗不显示的问题。
+        /// </summary>
+        internal static void UnregisterHost(Controls.DialogHost host)
+        {
+            if (host == null || _hostStack.Count == 0) return;
+
+            if (_hostStack.Peek() == host)
             {
-                DispatcherProvider.Initialize(host.Dispatcher);
-                // 注册 Host 时把它放到最上层，避免后续 Host 被遮挡
-                BringHostToFront();
+                // 中文注释：最常见情况——被注销的就是栈顶，直接 Pop，上一层 Host 自动成为活动 Host。
+                _hostStack.Pop();
+            }
+            else
+            {
+                // 中文注释：极少数情况：非栈顶 Host 先销毁，重建栈以保留其余 Host 的原始顺序。
+                var remaining = new System.Collections.Generic.List<Controls.DialogHost>();
+                foreach (var h in _hostStack)
+                    if (h != host) remaining.Add(h);
+
+                _hostStack.Clear();
+                remaining.Reverse(); // 还原原始入栈顺序（底层在前）
+                foreach (var h in remaining)
+                    _hostStack.Push(h);
             }
         }
 

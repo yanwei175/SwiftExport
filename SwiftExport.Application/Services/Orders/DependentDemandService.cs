@@ -90,8 +90,6 @@ public class DependentDemandService(
 
         entity.SupplierCode = supplierCode.Trim();
         entity.SupplierName = (supplierName ?? string.Empty).Trim();
-        entity.UpdatedDate = DateTime.Now;
-        entity.ChangeTime = DateTime.Now;
 
         await _rpRepository.UpdateAsync(entity);
         return ServiceResult<bool>.Ok(true);
@@ -392,10 +390,7 @@ public class DependentDemandService(
                     LineCount = groupList.Count,
                     TotalQty = groupList.Sum(x => x.NetQty),
                     TotalAmountLocalCurrency = groupList.Sum(x => ResolveUnitPriceBySku(x.Sku, productBySku) * x.NetQty),
-                    IsDeleted = false,
-                    CreatedDate = DateTime.Now,
-                    Status = null,
-                    Even = null
+                    IsDeleted = false
                 };
                 var newid = await _purchaseOrderRepository.AddAsync(po);
                 // 创建采购单行：按业务键聚合净需求（数量求和），并保存“采购行 -> 需求池行集合”映射。
@@ -437,9 +432,6 @@ public class DependentDemandService(
                     item.ReadyQty = 0;
                     item.RecQty = 0;
                     item.IsDeleted = false;
-                    item.CreatedDate = DateTime.Now;
-                    item.Status = null;
-                    item.Even = null;
 
                     itemList.Add(item);
                     // 记录 【当前聚合的采购行】 与 【参与聚合的所有净需求行】 的对应关系
@@ -459,7 +451,7 @@ public class DependentDemandService(
                             demand.TargetLineId = Line.Uid; // 回写生成的采购单行ID
                             demand.TargetNo = orderNo;          // 回写目标单号
                             demand.OrderStatus = DependentDemandStatusEnum.已转为正式单据;
-                            demand.ChangeTime = DateTime.Now;
+                            
                         }
                     }
                 }

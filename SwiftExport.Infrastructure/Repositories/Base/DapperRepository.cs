@@ -22,6 +22,7 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     protected ILogger Logger => _loggerInstance ??= context.LoggerFactory.CreateLogger(GetType());
 
     protected static readonly string TableName = typeof(T).GetCustomAttribute<TableAttribute>()?.Name ?? typeof(T).Name;
+
     private static readonly List<string> _writeableProps = GetWriteableProperties();
     // 辅助属性：当前连接和事务
     protected IDbConnection Connection => _session.Connection;
@@ -288,8 +289,8 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
 
     public virtual async Task<int> DeleteSoftAsync(Guid uid)
     {
-        var sql = $"UPDATE [{TableName}] SET UpdatedDate = {DateTime.Now}, IsDeleted = 1 WHERE [Uid] = @Uid";
-        return await Connection.ExecuteAsync(sql, new { Uid = uid }, transaction: Transaction);
+        var sql = $"UPDATE [{TableName}] SET UpdatedDate = @UpdatedDate, IsDeleted = 1 WHERE [Uid] = @Uid";
+        return await Connection.ExecuteAsync(sql, new { Uid = uid, UpdatedDate = DateTime.Now }, transaction: Transaction);
     }
 
     public virtual async Task<int> DeleteAsync(Guid uid, bool softDelete = true)
@@ -297,13 +298,13 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         string sql;
         if (softDelete)
         {
-            sql = $"UPDATE [{TableName}] SET UpdatedDate = {DateTime.Now}, IsDeleted = 1 WHERE [Uid] = @Uid";
+            sql = $"UPDATE [{TableName}] SET UpdatedDate = @UpdatedDate, IsDeleted = 1 WHERE [Uid] = @Uid";
         }
         else
         {
             sql = $"DELETE FROM [{TableName}] WHERE [Uid] = @Uid";
         }
-        return await Connection.ExecuteAsync(sql, new { Uid = uid }, transaction: Transaction);
+        return await Connection.ExecuteAsync(sql, new { Uid = uid, UpdatedDate = DateTime.Now }, transaction: Transaction);
     }
 
     // =============================================================

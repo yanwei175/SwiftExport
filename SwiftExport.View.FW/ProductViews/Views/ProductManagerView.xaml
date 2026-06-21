@@ -5,7 +5,6 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:vm="clr-namespace:SwiftExport.View.FW.ProductViews.ViewModels"
-
              xmlns:mt ="https://MateWpfTheme.com/wpf/framework/themes"
              xmlns:mtControls="clr-namespace:MateWpfThemes.FW.Controls;assembly=MateWpfThemes.FW"
              xmlns:assists="clr-namespace:SwiftExport.View.FW.ProductViews.Assists"
@@ -193,8 +192,9 @@
                     <Rectangle Width="1" Fill="#E0E0E0" Margin="5" VerticalAlignment="Stretch"/>
                     <TextBlock Text="表格模式" Margin="0,0,4,0"/>
                     <ToggleButton x:Name="BtnToggleSelectionUnit"
-                                    Style="{DynamicResource ToggleSwitch}"
-                                    IsChecked="False">
+                                  Style="{DynamicResource ToggleSwitch}"
+                                  Margin="0,0,5,0" Padding="10,6" BorderThickness="1" Cursor="Hand"
+                                  IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}">
                     </ToggleButton>
 
                     <Rectangle Width="1" Fill="#E0E0E0" Margin="5" VerticalAlignment="Stretch"/>
@@ -263,22 +263,23 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 <!--主DataGrid-->
-                                <DataGrid Grid.Row="0" x:Name="MasterDataGrid"
-                                             ItemsSource="{Binding ProductList.Items}"
-                                             SelectedItem="{Binding SelectedProduct, Mode=TwoWay}"
-                                              FrozenColumnCount="3"
-                                             FontSize="10"
-                                             HorizontalScrollBarVisibility="Auto" 
-                                             HeadersVisibility="All" 
-                                             RowHeight="60" Margin="0,5,0,0"
-                                             EnableRowVirtualization="False"
-                                             EnableColumnVirtualization="False"
-                                             CanUserDeleteRows="False"
-                                             mt:DataGridAssist.ShowRowNumber="True" 
-                                             mt:UndoManager.IsUndoEnabled="True"
-                                             mt:DataGridAssist.AutoScrollToNewItem="True"
-                                             mt:DataGridAssist.EnableSoftValidation="True"
-                                             mt:DataGridExcelAssist.EnableExcelShortcuts="{Binding IsChecked, ElementName=BtnToggleSelectionUnit}">
+                                <DataGrid Grid.Row="0" x:Name="MasterDataGrid"                                             
+                                          ItemsSource="{Binding ProductList.Items}"                                             
+                                          SelectedItem="{Binding SelectedProduct, Mode=TwoWay}"
+                                          SelectionUnit="{Binding IsCellSelectionMode}"
+                                          FrozenColumnCount="3"                                             
+                                          FontSize="10"
+                                          HorizontalScrollBarVisibility="Auto" 
+                                          HeadersVisibility="All" 
+                                          RowHeight="60" Margin="0,5,0,0"
+                                          EnableRowVirtualization="False"
+                                          EnableColumnVirtualization="False"
+                                          CanUserDeleteRows="False"
+                                          mt:DataGridAssist.ShowRowNumber="True" 
+                                          mt:UndoManager.IsUndoEnabled="True"
+                                          mt:DataGridAssist.AutoScrollToNewItem="True"
+                                          mt:DataGridAssist.EnableSoftValidation="True"
+                                          mt:DataGridExcelAssist.EnableExcelShortcuts="{Binding IsCellSelectionMode,Mode=OneWay}">
                                     <DataGrid.Style>
                                         <Style TargetType="DataGrid" BasedOn="{StaticResource BaseDataGrid}">
                                             <!-- 中文注释：默认保持整行模式，便于稳定触发行选择联动（例如 BOM 加载）。 -->

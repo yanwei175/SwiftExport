@@ -1,4 +1,5 @@
 ﻿using GalaSoft.MvvmLight.Command;
+using Mapster;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
@@ -8,7 +9,6 @@ using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.SysEnums;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.DI;
 using SwiftExport.View.FW.Mvvm;
@@ -17,9 +17,7 @@ using SwiftExport.View.FW.SalesOrderViews.Models;
 using SwiftExport.View.FW.SalesOrderViews.Views;
 using SwiftExport.View.FW.Services;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -100,8 +98,14 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             foreach (var item in OrderStatusOptions)
                 item.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(CheckableItem<SalesOrderStatusEnum>.IsSelected)) RaisePropertyChanged(nameof(SelectedOrderStatuses)); };
 
+            foreach (var item in ConfirmStatusOptions)
+            {
+                if (item.Value == ConfirmationStatusEnum.待确认)
+                    item.IsSelected = true;
+            }
             _ = LoadCustomersAsync();
             _ = LoadColorsAsync();
+            _ = LoadAsync();
         }
 
         #endregion
@@ -290,7 +294,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         /// <summary> 确认命令是否可用。</summary>
         public bool CanConfirm
         {
-            get => SelectedOrderHeader != null &&
+            get => SelectedOrderHeader != null && !SelectedOrderHeader.IsDirty &&
               SelectedOrderHeader.ConfirmationStatus != ConfirmationStatusEnum.已确认 && IsNotBusy;
 
         }
@@ -489,6 +493,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     if (rst?.Success == true && rst.Data != null)
                     {
                         SelectedOrderHeader.LoadFromDto(rst.Data, false);
+                        await LoadLinesByHeadIdAsync(vm.ResultData);
                     }
                     else
                     {
@@ -525,6 +530,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     if (rst?.Success == true && rst.Data != null)
                     {
                         SelectedOrderHeader.LoadFromDto(rst.Data, false);
+                        await LoadLinesByHeadIdAsync(vm.ResultData);
                     }
                     else
                     {
@@ -548,7 +554,44 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         /// </summary>
         private async Task SaveHeaderAsync()
         {
-            await _msg.ShowInfoAsync("Header 快速保存功能待实现，当前仅模拟保存成功的提示。", "提示");
+            try
+            {
+                var dirtyHeaders = OrderHeaders.GetChangeSet();
+                if (dirtyHeaders == null || dirtyHeaders.AddList.Count + dirtyHeaders.UpdateList.Count + dirtyHeaders.DeleteIdList.Count == 0) return;
+                if (!await _msg.ShowConfirmAsync("确认提交修改吗?"))
+                {
+                    return;
+                }
+
+
+                var batchUpdateDto = new BatchSalesOrderHeadManagerUpdateRequestDto
+                {
+                    UpdateList = dirtyHeaders.UpdateList.Count > 0 ? dirtyHeaders.UpdateList.Select(x => x.Adapt<SalesOrderHeaderManagerUpdateRequestDto>()).ToList() : null,
+                };
+                var rst = await _salesOrderApi.BatchUpdateHeadManagerAsync(batchUpdateDto);
+                if (rst.Success && rst.Data != null)
+                {
+                    // 局部刷新被修改的行
+                    if (rst.Data.Items != null && rst.Data.Items.Count > 0)
+                    {
+                        foreach (var updatedItem in rst.Data.Items)
+                        {
+                            var localModel = OrderHeaders.Items.FirstOrDefault(x => x.Uid == updatedItem.Uid);
+                            localModel?.LoadFromDto(updatedItem, false);
+                        }
+                    }
+                    await _msg.ShowInfoAsync("修改成功");
+                }
+                else
+                {
+                    await _msg.ShowWarningAsync("修改失败：" + rst.Message, "操作失败");
+                }
+            }
+            catch (Exception ex)
+            {
+                await _msg.ShowErrorAsync("修改异常：" + ex.Message, "操作异常");
+            }
+
         }
 
         #endregion
@@ -588,14 +631,18 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     var rst = await _salesOrderApi.ConfirmSalesOrdersAsync(req);
                     if (rst.Success && rst.Data != null)
                     {
-                        current.ConfirmationStatus = rst.Data.NewStatus;
-                        current.Version = rst.Data.Version; // 本地版本号自增，保持与后端一致，避免后续编辑时的版本冲突
-                        StatusMessage = $"订单 {current.OrderNo} 确认成功：{rst.Data.Message}";
-                        _msg.ShowCardAsync(StatusMessage, 3500);
+                        var newCurrent = await _salesOrderApi.GetSalesOrderHeaderManagerByIdAsync(rst.Data.Uid);
+                        current.LoadFromDto(newCurrent.Data);
+
+                        //current.ConfirmationStatus = rst.Data.NewStatus;
+                        //current.OrderStatus = SalesOrderStatusEnum.已确认;
+                        //current.Version = rst.Data.Version; // 本地版本号自增，保持与后端一致，避免后续编辑时的版本冲突
+                        StatusMessage = $"订单 {current.OrderNo} 确认成功：{rst.Data?.Message}";
+                        await _msg.ShowInfoAsync(StatusMessage);
                     }
                     else
                     {
-                        StatusMessage = "确认失败：" + rst.Data.Message;
+                        StatusMessage = "确认失败：" + rst.Data?.Message;
                         await _msg.ShowWarningAsync(StatusMessage, "操作失败");
                     }
                 }
@@ -635,17 +682,15 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     var rst = await _salesOrderApi.CancelConfirmSalesOrdersAsync(req);
                     if (rst.Success && rst.Data != null)
                     {
-                        current.ConfirmationStatus = rst.Data.NewStatus;
-                        current.Version = rst.Data.Version > 0
-                            ? rst.Data.Version
-                            : current.Version + 1;
+                        var newCurrent = await _salesOrderApi.GetSalesOrderHeaderManagerByIdAsync(rst.Data.Uid);
+                        current.LoadFromDto(newCurrent.Data);
 
-                        StatusMessage = $"订单 {current.OrderNo} 取消确认成功：{rst.Data.Message}";
+                        StatusMessage = $"订单 {current.OrderNo} 取消确认成功：{rst.Data?.Message}";
                         _msg.ShowCardAsync(StatusMessage, 3500);
                     }
                     else
                     {
-                        StatusMessage = $"订单 {current.OrderNo} 取消确认失败：{rst.Message}";
+                        StatusMessage = $"订单 {current.OrderNo} 取消确认失败：{rst?.Message}";
                         await _msg.ShowWarningAsync(StatusMessage, "操作失败");
                     }
                 }
@@ -659,7 +704,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         #endregion
 
-        #region 删除勾选
+        #region 删除
 
         private async Task DeleteSelectedHeadAsync()
         {
@@ -680,14 +725,14 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             }
 
             var confirm = await _msg.ShowConfirmAsync(
-                string.Format("确认删除选中的订单？此操作不可恢复。", selected.OrderNo), "删除确认");
+                string.Format("确认删除选中的订单？", selected.OrderNo), "删除确认");
             if (!confirm) return;
 
             using (BusyScope())
             {
                 try
                 {
-                    var rst = await _salesOrderApi.DeleteSalesOrderAsync(selected.Uid);
+                    var rst = await _salesOrderApi.DeleteSalesOrderAsync(selected.Uid, selected.Version);
                     if (!rst.Success)
                     {
                         StatusMessage = "删除失败：" + rst.Message;

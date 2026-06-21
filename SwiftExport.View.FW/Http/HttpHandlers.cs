@@ -27,11 +27,11 @@ namespace SwiftExport.View.FW.Http
             Debug.WriteLine($"[HTTP 收到响应] 状态码: {(int)response.StatusCode} ({response.StatusCode})");
 
             // 需要查看错误响应体时，取消下方注释：
-            // if (!response.IsSuccessStatusCode && response.Content != null)
-            // {
-            //     var body = await response.Content.ReadAsStringAsync();
-            //     Debug.WriteLine($"[HTTP 错误详情] {body}");
-            // }
+            if (!response.IsSuccessStatusCode && response.Content != null)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                Debug.WriteLine($"[HTTP 错误详情] {body}");
+            }
 
             return response;
         }

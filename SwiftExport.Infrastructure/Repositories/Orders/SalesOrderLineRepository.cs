@@ -36,6 +36,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
         {
             var sql = $@"
                         SELECT 
+                            l.{nameof(SalesOrderLine.LineNumber)} AS {nameof(SalesOrderLineManagerDto.LineNumber)},
                             l.{nameof(SalesOrderLine.Uid)} AS {nameof(SalesOrderLineManagerDto.Uid)},
                             l.{nameof(SalesOrderLine.Version)} AS {nameof(SalesOrderLineManagerDto.Version)},
                             l.{nameof(SalesOrderLine.CreatedBy)} AS {nameof(SalesOrderLineManagerDto.CreatedBy)},
@@ -68,7 +69,8 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
                               AND d.{nameof(IndependentDemand.SourceLineId)} = l.{nameof(SalesOrderLine.Uid)}
                         ) d
                         WHERE l.{nameof(SalesOrderLine.SalesOrderId)} = @OrderId
-                          AND (l.{nameof(SalesOrderLine.IsDeleted)} = 0 OR l.{nameof(SalesOrderLine.IsDeleted)} IS NULL);";
+                          AND (l.{nameof(SalesOrderLine.IsDeleted)} = 0 OR l.{nameof(SalesOrderLine.IsDeleted)} IS NULL)
+                        ORDER BY l.{nameof(SalesOrderLine.LineNumber)} ASC;";
 
             var parameters = new
             {

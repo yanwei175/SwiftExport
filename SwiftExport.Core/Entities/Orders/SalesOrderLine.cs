@@ -47,6 +47,5 @@ public class SalesOrderLine : BaseEntity
     public DateTime? ExpectedDeliveryDate { get; set; }
     public string? MainImage { get; set; }
 
-    public DateTime? ChangeTime { get; set; }
 }
 

@@ -9,18 +9,18 @@ using SwiftExport.WebApi.Filters;
 namespace SwiftExport.WebApi.Controllers.Orders;
 
 /// <summary>
-/// ²É¹ºÈë¿â¿ØÖÆÆ÷¡£
+/// é‡‡è´­å…¥åº“æ§åˆ¶å™¨ã€‚
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class SalesOrderController(ISalesOrderManagerService managerService, ISalesOrderDetailService detailService, ISalesOrderLineService lineService) : ControllerBase
 {
 
-    #region ¶©µ¥¹ÜÀíÒ³£¨Ö÷´Ó±í£©
+    #region è®¢å•ç®¡ç†é¡µï¼ˆä¸»ä»è¡¨ï¼‰
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º·ÖÒ³²éÑ¯¶©µ¥Í·ÁĞ±í£¨ÓÃÓÚ SalesOrderManagerViewModel Ö÷±í£©¡£
-    /// Ö§³Ö¶àÑ¡×´Ì¬¡¢¶©µ¥ºÅ/·¢Æ±ºÅ¡¢¿Í»§´úÂë¡¢ÑÕÉ«¡¢°üº¬ SKU µÈÉ¸Ñ¡Ìõ¼ş¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šåˆ†é¡µæŸ¥è¯¢è®¢å•å¤´åˆ—è¡¨ï¼ˆç”¨äº SalesOrderManagerViewModel ä¸»è¡¨ï¼‰ã€‚
+    /// æ”¯æŒå¤šé€‰çŠ¶æ€ã€è®¢å•å·/å‘ç¥¨å·ã€å®¢æˆ·ä»£ç ã€é¢œè‰²ã€åŒ…å« SKU ç­‰ç­›é€‰æ¡ä»¶ã€‚
     /// </summary>
     [HttpPost("headers/search-manager")]
     public async Task<ServiceResult<PagedResultDto<SalesOrderHeaderManagerDto>>> GetSalesOrderHeaderManagerPagedListAsync([FromBody] SalesOrderManagerSearchDto search)
@@ -28,14 +28,14 @@ public class SalesOrderController(ISalesOrderManagerService managerService, ISal
         return await managerService.GetSalesOrderHeaderManagerPagedListAsync(search);
     }
 
-    /// <summary>¸ù¾İ¶©µ¥ ID »ñÈ¡¶©µ¥Í·ĞÅÏ¢£¨ÓÃÓÚ SalesOrderManagerViewModel ´Ó±í¶¯Ì¬¼ÓÔØ£©¡£</summary>
+    /// <summary>æ ¹æ®è®¢å• ID è·å–è®¢å•å¤´ä¿¡æ¯ï¼ˆç”¨äº SalesOrderManagerViewModel ä»è¡¨åŠ¨æ€åŠ è½½ï¼‰ã€‚</summary>
     [HttpGet("{orderId}/header-manager")]
     public async Task<ServiceResult<SalesOrderHeaderManagerDto>> GetSalesOrderHeaderManagerByIdAsync(Guid orderId)
     {
         return await managerService.GetSalesOrderHeaderManagerByIdAsync(orderId);
     }
 
-    /// <summary>¸ù¾İ¶©µ¥ ID »ñÈ¡¶©µ¥ĞĞÁĞ±í£¨ÓÃÓÚ SalesOrderManagerViewModel ´Ó±í¶¯Ì¬¼ÓÔØ£©¡£</summary>
+    /// <summary>æ ¹æ®è®¢å• ID è·å–è®¢å•è¡Œåˆ—è¡¨ï¼ˆç”¨äº SalesOrderManagerViewModel ä»è¡¨åŠ¨æ€åŠ è½½ï¼‰ã€‚</summary>
     [HttpGet("{orderId}/line-manager")]
     public async Task<ServiceResult<List<SalesOrderLineManagerDto>>> GetSalesOrderLineManagerAsync(Guid orderId)
     {
@@ -43,16 +43,26 @@ public class SalesOrderController(ISalesOrderManagerService managerService, ISal
     }
 
     /// <summary>
-    /// É¾³ıµ¥¸öÏúÊÛ¶©µ¥
+    /// åˆ é™¤å•ä¸ªé”€å”®è®¢å•
     /// </summary>
     [HttpDelete("{orderId}")]
-    public async Task<ServiceResult<bool>> DeleteSalesOrderAsync(Guid orderId)
+    public async Task<ServiceResult<bool>> DeleteSalesOrderAsync([FromRoute] Guid orderId, [FromQuery] int version)
     {
-        return ServiceResult<bool>.Fail("false");
-        //return await managerService.DeleteSalesOrderAsync(orderId);
+        return await managerService.DeleteSalesOrderAsync(orderId, version);
     }
 
-    /// <summary>Åú×¼Ò»ÕÅÏúÊÛ¶©µ¥¡£</summary>
+    /// <summary>
+    /// ç®¡ç†é¡µä¿®æ”¹è¡¨å¤´
+    /// </summary>
+    [HttpPost("header-manager-update")]
+    public async Task<ServiceResult<BatchSalesOrderHeadManagerUpdateResultDto>> BatchUpdateHeadManagerAsync([FromBody] BatchSalesOrderHeadManagerUpdateRequestDto request)
+    {
+        return await managerService.BatchUpdateHeadManagerAsync(request);
+    }
+
+
+
+    /// <summary>æ‰¹å‡†ä¸€å¼ é”€å”®è®¢å•ã€‚</summary>
     [HttpPost("confirm")]
     [PreventDuplicateRequest]
     public async Task<ServiceResult<ConfirmationItemResponse>> ConfirmSalesOrderAsync([FromBody] ConfirmationItemRequest request)
@@ -60,7 +70,7 @@ public class SalesOrderController(ISalesOrderManagerService managerService, ISal
         return await managerService.ConfirmSalesOrderAsync(request);
     }
 
-    /// <summary>ÅúÁ¿Åú×¼ÏúÊÛ¶©µ¥¡£</summary>
+    /// <summary>æ‰¹é‡æ‰¹å‡†é”€å”®è®¢å•ã€‚</summary>
     [HttpPost("batch-confirm")]
     [PreventDuplicateRequest]
     public async Task<ServiceResult<BatchConfirmationResponse>> BatchConfirmSalesOrdersAsync([FromBody] BatchConfirmationRequest request)
@@ -68,8 +78,8 @@ public class SalesOrderController(ISalesOrderManagerService managerService, ISal
         return await managerService.BatchConfirmSalesOrdersAsync(request);
     }
 
-    /// <summary>²µ»ØÒ»ÕÅÏúÊÛ¶©µ¥¡£</summary>
-    [HttpPost("/cancel-confirm")]
+    /// <summary>é©³å›ä¸€å¼ é”€å”®è®¢å•ã€‚</summary>
+    [HttpPost("cancel-confirm")]
     [PreventDuplicateRequest]
     public async Task<ServiceResult<ConfirmationItemResponse>> CancelConfirmSalesOrderAsync([FromBody] ConfirmationItemRequest request)
     {
@@ -79,10 +89,10 @@ public class SalesOrderController(ISalesOrderManagerService managerService, ISal
 
     #endregion
 
-    #region ¶©µ¥ÏêÇéÒ³£¨µ¥¾İ±à¼­£©
+    #region è®¢å•è¯¦æƒ…é¡µï¼ˆå•æ®ç¼–è¾‘ï¼‰
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º»ñÈ¡ÏúÊÛ¶©µ¥ÏêÇé£¨¶©µ¥Í· + Ã÷Ï¸ĞĞ£©¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šè·å–é”€å”®è®¢å•è¯¦æƒ…ï¼ˆè®¢å•å¤´ + æ˜ç»†è¡Œï¼‰ã€‚
     /// </summary>
     [HttpGet("{orderId}/detail")]
     public async Task<ServiceResult<SalesOrderDetailDto>> GetSalesOrderDetailAsync(Guid orderId)
@@ -91,16 +101,16 @@ public class SalesOrderController(ISalesOrderManagerService managerService, ISal
     }
 
     /// <summary>
-    /// ÖĞÎÄ×¢ÊÍ£º¶©µ¥ÏêÇéÒ³Ò»¼ü±£´æ½Ó¿Ú£¨ĞÂÔö/±à¼­ÓÉºó¶Ë¸ù¾İ Header.Id ÅĞ¶Ï£©¡£
+    /// ä¸­æ–‡æ³¨é‡Šï¼šè®¢å•è¯¦æƒ…é¡µä¸€é”®ä¿å­˜æ¥å£ï¼ˆæ–°å¢/ç¼–è¾‘ç”±åç«¯æ ¹æ® Header.Id åˆ¤æ–­ï¼‰ã€‚
     /// </summary>
-    [HttpPost("detail/save")]
+    [HttpPost("detail-save")]
     [PreventDuplicateRequest]
     public async Task<ServiceResult<SalesOrderSaveDetailResponse>> SaveSalesOrderDetailAsync([FromBody] SalesOrderSaveDetailRequest request)
     {
         return await detailService.SaveSalesOrderAsync(request);
     }
 
-    /// <summary>ÖĞÎÄ×¢ÊÍ£º¸ù¾İ¶©µ¥ ID »ñÈ¡¶©µ¥ĞĞÁĞ±í¡£ </summary>
+    /// <summary>ä¸­æ–‡æ³¨é‡Šï¼šæ ¹æ®è®¢å• ID è·å–è®¢å•è¡Œåˆ—è¡¨ã€‚ </summary>
     [HttpGet("{orderId}/lines")]
     public async Task<ServiceResult<List<SalesOrderLineDto>>> GetSalesOrderLinesAsync(Guid orderId)
     {
@@ -113,7 +123,7 @@ public class SalesOrderController(ISalesOrderManagerService managerService, ISal
         return await detailService.GetSalesProductPagedListAsync(request);
     }
 
-    /// <summary>ÖĞÎÄ×¢ÊÍ£º»ñÈ¡ÏúÊÛ¶©µ¥ÏÂÒ»µ¥ºÅ(SO)</summary>
+    /// <summary>ä¸­æ–‡æ³¨é‡Šï¼šè·å–é”€å”®è®¢å•ä¸‹ä¸€å•å·(SO)</summary>
     [HttpPost("next-order-no")]
     [PreventDuplicateRequest]
     public async Task<ServiceResult<DocumentNoResultDto>> GetNextOrderNoAsync()

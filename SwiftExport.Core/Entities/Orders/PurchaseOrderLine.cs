@@ -57,8 +57,6 @@ public class PurchaseOrderLine : BaseEntity
     /// </summary>
     public string? DeliveryTo { get; set; }
 
-    public DateTime? ChangeTime { get; set; }
-
 
     /// <summary>
     /// 冗余字段,方便查询和统计分析，回写需求池时同步更新（SourceType + SourceNo 唯一索引）。

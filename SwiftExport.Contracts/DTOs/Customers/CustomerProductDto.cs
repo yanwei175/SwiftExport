@@ -47,7 +47,6 @@ namespace SwiftExport.Contracts.DTOs.Customers
 
         // 状态
         public bool IsActive { get; set; }
-        public bool IsDeleted { get; set; }
 
     }
 

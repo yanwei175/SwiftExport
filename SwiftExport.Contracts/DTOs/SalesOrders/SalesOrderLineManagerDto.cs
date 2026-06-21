@@ -1,13 +1,11 @@
 ﻿using SwiftExport.Contracts.DTOs.Base;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace SwiftExport.Contracts.DTOs.SalesOrders
 {
     public class SalesOrderLineManagerDto : BaseDto
     {
         public string MainImage { get; set; }
+        public int LineNumber { get; set; }
 
         public string CustomerSku { get; set; }
 

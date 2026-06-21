@@ -71,6 +71,5 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public DateTime? LastShippedDate { get; set; }
         public DateTime? ExpectedDeliveryDate { get; set; }
         public string MainImage { get; set; }
-        public DateTime? ChangeTime { get; set; }
     }
 }

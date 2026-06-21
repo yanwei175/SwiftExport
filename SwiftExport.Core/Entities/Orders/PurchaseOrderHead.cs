@@ -57,7 +57,6 @@ public class PurchaseOrderHead : BaseEntity
     public DateTime? OrderDate { get; set; }
     public DateTime? ExpectedDate { get; set; }
     public DateTime? ReplyDate { get; set; }
-    public DateTime? ChangeTime { get; set; }
 
     public decimal? ZhiJieYouHuiJinE { get; set; }
     public decimal? ZheKou { get; set; }

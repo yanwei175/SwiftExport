@@ -134,8 +134,6 @@ public class PackingListService(
                 persisted = head;
                 persisted.PackingListNo = head.PackingListNo.Trim();
                 persisted.PackingDate ??= DateTime.Now;
-                persisted.Status = string.IsNullOrWhiteSpace(persisted.Status) ? "草稿" : persisted.Status;
-                persisted.CreatedDate = DateTime.Now;
                 persisted.IsDeleted = false;
                 persisted.Uid = await _headRepository.AddAsync(persisted);
             }
@@ -211,10 +209,8 @@ public class PackingListService(
             await WriteOffComponentsAsync(head, lines, request.AllowNegativeStock);
 
             head.IsPosted = true;
-            head.Status = "已过账";
             head.PostedDate = DateTime.Now;
             head.PostedBy = request.Operator;
-            head.UpdatedDate = DateTime.Now;
             await _headRepository.UpdateAsync(head);
 
             _session.Transaction.Commit();

@@ -1,5 +1,4 @@
 ﻿using SwiftExport.Contracts.SysEnums;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.View.FW.Mvvm;
 using System;
 
@@ -165,7 +164,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         /// <summary>
         /// 交期（预计发货日期）
         /// </summary>
-        public DateTime? DeliverDate
+        public DateTime? DeliveryDate
         {
             get => _deliveryDate;
             set => SetProperty(ref _deliveryDate, value);

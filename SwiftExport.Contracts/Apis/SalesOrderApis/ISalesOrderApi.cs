@@ -41,10 +41,17 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         Task<ServiceResult<List<SalesOrderLineManagerDto>>> GetSalesOrderLineManagerAsync(Guid orderId);
 
         /// <summary>
-        /// 删除单个销售订单
+        /// 删除单个销售订单,目前是关闭订单,将订单的IsDelete设置为1.
         /// </summary>
         [Delete("/{orderId}")]
-        Task<ServiceResult<bool>> DeleteSalesOrderAsync(Guid orderId);
+        Task<ServiceResult<bool>> DeleteSalesOrderAsync(Guid orderId, [Query] int version);
+
+        /// <summary>
+        /// 管理页修改表头
+        /// </summary>
+        [Post("/header-manager-update")]
+        Task<ServiceResult<BatchSalesOrderHeadManagerUpdateResultDto>> BatchUpdateHeadManagerAsync([Body] BatchSalesOrderHeadManagerUpdateRequestDto request);
+
 
         /// <summary>
         /// 确认销售订单。
@@ -71,7 +78,7 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         Task<ServiceResult<SalesOrderDetailDto>> GetSalesOrderDetailAsync(Guid orderId);
 
         /// <summary>订单详情页一键保存接口（新增/编辑由后端根据 Header.Id 判断）。</summary>
-        [Post("/detail/save")]
+        [Post("/detail-save")]
         Task<ServiceResult<SalesOrderSaveDetailResponse>> SaveSalesOrderDetailAsync([Body] SalesOrderSaveDetailRequest request);
 
         /// <summary>中文注释：根据订单 ID 获取订单行列表。 </summary>
@@ -90,9 +97,6 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         /// </summary>
         [Post("/next-order-no")]
         Task<ServiceResult<DocumentNoResultDto>> GetNextOrderNoAsync();
-
-
-
 
         /// <summary>
         /// 分页查询销售订单列表（旧 DTO，保留兼容）

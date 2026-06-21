@@ -21,7 +21,4 @@ public class SysUserRole : BaseEntity
 
     /// <summary>角色名称（冗余字段，方便查询展示）</summary>
     public string? RoleName { get; set; }
-
-    /// <summary>变更时间（业务字段，记录分配/撤销时间）</summary>
-    public DateTime? ChangeTime { get; set; }
 }

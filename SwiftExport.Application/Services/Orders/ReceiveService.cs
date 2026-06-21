@@ -210,7 +210,6 @@ namespace SwiftExport.Application.Services.Orders
 
                         poLine.RecQty = (poLine.RecQty <= 0 ? 0 : poLine.RecQty) + incQty;
                         poLine.LastRecDate = head.ReceiveDate ?? DateTime.Now;
-                        poLine.ChangeTime = DateTime.Now;
                     }
 
                     if (poLineEntities.Count > 0)
@@ -270,9 +269,7 @@ namespace SwiftExport.Application.Services.Orders
                             row.ReceivedQty += allocQty;
                             // 保护：不允许溢出 NetQty
                             if (row.ReceivedQty > row.NetQty)
-                                row.ReceivedQty = row.NetQty;
-
-                            row.ChangeTime = DateTime.Now;
+                                row.ReceivedQty = row.NetQty;                            
                             if (row.ReceivedQty >= row.NetQty)
                                 row.OrderStatus = DependentDemandStatusEnum.已到货;
 
@@ -410,9 +407,7 @@ namespace SwiftExport.Application.Services.Orders
                     if (head == null)
                         return ServiceResult<SaveReceiveDetailResultDto>.Fail("入库单不存在，无法更新");
 
-                    // 中文注释：过账制场景下，若状态已过账则禁止编辑。
-                    if (string.Equals(head.Status, "已过账", StringComparison.OrdinalIgnoreCase))
-                        return ServiceResult<SaveReceiveDetailResultDto>.Fail("入库单已过账，禁止修改");
+
 
                     head.SupplierCode = request.Header.SupplierCode?.Trim();
                     head.ReceiveDate = request.Header.ReceiveDate;

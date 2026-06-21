@@ -28,11 +28,6 @@ public abstract class BaseEntity
     public DateTime? UpdatedDate { get; set; }
     public string? UpdatedBy { get; set; }
 
-
-
-    // 业务层字段，不入库(Dapper忽略即可)
-    public string? Even { get; set; }
-    public string? Status { get; set; }
 }
 
 

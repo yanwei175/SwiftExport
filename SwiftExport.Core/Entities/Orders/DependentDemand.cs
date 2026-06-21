@@ -19,7 +19,16 @@ public class DependentDemand : BaseEntity
     public required Guid SourceUid { get; set; }
     public required string SourceNo { get; set; } = string.Empty;
     public required Guid SourceLineId { get; set; }
-
+    public required Guid IndependentDemandId { get; set; }
+    /// <summary>
+    /// 目标执行单号（如采购单号 PO-2024001）
+    /// 理由：背靠背模式下，方便直接从需求池跳到采购单。
+    /// </summary>
+    public string? TargetNo { get; set; }
+    /// <summary>
+    /// 目标执行行 ID
+    /// </summary>
+    public Guid? TargetLineId { get; set; }
     #endregion
 
 
@@ -65,6 +74,7 @@ public class DependentDemand : BaseEntity
     /// <summary>已完工数量</summary>
     public decimal ReadyQty { get; set; }
 
+    public bool IsReady { get; set; }//是否已完工
 
 
     /// <summary>
@@ -80,9 +90,6 @@ public class DependentDemand : BaseEntity
     /// <summary> 需求日期（什么时候要用）</summary>
     public DateTime? RequiredDate { get; set; }
 
-
-
-
     /// <summary>备注</summary>
     public string? Remark { get; set; }
 
@@ -90,11 +97,7 @@ public class DependentDemand : BaseEntity
 
     #region 执行关联 (Execution Link)
 
-    /// <summary>
-    /// 目标执行单号（如采购单号 PO-2024001）
-    /// 理由：背靠背模式下，方便直接从需求池跳到采购单。
-    /// </summary>
-    public string? TargetNo { get; set; }
+
 
     /// <summary>
     /// 手工指定供应商编码（优先于产品默认供应商）。
@@ -106,20 +109,7 @@ public class DependentDemand : BaseEntity
     /// </summary>
     public string? SupplierName { get; set; }
 
-    /// <summary>
-    /// 目标执行行 ID
-    /// </summary>
-    public Guid? TargetLineId { get; set; }
-
     #endregion
-
-
-    /// <summary>
-    /// 业务变更时间（用于外部系统增量同步）。
-    /// </summary>
-    public DateTime? ChangeTime { get; set; }
-
-
-    public bool IsNonStandard => !string.IsNullOrWhiteSpace(Sku) && Sku.StartsWith(DocumentTypeStaticsEnum.NonStandardPart);
+    public bool IsNonStandard { get; set; } //是否为非标件
 
 }

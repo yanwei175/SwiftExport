@@ -2,7 +2,7 @@
 using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Contracts.Models;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.Independent.Models;
 using SwiftExport.View.FW.Mvvm;

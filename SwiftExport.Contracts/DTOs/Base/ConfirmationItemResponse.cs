@@ -1,7 +1,6 @@
-﻿using SwiftExport.Contracts.SysEnums.StaticEnums;
+﻿using SwiftExport.Contracts.SysEnums;
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace SwiftExport.Contracts.DTOs.Base
 {

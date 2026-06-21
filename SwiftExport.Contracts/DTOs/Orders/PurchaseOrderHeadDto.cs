@@ -83,7 +83,6 @@ namespace SwiftExport.Contracts.DTOs.Orders
         public string PoFolder { get; set; }
         public string Remark { get; set; }
 
-        public bool IsDeleted { get; set; }
         public bool? IsLocked { get; set; }
 
         #region 汇总字段

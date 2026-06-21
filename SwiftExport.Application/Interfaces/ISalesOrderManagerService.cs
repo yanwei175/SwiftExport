@@ -1,10 +1,6 @@
 ﻿using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Contracts.DTOs.SalesOrders;
-using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace SwiftExport.Application.Interfaces
 {
@@ -14,9 +10,8 @@ namespace SwiftExport.Application.Interfaces
         Task<ServiceResult<PagedResultDto<SalesOrderHeaderManagerDto>>> GetSalesOrderHeaderManagerPagedListAsync(SalesOrderManagerSearchDto search);
         Task<ServiceResult<SalesOrderHeaderManagerDto>> GetSalesOrderHeaderManagerByIdAsync(Guid orderId);
         Task<ServiceResult<List<SalesOrderLineManagerDto>>> GetSalesOrderLineManagerAsync(Guid orderId);
-
-
-
+        Task<ServiceResult<bool>> DeleteSalesOrderAsync(Guid orderId, int version);
+        Task<ServiceResult<BatchSalesOrderHeadManagerUpdateResultDto>> BatchUpdateHeadManagerAsync(BatchSalesOrderHeadManagerUpdateRequestDto request);
         /// <summary>
         /// 批准一张销售订单（单据状态流转：草稿->已批准）。
         /// </summary>

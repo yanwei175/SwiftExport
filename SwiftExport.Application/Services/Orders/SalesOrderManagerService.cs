@@ -82,6 +82,74 @@ public class SalesOrderManagerService(ServiceBaseContext context,
         var lines = await _salesOrderLineRepo.GetSalesOrderLineManagerAsync(orderId);
         return ServiceResult<List<SalesOrderLineManagerDto>>.Ok(lines.Adapt<List<SalesOrderLineManagerDto>>());
     }
+    public async Task<ServiceResult<BatchSalesOrderHeadManagerUpdateResultDto>> BatchUpdateHeadManagerAsync(BatchSalesOrderHeadManagerUpdateRequestDto request)
+    {
+        if (request.UpdateList == null || request.UpdateList.Count == 0)
+        {
+            return ServiceResult<BatchSalesOrderHeadManagerUpdateResultDto>.Fail("没有订单头需要更新");
+        }
+
+        _session.Transaction = _session.Connection.BeginTransaction();
+
+        try
+        {
+            var sussUids = new List<Guid>();
+            foreach (var item in request.UpdateList)
+            {
+                var head = await _salesOrderHeadRepo.GetByIdAsync(item.Uid, true);
+                if (head == null)
+                {
+                    return ServiceResult<BatchSalesOrderHeadManagerUpdateResultDto>.Fail($"订单头 {item.InvoiceNo} 不存在");
+                }
+                // 这里只更新订单头允许更新的，其他字段不允许修改
+                head.Remark = item.Remark;
+                head.DeliveryDate = item.DeliveryDate;
+                head.CustomerPoNo = item.CustomerPoNo;
+                head.InvoiceNo = item.InvoiceNo;
+                head.ReplyDate = item.ReplyDate;
+                head.SoFolder = item.SoFolder;
+                var rst = await _salesOrderHeadRepo.UpdateAsync(head);
+                sussUids.Add(rst.Uid);
+            }
+
+            if (sussUids.Count == 0)
+            {
+                _session.Transaction.Rollback();
+                return ServiceResult<BatchSalesOrderHeadManagerUpdateResultDto>.Fail("没有订单头被更新");
+            }
+
+            var respo = await _salesOrderHeadRepo.GetSalesOrderHeaderManagerListByIdListAsync(sussUids);
+
+            _session.Transaction.Commit();
+
+
+            return ServiceResult<BatchSalesOrderHeadManagerUpdateResultDto>.Ok(new BatchSalesOrderHeadManagerUpdateResultDto
+            {
+                Items = respo.Count > 0 ? respo : []
+            });
+        }
+        catch (Exception ex)
+        {
+            _session.Transaction.Rollback();
+            return ServiceResult<BatchSalesOrderHeadManagerUpdateResultDto>.Fail($"批量更新订单头失败：{ex.Message}");
+        }
+        finally
+        {
+            _session.Transaction.Dispose();
+            _session.Transaction = null;
+        }
+    }
+    public async Task<ServiceResult<bool>> DeleteSalesOrderAsync(Guid orderId, int version)
+    {
+        try
+        {
+            var rst = await _salesOrderHeadRepo.DeleteSalesOrderAsync(orderId, version);
+            return rst ? ServiceResult<bool>.Ok(true) : ServiceResult<bool>.Fail("删除订单失败");
+        }
+        catch (Exception ex) { return ServiceResult<bool>.Fail($"异常：{ex.Message}"); }
+
+    }
+
 
     /// <summary>
     /// 确认销售订单。
@@ -146,7 +214,6 @@ public class SalesOrderManagerService(ServiceBaseContext context,
                     FilledQty = 0,
                     ShippedQty = 0,
                     IsDecomposed = false,
-                    IsKitted = false,
                     Description = it.DescriptionEn,
                     ColorName = it.ColorNameEn,
                     Features = it.FeaturesEn,
@@ -180,7 +247,7 @@ public class SalesOrderManagerService(ServiceBaseContext context,
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<ConfirmationItemResponse>.Fail("确认订单失败"+ex.Message);
+            return ServiceResult<ConfirmationItemResponse>.Fail("确认订单失败" + ex.Message);
         }
         finally
         {
@@ -240,9 +307,7 @@ public class SalesOrderManagerService(ServiceBaseContext context,
             order.OrderStatus = SalesOrderStatusEnum.未确认;
 
             var newHead = await _salesOrderHeadRepo.UpdateAsync(order);
-
             _session.Transaction.Commit();
-
             var response = new ConfirmationItemResponse
             {
                 Uid = newHead.Uid,
@@ -253,7 +318,7 @@ public class SalesOrderManagerService(ServiceBaseContext context,
                 ConfirmedAt = newHead.UpdatedDate,
                 ConfirmedBy = newHead.UpdatedBy
             };
-            _session.Transaction.Commit();
+
             return ServiceResult<ConfirmationItemResponse>.Ok(response);
         }
         catch (Exception ex)

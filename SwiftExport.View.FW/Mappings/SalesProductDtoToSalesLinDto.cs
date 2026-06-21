@@ -1,11 +1,5 @@
 ﻿using Mapster;
 using SwiftExport.Contracts.DTOs.SalesOrders;
-using SwiftExport.View.FW.SalesOrderViews.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SwiftExport.View.FW.Mappings
 {
@@ -61,8 +55,7 @@ namespace SwiftExport.View.FW.Mappings
                 .Ignore(dest => dest.CbmSubTotal)
                 .Ignore(dest => dest.SubNote)
                 .Ignore(dest => dest.LastShippedDate)
-                .Ignore(dest => dest.ExpectedDeliveryDate)
-                .Ignore(dest => dest.ChangeTime);
+                .Ignore(dest => dest.ExpectedDeliveryDate);
 
             // -------------------------------------------------------
             // SalesOrderLineDto → SalesProductDto（反向，仅映射同名字段）

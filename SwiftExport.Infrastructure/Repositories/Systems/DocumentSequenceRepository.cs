@@ -1,4 +1,6 @@
 using Dapper;
+using Microsoft.Data.SqlClient;
+using SwiftExport.Contracts.Common;
 using SwiftExport.Core.Entities.Systems;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
@@ -18,66 +20,82 @@ namespace SwiftExport.Infrastructure.Repositories.Systems
         public async Task<DocumentSequence> GetNextAsync(string docType, string yearMonth, string? updatedBy)
         {
             const string sql = @"
-                                    DECLARE @newNo TABLE(CurrentNo INT);
+                            DECLARE @newNo TABLE(CurrentNo INT);
 
-                                    UPDATE [DocumentSequence]
-                                    SET [CurrentNo] = [CurrentNo] + 1,
-                                        [UpdatedDate] = SYSUTCDATETIME(),
-                                        [UpdatedBy] = @UpdatedBy
-                                    OUTPUT INSERTED.CurrentNo INTO @newNo(CurrentNo)
-                                    WHERE [DocType] = @DocType AND [YearMonth] = @YearMonth;
+                            UPDATE [DocumentSequence] WITH (UPDLOCK, HOLDLOCK)
+                            SET 
+                                [CurrentNo] = [CurrentNo] + 1,
+                                [UpdatedDate] = SYSUTCDATETIME(),
+                                [UpdatedBy] = @UpdatedBy
+                            OUTPUT INSERTED.CurrentNo INTO @newNo(CurrentNo)
+                            WHERE [DocType] = @DocType
+                              AND [YearMonth] = @YearMonth
+                              AND [IsDeleted] = 0;
 
-                                    IF @@ROWCOUNT = 0
-                                    BEGIN
-                                        INSERT INTO [DocumentSequence]
-                                        (
-                                            [DocType],
-                                            [YearMonth],
-                                            [CurrentNo],
-                                            [IsDeleted],
-                                            [CreatedDate],
-                                            [CreatedBy],
-                                            [UpdatedDate],
-                                            [UpdatedBy],
-                                            [Even],
-                                            [Status]
-                                        )
-                                        VALUES
-                                        (
-                                            @DocType,
-                                            @YearMonth,
-                                            1,
-                                            0,
-                                            SYSUTCDATETIME(),
-                                            @UpdatedBy,
-                                            NULL,
-                                            NULL,
-                                            NULL,
-                                            NULL
-                                        );
+                            IF NOT EXISTS (SELECT 1 FROM @newNo)
+                            BEGIN
+                                INSERT INTO [DocumentSequence]
+                                (
 
-                                        INSERT INTO @newNo(CurrentNo) VALUES (1);
-                                    END
+                                    [Uid],
+                                    [DocType],
+                                    [YearMonth],
+                                    [CurrentNo],
+                                    [IsDeleted],
+                                    [CreatedDate],
+                                    [CreatedBy],
+                                    [UpdatedDate],
+                                    [UpdatedBy]
+                                )
+                                OUTPUT INSERTED.CurrentNo INTO @newNo(CurrentNo)
+                                VALUES
+                                (
+                                    @Uid,
+                                    @DocType,
+                                    @YearMonth,
+                                    1,
+                                    0,
+                                    SYSUTCDATETIME(),
+                                    @UpdatedBy,
+                                    SYSUTCDATETIME(),
+                                    @UpdatedBy
+                                );
+                            END;
 
-                                    SELECT TOP 1 CurrentNo FROM @newNo;";
+                            SELECT TOP 1 CurrentNo FROM @newNo;";
+            try
+            {
+                var newUid = GuidSequentialGenerator.NewGuid();
+                var currentNo = await Connection.QueryFirstAsync<int>(
+                    sql,
+                    new
+                    {
+                        Uid = newUid,
+                        DocType = docType,
+                        YearMonth = yearMonth,
+                        UpdatedBy = updatedBy
+                    },
+                    transaction: Transaction);
 
-            var currentNo = await Connection.QueryFirstAsync<int>(
-                sql,
-                new
+                return new DocumentSequence
                 {
+                    Uid = newUid,
                     DocType = docType,
                     YearMonth = yearMonth,
+                    CurrentNo = currentNo,
                     UpdatedBy = updatedBy
-                },
-                transaction: Transaction);
-
-            return new DocumentSequence
+                };
+            }
+            catch (SqlException ex)
             {
-                DocType = docType,
-                YearMonth = yearMonth,
-                CurrentNo = currentNo,
-                UpdatedBy = updatedBy
-            };
+                foreach (SqlError error in ex.Errors)
+                {
+                    Console.WriteLine($"SQL错误 {error.Number}: {error.Message}");
+                }
+
+                throw;
+            }
+
         }
     }
 }

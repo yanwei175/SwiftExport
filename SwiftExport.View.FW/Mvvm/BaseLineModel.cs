@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace SwiftExport.View.FW.Mvvm
@@ -22,6 +21,11 @@ namespace SwiftExport.View.FW.Mvvm
     public abstract class BaseLineModel : ViewModelBaseEx, IBaseModel, IDataErrorInfo
 
     {
+        /// <summary>
+        /// 从 DTO 加载数据到 Model。
+        /// </summary>
+        /// <param name="dto"></param>
+        /// <param name="抑制清理脏数据">是否抑制清理脏数据,默认false为不抑制,会把状态重置为 Unchanged</param>
         public virtual void LoadFromDto(object dto, bool 抑制清理脏数据 = false)
         {
             if (dto == null) return;
@@ -134,6 +138,7 @@ namespace SwiftExport.View.FW.Mvvm
         /// <summary>
         /// 赋值 + 通知 + 自动状态机 + 自动 ChangeTracker。
         /// 这是行模型最核心的逻辑。
+        /// 
         /// </summary>
         protected override bool SetProperty<T>(ref T storage, T value,
             [CallerMemberName] string propertyName = null)
@@ -154,7 +159,7 @@ namespace SwiftExport.View.FW.Mvvm
             if (DisabledState)
                 return true;
 
-                MarkAsModified();
+            MarkAsModified();
             return true;
         }
 
@@ -278,8 +283,9 @@ namespace SwiftExport.View.FW.Mvvm
             }
         }
 
+        /// <summary>提交修改：清理 ChangeTracker，重置状态机到 Unchanged。 </summary>
         public virtual void CommitChanges()
-        {   
+        {
             // 快速退出：已无改变且字典为空
             if (_state == ModelState.Unchanged && _原始值字典.Count == 0) return;
 

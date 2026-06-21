@@ -1,5 +1,6 @@
 ﻿using GalaSoft.MvvmLight.Command;
 using Mapster;
+using Refit;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.Apis.SystemApis;
@@ -22,6 +23,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Controls;
 using System.Windows.Input;
 
 namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
@@ -31,10 +33,17 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         /// <summary> 弹窗后的结果, 通常为新建或编辑的订单 Uid </summary>
         public Guid ResultData { get; set; }
 
-        /// <summary> 关闭弹窗的委托 </summary>
-        public event EventHandler<bool> RequestClose;
+        // 由 View 订阅，用于在保存完成后关闭弹窗并返回结果。
+        public event Action<bool?> CloseWindow;
 
-        public SalesOrderDetailViewModel(ISalesOrderApi salesOrderApi, IDialogService dialogService, ICustomerApi customerApi, ISysDicCurrencyApi sysDicCurrencyApi, IDictCacheService dictCacheService, ICustomerProductApi customerProductApi = null, bool isEmbeddedMode = false)
+        public SalesOrderDetailViewModel(
+            ISalesOrderApi salesOrderApi,
+            IDialogService dialogService,
+            ICustomerApi customerApi,
+            ISysDicCurrencyApi sysDicCurrencyApi,
+            IDictCacheService dictCacheService,
+            IDocumentNoApi documentNoApi,
+            ICustomerProductApi customerProductApi = null, bool isEmbeddedMode = false)
         {
             _salesOrderApi = salesOrderApi ?? IocProvider.GetService<ISalesOrderApi>();
             _customerProductApi = customerProductApi;
@@ -43,7 +52,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             // 在这里局部获取服务，不要污染 ViewModel 的构造函数
             _sysDicCurrencyApi = sysDicCurrencyApi;
             _dictCacheService = dictCacheService;
-
+            _docNoApi = documentNoApi;
 
             // 中文注释：优先使用构造注入，缺省时回退到全局 IoC，确保详情页弹窗独立可用。
             _customerApi = customerApi;
@@ -67,7 +76,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             SaveCommand = new RelayCommand(async () => await SaveAsync(), () => CanSave);
             RegisterBusyNotifyCommand(SaveCommand);
             OrderLines.RegisterDirtyNotifyCommand(SaveCommand);
-            
+
 
 
             DeleteLineCommand = new RelayCommand(DeleteLine, () => (OrderLines.CheckedCount > 0 && IsNotBusy) || SelectedLine != null);
@@ -89,7 +98,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             SearchSuggestionsProductCommand = new RelayCommand<string>(async keyword => await SearchSuggestionsProductAsync(keyword));
 
             OrderHeader.Currency = CurrencyEnum.USD;
-
             _ = LoadFilterDataAsync();
 
         }
@@ -104,6 +112,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         private readonly IDialogService _msg;
         private readonly ISysDicCurrencyApi _sysDicCurrencyApi;
         private readonly IDictCacheService _dictCacheService;
+        private readonly IDocumentNoApi _docNoApi;
         /// <summary>
         /// 是否嵌入模式。
         /// true：作为 UserControl 嵌入，不触发窗口关闭语义；
@@ -111,8 +120,21 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         /// </summary>
         public bool IsEmbeddedMode { get; set; }
 
-        // 中文注释：由 View 订阅，用于在保存完成后关闭弹窗并返回结果。
-        public event Action<bool?> CloseWindow;
+        private bool _isCellSelectionMode;
+        public bool IsCellSelectionMode
+        {
+            get => _isCellSelectionMode;
+            set
+            {
+                if (SetProperty(ref _isCellSelectionMode, value))
+                    RaisePropertyChanged(nameof(SelectionUnit));
+            }
+        }
+
+        public DataGridSelectionUnit SelectionUnit
+            => IsCellSelectionMode
+                ? DataGridSelectionUnit.CellOrRowHeader
+                : DataGridSelectionUnit.FullRow;
 
         #endregion
 
@@ -198,6 +220,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             set => SetProperty(ref _orderHeader, value);
         }
 
+        public bool IsReadyOnly => !(OrderHeader != null && OrderHeader.ConfirmationStatus == ConfirmationStatusEnum.待确认);
+
         public SalesOrderLineList OrderLines { get; }
 
         private SalesOrderLineModel _selectedLine;
@@ -223,6 +247,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         public bool CanSave =>
             OrderHeader != null &&
+            OrderHeader.ConfirmationStatus == ConfirmationStatusEnum.待确认 && // 只有待确认状态允许修改
             OrderHeader.IsValid &&
             OrderLines.IsAllValid &&
             (OrderHeader.IsDirty || OrderLines.IsDirty);
@@ -261,23 +286,18 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             {
                 if (SelectedLine == null) return;
 
-                if (SelectedLine.Uid == Guid.Empty)
+                var item = SelectedLine;
+                SelectedLine = null;
+                var tempIndex = OrderLines.Items.IndexOf(item);
+                OrderLines.Remove(item);
+                try
                 {
-                    var item = SelectedLine;
-                    SelectedLine = null;
-                    var tempIndex = OrderLines.Items.IndexOf(item);
-                    OrderLines.Remove(item);
-                    try
-                    {
-                        SelectedLine = OrderLines.Items[tempIndex - 1];
-                    }
-                    catch
-                    {
-                        SelectedLine = OrderLines.Items.FirstOrDefault();
-                    }
-                    return;
+                    SelectedLine = OrderLines.Items[tempIndex - 1];
                 }
-
+                catch
+                {
+                    SelectedLine = OrderLines.Items.FirstOrDefault();
+                }
             }
             else
             {
@@ -287,7 +307,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 {
                     OrderLines.Remove(item);
                 }
-                SelectedLine = OrderLines.Items.FirstOrDefault();
+                SelectedLine = OrderLines.Items[OrderLines.Items.Count - 1];
             }
         }
 
@@ -475,17 +495,29 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         private async Task GetNewSoNo()
         {
-            var rst = await _salesOrderApi.GetNextOrderNoAsync();
-            if (rst == null || !rst.Success || rst.Data == null)
+            try
             {
-                if (_msg != null)
-                    await _msg.ShowErrorAsync("获取订单编号失败：" + (rst?.Message ?? "未知错误"));
-                return;
+                if (OrderHeader == null || OrderHeader.ConfirmationStatus != ConfirmationStatusEnum.待确认)
+                {
+                    if (_msg != null)
+                        await _msg.ShowWarningAsync("只有待确认状态的订单才允许获取新的订单编号。");
+                    return;
+                }
+
+                var rst = await _salesOrderApi.GetNextOrderNoAsync();
+                if (rst == null || !rst.Success || rst.Data == null)
+                {
+                    if (_msg != null)
+                        await _msg.ShowErrorAsync("获取订单编号失败：" + (rst?.Message ?? "未知错误"));
+                    return;
+                }
+                DispatcherProvider.Invoke(() =>
+                {
+                    OrderHeader.OrderNo = rst.Data.DocumentNo;
+                });
             }
-            DispatcherProvider.Invoke(() =>
-            {
-                OrderHeader.OrderNo = rst.Data.DocumentNo;
-            });
+            catch (Exception ex) { StatusMessage = $"获取订单编号失败：{ex.Message}"; }
+
         }
 
         #endregion
@@ -503,6 +535,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 OrderHeader.LoadFromDto(dto.Header);
 
             // 中文注释：明细集合统一交给集合模型自身加载，避免 ViewModel 重复维护明细装载逻辑。
+            OrderLines?.Clear();
             OrderLines.ReLoadRangeFromDtoList(dto.Lines);
 
             RaisePropertyChanged(nameof(CanSave));
@@ -515,32 +548,18 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         {
             OrderHeader = new SalesOrderHeaderModel
             {
-                OrderDate = DateTime.Now
+                OrderDate = DateTime.Now,
             };
-            OrderLines.Items.Clear();
+            OrderLines?.Clear();
         }
 
         public async Task InitForEditAsync(Guid headId)
         {
             if (headId == Guid.Empty) return;
 
-            var hdRst = await _salesOrderApi.GetByIdAsync(headId);
+            var hdRst = await _salesOrderApi.GetSalesOrderDetailAsync(headId);
             if (hdRst == null || !hdRst.Success || hdRst.Data == null) return;
-
-            OrderHeader = new SalesOrderHeaderModel();
-            OrderHeader.LoadFromDto(hdRst.Data);
-
-            OrderLines.Clear();
-            var rst = await _salesOrderApi.GetSalesOrderLinesAsync(headId);
-            if (rst.Success && rst.Data != null)
-            {
-                OrderLines.ReLoadRangeFromDtoList(rst.Data.ToList());
-                StatusMessage = $"编辑订单：{OrderHeader.OrderNo}";
-            }
-            else
-            {
-                StatusMessage = "加载订单明细失败：" + rst.Message;
-            }
+            LoadFromDto(hdRst.Data);
         }
 
 
@@ -593,7 +612,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
                     if (result.Success)
                     {
-                        _msg?.ShowCardAsync("保存成功,订单已保存到服务器。正在刷新数据...", 2000);
+                        await _msg.ShowInfoAsync("保存成功,订单已保存到服务器。正在刷新数据...");
                         ResultData = result.Data.Header.Uid;
                         // 中文注释：通知窗口以“保存成功”结果关闭，兼容现有 ShowDialog 流程。
                         CloseWindow?.Invoke(true);
@@ -603,9 +622,11 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                         await _msg.ShowErrorAsync("保存失败: " + result.Message);
                     }
                 }
-                catch (Exception ex)
+                catch (ApiException apiEx)
                 {
-                    await _msg.ShowErrorAsync("保存过程中发生异常: " + ex.Message);
+                    Console.WriteLine(apiEx.StatusCode);
+                    Console.WriteLine(apiEx.Content);
+                    await _msg.ShowErrorAsync("保存过程中发生异常: " + apiEx.Message);
                 }
             }
 
@@ -641,7 +662,13 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         private void ApplyProductLinkage(SalesOrderLineDto product)
         {
             if (SelectedLine == null) return;
+            var seletedUid = SelectedLine.Uid;
+            var version = SelectedLine.Version;
+            var lineNu = SelectedLine.LineNumber;
             SelectedLine.LoadFromDto(product);
+            SelectedLine.Uid = seletedUid;
+            SelectedLine.Version = version;
+            SelectedLine.LineNumber = lineNu;
         }
 
         // ===================== SKU联动缓存 =====================

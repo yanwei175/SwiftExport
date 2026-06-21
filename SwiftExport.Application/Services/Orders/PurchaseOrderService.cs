@@ -288,8 +288,7 @@ public class PurchaseOrderService(
                         {
                             demand.TargetNo = headerEntity.OrderNo;
                             demand.TargetLineId = mapping.Entity.Uid; // 使用新生成的 ID
-                            demand.OrderStatus = DependentDemandStatusEnum.已转为正式单据;
-                            demand.ChangeTime = DateTime.Now;
+                            demand.OrderStatus = DependentDemandStatusEnum.已转为正式单据;                            
                             demand.ExecutedQty = demand.NetQty; // 标记全部执行
                         }
                     }

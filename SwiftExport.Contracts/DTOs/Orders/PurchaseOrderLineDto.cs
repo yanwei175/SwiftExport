@@ -53,8 +53,6 @@ namespace SwiftExport.Contracts.DTOs.Orders
 
         public string DeliveryTo { get; set; }
 
-        public bool IsDeleted { get; set; }
-        public DateTime? ChangeTime { get; set; }
 
         /// <summary>
         /// 冗余字段，便于追溯来源。

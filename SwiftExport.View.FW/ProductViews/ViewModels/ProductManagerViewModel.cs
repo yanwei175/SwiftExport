@@ -20,6 +20,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -173,6 +174,19 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
         #region 产品区域
 
         #region 右上字段
+        private bool _isCellSelectionMode;
+        public bool IsCellSelectionMode
+        {
+            get => _isCellSelectionMode;
+            set
+            {
+                if (SetProperty(ref _isCellSelectionMode, value))
+                    RaisePropertyChanged(nameof(SelectionUnit));
+            }
+        }
+
+        public DataGridSelectionUnit SelectionUnit => IsCellSelectionMode ? DataGridSelectionUnit.CellOrRowHeader : DataGridSelectionUnit.FullRow;
+
         private readonly DispatcherTimer _产品搜索防抖计时器 = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         public ProductList ProductList { get; set; }
 

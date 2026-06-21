@@ -369,11 +369,7 @@ public class BomService(
             SupplierName = null,
             TargetLineId = null,
             IsDeleted = false,
-            CreatedDate = DateTime.Now,
-            ChangeTime = DateTime.Now,
-            ShipToLocation = shipToLocation,
-            Even = null,
-            Status = null
+            ShipToLocation = shipToLocation
         };
     }
 
@@ -409,8 +405,6 @@ public class BomService(
             SupplierName = null,
             TargetLineId = null,
             IsDeleted = false,
-            CreatedDate = DateTime.Now,
-            ChangeTime = DateTime.Now,
             ShipToLocation = shipToLocation
         };
     }

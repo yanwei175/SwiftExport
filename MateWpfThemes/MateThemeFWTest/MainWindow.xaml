@@ -208,7 +208,7 @@
         </StackPanel>
 
 
-        <fw:DialogHost />
+        <fw:DialogHost d:IsHidden="True" />
 
     </Grid>
 </Window>

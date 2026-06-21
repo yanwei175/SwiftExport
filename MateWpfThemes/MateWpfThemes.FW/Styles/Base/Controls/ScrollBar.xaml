@@ -14,15 +14,15 @@
                         <RepeatButton x:Name="TopLeftBtn" DockPanel.Dock="Top"  Height="24"  Command="{x:Static ScrollBar.ScrollToTopCommand}" Focusable="False" BorderThickness="0">
                             <RepeatButton.Template>
                                 <ControlTemplate TargetType="RepeatButton">
-                                    <Border x:Name="BtnBg1" Background="Transparent" Cursor="Hand">
+                                    <Border x:Name="BtnBg1" Background="Transparent" Cursor="Hand" Opacity="0.6">
                                         <Path x:Name="Icon" Data="M 0,0 L 10,0 L 10,2 L 0,2 Z M 5,4 L 10,9 L 0,9 Z" 
-                                              Fill="{DynamicResource Brush_Border_Strong}" Stretch="Uniform" Width="10" Height="10" 
+                                              Fill="{DynamicResource Brush_Txt_Secondary}" Stretch="Uniform" Width="10" Height="10"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="BtnBg1" Property="Opacity" Value="0.6"/>
-                                            <Setter TargetName="Icon" Property="Fill" Value="{DynamicResource Brush_Primary_Focus}"/>
+                                            <Setter TargetName="BtnBg1" Property="Opacity" Value="1"/>
+                                            <Setter TargetName="Icon" Property="Fill" Value="{DynamicResource Brush_Txt_Primary}"/>
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -32,15 +32,15 @@
                         <RepeatButton x:Name="BottomRightBtn" DockPanel.Dock="Bottom" Height="24"  Command="{x:Static ScrollBar.ScrollToBottomCommand}" Focusable="False" BorderThickness="0">
                             <RepeatButton.Template>
                                 <ControlTemplate TargetType="RepeatButton">
-                                    <Border x:Name="BtnBg2" Background="Transparent" Cursor="Hand" >
+                                    <Border x:Name="BtnBg2" Background="Transparent" Cursor="Hand" Opacity="0.6">
                                         <Path x:Name="Icon" Data="M 0,8 L 10,8 L 10,10 L 0,10 Z M 0,1 L 10,1 L 5,6 Z" 
-                                              Fill="{DynamicResource Brush_Border_Strong}" Stretch="Uniform" Width="10" Height="10" 
+                                              Fill="{DynamicResource Brush_Txt_Secondary}" Stretch="Uniform" Width="10" Height="10"                                            
                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="BtnBg2" Property="Opacity" Value="0.6"/>
-                                            <Setter TargetName="Icon" Property="Fill" Value="{DynamicResource Brush_Primary_Focus}"/>
+                                            <Setter TargetName="BtnBg2" Property="Opacity" Value="1"/>
+                                            <Setter TargetName="Icon" Property="Fill" Value="{DynamicResource Brush_Txt_Primary}"/>
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -74,11 +74,13 @@
                                     <Thumb.Template>
                                         <ControlTemplate TargetType="Thumb">
                                             <Border x:Name="ThumbBorder" CornerRadius="4"
+                                                    Opacity="0.6"
                                                     Background="{DynamicResource Brush_Border_Strong}" 
                                                     Margin="0"/>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="ThumbBorder" Property="Opacity" Value="0.6"/>
+                                                    <Setter TargetName="ThumbBorder" Property="Opacity" Value="1"/>
+                                                    <Setter TargetName="ThumbBorder" Property="Background" Value="{DynamicResource Brush_Txt_Primary}"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -121,27 +123,30 @@
         </Setter>
 
         <Style.Triggers>
+            
             <Trigger Property="Orientation" Value="Vertical">
-                <Setter Property="Width" Value="5"/>
+                <Setter Property="Width" Value="8"/>
                 <Setter Property="MinHeight" Value="20"/>
             </Trigger>
             <Trigger Property="Orientation" Value="Horizontal">
-                <Setter Property="Height" Value="5"/>
+                <Setter Property="Height" Value="8"/>
                 <Setter Property="MinWidth" Value="20"/>
             </Trigger>
+            
             <MultiTrigger>
                 <MultiTrigger.Conditions>
                     <Condition Property="Orientation" Value="Vertical"/>
                     <Condition Property="IsMouseOver" Value="True"/>
                 </MultiTrigger.Conditions>
-                <Setter Property="Width" Value="10"/>
+                <Setter Property="Width" Value="8"/>
             </MultiTrigger>
+            
             <MultiTrigger>
                 <MultiTrigger.Conditions>
                     <Condition Property="Orientation" Value="Horizontal"/>
                     <Condition Property="IsMouseOver" Value="True"/>
                 </MultiTrigger.Conditions>
-                <Setter Property="Height" Value="10"/>
+                <Setter Property="Height" Value="8"/>
             </MultiTrigger>
         </Style.Triggers>
     </Style>

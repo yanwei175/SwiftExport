@@ -20,9 +20,9 @@ namespace SwiftExport.Contracts.SysEnums
         public const string ProductColor = "ProductColor"; //产品颜色
         public const string ProductType = "ProductType"; //产品类型
         public const string PaymentMethod = "PaymentMethod"; //支付方式
-        public const string IncotermSortRemark = "IncotermSortRemark"; //支付方式
-        public const string IncotermLocation = "IncotermLocation"; //支付方式
-        public const string ProductCategory = "ProductCategory"; //支付方式
+        public const string IncotermSortRemark = "IncotermSortRemark"; //
+        public const string IncotermLocation = "IncotermLocation"; //
+        public const string ProductCategory = "ProductCategory"; //
         #endregion
 
         public static List<string> DictCodeList => new List<string>

@@ -55,8 +55,6 @@ public class FollowUpService(
             line.ReadyQty = newReadyQty;
             line.FollowUpRemarks = request.NoteContent;
             line.FollowUpTime = DateTime.Now;
-            line.ChangeTime = DateTime.Now;
-            line.UpdatedDate = DateTime.Now;
 
             await _purchaseOrderLineRepository.UpdateAsync(line);
 
