@@ -1,34 +1,37 @@
 # SwiftExport ERP Codex Agent Rules
 
-本仓库使用类似 Karpathy LLM Wiki 的方式维护项目 AI 工作流：`raw/` 保存 AI 可读取的项目资产源，`wiki/` 保存索引和整理后的导航，`AGENTS.md` 只规定 Codex 的行为边界和执行流程。
+本仓库使用类似 Karpathy LLM Wiki 的方式维护项目 AI 工作流：`raw/` 保存未经整理的来源资料，`wiki/` 保存整理后的正式项目知识、skill、workflow、索引和日志，`AGENTS.md` 只规定 Codex 的行为边界和执行流程。
 
 ## 基本原则
 
-1. 每次任务先读取 `wiki/index.md`，再根据索引进入对应 `raw/skills/**`、`raw/workflows/**`、`raw/project/**` 或源码文件。
+1. 每次任务先读取 `wiki/index.md`，再根据索引进入对应 `wiki/skills/**`、`wiki/workflows/**`、`wiki/project/**` 或源码文件。
 2. 源码事实优先于 `wiki/` 和 `raw/`；如果发现冲突，不要静默覆盖，应在 `wiki/log.md` 记录“可能过期”。
-3. `AGENTS.md` 是最高优先级行为规则；`raw/skills/**` 和 `raw/workflows/**` 是任务级细则。
+3. `AGENTS.md` 是最高优先级行为规则；`wiki/skills/**` 和 `wiki/workflows/**` 是任务级细则。
 4. 先读项目上下文，再改代码；不要凭记忆重建项目结构。
 5. 不修改业务代码，除非用户明确要求实现功能、修复问题或调整业务行为。
 6. 不删除用户已有改动；遇到非本次任务产生的变更，应保留并绕开。
 7. 所有新增注释、规范说明、文档说明优先使用中文。
-8. 历史 `.github/skills/**` 和 `.github/copilot-instructions.md` 不作为 Codex 默认规则来源。
-9. `.codex/skills/**` 只作为历史兼容入口；后续权威 skill 位置是 `raw/skills/**`。
 
 ## AI Wiki 三层结构
 
-### raw：AI 资产源
+### raw：原始资料层
 
-`raw/` 保存可被 Codex 读取和索引的项目资料，包括：
+`raw/` 保存未经整理的来源资料、草稿、用户手动输入、对话记录、截图和外部文档摘录。
 
-- `raw/project/**`：项目地图、入口说明、架构边界、构建命令、风险说明。
-- `raw/skills/**`：后端、前端、数据库等任务级 skill。
-- `raw/workflows/**`：子工作流，例如 WPF/VSTO 前端开发流程。
+建议入口：
 
-`raw/` 中的资料可以由用户和 Codex 维护，但要保留来源意识，不要把它当作临时聊天草稿。
+- `raw/inbox/skills/**`：用户手动新增的 skill 草稿。
+- `raw/inbox/workflows/**`：用户手动新增的 workflow 草稿。
+- `raw/inbox/project/**`：项目资料草稿。
+- `raw/articles/**`、`raw/chat-logs/**`、`raw/screenshots/**`、`raw/specs/**`：外部资料、对话、截图、规格说明等来源。
 
-### wiki：索引与导航层
+`raw/` 默认只读。不要自动删除、移动或重写 raw 原文，除非用户明确要求。
 
-`wiki/index.md` 是 Codex 查询入口。任务开始时先读它，用它判断接下来应该读哪些 raw 文件和源码。
+### wiki：正式知识层
+
+`wiki/` 是 AI 维护的正式知识库，保存整理后的项目知识、skill、workflow、项目地图、索引和日志。
+
+`wiki/index.md` 是 Codex 查询入口。任务开始时先读它，用它判断接下来应该读哪些 wiki 页面和源码。
 
 `wiki/log.md` 是 AI 工作流日志。以下情况应更新：
 
@@ -44,35 +47,33 @@
 ## 默认工作流
 
 1. 读取 `wiki/index.md`。
-2. 按 `wiki/index.md` 的任务路由读取相关 `raw/skills/**`、`raw/workflows/**` 或 `raw/project/**`。
-3. 读取 `raw/project/**` 中必要的项目地图和入口说明。
-4. 读取源码中的真实实现，确认当前模式。
-5. 制定小范围实现方案。
-6. 修改文件时贴合现有分层、命名、DI、DTO、事务和前端 MVVM 模式。
-7. 根据修改范围运行合适的构建或检查；如未运行，最终回复说明原因。
-8. 如本次改动影响 AI 工作流或长期项目知识，更新 `wiki/index.md` 和 `wiki/log.md`。
+2. 按 `wiki/index.md` 的任务路由读取相关 `wiki/skills/**`、`wiki/workflows/**` 或 `wiki/project/**`。
+3. 读取源码中的真实实现，确认当前模式。
+4. 制定小范围实现方案。
+5. 修改文件时贴合现有分层、命名、DI、DTO、事务和前端 MVVM 模式。
+6. 根据修改范围运行合适的构建或检查；如未运行，最终回复说明原因。
+7. 如本次改动影响 AI 工作流或长期项目知识，更新 `wiki/index.md` 和 `wiki/log.md`。
 
 ## AI 资产 Ingest 工作流
 
-当用户手动新增、移动或调整 AI 资产，并要求“ingest”“更新索引”“整理工作流”“纳入 AI Wiki”时，按本流程处理。具体资产分类、任务路由和当前条目列表维护在 `wiki/index.md`，不要因为新增 skill 或 workflow 就修改 `AGENTS.md`。
+当用户手动新增 raw 来源，并要求“ingest”“更新索引”“整理工作流”“纳入 AI Wiki”时，按本流程处理。具体资产分类、任务路由和当前条目列表维护在 `wiki/index.md`，不要因为新增 skill 或 workflow 就修改 `AGENTS.md`。
 
 Ingest 步骤：
 
 1. 先读取 `wiki/index.md`，确认当前已有索引分类和命名方式。
-2. 读取用户指定的新文件或目录；如果用户只说“新增了 skill / workflow”，先用文件搜索确认新增路径。
-3. 判断资产类型：skill、workflow、project doc、风险记录、历史资料或其他。
-4. 检查该资产是否与已有 `wiki/index.md` 条目重复、冲突或命名不一致。
-5. 如果资产可长期复用，更新 `wiki/index.md`，加入路径、用途说明和“什么时候读取”。
-6. 如果资产替代旧入口，在 `wiki/index.md` 标明旧入口是历史兼容或可能过期，不要静默删除旧记录。
-7. 更新 `wiki/log.md`，记录 ingest 时间、来源路径、更新了哪些索引、是否发现冲突。
-8. 如发现 `raw/` 与源码事实冲突，优先相信源码，并在 `wiki/log.md` 标记“可能过期”；不要为了让文档一致而修改业务代码。
+2. 读取用户指定的 raw 文件或目录；如果用户只说“新增了 skill / workflow”，先用文件搜索确认新增路径。
+3. 判断来源类型：skill 草稿、workflow 草稿、project doc、风险记录、对话、截图、规格说明或其他。
+4. 提取可长期复用的规则、事实、流程和风险，整理到对应 `wiki/**` 页面。
+5. 如果整理结果新增或修订了正式页面，更新 `wiki/index.md`，加入路径、用途说明和“什么时候读取”。
+6. 更新 `wiki/log.md`，记录 ingest 时间、来源路径、更新了哪些 wiki 页面、是否发现冲突。
+7. 如发现 `raw/` 与源码事实冲突，优先相信源码，并在 `wiki/log.md` 标记“可能过期”；不要为了让文档一致而修改业务代码。
 
 Ingest 限制：
 
-- 不要把 `raw/` 原文大段复制进 `wiki/index.md`；index 只写索引、用途和路由说明。
-- 不要自动删除、移动或重写用户手动新增的 raw 文件，除非用户明确要求。
+- 不要把 `raw/` 原文大段复制进 `wiki/`；wiki 页面应总结、归纳、重组并保留来源意识。
+- 不要自动删除、移动或重写 raw 文件，除非用户明确要求。
 - 不要因为 ingest 文档而修改业务源码。
-- 如果新增资产是可执行开发规则，优先放在 `raw/skills/**` 或 `raw/workflows/**`，再由 `wiki/index.md` 索引。
+- 如果 raw 来源中包含可执行开发规则，应整理到 `wiki/skills/**` 或 `wiki/workflows/**`，再由 `wiki/index.md` 索引。
 
 ## 分层边界
 
@@ -173,4 +174,4 @@ dotnet run --project .\_tools\DbSeed\DbSeed.csproj
 - 是否修改业务代码。
 - 是否运行构建/测试。
 - 如未运行，说明原因。
-- 如发现历史规则、连接字符串、编码或未提交改动风险，简要提示。
+- 如发现连接字符串、编码或未提交改动风险，简要提示。

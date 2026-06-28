@@ -1,50 +1,59 @@
 # SwiftExport AI Wiki Index
 
-这是 SwiftExport 项目的 AI 工作流入口。Codex 接到任务后先读本页，再按任务类型读取对应 `raw/` 文件和源码。
+这是 SwiftExport 项目的 AI 工作流入口。Codex 接到任务后先读本页，再按任务类型读取对应 `wiki/` 页面和源码事实。
 
-## 任务路由
+索引采用“链接 + 简短说明”的形式：链接用于快速跳转，说明用于判断什么时候读取。
 
-新增 skill、workflow 或项目文档时，只更新本页索引和 `wiki/log.md`，不要为了新增路由修改 `AGENTS.md`。
+## 默认读取顺序
 
-### 后端 / Dapper / Repository
+1. 先读本页。
+2. 按任务类型读取下方链接的 skill、workflow、guide 或项目资料。
+3. 再读取源码中的真实实现。
+4. 最后制定修改方案或改代码。
 
-涉及 Repository、Dapper、SQL、事务、`RepositoryBaseContext`、`DbSession`、Infrastructure 仓储、Core Repository Interface 时读取：
+新增 skill、workflow 或项目资料时，只更新本页、对应子索引和 `log.md`，不要为了新增路由修改 `AGENTS.md`。
 
-- `raw/skills/backend/db-session-context/SKILL.md`
-- `raw/skills/backend/dapper-repository/SKILL.md`
+## 快速路由
 
-### 前端 / WPF / VSTO
+- [项目上下文摘要](project/context-summary.md) - 需要快速恢复当前 AI Wiki 分层、项目边界、入口和工作流规则时读取。
+- [项目地图](project/project-map.md) - 需要定位项目结构、入口文件、分层职责、构建命令时读取。
+- [项目接手说明](project/onboarding.md) - 接手新功能、不熟悉模块、需要打开顺序和风险提示时读取。
+- [Skills Index](skills/index.md) - 需要选择正式 skill 时读取。
+- [Workflows Index](workflows/index.md) - 需要选择跨文件或跨层工作流时读取。
+- [Guides Index](guides/index.md) - 需要查看稳定规范、检查清单、实现细节参考时读取。
+- [工作日志](log.md) - 需要了解 AI Wiki 规则变更、ingest 记录、资料整理历史时读取。
 
-涉及 WPF 页面、ViewModel、前端 Model、Refit API 调用、Excel VSTO 承载、TaskPane 或前端 DI 时读取：
+## 后端 / Dapper / Repository
 
-- `raw/workflows/frontend/wpf-vsto-workflow.md`
+- [DbSession 与 RepositoryBaseContext](skills/backend/db-session-context.md) - 涉及连接、事务、Repository 构造、多个仓储共用事务时读取。
+- [Dapper Repository](skills/backend/dapper-repository.md) - 涉及 Repository、SQL、分页、批量保存、DI 注册、Core Interface 时读取。
+- [Application Service Guide](guides/backend/application-service.md) - 涉及业务编排、事务边界、服务层调用仓储时读取。
+- [Dapper Repository Guide](guides/backend/dapper-repository.md) - 需要更细的仓储实现检查清单时读取。
+- [WebApi Controller Guide](guides/backend/webapi-controller.md) - 涉及 Controller 路由、入参、返回结构、Service 调用边界时读取。
+- [Database Schema Guide](guides/backend/database-schema.md) - 涉及表结构、字段、审计列、软删除、SQL 字段映射时读取。
 
-### 项目地图 / 入门 / 架构查询
+## 前后端契约 / Contracts / Refit
 
-涉及项目结构、入口文件、构建命令、风险说明时读取：
+- [Refit Contract Change](skills/shared/refit-contract-change.md) - 涉及 DTO、Refit API、Controller 路由、接口返回结构同步时读取。
+- [DTO Guide](guides/shared/dto.md) - 设计或修改 Contracts DTO、Request、Response 时读取。
+- [Refit API Guide](guides/shared/refit-api.md) - 设计或修改 Refit Interface、HTTP 方法和路由时读取。
+- [ServiceResult Guide](guides/shared/service-result.md) - 涉及统一返回、错误处理、前端解析时读取。
 
-- `raw/project/project-map.md`
-- `raw/project/onboarding.md`
+## 前端 / WPF / VSTO
 
-## 项目总览
+- [WPF / VSTO 前端工作流](workflows/frontend/wpf-vsto-workflow.md) - 涉及 `SwiftExport.View.FW`、`SwiftExport.VSTO`、ViewModel、XAML、TaskPane、前端 API 调用时读取。
+- [WPF DataGrid Editing](skills/frontend-wpf/wpf-datagrid-editing.md) - 涉及 DataGrid 编辑列、行模型、脏数据、批量保存、只读状态时读取。
+- [WPF Theme Fix](skills/frontend-wpf/wpf-theme-fix.md) - 涉及 ResourceDictionary、样式、主题、DataGrid 视觉修复时读取。
+- [MVVMLight Guide](guides/frontend-wpf/wpf-mvvmlight.md) - 涉及 ViewModel、命令、属性通知、消息通信时读取。
+- [WPF DataGrid Guide](guides/frontend-wpf/wpf-datagrid.md) - 涉及 DataGrid 结构、列绑定、编辑行为、行状态时读取。
+- [Dialog / Navigation Guide](guides/frontend-wpf/wpf-dialog-navigation.md) - 涉及弹窗、导航、页面切换、宿主边界时读取。
+- [Theme / Resource Guide](guides/frontend-wpf/wpf-theme-resource.md) - 涉及资源字典、主题键、控件样式、颜色资源时读取。
 
-- `raw/project/project-map.md` - 项目结构、入口文件、分层说明、前后端目录地图；处理架构查询、定位文件、理解模块时读取。
-- `raw/project/onboarding.md` - 新任务入门、常用打开顺序、构建运行命令、当前风险；接手新功能或不熟悉模块时读取。
+## 重构 / 项目接手 / 任务书写
 
-## 后端 Skills
-
-- `raw/skills/backend/db-session-context/SKILL.md` - `RepositoryBaseContext`、`DbSession`、连接和事务规范；涉及连接、事务、Repository 构造时读取。
-- `raw/skills/backend/dapper-repository/SKILL.md` - Dapper Repository 开发规范；涉及 Repository、SQL、分页、批量保存、DI 注册时读取。
-
-## 前端 Workflows
-
-- `raw/workflows/frontend/wpf-vsto-workflow.md` - WPF / VSTO 前端开发工作流；涉及 `SwiftExport.View.FW`、`SwiftExport.VSTO`、前端 DTO/API、ViewModel、XAML 页面时读取。
-
-## 历史资料
-
-- `docs/ai/PROJECT_MAP.md` - AI 早期生成的项目地图，保留作历史资料；如与 `raw/project/project-map.md` 或源码冲突，以源码和 raw 当前版本为准。
-- `docs/ai/ONBOARDING_REPORT.md` - AI 早期生成的入门报告，保留作历史资料；如与 `raw/project/onboarding.md` 或源码冲突，以源码和 raw 当前版本为准。
-- `.codex/skills/backend/**` - 旧 Codex skill 位置，已迁移到 `raw/skills/backend/**`；后续以 raw 为权威。
+- [Safe Refactoring Workflow](workflows/safe-refactoring.md) - 涉及大范围重构、迁移、拆分、行为保持、高风险修改时读取。
+- [Safe Refactoring Guide](guides/workflow/safe-refactoring.md) - 需要重构检查清单、阶段拆分、验证策略时读取。
+- [Codex Task Writing Guide](guides/workflow/codex-task-writing.md) - 需要把需求整理成 Codex 可执行任务书时读取。
 
 ## 风险提示
 

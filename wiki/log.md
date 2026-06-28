@@ -1,5 +1,29 @@
 # SwiftExport AI Wiki Log
 
+## 2026-06-28 ingest | Inbox 模板与 Guide 提炼
+
+- 读取 `raw/inbox/guides/**`、`raw/inbox/skills/**`、`raw/inbox/templates/**` 中与 SwiftExport 技术栈匹配的模板资料。
+- 新增 `wiki/project/context-summary.md`，压缩记录当前 AI Wiki 分层、项目架构、入口和工作流规则。
+- 新增 `wiki/guides/**`，提炼 Application Service、Dapper Repository、数据库结构、Controller、DTO、Refit、ServiceResult、MVVMLight、DataGrid、Dialog/Navigation、Theme/Resource、安全重构和 Codex 任务书写规范。
+- 新增 `wiki/skills/index.md`、`wiki/workflows/index.md`，并将总入口 `wiki/index.md` 改为“Markdown 链接 + 什么时候读取”的混合索引。
+- 新增正式 skill：`wiki/skills/shared/refit-contract-change.md`、`wiki/skills/frontend-wpf/wpf-datagrid-editing.md`、`wiki/skills/frontend-wpf/wpf-theme-fix.md`。
+- 新增正式 workflow：`wiki/workflows/safe-refactoring.md`，并增强 WPF/VSTO 前端工作流与 Dapper Repository skill。
+- 保留 `raw/inbox/**` 原文不删除、不移动、不重写；模板源码和通用假设不整段搬入 wiki，只提炼与 SwiftExport 当前架构一致的规则。
+
+## 2026-06-28 workflow | 调整为严格 LLM Wiki 分层
+
+- 将正式 skill、workflow、项目地图从 `raw/**` 移入 `wiki/**`。
+- 更新 `AGENTS.md`：`raw/` 定义为默认只读的原始资料层，`wiki/` 定义为正式知识层。
+- 更新 `wiki/index.md`：任务路由全部指向 `wiki/skills/**`、`wiki/workflows/**`、`wiki/project/**`。
+- 保留 `raw/` 作为后续 ingest 的来源层，不再承载正式可执行规则。
+
+## 2026-06-28 workflow | 清理无效工作流引用
+
+- 清理 `AGENTS.md` 中关于旧规则来源的说明，保留当前 AI 工作流铁律。
+- 清理 `wiki/index.md` 中旧资料索引，仅保留当前有效的 `raw/**` 路由。
+- 清理 `raw/project/**` 中的来源说明。
+- 删除无效 AI 工作流文件，当前以 `raw/**` + `wiki/index.md` 为准。
+
 ## 2026-06-28 workflow | 任务路由迁移到 index
 
 - 调整 `AGENTS.md`：移除具体后端、前端、项目地图任务路由条目。
@@ -18,7 +42,6 @@
 - 重写 `AGENTS.md`，将其定位为 Codex 行为规则层。
 - 新建 `raw/` + `wiki/` 工作流结构。
 - 新建 `wiki/index.md`，作为 Codex 查询、skill、workflow、项目文档的统一入口。
-- 新建 `raw/skills/backend/**`，迁移旧 `.codex/skills/backend/**` 的后端 skill。
+- 新建 `raw/skills/backend/**` 的后端 skill。
 - 新建 `raw/workflows/frontend/wpf-vsto-workflow.md`，定义 WPF/VSTO 前端开发边界。
 - 新建 `raw/project/**`，沉淀项目地图和入门说明。
-- `.codex/skills/**` 暂时保留作为历史兼容入口，后续以 `raw/skills/**` 为权威。
