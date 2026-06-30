@@ -45,7 +45,7 @@ namespace SwiftExport.View.FW.Mvvm
         public bool IsExpanded
         {
             get => _isExpanded;
-            set => SetProperty(ref _isExpanded, value);
+            set => SetUiProperty(ref _isExpanded, value);
         }
 
         private bool _isSelected;
@@ -57,7 +57,7 @@ namespace SwiftExport.View.FW.Mvvm
             get => _isSelected;
             set
             {
-                if (SetProperty(ref _isSelected, value) && value)
+                if (SetUiProperty(ref _isSelected, value) && value)
                 {
                     // 核心需求1：点击时自动展开子节点
                     IsExpanded = true;
@@ -74,7 +74,7 @@ namespace SwiftExport.View.FW.Mvvm
         public bool IsVisible
         {
             get => _isVisible;
-            set => SetProperty(ref _isVisible, value);
+            set => SetUiProperty(ref _isVisible, value);
         }
 
         private bool _isMatch;
@@ -84,7 +84,7 @@ namespace SwiftExport.View.FW.Mvvm
         public bool IsMatch
         {
             get => _isMatch;
-            set => SetProperty(ref _isMatch, value);
+            set => SetUiProperty(ref _isMatch, value);
         }
 
         // ================= 事件与回调 =================

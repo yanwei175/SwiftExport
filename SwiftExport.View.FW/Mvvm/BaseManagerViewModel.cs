@@ -16,7 +16,7 @@ using System.Windows.Threading;
 namespace SwiftExport.View.FW.Mvvm
 {
     public abstract class BaseManagerViewModel<TModel, TDto> : ViewModelBaseEx
-            where TModel : ViewModelBaseEx, IBaseModel, new()
+            where TModel : ObservableObjectBase, IBaseModel, new()
             where TDto : class
     {
 

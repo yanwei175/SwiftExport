@@ -72,7 +72,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
         public bool IsExpanded
         {
             get => _isExpanded;
-            set => SetProperty(ref _isExpanded, value);
+            set => SetUiProperty(ref _isExpanded, value);
         }
 
         // 控制树节点是否被选中
@@ -80,7 +80,7 @@ namespace SwiftExport.View.FW.ProductViews.Models
         public bool IsSelected
         {
             get => _isSelected;
-            set => SetProperty(ref _isSelected, value);
+            set => SetUiProperty(ref _isSelected, value);
         }
     }
 }

@@ -8,6 +8,8 @@
 
 - 保持项目现有 `ViewModelBase`、`RelayCommand`、消息机制和 DI 风格。
 - 页面 ViewModel 优先继承 `SwiftExport.View.FW.Mvvm.ViewModelBaseEx`，并复用其中 Busy、命令刷新、Messenger、DisabledState 等机制。
+- `ViewModelBaseEx` 是页面级 ViewModel 基类；行模型、树节点、只读导航节点不应为了属性通知而继承它。
+- 轻量可绑定对象优先继承 `SwiftExport.View.FW.Mvvm.ObservableObjectBase`；该基类只提供属性通知、`SetProperty` 和 `DisabledStateScope`，不包含 Busy、Messenger、Navigation。
 - 命令优先使用 `GalaSoft.MvvmLight.Command.RelayCommand` / `RelayCommand<T>`。
 - 异步命令用 `async () => await XxxAsync()` 包装；不要把业务命令写成 `async void`。
 - 新增页面时匹配已有模块目录、基类、命名空间和绑定惯例。
@@ -30,3 +32,4 @@
 - 禁止 ViewModel 直接访问数据库或窗口实例。
 - 禁止重构时同时改框架、目录和业务逻辑。
 - 禁止 ViewModel 直接 new Repository、new WebApi Controller、new Window。
+- 禁止让非页面 Model 继承 `ViewModelBaseEx` 来获取属性通知；应使用 `ObservableObjectBase` 或现有行模型基类。

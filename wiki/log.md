@@ -1,5 +1,12 @@
 # SwiftExport AI Wiki Log
 
+## 2026-06-30 frontend | MVVM 基类职责解耦
+
+- 新增 `SwiftExport.View.FW.Mvvm.ObservableObjectBase` 作为轻量可绑定对象基类，只承载属性通知、`SetProperty` 和 `DisabledStateScope`。
+- 调整 `BaseLineModel` 从页面级 `ViewModelBaseEx` 解耦，继续保留行状态、脏数据、选中、删除、验证和 DTO 加载职责。
+- 修正树节点/分类树纯 UI 状态赋值路径，避免 `IsExpanded`、`IsSelected`、`IsVisible`、`IsMatch` 触发行脏数据。
+- 更新 MVVMLight 与 DataGrid guide，明确页面 ViewModel、轻量模型基类和行模型基类的职责边界。
+
 ## 2026-06-30 ingest | SwiftExport WPF/MVVM raw 草稿项目化
 
 - 根据 Git 新增文件读取 `raw/inbox/erp-datagrid-editing.md`、`mapster-mapping.md`、`wpf-*.md` 等 9 个 raw 草稿。

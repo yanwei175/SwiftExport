@@ -18,7 +18,7 @@ namespace SwiftExport.View.FW.Mvvm
     /// 5. 不影响任何 XAML（继续使用 IDataErrorInfo）
     /// </summary>
 
-    public abstract class BaseLineModel : ViewModelBaseEx, IBaseModel, IDataErrorInfo
+    public abstract class BaseLineModel : ObservableObjectBase, IBaseModel, IDataErrorInfo
 
     {
         /// <summary>
@@ -100,10 +100,7 @@ namespace SwiftExport.View.FW.Mvvm
             set
             {
                 //是否选中不应该触发脏数据变化.
-                using (DisabledStateScope())
-                {
-                    SetProperty(ref _isChecked, value);
-                }
+                SetUiProperty(ref _isChecked, value);
             }
         }
 
@@ -111,18 +108,6 @@ namespace SwiftExport.View.FW.Mvvm
 
         #endregion
 
-
-
-        // ============================================================
-        // 2. 程序内部修改抑制器（用于计算属性, LoadFromDto, RollbackChanges 等）
-        // ============================================================
-
-        private class ActionOnDispose : IDisposable
-        {
-            private readonly Action _action;
-            public ActionOnDispose(Action action) => _action = action;
-            public void Dispose() => _action?.Invoke();
-        }
 
 
         // ===========================
@@ -161,6 +146,16 @@ namespace SwiftExport.View.FW.Mvvm
 
             MarkAsModified();
             return true;
+        }
+
+        /// <summary>
+        /// 设置纯 UI 状态属性，不写入 ChangeTracker，也不触发行脏数据状态。
+        /// 例如 IsChecked、IsExpanded、IsSelected、IsVisible。
+        /// </summary>
+        protected bool SetUiProperty<T>(ref T storage, T value,
+            [CallerMemberName] string propertyName = null)
+        {
+            return base.SetProperty(ref storage, value, propertyName);
         }
 
 

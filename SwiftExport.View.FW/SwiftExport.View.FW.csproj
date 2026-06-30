@@ -480,6 +480,7 @@
     <Compile Include="Mvvm\IBaseModel.cs" />
     <Compile Include="Mvvm\LocalImagePathConverter.cs" />
     <Compile Include="Mvvm\ModelState.cs" />
+    <Compile Include="Mvvm\ObservableObjectBase.cs" />
     <Compile Include="Mvvm\ViewModelBaseEx.cs" />
     <Compile Include="ProductViews\Models\BomItemModel.cs" />
     <Compile Include="ProductViews\Models\CategoryTreeModel.cs" />

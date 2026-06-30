@@ -19,7 +19,7 @@ namespace SwiftExport.View.FW.Mvvm
     /// 小型数据字典管理器基类 (无分页，一次性加载，本地内存过滤，行内标记删除)
     /// </summary>
     public abstract class BaseSmallDataManagerViewModel<TModel, TDto> : ViewModelBaseEx
-            where TModel : ViewModelBaseEx, IBaseModel, new()
+            where TModel : ObservableObjectBase, IBaseModel, new()
             where TDto : class
     {
         private readonly IDialogService _msg;
