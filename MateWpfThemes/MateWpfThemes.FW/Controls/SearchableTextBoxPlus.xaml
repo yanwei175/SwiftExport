@@ -1,0 +1,131 @@
+<UserControl x:Class="MateWpfThemes.FW.Controls.SearchableTextBoxPlus"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="uc"
+             MinHeight="30">
+    <Grid>
+        <Border x:Name="EditorBorder"
+                Height="{Binding ActualHeight, ElementName=uc}"
+                MinHeight="30"
+                Background="White"
+                BorderBrush="#DCDCDC"
+                BorderThickness="1"
+                CornerRadius="3"
+                MouseLeftButtonDown="EditorBorder_MouseLeftButtonDown">
+            <Grid>
+                <TextBox x:Name="InputTextBox"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         Padding="8,0,28,0"
+                         VerticalContentAlignment="Center"
+                         TextChanged="InputTextBox_TextChanged"
+                         GotKeyboardFocus="InputTextBox_GotKeyboardFocus"
+                         LostKeyboardFocus="InputTextBox_LostKeyboardFocus"
+                         PreviewKeyDown="InputTextBox_PreviewKeyDown"/>
+
+                <TextBlock x:Name="DisplayTextBlock"
+                           Margin="8,0,28,0"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           IsHitTestVisible="False"
+                           Visibility="Collapsed"/>
+
+                <TextBlock x:Name="PlaceholderTextBlock"
+                           Margin="8,0,28,0"
+                           VerticalAlignment="Center"
+                           Foreground="#999999"
+                           IsHitTestVisible="False"
+                           Text="{Binding Placeholder, ElementName=uc}"/>
+
+                <Button x:Name="BtnClear"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Margin="0,0,4,0"
+                        Width="22"
+                        Height="22"
+                        Focusable="False"
+                        Cursor="Hand"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Content="x"
+                        Click="BtnClear_Click">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Foreground" Value="#909399"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                                CornerRadius="11">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasTextOrSelection, ElementName=uc}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#F2F3F5"/>
+                                    <Setter Property="Foreground" Value="#606266"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </Border>
+
+        <Popup x:Name="DropdownPopup"
+               AllowsTransparency="True"
+               StaysOpen="False"
+               PlacementTarget="{Binding ElementName=EditorBorder}"
+               Placement="Bottom"
+               IsOpen="{Binding IsDropDownOpen, ElementName=uc, Mode=TwoWay}"
+               PopupAnimation="Fade">
+            <Border MinWidth="{Binding ActualWidth, ElementName=EditorBorder}"
+                    MaxHeight="260"
+                    Background="White"
+                    BorderBrush="#DCDCDC"
+                    BorderThickness="1"
+                    CornerRadius="2"
+                    Margin="0,2,0,0">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="8"
+                                      ShadowDepth="2"
+                                      Opacity="0.15"
+                                      Color="Black"/>
+                </Border.Effect>
+
+                <ScrollViewer CanContentScroll="True"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <ListBox x:Name="ResultList"
+                             BorderThickness="0"
+                             Focusable="False"
+                             PreviewMouseLeftButtonUp="ResultList_PreviewMouseLeftButtonUp">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Focusable" Value="False"/>
+                                <Setter Property="Padding" Value="10,6"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#F5F7FA"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="#E8F3FF"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </ScrollViewer>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

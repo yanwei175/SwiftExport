@@ -129,6 +129,8 @@ DTO 设计规则：
 - 单页视觉问题优先局部修复。
 - 全局资源修改必须先搜索引用范围，并在最终回复说明影响面。
 - 优先复用已有资源键和 MateWpfThemes.FW / 项目自定义控件风格。
+- 新增搜索选择控件时优先使用 `MateWpfThemes.FW.Controls.SearchableTextBoxPlus`；旧 `SearchableTextBox` 仅用于兼容既有页面。
+- 迁移旧页面到 `SearchableTextBoxPlus` 时必须逐页检查 `Text`、`SelectedItem`、`SelectedValue` 绑定语义，避免把“搜索关键字”和“选中显示值”混用。
 
 ## 8. VSTO 边界
 

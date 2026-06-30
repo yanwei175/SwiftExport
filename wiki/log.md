@@ -1,5 +1,11 @@
 # SwiftExport AI Wiki Log
 
+## 2026-06-28 frontend | 新增 SearchableTextBoxPlus 规则
+
+- 在 `MateWpfThemes.FW` 新增搜索选择控件 `SearchableTextBoxPlus`，旧 `SearchableTextBox` 保持兼容不改动。
+- 更新前端工作流和主题资源 guide：后续新增搜索选择场景优先使用 `SearchableTextBoxPlus`。
+- 明确旧页面迁移时需逐页检查 `Text`、`SelectedItem`、`SelectedValue` 绑定语义。
+
 ## 2026-06-28 ingest | Inbox 模板与 Guide 提炼
 
 - 读取 `raw/inbox/guides/**`、`raw/inbox/skills/**`、`raw/inbox/templates/**` 中与 SwiftExport 技术栈匹配的模板资料。

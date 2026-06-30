@@ -95,6 +95,9 @@
     <Compile Include="Controls\SearchableTextBox.xaml.cs">
       <DependentUpon>SearchableTextBox.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\SearchableTextBoxPlus.xaml.cs">
+      <DependentUpon>SearchableTextBoxPlus.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Controls\DialogHost.cs" />
     <Compile Include="Controls\PaginationControl.xaml.cs">
       <DependentUpon>PaginationControl.xaml</DependentUpon>
@@ -143,6 +146,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Controls\SearchableTextBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\SearchableTextBoxPlus.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
