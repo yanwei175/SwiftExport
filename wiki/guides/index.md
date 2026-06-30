@@ -12,6 +12,7 @@ Guide 保存稳定规范和检查清单；Skill / Workflow 保存具体执行步
 ## Shared
 
 - [DTO](shared/dto.md) - 修改 DTO、请求响应模型、Entity/LineModel 映射时读取。
+- [Mapster Mapping](shared/mapster-mapping.md) - 处理 Entity、DTO、前端 Model/LineModel、Request/Response 映射时读取。
 - [Refit API](shared/refit-api.md) - 修改 Contracts Refit 接口、路由、请求/响应契约时读取。
 - [Service Result](shared/service-result.md) - 处理统一返回、错误消息、业务失败和异常边界时读取。
 
@@ -20,10 +21,12 @@ Guide 保存稳定规范和检查清单；Skill / Workflow 保存具体执行步
 - [WPF MVVMLight](frontend-wpf/wpf-mvvmlight.md) - 维护 .NET Framework WPF / MVVMLight 页面时读取。
 - [WPF DataGrid](frontend-wpf/wpf-datagrid.md) - 处理 ERP 可编辑表格、LineModel、批量保存和脏数据时读取。
 - [WPF Dialog Navigation](frontend-wpf/wpf-dialog-navigation.md) - 处理消息、确认框、模态窗口、导航和未保存变更时读取。
+- [WPF UI Services](frontend-wpf/wpf-ui-services.md) - 处理 `IDialogService`、DialogHost、消息提示、路由服务和 ViewModel/UI 服务边界时读取。
+- [WPF Pagination](frontend-wpf/wpf-pagination.md) - 处理分页控件、分页命令、PageIndex/PageSize 和分页前未保存变更拦截时读取。
+- [WPF Image Cell](frontend-wpf/wpf-image-cell.md) - 处理 DataGrid 图片列、图片转换器、缩略图和 ToolTip 预览时读取。
 - [WPF Theme Resource](frontend-wpf/wpf-theme-resource.md) - 调整主题资源、样式、资源字典和控件视觉时读取。
 
 ## Workflow
 
 - [Safe Refactoring](workflow/safe-refactoring.md) - 大文件、历史代码、模块拆分和风险重构时读取。
 - [Codex Task Writing](workflow/codex-task-writing.md) - 编写给 Codex 的任务、约束、验收标准时读取。
-

@@ -1,5 +1,13 @@
 # SwiftExport AI Wiki Log
 
+## 2026-06-30 ingest | SwiftExport WPF/MVVM raw 草稿项目化
+
+- 根据 Git 新增文件读取 `raw/inbox/erp-datagrid-editing.md`、`mapster-mapping.md`、`wpf-*.md` 等 9 个 raw 草稿。
+- 用户允许本次改写新增 raw 来源；已将 CommunityToolkit / .NET 8 模板口径调整为 SwiftExport 默认的 .NET Framework 4.8 + MVVMLight + Refit + MateWpfThemes 口径。
+- 新增正式 wiki：`wiki/guides/shared/mapster-mapping.md`、`wiki/guides/frontend-wpf/wpf-ui-services.md`、`wiki/guides/frontend-wpf/wpf-pagination.md`、`wiki/guides/frontend-wpf/wpf-image-cell.md`。
+- 更新 `wiki/index.md` 和 `wiki/guides/index.md`，为 Mapster、UI Services、Pagination、Image Cell 增加链接式路由。
+- 增强 MVVMLight、DataGrid、Dialog Navigation 和 WPF DataGrid Editing 规则，明确 SwiftExport 优先使用 MVVMLight、`IDialogService`、现有 Routing、DataGridExcelAssist / UndoManager。
+
 ## 2026-06-28 frontend | 新增 SearchableTextBoxPlus 规则
 
 - 在 `MateWpfThemes.FW` 新增搜索选择控件 `SearchableTextBoxPlus`，旧 `SearchableTextBox` 保持兼容不改动。

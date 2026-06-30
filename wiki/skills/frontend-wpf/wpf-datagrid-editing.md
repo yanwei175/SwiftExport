@@ -8,6 +8,8 @@
 
 - [WPF / VSTO 前端工作流](../../workflows/frontend/wpf-vsto-workflow.md)
 - [WPF DataGrid Guide](../../guides/frontend-wpf/wpf-datagrid.md)
+- [WPF Pagination Guide](../../guides/frontend-wpf/wpf-pagination.md)
+- [WPF Image Cell Guide](../../guides/frontend-wpf/wpf-image-cell.md)
 - [MVVMLight Guide](../../guides/frontend-wpf/wpf-mvvmlight.md)
 - [Dialog / Navigation Guide](../../guides/frontend-wpf/wpf-dialog-navigation.md)
 - 当前模块已有 View、ViewModel、Model、Mapping 和 API 调用。

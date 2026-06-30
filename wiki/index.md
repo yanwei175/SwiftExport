@@ -36,6 +36,7 @@
 
 - [Refit Contract Change](skills/shared/refit-contract-change.md) - 涉及 DTO、Refit API、Controller 路由、接口返回结构同步时读取。
 - [DTO Guide](guides/shared/dto.md) - 设计或修改 Contracts DTO、Request、Response 时读取。
+- [Mapster Mapping Guide](guides/shared/mapster-mapping.md) - 涉及 Entity、DTO、前端 Model/LineModel、Request/Response 映射时读取。
 - [Refit API Guide](guides/shared/refit-api.md) - 设计或修改 Refit Interface、HTTP 方法和路由时读取。
 - [ServiceResult Guide](guides/shared/service-result.md) - 涉及统一返回、错误处理、前端解析时读取。
 
@@ -47,6 +48,9 @@
 - [MVVMLight Guide](guides/frontend-wpf/wpf-mvvmlight.md) - 涉及 ViewModel、命令、属性通知、消息通信时读取。
 - [WPF DataGrid Guide](guides/frontend-wpf/wpf-datagrid.md) - 涉及 DataGrid 结构、列绑定、编辑行为、行状态时读取。
 - [Dialog / Navigation Guide](guides/frontend-wpf/wpf-dialog-navigation.md) - 涉及弹窗、导航、页面切换、宿主边界时读取。
+- [WPF UI Services Guide](guides/frontend-wpf/wpf-ui-services.md) - 涉及 `IDialogService`、DialogHost、消息提示、路由服务时读取。
+- [WPF Pagination Guide](guides/frontend-wpf/wpf-pagination.md) - 涉及分页控件、分页命令和分页前未保存变更拦截时读取。
+- [WPF Image Cell Guide](guides/frontend-wpf/wpf-image-cell.md) - 涉及 DataGrid 图片列、图片路径转换器、缩略图和预览时读取。
 - [Theme / Resource Guide](guides/frontend-wpf/wpf-theme-resource.md) - 涉及资源字典、主题键、控件样式、颜色资源时读取。
 
 ## 重构 / 项目接手 / 任务书写

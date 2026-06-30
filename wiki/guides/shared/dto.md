@@ -10,6 +10,7 @@
 - Entity、DTO、LineModel、Request、Response 的职责必须分离。
 - DTO 放在 `SwiftExport.Contracts/DTOs/**`，Refit API 和 Controller 返回优先使用 DTO。
 - 映射优先使用项目既有 Mapster 配置或已有 Mapping 类。
+- Mapster 详细规则见 [Mapster Mapping](mapster-mapping.md)。
 - Dapper 查询可以在明确 API/前端传输场景直接返回 DTO，但不要让 DTO 反向承担持久化规则。
 - 批量保存时用明确变更集表达新增、修改、删除，不靠 UI 状态污染 DTO。
 
@@ -26,4 +27,3 @@
 - 禁止直接把 Entity 暴露为 API Response。
 - 禁止在 Repository 中配置 UI 模型映射。
 - 禁止随意改变公开 DTO 字段名和类型。
-
