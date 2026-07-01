@@ -58,8 +58,8 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             ConvertSelectedSourceToPurchaseCommand = new RelayCommand(async () => await ConvertSelectedSourceToPurchaseAsync(), () => IsNotBusy && !string.IsNullOrWhiteSpace(SelectedSourceNo));
             RegisterBusyNotifyCommand(ConvertSelectedSourceToPurchaseCommand);
 
-            // 中文注释：背靠背任务看板默认仅展示待处理任务。
-            StatusFlag = DependentDemandStatusEnum.已转为正式单据;
+            // 中文注释：业务原型阶段默认展示待转采购/待执行净需求。
+            ShowCompleted = false;
         }
 
         public DependentDemandList BridgeList { get; }
@@ -180,7 +180,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             set => SetProperty(ref _supplierKeyword, value);
         }
 
-        private DependentDemandStatusEnum _statusFlag;
+        private DependentDemandStatusEnum _statusFlag = DependentDemandStatusEnum.未确认;
         public DependentDemandStatusEnum StatusFlag
         {
             get => _statusFlag;
@@ -194,13 +194,24 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         }
 
         /// <summary>
-        /// 是否显示已完成任务（StatusFlag 为空表示不过滤）。默认 false。
+        /// 是否显示已完成任务。false 时只看待执行净需求；true 时不过滤状态。
         /// </summary>
+        private bool _showCompleted;
         public bool ShowCompleted
         {
-            get => StatusFlag == DependentDemandStatusEnum.已转为正式单据;
-            set => StatusFlag = value ? DependentDemandStatusEnum.已转为正式单据 : DependentDemandStatusEnum.已转为正式单据;
+            get => _showCompleted;
+            set
+            {
+                if (SetProperty(ref _showCompleted, value))
+                {
+                    RaisePropertyChanged(nameof(FlowStageText));
+                    ApplyDetailFilter();
+                    RecalculateAvgKittingRate();
+                }
+            }
         }
+
+        public string FlowStageText => ShowCompleted ? "当前：全部净需求" : "当前：待转采购/待执行";
 
         private bool? _isKitted;
         public bool? IsKitted
@@ -342,8 +353,61 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
         /// </summary>
         private async Task BatchIssuePurchaseAsync()
         {
-            var pendingRows = DetailItems.Where(x => IsPurchaseSupplyType(x.SupplyType)).ToList();
-            await _msg.ShowInfoAsync("已触发批量下达采购单入口，候选行数：" + pendingRows.Count);
+            if (_decomposeApi == null)
+            {
+                await _msg.ShowWarningAsync("需求池API未注入，无法转采购。");
+                return;
+            }
+
+            var selectedRows = DetailItems.Where(x => x.IsChecked).ToList();
+            if (selectedRows.Count == 0 && SelectedItem != null)
+            {
+                selectedRows.Add(SelectedItem);
+            }
+
+            var purchaseRows = selectedRows
+                .Where(x => x.StatusFlag == DependentDemandStatusEnum.未确认 && IsPurchaseSupplyType(x.SupplyType))
+                .ToList();
+
+            if (purchaseRows.Count == 0)
+            {
+                await _msg.ShowWarningAsync("请先勾选或选中可转采购的待执行净需求行。");
+                return;
+            }
+
+            if (purchaseRows.Any(x => string.IsNullOrWhiteSpace(x.SupplierCode)))
+            {
+                await _msg.ShowWarningAsync("存在未指定供应商的物料，请先补充供应商后再转采购。");
+                return;
+            }
+
+            var confirm = await _msg.ShowConfirmAsync("确认将选中的 " + purchaseRows.Count + " 行净需求转采购单？", "选中行转采购");
+            if (!confirm) return;
+
+            using (BusyScope())
+            {
+                try
+                {
+                    var result = await _decomposeApi.ConvertByDependentDemandIdsAsync(purchaseRows.Select(x => x.Uid).ToList());
+                    if (result.Success)
+                    {
+                        var createdNos = result.Data ?? new List<string>();
+                        StatusMessage = "转采购成功：" + string.Join(", ", createdNos);
+                        _msg.ShowCardAsync(StatusMessage, 4000);
+                        await LoadAsync();
+                    }
+                    else
+                    {
+                        StatusMessage = "转采购失败：" + result.Message;
+                        await _msg.ShowWarningAsync(StatusMessage);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = "转采购异常：" + ex.Message;
+                    await _msg.ShowErrorAsync(StatusMessage);
+                }
+            }
         }
 
         /// <summary>
@@ -431,7 +495,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
                 {
                     SourceNo = g.Key,
                     RequiredDate = g.Where(x => x.RequiredDate.HasValue).Select(x => x.RequiredDate.Value).DefaultIfEmpty(DateTime.MinValue).Max(),
-                    PendingCount = g.Count(x => x.StatusFlag > 0),
+                    PendingCount = g.Count(x => x.StatusFlag == DependentDemandStatusEnum.未确认),
                     TotalCount = g.Count()
                 })
                 .OrderByDescending(x => x.RequiredDate)
@@ -469,6 +533,11 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             // 中文注释：BomLevel=0 作为标题层，不在右侧任务明细中默认展示。
             rows = rows.Where(x => x.BomLevel > 0);
 
+            if (!ShowCompleted)
+            {
+                rows = rows.Where(x => x.StatusFlag == DependentDemandStatusEnum.未确认);
+            }
+
             foreach (var row in rows)
             {
                 // 中文注释：供应商预判，如果编码为空尝试用 SupplierName 兜底显示。
@@ -491,7 +560,7 @@ namespace SwiftExport.View.FW.OrderDecomposeViews.ViewModels
             var sourceNo = SelectedSourceNo.Trim();
             var purchaseRows = DetailItems
                 .Where(x => string.Equals(x.SourceNo, sourceNo, StringComparison.OrdinalIgnoreCase)
-                            && x.StatusFlag == DependentDemandStatusEnum.已转为正式单据
+                            && x.StatusFlag == DependentDemandStatusEnum.未确认
                             && IsPurchaseSupplyType(x.SupplyType))
                 .ToList();
 
