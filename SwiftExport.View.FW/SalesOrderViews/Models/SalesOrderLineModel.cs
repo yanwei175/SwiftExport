@@ -82,6 +82,26 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
             get => _sku;
             set => SetProperty(ref _sku, value);
         }
+        private string _linkSku = string.Empty;
+        public string LinkSku
+        {
+            get => _linkSku;
+            set => SetProperty(ref _linkSku, value);
+        }
+
+        private Guid? _customerProductId;
+        public Guid? CustomerProductId
+        {
+            get => _customerProductId;
+            set => SetProperty(ref _customerProductId, value);
+        }
+
+        private Guid? _productId;
+        public Guid? ProductId
+        {
+            get => _productId;
+            set => SetProperty(ref _productId, value);
+        }
 
         private string _customerSku;
         public string CustomerSku
@@ -116,6 +136,19 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
         {
             get => _materialType;
             set => SetProperty(ref _materialType, value);
+        }
+        private DateTime? _lastShippedDate;
+        public DateTime? LastShippedDate
+        {
+            get => _lastShippedDate;
+            set => SetProperty(ref _lastShippedDate, value);
+        }
+
+        private DateTime? _expectedDeliveryDate;
+        public DateTime? ExpectedDeliveryDate
+        {
+            get => _expectedDeliveryDate;
+            set => SetProperty(ref _expectedDeliveryDate, value);
         }
         #endregion
 
@@ -375,9 +408,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
 
                 if (columnName == nameof(Qty) && Qty <= 0)
                     return "订单数量必须大于 0";
-
-                if (columnName == nameof(UsdPrice) && UsdPrice <= 0)
-                    return "单位价格必须大于 0";
 
                 return null;
             }

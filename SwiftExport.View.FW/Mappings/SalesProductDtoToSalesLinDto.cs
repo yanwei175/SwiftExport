@@ -25,6 +25,14 @@ namespace SwiftExport.View.FW.Mappings
                 .Ignore(dest => dest.Uid)
                 // ProductId 映射产品主键（src.Id 为 ProductDto 的数据库主键）。
                 .Map(dest => dest.ProductId, src => src.ProductId)
+                .Map(dest => dest.CustomerProductId, src => src.CustomerProductId)
+                .Map(dest => dest.LinkSku, src => src.LinkSku)
+                .Map(dest => dest.CnyPrice, src => src.CNYPrice)
+                .Map(dest => dest.UsdPrice, src => src.USDPrice)
+                .Map(dest => dest.PcsOfCarton, src => src.PcsOfCarton)
+                .Map(dest => dest.NwOfCarton, src => src.NwOfCarton)
+                .Map(dest => dest.GwOfCarton, src => src.GwOfCarton)
+                .Map(dest => dest.CbmOfCarton, src => src.CbmOfCarton)
                 // 以下同名字段 Mapster 会自动映射，无需显式声明，但注释保留供阅读说明来源：
                 // Sku         ← src.Sku
                 // LinkSku     ← src.LinkSku

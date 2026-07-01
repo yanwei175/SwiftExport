@@ -412,7 +412,7 @@
                     <DataGrid Grid.Row="2" RowHeight="64"
                               x:Name="DetailDataGridInTab"
                               Style="{StaticResource ReadOnlyDataGrid}"
-                              ItemsSource="{Binding CurrentOrderLines.Items}"
+                              ItemsSource="{Binding CurrentOrderLineView}"
                               SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
                               mt:DataGridSyncAttach.SyncTarget="{Binding ElementName=SummaryGrid}"
                               AutoGenerateColumns="False"

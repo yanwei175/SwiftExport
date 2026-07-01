@@ -1,5 +1,12 @@
 # SwiftExport AI Wiki Log
 
+## 2026-06-30 business | 建立 ERP 业务总纲
+
+- 新增 `wiki/project/erp-business-blueprint.md`，作为后续智能体理解 SwiftExport ERP 业务流程的总入口。
+- 明确业务主线：销售订单、手工需求、投诉补货进入毛需求，BOM 拆解形成净需求，净需求转采购，入库/出库/PackingList 过账完成闭环。
+- 明确客供件、自动入库/出库、PackingList 智能过账、展示状态与执行状态分离等长期业务默认规则。
+- 更新 `wiki/index.md`，增加 ERP 业务总纲路由；更新 `AGENTS.md`，要求业务流程类任务先读业务总纲。
+
 ## 2026-06-30 frontend | MVVM 基类职责解耦
 
 - 新增 `SwiftExport.View.FW.Mvvm.ObservableObjectBase` 作为轻量可绑定对象基类，只承载属性通知、`SetProperty` 和 `DisabledStateScope`。

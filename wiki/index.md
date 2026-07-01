@@ -17,6 +17,7 @@
 
 - [项目上下文摘要](project/context-summary.md) - 需要快速恢复当前 AI Wiki 分层、项目边界、入口和工作流规则时读取。
 - [项目地图](project/project-map.md) - 需要定位项目结构、入口文件、分层职责、构建命令时读取。
+- [ERP 业务总纲](project/erp-business-blueprint.md) - 涉及业务流程、需求、采购、入库、出库、PackingList、客供件或状态回写时读取。
 - [项目接手说明](project/onboarding.md) - 接手新功能、不熟悉模块、需要打开顺序和风险提示时读取。
 - [Skills Index](skills/index.md) - 需要选择正式 skill 时读取。
 - [Workflows Index](workflows/index.md) - 需要选择跨文件或跨层工作流时读取。

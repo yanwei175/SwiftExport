@@ -413,11 +413,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.Models
                         if (string.IsNullOrWhiteSpace(CustomerCode))
                             return "客户不能为空";
                         break;
-                    case nameof(InvoiceNo):
-                        if (string.IsNullOrWhiteSpace(InvoiceNo))
-                            return "发票号不能为空";
-                        break;
-
                 }
                 return null;
             }

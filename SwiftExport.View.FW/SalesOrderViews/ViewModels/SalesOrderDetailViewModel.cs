@@ -19,6 +19,7 @@ using SwiftExport.View.FW.Services;
 using SwiftExport.View.FW.SystemViews.Models;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
@@ -62,11 +63,6 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             OrderLines = new SalesOrderLineList();
 
             OrderHeader = new SalesOrderHeaderModel();
-            OrderHeader.PropertyChanged += (s, e) =>
-            {
-                RaisePropertyChanged(nameof(CanSave));
-                SaveCommand.RaiseCanExecuteChanged();
-            };
 
             // 初始化命令
             AddLineCommand = new RelayCommand(AddLine);
@@ -217,7 +213,23 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         public SalesOrderHeaderModel OrderHeader
         {
             get => _orderHeader;
-            set => SetProperty(ref _orderHeader, value);
+            set
+            {
+                if (_orderHeader != null)
+                {
+                    _orderHeader.PropertyChanged -= OnOrderHeaderPropertyChanged;
+                }
+
+                if (SetProperty(ref _orderHeader, value))
+                {
+                    if (_orderHeader != null)
+                    {
+                        _orderHeader.PropertyChanged += OnOrderHeaderPropertyChanged;
+                    }
+
+                    RaiseEditableStateChanged();
+                }
+            }
         }
 
         public bool IsReadyOnly => !(OrderHeader != null && OrderHeader.ConfirmationStatus == ConfirmationStatusEnum.待确认);
@@ -287,28 +299,38 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 if (SelectedLine == null) return;
 
                 var item = SelectedLine;
-                SelectedLine = null;
                 var tempIndex = OrderLines.Items.IndexOf(item);
+                SelectedLine = null;
                 OrderLines.Remove(item);
-                try
-                {
-                    SelectedLine = OrderLines.Items[tempIndex - 1];
-                }
-                catch
-                {
-                    SelectedLine = OrderLines.Items.FirstOrDefault();
-                }
+                SelectNearestLine(tempIndex);
             }
             else
             {
                 // 中文注释：批量删除勾选行，先快照再逐项删除，避免迭代中修改集合抛出异常。
                 var toDelete = checkItems.ToList();
+                var firstIndex = toDelete
+                    .Select(x => OrderLines.Items.IndexOf(x))
+                    .Where(x => x >= 0)
+                    .DefaultIfEmpty(0)
+                    .Min();
                 foreach (var item in toDelete)
                 {
                     OrderLines.Remove(item);
                 }
-                SelectedLine = OrderLines.Items[OrderLines.Items.Count - 1];
+                SelectNearestLine(firstIndex);
             }
+        }
+
+        private void SelectNearestLine(int originalIndex)
+        {
+            if (OrderLines.Items.Count == 0)
+            {
+                SelectedLine = null;
+                return;
+            }
+
+            var nextIndex = Math.Min(Math.Max(originalIndex, 0), OrderLines.Items.Count - 1);
+            SelectedLine = OrderLines.Items[nextIndex];
         }
 
         private void BatchGetSalesProduct()
@@ -540,6 +562,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
             RaisePropertyChanged(nameof(CanSave));
             SaveCommand.RaiseCanExecuteChanged();
+            RaisePropertyChanged(nameof(IsReadyOnly));
 
         }
 
@@ -549,8 +572,11 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             OrderHeader = new SalesOrderHeaderModel
             {
                 OrderDate = DateTime.Now,
+                Currency = CurrencyEnum.USD,
+                ConfirmationStatus = ConfirmationStatusEnum.待确认
             };
             OrderLines?.Clear();
+            RaiseEditableStateChanged();
         }
 
         public async Task InitForEditAsync(Guid headId)
@@ -610,16 +636,25 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     // 发送给 API
                     var result = await _salesOrderApi.SaveSalesOrderDetailAsync(saveRequest);
 
-                    if (result.Success)
+                    if (result?.Success == true && result.Data?.Header != null)
                     {
                         await _msg.ShowInfoAsync("保存成功,订单已保存到服务器。正在刷新数据...");
                         ResultData = result.Data.Header.Uid;
-                        // 中文注释：通知窗口以“保存成功”结果关闭，兼容现有 ShowDialog 流程。
-                        CloseWindow?.Invoke(true);
+
+                        OrderHeader.LoadFromDto(result.Data.Header);
+                        OrderLines.Clear();
+                        OrderLines.ReLoadRangeFromDtoList(result.Data.Items);
+                        RaiseEditableStateChanged();
+
+                        if (!IsEmbeddedMode)
+                        {
+                            // 中文注释：通知窗口以“保存成功”结果关闭，兼容现有 ShowDialog 流程。
+                            CloseWindow?.Invoke(true);
+                        }
                     }
                     else
                     {
-                        await _msg.ShowErrorAsync("保存失败: " + result.Message);
+                        await _msg.ShowErrorAsync("保存失败: " + result?.Message);
                     }
                 }
                 catch (ApiException apiEx)
@@ -662,13 +697,24 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         private void ApplyProductLinkage(SalesOrderLineDto product)
         {
             if (SelectedLine == null) return;
-            var seletedUid = SelectedLine.Uid;
-            var version = SelectedLine.Version;
-            var lineNu = SelectedLine.LineNumber;
-            SelectedLine.LoadFromDto(product);
-            SelectedLine.Uid = seletedUid;
-            SelectedLine.Version = version;
-            SelectedLine.LineNumber = lineNu;
+            SelectedLine.Sku = product.Sku;
+            SelectedLine.LinkSku = product.LinkSku;
+            SelectedLine.CustomerProductId = product.CustomerProductId;
+            SelectedLine.ProductId = product.ProductId;
+            SelectedLine.CustomerSku = product.CustomerSku;
+            SelectedLine.DescriptionEn = product.DescriptionEn;
+            SelectedLine.MaterialType = product.MaterialType;
+            SelectedLine.ColorNameEn = product.ColorNameEn;
+            SelectedLine.FeaturesEn = product.FeaturesEn;
+            SelectedLine.CnyPrice = product.CnyPrice ?? 0m;
+            SelectedLine.UsdPrice = product.UsdPrice ?? 0m;
+            SelectedLine.PcsOfCarton = product.PcsOfCarton ?? 0m;
+            SelectedLine.NwOfCarton = product.NwOfCarton ?? 0m;
+            SelectedLine.GwOfCarton = product.GwOfCarton ?? 0m;
+            SelectedLine.CbmOfCarton = product.CbmOfCarton ?? 0m;
+            SelectedLine.LastShippedDate = product.LastShippedDate;
+            SelectedLine.ExpectedDeliveryDate = product.ExpectedDeliveryDate;
+            SelectedLine.MainImage = product.MainImage;
         }
 
         // ===================== SKU联动缓存 =====================
@@ -807,6 +853,21 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 foreach (var item in newItems)
                     collection.Add(item);
             });
+        }
+
+        private void OnOrderHeaderPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            RaiseEditableStateChanged();
+        }
+
+        private void RaiseEditableStateChanged()
+        {
+            RaisePropertyChanged(nameof(CanSave));
+            RaisePropertyChanged(nameof(IsReadyOnly));
+            SaveCommand?.RaiseCanExecuteChanged();
+            DeleteLineCommand?.RaiseCanExecuteChanged();
+            AddLineCommand?.RaiseCanExecuteChanged();
+            BatchGetSalesProductCommand?.RaiseCanExecuteChanged();
         }
 
 

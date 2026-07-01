@@ -17,9 +17,11 @@ using SwiftExport.View.FW.SalesOrderViews.Models;
 using SwiftExport.View.FW.SalesOrderViews.Views;
 using SwiftExport.View.FW.Services;
 using System;
+using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Data;
 
 namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 {
@@ -63,13 +65,14 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             _pdColorApi = productColorApi;
 
             OrderHeaders = new SalesOrderHeaderManagerList();
+            CurrentOrderLines = new SalesOrderLineManagerList();
 
             // 中文注释：加载命令，带 BusyScope 保护，防止重复触发。
             LoadCommand = new RelayCommand(async () => await LoadAsync(), () => IsNotBusy);
             RegisterBusyNotifyCommand(LoadCommand);
 
             // 中文注释：新建订单——弹出空白 DetailWindow。
-            CreateOrderCommand = new RelayCommand(OpenCreateOrderWindow, () => IsNotBusy);
+            CreateOrderCommand = new RelayCommand(async () => await OpenCreateOrderWindowAsync(), () => IsNotBusy);
             RegisterBusyNotifyCommand(CreateOrderCommand);
 
             // 中文注释：编辑订单——弹出已加载数据的 DetailWindow。
@@ -129,6 +132,8 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     SaveCommand?.RaiseCanExecuteChanged();
                     EditOrderCommand?.RaiseCanExecuteChanged();
                     DeleteSelectedHeadCommand?.RaiseCanExecuteChanged();
+                    ConfirmCommand?.RaiseCanExecuteChanged();
+                    CancelConfirmCommand?.RaiseCanExecuteChanged();
                     _ = LoadLinesByHeadIdAsync(value?.Uid ?? Guid.Empty);
                 }
             }
@@ -138,7 +143,20 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         public SalesOrderLineManagerList CurrentOrderLines
         {
             get => _currentOrderLines;
-            set => SetProperty(ref _currentOrderLines, value);
+            set
+            {
+                if (SetProperty(ref _currentOrderLines, value ?? new SalesOrderLineManagerList()))
+                {
+                    ResetCurrentOrderLineView();
+                }
+            }
+        }
+
+        private ICollectionView _currentOrderLineView;
+        public ICollectionView CurrentOrderLineView
+        {
+            get => _currentOrderLineView;
+            private set => SetProperty(ref _currentOrderLineView, value);
         }
 
         private SalesOrderLineManagerModel _selectedLine;
@@ -206,9 +224,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
             {
                 if (SetProperty(ref _lineSearchText, value))
                 {
-                    //内存筛选CurrentOrderLines,可能要建一个视图筛选模型
-
-
+                    CurrentOrderLineView?.Refresh();
                 }
             }
         }
@@ -402,7 +418,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                             .Where(x => x.IsSelected)
                             .Select(x => (int)x.Value)
                             .ToList(),
-                        BatchCustomerSkuList = BatchCustomerSkuText?.Split(new[] { '\n', '\r', ',', '；', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                        BatchCustomerSkuList = BatchCustomerSkuText?.Split(new[] { '\n', '\r', ',', '；', ';' }, StringSplitOptions.RemoveEmptyEntries)
                             .Select(x => x.Trim())
                             .Where(x => !string.IsNullOrWhiteSpace(x))
                             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -422,7 +438,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     else
                     {
                         OrderHeaders?.Clear();
-                        CurrentOrderLines?.Clear();
+                        ClearCurrentOrderLines();
                         TotalCount = 0;
                         StatusMessage = "加载失败：" + rst.Message;
                     }
@@ -447,7 +463,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                 {
                     if (orderId == Guid.Empty)
                     {
-                        CurrentOrderLines.Clear();
+                        ClearCurrentOrderLines();
                         return;
                     }
 
@@ -479,7 +495,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         /// 中文注释：打开新建订单弹窗，Detail VM 构造为空白状态。
         /// 确认保存后局部刷新列表。
         /// </summary>
-        private async void OpenCreateOrderWindow()
+        private async Task OpenCreateOrderWindowAsync()
         {
             try
             {
@@ -492,8 +508,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     var rst = await _salesOrderApi.GetSalesOrderHeaderManagerByIdAsync(vm.ResultData);
                     if (rst?.Success == true && rst.Data != null)
                     {
-                        SelectedOrderHeader.LoadFromDto(rst.Data, false);
-                        await LoadLinesByHeadIdAsync(vm.ResultData);
+                        await RefreshHeaderAndLinesAsync(rst.Data, vm.ResultData);
                     }
                     else
                     {
@@ -529,8 +544,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     var rst = await _salesOrderApi.GetSalesOrderHeaderManagerByIdAsync(vm.ResultData);
                     if (rst?.Success == true && rst.Data != null)
                     {
-                        SelectedOrderHeader.LoadFromDto(rst.Data, false);
-                        await LoadLinesByHeadIdAsync(vm.ResultData);
+                        await RefreshHeaderAndLinesAsync(rst.Data, vm.ResultData);
                     }
                     else
                     {
@@ -629,10 +643,17 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     };
 
                     var rst = await _salesOrderApi.ConfirmSalesOrdersAsync(req);
-                    if (rst.Success && rst.Data != null)
+                    if (rst?.Success == true && rst.Data != null)
                     {
                         var newCurrent = await _salesOrderApi.GetSalesOrderHeaderManagerByIdAsync(rst.Data.Uid);
-                        current.LoadFromDto(newCurrent.Data);
+                        if (newCurrent?.Success == true && newCurrent.Data != null)
+                        {
+                            current.LoadFromDto(newCurrent.Data);
+                        }
+                        else
+                        {
+                            await LoadAsync();
+                        }
 
                         //current.ConfirmationStatus = rst.Data.NewStatus;
                         //current.OrderStatus = SalesOrderStatusEnum.已确认;
@@ -642,7 +663,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     }
                     else
                     {
-                        StatusMessage = "确认失败：" + rst.Data?.Message;
+                        StatusMessage = "确认失败：" + (rst?.Data?.Message ?? rst?.Message);
                         await _msg.ShowWarningAsync(StatusMessage, "操作失败");
                     }
                 }
@@ -680,10 +701,17 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     };
 
                     var rst = await _salesOrderApi.CancelConfirmSalesOrdersAsync(req);
-                    if (rst.Success && rst.Data != null)
+                    if (rst?.Success == true && rst.Data != null)
                     {
                         var newCurrent = await _salesOrderApi.GetSalesOrderHeaderManagerByIdAsync(rst.Data.Uid);
-                        current.LoadFromDto(newCurrent.Data);
+                        if (newCurrent?.Success == true && newCurrent.Data != null)
+                        {
+                            current.LoadFromDto(newCurrent.Data);
+                        }
+                        else
+                        {
+                            await LoadAsync();
+                        }
 
                         StatusMessage = $"订单 {current.OrderNo} 取消确认成功：{rst.Data?.Message}";
                         _msg.ShowCardAsync(StatusMessage, 3500);
@@ -741,7 +769,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                     }
 
                     OrderHeaders.Delete(selected);
-                    CurrentOrderLines.Clear();
+                    ClearCurrentOrderLines();
                     StatusMessage = "删除成功";
                     _msg.ShowCardAsync(StatusMessage, 2500);
                 }
@@ -754,6 +782,84 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
         }
 
         #endregion
+
+        private async Task RefreshHeaderAndLinesAsync(SalesOrderHeaderManagerDto dto, Guid orderId)
+        {
+            if (dto == null)
+            {
+                await LoadAsync();
+                return;
+            }
+
+            var localModel = OrderHeaders.Items.FirstOrDefault(x => x.Uid == dto.Uid);
+            if (localModel == null)
+            {
+                localModel = new SalesOrderHeaderManagerModel();
+                localModel.LoadFromDto(dto, false);
+                OrderHeaders.AddModelToFirst(localModel);
+            }
+            else
+            {
+                localModel.LoadFromDto(dto, false);
+            }
+
+            SelectedOrderHeader = localModel;
+            await LoadLinesByHeadIdAsync(orderId);
+        }
+
+        private void ClearCurrentOrderLines()
+        {
+            if (CurrentOrderLines == null)
+            {
+                CurrentOrderLines = new SalesOrderLineManagerList();
+            }
+            else
+            {
+                CurrentOrderLines.Clear();
+            }
+            CurrentOrderLineView?.Refresh();
+        }
+
+        private void ResetCurrentOrderLineView()
+        {
+            CurrentOrderLineView = CurrentOrderLines == null
+                ? null
+                : CollectionViewSource.GetDefaultView(CurrentOrderLines.Items);
+
+            if (CurrentOrderLineView != null)
+            {
+                CurrentOrderLineView.Filter = FilterCurrentOrderLine;
+                CurrentOrderLineView.Refresh();
+            }
+        }
+
+        private bool FilterCurrentOrderLine(object item)
+        {
+            if (string.IsNullOrWhiteSpace(LineSearchText))
+            {
+                return true;
+            }
+
+            var line = item as SalesOrderLineManagerModel;
+            if (line == null)
+            {
+                return false;
+            }
+
+            var keyword = LineSearchText.Trim();
+            return ContainsText(line.Sku, keyword)
+                || ContainsText(line.CustomerSku, keyword)
+                || ContainsText(line.DescriptionEn, keyword)
+                || ContainsText(line.ColorNameEn, keyword)
+                || ContainsText(line.SubNote, keyword)
+                || line.LineNumber.ToString().IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool ContainsText(string source, string keyword)
+        {
+            return !string.IsNullOrWhiteSpace(source)
+                && source.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
 
     }
 }

@@ -433,13 +433,9 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
                         }
                     }
                 }
-                else if (UnshippedList.Count > 0)
-                {
-                    SelectedOutboundLines.Add(UnshippedList.First());
-                }
                 else
                 {
-                    StatusMessage = "没有可确认的产品数据";
+                    StatusMessage = "请先选择要加入订单的产品";
                     return;
                 }
             }
