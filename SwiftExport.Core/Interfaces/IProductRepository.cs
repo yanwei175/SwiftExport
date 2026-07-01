@@ -4,7 +4,7 @@ using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Contracts.Wrappers;
 namespace SwiftExport.Core.Interfaces;
 
-public interface IProductRepository : IRepository<Product>
+public interface IProductRepository : IRepository<Product>, IWhereQueryRepository<Product>, IObjectQueryRepository<Product>
 {
     Task<IReadOnlyList<string>> GetAllCustomerCodeListAsync();
     Task<Product?> GetBySkuAsync(string sku);

@@ -8,7 +8,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders;
 /// <summary>
 /// 采购入库行仓储实现。
 /// </summary>
-public class ReceiveLineRepository(RepositoryBaseContext context)
+public partial class ReceiveLineRepository(RepositoryBaseContext context)
     : DapperRepository<ReceiveLine>(context), IReceiveLineRepository
 {
 }

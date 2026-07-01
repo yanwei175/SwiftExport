@@ -52,7 +52,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         if (string.IsNullOrWhiteSpace(orderBy))
             orderBy = "t.CreatedDate DESC";
         else
-            orderBy = $"t.{OrderByRegex().Replace(orderBy, "")}";
+            orderBy = $"t.{DapperRepositoryComplexHelper.NormalizeOrderBy(orderBy, "CreatedDate DESC")}";
 
         if (string.IsNullOrWhiteSpace(orderBy))
             orderBy = "CreatedDate DESC";
@@ -62,7 +62,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
 
         // 3. 调用解析器，传入 "t." 前缀！
         // 这样无论 criteria 里的字段是 Main表字段还是 Join表字段，都会指向派生表 t 的列
-        var whereClause = ParseQueryCriteria(criteria, parameters, "t.");
+        var whereClause = DapperRepositoryComplexHelper.ParseQueryCriteria(criteria, parameters, "t.");
         if (!string.IsNullOrWhiteSpace(whereClause))
             sb.Append(whereClause);
 

@@ -94,7 +94,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
             }
             else
             {
-                orderBy = OrderByRegex().Replace(orderBy, string.Empty);
+                orderBy = DapperRepositoryComplexHelper.NormalizeOrderBy(orderBy, "p.Sku DESC");
                 if (string.IsNullOrWhiteSpace(orderBy))
                 {
                     orderBy = "p.Sku DESC";

@@ -4,7 +4,7 @@ using SwiftExport.Core.Entities.Relations;
 
 namespace SwiftExport.Core.Interfaces;
 
-public interface ICustomerProductRepository : IRepository<CustomerProduct>
+public interface ICustomerProductRepository : IRepository<CustomerProduct>, IBatchWriteRepository<CustomerProduct>
 {
     // ============================================================
     // 读操作（联表查询，直接返回 DTO）

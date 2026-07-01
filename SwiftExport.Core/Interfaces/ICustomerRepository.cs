@@ -2,7 +2,7 @@
 
 namespace SwiftExport.Core.Interfaces
 {
-    public interface ICustomerRepository : IRepository<Customer>
+    public interface ICustomerRepository : IRepository<Customer>, IWhereQueryRepository<Customer>
     {
         Task<bool> ExistByCustomerCode(string CustomerCode);
         Task<IReadOnlyList<string>> GetExistingCustomerCodesAsync(IEnumerable<string> CustomerCodeList);

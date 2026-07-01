@@ -76,7 +76,7 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
         if (string.IsNullOrWhiteSpace(orderBy))
             orderBy = "cp.CreatedDate DESC";
         else
-            orderBy = OrderByRegex().Replace(orderBy, "");
+            orderBy = DapperRepositoryComplexHelper.NormalizeOrderBy(orderBy, "cp.CreatedDate DESC");
 
         // ----------------------------------------------------------------
         // 构建 WHERE 子句（基类 ParseQueryCriteria 生成的条件作用于 cp 表，
@@ -85,7 +85,7 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
         var parameters = new DynamicParameters();
 
         // 先用基类工具生成动态条件字符串（字段不带表别名）
-        var rawWhere = ParseQueryCriteria(criteria, parameters);
+        var rawWhere = DapperRepositoryComplexHelper.ParseQueryCriteria(criteria, parameters);
 
         // 将 CategoryId 条件从 cp 改指向 p（ProductCategory 来自 Product.CategoryId）
         // ParseQueryCriteria 生成的格式为 [CategoryId]，替换为 p.[CategoryId]

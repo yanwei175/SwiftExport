@@ -21,9 +21,9 @@ public class PackingListService(
     IReceiveHeadRepository receiveHeadRepository,
     IReceiveLineRepository receiveLineRepository,
     IPurchaseOrderLineRepository purchaseOrderLineRepository,
-    IRepository<SalesOrderHeader> salesOrderHeaderRepository,
+    ISalesOrderHeadRepository salesOrderHeaderRepository,
     IIndependentDemandRepository salesDemandRepository,
-    IRepository<Product> productRepository,
+    IProductRepository productRepository,
     IBomRepository bomRepository,
     IInventoryRepository inventoryRepository,
     IStockService stockService,
@@ -37,9 +37,9 @@ public class PackingListService(
     private readonly IReceiveHeadRepository _receiveHeadRepository = receiveHeadRepository;
     private readonly IReceiveLineRepository _receiveLineRepository = receiveLineRepository;
     private readonly IPurchaseOrderLineRepository _purchaseOrderLineRepository = purchaseOrderLineRepository;
-    private readonly IRepository<SalesOrderHeader> _salesOrderHeaderRepository = salesOrderHeaderRepository;
+    private readonly ISalesOrderHeadRepository _salesOrderHeaderRepository = salesOrderHeaderRepository;
     private readonly IIndependentDemandRepository _salesDemandRepository = salesDemandRepository;
-    private readonly IRepository<Product> _productRepository = productRepository;
+    private readonly IProductRepository _productRepository = productRepository;
     private readonly IBomRepository _bomRepository = bomRepository;
     private readonly IInventoryRepository _inventoryRepository = inventoryRepository;
     private readonly IStockService _stockService = stockService;

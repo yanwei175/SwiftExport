@@ -6,7 +6,7 @@ namespace SwiftExport.Core.Interfaces
     /// <summary>
     /// 销售订单拆解中间表仓储接口。
     /// </summary>
-    public interface IDependentDemandRepository : IRepository<DependentDemand>
+    public interface IDependentDemandRepository : IRepository<DependentDemand>, ICriteriaQueryRepository<DependentDemand>, IBatchWriteRepository<DependentDemand>
     {
         /// <summary>
         /// 根据来源类型与来源单号查询中间表记录。
@@ -34,7 +34,7 @@ namespace SwiftExport.Core.Interfaces
         /// <summary>
         /// 按业务维度分页查询（用于管理页）。
         /// </summary>
-       new Task<PagedResult<DependentDemand>> GetPagedListAsync(
+       Task<PagedResult<DependentDemand>> GetPagedListAsync(
             QueryCriteria criteria,
             int pageIndex,
             int pageSize,

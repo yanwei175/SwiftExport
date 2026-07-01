@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Core.Common;
@@ -9,59 +9,70 @@ using SwiftExport.Infrastructure.Data;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Reflection;
-using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Base;
 
-public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T> where T : BaseEntity
+/// <summary>
+/// 轻量 Dapper 泛型仓储基类。
+/// 只承载单实体 CRUD 和基础按 Uid 查询；复杂批量、动态查询、分页查询应下沉到具体业务仓储。
+/// </summary>
+public class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T> where T : BaseEntity
 {
     private readonly DbSession _session = context.Session ?? throw new ArgumentNullException(nameof(context.Session));
     private readonly IAuditStampService _auditStamp = context.AuditStamp;
-
     private ILogger? _loggerInstance;
+
     protected ILogger Logger => _loggerInstance ??= context.LoggerFactory.CreateLogger(GetType());
-
-    protected static readonly string TableName = typeof(T).GetCustomAttribute<TableAttribute>()?.Name ?? typeof(T).Name;
-
-    private static readonly List<string> _writeableProps = GetWriteableProperties();
-    // 辅助属性：当前连接和事务
     protected IDbConnection Connection => _session.Connection;
     protected IDbTransaction? Transaction => _session.Transaction;
+    protected IAuditStampService AuditStamp => _auditStamp;
 
-    // =============================================================
-    // 利用反射一次性获取属性
-    // =============================================================
+    protected virtual string TableName => typeof(T).GetCustomAttribute<TableAttribute>()?.Name ?? typeof(T).Name;
+    protected virtual IReadOnlyList<string> WriteableProperties => WriteablePropertyCache.Value;
+    protected virtual IReadOnlyList<string> InsertProperties => WriteableProperties;
+    protected virtual IReadOnlyList<string> UpdateProperties => WriteableProperties
+        .Where(p => !p.Equals(nameof(BaseEntity.Uid), StringComparison.OrdinalIgnoreCase)
+                 && !p.Equals(nameof(BaseEntity.Version), StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    private static readonly Lazy<IReadOnlyList<string>> WriteablePropertyCache = new(GetWriteableProperties);
+
     private static List<string> GetWriteableProperties()
     {
-        // 这里的排除列表你可以根据自己的 BaseEntity 随意调整
         var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "IsDeleted", "CreateTime", "UpdateTime", "CreatedTime", "UpdatedTime"
-            };
+        {
+            "IsDeleted",
+            "CreateTime",
+            "UpdateTime",
+            "CreatedTime",
+            "UpdatedTime"
+        };
 
-        return [.. typeof(T).GetProperties()
+        return typeof(T).GetProperties()
             .Where(p => p.CanWrite && !excluded.Contains(p.Name))
-            .Select(p => p.Name)];
+            .Select(p => p.Name)
+            .ToList();
     }
-
 
     public virtual async Task<bool> ExistsIdAsync(Guid uid)
     {
         var sql = $"SELECT COUNT(1) FROM [{TableName}] WITH(NOLOCK) WHERE [Uid] = @Uid";
         return await Connection.ExecuteScalarAsync<int>(sql, new { Uid = uid }, transaction: Transaction) > 0;
     }
+
     public virtual async Task<IReadOnlyList<Guid>> GetExistingIdListAsync(IEnumerable<Guid> uidList, bool withUpdLock = false)
     {
         if (uidList == null || !uidList.Any()) return [];
-        var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+
+        var lockHint = GetLockHint(withUpdLock);
         var sql = $"SELECT [Uid] FROM [{TableName}] {lockHint} WHERE [Uid] IN @Uids";
-        var rst = await Connection.QueryAsync<Guid>(sql, new { Uids = uidList }, transaction: Transaction);
-        return [.. rst];
+        var result = await Connection.QueryAsync<Guid>(sql, new { Uids = uidList }, transaction: Transaction);
+        return [.. result];
     }
 
     public virtual async Task<T?> GetByIdAsync(Guid uid, bool withUpdLock = false)
     {
-        var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+        var lockHint = GetLockHint(withUpdLock);
         var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [Uid] = @Uid AND (IsDeleted = 0 OR IsDeleted IS NULL)";
         return await Connection.QuerySingleOrDefaultAsync<T>(sql, new { Uid = uid }, transaction: Transaction);
     }
@@ -69,12 +80,12 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
     public virtual async Task<IReadOnlyList<T>> GetByIdListAsync(IEnumerable<Guid> uidList, bool withUpdLock = false)
     {
         if (uidList == null || !uidList.Any()) return [];
-        var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
-        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [Uid] IN @Uids AND (IsDeleted = 0 OR IsDeleted IS NULL)";
-        var rst = await Connection.QueryAsync<T>(sql, new { Uids = uidList }, transaction: Transaction);
-        return [.. rst];
-    }
 
+        var lockHint = GetLockHint(withUpdLock);
+        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [Uid] IN @Uids AND (IsDeleted = 0 OR IsDeleted IS NULL)";
+        var result = await Connection.QueryAsync<T>(sql, new { Uids = uidList }, transaction: Transaction);
+        return [.. result];
+    }
 
     public virtual async Task<T?> GetSingleEntityAsync()
     {
@@ -82,542 +93,162 @@ public partial class DapperRepository<T>(RepositoryBaseContext context) : IRepos
         return await Connection.QueryFirstOrDefaultAsync<T>(sql, transaction: Transaction);
     }
 
-
     public virtual async Task<IReadOnlyList<T>> GetAllAsync()
     {
         var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE IsDeleted = 0 OR IsDeleted IS NULL ORDER BY ISNULL(UpdatedDate, CreatedDate) DESC";
-        var rst = await Connection.QueryAsync<T>(sql, transaction: Transaction);
-        return [.. rst];
-    }
-    public virtual async Task<IReadOnlyList<T>> GetListAsync(string whereSql, object? param = null, bool withUpdLock = false)
-    {
-        // 根据参数决定用 NOLOCK 还是 UPDLOCK
-        string lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
-
-        // 1. 基础 SQL 已经包含了 WHERE (IsDeleted = 0 OR IsDeleted IS NULL)
-        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE IsDeleted = 0 OR IsDeleted IS NULL";
-
-        if (!string.IsNullOrWhiteSpace(whereSql))
-        {
-            // 2. 处理用户传入的条件
-            var condition = whereSql.Trim();
-
-            // 如果用户习惯性传了 "WHERE Sku = ...", 我们要把它去掉
-            if (condition.StartsWith("WHERE", StringComparison.OrdinalIgnoreCase))
-            {
-                condition = condition[5..]; // 去掉 "WHERE" 字符
-            }
-
-            // 3. ★ 关键修正：用 AND 连接，而不是再加一个 WHERE ★
-            // 加上括号 () 是为了防止用户传入 OR 条件破坏前面的 IsDeleted 逻辑
-            sql += $" AND ({condition})";
-        }
-
-        // 4. 执行查询
-        var rst = await Connection.QueryAsync<T>(sql, param, transaction: Transaction);
-        return rst.AsList(); // 或者 return [.. rst]; (C# 12写法)
-    }
-
-    public virtual async Task<IReadOnlyList<T>> GetListAsync(object noNameObj, bool withUpdLock = false)
-    {
-        var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
-        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE (IsDeleted = 0 OR IsDeleted IS NULL)";
-        if (noNameObj != null)
-        {
-            var props = noNameObj.GetType().GetProperties();
-            if (props.Length > 0)
-            {
-                var conditions = string.Join(" AND ", props.Select(p => $"[{p.Name}] = @{p.Name}"));
-                sql += $" AND {conditions}";
-            }
-        }
-        var rst = await Connection.QueryAsync<T>(sql, noNameObj, transaction: Transaction);
-        return [.. rst];
-    }
-
-    public virtual async Task<IReadOnlyList<T>> GetListAsync(QueryCriteria criteria, bool withUpdLock = false)
-    {
-        var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
-        var sb = new StringBuilder($"SELECT * FROM [{TableName}] {lockHint} WHERE IsDeleted = 0 OR IsDeleted IS NULL");
-        var parameters = new DynamicParameters();
-
-        var whereClause = ParseQueryCriteria(criteria, parameters);
-        sb.Append(whereClause);
-
-        var finalSql = sb.ToString();
-
-        // ★ 仓储层专属：动态 SQL 追踪日志（仅 Debug 级别生效）
-        if (Logger.IsEnabled(LogLevel.Debug))
-        {
-            Logger.LogDebug("执行动态查询 [{TableName}]，生成的 SQL: {Sql}", TableName, finalSql);
-        }
-
-        var result = await Connection.QueryAsync<T>(finalSql, parameters, transaction: Transaction);
+        var result = await Connection.QueryAsync<T>(sql, transaction: Transaction);
         return [.. result];
     }
-
-
-
-
-    [System.Text.RegularExpressions.GeneratedRegex(@"[^a-zA-Z0-9_,\s\.\[\]]")]
-    protected static partial System.Text.RegularExpressions.Regex OrderByRegex();
-    /// <summary>
-    /// 泛型分页查询 (基于 QueryCriteria)
-    /// </summary>
-    /// <param name="criteria">查询条件封装对象</param>
-    /// <param name="pageIndex">页码 (索引从1开始,内部会处理)</param>
-    /// <param name="pageSize">每页条数</param>
-    /// <param name="orderBy">排序字段 (例如 "ID DESC")，必填，否则分页会报错</param>
-    /// <returns>分页结果</returns>
-    public virtual async Task<PagedResult<T>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
-    {
-        // 🛡️ 安全墙：清洗 orderBy
-        if (string.IsNullOrWhiteSpace(orderBy))
-        {
-            orderBy = "CreatedDate DESC";
-        }
-        else
-        {
-            orderBy = OrderByRegex().Replace(orderBy, "");
-        }
-
-        // 基础底座
-        var sb = new StringBuilder("WHERE (IsDeleted = 0 OR IsDeleted IS NULL)"); // 建议用 = 0 替代 <> 1，很多数据库对 = 的索引优化更好
-        var parameters = new DynamicParameters();
-
-        // 获取动态条件 (此时 whereClause 类似于 " AND [Code] = @Code_0 AND ([A]=@.. OR [B]=@..)")
-        var whereClause = ParseQueryCriteria(criteria, parameters);
-
-        //直接 Append 即可！因为 whereClause 自己已经带了 AND 开头了。
-        if (!string.IsNullOrWhiteSpace(whereClause))
-        {
-            sb.Append(whereClause);
-        }
-
-        // 分页计算
-        if (pageIndex < 1) pageIndex = 1;
-        int offset = (pageIndex - 1) * pageSize;
-
-        parameters.Add("@Offset", offset);
-        parameters.Add("@Limit", pageSize);
-
-        var sql = $@"
-            SELECT COUNT(1) FROM [{TableName}] WITH(NOLOCK) {sb};
-            SELECT * FROM [{TableName}] WITH(NOLOCK) {sb} 
-            ORDER BY {orderBy} 
-            OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
-
-        // ★ 日志追踪
-        if (Logger.IsEnabled(LogLevel.Debug))
-        {
-            Logger.LogDebug("执行分页动态查询 [{TableName}]，生成的 SQL: {Sql}", TableName, sql);
-        }
-
-        using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
-        var total = await multi.ReadFirstAsync<int>();
-        var items = await multi.ReadAsync<T>();
-
-        return new PagedResult<T>
-        {
-            Items = [.. items],
-            TotalCount = total,
-            PageIndex = pageIndex,
-            PageSize = pageSize
-        };
-    }
-
-
-    // =============================================================
-    // 增删改 (Write) - 使用 Output 这里的 Id 为 int
-    // =============================================================
 
     public virtual async Task<Guid> AddAsync(T entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
 
-        // 自动填充审计字段（CreatedBy/CreatedDate/UpdatedBy/UpdatedDate）
-        _auditStamp.StampForInsert(entity);
-        entity.IsDeleted = false; // 确保新增时 IsDeleted 字段为 false
-        entity.Uid = GuidSequentialGenerator.NewGuid(); // 预先生成 Uid，避免后续查询时无法获取到主键值
-        if (entity.Version <= 0) entity.Version = 1;
-        // 使用静态缓存的属性列表，不用每次都反射
-        var columns = string.Join(", ", _writeableProps.Select(p => $"[{p}]"));
-        var paramsName = string.Join(", ", _writeableProps.Select(p => $"@{p}"));
-
-        var sql = $@"INSERT INTO [{TableName}] ({columns}) VALUES ({paramsName});";
-
+        PrepareForInsert(entity);
+        var sql = BuildInsertSql();
         await Connection.ExecuteAsync(sql, entity, transaction: Transaction);
-
         return entity.Uid;
     }
+
     public virtual async Task<T> UpdateAsync(T entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
-        // 自动填充审计字段（UpdatedBy/UpdatedDate 强制刷新）
-        _auditStamp.StampForUpdate(entity);
 
-        // 中文注释：乐观并发控制。
-        // 1) 使用原 Version 做 WHERE 条件
-        // 2) 命中成功后 Version 自增
-        var originalVersion = entity.Version <= 0 ? 1 : entity.Version;
-        entity.Version = originalVersion + 1;
-
-        // ★ Version 从 writeableProps 排除，由数据库自增
-        var setClause = string.Join(", ",
-            _writeableProps
-                .Where(p => p != "Version" && p != "Uid")
-                .Select(p => $"[{p}] = @{p}"))
-            + ", [Version] = [Version] + 1";
-
-
-        var sql = $@"
-                    UPDATE [{TableName}] 
-                    SET {setClause}
-                    OUTPUT INSERTED.*
-                    WHERE [Uid] = @Uid AND [Version] = @OriginalVersion";
-
-        var parameters = new DynamicParameters(entity);
-        parameters.Add("OriginalVersion", originalVersion);
+        var originalVersion = PrepareForUpdate(entity);
+        var sql = BuildUpdateSql();
+        var parameters = BuildUpdateParameters(entity, originalVersion);
         var result = await Connection.QuerySingleOrDefaultAsync<T>(sql, parameters, transaction: Transaction);
-        if (result == null)
-        {
-            throw new DBConcurrencyException(
-                $"[{TableName}] 更新失败：数据已被其他用户修改（Uid={entity.Uid}, Version={originalVersion}）。");
-        }
-        return result;
+        return result ?? throw CreateConcurrencyException(entity, originalVersion);
     }
 
     public virtual async Task<int> DeleteSoftAsync(Guid uid)
     {
-        var sql = $"UPDATE [{TableName}] SET UpdatedDate = @UpdatedDate, IsDeleted = 1 WHERE [Uid] = @Uid";
-        return await Connection.ExecuteAsync(sql, new { Uid = uid, UpdatedDate = DateTime.Now }, transaction: Transaction);
+        var sql = BuildSoftDeleteSql();
+        return await Connection.ExecuteAsync(sql, BuildDeleteParameters(uid), transaction: Transaction);
     }
 
     public virtual async Task<int> DeleteAsync(Guid uid, bool softDelete = true)
     {
-        string sql;
-        if (softDelete)
-        {
-            sql = $"UPDATE [{TableName}] SET UpdatedDate = @UpdatedDate, IsDeleted = 1 WHERE [Uid] = @Uid";
-        }
-        else
-        {
-            sql = $"DELETE FROM [{TableName}] WHERE [Uid] = @Uid";
-        }
-        return await Connection.ExecuteAsync(sql, new { Uid = uid, UpdatedDate = DateTime.Now }, transaction: Transaction);
+        var sql = softDelete ? BuildSoftDeleteSql() : BuildHardDeleteSql();
+        return await Connection.ExecuteAsync(sql, BuildDeleteParameters(uid), transaction: Transaction);
     }
 
-    // =============================================================
-    // 批量操作 (Batch Write)
-    // =============================================================
-    public virtual async Task<IReadOnlyList<Guid>> AddRangeAsync(IEnumerable<T> entities)
+    protected virtual string GetLockHint(bool withUpdLock) => withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+
+    protected virtual void PrepareForInsert(T entity)
     {
-        if (entities == null) throw new ArgumentException("实体集合不能为空");
-        var entityList = entities.ToList();
-        if (entityList.Count == 0) return [];
-
-        //遍历实体设置 UpdatedDate（如果有这个属性的话），确保批量插入时这个字段不为 null
-        foreach (var entity in entityList)
-        {
-            // 自动审计打戳（CreatedBy/CreatedDate/UpdatedBy/UpdatedDate）
-            _auditStamp.StampForInsert(entity);
-            entity.IsDeleted = false; // 确保批量插入时 IsDeleted 字段为 false
-            entity.Uid = GuidSequentialGenerator.NewGuid(); // 预先生成 Uid，避免后续查询时无法获取到主键值
-            if (entity.Version <= 0) entity.Version = 1;
-        }
-        // 1. 预先获取 PropertyInfo
-        // 这里的 _writeableProps 是我们在类里定义的静态 List<string>
-        var props = _writeableProps
-            .Select(name => typeof(T).GetProperty(name))
-            .Where(p => p != null)
-            .Select(p => p!)
-            .ToList();
-
-        var columns = string.Join(", ", _writeableProps.Select(c => $"[{c}]"));
-
-        // 2. 构造 SQL 和 参数
-        var valueRows = new List<string>();
-        var parameters = new DynamicParameters();
-
-        for (int i = 0; i < entityList.Count; i++)
-        {
-            var rowParams = new List<string>();
-            foreach (var prop in props)
-            {
-                var paramName = $"p{i}_{prop.Name}";
-
-                // 直接取值
-                parameters.Add(paramName, prop.GetValue(entityList[i]));
-                rowParams.Add($"@{paramName}");
-            }
-            valueRows.Add($"({string.Join(", ", rowParams)})");
-        }
-
-        var sql = $@"
-                    INSERT INTO [{TableName}] ({columns})
-                    OUTPUT INSERTED.[Uid]
-                    VALUES {string.Join(", ", valueRows)};
-                    ";
-
-        // 3. 执行 (直接用 Connection 和 Transaction 属性)
-        var newUids = (await Connection.QueryAsync<Guid>(
-                            sql,
-                            parameters,
-                            transaction: Transaction)).ToList();
-
-        // 4. 回写 Uid
-        var uidProperty = typeof(T).GetProperty("Uid");
-        if (uidProperty != null && uidProperty.CanWrite)
-        {
-            for (int i = 0; i < newUids.Count && i < entityList.Count; i++)
-            {
-                uidProperty.SetValue(entityList[i], newUids[i]);
-            }
-        }
-
-        return newUids;
+        _auditStamp.StampForInsert(entity);
+        entity.IsDeleted = false;
+        entity.Uid = GuidSequentialGenerator.NewGuid();
+        if (entity.Version <= 0) entity.Version = 1;
     }
 
-    public virtual async Task<int> DeleteRangeAsync(IEnumerable<Guid> uidList, bool softDelete = true)
+    protected virtual int PrepareForUpdate(T entity)
     {
-        if (uidList == null || !uidList.Any()) return 0;
+        _auditStamp.StampForUpdate(entity);
 
-        string sql;
-        if (softDelete)
-        {
-            sql = $"UPDATE [{TableName}] SET IsDeleted = 1 WHERE Uid IN @UidList";
-        }
-        else
-        {
-            sql = $"DELETE FROM [{TableName}] WHERE Uid IN @UidList";
-        }
-        // 直接用 Connection 和 Transaction 属性
-        return await Connection.ExecuteAsync(sql, new { UidList = uidList }, transaction: Transaction);
+        var originalVersion = entity.Version <= 0 ? 1 : entity.Version;
+        entity.Version = originalVersion + 1;
+        return originalVersion;
     }
-    public virtual async Task<int> DeleteRangeSoftAsync(IEnumerable<Guid> uidList)
+
+    protected virtual string BuildInsertSql()
     {
-        if (uidList == null || !uidList.Any()) return 0;
-
-        var sql = $"UPDATE [{TableName}] SET IsDeleted=1 WHERE Uid IN @UidList";
-
-        // 直接用 Connection 和 Transaction 属性
-        return await Connection.ExecuteAsync(sql, new { UidList = uidList }, transaction: Transaction);
+        var columns = string.Join(", ", InsertProperties.Select(p => $"[{p}]"));
+        var values = string.Join(", ", InsertProperties.Select(p => $"@{p}"));
+        return $"INSERT INTO [{TableName}] ({columns}) VALUES ({values});";
     }
-    public virtual async Task<int> UpdateRangeAsync(IEnumerable<T> entities)
+
+    protected virtual string BuildUpdateSql()
     {
-        if (entities == null) throw new ArgumentException("实体集合不能为空");
-        var entityList = entities.OrderBy(x => x.Uid).ToList();
-        if (entityList.Count == 0) return 0;
-        //遍历实体设置 UpdatedDate（如果有这个属性的话），确保批量更新时这个字段不为 null
-
-        // 自动审计打戳（UpdatedBy/UpdatedDate 强制刷新）
-        foreach (var entity in entityList)
-            _auditStamp.StampForUpdate(entity);
-
-        // 1. 准备属性
-        var updateProps = _writeableProps
-            .Select(name => typeof(T).GetProperty(name))
-            .Where(p => p != null && p.Name != "Version" && p.Name != "Uid")// ★ Version/Uid 排除
-            .Select(p => p!)
-            .ToList();
-
-        var uidProp = typeof(T).GetProperty("Uid") ?? throw new InvalidOperationException("实体必须包含 Uid 属性才能进行批量更新");
-        var versionProp = typeof(T).GetProperty("Version")
-            ?? throw new InvalidOperationException("实体必须包含 Version 属性");
-
-        var parameters = new DynamicParameters();
-        var sqlBuilder = new StringBuilder();
-
-        for (int i = 0; i < entityList.Count; i++)
+        var setClause = string.Join(", ", UpdateProperties.Select(p => $"[{p}] = @{p}"));
+        if (!string.IsNullOrWhiteSpace(setClause))
         {
-            var entity = entityList[i];
-            var originalVersion = entity.Version <= 0 ? 1 : entity.Version;
-
-            var setClauses = updateProps
-                             .Select(prop =>
-                             {
-                                 var paramName = $"p{i}_{prop.Name}";
-                                 parameters.Add(paramName, prop.GetValue(entity));
-                                 return $"[{prop.Name}] = @{paramName}";
-                             }).ToList();
-            // ★ Version 由数据库自增
-            setClauses.Add("[Version] = [Version] + 1");
-
-            var uidParamName = $"p{i}_Uid";
-            var verParamName = $"p{i}_OriginalVersion";
-            parameters.Add(uidParamName, uidProp.GetValue(entity));
-            parameters.Add(verParamName, originalVersion);
-            // ★ OUTPUT 同时返回 Uid 和新 Version
-            sqlBuilder.AppendLine($@"
-                                    UPDATE [{TableName}]
-                                    SET {string.Join(", ", setClauses)}
-                                    OUTPUT INSERTED.[Uid], INSERTED.[Version]
-                                    WHERE [Uid] = @{uidParamName} AND [Version] = @{verParamName};");
-        }
-        var results = new List<UpdateResult>();
-
-        using (var multi = await Connection.QueryMultipleAsync(
-            sqlBuilder.ToString(), parameters, transaction: Transaction))
-        {
-            // 每条 UPDATE 对应一个结果集，逐个读取
-            while (!multi.IsConsumed)
-            {
-                var row = await multi.ReadSingleOrDefaultAsync<UpdateResult>();
-                if (row != null)
-                    results.Add(row);
-            }
-        }
-        // 并发冲突检测
-        if (results.Count < entityList.Count)
-        {
-            var updatedUids = results.Select(x => x.Uid).ToHashSet();
-            var conflictUids = entityList.Select(x => x.Uid)
-                                        .Where(uid => !updatedUids.Contains(uid))
-                                        .ToList();
-
-            throw new DBConcurrencyException(
-                $"并发冲突：以下 Uid 更新失败（可能已被他人修改）=> {string.Join(",", conflictUids)}");
+            setClause += ", ";
         }
 
-        // ★ 用数据库返回的新 Version 更新实体，不靠应用层猜
-        foreach (var result in results)
-        {
-            var entity = entityList.First(x => x.Uid == result.Uid);
-            versionProp.SetValue(entity, result.Version);
-        }
-        return results.Count;
+        setClause += "[Version] = [Version] + 1";
+
+        return $@"
+UPDATE [{TableName}]
+SET {setClause}
+OUTPUT INSERTED.*
+WHERE [Uid] = @Uid AND [Version] = @OriginalVersion;";
     }
 
-    /// <summary>
-    /// 辅助方法：生成单个条件的 SQL 片段。支持 "t.FieldName" 或 "FieldName" 格式
-    /// </summary>
-    private static string BuildConditionSql(string propName, QueryCondition cond, string paramName, DynamicParameters parameters)
+    protected virtual DynamicParameters BuildUpdateParameters(T entity, int originalVersion)
     {
-        // 核心修复：处理带别名的字段，例如 t.CategoryId -> t.[CategoryId]
-        string safeField;
-        if (propName.Contains('.'))
-        {
-            var parts = propName.Split('.');
-            // parts[0] 是别名 (t), parts[1] 是字段名
-            string field = parts[1].Replace("[", "").Replace("]", "");
-            safeField = $"{parts[0]}.[{field}]";
-        }
-        else
-        {
-            safeField = $"[{propName.Replace("[", "").Replace("]", "")}]";
-        }
-
-        switch (cond.操作符)
-        {
-            case 查询操作符.等于:
-                parameters.Add(paramName, cond.值1);
-                return $"{safeField} = {paramName}";
-
-            case 查询操作符.模糊匹配:
-                parameters.Add(paramName, $"%{cond.值1}%");
-                return $"{safeField} LIKE {paramName}";
-
-            case 查询操作符.大于:
-                parameters.Add(paramName, cond.值1);
-                return $"{safeField} > {paramName}";
-
-            case 查询操作符.小于:
-                parameters.Add(paramName, cond.值1);
-                return $"{safeField} < {paramName}";
-
-            case 查询操作符.大于等于:
-                parameters.Add(paramName, cond.值1);
-                return $"{safeField} >= {paramName}";
-
-            case 查询操作符.小于等于:
-                parameters.Add(paramName, cond.值1);
-                return $"{safeField} <= {paramName}";
-
-            case 查询操作符.区间:
-                string pStart = $"{paramName}_Start";
-                string pEnd = $"{paramName}_End";
-                parameters.Add(pStart, cond.值1);
-                parameters.Add(pEnd, cond.值2);
-                return $"{safeField} BETWEEN {pStart} AND {pEnd}";
-
-            case 查询操作符.包含某值:
-                // Dapper 处理 IN 子句：对于集合类型，需要显式包含在圆括号内 IN (@ParamName)
-                // 在参数字典中，保存真正的参数名（不带@），由于Dapper的特定版本处理 List 时替换，圆括号是明确要求的标准写法
-                //parameters.Add(paramName.TrimStart('@'), cond.值1);
-                //return $"{safeField} IN (@{paramName.TrimStart('@')})";
-
-                parameters.Add(paramName, cond.值1);
-                return $"{safeField} IN {paramName}";
-
-            default:
-                return "1=1";
-        }
+        var parameters = new DynamicParameters(entity);
+        parameters.Add("OriginalVersion", originalVersion);
+        return parameters;
     }
 
-    /// <summary>
-    /// 解析查询条件对象为 SQL
-    /// </summary>
-    protected string ParseQueryCriteria(QueryCriteria criteria, DynamicParameters parameters, string prefix = "")
+    protected virtual string BuildSoftDeleteSql()
     {
-        if (criteria == null || (criteria.Items.Count == 0 && criteria.OrGroups.Count == 0))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sqlBuilder = new();
-
-        // Part 1: AND 条件
-        int andIndex = 0;
-        foreach (var item in criteria.Items)
-        {
-            // 拼接前缀：如果不为空且不含点，则加上前缀
-            string fieldName = (string.IsNullOrEmpty(prefix) || item.Field.Contains('.'))
-                               ? item.Field
-                               : $"{prefix}{item.Field}";
-            // 参数名不能有点，将点替换为下划线
-            string paramName = $"@{fieldName.Replace(".", "_")}_A{andIndex}";
-
-            string sqlPart = BuildConditionSql(fieldName, item.Condition, paramName, parameters);
-            sqlBuilder.Append($" AND {sqlPart}");
-            andIndex++;
-        }
-
-        // Part 2: OR 分组
-        int groupIndex = 0;
-        foreach (var groupList in criteria.OrGroups)
-        {
-            if (groupList.Count == 0) continue;
-
-            List<string> orParts = [];
-            int orItemIndex = 0;
-
-            foreach (var item in groupList)
-            {
-                string fieldName = (string.IsNullOrEmpty(prefix) || item.Field.Contains('.'))
-                                   ? item.Field
-                                   : $"{prefix}{item.Field}";
-
-                string paramName = $"@Or_{groupIndex}_{fieldName.Replace(".", "_")}_{orItemIndex}";
-                orParts.Add(BuildConditionSql(fieldName, item.Condition, paramName, parameters));
-                orItemIndex++;
-            }
-
-            if (orParts.Count > 0)
-            {
-                string groupSql = $"({string.Join(" OR ", orParts)})";
-                // 整个 OR 组作为一个整体，与外部用 AND 连接
-                sqlBuilder.Append($" AND {groupSql}");
-            }
-            groupIndex++;
-        }
-
-        // 返回拼接后的 WHERE 条件片段（不包含 WHERE 关键字）
-        return sqlBuilder.ToString();
+        return $"UPDATE [{TableName}] SET UpdatedDate = @UpdatedDate, IsDeleted = 1 WHERE [Uid] = @Uid";
     }
-    private class UpdateResult
+
+    protected virtual string BuildHardDeleteSql()
     {
-        public Guid Uid { get; set; }
-        public int Version { get; set; }
+        return $"DELETE FROM [{TableName}] WHERE [Uid] = @Uid";
     }
 
+    protected virtual object BuildDeleteParameters(Guid uid)
+    {
+        return new { Uid = uid, UpdatedDate = DateTime.Now };
+    }
+
+    protected virtual DBConcurrencyException CreateConcurrencyException(T entity, int originalVersion)
+    {
+        return new DBConcurrencyException(
+            $"[{TableName}] 更新失败：数据已被其他用户修改（Uid={entity.Uid}, Version={originalVersion}）。");
+    }
+
+    protected Task<IReadOnlyList<T>> GetListCoreAsync(string whereSql, object? param = null, bool withUpdLock = false)
+    {
+        return DapperRepositoryComplexHelper.GetListByWhereAsync<T>(
+            Connection, Transaction, TableName, whereSql, param, withUpdLock);
+    }
+
+    protected Task<IReadOnlyList<T>> GetListCoreAsync(object? criteriaObject, bool withUpdLock = false)
+    {
+        return DapperRepositoryComplexHelper.GetListByObjectAsync<T>(
+            Connection, Transaction, TableName, criteriaObject, withUpdLock);
+    }
+
+    protected Task<IReadOnlyList<T>> GetListCoreAsync(QueryCriteria criteria, bool withUpdLock = false)
+    {
+        return DapperRepositoryComplexHelper.GetListByCriteriaAsync<T>(
+            Connection, Transaction, TableName, criteria, Logger, withUpdLock);
+    }
+
+    protected Task<PagedResult<T>> GetPagedListCoreAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "CreatedDate DESC")
+    {
+        return DapperRepositoryComplexHelper.GetPagedListAsync<T>(
+            Connection, Transaction, TableName, criteria, pageIndex, pageSize, orderBy, Logger);
+    }
+
+    protected Task<IReadOnlyList<Guid>> AddRangeCoreAsync(IEnumerable<T> entities)
+    {
+        return DapperRepositoryComplexHelper.AddRangeAsync(
+            Connection, Transaction, TableName, AuditStamp, entities);
+    }
+
+    protected Task<int> UpdateRangeCoreAsync(IEnumerable<T> entities)
+    {
+        return DapperRepositoryComplexHelper.UpdateRangeAsync(
+            Connection, Transaction, TableName, AuditStamp, entities);
+    }
+
+    protected Task<int> DeleteRangeCoreAsync(IEnumerable<Guid> uidList, bool softDelete = true)
+    {
+        return DapperRepositoryComplexHelper.DeleteRangeAsync<T>(
+            Connection, Transaction, TableName, uidList, softDelete);
+    }
+
+    protected Task<int> DeleteRangeSoftCoreAsync(IEnumerable<Guid> uidList)
+    {
+        return DapperRepositoryComplexHelper.DeleteRangeSoftAsync<T>(
+            Connection, Transaction, TableName, uidList);
+    }
 }

@@ -99,7 +99,7 @@ Controller 放在：
 1. 确认 Entity 是否已存在于 `SwiftExport.Core/Entities/**`。
 2. 在 `SwiftExport.Core/Interfaces` 新增或扩展 `IxxxRepository`。
 3. 在 `SwiftExport.Infrastructure/Repositories/<Module>` 新增 `XxxRepository`。
-4. 能复用 `DapperRepository<TEntity>` 时优先继承它。
+4. 能复用轻量 CRUD 时优先继承 `DapperRepository<TEntity>`。
 5. 构造函数优先依赖 `RepositoryBaseContext`。
 6. 查询使用当前 `Connection`。
 7. 事务使用当前 `Transaction`。
@@ -145,6 +145,39 @@ WHERE DocumentNo = @DocumentNo
     }
 }
 ```
+
+### 3.1 泛型仓储边界
+
+`IRepository<TEntity>` 和 `DapperRepository<TEntity>` 只承载所有实体都稳定适用的轻量能力：
+
+- `ExistsIdAsync`
+- `GetExistingIdListAsync`
+- `GetByIdAsync`
+- `GetByIdListAsync`
+- `GetSingleEntityAsync`
+- `GetAllAsync`
+- `AddAsync`
+- `UpdateAsync`
+- `DeleteAsync`
+- `DeleteSoftAsync`
+
+复杂能力必须由具体业务仓储显式声明，不要加回 `IRepository<TEntity>`：
+
+- 批量新增、批量更新、批量删除。
+- `QueryCriteria` 动态查询。
+- 动态分页查询。
+- 任意 `whereSql` 查询。
+- 匿名对象条件查询。
+
+需要复杂能力时，在具体接口继承对应能力接口：
+
+- `IBatchWriteRepository<TEntity>`
+- `IWhereQueryRepository<TEntity>`
+- `IObjectQueryRepository<TEntity>`
+- `ICriteriaQueryRepository<TEntity>`
+- `IPagedCriteriaRepository<TEntity>`
+
+实现层可复用 Infrastructure 内部 helper 或 `DapperRepository<TEntity>` 的 `protected ...CoreAsync` 方法，但公开方法必须出现在具体业务仓储上。
 
 ### 4. 修改 Repository 安全检查
 

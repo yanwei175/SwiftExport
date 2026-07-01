@@ -21,7 +21,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
         {
             if (string.IsNullOrWhiteSpace(sourceType) || sourceUid == Guid.Empty) return [];
 
-            var list = await GetListAsync(new { SourceType = sourceType.Trim(), SourceUid = sourceUid });
+            var list = await GetListCoreAsync(new { SourceType = sourceType.Trim(), SourceUid = sourceUid });
             return [.. list];
         }
 
@@ -33,7 +33,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
             if (string.IsNullOrWhiteSpace(sourceType) || sourceSoLineId == Guid.Empty)
                 return [];
 
-            var list = await GetListAsync(new { SourceType = sourceType.Trim(), SourceLineId = sourceSoLineId });
+            var list = await GetListCoreAsync(new { SourceType = sourceType.Trim(), SourceLineId = sourceSoLineId });
             return [.. list];
         }
 

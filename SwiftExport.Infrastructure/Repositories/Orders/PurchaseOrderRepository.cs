@@ -9,7 +9,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders;
 /// <summary>
 /// 采购订单头仓储实现。
 /// </summary>
-public class PurchaseOrderRepository(RepositoryBaseContext context)
+public partial class PurchaseOrderRepository(RepositoryBaseContext context)
     : DapperRepository<PurchaseOrderHead>(context), IPurchaseOrderRepository
 {
     public async Task<PurchaseOrderHead?> GetByBoNoAsync(string boNo, bool withUpdLock = false)

@@ -473,7 +473,10 @@ public class PurchaseOrderService(
                 //如果有完工数量变更的订单行，则批量新增跟进日志
                 if (flogList.Count > 0)
                 {
-                    await _followUpRepository.AddRangeAsync(flogList);
+                    foreach (var followUpLog in flogList)
+                    {
+                        await _followUpRepository.AddAsync(followUpLog);
+                    }
                 }
                 //如果有订单行关联的净需求需要更新，则批量更新净需求
                 if (dependNeedToUpdate.Count > 0)

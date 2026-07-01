@@ -109,7 +109,12 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     {
         try
         {
-            var entities = await _repository.GetListAsync(whereSql, param);
+            if (_repository is not IWhereQueryRepository<TEntity> queryRepository)
+            {
+                return ServiceResult<IReadOnlyList<TDto>>.Fail($"{EntityName} 仓储未实现自定义条件查询");
+            }
+
+            var entities = await queryRepository.GetListAsync(whereSql, param);
             if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
 
             return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
@@ -124,7 +129,12 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     {
         try
         {
-            var entities = await _repository.GetListAsync(criteria);
+            if (_repository is not ICriteriaQueryRepository<TEntity> queryRepository)
+            {
+                return ServiceResult<IReadOnlyList<TDto>>.Fail($"{EntityName} 仓储未实现动态条件查询");
+            }
+
+            var entities = await queryRepository.GetListAsync(criteria);
             if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
 
             return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
@@ -139,7 +149,12 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     {
         try
         {
-            var entities = await _repository.GetListAsync(noNameObj);
+            if (_repository is not IObjectQueryRepository<TEntity> queryRepository)
+            {
+                return ServiceResult<IReadOnlyList<TDto>>.Fail($"{EntityName} 仓储未实现对象条件查询");
+            }
+
+            var entities = await queryRepository.GetListAsync(noNameObj);
             if (!entities.Any()) return ServiceResult<IReadOnlyList<TDto>>.Fail("未找到数据");
 
             return ServiceResult<IReadOnlyList<TDto>>.Ok(entities.Adapt<IReadOnlyList<TDto>>());
@@ -154,7 +169,12 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
     {
         try
         {
-            var entities = await _repository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
+            if (_repository is not IPagedCriteriaRepository<TEntity> pagedRepository)
+            {
+                return ServiceResult<PagedResultDto<TDto>>.Fail($"{EntityName} 仓储未实现动态分页查询");
+            }
+
+            var entities = await pagedRepository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
 
             return ServiceResult<PagedResultDto<TDto>>.Ok(new PagedResultDto<TDto>
             {
@@ -269,7 +289,12 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
         {
             var entities = dtoList.Adapt<List<TEntity>>();
 
-            var uids = await _repository.AddRangeAsync(entities);
+            if (_repository is not IBatchWriteRepository<TEntity> batchRepository)
+            {
+                return ServiceResult<IReadOnlyList<Guid>>.Fail($"{EntityName} 仓储未实现批量新增");
+            }
+
+            var uids = await batchRepository.AddRangeAsync(entities);
 
             if (Logger.IsEnabled(LogLevel.Information))
             {
@@ -289,7 +314,12 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
         try
         {
             var uids = uidList.ToList();
-            var rst = await _repository.DeleteRangeAsync(uids);
+            if (_repository is not IBatchWriteRepository<TEntity> batchRepository)
+            {
+                return ServiceResult<int>.Fail($"{EntityName} 仓储未实现批量删除");
+            }
+
+            var rst = await batchRepository.DeleteRangeAsync(uids);
 
             if (Logger.IsEnabled(LogLevel.Information))
             {
@@ -308,7 +338,12 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
         try
         {
             var uids = uidList.ToList();
-            var rst = await _repository.DeleteRangeSoftAsync(uids);
+            if (_repository is not IBatchWriteRepository<TEntity> batchRepository)
+            {
+                return ServiceResult<int>.Fail($"{EntityName} 仓储未实现批量逻辑删除");
+            }
+
+            var rst = await batchRepository.DeleteRangeSoftAsync(uids);
 
             if (Logger.IsEnabled(LogLevel.Information))
             {
@@ -327,7 +362,12 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
         try
         {
             var entities = dtoList.Adapt<List<TEntity>>();
-            var rst = await _repository.UpdateRangeAsync(entities);
+            if (_repository is not IBatchWriteRepository<TEntity> batchRepository)
+            {
+                return ServiceResult<int>.Fail($"{EntityName} 仓储未实现批量修改");
+            }
+
+            var rst = await batchRepository.UpdateRangeAsync(entities);
 
             if (Logger.IsEnabled(LogLevel.Information))
             {
@@ -437,15 +477,24 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
             // =======================================================
             // 4. 执行数据库写入 (UOW)
             // =======================================================
+            IBatchWriteRepository<TEntity>? batchRepository = null;
+            if ((createList?.Count > 0 || updateList?.Count > 0 || deleteIds?.Count > 0)
+                && _repository is not IBatchWriteRepository<TEntity>)
+            {
+                return ServiceResult<BatchResultDto>.Fail($"{EntityName} 仓储未实现批量保存");
+            }
+
+            batchRepository = _repository as IBatchWriteRepository<TEntity>;
+
             if (createList != null && createList.Count > 0)
             {
-                batchResultDto.AddIdList = [.. (await _repository.AddRangeAsync(createList))];
+                batchResultDto.AddIdList = [.. (await batchRepository!.AddRangeAsync(createList))];
                 totalRowsAffected += batchResultDto.AddIdList.Count;
             }
 
             if (updateList != null && updateList.Count > 0)
             {
-                totalRowsAffected += await _repository.UpdateRangeAsync(updateList);
+                totalRowsAffected += await batchRepository!.UpdateRangeAsync(updateList);
                 batchResultDto.UpdateIdList = [.. updateList.Select(x => x.Uid)];
             }
 
@@ -453,9 +502,9 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
             {
                 // 根据子类的开关，决定调用物理删除还是逻辑删除！
                 if (IsSoftDelete)
-                    totalRowsAffected += await _repository.DeleteRangeSoftAsync(deleteIds);
+                    totalRowsAffected += await batchRepository!.DeleteRangeSoftAsync(deleteIds);
                 else
-                    totalRowsAffected += await _repository.DeleteRangeAsync(deleteIds);
+                    totalRowsAffected += await batchRepository!.DeleteRangeAsync(deleteIds);
 
                 batchResultDto.DeleteIdList = deleteIds;
             }

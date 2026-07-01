@@ -34,8 +34,12 @@ namespace SwiftExport.Infrastructure.Repositories.Customers
             return [.. rst];
         }
 
+        public Task<IReadOnlyList<Customer>> GetListAsync(string whereSql, object? param = null, bool withUpdLock = false)
+        {
+            return GetListCoreAsync(whereSql, param, withUpdLock);
+        }
+
 
 
     }
 }
-

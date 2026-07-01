@@ -12,7 +12,7 @@ namespace SwiftExport.Infrastructure.Repositories.Systems
     /// 货币主数据仓储实现
     /// 继承泛型 DapperRepository，扩展货币专属查询方法
     /// </summary>
-    public class SysDicCurrencyRepository(RepositoryBaseContext context)
+    public partial class SysDicCurrencyRepository(RepositoryBaseContext context)
         : DapperRepository<SysDicCurrency>(context), ISysDicCurrencyRepository
     {
         public async Task<bool> ResetAllBaseCurrencyAsync()

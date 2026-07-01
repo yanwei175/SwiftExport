@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Interfaces;
 /// <summary>
 /// 采购订单头仓储接口。
 /// </summary>
-public interface IPurchaseOrderRepository : IRepository<PurchaseOrderHead>
+public interface IPurchaseOrderRepository : IRepository<PurchaseOrderHead>, IObjectQueryRepository<PurchaseOrderHead>, IPagedCriteriaRepository<PurchaseOrderHead>
 {
     Task<PurchaseOrderHead?> GetByBoNoAsync(string boNo, bool withUpdLock = false);
     Task<PurchaseOrderHead?> GetByOrderNoAsync(string orderNo, bool withUpdLock = false);

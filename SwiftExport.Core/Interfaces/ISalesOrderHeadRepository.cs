@@ -4,7 +4,7 @@ using SwiftExport.Core.Entities.Orders;
 
 namespace SwiftExport.Core.Interfaces
 {
-    public interface ISalesOrderHeadRepository : IRepository<SalesOrderHeader>
+    public interface ISalesOrderHeadRepository : IRepository<SalesOrderHeader>, IObjectQueryRepository<SalesOrderHeader>
     {
         Task<PagedResultDto<SalesOrderHeaderManagerDto>> GetSalesOrderHeaderManagerPagedListAsync(SalesOrderManagerSearchDto req);
         Task<SalesOrderHeaderManagerDto?> GetSalesOrderHeaderManagerByIdAsync(Guid orderId);

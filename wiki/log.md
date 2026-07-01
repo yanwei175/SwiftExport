@@ -1,5 +1,14 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-01 backend | Dapper 泛型仓储瘦身
+
+- 将 `IRepository<TEntity>` 收敛为轻量单实体 CRUD 与基础按 Uid 查询接口，不再默认暴露批量写入、动态查询和分页。
+- 重写 `DapperRepository<TEntity>` 为轻量基类，保留 `AddAsync`、`UpdateAsync`、`DeleteAsync`、`DeleteSoftAsync` 等默认实现，并拆出可重写的写入钩子。
+- 新增仓储能力接口：`IBatchWriteRepository<TEntity>`、`IWhereQueryRepository<TEntity>`、`IObjectQueryRepository<TEntity>`、`ICriteriaQueryRepository<TEntity>`、`IPagedCriteriaRepository<TEntity>`。
+- 将批量写入、动态条件和分页复用逻辑移入 Infrastructure 内部 helper，由具体仓储显式公开复杂能力。
+- 调整 `BaseService`，复杂查询/批量保存改为检测能力接口；订单、收货、PackingList、产品、客户产品、货币等调用点改为依赖具体仓储能力。
+- 已运行 `dotnet build .\SwiftExport-WebAPI.slnx`，后端构建通过。
+
 ## 2026-07-01 backend | Core 订单实体关系优化
 
 - 按 ERP 业务总纲补强 Core 订单实体：BOM 父子 SKU/Uid 关系、单据明细行号、净需求执行关系、正式出库单头/行。

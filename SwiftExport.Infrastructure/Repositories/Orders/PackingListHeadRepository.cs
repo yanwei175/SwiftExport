@@ -7,7 +7,7 @@ using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Orders;
 
-public class PackingListHeadRepository(RepositoryBaseContext context)
+public partial class PackingListHeadRepository(RepositoryBaseContext context)
     : DapperRepository<PackingListHead>(context), IPackingListHeadRepository
 {
     public async Task<PackingListHead?> GetByPackingListNoAsync(string packingListNo)

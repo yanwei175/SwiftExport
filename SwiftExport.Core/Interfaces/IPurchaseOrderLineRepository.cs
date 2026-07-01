@@ -8,7 +8,7 @@ namespace SwiftExport.Core.Interfaces;
 /// <summary>
 /// 采购订单行仓储接口。
 /// </summary>
-public interface IPurchaseOrderLineRepository : IRepository<PurchaseOrderLine>
+public interface IPurchaseOrderLineRepository : IRepository<PurchaseOrderLine>, IObjectQueryRepository<PurchaseOrderLine>, IBatchWriteRepository<PurchaseOrderLine>
 {
     Task<List<SupplierDto>> GetAwaitingInboundSuppliersAsync();
     Task<List<PurchaseOrderLineDto>> GetReadOnlyLinesByPurchaseOrderIdAsync(Guid purchaseOrderId);

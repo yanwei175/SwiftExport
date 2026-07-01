@@ -8,7 +8,7 @@ namespace SwiftExport.Core.Interfaces;
 /// 销售订单行数据源仓储接口。
 /// 负责 CustomerProduct + Product 联查分页。
 /// </summary>
-public interface ISalesOrderLineRepository : IRepository<SalesOrderLine>
+public interface ISalesOrderLineRepository : IRepository<SalesOrderLine>, IBatchWriteRepository<SalesOrderLine>
 {
     /// <summary>
     /// 销售产品分页查询。

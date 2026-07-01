@@ -193,7 +193,7 @@ namespace SwiftExport.Application.Services.Systems
 
                 var detailDto = new SysDicCurrencyDetailDto { Currency = currency.Data };
 
-                var exchange = await exchangeRepository.GetListAsync(id);
+                var exchange = await exchangeRepository.GetAllAsync();
                 var exchangeDto= exchange?.Adapt<List<SysDicCurrencyExchangeDto>>();
                 if (exchangeDto != null)
                 {

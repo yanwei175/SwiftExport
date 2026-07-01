@@ -12,7 +12,7 @@ using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Orders
 {
-    public class SalesOrderHeadRepository(RepositoryBaseContext context) : DapperRepository<SalesOrderHeader>(context), ISalesOrderHeadRepository
+    public partial class SalesOrderHeadRepository(RepositoryBaseContext context) : DapperRepository<SalesOrderHeader>(context), ISalesOrderHeadRepository
     {
 
 

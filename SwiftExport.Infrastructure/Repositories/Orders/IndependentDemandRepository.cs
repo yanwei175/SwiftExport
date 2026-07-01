@@ -8,7 +8,7 @@ using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Orders;
 
-public class IndependentDemandRepository(RepositoryBaseContext context) : DapperRepository<IndependentDemand>(context), IIndependentDemandRepository
+public partial class IndependentDemandRepository(RepositoryBaseContext context) : DapperRepository<IndependentDemand>(context), IIndependentDemandRepository
 {
     public async Task<bool> DeleteRangeBySourceTypeAndSourceIdListAsync(string sourceType, IEnumerable<Guid> sourceIds)
     {
