@@ -57,12 +57,15 @@ public static class DependencyInjection
         services.AddScoped<ISysViewRouteRepository, SysViewRouteRepository>();
         services.AddScoped<ISalesOrderLineRepository, SalesOrderLineRepository>();
         services.AddScoped<IDependentDemandRepository, DependentDemandRepository>();
+        services.AddScoped<IDemandExecutionLinkRepository, DemandExecutionLinkRepository>();
         services.AddScoped<IIndependentDemandRepository, IndependentDemandRepository>();
         services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
         services.AddScoped<IPurchaseOrderLineRepository, PurchaseOrderLineRepository>();
         services.AddScoped<IReceiveHeadRepository, ReceiveHeadRepository>();
         services.AddScoped<IReceiveLineRepository, ReceiveLineRepository>();
+        services.AddScoped<IOutboundHeadRepository, OutboundHeadRepository>();
+        services.AddScoped<IOutboundLineRepository, OutboundLineRepository>();
         services.AddScoped<IPackingListHeadRepository, PackingListHeadRepository>();
         services.AddScoped<IPackingListLineRepository, PackingListLineRepository>();
         services.AddScoped<IInventoryRepository, InventoryRepository>();

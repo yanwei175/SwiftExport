@@ -9,11 +9,22 @@ namespace SwiftExport.Core.Entities.Orders;
 [Table("PurchaseReceiveLine")]
 public class ReceiveLine : BaseEntity
 {
+    public int LineNumber { get; set; } = 1;
     public Guid ReceiveId { get; set; }
     /// <summary>
     /// 关联头表单号。
     /// </summary>
     public string ReceiveNo { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 入库仓库编码。
+    /// </summary>
+    public string? WarehouseCode { get; set; }
+
+    /// <summary>
+    /// 入库库位编码，供应商虚拟仓场景下可保存供应商编码。
+    /// </summary>
+    public string? LocationCode { get; set; }
 
     /// <summary>
     /// 物料 SKU。

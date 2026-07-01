@@ -1,5 +1,13 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-01 backend | Core 订单实体关系优化
+
+- 按 ERP 业务总纲补强 Core 订单实体：BOM 父子 SKU/Uid 关系、单据明细行号、净需求执行关系、正式出库单头/行。
+- 删除废弃实体 `SwiftExport.Core/Entities/Orders/BillOfMaterial.cs`；数据库历史表如存在不在本次自动删除。
+- 新增 `DemandExecutionLink` 承接净需求到采购、生产、外协等执行单据的关系，为“净需求多对一聚合到采购行”保留正式追溯模型。
+- 新增 `OutboundHead`、`OutboundLine`，明确后续出库必须通过正式业务单据承接，库存流水只做审计和库存变动记录。
+- 新增幂等 SQL 脚本 `tools/sql/20260701_core_order_entities_optimization.sql`，补齐相关表和字段。
+
 ## 2026-06-30 business | 建立 ERP 业务总纲
 
 - 新增 `wiki/project/erp-business-blueprint.md`，作为后续智能体理解 SwiftExport ERP 业务流程的总入口。

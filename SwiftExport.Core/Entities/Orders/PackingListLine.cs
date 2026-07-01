@@ -9,8 +9,14 @@ namespace SwiftExport.Core.Entities.Orders;
 [Table("PackingListLine")]
 public class PackingListLine : BaseEntity
 {
+    public int LineNumber { get; set; } = 1;
     public required string PackingListNo { get; set; }
     public required Guid PackingListHeadId { get; set; }
+    public string? SourceType { get; set; }
+    public string? SourceNo { get; set; }
+    public Guid? SourceLineId { get; set; }
+    public Guid? DependentDemandId { get; set; }
+    public Guid? PurchaseOrderLineId { get; set; }
     public string? CustomerSku { get; set; }
     public required string Sku { get; set; }
     public required decimal Qty { get; set; } = 0;
@@ -18,7 +24,6 @@ public class PackingListLine : BaseEntity
     public string? SealNo { get; set; }
     public string? InvoiceNo { get; set; }
     public string? SalesOrderNo { get; set; }
-    public int? SoLineId { get; set; }
 
 
 

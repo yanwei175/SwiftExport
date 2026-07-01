@@ -106,8 +106,10 @@ public class BomService(
         // 3. 子件存在性
         foreach (var item in bomItems)
         {
-            var exists = await _pdRepo.ExistsIdAsync(item.SubSkuId);
-            if (!exists) return ServiceResult<bool>.Fail($"子项{item.SubSku}的Id不存在");
+            var exists = item.SubSkuId.HasValue
+                ? await _pdRepo.ExistsIdAsync(item.SubSkuId.Value)
+                : await _pdRepo.GetBySkuAsync(item.SubSku) != null;
+            if (!exists) return ServiceResult<bool>.Fail($"子项{item.SubSku}不存在");
         }
 
         // 4. 重复项检查
