@@ -1,7 +1,7 @@
 ﻿using GalaSoft.MvvmLight.Command;
+using MateWpfThemes.FW.Controls;
 using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.DTOs.Warehouses;
-using SwiftExport.Contracts.Models;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.DI;
@@ -242,7 +242,8 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
                 };
 
                 // 订阅关闭事件
-                vm.RequestClose += (s, result) => {
+                vm.RequestClose += (s, result) =>
+                {
                     if (result) win.DialogResult = true; // 设置 DialogResult 会自动关闭窗口
                     win.Close();
                 };
@@ -260,14 +261,14 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
                         var newModel = new ReceiveHeadModel
                         {
                             Uid = dto.Data.Uid
-                            
+
                         };
                         newModel.LoadFromDto(dto.Data);
-                        newModel.State=ModelState.Unchanged;
+                        newModel.State = ModelState.Unchanged;
                         HeadTable.AddModelToFirst(newModel);
                     }
                 }
-   
+
             }
             catch (Exception ex)
             {
@@ -298,7 +299,8 @@ namespace SwiftExport.View.FW.WarehouseViews.ViewModels
                 };
 
                 // 订阅关闭事件
-                vm.RequestClose += (s, result) => {
+                vm.RequestClose += (s, result) =>
+                {
                     if (result) win.DialogResult = true; // 设置 DialogResult 会自动关闭窗口
                     win.Close();
                 };

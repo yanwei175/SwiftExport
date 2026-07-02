@@ -525,7 +525,7 @@
     <Folder Include="SettingViews\" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\MateWpfThemes\MateWpfThemes.FW\MateWpfThemes.FW.csproj">
+    <ProjectReference Include="..\MateWpfThemes.FW\MateWpfThemes.FW.csproj">
       <Project>{b3628874-4979-473d-b483-cedd4740f830}</Project>
       <Name>MateWpfThemes.FW</Name>
     </ProjectReference>

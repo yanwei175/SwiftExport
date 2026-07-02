@@ -1,15 +1,15 @@
-using SwiftExport.View.FW.Mvvm;
-using SwiftExport.View.FW.ProductViews.Models;
+using GalaSoft.MvvmLight.Command;
+using MateWpfThemes.FW.Controls;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
-using GalaSoft.MvvmLight.Command;
-using System.Threading.Tasks;
-using System.Linq;
-using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Contracts.UiInterface;
-using SwiftExport.Contracts.Models;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.View.FW.Mvvm;
+using SwiftExport.View.FW.ProductViews.Models;
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace SwiftExport.View.FW.ProductViews.ViewModels
 {
@@ -60,7 +60,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 var confirm = System.Windows.MessageBox.Show("当前列表有未保存的数据，翻页会丢失，是否继续？", "未保存提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
                 if (confirm != System.Windows.MessageBoxResult.Yes)
                 {
-                    return; 
+                    return;
                 }
             }
 
@@ -102,7 +102,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
             {
                 var dtos = result.Data.Items.ToList();
                 ReLoadRangeFromDtoList(dtos);
-                
+
                 TotalCount = result.Data.TotalCount;
             }
             else
@@ -110,7 +110,7 @@ namespace SwiftExport.View.FW.ProductViews.ViewModels
                 await _msg.ShowErrorAsync(result.Message);
             }
         }
-        
+
         public async Task BatchSaveAsync()
         {
             if (!IsDirty)

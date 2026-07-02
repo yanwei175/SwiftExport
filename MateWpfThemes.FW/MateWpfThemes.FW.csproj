@@ -33,7 +33,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Xaml.Behaviors, Version=1.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Microsoft.Xaml.Behaviors.Wpf.1.1.77\lib\net462\Microsoft.Xaml.Behaviors.dll</HintPath>
+      <HintPath>..\packages\Microsoft.Xaml.Behaviors.Wpf.1.1.142\lib\net462\Microsoft.Xaml.Behaviors.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
@@ -338,12 +338,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Themes\Brushes\" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\SwiftExport.Contracts\SwiftExport.Contracts.csproj">
-      <Project>{73faa5c6-c278-4c02-80d0-27a24a6b831a}</Project>
-      <Name>SwiftExport.Contracts</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -1,10 +1,10 @@
 using GalaSoft.MvvmLight.Command;
 using Mapster;
+using MateWpfThemes.FW.Controls;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
-using SwiftExport.Contracts.Models;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.View.FW.CustomerViews.Models;
@@ -260,7 +260,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                 CustomerId = CurrentCustomer.Uid,
                 CustomerCode = CurrentCustomer.CustomerCode,
                 CustomerSku = "NEW-",
-                IsActive= true
+                IsActive = true
             };
             model.MarkAsAdded();
             ProductList.AddModelToFirst(model);
@@ -489,7 +489,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
                 {
                     var productSearchDto = new ProductSearchRequest
                     {
-                       
+
                         PageIndex = 1,
                         PageSize = 20,
                         BatchKeywords = keyword?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)

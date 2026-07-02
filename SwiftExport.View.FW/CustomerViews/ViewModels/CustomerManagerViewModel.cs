@@ -1,8 +1,8 @@
 ﻿using GalaSoft.MvvmLight.Command;
 using Mapster;
+using MateWpfThemes.FW.Controls;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.DTOs.Customers;
-using SwiftExport.Contracts.Models;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.View.FW.CustomerViews.Enums;
@@ -28,7 +28,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
         /// 由 DI 注入后通过 View code-behind 绑定到子视图 DataContext。
         /// </summary>
         public CustomerProductManagerViewModel CustomerProductVM { get; }
-  
+
         public CustomerManagerViewModel(ICustomerApi customerApi, CustomerProductManagerViewModel customerProductViewModel, IDialogService dialogService)
         {
             _customerApi = customerApi;
@@ -37,7 +37,7 @@ namespace SwiftExport.View.FW.CustomerViews.ViewModels
 
             CurrentCustomerTable = new CustomerList();
 
-            PaginationCustomerTableChangedCommand = new RelayCommand<SwiftExport.Contracts.Models.PageChangeRequest>(OnPaginationCustomerTableChanged);
+            PaginationCustomerTableChangedCommand = new RelayCommand<PageChangeRequest>(OnPaginationCustomerTableChanged);
 
             AddCustomerCommand = new RelayCommand(AddCustomer);
             BatchSaveCustomerAsyncCommand = new RelayCommand(async () => await BatchSaveCustomerAsync(), () => CanBatchSaveCustomerAsync);

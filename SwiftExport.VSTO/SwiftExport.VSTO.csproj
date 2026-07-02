@@ -272,7 +272,7 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\MateWpfThemes\MateWpfThemes.FW\MateWpfThemes.FW.csproj">
+    <ProjectReference Include="..\MateWpfThemes.FW\MateWpfThemes.FW.csproj">
       <Project>{b3628874-4979-473d-b483-cedd4740f830}</Project>
       <Name>MateWpfThemes.FW</Name>
     </ProjectReference>
@@ -365,7 +365,7 @@
     <ManifestKeyFile>SwiftExport.VSTO_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>DC6DA8FE8AF54152EDB44C9681574056A66A401A</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>4B157198099CF0146A56C5EBEF68165072F1D9EE</ManifestCertificateThumbprint>
   </PropertyGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Include additional build rules for an Office application add-in. -->

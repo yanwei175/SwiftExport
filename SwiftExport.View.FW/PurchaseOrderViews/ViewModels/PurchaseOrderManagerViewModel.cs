@@ -1,13 +1,12 @@
 using GalaSoft.MvvmLight.Command;
 using Mapster;
+using MateWpfThemes.FW.Controls;
 using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Warehouses;
-using SwiftExport.Contracts.Models;
 using SwiftExport.Contracts.SysEnums;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.UiInterface;
 using SwiftExport.View.FW.Mvvm;
 using SwiftExport.View.FW.Mvvm.Helpers;
@@ -84,10 +83,10 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
             set { SetProperty(ref _selectedSupplier, value); }
         }
 
-        public ObservableCollection<CheckableItem<PurchaseOrderStatusEnum>> StatusOptions { get; }=EnumOptionHelper.ToCheckableItems<PurchaseOrderStatusEnum>();
+        public ObservableCollection<CheckableItem<PurchaseOrderStatusEnum>> StatusOptions { get; } = EnumOptionHelper.ToCheckableItems<PurchaseOrderStatusEnum>();
 
 
-        private int _selectedStatus ;
+        private int _selectedStatus;
         public int SelectedStatus
         {
             get { return _selectedStatus; }
@@ -372,7 +371,7 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
                 }
             }
         }
-     
+
 
 
         /// <summary>

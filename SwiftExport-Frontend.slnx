@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="MateWpfThemes.FW/MateWpfThemes.FW.csproj" Id="b3628874-4979-473d-b483-cedd4740f830" />
   <Project Path="SwiftExport.Contracts/SwiftExport.Contracts.csproj" />
   <Project Path="SwiftExport.DevApp/SwiftExport.DevApp.csproj" Id="26d1d153-b488-4216-bca5-edb79ea51f7c" />
   <Project Path="SwiftExport.View.FW/SwiftExport.View.FW.csproj" Id="c1efb3ce-47eb-4f67-a289-d50a3c30ba10" />
