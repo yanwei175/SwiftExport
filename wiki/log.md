@@ -1,5 +1,36 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-02 planning | 推进模块细化总纲
+
+- 新增 `wiki/project/数据迁移与种子总纲.md`，规定 SQL 幂等脚本、基础字典、单号规则、`_tools/DbSeed`、本地开发数据和不可破坏数据边界。
+- 新增 `wiki/project/产品BOM模块细化总纲.md`，细化产品、客户产品、供应商产品、BOM、`MaterialType`、`SupplyType` 和 BOM 拆解基础资料规则。
+- 新增 `wiki/project/销售订单需求链路细化总纲.md`，细化销售订单确认、毛需求、净需求、拆解、转采购入口、取消确认和改单边界。
+- 新增 `wiki/project/采购入库PackingList闭环细化总纲.md`，细化净需求转采购、采购入库、出库、PackingList 过账、客供件扣减和库存流水闭环。
+- 更新 `wiki/index.md`，为四份细化总纲增加快速路由。
+
+## 2026-07-02 qa | 建立测试与验收总纲
+
+- 新增 `wiki/project/测试与验收总纲.md`，作为 SwiftExport 开发任务完成后的验证入口。
+- 明确 `MateWpfThemes.FW.slnx` 是主题/控件库解决方案，`SwiftExport-Frontend.slnx` 是前端解决方案，`SwiftExport-WebAPI.slnx` 是后端 WebApi 解决方案，`SwiftExport.slnx` 是总项目解决方案。
+- 规定按改动范围选择构建命令，并补充纯文档、后端、前端、Contracts、数据库、主题库等验收路径。
+- 补充 ERP 主流程手工验收清单，覆盖销售订单、毛需求、净需求、采购、入库、出库、PackingList、改单、反过账和红冲。
+- 更新 `wiki/index.md`，增加测试与验收总纲路由。
+
+## 2026-07-02 frontend | 建立前端页面总纲
+
+- 新增 `wiki/project/前端页面总纲.md`，作为 SwiftExport WPF/VSTO 页面开发的总入口。
+- 明确本总纲只覆盖当前桌面端前端，不纳入未来 BS 页面规范；未来 BS 前端通过 API 契约总纲保持接口可消费。
+- 参考现有 SalesOrder 页面设计，规定 Manager 页面负责查询、主从列表、业务命令和打开详情，Detail 页面负责头行编辑、行集合编辑、保存和关闭。
+- 强化 View 不轻易拆、ViewModel 可按业务职责拆分，以及 `BaseLineModel` / `BaseListModel` 作为可编辑行、批量保存和行状态追踪基础设施的优先地位。
+- 更新 `wiki/index.md`，增加前端页面总纲路由。
+
+## 2026-07-02 contract | 建立 API 契约总纲
+
+- 新增 `wiki/project/API契约总纲.md`，定义 WebApi Controller、Contracts DTO、Refit Interface、Swagger/OpenAPI 与未来 BS 前端之间的契约边界。
+- 明确 Refit 是当前 WPF/VSTO 强类型客户端，长期稳定契约应落在 HTTP 路由、Request/Response、统一错误和 OpenAPI 文档上。
+- 规定新增 API 优先区分查询、保存、业务命令、过账/反过账/红冲、Lookup 等类型，避免把复杂业务动作伪装成普通 Update。
+- 更新 `wiki/index.md`，增加 API 契约总纲路由。
+
 ## 2026-07-02 business | 建立领域模块总纲
 
 - 新增 `wiki/project/领域模块总纲.md`，按产品、BOM、客户、客户产品、供应商、仓库、销售订单、毛需求、净需求、采购、入库、出库、PackingList、投诉补货、生产和外协拆分模块边界。

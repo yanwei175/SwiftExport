@@ -21,6 +21,13 @@
 - [单据状态机与轻量改单机制](project/document-state-and-change-policy.md) - 涉及确认、取消确认、改单、删除下游、反过账、红冲或库存流水边界时读取。
 - [数据模型总纲](project/数据模型总纲.md) - 涉及数据库表、实体、主键、业务键、软删除、库存流水、追溯关系或迁移脚本时读取。
 - [领域模块总纲](project/领域模块总纲.md) - 涉及产品、客户、供应商、销售、需求、采购、仓库、出库、PackingList、投诉补货等模块归属和边界时读取。
+- [数据迁移与种子总纲](project/数据迁移与种子总纲.md) - 涉及 SQL 脚本、数据库迁移、基础字典、单号规则、DbSeed、本地开发数据或测试样本时读取。
+- [产品 BOM 模块细化总纲](project/产品BOM模块细化总纲.md) - 涉及产品、客户产品、供应商产品、BOM、物料类型、供给方式或 BOM 拆解基础资料时读取。
+- [销售订单需求链路细化总纲](project/销售订单需求链路细化总纲.md) - 涉及销售订单确认、毛需求、净需求、拆解、转采购入口、改单或需求追溯时读取。
+- [采购入库 PackingList 闭环细化总纲](project/采购入库PackingList闭环细化总纲.md) - 涉及净需求转采购、采购入库、出库、PackingList 过账、客供件扣减、库存流水闭环时读取。
+- [API 契约总纲](project/API契约总纲.md) - 涉及 Controller 路由、Refit 接口、DTO、Request/Response、Swagger/OpenAPI 或未来 BS 前端调用时读取。
+- [前端页面总纲](project/前端页面总纲.md) - 涉及 WPF 页面结构、页面类型、View/ViewModel 拆分、BaseLineModel、BaseListModel、页面命令、导航弹窗或 DataGrid 页面时读取。
+- [测试与验收总纲](project/测试与验收总纲.md) - 涉及构建命令、测试策略、手工验收、API 契约验收、前端页面验收或 ERP 主流程验收时读取。
 - [项目接手说明](project/onboarding.md) - 接手新功能、不熟悉模块、需要打开顺序和风险提示时读取。
 - [Skills Index](skills/index.md) - 需要选择正式 skill 时读取。
 - [Workflows Index](workflows/index.md) - 需要选择跨文件或跨层工作流时读取。
