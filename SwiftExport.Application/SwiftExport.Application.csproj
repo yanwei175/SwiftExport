@@ -7,6 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Common\**" />
+    <EmbeddedResource Remove="Common\**" />
+    <None Remove="Common\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Interfaces\IExcelSheetFieldsMappingService.cs" />
     <Compile Remove="Interfaces\IViewUserRoleService.cs" />
     <Compile Remove="Interfaces\IWhiteListServices.cs" />
@@ -22,7 +28,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Common\" />
     <Folder Include="Services\Settings\" />
   </ItemGroup>
 
