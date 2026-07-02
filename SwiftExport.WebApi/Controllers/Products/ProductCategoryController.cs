@@ -3,13 +3,37 @@ using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
-using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.WebApi.Controllers.Base;
+using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.Products;
 
-public class ProductCategoryController(IProductCategoryService service) : BaseController<ProductCategory, ProductCategoryDto>(service)
+[ApiController]
+[Route("api/[controller]")]
+public class ProductCategoryController(IProductCategoryService service) : ControllerBase
 {
+    [HttpGet("{id}")]
+    public async Task<ServiceResult<ProductCategoryDto>> GetById(Guid id) => await service.GetByIdAsync(id);
+
+    [HttpPost]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<Guid>> Create([FromBody] ProductCategoryDto dto) => await service.AddAsync(dto);
+
+    [HttpPut("{id}")]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<int>> Update(Guid id, [FromBody] ProductCategoryDto dto) => await service.UpdateAsync(dto);
+
+    [HttpDelete("{id}")]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<int>> Delete(Guid id) => await service.DeleteAsync(id);
+
+    [HttpPost("page")]
+    public async Task<ServiceResult<PagedResultDto<ProductCategoryDto>>> GetPagedList([FromBody] QueryCriteria criteria, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 500)
+        => await service.GetPagedListAsync(criteria, pageIndex, pageSize);
+
+    [HttpPost("batch-save")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<ProductCategoryDto> req) => await service.BatchSaveAsync(req);
+
     [HttpGet]
     public async Task<ServiceResult<PagedResultDto<ProductCategoryDto>>> GetPaged([FromQuery] PagedRequestDto request)
     {
@@ -39,8 +63,7 @@ public class ProductCategoryController(IProductCategoryService service) : BaseCo
         int pageIndex = request.PageIndex > 0 ? request.PageIndex : 1;
         int pageSize = request.PageSize > 0 ? request.PageSize : 50;
 
-        // 5. 核心：调用基类提供的泛型分页方法，完成数据库查询和 DTO 映射
-        return await _service.GetPagedListAsync(criteria, pageIndex, pageSize, "ColorCodeUnique ASC");
+        return await service.GetPagedListAsync(criteria, pageIndex, pageSize, "ColorCodeUnique ASC");
     }
 
     [HttpGet("all")]

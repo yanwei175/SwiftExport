@@ -8,7 +8,7 @@ namespace SwiftExport.Application.Interfaces
     /// <summary>
     /// 独立需求服务接口（流程编排层）。
     /// </summary>
-    public interface IIndependentDemandServices : IBaseService<IndependentDemand, IndependentDemandDto>
+    public partial interface IIndependentDemandServices
     {
         Task<ServiceResult<bool>> UpdateFilledQtyAsync(Guid id, decimal addQty);
 

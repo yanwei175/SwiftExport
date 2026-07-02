@@ -10,7 +10,7 @@ namespace SwiftExport.Application.Interfaces
     /// <summary>
     /// 采购订单应用服务接口。
     /// </summary>
-    public interface IPurchaseOrderService : IBaseService<PurchaseOrderHead, PurchaseOrderHeadDto>
+    public partial interface IPurchaseOrderService
     {
         Task<ServiceResult<PagedResultDto<PurchaseOrderHeadDto>>> GetPagedListAsync(PurchaseOrderSearchDto search);
         Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByHeadIdAsync(Guid id);

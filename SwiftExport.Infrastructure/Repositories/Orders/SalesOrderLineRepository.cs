@@ -94,7 +94,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
             }
             else
             {
-                orderBy = DapperRepositoryComplexHelper.NormalizeOrderBy(orderBy, "p.Sku DESC");
+                orderBy = NormalizeOrderBy(orderBy, "p.Sku DESC");
                 if (string.IsNullOrWhiteSpace(orderBy))
                 {
                     orderBy = "p.Sku DESC";
@@ -251,6 +251,14 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
         }
 
 
+
+        private static string NormalizeOrderBy(string? orderBy, string defaultOrderBy)
+        {
+            if (string.IsNullOrWhiteSpace(orderBy)) return defaultOrderBy;
+
+            var safeOrderBy = System.Text.RegularExpressions.Regex.Replace(orderBy, @"[^a-zA-Z0-9_,\s\.\[\]]", string.Empty);
+            return string.IsNullOrWhiteSpace(safeOrderBy) ? defaultOrderBy : safeOrderBy;
+        }
 
 
     }

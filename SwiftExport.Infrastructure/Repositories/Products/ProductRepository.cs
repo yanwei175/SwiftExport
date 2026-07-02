@@ -52,7 +52,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         if (string.IsNullOrWhiteSpace(orderBy))
             orderBy = "t.CreatedDate DESC";
         else
-            orderBy = $"t.{DapperRepositoryComplexHelper.NormalizeOrderBy(orderBy, "CreatedDate DESC")}";
+            orderBy = $"t.{NormalizeOrderBy(orderBy, "CreatedDate DESC")}";
 
         if (string.IsNullOrWhiteSpace(orderBy))
             orderBy = "CreatedDate DESC";
@@ -62,7 +62,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
 
         // 3. 调用解析器，传入 "t." 前缀！
         // 这样无论 criteria 里的字段是 Main表字段还是 Join表字段，都会指向派生表 t 的列
-        var whereClause = DapperRepositoryComplexHelper.ParseQueryCriteria(criteria, parameters, "t.");
+        var whereClause = ParseQueryCriteria(criteria, parameters, "t.");
         if (!string.IsNullOrWhiteSpace(whereClause))
             sb.Append(whereClause);
 
@@ -131,6 +131,110 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         var sql = $"SELECT Sku FROM [{TableName}] WHERE  Sku IN @SkuList";
         var rst = await Connection.QueryAsync<string>(sql, new { SkuList = skuList }, transaction: Transaction);
         return [.. rst];
+    }
+
+    private static string NormalizeOrderBy(string? orderBy, string defaultOrderBy)
+    {
+        if (string.IsNullOrWhiteSpace(orderBy)) return defaultOrderBy;
+
+        var safeOrderBy = System.Text.RegularExpressions.Regex.Replace(orderBy, @"[^a-zA-Z0-9_,\s\.\[\]]", string.Empty);
+        return string.IsNullOrWhiteSpace(safeOrderBy) ? defaultOrderBy : safeOrderBy;
+    }
+
+    private static string ParseQueryCriteria(QueryCriteria criteria, DynamicParameters parameters, string prefix = "")
+    {
+        if (criteria == null || (criteria.Items.Count == 0 && criteria.OrGroups.Count == 0))
+        {
+            return string.Empty;
+        }
+
+        var sqlBuilder = new System.Text.StringBuilder();
+        int andIndex = 0;
+        foreach (var item in criteria.Items)
+        {
+            var fieldName = string.IsNullOrEmpty(prefix) || item.Field.Contains('.')
+                ? item.Field
+                : $"{prefix}{item.Field}";
+            var paramName = $"@{fieldName.Replace(".", "_")}_A{andIndex}";
+            sqlBuilder.Append($" AND {BuildConditionSql(fieldName, item.Condition, paramName, parameters)}");
+            andIndex++;
+        }
+
+        int groupIndex = 0;
+        foreach (var groupList in criteria.OrGroups)
+        {
+            if (groupList.Count == 0) continue;
+
+            var orParts = new List<string>();
+            int orItemIndex = 0;
+
+            foreach (var item in groupList)
+            {
+                var fieldName = string.IsNullOrEmpty(prefix) || item.Field.Contains('.')
+                    ? item.Field
+                    : $"{prefix}{item.Field}";
+                var paramName = $"@Or_{groupIndex}_{fieldName.Replace(".", "_")}_{orItemIndex}";
+                orParts.Add(BuildConditionSql(fieldName, item.Condition, paramName, parameters));
+                orItemIndex++;
+            }
+
+            if (orParts.Count > 0)
+            {
+                sqlBuilder.Append($" AND ({string.Join(" OR ", orParts)})");
+            }
+
+            groupIndex++;
+        }
+
+        return sqlBuilder.ToString();
+    }
+
+    private static string BuildConditionSql(string propName, QueryCondition cond, string paramName, DynamicParameters parameters)
+    {
+        string safeField;
+        if (propName.Contains('.'))
+        {
+            var parts = propName.Split('.');
+            var field = parts[1].Replace("[", string.Empty).Replace("]", string.Empty);
+            safeField = $"{parts[0]}.[{field}]";
+        }
+        else
+        {
+            safeField = $"[{propName.Replace("[", string.Empty).Replace("]", string.Empty)}]";
+        }
+
+        switch (cond.操作符)
+        {
+            case 查询操作符.等于:
+                parameters.Add(paramName, cond.值1);
+                return $"{safeField} = {paramName}";
+            case 查询操作符.模糊匹配:
+                parameters.Add(paramName, $"%{cond.值1}%");
+                return $"{safeField} LIKE {paramName}";
+            case 查询操作符.大于:
+                parameters.Add(paramName, cond.值1);
+                return $"{safeField} > {paramName}";
+            case 查询操作符.小于:
+                parameters.Add(paramName, cond.值1);
+                return $"{safeField} < {paramName}";
+            case 查询操作符.大于等于:
+                parameters.Add(paramName, cond.值1);
+                return $"{safeField} >= {paramName}";
+            case 查询操作符.小于等于:
+                parameters.Add(paramName, cond.值1);
+                return $"{safeField} <= {paramName}";
+            case 查询操作符.区间:
+                var pStart = $"{paramName}_Start";
+                var pEnd = $"{paramName}_End";
+                parameters.Add(pStart, cond.值1);
+                parameters.Add(pEnd, cond.值2);
+                return $"{safeField} BETWEEN {pStart} AND {pEnd}";
+            case 查询操作符.包含某值:
+                parameters.Add(paramName, cond.值1);
+                return $"{safeField} IN {paramName}";
+            default:
+                return "1=1";
+        }
     }
 
 

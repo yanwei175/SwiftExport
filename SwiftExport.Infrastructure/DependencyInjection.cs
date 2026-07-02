@@ -10,8 +10,8 @@ using SwiftExport.Infrastructure.Repositories.MasterData;
 using SwiftExport.Infrastructure.Repositories.Orders;
 using SwiftExport.Infrastructure.Repositories.Products;
 using SwiftExport.Infrastructure.Repositories.Suppliers;
-using SwiftExport.Infrastructure.Repositories.Systems;
 using SwiftExport.Infrastructure.Repositories.SystemRepositories;
+using SwiftExport.Infrastructure.Repositories.Systems;
 using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Infrastructure;
@@ -24,7 +24,6 @@ public static class DependencyInjection
 
         services.AddScoped<DbSession>();
         services.AddScoped<RepositoryBaseContext>();
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // ══════════════════════════════════════════════════════
         // 认证相关服务

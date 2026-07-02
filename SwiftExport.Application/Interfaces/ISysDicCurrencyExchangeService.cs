@@ -1,12 +1,8 @@
-using SwiftExport.Contracts.DTOs.SystemDtos;
-using SwiftExport.Core.Entities.Systems;
+ï»¿namespace SwiftExport.Application.Interfaces;
 
-namespace SwiftExport.Application.Interfaces
+/// <summary>
+/// è´§å¸æ±‡ç‡æœåŠ¡æ¥å£ã€‚
+/// </summary>
+public partial interface ISysDicCurrencyExchangeService
 {
-    /// <summary>
-    /// »õ±Ò»ãÂÊ×Öµä·şÎñ½Ó¿Ú
-    /// </summary>
-    public interface ISysDicCurrencyExchangeService : IBaseService<SysDicCurrencyExchange, SysDicCurrencyExchangeDto>
-    {
-    }
 }

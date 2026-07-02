@@ -4,7 +4,7 @@ using SwiftExport.Core.Entities.MasterData;
 
 namespace SwiftExport.Application.Interfaces
 {
-    public interface ICustomerService : IBaseService<Customer, CustomerDto>
+    public partial interface ICustomerService
     {
         Task<bool> ExistByCustomerCode(string customerCode);
         Task<ServiceResult<IReadOnlyList<string>>> GetNonExistingCustomerCodesAsync(IEnumerable<string> customerCodes);

@@ -15,7 +15,7 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Orders;
 
-public class PackingListService(
+public partial class PackingListService(
     IPackingListHeadRepository headRepository,
     IPackingListLineRepository lineRepository,
     IReceiveHeadRepository receiveHeadRepository,
@@ -29,8 +29,9 @@ public class PackingListService(
     IStockService stockService,
     IDocumentNoService documentNoService,
     ServiceBaseContext context)
-    : BaseService<PackingListHead, PackingListHeadDto>(headRepository, context), IPackingListService
+    : ApplicationServiceBase(context), IPackingListService
 {
+    private readonly ServiceCrud<PackingListHead, PackingListHeadDto> _crud = new(headRepository, context);
     private const string VirtualWhseCode = "V_WH";
     private readonly IPackingListHeadRepository _headRepository = headRepository;
     private readonly IPackingListLineRepository _lineRepository = lineRepository;

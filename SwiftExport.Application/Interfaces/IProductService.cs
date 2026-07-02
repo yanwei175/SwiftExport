@@ -4,7 +4,7 @@ using SwiftExport.Core.Entities.MasterData;
 
 namespace SwiftExport.Application.Interfaces;
 
-public interface IProductService : IBaseService<Product, ProductDto>
+public partial interface IProductService
 {
     Task<ServiceResult<IReadOnlyList<string>>> GetAllCustomerCodeListAsync();
 

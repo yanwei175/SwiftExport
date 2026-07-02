@@ -16,7 +16,7 @@ namespace SwiftExport.Application.Services.Orders;
 /// <summary>
 /// 销售订单应用服务实现。
 /// </summary>
-public class SalesOrderHeadService(
+public partial class SalesOrderHeadService(
     ISalesOrderHeadRepository headRepo,
     ISalesOrderLineRepository lineRepo,
     ICustomerRepository customerRepository,
@@ -24,8 +24,9 @@ public class SalesOrderHeadService(
     IDocumentNoService documentNoService,
     IIndependentDemandRepository salesDemandRepository,
     ServiceBaseContext context)
-    : BaseService<SalesOrderHeader, SalesOrderHeaderDto>(headRepo, context), ISalesOrderHeadService
+    : ApplicationServiceBase(context), ISalesOrderHeadService
 {
+    private readonly ServiceCrud<SalesOrderHeader, SalesOrderHeaderDto> _crud = new(headRepo, context);
     private readonly ISalesOrderHeadRepository _headRepo = headRepo;
     private readonly ISalesOrderLineRepository _lineRepo = lineRepo;
     private readonly ICustomerRepository _customerRepository = customerRepository;

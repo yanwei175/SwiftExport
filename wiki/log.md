@@ -1,5 +1,28 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-02 data | 建立数据模型总纲
+
+- 新增 `wiki/project/数据模型总纲.md`，作为 SwiftExport 数据库、实体、DTO、Repository、状态机和重构工作的模型地基。
+- 明确新表统一使用 `Uid` 技术主键，历史 `Id` 表按兼容迁移逐步处理。
+- 明确业务编码唯一可读、弱外键优先、业务表软删除、库存流水不可变、`DemandExecutionLink` 作为需求执行主追溯表。
+- 更新 `wiki/index.md`，增加数据模型总纲路由。
+
+## 2026-07-02 business | 建立单据状态机与轻量改单机制
+
+- 新增 `wiki/project/document-state-and-change-policy.md`，沉淀适合小团队内部 ERP 的状态分层、业务命令和改单边界。
+- 明确轻量改单策略：库存流水之前允许安全回退并重跑流程；库存流水之后必须反过账或红冲。
+- 明确 `OrderStatus` 只做展示汇总，确认状态、生命周期、执行进度和过账状态应分层表达。
+- 更新 `wiki/index.md`，增加单据状态机与轻量改单机制路由。
+
+## 2026-07-01 backend | BaseService/BaseController 去泛型模板化
+
+- 将 `BaseService<TEntity,TDto>` 替换为轻量 `ApplicationServiceBase`，只承载 `ServiceBaseContext`、`DbSession` 和 `Logger`。
+- 删除有效编译路径中的 `IBaseService<TEntity,TDto>` 与 `BaseController<TEntity,TDto>`，Controller 改为显式声明自身 HTTP action，保留既有路由形状。
+- 各业务 Service 通过组合方式复用单实体 CRUD，批量保存和复杂查询由具体 Service/Repository 显式公开，不再通过继承隐式获得。
+- 删除 `DapperRepositoryComplexHelper`，具体仓储中的动态分页/排序逻辑改为仓储私有方法；`DapperRepository<TEntity>` 不再依赖该 helper。
+- 更新后端 Dapper、Application Service、WebApi Controller guide，记录“业务服务/控制器不再使用泛型大基类”的边界。
+- 已运行 `dotnet build .\SwiftExport-WebAPI.slnx`，后端构建 0 warning / 0 error。
+
 ## 2026-07-01 backend | Dapper 泛型仓储瘦身
 
 - 将 `IRepository<TEntity>` 收敛为轻量单实体 CRUD 与基础按 Uid 查询接口，不再默认暴露批量写入、动态查询和分页。

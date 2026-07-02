@@ -3,7 +3,7 @@ using SwiftExport.Core.Entities.MasterData;
 
 namespace SwiftExport.Application.Interfaces
 {
-    public interface IProductCategoryService : IBaseService<ProductCategory, ProductCategoryDto>
+    public partial interface IProductCategoryService
     {
 
     }

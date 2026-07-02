@@ -7,7 +7,7 @@ namespace SwiftExport.Application.Interfaces
     /// <summary>
     /// 采购跟进服务接口。
     /// </summary>
-    public interface IFollowUpService : IBaseService<FollowUpLog, FollowUpLogDto>
+    public partial interface IFollowUpService
     {
         /// <summary>
         /// 更新采购跟进信息：当采购行 ReadyQty 变更时，同步更新关联净需求 ReceivedQty。

@@ -19,7 +19,7 @@ namespace SwiftExport.Application.Services.Orders;
 /// 采购订单应用服务。
 /// 默认实现了订单头的基础CRUD服务
 /// </summary>
-public class PurchaseOrderService(
+public partial class PurchaseOrderService(
     IPurchaseOrderRepository headRepository,
     IPurchaseOrderLineRepository lineRepository,
     ISupplierRepository supplierRepository,
@@ -28,8 +28,9 @@ public class PurchaseOrderService(
     IRepository<FollowUpLog> followUpRepository,
     IDependentDemandRepository dependentDemandRepository,
     ServiceBaseContext context)
-    : BaseService<PurchaseOrderHead, PurchaseOrderHeadDto>(headRepository, context), IPurchaseOrderService
+    : ApplicationServiceBase(context), IPurchaseOrderService
 {
+    private readonly ServiceCrud<PurchaseOrderHead, PurchaseOrderHeadDto> _crud = new(headRepository, context);
     private readonly IPurchaseOrderRepository _headRepository = headRepository;
     private readonly IPurchaseOrderLineRepository _lineRepository = lineRepository;
     private readonly ISupplierRepository _supplierRepo = supplierRepository;
@@ -245,7 +246,7 @@ public class PurchaseOrderService(
                 return ServiceResult<Guid>.Fail("采购单号已存在，请更换单号后重试");
 
             //新增到数据库并获取新生成的订单ID
-            Guid newId = await _repository.AddAsync(headerEntity);
+            Guid newId = await _headRepository.AddAsync(headerEntity);
 
             //=========在新增采购单行的时候,需要尝试去净需求里找到对应的记录,把采购单行Id回写到净需求里,以建立订单行和净需求的关联关系,方便后续根据订单行去跟踪净需求的执行状态========
             // 2. 准备采购行数据与映射关系
@@ -365,7 +366,7 @@ public class PurchaseOrderService(
             //}
 
             //首先获取数据库中订单头信息，如果不存在则回滚并返回失败结果
-            var existingHeader = await _repository.GetByIdAsync(headerEntity.Uid, true);
+            var existingHeader = await _headRepository.GetByIdAsync(headerEntity.Uid, true);
             if (existingHeader == null)
             {
                 _session.Transaction.Rollback();
@@ -486,7 +487,7 @@ public class PurchaseOrderService(
 
                 headerEntity.TotalReadyQty = updateLines.Sum(x => x.ReadyQty);
                 //更新订单
-                await _repository.UpdateAsync(headerEntity);
+                await _headRepository.UpdateAsync(headerEntity);
                 await _lineRepository.UpdateRangeAsync(updateLines);
             }
 

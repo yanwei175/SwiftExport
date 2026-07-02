@@ -8,13 +8,14 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Customers;
 
-public class CustomerPoConfigService(ICustomerPoConfigRepository repository, ServiceBaseContext context)
-    : BaseService<CustomerPoConfig, CustomerPoConfigDto>(repository, context), ICustomerPoConfigService
+public partial class CustomerPoConfigService(ICustomerPoConfigRepository repository, ServiceBaseContext context)
+    : ApplicationServiceBase(context), ICustomerPoConfigService
 {
-    #region 批量保存
-    protected override bool IsSoftDelete => false;
+    private readonly ServiceCrud<CustomerPoConfig, CustomerPoConfigDto> _crud = new(repository, context);
+    private readonly ICustomerPoConfigRepository _repository = repository;
 
-    protected override async Task<string?> ValidateBeforeAddAsync(List<CustomerPoConfig> entities)
+    #region 批量保存
+    private async Task<string?> ValidateBeforeAddAsync(List<CustomerPoConfig> entities)
     {
         // A. 自身列表内的查重 (Self-Duplicates)
         var selfDuplicates = entities
@@ -40,10 +41,7 @@ public class CustomerPoConfigService(ICustomerPoConfigRepository repository, Ser
             needAdd.Add(new PoConfigCheck { CustomerCode = item.CustomerCode, SupplierCode = item.SupplierCode });
         }
 
-        // C. 数据库查重 (Database Duplicates)
-        // 向下转型获取当前模块专属的 Repository 接口
-        var repo = (ICustomerPoConfigRepository)_repository;
-        var nonUniquePoConfig = await repo.GetNonUniqueByPoConfigCheckList(needAdd);
+        var nonUniquePoConfig = await _repository.GetNonUniqueByPoConfigCheckList(needAdd);
 
         if (nonUniquePoConfig.Count > 0)
         {

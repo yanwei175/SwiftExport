@@ -14,14 +14,15 @@ namespace SwiftExport.Application.Services.SystemServices
 {
     /// <summary>
     /// 视图路由配置服务实现
-    /// 继承 BaseService，获得通用 CRUD；
     /// 额外实现 GetEnabledRoutesAsync，供前端拉取缓存。
     /// </summary>
-    public class SysViewRouteService(
+    public partial class SysViewRouteService(
         ISysViewRouteRepository repository,
         ServiceBaseContext context)
-        : BaseService<SysViewRoute, SysViewRouteDto>(repository, context), ISysViewRouteService
+        : ApplicationServiceBase(context), ISysViewRouteService
     {
+        private readonly ServiceCrud<SysViewRoute, SysViewRouteDto> _crud = new(repository, context);
+
         // 保持对具体仓储的引用，以访问扩展方法
         private readonly ISysViewRouteRepository _routeRepo = repository;
 

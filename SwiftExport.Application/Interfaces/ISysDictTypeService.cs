@@ -9,7 +9,7 @@ namespace SwiftExport.Application.Interfaces
     /// <summary>
     /// 系统字典类型服务接口
     /// </summary>
-    public interface ISysDictTypeService : IBaseService<SysDictType, SysDictTypeDto>
+    public partial interface ISysDictTypeService
     {
         /// <summary>
         /// 获取字典类型分组树
@@ -19,4 +19,3 @@ namespace SwiftExport.Application.Interfaces
         Task<ServiceResult<List<DictTypeGroupTreeDto>>> GetDictTypeGroupTreeAsync();
     }
 }
-

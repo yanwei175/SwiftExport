@@ -14,20 +14,19 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Products;
 
-public class BomService(
+public partial class BomService(
     IBomRepository bomRepo,
     IProductRepository pdRepo,
     ISupplierRepository supplierRepo,
-    ServiceBaseContext context) : BaseService<Bom, BomDto>(bomRepo, context), IBomService
+    ServiceBaseContext context) : ApplicationServiceBase(context), IBomService
 {
+    private readonly ServiceCrud<Bom, BomDto> _crud = new(bomRepo, context);
     private readonly IBomRepository _bomRepo = bomRepo;
     private readonly IProductRepository _pdRepo = pdRepo;
     private readonly ISupplierRepository _supplierRepo = supplierRepo;
 
-    protected override bool IsSoftDelete => false;
-
     #region BOM管理CRUD操作
-    public override async Task<ServiceResult<Guid>> AddAsync(BomDto dto)
+    public async Task<ServiceResult<Guid>> AddAsync(BomDto dto)
     {
         var entity = dto.Adapt<Bom>();
 
@@ -39,7 +38,7 @@ public class BomService(
         {
             if (Logger.IsEnabled(LogLevel.Warning))
             {
-                Logger.LogWarning("尝试新增 {EntityName} 数据失败，原因：BomNo和ProductSku的组合已经存在！BomNo: {BomNo}, ProductSku: {ProductSku}", EntityName, entity.BomNo, entity.SubSku);
+                Logger.LogWarning("尝试新增 {EntityName} 数据失败，原因：BomNo和ProductSku的组合已经存在！BomNo: {BomNo}, ProductSku: {ProductSku}", nameof(Bom), entity.BomNo, entity.SubSku);
             }
 
             return ServiceResult<Guid>.Fail("相同BomNo和ProductSku的记录已存在，无法新增！");
@@ -49,12 +48,12 @@ public class BomService(
         entity.CreatedDate = DateTime.Now;
         entity.IsDeleted = false;
 
-        var uid = await _repository.AddAsync(entity);
+        var uid = await _bomRepo.AddAsync(entity);
 
         // Information 级别
         if (Logger.IsEnabled(LogLevel.Information))
         {
-            Logger.LogInformation("成功新增 {EntityName} 数据，生成的 Uid: {Uid}", EntityName, uid);
+            Logger.LogInformation("成功新增 {EntityName} 数据，生成的 Uid: {Uid}", nameof(Bom), uid);
         }
 
         return ServiceResult<Guid>.Ok(uid);
@@ -67,7 +66,7 @@ public class BomService(
 
         if (Logger.IsEnabled(LogLevel.Information))
         {
-            Logger.LogInformation("[{EntityName}] 根据BomNo删除Bom成功！BomNo: {BomNo}, 受影响行数: {AffectedRows}", EntityName, bomNo, rst);
+            Logger.LogInformation("[{EntityName}] 根据BomNo删除Bom成功！BomNo: {BomNo}, 受影响行数: {AffectedRows}", nameof(Bom), bomNo, rst);
         }
         return ServiceResult<int>.Ok(rst);
     }

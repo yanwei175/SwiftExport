@@ -8,7 +8,7 @@ namespace SwiftExport.Application.Interfaces
     /// 货币主数据服务接口
     /// 继承泛型 CRUD 基础接口，补充货币专属业务方法
     /// </summary>
-    public interface ISysDicCurrencyService : IBaseService<SysDicCurrency, SysDicCurrencyDto>
+    public partial interface ISysDicCurrencyService
     {
         Task<ServiceResult<int>> SetNewBaseCurrencyAsync(SysDicCurrencyDto newSysDicCurrencyDto);
 

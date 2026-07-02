@@ -8,15 +8,11 @@ using SwiftExport.Core.Interfaces;
 namespace SwiftExport.Application.Services.Systems
 {
     /// <summary>
-    /// 字典明细服务
-    /// 继承 BaseService 提供标准 CRUD / BatchSave 能力。
+    /// 字典明细服务。
     /// </summary>
-    public class SysDictDataService(ISysDictDataRepository repository, ServiceBaseContext context)
-            : BaseService<SysDictData, SysDictDataDto>(repository, context), ISysDictDataService
+    public partial class SysDictDataService(ISysDictDataRepository repository, ServiceBaseContext context)
+            : ApplicationServiceBase(context), ISysDictDataService
     {
-        /// <summary>
-        /// 字典明细使用软删除。
-        /// </summary>
-        protected override bool IsSoftDelete => true;
+        private readonly ServiceCrud<SysDictData, SysDictDataDto> _crud = new(repository, context);
     }
 }

@@ -13,13 +13,14 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Orders;
 
-public class IndependentDemandService(
+public partial class IndependentDemandService(
     IIndependentDemandRepository repository,
     IBomService bomService,
     IDependentDemandRepository dependentDemandRepository,
     IDependentDemandService dependentDemandService,
-    ServiceBaseContext context) : BaseService<IndependentDemand, IndependentDemandDto>(repository, context), IIndependentDemandServices
+    ServiceBaseContext context) : ApplicationServiceBase(context), IIndependentDemandServices
 {
+    private readonly ServiceCrud<IndependentDemand, IndependentDemandDto> _crud = new(repository, context);
     private readonly IIndependentDemandRepository _independentRepo = repository;
     private readonly IBomService _bomService = bomService;
     private readonly IDependentDemandService _dependentService = dependentDemandService;
@@ -84,7 +85,7 @@ public class IndependentDemandService(
     {
         try
         {
-            var entity = await _repository.GetByIdAsync(id);
+            var entity = await _independentRepo.GetByIdAsync(id);
             if (entity == null) return ServiceResult<bool>.Fail("不存在的行");
 
             entity.FilledQty += addQty;
@@ -102,7 +103,7 @@ public class IndependentDemandService(
             if (entity.FilledQty >= entity.OriginalQty && entity.ShippedQty >= entity.OriginalQty)
                 entity.OrderStatus = IndependentDemandStatusEnum.已完成;
 
-            var rst = await _repository.UpdateAsync(entity);
+            var rst = await _independentRepo.UpdateAsync(entity);
             if (rst != null) return ServiceResult<bool>.Ok(true);
             return ServiceResult<bool>.Fail("更新失败");
         }

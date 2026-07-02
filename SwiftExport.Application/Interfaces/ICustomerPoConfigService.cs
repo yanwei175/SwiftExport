@@ -3,7 +3,7 @@ using SwiftExport.Core.Entities.Relations;
 
 namespace SwiftExport.Application.Interfaces
 {
-    public interface ICustomerPoConfigService : IBaseService<CustomerPoConfig, CustomerPoConfigDto>
+    public partial interface ICustomerPoConfigService
     {
     }
 }

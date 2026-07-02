@@ -7,15 +7,17 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Suppliers;
 
-public class SupplierService(ISupplierRepository repository, ServiceBaseContext context)
-        : BaseService<Supplier, SupplierDto>(repository, context), ISupplierService
+public partial class SupplierService(ISupplierRepository repository, ServiceBaseContext context)
+        : ApplicationServiceBase(context), ISupplierService
 {
+    private readonly ServiceCrud<Supplier, SupplierDto> _crud = new(repository, context);
+    private readonly ISupplierRepository _repository = repository;
+
     #region 批量保存
     /// <summary>
     /// 批量保存
     /// </summary>
-    protected override bool IsSoftDelete => false;
-    protected override async Task<string?> ValidateBeforeAddAsync(List<Supplier> entities)
+    private async Task<string?> ValidateBeforeAddAsync(List<Supplier> entities)
     {
         var needAddCodes = new List<string>();
 
@@ -29,10 +31,7 @@ public class SupplierService(ISupplierRepository repository, ServiceBaseContext 
             needAddCodes.Add(item.SupplierCode);
         }
 
-        // B. 数据库查重 (Database Duplicates)
-        // 向下转型获取当前模块专属的 Repository 接口
-        var repo = (ISupplierRepository)_repository;
-        var existedCodes = await repo.GetExistingSupplierCodesAsync(needAddCodes);
+        var existedCodes = await _repository.GetExistingSupplierCodesAsync(needAddCodes);
 
         // C. 组装特定报错信息
         if (existedCodes.Any())
@@ -51,5 +50,4 @@ public class SupplierService(ISupplierRepository repository, ServiceBaseContext 
 
 
 }
-
 

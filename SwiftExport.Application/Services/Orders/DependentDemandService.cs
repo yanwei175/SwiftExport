@@ -17,7 +17,7 @@ namespace SwiftExport.Application.Services.Orders;
 /// <summary>
 /// 销售订单拆解中间表应用服务。
 /// </summary>
-public class DependentDemandService(
+public partial class DependentDemandService(
     IDependentDemandRepository repository,
     IBomService bomService,
     IPurchaseOrderRepository purchaseOrderRepository,
@@ -27,7 +27,7 @@ public class DependentDemandService(
     ISupplierRepository supplierRepository,
     IDocumentNoService documentNoService,
     ServiceBaseContext context)
-    : BaseService<DependentDemand, IndependentDemandDto>(repository, context), IDependentDemandService
+    : ApplicationServiceBase(context), IDependentDemandService
 {
     /// <summary>
     /// 中文注释：需求池转采购行的专用 Mapster 配置。
@@ -35,6 +35,7 @@ public class DependentDemandService(
     /// </summary>
     private static readonly TypeAdapterConfig DependentDemandToPurchaseOrderLineMapConfig = BuildDependentDemandToPurchaseOrderLineMapConfig();
 
+    private readonly ServiceCrud<DependentDemand, IndependentDemandDto> _crud = new(repository, context);
     private readonly IDependentDemandRepository _rpRepository = repository;
     private readonly IBomService _bomService = bomService;
     private readonly IPurchaseOrderRepository _purchaseOrderRepository = purchaseOrderRepository;

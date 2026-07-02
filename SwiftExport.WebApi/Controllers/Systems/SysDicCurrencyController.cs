@@ -4,8 +4,8 @@ using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Entities.Systems;
-using SwiftExport.WebApi.Controllers.Base;
+using SwiftExport.Core.Common;
+using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.Systems;
 
@@ -14,8 +14,9 @@ namespace SwiftExport.WebApi.Controllers.Systems;
 /// 基类已提供标准 CRUD + BatchSave + GetPagedList，
 /// 此处仅补充货币专属业务接口。
 /// </summary>
-public class SysDicCurrencyController(ISysDicCurrencyService service)
-    : BaseController<SysDicCurrency, SysDicCurrencyDto>(service)
+[ApiController]
+[Route("api/[controller]")]
+public class SysDicCurrencyController(ISysDicCurrencyService service) : ControllerBase
 {
     // 向下转型，方便调用扩展方法
     private ISysDicCurrencyService CurrencyService => service;
@@ -51,5 +52,26 @@ public class SysDicCurrencyController(ISysDicCurrencyService service)
     //{
     //    return await CurrencyService.GetDefaultBaseCurrencyAsync();
     //}
+    [HttpGet("{id}")]
+    public async Task<ServiceResult<SysDicCurrencyDto>> GetById(Guid id) => await service.GetByIdAsync(id);
 
+    [HttpPost]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<Guid>> Create([FromBody] SysDicCurrencyDto dto) => await service.AddAsync(dto);
+
+    [HttpPut("{id}")]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<int>> Update(Guid id, [FromBody] SysDicCurrencyDto dto) => await service.UpdateAsync(dto);
+
+    [HttpDelete("{id}")]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<int>> Delete(Guid id) => await service.DeleteAsync(id);
+
+    [HttpPost("page")]
+    public async Task<ServiceResult<PagedResultDto<SysDicCurrencyDto>>> GetPagedList([FromBody] QueryCriteria criteria, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 500)
+        => await service.GetPagedListAsync(criteria, pageIndex, pageSize);
+
+    [HttpPost("batch-save")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<SysDicCurrencyDto> req) => await service.BatchSaveAsync(req);
 }

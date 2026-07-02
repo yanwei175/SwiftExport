@@ -13,15 +13,17 @@ namespace SwiftExport.Application.Services.Systems
     /// <summary>
     /// 货币主数据服务
     /// 核心职责：
-    /// 1. 继承泛型 CRUD（新增/修改/删除/查询）
+    /// 1. 提供货币主数据 CRUD 和业务查询
     /// 2. 扩展本位币唯一性校验（批量保存时的前置拦截）
     /// 3. 提供"获取本位币"、"获取启用列表"等业务查询
     /// </summary>
-    public class SysDicCurrencyService(ISysDicCurrencyRepository repository, ServiceBaseContext context,ISysDicCurrencyExchangeRepository exchangeRepository)
-        : BaseService<SysDicCurrency, SysDicCurrencyDto>(repository, context), ISysDicCurrencyService
+    public partial class SysDicCurrencyService(ISysDicCurrencyRepository repository, ServiceBaseContext context,ISysDicCurrencyExchangeRepository exchangeRepository)
+        : ApplicationServiceBase(context), ISysDicCurrencyService
     {
+        private readonly ServiceCrud<SysDicCurrency, SysDicCurrencyDto> _crud = new(repository, context);
+        private readonly ISysDicCurrencyRepository _repository = repository;
 
-        public override async Task<ServiceResult<int>> UpdateAsync(SysDicCurrencyDto newSysDicCurrencyDto)
+        public async Task<ServiceResult<int>> UpdateAsync(SysDicCurrencyDto newSysDicCurrencyDto)
         {
             var entity = newSysDicCurrencyDto.Adapt<SysDicCurrency>();
             var rst = await _repository.UpdateAsync(entity);
@@ -34,11 +36,6 @@ namespace SwiftExport.Application.Services.Systems
         }
 
         // ============================================================
-        // 删除策略：货币主数据使用软删除（IsDeleted 标记）
-        // ============================================================
-        protected override bool IsSoftDelete => true;
-
-        // ============================================================
         // 业务查询扩展
         // ============================================================
         public async Task<ServiceResult<int>> SetNewBaseCurrencyAsync(SysDicCurrencyDto newSysDicCurrencyDto)
@@ -47,7 +44,7 @@ namespace SwiftExport.Application.Services.Systems
             try
             {
                 var entity = newSysDicCurrencyDto.Adapt<SysDicCurrency>();
-                await repository.ResetAllBaseCurrencyAsync();
+                await _repository.ResetAllBaseCurrencyAsync();
                 entity.IsBase = true;
                 var rst = await _repository.UpdateAsync(entity);
                 //var rst = 1;
@@ -63,7 +60,7 @@ namespace SwiftExport.Application.Services.Systems
             catch (Exception ex)
             {
                 _session.Transaction.Rollback();
-                if (Logger.IsEnabled(LogLevel.Error)) Logger.LogError(ex, "[{EntityName}] 保存时发生错误，事务已回滚！", EntityName);
+                if (Logger.IsEnabled(LogLevel.Error)) Logger.LogError(ex, "[{EntityName}] 保存时发生错误，事务已回滚！", nameof(SysDicCurrency));
                 throw;
             }
             finally
@@ -80,7 +77,7 @@ namespace SwiftExport.Application.Services.Systems
         public async Task<ServiceResult<SysDicCurrencyDto>> GetBaseCurrencyAsync()
         {
             // 直接用索引器访问第一个元素，避免在 List<T> 上用 FirstOrDefault()
-            var list = await repository.GetListAsync(new { IsBase = true, IsDeleted = false });
+            var list = await _repository.GetListAsync(new { IsBase = true, IsDeleted = false });
             SysDicCurrency? baseCurrency = (list.Count > 0) ? list[0] : null;
 
             if (baseCurrency == null)
@@ -97,7 +94,7 @@ namespace SwiftExport.Application.Services.Systems
         /// </summary>
         public async Task<ServiceResult<IReadOnlyList<SysDicCurrencyDto>>> GetEnabledListAsync()
         {
-            var list = await repository.GetListAsync(new { IsEnabled = true, IsDeleted = false });
+            var list = await _repository.GetListAsync(new { IsEnabled = true, IsDeleted = false });
             var dtos = list.Adapt<IReadOnlyList<SysDicCurrencyDto>>();
             return ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Ok(dtos);
         }
@@ -112,7 +109,7 @@ namespace SwiftExport.Application.Services.Systems
         // 2. 传入列表中最多只能有 1 个 IsBase = true
         // 3. 若新增行中含 IsBase = true，数据库已有本位币则报错
         // ============================================================
-        protected override async Task<string?> ValidateBeforeAddAsync(List<SysDicCurrency> entities)
+        private async Task<string?> ValidateBeforeAddAsync(List<SysDicCurrency> entities)
         {
             // —— 校验 1：CurrencyCode 必填 ——
             var emptyCodeItems = entities.Where(x => string.IsNullOrWhiteSpace(x.CurrencyCode)).ToList();
@@ -132,7 +129,7 @@ namespace SwiftExport.Application.Services.Systems
             // —— 校验 3：若本次新增含本位币，检查数据库是否已存在本位币 ——
             if (baseInBatch.Count == 1)
             {
-                var existingBaseIds = await repository.GetBaseIsBaseCurrencyIdsAsync();
+                var existingBaseIds = await _repository.GetBaseIsBaseCurrencyIdsAsync();
                 if (existingBaseIds.Count > 0)
                 {
                     return $"系统中已存在本位币（ID: {string.Join(", ", existingBaseIds)}），无法再设置新的本位币。请先取消原有本位币设置后再操作。";
@@ -141,7 +138,7 @@ namespace SwiftExport.Application.Services.Systems
 
             // —— 校验 4：CurrencyCode 在数据库中不能重复 ——
             var codes2 = entities.Select(x => x.CurrencyCode!).ToList();
-            var existedCodes = await repository.GetExistingCurrencyCodesAsync(codes2);
+            var existedCodes = await _repository.GetExistingCurrencyCodesAsync(codes2);
             if (existedCodes.Count > 0)
             {
                 return $"以下货币代码已存在，拒绝新增：{string.Join(", ", existedCodes)}";
@@ -155,7 +152,7 @@ namespace SwiftExport.Application.Services.Systems
         // 1. 传入列表中最多只能有 1 个 IsBase = true
         // 2. 若某行要更新为 IsBase = true，数据库中不能有除了这行自身以外的本位币
         // ============================================================
-        protected override async Task<string?> ValidateBeforeUpdateAsync(List<SysDicCurrency> entities)
+        private async Task<string?> ValidateBeforeUpdateAsync(List<SysDicCurrency> entities)
         {
             // —— 校验 1：传入批次内 IsBase 唯一性 ——
             var baseInBatch = entities.Where(x => x.IsBase).ToList();
@@ -170,7 +167,7 @@ namespace SwiftExport.Application.Services.Systems
             {
                 // 排除本次要更新的这些行自身（避免误判：原来它就是本位币，现在只是更新其他字段）
                 var updatingIds = entities.Select(x => x.Uid).ToList();
-                var existingBaseIds = await repository.GetBaseIsBaseCurrencyIdsAsync(updatingIds);
+                var existingBaseIds = await _repository.GetBaseIsBaseCurrencyIdsAsync(updatingIds);
 
                 if (existingBaseIds.Count > 0)
                 {

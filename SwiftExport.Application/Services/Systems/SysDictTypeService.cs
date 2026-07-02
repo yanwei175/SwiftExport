@@ -19,9 +19,12 @@ namespace SwiftExport.Application.Services.Systems
     /// 系统字典类型服务实现
     /// 支持标准 CRUD 操作和分组树查询
     /// </summary>
-    public class SysDictTypeService(IRepository<SysDictType> repository, ServiceBaseContext context)
-            : BaseService<SysDictType, SysDictTypeDto>(repository, context), ISysDictTypeService
+    public partial class SysDictTypeService(IRepository<SysDictType> repository, ServiceBaseContext context)
+            : ApplicationServiceBase(context), ISysDictTypeService
     {
+        private readonly ServiceCrud<SysDictType, SysDictTypeDto> _crud = new(repository, context);
+        private readonly IRepository<SysDictType> _repository = repository;
+
         /// <summary>
         /// 获取字典类型分组树
         /// 
@@ -230,15 +233,6 @@ namespace SwiftExport.Application.Services.Systems
             }
 
             return rootNodes.OrderBy(x => x.SortOrder).ToList();
-        }
-
-        // 🚀 你可以在这里重写钩子函数
-        // 比如：删除字典大类前，校验下面是不是还有明细数据
-        protected override async Task<string?> ValidateBeforeDeleteAsync(List<Guid> ids)
-        {
-            // var hasData = await _dataRepository.ExistsAsync(...);
-            // if (hasData) return "该字典分类下还有明细数据，禁止删除！";
-            return await base.ValidateBeforeDeleteAsync(ids);
         }
     }
 }

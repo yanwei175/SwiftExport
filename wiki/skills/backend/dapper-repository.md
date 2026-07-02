@@ -177,7 +177,7 @@ WHERE DocumentNo = @DocumentNo
 - `ICriteriaQueryRepository<TEntity>`
 - `IPagedCriteriaRepository<TEntity>`
 
-实现层可复用 Infrastructure 内部 helper 或 `DapperRepository<TEntity>` 的 `protected ...CoreAsync` 方法，但公开方法必须出现在具体业务仓储上。
+实现层不再使用 `DapperRepositoryComplexHelper` 这类全局复杂 helper。复杂批量、分页、动态条件如果暂时沿用旧能力，必须由具体业务仓储显式公开；新增复杂查询优先在具体仓储中使用明确 SearchRequest、白名单排序和局部私有 SQL 组装方法。
 
 ### 4. 修改 Repository 安全检查
 

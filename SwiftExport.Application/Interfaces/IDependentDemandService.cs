@@ -9,7 +9,7 @@ namespace SwiftExport.Application.Interfaces
     /// <summary>
     /// 销售订单拆解依赖需求应用服务接口。
     /// </summary>
-    public interface IDependentDemandService : IBaseService<DependentDemand, IndependentDemandDto>
+    public partial interface IDependentDemandService
     {
         /// <summary>
         /// 分页查询拆解依赖需求。

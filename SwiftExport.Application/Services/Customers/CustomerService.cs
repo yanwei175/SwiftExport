@@ -11,12 +11,14 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Customers;
 
-public class CustomerService(ICustomerRepository repository, ServiceBaseContext context)
-    : BaseService<Customer, CustomerDto>(repository, context), ICustomerService
+public partial class CustomerService(ICustomerRepository repository, ServiceBaseContext context)
+    : ApplicationServiceBase(context), ICustomerService
 {
+    private readonly ServiceCrud<Customer, CustomerDto> _crud = new(repository, context);
+    private readonly ICustomerRepository _repository = repository;
+
     #region 批量保存
-    protected override bool IsSoftDelete => false;
-    protected override async Task<string?> ValidateBeforeAddAsync(List<Customer> entities)
+    private async Task<string?> ValidateBeforeAddAsync(List<Customer> entities)
     {
         var needAddCodes = new List<string>();
 
@@ -30,10 +32,7 @@ public class CustomerService(ICustomerRepository repository, ServiceBaseContext 
             needAddCodes.Add(item.CustomerCode);
         }
 
-        // 2. 调用当前业务专用的 Repository 方法查重
-        // 注意：因为基类的 _rpRepository 是泛型 IRepository<T>，这里需要向下转型为 ICustomerRepository
-        var repo = (ICustomerRepository)_repository;
-        var existedCodes = await repo.GetExistingCustomerCodesAsync(needAddCodes);
+        var existedCodes = await _repository.GetExistingCustomerCodesAsync(needAddCodes);
 
         // 3. 组装特定报错信息
         if (existedCodes.Any())
@@ -48,7 +47,7 @@ public class CustomerService(ICustomerRepository repository, ServiceBaseContext 
 
     public async Task<bool> ExistByCustomerCode(string customerCode)
     {
-        return await repository.ExistByCustomerCode(customerCode);
+        return await _repository.ExistByCustomerCode(customerCode);
     }
 
     public async Task<ServiceResult<CustomerDto>> GetByCustomerCodeAsync(string customerCode)
@@ -62,7 +61,7 @@ public class CustomerService(ICustomerRepository repository, ServiceBaseContext 
             return ServiceResult<CustomerDto>.Fail("客户代码不能为空");
         }
 
-        var list = await repository.GetListAsync("WHERE CustomerCode = @CustomerCode", new { CustomerCode = customerCode });
+        var list = await _repository.GetListAsync("WHERE CustomerCode = @CustomerCode", new { CustomerCode = customerCode });
         if (list == null || list.Count == 0)
         {
             if (Logger.IsEnabled(LogLevel.Warning))
@@ -92,7 +91,7 @@ public class CustomerService(ICustomerRepository repository, ServiceBaseContext 
             return ServiceResult<IReadOnlyList<string>>.Fail("客户代码列表中包含空值。");
         }
 
-        var existingCodes = await repository.GetExistingCustomerCodesAsync(customerCodes);
+        var existingCodes = await _repository.GetExistingCustomerCodesAsync(customerCodes);
 
         if (existingCodes == null || !existingCodes.Any())
             return ServiceResult<IReadOnlyList<string>>.Ok([.. customerCodes]);
@@ -131,7 +130,6 @@ public class CustomerService(ICustomerRepository repository, ServiceBaseContext 
         int pageIndex = request.PageIndex > 0 ? request.PageIndex : 1;
         int pageSize = request.PageSize > 0 ? request.PageSize : 50;
 
-        // 5. 核心：调用基类提供的泛型分页方法，完成数据库查询和 DTO 映射
-        return await base.GetPagedListAsync(criteria, pageIndex, pageSize, "CustomerCode ASC");
+        return await _crud.GetPagedListAsync(criteria, pageIndex, pageSize, "CustomerCode ASC");
     }
 }

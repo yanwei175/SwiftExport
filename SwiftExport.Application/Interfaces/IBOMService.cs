@@ -6,7 +6,7 @@ using SwiftExport.Core.Entities.Orders;
 
 namespace SwiftExport.Application.Interfaces
 {
-    public interface IBomService : IBaseService<Bom, BomDto>
+    public partial interface IBomService
     {
 
 

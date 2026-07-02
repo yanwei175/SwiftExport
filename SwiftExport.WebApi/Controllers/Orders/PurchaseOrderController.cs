@@ -4,17 +4,42 @@ using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Entities.Orders;
-using SwiftExport.WebApi.Controllers.Base;
+using SwiftExport.Core.Common;
+using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.Orders
 {
     /// <summary>
     /// 采购订单控制器。
     /// </summary>
+    [ApiController]
+    [Route("api/[controller]")]
     public class PurchaseOrderController(IPurchaseOrderService service)
-        : BaseController<PurchaseOrderHead, PurchaseOrderHeadDto>(service)
+        : ControllerBase
     {
+        [HttpGet("{id}")]
+        public async Task<ServiceResult<PurchaseOrderHeadDto>> GetById(Guid id) => await service.GetByIdAsync(id);
+
+        [HttpPost]
+        [PreventDuplicateRequest]
+        public async Task<ServiceResult<Guid>> Create([FromBody] PurchaseOrderHeadDto dto) => await service.AddAsync(dto);
+
+        [HttpPut("{id}")]
+        [PreventDuplicateRequest]
+        public async Task<ServiceResult<int>> Update(Guid id, [FromBody] PurchaseOrderHeadDto dto) => await service.UpdateAsync(dto);
+
+        [HttpDelete("{id}")]
+        [PreventDuplicateRequest]
+        public async Task<ServiceResult<int>> Delete(Guid id) => await service.DeleteAsync(id);
+
+        [HttpPost("page")]
+        public async Task<ServiceResult<PagedResultDto<PurchaseOrderHeadDto>>> GetPagedList([FromBody] QueryCriteria criteria, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 500)
+            => await service.GetPagedListAsync(criteria, pageIndex, pageSize);
+
+        [HttpPost("batch-save")]
+        [PreventDuplicateRequest(WindowSeconds = 5)]
+        public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<PurchaseOrderHeadDto> req) => await service.BatchSaveAsync(req);
+
         [HttpPost("search")]
         public async Task<ServiceResult<PagedResultDto<PurchaseOrderHeadDto>>> GetPagedListAsync([FromBody] PurchaseOrderSearchDto search)
         {

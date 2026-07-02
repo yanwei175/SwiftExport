@@ -4,7 +4,7 @@ using SwiftExport.Core.Entities.Orders;
 
 namespace SwiftExport.Application.Interfaces;
 
-public interface IPackingListService : IBaseService<PackingListHead, PackingListHeadDto>
+public partial interface IPackingListService
 {
     Task<ServiceResult<PagedResultDto<PackingListHeadDto>>> GetHeadPagedListAsync(PackingListSearchDto search);
     Task<ServiceResult<PackingListDetailDto>> GetDetailByIdAsync(Guid id);

@@ -7,10 +7,8 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Products;
 
-public class ProductCategoryService(IProductCategoryRepository repository, ServiceBaseContext context) : BaseService<ProductCategory, ProductCategoryDto>(repository, context), IProductCategoryService
+public partial class ProductCategoryService(IProductCategoryRepository repository, ServiceBaseContext context)
+    : ApplicationServiceBase(context), IProductCategoryService
 {
-
-
-
-
+    private readonly ServiceCrud<ProductCategory, ProductCategoryDto> _crud = new(repository, context);
 }

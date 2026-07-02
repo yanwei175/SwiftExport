@@ -1,102 +1,64 @@
-using SwiftExport.Application.Contexts;
+ï»¿using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Core.Entities.Systems;
 using SwiftExport.Core.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
-namespace SwiftExport.Application.Services.Systems
+namespace SwiftExport.Application.Services.Systems;
+
+/// <summary>
+/// è´§å¸æ±‡ç‡æœåŠ¡ã€‚
+/// </summary>
+public partial class SysDicCurrencyExchangeService(ISysDicCurrencyExchangeRepository repository, ServiceBaseContext context)
+    : ApplicationServiceBase(context), ISysDicCurrencyExchangeService
 {
-    /// <summary>
-    /// »õ±Ò»ãÂÊ×Öµä·şÎñ
-    /// ¼Ì³Ğ BaseService£¬Ìá¹©±ê×¼ CRUD / BatchSave / ·ÖÒ³²éÑ¯ÄÜÁ¦
-    /// </summary>
-    public class SysDicCurrencyExchangeService(ISysDicCurrencyExchangeRepository repository, ServiceBaseContext context)
-        : BaseService<SysDicCurrencyExchange, SysDicCurrencyExchangeDto>(repository, context), ISysDicCurrencyExchangeService
+    private readonly ServiceCrud<SysDicCurrencyExchange, SysDicCurrencyExchangeDto> _crud = new(repository, context);
+
+    private Task<string?> ValidateBeforeAddAsync(List<SysDicCurrencyExchange> entities)
     {
-        /// <summary>
-        /// É¾³ı²ßÂÔ£º»ãÂÊ×ÖµäÊ¹ÓÃÈíÉ¾³ı£¨IsDeleted ±ê¼Ç£©
-        /// </summary>
-        protected override bool IsSoftDelete => true;
+        return Task.FromResult(ValidateEntities(entities));
+    }
 
-        /// <summary>
-        /// ĞÂÔöÇ°Ğ£Ñé£º
-        /// 1. Ô´±ÒÖÖ/Ä¿±ê±ÒÖÖ±ØÌî
-        /// 2. Ô´±ÒÖÖ²»ÄÜµÈÓÚÄ¿±ê±ÒÖÖ
-        /// 3. ¾«¶È·¶Î§ 0~6
-        /// 4. »ãÂÊ±ØĞë´óÓÚ 0
-        /// </summary>
-        protected override Task<string?> ValidateBeforeAddAsync(List<SysDicCurrencyExchange> entities)
-        {
-            return Task.FromResult(ValidateEntities(entities));
-        }
+    private Task<string?> ValidateBeforeUpdateAsync(List<SysDicCurrencyExchange> entities)
+    {
+        return Task.FromResult(ValidateEntities(entities));
+    }
 
-        /// <summary>
-        /// ¸üĞÂÇ°Ğ£Ñé£º¸´ÓÃĞÂÔöĞ£Ñé¹æÔò
-        /// </summary>
-        protected override Task<string?> ValidateBeforeUpdateAsync(List<SysDicCurrencyExchange> entities)
-        {
-            return Task.FromResult(ValidateEntities(entities));
-        }
-
-        /// <summary>
-        /// Í³Ò»ÊµÌåĞ£Ñé£¨ĞÂÔö/¸üĞÂ¹²ÓÃ£©
-        /// </summary>
-        private string? ValidateEntities(List<SysDicCurrencyExchange> entities)
-        {
-            if (entities == null || entities.Count == 0)
-            {
-                return null;
-            }
-
-            // ÖğĞĞĞ£Ñé»ù´¡×Ö¶Î
-            foreach (var item in entities)
-            {
-                if (string.IsNullOrWhiteSpace(item.FromCurrencyCode))
-                {
-                    return "Ô´»õ±Ò´úÂë(FromCurrencyCode)²»ÄÜÎª¿Õ";
-                }
-
-                if (string.IsNullOrWhiteSpace(item.ToCurrencyCode))
-                {
-                    return "Ä¿±ê»õ±Ò´úÂë(ToCurrencyCode)²»ÄÜÎª¿Õ";
-                }
-
-                if (string.Equals(item.FromCurrencyCode, item.ToCurrencyCode, StringComparison.OrdinalIgnoreCase))
-                {
-                    return "Ô´»õ±Ò´úÂëÓëÄ¿±ê»õ±Ò´úÂë²»ÄÜÏàÍ¬";
-                }
-
-                if (item.Precision < 0 || item.Precision > 6)
-                {
-                    return "»ãÂÊ¾«¶È(Precision)·¶Î§±ØĞëÔÚ 0~6 Ö®¼ä";
-                }
-
-                if (item.Rate == null || item.Rate <= 0)
-                {
-                    return "»ãÂÊ(Rate)±ØĞë´óÓÚ 0";
-                }
-            }
-
-            // Åú´ÎÄÚÈ¥ÖØĞ£Ñé£ºÍ¬Ò»Ìõ»ãÂÊ¹ØÏµ²»ÄÜÖØ¸´Ìá½»
-            var duplicatePair = entities
-                .GroupBy(x => new
-                {
-                    From = (x.FromCurrencyCode ?? string.Empty).Trim().ToUpperInvariant(),
-                    To = (x.ToCurrencyCode ?? string.Empty).Trim().ToUpperInvariant()
-                })
-                .FirstOrDefault(g => g.Count() > 1);
-
-            if (duplicatePair != null)
-            {
-                return $"´æÔÚÖØ¸´µÄ»ãÂÊ¹ØÏµ£º{duplicatePair.Key.From} -> {duplicatePair.Key.To}";
-            }
-
+    private static string? ValidateEntities(List<SysDicCurrencyExchange> entities)
+    {
+        if (entities == null || entities.Count == 0)
             return null;
+
+        foreach (var item in entities)
+        {
+            if (string.IsNullOrWhiteSpace(item.FromCurrencyCode))
+                return "æºè´§å¸ä»£ç (FromCurrencyCode)ä¸èƒ½ä¸ºç©º";
+
+            if (string.IsNullOrWhiteSpace(item.ToCurrencyCode))
+                return "ç›®æ ‡è´§å¸ä»£ç (ToCurrencyCode)ä¸èƒ½ä¸ºç©º";
+
+            if (string.Equals(item.FromCurrencyCode, item.ToCurrencyCode, StringComparison.OrdinalIgnoreCase))
+                return "æºè´§å¸ä»£ç å’Œç›®æ ‡è´§å¸ä»£ç ä¸èƒ½ç›¸åŒ";
+
+            if (item.Precision < 0 || item.Precision > 6)
+                return "æ±‡ç‡ç²¾åº¦(Precision)èŒƒå›´å¿…é¡»åœ¨ 0~6 ä¹‹é—´";
+
+            if (item.Rate == null || item.Rate <= 0)
+                return "æ±‡ç‡(Rate)å¿…é¡»å¤§äº 0";
         }
+
+        var duplicatePair = entities
+            .GroupBy(x => new
+            {
+                From = (x.FromCurrencyCode ?? string.Empty).Trim().ToUpperInvariant(),
+                To = (x.ToCurrencyCode ?? string.Empty).Trim().ToUpperInvariant()
+            })
+            .FirstOrDefault(g => g.Count() > 1);
+
+        if (duplicatePair != null)
+            return $"å­˜åœ¨é‡å¤çš„æ±‡ç‡å…³ç³»ï¼š{duplicatePair.Key.From} -> {duplicatePair.Key.To}";
+
+        return null;
     }
 }

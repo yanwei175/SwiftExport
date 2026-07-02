@@ -7,11 +7,14 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Products;
 
-public class ProductColorService(IProductColorRepository repository, ServiceBaseContext context) : BaseService<ProductColor, ProductColorDto>(repository, context), IProductColorService
+public partial class ProductColorService(IProductColorRepository repository, ServiceBaseContext context)
+    : ApplicationServiceBase(context), IProductColorService
 {
+    private readonly ServiceCrud<ProductColor, ProductColorDto> _crud = new(repository, context);
+    private readonly IProductColorRepository _repository = repository;
+
     #region 批量保存
-    protected override bool IsSoftDelete => false;
-    protected override async Task<string?> ValidateBeforeAddAsync(List<ProductColor> entities)
+    private async Task<string?> ValidateBeforeAddAsync(List<ProductColor> entities)
     {
         var codes = new List<string>();
         foreach (var item in entities)
@@ -21,9 +24,7 @@ public class ProductColorService(IProductColorRepository repository, ServiceBase
             codes.Add(item.ColorCode);
         }
 
-        // 调用子仓储专属方法检查重复
-        var repositoryImpl = (IProductColorRepository)_repository;
-        var existedCodes = await repositoryImpl.GetExistingColorCodesAsync(codes);
+        var existedCodes = await _repository.GetExistingColorCodesAsync(codes);
         if (existedCodes.Any())
         {
             return $"以下颜色代码已存在，拒绝新增: {string.Join(", ", existedCodes)}";

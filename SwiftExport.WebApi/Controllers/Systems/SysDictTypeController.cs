@@ -2,10 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Entities.Systems;
-using SwiftExport.WebApi.Controllers.Base;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using SwiftExport.Core.Common;
+using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.Systems;
 
@@ -16,18 +14,15 @@ namespace SwiftExport.WebApi.Controllers.Systems;
 [ApiController]
 [Route("api/[controller]")]
 public class SysDictTypeController(ISysDictTypeService service)
-        : BaseController<SysDictType, SysDictTypeDto>(service)
+        : ControllerBase
 {
-    private readonly ISysDictTypeService _dictTypeService = service;
-
     /// <summary>
     /// 获取所有字典类型（平面列表）
     /// </summary>
     [HttpGet("all")]
     public async Task<ServiceResult<IReadOnlyList<SysDictTypeDto>>> GetAllTypes()
     {
-        // 直接调用基类 _service 里已经写好的 GetAllAsync 方法
-        return await _service.GetAllAsync();
+        return await service.GetAllAsync();
     }
 
     /// <summary>
@@ -54,7 +49,29 @@ public class SysDictTypeController(ISysDictTypeService service)
     [HttpGet("group-tree")]
     public async Task<ServiceResult<List<DictTypeGroupTreeDto>>> GetDictTypeGroupTree()
     {
-        return await _dictTypeService.GetDictTypeGroupTreeAsync();
+        return await service.GetDictTypeGroupTreeAsync();
     }
-}
+    [HttpGet("{id}")]
+    public async Task<ServiceResult<SysDictTypeDto>> GetById(Guid id) => await service.GetByIdAsync(id);
 
+    [HttpPost]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<Guid>> Create([FromBody] SysDictTypeDto dto) => await service.AddAsync(dto);
+
+    [HttpPut("{id}")]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<int>> Update(Guid id, [FromBody] SysDictTypeDto dto) => await service.UpdateAsync(dto);
+
+    [HttpDelete("{id}")]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<int>> Delete(Guid id) => await service.DeleteAsync(id);
+
+    [HttpPost("page")]
+    public async Task<ServiceResult<PagedResultDto<SysDictTypeDto>>> GetPagedList([FromBody] QueryCriteria criteria, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 500)
+        => await service.GetPagedListAsync(criteria, pageIndex, pageSize);
+
+    [HttpPost("batch-save")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<SysDictTypeDto> req) => await service.BatchSaveAsync(req);
+
+}

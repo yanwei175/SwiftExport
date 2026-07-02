@@ -5,17 +5,42 @@ using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Entities.Orders;
-using SwiftExport.WebApi.Controllers.Base;
+using SwiftExport.Core.Common;
+using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.Orders
 {
     /// <summary>
     /// 净需求控制器。
     /// </summary>
+    [ApiController]
+    [Route("api/[controller]")]
     public class DependentDemandController(IDependentDemandService service)
-        : BaseController<DependentDemand, IndependentDemandDto>(service)
+        : ControllerBase
     {
+        [HttpGet("{id}")]
+        public async Task<ServiceResult<IndependentDemandDto>> GetById(Guid id) => await service.GetByIdAsync(id);
+
+        [HttpPost]
+        [PreventDuplicateRequest]
+        public async Task<ServiceResult<Guid>> Create([FromBody] IndependentDemandDto dto) => await service.AddAsync(dto);
+
+        [HttpPut("{id}")]
+        [PreventDuplicateRequest]
+        public async Task<ServiceResult<int>> Update(Guid id, [FromBody] IndependentDemandDto dto) => await service.UpdateAsync(dto);
+
+        [HttpDelete("{id}")]
+        [PreventDuplicateRequest]
+        public async Task<ServiceResult<int>> Delete(Guid id) => await service.DeleteAsync(id);
+
+        [HttpPost("page")]
+        public async Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedList([FromBody] QueryCriteria criteria, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 500)
+            => await service.GetPagedListAsync(criteria, pageIndex, pageSize);
+
+        [HttpPost("batch-save")]
+        [PreventDuplicateRequest(WindowSeconds = 5)]
+        public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<IndependentDemandDto> req) => await service.BatchSaveAsync(req);
+
         /// <summary>
         /// 分页查询净需求。
         /// </summary>

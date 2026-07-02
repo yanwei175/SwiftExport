@@ -3,12 +3,36 @@ using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
-using SwiftExport.Core.Entities.Relations;
-using SwiftExport.WebApi.Controllers.Base;
+using SwiftExport.WebApi.Filters;
 namespace SwiftExport.WebApi.Controllers.Customers;
 
-public class CustomerPoConfigController(ICustomerPoConfigService service) : BaseController<CustomerPoConfig, CustomerPoConfigDto>(service)
+[ApiController]
+[Route("api/[controller]")]
+public class CustomerPoConfigController(ICustomerPoConfigService service) : ControllerBase
 {
+    [HttpGet("{id}")]
+    public async Task<ServiceResult<CustomerPoConfigDto>> GetById(Guid id) => await service.GetByIdAsync(id);
+
+    [HttpPost]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<Guid>> Create([FromBody] CustomerPoConfigDto dto) => await service.AddAsync(dto);
+
+    [HttpPut("{id}")]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<int>> Update(Guid id, [FromBody] CustomerPoConfigDto dto) => await service.UpdateAsync(dto);
+
+    [HttpDelete("{id}")]
+    [PreventDuplicateRequest]
+    public async Task<ServiceResult<int>> Delete(Guid id) => await service.DeleteAsync(id);
+
+    [HttpPost("page")]
+    public async Task<ServiceResult<PagedResultDto<CustomerPoConfigDto>>> GetPagedList([FromBody] QueryCriteria criteria, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 500)
+        => await service.GetPagedListAsync(criteria, pageIndex, pageSize);
+
+    [HttpPost("batch-save")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<CustomerPoConfigDto> req) => await service.BatchSaveAsync(req);
+
     [HttpGet]
     public async Task<ServiceResult<PagedResultDto<CustomerPoConfigDto>>> GetPaged([FromQuery] PagedRequestDto request)
     {
@@ -44,8 +68,7 @@ public class CustomerPoConfigController(ICustomerPoConfigService service) : Base
         int pageIndex = request.PageIndex > 0 ? request.PageIndex : 1;
         int pageSize = request.PageSize > 0 ? request.PageSize : 50;
 
-        // 5. 核心：调用基类提供的泛型分页方法，完成数据库查询和 DTO 映射
-        return await _service.GetPagedListAsync(criteria, pageIndex, pageSize, "CustomerCode ASC, Id DESC");
+        return await service.GetPagedListAsync(criteria, pageIndex, pageSize, "CustomerCode ASC, Id DESC");
     }
 
     [HttpGet("all")]

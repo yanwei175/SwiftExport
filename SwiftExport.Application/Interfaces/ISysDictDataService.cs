@@ -1,8 +1,9 @@
-﻿using SwiftExport.Contracts.DTOs.SystemDtos;
-using SwiftExport.Core.Entities.Systems;
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.Wrappers;
 
-namespace SwiftExport.Application.Interfaces
+namespace SwiftExport.Application.Interfaces;
+
+public partial interface ISysDictDataService
 {
-    // 接口
-    public interface ISysDictDataService : IBaseService<SysDictData, SysDictDataDto> { }
+    Task<ServiceResult<IReadOnlyList<SysDictDataDto>>> GetByCodeAsync(string dictCode);
 }

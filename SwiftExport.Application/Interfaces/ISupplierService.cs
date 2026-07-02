@@ -3,6 +3,6 @@ using SwiftExport.Core.Entities.MasterData;
 
 namespace SwiftExport.Application.Interfaces;
 
-public interface ISupplierService : IBaseService<Supplier, SupplierDto>
+public partial interface ISupplierService
 {
 }

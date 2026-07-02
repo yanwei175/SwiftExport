@@ -10,13 +10,15 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Products;
 
-public class ProductService(IProductRepository productRepository, ServiceBaseContext context, IProductCategoryRepository categoryRepository) : BaseService<Product, ProductDto>(productRepository, context), IProductService
+public partial class ProductService(IProductRepository productRepository, ServiceBaseContext context, IProductCategoryRepository categoryRepository)
+    : ApplicationServiceBase(context), IProductService
 {
+    private readonly ServiceCrud<Product, ProductDto> _crud = new(productRepository, context);
     // 2. 将传入的特有 Repository 保存为当前类的私有只读字段
     private readonly IProductRepository _productRepository = productRepository;
     private readonly IProductCategoryRepository _categoryRepository = categoryRepository;
 
-    public override async Task<ServiceResult<IReadOnlyList<ProductDto>>> GetAllAsync()
+    public async Task<ServiceResult<IReadOnlyList<ProductDto>>> GetAllAsync()
     {
         return ServiceResult<IReadOnlyList<ProductDto>>.Fail("数据太多,不允许GetAll");
     }
@@ -120,8 +122,7 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
 
 
     #region 批量保存
-    protected override bool IsSoftDelete => true;
-    protected override async Task<string?> ValidateBeforeAddAsync(List<Product> entities)
+    private async Task<string?> ValidateBeforeAddAsync(List<Product> entities)
     {
         var codes = new List<string>();
         foreach (var item in entities)
@@ -131,9 +132,7 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
             codes.Add(item.Sku);
         }
 
-        // 调用子仓储专属方法检查重复
-        var repositoryImpl = (IProductRepository)_repository;
-        var existedCodes = await repositoryImpl.GetExistingSkuListAsync(codes);
+        var existedCodes = await _productRepository.GetExistingSkuListAsync(codes);
         if (existedCodes.Any())
         {
             return $"以下产品型号已存在，拒绝新增: {string.Join(", ", existedCodes)}";
@@ -143,18 +142,18 @@ public class ProductService(IProductRepository productRepository, ServiceBaseCon
         return null;
     }
 
-    protected override async Task<string?> ValidateBeforeUpdateAsync(List<Product> entities)
+    private Task<string?> ValidateBeforeUpdateAsync(List<Product> entities)
     {
         var codes = new List<string>();
         foreach (var item in entities)
         {
             if (string.IsNullOrWhiteSpace(item.Sku))
-                return "产品型号不能为空";
+                return Task.FromResult<string?>("产品型号不能为空");
             codes.Add(item.Sku);
         }
 
         // 返回 null 代表一切正常，放行！
-        return null;
+        return Task.FromResult<string?>(null);
     }
 
 

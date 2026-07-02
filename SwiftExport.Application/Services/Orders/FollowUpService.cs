@@ -12,13 +12,14 @@ namespace SwiftExport.Application.Services.Orders;
 /// <summary>
 /// 采购跟进应用服务。
 /// </summary>
-public class FollowUpService(
+public partial class FollowUpService(
     IRepository<FollowUpLog> followUpRepository,
     IPurchaseOrderLineRepository purchaseOrderLineRepository,
     IDependentDemandRepository dependentDemandRepository,
     ServiceBaseContext context)
-    : BaseService<FollowUpLog, FollowUpLogDto>(followUpRepository, context), IFollowUpService
+    : ApplicationServiceBase(context), IFollowUpService
 {
+    private readonly ServiceCrud<FollowUpLog, FollowUpLogDto> _crud = new(followUpRepository, context);
     private readonly IRepository<FollowUpLog> _followUpRepository = followUpRepository;
     private readonly IPurchaseOrderLineRepository _purchaseOrderLineRepository = purchaseOrderLineRepository;
     private readonly IDependentDemandRepository _dependentDemandRepository = dependentDemandRepository;

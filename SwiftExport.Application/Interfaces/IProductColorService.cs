@@ -3,7 +3,7 @@ using SwiftExport.Core.Entities.MasterData;
 
 namespace SwiftExport.Application.Interfaces
 {
-    public interface IProductColorService : IBaseService<ProductColor, ProductColorDto>
+    public partial interface IProductColorService
     {
 
     }
