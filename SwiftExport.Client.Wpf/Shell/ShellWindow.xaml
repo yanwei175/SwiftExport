@@ -5,7 +5,7 @@
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  mc:Ignorable="d"
-                 Title="SwiftExport Client"
+                 Title="{Binding Title}"
                  Width="1120"
                  Height="720"
                  MinWidth="960"
@@ -20,9 +20,9 @@
         <Border Padding="{DynamicResource SwiftExportShellPadding}"
                 Background="{DynamicResource SwiftExportBrush.Surface}">
             <StackPanel>
-                <TextBlock Text="SwiftExport"
+                <TextBlock Text="{Binding Title}"
                            Style="{StaticResource SwiftExportTitleText}" />
-                <TextBlock Text="Management client shell"
+                <TextBlock Text="{Binding StatusMessage}"
                            Style="{StaticResource SwiftExportCaptionText}"
                            Margin="0,4,0,0" />
             </StackPanel>
@@ -36,10 +36,10 @@
                     CornerRadius="{DynamicResource SwiftExportCornerRadius}">
                 <StackPanel HorizontalAlignment="Center"
                             VerticalAlignment="Center">
-                    <TextBlock Text="Ready for stage 3"
+                    <TextBlock Text="{Binding StageTitle}"
                                Style="{StaticResource SwiftExportHeadingText}"
                                HorizontalAlignment="Center" />
-                    <TextBlock Text="Host, DI, configuration, navigation, and business modules will be added in later stages."
+                    <TextBlock Text="{Binding StageDescription}"
                                Style="{StaticResource SwiftExportBodyText}"
                                Width="520"
                                Margin="0,8,0,0"

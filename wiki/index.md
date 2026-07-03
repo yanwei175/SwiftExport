@@ -27,6 +27,7 @@
 - [采购入库 PackingList 闭环细化总纲](project/采购入库PackingList闭环细化总纲.md) - 涉及净需求转采购、采购入库、出库、PackingList 过账、客供件扣减、库存流水闭环时读取。
 - [API 契约总纲](project/API契约总纲.md) - 涉及 Controller 路由、Refit 接口、DTO、Request/Response、Swagger/OpenAPI 或未来 BS 前端调用时读取。
 - [前端页面总纲](project/前端页面总纲.md) - 涉及 WPF 页面结构、页面类型、View/ViewModel 拆分、BaseLineModel、BaseListModel、页面命令、导航弹窗或 DataGrid 页面时读取。
+- [.NET 10 前端 MVVM 基础设计](project/dotnet10-frontend-mvvm-blueprint.md) - 涉及未来 .NET 10 WPF、CommunityToolkit MVVM、前端基类、导航、弹窗、消息、分页或新前端迁移时读取。
 - [测试与验收总纲](project/测试与验收总纲.md) - 涉及构建命令、测试策略、手工验收、API 契约验收、前端页面验收或 ERP 主流程验收时读取。
 - [项目接手说明](project/onboarding.md) - 接手新功能、不熟悉模块、需要打开顺序和风险提示时读取。
 - [Skills Index](skills/index.md) - 需要选择正式 skill 时读取。
@@ -58,6 +59,7 @@
 - [WPF DataGrid Editing](skills/frontend-wpf/wpf-datagrid-editing.md) - 涉及 DataGrid 编辑列、行模型、脏数据、批量保存、只读状态时读取。
 - [WPF Theme Fix](skills/frontend-wpf/wpf-theme-fix.md) - 涉及 ResourceDictionary、样式、主题、DataGrid 视觉修复时读取。
 - [MVVMLight Guide](guides/frontend-wpf/wpf-mvvmlight.md) - 涉及 ViewModel、命令、属性通知、消息通信时读取。
+- [CommunityToolkit MVVM Guide](guides/frontend-wpf/wpf-communitytoolkit-mvvm.md) - 涉及未来 .NET 10 WPF、CommunityToolkit、Source Generator、前端基类和新前端 MVVM 基础设施时读取。
 - [WPF DataGrid Guide](guides/frontend-wpf/wpf-datagrid.md) - 涉及 DataGrid 结构、列绑定、编辑行为、行状态时读取。
 - [Dialog / Navigation Guide](guides/frontend-wpf/wpf-dialog-navigation.md) - 涉及弹窗、导航、页面切换、宿主边界时读取。
 - [WPF UI Services Guide](guides/frontend-wpf/wpf-ui-services.md) - 涉及 `IDialogService`、DialogHost、消息提示、路由服务时读取。

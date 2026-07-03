@@ -1,5 +1,13 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-03 ingest | 整理 .NET 10 前端 MVVM 基础设计
+
+- 读取 `raw/wpf-communitytoolkit-mvvm.md`、`raw/wpf-mvvm-template.md`、`raw/wpf-navigation-service.md`、`raw/wpf-dialog-service.md`、`raw/wpf-message-service.md`、`raw/wpf-designer-page-navigator.md`、`raw/wpf-designer-Image.md`、`raw/mapster-mapping.md` 等新增来源。
+- 新增 `wiki/project/dotnet10-frontend-mvvm-blueprint.md`，作为未来 .NET 10 WPF 前端的 MVVM 基础设计总纲，明确 CommunityToolkit、基类层次、DataGrid 行模型、UI Service、分页、图片列和 Mapster 边界。
+- 新增 `wiki/guides/frontend-wpf/wpf-communitytoolkit-mvvm.md`，作为未来新前端具体页面开发时的 CommunityToolkit MVVM guide。
+- 更新 `wiki/index.md`、`wiki/guides/index.md` 和 `wiki/project/前端页面总纲.md`，区分当前 .NET Framework 4.8 / MVVMLight 前端与未来 .NET 10 / CommunityToolkit 前端。
+- 本次只整理规则，不迁移现有 WPF 页面，不修改业务代码。
+
 ## 2026-07-02 backend | 建立 ASP.NET 后端 API 工作流
 
 - 新增 `wiki/workflows/backend/aspnet-api-workflow.md`，固化 SwiftExport 后端 API 开发顺序：Contracts DTO/API/枚举、Application Interface、Application Service、必要时 Core Repository Interface、Infrastructure Dapper 实现、WebApi Controller 转发和 Refit 契约同步。

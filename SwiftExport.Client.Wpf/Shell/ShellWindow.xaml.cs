@@ -4,8 +4,9 @@ namespace SwiftExportClient.Shell;
 
 public partial class ShellWindow : FluentWindow
 {
-    public ShellWindow()
+    public ShellWindow(ShellViewModel viewModel)
     {
         InitializeComponent();
+        DataContext = viewModel;
     }
 }
