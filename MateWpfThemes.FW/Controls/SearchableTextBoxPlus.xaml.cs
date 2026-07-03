@@ -291,6 +291,36 @@ namespace MateWpfThemes.FW.Controls
             set { SetValue(SelectionCommittedCommandProperty, value); }
         }
 
+        public static readonly DependencyProperty SelectionCommittedCommandParameterProperty =
+            DependencyProperty.Register(
+                nameof(SelectionCommittedCommandParameter),
+                typeof(object),
+                typeof(SearchableTextBoxPlus),
+                new PropertyMetadata(null));
+
+        public object SelectionCommittedCommandParameter
+        {
+            get { return GetValue(SelectionCommittedCommandParameterProperty); }
+            set { SetValue(SelectionCommittedCommandParameterProperty, value); }
+        }
+
+        private static readonly DependencyPropertyKey CommitReasonPropertyKey =
+            DependencyProperty.RegisterReadOnly(
+                nameof(CommitReason),
+                typeof(LookupCommitReason),
+                typeof(SearchableTextBoxPlus),
+                new PropertyMetadata(LookupCommitReason.Programmatic));
+
+        public static readonly DependencyProperty CommitReasonProperty = CommitReasonPropertyKey.DependencyProperty;
+
+        public LookupCommitReason CommitReason
+        {
+            get { return (LookupCommitReason)GetValue(CommitReasonProperty); }
+            private set { SetValue(CommitReasonPropertyKey, value); }
+        }
+
+        public event EventHandler<LookupSelectionCommittedEventArgs> SelectionCommitted;
+
         #endregion
 
         #region SelectedValuePath / SelectedValue
@@ -377,6 +407,18 @@ namespace MateWpfThemes.FW.Controls
 
         #endregion
 
+        public void FocusEditor()
+        {
+            Dispatcher.BeginInvoke(
+                new Action(() =>
+                {
+                    InputTextBox.Focus();
+                    Keyboard.Focus(InputTextBox);
+                    InputTextBox.SelectAll();
+                }),
+                DispatcherPriority.Input);
+        }
+
         #region Events
 
         private void SearchableTextBoxPlus_Loaded(object sender, RoutedEventArgs e)
@@ -384,6 +426,10 @@ namespace MateWpfThemes.FW.Controls
             ApplyItemTemplate();
             UpdateDisplayTextFromSelectedItem();
             UpdateTextVisualState();
+            if (IsKeyboardFocusWithin || IsFocused)
+            {
+                FocusEditor();
+            }
         }
 
         private void SearchableTextBoxPlus_Unloaded(object sender, RoutedEventArgs e)
@@ -499,8 +545,8 @@ namespace MateWpfThemes.FW.Controls
             }
             else if (e.Key == Key.Enter || e.Key == Key.Tab)
             {
-                CommitSelection(ResultList.SelectedItem);
-                e.Handled = true;
+                CommitSelection(ResultList.SelectedItem, e.Key == Key.Tab ? LookupCommitReason.Tab : LookupCommitReason.Enter);
+                e.Handled = e.Key != Key.Tab;
             }
             else if (e.Key == Key.Escape)
             {
@@ -550,7 +596,7 @@ namespace MateWpfThemes.FW.Controls
                 return;
             }
 
-            CommitSelection(clickedItem.DataContext);
+            CommitSelection(clickedItem.DataContext, LookupCommitReason.Mouse);
             e.Handled = true;
         }
 
@@ -613,7 +659,7 @@ namespace MateWpfThemes.FW.Controls
             return false;
         }
 
-        private void CommitSelection(object item)
+        private void CommitSelection(object item, LookupCommitReason reason)
         {
             if (item == null)
             {
@@ -631,8 +677,12 @@ namespace MateWpfThemes.FW.Controls
             _isSelectionDisplayMode = true;
 
             IsDropDownOpen = false;
+            CommitReason = reason;
             UpdateTextVisualState();
-            ExecuteSelectionCommittedCommand(item);
+            ExecuteSelectionCommittedCommand(item, reason);
+            SelectionCommitted?.Invoke(
+                this,
+                new LookupSelectionCommittedEventArgs(item, SelectedValue, Text, reason));
         }
 
         private bool ResolveSelectionByText()
@@ -658,6 +708,7 @@ namespace MateWpfThemes.FW.Controls
                         SetSelectedItemSilently(item);
                         SelectedValue = GetSelectedValue(item);
                         SetDisplayText(GetDisplayText(item));
+                        CommitReason = LookupCommitReason.ExactMatch;
                         return true;
                     }
                 }
@@ -684,12 +735,20 @@ namespace MateWpfThemes.FW.Controls
             InputTextBox.Focus();
         }
 
-        private void ExecuteSelectionCommittedCommand(object item)
+        private void ExecuteSelectionCommittedCommand(object item, LookupCommitReason reason)
         {
             var command = SelectionCommittedCommand;
-            if (command != null && command.CanExecute(item))
+            var parameter = SelectionCommittedCommandParameter ??
+                            new LookupSelectionCommittedEventArgs(item, SelectedValue, Text, reason);
+
+            if (SelectionCommittedCommandParameter == null)
             {
-                command.Execute(item);
+                parameter = item;
+            }
+
+            if (command != null && command.CanExecute(parameter))
+            {
+                command.Execute(parameter);
             }
         }
 

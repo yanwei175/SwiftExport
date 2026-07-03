@@ -89,6 +89,14 @@
     <Compile Include="Common\TimePickerTextBox.cs" />
     <Compile Include="Common\TransitionAssist.cs" />
     <Compile Include="Controls\CheckBoxDataGridTemplateColumn.cs" />
+    <Compile Include="Controls\CommitParameterMode.cs" />
+    <Compile Include="Controls\DataGridNumberColumn.cs" />
+    <Compile Include="Controls\DataGridSearchableColumn.cs" />
+    <Compile Include="Controls\EditableDataGrid.cs" />
+    <Compile Include="Controls\EnterNavigationMode.cs" />
+    <Compile Include="Controls\LookupCommitContext.cs" />
+    <Compile Include="Controls\LookupCommitReason.cs" />
+    <Compile Include="Controls\LookupSelectionCommittedEventArgs.cs" />
     <Compile Include="Controls\PageNavigator.xaml.cs">
       <DependentUpon>PageNavigator.xaml</DependentUpon>
     </Compile>
@@ -120,22 +128,11 @@
     <Compile Include="Converters\Internal\DoubleToCornerRadiusConverter.cs" />
     <Compile Include="Converters\Internal\ExpanderRotateAngleConverter.cs" />
     <Compile Include="Converters\Internal\FloatingHintTextBlockMarginConverter.cs" />
-    <Compile Include="Converters\Internal\GridViewHasColumnsConverter.cs" />
     <Compile Include="Converters\Internal\SliderToolTipConverter.cs" />
     <Compile Include="Converters\Internal\SliderValueLabelPositionConverter.cs" />
-    <Compile Include="Converters\Internal\TabControlAdditionalHeaderPanelContentMarginConverter.cs" />
-    <Compile Include="Converters\Internal\TabControlNavButtonPanelMarginConverter.cs" />
-    <Compile Include="Converters\Internal\TabControlNavButtonPanelVisibilityConverter.cs" />
-    <Compile Include="Converters\Internal\TabControlNavButtonVisibilityConverter.cs" />
-    <Compile Include="Converters\Internal\TextBoxHorizontalScrollBarMarginConverter.cs" />
-    <Compile Include="Converters\Internal\TextBoxHorizontalScrollBarWidthConverter.cs" />
-    <Compile Include="Converters\Internal\TextFieldClearButtonVisibilityConverter.cs" />
-    <Compile Include="Converters\Internal\ViewIsGridViewConverter.cs" />
     <Compile Include="Converters\MathConverter.cs" />
     <Compile Include="Converters\MathOperation.cs" />
-    <Compile Include="Converters\NonDefaultThicknessConverter.cs" />
     <Compile Include="Converters\NullableDateTimeToCurrentDateConverter.cs" />
-    <Compile Include="Converters\ThicknessCloneConverter.cs" />
     <Compile Include="DispatcherProvider.cs" />
     <Compile Include="Common\PrefixSuffixVisibility.cs" />
     <Compile Include="Mvvm\SummaryRow.cs" />
@@ -303,7 +300,6 @@
     <Compile Include="Converters\InverseBoolConverter.cs" />
     <Compile Include="Converters\ImgPathToImgConverter.cs" />
     <Compile Include="Converters\NullToVisibilityConverter.cs" />
-    <Compile Include="Converters\SelectedCellsToModelsConverter.cs" />
     <Compile Include="CustomControl1.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -330,6 +326,7 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="Controls\CheckBoxDataGridTemplateColumn.md" />
+    <None Include="Controls\DataGridEditors.md" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

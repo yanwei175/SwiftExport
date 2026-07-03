@@ -311,6 +311,8 @@ ReadModel：
 本项目约定：
 
 - 如果查询结果是前端/API 明确需要的传输结构，可以直接使用 Contracts DTO。
+- API 或前端使用的联表只读模型优先放在 `SwiftExport.Contracts/DTOs/**`，允许 Infrastructure Dapper 直接映射该 DTO 返回给 Application Service。
+- Core 中的 ReadModel 只用于纯后端内部只读查询；不要为前端/API 可见字段在 Core 新增只读模型。
 - 不要为了只读查询强行新增没有复用价值的 Entity。
 - Repository 返回 DTO 时，SQL 字段别名必须严格匹配 DTO 属性。
 

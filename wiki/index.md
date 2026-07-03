@@ -36,6 +36,7 @@
 
 ## 后端 / Dapper / Repository
 
+- [ASP.NET 后端 API 工作流](workflows/backend/aspnet-api-workflow.md) - 涉及新增后端 API、Application Interface/Service、Controller、Contracts DTO、Refit 接口、Repository 或 Dapper 查询时读取。
 - [DbSession 与 RepositoryBaseContext](skills/backend/db-session-context.md) - 涉及连接、事务、Repository 构造、多个仓储共用事务时读取。
 - [Dapper Repository](skills/backend/dapper-repository.md) - 涉及 Repository、SQL、分页、批量保存、DI 注册、Core Interface 时读取。
 - [Application Service Guide](guides/backend/application-service.md) - 涉及业务编排、事务边界、服务层调用仓储时读取。

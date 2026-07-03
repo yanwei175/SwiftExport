@@ -2,6 +2,7 @@ using SwiftExport.View.FW.DictViews.ViewModels;
 using SwiftExport.View.FW.OrderDecomposeViews.ViewModels;
 using SwiftExport.View.FW.PackingListViews.ViewModels;
 using SwiftExport.View.FW.ProductViews.ViewModels;
+using SwiftExport.View.FW.SalesOrderViews.Demo;
 using SwiftExport.View.FW.SystemViews.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -44,6 +45,7 @@ namespace SwiftExport.View.FW.Routing
                 // ===== 订单拆解中间表 =====
                 ["SalesOrderDecomposeBridgeView"] = typeof(DependentDemandManagerViewModel),
                 ["PackingListManagerView"] = typeof(PackingListManagerViewModel),
+                ["SalesOrderLinesDemoView"] = typeof(SalesOrderLinesDemoViewModel),
 
             };
 

@@ -9,6 +9,7 @@
 - DTO 只承载传输数据，不承载 UI 状态和控件行为。
 - Entity、DTO、LineModel、Request、Response 的职责必须分离。
 - DTO 放在 `SwiftExport.Contracts/DTOs/**`，Refit API 和 Controller 返回优先使用 DTO。
+- 前后端共享 DTO 可以被 WebApi、Application、Infrastructure Dapper 查询和 WPF/Refit 共同识别；API/前端联表只读模型优先放在这里，而不是放到 Core ReadModel。
 - 映射优先使用项目既有 Mapster 配置或已有 Mapping 类。
 - Mapster 详细规则见 [Mapster Mapping](mapster-mapping.md)。
 - Dapper 查询可以在明确 API/前端传输场景直接返回 DTO，但不要让 DTO 反向承担持久化规则。

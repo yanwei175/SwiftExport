@@ -1,5 +1,12 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-02 backend | 建立 ASP.NET 后端 API 工作流
+
+- 新增 `wiki/workflows/backend/aspnet-api-workflow.md`，固化 SwiftExport 后端 API 开发顺序：Contracts DTO/API/枚举、Application Interface、Application Service、必要时 Core Repository Interface、Infrastructure Dapper 实现、WebApi Controller 转发和 Refit 契约同步。
+- 明确 WebApi 只做 HTTP 边界转发，重度业务逻辑、校验、事务、状态流转和跨仓储编排放在 Application 层。
+- 明确前端/API 可见的联表只读模型优先放在 `SwiftExport.Contracts` DTO，允许 Infrastructure Dapper 直接映射 DTO 返回给服务层；Core 默认不承载前端需要的枚举和只读模型。
+- 更新 `wiki/index.md`、`wiki/workflows/index.md`、Application Service Guide、Dapper Repository Skill 和 DTO Guide，补充该工作流入口和分层边界。
+
 ## 2026-07-02 planning | 推进模块细化总纲
 
 - 新增 `wiki/project/数据迁移与种子总纲.md`，规定 SQL 幂等脚本、基础字典、单号规则、`_tools/DbSeed`、本地开发数据和不可破坏数据边界。

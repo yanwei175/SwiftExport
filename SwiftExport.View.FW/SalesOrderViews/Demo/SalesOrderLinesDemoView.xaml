@@ -1,0 +1,109 @@
+<UserControl x:Class="SwiftExport.View.FW.SalesOrderViews.Demo.SalesOrderLinesDemoView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mt="clr-namespace:MateWpfThemes.FW.Controls;assembly=MateWpfThemes.FW"
+             xmlns:demo="clr-namespace:SwiftExport.View.FW.SalesOrderViews.Demo">
+    <UserControl.Resources>
+        <DataTemplate x:Key="ProductLookupItemTemplate" DataType="{x:Type demo:ProductLookupDemoItem}">
+            <Grid MinWidth="320" Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="130"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="70"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           FontWeight="SemiBold"
+                           Text="{Binding CompanyModel}"/>
+                <TextBlock Grid.Column="1"
+                           Margin="8,0,0,0"
+                           Foreground="{DynamicResource Brush_Txt_Secondary}"
+                           Text="{Binding DescriptionEn}"/>
+                <TextBlock Grid.Column="2"
+                           TextAlignment="Right"
+                           Text="{Binding UnitPrice, StringFormat=N2}"/>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Margin="0,0,0,10"
+                   FontSize="16"
+                   FontWeight="SemiBold"
+                   Text="SalesOrderLinesDemo"/>
+
+        <mt:EditableDataGrid Grid.Row="1"
+                             ItemsSource="{Binding Lines}"
+                             AutoGenerateColumns="False"
+                             EnterNavigationMode="NextCell"
+                             AutoAppendNewRow="True"
+                             AddNewRowCommand="{Binding AddNewRowCommand}"
+                             DeleteRowCommand="{Binding DeleteRowCommand}"
+                             PasteRowsCommand="{Binding PasteRowsCommand}">
+            <mt:EditableDataGrid.Columns>
+                <DataGridTemplateColumn Header="产品型号" Width="180">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Margin="3,0"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{Binding CompanyModel}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <mt:SearchableTextBoxPlus DisplayMemberPath="CompanyModel"
+                                                      SelectedValuePath="ProductId"
+                                                      FilterMemberPaths="CompanyModel,DescriptionZh,DescriptionEn"
+                                                      SearchMode="Auto"
+                                                      MinHeight="28"
+                                                      Text="{Binding ProductSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      ItemsSource="{Binding DataContext.ProductLookupItems, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                      SelectedItem="{Binding SelectedProductLookup, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      SelectedValue="{Binding ProductId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      ItemTemplate="{StaticResource ProductLookupItemTemplate}"
+                                                      Loaded="ProductLookupEditor_Loaded"
+                                                      SelectionCommitted="ProductLookupEditor_SelectionCommitted"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTextColumn Header="英文描述"
+                                    Width="*"
+                                    IsReadOnly="True"
+                                    Binding="{Binding DescriptionEn}"/>
+
+                <mt:DataGridNumberColumn Header="Qty"
+                                         Width="90"
+                                         Binding="{Binding Qty, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         DecimalPlaces="2"
+                                         FormatString="N2"
+                                         AllowNegative="False"/>
+
+                <mt:DataGridNumberColumn Header="UnitPrice"
+                                         Width="110"
+                                         Binding="{Binding UnitPrice, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         DecimalPlaces="2"
+                                         FormatString="N2"
+                                         AllowNegative="False"/>
+
+                <DataGridTextColumn Header="Amount"
+                                    Width="120"
+                                    IsReadOnly="True"
+                                    Binding="{Binding Amount, StringFormat=N2}"/>
+            </mt:EditableDataGrid.Columns>
+        </mt:EditableDataGrid>
+
+        <TextBlock Grid.Row="2"
+                   Margin="0,10,0,0"
+                   Foreground="{DynamicResource Brush_Txt_Secondary}"
+                   Text="{Binding LastCommitMessage}"/>
+    </Grid>
+</UserControl>

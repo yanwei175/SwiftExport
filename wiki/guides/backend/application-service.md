@@ -7,6 +7,7 @@
 ## SwiftExport 规则
 
 - Application Service 负责编排业务用例、业务校验、DTO 输入输出和事务边界。
+- 新增后端 API 时，先在 `SwiftExport.Application/Interfaces` 声明 Service 接口方法，再在 `SwiftExport.Application/Services/<Module>` 实现；Controller 只调用该接口。
 - Service 调用 `SwiftExport.Core` 中的 Repository 接口，不直接依赖 Infrastructure 实现。
 - 不在 Application Service 中写 SQL、创建 `SqlConnection` 或处理 WPF UI 状态。
 - 本项目后端事务优先沿用当前 `DbSession.Transaction` 模式；具体事务细节见 [DbSession Skill](../../skills/backend/db-session-context.md)。

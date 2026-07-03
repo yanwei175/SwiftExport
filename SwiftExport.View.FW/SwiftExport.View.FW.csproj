@@ -109,6 +109,12 @@
       <DependentUpon>SalesOrderLinePopupSelectorControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="SalesOrderViews\Controls\SalesOrderLinePopupSelectorSubmitArgs.cs" />
+    <Compile Include="SalesOrderViews\Demo\ProductLookupDemoItem.cs" />
+    <Compile Include="SalesOrderViews\Demo\SalesOrderLineDemoModel.cs" />
+    <Compile Include="SalesOrderViews\Demo\SalesOrderLinesDemoViewModel.cs" />
+    <Compile Include="SalesOrderViews\Demo\SalesOrderLinesDemoView.xaml.cs">
+      <DependentUpon>SalesOrderLinesDemoView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="CustomerViews\Enums\CustomerTabs.cs" />
     <Compile Include="CustomerViews\Messages\CustomerSelectionResultMessage.cs" />
     <Compile Include="CustomerViews\Models\CustomerList.cs" />
@@ -347,6 +353,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="SalesOrderViews\Controls\SalesOrderLinePopupSelectorControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="SalesOrderViews\Demo\SalesOrderLinesDemoView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

@@ -6,6 +6,7 @@ using SwiftExport.View.FW.Http;
 using SwiftExport.View.FW.OrderDecomposeViews.Views;
 using SwiftExport.View.FW.ProductViews.Views;
 using SwiftExport.View.FW.PurchaseOrderViews.Views;
+using SwiftExport.View.FW.SalesOrderViews.Demo;
 using SwiftExport.View.FW.SalesOrderViews.Views;
 using SwiftExport.View.FW.SystemViews.ViewModels;
 using SwiftExport.View.FW.SystemViews.Views;
@@ -223,6 +224,11 @@ namespace SwiftExport.DevApp
         {
             var win = DiServices.GetService<SalesProductSeletorView>();
             win.ShowDialog();
+        }
+
+        private void Button_Click_SalesOrderLinesDemo(object sender, RoutedEventArgs e)
+        {
+            OpenWindow("DataGrid 编辑 Demo", DiServices.GetService<SalesOrderLinesDemoView>(), 1100, 650);
         }
 
         private void Button_Click_IndependentDemandManager(object sender, RoutedEventArgs e)
