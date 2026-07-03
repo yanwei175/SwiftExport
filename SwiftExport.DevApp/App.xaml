@@ -6,7 +6,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-
+                <ResourceDictionary Source="pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/MateWpfThemes.FW;component/Themes/MateThemes.xaml" />
                 <!--<ResourceDictionary Source="/MateWpfThemes.FW;component/Themes/MateThemes.xaml" />-->
                 

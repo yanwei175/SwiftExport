@@ -1,0 +1,52 @@
+<ui:FluentWindow x:Class="SwiftExportClient.Shell.ShellWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 mc:Ignorable="d"
+                 Title="SwiftExport Client"
+                 Width="1120"
+                 Height="720"
+                 MinWidth="960"
+                 MinHeight="620"
+                 WindowStartupLocation="CenterScreen">
+    <Grid Background="{DynamicResource SwiftExportBrush.WindowBackground}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Padding="{DynamicResource SwiftExportShellPadding}"
+                Background="{DynamicResource SwiftExportBrush.Surface}">
+            <StackPanel>
+                <TextBlock Text="SwiftExport"
+                           Style="{StaticResource SwiftExportTitleText}" />
+                <TextBlock Text="Management client shell"
+                           Style="{StaticResource SwiftExportCaptionText}"
+                           Margin="0,4,0,0" />
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1"
+              Margin="{DynamicResource SwiftExportShellPadding}">
+            <Border Background="{DynamicResource SwiftExportBrush.Surface}"
+                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                    BorderThickness="1"
+                    CornerRadius="{DynamicResource SwiftExportCornerRadius}">
+                <StackPanel HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="Ready for stage 3"
+                               Style="{StaticResource SwiftExportHeadingText}"
+                               HorizontalAlignment="Center" />
+                    <TextBlock Text="Host, DI, configuration, navigation, and business modules will be added in later stages."
+                               Style="{StaticResource SwiftExportBodyText}"
+                               Width="520"
+                               Margin="0,8,0,0"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</ui:FluentWindow>

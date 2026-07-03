@@ -1,0 +1,13 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+    <CornerRadius x:Key="SwiftExportCornerRadius">6</CornerRadius>
+    <CornerRadius x:Key="SwiftExportControlCornerRadius">4</CornerRadius>
+
+    <Thickness x:Key="SwiftExportShellPadding">24</Thickness>
+    <Thickness x:Key="SwiftExportControlPadding">12,7</Thickness>
+    <Thickness x:Key="SwiftExportCellPadding">10,6</Thickness>
+
+    <sys:Double x:Key="SwiftExportBorderThickness">1</sys:Double>
+    <sys:Double x:Key="SwiftExportControlHeight">34</sys:Double>
+</ResourceDictionary>

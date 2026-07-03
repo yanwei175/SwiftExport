@@ -124,7 +124,6 @@
                            Foreground="{DynamicResource Brush_Txt_Secondary}" Margin="0,0,0,8"/>
                 <WrapPanel>
                     <Button Height="35" MinWidth="100" Content="字典管理"
-                            Style="{StaticResource ButtonBase}"
                             Margin="0,0,8,8" Click="Button_Click"/>
                     <Button Height="35" MinWidth="100" Content="供应商"
                             Style="{StaticResource ButtonBase}"
