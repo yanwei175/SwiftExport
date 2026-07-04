@@ -2,7 +2,6 @@ using Dapper;
 using SwiftExport.Core.Entities.Auth;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure.Data;
-using System;
 
 namespace SwiftExport.Infrastructure.Repositories.Auth;
 
@@ -16,7 +15,7 @@ public class SysUserRoleRepository(DbSession session) : ISysUserRoleRepository
 
     // 公共列列表（INSERT 时用）
     private const string SelectColumns = """
-        Uid, UserId, UserName, RoleId, RoleName, ChangeTime,
+        Uid, UserId, UserName, RoleId, RoleName,
         IsDeleted, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy
         """;
 

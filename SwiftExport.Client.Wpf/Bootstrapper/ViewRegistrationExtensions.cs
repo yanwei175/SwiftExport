@@ -1,4 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
+using SwiftExportClient.Authentication;
+using SwiftExportClient.Features.Home;
+using SwiftExportClient.Features.Planning;
+using SwiftExportClient.Features.Products;
+using SwiftExportClient.Features.Purchasing;
+using SwiftExportClient.Features.Sales;
+using SwiftExportClient.Features.Shipping;
 using SwiftExportClient.Shell;
 
 namespace SwiftExportClient.Bootstrapper;
@@ -7,8 +14,16 @@ public static class ViewRegistrationExtensions
 {
     public static IServiceCollection AddSwiftExportClientViews(this IServiceCollection services)
     {
-        services.AddSingleton<ShellViewModel>();
-        services.AddSingleton<ShellWindow>();
+        services.AddTransient<LoginViewModel>();
+        services.AddTransient<LoginWindow>();
+        services.AddTransient<ShellViewModel>();
+        services.AddTransient<ShellWindow>();
+        services.AddTransient<HomeViewModel>();
+        services.AddTransient<ProductsViewModel>();
+        services.AddTransient<SalesViewModel>();
+        services.AddTransient<PlanningViewModel>();
+        services.AddTransient<PurchasingViewModel>();
+        services.AddTransient<ShippingViewModel>();
 
         return services;
     }

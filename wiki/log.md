@@ -1,5 +1,25 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-04 frontend | 清理新客户端隐式全局 XAML 样式
+
+- 按 `.NET 10 WPF 官方主题与项目样式规则` 清理 `SwiftExport.Client.Wpf` 自定义资源。
+- 删除空的 `Resources/TextBox.xaml` 合并项，避免形成无意义资源文件。
+- 将 `Button.xaml`、`DataGrid.xaml` 中的隐式全局 Style 改为带 `x:Key` 的命名 Style，普通控件继续使用微软官方 Fluent 默认样式。
+- 更新临时交接文档，记录新客户端当前资源清理状态。
+
+## 2026-07-04 frontend | 建立 .NET 10 WPF 官方主题样式规则
+
+- 读取 Microsoft Learn 的 .NET 9 / .NET 10 WPF 新增功能文档，确认官方 Fluent 主题、`ThemeMode`、系统强调色和 .NET 10 Fluent 样式改进方向。
+- 新增 `wiki/guides/frontend-wpf/wpf-official-theme-style-guide.md`，明确新客户端默认使用微软官方主题，不覆盖默认控件 Style，只在业务特殊需求下新增命名 Style。
+- 更新 `wiki/index.md` 和 `wiki/guides/index.md`，为新 .NET 10 WPF 官方主题样式规则增加入口。
+
+## 2026-07-04 frontend | .NET 10 客户端改为自建多标签导航
+
+- 阶段 7 将 `SwiftExport.Client.Wpf` 从 WPF UI 外壳改回原生 WPF，后续 Shell、Navigation、Dialog 和业务控件基于自有资源体系演进。
+- 新增自建导航服务方向：左侧菜单打开模块，内容区按 Web 客户端逻辑维护多标签工作区。
+- 第一版菜单固定为 `首页`、`产品`、`销售`、`计划`、`采购`、`出货`；阶段 7 不接权限菜单、不读取后端 `SysViewRoute`。
+- 临时交接文档 `_codex_handoff/SwiftExport.Client.Wpf.md` 已同步记录阶段 7 完成状态和下一阶段建议。
+
 ## 2026-07-03 ingest | 整理 .NET 10 前端 MVVM 基础设计
 
 - 读取 `raw/wpf-communitytoolkit-mvvm.md`、`raw/wpf-mvvm-template.md`、`raw/wpf-navigation-service.md`、`raw/wpf-dialog-service.md`、`raw/wpf-message-service.md`、`raw/wpf-designer-page-navigator.md`、`raw/wpf-designer-Image.md`、`raw/mapster-mapping.md` 等新增来源。

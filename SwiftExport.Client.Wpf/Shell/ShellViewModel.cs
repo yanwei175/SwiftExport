@@ -1,24 +1,115 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Options;
+using SwiftExportClient.Authentication;
 using SwiftExportClient.Bootstrapper;
 using SwiftExportClient.Mvvm;
+using SwiftExportClient.Navigation;
 
 namespace SwiftExportClient.Shell;
 
 public sealed class ShellViewModel : ViewModelBaseEx
 {
-    public ShellViewModel(IOptions<ClientOptions> clientOptions)
-    {
-        var options = clientOptions.Value;
+    private const string HomeRouteKey = "home";
+    private readonly INavigationService _navigationService;
+    private readonly ISessionService _sessionService;
+    private bool _isInitialized;
 
-        Title = options.ApplicationName;
-        StatusMessage = $"Management client shell · v{options.Version}";
-        StageTitle = "Ready for stage 4";
-        StageDescription = "Host, DI, configuration, and the MVVM page foundation are ready. API, authentication, navigation, and business modules will be added in later stages.";
+    public ShellViewModel(
+        IOptions<ClientOptions> clientOptions,
+        IOptions<ApiOptions> apiOptions,
+        ICurrentUserService currentUserService,
+        INavigationRouteRegistry routeRegistry,
+        INavigationService navigationService,
+        ISessionService sessionService)
+    {
+        _navigationService = navigationService;
+        _sessionService = sessionService;
+        var client = clientOptions.Value;
+        var api = apiOptions.Value;
+
+        Title = client.ApplicationName;
+        StatusMessage = $"v{client.Version} · {currentUserService.DisplayName} · {api.BaseUrl}";
+        MenuItems = routeRegistry.MenuItems;
+        OpenTabs = navigationService.OpenTabs;
+        OpenRouteCommand = new AsyncRelayCommand<string?>(OpenRouteAsync);
+        CloseTabCommand = new AsyncRelayCommand<NavigationTabItem?>(CloseTabAsync);
+        LogoutCommand = new RelayCommand(Logout);
+
+        navigationService.PropertyChanged += OnNavigationPropertyChanged;
     }
 
     public string StatusMessage { get; }
 
-    public string StageTitle { get; }
+    public IReadOnlyList<NavigationMenuItem> MenuItems { get; }
 
-    public string StageDescription { get; }
+    public ObservableCollection<NavigationTabItem> OpenTabs { get; }
+
+    public NavigationTabItem? SelectedTab
+    {
+        get => _navigationService.SelectedTab;
+        set
+        {
+            if (!ReferenceEquals(_navigationService.SelectedTab, value))
+            {
+                _navigationService.SelectedTab = value;
+                RaiseSelectedTabStateChanged();
+            }
+        }
+    }
+
+    public string CurrentPageStatus => SelectedTab is null
+        ? "未打开页面"
+        : $"当前页面：{SelectedTab.Title}";
+
+    public IAsyncRelayCommand<string?> OpenRouteCommand { get; }
+
+    public IAsyncRelayCommand<NavigationTabItem?> CloseTabCommand { get; }
+
+    public IRelayCommand LogoutCommand { get; }
+
+    public async Task InitializeAsync()
+    {
+        if (_isInitialized)
+        {
+            return;
+        }
+
+        _isInitialized = true;
+        _navigationService.Reset();
+        await _navigationService.OpenAsync(HomeRouteKey);
+        RaiseSelectedTabStateChanged();
+    }
+
+    private Task OpenRouteAsync(string? routeKey)
+    {
+        return string.IsNullOrWhiteSpace(routeKey)
+            ? Task.CompletedTask
+            : _navigationService.OpenAsync(routeKey);
+    }
+
+    private Task CloseTabAsync(NavigationTabItem? tab)
+    {
+        return _navigationService.CloseAsync(tab);
+    }
+
+    private void Logout()
+    {
+        _sessionService.EndSession(SessionEndReason.Logout);
+    }
+
+    private void OnNavigationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(INavigationService.SelectedTab))
+        {
+            RaiseSelectedTabStateChanged();
+        }
+    }
+
+    private void RaiseSelectedTabStateChanged()
+    {
+        OnPropertyChanged(nameof(SelectedTab));
+        OnPropertyChanged(nameof(CurrentPageStatus));
+    }
 }
