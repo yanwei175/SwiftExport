@@ -13,9 +13,9 @@
 - 本项目后端事务优先沿用当前 `DbSession.Transaction` 模式；具体事务细节见 [DbSession Skill](../../skills/backend/db-session-context.md)。
 - DTO 只表达用例输入输出，不携带 `IsDirty`、`IsSelected`、控件状态或窗口状态。
 - 复杂业务规则优先沉到明确领域方法或独立业务方法，Service 不写成万能 Helper。
-- `ApplicationServiceBase` 只是轻量上下文基类，只承载 `ServiceBaseContext`、当前 `DbSession` 和 `Logger`；业务 Service 不再继承泛型大 CRUD 模板。
-- Service 接口应显式声明当前业务真实支持的查询、保存、批量、命令方法；不要新增或恢复 `IBaseService<TEntity,TDto>` 这类大而全接口。
-- 通用单实体 CRUD 如需复用，只能作为具体 Service 内部组合实现细节，不应通过继承把能力隐式暴露给所有业务模块。
+- Application 层不再使用 `ApplicationServiceBase`、`ServiceCrud<TEntity,TDto>` 或 `IStandardService<TDto>` 这类横向模板；Service 如需上下文依赖，直接注入 `ServiceBaseContext` 并在本类保存 `DbSession`、`ILogger<TService>`。
+- Service 接口应显式声明当前 Controller / 业务真实支持的查询、保存、批量、命令方法；不要新增或恢复 `IBaseService<TEntity,TDto>`、`IStandardService<TDto>` 这类大而全接口。
+- 通用单实体 CRUD 如需保留，只能写在具体 Service 自身实现中；允许少量重复，以换取接口和实现的清晰边界。
 
 ## 修改前检查
 

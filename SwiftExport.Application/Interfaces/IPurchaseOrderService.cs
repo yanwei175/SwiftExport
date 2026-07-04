@@ -1,9 +1,10 @@
-﻿using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using SwiftExport.Core.Common;
 
 namespace SwiftExport.Application.Interfaces
 {
@@ -12,6 +13,14 @@ namespace SwiftExport.Application.Interfaces
     /// </summary>
     public partial interface IPurchaseOrderService
     {
+    Task<ServiceResult<PurchaseOrderHeadDto>> GetByIdAsync(Guid uid);
+    Task<ServiceResult<IReadOnlyList<PurchaseOrderHeadDto>>> GetAllAsync();
+    Task<ServiceResult<PagedResultDto<PurchaseOrderHeadDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC");
+    Task<ServiceResult<Guid>> AddAsync(PurchaseOrderHeadDto dto);
+    Task<ServiceResult<int>> UpdateAsync(PurchaseOrderHeadDto dto);
+    Task<ServiceResult<int>> DeleteAsync(Guid uid);
+    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<PurchaseOrderHeadDto> batchReq);
+
         Task<ServiceResult<PagedResultDto<PurchaseOrderHeadDto>>> GetPagedListAsync(PurchaseOrderSearchDto search);
         Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByHeadIdAsync(Guid id);
         Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByBoNoAsync(string boNo);

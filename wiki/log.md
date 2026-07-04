@@ -1,5 +1,13 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-04 backend | Application Service 去基础服务解耦
+
+- 按 WebApi Controller 实际调用面展开 Application 接口，删除 `IStandardService<TDto>` / `StandardServiceContracts.cs`，各 `IXxxService` 显式声明自身 API。
+- 删除 `ApplicationServiceBase` 和 `ServiceCrud<TEntity,TDto>`，各业务 Service 直接持有自己的 Repository、`DbSession` 和 `ILogger<TService>`，批量保存事务继续使用当前 `DbSession.Transaction`。
+- 删除 `*StandardCrud.Partials.cs` 集中转发文件，将原标准 CRUD / BatchSave 方法下沉到对应 Service 实现中，不再通过 `_crud` 或应用层泛型模板复用。
+- 更新 Application Service Guide，记录“Application Service 不再使用基础服务/标准服务接口，只保留 `ServiceBaseContext` 作为依赖聚合入口”。
+- 已运行 `dotnet build .\SwiftExport-WebAPI.slnx`，后端构建 0 warning / 0 error。
+
 ## 2026-07-04 ingest | Fluent Microsoft 风格布局规范
 
 - 读取 `raw/inbox/Fluent  Microsoft 风格布局规范.md`，提炼为 `wiki/guides/frontend-wpf/wpf-fluent-layout-guide.md`。
@@ -199,3 +207,28 @@
 - 修正 `_codex_handoff/SwiftExport.Client.Wpf.md`，将“WPF UI 已移除”的旧记录标记为过期，更新为 WPF-UI Shell 承载策略。
 - 更新 WPF 官方主题和 Fluent 布局 guide，标记“不引入 WPF-UI”的旧判断可能过期；后续以“WPF-UI 主题与 Shell 控件 + SwiftExport 命名业务样式”为准。
 - 阶段 8 前置已建立 Shell 顶部 TitleBar、全局 InfoBar / Snackbar / ContentDialogHost、左侧层级导航和 DataGrid 基础 MVVM 类型。
+- 修正左侧导航可见性：脱离完整 `NavigationView` 宿主的 `NavigationViewItem` 可能不渲染，已改为原生 `Expander` + 命名 `Button` Style 的 TreeView 风格导航。
+- 按 `raw/inbox/Fluent  Microsoft 风格布局规范.md` 补齐 `Spacing.xaml` 的 `Space4` 到 `Space48`，并将 Shell 导航区和工作区间距改为 4px 倍数资源。
+
+## 2026-07-04 frontend | 阶段 8 产品页面 DataGrid 基础样板
+
+- `SwiftExport.Client.Wpf` 的 `产品 > 产品资料` 已接入真实 `IProductApi`，实现查询、刷新、分页、增删改、批量保存和未保存变更拦截。
+- 新增轻量 `IAsyncInitializable`，导航服务打开新 tab 后可触发页面首次异步加载，避免 ViewModel 构造函数中发请求。
+- 新增 `ProductLineModel : BaseLineModel<ProductDto>`，行模型保持与页面级 `ViewModelBaseEx` 解耦，并保留未展示 DTO 字段，避免保存核心列时丢失隐藏数据。
+- 产品页 XAML 按 Fluent DataGrid 页面结构分为 Header、查询区、工具栏、DataGrid、状态/分页区；继续使用 WPF-UI Shell 能力与 SwiftExport 命名样式，不恢复旧 WPF/VSTO 主题。
+
+## 2026-07-04 frontend | 迁移 PageNavigator 与 LookupTextBox 控件
+
+- 在 `SwiftExport.Client.Wpf/Resources/Controls/` 建立新客户端控件目录，迁移 `PageNavigator` 与 `SearchableTextBoxPlus`，后者改名为 `LookupTextBox`。
+- 新控件命名空间统一为 `SwiftExportClient.Controls`，不引用旧 `MateWpfThemes.FW`，也不迁移旧 `DataGridSearchableColumn`。
+- 已迁移 `LookupCommitReason`、`LookupSelectionCommittedEventArgs`、`LookupCommitContext`、`CommitParameterMode` 等 Lookup 公共契约。
+- 旧主题键 `Brush_Txt_Primary`、`Brush_Txt_Secondary`、`BaseComboBox`、`ButtonText` 未迁入；控件视觉改用 WPF-UI 默认控件样式和 SwiftExport token。
+- `ProductsView` 底部分页已接入新 `PageNavigator`，`ProductsViewModel` 使用 `PageChangeCommand` 接收 `PageChangeRequest`，切页和修改 PageSize 继续经过未保存变更拦截。
+
+## 2026-07-04 frontend | Shell 左侧导航重做为 WPF-UI Gallery 风格
+
+- 保留 SwiftExport 自建导航服务和多标签工作区，未切换到完整 WPF-UI `NavigationView`，避免与当前 tab workspace 内容模型冲突。
+- Shell 左侧导航改为数据驱动模板，使用 `ShellViewModel.FilteredMenuItems` 渲染 `NavigationRouteRegistry.MenuItems`，不再在 XAML 中硬编码菜单按钮。
+- 新增 `ShellNavigationItem`、`ShellNavigationIconConverter`、`RouteSelectionConverter` 和 `Resources/ShellNavigation.xaml`，实现 WPF-UI `SymbolIcon` 图标、选中浅灰背景、左侧 Accent 竖条和子菜单缩进。
+- Shell 左侧栏调整为接近 WPF-UI Gallery 的宽度与结构，加入搜索框、本地菜单过滤和底部 Settings 占位入口。
+- 本次仍禁止裸用 `NavigationViewItem`；后续如要完整采用 WPF-UI `NavigationView`，需单独适配多标签工作区。

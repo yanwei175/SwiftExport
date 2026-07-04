@@ -3,6 +3,7 @@ using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
+using SwiftExport.Core.Common;
 
 namespace SwiftExport.Application.Interfaces
 {
@@ -11,6 +12,14 @@ namespace SwiftExport.Application.Interfaces
     /// </summary>
     public partial interface IDependentDemandService
     {
+    Task<ServiceResult<IndependentDemandDto>> GetByIdAsync(Guid uid);
+    Task<ServiceResult<IReadOnlyList<IndependentDemandDto>>> GetAllAsync();
+    Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC");
+    Task<ServiceResult<Guid>> AddAsync(IndependentDemandDto dto);
+    Task<ServiceResult<int>> UpdateAsync(IndependentDemandDto dto);
+    Task<ServiceResult<int>> DeleteAsync(Guid uid);
+    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<IndependentDemandDto> batchReq);
+
         /// <summary>
         /// 分页查询拆解依赖需求。
         /// </summary>

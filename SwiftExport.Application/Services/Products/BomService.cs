@@ -1,8 +1,7 @@
-﻿using Mapster;
+using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.SysEnums;
@@ -11,6 +10,10 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
+using SwiftExport.Contracts.DTOs.Base;
+using SwiftExport.Core.Common;
+using SwiftExport.Infrastructure.Data;
+using System.Text;
 
 namespace SwiftExport.Application.Services.Products;
 
@@ -18,9 +21,10 @@ public partial class BomService(
     IBomRepository bomRepo,
     IProductRepository pdRepo,
     ISupplierRepository supplierRepo,
-    ServiceBaseContext context) : ApplicationServiceBase(context), IBomService
+    ServiceBaseContext context) : IBomService
 {
-    private readonly ServiceCrud<Bom, BomDto> _crud = new(bomRepo, context);
+    private readonly DbSession _session = context.Session;
+    private readonly ILogger<BomService> _logger = context.LoggerFactory.CreateLogger<BomService>();
     private readonly IBomRepository _bomRepo = bomRepo;
     private readonly IProductRepository _pdRepo = pdRepo;
     private readonly ISupplierRepository _supplierRepo = supplierRepo;
@@ -36,9 +40,9 @@ public partial class BomService(
 
         if (rst)
         {
-            if (Logger.IsEnabled(LogLevel.Warning))
+            if (_logger.IsEnabled(LogLevel.Warning))
             {
-                Logger.LogWarning("尝试新增 {EntityName} 数据失败，原因：BomNo和ProductSku的组合已经存在！BomNo: {BomNo}, ProductSku: {ProductSku}", nameof(Bom), entity.BomNo, entity.SubSku);
+                _logger.LogWarning("尝试新增 {EntityName} 数据失败，原因：BomNo和ProductSku的组合已经存在！BomNo: {BomNo}, ProductSku: {ProductSku}", nameof(Bom), entity.BomNo, entity.SubSku);
             }
 
             return ServiceResult<Guid>.Fail("相同BomNo和ProductSku的记录已存在，无法新增！");
@@ -51,9 +55,9 @@ public partial class BomService(
         var uid = await _bomRepo.AddAsync(entity);
 
         // Information 级别
-        if (Logger.IsEnabled(LogLevel.Information))
+        if (_logger.IsEnabled(LogLevel.Information))
         {
-            Logger.LogInformation("成功新增 {EntityName} 数据，生成的 Uid: {Uid}", nameof(Bom), uid);
+            _logger.LogInformation("成功新增 {EntityName} 数据，生成的 Uid: {Uid}", nameof(Bom), uid);
         }
 
         return ServiceResult<Guid>.Ok(uid);
@@ -64,9 +68,9 @@ public partial class BomService(
 
         var rst = await _bomRepo.DeleteBomByBomNoAsync(bomNo);
 
-        if (Logger.IsEnabled(LogLevel.Information))
+        if (_logger.IsEnabled(LogLevel.Information))
         {
-            Logger.LogInformation("[{EntityName}] 根据BomNo删除Bom成功！BomNo: {BomNo}, 受影响行数: {AffectedRows}", nameof(Bom), bomNo, rst);
+            _logger.LogInformation("[{EntityName}] 根据BomNo删除Bom成功！BomNo: {BomNo}, 受影响行数: {AffectedRows}", nameof(Bom), bomNo, rst);
         }
         return ServiceResult<int>.Ok(rst);
     }
@@ -537,4 +541,163 @@ public partial class BomService(
     }
 
     #endregion 
+
+
+    #region 显式基础读写
+
+    public async Task<ServiceResult<BomDto>> GetByIdAsync(Guid uid)
+    {
+        try
+        {
+            var entity = await _bomRepo.GetByIdAsync(uid);
+            if (entity == null)
+            {
+                if (_logger.IsEnabled(LogLevel.Warning))
+                    _logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", uid, nameof(Bom));
+                return ServiceResult<BomDto>.Fail("未找到数据");
+            }
+
+            return ServiceResult<BomDto>.Ok(entity.Adapt<BomDto>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<BomDto>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<IReadOnlyList<BomDto>>> GetAllAsync()
+    {
+        try
+        {
+            var entities = await _bomRepo.GetAllAsync();
+            return entities.Any()
+                ? ServiceResult<IReadOnlyList<BomDto>>.Ok(entities.Adapt<IReadOnlyList<BomDto>>())
+                : ServiceResult<IReadOnlyList<BomDto>>.Fail("未找到数据");
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<BomDto>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<PagedResultDto<BomDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
+    {
+        try
+        {
+            if (_bomRepo is not IPagedCriteriaRepository<Bom> pagedRepository)
+                return ServiceResult<PagedResultDto<BomDto>>.Fail($"{nameof(Bom)} 仓储未实现动态分页查询");
+
+            var paged = await pagedRepository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
+            return ServiceResult<PagedResultDto<BomDto>>.Ok(new PagedResultDto<BomDto>
+            {
+                Items = paged.Items.Adapt<List<BomDto>>(),
+                TotalCount = paged.TotalCount,
+                PageSize = paged.PageSize,
+                PageIndex = paged.PageIndex
+            });
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<PagedResultDto<BomDto>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> UpdateAsync(BomDto dto)
+    {
+        try
+        {
+            var existing = await _bomRepo.GetByIdAsync(dto.Uid);
+            if (existing == null) return ServiceResult<int>.Fail("数据不存在");
+
+            dto.Adapt(existing);
+            await _bomRepo.UpdateAsync(existing);
+            return ServiceResult<int>.Ok(1);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> DeleteAsync(Guid uid)
+    {
+        try
+        {
+            return ServiceResult<int>.Ok(await _bomRepo.DeleteAsync(uid));
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<BomDto> batchReq)
+    {
+        _session.Transaction = _session.Connection.BeginTransaction();
+        var result = new BatchResultDto();
+
+        var createList = batchReq.AddList?.Adapt<List<Bom>>();
+        var updateList = batchReq.UpdateList?.Adapt<List<Bom>>();
+        var deleteIds = batchReq.DeleteIdList;
+
+        try
+        {
+            var errorMsg = new StringBuilder();
+
+            if (updateList is { Count: > 0 })
+            {
+                var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
+
+                var needUpdateUids = updateList.Select(x => x.Uid).ToList();
+                var existingUids = await _bomRepo.GetExistingIdListAsync(needUpdateUids);
+                var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
+                if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
+            }
+
+            if (deleteIds is { Count: > 0 })
+            {
+                var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
+            }
+
+            if (errorMsg.Length > 0)
+                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+
+            if (_bomRepo is not IBatchWriteRepository<Bom> batchRepository)
+                return ServiceResult<BatchResultDto>.Fail($"{nameof(Bom)} 仓储未实现批量保存");
+
+            if (createList is { Count: > 0 })
+            {
+                result.AddIdList = [.. await batchRepository.AddRangeAsync(createList)];
+            }
+
+            if (updateList is { Count: > 0 })
+            {
+                await batchRepository.UpdateRangeAsync(updateList);
+                result.UpdateIdList = [.. updateList.Select(x => x.Uid)];
+            }
+
+            if (deleteIds is { Count: > 0 })
+            {
+                await batchRepository.DeleteRangeAsync(deleteIds);
+                result.DeleteIdList = deleteIds;
+            }
+
+            _session.Transaction.Commit();
+            return ServiceResult<BatchResultDto>.Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _session.Transaction.Rollback();
+            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+        }
+        finally
+        {
+            _session.Transaction.Dispose();
+            _session.Transaction = null;
+        }
+    }
+    #endregion
+
 }

@@ -1,19 +1,22 @@
-﻿using Mapster;
+using Mapster;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
+using Microsoft.Extensions.Logging;
+using SwiftExport.Contracts.DTOs.Base;
+using SwiftExport.Infrastructure.Data;
+using System.Text;
 
 namespace SwiftExport.Application.Services.Products;
 
-public partial class ProductService(IProductRepository productRepository, ServiceBaseContext context, IProductCategoryRepository categoryRepository)
-    : ApplicationServiceBase(context), IProductService
+public partial class ProductService(IProductRepository productRepository, ServiceBaseContext context, IProductCategoryRepository categoryRepository) : IProductService
 {
-    private readonly ServiceCrud<Product, ProductDto> _crud = new(productRepository, context);
+    private readonly DbSession _session = context.Session;
+    private readonly ILogger<ProductService> _logger = context.LoggerFactory.CreateLogger<ProductService>();
     // 2. 将传入的特有 Repository 保存为当前类的私有只读字段
     private readonly IProductRepository _productRepository = productRepository;
     private readonly IProductCategoryRepository _categoryRepository = categoryRepository;
@@ -158,6 +161,176 @@ public partial class ProductService(IProductRepository productRepository, Servic
 
 
 
+    #endregion
+
+
+
+    #region 显式基础读写
+
+    public async Task<ServiceResult<ProductDto>> GetByIdAsync(Guid uid)
+    {
+        try
+        {
+            var entity = await _productRepository.GetByIdAsync(uid);
+            if (entity == null)
+            {
+                if (_logger.IsEnabled(LogLevel.Warning))
+                    _logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", uid, nameof(Product));
+                return ServiceResult<ProductDto>.Fail("未找到数据");
+            }
+
+            return ServiceResult<ProductDto>.Ok(entity.Adapt<ProductDto>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<ProductDto>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<PagedResultDto<ProductDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
+    {
+        try
+        {
+            if (_productRepository is not IPagedCriteriaRepository<Product> pagedRepository)
+                return ServiceResult<PagedResultDto<ProductDto>>.Fail($"{nameof(Product)} 仓储未实现动态分页查询");
+
+            var paged = await pagedRepository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
+            return ServiceResult<PagedResultDto<ProductDto>>.Ok(new PagedResultDto<ProductDto>
+            {
+                Items = paged.Items.Adapt<List<ProductDto>>(),
+                TotalCount = paged.TotalCount,
+                PageSize = paged.PageSize,
+                PageIndex = paged.PageIndex
+            });
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<PagedResultDto<ProductDto>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<Guid>> AddAsync(ProductDto dto)
+    {
+        try
+        {
+            var entity = dto.Adapt<Product>();
+            entity.CreatedDate = DateTime.Now;
+            entity.IsDeleted = false;
+            var uid = await _productRepository.AddAsync(entity);
+            return ServiceResult<Guid>.Ok(uid);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<Guid>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> UpdateAsync(ProductDto dto)
+    {
+        try
+        {
+            var existing = await _productRepository.GetByIdAsync(dto.Uid);
+            if (existing == null) return ServiceResult<int>.Fail("数据不存在");
+
+            dto.Adapt(existing);
+            await _productRepository.UpdateAsync(existing);
+            return ServiceResult<int>.Ok(1);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> DeleteAsync(Guid uid)
+    {
+        try
+        {
+            return ServiceResult<int>.Ok(await _productRepository.DeleteAsync(uid));
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<ProductDto> batchReq)
+    {
+        _session.Transaction = _session.Connection.BeginTransaction();
+        var result = new BatchResultDto();
+
+        var createList = batchReq.AddList?.Adapt<List<Product>>();
+        var updateList = batchReq.UpdateList?.Adapt<List<Product>>();
+        var deleteIds = batchReq.DeleteIdList;
+
+        try
+        {
+            var errorMsg = new StringBuilder();
+
+            if (createList is { Count: > 0 })
+            {
+                var error = await ValidateBeforeAddAsync(createList);
+                if (!string.IsNullOrEmpty(error)) errorMsg.AppendLine(error);
+            }
+
+            if (updateList is { Count: > 0 })
+            {
+                var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
+
+                var needUpdateUids = updateList.Select(x => x.Uid).ToList();
+                var existingUids = await _productRepository.GetExistingIdListAsync(needUpdateUids);
+                var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
+                if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
+                {
+                    var error = await ValidateBeforeUpdateAsync(updateList);
+                    if (!string.IsNullOrEmpty(error)) errorMsg.AppendLine(error);
+                }
+            }
+
+            if (deleteIds is { Count: > 0 })
+            {
+                var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
+            }
+
+            if (errorMsg.Length > 0)
+                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+
+            if (_productRepository is not IBatchWriteRepository<Product> batchRepository)
+                return ServiceResult<BatchResultDto>.Fail($"{nameof(Product)} 仓储未实现批量保存");
+
+            if (createList is { Count: > 0 })
+            {
+                result.AddIdList = [.. await batchRepository.AddRangeAsync(createList)];
+            }
+
+            if (updateList is { Count: > 0 })
+            {
+                await batchRepository.UpdateRangeAsync(updateList);
+                result.UpdateIdList = [.. updateList.Select(x => x.Uid)];
+            }
+
+            if (deleteIds is { Count: > 0 })
+            {
+                await batchRepository.DeleteRangeSoftAsync(deleteIds);
+                result.DeleteIdList = deleteIds;
+            }
+
+            _session.Transaction.Commit();
+            return ServiceResult<BatchResultDto>.Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _session.Transaction.Rollback();
+            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+        }
+        finally
+        {
+            _session.Transaction.Dispose();
+            _session.Transaction = null;
+        }
+    }
     #endregion
 
 }

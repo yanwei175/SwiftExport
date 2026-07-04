@@ -9,6 +9,7 @@
         xmlns:products="clr-namespace:SwiftExportClient.Features.Products"
         xmlns:purchasing="clr-namespace:SwiftExportClient.Features.Purchasing"
         xmlns:sales="clr-namespace:SwiftExportClient.Features.Sales"
+        xmlns:shell="clr-namespace:SwiftExportClient.Shell"
         xmlns:shipping="clr-namespace:SwiftExportClient.Features.Shipping"
         mc:Ignorable="d"
         Title="{Binding Title}"
@@ -22,6 +23,8 @@
         Loaded="OnLoaded">
     <ui:FluentWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <shell:ShellNavigationIconConverter x:Key="ShellNavigationIconConverter" />
+        <shell:RouteSelectionConverter x:Key="RouteSelectionConverter" />
 
         <DataTemplate DataType="{x:Type home:HomeViewModel}">
             <home:HomeView />
@@ -40,6 +43,157 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type shipping:ShippingViewModel}">
             <shipping:ShippingView />
+        </DataTemplate>
+
+        <DataTemplate x:Key="ShellNavigationItemTemplate">
+            <Grid>
+                <Button x:Name="LeafButton"
+                        Style="{StaticResource SwiftExportShellNavigationItemButton}"
+                        Command="{Binding DataContext.OpenRouteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        CommandParameter="{Binding RouteKey}">
+                    <Border x:Name="LeafSurface"
+                            CornerRadius="{StaticResource SwiftExportCornerRadius}"
+                            Background="Transparent">
+                        <Grid MinHeight="40"
+                              Margin="0"
+                              ClipToBounds="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border x:Name="LeafSelectionRail"
+                                    Grid.Column="0"
+                                    Width="4"
+                                    Background="{DynamicResource SwiftExportBrush.Accent}"
+                                    CornerRadius="2"
+                                    Visibility="Collapsed" />
+
+                            <ui:SymbolIcon Grid.Column="2"
+                                           Style="{StaticResource SwiftExportShellNavigationIcon}"
+                                           Symbol="{Binding Icon, Converter={StaticResource ShellNavigationIconConverter}}" />
+
+                            <TextBlock Grid.Column="4"
+                                       Text="{Binding Title}"
+                                       Style="{StaticResource SwiftExportShellNavigationText}" />
+                        </Grid>
+                    </Border>
+                </Button>
+
+                <StackPanel x:Name="GroupPanel"
+                            Visibility="Collapsed">
+                    <Button Style="{StaticResource SwiftExportShellNavigationItemButton}"
+                            Command="{Binding DataContext.ToggleNavigationGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}">
+                        <Border CornerRadius="{StaticResource SwiftExportCornerRadius}"
+                                Background="Transparent">
+                            <Grid MinHeight="40">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="4" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="24" />
+                                </Grid.ColumnDefinitions>
+
+                                <ui:SymbolIcon Grid.Column="2"
+                                               Style="{StaticResource SwiftExportShellNavigationIcon}"
+                                               Symbol="{Binding Icon, Converter={StaticResource ShellNavigationIconConverter}}" />
+
+                                <TextBlock Grid.Column="4"
+                                           Text="{Binding Title}"
+                                           Style="{StaticResource SwiftExportShellNavigationText}" />
+
+                                <ui:SymbolIcon Grid.Column="5"
+                                               Style="{StaticResource SwiftExportShellNavigationChevron}" />
+                            </Grid>
+                        </Border>
+                    </Button>
+
+                    <ItemsControl ItemsSource="{Binding Children}"
+                                  Visibility="{Binding IsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                  Margin="{StaticResource SwiftExportShellNavigationChildMargin}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource SwiftExportShellNavigationItemButton}"
+                                        Command="{Binding DataContext.OpenRouteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding RouteKey}">
+                                    <Border x:Name="ChildSurface"
+                                            CornerRadius="{StaticResource SwiftExportCornerRadius}"
+                                            Background="Transparent">
+                                        <Grid MinHeight="40">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="4" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="24" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Border x:Name="ChildSelectionRail"
+                                                    Grid.Column="0"
+                                                    Width="4"
+                                                    Background="{DynamicResource SwiftExportBrush.Accent}"
+                                                    CornerRadius="2"
+                                                    Visibility="Collapsed" />
+
+                                            <ui:SymbolIcon Grid.Column="2"
+                                                           Style="{StaticResource SwiftExportShellNavigationIcon}"
+                                                           Symbol="{Binding Icon, Converter={StaticResource ShellNavigationIconConverter}}" />
+
+                                            <TextBlock Grid.Column="4"
+                                                       Text="{Binding Title}"
+                                                       Style="{StaticResource SwiftExportShellNavigationText}" />
+                                        </Grid>
+                                    </Border>
+                                </Button>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Value="True">
+                                        <DataTrigger.Binding>
+                                            <MultiBinding Converter="{StaticResource RouteSelectionConverter}">
+                                                <Binding Path="RouteKey" />
+                                                <Binding Path="DataContext.SelectedRouteKey"
+                                                         RelativeSource="{RelativeSource AncestorType=Window}" />
+                                            </MultiBinding>
+                                        </DataTrigger.Binding>
+                                        <Setter TargetName="ChildSurface"
+                                                Property="Background"
+                                                Value="{DynamicResource SwiftExportBrush.SurfaceMuted}" />
+                                        <Setter TargetName="ChildSelectionRail"
+                                                Property="Visibility"
+                                                Value="Visible" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Grid>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding HasChildren}" Value="True">
+                    <Setter TargetName="LeafButton" Property="Visibility" Value="Collapsed" />
+                    <Setter TargetName="GroupPanel" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Value="True">
+                    <DataTrigger.Binding>
+                        <MultiBinding Converter="{StaticResource RouteSelectionConverter}">
+                            <Binding Path="RouteKey" />
+                            <Binding Path="DataContext.SelectedRouteKey"
+                                     RelativeSource="{RelativeSource AncestorType=Window}" />
+                        </MultiBinding>
+                    </DataTrigger.Binding>
+                    <Setter TargetName="LeafSurface"
+                            Property="Background"
+                            Value="{DynamicResource SwiftExportBrush.SurfaceMuted}" />
+                    <Setter TargetName="LeafSelectionRail"
+                            Property="Visibility"
+                            Value="Visible" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
     </ui:FluentWindow.Resources>
 
@@ -85,61 +239,55 @@
             <Grid Grid.Row="2">
 
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="240" />
+                <ColumnDefinition Width="376" MinWidth="280" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <Border Background="{DynamicResource SwiftExportBrush.Surface}"
                     BorderBrush="{DynamicResource SwiftExportBrush.Border}"
                     BorderThickness="0,0,1,0"
-                    Padding="12">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top"
-                               Text="导航"
-                               Style="{StaticResource CaptionTextBlock}"
-                               Margin="8,0,0,12" />
+                    Padding="{StaticResource SwiftExportShellNavigationPadding}">
+                <DockPanel LastChildFill="True">
+                    <ui:TextBox DockPanel.Dock="Top"
+                                PlaceholderText="Search"
+                                Text="{Binding MenuSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                MinHeight="40"
+                                Margin="0,0,0,16" />
 
-                    <StackPanel>
-                        <ui:NavigationViewItem Content="首页"
-                                               TargetPageTag="home"
-                                               Click="OnNavigationItemClick" />
-                        <ui:NavigationViewItem Content="产品"
-                                               IsExpanded="True">
-                            <ui:NavigationViewItem.MenuItems>
-                                <ui:NavigationViewItem Content="产品资料"
-                                                       TargetPageTag="products"
-                                                       Click="OnNavigationItemClick" />
-                                <ui:NavigationViewItem Content="BOM"
-                                                       TargetPageTag="product-bom"
-                                                       Click="OnNavigationItemClick" />
-                                <ui:NavigationViewItem Content="客户产品"
-                                                       TargetPageTag="customer-products"
-                                                       Click="OnNavigationItemClick" />
-                                <ui:NavigationViewItem Content="供应商产品"
-                                                       TargetPageTag="supplier-products"
-                                                       Click="OnNavigationItemClick" />
-                            </ui:NavigationViewItem.MenuItems>
-                        </ui:NavigationViewItem>
-                        <ui:NavigationViewItem Content="销售"
-                                               TargetPageTag="sales"
-                                               Click="OnNavigationItemClick" />
-                        <ui:NavigationViewItem Content="计划"
-                                               TargetPageTag="planning"
-                                               Click="OnNavigationItemClick" />
-                        <ui:NavigationViewItem Content="采购"
-                                               TargetPageTag="purchasing"
-                                               Click="OnNavigationItemClick" />
-                        <ui:NavigationViewItem Content="出货"
-                                               TargetPageTag="shipping"
-                                               Click="OnNavigationItemClick" />
-                    </StackPanel>
+                    <Button DockPanel.Dock="Bottom"
+                            Style="{StaticResource SwiftExportShellNavigationItemButton}"
+                            Command="{Binding OpenSettingsCommand}"
+                            Margin="0,16,0,0">
+                        <Border CornerRadius="{StaticResource SwiftExportCornerRadius}">
+                            <Grid MinHeight="40">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="4" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <ui:SymbolIcon Grid.Column="2"
+                                               Style="{StaticResource SwiftExportShellNavigationIcon}"
+                                               Symbol="Settings24" />
+                                <TextBlock Grid.Column="4"
+                                           Text="Settings"
+                                           Style="{StaticResource SwiftExportShellNavigationText}" />
+                            </Grid>
+                        </Border>
+                    </Button>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding FilteredMenuItems}"
+                                      ItemTemplate="{StaticResource ShellNavigationItemTemplate}" />
+                    </ScrollViewer>
                 </DockPanel>
             </Border>
-                
-             <GridSplitter Grid.RowSpan="2" Grid.Column="1" />
 
                 <Border Grid.Column="1"
-                    Margin="18"
+                    Margin="24"
                     Background="{DynamicResource SwiftExportBrush.Surface}"
                     BorderBrush="{DynamicResource SwiftExportBrush.Border}"
                     BorderThickness="1"
@@ -164,7 +312,7 @@
                     <TabControl.ContentTemplate>
                         <DataTemplate>
                             <ContentControl Content="{Binding ContentViewModel}"
-                                            Margin="18" />
+                                            Margin="{StaticResource SwiftExportWorkspaceMargin}" />
                         </DataTemplate>
                     </TabControl.ContentTemplate>
                 </TabControl>

@@ -7,10 +7,13 @@
     <Style x:Key="SwiftExportShellMenuButton" TargetType="{x:Type Button}"  BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="MinHeight" Value="36" />
-        <Setter Property="Padding" Value="12,7" />
-        <Style.Triggers>
-            
-        </Style.Triggers>
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="Margin" Value="{StaticResource SwiftExportShellNavItemMargin}" />
+    </Style>
+
+    <Style x:Key="SwiftExportShellChildMenuButton" TargetType="{x:Type Button}" BasedOn="{StaticResource SwiftExportShellMenuButton}">
+        <Setter Property="Margin" Value="{StaticResource SwiftExportShellNavChildMargin}" />
+        <Setter Property="FontWeight" Value="Normal" />
     </Style>
 
     <Style x:Key="SwiftExportTabCloseButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">

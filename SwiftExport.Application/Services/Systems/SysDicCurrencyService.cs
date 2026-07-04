@@ -2,11 +2,14 @@ using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Systems;
 using SwiftExport.Core.Interfaces;
+using SwiftExport.Contracts.DTOs.Base;
+using SwiftExport.Core.Common;
+using SwiftExport.Infrastructure.Data;
+using System.Text;
 
 namespace SwiftExport.Application.Services.Systems
 {
@@ -17,10 +20,10 @@ namespace SwiftExport.Application.Services.Systems
     /// 2. 扩展本位币唯一性校验（批量保存时的前置拦截）
     /// 3. 提供"获取本位币"、"获取启用列表"等业务查询
     /// </summary>
-    public partial class SysDicCurrencyService(ISysDicCurrencyRepository repository, ServiceBaseContext context,ISysDicCurrencyExchangeRepository exchangeRepository)
-        : ApplicationServiceBase(context), ISysDicCurrencyService
+    public partial class SysDicCurrencyService(ISysDicCurrencyRepository repository, ServiceBaseContext context,ISysDicCurrencyExchangeRepository exchangeRepository) : ISysDicCurrencyService
     {
-        private readonly ServiceCrud<SysDicCurrency, SysDicCurrencyDto> _crud = new(repository, context);
+    private readonly DbSession _session = context.Session;
+    private readonly ILogger<SysDicCurrencyService> _logger = context.LoggerFactory.CreateLogger<SysDicCurrencyService>();
         private readonly ISysDicCurrencyRepository _repository = repository;
 
         public async Task<ServiceResult<int>> UpdateAsync(SysDicCurrencyDto newSysDicCurrencyDto)
@@ -29,7 +32,7 @@ namespace SwiftExport.Application.Services.Systems
             var rst = await _repository.UpdateAsync(entity);
             if (rst == null)
             {
-                Logger.LogWarning("更新失败，未找到匹配的货币代码：{CurrencyCode}", newSysDicCurrencyDto.CurrencyCode);
+                _logger.LogWarning("更新失败，未找到匹配的货币代码：{CurrencyCode}", newSysDicCurrencyDto.CurrencyCode);
                 return ServiceResult<int>.Fail("更新失败，未找到匹配的货币代码");
             }
             return ServiceResult<int>.Ok(1, "成功更新货币信息");
@@ -51,7 +54,7 @@ namespace SwiftExport.Application.Services.Systems
                 if (rst == null)
                 {
                     _session.Transaction.Rollback();
-                    Logger.LogWarning("重置本位币失败，未找到匹配的货币代码：{CurrencyCode}", newSysDicCurrencyDto.CurrencyCode);
+                    _logger.LogWarning("重置本位币失败，未找到匹配的货币代码：{CurrencyCode}", newSysDicCurrencyDto.CurrencyCode);
                     return ServiceResult<int>.Fail("重置本位币失败，未找到匹配的货币代码");
                 }
                 _session.Transaction.Commit();
@@ -60,7 +63,7 @@ namespace SwiftExport.Application.Services.Systems
             catch (Exception ex)
             {
                 _session.Transaction.Rollback();
-                if (Logger.IsEnabled(LogLevel.Error)) Logger.LogError(ex, "[{EntityName}] 保存时发生错误，事务已回滚！", nameof(SysDicCurrency));
+                if (_logger.IsEnabled(LogLevel.Error)) _logger.LogError(ex, "[{EntityName}] 保存时发生错误，事务已回滚！", nameof(SysDicCurrency));
                 throw;
             }
             finally
@@ -82,7 +85,7 @@ namespace SwiftExport.Application.Services.Systems
 
             if (baseCurrency == null)
             {
-                Logger.LogWarning("查询失败：系统中未设置本位币");
+                _logger.LogWarning("查询失败：系统中未设置本位币");
                 return ServiceResult<SysDicCurrencyDto>.Fail("系统中未设置本位币");
             }
 
@@ -205,5 +208,173 @@ namespace SwiftExport.Application.Services.Systems
 
                 
        }
+    
+
+    #region 显式基础读写
+
+    public async Task<ServiceResult<SysDicCurrencyDto>> GetByIdAsync(Guid uid)
+    {
+        try
+        {
+            var entity = await _repository.GetByIdAsync(uid);
+            if (entity == null)
+            {
+                if (_logger.IsEnabled(LogLevel.Warning))
+                    _logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", uid, nameof(SysDicCurrency));
+                return ServiceResult<SysDicCurrencyDto>.Fail("未找到数据");
+            }
+
+            return ServiceResult<SysDicCurrencyDto>.Ok(entity.Adapt<SysDicCurrencyDto>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<SysDicCurrencyDto>.Fail(ex.Message);
+        }
     }
+
+    public async Task<ServiceResult<IReadOnlyList<SysDicCurrencyDto>>> GetAllAsync()
+    {
+        try
+        {
+            var entities = await _repository.GetAllAsync();
+            return entities.Any()
+                ? ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Ok(entities.Adapt<IReadOnlyList<SysDicCurrencyDto>>())
+                : ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Fail("未找到数据");
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<PagedResultDto<SysDicCurrencyDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
+    {
+        try
+        {
+            if (_repository is not IPagedCriteriaRepository<SysDicCurrency> pagedRepository)
+                return ServiceResult<PagedResultDto<SysDicCurrencyDto>>.Fail($"{nameof(SysDicCurrency)} 仓储未实现动态分页查询");
+
+            var paged = await pagedRepository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
+            return ServiceResult<PagedResultDto<SysDicCurrencyDto>>.Ok(new PagedResultDto<SysDicCurrencyDto>
+            {
+                Items = paged.Items.Adapt<List<SysDicCurrencyDto>>(),
+                TotalCount = paged.TotalCount,
+                PageSize = paged.PageSize,
+                PageIndex = paged.PageIndex
+            });
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<PagedResultDto<SysDicCurrencyDto>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<Guid>> AddAsync(SysDicCurrencyDto dto)
+    {
+        try
+        {
+            var entity = dto.Adapt<SysDicCurrency>();
+            entity.CreatedDate = DateTime.Now;
+            entity.IsDeleted = false;
+            var uid = await _repository.AddAsync(entity);
+            return ServiceResult<Guid>.Ok(uid);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<Guid>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> DeleteAsync(Guid uid)
+    {
+        try
+        {
+            return ServiceResult<int>.Ok(await _repository.DeleteAsync(uid));
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<SysDicCurrencyDto> batchReq)
+    {
+        _session.Transaction = _session.Connection.BeginTransaction();
+        var result = new BatchResultDto();
+
+        var createList = batchReq.AddList?.Adapt<List<SysDicCurrency>>();
+        var updateList = batchReq.UpdateList?.Adapt<List<SysDicCurrency>>();
+        var deleteIds = batchReq.DeleteIdList;
+
+        try
+        {
+            var errorMsg = new StringBuilder();
+
+            if (createList is { Count: > 0 })
+            {
+                var error = await ValidateBeforeAddAsync(createList);
+                if (!string.IsNullOrEmpty(error)) errorMsg.AppendLine(error);
+            }
+
+            if (updateList is { Count: > 0 })
+            {
+                var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
+
+                var needUpdateUids = updateList.Select(x => x.Uid).ToList();
+                var existingUids = await _repository.GetExistingIdListAsync(needUpdateUids);
+                var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
+                if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
+                {
+                    var error = await ValidateBeforeUpdateAsync(updateList);
+                    if (!string.IsNullOrEmpty(error)) errorMsg.AppendLine(error);
+                }
+            }
+
+            if (deleteIds is { Count: > 0 })
+            {
+                var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
+            }
+
+            if (errorMsg.Length > 0)
+                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+
+            if (_repository is not IBatchWriteRepository<SysDicCurrency> batchRepository)
+                return ServiceResult<BatchResultDto>.Fail($"{nameof(SysDicCurrency)} 仓储未实现批量保存");
+
+            if (createList is { Count: > 0 })
+            {
+                result.AddIdList = [.. await batchRepository.AddRangeAsync(createList)];
+            }
+
+            if (updateList is { Count: > 0 })
+            {
+                await batchRepository.UpdateRangeAsync(updateList);
+                result.UpdateIdList = [.. updateList.Select(x => x.Uid)];
+            }
+
+            if (deleteIds is { Count: > 0 })
+            {
+                await batchRepository.DeleteRangeSoftAsync(deleteIds);
+                result.DeleteIdList = deleteIds;
+            }
+
+            _session.Transaction.Commit();
+            return ServiceResult<BatchResultDto>.Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _session.Transaction.Rollback();
+            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+        }
+        finally
+        {
+            _session.Transaction.Dispose();
+            _session.Transaction = null;
+        }
+    }
+    #endregion
+
+}
 }

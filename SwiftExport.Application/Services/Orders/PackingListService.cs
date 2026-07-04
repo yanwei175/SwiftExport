@@ -2,7 +2,6 @@ using Dapper;
 using Mapster;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.PackingLists;
 using SwiftExport.Contracts.DTOs.SystemDtos;
@@ -12,6 +11,10 @@ using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
+using Microsoft.Extensions.Logging;
+using SwiftExport.Contracts.DTOs.Base;
+using SwiftExport.Infrastructure.Data;
+using System.Text;
 
 namespace SwiftExport.Application.Services.Orders;
 
@@ -28,10 +31,10 @@ public partial class PackingListService(
     IInventoryRepository inventoryRepository,
     IStockService stockService,
     IDocumentNoService documentNoService,
-    ServiceBaseContext context)
-    : ApplicationServiceBase(context), IPackingListService
+    ServiceBaseContext context) : IPackingListService
 {
-    private readonly ServiceCrud<PackingListHead, PackingListHeadDto> _crud = new(headRepository, context);
+    private readonly DbSession _session = context.Session;
+    private readonly ILogger<PackingListService> _logger = context.LoggerFactory.CreateLogger<PackingListService>();
     private const string VirtualWhseCode = "V_WH";
     private readonly IPackingListHeadRepository _headRepository = headRepository;
     private readonly IPackingListLineRepository _lineRepository = lineRepository;
@@ -416,5 +419,180 @@ public partial class PackingListService(
     {
         return Task.FromResult("OB" + DateTime.Now.ToString("yyyyMMddHHmmss"));
     }
+
+
+
+    #region 显式基础读写
+
+    public async Task<ServiceResult<PackingListHeadDto>> GetByIdAsync(Guid uid)
+    {
+        try
+        {
+            var entity = await _headRepository.GetByIdAsync(uid);
+            if (entity == null)
+            {
+                if (_logger.IsEnabled(LogLevel.Warning))
+                    _logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", uid, nameof(PackingListHead));
+                return ServiceResult<PackingListHeadDto>.Fail("未找到数据");
+            }
+
+            return ServiceResult<PackingListHeadDto>.Ok(entity.Adapt<PackingListHeadDto>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<PackingListHeadDto>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<IReadOnlyList<PackingListHeadDto>>> GetAllAsync()
+    {
+        try
+        {
+            var entities = await _headRepository.GetAllAsync();
+            return entities.Any()
+                ? ServiceResult<IReadOnlyList<PackingListHeadDto>>.Ok(entities.Adapt<IReadOnlyList<PackingListHeadDto>>())
+                : ServiceResult<IReadOnlyList<PackingListHeadDto>>.Fail("未找到数据");
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<PackingListHeadDto>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<PagedResultDto<PackingListHeadDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
+    {
+        try
+        {
+            if (_headRepository is not IPagedCriteriaRepository<PackingListHead> pagedRepository)
+                return ServiceResult<PagedResultDto<PackingListHeadDto>>.Fail($"{nameof(PackingListHead)} 仓储未实现动态分页查询");
+
+            var paged = await pagedRepository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
+            return ServiceResult<PagedResultDto<PackingListHeadDto>>.Ok(new PagedResultDto<PackingListHeadDto>
+            {
+                Items = paged.Items.Adapt<List<PackingListHeadDto>>(),
+                TotalCount = paged.TotalCount,
+                PageSize = paged.PageSize,
+                PageIndex = paged.PageIndex
+            });
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<PagedResultDto<PackingListHeadDto>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<Guid>> AddAsync(PackingListHeadDto dto)
+    {
+        try
+        {
+            var entity = dto.Adapt<PackingListHead>();
+            entity.CreatedDate = DateTime.Now;
+            entity.IsDeleted = false;
+            var uid = await _headRepository.AddAsync(entity);
+            return ServiceResult<Guid>.Ok(uid);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<Guid>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> UpdateAsync(PackingListHeadDto dto)
+    {
+        try
+        {
+            var existing = await _headRepository.GetByIdAsync(dto.Uid);
+            if (existing == null) return ServiceResult<int>.Fail("数据不存在");
+
+            dto.Adapt(existing);
+            await _headRepository.UpdateAsync(existing);
+            return ServiceResult<int>.Ok(1);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> DeleteAsync(Guid uid)
+    {
+        try
+        {
+            return ServiceResult<int>.Ok(await _headRepository.DeleteAsync(uid));
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<PackingListHeadDto> batchReq)
+    {
+        _session.Transaction = _session.Connection.BeginTransaction();
+        var result = new BatchResultDto();
+
+        var createList = batchReq.AddList?.Adapt<List<PackingListHead>>();
+        var updateList = batchReq.UpdateList?.Adapt<List<PackingListHead>>();
+        var deleteIds = batchReq.DeleteIdList;
+
+        try
+        {
+            var errorMsg = new StringBuilder();
+
+            if (updateList is { Count: > 0 })
+            {
+                var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
+
+                var needUpdateUids = updateList.Select(x => x.Uid).ToList();
+                var existingUids = await _headRepository.GetExistingIdListAsync(needUpdateUids);
+                var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
+                if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
+            }
+
+            if (deleteIds is { Count: > 0 })
+            {
+                var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
+            }
+
+            if (errorMsg.Length > 0)
+                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+
+            if (_headRepository is not IBatchWriteRepository<PackingListHead> batchRepository)
+                return ServiceResult<BatchResultDto>.Fail($"{nameof(PackingListHead)} 仓储未实现批量保存");
+
+            if (createList is { Count: > 0 })
+            {
+                result.AddIdList = [.. await batchRepository.AddRangeAsync(createList)];
+            }
+
+            if (updateList is { Count: > 0 })
+            {
+                await batchRepository.UpdateRangeAsync(updateList);
+                result.UpdateIdList = [.. updateList.Select(x => x.Uid)];
+            }
+
+            if (deleteIds is { Count: > 0 })
+            {
+                await batchRepository.DeleteRangeSoftAsync(deleteIds);
+                result.DeleteIdList = deleteIds;
+            }
+
+            _session.Transaction.Commit();
+            return ServiceResult<BatchResultDto>.Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _session.Transaction.Rollback();
+            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+        }
+        finally
+        {
+            _session.Transaction.Dispose();
+            _session.Transaction = null;
+        }
+    }
+    #endregion
 
 }

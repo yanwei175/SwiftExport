@@ -2,6 +2,7 @@ using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Contracts.DTOs.Independent;
+using SwiftExport.Core.Common;
 
 namespace SwiftExport.Application.Interfaces
 {
@@ -10,6 +11,14 @@ namespace SwiftExport.Application.Interfaces
     /// </summary>
     public partial interface IIndependentDemandServices
     {
+    Task<ServiceResult<IndependentDemandDto>> GetByIdAsync(Guid uid);
+    Task<ServiceResult<IReadOnlyList<IndependentDemandDto>>> GetAllAsync();
+    Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC");
+    Task<ServiceResult<Guid>> AddAsync(IndependentDemandDto dto);
+    Task<ServiceResult<int>> UpdateAsync(IndependentDemandDto dto);
+    Task<ServiceResult<int>> DeleteAsync(Guid uid);
+    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<IndependentDemandDto> batchReq);
+
         Task<ServiceResult<bool>> UpdateFilledQtyAsync(Guid id, decimal addQty);
 
         //获取分页数据

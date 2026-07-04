@@ -16,7 +16,15 @@ public sealed class ShellViewModel : ViewModelBaseEx
     private const string HomeRouteKey = "home";
     private readonly INavigationService _navigationService;
     private readonly ISessionService _sessionService;
+    private readonly IStatusMessageService _statusMessageService;
+    private readonly IReadOnlyList<ShellNavigationItem> _allMenuItems;
     private bool _isInitialized;
+    private string _menuSearchText = string.Empty;
+    private IReadOnlyList<ShellNavigationItem> _filteredMenuItems = [];
+    private bool _isInfoBarOpen;
+    private string? _infoBarTitle;
+    private string? _infoBarMessage;
+    private InfoBarSeverity _infoBarSeverity = InfoBarSeverity.Informational;
 
     public ShellViewModel(
         IOptions<ClientOptions> clientOptions,
@@ -29,15 +37,22 @@ public sealed class ShellViewModel : ViewModelBaseEx
     {
         _navigationService = navigationService;
         _sessionService = sessionService;
+        _statusMessageService = statusMessageService;
+        _allMenuItems = routeRegistry.MenuItems
+            .Select(item => new ShellNavigationItem(item))
+            .ToArray();
+
         var client = clientOptions.Value;
         var api = apiOptions.Value;
 
         Title = client.ApplicationName;
         StatusMessage = $"v{client.Version} · {currentUserService.DisplayName} · {api.BaseUrl}";
-        MenuItems = routeRegistry.MenuItems;
+        FilteredMenuItems = _allMenuItems;
         OpenTabs = navigationService.OpenTabs;
         OpenRouteCommand = new AsyncRelayCommand<string?>(OpenRouteAsync);
         CloseTabCommand = new AsyncRelayCommand<NavigationTabItem?>(CloseTabAsync);
+        ToggleNavigationGroupCommand = new RelayCommand<ShellNavigationItem?>(ToggleNavigationGroup);
+        OpenSettingsCommand = new RelayCommand(OpenSettings);
         LogoutCommand = new RelayCommand(Logout);
 
         navigationService.PropertyChanged += OnNavigationPropertyChanged;
@@ -46,7 +61,23 @@ public sealed class ShellViewModel : ViewModelBaseEx
 
     public string StatusMessage { get; }
 
-    public IReadOnlyList<NavigationMenuItem> MenuItems { get; }
+    public IReadOnlyList<ShellNavigationItem> FilteredMenuItems
+    {
+        get => _filteredMenuItems;
+        private set => SetProperty(ref _filteredMenuItems, value);
+    }
+
+    public string MenuSearchText
+    {
+        get => _menuSearchText;
+        set
+        {
+            if (SetProperty(ref _menuSearchText, value))
+            {
+                ApplyMenuFilter();
+            }
+        }
+    }
 
     public ObservableCollection<NavigationTabItem> OpenTabs { get; }
 
@@ -67,7 +98,7 @@ public sealed class ShellViewModel : ViewModelBaseEx
         ? "未打开页面"
         : $"当前页面：{SelectedTab.Title}";
 
-    private bool _isInfoBarOpen;
+    public string? SelectedRouteKey => SelectedTab?.RouteKey;
 
     public bool IsInfoBarOpen
     {
@@ -75,23 +106,17 @@ public sealed class ShellViewModel : ViewModelBaseEx
         private set => SetProperty(ref _isInfoBarOpen, value);
     }
 
-    private string? _infoBarTitle;
-
     public string? InfoBarTitle
     {
         get => _infoBarTitle;
         private set => SetProperty(ref _infoBarTitle, value);
     }
 
-    private string? _infoBarMessage;
-
     public string? InfoBarMessage
     {
         get => _infoBarMessage;
         private set => SetProperty(ref _infoBarMessage, value);
     }
-
-    private InfoBarSeverity _infoBarSeverity = InfoBarSeverity.Informational;
 
     public InfoBarSeverity InfoBarSeverity
     {
@@ -102,6 +127,10 @@ public sealed class ShellViewModel : ViewModelBaseEx
     public IAsyncRelayCommand<string?> OpenRouteCommand { get; }
 
     public IAsyncRelayCommand<NavigationTabItem?> CloseTabCommand { get; }
+
+    public IRelayCommand<ShellNavigationItem?> ToggleNavigationGroupCommand { get; }
+
+    public IRelayCommand OpenSettingsCommand { get; }
 
     public IRelayCommand LogoutCommand { get; }
 
@@ -130,6 +159,19 @@ public sealed class ShellViewModel : ViewModelBaseEx
         return _navigationService.CloseAsync(tab);
     }
 
+    private void ToggleNavigationGroup(ShellNavigationItem? item)
+    {
+        if (item is not null)
+        {
+            item.IsExpanded = !item.IsExpanded;
+        }
+    }
+
+    private void OpenSettings()
+    {
+        _statusMessageService.Show("设置", "设置页面将在后续阶段接入。", UiMessageSeverity.Info);
+    }
+
     private void Logout()
     {
         _sessionService.EndSession(SessionEndReason.Logout);
@@ -146,7 +188,43 @@ public sealed class ShellViewModel : ViewModelBaseEx
     private void RaiseSelectedTabStateChanged()
     {
         OnPropertyChanged(nameof(SelectedTab));
+        OnPropertyChanged(nameof(SelectedRouteKey));
         OnPropertyChanged(nameof(CurrentPageStatus));
+    }
+
+    private void ApplyMenuFilter()
+    {
+        var query = MenuSearchText.Trim();
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            FilteredMenuItems = _allMenuItems;
+            return;
+        }
+
+        FilteredMenuItems = _allMenuItems
+            .Select(item => FilterMenuItem(item, query))
+            .Where(item => item is not null)
+            .Cast<ShellNavigationItem>()
+            .ToArray();
+    }
+
+    private static ShellNavigationItem? FilterMenuItem(ShellNavigationItem item, string query)
+    {
+        var selfMatches = item.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
+        var matchingChildren = item.Children
+            .Select(child => FilterMenuItem(child, query))
+            .Where(child => child is not null)
+            .Cast<ShellNavigationItem>()
+            .ToArray();
+
+        if (selfMatches)
+        {
+            return item.CloneForFilter(item.Children, forceExpanded: true);
+        }
+
+        return matchingChildren.Length == 0
+            ? null
+            : item.CloneForFilter(matchingChildren, forceExpanded: true);
     }
 
     private void OnStatusMessageChanged(object? sender, StatusMessageChangedEventArgs e)

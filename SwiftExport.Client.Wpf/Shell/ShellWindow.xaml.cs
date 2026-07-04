@@ -29,13 +29,4 @@ public partial class ShellWindow : FluentWindow
         await _viewModel.InitializeAsync();
     }
 
-    private async void OnNavigationItemClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is not NavigationViewItem { TargetPageTag: string routeKey })
-        {
-            return;
-        }
-
-        await _viewModel.OpenRouteCommand.ExecuteAsync(routeKey);
-    }
 }

@@ -1,7 +1,6 @@
 using Mapster;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.SysEnums;
@@ -10,6 +9,10 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
+using Microsoft.Extensions.Logging;
+using SwiftExport.Contracts.DTOs.Base;
+using SwiftExport.Infrastructure.Data;
+using System.Text;
 
 namespace SwiftExport.Application.Services.Orders;
 
@@ -18,9 +21,10 @@ public partial class IndependentDemandService(
     IBomService bomService,
     IDependentDemandRepository dependentDemandRepository,
     IDependentDemandService dependentDemandService,
-    ServiceBaseContext context) : ApplicationServiceBase(context), IIndependentDemandServices
+    ServiceBaseContext context) : IIndependentDemandServices
 {
-    private readonly ServiceCrud<IndependentDemand, IndependentDemandDto> _crud = new(repository, context);
+    private readonly DbSession _session = context.Session;
+    private readonly ILogger<IndependentDemandService> _logger = context.LoggerFactory.CreateLogger<IndependentDemandService>();
     private readonly IIndependentDemandRepository _independentRepo = repository;
     private readonly IBomService _bomService = bomService;
     private readonly IDependentDemandService _dependentService = dependentDemandService;
@@ -386,5 +390,180 @@ public partial class IndependentDemandService(
         
         return await _independentRepo.CanCanceAsync(ids);
     }
+
+
+
+    #region 显式基础读写
+
+    public async Task<ServiceResult<IndependentDemandDto>> GetByIdAsync(Guid uid)
+    {
+        try
+        {
+            var entity = await _independentRepo.GetByIdAsync(uid);
+            if (entity == null)
+            {
+                if (_logger.IsEnabled(LogLevel.Warning))
+                    _logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", uid, nameof(IndependentDemand));
+                return ServiceResult<IndependentDemandDto>.Fail("未找到数据");
+            }
+
+            return ServiceResult<IndependentDemandDto>.Ok(entity.Adapt<IndependentDemandDto>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IndependentDemandDto>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<IReadOnlyList<IndependentDemandDto>>> GetAllAsync()
+    {
+        try
+        {
+            var entities = await _independentRepo.GetAllAsync();
+            return entities.Any()
+                ? ServiceResult<IReadOnlyList<IndependentDemandDto>>.Ok(entities.Adapt<IReadOnlyList<IndependentDemandDto>>())
+                : ServiceResult<IReadOnlyList<IndependentDemandDto>>.Fail("未找到数据");
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<IndependentDemandDto>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
+    {
+        try
+        {
+            if (_independentRepo is not IPagedCriteriaRepository<IndependentDemand> pagedRepository)
+                return ServiceResult<PagedResultDto<IndependentDemandDto>>.Fail($"{nameof(IndependentDemand)} 仓储未实现动态分页查询");
+
+            var paged = await pagedRepository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
+            return ServiceResult<PagedResultDto<IndependentDemandDto>>.Ok(new PagedResultDto<IndependentDemandDto>
+            {
+                Items = paged.Items.Adapt<List<IndependentDemandDto>>(),
+                TotalCount = paged.TotalCount,
+                PageSize = paged.PageSize,
+                PageIndex = paged.PageIndex
+            });
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<PagedResultDto<IndependentDemandDto>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<Guid>> AddAsync(IndependentDemandDto dto)
+    {
+        try
+        {
+            var entity = dto.Adapt<IndependentDemand>();
+            entity.CreatedDate = DateTime.Now;
+            entity.IsDeleted = false;
+            var uid = await _independentRepo.AddAsync(entity);
+            return ServiceResult<Guid>.Ok(uid);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<Guid>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> UpdateAsync(IndependentDemandDto dto)
+    {
+        try
+        {
+            var existing = await _independentRepo.GetByIdAsync(dto.Uid);
+            if (existing == null) return ServiceResult<int>.Fail("数据不存在");
+
+            dto.Adapt(existing);
+            await _independentRepo.UpdateAsync(existing);
+            return ServiceResult<int>.Ok(1);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> DeleteAsync(Guid uid)
+    {
+        try
+        {
+            return ServiceResult<int>.Ok(await _independentRepo.DeleteAsync(uid));
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<IndependentDemandDto> batchReq)
+    {
+        _session.Transaction = _session.Connection.BeginTransaction();
+        var result = new BatchResultDto();
+
+        var createList = batchReq.AddList?.Adapt<List<IndependentDemand>>();
+        var updateList = batchReq.UpdateList?.Adapt<List<IndependentDemand>>();
+        var deleteIds = batchReq.DeleteIdList;
+
+        try
+        {
+            var errorMsg = new StringBuilder();
+
+            if (updateList is { Count: > 0 })
+            {
+                var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
+
+                var needUpdateUids = updateList.Select(x => x.Uid).ToList();
+                var existingUids = await _independentRepo.GetExistingIdListAsync(needUpdateUids);
+                var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
+                if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
+            }
+
+            if (deleteIds is { Count: > 0 })
+            {
+                var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
+            }
+
+            if (errorMsg.Length > 0)
+                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+
+            if (_independentRepo is not IBatchWriteRepository<IndependentDemand> batchRepository)
+                return ServiceResult<BatchResultDto>.Fail($"{nameof(IndependentDemand)} 仓储未实现批量保存");
+
+            if (createList is { Count: > 0 })
+            {
+                result.AddIdList = [.. await batchRepository.AddRangeAsync(createList)];
+            }
+
+            if (updateList is { Count: > 0 })
+            {
+                await batchRepository.UpdateRangeAsync(updateList);
+                result.UpdateIdList = [.. updateList.Select(x => x.Uid)];
+            }
+
+            if (deleteIds is { Count: > 0 })
+            {
+                await batchRepository.DeleteRangeSoftAsync(deleteIds);
+                result.DeleteIdList = deleteIds;
+            }
+
+            _session.Transaction.Commit();
+            return ServiceResult<BatchResultDto>.Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _session.Transaction.Rollback();
+            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+        }
+        finally
+        {
+            _session.Transaction.Dispose();
+            _session.Transaction = null;
+        }
+    }
+    #endregion
 
 }

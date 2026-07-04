@@ -13,6 +13,7 @@
                 <ResourceDictionary Source="Resources/Typography.xaml" />
                 <ResourceDictionary Source="Resources/Spacing.xaml" />
                 <ResourceDictionary Source="Resources/Button.xaml" />
+                <ResourceDictionary Source="Resources/ShellNavigation.xaml" />
                 <ResourceDictionary Source="Resources/DataGrid.xaml" />
 
             </ResourceDictionary.MergedDictionaries>

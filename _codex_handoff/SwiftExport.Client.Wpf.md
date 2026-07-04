@@ -8,8 +8,8 @@
 
 ## 当前阶段
 
-- 已完成：阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6、阶段 7。
-- 下一步：阶段 8，产品页面 / DataGrid 基础样板。
+- 已完成：阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6、阶段 7、阶段 8 基础样板。
+- 下一步：阶段 8 后续打磨，产品页面控件化与 DataGrid 视觉 / 编辑体验细化。
 - 当前主线：`SwiftExport.Client.Wpf` 作为新的 `.NET 10 WPF` 管理端。
 - 独立边界：Excel / VSTO 仍作为 `.NET Framework` 项目单独维护，不迁入 `.NET 10 WPF` 客户端。
 
@@ -149,6 +149,8 @@
   - `INavigationRouteRegistry` / `NavigationRouteRegistry`
   - `INavigationService` / `NavigationService`
 - Shell 使用左侧层级导航 + 多标签内容区：
+  - 左侧导航当前使用原生 `Expander` + 命名 `Button` Style 实现 TreeView 风格，避免脱离完整 `NavigationView` 宿主的 `NavigationViewItem` 不渲染问题。
+  - 导航间距按 `raw/inbox/Fluent  Microsoft 风格布局规范.md` 的 4px 倍数系统整理，`Spacing.xaml` 已补齐 `Space4` 到 `Space48`。
   - 菜单：`首页`、`产品`、`销售`、`计划`、`采购`、`出货`。
   - 产品下已有子项：`产品资料`、`BOM`、`客户产品`、`供应商产品`。
   - 当前只有 `产品资料` 接入 `ProductsViewModel`；其他产品子项先作为后续路由占位。
@@ -178,6 +180,69 @@
   - `Features/Shipping`
 - 本阶段不做权限菜单、不读取后端 `SysViewRoute`、不做未保存变更拦截、不接业务 API。
 
+### 阶段 8：产品页面 / DataGrid 基础样板
+
+- `产品 > 产品资料` 已从占位页替换为真实 API 驱动的 DataGrid 页面。
+- 新增 `Mvvm/IAsyncInitializable`，`NavigationService` 新建 tab 后会调用支持异步初始化的 ViewModel；产品页打开后自动加载第一页。
+- 新增 `Features/Products/ProductLineModel`：
+  - 继承 `BaseLineModel<ProductDto>`，不继承页面级 `ViewModelBaseEx`。
+  - 第一版编辑核心列：SKU、主 SKU、英文描述、中文描述、分类、材质、供货类型、BOM、人民币价、美元价、备注。
+  - 对暂未展示的 `ProductDto` 字段做保留回写，避免保存核心列时清空隐藏字段。
+  - 行级验证包含 SKU 必填、BOM 版本非负、价格非负。
+- `ProductsViewModel` 已接入：
+  - `IProductApi.GetProductPagedListAsync(ProductSearchRequest)` 查询、刷新、分页。
+  - `IProductApi.BatchSaveAsync(BatchRequestDto<ProductDto>)` 批量保存。
+  - `IApiCallRunner` 统一处理 Refit / HTTP 异常。
+  - `IMessageService` 显示非阻塞状态。
+  - `IDialogService` 处理删除确认和未保存变更拦截。
+- 批量保存适配规则：
+  - 新增行进入 `BatchRequestDto<ProductDto>.AddList`。
+  - 修改行进入 `UpdateList`。
+  - 删除行从 `GridChangeSet<ProductDto>.Deleted` 中取 `Uid`，映射到 `DeleteIdList`。
+- `ProductsView.xaml` 已按 Fluent DataGrid 页面分层：
+  - Header
+  - 查询区
+  - 工具栏
+  - 原生 WPF `DataGrid` + `SwiftExportDataGrid`
+  - 状态 / 分页区
+- 本阶段仍不修改旧 `SwiftExport.View.FW`、`MateWpfThemes.FW`、`SwiftExport.VSTO`，也不修改后端业务层。
+
+### 阶段 8 后续：分页与 Lookup 控件迁移
+
+- 已在 `SwiftExport.Client.Wpf/Resources/Controls/` 建立新客户端控件目录，命名空间统一为 `SwiftExportClient.Controls`。
+- 已从旧 `MateWpfThemes.FW` 迁移 `PageNavigator`：
+  - 保留 `TotalCount`、`PageIndex`、`PageSize`、`PageSizeOptions`、`PageChangeCommand`。
+  - 保留命令驱动分页模式，控件只发出 `PageChangeRequest`，是否真正切页由页面 ViewModel 决定。
+  - 已迁移 `PageItem` 和 `PageChangeRequest`。
+  - 旧主题键 `Brush_Txt_Primary`、`Brush_Txt_Secondary`、`BaseComboBox`、`ButtonText` 未迁入，新控件改用 WPF-UI 默认控件样式和 SwiftExport token。
+- 已从旧 `SearchableTextBoxPlus` 迁移并改名为 `LookupTextBox`：
+  - 保留本地/远程搜索模式、过滤、键盘选择、鼠标选择、清空、选中显示、`SelectedItem` / `SelectedValue` 双向绑定。
+  - 搜索模式枚举改为 `LookupTextBoxSearchMode`。
+  - 已迁移 `LookupCommitReason`、`LookupSelectionCommittedEventArgs`、`LookupCommitContext`、`CommitParameterMode`。
+  - 本次未迁移旧 `DataGridSearchableColumn`，后续 DataGrid Lookup 列单独设计。
+- `Typography.xaml` 增加显式命名样式 `SecondaryTextBlock`、`LabelTextBlock`，弱文本使用 `SwiftExportBrush.TextSecondary`，不依赖未确认稳定的 WPF Fluent 内部资源键。
+- `ProductsView` 底部分页已替换为新 `PageNavigator`，`ProductsViewModel` 已新增 `PageChangeCommand`；切页和切换 PageSize 会继续经过未保存变更拦截。
+
+### 阶段 8 后续：Shell 左侧导航 Gallery 风格改造
+
+- 保留 SwiftExport 自建 `INavigationService` 和多标签工作区，不切换到完整 WPF-UI `NavigationView`。
+- Shell 左侧导航已从手写 `Button + Expander` 改为数据驱动模板：
+  - `ShellViewModel.FilteredMenuItems` 来自路由表 `NavigationRouteRegistry.MenuItems`。
+  - `MenuSearchText` 支持本地菜单过滤。
+  - `SelectedRouteKey` 用于菜单选中态高亮。
+  - `ToggleNavigationGroupCommand` 控制产品等分组展开/收起。
+  - `OpenSettingsCommand` 作为设置占位入口，通过 Shell InfoBar 提示后续接入。
+- 新增 Shell 视觉辅助类型：
+  - `ShellNavigationItem`
+  - `ShellNavigationIconConverter`
+  - `RouteSelectionConverter`
+- 新增 `Resources/ShellNavigation.xaml`：
+  - 导航项高度约 40px。
+  - 图标使用 WPF-UI `SymbolIcon`。
+  - 选中项使用浅灰背景 + 左侧 Accent 竖条。
+  - 子菜单使用缩进布局，不再显示成一组小表单按钮。
+- `ShellWindow.xaml` 左栏宽度调整为 376px，增加搜索框和底部 Settings 入口，主工作区保留多标签但视觉边框变轻。
+
 ## 关键架构边界
 
 - 不在 `SwiftExport.Client.Wpf` 中引用旧 `SwiftExport.View.FW`。
@@ -198,10 +263,12 @@
 - API 注册：`SwiftExport.Client.Wpf/Bootstrapper/ApiRegistrationExtensions.cs`
 - Shell：`SwiftExport.Client.Wpf/Shell/ShellWindow.xaml`
 - Shell VM：`SwiftExport.Client.Wpf/Shell/ShellViewModel.cs`
+- Shell 导航样式：`SwiftExport.Client.Wpf/Resources/ShellNavigation.xaml`
 - 导航服务：`SwiftExport.Client.Wpf/Navigation/NavigationService.cs`
 - 导航路由：`SwiftExport.Client.Wpf/Navigation/NavigationRouteRegistry.cs`
 - UI 服务：`SwiftExport.Client.Wpf/Services/UI/`
 - DataGrid 基础模型：`SwiftExport.Client.Wpf/Mvvm/BaseLineModel.cs`、`SwiftExport.Client.Wpf/Mvvm/BaseListModel.cs`
+- 新客户端控件：`SwiftExport.Client.Wpf/Resources/Controls/PageNavigator.xaml`、`SwiftExport.Client.Wpf/Resources/Controls/LookupTextBox.xaml`
 - 占位模块：`SwiftExport.Client.Wpf/Features/`
 - API 调用包装：`SwiftExport.Client.Wpf/Services/Api/ApiCallRunner.cs`
 - Bearer Handler：`SwiftExport.Client.Wpf/Services/Api/AuthTokenHandler.cs`
@@ -240,14 +307,16 @@
 - 最近结果：成功，0 warning，0 error。
 - 静态检查：`SwiftExport.Client.Wpf` 未引用 `SwiftExport.View.FW`、`MateWpfThemes.FW`、`SwiftExport.VSTO`、`MvvmLight/GalaSoft`。
 
-## 下一阶段：阶段 8 产品页面 / DataGrid 基础样板
+## 下一阶段：阶段 8 后续打磨，产品页面控件化与 DataGrid 视觉细化
 
 建议目标：
 
-- 选择 `产品` 作为第一个真实业务页面样板。
-- 基于已建立的 `BaseLineModel<TDto>`、`BaseListModel<TLine,TDto>`、`GridChangeSet<TDto>` 做产品页最小样板。
-- 接入 Products 相关 Contracts Refit API。
-- 建立查询、分页、编辑、批量保存、删除、验证和状态栏消息的第一版闭环。
+- 基于当前产品页继续打磨查询控件、工具栏按钮语义和 DataGrid 可编辑体验。
+- 基于已迁移的 `LookupTextBox` 设计产品分类、材质、客户/供应商等 Lookup 使用方式。
+- 提取可复用的查询区 / 工具栏布局控件或命名样式，避免后续页面复制 XAML。
+- 设计 DataGrid 行状态、脏数据、删除态、验证态的视觉样式。
+- 后续再扩展图片预览、DataGrid Lookup 列、列冻结和批量选择。
+- 继续根据 WPF-UI Gallery 参考图打磨 Shell 主内容区、Tab 样式和 Home 首屏视觉。
 
 建议默认边界：
 
@@ -273,9 +342,12 @@
 - 阶段 1-7 已完成：项目创建、官方主题资源、Host/DI/MVVM、Contracts/Refit、版本检查、登录/退出登录/token 恢复、自建多标签导航 Shell。
 - 已重新引用 lepoco WPF-UI；当前使用 WPF-UI 主题、`ui:FluentWindow`、`ui:TitleBar`、Shell 全局 `InfoBar` / `Snackbar` / `ContentDialogHost`。
 - 不覆盖默认 Button/TextBox/ComboBox/ListBox/TabControl 等 Style；只使用带 x:Key 的命名 Style。
-- 当前 Shell 是 WPF-UI TitleBar + 左侧层级导航 + 多标签工作区，菜单为：首页、产品、销售、计划、采购、出货；产品下已有产品资料、BOM、客户产品、供应商产品。
+- 当前 Shell 是 WPF-UI TitleBar + Gallery 风格左侧导航 + 多标签工作区，菜单为：首页、产品、销售、计划、采购、出货；产品下已有产品资料、BOM、客户产品、供应商产品。
 - 已建立 Fluent 布局规则：4px spacing、页面 Header、查询区、工具栏、DataGrid、状态/分页区分层。
-- 下一步是阶段 8：产品页面 / DataGrid 基础样板。
+- 阶段 8 基础样板已完成：产品资料页接入真实 API、DataGrid、查询、分页、增删改、批量保存和未保存变更拦截。
+- 已迁移 `PageNavigator` 和 `LookupTextBox` 到 `SwiftExport.Client.Wpf/Resources/Controls/`；产品页底部已使用新 `PageNavigator`。
+- Shell 左侧导航已按 WPF-UI Gallery 风格重做：搜索框、图标菜单、选中 Accent 竖条、分组展开和底部 Settings 占位入口。
+- 下一步是阶段 8 后续打磨：产品页面控件化与 DataGrid 视觉 / 编辑体验细化。
 
 请继续时遵守：
 - 不碰旧 SwiftExport.View.FW、MateWpfThemes.FW、SwiftExport.VSTO。

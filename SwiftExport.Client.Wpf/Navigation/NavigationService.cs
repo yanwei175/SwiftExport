@@ -26,11 +26,11 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService
         set => SetProperty(ref _selectedTab, value);
     }
 
-    public Task OpenAsync(string routeKey)
+    public async Task OpenAsync(string routeKey)
     {
         if (!_routeRegistry.TryGetRoute(routeKey, out var route))
         {
-            return Task.CompletedTask;
+            return;
         }
 
         var existingTab = OpenTabs.FirstOrDefault(tab =>
@@ -39,7 +39,7 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService
         if (existingTab is not null)
         {
             Activate(existingTab);
-            return Task.CompletedTask;
+            return;
         }
 
         var viewModel = _serviceProvider.GetRequiredService(route.ViewModelType);
@@ -47,7 +47,10 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService
         OpenTabs.Add(tab);
         Activate(tab);
 
-        return Task.CompletedTask;
+        if (viewModel is IAsyncInitializable initializable)
+        {
+            await initializable.InitializeAsync();
+        }
     }
 
     public void Activate(NavigationTabItem? tab)

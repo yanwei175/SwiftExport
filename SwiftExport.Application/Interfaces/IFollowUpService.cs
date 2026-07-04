@@ -1,6 +1,7 @@
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
+using SwiftExport.Core.Common;
 
 namespace SwiftExport.Application.Interfaces
 {
@@ -9,6 +10,14 @@ namespace SwiftExport.Application.Interfaces
     /// </summary>
     public partial interface IFollowUpService
     {
+    Task<ServiceResult<FollowUpLogDto>> GetByIdAsync(Guid uid);
+    Task<ServiceResult<IReadOnlyList<FollowUpLogDto>>> GetAllAsync();
+    Task<ServiceResult<PagedResultDto<FollowUpLogDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC");
+    Task<ServiceResult<Guid>> AddAsync(FollowUpLogDto dto);
+    Task<ServiceResult<int>> UpdateAsync(FollowUpLogDto dto);
+    Task<ServiceResult<int>> DeleteAsync(Guid uid);
+    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<FollowUpLogDto> batchReq);
+
         /// <summary>
         /// 更新采购跟进信息：当采购行 ReadyQty 变更时，同步更新关联净需求 ReceivedQty。
         /// </summary>

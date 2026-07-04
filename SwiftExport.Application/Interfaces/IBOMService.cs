@@ -1,13 +1,22 @@
-﻿using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
+using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Orders;
+using SwiftExport.Core.Common;
 
 namespace SwiftExport.Application.Interfaces
 {
     public partial interface IBomService
     {
+    Task<ServiceResult<BomDto>> GetByIdAsync(Guid uid);
+    Task<ServiceResult<IReadOnlyList<BomDto>>> GetAllAsync();
+    Task<ServiceResult<PagedResultDto<BomDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC");
+    Task<ServiceResult<Guid>> AddAsync(BomDto dto);
+    Task<ServiceResult<int>> UpdateAsync(BomDto dto);
+    Task<ServiceResult<int>> DeleteAsync(Guid uid);
+    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<BomDto> batchReq);
+
 
 
         /// <summary>

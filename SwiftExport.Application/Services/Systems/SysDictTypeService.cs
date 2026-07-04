@@ -1,6 +1,5 @@
-﻿using SwiftExport.Application.Contexts;
+using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Systems;
@@ -11,6 +10,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using SwiftExport.Contracts.DTOs.Base;
+using SwiftExport.Core.Common;
+using SwiftExport.Infrastructure.Data;
+using System.Text;
 
 
 namespace SwiftExport.Application.Services.Systems
@@ -19,10 +22,10 @@ namespace SwiftExport.Application.Services.Systems
     /// 系统字典类型服务实现
     /// 支持标准 CRUD 操作和分组树查询
     /// </summary>
-    public partial class SysDictTypeService(IRepository<SysDictType> repository, ServiceBaseContext context)
-            : ApplicationServiceBase(context), ISysDictTypeService
+    public partial class SysDictTypeService(IRepository<SysDictType> repository, ServiceBaseContext context) : ISysDictTypeService
     {
-        private readonly ServiceCrud<SysDictType, SysDictTypeDto> _crud = new(repository, context);
+    private readonly DbSession _session = context.Session;
+    private readonly ILogger<SysDictTypeService> _logger = context.LoggerFactory.CreateLogger<SysDictTypeService>();
         private readonly IRepository<SysDictType> _repository = repository;
 
         /// <summary>
@@ -45,7 +48,7 @@ namespace SwiftExport.Application.Services.Systems
                 // GetAllAsync 返回值不可为 null，无需 null 判断，直接检查是否为空集合
                 if (!allDictTypesReadOnly.Any())
                 {
-                    Logger.LogInformation("没有可用的字典类型数据");
+                    _logger.LogInformation("没有可用的字典类型数据");
                     return ServiceResult<List<DictTypeGroupTreeDto>>.Ok(new List<DictTypeGroupTreeDto>());
                 }
 
@@ -55,12 +58,12 @@ namespace SwiftExport.Application.Services.Systems
                 // 2. 按 GroupCode 分组，组织树形结构
                 var groupedTree = BuildGroupedTree(allDictTypes);
 
-                Logger.LogInformation("成功构建字典类型分组树，共 {GroupCount} 个分组", groupedTree.Count);
+                _logger.LogInformation("成功构建字典类型分组树，共 {GroupCount} 个分组", groupedTree.Count);
                 return ServiceResult<List<DictTypeGroupTreeDto>>.Ok(groupedTree);
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "构建字典类型分组树失败");
+                _logger.LogError(ex, "构建字典类型分组树失败");
                 return ServiceResult<List<DictTypeGroupTreeDto>>.Fail($"构建分组树失败: {ex.Message}");
             }
         }
@@ -234,5 +237,180 @@ namespace SwiftExport.Application.Services.Systems
 
             return rootNodes.OrderBy(x => x.SortOrder).ToList();
         }
+    
+
+    #region 显式基础读写
+
+    public async Task<ServiceResult<SysDictTypeDto>> GetByIdAsync(Guid uid)
+    {
+        try
+        {
+            var entity = await _repository.GetByIdAsync(uid);
+            if (entity == null)
+            {
+                if (_logger.IsEnabled(LogLevel.Warning))
+                    _logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", uid, nameof(SysDictType));
+                return ServiceResult<SysDictTypeDto>.Fail("未找到数据");
+            }
+
+            return ServiceResult<SysDictTypeDto>.Ok(entity.Adapt<SysDictTypeDto>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<SysDictTypeDto>.Fail(ex.Message);
+        }
     }
+
+    public async Task<ServiceResult<IReadOnlyList<SysDictTypeDto>>> GetAllAsync()
+    {
+        try
+        {
+            var entities = await _repository.GetAllAsync();
+            return entities.Any()
+                ? ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok(entities.Adapt<IReadOnlyList<SysDictTypeDto>>())
+                : ServiceResult<IReadOnlyList<SysDictTypeDto>>.Fail("未找到数据");
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<SysDictTypeDto>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<PagedResultDto<SysDictTypeDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
+    {
+        try
+        {
+            if (_repository is not IPagedCriteriaRepository<SysDictType> pagedRepository)
+                return ServiceResult<PagedResultDto<SysDictTypeDto>>.Fail($"{nameof(SysDictType)} 仓储未实现动态分页查询");
+
+            var paged = await pagedRepository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
+            return ServiceResult<PagedResultDto<SysDictTypeDto>>.Ok(new PagedResultDto<SysDictTypeDto>
+            {
+                Items = paged.Items.Adapt<List<SysDictTypeDto>>(),
+                TotalCount = paged.TotalCount,
+                PageSize = paged.PageSize,
+                PageIndex = paged.PageIndex
+            });
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<PagedResultDto<SysDictTypeDto>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<Guid>> AddAsync(SysDictTypeDto dto)
+    {
+        try
+        {
+            var entity = dto.Adapt<SysDictType>();
+            entity.CreatedDate = DateTime.Now;
+            entity.IsDeleted = false;
+            var uid = await _repository.AddAsync(entity);
+            return ServiceResult<Guid>.Ok(uid);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<Guid>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> UpdateAsync(SysDictTypeDto dto)
+    {
+        try
+        {
+            var existing = await _repository.GetByIdAsync(dto.Uid);
+            if (existing == null) return ServiceResult<int>.Fail("数据不存在");
+
+            dto.Adapt(existing);
+            await _repository.UpdateAsync(existing);
+            return ServiceResult<int>.Ok(1);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> DeleteAsync(Guid uid)
+    {
+        try
+        {
+            return ServiceResult<int>.Ok(await _repository.DeleteAsync(uid));
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<SysDictTypeDto> batchReq)
+    {
+        _session.Transaction = _session.Connection.BeginTransaction();
+        var result = new BatchResultDto();
+
+        var createList = batchReq.AddList?.Adapt<List<SysDictType>>();
+        var updateList = batchReq.UpdateList?.Adapt<List<SysDictType>>();
+        var deleteIds = batchReq.DeleteIdList;
+
+        try
+        {
+            var errorMsg = new StringBuilder();
+
+            if (updateList is { Count: > 0 })
+            {
+                var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
+
+                var needUpdateUids = updateList.Select(x => x.Uid).ToList();
+                var existingUids = await _repository.GetExistingIdListAsync(needUpdateUids);
+                var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
+                if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
+            }
+
+            if (deleteIds is { Count: > 0 })
+            {
+                var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
+                if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
+            }
+
+            if (errorMsg.Length > 0)
+                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+
+            if (_repository is not IBatchWriteRepository<SysDictType> batchRepository)
+                return ServiceResult<BatchResultDto>.Fail($"{nameof(SysDictType)} 仓储未实现批量保存");
+
+            if (createList is { Count: > 0 })
+            {
+                result.AddIdList = [.. await batchRepository.AddRangeAsync(createList)];
+            }
+
+            if (updateList is { Count: > 0 })
+            {
+                await batchRepository.UpdateRangeAsync(updateList);
+                result.UpdateIdList = [.. updateList.Select(x => x.Uid)];
+            }
+
+            if (deleteIds is { Count: > 0 })
+            {
+                await batchRepository.DeleteRangeSoftAsync(deleteIds);
+                result.DeleteIdList = deleteIds;
+            }
+
+            _session.Transaction.Commit();
+            return ServiceResult<BatchResultDto>.Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _session.Transaction.Rollback();
+            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+        }
+        finally
+        {
+            _session.Transaction.Dispose();
+            _session.Transaction = null;
+        }
+    }
+    #endregion
+
+}
 }
