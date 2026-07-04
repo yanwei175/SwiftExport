@@ -24,9 +24,27 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
     public NavigationRouteRegistry()
     {
         _routeMap = _routes.ToDictionary(route => route.Key, StringComparer.OrdinalIgnoreCase);
-        MenuItems = _routes
-            .Select(route => new NavigationMenuItem(route.Key, route.Title, route.Group))
-            .ToArray();
+        MenuItems =
+        [
+            new("home", "首页", "Workspace", "Home24"),
+            new(
+                "products",
+                "产品",
+                "Workspace",
+                "Box24",
+                IsExpanded: true,
+                Children:
+                [
+                    new("products", "产品资料", "Workspace", "Cube24"),
+                    new("product-bom", "BOM", "Workspace", "Branch24"),
+                    new("customer-products", "客户产品", "Workspace", "People24"),
+                    new("supplier-products", "供应商产品", "Workspace", "PeopleTeam24"),
+                ]),
+            new("sales", "销售", "Workspace", "ReceiptMoney24"),
+            new("planning", "计划", "Workspace", "CalendarLtr24"),
+            new("purchasing", "采购", "Workspace", "Cart24"),
+            new("shipping", "出货", "VehicleTruckProfile24"),
+        ];
     }
 
     public IReadOnlyList<NavigationRoute> Routes => _routes;

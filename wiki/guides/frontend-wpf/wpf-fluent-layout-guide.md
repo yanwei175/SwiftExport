@@ -6,6 +6,8 @@
 
 项目化口径：
 
+当前源码事实：`SwiftExport.Client.Wpf` 已重新使用 lepoco `WPF-UI 4.3.0` 承载 Shell 级 FluentWindow、TitleBar、InfoBar、Snackbar、ContentDialog 和左侧导航外观。本文中“不再默认引入 WPF-UI 控件库”的旧判断已可能过期；布局规范仍继续适用，尤其是 4px 间距、页面 Header、查询区、工具栏、DataGrid、状态/分页区分层。
+
 - 默认使用微软官方 WPF Fluent 主题和原生 WPF 控件。
 - 不再默认引入 WPF-UI 控件库。
 - 普通控件不覆盖官方默认样式；特殊业务体验通过命名 Style 或专用控件实现。

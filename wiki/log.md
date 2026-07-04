@@ -193,3 +193,9 @@
 - 新建 `raw/skills/backend/**` 的后端 skill。
 - 新建 `raw/workflows/frontend/wpf-vsto-workflow.md`，定义 WPF/VSTO 前端开发边界。
 - 新建 `raw/project/**`，沉淀项目地图和入门说明。
+## 2026-07-04 frontend | 修正 .NET 10 WPF 客户端 WPF-UI 当前事实
+
+- 源码事实确认：`SwiftExport.Client.Wpf` 已重新引用 lepoco `WPF-UI 4.3.0`，并使用 `ui:FluentWindow`、WPF-UI 主题资源和登录页控件。
+- 修正 `_codex_handoff/SwiftExport.Client.Wpf.md`，将“WPF UI 已移除”的旧记录标记为过期，更新为 WPF-UI Shell 承载策略。
+- 更新 WPF 官方主题和 Fluent 布局 guide，标记“不引入 WPF-UI”的旧判断可能过期；后续以“WPF-UI 主题与 Shell 控件 + SwiftExport 命名业务样式”为准。
+- 阶段 8 前置已建立 Shell 顶部 TitleBar、全局 InfoBar / Snackbar / ContentDialogHost、左侧层级导航和 DataGrid 基础 MVVM 类型。

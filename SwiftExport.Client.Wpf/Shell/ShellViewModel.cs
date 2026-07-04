@@ -6,6 +6,8 @@ using SwiftExportClient.Authentication;
 using SwiftExportClient.Bootstrapper;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
+using SwiftExportClient.Services.UI;
+using Wpf.Ui.Controls;
 
 namespace SwiftExportClient.Shell;
 
@@ -22,7 +24,8 @@ public sealed class ShellViewModel : ViewModelBaseEx
         ICurrentUserService currentUserService,
         INavigationRouteRegistry routeRegistry,
         INavigationService navigationService,
-        ISessionService sessionService)
+        ISessionService sessionService,
+        IStatusMessageService statusMessageService)
     {
         _navigationService = navigationService;
         _sessionService = sessionService;
@@ -38,6 +41,7 @@ public sealed class ShellViewModel : ViewModelBaseEx
         LogoutCommand = new RelayCommand(Logout);
 
         navigationService.PropertyChanged += OnNavigationPropertyChanged;
+        statusMessageService.MessageChanged += OnStatusMessageChanged;
     }
 
     public string StatusMessage { get; }
@@ -62,6 +66,38 @@ public sealed class ShellViewModel : ViewModelBaseEx
     public string CurrentPageStatus => SelectedTab is null
         ? "未打开页面"
         : $"当前页面：{SelectedTab.Title}";
+
+    private bool _isInfoBarOpen;
+
+    public bool IsInfoBarOpen
+    {
+        get => _isInfoBarOpen;
+        private set => SetProperty(ref _isInfoBarOpen, value);
+    }
+
+    private string? _infoBarTitle;
+
+    public string? InfoBarTitle
+    {
+        get => _infoBarTitle;
+        private set => SetProperty(ref _infoBarTitle, value);
+    }
+
+    private string? _infoBarMessage;
+
+    public string? InfoBarMessage
+    {
+        get => _infoBarMessage;
+        private set => SetProperty(ref _infoBarMessage, value);
+    }
+
+    private InfoBarSeverity _infoBarSeverity = InfoBarSeverity.Informational;
+
+    public InfoBarSeverity InfoBarSeverity
+    {
+        get => _infoBarSeverity;
+        private set => SetProperty(ref _infoBarSeverity, value);
+    }
 
     public IAsyncRelayCommand<string?> OpenRouteCommand { get; }
 
@@ -111,5 +147,24 @@ public sealed class ShellViewModel : ViewModelBaseEx
     {
         OnPropertyChanged(nameof(SelectedTab));
         OnPropertyChanged(nameof(CurrentPageStatus));
+    }
+
+    private void OnStatusMessageChanged(object? sender, StatusMessageChangedEventArgs e)
+    {
+        InfoBarTitle = e.Title;
+        InfoBarMessage = e.Message;
+        InfoBarSeverity = ToInfoBarSeverity(e.Severity);
+        IsInfoBarOpen = e.IsOpen;
+    }
+
+    private static InfoBarSeverity ToInfoBarSeverity(UiMessageSeverity severity)
+    {
+        return severity switch
+        {
+            UiMessageSeverity.Success => InfoBarSeverity.Success,
+            UiMessageSeverity.Warning => InfoBarSeverity.Warning,
+            UiMessageSeverity.Error => InfoBarSeverity.Error,
+            _ => InfoBarSeverity.Informational,
+        };
     }
 }

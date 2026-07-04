@@ -27,6 +27,7 @@
   - `Microsoft.Extensions.Configuration.Json`
   - `Microsoft.Extensions.Logging`
   - `Refit.HttpClientFactory`
+  - `WPF-UI`
 - 加入 `SwiftExport.slnx` 和 `SwiftExport-Frontend.slnx`。
 - 不引用旧 `SwiftExport.View.FW`、`MateWpfThemes.FW` 或 VSTO 项目。
 
@@ -40,8 +41,9 @@
   - `Spacing.xaml`
   - `Button.xaml`
   - `DataGrid.xaml`
-- 阶段 7 已决定移除 WPF UI，后续基于原生 WPF + 自有资源体系演进。
+- 当前已重新引用 lepoco `WPF-UI 4.3.0`，用于主题资源、`FluentWindow`、`TitleBar`、`InfoBar`、`Snackbar`、`ContentDialog` 和 Shell 导航外观。
 - 阶段 7 后已按官方主题规则清理自定义 XAML：不再定义隐式全局 `Button` / `TextBox` / `DataGrid` 样式，项目样式均使用 `x:Key` 显式引用。
+- 现阶段主题策略调整为：WPF-UI 主题资源 + SwiftExport 命名业务样式；不恢复旧 `MateWpfThemes.FW`，不覆盖默认基础控件 Style。
 - 已新增官方主题与 Fluent 布局规则：
   - `wiki/guides/frontend-wpf/wpf-official-theme-style-guide.md`
   - `wiki/guides/frontend-wpf/wpf-fluent-layout-guide.md`
@@ -136,21 +138,37 @@
 
 ### 阶段 7：自建多标签导航服务 / Shell 工作区
 
-- 移除 `SwiftExport.Client.Wpf` 对 WPF UI 的依赖：
-  - 删除 `WPF-UI` 包引用。
-  - `ShellWindow` 从 `FluentWindow` 改回原生 WPF `Window`。
-  - 清理 `Wpf.Ui` / `wpfui` / `FluentWindow` 引用。
+- 当前 `SwiftExport.Client.Wpf` 已重新使用 lepoco `WPF-UI 4.3.0`：
+  - `ShellWindow` 使用 `ui:FluentWindow`。
+  - Shell 顶部使用 WPF-UI `TitleBar`，保留最小化、最大化、关闭按钮。
+  - `App.xaml` 合并 `ui:ThemesDictionary` 和 `ui:ControlsDictionary`。
 - 新增 `SwiftExport.Client.Wpf/Navigation/`：
   - `NavigationRoute`
   - `NavigationMenuItem`
   - `NavigationTabItem`
   - `INavigationRouteRegistry` / `NavigationRouteRegistry`
   - `INavigationService` / `NavigationService`
-- Shell 使用左侧菜单 + 多标签内容区：
+- Shell 使用左侧层级导航 + 多标签内容区：
   - 菜单：`首页`、`产品`、`销售`、`计划`、`采购`、`出货`。
+  - 产品下已有子项：`产品资料`、`BOM`、`客户产品`、`供应商产品`。
+  - 当前只有 `产品资料` 接入 `ProductsViewModel`；其他产品子项先作为后续路由占位。
   - 默认打开 `首页`。
   - 同一路由主页不重复打开，点击已打开菜单时激活现有标签页。
   - `首页` 不可关闭，其他模块标签可关闭。
+- Shell 已建立全局 WPF-UI 宿主：
+  - `InfoBar`
+  - `SnackbarPresenter`
+  - `ContentDialogHost`
+- 新增 `Services/UI/`：
+  - `IMessageService` / `WpfUiMessageService`
+  - `IDialogService` / `WpfUiDialogService`
+  - `IStatusMessageService` / `StatusMessageService`
+  - `UiMessageSeverity`
+- 新增 DataGrid / 行集合基础类型：
+  - `LineState`
+  - `BaseLineModel<TDto>`
+  - `BaseListModel<TLine,TDto>`
+  - `GridChangeSet<TDto>`
 - 新增第一版占位模块：
   - `Features/Home`
   - `Features/Products`
@@ -167,7 +185,7 @@
 - 不在 `SwiftExport.Client.Wpf` 中引用 VSTO 项目。
 - 不复制旧 MVVMLight、旧 `RelayCommand`、旧 Dialog、旧 DI、旧 TokenStore。
 - `SwiftExport.Contracts` 已有共用 wrapper，前端错误包装优先使用 `ServiceResult<T>`。
-- WPF UI 已移除；新客户端基于原生 WPF + 自有主题资源演进 Shell、Navigation、Dialog 和业务控件。
+- 新客户端当前使用 lepoco `WPF-UI 4.3.0` 承载 Shell 级 Fluent 窗口、标题栏、通知和弹窗；业务 MVVM、DataGrid 行模型、集合模型和多标签导航仍由 SwiftExport 自建。
 - VSTO 只承接 Excel 导入相关页面和 Office 交互，不承载完整 ERP 管理业务。
 
 ## 当前重要文件
@@ -182,6 +200,8 @@
 - Shell VM：`SwiftExport.Client.Wpf/Shell/ShellViewModel.cs`
 - 导航服务：`SwiftExport.Client.Wpf/Navigation/NavigationService.cs`
 - 导航路由：`SwiftExport.Client.Wpf/Navigation/NavigationRouteRegistry.cs`
+- UI 服务：`SwiftExport.Client.Wpf/Services/UI/`
+- DataGrid 基础模型：`SwiftExport.Client.Wpf/Mvvm/BaseLineModel.cs`、`SwiftExport.Client.Wpf/Mvvm/BaseListModel.cs`
 - 占位模块：`SwiftExport.Client.Wpf/Features/`
 - API 调用包装：`SwiftExport.Client.Wpf/Services/Api/ApiCallRunner.cs`
 - Bearer Handler：`SwiftExport.Client.Wpf/Services/Api/AuthTokenHandler.cs`
@@ -212,7 +232,7 @@
   ```powershell
   rg "Wpf\.Ui|WPF-UI|wpfui|FluentWindow" .\SwiftExport.Client.Wpf
   ```
-- 最近结果：无命中，WPF UI 已从新客户端移除。
+- 最近结果：当前有命中，`SwiftExport.Client.Wpf` 已重新使用 WPF-UI 主题库和 `ui:FluentWindow`。
 - 已运行：
   ```powershell
   dotnet build .\SwiftExport-WebAPI.slnx
@@ -225,7 +245,7 @@
 建议目标：
 
 - 选择 `产品` 作为第一个真实业务页面样板。
-- 设计 .NET 10 前端 DataGrid 行模型 / 集合模型最小可用版本。
+- 基于已建立的 `BaseLineModel<TDto>`、`BaseListModel<TLine,TDto>`、`GridChangeSet<TDto>` 做产品页最小样板。
 - 接入 Products 相关 Contracts Refit API。
 - 建立查询、分页、编辑、批量保存、删除、验证和状态栏消息的第一版闭环。
 
@@ -251,9 +271,9 @@
 当前状态：
 - SwiftExport.Client.Wpf 是新的 .NET 10 WPF 管理端。
 - 阶段 1-7 已完成：项目创建、官方主题资源、Host/DI/MVVM、Contracts/Refit、版本检查、登录/退出登录/token 恢复、自建多标签导航 Shell。
-- WPF UI 已移除；默认使用微软官方 WPF Fluent 主题和 ThemeMode="System"。
+- 已重新引用 lepoco WPF-UI；当前使用 WPF-UI 主题、`ui:FluentWindow`、`ui:TitleBar`、Shell 全局 `InfoBar` / `Snackbar` / `ContentDialogHost`。
 - 不覆盖默认 Button/TextBox/ComboBox/ListBox/TabControl 等 Style；只使用带 x:Key 的命名 Style。
-- 当前 Shell 是左侧菜单 + 多标签工作区，菜单为：首页、产品、销售、计划、采购、出货。
+- 当前 Shell 是 WPF-UI TitleBar + 左侧层级导航 + 多标签工作区，菜单为：首页、产品、销售、计划、采购、出货；产品下已有产品资料、BOM、客户产品、供应商产品。
 - 已建立 Fluent 布局规则：4px spacing、页面 Header、查询区、工具栏、DataGrid、状态/分页区分层。
 - 下一步是阶段 8：产品页面 / DataGrid 基础样板。
 

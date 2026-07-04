@@ -2,6 +2,8 @@
 
 本文用于 `SwiftExport.Client.Wpf` 新 .NET 10 WPF 客户端的主题和样式设计。
 
+当前源码事实：`SwiftExport.Client.Wpf` 已重新引用 lepoco `WPF-UI 4.3.0`，并使用 `ui:FluentWindow`、`ui:TitleBar`、`InfoBar`、`Snackbar`、`ContentDialog` 等 Shell 级能力。本文中“只使用官方 WPF Fluent 主题、不引入 WPF-UI”的旧判断已可能过期；后续以“WPF-UI 主题与 Shell 控件 + SwiftExport 命名业务样式”为准，但仍不恢复旧 `MateWpfThemes.FW`，也不覆盖默认基础控件隐式 Style。
+
 核心原则：默认使用微软 WPF 官方主题和控件默认样式；SwiftExport 只在业务确实需要统一体验时，新增少量命名 Style 或专用控件，不覆盖 WPF 默认控件模板。
 
 本文负责主题接入、`ThemeMode` 和 Style 边界；页面布局、间距、卡片、表单、DataGrid 页面结构见 [`.NET 10 WPF Fluent 布局规范`](wpf-fluent-layout-guide.md)。
