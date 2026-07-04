@@ -4,6 +4,8 @@
 
 核心原则：默认使用微软 WPF 官方主题和控件默认样式；SwiftExport 只在业务确实需要统一体验时，新增少量命名 Style 或专用控件，不覆盖 WPF 默认控件模板。
 
+本文负责主题接入、`ThemeMode` 和 Style 边界；页面布局、间距、卡片、表单、DataGrid 页面结构见 [`.NET 10 WPF Fluent 布局规范`](wpf-fluent-layout-guide.md)。
+
 来源：
 
 - Microsoft Learn: https://learn.microsoft.com/zh-cn/dotnet/desktop/wpf/whats-new/net90

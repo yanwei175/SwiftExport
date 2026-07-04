@@ -42,6 +42,9 @@
   - `DataGrid.xaml`
 - 阶段 7 已决定移除 WPF UI，后续基于原生 WPF + 自有资源体系演进。
 - 阶段 7 后已按官方主题规则清理自定义 XAML：不再定义隐式全局 `Button` / `TextBox` / `DataGrid` 样式，项目样式均使用 `x:Key` 显式引用。
+- 已新增官方主题与 Fluent 布局规则：
+  - `wiki/guides/frontend-wpf/wpf-official-theme-style-guide.md`
+  - `wiki/guides/frontend-wpf/wpf-fluent-layout-guide.md`
 - 注意：新客户端代码命名空间使用 `SwiftExportClient.*`，避免项目名 `SwiftExport.Client.Wpf` 与第三方 `Wpf.Ui` 命名空间在 XAML 生成代码中冲突。
 
 ### 阶段 3：Host / DI / 配置 / MVVM 基础
@@ -190,6 +193,8 @@
 - 版本检查后端入口：`SwiftExport.WebApi/Controllers/Systems/ClientVersionController.cs`
 - 路线图：`C:/Users/BigBigBigDv/Documents/Codex/2026-06-30/c/outputs/SwiftExport-WPF-Frontend-Roadmap.md`
 - 架构文档：`C:/Users/BigBigBigDv/Documents/Codex/2026-06-30/c/outputs/SwiftExport-WPF-Frontend-Architecture.md`
+- 官方主题规则：`wiki/guides/frontend-wpf/wpf-official-theme-style-guide.md`
+- Fluent 布局规则：`wiki/guides/frontend-wpf/wpf-fluent-layout-guide.md`
 
 ## 最近构建记录
 
@@ -229,6 +234,37 @@
 - 不在阶段 8 修改旧 `SwiftExport.View.FW` / VSTO。
 - 不把 DataGrid 行模型设计成依赖页面级 `ViewModelBaseEx`。
 - 不从后端动态加载菜单；阶段 7 的本地路由表继续保留。
+
+## 新窗口继续提示词
+
+```text
+继续 SwiftExport .NET 10 WPF 前端项目。
+
+请先读取：
+1. wiki/index.md
+2. _codex_handoff/SwiftExport.Client.Wpf.md
+3. wiki/project/dotnet10-frontend-mvvm-blueprint.md
+4. wiki/guides/frontend-wpf/wpf-official-theme-style-guide.md
+5. wiki/guides/frontend-wpf/wpf-fluent-layout-guide.md
+6. wiki/guides/frontend-wpf/wpf-communitytoolkit-mvvm.md
+
+当前状态：
+- SwiftExport.Client.Wpf 是新的 .NET 10 WPF 管理端。
+- 阶段 1-7 已完成：项目创建、官方主题资源、Host/DI/MVVM、Contracts/Refit、版本检查、登录/退出登录/token 恢复、自建多标签导航 Shell。
+- WPF UI 已移除；默认使用微软官方 WPF Fluent 主题和 ThemeMode="System"。
+- 不覆盖默认 Button/TextBox/ComboBox/ListBox/TabControl 等 Style；只使用带 x:Key 的命名 Style。
+- 当前 Shell 是左侧菜单 + 多标签工作区，菜单为：首页、产品、销售、计划、采购、出货。
+- 已建立 Fluent 布局规则：4px spacing、页面 Header、查询区、工具栏、DataGrid、状态/分页区分层。
+- 下一步是阶段 8：产品页面 / DataGrid 基础样板。
+
+请继续时遵守：
+- 不碰旧 SwiftExport.View.FW、MateWpfThemes.FW、SwiftExport.VSTO。
+- 不引入 MVVMLight / GalaSoft。
+- 不新增第二套 Result，继续使用 SwiftExport.Contracts.Wrappers.ServiceResult<T>。
+- 不把 DataGrid 行模型继承页面级 ViewModelBaseEx。
+- 新页面遵守官方主题规则和 Fluent 布局规范。
+- 修改后更新 _codex_handoff/SwiftExport.Client.Wpf.md。
+```
 
 ## 风险和注意事项
 

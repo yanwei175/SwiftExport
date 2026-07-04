@@ -1,5 +1,12 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-04 ingest | Fluent Microsoft 风格布局规范
+
+- 读取 `raw/inbox/Fluent  Microsoft 风格布局规范.md`，提炼为 `wiki/guides/frontend-wpf/wpf-fluent-layout-guide.md`。
+- 新增新 .NET 10 WPF 客户端 Fluent 布局规则：4px 间距系统、页面布局、卡片、表单、按钮、DataGrid 页面、Dialog、登录页、Typography、颜色状态和 XAML 编写规则。
+- 按当前源码事实调整口径：不再默认使用 WPF-UI，改为微软官方 WPF Fluent 主题 + 原生控件 + SwiftExport 命名 Style / 专用业务控件。
+- 更新 `wiki/index.md`、`wiki/guides/index.md` 和官方主题样式 guide，串联主题边界与布局规范。
+
 ## 2026-07-04 frontend | 清理新客户端隐式全局 XAML 样式
 
 - 按 `.NET 10 WPF 官方主题与项目样式规则` 清理 `SwiftExport.Client.Wpf` 自定义资源。

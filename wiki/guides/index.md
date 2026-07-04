@@ -27,6 +27,7 @@ Guide 保存稳定规范和检查清单；Skill / Workflow 保存具体执行步
 - [WPF Image Cell](frontend-wpf/wpf-image-cell.md) - 处理 DataGrid 图片列、图片转换器、缩略图和 ToolTip 预览时读取。
 - [WPF Theme Resource](frontend-wpf/wpf-theme-resource.md) - 调整主题资源、样式、资源字典和控件视觉时读取。
 - [.NET 10 WPF Official Theme Style](frontend-wpf/wpf-official-theme-style-guide.md) - 设计新 .NET 10 WPF 客户端主题、官方 Fluent、命名 Style 和避免覆盖默认控件样式时读取。
+- [.NET 10 WPF Fluent Layout](frontend-wpf/wpf-fluent-layout-guide.md) - 设计新 .NET 10 WPF 页面布局、4px 间距系统、表单、卡片、DataGrid 页面和 XAML 布局规范时读取。
 
 ## Workflow
 

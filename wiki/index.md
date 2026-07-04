@@ -67,6 +67,7 @@
 - [WPF Image Cell Guide](guides/frontend-wpf/wpf-image-cell.md) - 涉及 DataGrid 图片列、图片路径转换器、缩略图和预览时读取。
 - [Theme / Resource Guide](guides/frontend-wpf/wpf-theme-resource.md) - 涉及资源字典、主题键、控件样式、颜色资源时读取。
 - [.NET 10 WPF Official Theme Style Guide](guides/frontend-wpf/wpf-official-theme-style-guide.md) - 涉及新 .NET 10 WPF 官方 Fluent 主题、ThemeMode、系统强调色、命名 Style 和避免覆盖默认控件样式时读取。
+- [.NET 10 WPF Fluent Layout Guide](guides/frontend-wpf/wpf-fluent-layout-guide.md) - 涉及新 .NET 10 WPF 页面布局、4px 间距系统、卡片、表单、DataGrid 页面、Dialog 和 XAML 布局规范时读取。
 
 ## 重构 / 项目接手 / 任务书写
 
