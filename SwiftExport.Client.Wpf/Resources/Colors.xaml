@@ -11,6 +11,7 @@
     <Color x:Key="SwiftExportColor.SuccessSoft">#FFE8F5EF</Color>
     <Color x:Key="SwiftExportColor.WarningSoft">#FFFFF6E5</Color>
 
+
     <SolidColorBrush x:Key="SwiftExportBrush.WindowBackground" Color="{StaticResource SwiftExportColor.WindowBackground}" />
     <SolidColorBrush x:Key="SwiftExportBrush.Surface" Color="{StaticResource SwiftExportColor.Surface}" />
     <SolidColorBrush x:Key="SwiftExportBrush.SurfaceMuted" Color="{StaticResource SwiftExportColor.SurfaceMuted}" />
@@ -21,4 +22,8 @@
     <SolidColorBrush x:Key="SwiftExportBrush.AccentHover" Color="{StaticResource SwiftExportColor.AccentHover}" />
     <SolidColorBrush x:Key="SwiftExportBrush.SuccessSoft" Color="{StaticResource SwiftExportColor.SuccessSoft}" />
     <SolidColorBrush x:Key="SwiftExportBrush.WarningSoft" Color="{StaticResource SwiftExportColor.WarningSoft}" />
+
+    
+    
+    
 </ResourceDictionary>

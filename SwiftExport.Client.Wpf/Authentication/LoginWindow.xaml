@@ -1,6 +1,7 @@
 <Window x:Class="SwiftExportClient.Authentication.LoginWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         Title="{Binding Title}"
         Width="460"
         Height="430"
@@ -14,47 +15,42 @@
     </Window.Resources>
 
     <Grid Margin="28">
-        <Border Background="{DynamicResource SwiftExportBrush.Surface}"
-                BorderBrush="{DynamicResource SwiftExportBrush.Border}"
-                BorderThickness="1"
-                CornerRadius="{DynamicResource SwiftExportCornerRadius}"
-                Padding="32">
+        <Border >
             <StackPanel>
                 <TextBlock Text="SwiftExport"
-                           Style="{StaticResource SwiftExportTitleText}"
+                           Style="{StaticResource TitleTextBlock}"
                            HorizontalAlignment="Center" />
                 <TextBlock Text="请登录以继续"
-                           Style="{StaticResource SwiftExportCaptionText}"
-                           HorizontalAlignment="Center"
-                           Margin="0,6,0,30" />
+                           Style="{StaticResource SubtitleTextBlock}"                           
+                           HorizontalAlignment="Center"/>
 
-                <TextBlock Text="用户名"
-                           Style="{StaticResource SwiftExportCaptionText}" />
-                
-                <TextBox Text="{Binding UserName, UpdateSourceTrigger=PropertyChanged}"
+                <TextBlock Text="用户名" Style="{StaticResource BodyStrongTextBlock}"/>
+
+                <ui:TextBox Text="{Binding UserName, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="请输入用户名..."
                          Margin="0,6,0,18" />
 
-                <TextBlock Text="密码"
-                           Style="{StaticResource SwiftExportCaptionText}" />
+                <TextBlock Text="密码" Style="{StaticResource BodyStrongTextBlock}"/>
                 
-                <PasswordBox x:Name="PasswordBox"
+                <ui:PasswordBox x:Name="PasswordBox"
                              MinHeight="{DynamicResource SwiftExportControlHeight}"
                              Padding="{DynamicResource SwiftExportControlPadding}"
+                             PlaceholderText="请输入密码..."
                              Margin="0,6,0,22"
                              VerticalContentAlignment="Center" />
 
-                <Button x:Name="LoginButton"
+                <ui:Button x:Name="LoginButton"
+                        Appearance="Primary"
+                        HorizontalAlignment="Stretch"
                         Content="登录"
-                        Style="{StaticResource SwiftExportPrimaryButton}"
-                        Height="40"
                         IsEnabled="{Binding IsNotBusy}" />
-                <Button x:Name="CancelButton"
+
+                <ui:Button x:Name="CancelButton"
+                        HorizontalAlignment="Stretch"
                         Content="取消"
-                        Height="40"
                         Margin="0,10,0,0" />
 
                 <TextBlock Text="{Binding StatusMessage}"
-                           Style="{StaticResource SwiftExportCaptionText}"
                            TextWrapping="Wrap"
                            TextAlignment="Center"
                            Margin="0,18,0,0" />

@@ -1,8 +1,9 @@
 using System.Windows;
+using Wpf.Ui.Controls;
 
 namespace SwiftExportClient.Shell;
 
-public partial class ShellWindow : Window
+public partial class ShellWindow : FluentWindow
 {
     private readonly ShellViewModel _viewModel;
 
