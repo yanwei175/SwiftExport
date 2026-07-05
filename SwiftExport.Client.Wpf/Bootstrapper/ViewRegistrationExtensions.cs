@@ -20,6 +20,9 @@ public static class ViewRegistrationExtensions
         services.AddTransient<ShellWindow>();
         services.AddTransient<HomeViewModel>();
         services.AddTransient<ProductsViewModel>();
+        services.AddTransient<ProductBomViewModel>();
+        services.AddTransient<CustomerProductsViewModel>();
+        services.AddTransient<SupplierProductsViewModel>();
         services.AddTransient<SalesViewModel>();
         services.AddTransient<PlanningViewModel>();
         services.AddTransient<PurchasingViewModel>();

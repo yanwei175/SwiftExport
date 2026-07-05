@@ -13,6 +13,9 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
     [
         new("home", "首页", "Workspace", typeof(HomeViewModel), CanClose: false),
         new("products", "产品", "Workspace", typeof(ProductsViewModel)),
+        new("product-bom", "BOM", "Workspace", typeof(ProductBomViewModel)),
+        new("customer-products", "客户产品", "Workspace", typeof(CustomerProductsViewModel)),
+        new("supplier-products", "供应商产品", "Workspace", typeof(SupplierProductsViewModel)),
         new("sales", "销售", "Workspace", typeof(SalesViewModel)),
         new("planning", "计划", "Workspace", typeof(PlanningViewModel)),
         new("purchasing", "采购", "Workspace", typeof(PurchasingViewModel)),

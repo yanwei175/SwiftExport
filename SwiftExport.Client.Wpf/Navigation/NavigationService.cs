@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExportClient.Mvvm;
+using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Navigation;
 
@@ -8,14 +9,17 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly INavigationRouteRegistry _routeRegistry;
+    private readonly IStatusMessageService _statusMessageService;
     private NavigationTabItem? _selectedTab;
 
     public NavigationService(
         IServiceProvider serviceProvider,
-        INavigationRouteRegistry routeRegistry)
+        INavigationRouteRegistry routeRegistry,
+        IStatusMessageService statusMessageService)
     {
         _serviceProvider = serviceProvider;
         _routeRegistry = routeRegistry;
+        _statusMessageService = statusMessageService;
     }
 
     public ObservableCollection<NavigationTabItem> OpenTabs { get; } = [];
@@ -30,6 +34,7 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService
     {
         if (!_routeRegistry.TryGetRoute(routeKey, out var route))
         {
+            _statusMessageService.Show("导航", $"页面路由未注册：{routeKey}", UiMessageSeverity.Warning);
             return;
         }
 

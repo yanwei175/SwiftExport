@@ -243,6 +243,20 @@
   - 子菜单使用缩进布局，不再显示成一组小表单按钮。
 - `ShellWindow.xaml` 左栏宽度调整为 376px，增加搜索框和底部 Settings 入口，主工作区保留多标签但视觉边框变轻。
 
+### 阶段 8 后续：Shell 导航点击区域与产品占位路由修复
+
+- 修复 Gallery 风格左侧菜单的命中区域：
+  - `ItemsControl` 增加 `SwiftExportShellNavigationItemContainer`，让 `ContentPresenter` 横向撑满。
+  - 菜单模板根 Grid、Button、Border、内部 Grid 均显式 `HorizontalAlignment="Stretch"`。
+  - 菜单项 Border 保持 `Background="Transparent"`，空白区域也参与 hit test。
+  - 导航 Button 命名样式关闭默认焦点框，避免选中项出现黑色边框。
+- 补齐产品子菜单占位路由：
+  - `product-bom` -> `ProductBomViewModel`
+  - `customer-products` -> `CustomerProductsViewModel`
+  - `supplier-products` -> `SupplierProductsViewModel`
+- 新增 `ProductPlaceholderView` 和产品占位 ViewModel，点击 `BOM`、`客户产品`、`供应商产品` 会打开对应 tab，不再静默失败。
+- `NavigationService.OpenAsync` 遇到未知路由时通过 Shell InfoBar 显示“页面路由未注册”，便于后续菜单维护。
+
 ## 关键架构边界
 
 - 不在 `SwiftExport.Client.Wpf` 中引用旧 `SwiftExport.View.FW`。
@@ -266,6 +280,7 @@
 - Shell 导航样式：`SwiftExport.Client.Wpf/Resources/ShellNavigation.xaml`
 - 导航服务：`SwiftExport.Client.Wpf/Navigation/NavigationService.cs`
 - 导航路由：`SwiftExport.Client.Wpf/Navigation/NavigationRouteRegistry.cs`
+- 产品占位页：`SwiftExport.Client.Wpf/Features/Products/ProductPlaceholderView.xaml`
 - UI 服务：`SwiftExport.Client.Wpf/Services/UI/`
 - DataGrid 基础模型：`SwiftExport.Client.Wpf/Mvvm/BaseLineModel.cs`、`SwiftExport.Client.Wpf/Mvvm/BaseListModel.cs`
 - 新客户端控件：`SwiftExport.Client.Wpf/Resources/Controls/PageNavigator.xaml`、`SwiftExport.Client.Wpf/Resources/Controls/LookupTextBox.xaml`
@@ -290,6 +305,16 @@
   dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj
   ```
 - 最近结果：成功，0 warning，0 error。
+- 已运行：
+  ```powershell
+  Select-String -Path SwiftExport.Client.Wpf\Shell\*.xaml,SwiftExport.Client.Wpf\Resources\ShellNavigation.xaml -Pattern 'Margin=\"[^\"]*(18|20)[^\"]*\"|Padding=\"[^\"]*(18|20)[^\"]*\"'
+  ```
+- 最近结果：无命中；Shell 相关 XAML 未发现 `Margin/Padding` 的 18/20 游离值。
+- 已运行：
+  ```powershell
+  rg "NavigationViewItem|MateWpfThemes\.FW|SwiftExport\.View\.FW|SwiftExport\.VSTO|MVVMLight|MvvmLight|GalaSoft" SwiftExport.Client.Wpf
+  ```
+- 最近结果：无命中。
 - 已运行：
   ```powershell
   rg "<Style" .\SwiftExport.Client.Wpf\Resources .\SwiftExport.Client.Wpf\Shell .\SwiftExport.Client.Wpf\Authentication .\SwiftExport.Client.Wpf\Features --glob "*.xaml"

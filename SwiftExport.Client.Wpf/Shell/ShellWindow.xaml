@@ -32,6 +32,15 @@
         <DataTemplate DataType="{x:Type products:ProductsViewModel}">
             <products:ProductsView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type products:ProductBomViewModel}">
+            <products:ProductPlaceholderView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type products:CustomerProductsViewModel}">
+            <products:ProductPlaceholderView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type products:SupplierProductsViewModel}">
+            <products:ProductPlaceholderView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type sales:SalesViewModel}">
             <sales:SalesView />
         </DataTemplate>
@@ -46,15 +55,18 @@
         </DataTemplate>
 
         <DataTemplate x:Key="ShellNavigationItemTemplate">
-            <Grid>
+            <Grid HorizontalAlignment="Stretch">
                 <Button x:Name="LeafButton"
                         Style="{StaticResource SwiftExportShellNavigationItemButton}"
+                        HorizontalAlignment="Stretch"
                         Command="{Binding DataContext.OpenRouteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         CommandParameter="{Binding RouteKey}">
                     <Border x:Name="LeafSurface"
+                            HorizontalAlignment="Stretch"
                             CornerRadius="{StaticResource SwiftExportCornerRadius}"
                             Background="Transparent">
                         <Grid MinHeight="40"
+                              HorizontalAlignment="Stretch"
                               Margin="0"
                               ClipToBounds="True">
                             <Grid.ColumnDefinitions>
@@ -84,13 +96,17 @@
                 </Button>
 
                 <StackPanel x:Name="GroupPanel"
+                            HorizontalAlignment="Stretch"
                             Visibility="Collapsed">
                     <Button Style="{StaticResource SwiftExportShellNavigationItemButton}"
+                            HorizontalAlignment="Stretch"
                             Command="{Binding DataContext.ToggleNavigationGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             CommandParameter="{Binding}">
-                        <Border CornerRadius="{StaticResource SwiftExportCornerRadius}"
+                        <Border HorizontalAlignment="Stretch"
+                                CornerRadius="{StaticResource SwiftExportCornerRadius}"
                                 Background="Transparent">
-                            <Grid MinHeight="40">
+                            <Grid MinHeight="40"
+                                  HorizontalAlignment="Stretch">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="4" />
                                     <ColumnDefinition Width="12" />
@@ -115,17 +131,22 @@
                     </Button>
 
                     <ItemsControl ItemsSource="{Binding Children}"
+                                  HorizontalAlignment="Stretch"
+                                  ItemContainerStyle="{StaticResource SwiftExportShellNavigationItemContainer}"
                                   Visibility="{Binding IsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}"
                                   Margin="{StaticResource SwiftExportShellNavigationChildMargin}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Button Style="{StaticResource SwiftExportShellNavigationItemButton}"
+                                        HorizontalAlignment="Stretch"
                                         Command="{Binding DataContext.OpenRouteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding RouteKey}">
                                     <Border x:Name="ChildSurface"
+                                            HorizontalAlignment="Stretch"
                                             CornerRadius="{StaticResource SwiftExportCornerRadius}"
                                             Background="Transparent">
-                                        <Grid MinHeight="40">
+                                        <Grid MinHeight="40"
+                                              HorizontalAlignment="Stretch">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="4" />
                                                 <ColumnDefinition Width="12" />
@@ -258,8 +279,11 @@
                             Style="{StaticResource SwiftExportShellNavigationItemButton}"
                             Command="{Binding OpenSettingsCommand}"
                             Margin="0,16,0,0">
-                        <Border CornerRadius="{StaticResource SwiftExportCornerRadius}">
-                            <Grid MinHeight="40">
+                        <Border HorizontalAlignment="Stretch"
+                                CornerRadius="{StaticResource SwiftExportCornerRadius}"
+                                Background="Transparent">
+                            <Grid MinHeight="40"
+                                  HorizontalAlignment="Stretch">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="4" />
                                     <ColumnDefinition Width="12" />
@@ -281,6 +305,8 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding FilteredMenuItems}"
+                                      HorizontalAlignment="Stretch"
+                                      ItemContainerStyle="{StaticResource SwiftExportShellNavigationItemContainer}"
                                       ItemTemplate="{StaticResource ShellNavigationItemTemplate}" />
                     </ScrollViewer>
                 </DockPanel>

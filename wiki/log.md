@@ -1,5 +1,13 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-05 frontend | 修复 Shell 导航点击区域与产品占位路由
+
+- 修复 `SwiftExport.Client.Wpf` Gallery 风格左侧导航的横向拉伸和命中区域，菜单项容器、Button、Border、内部 Grid 均显式撑满，空白区域可点击。
+- 补齐产品子菜单占位路由：`product-bom`、`customer-products`、`supplier-products`，新增产品占位页和对应 ViewModel，点击后打开 tab 而不是静默失败。
+- `NavigationService` 遇到未知 route 时改为通过 Shell InfoBar 提示“页面路由未注册”，便于后续菜单维护。
+- 已运行 `dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj`，新客户端构建 0 warning / 0 error。
+- 静态检查确认新客户端未命中旧前端 / VSTO / MateWpfThemes / MVVMLight / GalaSoft 引用，Shell 相关 XAML 未发现 `Margin/Padding` 的 18/20 游离值。
+
 ## 2026-07-04 backend | Application Service 去基础服务解耦
 
 - 按 WebApi Controller 实际调用面展开 Application 接口，删除 `IStandardService<TDto>` / `StandardServiceContracts.cs`，各 `IXxxService` 显式声明自身 API。
