@@ -2,6 +2,12 @@ namespace SwiftExportClient.Services.UI;
 
 public interface IDialogService
 {
+    Task ShowContentAsync(
+        string title,
+        object content,
+        string closeButtonText = "关闭",
+        CancellationToken cancellationToken = default);
+
     Task<bool> ConfirmAsync(
         string title,
         string message,

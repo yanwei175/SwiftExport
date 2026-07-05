@@ -223,6 +223,30 @@
 - `Typography.xaml` 增加显式命名样式 `SecondaryTextBlock`、`LabelTextBlock`，弱文本使用 `SwiftExportBrush.TextSecondary`，不依赖未确认稳定的 WPF Fluent 内部资源键。
 - `ProductsView` 底部分页已替换为新 `PageNavigator`，`ProductsViewModel` 已新增 `PageChangeCommand`；切页和切换 PageSize 会继续经过未保存变更拦截。
 
+### 阶段 8 后续：PopupTextBox 多行弹出编辑控件
+
+- 新增 `Resources/Controls/PopupTextBox.xaml` / `.xaml.cs`，命名空间为 `SwiftExportClient.Controls`。
+- 控件用于紧凑表单和 DataGrid 长文本编辑：
+  - 平时显示为单行 / 限高预览，不撑高布局。
+  - 点击或聚焦后打开 `Popup`。
+  - Popup 内使用官方 WPF 默认 `TextBox`，显式设置 `TextWrapping="Wrap"` 和 `AcceptsReturn="True"`。
+  - `Text` 双向绑定并实时写回，不做确认 / 取消缓存。
+- 已提供依赖属性：
+  - `Text`
+  - `Placeholder`
+  - `PopupHeight`
+  - `PopupWidth`
+  - `IsPopupOpen`
+  - `OpenOnFocus`
+  - `OpenOnClick`
+  - `MaxLength`
+  - `IsReadOnly`
+- 键盘交互：
+  - `Esc` 关闭 Popup，不回滚内容。
+  - `Ctrl+Enter` 关闭 Popup。
+  - Popup 失焦自动关闭。
+- 本次只新增通用控件，暂不替换产品页备注列；后续 DataGrid 编辑体验打磨时再接入 `DataGridTemplateColumn`。
+
 ### 阶段 8 后续：Shell 左侧导航 Gallery 风格改造
 
 - 保留 SwiftExport 自建 `INavigationService` 和多标签工作区，不切换到完整 WPF-UI `NavigationView`。
@@ -257,6 +281,24 @@
 - 新增 `ProductPlaceholderView` 和产品占位 ViewModel，点击 `BOM`、`客户产品`、`供应商产品` 会打开对应 tab，不再静默失败。
 - `NavigationService.OpenAsync` 遇到未知路由时通过 Shell InfoBar 显示“页面路由未注册”，便于后续菜单维护。
 
+### 阶段 8 后续：Shell 可折叠导航与产品分类管理 Dialog
+
+- Shell 左侧导航已增加折叠 / 展开能力：
+  - `ShellViewModel.IsNavigationPaneExpanded` 控制左栏宽度。
+  - 展开宽度当前为 220px，折叠宽度为 56px。
+  - 折叠后隐藏搜索框、导航文字、分组箭头和子菜单，只保留图标入口。
+  - 导航项 hover 背景使用 `SwiftExportBrush.SurfaceMuted`，与选中背景保持一致。
+- 产品资料页工具栏新增“分类管理”按钮，不打开新 tab。
+- 新增产品分类管理阻断式弹窗：
+  - 内容主体是 `ProductCategoryManagerView` 用户控件。
+  - 通过 WPF-UI `ContentDialogHost` 阻断式显示。
+  - `IDialogService` 增加 `ShowContentAsync`，用于承载自定义 UserControl 内容。
+  - `ProductCategoryManagerViewModel` 使用 `IProductCategoryApi.GetAllAsync()` 加载分类，使用 `BatchSaveAsync(BatchRequestDto<ProductCategoryDto>)` 批量保存。
+  - 支持分类树展示、选中编辑、新增一级 / 同级 / 子级、删除、刷新、保存和拖拽排序。
+  - 新客户端已引入 `gong-wpf-dragdrop 4.0.0`，只复用拖拽库和旧页面拖放语义，不迁移旧 XAML / 旧主题资源。
+  - 拖拽规则：拖到节点中部变为子级，拖到上 / 下边缘调整同级排序，拖到空白处变为顶级，禁止拖入自身子孙。
+- Shell 左侧“产品”分组新增 `产品分类管理` 菜单项，点击后打开同一个阻断式 Dialog，不创建 tab。
+
 ## 关键架构边界
 
 - 不在 `SwiftExport.Client.Wpf` 中引用旧 `SwiftExport.View.FW`。
@@ -280,10 +322,12 @@
 - Shell 导航样式：`SwiftExport.Client.Wpf/Resources/ShellNavigation.xaml`
 - 导航服务：`SwiftExport.Client.Wpf/Navigation/NavigationService.cs`
 - 导航路由：`SwiftExport.Client.Wpf/Navigation/NavigationRouteRegistry.cs`
+- 产品分类管理 Dialog：`SwiftExport.Client.Wpf/Features/Products/ProductCategoryManagerView.xaml`
+- 产品分类管理 VM：`SwiftExport.Client.Wpf/Features/Products/ProductCategoryManagerViewModel.cs`
 - 产品占位页：`SwiftExport.Client.Wpf/Features/Products/ProductPlaceholderView.xaml`
 - UI 服务：`SwiftExport.Client.Wpf/Services/UI/`
 - DataGrid 基础模型：`SwiftExport.Client.Wpf/Mvvm/BaseLineModel.cs`、`SwiftExport.Client.Wpf/Mvvm/BaseListModel.cs`
-- 新客户端控件：`SwiftExport.Client.Wpf/Resources/Controls/PageNavigator.xaml`、`SwiftExport.Client.Wpf/Resources/Controls/LookupTextBox.xaml`
+- 新客户端控件：`SwiftExport.Client.Wpf/Resources/Controls/PageNavigator.xaml`、`SwiftExport.Client.Wpf/Resources/Controls/LookupTextBox.xaml`、`SwiftExport.Client.Wpf/Resources/Controls/PopupTextBox.xaml`
 - 占位模块：`SwiftExport.Client.Wpf/Features/`
 - API 调用包装：`SwiftExport.Client.Wpf/Services/Api/ApiCallRunner.cs`
 - Bearer Handler：`SwiftExport.Client.Wpf/Services/Api/AuthTokenHandler.cs`
@@ -305,6 +349,16 @@
   dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj
   ```
 - 最近结果：成功，0 warning，0 error。
+- 已运行：
+  ```powershell
+  dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj
+  ```
+- 最近结果：成功，0 warning，0 error。
+- 已运行：
+  ```powershell
+  Select-String -Path SwiftExport.Client.Wpf\Resources\Controls\PopupTextBox.xaml -Pattern 'Margin=\"[^\"]*(18|20)[^\"]*\"|Padding=\"[^\"]*(18|20)[^\"]*\"|<Style(\s|>)|Brush_Txt_|BaseTextBox|BaseComboBox|ButtonText'
+  ```
+- 最近结果：无命中；`PopupTextBox` 未定义隐式 Style，未使用旧主题键，未发现 `Margin/Padding` 的 18/20 游离值。
 - 已运行：
   ```powershell
   Select-String -Path SwiftExport.Client.Wpf\Shell\*.xaml,SwiftExport.Client.Wpf\Resources\ShellNavigation.xaml -Pattern 'Margin=\"[^\"]*(18|20)[^\"]*\"|Padding=\"[^\"]*(18|20)[^\"]*\"'
@@ -371,8 +425,10 @@
 - 已建立 Fluent 布局规则：4px spacing、页面 Header、查询区、工具栏、DataGrid、状态/分页区分层。
 - 阶段 8 基础样板已完成：产品资料页接入真实 API、DataGrid、查询、分页、增删改、批量保存和未保存变更拦截。
 - 已迁移 `PageNavigator` 和 `LookupTextBox` 到 `SwiftExport.Client.Wpf/Resources/Controls/`；产品页底部已使用新 `PageNavigator`。
+- 已新增 `PopupTextBox` 到 `SwiftExport.Client.Wpf/Resources/Controls/`，用于后续紧凑长文本 / DataGrid 长备注弹出编辑。
 - Shell 左侧导航已按 WPF-UI Gallery 风格重做：搜索框、图标菜单、选中 Accent 竖条、分组展开和底部 Settings 占位入口。
 - 下一步是阶段 8 后续打磨：产品页面控件化与 DataGrid 视觉 / 编辑体验细化。
+- 产品资料页和左侧导航均可打开“分类管理”阻断式 Dialog；分类树已接入 GongSolutions 拖拽排序。
 
 请继续时遵守：
 - 不碰旧 SwiftExport.View.FW、MateWpfThemes.FW、SwiftExport.VSTO。

@@ -6,6 +6,23 @@ namespace SwiftExportClient.Services.UI;
 
 public sealed class WpfUiDialogService(IContentDialogService contentDialogService) : IDialogService
 {
+    public async Task ShowContentAsync(
+        string title,
+        object content,
+        string closeButtonText = "关闭",
+        CancellationToken cancellationToken = default)
+    {
+        await contentDialogService.ShowAsync(
+            new ContentDialog
+            {
+                Title = title,
+                Content = content,
+                CloseButtonText = closeButtonText,
+                DefaultButton = ContentDialogButton.Close
+            },
+            cancellationToken);
+    }
+
     public async Task<bool> ConfirmAsync(
         string title,
         string message,

@@ -1,5 +1,24 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-05 frontend | 新增 PopupTextBox 多行弹出编辑控件
+
+- 在 `SwiftExport.Client.Wpf/Resources/Controls/` 新增 `PopupTextBox`，作为新客户端自有长文本编辑控件。
+- 控件平时保持紧凑单行 / 限高预览，点击或聚焦后打开 `Popup`，Popup 内使用官方 WPF 默认 `TextBox` 并设置 `TextWrapping="Wrap"`、`AcceptsReturn="True"`。
+- `Text` 使用双向绑定并实时写回；`Esc` 和 `Ctrl+Enter` 关闭 Popup，不回滚内容；Popup 失焦自动关闭。
+- 控件公开 `Placeholder`、`PopupHeight`、`PopupWidth`、`IsPopupOpen`、`OpenOnFocus`、`OpenOnClick`、`MaxLength`、`IsReadOnly` 等依赖属性。
+- 本次只新增通用控件，暂不替换产品页备注列；后续 DataGrid 编辑体验打磨时再接入具体列。
+- 已运行 `dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj`，新客户端构建 0 warning / 0 error；静态检查确认未引入旧主题键、隐式 `TextBox` Style 或 18/20 游离间距。
+
+## 2026-07-05 frontend | Shell 可折叠导航与产品分类管理 Dialog
+
+- `SwiftExport.Client.Wpf` Shell 左侧导航增加折叠 / 展开能力，展开宽度 220px、折叠宽度 56px；折叠时隐藏搜索、文字、分组箭头和子菜单，仅保留图标入口。
+- Shell 导航项 hover 背景改用 `SwiftExportBrush.SurfaceMuted`，与选中背景一致，继续使用自建多标签导航，不切换 WPF-UI `NavigationView`。
+- 产品资料页工具栏新增“分类管理”入口，不打开新 tab，而是通过 WPF-UI `ContentDialogHost` 显示阻断式用户控件弹窗。
+- 新增 `ProductCategoryManagerView` / `ProductCategoryManagerViewModel`，复用现有 `IProductCategoryApi.GetAllAsync()` 与 `BatchSaveAsync(BatchRequestDto<ProductCategoryDto>)`，支持树形展示、属性编辑、新增一级 / 同级 / 子级、删除、刷新和保存。
+- 已引入 `gong-wpf-dragdrop 4.0.0`，在新客户端自己的 `ProductCategoryManagerViewModel` 中实现拖拽排序：中部变子级，上 / 下边缘同级排序，空白处变顶级，并禁止拖入自身子孙。
+- 左侧导航“产品”分组新增“产品分类管理”入口，作为 Shell action route 打开阻断式 Dialog，不创建 tab。
+- 已运行 `dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj`，新客户端构建 0 warning / 0 error。
+
 ## 2026-07-05 frontend | 修复 Shell 导航点击区域与产品占位路由
 
 - 修复 `SwiftExport.Client.Wpf` Gallery 风格左侧导航的横向拉伸和命中区域，菜单项容器、Button、Border、内部 Grid 均显式撑满，空白区域可点击。

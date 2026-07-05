@@ -17,6 +17,7 @@ public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
+    private readonly IProductCategoryManagerDialogService _categoryManagerDialogService;
     private bool _isInitialized;
     private string _keyword = string.Empty;
     private string _categoryName = string.Empty;
@@ -31,12 +32,14 @@ public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
         IProductApi productApi,
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
-        IDialogService dialogService)
+        IDialogService dialogService,
+        IProductCategoryManagerDialogService categoryManagerDialogService)
     {
         _productApi = productApi;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _dialogService = dialogService;
+        _categoryManagerDialogService = categoryManagerDialogService;
 
         Title = "产品资料";
         Lines = new BaseListModel<ProductLineModel, ProductDto>(_ => new ProductLineModel());
@@ -52,6 +55,7 @@ public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
         DeleteSelectedCommand = new AsyncRelayCommand(DeleteSelectedAsync, CanDeleteSelected);
         RejectChangesCommand = new RelayCommand(RejectProductChanges, CanRejectChanges);
         SaveCommand = new AsyncRelayCommand(SaveAsync, CanSave);
+        OpenCategoryManagerCommand = new AsyncRelayCommand(OpenCategoryManagerAsync, CanRunCommand);
 
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(ResetCommand);
@@ -63,6 +67,7 @@ public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
         RegisterBusyAwareCommand(DeleteSelectedCommand);
         RegisterBusyAwareCommand(RejectChangesCommand);
         RegisterBusyAwareCommand(SaveCommand);
+        RegisterBusyAwareCommand(OpenCategoryManagerCommand);
     }
 
     public string Description { get; } = "查询、编辑和维护产品基础资料。";
@@ -173,6 +178,8 @@ public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
     public IRelayCommand RejectChangesCommand { get; }
 
     public IAsyncRelayCommand SaveCommand { get; }
+
+    public IAsyncRelayCommand OpenCategoryManagerCommand { get; }
 
     public async Task InitializeAsync()
     {
@@ -316,6 +323,11 @@ public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
         SelectedLine = Lines.Items.FirstOrDefault();
         RejectChanges();
         UpdateChangeState();
+    }
+
+    private Task OpenCategoryManagerAsync()
+    {
+        return _categoryManagerDialogService.ShowAsync();
     }
 
     private async Task SaveAsync()

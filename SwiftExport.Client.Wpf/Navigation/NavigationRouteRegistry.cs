@@ -39,6 +39,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 Children:
                 [
                     new("products", "产品资料", "Workspace", "Cube24"),
+                    new("product-category-manager", "产品分类管理", "Workspace", "Folder24"),
                     new("product-bom", "BOM", "Workspace", "Branch24"),
                     new("customer-products", "客户产品", "Workspace", "People24"),
                     new("supplier-products", "供应商产品", "Workspace", "PeopleTeam24"),
