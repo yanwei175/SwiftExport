@@ -20,6 +20,7 @@
         WindowStartupLocation="CenterScreen"
         ExtendsContentIntoTitleBar="True"
         WindowBackdropType="Tabbed"
+        Background="Transparent"
         Loaded="OnLoaded">
     <ui:FluentWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
@@ -92,6 +93,7 @@
                                        Text="{Binding Title}"
                                        Style="{StaticResource SwiftExportShellNavigationText}" />
                         </Grid>
+                        
                     </Border>
                 </Button>
 
@@ -218,7 +220,7 @@
         </DataTemplate>
     </ui:FluentWindow.Resources>
 
-    <Grid Background="{DynamicResource SwiftExportBrush.WindowBackground}">
+    <Grid Background="Transparent">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -259,90 +261,91 @@
 
             <Grid Grid.Row="2">
 
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="376" MinWidth="280" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220" MinWidth="120" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
 
-            <Border Background="{DynamicResource SwiftExportBrush.Surface}"
-                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
-                    BorderThickness="0,0,1,0"
-                    Padding="{StaticResource SwiftExportShellNavigationPadding}">
-                <DockPanel LastChildFill="True">
-                    <ui:TextBox DockPanel.Dock="Top"
-                                PlaceholderText="Search"
-                                Text="{Binding MenuSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                MinHeight="40"
-                                Margin="0,0,0,16" />
+                <Border Background="Transparent"
+                        BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                        BorderThickness="0,0,1,0"
+                        Padding="{StaticResource SwiftExportShellNavigationPadding}">
+                    <DockPanel LastChildFill="True">
+                        <ui:TextBox DockPanel.Dock="Top"
+                                    PlaceholderText="Search"
+                                    VerticalContentAlignment="Center"
+                                    Text="{Binding MenuSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                    MinHeight="40"
+                                    Margin="0,0,0,16" />
 
-                    <Button DockPanel.Dock="Bottom"
-                            Style="{StaticResource SwiftExportShellNavigationItemButton}"
-                            Command="{Binding OpenSettingsCommand}"
-                            Margin="0,16,0,0">
-                        <Border HorizontalAlignment="Stretch"
-                                CornerRadius="{StaticResource SwiftExportCornerRadius}"
-                                Background="Transparent">
-                            <Grid MinHeight="40"
-                                  HorizontalAlignment="Stretch">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="4" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="24" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
+                        <Button DockPanel.Dock="Bottom"
+                                Style="{StaticResource SwiftExportShellNavigationItemButton}"
+                                Command="{Binding OpenSettingsCommand}"
+                                Margin="0,16,0,0">
+                            <Border HorizontalAlignment="Stretch"
+                                    CornerRadius="{StaticResource SwiftExportCornerRadius}"
+                                    Background="Transparent">
+                                <Grid MinHeight="40"
+                                      HorizontalAlignment="Stretch">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="4" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="24" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
 
-                                <ui:SymbolIcon Grid.Column="2"
-                                               Style="{StaticResource SwiftExportShellNavigationIcon}"
-                                               Symbol="Settings24" />
-                                <TextBlock Grid.Column="4"
-                                           Text="Settings"
-                                           Style="{StaticResource SwiftExportShellNavigationText}" />
-                            </Grid>
-                        </Border>
-                    </Button>
+                                    <ui:SymbolIcon Grid.Column="2"
+                                                   Style="{StaticResource SwiftExportShellNavigationIcon}"
+                                                   Symbol="Settings24" />
+                                    <TextBlock Grid.Column="4"
+                                               Text="Settings"
+                                               Style="{StaticResource SwiftExportShellNavigationText}" />
+                                </Grid>
+                            </Border>
+                        </Button>
 
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding FilteredMenuItems}"
-                                      HorizontalAlignment="Stretch"
-                                      ItemContainerStyle="{StaticResource SwiftExportShellNavigationItemContainer}"
-                                      ItemTemplate="{StaticResource ShellNavigationItemTemplate}" />
-                    </ScrollViewer>
-                </DockPanel>
-            </Border>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding FilteredMenuItems}"
+                                          HorizontalAlignment="Stretch"
+                                          ItemContainerStyle="{StaticResource SwiftExportShellNavigationItemContainer}"
+                                          ItemTemplate="{StaticResource ShellNavigationItemTemplate}" />
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
 
                 <Border Grid.Column="1"
-                    Margin="24"
-                    Background="{DynamicResource SwiftExportBrush.Surface}"
-                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
-                    BorderThickness="1"
-                    CornerRadius="{DynamicResource SwiftExportCornerRadius}">
-                <TabControl ItemsSource="{Binding OpenTabs}"
-                            SelectedItem="{Binding SelectedTab, Mode=TwoWay}">
-                    <TabControl.ItemTemplate>
-                        <DataTemplate>
-                            <DockPanel LastChildFill="False">
-                                <TextBlock Text="{Binding Title}"
-                                           VerticalAlignment="Center"
-                                           Margin="0,0,10,0" />
-                                <Button DockPanel.Dock="Right"
-                                        Content="x"
-                                        Style="{StaticResource SwiftExportTabCloseButton}"
-                                        Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                        CommandParameter="{Binding}"
-                                        Visibility="{Binding CanClose, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                            </DockPanel>
-                        </DataTemplate>
-                    </TabControl.ItemTemplate>
-                    <TabControl.ContentTemplate>
-                        <DataTemplate>
-                            <ContentControl Content="{Binding ContentViewModel}"
-                                            Margin="{StaticResource SwiftExportWorkspaceMargin}" />
-                        </DataTemplate>
-                    </TabControl.ContentTemplate>
-                </TabControl>
-            </Border>
+                        Margin="16"
+                        Background="{DynamicResource SwiftExportBrush.Surface}"
+                        BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                        BorderThickness="1"
+                        CornerRadius="{DynamicResource SwiftExportCornerRadius}">
+                    <TabControl ItemsSource="{Binding OpenTabs}"
+                                SelectedItem="{Binding SelectedTab, Mode=TwoWay}">
+                        <TabControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel LastChildFill="False">
+                                    <TextBlock Text="{Binding Title}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,10,0" />
+                                    <Button DockPanel.Dock="Right"
+                                            Content="x"
+                                            Style="{StaticResource SwiftExportTabCloseButton}"
+                                            Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"
+                                            Visibility="{Binding CanClose, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </TabControl.ItemTemplate>
+                        <TabControl.ContentTemplate>
+                            <DataTemplate>
+                                <ContentControl Content="{Binding ContentViewModel}"
+                                                Margin="{StaticResource SwiftExportWorkspaceMargin}" />
+                            </DataTemplate>
+                        </TabControl.ContentTemplate>
+                    </TabControl>
+                </Border>
             </Grid>
 
             <Border Grid.Row="3"
@@ -353,12 +356,13 @@
                 <TextBlock Text="{Binding CurrentPageStatus}"
                            Style="{StaticResource CaptionTextBlock}" />
             </Border>
+            
         </Grid>
 
-        <ui:ContentDialogHost x:Name="RootContentDialogHost" d:IsHidden="True" />
+        <ui:ContentDialogHost x:Name="RootContentDialogHost" />
         <ui:SnackbarPresenter x:Name="RootSnackbarPresenter"
                               HorizontalAlignment="Right"
                               VerticalAlignment="Bottom"
-                              Margin="24" d:IsHidden="True" />
+                              Margin="24" />
     </Grid>
 </ui:FluentWindow>
