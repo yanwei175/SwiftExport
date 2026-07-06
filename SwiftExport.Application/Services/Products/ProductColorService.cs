@@ -1,13 +1,11 @@
+using Mapster;
+using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
-using Mapster;
-using Microsoft.Extensions.Logging;
-using SwiftExport.Contracts.DTOs.Base;
-using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Common;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
@@ -39,113 +37,6 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
         // 返回 null 代表一切正常，放行！
         return null;
     }
-    #endregion
-
-
-    #region 显式基础读写
-
-    public async Task<ServiceResult<ProductColorDto>> GetByIdAsync(Guid uid)
-    {
-        try
-        {
-            var entity = await _repository.GetByIdAsync(uid);
-            if (entity == null)
-            {
-                if (_logger.IsEnabled(LogLevel.Warning))
-                    _logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", uid, nameof(ProductColor));
-                return ServiceResult<ProductColorDto>.Fail("未找到数据");
-            }
-
-            return ServiceResult<ProductColorDto>.Ok(entity.Adapt<ProductColorDto>());
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<ProductColorDto>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<IReadOnlyList<ProductColorDto>>> GetAllAsync()
-    {
-        try
-        {
-            var entities = await _repository.GetAllAsync();
-            return entities.Any()
-                ? ServiceResult<IReadOnlyList<ProductColorDto>>.Ok(entities.Adapt<IReadOnlyList<ProductColorDto>>())
-                : ServiceResult<IReadOnlyList<ProductColorDto>>.Fail("未找到数据");
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<IReadOnlyList<ProductColorDto>>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<PagedResultDto<ProductColorDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
-    {
-        try
-        {
-            if (_repository is not IPagedCriteriaRepository<ProductColor> pagedRepository)
-                return ServiceResult<PagedResultDto<ProductColorDto>>.Fail($"{nameof(ProductColor)} 仓储未实现动态分页查询");
-
-            var paged = await pagedRepository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
-            return ServiceResult<PagedResultDto<ProductColorDto>>.Ok(new PagedResultDto<ProductColorDto>
-            {
-                Items = paged.Items.Adapt<List<ProductColorDto>>(),
-                TotalCount = paged.TotalCount,
-                PageSize = paged.PageSize,
-                PageIndex = paged.PageIndex
-            });
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<PagedResultDto<ProductColorDto>>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<Guid>> AddAsync(ProductColorDto dto)
-    {
-        try
-        {
-            var entity = dto.Adapt<ProductColor>();
-            entity.CreatedDate = DateTime.Now;
-            entity.IsDeleted = false;
-            var uid = await _repository.AddAsync(entity);
-            return ServiceResult<Guid>.Ok(uid);
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<Guid>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<int>> UpdateAsync(ProductColorDto dto)
-    {
-        try
-        {
-            var existing = await _repository.GetByIdAsync(dto.Uid);
-            if (existing == null) return ServiceResult<int>.Fail("数据不存在");
-
-            dto.Adapt(existing);
-            await _repository.UpdateAsync(existing);
-            return ServiceResult<int>.Ok(1);
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<int>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<int>> DeleteAsync(Guid uid)
-    {
-        try
-        {
-            return ServiceResult<int>.Ok(await _repository.DeleteAsync(uid));
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<int>.Fail(ex.Message);
-        }
-    }
-
     public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<ProductColorDto> batchReq)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
@@ -219,6 +110,113 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
             _session.Transaction = null;
         }
     }
+    #endregion
+
+
+    #region 显式基础读写
+
+    public async Task<ServiceResult<ProductColorDto>> GetByIdAsync(Guid uid)
+    {
+        try
+        {
+            var entity = await _repository.GetByIdAsync(uid);
+            if (entity == null)
+            {
+                if (_logger.IsEnabled(LogLevel.Warning))
+                    _logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", uid, nameof(ProductColor));
+                return ServiceResult<ProductColorDto>.Fail("未找到数据");
+            }
+
+            return ServiceResult<ProductColorDto>.Ok(entity.Adapt<ProductColorDto>());
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<ProductColorDto>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<IReadOnlyList<ProductColorDto>>> GetAllAsync()
+    {
+        try
+        {
+            var entities = await _repository.GetAllAsync();
+            return entities.Any()
+                ? ServiceResult<IReadOnlyList<ProductColorDto>>.Ok(entities.Adapt<IReadOnlyList<ProductColorDto>>())
+                : ServiceResult<IReadOnlyList<ProductColorDto>>.Fail("未找到数据");
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<IReadOnlyList<ProductColorDto>>.Fail(ex.Message);
+        }
+    }
+
+
+    public async Task<ServiceResult<PagedResultDto<ProductColorDto>>> GetPagedAsync(PagedRequestDto request)
+    {
+        try
+        {
+            var paged = await _repository.GetProductColorPagedAsync(request);
+            return ServiceResult<PagedResultDto<ProductColorDto>>.Ok(new PagedResultDto<ProductColorDto>
+            {
+                Items = paged.Items.Adapt<List<ProductColorDto>>(),
+                TotalCount = paged.TotalCount,
+                PageSize = paged.PageSize,
+                PageIndex = paged.PageIndex
+            });
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<PagedResultDto<ProductColorDto>>.Fail(ex.Message);
+        }
+    }
+
+
+    public async Task<ServiceResult<Guid>> AddAsync(ProductColorDto dto)
+    {
+        try
+        {
+            var entity = dto.Adapt<ProductColor>();
+            entity.CreatedDate = DateTime.Now;
+            entity.IsDeleted = false;
+            var uid = await _repository.AddAsync(entity);
+            return ServiceResult<Guid>.Ok(uid);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<Guid>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> UpdateAsync(ProductColorDto dto)
+    {
+        try
+        {
+            var existing = await _repository.GetByIdAsync(dto.Uid);
+            if (existing == null) return ServiceResult<int>.Fail("数据不存在");
+
+            dto.Adapt(existing);
+            await _repository.UpdateAsync(existing);
+            return ServiceResult<int>.Ok(1);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ServiceResult<int>> DeleteAsync(Guid uid)
+    {
+        try
+        {
+            return ServiceResult<int>.Ok(await _repository.DeleteAsync(uid));
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<int>.Fail(ex.Message);
+        }
+    }
+
+
     #endregion
 
 }

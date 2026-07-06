@@ -1,17 +1,13 @@
 ﻿using Refit;
 using SwiftExport.Contracts.Wrappers;
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace SwiftExport.Contracts.Apis.BaseApi
 {
     public interface IGenericApi<TDto> where TDto : class
     {
-        // ================= 查询 (GET) =================
-
-        [Get("/page")]
-        Task<ServiceResult<PagedResultDto<TDto>>> GetPagedAsync([Query] PagedRequestDto request);
 
         // 1. 获取列表 (传入 "api/product" 或 "api/product?page=1")
         // 注意 {**path} 里的两个星号，这是防止路径里的斜杠 "/" 被转义的终极魔法！
@@ -40,13 +36,6 @@ namespace SwiftExport.Contracts.Apis.BaseApi
         // 直接利用 path 即可，不需要再传 id，返回单个 int
         [Delete("/{id}")]
         Task<ServiceResult<Guid>> DeleteAsync(Guid id);
-
-
-        // ================= 批量操作 (特殊的 POST) =================
-
-        // 6. 批量保存混合包 (实际传入比如 "api/product/batch-save")
-        [Post("/batch-save")]
-        Task<ServiceResult<BatchResultDto>> BatchSaveAsync([Body] BatchRequestDto<TDto> request);
 
     }
 }

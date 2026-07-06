@@ -19,7 +19,7 @@ Guide 保存稳定规范和检查清单；Skill / Workflow 保存具体执行步
 ## Frontend WPF
 
 - [WPF MVVMLight](frontend-wpf/wpf-mvvmlight.md) - 维护 .NET Framework WPF / MVVMLight 页面时读取。
-- [WPF CommunityToolkit MVVM](frontend-wpf/wpf-communitytoolkit-mvvm.md) - 设计未来 .NET 10 WPF、CommunityToolkit、前端基类、Source Generator、导航、弹窗和消息基础设施时读取。
+- [WPF CommunityToolkit MVVM](frontend-wpf/wpf-communitytoolkit-mvvm.md) - 设计当前 .NET 10 WPF、CommunityToolkit、前端基类、Source Generator、导航、弹窗和消息基础设施时读取。
 - [WPF DataGrid](frontend-wpf/wpf-datagrid.md) - 处理 ERP 可编辑表格、LineModel、批量保存和脏数据时读取。
 - [WPF Dialog Navigation](frontend-wpf/wpf-dialog-navigation.md) - 处理消息、确认框、模态窗口、导航和未保存变更时读取。
 - [WPF UI Services](frontend-wpf/wpf-ui-services.md) - 处理 `IDialogService`、DialogHost、消息提示、路由服务和 ViewModel/UI 服务边界时读取。

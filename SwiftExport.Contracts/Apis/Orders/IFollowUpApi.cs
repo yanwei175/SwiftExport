@@ -11,6 +11,8 @@ namespace SwiftExport.Contracts.Apis.Orders
     /// </summary>
     public interface IFollowUpApi : IGenericApi<FollowUpLogDto>
     {
+        [Get("/page")]
+        Task<ServiceResult<PagedResultDto<FollowUpLogDto>>> GetPagedAsync([Query] PagedRequestDto request);
         /// <summary>
         /// 更新采购跟进：当采购行 ReadyQty 更新时，同步更新关联净需求 ReceivedQty。
         /// </summary>

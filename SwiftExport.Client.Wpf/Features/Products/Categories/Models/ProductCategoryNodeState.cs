@@ -1,4 +1,4 @@
-namespace SwiftExportClient.Features.Products;
+namespace SwiftExportClient.Features.Products.Categories.Models;
 
 public enum ProductCategoryNodeState
 {

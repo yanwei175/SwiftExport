@@ -7,7 +7,10 @@
 
     <Thickness x:Key="SwiftExportShellPadding">24</Thickness>
     <Thickness x:Key="SwiftExportControlPadding">12,7</Thickness>
-    <Thickness x:Key="SwiftExportCellPadding">10,6</Thickness>
+    <Thickness x:Key="SwiftExportCellPadding">8,4</Thickness>
+    <Thickness x:Key="SwiftExportDataGridHeaderPadding">8,8</Thickness>
+    <Thickness x:Key="SwiftExportDataGridCellPadding">8,4</Thickness>
+    <Thickness x:Key="SwiftExportDataGridValidationBorderThickness">0,0,0,2</Thickness>
 
     <Thickness x:Key="SwiftExportBorderThickness">1</Thickness>
     <sys:Double x:Key="SwiftExportControlHeight">34</sys:Double>

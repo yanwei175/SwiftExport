@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExportClient.Mvvm;
 
-namespace SwiftExportClient.Features.Products;
+namespace SwiftExportClient.Features.Products.Categories.Models;
 
 public sealed class ProductCategoryTreeItemModel : ObservableObjectEx
 {

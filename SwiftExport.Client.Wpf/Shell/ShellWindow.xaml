@@ -6,7 +6,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:planning="clr-namespace:SwiftExportClient.Features.Planning"
-        xmlns:products="clr-namespace:SwiftExportClient.Features.Products"
+        xmlns:productColorViews="clr-namespace:SwiftExportClient.Features.Products.Colors.Views"
+        xmlns:productColorViewModels="clr-namespace:SwiftExportClient.Features.Products.Colors.ViewModels"
+        xmlns:productListViews="clr-namespace:SwiftExportClient.Features.Products.ProductList.Views"
+        xmlns:productListViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductList.ViewModels"
+        xmlns:productPlaceholderViews="clr-namespace:SwiftExportClient.Features.Products.Placeholders.Views"
+        xmlns:productPlaceholderViewModels="clr-namespace:SwiftExportClient.Features.Products.Placeholders.ViewModels"
         xmlns:purchasing="clr-namespace:SwiftExportClient.Features.Purchasing"
         xmlns:sales="clr-namespace:SwiftExportClient.Features.Sales"
         xmlns:shell="clr-namespace:SwiftExportClient.Shell"
@@ -30,17 +35,20 @@
         <DataTemplate DataType="{x:Type home:HomeViewModel}">
             <home:HomeView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type products:ProductsViewModel}">
-            <products:ProductsView />
+        <DataTemplate DataType="{x:Type productListViewModels:ProductsViewModel}">
+            <productListViews:ProductsView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type products:ProductBomViewModel}">
-            <products:ProductPlaceholderView />
+        <DataTemplate DataType="{x:Type productColorViewModels:ProductColorsViewModel}">
+            <productColorViews:ProductColorsView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type products:CustomerProductsViewModel}">
-            <products:ProductPlaceholderView />
+        <DataTemplate DataType="{x:Type productPlaceholderViewModels:ProductBomViewModel}">
+            <productPlaceholderViews:ProductPlaceholderView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type products:SupplierProductsViewModel}">
-            <products:ProductPlaceholderView />
+        <DataTemplate DataType="{x:Type productPlaceholderViewModels:CustomerProductsViewModel}">
+            <productPlaceholderViews:ProductPlaceholderView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type productPlaceholderViewModels:SupplierProductsViewModel}">
+            <productPlaceholderViews:ProductPlaceholderView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type sales:SalesViewModel}">
             <sales:SalesView />

@@ -1,4 +1,4 @@
-<UserControl x:Class="SwiftExportClient.Features.Products.ProductsView"
+<UserControl x:Class="SwiftExportClient.Features.Products.ProductList.Views.ProductsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:controls="clr-namespace:SwiftExportClient.Controls"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
@@ -125,46 +125,70 @@
                   ItemsSource="{Binding Lines.Items}"
                   SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
                   Style="{StaticResource SwiftExportDataGrid}"
+                  RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                   IsReadOnly="False"
                   CanUserSortColumns="True"
                   RowHeight="36">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="#"
                                     Binding="{Binding RowIndex}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                     Width="48"
                                     IsReadOnly="True" />
                 <DataGridTextColumn Header="SKU"
                                     Binding="{Binding Sku, UpdateSourceTrigger=PropertyChanged}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     Width="140" />
                 <DataGridTextColumn Header="主 SKU"
                                     Binding="{Binding MasterSku, UpdateSourceTrigger=PropertyChanged}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     Width="140" />
                 <DataGridTextColumn Header="英文描述"
                                     Binding="{Binding DescriptionEn, UpdateSourceTrigger=PropertyChanged}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     Width="2*" />
                 <DataGridTextColumn Header="中文描述"
                                     Binding="{Binding DescriptionZh, UpdateSourceTrigger=PropertyChanged}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     Width="2*" />
                 <DataGridTextColumn Header="分类"
                                     Binding="{Binding CategoryName, UpdateSourceTrigger=PropertyChanged}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     Width="140" />
                 <DataGridTextColumn Header="材质"
                                     Binding="{Binding MaterialType, UpdateSourceTrigger=PropertyChanged}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     Width="120" />
                 <DataGridTextColumn Header="供货类型"
                                     Binding="{Binding SupplyType, UpdateSourceTrigger=PropertyChanged}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     Width="120" />
                 <DataGridTextColumn Header="BOM"
                                     Binding="{Binding BomNo, UpdateSourceTrigger=PropertyChanged}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     Width="120" />
                 <DataGridTextColumn Header="人民币价"
                                     Binding="{Binding CnyPrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
                                     Width="100" />
                 <DataGridTextColumn Header="美元价"
                                     Binding="{Binding UsdPrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
                                     Width="100" />
                 <DataGridTextColumn Header="备注"
                                     Binding="{Binding Note, UpdateSourceTrigger=PropertyChanged}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridPopupTextBoxEditingStyle}"
                                     Width="2*" />
             </DataGrid.Columns>
         </DataGrid>

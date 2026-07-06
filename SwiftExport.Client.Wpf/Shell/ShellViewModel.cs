@@ -5,7 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Options;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Bootstrapper;
-using SwiftExportClient.Features.Products;
+using SwiftExportClient.Features.Products.Categories.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.UI;

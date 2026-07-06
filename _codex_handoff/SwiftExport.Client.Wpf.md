@@ -9,7 +9,7 @@
 ## 当前阶段
 
 - 已完成：阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6、阶段 7、阶段 8 基础样板。
-- 下一步：阶段 8 后续打磨，产品页面控件化与 DataGrid 视觉 / 编辑体验细化。
+- 下一步：阶段 8 后续打磨，产品颜色 / 产品资料页面的 DataGrid 编辑体验、Lookup 列和 Excel 化交互。
 - 当前主线：`SwiftExport.Client.Wpf` 作为新的 `.NET 10 WPF` 管理端。
 - 独立边界：Excel / VSTO 仍作为 `.NET Framework` 项目单独维护，不迁入 `.NET 10 WPF` 客户端。
 
@@ -245,7 +245,54 @@
   - `Esc` 关闭 Popup，不回滚内容。
   - `Ctrl+Enter` 关闭 Popup。
   - Popup 失焦自动关闭。
-- 本次只新增通用控件，暂不替换产品页备注列；后续 DataGrid 编辑体验打磨时再接入 `DataGridTemplateColumn`。
+- `ProductsView` 备注列已改为 `DataGridTextColumn`，通过 `SwiftExportDataGridPopupTextBoxEditingStyle` 和 `PopupTextBoxAssist` 给普通编辑 `TextBox` 注入弹出多行编辑能力。
+
+### 阶段 8 后续：产品资料页 DataGrid 样式第一轮
+
+- `Resources/DataGrid.xaml` 已扩展为新客户端自己的 Fluent DataGrid 命名样式集合，不整块迁移旧 `MateWpfThemes.FW` DataGrid 资源。
+- 当前 DataGrid 样板包括：
+  - `SwiftExportDataGrid`
+  - `SwiftExportDataGridColumnHeader`
+  - `SwiftExportDataGridRow`
+  - `SwiftExportDataGridCell`
+  - 文本展示 / 长文本展示 / 数字展示样式
+  - 文本编辑 / 数字编辑样式
+- `Colors.xaml` / `Tokens.xaml` 已补充 DataGrid 专用 token：表头背景、hover、selected、grid line、deleted soft、error、DataGrid header / cell padding 等。
+- 行状态视觉已从默认行样式拆出为 opt-in 样式 `SwiftExportStateDataGridRow`，避免普通模型没有 `State` 时产生绑定警告：
+  - `Added` 使用柔和成功底色。
+  - `Modified` 使用柔和警告底色。
+  - `Deleted` 使用柔和删除底色、弱文本和透明度。
+- 单元格校验视觉已建立：
+  - 去掉默认 `Validation.ErrorTemplate`。
+  - 使用底部错误边框和 Tooltip 显示错误信息。
+- 默认 `SwiftExportDataGrid` 不再内置空数据占位；具体页面可按自身需求放文字、加载动画或其他空状态。
+- `ProductsView` 已接入第一版 DataGrid 样板：
+  - 普通文本列使用显式 DataGrid 文本样式。
+  - 人民币价 / 美元价使用右对齐数字样式。
+  - 备注列使用 `DataGridTextColumn`，编辑态通过 `SwiftExportDataGridPopupTextBoxEditingStyle` 弹出多行编辑，不撑高行高。
+- 本阶段未迁移 `DataGridExcelAssist`、`UndoManager` / `CellTrackerState`、`DataGridSearchableColumn`、旧 `DataGridAssist.ApplyMateThemeColumnStyles` 和旧项目 DataGrid 隐式全局样式。
+
+### 阶段 8 后续：产品颜色管理页
+
+- 新增 `Features/Products/Colors/` 功能单元：
+  - `Models/ProductColorLineModel.cs`
+  - `ViewModels/ProductColorsViewModel.cs`
+  - `Views/ProductColorsView.xaml`
+- `ProductColorLineModel` 继承 `BaseLineModel<ProductColorDto>`，不继承页面级 ViewModel；显式映射 `ColorCodeUnique`、`ColorCode`、`ColorNameEn`、`ColorNameZh`，并保留 `Uid`、`Version` 和审计字段回写。
+- `ProductColorsViewModel` 已接入：
+  - `IProductColorApi`
+  - `IApiCallRunner`
+  - `IMessageService`
+  - `IDialogService`
+- 页面行为：
+  - 默认打开 tab 后加载第一页，分页默认 `PageIndex=1`、`PageSize=20`。
+  - 关键词 500ms 防抖搜索，“立即查询”会取消等待并直接查询；请求会同时填 `Keyword` 和单项 `BatchKeywords`，以匹配当前 `ProductColorController` 的颜色字段模糊查询实现。
+  - 切页、刷新、立即查询前会经过未保存变更拦截。
+  - 新增、删除、撤销、保存使用 `BaseListModel` 和 `BatchRequestDto<ProductColorDto>`。
+  - 更多菜单使用 WPF-UI `DropDownButton`，当前“导入颜色 / 导出颜色 / 批量规范化代码”为占位动作，通过 InfoBar / Snackbar 提示后续接入。
+- 左侧导航“产品”分组新增 `产品颜色管理`，route 为 `product-colors`，作为正式 tab 页面打开。
+- Shell 已注册 `ProductColorsViewModel -> ProductColorsView` DataTemplate，DI 已注册 `ProductColorsViewModel`。
+- 源码事实修正：`ProductColorController` 的分页 GET 位于控制器根路由 `GET /api/ProductColor`，因此 `IProductColorApi` 增加 `GetPagedRootAsync([Query] PagedRequestDto request)` 用于颜色页分页；未修改后端 Controller 或 DTO。
 
 ### 阶段 8 后续：Shell 左侧导航 Gallery 风格改造
 
@@ -299,6 +346,21 @@
   - 拖拽规则：拖到节点中部变为子级，拖到上 / 下边缘调整同级排序，拖到空白处变为顶级，禁止拖入自身子孙。
 - Shell 左侧“产品”分组新增 `产品分类管理` 菜单项，点击后打开同一个阻断式 Dialog，不创建 tab。
 
+### 阶段 8 后续：Features 业务目录结构整理
+
+- `SwiftExport.Client.Wpf/Features/` 已明确为新客户端具体业务视图聚集地。
+- 新目录规则已写入 `wiki/project/dotnet10-frontend-mvvm-blueprint.md`：
+  - 按 `Features/{业务域}/{功能单元}/Views|ViewModels|Models|Services|Components` 组织。
+  - 不在 `Features` 根下建立全局 `Views` / `ViewModels` / `Models` 大桶。
+  - 不把多个业务功能继续堆在业务域根目录。
+  - 全局控件继续放 `Resources/Controls`，全局 MVVM 基类继续放 `Mvvm`，Shell / Navigation / UI Service 不放进 `Features`。
+- 产品模块已按新规则迁移：
+  - `Products/ProductList`：产品资料页、`ProductsViewModel`、`ProductLineModel`。
+  - `Products/Categories`：产品分类管理 Dialog、ViewModel、TreeItemModel、Dialog Service。
+  - `Products/Placeholders`：BOM / 客户产品 / 供应商产品暂用占位 View 和占位 ViewModel。
+  - 已预留 `Products/Bom`、`Products/CustomerProducts`、`Products/SupplierProducts` 功能目录。
+- DI 注册、路由注册、Shell DataTemplate 和分类管理弹窗服务已同步更新到新命名空间。
+
 ## 关键架构边界
 
 - 不在 `SwiftExport.Client.Wpf` 中引用旧 `SwiftExport.View.FW`。
@@ -322,9 +384,17 @@
 - Shell 导航样式：`SwiftExport.Client.Wpf/Resources/ShellNavigation.xaml`
 - 导航服务：`SwiftExport.Client.Wpf/Navigation/NavigationService.cs`
 - 导航路由：`SwiftExport.Client.Wpf/Navigation/NavigationRouteRegistry.cs`
-- 产品分类管理 Dialog：`SwiftExport.Client.Wpf/Features/Products/ProductCategoryManagerView.xaml`
-- 产品分类管理 VM：`SwiftExport.Client.Wpf/Features/Products/ProductCategoryManagerViewModel.cs`
-- 产品占位页：`SwiftExport.Client.Wpf/Features/Products/ProductPlaceholderView.xaml`
+- 产品资料页：`SwiftExport.Client.Wpf/Features/Products/ProductList/Views/ProductsView.xaml`
+- 产品资料 VM：`SwiftExport.Client.Wpf/Features/Products/ProductList/ViewModels/ProductsViewModel.cs`
+- 产品行模型：`SwiftExport.Client.Wpf/Features/Products/ProductList/Models/ProductLineModel.cs`
+- 产品颜色页：`SwiftExport.Client.Wpf/Features/Products/Colors/Views/ProductColorsView.xaml`
+- 产品颜色 VM：`SwiftExport.Client.Wpf/Features/Products/Colors/ViewModels/ProductColorsViewModel.cs`
+- 产品颜色行模型：`SwiftExport.Client.Wpf/Features/Products/Colors/Models/ProductColorLineModel.cs`
+- 产品分类管理 Dialog：`SwiftExport.Client.Wpf/Features/Products/Categories/Views/ProductCategoryManagerView.xaml`
+- 产品分类管理 VM：`SwiftExport.Client.Wpf/Features/Products/Categories/ViewModels/ProductCategoryManagerViewModel.cs`
+- 产品分类管理 Dialog Service：`SwiftExport.Client.Wpf/Features/Products/Categories/Services/ProductCategoryManagerDialogService.cs`
+- 产品占位页：`SwiftExport.Client.Wpf/Features/Products/Placeholders/Views/ProductPlaceholderView.xaml`
+- 产品占位 VM：`SwiftExport.Client.Wpf/Features/Products/Placeholders/ViewModels/ProductPlaceholderViewModel.cs`
 - UI 服务：`SwiftExport.Client.Wpf/Services/UI/`
 - DataGrid 基础模型：`SwiftExport.Client.Wpf/Mvvm/BaseLineModel.cs`、`SwiftExport.Client.Wpf/Mvvm/BaseListModel.cs`
 - 新客户端控件：`SwiftExport.Client.Wpf/Resources/Controls/PageNavigator.xaml`、`SwiftExport.Client.Wpf/Resources/Controls/LookupTextBox.xaml`、`SwiftExport.Client.Wpf/Resources/Controls/PopupTextBox.xaml`
@@ -344,6 +414,27 @@
 
 ## 最近构建记录
 
+- 已运行：
+  ```powershell
+  dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj --no-restore
+  ```
+- 最近结果：成功，0 warning，0 error。
+- 备注：普通沙箱内构建曾因 `obj/Debug/net10.0-windows` 下 WPF 生成文件访问被拒绝失败；提升权限后同一项目构建成功，确认本次 DataGrid XAML / 资源改动可编译。
+- 已运行：
+  ```powershell
+  rg "MateWpfThemes\.FW|SwiftExport\.View\.FW|SwiftExport\.VSTO|MVVMLight|MvvmLight|GalaSoft|NavigationViewItem" SwiftExport.Client.Wpf
+  ```
+- 最近结果：无命中。
+- 已运行：
+  ```powershell
+  Select-String -Path SwiftExport.Client.Wpf/Resources/DataGrid.xaml,SwiftExport.Client.Wpf/Features/Products/ProductList/Views/ProductsView.xaml -Pattern '<Style\s+TargetType=\"\{x:Type (DataGrid|TextBox|ComboBox)\}\"','<Style\s+TargetType=\"(DataGrid|TextBox|ComboBox)\"','Margin=\"[^\"]*(18|20)[^\"]*\"','Padding=\"[^\"]*(18|20)[^\"]*\"'
+  ```
+- 最近结果：无命中；DataGrid 样板未新增隐式全局 `DataGrid/TextBox/ComboBox` Style，未发现 `Margin/Padding` 的 18/20 游离值。
+- 已运行：
+  ```powershell
+  rg "Brush_Txt_Primary|Brush_DataGridHeaderBck|Brush_Control_Background|Brush_DataGridMouseOver|Brush_DataGridSelectionCell|DataGridExcelAssist|UndoManager|CellTrackerState|DataGridSearchableColumn|ApplyMateThemeColumnStyles" SwiftExport.Client.Wpf/Resources/DataGrid.xaml SwiftExport.Client.Wpf/Features/Products/ProductList/Views/ProductsView.xaml
+  ```
+- 最近结果：无命中；本次未迁入旧主题键或旧 DataGrid 行为 Assist。
 - 已运行：
   ```powershell
   dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj
@@ -366,6 +457,31 @@
 - 最近结果：无命中；Shell 相关 XAML 未发现 `Margin/Padding` 的 18/20 游离值。
 - 已运行：
   ```powershell
+  dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj --no-restore
+  ```
+- 最近结果：成功，0 warning，0 error。
+- 已运行：
+  ```powershell
+  rg "MateWpfThemes\.FW|SwiftExport\.View\.FW|SwiftExport\.VSTO|MVVMLight|GalaSoft" SwiftExport.Client.Wpf SwiftExport.Contracts
+  ```
+- 最近结果：无命中。
+- 已运行：
+  ```powershell
+  rg "Brush_Txt_Primary|Brush_DataGridHeaderBck|Brush_Control_Background|Brush_Txt_Secondary|BaseComboBox|ButtonText" SwiftExport.Client.Wpf/Resources SwiftExport.Client.Wpf/Features/Products
+  ```
+- 最近结果：无命中。
+- 已运行：
+  ```powershell
+  Select-String -Path SwiftExport.Client.Wpf\Resources\DataGrid.xaml -Pattern 'State|暂无数据|VisualBrush|SwiftExportDataGridRow|SwiftExportStateDataGridRow'
+  ```
+- 最近结果：`State` 只存在于 `SwiftExportStateDataGridRow`；默认 `SwiftExportDataGridRow` 不绑定 `State`，默认 `SwiftExportDataGrid` 不包含 `VisualBrush` / “暂无数据”。
+- 已运行：
+  ```powershell
+  Select-String -Path SwiftExport.Client.Wpf\Resources\DataGrid.xaml,SwiftExport.Client.Wpf\Features\Products\Colors\Views\ProductColorsView.xaml,SwiftExport.Client.Wpf\Features\Products\ProductList\Views\ProductsView.xaml -Pattern 'Margin="[^\"]*(18|20)|Padding="[^\"]*(18|20)|Height="(18|20)"|Width="(18|20)"'
+  ```
+- 最近结果：无命中。
+- 已运行：
+  ```powershell
   rg "NavigationViewItem|MateWpfThemes\.FW|SwiftExport\.View\.FW|SwiftExport\.VSTO|MVVMLight|MvvmLight|GalaSoft" SwiftExport.Client.Wpf
   ```
 - 最近结果：无命中。
@@ -386,15 +502,14 @@
 - 最近结果：成功，0 warning，0 error。
 - 静态检查：`SwiftExport.Client.Wpf` 未引用 `SwiftExport.View.FW`、`MateWpfThemes.FW`、`SwiftExport.VSTO`、`MvvmLight/GalaSoft`。
 
-## 下一阶段：阶段 8 后续打磨，产品页面控件化与 DataGrid 视觉细化
+## 下一阶段：阶段 8 后续打磨，DataGrid 编辑能力与产品模块页面
 
 建议目标：
 
-- 基于当前产品页继续打磨查询控件、工具栏按钮语义和 DataGrid 可编辑体验。
+- 基于产品资料页和产品颜色页继续打磨查询控件、工具栏按钮语义和 DataGrid 可编辑体验。
 - 基于已迁移的 `LookupTextBox` 设计产品分类、材质、客户/供应商等 Lookup 使用方式。
 - 提取可复用的查询区 / 工具栏布局控件或命名样式，避免后续页面复制 XAML。
-- 设计 DataGrid 行状态、脏数据、删除态、验证态的视觉样式。
-- 后续再扩展图片预览、DataGrid Lookup 列、列冻结和批量选择。
+- 后续再扩展 DataGrid Lookup 列、Excel 化粘贴、Ctrl+D、撤销栈、列冻结和批量选择。
 - 继续根据 WPF-UI Gallery 参考图打磨 Shell 主内容区、Tab 样式和 Home 首屏视觉。
 
 建议默认边界：
@@ -421,14 +536,17 @@
 - 阶段 1-7 已完成：项目创建、官方主题资源、Host/DI/MVVM、Contracts/Refit、版本检查、登录/退出登录/token 恢复、自建多标签导航 Shell。
 - 已重新引用 lepoco WPF-UI；当前使用 WPF-UI 主题、`ui:FluentWindow`、`ui:TitleBar`、Shell 全局 `InfoBar` / `Snackbar` / `ContentDialogHost`。
 - 不覆盖默认 Button/TextBox/ComboBox/ListBox/TabControl 等 Style；只使用带 x:Key 的命名 Style。
-- 当前 Shell 是 WPF-UI TitleBar + Gallery 风格左侧导航 + 多标签工作区，菜单为：首页、产品、销售、计划、采购、出货；产品下已有产品资料、BOM、客户产品、供应商产品。
+- 当前 Shell 是 WPF-UI TitleBar + Gallery 风格左侧导航 + 多标签工作区，菜单为：首页、产品、销售、计划、采购、出货；产品下已有产品资料、产品分类管理、产品颜色管理、BOM、客户产品、供应商产品。
 - 已建立 Fluent 布局规则：4px spacing、页面 Header、查询区、工具栏、DataGrid、状态/分页区分层。
 - 阶段 8 基础样板已完成：产品资料页接入真实 API、DataGrid、查询、分页、增删改、批量保存和未保存变更拦截。
 - 已迁移 `PageNavigator` 和 `LookupTextBox` 到 `SwiftExport.Client.Wpf/Resources/Controls/`；产品页底部已使用新 `PageNavigator`。
-- 已新增 `PopupTextBox` 到 `SwiftExport.Client.Wpf/Resources/Controls/`，用于后续紧凑长文本 / DataGrid 长备注弹出编辑。
+- 已新增 `PopupTextBox` 到 `SwiftExport.Client.Wpf/Resources/Controls/`，产品资料页备注列已使用它做弹出多行编辑。
+- 产品资料页已接入第一版 Fluent DataGrid 样板：opt-in 行状态、校验视觉、文本/数字列样式和备注弹出编辑；默认 DataGrid 不内置空状态。
+- 产品颜色管理页已新增为正式 tab 页面，接入真实 `IProductColorApi`、分页查询、防抖搜索、批量保存和 WPF-UI DropDownButton 更多菜单。
 - Shell 左侧导航已按 WPF-UI Gallery 风格重做：搜索框、图标菜单、选中 Accent 竖条、分组展开和底部 Settings 占位入口。
 - 下一步是阶段 8 后续打磨：产品页面控件化与 DataGrid 视觉 / 编辑体验细化。
 - 产品资料页和左侧导航均可打开“分类管理”阻断式 Dialog；分类树已接入 GongSolutions 拖拽排序。
+- `Features` 已按业务域 / 功能单元整理；后续新业务页面按 `Views` / `ViewModels` / `Models` / `Services` / `Components` 分层落在对应功能单元目录。
 
 请继续时遵守：
 - 不碰旧 SwiftExport.View.FW、MateWpfThemes.FW、SwiftExport.VSTO。

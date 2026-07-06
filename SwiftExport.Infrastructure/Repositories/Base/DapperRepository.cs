@@ -318,10 +318,10 @@ public class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T>
         parameters.Add("@Limit", pageSize);
 
         var sql = $@"
-SELECT COUNT(1) FROM [{TableName}] WITH(NOLOCK) {sqlBuilder};
-SELECT * FROM [{TableName}] WITH(NOLOCK) {sqlBuilder}
-ORDER BY {orderBy}
-OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
+                    SELECT COUNT(1) FROM [{TableName}] WITH(NOLOCK) {sqlBuilder};
+                    SELECT * FROM [{TableName}] WITH(NOLOCK) {sqlBuilder}
+                    ORDER BY {orderBy}
+                    OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
 
         if (Logger.IsEnabled(LogLevel.Debug))
         {
@@ -379,9 +379,9 @@ OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
         }
 
         var sql = $@"
-INSERT INTO [{TableName}] ({columns})
-OUTPUT INSERTED.[Uid]
-VALUES {string.Join(", ", valueRows)};";
+                    INSERT INTO [{TableName}] ({columns})
+                    OUTPUT INSERTED.[Uid]
+                    VALUES {string.Join(", ", valueRows)};";
 
         var newUids = (await Connection.QueryAsync<Guid>(sql, parameters, transaction: Transaction)).ToList();
         for (int i = 0; i < newUids.Count && i < entityList.Count; i++)
@@ -431,10 +431,10 @@ VALUES {string.Join(", ", valueRows)};";
             parameters.Add(verParamName, originalVersion);
 
             sqlBuilder.AppendLine($@"
-UPDATE [{TableName}]
-SET {string.Join(", ", setClauses)}
-OUTPUT INSERTED.[Uid], INSERTED.[Version]
-WHERE [Uid] = @{uidParamName} AND [Version] = @{verParamName};");
+                                UPDATE [{TableName}]
+                                SET {string.Join(", ", setClauses)}
+                                OUTPUT INSERTED.[Uid], INSERTED.[Version]
+                                WHERE [Uid] = @{uidParamName} AND [Version] = @{verParamName};");
         }
 
         var results = new List<UpdateResult>();

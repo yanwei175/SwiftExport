@@ -1,6 +1,6 @@
 # .NET 10 前端 MVVM 基础设计
 
-本文用于规划 SwiftExport 未来 .NET 10 WPF 前端的 MVVM 基础设施。当前正式桌面端仍是 .NET Framework 4.8 + MVVMLight；本页是新前端技术栈的目标设计，不要求现有页面立即迁移。
+本文是 SwiftExport 当前 .NET 10 WPF 前端主线的 MVVM 基础设施总纲。旧 .NET Framework 4.8 + MVVMLight + VSTO 前端只作为兼容维护对象，不再是默认前端开发目标。
 
 来源参考：
 
@@ -15,7 +15,7 @@
 
 ## 1. 技术栈默认选择
 
-未来 .NET 10 前端默认使用：
+当前 .NET 10 前端默认使用：
 
 - .NET 10 WPF。
 - `CommunityToolkit.Mvvm`。
@@ -24,18 +24,18 @@
 - `Mapster` 做 DTO、LineModel、Request、Response 映射。
 - 继续复用或迁移 MateWpfThemes 中有价值的控件、主题和 DataGrid 交互能力。
 
-新 .NET 10 前端不要继续引入：
+.NET 10 前端不要继续引入：
 
 - `GalaSoft.MvvmLight`。
 - MVVMLight `ViewModelBase`。
 - MVVMLight `RelayCommand`。
 - MVVMLight `Messenger`。
 
-当前 .NET Framework 4.8 前端仍按 [前端页面总纲](前端页面总纲.md) 和 [WPF MVVMLight Guide](../guides/frontend-wpf/wpf-mvvmlight.md) 维护；迁移到 .NET 10 必须作为独立计划执行。
+旧 .NET Framework 4.8 前端按 [旧 WPF/VSTO 页面总纲](前端页面总纲.md) 和 [WPF MVVMLight Guide](../guides/frontend-wpf/wpf-mvvmlight.md) 维护；只有明确维护旧项目时才读取这些文档。
 
 ## 2. 调用方向
 
-未来前端仍然只是界面层，不直接处理数据库和后端业务事务。
+当前 .NET 10 前端仍然只是界面层，不直接处理数据库和后端业务事务。
 
 ```text
 View
@@ -68,7 +68,7 @@ ViewModel 禁止包含：
 
 ## 3. MVVM 基类层次
 
-未来 .NET 10 前端建议形成以下基础设施：
+当前 .NET 10 前端建议形成以下基础设施：
 
 ```text
 ObservableObjectEx
@@ -319,7 +319,7 @@ DataGrid 图片列应关注性能和文件锁：
 
 ## 12. Mapster 规则
 
-未来 .NET 10 前端继续使用 Mapster：
+当前 .NET 10 前端继续使用 Mapster：
 
 - DTO 到 LineModel：允许 `dto.Adapt(this)`。
 - LineModel 到 DTO：允许 `this.Adapt<TDto>()`。
@@ -332,20 +332,58 @@ DataGrid 图片列应关注性能和文件锁：
 
 受控字段如 `Uid`、`Version`、`CreatedBy`、`CreatedDate`、`UpdatedBy`、`UpdatedDate` 必须按业务语义显式处理，不要无脑双向覆盖。
 
-## 13. 迁移边界
+## 13. Features 目录组织规则
 
-从当前 WPF .NET Framework 4.8 迁移到 .NET 10 时：
+`SwiftExport.Client.Wpf/Features/` 是新客户端具体业务视图的聚集地，目录按“业务域 / 功能单元 / 文件角色”组织，不按全项目 `Views`、`ViewModels`、`Models` 大桶组织。
 
-- 不在普通页面功能开发中顺手混入 CommunityToolkit。
-- 不在旧项目里局部引入 `[ObservableProperty]` 作为默认写法。
-- 新旧前端可以在一段时间内并存，但页面、基类、DI 和路由不要互相混用。
-- 迁移应先搭基础设施，再选一个低风险页面做样板。
-- 样板页面稳定后，再迁移 SalesOrder 这类复杂单据页面。
+推荐结构：
 
-## 14. 后续待设计
+```text
+Features/
+  Products/
+    ProductList/
+      Views/
+      ViewModels/
+      Models/
+      Services/
+      Components/
+    Categories/
+      Views/
+      ViewModels/
+      Models/
+      Services/
+    Bom/
+    CustomerProducts/
+    SupplierProducts/
+    Placeholders/
+  Sales/
+    Orders/
+    Customers/
+    Workbench/
+  Planning/
+  Purchasing/
+  Shipping/
+```
 
-- .NET 10 前端项目命名和解决方案结构。
-- 新前端是否复用 `SwiftExport.View.FW` 名称，还是建立独立项目。
+规则：
+
+- `Features/{业务域}/{功能单元}/...` 是业务页面的基本组织单位。
+- `Views` 放 XAML 和 code-behind。
+- `ViewModels` 放页面 ViewModel、Dialog ViewModel 和有独立业务语义的子 ViewModel。
+- `Models` 放 `LineModel`、`TreeItemModel`、`EditModel`、`SearchModel`、`StateModel` 等前端模型。
+- `Services` 放只服务当前功能单元的 Dialog Service、Loader、Adapter、Cache 等。
+- `Components` 只放有独立业务语义并值得复用的子 View / 子 ViewModel，不为机械拆分 XAML 而新增。
+- 全局通用控件继续放 `Resources/Controls`；全局 MVVM 基类继续放 `Mvvm`；Shell、Navigation、UI Service 不放进 `Features`。
+- 新页面不要继续把多个业务功能文件堆在业务域根目录，例如不要把产品资料、产品分类、BOM、客户产品全部放在 `Features/Products` 根层。
+
+## 14. 旧前端兼容边界
+
+- 不在旧 MVVMLight 项目中局部引入 `[ObservableProperty]` 作为默认写法。
+- 新旧前端可以并存，但页面、基类、DI 和路由不要互相混用。
+- 维护旧 WPF/VSTO 时读取 [旧 WPF/VSTO 页面总纲](前端页面总纲.md)，不要把旧规则带入当前 .NET 10 前端。
+
+## 15. 后续待设计
+
 - MateWpfThemes 迁移到 .NET 10 的方式。
 - VSTO 是否继续承载 .NET 10 WPF，或保留旧宿主只调用 WebApi。
 - 新旧前端并行期间的 Refit BaseUrl、登录态和配置策略。

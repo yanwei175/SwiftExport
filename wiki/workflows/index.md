@@ -13,3 +13,4 @@
 ## Engineering
 
 - [Safe Refactoring Workflow](safe-refactoring.md) - 大范围重构、行为保持、分阶段迁移、高风险修改任务。
+- [Wiki Ingest Workflow](wiki-ingest-workflow.md) - 将 `raw/**` 来源整理进正式 wiki，并维护 router、catalog、log。

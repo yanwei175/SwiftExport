@@ -1,7 +1,7 @@
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExportClient.Mvvm;
 
-namespace SwiftExportClient.Features.Products;
+namespace SwiftExportClient.Features.Products.ProductList.Models;
 
 public sealed class ProductLineModel : BaseLineModel<ProductDto>
 {

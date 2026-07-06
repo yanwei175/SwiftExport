@@ -1,14 +1,14 @@
-<UserControl x:Class="SwiftExportClient.Features.Products.ProductCategoryManagerView"
+<UserControl x:Class="SwiftExportClient.Features.Products.Categories.Views.ProductCategoryManagerView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:dd="urn:gong-wpf-dragdrop"
-             xmlns:products="clr-namespace:SwiftExportClient.Features.Products"
+             xmlns:categoryModels="clr-namespace:SwiftExportClient.Features.Products.Categories.Models"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              Width="920"
              Height="600">
     <UserControl.Resources>
         <HierarchicalDataTemplate x:Key="ProductCategoryTreeTemplate"
-                                  DataType="{x:Type products:ProductCategoryTreeItemModel}"
+                                  DataType="{x:Type categoryModels:ProductCategoryTreeItemModel}"
                                   ItemsSource="{Binding Children}">
             <Border x:Name="NodeSurface"
                     CornerRadius="{StaticResource SwiftExportCornerRadius}"
@@ -98,7 +98,7 @@
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="380" />
                 <ColumnDefinition Width="16" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>

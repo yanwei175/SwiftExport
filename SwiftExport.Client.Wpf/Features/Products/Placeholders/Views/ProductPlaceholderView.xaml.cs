@@ -1,6 +1,6 @@
 using System.Windows.Controls;
 
-namespace SwiftExportClient.Features.Products;
+namespace SwiftExportClient.Features.Products.Placeholders.Views;
 
 public partial class ProductPlaceholderView : UserControl
 {

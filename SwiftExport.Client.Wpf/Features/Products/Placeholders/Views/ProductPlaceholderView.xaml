@@ -1,4 +1,4 @@
-<UserControl x:Class="SwiftExportClient.Features.Products.ProductPlaceholderView"
+<UserControl x:Class="SwiftExportClient.Features.Products.Placeholders.Views.ProductPlaceholderView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid>

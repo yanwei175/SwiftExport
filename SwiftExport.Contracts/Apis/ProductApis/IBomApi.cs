@@ -9,6 +9,7 @@ namespace SwiftExport.Contracts.Apis.ProductApis
 {
     public interface IBomApi : IGenericApi<BomDto>
     {
+
         [Get("/tree/{productSku}")]
         Task<ServiceResult<List<BomTreeDto>>> GetBomTreeAsync(string productSku);
         [Get("/by-no/{bomNo}")]

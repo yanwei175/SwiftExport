@@ -14,6 +14,8 @@ namespace SwiftExport.Contracts.Apis.Orders
     /// </summary>
     public interface IDependentDemandApi : IGenericApi<IndependentDemandDto>
     {
+        [Get("/page")]
+        Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedAsync([Query] PagedRequestDto request);
         /// <summary>
         /// 分页查询拆解中间表。
         /// </summary>

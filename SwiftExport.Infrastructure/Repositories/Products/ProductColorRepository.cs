@@ -1,8 +1,10 @@
 ﻿using Dapper;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
+using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Products
 {
@@ -23,6 +25,93 @@ namespace SwiftExport.Infrastructure.Repositories.Products
             var sql = $"SELECT ColorCodeUnique FROM [{TableName}] WHERE  ColorCodeUnique IN @Codes";
             var rst = await Connection.QueryAsync<string>(sql, new { Codes = productColorList }, transaction: Transaction);
             return [.. rst];
+        }
+
+        public async Task<PagedResultDto<ProductColor>> GetProductColorPagedAsync(PagedRequestDto request)
+        {
+            request ??= new PagedRequestDto();
+
+            var pageIndex = request.PageIndex > 0 ? request.PageIndex : 1;
+            var pageSize = request.PageSize > 0 ? request.PageSize : 50;
+            var offset = (pageIndex - 1) * pageSize;
+
+            var parameters = new DynamicParameters();
+            parameters.Add("@Offset", offset);
+            parameters.Add("@Limit", pageSize);
+
+            var where = new StringBuilder("WHERE (IsDeleted = 0 OR IsDeleted IS NULL)");
+
+            if (!string.IsNullOrWhiteSpace(request.Keyword))
+            {
+                parameters.Add("@Keyword", $"%{request.Keyword.Trim()}%");
+                where.Append(@"
+                    AND (
+                           ColorCodeUnique LIKE @Keyword
+                        OR ColorCode LIKE @Keyword
+                        OR ColorNameEn LIKE @Keyword
+                        OR ColorNameZh LIKE @Keyword
+                    )");
+            }
+
+            var batchKeywords = request.BatchKeywords?
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (batchKeywords is { Count: > 0 })
+            {
+                var groups = new List<string>();
+                for (var i = 0; i < batchKeywords.Count; i++)
+                {
+                    var paramName = $"@Keyword_{i}";
+                    parameters.Add(paramName, $"%{batchKeywords[i]}%");
+                    groups.Add($@"(
+                           ColorCodeUnique LIKE {paramName}
+                        OR ColorCode LIKE {paramName}
+                        OR ColorNameEn LIKE {paramName}
+                        OR ColorNameZh LIKE {paramName}
+                    )");
+                }
+
+                where.Append(" AND (")
+                    .Append(string.Join(" OR ", groups))
+                    .Append(')');
+            }
+
+            var sql = $@"
+                SELECT COUNT(1)
+                FROM [{TableName}] WITH(NOLOCK)
+                {where};
+
+                SELECT
+                    Uid,
+                    Version,
+                    IsDeleted,
+                    CreatedDate,
+                    CreatedBy,
+                    UpdatedDate,
+                    UpdatedBy,
+                    ColorCodeUnique,
+                    ColorCode,
+                    ColorNameEn,
+                    ColorNameZh
+                FROM [{TableName}] WITH(NOLOCK)
+                {where}
+                ORDER BY ColorCodeUnique ASC, Uid ASC
+                OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
+
+            using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
+            var total = await multi.ReadFirstAsync<int>();
+            var items = await multi.ReadAsync<ProductColor>();
+
+            return new PagedResultDto<ProductColor>
+            {
+                Items = [.. items],
+                TotalCount = total,
+                PageIndex = pageIndex,
+                PageSize = pageSize
+            };
         }
     }
 }

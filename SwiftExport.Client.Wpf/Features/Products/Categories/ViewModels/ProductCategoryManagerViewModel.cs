@@ -7,11 +7,12 @@ using GongSolutions.Wpf.DragDrop;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExportClient.Features.Products.Categories.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
 
-namespace SwiftExportClient.Features.Products;
+namespace SwiftExportClient.Features.Products.Categories.ViewModels;
 
 public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncInitializable, IDropTarget
 {

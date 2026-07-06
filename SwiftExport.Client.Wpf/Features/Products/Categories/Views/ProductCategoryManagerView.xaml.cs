@@ -1,7 +1,9 @@
 using System.Windows;
 using System.Windows.Controls;
+using SwiftExportClient.Features.Products.Categories.Models;
+using SwiftExportClient.Features.Products.Categories.ViewModels;
 
-namespace SwiftExportClient.Features.Products;
+namespace SwiftExportClient.Features.Products.Categories.Views;
 
 public partial class ProductCategoryManagerView : UserControl
 {

@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
+using SwiftExportClient.Features.Products.Categories.ViewModels;
+using SwiftExportClient.Features.Products.Categories.Views;
 using SwiftExportClient.Services.UI;
 
-namespace SwiftExportClient.Features.Products;
+namespace SwiftExportClient.Features.Products.Categories.Services;
 
 public sealed class ProductCategoryManagerDialogService(
     IServiceProvider serviceProvider,

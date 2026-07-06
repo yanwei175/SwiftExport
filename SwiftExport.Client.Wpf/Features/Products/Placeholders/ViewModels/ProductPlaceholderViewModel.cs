@@ -1,6 +1,6 @@
 using SwiftExportClient.Mvvm;
 
-namespace SwiftExportClient.Features.Products;
+namespace SwiftExportClient.Features.Products.Placeholders.ViewModels;
 
 public abstract class ProductPlaceholderViewModel : ViewModelBaseEx
 {

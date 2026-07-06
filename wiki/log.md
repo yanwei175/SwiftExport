@@ -1,5 +1,13 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-05 workflow | 低 Token 路由重构与 .NET 10 前端当前化
+
+- 精简 `AGENTS.md`，保留稳定铁律、分层边界、写入边界和最终回复规则；将长篇 Ingest 规则移入 workflow。
+- 重写 `wiki/index.md` 为低 token 短路由入口，不再承担完整目录、风险提示和详细说明职责。
+- 新增 `wiki/catalog.md` 作为人类浏览用完整目录；新增 `wiki/workflows/wiki-ingest-workflow.md` 承接 raw 来源整理规则。
+- 将 `.NET 10 WPF + CommunityToolkit MVVM` 设为当前前端主线，旧 `.NET Framework 4.8 + MVVMLight + VSTO` 改为兼容维护入口。
+- 明确 `raw/` 不参与日常任务路由，只在用户明确要求 ingest 或指定 raw 文件时读取。
+
 ## 2026-07-05 frontend | 新增 PopupTextBox 多行弹出编辑控件
 
 - 在 `SwiftExport.Client.Wpf/Resources/Controls/` 新增 `PopupTextBox`，作为新客户端自有长文本编辑控件。
@@ -114,6 +122,15 @@
 - 明确各模块职责、不应负责的事项、主要源码入口和上下游交互规则。
 - 明确新功能归属判断顺序，避免后续实现绕开净需求、正式单据或库存流水。
 - 更新 `wiki/index.md`，增加领域模块总纲路由。
+
+## 2026-07-06 frontend | 产品颜色管理页与 DataGrid 样式边界修正
+
+- 修正新客户端 `Resources/DataGrid.xaml` 的公共样式边界：默认 `SwiftExportDataGridRow` 不再绑定业务 `State`，行状态视觉拆到显式 opt-in 的 `SwiftExportStateDataGridRow`，避免普通模型产生绑定丢失警告。
+- 默认 `SwiftExportDataGrid` 不再内置“暂无数据”空状态；空数据文字、加载动画或其他占位由具体页面自己实现。
+- 新增 `PopupTextBoxAssist` 和 `SwiftExportDataGridPopupTextBoxEditingStyle`，让 `DataGridTextColumn.EditingElementStyle` 可以给普通 `TextBox` 注入弹出多行编辑能力；产品资料页备注列已从 `DataGridTemplateColumn` 回到 `DataGridTextColumn`。
+- 新增 `Products/Colors` 功能单元，产品颜色管理页作为正式 tab 打开，接入真实 `IProductColorApi` 分页查询、防抖搜索、增删改、撤销、批量保存、分页和 WPF-UI `DropDownButton` 更多菜单占位动作。
+- 左侧导航“产品”分组新增“产品颜色管理”；Shell 已注册 `ProductColorsViewModel -> ProductColorsView` DataTemplate。
+- 源码事实修正：`ProductColorController` 的分页 GET 位于控制器根路由，`IProductColorApi` 增加根分页 Refit 方法 `GetPagedRootAsync`；本次未修改后端 Controller、Application、Infrastructure 或旧 WPF/VSTO 项目。
 
 ## 2026-07-02 data | 建立数据模型总纲
 
@@ -259,3 +276,18 @@
 - 新增 `ShellNavigationItem`、`ShellNavigationIconConverter`、`RouteSelectionConverter` 和 `Resources/ShellNavigation.xaml`，实现 WPF-UI `SymbolIcon` 图标、选中浅灰背景、左侧 Accent 竖条和子菜单缩进。
 - Shell 左侧栏调整为接近 WPF-UI Gallery 的宽度与结构，加入搜索框、本地菜单过滤和底部 Settings 占位入口。
 - 本次仍禁止裸用 `NavigationViewItem`；后续如要完整采用 WPF-UI `NavigationView`，需单独适配多标签工作区。
+
+## 2026-07-05 frontend | 规划并整理新客户端 Features 目录结构
+
+- `SwiftExport.Client.Wpf/Features/` 明确为新客户端业务视图聚集地，目录规则调整为按“业务域 / 功能单元 / 文件角色”组织。
+- 更新 `wiki/project/dotnet10-frontend-mvvm-blueprint.md`，新增 `Features` 目录组织规则：功能单元内部使用 `Views`、`ViewModels`、`Models`、`Services`、`Components`，不建立全项目级 `Views/ViewModels/Models` 大桶。
+- 产品模块已按新规则迁移：`Products/ProductList` 承载产品资料页，`Products/Categories` 承载产品分类管理 Dialog，`Products/Placeholders` 承载当前产品占位页面，并预留 `Bom`、`CustomerProducts`、`SupplierProducts` 功能目录。
+- DI 注册、路由注册、Shell DataTemplate、分类管理 Dialog Service 已同步到新命名空间；本次不改变业务行为。
+
+## 2026-07-05 frontend | 产品资料页 DataGrid 样式第一轮
+
+- `SwiftExport.Client.Wpf/Resources/DataGrid.xaml` 建立新客户端自己的 Fluent DataGrid 命名样式集合，旧 `MateWpfThemes.FW` 的 DataGrid XAML 只作为参考，不整块迁移。
+- 新增 DataGrid 专用颜色和间距 token，覆盖表头、hover、selected、grid line、deleted soft、error、header padding 和 cell padding。
+- 产品资料页已接入 DataGrid 样板：文本列、长文本列、数字右对齐列、行状态视觉、校验边框 / Tooltip、空数据占位。
+- 产品资料页备注列已改为 `DataGridTemplateColumn`，编辑模板使用新客户端 `PopupTextBox`，用于紧凑长文本弹出编辑。
+- 本阶段明确不迁移 `DataGridExcelAssist`、`UndoManager`、`CellTrackerState`、`DataGridSearchableColumn` 或旧自动列样式注入；Excel 化交互后续单独规划。

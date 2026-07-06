@@ -10,6 +10,7 @@ namespace SwiftExport.Contracts.Apis.Orders
 {
     public interface IPackingListApi : IGenericApi<PackingListHeadDto>
     {
+
         [Post("/search")]
         Task<ServiceResult<PagedResultDto<PackingListHeadDto>>> GetHeadPagedListAsync([Body] PackingListSearchDto search);
 

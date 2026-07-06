@@ -1,6 +1,8 @@
 using SwiftExportClient.Features.Home;
 using SwiftExportClient.Features.Planning;
-using SwiftExportClient.Features.Products;
+using SwiftExportClient.Features.Products.Colors.ViewModels;
+using SwiftExportClient.Features.Products.Placeholders.ViewModels;
+using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Purchasing;
 using SwiftExportClient.Features.Sales;
 using SwiftExportClient.Features.Shipping;
@@ -13,6 +15,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
     [
         new("home", "首页", "Workspace", typeof(HomeViewModel), CanClose: false),
         new("products", "产品", "Workspace", typeof(ProductsViewModel)),
+        new("product-colors", "产品颜色管理", "Workspace", typeof(ProductColorsViewModel)),
         new("product-bom", "BOM", "Workspace", typeof(ProductBomViewModel)),
         new("customer-products", "客户产品", "Workspace", typeof(CustomerProductsViewModel)),
         new("supplier-products", "供应商产品", "Workspace", typeof(SupplierProductsViewModel)),
@@ -40,6 +43,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 [
                     new("products", "产品资料", "Workspace", "Cube24"),
                     new("product-category-manager", "产品分类管理", "Workspace", "Folder24"),
+                    new("product-colors", "产品颜色管理", "Workspace", "Color24"),
                     new("product-bom", "BOM", "Workspace", "Branch24"),
                     new("customer-products", "客户产品", "Workspace", "People24"),
                     new("supplier-products", "供应商产品", "Workspace", "PeopleTeam24"),
