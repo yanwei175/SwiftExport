@@ -1,6 +1,8 @@
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 namespace SwiftExport.Application.Interfaces;
 
 /// <summary>
@@ -14,6 +16,6 @@ public partial interface ISysDicCurrencyExchangeService
     Task<ServiceResult<Guid>> AddAsync(SysDicCurrencyExchangeDto dto);
     Task<ServiceResult<int>> UpdateAsync(SysDicCurrencyExchangeDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<SysDicCurrencyExchangeDto> batchReq);
+    Task<ServiceResult<SysDicCurrencyExchangeBatchSaveResponse>> BatchSaveAsync(SysDicCurrencyExchangeBatchSaveRequest batchReq);
 
 }

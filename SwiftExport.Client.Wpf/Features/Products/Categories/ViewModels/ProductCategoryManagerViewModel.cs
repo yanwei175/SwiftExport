@@ -1,16 +1,16 @@
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.ComponentModel;
-using System.Windows;
 using CommunityToolkit.Mvvm.Input;
 using GongSolutions.Wpf.DragDrop;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
-using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExportClient.Features.Products.Categories.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
+using System.Windows;
 
 namespace SwiftExportClient.Features.Products.Categories.ViewModels;
 
@@ -211,7 +211,7 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
                 return;
             }
 
-            var request = new BatchRequestDto<ProductCategoryDto>
+            var request = new ProductCategoryBatchSaveRequest
             {
                 AddList = allNodes
                     .Where(node => node.State == ProductCategoryNodeState.Added)

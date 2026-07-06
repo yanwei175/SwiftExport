@@ -1,8 +1,12 @@
-﻿using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.Wrappers;
 using System;
 
+using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.Customers.Responses;
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 namespace SwiftExport.Application.Interfaces;
 
 /// <summary>
@@ -33,5 +37,5 @@ public interface ICustomerProductService
     // ============================================================
 
     /// <summary>批量保存（新增 / 修改 / 删除），事务保护</summary>
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<CustomerProductDto> batchReq);
+    Task<ServiceResult<CustomerProductBatchSaveResponse>> BatchSaveAsync(CustomerProductBatchSaveRequest batchReq);
 }

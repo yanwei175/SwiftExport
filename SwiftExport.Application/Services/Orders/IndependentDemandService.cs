@@ -14,6 +14,8 @@ using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
+using SwiftExport.Contracts.DTOs.Independent.Requests;
+using SwiftExport.Contracts.DTOs.Independent.Responses;
 namespace SwiftExport.Application.Services.Orders;
 
 public partial class IndependentDemandService(
@@ -497,10 +499,10 @@ public partial class IndependentDemandService(
         }
     }
 
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<IndependentDemandDto> batchReq)
+    public async Task<ServiceResult<IndependentDemandBatchSaveResponse>> BatchSaveAsync(IndependentDemandBatchSaveRequest batchReq)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BatchResultDto();
+        var result = new IndependentDemandBatchSaveResponse();
 
         var createList = batchReq.AddList?.Adapt<List<IndependentDemand>>();
         var updateList = batchReq.UpdateList?.Adapt<List<IndependentDemand>>();
@@ -528,10 +530,10 @@ public partial class IndependentDemandService(
             }
 
             if (errorMsg.Length > 0)
-                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+                return ServiceResult<IndependentDemandBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
 
             if (_independentRepo is not IBatchWriteRepository<IndependentDemand> batchRepository)
-                return ServiceResult<BatchResultDto>.Fail($"{nameof(IndependentDemand)} 仓储未实现批量保存");
+                return ServiceResult<IndependentDemandBatchSaveResponse>.Fail($"{nameof(IndependentDemand)} 仓储未实现批量保存");
 
             if (createList is { Count: > 0 })
             {
@@ -551,12 +553,12 @@ public partial class IndependentDemandService(
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<BatchResultDto>.Ok(result);
+            return ServiceResult<IndependentDemandBatchSaveResponse>.Ok(result);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+            return ServiceResult<IndependentDemandBatchSaveResponse>.Fail(ex.Message);
         }
         finally
         {

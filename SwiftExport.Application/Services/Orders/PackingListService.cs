@@ -16,6 +16,8 @@ using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
+using SwiftExport.Contracts.DTOs.PackingLists.Requests;
+using SwiftExport.Contracts.DTOs.PackingLists.Responses;
 namespace SwiftExport.Application.Services.Orders;
 
 public partial class PackingListService(
@@ -526,10 +528,10 @@ public partial class PackingListService(
         }
     }
 
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<PackingListHeadDto> batchReq)
+    public async Task<ServiceResult<PackingListBatchSaveResponse>> BatchSaveAsync(PackingListBatchSaveRequest batchReq)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BatchResultDto();
+        var result = new PackingListBatchSaveResponse();
 
         var createList = batchReq.AddList?.Adapt<List<PackingListHead>>();
         var updateList = batchReq.UpdateList?.Adapt<List<PackingListHead>>();
@@ -557,10 +559,10 @@ public partial class PackingListService(
             }
 
             if (errorMsg.Length > 0)
-                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+                return ServiceResult<PackingListBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
 
             if (_headRepository is not IBatchWriteRepository<PackingListHead> batchRepository)
-                return ServiceResult<BatchResultDto>.Fail($"{nameof(PackingListHead)} 仓储未实现批量保存");
+                return ServiceResult<PackingListBatchSaveResponse>.Fail($"{nameof(PackingListHead)} 仓储未实现批量保存");
 
             if (createList is { Count: > 0 })
             {
@@ -580,12 +582,12 @@ public partial class PackingListService(
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<BatchResultDto>.Ok(result);
+            return ServiceResult<PackingListBatchSaveResponse>.Ok(result);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+            return ServiceResult<PackingListBatchSaveResponse>.Fail(ex.Message);
         }
         finally
         {

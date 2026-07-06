@@ -1,5 +1,12 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-06 backend | Contracts API 专用请求与批量保存契约
+
+- 将批量保存基础契约替换为 `BatchSaveRequestBase<TDto>` / `BatchSaveResponseBase`，删除旧 `BatchRequestDto<T>` 与 `BatchResultDto`。
+- 为主数据和业务模块新增专用 `XxxSearchRequest`、`XxxBatchSaveRequest`、`XxxBatchSaveResponse`，按 `DTOs/<Module>/Requests` 与 `DTOs/<Module>/Responses` 管理。
+- Refit API、WebApi Controller、Application Interface/Service 已同步改用专用分页和批量保存契约，`IGenericApi<TDto>` 继续只保留单体 CRUD。
+- 已确认后端有效路径无 `BatchRequestDto`、`BatchResultDto` 和裸 `PagedRequestDto request` 残留；前端调用由用户后续手动修复。
+
 ## 2026-07-05 workflow | 低 Token 路由重构与 .NET 10 前端当前化
 
 - 精简 `AGENTS.md`，保留稳定铁律、分层边界、写入边界和最终回复规则；将长篇 Ingest 规则移入 workflow。

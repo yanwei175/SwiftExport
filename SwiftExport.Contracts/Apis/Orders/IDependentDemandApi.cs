@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+using SwiftExport.Contracts.DTOs.Orders.Requests;
+using SwiftExport.Contracts.DTOs.Orders.Responses;
 namespace SwiftExport.Contracts.Apis.Orders
 {
     /// <summary>
@@ -15,7 +17,7 @@ namespace SwiftExport.Contracts.Apis.Orders
     public interface IDependentDemandApi : IGenericApi<IndependentDemandDto>
     {
         [Get("/page")]
-        Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedAsync([Query] PagedRequestDto request);
+        Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedAsync([Query] DependentDemandSearchRequest request);
         /// <summary>
         /// 分页查询拆解中间表。
         /// </summary>
@@ -26,13 +28,13 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// 按销售单号触发拆解写入中间表。
         /// </summary>
         [Post("/decompose/{sourceSoNo}")]
-        Task<ServiceResult<BatchResultDto>> DecomposeBySalesOrderAsync(string sourceSoNo);
+        Task<ServiceResult<DependentDemandBatchSaveResponse>> DecomposeBySalesOrderAsync(string sourceSoNo);
 
         /// <summary>
         /// 按多个销售单号批量触发拆解。
         /// </summary>
         [Post("/decompose/batch")]
-        Task<ServiceResult<BatchResultDto>> DecomposeBySalesOrdersAsync([Body] List<string> sourceSoNos);
+        Task<ServiceResult<DependentDemandBatchSaveResponse>> DecomposeBySalesOrdersAsync([Body] List<string> sourceSoNos);
 
         /// <summary>
         /// 将某个来源单据下的需求按供应商分组转为采购单。

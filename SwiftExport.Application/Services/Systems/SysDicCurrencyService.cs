@@ -11,6 +11,8 @@ using SwiftExport.Core.Common;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 namespace SwiftExport.Application.Services.Systems
 {
     /// <summary>
@@ -297,10 +299,10 @@ namespace SwiftExport.Application.Services.Systems
         }
     }
 
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<SysDicCurrencyDto> batchReq)
+    public async Task<ServiceResult<SysDicCurrencyBatchSaveResponse>> BatchSaveAsync(SysDicCurrencyBatchSaveRequest batchReq)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BatchResultDto();
+        var result = new SysDicCurrencyBatchSaveResponse();
 
         var createList = batchReq.AddList?.Adapt<List<SysDicCurrency>>();
         var updateList = batchReq.UpdateList?.Adapt<List<SysDicCurrency>>();
@@ -338,10 +340,10 @@ namespace SwiftExport.Application.Services.Systems
             }
 
             if (errorMsg.Length > 0)
-                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+                return ServiceResult<SysDicCurrencyBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
 
             if (_repository is not IBatchWriteRepository<SysDicCurrency> batchRepository)
-                return ServiceResult<BatchResultDto>.Fail($"{nameof(SysDicCurrency)} 仓储未实现批量保存");
+                return ServiceResult<SysDicCurrencyBatchSaveResponse>.Fail($"{nameof(SysDicCurrency)} 仓储未实现批量保存");
 
             if (createList is { Count: > 0 })
             {
@@ -361,12 +363,12 @@ namespace SwiftExport.Application.Services.Systems
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<BatchResultDto>.Ok(result);
+            return ServiceResult<SysDicCurrencyBatchSaveResponse>.Ok(result);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+            return ServiceResult<SysDicCurrencyBatchSaveResponse>.Fail(ex.Message);
         }
         finally
         {

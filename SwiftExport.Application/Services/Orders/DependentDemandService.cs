@@ -1,8 +1,11 @@
 using Mapster;
+using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.Orders.Requests;
+using SwiftExport.Contracts.DTOs.Orders.Responses;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
@@ -10,11 +13,8 @@ using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
-using Microsoft.Extensions.Logging;
-using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
-
 namespace SwiftExport.Application.Services.Orders;
 
 /// <summary>
@@ -454,7 +454,7 @@ public partial class DependentDemandService(
                             demand.TargetLineId = Line.Uid; // 回写生成的采购单行ID
                             demand.TargetNo = orderNo;          // 回写目标单号
                             demand.OrderStatus = DependentDemandStatusEnum.已转为正式单据;
-                            
+
                         }
                     }
                 }
@@ -656,10 +656,10 @@ public partial class DependentDemandService(
         }
     }
 
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<IndependentDemandDto> batchReq)
+    public async Task<ServiceResult<DependentDemandBatchSaveResponse>> BatchSaveAsync(DependentDemandBatchSaveRequest batchReq)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BatchResultDto();
+        var result = new DependentDemandBatchSaveResponse();
 
         var createList = batchReq.AddList?.Adapt<List<DependentDemand>>();
         var updateList = batchReq.UpdateList?.Adapt<List<DependentDemand>>();
@@ -687,10 +687,10 @@ public partial class DependentDemandService(
             }
 
             if (errorMsg.Length > 0)
-                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+                return ServiceResult<DependentDemandBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
 
             if (_rpRepository is not IBatchWriteRepository<DependentDemand> batchRepository)
-                return ServiceResult<BatchResultDto>.Fail($"{nameof(DependentDemand)} 仓储未实现批量保存");
+                return ServiceResult<DependentDemandBatchSaveResponse>.Fail($"{nameof(DependentDemand)} 仓储未实现批量保存");
 
             if (createList is { Count: > 0 })
             {
@@ -710,12 +710,12 @@ public partial class DependentDemandService(
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<BatchResultDto>.Ok(result);
+            return ServiceResult<DependentDemandBatchSaveResponse>.Ok(result);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+            return ServiceResult<DependentDemandBatchSaveResponse>.Fail(ex.Message);
         }
         finally
         {

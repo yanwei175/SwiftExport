@@ -10,6 +10,8 @@ using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
+using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.Customers.Responses;
 namespace SwiftExport.Application.Services.Customers;
 
 public partial class CustomerPoConfigService(ICustomerPoConfigRepository repository, ServiceBaseContext context) : ICustomerPoConfigService
@@ -125,10 +127,10 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
 
     #region 批量保存
 
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<CustomerPoConfigDto> batchReq)
+    public async Task<ServiceResult<CustomerPoConfigBatchSaveResponse>> BatchSaveAsync(CustomerPoConfigBatchSaveRequest batchReq)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BatchResultDto();
+        var result = new CustomerPoConfigBatchSaveResponse();
 
         var createList = batchReq.AddList?.Adapt<List<CustomerPoConfig>>();
         var updateList = batchReq.UpdateList?.Adapt<List<CustomerPoConfig>>();
@@ -162,10 +164,10 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
             }
 
             if (errorMsg.Length > 0)
-                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+                return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
 
             if (_repository is not IBatchWriteRepository<CustomerPoConfig> batchRepository)
-                return ServiceResult<BatchResultDto>.Fail($"{nameof(CustomerPoConfig)} 仓储未实现批量保存");
+                return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail($"{nameof(CustomerPoConfig)} 仓储未实现批量保存");
 
             if (createList is { Count: > 0 })
             {
@@ -185,12 +187,12 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<BatchResultDto>.Ok(result);
+            return ServiceResult<CustomerPoConfigBatchSaveResponse>.Ok(result);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+            return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail(ex.Message);
         }
         finally
         {

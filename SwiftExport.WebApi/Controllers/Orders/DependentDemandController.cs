@@ -8,6 +8,8 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.Filters;
 
+using SwiftExport.Contracts.DTOs.Orders.Responses;
+using SwiftExport.Contracts.DTOs.Orders.Requests;
 namespace SwiftExport.WebApi.Controllers.Orders
 {
     /// <summary>
@@ -39,7 +41,7 @@ namespace SwiftExport.WebApi.Controllers.Orders
 
         [HttpPost("batch-save")]
         [PreventDuplicateRequest(WindowSeconds = 5)]
-        public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<IndependentDemandDto> req) => await service.BatchSaveAsync(req);
+        public async Task<ServiceResult<DependentDemandBatchSaveResponse>> BatchSave([FromBody] DependentDemandBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
         /// <summary>
         /// 分页查询净需求。

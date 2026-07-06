@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
 
 namespace SwiftExport.Contracts.Wrappers
 {
-    public class BatchResultDto
+    public class BatchSaveResponseBase
     {
         public List<Guid> AddIdList { get; set; } = new List<Guid>();
         public List<Guid> UpdateIdList { get; set; } = new List<Guid>();

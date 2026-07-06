@@ -4,6 +4,7 @@ using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.Wrappers;
 using System.Threading.Tasks;
 
+using SwiftExport.Contracts.DTOs.Orders.Requests;
 namespace SwiftExport.Contracts.Apis.Orders
 {
     /// <summary>
@@ -12,7 +13,7 @@ namespace SwiftExport.Contracts.Apis.Orders
     public interface IFollowUpApi : IGenericApi<FollowUpLogDto>
     {
         [Get("/page")]
-        Task<ServiceResult<PagedResultDto<FollowUpLogDto>>> GetPagedAsync([Query] PagedRequestDto request);
+        Task<ServiceResult<PagedResultDto<FollowUpLogDto>>> GetPagedAsync([Query] FollowUpSearchRequest request);
         /// <summary>
         /// 更新采购跟进：当采购行 ReadyQty 更新时，同步更新关联净需求 ReceivedQty。
         /// </summary>

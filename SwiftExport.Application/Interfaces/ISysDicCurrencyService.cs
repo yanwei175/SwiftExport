@@ -3,6 +3,8 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Systems;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 namespace SwiftExport.Application.Interfaces
 {
     /// <summary>
@@ -17,7 +19,7 @@ namespace SwiftExport.Application.Interfaces
     Task<ServiceResult<Guid>> AddAsync(SysDicCurrencyDto dto);
     Task<ServiceResult<int>> UpdateAsync(SysDicCurrencyDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<SysDicCurrencyDto> batchReq);
+    Task<ServiceResult<SysDicCurrencyBatchSaveResponse>> BatchSaveAsync(SysDicCurrencyBatchSaveRequest batchReq);
 
         Task<ServiceResult<int>> SetNewBaseCurrencyAsync(SysDicCurrencyDto newSysDicCurrencyDto);
 

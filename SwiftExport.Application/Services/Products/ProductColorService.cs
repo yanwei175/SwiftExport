@@ -9,6 +9,8 @@ using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 namespace SwiftExport.Application.Services.Products;
 
 public partial class ProductColorService(IProductColorRepository repository, ServiceBaseContext context) : IProductColorService
@@ -37,10 +39,10 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
         // 返回 null 代表一切正常，放行！
         return null;
     }
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<ProductColorDto> batchReq)
+    public async Task<ServiceResult<ProductColorBatchSaveResponse>> BatchSaveAsync(ProductColorBatchSaveRequest batchReq)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BatchResultDto();
+        var result = new ProductColorBatchSaveResponse();
 
         var createList = batchReq.AddList?.Adapt<List<ProductColor>>();
         var updateList = batchReq.UpdateList?.Adapt<List<ProductColor>>();
@@ -74,10 +76,10 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
             }
 
             if (errorMsg.Length > 0)
-                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+                return ServiceResult<ProductColorBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
 
             if (_repository is not IBatchWriteRepository<ProductColor> batchRepository)
-                return ServiceResult<BatchResultDto>.Fail($"{nameof(ProductColor)} 仓储未实现批量保存");
+                return ServiceResult<ProductColorBatchSaveResponse>.Fail($"{nameof(ProductColor)} 仓储未实现批量保存");
 
             if (createList is { Count: > 0 })
             {
@@ -97,12 +99,12 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<BatchResultDto>.Ok(result);
+            return ServiceResult<ProductColorBatchSaveResponse>.Ok(result);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+            return ServiceResult<ProductColorBatchSaveResponse>.Fail(ex.Message);
         }
         finally
         {
@@ -151,7 +153,7 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
     }
 
 
-    public async Task<ServiceResult<PagedResultDto<ProductColorDto>>> GetPagedAsync(PagedRequestDto request)
+    public async Task<ServiceResult<PagedResultDto<ProductColorDto>>> GetPagedAsync(ProductColorSearchRequest request)
     {
         try
         {

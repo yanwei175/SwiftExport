@@ -4,6 +4,8 @@ using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Contracts.DTOs.Independent;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.Independent.Requests;
+using SwiftExport.Contracts.DTOs.Independent.Responses;
 namespace SwiftExport.Application.Interfaces
 {
     /// <summary>
@@ -17,7 +19,7 @@ namespace SwiftExport.Application.Interfaces
     Task<ServiceResult<Guid>> AddAsync(IndependentDemandDto dto);
     Task<ServiceResult<int>> UpdateAsync(IndependentDemandDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<IndependentDemandDto> batchReq);
+    Task<ServiceResult<IndependentDemandBatchSaveResponse>> BatchSaveAsync(IndependentDemandBatchSaveRequest batchReq);
 
         Task<ServiceResult<bool>> UpdateFilledQtyAsync(Guid id, decimal addQty);
 

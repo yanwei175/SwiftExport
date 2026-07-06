@@ -5,6 +5,8 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.Filters;
 
+using SwiftExport.Contracts.DTOs.Orders.Requests;
+using SwiftExport.Contracts.DTOs.Orders.Responses;
 namespace SwiftExport.WebApi.Controllers.Orders
 {
     /// <summary>
@@ -36,7 +38,7 @@ namespace SwiftExport.WebApi.Controllers.Orders
 
         [HttpPost("batch-save")]
         [PreventDuplicateRequest(WindowSeconds = 5)]
-        public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<FollowUpLogDto> req) => await service.BatchSaveAsync(req);
+        public async Task<ServiceResult<FollowUpBatchSaveResponse>> BatchSave([FromBody] FollowUpBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
         /// <summary>
         /// 更新采购跟进：当采购行 ReadyQty 更新时，同步更新关联净需求 ReceivedQty。

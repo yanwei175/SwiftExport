@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 namespace SwiftExport.Application.Interfaces
 {
     /// <summary>
@@ -18,7 +20,7 @@ namespace SwiftExport.Application.Interfaces
     Task<ServiceResult<Guid>> AddAsync(SysDictTypeDto dto);
     Task<ServiceResult<int>> UpdateAsync(SysDictTypeDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<SysDictTypeDto> batchReq);
+    Task<ServiceResult<SysDictTypeBatchSaveResponse>> BatchSaveAsync(SysDictTypeBatchSaveRequest batchReq);
 
         /// <summary>
         /// 获取字典类型分组树

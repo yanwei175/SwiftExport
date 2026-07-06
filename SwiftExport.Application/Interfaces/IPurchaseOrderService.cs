@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.Orders.Requests;
+using SwiftExport.Contracts.DTOs.Orders.Responses;
 namespace SwiftExport.Application.Interfaces
 {
     /// <summary>
@@ -19,7 +21,7 @@ namespace SwiftExport.Application.Interfaces
     Task<ServiceResult<Guid>> AddAsync(PurchaseOrderHeadDto dto);
     Task<ServiceResult<int>> UpdateAsync(PurchaseOrderHeadDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<PurchaseOrderHeadDto> batchReq);
+    Task<ServiceResult<PurchaseOrderBatchSaveResponse>> BatchSaveAsync(PurchaseOrderBatchSaveRequest batchReq);
 
         Task<ServiceResult<PagedResultDto<PurchaseOrderHeadDto>>> GetPagedListAsync(PurchaseOrderSearchDto search);
         Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByHeadIdAsync(Guid id);

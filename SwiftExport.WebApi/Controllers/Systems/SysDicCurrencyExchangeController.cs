@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.Filters;
 
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 namespace SwiftExport.WebApi.Controllers.Systems;
 
 /// <summary>
@@ -38,5 +40,5 @@ public class SysDicCurrencyExchangeController(ISysDicCurrencyExchangeService ser
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<SysDicCurrencyExchangeDto> req) => await service.BatchSaveAsync(req);
+    public async Task<ServiceResult<SysDicCurrencyExchangeBatchSaveResponse>> BatchSave([FromBody] SysDicCurrencyExchangeBatchSaveRequest req) => await service.BatchSaveAsync(req);
 }

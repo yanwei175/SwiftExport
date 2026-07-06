@@ -3,6 +3,8 @@ using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 namespace SwiftExport.Application.Interfaces
 {
     public partial interface IProductCategoryService
@@ -13,7 +15,7 @@ namespace SwiftExport.Application.Interfaces
     Task<ServiceResult<Guid>> AddAsync(ProductCategoryDto dto);
     Task<ServiceResult<int>> UpdateAsync(ProductCategoryDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<ProductCategoryDto> batchReq);
+    Task<ServiceResult<ProductCategoryBatchSaveResponse>> BatchSaveAsync(ProductCategoryBatchSaveRequest batchReq);
 
 
     }

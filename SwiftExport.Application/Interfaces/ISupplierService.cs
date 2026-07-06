@@ -3,6 +3,8 @@ using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.Suppliers.Requests;
+using SwiftExport.Contracts.DTOs.Suppliers.Responses;
 namespace SwiftExport.Application.Interfaces;
 
 public partial interface ISupplierService
@@ -13,6 +15,6 @@ public partial interface ISupplierService
     Task<ServiceResult<Guid>> AddAsync(SupplierDto dto);
     Task<ServiceResult<int>> UpdateAsync(SupplierDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<SupplierDto> batchReq);
+    Task<ServiceResult<SupplierBatchSaveResponse>> BatchSaveAsync(SupplierBatchSaveRequest batchReq);
 
 }

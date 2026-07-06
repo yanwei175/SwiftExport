@@ -1,12 +1,12 @@
-﻿using System;
+using SwiftExport.Contracts.Wrappers;
+using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace SwiftExport.Contracts.DTOs.Independent
 {
-    public class IndependentBatchSaveResponse
+    public class IndependentBatchSaveResponse : BatchSaveResponseBase
     {
-        public List<IndependentSaveResult> Results { get; set; }
+        public List<IndependentSaveResult> Results { get; set; } = new List<IndependentSaveResult>();
     }
 
     public class IndependentSaveResult
@@ -17,5 +17,4 @@ namespace SwiftExport.Contracts.DTOs.Independent
         public string Message { get; set; }
         public string Operation { get; set; }
     }
-
 }

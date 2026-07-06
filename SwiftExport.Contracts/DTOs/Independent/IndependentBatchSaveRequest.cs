@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Contracts.DTOs.Independent
 {
-    public class IndependentBatchSaveRequest
+    public class IndependentBatchSaveRequest : BatchSaveRequestBase<IndependentDemandDto>
     {
-        List<IndependentDemandDto> CreateList { get; set; }
-        List<IndependentDemandDto> UpdateList { get; set; }
-        
     }
 }

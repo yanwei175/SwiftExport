@@ -1,4 +1,4 @@
-﻿using Mapster;
+using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
@@ -11,6 +11,10 @@ using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
+using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.Customers.Responses;
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 namespace SwiftExport.Application.Services.Customers;
 
 /// <summary>
@@ -126,14 +130,14 @@ public class CustomerProductServices(
     /// DTO → Entity 手动映射，只写 CustomerProduct 表的真实列，
     /// 联表字段（CustomerCode / DescriptionEn / CategoryName 等）不会写入。
     /// </summary>
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<CustomerProductDto> batchReq)
+    public async Task<ServiceResult<CustomerProductBatchSaveResponse>> BatchSaveAsync(CustomerProductBatchSaveRequest batchReq)
     {
         Logger.LogInformation(
             "开始执行 [CustomerProduct] 批量保存事务，计划新增: {AddCount}，修改: {UpdateCount}，删除: {DeleteCount}",
             batchReq.AddList?.Count ?? 0, batchReq.UpdateList?.Count ?? 0, batchReq.DeleteIdList?.Count ?? 0);
 
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BatchResultDto();
+        var result = new CustomerProductBatchSaveResponse();
 
         try
         {
@@ -255,11 +259,11 @@ public class CustomerProductServices(
             if (errorMsg.Length > 0)
             {
                 _session.Transaction.Rollback();
-                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+                return ServiceResult<CustomerProductBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<BatchResultDto>.Ok(result);
+            return ServiceResult<CustomerProductBatchSaveResponse>.Ok(result);
         }
         catch (Exception ex)
         {

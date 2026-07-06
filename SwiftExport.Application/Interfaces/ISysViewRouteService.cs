@@ -3,6 +3,8 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.SystemEntities;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 namespace SwiftExport.Application.Interfaces
 {
     /// <summary>
@@ -17,7 +19,7 @@ namespace SwiftExport.Application.Interfaces
     Task<ServiceResult<Guid>> AddAsync(SysViewRouteDto dto);
     Task<ServiceResult<int>> UpdateAsync(SysViewRouteDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<SysViewRouteDto> batchReq);
+    Task<ServiceResult<SysViewRouteBatchSaveResponse>> BatchSaveAsync(SysViewRouteBatchSaveRequest batchReq);
 
         /// <summary>
         /// 获取所有启用的路由配置（IsEnabled=true, IsDeleted=false）。

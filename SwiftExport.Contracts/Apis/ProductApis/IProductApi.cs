@@ -1,10 +1,11 @@
-﻿using Refit;
+using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-
 namespace SwiftExport.Contracts.Apis.ProductApis
 {
     public interface IProductApi : IGenericApi<ProductDto>
@@ -24,5 +25,8 @@ namespace SwiftExport.Contracts.Apis.ProductApis
 
         [Get("/sku/{sku}")]
         Task<ServiceResult<ProductDto>> GetBySkuAsync(string sku);
+
+        [Post("/batch-save")]
+        Task<ServiceResult<ProductBatchSaveResponse>> BatchSaveAsync([Body] ProductBatchSaveRequest request);
     }
 }

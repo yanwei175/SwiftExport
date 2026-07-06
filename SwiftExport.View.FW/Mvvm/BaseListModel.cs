@@ -75,7 +75,7 @@ namespace SwiftExport.View.FW.Mvvm
             }
 
             RaiseAllState();
-            
+
             ListStateChanged?.Invoke();
 
         }
@@ -242,9 +242,9 @@ namespace SwiftExport.View.FW.Mvvm
         }
 
         /// <summary>获取脏数据变更集，包括新增、修改和删除的项，供批量提交使用。</summary>
-        public BatchRequestDto<T> GetChangeSet()
+        public BatchSaveRequestBase<T> GetChangeSet()
         {
-            return new BatchRequestDto<T>
+            return new BatchSaveRequestBase<T>
             {
                 AddList = _allItems.Where(x => x.State == ModelState.Added).ToList(),
                 UpdateList = _allItems.Where(x => x.State == ModelState.Modified).ToList(),
@@ -273,36 +273,36 @@ namespace SwiftExport.View.FW.Mvvm
         {
             // 清空现有数据后批量加载新数据以提升性能
             Clear();
-            using(DisabledStateScope())
+            using (DisabledStateScope())
             {
 
-            if (dtos != null && dtos.Count > 0)
-            {
-                // 预分配内部列表容量以减少扩容
-                try { _allItems.Capacity = dtos.Count; } catch { }
-
-                var models = new List<T>(dtos.Count);
-                foreach (var dto in dtos)
+                if (dtos != null && dtos.Count > 0)
                 {
-                    var model = new T();
-                    // 在批量加载时抑制每行的 CommitChanges，统一在批量完成后提交
-                    model.LoadFromDto(dto, 抑制清理脏数据);
+                    // 预分配内部列表容量以减少扩容
+                    try { _allItems.Capacity = dtos.Count; } catch { }
 
-                    models.Add(model);
+                    var models = new List<T>(dtos.Count);
+                    foreach (var dto in dtos)
+                    {
+                        var model = new T();
+                        // 在批量加载时抑制每行的 CommitChanges，统一在批量完成后提交
+                        model.LoadFromDto(dto, 抑制清理脏数据);
+
+                        models.Add(model);
+
+                    }
+
+                    //// 批量完成后统一提交每个 model 的变更（清理脏数据）
+                    //foreach (var m in models)
+                    //    m.CommitChanges();
+
+                    // 批量添加以减少 CollectionChanged 的重复触发
+                    AddRangeFromModelList(models);
 
                 }
 
-                //// 批量完成后统一提交每个 model 的变更（清理脏数据）
-                //foreach (var m in models)
-                //    m.CommitChanges();
-
-                // 批量添加以减少 CollectionChanged 的重复触发
-                AddRangeFromModelList(models);
-
-            }
-
-            // 最终刷新状态
-            RaiseAllState();
+                // 最终刷新状态
+                RaiseAllState();
             }
         }
         /// <summary>

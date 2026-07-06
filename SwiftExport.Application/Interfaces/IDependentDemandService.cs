@@ -5,6 +5,8 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.Orders.Responses;
+using SwiftExport.Contracts.DTOs.Orders.Requests;
 namespace SwiftExport.Application.Interfaces
 {
     /// <summary>
@@ -18,7 +20,7 @@ namespace SwiftExport.Application.Interfaces
     Task<ServiceResult<Guid>> AddAsync(IndependentDemandDto dto);
     Task<ServiceResult<int>> UpdateAsync(IndependentDemandDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<IndependentDemandDto> batchReq);
+    Task<ServiceResult<DependentDemandBatchSaveResponse>> BatchSaveAsync(DependentDemandBatchSaveRequest batchReq);
 
         /// <summary>
         /// 分页查询拆解依赖需求。

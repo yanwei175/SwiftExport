@@ -11,6 +11,8 @@ using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
+using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.Customers.Responses;
 namespace SwiftExport.Application.Services.Customers;
 
 public partial class CustomerService(ICustomerRepository repository, ServiceBaseContext context) : ICustomerService
@@ -105,7 +107,7 @@ public partial class CustomerService(ICustomerRepository repository, ServiceBase
         return ServiceResult<IReadOnlyList<string>>.Ok(nonExistentCodes);
     }
 
-    public async Task<ServiceResult<PagedResultDto<CustomerDto>>> GetPagedAsync(PagedRequestDto request)
+    public async Task<ServiceResult<PagedResultDto<CustomerDto>>> GetPagedAsync(CustomerSearchRequest request)
     {
 
         // 1. 实例化底层查询对象
@@ -240,10 +242,10 @@ public partial class CustomerService(ICustomerRepository repository, ServiceBase
         }
     }
 
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<CustomerDto> batchReq)
+    public async Task<ServiceResult<CustomerBatchSaveResponse>> BatchSaveAsync(CustomerBatchSaveRequest batchReq)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BatchResultDto();
+        var result = new CustomerBatchSaveResponse();
 
         var createList = batchReq.AddList?.Adapt<List<Customer>>();
         var updateList = batchReq.UpdateList?.Adapt<List<Customer>>();
@@ -277,10 +279,10 @@ public partial class CustomerService(ICustomerRepository repository, ServiceBase
             }
 
             if (errorMsg.Length > 0)
-                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+                return ServiceResult<CustomerBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
 
             if (_repository is not IBatchWriteRepository<Customer> batchRepository)
-                return ServiceResult<BatchResultDto>.Fail($"{nameof(Customer)} 仓储未实现批量保存");
+                return ServiceResult<CustomerBatchSaveResponse>.Fail($"{nameof(Customer)} 仓储未实现批量保存");
 
             if (createList is { Count: > 0 })
             {
@@ -300,12 +302,12 @@ public partial class CustomerService(ICustomerRepository repository, ServiceBase
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<BatchResultDto>.Ok(result);
+            return ServiceResult<CustomerBatchSaveResponse>.Ok(result);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+            return ServiceResult<CustomerBatchSaveResponse>.Fail(ex.Message);
         }
         finally
         {

@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.Filters;
+using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.Customers.Responses;
 namespace SwiftExport.WebApi.Controllers.Customers;
 
 [ApiController]
@@ -31,10 +33,10 @@ public class CustomerPoConfigController(ICustomerPoConfigService service) : Cont
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<CustomerPoConfigDto> req) => await service.BatchSaveAsync(req);
+    public async Task<ServiceResult<CustomerPoConfigBatchSaveResponse>> BatchSave([FromBody] CustomerPoConfigBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
     [HttpGet]
-    public async Task<ServiceResult<PagedResultDto<CustomerPoConfigDto>>> GetPaged([FromQuery] PagedRequestDto request)
+    public async Task<ServiceResult<PagedResultDto<CustomerPoConfigDto>>> GetPaged([FromQuery] CustomerPoConfigSearchRequest request)
     {
 
         // 1. 实例化底层查询对象

@@ -5,6 +5,8 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.Filters;
 
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 namespace SwiftExport.WebApi.Controllers.Systems;
 
 /// <summary>
@@ -72,6 +74,6 @@ public class SysDictTypeController(ISysDictTypeService service)
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<SysDictTypeDto> req) => await service.BatchSaveAsync(req);
+    public async Task<ServiceResult<SysDictTypeBatchSaveResponse>> BatchSave([FromBody] SysDictTypeBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
 }

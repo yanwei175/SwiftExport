@@ -6,6 +6,8 @@ using SwiftExport.Core.Entities.Orders;
 using System;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.SalesOrders.Requests;
+using SwiftExport.Contracts.DTOs.SalesOrders.Responses;
 namespace SwiftExport.Application.Interfaces;
 
 /// <summary>
@@ -20,7 +22,7 @@ public partial interface ISalesOrderHeadService
     Task<ServiceResult<Guid>> AddAsync(SalesOrderHeaderDto dto);
     Task<ServiceResult<int>> UpdateAsync(SalesOrderHeaderDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<SalesOrderHeaderDto> batchReq);
+    Task<ServiceResult<SalesOrderHeadBatchSaveResponse>> BatchSaveAsync(SalesOrderHeadBatchSaveRequest batchReq);
 
 
    

@@ -5,6 +5,8 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.Filters;
 
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 namespace SwiftExport.WebApi.Controllers.Systems
 {
     /// <summary>
@@ -37,7 +39,7 @@ namespace SwiftExport.WebApi.Controllers.Systems
 
         [HttpPost("batch-save")]
         [PreventDuplicateRequest(WindowSeconds = 5)]
-        public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<SysViewRouteDto> req) => await service.BatchSaveAsync(req);
+        public async Task<ServiceResult<SysViewRouteBatchSaveResponse>> BatchSave([FromBody] SysViewRouteBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
         [HttpGet("all")]
         public async Task<ServiceResult<IReadOnlyList<SysViewRouteDto>>> GetAll()

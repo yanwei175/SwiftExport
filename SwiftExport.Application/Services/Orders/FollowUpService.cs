@@ -11,6 +11,8 @@ using SwiftExport.Core.Common;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
+using SwiftExport.Contracts.DTOs.Orders.Requests;
+using SwiftExport.Contracts.DTOs.Orders.Responses;
 namespace SwiftExport.Application.Services.Orders;
 
 /// <summary>
@@ -193,10 +195,10 @@ public partial class FollowUpService(
         }
     }
 
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<FollowUpLogDto> batchReq)
+    public async Task<ServiceResult<FollowUpBatchSaveResponse>> BatchSaveAsync(FollowUpBatchSaveRequest batchReq)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BatchResultDto();
+        var result = new FollowUpBatchSaveResponse();
 
         var createList = batchReq.AddList?.Adapt<List<FollowUpLog>>();
         var updateList = batchReq.UpdateList?.Adapt<List<FollowUpLog>>();
@@ -224,10 +226,10 @@ public partial class FollowUpService(
             }
 
             if (errorMsg.Length > 0)
-                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+                return ServiceResult<FollowUpBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
 
             if (_followUpRepository is not IBatchWriteRepository<FollowUpLog> batchRepository)
-                return ServiceResult<BatchResultDto>.Fail($"{nameof(FollowUpLog)} 仓储未实现批量保存");
+                return ServiceResult<FollowUpBatchSaveResponse>.Fail($"{nameof(FollowUpLog)} 仓储未实现批量保存");
 
             if (createList is { Count: > 0 })
             {
@@ -247,12 +249,12 @@ public partial class FollowUpService(
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<BatchResultDto>.Ok(result);
+            return ServiceResult<FollowUpBatchSaveResponse>.Ok(result);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+            return ServiceResult<FollowUpBatchSaveResponse>.Fail(ex.Message);
         }
         finally
         {

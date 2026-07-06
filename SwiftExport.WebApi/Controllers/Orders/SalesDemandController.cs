@@ -6,6 +6,8 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.Filters;
 
+using SwiftExport.Contracts.DTOs.Independent.Requests;
+using SwiftExport.Contracts.DTOs.Independent.Responses;
 namespace SwiftExport.WebApi.Controllers.Orders;
 
 /// <summary>
@@ -37,7 +39,7 @@ public class IndependentDemandController(IIndependentDemandServices service)
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<IndependentDemandDto> req) => await service.BatchSaveAsync(req);
+    public async Task<ServiceResult<IndependentDemandBatchSaveResponse>> BatchSave([FromBody] IndependentDemandBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
     /// <summary>
     /// 按来源单据触发销售毛需求拆解。

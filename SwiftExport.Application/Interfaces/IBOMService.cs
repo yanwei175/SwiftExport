@@ -1,10 +1,12 @@
 using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.Products.Requests;
 namespace SwiftExport.Application.Interfaces
 {
     public partial interface IBomService
@@ -15,7 +17,7 @@ namespace SwiftExport.Application.Interfaces
     Task<ServiceResult<Guid>> AddAsync(BomDto dto);
     Task<ServiceResult<int>> UpdateAsync(BomDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<BomDto> batchReq);
+    Task<ServiceResult<BomBatchSaveResponse>> BatchSaveAsync(BomBatchSaveRequest batchReq);
 
 
 

@@ -14,6 +14,8 @@ using SwiftExport.Core.Common;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
+using SwiftExport.Contracts.DTOs.SalesOrders.Requests;
+using SwiftExport.Contracts.DTOs.SalesOrders.Responses;
 namespace SwiftExport.Application.Services.Orders;
 
 /// <summary>
@@ -147,10 +149,10 @@ public partial class SalesOrderHeadService(
         }
     }
 
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<SalesOrderHeaderDto> batchReq)
+    public async Task<ServiceResult<SalesOrderHeadBatchSaveResponse>> BatchSaveAsync(SalesOrderHeadBatchSaveRequest batchReq)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BatchResultDto();
+        var result = new SalesOrderHeadBatchSaveResponse();
 
         var createList = batchReq.AddList?.Adapt<List<SalesOrderHeader>>();
         var updateList = batchReq.UpdateList?.Adapt<List<SalesOrderHeader>>();
@@ -178,10 +180,10 @@ public partial class SalesOrderHeadService(
             }
 
             if (errorMsg.Length > 0)
-                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+                return ServiceResult<SalesOrderHeadBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
 
             if (_headRepo is not IBatchWriteRepository<SalesOrderHeader> batchRepository)
-                return ServiceResult<BatchResultDto>.Fail($"{nameof(SalesOrderHeader)} 仓储未实现批量保存");
+                return ServiceResult<SalesOrderHeadBatchSaveResponse>.Fail($"{nameof(SalesOrderHeader)} 仓储未实现批量保存");
 
             if (createList is { Count: > 0 })
             {
@@ -201,12 +203,12 @@ public partial class SalesOrderHeadService(
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<BatchResultDto>.Ok(result);
+            return ServiceResult<SalesOrderHeadBatchSaveResponse>.Ok(result);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+            return ServiceResult<SalesOrderHeadBatchSaveResponse>.Fail(ex.Message);
         }
         finally
         {

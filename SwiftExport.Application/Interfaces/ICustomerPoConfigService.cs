@@ -3,6 +3,8 @@ using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.Customers.Responses;
 namespace SwiftExport.Application.Interfaces
 {
     public partial interface ICustomerPoConfigService
@@ -13,7 +15,7 @@ namespace SwiftExport.Application.Interfaces
     Task<ServiceResult<Guid>> AddAsync(CustomerPoConfigDto dto);
     Task<ServiceResult<int>> UpdateAsync(CustomerPoConfigDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<CustomerPoConfigDto> batchReq);
+    Task<ServiceResult<CustomerPoConfigBatchSaveResponse>> BatchSaveAsync(CustomerPoConfigBatchSaveRequest batchReq);
 
     }
 }

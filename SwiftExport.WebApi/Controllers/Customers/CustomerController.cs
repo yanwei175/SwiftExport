@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.Filters;
+using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.Customers.Responses;
 namespace SwiftExport.WebApi.Controllers.Customers;
 
 [ApiController]
@@ -31,10 +33,10 @@ public class CustomerController(ICustomerService service) : ControllerBase
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<CustomerDto> req) => await service.BatchSaveAsync(req);
+    public async Task<ServiceResult<CustomerBatchSaveResponse>> BatchSave([FromBody] CustomerBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
     [HttpGet("page")]
-    public async Task<ServiceResult<PagedResultDto<CustomerDto>>> GetPaged([FromQuery] PagedRequestDto request)
+    public async Task<ServiceResult<PagedResultDto<CustomerDto>>> GetPaged([FromQuery] CustomerSearchRequest request)
     {
         return await service.GetPagedAsync(request);
     }

@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.Filters;
 
+using SwiftExport.Contracts.DTOs.Suppliers.Requests;
+using SwiftExport.Contracts.DTOs.Suppliers.Responses;
 namespace SwiftExport.WebApi.Controllers.Suppliers;
 
 [ApiController]
@@ -32,10 +34,10 @@ public class SupplierController(ISupplierService service) : ControllerBase
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<SupplierDto> req) => await service.BatchSaveAsync(req);
+    public async Task<ServiceResult<SupplierBatchSaveResponse>> BatchSave([FromBody] SupplierBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
     [HttpGet]
-    public async Task<ServiceResult<PagedResultDto<SupplierDto>>> GetPaged([FromQuery] PagedRequestDto request)
+    public async Task<ServiceResult<PagedResultDto<SupplierDto>>> GetPaged([FromQuery] SupplierSearchRequest request)
     {
 
         // 1. 实例化底层查询对象

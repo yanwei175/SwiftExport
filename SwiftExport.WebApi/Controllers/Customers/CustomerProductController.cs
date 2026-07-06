@@ -1,9 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.Wrappers;
 
+using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.Customers.Responses;
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 namespace SwiftExport.WebApi.Controllers.Customers;
 
 /// <summary>
@@ -40,6 +44,6 @@ public class CustomerProductController(ICustomerProductService service) : Contro
 
     /// <summary>批量保存（新增 / 修改 / 删除），事务保护</summary>
     [HttpPost("batch-save")]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<CustomerProductDto> req)
+    public async Task<ServiceResult<CustomerProductBatchSaveResponse>> BatchSave([FromBody] CustomerProductBatchSaveRequest req)
         => await service.BatchSaveAsync(req);
 }

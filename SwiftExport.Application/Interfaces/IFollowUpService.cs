@@ -3,6 +3,8 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.Orders.Requests;
+using SwiftExport.Contracts.DTOs.Orders.Responses;
 namespace SwiftExport.Application.Interfaces
 {
     /// <summary>
@@ -16,7 +18,7 @@ namespace SwiftExport.Application.Interfaces
     Task<ServiceResult<Guid>> AddAsync(FollowUpLogDto dto);
     Task<ServiceResult<int>> UpdateAsync(FollowUpLogDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<FollowUpLogDto> batchReq);
+    Task<ServiceResult<FollowUpBatchSaveResponse>> BatchSaveAsync(FollowUpBatchSaveRequest batchReq);
 
         /// <summary>
         /// 更新采购跟进信息：当采购行 ReadyQty 变更时，同步更新关联净需求 ReceivedQty。

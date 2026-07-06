@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.Filters;
 
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 namespace SwiftExport.WebApi.Controllers.Products;
 
 [ApiController]
@@ -32,10 +34,10 @@ public class ProductCategoryController(IProductCategoryService service) : Contro
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<ProductCategoryDto> req) => await service.BatchSaveAsync(req);
+    public async Task<ServiceResult<ProductCategoryBatchSaveResponse>> BatchSave([FromBody] ProductCategoryBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
     [HttpGet]
-    public async Task<ServiceResult<PagedResultDto<ProductCategoryDto>>> GetPaged([FromQuery] PagedRequestDto request)
+    public async Task<ServiceResult<PagedResultDto<ProductCategoryDto>>> GetPaged([FromQuery] ProductCategorySearchRequest request)
     {
 
         // 1. 实例化底层查询对象

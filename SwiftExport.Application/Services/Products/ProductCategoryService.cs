@@ -11,6 +11,8 @@ using SwiftExport.Core.Common;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 namespace SwiftExport.Application.Services.Products;
 
 public partial class ProductCategoryService(IProductCategoryRepository repository, ServiceBaseContext context) : IProductCategoryService
@@ -124,10 +126,10 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
         }
     }
 
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<ProductCategoryDto> batchReq)
+    public async Task<ServiceResult<ProductCategoryBatchSaveResponse>> BatchSaveAsync(ProductCategoryBatchSaveRequest batchReq)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BatchResultDto();
+        var result = new ProductCategoryBatchSaveResponse();
 
         var createList = batchReq.AddList?.Adapt<List<ProductCategory>>();
         var updateList = batchReq.UpdateList?.Adapt<List<ProductCategory>>();
@@ -155,10 +157,10 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
             }
 
             if (errorMsg.Length > 0)
-                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+                return ServiceResult<ProductCategoryBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
 
             if (_repository is not IBatchWriteRepository<ProductCategory> batchRepository)
-                return ServiceResult<BatchResultDto>.Fail($"{nameof(ProductCategory)} 仓储未实现批量保存");
+                return ServiceResult<ProductCategoryBatchSaveResponse>.Fail($"{nameof(ProductCategory)} 仓储未实现批量保存");
 
             if (createList is { Count: > 0 })
             {
@@ -178,12 +180,12 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<BatchResultDto>.Ok(result);
+            return ServiceResult<ProductCategoryBatchSaveResponse>.Ok(result);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+            return ServiceResult<ProductCategoryBatchSaveResponse>.Fail(ex.Message);
         }
         finally
         {

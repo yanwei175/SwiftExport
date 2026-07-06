@@ -7,6 +7,8 @@ using SwiftExport.WebApi.Filters;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 namespace SwiftExport.WebApi.Controllers.Products;
 
 [ApiController]
@@ -34,7 +36,7 @@ public class BomController(IBomService service) : ControllerBase
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<BomDto> req) => await service.BatchSaveAsync(req);
+    public async Task<ServiceResult<BomBatchSaveResponse>> BatchSave([FromBody] BomBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
     [HttpGet("tree/{productSku}")]
     public async Task<ServiceResult<IEnumerable<BomTreeDto>>> GetBomTree(string productSku)

@@ -15,6 +15,8 @@ using SwiftExport.Core.Common;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 namespace SwiftExport.Application.Services.Products;
 
 public partial class BomService(
@@ -631,10 +633,10 @@ public partial class BomService(
         }
     }
 
-    public async Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<BomDto> batchReq)
+    public async Task<ServiceResult<BomBatchSaveResponse>> BatchSaveAsync(BomBatchSaveRequest batchReq)
     {
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BatchResultDto();
+        var result = new BomBatchSaveResponse();
 
         var createList = batchReq.AddList?.Adapt<List<Bom>>();
         var updateList = batchReq.UpdateList?.Adapt<List<Bom>>();
@@ -662,10 +664,10 @@ public partial class BomService(
             }
 
             if (errorMsg.Length > 0)
-                return ServiceResult<BatchResultDto>.Fail(errorMsg.ToString().TrimEnd());
+                return ServiceResult<BomBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
 
             if (_bomRepo is not IBatchWriteRepository<Bom> batchRepository)
-                return ServiceResult<BatchResultDto>.Fail($"{nameof(Bom)} 仓储未实现批量保存");
+                return ServiceResult<BomBatchSaveResponse>.Fail($"{nameof(Bom)} 仓储未实现批量保存");
 
             if (createList is { Count: > 0 })
             {
@@ -685,12 +687,12 @@ public partial class BomService(
             }
 
             _session.Transaction.Commit();
-            return ServiceResult<BatchResultDto>.Ok(result);
+            return ServiceResult<BomBatchSaveResponse>.Ok(result);
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<BatchResultDto>.Fail(ex.Message);
+            return ServiceResult<BomBatchSaveResponse>.Fail(ex.Message);
         }
         finally
         {

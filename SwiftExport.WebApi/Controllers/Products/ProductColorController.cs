@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.WebApi.Filters;
 
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 namespace SwiftExport.WebApi.Controllers.Products;
 
 [ApiController]
@@ -26,15 +28,15 @@ public class ProductColorController(IProductColorService service) : ControllerBa
     public async Task<ServiceResult<int>> Delete(Guid id) => await service.DeleteAsync(id);
 
     [HttpPost("page")]
-    public async Task<ServiceResult<PagedResultDto<ProductColorDto>>> GetPagedList([FromBody] PagedRequestDto request)
+    public async Task<ServiceResult<PagedResultDto<ProductColorDto>>> GetPagedList([FromBody] ProductColorSearchRequest request)
         => await service.GetPagedAsync(request);
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<ProductColorDto> req) => await service.BatchSaveAsync(req);
+    public async Task<ServiceResult<ProductColorBatchSaveResponse>> BatchSave([FromBody] ProductColorBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
     [HttpGet]
-    public async Task<ServiceResult<PagedResultDto<ProductColorDto>>> GetPaged([FromQuery] PagedRequestDto request)
+    public async Task<ServiceResult<PagedResultDto<ProductColorDto>>> GetPaged([FromQuery] ProductColorSearchRequest request)
     {
         return await service.GetPagedAsync(request);
     }

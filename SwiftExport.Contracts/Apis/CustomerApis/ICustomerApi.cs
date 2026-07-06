@@ -1,18 +1,20 @@
-﻿using Refit;
+using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.Wrappers;
 using System.Threading.Tasks;
 
+using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.Customers.Responses;
 namespace SwiftExport.Contracts.Apis.CustomerApis
 {
     public interface ICustomerApi : IGenericApi<CustomerDto>
     {
         [Get("/page")]
-        Task<ServiceResult<PagedResultDto<CustomerDto>>> GetPagedAsync([Query] PagedRequestDto request);
+        Task<ServiceResult<PagedResultDto<CustomerDto>>> GetPagedAsync([Query] CustomerSearchRequest request);
 
         [Post("/batch-save")]
-        Task<ServiceResult<BatchResultDto>> BatchSaveAsync([Body] BatchRequestDto<CustomerDto> request);
+        Task<ServiceResult<CustomerBatchSaveResponse>> BatchSaveAsync([Body] CustomerBatchSaveRequest request);
 
     }
 }

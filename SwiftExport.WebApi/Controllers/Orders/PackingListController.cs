@@ -6,6 +6,8 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.Filters;
 
+using SwiftExport.Contracts.DTOs.PackingLists.Requests;
+using SwiftExport.Contracts.DTOs.PackingLists.Responses;
 namespace SwiftExport.WebApi.Controllers.Orders;
 
 [ApiController]
@@ -33,7 +35,7 @@ public class PackingListController(IPackingListService service) : ControllerBase
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<PackingListHeadDto> req) => await service.BatchSaveAsync(req);
+    public async Task<ServiceResult<PackingListBatchSaveResponse>> BatchSave([FromBody] PackingListBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
     [HttpPost("search")]
     public async Task<ServiceResult<PagedResultDto<PackingListHeadDto>>> GetPagedListAsync([FromBody] PackingListSearchDto search)

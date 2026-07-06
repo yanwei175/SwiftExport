@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.Filters;
 
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 namespace SwiftExport.WebApi.Controllers.Products;
 
 [ApiController]
@@ -32,7 +34,7 @@ public class ProductController(IProductService service) : ControllerBase
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<BatchResultDto>> BatchSave([FromBody] BatchRequestDto<ProductDto> req) => await service.BatchSaveAsync(req);
+    public async Task<ServiceResult<ProductBatchSaveResponse>> BatchSave([FromBody] ProductBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
     // ================= 查询类 (GET) =================
 

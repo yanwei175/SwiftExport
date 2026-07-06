@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
-using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExportClient.Controls;
 using SwiftExportClient.Features.Products.Colors.Models;
 using SwiftExportClient.Mvvm;
@@ -297,7 +297,7 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
                 return;
             }
 
-            var request = new BatchRequestDto<ProductColorDto>
+            var request = new ProductColorBatchSaveRequest
             {
                 AddList = changeSet.Added.ToList(),
                 UpdateList = changeSet.Modified.ToList(),
@@ -357,7 +357,7 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
     private async Task<bool> LoadPageCoreAsync()
     {
         var keyword = NullIfWhiteSpace(Keyword);
-        var request = new PagedRequestDto
+        var request = new ProductColorSearchRequest
         {
             Keyword = keyword,
             PageIndex = PageIndex,

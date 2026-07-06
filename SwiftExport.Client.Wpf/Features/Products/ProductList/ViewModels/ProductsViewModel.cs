@@ -1,14 +1,14 @@
-using System.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
-using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExportClient.Controls;
 using SwiftExportClient.Features.Products.Categories.Services;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
@@ -351,7 +351,7 @@ public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
                 return;
             }
 
-            var request = new BatchRequestDto<ProductDto>
+            var request = new ProductBatchSaveRequest
             {
                 AddList = changeSet.Added.ToList(),
                 UpdateList = changeSet.Modified.ToList(),

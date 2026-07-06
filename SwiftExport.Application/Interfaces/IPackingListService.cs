@@ -3,6 +3,8 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Common;
 
+using SwiftExport.Contracts.DTOs.PackingLists.Requests;
+using SwiftExport.Contracts.DTOs.PackingLists.Responses;
 namespace SwiftExport.Application.Interfaces;
 
 public partial interface IPackingListService
@@ -13,7 +15,7 @@ public partial interface IPackingListService
     Task<ServiceResult<Guid>> AddAsync(PackingListHeadDto dto);
     Task<ServiceResult<int>> UpdateAsync(PackingListHeadDto dto);
     Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<BatchResultDto>> BatchSaveAsync(BatchRequestDto<PackingListHeadDto> batchReq);
+    Task<ServiceResult<PackingListBatchSaveResponse>> BatchSaveAsync(PackingListBatchSaveRequest batchReq);
 
     Task<ServiceResult<PagedResultDto<PackingListHeadDto>>> GetHeadPagedListAsync(PackingListSearchDto search);
     Task<ServiceResult<PackingListDetailDto>> GetDetailByIdAsync(Guid id);
