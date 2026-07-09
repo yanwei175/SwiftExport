@@ -1,20 +1,12 @@
 ﻿using SwiftExport.Contracts.DTOs.Products;
-using SwiftExport.Core.Entities;
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Interfaces;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
-using System.Transactions;
 
 namespace SwiftExport.Core.Interfaces
 {
     public interface IBomRepository : IRepository<Bom>
     {
 
-        Task<bool> IsBomItemExistAsync(string bomNo,string productSku);
+        Task<bool> IsBomItemExistAsync(string bomNo, string productSku);
         /// <summary>
         /// 通过一堆BOM号,获取多张BOM
         /// </summary>

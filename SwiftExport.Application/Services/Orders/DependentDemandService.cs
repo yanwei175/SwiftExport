@@ -2,19 +2,18 @@ using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
+using SwiftExport.Application.Services.Base;
+using SwiftExport.Contracts.DTOs.DependentDemands;
 using SwiftExport.Contracts.DTOs.Independent;
-using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Orders.Requests;
 using SwiftExport.Contracts.DTOs.Orders.Responses;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Data;
-using System.Text;
 namespace SwiftExport.Application.Services.Orders;
 
 /// <summary>
@@ -23,40 +22,36 @@ namespace SwiftExport.Application.Services.Orders;
 public partial class DependentDemandService(
     IDependentDemandRepository repository,
     IBomService bomService,
-    IPurchaseOrderRepository purchaseOrderRepository,
+    IPurchaseOrderHeadRepository purchaseOrderRepository,
     IPurchaseOrderLineRepository purchaseOrderItemRepository,
     IRepository<SalesOrderHeader> salesOrderHeaderRepository,
     IProductRepository productRepository,
     ISupplierRepository supplierRepository,
     IDocumentNoService documentNoService,
-    ServiceBaseContext context) : IDependentDemandService
+    ServiceBaseContext context)
+    : BaseService<DependentDemand, DependentDemandDto>(repository, context), IDependentDemandService
 {
-    private readonly DbSession _session = context.Session;
+
     private readonly ILogger<DependentDemandService> _logger = context.LoggerFactory.CreateLogger<DependentDemandService>();
     /// <summary>
     /// 中文注释：需求池转采购行的专用 Mapster 配置。
     /// 仅维护共性字段映射（如 SupplyType），其余依赖产品档案的字段在转单时补齐。
     /// </summary>
     private static readonly TypeAdapterConfig DependentDemandToPurchaseOrderLineMapConfig = BuildDependentDemandToPurchaseOrderLineMapConfig();
-    private readonly IDependentDemandRepository _rpRepository = repository;
-    private readonly IBomService _bomService = bomService;
-    private readonly IPurchaseOrderRepository _purchaseOrderRepository = purchaseOrderRepository;
-    private readonly IPurchaseOrderLineRepository _purchaseOrderItemRepository = purchaseOrderItemRepository;
-    private readonly IRepository<SalesOrderHeader> _salesOrderHeaderRepository = salesOrderHeaderRepository;
-    private readonly IProductRepository _productRepository = productRepository;
-    private readonly ISupplierRepository _supplierRepository = supplierRepository;
-    private readonly IDocumentNoService _documentNoService = documentNoService;
+
 
     /// <summary>
     /// 批量保存拆解结果到依赖需求池。
     /// </summary>
     public async Task<ServiceResult<int>> SaveToDependentDemandAsync(List<DependentDemand> demands)
     {
-        if (demands == null || demands.Count == 0)
-            return ServiceResult<int>.Ok(0);
+        //if (demands == null || demands.Count == 0)
+        //    return ServiceResult<int>.Ok(0);
 
-        var affectedIds = await _rpRepository.AddRangeAsync(demands);
-        return ServiceResult<int>.Ok(affectedIds?.Count ?? 0);
+        //var affectedIds = await repository.AddRangeAsync(demands);
+        //return ServiceResult<int>.Ok(affectedIds?.Count ?? 0);
+        throw new NotImplementedException();
+
     }
 
     /// <summary>
@@ -87,94 +82,31 @@ public partial class DependentDemandService(
         if (string.IsNullOrWhiteSpace(supplierCode))
             return ServiceResult<bool>.Fail("供应商编码不能为空");
 
-        var entity = await _rpRepository.GetByIdAsync(id);
+        var entity = await repository.GetByIdAsync(id);
         if (entity == null)
             return ServiceResult<bool>.Fail("需求池行不存在");
 
         entity.SupplierCode = supplierCode.Trim();
         entity.SupplierName = (supplierName ?? string.Empty).Trim();
 
-        await _rpRepository.UpdateAsync(entity);
+        await repository.UpdateAsync(entity);
         return ServiceResult<bool>.Ok(true);
     }
 
     /// <summary>
     /// 分页查询拆解需求池列表。
     /// </summary>
-    /// <param name="search">查询条件</param>
+    /// <param name="request">查询条件</param>
     /// <returns>分页结果</returns>
-    public async Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync(DependentDemandSearchDto search)
+    public async Task<ServiceResult<PagedResponseBase<DependentDemandDto>>> GetPagedListAsync(DependentDemandSearchRequest request)
     {
-        search ??= new DependentDemandSearchDto();
+        request ??= new DependentDemandSearchRequest();
 
-        var criteria = BuildCriteria(search);
-        int pageIndex = search.PageIndex > 0 ? search.PageIndex : 1;
-        int pageSize = search.PageSize > 0 ? search.PageSize : 50;
 
-        var paged = await _rpRepository.GetPagedListAsync(criteria, pageIndex, pageSize, "Id DESC");
-
-        return ServiceResult<PagedResultDto<IndependentDemandDto>>.Ok(new PagedResultDto<IndependentDemandDto>
-        {
-            Items = paged.Items.Adapt<List<IndependentDemandDto>>(),
-            TotalCount = paged.TotalCount,
-            PageIndex = paged.PageIndex,
-            PageSize = paged.PageSize
-        });
+        var paged = await repository.GetPagedAsync(request);
+        return null;
     }
 
-    /// <summary>
-    /// 构建分页查询条件。
-    /// </summary>
-    private static QueryCriteria BuildCriteria(DependentDemandSearchDto search)
-    {
-        var criteria = new QueryCriteria();
-
-        if (!string.IsNullOrWhiteSpace(search.SourceNo))
-            criteria.Add("SourceNo", 查询操作符.模糊匹配, search.SourceNo.Trim());
-
-        if (!string.IsNullOrWhiteSpace(search.SourceType))
-            criteria.Add("SourceType", 查询操作符.等于, search.SourceType.Trim());
-
-        if (!string.IsNullOrWhiteSpace(search.Sku))
-            criteria.Add("Sku", 查询操作符.模糊匹配, search.Sku.Trim());
-
-        if (!string.IsNullOrWhiteSpace(search.SupplyType))
-            criteria.Add("SupplyType", 查询操作符.等于, search.SupplyType.Trim());
-
-        if (search.BomLevel.HasValue)
-        {
-            // 中文注释：层级过滤支持“成品/子件”工作台筛选。
-            if (search.BomLevel.Value == 1)
-                criteria.Add("BomLevel", 查询操作符.大于等于, 1);
-            else
-                criteria.Add("BomLevel", 查询操作符.等于, search.BomLevel.Value);
-        }
-
-        if (search.StatusFlag < 0)
-            criteria.Add("StatusFlag", 查询操作符.等于, IndependentDemandStatusEnum.未确认);
-
-        if (search.IsKitted.HasValue)
-            criteria.Add("IsKitted", 查询操作符.等于, search.IsKitted.Value);
-
-        if (!string.IsNullOrWhiteSpace(search.SupplierKeyword))
-        {
-            var supplierKeyword = search.SupplierKeyword.Trim();
-            criteria.AddOrGroup(
-                ("SupplierCode", 查询操作符.模糊匹配, supplierKeyword),
-                ("SupplierName", 查询操作符.模糊匹配, supplierKeyword));
-        }
-
-        if (!string.IsNullOrWhiteSpace(search.Keyword))
-        {
-            var keyword = search.Keyword.Trim();
-            criteria.AddOrGroup(
-                ("SourceNo", 查询操作符.模糊匹配, keyword),
-                ("Sku", 查询操作符.模糊匹配, keyword),
-                ("TargetNo", 查询操作符.模糊匹配, keyword));
-        }
-
-        return criteria;
-    }
 
     /// <summary>
     /// 根据来源单据判断是否允许回退审批。
@@ -185,7 +117,7 @@ public partial class DependentDemandService(
         if (string.IsNullOrWhiteSpace(sourceType) || string.IsNullOrWhiteSpace(sourceNo))
             return ServiceResult<bool>.Fail("来源类型和来源单号不能为空");
 
-        var pools = await _rpRepository.GetBySourceAsync(sourceType, sourceNo);
+        var pools = await repository.GetBySourceAsync(sourceType, sourceNo);
         if (pools == null || pools.Count == 0)
             return ServiceResult<bool>.Ok(true);
 
@@ -209,271 +141,273 @@ public partial class DependentDemandService(
         if (string.IsNullOrWhiteSpace(sourceType) || string.IsNullOrWhiteSpace(sourceNo))
             return ServiceResult<int>.Fail("来源类型和来源单号不能为空");
 
-        var deleteCount = await _rpRepository.DeleteBySourceAsync(sourceType, sourceNo);
+        var deleteCount = await repository.DeleteBySourceAsync(sourceType, sourceNo);
         return ServiceResult<int>.Ok(deleteCount);
     }
 
-    public async Task<ServiceResult<List<string>>> 根据单据类型和单据号转采购单Async(string sourceType, string sourceNo)
+    public async Task<ServiceResult<List<string>>> CoverToPurchaseOrderBySourceTypeAndSourceNoAsync(string sourceType, string sourceNo)
     {
-        try
-        {
-            var criteria = new QueryCriteria();
-            criteria.Add("StatusFlag", 查询操作符.等于, DependentDemandStatusEnum.未确认);
-            criteria.Add("SupplyType", 查询操作符.等于, SupplyTypeEnums.采购);
-            criteria.Add("SourceType", 查询操作符.等于, sourceType);
-            criteria.Add("SourceNo", 查询操作符.等于, sourceNo);
+        //try
+        //{
+        //    var criteria = new QueryCriteria();
+        //    criteria.Add("StatusFlag", 查询操作符.等于, DependentDemandStatusEnum.未确认);
+        //    criteria.Add("SupplyType", 查询操作符.等于, SupplyTypeEnums.采购);
+        //    criteria.Add("SourceType", 查询操作符.等于, sourceType);
+        //    criteria.Add("SourceNo", 查询操作符.等于, sourceNo);
 
-            List<DependentDemand> request = [.. await _rpRepository.GetListAsync(criteria)];
+        //    List<DependentDemand> request = [.. await repository.GetListAsync(criteria)];
 
-            if (request == null || request.Count == 0)
-                return ServiceResult<List<string>>.Fail("未找到符合条件的需求池记录");
+        //    if (request == null || request.Count == 0)
+        //        return ServiceResult<List<string>>.Fail("未找到符合条件的需求池记录");
 
-            var 净需求列表 = 校验净需求是否适合转采购单(request);
+        //    var 净需求列表 = 校验净需求是否适合转采购单(request);
 
-            var OrderNoList = await 转换成采购订单Async(净需求列表);
+        //    var OrderNoList = await 转换成采购订单Async(净需求列表);
 
-            return ServiceResult<List<string>>.Ok(OrderNoList);
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<List<string>>.Fail("转单失败：" + ex.Message);
-        }
+        //    return ServiceResult<List<string>>.Ok(OrderNoList);
+        //}
+        //catch (Exception ex)
+        //{
+        //    return ServiceResult<List<string>>.Fail("转单失败：" + ex.Message);
+        //}
+        throw new NotImplementedException();
     }
 
-    public async Task<ServiceResult<List<string>>> 根据指定净需求行转采购单Async(List<Guid> 净需求行IdList)
+    public async Task<ServiceResult<List<string>>> CoverToPurchaseOrderByDependentIdListAsync(List<Guid> 净需求行IdList)
     {
-        try
-        {
-            if (净需求行IdList == null || 净需求行IdList.Count == 0)
-                return ServiceResult<List<string>>.Fail("净需求行列表不能为空");
+        //    try
+        //    {
+        //        if (净需求行IdList == null || 净需求行IdList.Count == 0)
+        //            return ServiceResult<List<string>>.Fail("净需求行列表不能为空");
 
-            var request = await _rpRepository.GetByIdListAsync(净需求行IdList);
+        //        var request = await repository.GetByIdListAsync(净需求行IdList);
 
-            if (request == null || request.Count == 0)
-                return ServiceResult<List<string>>.Fail("未找到对应的净需求行记录");
+        //        if (request == null || request.Count == 0)
+        //            return ServiceResult<List<string>>.Fail("未找到对应的净需求行记录");
 
-            request = 校验净需求是否适合转采购单(request);
+        //        request = 校验净需求是否适合转采购单(request);
 
-            var OrderNoList = await 转换成采购订单Async(request);
+        //        var OrderNoList = await 转换成采购订单Async(request);
 
-            return ServiceResult<List<string>>.Ok(OrderNoList);
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<List<string>>.Fail("转单失败：" + ex.Message);
-        }
+        //        return ServiceResult<List<string>>.Ok(OrderNoList);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return ServiceResult<List<string>>.Fail("转单失败：" + ex.Message);
+        //    }
 
-    }
+        //}
 
-    private static List<DependentDemand> 校验净需求是否适合转采购单(IReadOnlyList<DependentDemand> 净需求列表)
-    {
-        if (净需求列表 == null || 净需求列表.Count == 0)
-            return [];
+        //private static List<DependentDemand> 校验净需求是否适合转采购单(IReadOnlyList<DependentDemand> 净需求列表)
+        //{
+        //    if (净需求列表 == null || 净需求列表.Count == 0)
+        //        return [];
 
-        foreach (var item in 净需求列表)
-        {
-            if (item == null)
-                throw new Exception("需求池行记录不能为空");
-            if (item.OrderStatus != DependentDemandStatusEnum.未确认)
-                throw new Exception($"需求池行Sku={item.Sku}的状态({item.OrderStatus})不符合转采购单要求");
-            if (!判断是否为采购类型(item.SupplyType))
-                throw new Exception($"需求池行Sku={item.Sku}的供应类型({item.SupplyType})不符合转采购单要求");
-        }
-        return [.. 净需求列表];
-    }
+        //    foreach (var item in 净需求列表)
+        //    {
+        //        if (item == null)
+        //            throw new Exception("需求池行记录不能为空");
+        //        if (item.OrderStatus != DependentDemandStatusEnum.未确认)
+        //            throw new Exception($"需求池行Sku={item.Sku}的状态({item.OrderStatus})不符合转采购单要求");
+        //        if (!判断是否为采购类型(item.SupplyType))
+        //            throw new Exception($"需求池行Sku={item.Sku}的供应类型({item.SupplyType})不符合转采购单要求");
+        //    }
+        //    return [.. 净需求列表];
+        //}
 
-    /// <summary>
-    /// 注意内部有开启事务.
-    /// 私有转采购单方法：接收一个集合合的需求池行，按供应商分组生成采购单，并回写需求池行状态与目标单号。
-    /// </summary>
-    /// <returns>返回生成的采购单号列表</returns>
-    private async Task<List<string>> 转换成采购订单Async(IEnumerable<DependentDemand> request)
-    {
-        var dependList = request.ToList();
-        if (dependList.Count == 0)
-            return [];
+        ///// <summary>
+        ///// 注意内部有开启事务.
+        ///// 私有转采购单方法：接收一个集合合的需求池行，按供应商分组生成采购单，并回写需求池行状态与目标单号。
+        ///// </summary>
+        ///// <returns>返回生成的采购单号列表</returns>
+        //private async Task<List<string>> 转换成采购订单Async(IEnumerable<DependentDemand> request)
+        //{
+        //    var dependList = request.ToList();
+        //    if (dependList.Count == 0)
+        //        return [];
 
-        #region 先获取前置Sku依赖的信息，避免后续循环中重复查询数据库,先构建产品索引，用于价格回填；供应商优先取需求池行手工指定值，未指定时再回退到产品默认供应商。
-        //根据Sku列表查询产品信息，构建SKU到产品的字典索引
-        var products = await _productRepository.GetBySkuListAsync([.. dependList
-            .Where(x => !string.IsNullOrWhiteSpace(x.Sku))
-            .Select(x => x.Sku)
-            .Distinct(StringComparer.OrdinalIgnoreCase)]);
-        //构建Key=Sku, Value=Product的字典索引（不区分大小写），用于后续转单时解析产品信息与单价
-        var productBySku = products
-            .Where(x => !string.IsNullOrWhiteSpace(x.Sku))
-            .ToDictionary(x => x.Sku!, x => x, StringComparer.OrdinalIgnoreCase);
-        //构建Key=Sku, Value=SupplierCode的默认供应商字典索引（不区分大小写），用于后续转单时解析供应商编码
-        var defaultSupplierBySku = products
-            .Where(x => !string.IsNullOrWhiteSpace(x.Sku) && !string.IsNullOrWhiteSpace(x.DefaultSupplierCode))
-            .ToDictionary(x => x.Sku!, x => x.DefaultSupplierCode!, StringComparer.OrdinalIgnoreCase);
-        #endregion
+        //    #region 先获取前置Sku依赖的信息，避免后续循环中重复查询数据库,先构建产品索引，用于价格回填；供应商优先取需求池行手工指定值，未指定时再回退到产品默认供应商。
+        //    //根据Sku列表查询产品信息，构建SKU到产品的字典索引
+        //    var products = await productRepository.GetBySkuListAsync([.. dependList
+        //        .Where(x => !string.IsNullOrWhiteSpace(x.Sku))
+        //        .Select(x => x.Sku)
+        //        .Distinct(StringComparer.OrdinalIgnoreCase)]);
+        //    //构建Key=Sku, Value=Product的字典索引（不区分大小写），用于后续转单时解析产品信息与单价
+        //    var productBySku = products
+        //        .Where(x => !string.IsNullOrWhiteSpace(x.Sku))
+        //        .ToDictionary(x => x.Sku!, x => x, StringComparer.OrdinalIgnoreCase);
+        //    //构建Key=Sku, Value=SupplierCode的默认供应商字典索引（不区分大小写），用于后续转单时解析供应商编码
+        //    var defaultSupplierBySku = products
+        //        .Where(x => !string.IsNullOrWhiteSpace(x.Sku) && !string.IsNullOrWhiteSpace(x.DefaultSupplierCode))
+        //        .ToDictionary(x => x.Sku!, x => x.DefaultSupplierCode!, StringComparer.OrdinalIgnoreCase);
+        //    #endregion
 
-        #region 解析供应商校验,
-        // 中文注释：校验所有待转单行必须能解析出供应商编码（行内指定 > 产品默认），否则无法转单。
-        var invalidRows = dependList
-            .Where(x => string.IsNullOrWhiteSpace(ResolveSupplierCode(x, defaultSupplierBySku)))
-            .Select(x => $"Uid={x.Uid},SourceNo={x.SourceNo},LineId={x.SourceLineId},Sku={(string.IsNullOrWhiteSpace(x.Sku) ? "(空SKU)" : x.Sku)}")
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        //    #region 解析供应商校验,
+        //    // 中文注释：校验所有待转单行必须能解析出供应商编码（行内指定 > 产品默认），否则无法转单。
+        //    var invalidRows = dependList
+        //        .Where(x => string.IsNullOrWhiteSpace(ResolveSupplierCode(x, defaultSupplierBySku)))
+        //        .Select(x => $"Uid={x.Uid},SourceNo={x.SourceNo},LineId={x.SourceLineId},Sku={(string.IsNullOrWhiteSpace(x.Sku) ? "(空SKU)" : x.Sku)}")
+        //        .Distinct(StringComparer.OrdinalIgnoreCase)
+        //        .ToList();
 
-        // 中文注释：若存在未指定供应商的行，直接抛出异常提示用户先补齐供应商信息（方案A要求手工指定，方案B可先完善产品档案）。
-        if (invalidRows.Count > 0)
-            throw new Exception("以下需求池行未指定供应商，请先手工指定后再转单：" + string.Join("; ", invalidRows));
-        #endregion
+        //    // 中文注释：若存在未指定供应商的行，直接抛出异常提示用户先补齐供应商信息（方案A要求手工指定，方案B可先完善产品档案）。
+        //    if (invalidRows.Count > 0)
+        //        throw new Exception("以下需求池行未指定供应商，请先手工指定后再转单：" + string.Join("; ", invalidRows));
+        //    #endregion
 
-        //根据供应商编码分组，准备生成采购单
-        var supplierCodes = dependList
-            .Select(x => ResolveSupplierCode(x, defaultSupplierBySku))
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        //根据供应商编码列表查询供应商信息，构建供应商编码到供应商名称的字典索引（不区分大小写）
-        var supplierList = await _supplierRepository.GetBySupplierCodeListAsync(supplierCodes);
-        //构建供应商编码到供应商名称的字典索引（不区分大小写）
-        var supplierNameByCode = supplierList
-            .Where(x => !string.IsNullOrWhiteSpace(x.SupplierCode))
-            .ToDictionary(
-                x => x.SupplierCode!,
-                x => string.IsNullOrWhiteSpace(x.SupplierName) ? x.SupplierCode! : x.SupplierName,
-                StringComparer.OrdinalIgnoreCase);
+        //    //根据供应商编码分组，准备生成采购单
+        //    var supplierCodes = dependList
+        //        .Select(x => ResolveSupplierCode(x, defaultSupplierBySku))
+        //        .Where(x => !string.IsNullOrWhiteSpace(x))
+        //        .Distinct(StringComparer.OrdinalIgnoreCase)
+        //        .ToList();
+        //    //根据供应商编码列表查询供应商信息，构建供应商编码到供应商名称的字典索引（不区分大小写）
+        //    var supplierList = await supplierRepository.GetBySupplierCodeListAsync(supplierCodes);
+        //    //构建供应商编码到供应商名称的字典索引（不区分大小写）
+        //    var supplierNameByCode = supplierList
+        //        .Where(x => !string.IsNullOrWhiteSpace(x.SupplierCode))
+        //        .ToDictionary(
+        //            x => x.SupplierCode!,
+        //            x => string.IsNullOrWhiteSpace(x.SupplierName) ? x.SupplierCode! : x.SupplierName,
+        //            StringComparer.OrdinalIgnoreCase);
 
-        //根据请求的分组模式对需求池行进行分组
-        var groups = dependList.GroupBy(x => ResolveSupplierCode(x, defaultSupplierBySku), StringComparer.OrdinalIgnoreCase).ToList();
+        //    //根据请求的分组模式对需求池行进行分组
+        //    var groups = dependList.GroupBy(x => ResolveSupplierCode(x, defaultSupplierBySku), StringComparer.OrdinalIgnoreCase).ToList();
 
-        // 中文注释：逐组生成采购单，回写需求池行状态，并收集生成的采购单号列表返回。
-        var createdOrderNos = new List<string>();
-        _session.Transaction = _session.Connection.BeginTransaction();
-        try
-        {
-            //遍历按照供应商分组之后的groups，每个group对应一个供应商的一组需求池行，生成一张采购单
-            foreach (var group in groups)
-            {
-                var groupList = group.ToList();//转一次List，避免后续多次枚举
-                if (groupList.Count == 0) continue;
+        //    // 中文注释：逐组生成采购单，回写需求池行状态，并收集生成的采购单号列表返回。
+        //    var createdOrderNos = new List<string>();
+        //    _session.Transaction = _session.Connection.BeginTransaction();
+        //    try
+        //    {
+        //        //遍历按照供应商分组之后的groups，每个group对应一个供应商的一组需求池行，生成一张采购单
+        //        foreach (var group in groups)
+        //        {
+        //            var groupList = group.ToList();//转一次List，避免后续多次枚举
+        //            if (groupList.Count == 0) continue;
 
-                var first = groupList[0];//每组取第一行作为代表，解析供应商等公共信息
-                // 生成订单号（系统内码）
-                var orderNo = await BuildOrderNoByDocumentServiceAsync();
-                // 解析供应商信息
-                var supplierCode = ResolveSupplierCode(first, defaultSupplierBySku);
-                var supplierName = supplierNameByCode.TryGetValue(supplierCode, out var name) ? name : supplierCode;
+        //            var first = groupList[0];//每组取第一行作为代表，解析供应商等公共信息
+        //            // 生成订单号（系统内码）
+        //            var orderNo = await BuildOrderNoByDocumentServiceAsync();
+        //            // 解析供应商信息
+        //            var supplierCode = ResolveSupplierCode(first, defaultSupplierBySku);
+        //            var supplierName = supplierNameByCode.TryGetValue(supplierCode, out var name) ? name : supplierCode;
 
-                var supplier = supplierList.FirstOrDefault(x => string.Equals(x.SupplierCode, supplierCode, StringComparison.OrdinalIgnoreCase));
-                // 收集来源单号列表（去重），用于采购单备注回写
-                var sourceNoList = groupList
-                    .Where(x => !string.IsNullOrWhiteSpace(x.SourceNo))
-                    .Select(x => x.SourceNo.Trim())
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                // 解析期望到货日期：优先取需求池行的 RequiredDate，若无则取供应商默认交期（DefaultLeadTime）加成后的日期。
-                var expectedDate = groupList
-                    .Where(x => x.RequiredDate.HasValue)
-                    .Select(x => x.RequiredDate!.Value)
-                    .DefaultIfEmpty(DateTime.Now)
-                    .Min();
-                // 中文注释：若期望到货日期无效（如全行未指定），则用供应商默认交期加成后的日期作为期望到货日期。
-                if (expectedDate <= DateTime.MinValue)
-                {
-                    var leadTime = supplier?.DefaultLeadTime ?? 0;
-                    expectedDate = DateTime.Now.AddDays(leadTime > 0 ? leadTime : 0);
-                }
-                // 创建采购单头
-                var po = new PurchaseOrderHead
-                {
-                    SupplierCode = supplierCode,
-                    BoNo = orderNo,
-                    SalesOrderNo = sourceNoList.Count == 1 ? sourceNoList[0] : string.Empty,
-                    OrderNo = orderNo,
-                    OrderDate = DateTime.Now,
-                    ExpectedDate = expectedDate,
-                    SupplierName = supplierName,
-                    Currency = supplier?.Currency,
-                    Remark = "来源单据：" + string.Join(",", sourceNoList),
-                    LineCount = groupList.Count,
-                    TotalQty = groupList.Sum(x => x.NetQty),
-                    TotalAmountLocalCurrency = groupList.Sum(x => ResolveUnitPriceBySku(x.Sku, productBySku) * x.NetQty),
-                    IsDeleted = false
-                };
-                var newid = await _purchaseOrderRepository.AddAsync(po);
-                // 创建采购单行：按业务键聚合净需求（数量求和），并保存“采购行 -> 需求池行集合”映射。
-                // 说明：需求池是未分组行，采购单行为分组结果，因此 TargetLineId 需要回写到每条原始需求池行。
+        //            var supplier = supplierList.FirstOrDefault(x => string.Equals(x.SupplierCode, supplierCode, StringComparison.OrdinalIgnoreCase));
+        //            // 收集来源单号列表（去重），用于采购单备注回写
+        //            var sourceNoList = groupList
+        //                .Where(x => !string.IsNullOrWhiteSpace(x.SourceNo))
+        //                .Select(x => x.SourceNo.Trim())
+        //                .Distinct(StringComparer.OrdinalIgnoreCase)
+        //                .ToList();
+        //            // 解析期望到货日期：优先取需求池行的 RequiredDate，若无则取供应商默认交期（DefaultLeadTime）加成后的日期。
+        //            var expectedDate = groupList
+        //                .Where(x => x.RequiredDate.HasValue)
+        //                .Select(x => x.RequiredDate!.Value)
+        //                .DefaultIfEmpty(DateTime.Now)
+        //                .Min();
+        //            // 中文注释：若期望到货日期无效（如全行未指定），则用供应商默认交期加成后的日期作为期望到货日期。
+        //            if (expectedDate <= DateTime.MinValue)
+        //            {
+        //                var leadTime = supplier?.DefaultLeadTime ?? 0;
+        //                expectedDate = DateTime.Now.AddDays(leadTime > 0 ? leadTime : 0);
+        //            }
+        //            // 创建采购单头
+        //            var po = new PurchaseOrderHead
+        //            {
+        //                SupplierCode = supplierCode,
+        //                BoNo = orderNo,
+        //                SalesOrderNo = sourceNoList.Count == 1 ? sourceNoList[0] : string.Empty,
+        //                OrderNo = orderNo,
+        //                OrderDate = DateTime.Now,
+        //                ExpectedDate = expectedDate,
+        //                SupplierName = supplierName,
+        //                Currency = supplier?.Currency,
+        //                Remark = "来源单据：" + string.Join(",", sourceNoList),
+        //                LineCount = groupList.Count,
+        //                TotalQty = groupList.Sum(x => x.NetQty),
+        //                TotalAmountLocalCurrency = groupList.Sum(x => ResolveUnitPriceBySku(x.Sku, productBySku) * x.NetQty),
+        //                IsDeleted = false
+        //            };
+        //            var newid = await purchaseOrderRepository.AddAsync(po);
+        //            // 创建采购单行：按业务键聚合净需求（数量求和），并保存“采购行 -> 需求池行集合”映射。
+        //            // 说明：需求池是未分组行，采购单行为分组结果，因此 TargetLineId 需要回写到每条原始需求池行。
 
-                var groupedBuckets = groupList
-                    .GroupBy(x => new
-                    {
-                        x.Sku,
-                        x.SourceType
-                    })
-                    .ToList();
+        //            var groupedBuckets = groupList
+        //                .GroupBy(x => new
+        //                {
+        //                    x.Sku,
+        //                    x.SourceType
+        //                })
+        //                .ToList();
 
-                var itemList = new List<PurchaseOrderLine>();
-                var demandLinePairs = new List<(List<DependentDemand> Demands, PurchaseOrderLine Line)>();
+        //            var itemList = new List<PurchaseOrderLine>();
+        //            var demandLinePairs = new List<(List<DependentDemand> Demands, PurchaseOrderLine Line)>();
 
-                foreach (var bucket in groupedBuckets)
-                {
-                    var demandRows = bucket.ToList();
-                    if (demandRows.Count == 0) continue;
+        //            foreach (var bucket in groupedBuckets)
+        //            {
+        //                var demandRows = bucket.ToList();
+        //                if (demandRows.Count == 0) continue;
 
-                    var firstDemand = demandRows[0];
-                    productBySku.TryGetValue(firstDemand.Sku, out var product);
-                    var unitPrice = ResolveUnitPriceBySku(firstDemand.Sku, productBySku);
-                    var qtySum = demandRows.Sum(x => x.NetQty);
+        //                var firstDemand = demandRows[0];
+        //                productBySku.TryGetValue(firstDemand.Sku, out var product);
+        //                var unitPrice = ResolveUnitPriceBySku(firstDemand.Sku, productBySku);
+        //                var qtySum = demandRows.Sum(x => x.NetQty);
 
-                    var item = firstDemand.Adapt<PurchaseOrderLine>(DependentDemandToPurchaseOrderLineMapConfig);
-                    item.SourceType = firstDemand.SourceType;
-                    item.SourceNo = string.Join("\r\n", demandRows
-                                            .Select(x => x.SourceNo)
-                                            .Where(x => !string.IsNullOrEmpty(x))
-                                            .Distinct());
-                    item.PurchaseOrderId = newid;
-                    item.OrderNo = orderNo;
-                    item.QTY = qtySum;
-                    item.UnitPrice = unitPrice;
-                    item.UnitAmount = unitPrice * qtySum;
-                    item.MaterialType = product?.MaterialType;
-                    item.ReadyQty = 0;
-                    item.RecQty = 0;
-                    item.IsDeleted = false;
+        //                var item = firstDemand.Adapt<PurchaseOrderLine>(DependentDemandToPurchaseOrderLineMapConfig);
+        //                item.SourceType = firstDemand.SourceType;
+        //                item.SourceNo = string.Join("\r\n", demandRows
+        //                                        .Select(x => x.SourceNo)
+        //                                        .Where(x => !string.IsNullOrEmpty(x))
+        //                                        .Distinct());
+        //                item.PurchaseOrderId = newid;
+        //                item.OrderNo = orderNo;
+        //                item.QTY = qtySum;
+        //                item.UnitPrice = unitPrice;
+        //                item.UnitAmount = unitPrice * qtySum;
+        //                item.MaterialType = product?.MaterialType;
+        //                item.ReadyQty = 0;
+        //                item.RecQty = 0;
+        //                item.IsDeleted = false;
 
-                    itemList.Add(item);
-                    // 记录 【当前聚合的采购行】 与 【参与聚合的所有净需求行】 的对应关系
-                    demandLinePairs.Add((demandRows, item));
-                }
+        //                itemList.Add(item);
+        //                // 记录 【当前聚合的采购行】 与 【参与聚合的所有净需求行】 的对应关系
+        //                demandLinePairs.Add((demandRows, item));
+        //            }
 
-                if (itemList.Count > 0)
-                {
-                    // 中文注释：批量插入采购行后，实体 Line.Uid 会被仓储层回填。
-                    await _purchaseOrderItemRepository.AddRangeAsync(itemList);
+        //            if (itemList.Count > 0)
+        //            {
+        //                // 中文注释：批量插入采购行后，实体 Line.Uid 会被仓储层回填。
+        //                await purchaseOrderItemRepository.AddRangeAsync(itemList);
 
-                    // 【修改点3】：遍历聚合关系，把生成的采购单行 Id 回写到所有对应的净需求行中
-                    foreach (var (Demands, Line) in demandLinePairs)
-                    {
-                        foreach (var demand in Demands)
-                        {
-                            demand.TargetLineId = Line.Uid; // 回写生成的采购单行ID
-                            demand.TargetNo = orderNo;          // 回写目标单号
-                            demand.OrderStatus = DependentDemandStatusEnum.已转为正式单据;
+        //                // 【修改点3】：遍历聚合关系，把生成的采购单行 Uid 回写到所有对应的净需求行中
+        //                foreach (var (Demands, Line) in demandLinePairs)
+        //                {
+        //                    foreach (var demand in Demands)
+        //                    {
+        //                        demand.TargetLineId = Line.Uid; // 回写生成的采购单行ID
+        //                        demand.TargetNo = orderNo;          // 回写目标单号
+        //                        demand.OrderStatus = DependentDemandStatusEnum.已转为正式单据;
 
-                        }
-                    }
-                }
-                await _rpRepository.UpdateRangeAsync(groupList);
-                createdOrderNos.Add(orderNo);
-            }
-            _session.Transaction.Commit();
-            return createdOrderNos;
-        }
-        catch
-        {
-            _session.Transaction.Rollback();
-            throw;
-        }
-        finally
-        {
-            _session.Transaction?.Dispose();
-            _session.Transaction = null;
-        }
+        //                    }
+        //                }
+        //            }
+        //            await repository.UpdateRangeAsync(groupList);
+        //            createdOrderNos.Add(orderNo);
+        //        }
+        //        _session.Transaction.Commit();
+        //        return createdOrderNos;
+        //    }
+        //    catch
+        //    {
+        //        _session.Transaction.Rollback();
+        //        throw;
+        //    }
+        //    finally
+        //    {
+        //        _session.Transaction?.Dispose();
+        //        _session.Transaction = null;
+        //    }
+        throw new NotImplementedException();
     }
 
     /// <summary>
@@ -493,7 +427,7 @@ public partial class DependentDemandService(
     /// </summary>
     private async Task<string> BuildOrderNoByDocumentServiceAsync()
     {
-        var rst = await _documentNoService.GetNextDocumentNoAsync(new Contracts.DTOs.SystemDtos.DocumentNoRequestDto
+        var rst = await documentNoService.GetNextDocumentNoAsync(new DocumentNoRequest
         {
             DocType = DocumentTypeStaticsEnum.PurchaseOrder,
             BusinessDate = DateTime.Now,
@@ -554,31 +488,12 @@ public partial class DependentDemandService(
 
     #region 显式基础读写
 
-    public async Task<ServiceResult<IndependentDemandDto>> GetByIdAsync(Guid uid)
-    {
-        try
-        {
-            var entity = await _rpRepository.GetByIdAsync(uid);
-            if (entity == null)
-            {
-                if (_logger.IsEnabled(LogLevel.Warning))
-                    _logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", uid, nameof(DependentDemand));
-                return ServiceResult<IndependentDemandDto>.Fail("未找到数据");
-            }
-
-            return ServiceResult<IndependentDemandDto>.Ok(entity.Adapt<IndependentDemandDto>());
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<IndependentDemandDto>.Fail(ex.Message);
-        }
-    }
 
     public async Task<ServiceResult<IReadOnlyList<IndependentDemandDto>>> GetAllAsync()
     {
         try
         {
-            var entities = await _rpRepository.GetAllAsync();
+            var entities = await repository.GetAllAsync();
             return entities.Any()
                 ? ServiceResult<IReadOnlyList<IndependentDemandDto>>.Ok(entities.Adapt<IReadOnlyList<IndependentDemandDto>>())
                 : ServiceResult<IReadOnlyList<IndependentDemandDto>>.Fail("未找到数据");
@@ -589,139 +504,15 @@ public partial class DependentDemandService(
         }
     }
 
-    public async Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
-    {
-        try
-        {
-            if (_rpRepository is not IPagedCriteriaRepository<DependentDemand> pagedRepository)
-                return ServiceResult<PagedResultDto<IndependentDemandDto>>.Fail($"{nameof(DependentDemand)} 仓储未实现动态分页查询");
-
-            var paged = await pagedRepository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
-            return ServiceResult<PagedResultDto<IndependentDemandDto>>.Ok(new PagedResultDto<IndependentDemandDto>
-            {
-                Items = paged.Items.Adapt<List<IndependentDemandDto>>(),
-                TotalCount = paged.TotalCount,
-                PageSize = paged.PageSize,
-                PageIndex = paged.PageIndex
-            });
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<PagedResultDto<IndependentDemandDto>>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<Guid>> AddAsync(IndependentDemandDto dto)
-    {
-        try
-        {
-            var entity = dto.Adapt<DependentDemand>();
-            entity.CreatedDate = DateTime.Now;
-            entity.IsDeleted = false;
-            var uid = await _rpRepository.AddAsync(entity);
-            return ServiceResult<Guid>.Ok(uid);
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<Guid>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<int>> UpdateAsync(IndependentDemandDto dto)
-    {
-        try
-        {
-            var existing = await _rpRepository.GetByIdAsync(dto.Uid);
-            if (existing == null) return ServiceResult<int>.Fail("数据不存在");
-
-            dto.Adapt(existing);
-            await _rpRepository.UpdateAsync(existing);
-            return ServiceResult<int>.Ok(1);
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<int>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<int>> DeleteAsync(Guid uid)
-    {
-        try
-        {
-            return ServiceResult<int>.Ok(await _rpRepository.DeleteAsync(uid));
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<int>.Fail(ex.Message);
-        }
-    }
 
     public async Task<ServiceResult<DependentDemandBatchSaveResponse>> BatchSaveAsync(DependentDemandBatchSaveRequest batchReq)
     {
-        _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new DependentDemandBatchSaveResponse();
+        throw new NotImplementedException();
+    }
 
-        var createList = batchReq.AddList?.Adapt<List<DependentDemand>>();
-        var updateList = batchReq.UpdateList?.Adapt<List<DependentDemand>>();
-        var deleteIds = batchReq.DeleteIdList;
-
-        try
-        {
-            var errorMsg = new StringBuilder();
-
-            if (updateList is { Count: > 0 })
-            {
-                var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
-                if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
-
-                var needUpdateUids = updateList.Select(x => x.Uid).ToList();
-                var existingUids = await _rpRepository.GetExistingIdListAsync(needUpdateUids);
-                var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
-                if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
-            }
-
-            if (deleteIds is { Count: > 0 })
-            {
-                var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
-                if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
-            }
-
-            if (errorMsg.Length > 0)
-                return ServiceResult<DependentDemandBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
-
-            if (_rpRepository is not IBatchWriteRepository<DependentDemand> batchRepository)
-                return ServiceResult<DependentDemandBatchSaveResponse>.Fail($"{nameof(DependentDemand)} 仓储未实现批量保存");
-
-            if (createList is { Count: > 0 })
-            {
-                result.AddIdList = [.. await batchRepository.AddRangeAsync(createList)];
-            }
-
-            if (updateList is { Count: > 0 })
-            {
-                await batchRepository.UpdateRangeAsync(updateList);
-                result.UpdateIdList = [.. updateList.Select(x => x.Uid)];
-            }
-
-            if (deleteIds is { Count: > 0 })
-            {
-                await batchRepository.DeleteRangeSoftAsync(deleteIds);
-                result.DeleteIdList = deleteIds;
-            }
-
-            _session.Transaction.Commit();
-            return ServiceResult<DependentDemandBatchSaveResponse>.Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _session.Transaction.Rollback();
-            return ServiceResult<DependentDemandBatchSaveResponse>.Fail(ex.Message);
-        }
-        finally
-        {
-            _session.Transaction.Dispose();
-            _session.Transaction = null;
-        }
+    public Task<ServiceResult<PagedResponseBase<DependentDemandDto>>> GetPagedAsync(DependentDemandSearchRequest request)
+    {
+        throw new NotImplementedException();
     }
     #endregion
 

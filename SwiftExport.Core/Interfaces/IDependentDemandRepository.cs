@@ -1,4 +1,6 @@
-using SwiftExport.Core.Common;
+using SwiftExport.Contracts.DTOs.DependentDemands;
+using SwiftExport.Contracts.DTOs.Orders.Requests;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 
 namespace SwiftExport.Core.Interfaces
@@ -6,7 +8,7 @@ namespace SwiftExport.Core.Interfaces
     /// <summary>
     /// 销售订单拆解中间表仓储接口。
     /// </summary>
-    public interface IDependentDemandRepository : IRepository<DependentDemand>, ICriteriaQueryRepository<DependentDemand>, IBatchWriteRepository<DependentDemand>
+    public interface IDependentDemandRepository : IRepository<DependentDemand>
     {
         /// <summary>
         /// 根据来源类型与来源单号查询中间表记录。
@@ -18,9 +20,9 @@ namespace SwiftExport.Core.Interfaces
         Task<IReadOnlyList<DependentDemand>> GetBySourceAsync(string sourceType, string sourceNo);
 
         /// <summary>
-        /// 根据来源类型与来源销售单行 Id 查询中间表记录（可能多行）。
+        /// 根据来源类型与来源销售单行 Uid 查询中间表记录（可能多行）。
         /// </summary>
-        Task<IReadOnlyList<DependentDemand>> GetListBySourceSoLineIdAsync(string sourceType, Guid sourceSoLineId);
+        Task<IReadOnlyList<DependentDemand>> GetListBySourceLineIdAsync(string sourceType, Guid sourceSoLineId);
 
 
         Task<IReadOnlyList<DependentDemand>> GetListByTargetLineIdsAsync(IEnumerable<Guid> targetIdList, bool withUpdLock = false);
@@ -34,10 +36,6 @@ namespace SwiftExport.Core.Interfaces
         /// <summary>
         /// 按业务维度分页查询（用于管理页）。
         /// </summary>
-       Task<PagedResult<DependentDemand>> GetPagedListAsync(
-            QueryCriteria criteria,
-            int pageIndex,
-            int pageSize,
-            string orderBy = "CreatedDate DESC");
+        Task<PagedResponseBase<DependentDemandDto>> GetPagedAsync(DependentDemandSearchRequest request);
     }
 }

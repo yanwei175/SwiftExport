@@ -7,6 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Repositories\Orders\SalesOrders\**" />
+    <EmbeddedResource Remove="Repositories\Orders\SalesOrders\**" />
+    <None Remove="Repositories\Orders\SalesOrders\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Repositories\Orders\CustomersPoDetailsRepository.cs" />
     <Compile Remove="Repositories\Settings\ExcelSheetFieldsRepository.cs" />
     <Compile Remove="Repositories\Settings\ViewUserRoleRepository.cs" />
@@ -27,7 +33,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Repositories\Orders\SalesOrders\" />
     <Folder Include="Repositories\Settings\" />
   </ItemGroup>
 

@@ -299,9 +299,9 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
 
             var request = new ProductColorBatchSaveRequest
             {
-                AddList = changeSet.Added.ToList(),
-                UpdateList = changeSet.Modified.ToList(),
-                DeleteIdList = changeSet.Deleted
+                CreateItems = changeSet.Added.ToList(),
+                UpdateItems = changeSet.Modified.ToList(),
+                DeleteItems = changeSet.Deleted
                     .Select(color => color.Uid)
                     .Where(uid => uid != Guid.Empty)
                     .Distinct()

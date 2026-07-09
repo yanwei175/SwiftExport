@@ -9,8 +9,8 @@ namespace SwiftExport.Contracts.Apis.ProductApis
 {
     public interface IProductCategoryApi : IGenericApi<ProductCategoryDto>
     {
-        [Get("/page")]
-        Task<ServiceResult<PagedResultDto<ProductCategoryDto>>> GetPagedAsync([Query] ProductCategorySearchRequest request);
+        [Post("/page")]
+        Task<ServiceResult<PagedResponseBase<ProductCategoryDto>>> GetPagedAsync([Body] ProductCategorySearchRequest request);
 
         [Post("/batch-save")]
         Task<ServiceResult<ProductCategoryBatchSaveResponse>> BatchSaveAsync([Body] ProductCategoryBatchSaveRequest request);

@@ -1,3 +1,6 @@
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Systems;
 
 namespace SwiftExport.Core.Interfaces
@@ -7,5 +10,6 @@ namespace SwiftExport.Core.Interfaces
     /// </summary>
     public interface ISysDictDataRepository : IRepository<SysDictData>
     {
+        Task<PagedResponseBase<SysDictDataDto>> GetPagedAsync(SysDictDataSearchRequest request);
     }
 }

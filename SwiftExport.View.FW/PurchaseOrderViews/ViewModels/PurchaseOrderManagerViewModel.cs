@@ -4,6 +4,8 @@ using MateWpfThemes.FW.Controls;
 using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.PurchaseOrders.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Warehouses;
 using SwiftExport.Contracts.SysEnums;
@@ -389,7 +391,7 @@ namespace SwiftExport.View.FW.PurchaseOrderViews.ViewModels
             {
                 try
                 {
-                    var search = new PurchaseOrderSearchDto
+                    var search = new PurchaseOrderSearchRequest
                     {
                         SupplierCode = SelectedSupplier,
                         PoNo = string.IsNullOrWhiteSpace(SearchPoNo) ? null : SearchPoNo.Trim(),

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.WebApi.Controllers.Systems
@@ -16,7 +17,7 @@ namespace SwiftExport.WebApi.Controllers.Systems
         /// 获取下一个可用单号。
         /// </summary>
         [HttpPost("next")]
-        public async Task<ServiceResult<DocumentNoResultDto>> GetNextAsync([FromBody] DocumentNoRequestDto request)
+        public async Task<ServiceResult<DocumentNoResponse>> GetNextAsync([FromBody] DocumentNoRequest request)
         {
             return await service.GetNextDocumentNoAsync(request);
         }

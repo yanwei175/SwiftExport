@@ -1,4 +1,5 @@
-﻿using SwiftExport.Contracts.Wrappers;
+﻿using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 
 namespace SwiftExport.Core.Interfaces
@@ -8,7 +9,7 @@ namespace SwiftExport.Core.Interfaces
         Task<bool> ExistByColorCode(string productColor);
         Task<IReadOnlyList<string>> GetExistingColorCodesAsync(IEnumerable<string> productColorList);
 
-        Task<PagedResultDto<ProductColor>> GetProductColorPagedAsync(PagedRequestDto request);
+        Task<PagedResponseBase<ProductColor>> GetProductColorPagedAsync(ProductColorSearchRequest request);
 
 
 

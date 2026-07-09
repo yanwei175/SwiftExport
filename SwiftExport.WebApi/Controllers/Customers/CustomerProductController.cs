@@ -1,39 +1,29 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Customers;
-using SwiftExport.Contracts.DTOs.Products;
-using SwiftExport.Contracts.Wrappers;
-
 using SwiftExport.Contracts.DTOs.Customers.Requests;
 using SwiftExport.Contracts.DTOs.Customers.Responses;
-using SwiftExport.Contracts.DTOs.Products.Requests;
-using SwiftExport.Contracts.DTOs.Products.Responses;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.Relations;
+using SwiftExport.WebApi.Controllers.Base;
 namespace SwiftExport.WebApi.Controllers.Customers;
 
 /// <summary>
 /// 客户产品 API。
 /// 因 CustomerProductDto 含联表字段，不继承 BaseController 泛型，独立定义端点。
 /// </summary>
-[ApiController]
-[Route("api/[controller]")]
-public class CustomerProductController(ICustomerProductService service) : ControllerBase
+public class CustomerProductController(ICustomerProductService service) : BaseController<CustomerProduct, CustomerProductDto>(service)
 {
     // ================= 读操作 =================
-
-    /// <summary>按 ID 查询单条客户产品（含联表字段）</summary>
-    [HttpGet("{id:guid}")]
-    public async Task<ServiceResult<CustomerProductDto>> GetById(Guid id)
-        => await service.GetByIdAsync(id);
+    /// <summary>联表分页搜索</summary>
+    [HttpPost("page")]
+    public async Task<ServiceResult<PagedResponseBase<CustomerProductDto>>> GetPaged([FromBody] CustomerProductSearchRequest request)
+        => await service.GetPagedAsync(request);
 
     /// <summary>按客户料号查询</summary>
     [HttpGet("customersku/{sku}")]
     public async Task<ServiceResult<CustomerProductDto>> GetByCustomerSku(Guid customerId, string sku)
         => await service.GetByCustomerSkuAsync(sku, customerId);
-
-    /// <summary>联表分页搜索</summary>
-    [HttpPost("search")]
-    public async Task<ServiceResult<PagedResultDto<CustomerProductDto>>> Search([FromBody] ProductSearchRequest search)
-        => await service.GetPagedCustomerProductAsync(search);
 
     /// <summary>获取有产品记录的客户列表</summary>
     [HttpGet("haveproductCustomers")]
@@ -44,6 +34,6 @@ public class CustomerProductController(ICustomerProductService service) : Contro
 
     /// <summary>批量保存（新增 / 修改 / 删除），事务保护</summary>
     [HttpPost("batch-save")]
-    public async Task<ServiceResult<CustomerProductBatchSaveResponse>> BatchSave([FromBody] CustomerProductBatchSaveRequest req)
-        => await service.BatchSaveAsync(req);
+    public async Task<ServiceResult<CustomerProductBatchSaveResponse>> BatchSave([FromBody] CustomerProductBatchSaveRequest request)
+        => await service.BatchSaveAsync(request);
 }

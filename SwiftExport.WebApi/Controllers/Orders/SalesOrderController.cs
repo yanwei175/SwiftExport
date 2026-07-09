@@ -2,18 +2,21 @@ using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Contracts.DTOs.SalesOrders;
-using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.SalesOrders.Requests;
+using SwiftExport.Contracts.DTOs.SalesOrders.Responses;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.Orders;
 
 /// <summary>
-/// 采购入库控制器。
+/// 销售控制器。
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class SalesOrderController(ISalesOrderManagerService managerService, ISalesOrderDetailService detailService, ISalesOrderLineService lineService) : ControllerBase
+public class SalesOrderController(ISalesOrderManagerService managerService,
+    ISalesOrderDetailService detailService, ISalesOrderLineService lineService) : ControllerBase
 {
 
     #region 订单管理页（主从表）
@@ -23,7 +26,7 @@ public class SalesOrderController(ISalesOrderManagerService managerService, ISal
     /// 支持多选状态、订单号/发票号、客户代码、颜色、包含 SKU 等筛选条件。
     /// </summary>
     [HttpPost("headers/search-manager")]
-    public async Task<ServiceResult<PagedResultDto<SalesOrderHeaderManagerDto>>> GetSalesOrderHeaderManagerPagedListAsync([FromBody] SalesOrderManagerSearchDto search)
+    public async Task<ServiceResult<PagedResponseBase<SalesOrderHeaderManagerDto>>> GetSalesOrderHeaderManagerPagedListAsync([FromBody] SalesOrderManagerSearchRequest search)
     {
         return await managerService.GetSalesOrderHeaderManagerPagedListAsync(search);
     }
@@ -101,7 +104,7 @@ public class SalesOrderController(ISalesOrderManagerService managerService, ISal
     }
 
     /// <summary>
-    /// 中文注释：订单详情页一键保存接口（新增/编辑由后端根据 Header.Id 判断）。
+    /// 中文注释：订单详情页一键保存接口（新增/编辑由后端根据 Header.Uid 判断）。
     /// </summary>
     [HttpPost("detail-save")]
     [PreventDuplicateRequest]
@@ -118,7 +121,7 @@ public class SalesOrderController(ISalesOrderManagerService managerService, ISal
     }
 
     [HttpPost("lines/sales-products/search")]
-    public async Task<ServiceResult<PagedResultDto<SalesProductDto>>> GetSalesProductPagedListAsync([FromBody] SalesProductSearchDto request)
+    public async Task<ServiceResult<PagedResponseBase<SalesProductDto>>> GetSalesProductPagedListAsync([FromBody] SalesProductSearchRequest request)
     {
         return await detailService.GetSalesProductPagedListAsync(request);
     }
@@ -126,7 +129,7 @@ public class SalesOrderController(ISalesOrderManagerService managerService, ISal
     /// <summary>中文注释：获取销售订单下一单号(SO)</summary>
     [HttpPost("next-order-no")]
     [PreventDuplicateRequest]
-    public async Task<ServiceResult<DocumentNoResultDto>> GetNextOrderNoAsync()
+    public async Task<ServiceResult<DocumentNoResponse>> GetNextOrderNoAsync()
     {
         return await detailService.GetNextSalesOrderNoAsync();
     }

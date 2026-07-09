@@ -1,6 +1,7 @@
-using Azure.Core;
 using Dapper;
-using SwiftExport.Core.Common;
+using SwiftExport.Contracts.DTOs.DependentDemands;
+using SwiftExport.Contracts.DTOs.Orders.Requests;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
@@ -19,22 +20,29 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
         /// </summary>
         public async Task<IReadOnlyList<DependentDemand>> GetListBySourceTypeAndSourceUidAsync(string sourceType, Guid sourceUid)
         {
-            if (string.IsNullOrWhiteSpace(sourceType) || sourceUid == Guid.Empty) return [];
+            var sql = $@"SELECT * 
+                    FROM [{DependentDemandTable}] WITH(NOLOCK) 
+                    WHERE     {nameof(DependentDemand.SourceType)} = @SourceType 
+                          AND {nameof(DependentDemand.SourceUid)} = @SourceUid 
+                          AND (IsDeleted = 0 OR IsDeleted IS NULL)";
 
-            var list = await GetListCoreAsync(new { SourceType = sourceType.Trim(), SourceUid = sourceUid });
-            return [.. list];
+            var rst = await Connection.QueryAsync<DependentDemand>(sql, new { SourceType = sourceType.Trim(), SourceUid = sourceUid }, transaction: Transaction);
+            return [.. rst];
         }
 
         /// <summary>
-        /// 根据来源类型与来源销售单行 Id 查询（可能多行）。
+        /// 根据来源类型与来源销售单行 Uid 查询（可能多行）。
         /// </summary>
-        public async Task<IReadOnlyList<DependentDemand>> GetListBySourceSoLineIdAsync(string sourceType, Guid sourceSoLineId)
+        public async Task<IReadOnlyList<DependentDemand>> GetListBySourceLineIdAsync(string sourceType, Guid sourceLineId)
         {
-            if (string.IsNullOrWhiteSpace(sourceType) || sourceSoLineId == Guid.Empty)
-                return [];
+            var sql = $@"SELECT * 
+                    FROM [{DependentDemandTable}] WITH(NOLOCK) 
+                    WHERE     {nameof(DependentDemand.SourceType)} = @SourceType 
+                          AND {nameof(DependentDemand.SourceLineId)} = @SourceLineId 
+                          AND (IsDeleted = 0 OR IsDeleted IS NULL)";
 
-            var list = await GetListCoreAsync(new { SourceType = sourceType.Trim(), SourceLineId = sourceSoLineId });
-            return [.. list];
+            var rst = await Connection.QueryAsync<DependentDemand>(sql, new { SourceType = sourceType.Trim(), SourceLineId = sourceLineId }, transaction: Transaction);
+            return [.. rst];
         }
 
         /// <summary>
@@ -66,7 +74,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
         {
             var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
             var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [TargetLineId] IN @TargetIdList AND (IsDeleted = 0 OR IsDeleted IS NULL)";
-            var rst= await Connection.QueryAsync<DependentDemand>(sql, new { TargetIdList = targetIdList }, transaction: Transaction);
+            var rst = await Connection.QueryAsync<DependentDemand>(sql, new { TargetIdList = targetIdList }, transaction: Transaction);
             return [.. rst];
         }
 
@@ -75,6 +83,11 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
             var sql = $"UPDATE [{TableName}] SET TargetLineId = NULL, TargetNo = NULL, StatusFlag = 1 " +
                       $"WHERE TargetLineId IN @TargetIdList";
             return Connection.ExecuteAsync(sql, new { TargetIdList = targetIdList }, transaction: Transaction);
+        }
+
+        public Task<PagedResponseBase<DependentDemandDto>> GetPagedAsync(DependentDemandSearchRequest request)
+        {
+            throw new NotImplementedException();
         }
     }
 }

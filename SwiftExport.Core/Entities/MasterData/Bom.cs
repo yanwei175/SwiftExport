@@ -1,7 +1,9 @@
 ﻿using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData
 {
+    [Table("Bom")]
     public class Bom : BaseEntity
     {
         public string BomNo { get; set; } = default!;

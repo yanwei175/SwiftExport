@@ -1,11 +1,10 @@
-﻿using Microsoft.VisualBasic;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
+﻿using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Common;
-using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
+[Table("Product")]
 public class Product : BaseEntity
 {
     public string? MasterSku { get; set; } // 逻辑外键：直接存字符串 "AT010011"

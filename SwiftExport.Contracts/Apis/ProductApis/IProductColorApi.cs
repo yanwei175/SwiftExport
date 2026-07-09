@@ -9,10 +9,10 @@ namespace SwiftExport.Contracts.Apis.ProductApis
 {
     public interface IProductColorApi : IGenericApi<ProductColorDto>
     {
-        [Get("/page")]
-        Task<ServiceResult<PagedResultDto<ProductColorDto>>> GetPagedAsync([Query] ProductColorSearchRequest request);
+        [Post("/page")]
+        Task<ServiceResult<PagedResponseBase<ProductColorDto>>> GetPagedAsync([Body] ProductColorSearchRequest request);
         [Get("/")]
-        Task<ServiceResult<PagedResultDto<ProductColorDto>>> GetPagedRootAsync([Query] ProductColorSearchRequest request);
+        Task<ServiceResult<PagedResponseBase<ProductColorDto>>> GetPagedRootAsync([Query] ProductColorSearchRequest request);
 
         [Post("/batch-save")]
         Task<ServiceResult<ProductColorBatchSaveResponse>> BatchSaveAsync([Body] ProductColorBatchSaveRequest request);

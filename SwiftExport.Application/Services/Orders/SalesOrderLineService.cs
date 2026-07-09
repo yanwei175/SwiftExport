@@ -2,10 +2,11 @@ using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
+using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.SalesOrders;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Services.Orders;
 
@@ -16,9 +17,10 @@ namespace SwiftExport.Application.Services.Orders;
 /// </summary>
 public class SalesOrderLineService(ServiceBaseContext context,
     ISalesOrderLineRepository salesOrderLineRepo,
-    IDocumentNoService documentNoService) : ISalesOrderLineService
+    IDocumentNoService documentNoService)
+    : BaseService<SalesOrderLine, SalesOrderLineDto>(salesOrderLineRepo, context), ISalesOrderLineService
 {
-    protected readonly DbSession _session = context.Session;
+
     private readonly ISalesOrderLineRepository _salesOrderLineRepo = salesOrderLineRepo;
     private readonly IDocumentNoService _docService = documentNoService;
     private ILogger? _loggerInstance;
@@ -34,10 +36,10 @@ public class SalesOrderLineService(ServiceBaseContext context,
             {
                 return ServiceResult<List<SalesOrderLineDto>>.Fail("未找到相关数据");
             }
-                return ServiceResult<List<SalesOrderLineDto>>.Ok(rst.Adapt<List<SalesOrderLineDto>>());
+            return ServiceResult<List<SalesOrderLineDto>>.Ok(rst.Adapt<List<SalesOrderLineDto>>());
         }
-        catch (Exception ex) 
-        { 
+        catch (Exception ex)
+        {
             return ServiceResult<List<SalesOrderLineDto>>.Fail(ex.Message);
         }
     }

@@ -5,7 +5,6 @@ using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.SalesOrders;
-using SwiftExport.Contracts.Wrappers;
 using SwiftExport.View.FW.DI;
 using SwiftExport.View.FW.Mvvm;
 using System;
@@ -34,7 +33,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         /// <summary> 关闭弹窗的委托 </summary>
         public event EventHandler<bool> RequestClose;
-        public SalesProductSelectorViewModel(ISalesOrderApi salesOrderApi, ICustomerApi customerApi,IProductColorApi productColorApi)
+        public SalesProductSelectorViewModel(ISalesOrderApi salesOrderApi, ICustomerApi customerApi, IProductColorApi productColorApi)
         {
             _salesOrderApi = salesOrderApi ?? IocProvider.GetService<ISalesOrderApi>();
             _customerApi = customerApi ?? IocProvider.GetService<ICustomerApi>();
@@ -334,7 +333,7 @@ namespace SwiftExport.View.FW.SalesOrderViews.ViewModels
 
         private SalesProductSearchDto BuildSearchDto()
         {
-            return new SalesProductSearchDto
+            return new SalesProductSearch
             {
                 CustomerId = SelectedCustomerId ?? Guid.Empty,
                 ColorId = SelectedColorId ?? Guid.Empty,

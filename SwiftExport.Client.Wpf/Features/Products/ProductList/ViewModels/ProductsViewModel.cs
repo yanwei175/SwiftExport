@@ -353,9 +353,9 @@ public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
 
             var request = new ProductBatchSaveRequest
             {
-                AddList = changeSet.Added.ToList(),
-                UpdateList = changeSet.Modified.ToList(),
-                DeleteIdList = changeSet.Deleted
+                CreateItems = changeSet.Added.ToList(),
+                UpdateItems = changeSet.Modified.ToList(),
+                DeleteItems = changeSet.Deleted
                     .Select(product => product.Uid)
                     .Where(uid => uid != Guid.Empty)
                     .Distinct()
@@ -420,7 +420,7 @@ public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
         };
 
         var result = await _apiCallRunner.RunAsync(
-            () => _productApi.GetProductPagedListAsync(request),
+            () => _productApi.GetPagedAsync(request),
             "加载产品资料失败");
 
         if (!result.Success)

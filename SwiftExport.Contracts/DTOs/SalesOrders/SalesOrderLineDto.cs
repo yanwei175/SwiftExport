@@ -18,12 +18,12 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders
         public string MaterialType { get; set; }
 
         /// <summary>
-        /// 客户产品主键 Id（来源于 CustomerProduct.Id，用于前端后续联动或回填时定位）。
+        /// 客户产品主键 Uid（来源于 CustomerProduct.Uid，用于前端后续联动或回填时定位）。
         /// </summary>
         public Guid? CustomerProductId { get; set; }
 
         /// <summary>
-        /// 产品主键 Id（来源于 Product.Id）。
+        /// 产品主键 Uid（来源于 Product.Uid）。
         /// </summary>
         public Guid? ProductId { get; set; }
 

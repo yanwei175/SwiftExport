@@ -1,5 +1,5 @@
 using Dapper;
-using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.PurchaseOrders;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;

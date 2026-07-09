@@ -1,6 +1,5 @@
 using Dapper;
 using SwiftExport.Contracts.SysEnums;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
@@ -44,41 +43,42 @@ public partial class IndependentDemandRepository(RepositoryBaseContext context) 
 
     public async Task<int> 批量更新完工数量Async(IDictionary<string, IDictionary<Guid, decimal>> sourceTypeLineQtyMap)
     {
-        if (sourceTypeLineQtyMap == null || sourceTypeLineQtyMap.Count == 0)
-            return 0;
+        throw new NotImplementedException();
+        //if (sourceTypeLineQtyMap == null || sourceTypeLineQtyMap.Count == 0)
+        //    return 0;
 
-        var totalAffected = 0;
-        foreach (var kv in sourceTypeLineQtyMap)
-        {
-            var sourceType = kv.Key;
-            var sourceLineIdQtyMap = kv.Value;
+        //var totalAffected = 0;
+        //foreach (var kv in sourceTypeLineQtyMap)
+        //{
+        //    var sourceType = kv.Key;
+        //    var sourceLineIdQtyMap = kv.Value;
 
-            if (string.IsNullOrWhiteSpace(sourceType) || sourceLineIdQtyMap == null || sourceLineIdQtyMap.Count == 0)
-                continue;
+        //    if (string.IsNullOrWhiteSpace(sourceType) || sourceLineIdQtyMap == null || sourceLineIdQtyMap.Count == 0)
+        //        continue;
 
-            var sourceLineIds = sourceLineIdQtyMap.Keys.Distinct().ToList();
-            var demands = await GetListBySourceTypeAndSourceLineIdsAsync(sourceType, sourceLineIds);
-            if (demands.Count == 0)
-                continue;
+        //    var sourceLineIds = sourceLineIdQtyMap.Keys.Distinct().ToList();
+        //    var demands = await GetListBySourceTypeAndSourceLineIdsAsync(sourceType, sourceLineIds);
+        //    if (demands.Count == 0)
+        //        continue;
 
-            foreach (var demand in demands)
-            {
-                if (!sourceLineIdQtyMap.TryGetValue(demand.SourceLineId, out var addQty) || addQty <= 0)
-                    continue;
+        //    foreach (var demand in demands)
+        //    {
+        //        if (!sourceLineIdQtyMap.TryGetValue(demand.SourceLineId, out var addQty) || addQty <= 0)
+        //            continue;
 
-                demand.FilledQty += addQty;
+        //        demand.FilledQty += addQty;
 
-                if (demand.FilledQty >= demand.OriginalQty && demand.OrderStatus != IndependentDemandStatusEnum.已完成)
-                    demand.OrderStatus = IndependentDemandStatusEnum.已到货;
+        //        if (demand.FilledQty >= demand.OriginalQty && demand.OrderStatus != IndependentDemandStatusEnum.已完成)
+        //            demand.OrderStatus = IndependentDemandStatusEnum.已到货;
 
-                if (demand.FilledQty >= demand.OriginalQty && demand.ShippedQty >= demand.OriginalQty)
-                    demand.OrderStatus = IndependentDemandStatusEnum.已完成;
-            }
+        //        if (demand.FilledQty >= demand.OriginalQty && demand.ShippedQty >= demand.OriginalQty)
+        //            demand.OrderStatus = IndependentDemandStatusEnum.已完成;
+        //    }
 
-            totalAffected += await UpdateRangeAsync(demands);
-        }
+        //    totalAffected += await UpdateRangeAsync(demands);
+        //}
 
-        return totalAffected;
+        //return totalAffected;
     }
 
     public async Task<int> TryMarkDecomposedAsync(string sourceType, string sourceNo, IEnumerable<Guid> sourceLineIds, DateTime decomposedTime)
@@ -137,10 +137,10 @@ public partial class IndependentDemandRepository(RepositoryBaseContext context) 
     {
         //判断净需求下对应毛需求的状态是否为草稿，如果毛需求不是草稿，则不允许取消净需求
         var sql = @"SELECT COUNT(1) FROM [IndependentDemand]
-                    WHERE Id IN @independIds
+                    WHERE Uid IN @independIds
                       AND IsDeleted = 0
                       AND (ExecutedQty>0 OR ReceivedQty>0 OR ShippedQty>0 OR StatusFlag >1)";
         var rst = await Connection.ExecuteScalarAsync<int>(sql, new { independIds = independIds.ToList(), draftStatus = IndependentDemandStatusEnum.未确认 }, transaction: Transaction);
-        return  rst==0;
+        return rst == 0;
     }
 }

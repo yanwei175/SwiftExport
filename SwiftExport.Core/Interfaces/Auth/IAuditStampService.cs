@@ -12,4 +12,5 @@ public interface IAuditStampService
 
     /// <summary>更新前打戳：填充 UpdatedDate/UpdatedBy</summary>
     void StampForUpdate(BaseEntity entity);
+
 }

@@ -7,7 +7,7 @@ public abstract class BaseEntity
 {
     /// <summary>
     /// 全链路唯一主键（Guid）。
-    /// 说明：已统一以 Uid 作为主键标识，不再使用整型 Id。
+    /// 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。
     /// </summary>
     public Guid Uid { get; set; } = GuidSequentialGenerator.NewGuid();
 

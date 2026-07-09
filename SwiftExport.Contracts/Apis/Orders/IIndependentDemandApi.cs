@@ -1,7 +1,7 @@
 using Refit;
-using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.Independent;
-using SwiftExport.Contracts.DTOs.SalesOrders;
+using SwiftExport.Contracts.DTOs.Independent.Requests;
+using SwiftExport.Contracts.DTOs.Independent.Responses;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -9,12 +9,12 @@ using System.Threading.Tasks;
 namespace SwiftExport.Contracts.Apis.Orders
 {
     /// <summary>
-    /// 销售毛需求 API。
+    /// 毛需求 API。
     /// </summary>
-    public interface IIndependentDemandApi 
+    public interface IIndependentDemandApi
     {
-        [Get("/page")]
-        Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedAsync([Body] IndependSearchRequest request);
+        [Post("/page")]
+        Task<ServiceResult<PagedResponseBase<IndependentDemandDto>>> GetPagedAsync([Body] IndependSearchRequest request);
 
         [Post("/batch-save")]
         Task<ServiceResult<IndependentBatchSaveResponse>> BatchSaveAsync([Body] IndependentBatchSaveRequest request);
@@ -24,10 +24,6 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// </summary>
         [Post("/decompose-by-source")]
         Task<ServiceResult<List<IndependentDemandDto>>> ExecuteDecomposeBySourceAsync([Body] IndependentDemandDecomposeRequestDto request);
-
-
-
-
 
 
     }

@@ -1,26 +1,18 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Independent;
-using SwiftExport.Contracts.DTOs.SalesOrders;
+using SwiftExport.Contracts.DTOs.Independent.Requests;
+using SwiftExport.Contracts.DTOs.Independent.Responses;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.Orders;
+using SwiftExport.WebApi.Controllers.Base;
+using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.Orders;
 
-/// <summary>
-/// 毛需求控制器。
-/// </summary>
-[ApiController]
-[Route("api/[controller]")]
-public class InDependentDemandController(IIndependentDemandServices service) : ControllerBase
+
+public class InDependentDemandController(IIndependentDemandServices service) : BaseController<IndependentDemand, IndependentDemandDto>(service)
 {
-    /// <summary>
-    /// 分页查询净需求。
-    /// </summary>
-    [HttpPost("search")]
-    public async Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync([FromBody] IndependSearchRequest search)
-    {
-        return await service.GetPagedListAsync(search);
-    }
 
     /// <summary>
     /// 按选中需求池ID列表转采购。
@@ -40,6 +32,24 @@ public class InDependentDemandController(IIndependentDemandServices service) : C
     public async Task<ServiceResult<List<IndependentDemandDto>>> BatchRollBackAsync([FromBody] List<Guid> orderIds)
     {
         return await service.批量回退草稿(orderIds);
+    }
+    [HttpPost("page")]
+    public async Task<ServiceResult<PagedResponseBase<IndependentDemandDto>>> GetPagedAsync([FromBody] IndependSearchRequest request)
+    => await service.GetPagedAsync(request);
+
+    [HttpPost("batch-save")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public async Task<ServiceResult<IndependentDemandBatchSaveResponse>> BatchSave([FromBody] IndependentDemandBatchSaveRequest req) => await service.BatchSaveAsync(req);
+
+    /// <summary>
+    /// 按来源单据触发销售毛需求拆解。
+    /// 说明：审批通过后的销售需求由该接口驱动拆解进入需求池。
+    /// </summary>
+    [HttpPost("decompose-by-source")]
+    public async Task<ServiceResult<List<IndependentDemandDto>>> ExecuteDecomposeBySourceAsync([FromBody] IndependentDemandDecomposeRequestDto request)
+    {
+        request ??= new IndependentDemandDecomposeRequestDto();
+        return await service.根据来源单据拆解至净需求Async(request.SourceType, request.SourceNo);
     }
 
 }

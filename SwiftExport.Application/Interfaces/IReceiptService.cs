@@ -1,5 +1,6 @@
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Warehouses;
+using SwiftExport.Contracts.DTOs.Warehouses.Responses;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Interfaces
@@ -23,8 +24,8 @@ namespace SwiftExport.Application.Interfaces
         /// <summary>
         /// 执行采购入库：生成入库单、回写采购行与需求池、更新库存。
         /// </summary>
-        Task<ServiceResult<SaveReceiveDetailResultDto>> PostReceiveDetialAsync(Guid headId);
+        Task<ServiceResult<SaveReceiveDetailResult>> PostReceiveDetialAsync(Guid headId);
 
-        Task<ServiceResult<SaveReceiveDetailResultDto>> SaveDetailAsync(SaveDocumentRequestBase<ReceiveHeadDto, ReceiveLineDto> request);
+        Task<ServiceResult<SaveReceiveDetailResult>> SaveDetailAsync(SaveDocumentRequestBase<ReceiveHeadDto, ReceiveLineDto> request);
     }
 }

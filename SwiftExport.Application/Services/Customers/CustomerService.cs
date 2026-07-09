@@ -2,318 +2,330 @@ using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
+using SwiftExport.Application.Services.Base;
+using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Customers;
-using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Common;
-using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Interfaces;
-using SwiftExport.Contracts.DTOs.Base;
-using SwiftExport.Infrastructure.Data;
-using System.Text;
-
 using SwiftExport.Contracts.DTOs.Customers.Requests;
 using SwiftExport.Contracts.DTOs.Customers.Responses;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.MasterData;
+using SwiftExport.Core.Interfaces;
+using System.Text;
 namespace SwiftExport.Application.Services.Customers;
 
-public partial class CustomerService(ICustomerRepository repository, ServiceBaseContext context) : ICustomerService
+public partial class CustomerService(ICustomerRepository repository, ServiceBaseContext context) : BaseService<Customer, CustomerDto>(repository, context), ICustomerService
 {
-    private readonly DbSession _session = context.Session;
+
     private readonly ILogger<CustomerService> _logger = context.LoggerFactory.CreateLogger<CustomerService>();
-    private readonly ICustomerRepository _repository = repository;
-
-    #region 批量保存
-    private async Task<string?> ValidateBeforeAddAsync(List<Customer> entities)
-    {
-        var needAddCodes = new List<string>();
-
-        // 1. 校验必填项
-        foreach (var item in entities)
-        {
-            if (string.IsNullOrWhiteSpace(item.CustomerCode))
-            {
-                return "客户代码不能为空"; // 遇到致命错误直接返回提示
-            }
-            needAddCodes.Add(item.CustomerCode);
-        }
-
-        var existedCodes = await _repository.GetExistingCustomerCodesAsync(needAddCodes);
-
-        // 3. 组装特定报错信息
-        if (existedCodes.Any())
-        {
-            return $"新创建的客户代码在数据库中已存在，拒绝新增。重复代码: {string.Join(", ", existedCodes)}";
-        }
-
-        // 返回 null 代表一切校验完美通过，放行让基类去写数据库！
-        return null;
-    }
-    #endregion
-
-    public async Task<bool> ExistByCustomerCode(string customerCode)
-    {
-        return await _repository.ExistByCustomerCode(customerCode);
-    }
-
-    public async Task<ServiceResult<CustomerDto>> GetByCustomerCodeAsync(string customerCode)
-    {
-        if (string.IsNullOrWhiteSpace(customerCode))
-        {
-            if (_logger.IsEnabled(LogLevel.Warning))
-            {
-                _logger.LogWarning("查询失败：传入的客户代码为空");
-            }
-            return ServiceResult<CustomerDto>.Fail("客户代码不能为空");
-        }
-
-        var list = await _repository.GetListAsync("WHERE CustomerCode = @CustomerCode", new { CustomerCode = customerCode });
-        if (list == null || list.Count == 0)
-        {
-            if (_logger.IsEnabled(LogLevel.Warning))
-            {
-                _logger.LogWarning("查询失败：未找到 CustomerCode 为 {CustomerCode} 的客户", customerCode);
-            }
-            return ServiceResult<CustomerDto>.Fail($"未找到代码为 {customerCode} 的客户");
-        }
-
-        var entity = list[0];
-        return ServiceResult<CustomerDto>.Ok(entity.Adapt<CustomerDto>());
-    }
-
-    public async Task<ServiceResult<IReadOnlyList<string>>> GetNonExistingCustomerCodesAsync(IEnumerable<string> customerCodes)
-    {
-        if (customerCodes == null || !customerCodes.Any())
-        {
-            return ServiceResult<IReadOnlyList<string>>.Fail("客户代码列表不能为空");
-        }
-
-        if (customerCodes.Any(code => string.IsNullOrWhiteSpace(code)))
-        {
-            if (_logger.IsEnabled(LogLevel.Warning))
-            {
-                _logger.LogWarning("提取未存在客户代码失败：列表中包含空值");
-            }
-            return ServiceResult<IReadOnlyList<string>>.Fail("客户代码列表中包含空值。");
-        }
-
-        var existingCodes = await _repository.GetExistingCustomerCodesAsync(customerCodes);
-
-        if (existingCodes == null || !existingCodes.Any())
-            return ServiceResult<IReadOnlyList<string>>.Ok([.. customerCodes]);
-
-        var allCodesSet = new HashSet<string>(customerCodes, StringComparer.OrdinalIgnoreCase);
-        var existingCodesSet = new HashSet<string>(existingCodes, StringComparer.OrdinalIgnoreCase);
-        var nonExistentCodes = allCodesSet.Except(existingCodesSet).ToList();
-
-        return ServiceResult<IReadOnlyList<string>>.Ok(nonExistentCodes);
-    }
-
-    public async Task<ServiceResult<PagedResultDto<CustomerDto>>> GetPagedAsync(CustomerSearchRequest request)
-    {
-
-        // 1. 实例化底层查询对象
-        var criteria = new QueryCriteria();
-
-        // ==========================================
-        // 处理批量搜索
-        // ==========================================
-        if (request.BatchKeywords!=null && request.BatchKeywords.Count>0)
-        {
-
-            foreach (var keyword in request.BatchKeywords) 
-            {
-                // 逻辑：(SKU IN (...) OR CSKU IN (...))
-                criteria.AddOrGroup(
-                    ("CustomerCode", 查询操作符.包含某值, keyword),
-                    ("CustomerName", 查询操作符.包含某值, keyword),
-                    ("ContactPerson", 查询操作符.包含某值, keyword)
-                );
-            }
-        }
-
-        // 4. 处理分页默认值保护
-        int pageIndex = request.PageIndex > 0 ? request.PageIndex : 1;
-        int pageSize = request.PageSize > 0 ? request.PageSize : 50;
-
-        return await GetPagedListAsync(criteria, pageIndex, pageSize, "CustomerCode ASC");
-    }
 
 
-    #region 显式基础读写
 
-    public async Task<ServiceResult<CustomerDto>> GetByIdAsync(Guid uid)
+
+    public async Task<ServiceResult<PagedResponseBase<CustomerDto>>> GetPagedAsync(CustomerSearchRequest request)
     {
         try
         {
-            var entity = await _repository.GetByIdAsync(uid);
-            if (entity == null)
-            {
-                if (_logger.IsEnabled(LogLevel.Warning))
-                    _logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", uid, nameof(Customer));
-                return ServiceResult<CustomerDto>.Fail("未找到数据");
-            }
-
-            return ServiceResult<CustomerDto>.Ok(entity.Adapt<CustomerDto>());
+            var result = await repository.GetPagedAsync(request);
+            if (result == null)
+                return ServiceResult<PagedResponseBase<CustomerDto>>.Fail("查询失败：未能获取分页数据");
+            return ServiceResult<PagedResponseBase<CustomerDto>>.Ok(result);
         }
         catch (Exception ex)
         {
-            return ServiceResult<CustomerDto>.Fail(ex.Message);
+            return ServiceResult<PagedResponseBase<CustomerDto>>.Fail($"查询失败：{ex.Message}");
         }
     }
 
-    public async Task<ServiceResult<IReadOnlyList<CustomerDto>>> GetAllAsync()
-    {
-        try
-        {
-            var entities = await _repository.GetAllAsync();
-            return entities.Any()
-                ? ServiceResult<IReadOnlyList<CustomerDto>>.Ok(entities.Adapt<IReadOnlyList<CustomerDto>>())
-                : ServiceResult<IReadOnlyList<CustomerDto>>.Fail("未找到数据");
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<IReadOnlyList<CustomerDto>>.Fail(ex.Message);
-        }
-    }
 
-    public async Task<ServiceResult<PagedResultDto<CustomerDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
-    {
-        try
-        {
-            if (_repository is not IPagedCriteriaRepository<Customer> pagedRepository)
-                return ServiceResult<PagedResultDto<CustomerDto>>.Fail($"{nameof(Customer)} 仓储未实现动态分页查询");
-
-            var paged = await pagedRepository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
-            return ServiceResult<PagedResultDto<CustomerDto>>.Ok(new PagedResultDto<CustomerDto>
-            {
-                Items = paged.Items.Adapt<List<CustomerDto>>(),
-                TotalCount = paged.TotalCount,
-                PageSize = paged.PageSize,
-                PageIndex = paged.PageIndex
-            });
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<PagedResultDto<CustomerDto>>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<Guid>> AddAsync(CustomerDto dto)
-    {
-        try
-        {
-            var entity = dto.Adapt<Customer>();
-            entity.CreatedDate = DateTime.Now;
-            entity.IsDeleted = false;
-            var uid = await _repository.AddAsync(entity);
-            return ServiceResult<Guid>.Ok(uid);
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<Guid>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<int>> UpdateAsync(CustomerDto dto)
-    {
-        try
-        {
-            var existing = await _repository.GetByIdAsync(dto.Uid);
-            if (existing == null) return ServiceResult<int>.Fail("数据不存在");
-
-            dto.Adapt(existing);
-            await _repository.UpdateAsync(existing);
-            return ServiceResult<int>.Ok(1);
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<int>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<int>> DeleteAsync(Guid uid)
-    {
-        try
-        {
-            return ServiceResult<int>.Ok(await _repository.DeleteAsync(uid));
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<int>.Fail(ex.Message);
-        }
-    }
-
+    #region 批量保存和验证
     public async Task<ServiceResult<CustomerBatchSaveResponse>> BatchSaveAsync(CustomerBatchSaveRequest batchReq)
     {
+        if (batchReq == null)
+        {
+            return ServiceResult<CustomerBatchSaveResponse>.Fail("请求不能为空。");
+        }
+
+        if (!batchReq.HasChanges)
+        {
+            return ServiceResult<CustomerBatchSaveResponse>.Fail("没有需要保存的数据。");
+        }
+
+        var validationError = await ValidateBatchSaveAsync(batchReq);
+
+        if (!string.IsNullOrWhiteSpace(validationError))
+        {
+            return ServiceResult<CustomerBatchSaveResponse>.Fail(validationError);
+        }
+
+        var response = new CustomerBatchSaveResponse
+        {
+            TotalCount = batchReq.TotalCount
+        };
+
+
         _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new CustomerBatchSaveResponse();
-
-        var createList = batchReq.AddList?.Adapt<List<Customer>>();
-        var updateList = batchReq.UpdateList?.Adapt<List<Customer>>();
-        var deleteIds = batchReq.DeleteIdList;
-
         try
         {
-            var errorMsg = new StringBuilder();
-
-            if (createList is { Count: > 0 })
+            foreach (var item in batchReq.CreateItems)
             {
-                var error = await ValidateBeforeAddAsync(createList);
-                if (!string.IsNullOrEmpty(error)) errorMsg.AppendLine(error);
+                var entity = item.Data.Adapt<Customer>();
+
+                var writeResult = await _repository.AddAsync(entity);
+
+                response.Items.Add(
+                    SaveItemResultFactory.FromCreate(item, writeResult));
+
+                if (!writeResult.Success)
+                {
+                    throw new InvalidOperationException(
+                        writeResult.Message ?? "新增客户失败。");
+                }
             }
 
-            if (updateList is { Count: > 0 })
+            foreach (var item in batchReq.UpdateItems)
             {
-                var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
-                if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
+                var entity = item.Data.Adapt<Customer>();
 
-                var needUpdateUids = updateList.Select(x => x.Uid).ToList();
-                var existingUids = await _repository.GetExistingIdListAsync(needUpdateUids);
-                var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
-                if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
+                entity.Uid = item.Uid;
+                entity.Version = item.Version;
+
+                var writeResult = await _repository.UpdateAsync(entity);
+
+                response.Items.Add(
+                    SaveItemResultFactory.FromUpdate(item, writeResult));
+
+                if (!writeResult.Success)
+                {
+                    throw new InvalidOperationException(
+                        writeResult.Message ?? "更新客户失败。");
+                }
             }
 
-            if (deleteIds is { Count: > 0 })
+            foreach (var item in batchReq.DeleteItems)
             {
-                var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
-                if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
+                var writeResult = await _repository.DeleteAsync(
+                    item.Uid,
+                    item.Version,
+                    item.IsSoftDelete);
+
+                response.Items.Add(
+                    SaveItemResultFactory.FromDelete(item, writeResult));
+
+                if (!writeResult.Success)
+                {
+                    throw new InvalidOperationException(
+                        writeResult.Message ?? "删除客户失败。");
+                }
             }
 
-            if (errorMsg.Length > 0)
-                return ServiceResult<CustomerBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
-
-            if (_repository is not IBatchWriteRepository<Customer> batchRepository)
-                return ServiceResult<CustomerBatchSaveResponse>.Fail($"{nameof(Customer)} 仓储未实现批量保存");
-
-            if (createList is { Count: > 0 })
-            {
-                result.AddIdList = [.. await batchRepository.AddRangeAsync(createList)];
-            }
-
-            if (updateList is { Count: > 0 })
-            {
-                await batchRepository.UpdateRangeAsync(updateList);
-                result.UpdateIdList = [.. updateList.Select(x => x.Uid)];
-            }
-
-            if (deleteIds is { Count: > 0 })
-            {
-                await batchRepository.DeleteRangeAsync(deleteIds);
-                result.DeleteIdList = deleteIds;
-            }
 
             _session.Transaction.Commit();
-            return ServiceResult<CustomerBatchSaveResponse>.Ok(result);
+            return ServiceResult<CustomerBatchSaveResponse>.Ok(response, $"批量保存完成，成功 {response.SuccessCount} 条。");
         }
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<CustomerBatchSaveResponse>.Fail(ex.Message);
+            return ServiceResult<CustomerBatchSaveResponse>.Fail(
+                        $"批量保存失败，所有操作已回滚。原因：{ex.Message}");
         }
         finally
         {
             _session.Transaction.Dispose();
             _session.Transaction = null;
         }
+    }
+    private async Task<string?> ValidateBatchSaveAsync(CustomerBatchSaveRequest batchReq)
+    {
+        var errorMsg = new StringBuilder();
+
+        if (batchReq.CreateItems.Count > 0)
+        {
+            var error = await ValidateBeforeCreateAsync(batchReq.CreateItems);
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                errorMsg.AppendLine(error);
+            }
+        }
+
+        if (batchReq.UpdateItems.Count > 0)
+        {
+            var error = await ValidateBeforeUpdateAsync(batchReq.UpdateItems);
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                errorMsg.AppendLine(error);
+            }
+        }
+
+        if (batchReq.DeleteItems.Count > 0)
+        {
+            var error = await ValidateBeforeDeleteAsync(batchReq.DeleteItems);
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                errorMsg.AppendLine(error);
+            }
+        }
+
+        return errorMsg.Length > 0
+            ? errorMsg.ToString().TrimEnd()
+            : null;
+    }
+    protected override async Task<string?> ValidateBeforeCreateAsync(List<CreateItemRequest<CustomerDto>> createItems)
+    {
+        var codes = new List<string>();
+
+        foreach (var item in createItems)
+        {
+            if (item.Data == null)
+            {
+                return $"第 {item.RowIndex} 行：新增数据不能为空。";
+            }
+
+            if (string.IsNullOrWhiteSpace(item.Data.CustomerCode))
+            {
+                return $"第 {item.RowIndex} 行：客户代码不能为空。";
+            }
+
+            if (string.IsNullOrWhiteSpace(item.Data.CustomerName))
+            {
+                return $"第 {item.RowIndex} 行：客户名称不能为空。";
+            }
+
+            codes.Add(item.Data.CustomerCode.Trim());
+        }
+
+        var duplicateInRequest = codes
+            .GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicateInRequest.Count > 0)
+        {
+            return "新增失败：本次提交中存在重复客户代码：" +
+                   string.Join(", ", duplicateInRequest);
+        }
+
+        var existedCodes = await repository.GetExistingCustomerCodesAsync(codes);
+
+        if (existedCodes.Count > 0)
+        {
+            return "新增失败：客户代码在数据库中已存在：" +
+                   string.Join(", ", existedCodes);
+        }
+
+        return null;
+    }
+    protected override async Task<string?> ValidateBeforeUpdateAsync(List<UpdateItemRequest<CustomerDto>> updateItems)
+    {
+        foreach (var item in updateItems)
+        {
+            if (item.Uid == Guid.Empty)
+            {
+                return $"第 {item.RowIndex} 行：修改失败，Uid 不能为空。";
+            }
+
+            if (item.Version <= 0)
+            {
+                return $"第 {item.RowIndex} 行：修改失败，Version 无效。";
+            }
+
+            if (item.Data == null)
+            {
+                return $"第 {item.RowIndex} 行：修改数据不能为空。";
+            }
+
+            if (string.IsNullOrWhiteSpace(item.Data.CustomerCode))
+            {
+                return $"第 {item.RowIndex} 行：客户代码不能为空。";
+            }
+
+            if (string.IsNullOrWhiteSpace(item.Data.CustomerName))
+            {
+                return $"第 {item.RowIndex} 行：客户名称不能为空。";
+            }
+        }
+
+        var uids = updateItems
+            .Select(x => x.Uid)
+            .Distinct()
+            .ToList();
+
+        var existingUids = await _repository.GetExistingIdListAsync(uids);
+
+        var notFoundUids = uids
+            .Except(existingUids)
+            .ToList();
+
+        if (notFoundUids.Count > 0)
+        {
+            return "修改失败：包含不存在的客户 Id：" +
+                   string.Join(", ", notFoundUids);
+        }
+
+        var codePairs = updateItems
+            .Select(x => new
+            {
+                x.Uid,
+                CustomerCode = x.Data.CustomerCode.Trim()
+            })
+            .ToList();
+
+        var duplicateCodesInRequest = codePairs
+            .GroupBy(x => x.CustomerCode, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Select(x => x.Uid).Distinct().Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicateCodesInRequest.Count > 0)
+        {
+            return "修改失败：本次提交中存在重复客户代码：" +
+                   string.Join(", ", duplicateCodesInRequest);
+        }
+
+        var occupiedCodes = await repository.GetCustomerCodesUsedByOtherCustomersAsync(
+            codePairs.Select(x => (x.Uid, x.CustomerCode)));
+
+        if (occupiedCodes.Count > 0)
+        {
+            return "修改失败：以下客户代码已被其他客户使用：" +
+                   string.Join(", ", occupiedCodes);
+        }
+
+        return null;
+    }
+    protected override async Task<string?> ValidateBeforeDeleteAsync(List<DeleteItemRequest> deleteItems)
+    {
+        foreach (var item in deleteItems)
+        {
+            if (item.Uid == Guid.Empty)
+            {
+                return $"第 {item.RowIndex} 行：删除失败，Uid 不能为空。";
+            }
+
+            if (item.Version <= 0)
+            {
+                return $"第 {item.RowIndex} 行：删除失败，Version 无效。";
+            }
+        }
+
+        var uids = deleteItems
+            .Select(x => x.Uid)
+            .Distinct()
+            .ToList();
+
+        var existingUids = await _repository.GetExistingIdListAsync(uids);
+
+        var notFoundUids = uids
+            .Except(existingUids)
+            .ToList();
+
+        if (notFoundUids.Count > 0)
+        {
+            return "删除失败：包含不存在的客户 Id：" +
+                   string.Join(", ", notFoundUids);
+        }
+
+        return null;
     }
     #endregion
 

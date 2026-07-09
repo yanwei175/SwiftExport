@@ -1,7 +1,6 @@
 ﻿using Refit;
 using SwiftExport.Contracts.Wrappers;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace SwiftExport.Contracts.Apis.BaseApi
@@ -9,16 +8,10 @@ namespace SwiftExport.Contracts.Apis.BaseApi
     public interface IGenericApi<TDto> where TDto : class
     {
 
-        // 1. 获取列表 (传入 "api/product" 或 "api/product?page=1")
-        // 注意 {**path} 里的两个星号，这是防止路径里的斜杠 "/" 被转义的终极魔法！
-        [Get("/all")]
-        Task<ServiceResult<IReadOnlyList<TDto>>> GetAllAsync();
-
         // 2. 获取单体 (传入 "api/product/5")
         // 返回单体 TDto
         [Get("/{id}")]
         Task<ServiceResult<TDto>> GetByIdAsync(Guid id);
-
 
         // ================= 操作 (POST/PUT/DELETE) =================
 

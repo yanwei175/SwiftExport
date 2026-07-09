@@ -1,7 +1,9 @@
 ﻿using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
+[Table("ProductDetails")]
 public class ProductDetail : BaseEntity
 {
     public string ProductSKU { get; set; } = default!;

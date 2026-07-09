@@ -1,7 +1,9 @@
 ﻿using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Relations;
 
+[Table("CustomerPoConfig")]
 public class CustomerPoConfig : BaseEntity
 {
     public string? CustomerCode { get; set; }

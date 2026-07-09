@@ -99,6 +99,7 @@
     </Compile>
     <Compile Include="PurchaseOrderViews\ViewModels\PurchaseOrderDetailViewModel.cs" />
     <Compile Include="PurchaseOrderViews\ViewModels\PurchaseOrderManagerViewModel.cs" />
+    <Compile Include="PurchaseOrderViews\ViewModels\PurchaseOrderSearchDto.cs" />
     <Compile Include="PurchaseOrderViews\Views\PurchaseOrderDetailView.xaml.cs">
       <DependentUpon>PurchaseOrderDetailView.xaml</DependentUpon>
     </Compile>

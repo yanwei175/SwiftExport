@@ -1,6 +1,8 @@
 using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.PackingLists;
+using SwiftExport.Contracts.DTOs.PackingLists.Requests;
+using SwiftExport.Contracts.DTOs.PackingLists.Responses;
 using SwiftExport.Contracts.Wrappers;
 using System;
 using System.Collections.Generic;
@@ -12,7 +14,7 @@ namespace SwiftExport.Contracts.Apis.Orders
     {
 
         [Post("/search")]
-        Task<ServiceResult<PagedResultDto<PackingListHeadDto>>> GetHeadPagedListAsync([Body] PackingListSearchDto search);
+        Task<ServiceResult<PagedResponseBase<PackingListHeadDto>>> GetHeadPagedListAsync([Body] PackingListSearchRequest search);
 
         [Get("/{uid}/detail")]
         Task<ServiceResult<PackingListDetailDto>> GetDetailByUidAsync(Guid uid);
@@ -20,7 +22,7 @@ namespace SwiftExport.Contracts.Apis.Orders
         Task<ServiceResult<List<PackingListLineDto>>> GetLinesByHeadUidAsync(Guid uid);
 
         [Get("/unshipped/search")]
-        Task<ServiceResult<PagedResultDto<PackingListLineDto>>> GetUnshippedForPagedListAsync([Body] PackingListSearchDto search);
+        Task<ServiceResult<PagedResponseBase<PackingListLineDto>>> GetUnshippedForPagedListAsync([Body] PackingListSearchRequest search);
 
 
 

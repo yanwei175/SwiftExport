@@ -1,5 +1,6 @@
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces;
 
@@ -16,13 +17,13 @@ namespace SwiftExport.Application.Services.Systems
         /// 获取下一个可用单号。
         /// 规则：{DocType}{yyyyMM}{序号补零}。
         /// </summary> 
-        public async Task<ServiceResult<DocumentNoResultDto>> GetNextDocumentNoAsync(DocumentNoRequestDto request)
+        public async Task<ServiceResult<DocumentNoResponse>> GetNextDocumentNoAsync(DocumentNoRequest request)
         {
-            request ??= new DocumentNoRequestDto();
+            request ??= new DocumentNoRequest();
 
             var docType = (request.DocType ?? string.Empty).Trim().ToUpperInvariant();
             if (string.IsNullOrWhiteSpace(docType))
-                return ServiceResult<DocumentNoResultDto>.Fail("DocType 不能为空");
+                return ServiceResult<DocumentNoResponse>.Fail("DocType 不能为空");
 
             var serialWidth = request.SerialWidth > 0 ? request.SerialWidth : 4;
             var businessDate = request.BusinessDate ?? DateTime.Now;
@@ -31,7 +32,7 @@ namespace SwiftExport.Application.Services.Systems
             var sequence = await _documentSequenceRepository.GetNextAsync(docType, yearMonth, request.Operator);
             var documentNo = $"{docType}{yearMonth}{sequence.CurrentNo.ToString().PadLeft(serialWidth, '0')}";
 
-            return ServiceResult<DocumentNoResultDto>.Ok(new DocumentNoResultDto
+            return ServiceResult<DocumentNoResponse>.Ok(new DocumentNoResponse
             {
                 DocType = docType,
                 YearMonth = yearMonth,

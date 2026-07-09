@@ -3,7 +3,7 @@ using SwiftExport.Core.Entities.Orders;
 
 namespace SwiftExport.Core.Interfaces;
 
-public interface IPackingListHeadRepository : IRepository<PackingListHead>, IPagedCriteriaRepository<PackingListHead>
+public interface IPackingListHeadRepository : IRepository<PackingListHead>
 {
     #region 订单头操作
     Task<PackingListHead?> GetByPackingListNoAsync(string packingListNo);

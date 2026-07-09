@@ -1,5 +1,4 @@
 using SwiftExport.Contracts.SysEnums;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -8,6 +7,7 @@ namespace SwiftExport.Core.Entities.Orders;
 /// <summary>
 /// 销售需求执行实体 - 对应数据库 IndependentDemand 表
 /// </summary>
+[Table("IndependentDemand")]
 public class IndependentDemand : BaseEntity
 {
     public IndependentDemandStatusEnum OrderStatus { get; set; } = IndependentDemandStatusEnum.未确认;     // 内部执行状态 (0:待处理, 1:采购中, 2:已到货, 3:已完成)
@@ -29,11 +29,11 @@ public class IndependentDemand : BaseEntity
 
     #endregion
 
-    public  string? SourceSku { get; set; }//比如客户的型号
-    public required string Sku { get; set; } 
-    public  string? Description { get; set; } // 非标件描述或产品名称
-    public  string? ColorName { get; set; }   // 颜色名称
-    public  string? Features { get; set; }   // 规格型号（针对非标件尤为重要）
+    public string? SourceSku { get; set; }//比如客户的型号
+    public required string Sku { get; set; }
+    public string? Description { get; set; } // 非标件描述或产品名称
+    public string? ColorName { get; set; }   // 颜色名称
+    public string? Features { get; set; }   // 规格型号（针对非标件尤为重要）
 
     public required decimal OriginalQty { get; set; }  // 原始订单数量[cite: 2]
     public decimal FilledQty { get; set; }    // 已填充数量（已匹配采购或库存的数量）

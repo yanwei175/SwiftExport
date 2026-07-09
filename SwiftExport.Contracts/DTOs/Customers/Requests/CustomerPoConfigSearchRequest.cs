@@ -2,7 +2,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Contracts.DTOs.Customers.Requests
 {
-    public class CustomerPoConfigSearchRequest : PagedRequestDto
+    public class CustomerPoConfigSearchRequest : PagedRequestBase
     {
     }
 }

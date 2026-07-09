@@ -1,6 +1,6 @@
 using SwiftExport.Contracts.SysEnums;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Orders;
 
@@ -8,6 +8,7 @@ namespace SwiftExport.Core.Entities.Orders;
 /// 拆解独立需求之后的依赖需求实体
 /// 用于承接“销售订单行 -> 采购/生产执行单”的拆解与跟踪数据。
 /// </summary>
+[Table("DependentDemand")]
 public class DependentDemand : BaseEntity
 {
     public required DependentDemandStatusEnum OrderStatus { get; set; }

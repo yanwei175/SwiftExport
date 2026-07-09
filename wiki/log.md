@@ -1,5 +1,12 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-06 backend | `/page` 分页接口统一 POST Body
+
+- 将 Contracts Refit 中的 `/page` 从 GET Query 改为 POST Body，统一由专用 SearchRequest 承载分页和筛选参数。
+- WebApi Controller 的 `/page` action 不再接收 `[FromQuery] pageIndex/pageSize`，旧 `QueryCriteria + query string` 入口改为 typed request 后在 Controller 内部转现有 Service 调用。
+- 补齐系统字典、货币、视图路由、BOM 等模块的轻量 `XxxSearchRequest : PagedRequestDto`，便于后续扩展筛选字段。
+- 该调整不兼容旧前端 GET/query 调用，前端 Refit 调用需后续手动改为 POST Body。
+
 ## 2026-07-06 backend | Contracts API 专用请求与批量保存契约
 
 - 将批量保存基础契约替换为 `BatchSaveRequestBase<TDto>` / `BatchSaveResponseBase`，删除旧 `BatchRequestDto<T>` 与 `BatchResultDto`。

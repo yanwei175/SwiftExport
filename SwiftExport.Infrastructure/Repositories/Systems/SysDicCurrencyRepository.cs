@@ -1,10 +1,8 @@
 using Dapper;
 using SwiftExport.Core.Entities.Systems;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Core.ReadModels.Systems;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
-using System.Transactions;
 
 namespace SwiftExport.Infrastructure.Repositories.Systems
 {
@@ -32,8 +30,8 @@ namespace SwiftExport.Infrastructure.Repositories.Systems
 
             // 如果有排除 ID，则加上 NOT IN 条件
             var sql = excludeList.Count > 0
-                ? $"SELECT Id FROM [{TableName}] WHERE IsBase = 1 AND IsDeleted = 0 AND Id NOT IN @ExcludeIds"
-                : $"SELECT Id FROM [{TableName}] WHERE IsBase = 1 AND IsDeleted = 0";
+                ? $"SELECT Uid FROM [{TableName}] WHERE IsBase = 1 AND IsDeleted = 0 AND Uid NOT IN @ExcludeIds"
+                : $"SELECT Uid FROM [{TableName}] WHERE IsBase = 1 AND IsDeleted = 0";
 
             var param = excludeList.Count > 0
                 ? (object)new { ExcludeIds = excludeList }

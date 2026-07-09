@@ -1,8 +1,10 @@
 ﻿using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 
 namespace SwiftExport.Core.Entities.Orders;
 
+[Table("ReceiptItem")]
 public class ReceiptItem : BaseEntity
 {
     public string? PoNo { get; set; }

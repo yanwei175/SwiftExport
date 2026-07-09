@@ -1,4 +1,4 @@
-using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.PurchaseOrders;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Contracts.DTOs.Orders.Requests

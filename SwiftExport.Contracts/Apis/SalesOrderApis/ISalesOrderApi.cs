@@ -2,7 +2,9 @@ using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Contracts.DTOs.SalesOrders;
-using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.SalesOrders.Requests;
+using SwiftExport.Contracts.DTOs.SalesOrders.Responses;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.Wrappers;
 using System;
 using System.Collections.Generic;
@@ -26,7 +28,7 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         /// 支持多选状态、订单号/发票号、客户代码、颜色、包含 SKU 等筛选条件。
         /// </summary>
         [Post("/headers/search-manager")]
-        Task<ServiceResult<PagedResultDto<SalesOrderHeaderManagerDto>>> GetSalesOrderHeaderManagerPagedListAsync([Body] SalesOrderManagerSearchDto search);
+        Task<ServiceResult<PagedResponseBase<SalesOrderHeaderManagerDto>>> GetSalesOrderHeaderManagerPagedListAsync([Body] SalesOrderManagerSearchRequest search);
         /// <summary>
         /// 中文注释：根据订单 ID 获取订单头信息（用于 SalesOrderManagerViewModel 从表动态加载）。
         /// </summary>
@@ -77,7 +79,7 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         [Get("/{orderId}/detail")]
         Task<ServiceResult<SalesOrderDetailDto>> GetSalesOrderDetailAsync(Guid orderId);
 
-        /// <summary>订单详情页一键保存接口（新增/编辑由后端根据 Header.Id 判断）。</summary>
+        /// <summary>订单详情页一键保存接口（新增/编辑由后端根据 Header.Uid 判断）。</summary>
         [Post("/detail-save")]
         Task<ServiceResult<SalesOrderSaveDetailResponse>> SaveSalesOrderDetailAsync([Body] SalesOrderSaveDetailRequest request);
 
@@ -91,18 +93,18 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         /// 从 CustomerProduct 与 Product 联查结果中返回可用于“新增订单行”的基础数据。
         /// </summary>
         [Post("/lines/sales-products/search")]
-        Task<ServiceResult<PagedResultDto<SalesProductDto>>> GetSalesProductPagedListAsync([Body] SalesProductSearchDto request);
+        Task<ServiceResult<PagedResponseBase<SalesProductDto>>> GetSalesProductPagedListAsync([Body] SalesProductSearchRequest request);
         /// <summary>
         /// 获取销售订单下一单号。
         /// </summary>
         [Post("/next-order-no")]
-        Task<ServiceResult<DocumentNoResultDto>> GetNextOrderNoAsync();
+        Task<ServiceResult<DocumentNoResponse>> GetNextOrderNoAsync();
 
         /// <summary>
         /// 分页查询销售订单列表（旧 DTO，保留兼容）
         /// </summary>
         [Post("/search")]
-        Task<ServiceResult<PagedResultDto<SalesOrderDto>>> GetSalesOrderPagedListAsync([Body] SalesOrderSearchDto search);
+        Task<ServiceResult<PagedResponseBase<SalesOrderDto>>> GetSalesOrderPagedListAsync([Body] SalesOrderSearchRequest search);
 
 
 

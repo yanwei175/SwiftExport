@@ -22,6 +22,7 @@ public static class DependencyInjection
 
         services.AddScoped<ServiceBaseContext>();
 
+
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IBomService, BomService>();
         services.AddScoped<ICustomerService, CustomerService>();

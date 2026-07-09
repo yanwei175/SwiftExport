@@ -1,7 +1,9 @@
 ﻿using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Relations;
 
+[Table("SupplierProduct")]
 public class SupplierProduct : BaseEntity
 {
     public string? ProductSku { get; set; }

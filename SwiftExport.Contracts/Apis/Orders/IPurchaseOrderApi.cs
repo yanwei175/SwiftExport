@@ -1,6 +1,7 @@
 using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
-using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.PurchaseOrders.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
@@ -17,7 +18,7 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// 分页查询采购订单头。
         /// </summary>
         [Post("/search")]
-        Task<ServiceResult<PagedResultDto<PurchaseOrderHeadDto>>> GetPagedListAsync([Body] PurchaseOrderSearchDto search);
+        Task<ServiceResult<PagedResponseBase<PurchaseOrderHeadDto>>> GetPagedListAsync([Body] PurchaseOrderSearchRequest search);
 
         /// <summary>
         /// 根据头表ID获取采购订单详情。

@@ -1,5 +1,4 @@
 using SwiftExport.Core.Entities.Systems;
-using SwiftExport.Core.ReadModels.Systems;
 
 namespace SwiftExport.Core.Interfaces
 {
@@ -7,7 +6,7 @@ namespace SwiftExport.Core.Interfaces
     /// SysDicCurrency 仓储接口
     /// 扩展了本位币查询等特定业务方法
     /// </summary>
-    public interface ISysDicCurrencyRepository : IRepository<SysDicCurrency>, IObjectQueryRepository<SysDicCurrency>
+    public interface ISysDicCurrencyRepository : IRepository<SysDicCurrency>
     {
 
         Task<bool> ResetAllBaseCurrencyAsync();

@@ -64,7 +64,7 @@ public class SysRoleRepository(DbSession session) : ISysRoleRepository
         return await _session.Connection.QueryAsync<SysRole>(sql, new { ParentRoleId = parentRoleId });
     }
 
-    /// <summary>新增角色，返回新 Id</summary>
+    /// <summary>新增角色，返回新 Uid</summary>
     public async Task<Guid> AddAsync(SysRole role)
     {
         const string sql = """

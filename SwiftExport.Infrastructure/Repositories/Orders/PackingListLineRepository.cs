@@ -17,7 +17,7 @@ public partial class PackingListLineRepository(RepositoryBaseContext context)
                      FROM [{TableName}] WITH(NOLOCK)
                      WHERE [PackingListNo] = @PackingListNo
                        AND (IsDeleted = 0 OR IsDeleted IS NULL)
-                     ORDER BY [Id]";
+                     ORDER BY [Uid]";
 
         var result = await Connection.QueryAsync<PackingListLine>(
             sql,

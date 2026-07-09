@@ -1,5 +1,5 @@
 using Mapster;
-using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.PurchaseOrders;
 using SwiftExport.View.FW.Mvvm;
 using System.Collections.Generic;
 using System.Linq;

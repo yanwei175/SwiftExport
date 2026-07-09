@@ -1,14 +1,14 @@
 ﻿using SwiftExport.Core.Common;
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
+[Table("ProductPackage")]
 public class ProductPackage : BaseEntity
 {/// <summary>
  /// 关联产品主键Id
  /// </summary>
-    public  Guid? ProductId { get; set; }
+    public Guid? ProductId { get; set; }
 
     /// <summary>
     /// 包装类型：InnerBox(内盒), Carton(外箱), Pallet(托盘)

@@ -1,7 +1,8 @@
 using Dapper;
 using SwiftExport.Contracts.DTOs.SalesOrders;
+using SwiftExport.Contracts.DTOs.SalesOrders.Requests;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
-using SwiftExport.Core.Common;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
@@ -84,9 +85,9 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
             return [.. rst];
         }
 
-        public async Task<PagedResult<SalesProductDto>> GetSalesProductPagedListAsync(SalesProductSearchDto request, string orderBy = "p.Sku DESC")
+        public async Task<PagedResponseBase<SalesProductDto>> GetSalesProductPagedListAsync(SalesProductSearchRequest request, string orderBy = "p.Sku DESC")
         {
-            request ??= new SalesProductSearchDto();
+            request ??= new SalesProductSearchRequest();
 
             if (string.IsNullOrWhiteSpace(orderBy))
             {
@@ -241,7 +242,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
             var total = await multi.ReadFirstAsync<int>();
             var items = await multi.ReadAsync<SalesProductDto>();
 
-            return new PagedResult<SalesProductDto>
+            return new PagedResponseBase<SalesProductDto>
             {
                 Items = [.. items],
                 TotalCount = total,

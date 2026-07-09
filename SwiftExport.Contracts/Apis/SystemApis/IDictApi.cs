@@ -1,4 +1,4 @@
-﻿using Refit;
+using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
@@ -18,6 +18,5 @@ namespace SwiftExport.Contracts.Apis.SystemApis
         [Get("/data/{dictCode}")]
         Task<ServiceResult<List<SysDictDataDto>>> GetDictDataByCodeAsync(string dictCode);
 
-        // （增删改等基础操作已通过继承 IGenericApi<SysDictDataDto> 自动拥有！）
     }
 }

@@ -1,8 +1,10 @@
 ﻿
 using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Orders;
 
+[Table("SalesOrderLine")]
 public class SalesOrderLine : BaseEntity
 {
     public int LineNumber { get; set; }

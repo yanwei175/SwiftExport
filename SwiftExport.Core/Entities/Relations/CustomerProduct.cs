@@ -1,6 +1,8 @@
 ﻿using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Relations;
 
+[Table("CustomerProduct")]
 public class CustomerProduct : BaseEntity
 {
 

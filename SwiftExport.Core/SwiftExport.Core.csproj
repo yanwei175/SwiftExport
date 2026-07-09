@@ -20,12 +20,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="ReadModels\Customers\" />
-    <Folder Include="ReadModels\Customer\" />
-    <Folder Include="ReadModels\Products\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj" />
   </ItemGroup>
 

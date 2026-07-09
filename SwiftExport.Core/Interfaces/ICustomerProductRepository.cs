@@ -1,10 +1,11 @@
 ﻿using SwiftExport.Contracts.DTOs.Customers;
-using SwiftExport.Core.Common;
+using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Relations;
 
 namespace SwiftExport.Core.Interfaces;
 
-public interface ICustomerProductRepository : IRepository<CustomerProduct>, IBatchWriteRepository<CustomerProduct>
+public interface ICustomerProductRepository : IRepository<CustomerProduct>
 {
     // ============================================================
     // 读操作（联表查询，直接返回 DTO）
@@ -23,7 +24,7 @@ public interface ICustomerProductRepository : IRepository<CustomerProduct>, IBat
     ///   - 普通字段（CustomerId / CustomerSku / Sku 等）→ 映射到 cp.字段
     ///   - CategoryId → 映射到 p.CategoryId
     /// </summary>
-    Task<PagedResult<CustomerProductDto>> GetPagedCustomerProductAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "cp.CreatedDate DESC");
+    Task<PagedResponseBase<CustomerProductDto>> GetPagedAsync(CustomerProductSearchRequest request);
 
     // ============================================================
     // 其他特有查询
@@ -37,5 +38,7 @@ public interface ICustomerProductRepository : IRepository<CustomerProduct>, IBat
 
     /// <summary>批量检查客户料号是否已存在（用于新增前去重校验）</summary>
     Task<IReadOnlyList<string>> GetExistingCustomerSkuListAsync(IEnumerable<string> skuList, Guid customerId);
+    Task<List<string>> GetCustomerCodesUsedByOtherCustomersAsync(IEnumerable<(Guid Uid, string CustomerCode)> items);
+
 }
 

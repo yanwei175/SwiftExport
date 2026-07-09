@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 
 namespace SwiftExport.Core.Interfaces;
@@ -14,8 +15,7 @@ public interface IRepository<T> where T : BaseEntity
     Task<IReadOnlyList<T>> GetByIdListAsync(IEnumerable<Guid> uidList, bool withUpdLock = false);
     Task<T?> GetSingleEntityAsync();
     Task<IReadOnlyList<T>> GetAllAsync();
-    Task<Guid> AddAsync(T entity);
-    Task<T> UpdateAsync(T entity);
-    Task<int> DeleteSoftAsync(Guid uid);
-    Task<int> DeleteAsync(Guid uid, bool softDelete = true);
+    Task<RepositoryWriteResult> AddAsync(T entity);
+    Task<RepositoryWriteResult> UpdateAsync(T entity);
+    Task<RepositoryWriteResult> DeleteAsync(Guid uid, int version, bool softDelete = true);
 }

@@ -1,0 +1,13 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace SwiftExport.Contracts.DTOs.PackingLists.Requests
+{
+    public class PackingListPostRequestDto
+    {
+        public Guid PackingListId { get; set; }
+        public bool AllowNegativeStock { get; set; }
+        public string Operator { get; set; }
+    }
+}

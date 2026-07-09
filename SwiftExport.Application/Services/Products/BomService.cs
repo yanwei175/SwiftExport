@@ -2,73 +2,34 @@ using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Contracts.DTOs.Orders.DependentDemands;
+using SwiftExport.Application.Services.Base;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Contracts.DTOs.Base;
-using SwiftExport.Core.Common;
-using SwiftExport.Infrastructure.Data;
-using System.Text;
-
-using SwiftExport.Contracts.DTOs.Products.Requests;
-using SwiftExport.Contracts.DTOs.Products.Responses;
 namespace SwiftExport.Application.Services.Products;
 
 public partial class BomService(
     IBomRepository bomRepo,
     IProductRepository pdRepo,
     ISupplierRepository supplierRepo,
-    ServiceBaseContext context) : IBomService
+    ServiceBaseContext context)
+    : BaseService<Bom, BomDto>(bomRepo, context), IBomService
 {
-    private readonly DbSession _session = context.Session;
+
     private readonly ILogger<BomService> _logger = context.LoggerFactory.CreateLogger<BomService>();
-    private readonly IBomRepository _bomRepo = bomRepo;
-    private readonly IProductRepository _pdRepo = pdRepo;
-    private readonly ISupplierRepository _supplierRepo = supplierRepo;
 
     #region BOM管理CRUD操作
-    public async Task<ServiceResult<Guid>> AddAsync(BomDto dto)
-    {
-        var entity = dto.Adapt<Bom>();
-
-        //检查这条BOM是否在数据库中对应BomNo和ProductSku已经存在了，如果存在了就不允许新增
-        //根据这条bom的BomNo和ProductSku去数据库中查询，如果查询到了数据就说明已经存在了，就不允许新增了
-        var rst = await _bomRepo.IsBomItemExistAsync(entity.BomNo, entity.SubSku);
-
-        if (rst)
-        {
-            if (_logger.IsEnabled(LogLevel.Warning))
-            {
-                _logger.LogWarning("尝试新增 {EntityName} 数据失败，原因：BomNo和ProductSku的组合已经存在！BomNo: {BomNo}, ProductSku: {ProductSku}", nameof(Bom), entity.BomNo, entity.SubSku);
-            }
-
-            return ServiceResult<Guid>.Fail("相同BomNo和ProductSku的记录已存在，无法新增！");
-        }
-
-
-        entity.CreatedDate = DateTime.Now;
-        entity.IsDeleted = false;
-
-        var uid = await _bomRepo.AddAsync(entity);
-
-        // Information 级别
-        if (_logger.IsEnabled(LogLevel.Information))
-        {
-            _logger.LogInformation("成功新增 {EntityName} 数据，生成的 Uid: {Uid}", nameof(Bom), uid);
-        }
-
-        return ServiceResult<Guid>.Ok(uid);
-    }
 
     public async Task<ServiceResult<int>> DeleteBomByBomNoAsync(string bomNo)
     {
 
-        var rst = await _bomRepo.DeleteBomByBomNoAsync(bomNo);
+        var rst = await bomRepo.DeleteBomByBomNoAsync(bomNo);
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
@@ -79,7 +40,7 @@ public partial class BomService(
 
     public async Task<ServiceResult<List<BomDto>>> GetBomDtoByBomNoAsync(string bomNo)
     {
-        var entities = await _bomRepo.GetBomDtoByBomNoAsync(bomNo);
+        var entities = await bomRepo.GetBomDtoByBomNoAsync(bomNo);
         if (!entities.Any()) return ServiceResult<List<BomDto>>.Fail("未找到数据");
 
         return ServiceResult<List<BomDto>>.Ok([.. entities]);
@@ -93,14 +54,14 @@ public partial class BomService(
         }
 
         // 0. 获取产品的 BOM 号
-        Product? pd = await _pdRepo.GetBySkuAsync(productSku);
+        Product? pd = await pdRepo.GetBySkuAsync(productSku);
         if (pd == null || string.IsNullOrEmpty(pd.BomNo))
             return ServiceResult<bool>.Fail("产品型号不存在或产品没设置BOM");
 
         string bomNo = pd.BomNo;
 
         // 1. 查询该产品的 BOM 项
-        var bomItems = await _bomRepo.GetBomByBomNoAsync(bomNo);
+        var bomItems = await bomRepo.GetBomByBomNoAsync(bomNo);
         if (bomItems == null || !bomItems.Any())
             return ServiceResult<bool>.Fail("该Bom 没有 BOM 数据，视为不合法");
 
@@ -112,8 +73,8 @@ public partial class BomService(
         foreach (var item in bomItems)
         {
             var exists = item.SubSkuId.HasValue
-                ? await _pdRepo.ExistsIdAsync(item.SubSkuId.Value)
-                : await _pdRepo.GetBySkuAsync(item.SubSku) != null;
+                ? await pdRepo.ExistsIdAsync(item.SubSkuId.Value)
+                : await pdRepo.GetBySkuAsync(item.SubSku) != null;
             if (!exists) return ServiceResult<bool>.Fail($"子项{item.SubSku}不存在");
         }
 
@@ -128,11 +89,11 @@ public partial class BomService(
         {
             if (!visited.Add(currentBomNo)) return true; // 已访问过，说明有环
 
-            var children = await _bomRepo.GetBomByBomNoAsync(currentBomNo);
+            var children = await bomRepo.GetBomByBomNoAsync(currentBomNo);
             foreach (var child in children)
             {
                 // 递归检查子件的 BOM
-                var subPd = await _pdRepo.GetBySkuAsync(child.SubSku);
+                var subPd = await pdRepo.GetBySkuAsync(child.SubSku);
                 if (subPd != null && !string.IsNullOrEmpty(subPd.BomNo))
                 {
                     if (await HasCycleAsync(subPd.BomNo)) return true;
@@ -153,7 +114,7 @@ public partial class BomService(
         if (string.IsNullOrWhiteSpace(productSku))
             return ServiceResult<IEnumerable<BomTreeDto>>.Fail("产品SKU不能为空");
 
-        var pd = await _pdRepo.GetBySkuAsync(productSku);
+        var pd = await pdRepo.GetBySkuAsync(productSku);
         if (pd == null || string.IsNullOrEmpty(pd.BomNo))
         {
             return ServiceResult<IEnumerable<BomTreeDto>>.Ok([]);
@@ -173,11 +134,11 @@ public partial class BomService(
             return resultList;
         }
 
-        var bomItems = await _bomRepo.GetBomByBomNoAsync(bomNo);
+        var bomItems = await bomRepo.GetBomByBomNoAsync(bomNo);
         foreach (var item in bomItems)
         {
             var dto = item.Adapt<BomTreeDto>();
-            var subPd = await _pdRepo.GetBySkuAsync(item.SubSku);
+            var subPd = await pdRepo.GetBySkuAsync(item.SubSku);
             if (subPd != null)
             {
                 // 补齐显示用的字段
@@ -386,7 +347,7 @@ public partial class BomService(
     private static DependentDemand Build非标件需求(IndependentDemand sourceLine, string? shipToLocation)
     {
         return new DependentDemand
-        {   
+        {
             SourceUid = sourceLine.SourceUid,
             SourceType = sourceLine.SourceType,
             SourceNo = sourceLine.SourceNo,
@@ -441,7 +402,7 @@ public partial class BomService(
             var skuBatch = pendingSkus.ToList();
             pendingSkus.Clear();
 
-            var products = await _pdRepo.GetBySkuListAsync(skuBatch);
+            var products = await pdRepo.GetBySkuListAsync(skuBatch);
             foreach (var product in products)
             {
                 if (!string.IsNullOrWhiteSpace(product.Sku))
@@ -461,7 +422,7 @@ public partial class BomService(
             foreach (var bomNo in toLoadBomNos)
                 loadedBomNos.Add(bomNo);
 
-            var bomMap = await _bomRepo.Get一堆BomBy一堆Bom号(toLoadBomNos);
+            var bomMap = await bomRepo.Get一堆BomBy一堆Bom号(toLoadBomNos);
             var nextLevelSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var kv in bomMap)
@@ -490,7 +451,7 @@ public partial class BomService(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var suppliers = supplierCodes.Count > 0 ? await _supplierRepo.GetBySupplierCodeListAsync(supplierCodes) : [];
+        var suppliers = supplierCodes.Count > 0 ? await supplierRepo.GetBySupplierCodeListAsync(supplierCodes) : [];
         return new DecomposeCache(productBySku.Values, bomByBomNo.Values.SelectMany(x => x), suppliers);
     }
     /// <summary>
@@ -547,31 +508,12 @@ public partial class BomService(
 
     #region 显式基础读写
 
-    public async Task<ServiceResult<BomDto>> GetByIdAsync(Guid uid)
-    {
-        try
-        {
-            var entity = await _bomRepo.GetByIdAsync(uid);
-            if (entity == null)
-            {
-                if (_logger.IsEnabled(LogLevel.Warning))
-                    _logger.LogWarning("查询失败：未找到 Uid 为 {Uid} 的 {EntityName} 数据", uid, nameof(Bom));
-                return ServiceResult<BomDto>.Fail("未找到数据");
-            }
-
-            return ServiceResult<BomDto>.Ok(entity.Adapt<BomDto>());
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<BomDto>.Fail(ex.Message);
-        }
-    }
 
     public async Task<ServiceResult<IReadOnlyList<BomDto>>> GetAllAsync()
     {
         try
         {
-            var entities = await _bomRepo.GetAllAsync();
+            var entities = await bomRepo.GetAllAsync();
             return entities.Any()
                 ? ServiceResult<IReadOnlyList<BomDto>>.Ok(entities.Adapt<IReadOnlyList<BomDto>>())
                 : ServiceResult<IReadOnlyList<BomDto>>.Fail("未找到数据");
@@ -582,123 +524,79 @@ public partial class BomService(
         }
     }
 
-    public async Task<ServiceResult<PagedResultDto<BomDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC")
-    {
-        try
-        {
-            if (_bomRepo is not IPagedCriteriaRepository<Bom> pagedRepository)
-                return ServiceResult<PagedResultDto<BomDto>>.Fail($"{nameof(Bom)} 仓储未实现动态分页查询");
-
-            var paged = await pagedRepository.GetPagedListAsync(criteria, pageIndex, pageSize, orderBy);
-            return ServiceResult<PagedResultDto<BomDto>>.Ok(new PagedResultDto<BomDto>
-            {
-                Items = paged.Items.Adapt<List<BomDto>>(),
-                TotalCount = paged.TotalCount,
-                PageSize = paged.PageSize,
-                PageIndex = paged.PageIndex
-            });
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<PagedResultDto<BomDto>>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<int>> UpdateAsync(BomDto dto)
-    {
-        try
-        {
-            var existing = await _bomRepo.GetByIdAsync(dto.Uid);
-            if (existing == null) return ServiceResult<int>.Fail("数据不存在");
-
-            dto.Adapt(existing);
-            await _bomRepo.UpdateAsync(existing);
-            return ServiceResult<int>.Ok(1);
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<int>.Fail(ex.Message);
-        }
-    }
-
-    public async Task<ServiceResult<int>> DeleteAsync(Guid uid)
-    {
-        try
-        {
-            return ServiceResult<int>.Ok(await _bomRepo.DeleteAsync(uid));
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<int>.Fail(ex.Message);
-        }
-    }
 
     public async Task<ServiceResult<BomBatchSaveResponse>> BatchSaveAsync(BomBatchSaveRequest batchReq)
     {
-        _session.Transaction = _session.Connection.BeginTransaction();
-        var result = new BomBatchSaveResponse();
+        //_session.Transaction = _session.Connection.BeginTransaction();
+        //var result = new BomBatchSaveResponse();
 
-        var createList = batchReq.AddList?.Adapt<List<Bom>>();
-        var updateList = batchReq.UpdateList?.Adapt<List<Bom>>();
-        var deleteIds = batchReq.DeleteIdList;
+        //var createList = batchReq.CreateItems?.Adapt<List<Bom>>();
+        //var updateList = batchReq.UpdateItems?.Adapt<List<Bom>>();
+        //var deleteIds = batchReq.DeleteItems;
 
-        try
-        {
-            var errorMsg = new StringBuilder();
+        //try
+        //{
+        //    var errorMsg = new StringBuilder();
 
-            if (updateList is { Count: > 0 })
-            {
-                var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
-                if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
+        //    if (updateList is { Count: > 0 })
+        //    {
+        //        var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
+        //        if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
 
-                var needUpdateUids = updateList.Select(x => x.Uid).ToList();
-                var existingUids = await _bomRepo.GetExistingIdListAsync(needUpdateUids);
-                var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
-                if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
-            }
+        //        var needUpdateUids = updateList.Select(x => x.Uid).ToList();
+        //        var existingUids = await bomRepo.GetExistingIdListAsync(needUpdateUids);
+        //        var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
+        //        if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
+        //    }
 
-            if (deleteIds is { Count: > 0 })
-            {
-                var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
-                if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
-            }
+        //    if (deleteIds is { Count: > 0 })
+        //    {
+        //        var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
+        //        if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
+        //    }
 
-            if (errorMsg.Length > 0)
-                return ServiceResult<BomBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
+        //    if (errorMsg.Length > 0)
+        //        return ServiceResult<BomBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
 
-            if (_bomRepo is not IBatchWriteRepository<Bom> batchRepository)
-                return ServiceResult<BomBatchSaveResponse>.Fail($"{nameof(Bom)} 仓储未实现批量保存");
+        //    if (bomRepo is not IBatchWriteRepository<Bom> batchRepository)
+        //        return ServiceResult<BomBatchSaveResponse>.Fail($"{nameof(Bom)} 仓储未实现批量保存");
 
-            if (createList is { Count: > 0 })
-            {
-                result.AddIdList = [.. await batchRepository.AddRangeAsync(createList)];
-            }
+        //    if (createList is { Count: > 0 })
+        //    {
+        //        result.AddIdList = [.. await batchRepository.AddRangeAsync(createList)];
+        //    }
 
-            if (updateList is { Count: > 0 })
-            {
-                await batchRepository.UpdateRangeAsync(updateList);
-                result.UpdateIdList = [.. updateList.Select(x => x.Uid)];
-            }
+        //    if (updateList is { Count: > 0 })
+        //    {
+        //        await batchRepository.UpdateRangeAsync(updateList);
+        //        result.UpdateIdList = [.. updateList.Select(x => x.Uid)];
+        //    }
 
-            if (deleteIds is { Count: > 0 })
-            {
-                await batchRepository.DeleteRangeAsync(deleteIds);
-                result.DeleteIdList = deleteIds;
-            }
+        //    if (deleteIds is { Count: > 0 })
+        //    {
+        //        await batchRepository.DeleteRangeAsync(deleteIds);
+        //        result.DeleteIdList = deleteIds;
+        //    }
 
-            _session.Transaction.Commit();
-            return ServiceResult<BomBatchSaveResponse>.Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _session.Transaction.Rollback();
-            return ServiceResult<BomBatchSaveResponse>.Fail(ex.Message);
-        }
-        finally
-        {
-            _session.Transaction.Dispose();
-            _session.Transaction = null;
-        }
+        //    _session.Transaction.Commit();
+        //    return ServiceResult<BomBatchSaveResponse>.Ok(result);
+        //}
+        //catch (Exception ex)
+        //{
+        //    _session.Transaction.Rollback();
+        //    return ServiceResult<BomBatchSaveResponse>.Fail(ex.Message);
+        //}
+        //finally
+        //{
+        //    _session.Transaction.Dispose();
+        //    _session.Transaction = null;
+        //}
+        throw new NotImplementedException();
+    }
+
+    public Task<ServiceResult<PagedResponseBase<BomDto>>> GetPagedListAsync(BomSearchRequest request)
+    {
+        throw new NotImplementedException();
     }
     #endregion
 

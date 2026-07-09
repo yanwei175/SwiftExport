@@ -1,36 +1,20 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Products;
-using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Common;
-using SwiftExport.WebApi.Filters;
-
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.MasterData;
+using SwiftExport.WebApi.Controllers.Base;
+using SwiftExport.WebApi.Filters;
 namespace SwiftExport.WebApi.Controllers.Products;
 
-[ApiController]
-[Route("api/[controller]")]
-public class ProductController(IProductService service) : ControllerBase
+
+public class ProductController(IProductService service) : BaseController<Product, ProductDto>(service)
 {
-    [HttpGet("{id}")]
-    public async Task<ServiceResult<ProductDto>> GetById(Guid id) => await service.GetByIdAsync(id);
-
-    [HttpPost]
-    [PreventDuplicateRequest]
-    public async Task<ServiceResult<Guid>> Create([FromBody] ProductDto dto) => await service.AddAsync(dto);
-
-    [HttpPut("{id}")]
-    [PreventDuplicateRequest]
-    public async Task<ServiceResult<int>> Update(Guid id, [FromBody] ProductDto dto) => await service.UpdateAsync(dto);
-
-    [HttpDelete("{id}")]
-    [PreventDuplicateRequest]
-    public async Task<ServiceResult<int>> Delete(Guid id) => await service.DeleteAsync(id);
 
     [HttpPost("page")]
-    public async Task<ServiceResult<PagedResultDto<ProductDto>>> GetPagedList([FromBody] QueryCriteria criteria, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 500)
-        => await service.GetPagedListAsync(criteria, pageIndex, pageSize);
+    public async Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPaged([FromBody] ProductSearchRequest request) => await service.GetPagedAsync(request);
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
@@ -46,13 +30,6 @@ public class ProductController(IProductService service) : ControllerBase
         return ServiceResult<IReadOnlyList<ProductDto>>.Fail("数据太多,不允许GetAll");
     }
 
-    // 2. 分页搜索产品
-    // 由于查询条件中包含 List，使用 FromQuery 传参有些 HTTP 客户端容易拼错。因此改用 POST 查询
-    [HttpPost("search")]
-    public async Task<ServiceResult<PagedResultDto<ProductDto>>> GetProductPagedList([FromBody] ProductSearchRequest search)
-    {
-        return await service.GetPagedListAsync(search);
-    }
 
     // 3. 补充功能：获取代码列表 (子资源)
     [HttpGet("customerCodes")] // 名字稍微精简一点

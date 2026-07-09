@@ -1,28 +1,25 @@
 using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
+using SwiftExport.Contracts.DTOs.DependentDemands;
 using SwiftExport.Contracts.DTOs.Independent;
-using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.Orders.Requests;
+using SwiftExport.Contracts.DTOs.Orders.Responses;
 using SwiftExport.Contracts.Wrappers;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-
-using SwiftExport.Contracts.DTOs.Orders.Requests;
-using SwiftExport.Contracts.DTOs.Orders.Responses;
 namespace SwiftExport.Contracts.Apis.Orders
 {
     /// <summary>
-    /// 销售订单拆解中间表 API。
+    /// 净需求Api
     /// </summary>
     public interface IDependentDemandApi : IGenericApi<IndependentDemandDto>
     {
-        [Get("/page")]
-        Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedAsync([Query] DependentDemandSearchRequest request);
         /// <summary>
         /// 分页查询拆解中间表。
         /// </summary>
-        [Post("/search")]
-        Task<ServiceResult<PagedResultDto<IndependentDemandDto>>> GetPagedListAsync([Body] DependentDemandSearchDto search);
+        [Post("/page")]
+        Task<ServiceResult<PagedResponseBase<DependentDemandDto>>> GetPagedAsync([Body] DependentDemandSearchRequest request);
 
         /// <summary>
         /// 按销售单号触发拆解写入中间表。

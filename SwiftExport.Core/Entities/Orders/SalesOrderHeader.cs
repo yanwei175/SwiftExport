@@ -1,9 +1,10 @@
 ﻿using SwiftExport.Contracts.SysEnums;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Orders;
 
+[Table("SalesOrderHeader")]
 public class SalesOrderHeader : BaseEntity
 {
     public SalesOrderStatusEnum OrderStatus { get; set; } = SalesOrderStatusEnum.未确认;

@@ -1,7 +1,7 @@
+using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
-using Refit;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 

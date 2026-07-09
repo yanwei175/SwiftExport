@@ -213,15 +213,15 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
 
             var request = new ProductCategoryBatchSaveRequest
             {
-                AddList = allNodes
+                CreateItems = allNodes
                     .Where(node => node.State == ProductCategoryNodeState.Added)
                     .Select(node => node.ToDto())
                     .ToList(),
-                UpdateList = allNodes
+                UpdateItems = allNodes
                     .Where(node => node.State == ProductCategoryNodeState.Modified)
                     .Select(node => node.ToDto())
                     .ToList(),
-                DeleteIdList = _deletedNodes
+                DeleteItems = _deletedNodes
                     .Where(node => node.State != ProductCategoryNodeState.Added)
                     .Select(node => node.Uid)
                     .Where(uid => uid != Guid.Empty)
@@ -237,7 +237,7 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
 
             var confirmed = await _dialogService.ConfirmAsync(
                 "保存产品分类",
-                $"将新增 {request.AddList.Count} 项、修改 {request.UpdateList.Count} 项、删除 {request.DeleteIdList.Count} 项。是否继续？",
+                $"将新增 {request.CreateItems.Count} 项、修改 {request.UpdateItems.Count} 项、删除 {request.DeleteItems.Count} 项。是否继续？",
                 "保存");
 
             if (!confirmed)

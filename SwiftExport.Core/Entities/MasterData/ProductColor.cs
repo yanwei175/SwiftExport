@@ -1,7 +1,9 @@
 ﻿using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
+[Table("ProductColor")]
 public class ProductColor : BaseEntity
 {
     public string ColorCodeUnique { get; set; } = default!;

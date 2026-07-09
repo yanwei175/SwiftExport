@@ -1,29 +1,21 @@
-using SwiftExport.Contracts.DTOs.Orders;
+using SwiftExport.Contracts.DTOs.Orders.Requests;
+using SwiftExport.Contracts.DTOs.Orders.Responses;
+using SwiftExport.Contracts.DTOs.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.PurchaseOrders.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using SwiftExport.Core.Common;
-
-using SwiftExport.Contracts.DTOs.Orders.Requests;
-using SwiftExport.Contracts.DTOs.Orders.Responses;
 namespace SwiftExport.Application.Interfaces
 {
     /// <summary>
     /// 采购订单应用服务接口。
     /// </summary>
-    public partial interface IPurchaseOrderService
+    public partial interface IPurchaseOrderService : IBaseService<PurchaseOrderHead, PurchaseOrderHeadDto>
     {
-    Task<ServiceResult<PurchaseOrderHeadDto>> GetByIdAsync(Guid uid);
-    Task<ServiceResult<IReadOnlyList<PurchaseOrderHeadDto>>> GetAllAsync();
-    Task<ServiceResult<PagedResultDto<PurchaseOrderHeadDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC");
-    Task<ServiceResult<Guid>> AddAsync(PurchaseOrderHeadDto dto);
-    Task<ServiceResult<int>> UpdateAsync(PurchaseOrderHeadDto dto);
-    Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<PurchaseOrderBatchSaveResponse>> BatchSaveAsync(PurchaseOrderBatchSaveRequest batchReq);
 
-        Task<ServiceResult<PagedResultDto<PurchaseOrderHeadDto>>> GetPagedListAsync(PurchaseOrderSearchDto search);
+        Task<ServiceResult<IReadOnlyList<PurchaseOrderHeadDto>>> GetAllAsync();
+        Task<ServiceResult<PurchaseOrderBatchSaveResponse>> BatchSaveAsync(PurchaseOrderBatchSaveRequest batchReq);
+        Task<ServiceResult<PagedResponseBase<PurchaseOrderHeadDto>>> GetPagedAsync(PurchaseOrderSearchRequest search);
         Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByHeadIdAsync(Guid id);
         Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByBoNoAsync(string boNo);
         Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailByOrderNoAsync(string orderNo);
@@ -35,7 +27,7 @@ namespace SwiftExport.Application.Interfaces
         /// <returns>返回订单的ID</returns>
         Task<ServiceResult<Guid>> SaveDetailAsync(PurchaseOrderDetailDto request);
 
- 
+
 
 
 

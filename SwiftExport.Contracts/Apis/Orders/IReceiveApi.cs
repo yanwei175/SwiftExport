@@ -2,6 +2,8 @@ using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.Orders;
 using SwiftExport.Contracts.DTOs.Warehouses;
+using SwiftExport.Contracts.DTOs.Warehouses.Requests;
+using SwiftExport.Contracts.DTOs.Warehouses.Responses;
 using SwiftExport.Contracts.Wrappers;
 using System;
 using System.Collections.Generic;
@@ -18,7 +20,7 @@ namespace SwiftExport.Contracts.Apis.Orders
         /// 分页查询采购订单头。
         /// </summary>
         [Post("/search")]
-        Task<ServiceResult<PagedResultDto<ReceiveHeadDto>>> GetPagedListAsync([Body] ReceiveOrderSearchDto search);
+        Task<ServiceResult<PagedResponseBase<ReceiveHeadDto>>> GetPagedListAsync([Body] ReceiveOrderSearchRequest search);
 
         /// <summary>
         /// 按供应商与物料类型获取待入库候选行。
@@ -43,7 +45,7 @@ namespace SwiftExport.Contracts.Apis.Orders
         Task<ServiceResult<Guid>> SaveDetailAsync([Body] SaveDocumentRequestBase<ReceiveHeadDto, ReceiveLineDto> request);
 
         [Post("/post-receive-by-head-id-list")]
-        Task<ServiceResult<List<PostReceiveResultDto>>> PostReceiveByHeadIdListAsync([Body] List<Guid> ids);
+        Task<ServiceResult<List<PostReceiveResult>>> PostReceiveByHeadIdListAsync([Body] List<Guid> ids);
 
         [Get("/head-by-id")]
         Task<ServiceResult<ReceiveHeadDto>> GetHeadByIdAsync([Query] Guid finalResult);

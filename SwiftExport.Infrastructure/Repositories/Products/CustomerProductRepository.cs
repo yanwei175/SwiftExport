@@ -1,7 +1,7 @@
 ﻿using Dapper;
-using Microsoft.Extensions.Logging;
 using SwiftExport.Contracts.DTOs.Customers;
-using SwiftExport.Core.Common;
+using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
@@ -70,103 +70,67 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
     ///   - 直接写字段名（如 CustomerId / CustomerSku / Sku）→ 映射到 cp.字段
     ///   - CategoryId → 映射到 p.CategoryId
     /// </summary>
-    public  async Task<PagedResult<CustomerProductDto>> GetPagedCustomerProductAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "cp.CreatedDate DESC")
+    public async Task<PagedResponseBase<CustomerProductDto>> GetPagedAsync(CustomerProductSearchRequest request)
     {
-        // 🛡️ orderBy 安全清洗
-        if (string.IsNullOrWhiteSpace(orderBy))
-            orderBy = "cp.CreatedDate DESC";
-        else
-            orderBy = NormalizeOrderBy(orderBy, "cp.CreatedDate DESC");
+        request ??= new CustomerProductSearchRequest();
 
-        // ----------------------------------------------------------------
-        // 构建 WHERE 子句（基类 ParseQueryCriteria 生成的条件作用于 cp 表，
-        // 特殊字段 CategoryId 需额外处理加别名）
-        // ----------------------------------------------------------------
+        var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
+        var pageSize = request.PageSize <= 0 ? 50 : request.PageSize;
+        // 防止前端一次请求太多
+        if (pageSize > 500)
+            pageSize = 500;
+
+        var offset = (pageIndex - 1) * pageSize;
+
         var parameters = new DynamicParameters();
 
-        // 先用基类工具生成动态条件字符串（字段不带表别名）
-        var rawWhere = ParseQueryCriteria(criteria, parameters);
+        var whereSb = new StringBuilder();
+        whereSb.AppendLine(@$"WHERE ISNULL(cpc.{nameof(CustomerProduct.IsDeleted)}, 0) = 0");
 
-        // 将 CategoryId 条件从 cp 改指向 p（ProductCategory 来自 Product.CategoryId）
-        // ParseQueryCriteria 生成的格式为 [CategoryId]，替换为 p.[CategoryId]
-        if (!string.IsNullOrWhiteSpace(rawWhere))
-            rawWhere = rawWhere.Replace("[CategoryId]", "p.[CategoryId]");
-
-        // 将其余普通字段加上 cp. 表别名（避免多表同名字段歧义）
-        // 使用简单规则：将 [字段名] 替换为 cp.[字段名]，已处理过的 p.[...] 跳过
-        if (!string.IsNullOrWhiteSpace(rawWhere))
-            rawWhere = System.Text.RegularExpressions.Regex.Replace(
-                rawWhere,
-                @"(?<!\w\.)\[(\w+)\]",   // 匹配没有表前缀的 [字段名]
-                "cp.[$1]");
-
-        // 固定基础条件：只查未删除的客户产品记录
-        var baseSb = new StringBuilder("WHERE (cp.IsDeleted = 0 OR cp.IsDeleted IS NULL)");
-        if (!string.IsNullOrWhiteSpace(rawWhere))
-            baseSb.Append(rawWhere); // rawWhere 自带 AND 开头
-
-        string whereClause = baseSb.ToString();
-
-        // ----------------------------------------------------------------
-        // 联表查询主体
-        // ----------------------------------------------------------------
-        const string joinClause = @"
-            FROM [CustomerProduct] cp WITH(NOLOCK)
-            LEFT JOIN [Product]         p   WITH(NOLOCK) ON cp.SkuId      = p.Uid
-            LEFT JOIN [Customer]        c   WITH(NOLOCK) ON cp.CustomerId  = c.Uid
-            LEFT JOIN [ProductCategory] pc  WITH(NOLOCK) ON p.CategoryId   = pc.Uid";
-
-        // 分页参数
-        if (pageIndex < 1) pageIndex = 1;
-        int offset = (pageIndex - 1) * pageSize;
-        parameters.Add("@Offset", offset);
-        parameters.Add("@Limit", pageSize);
-
-        var sql = $@"
-            SELECT COUNT(1) {joinClause} {whereClause};
-
-            SELECT
-                cp.Uid,
-                cp.CustomerId,
-                cp.SkuId,
-                cp.Sku,
-                cp.LinkSku,
-                cp.CustomerSku,
-                cp.CustomerPdSeries,
-                cp.CustomerPdDescription,
-                cp.CustomerColorName,
-                cp.CustomerPdFeatures,
-                cp.CustomerBarcode1,
-                cp.CustomerBarcode2,
-                cp.CustomerSkuUnit,
-                cp.USDPrice,
-                cp.CNYPrice,
-                cp.Currency,
-                cp.LeadTimeDays,
-                cp.MOQ,
-                cp.IsActive,
-                -- JOIN 补充字段
-                c.CustomerCode,
-                p.DescriptionEn,
-                p.MaterialType,
-                p.MainImage,
-                pc.CategoryName
-            {joinClause}
-            {whereClause}
-            ORDER BY {orderBy}
-            OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
-
-        // ★ Debug 日志追踪
-        if (Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug))
+        // =========================================================
+        // 1. 普通模糊关键词
+        // =========================================================
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            Logger.LogDebug("执行客户产品联表分页查询，生成的 SQL: {Sql}", sql);
+            var keyword = request.Keyword.Trim();
+
+            whereSb.AppendLine(@$"
+                               AND (
+                                      {nameof(CustomerProduct.CustomerCode)}       LIKE @Keyword
+                                   OR {nameof(CustomerProduct.Sku)}       LIKE @Keyword
+                               )");
+
+            parameters.Add("@Keyword", $"%{keyword}%");
         }
 
-        using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
+        var whereClause = whereSb.ToString();
+
+        parameters.Add("@Offset", offset);
+        parameters.Add("@PageSize", pageSize);
+
+        var sql = $@"
+                        SELECT COUNT(1)
+                        FROM
+                        {CustomerProductTable}
+                        {whereClause};
+                        SELECT *
+                        FROM
+                        {CustomerPoConfigTable}
+                        {whereClause}
+                        ORDER BY {nameof(CustomerProduct.CreatedDate)} DESC
+                        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+                        ";
+
+
+        using var multi = await Connection.QueryMultipleAsync(
+            sql,
+            parameters,
+            transaction: Transaction);
+
         var total = await multi.ReadFirstAsync<int>();
         var items = await multi.ReadAsync<CustomerProductDto>();
 
-        return new PagedResult<CustomerProductDto>
+        return new PagedResponseBase<CustomerProductDto>
         {
             Items = [.. items],
             TotalCount = total,
@@ -209,109 +173,9 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
         return [.. rst];
     }
 
-    private static string NormalizeOrderBy(string? orderBy, string defaultOrderBy)
+    public Task<List<string>> GetCustomerCodesUsedByOtherCustomersAsync(IEnumerable<(Guid Uid, string CustomerCode)> items)
     {
-        if (string.IsNullOrWhiteSpace(orderBy)) return defaultOrderBy;
-
-        var safeOrderBy = System.Text.RegularExpressions.Regex.Replace(orderBy, @"[^a-zA-Z0-9_,\s\.\[\]]", string.Empty);
-        return string.IsNullOrWhiteSpace(safeOrderBy) ? defaultOrderBy : safeOrderBy;
+        throw new NotImplementedException();
     }
-
-    private static string ParseQueryCriteria(QueryCriteria criteria, DynamicParameters parameters, string prefix = "")
-    {
-        if (criteria == null || (criteria.Items.Count == 0 && criteria.OrGroups.Count == 0))
-        {
-            return string.Empty;
-        }
-
-        var sqlBuilder = new StringBuilder();
-        int andIndex = 0;
-        foreach (var item in criteria.Items)
-        {
-            var fieldName = string.IsNullOrEmpty(prefix) || item.Field.Contains('.')
-                ? item.Field
-                : $"{prefix}{item.Field}";
-            var paramName = $"@{fieldName.Replace(".", "_")}_A{andIndex}";
-            sqlBuilder.Append($" AND {BuildConditionSql(fieldName, item.Condition, paramName, parameters)}");
-            andIndex++;
-        }
-
-        int groupIndex = 0;
-        foreach (var groupList in criteria.OrGroups)
-        {
-            if (groupList.Count == 0) continue;
-
-            var orParts = new List<string>();
-            int orItemIndex = 0;
-
-            foreach (var item in groupList)
-            {
-                var fieldName = string.IsNullOrEmpty(prefix) || item.Field.Contains('.')
-                    ? item.Field
-                    : $"{prefix}{item.Field}";
-                var paramName = $"@Or_{groupIndex}_{fieldName.Replace(".", "_")}_{orItemIndex}";
-                orParts.Add(BuildConditionSql(fieldName, item.Condition, paramName, parameters));
-                orItemIndex++;
-            }
-
-            if (orParts.Count > 0)
-            {
-                sqlBuilder.Append($" AND ({string.Join(" OR ", orParts)})");
-            }
-
-            groupIndex++;
-        }
-
-        return sqlBuilder.ToString();
-    }
-
-    private static string BuildConditionSql(string propName, QueryCondition cond, string paramName, DynamicParameters parameters)
-    {
-        string safeField;
-        if (propName.Contains('.'))
-        {
-            var parts = propName.Split('.');
-            var field = parts[1].Replace("[", string.Empty).Replace("]", string.Empty);
-            safeField = $"{parts[0]}.[{field}]";
-        }
-        else
-        {
-            safeField = $"[{propName.Replace("[", string.Empty).Replace("]", string.Empty)}]";
-        }
-
-        switch (cond.操作符)
-        {
-            case 查询操作符.等于:
-                parameters.Add(paramName, cond.值1);
-                return $"{safeField} = {paramName}";
-            case 查询操作符.模糊匹配:
-                parameters.Add(paramName, $"%{cond.值1}%");
-                return $"{safeField} LIKE {paramName}";
-            case 查询操作符.大于:
-                parameters.Add(paramName, cond.值1);
-                return $"{safeField} > {paramName}";
-            case 查询操作符.小于:
-                parameters.Add(paramName, cond.值1);
-                return $"{safeField} < {paramName}";
-            case 查询操作符.大于等于:
-                parameters.Add(paramName, cond.值1);
-                return $"{safeField} >= {paramName}";
-            case 查询操作符.小于等于:
-                parameters.Add(paramName, cond.值1);
-                return $"{safeField} <= {paramName}";
-            case 查询操作符.区间:
-                var pStart = $"{paramName}_Start";
-                var pEnd = $"{paramName}_End";
-                parameters.Add(pStart, cond.值1);
-                parameters.Add(pEnd, cond.值2);
-                return $"{safeField} BETWEEN {pStart} AND {pEnd}";
-            case 查询操作符.包含某值:
-                parameters.Add(paramName, cond.值1);
-                return $"{safeField} IN {paramName}";
-            default:
-                return "1=1";
-        }
-    }
-
 }
 

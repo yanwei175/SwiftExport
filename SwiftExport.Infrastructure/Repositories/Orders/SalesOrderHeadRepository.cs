@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using SwiftExport.Contracts.DTOs.SalesOrders;
+using SwiftExport.Contracts.DTOs.SalesOrders.Requests;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
@@ -16,9 +17,9 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
     {
 
 
-        public async Task<PagedResultDto<SalesOrderHeaderManagerDto>> GetSalesOrderHeaderManagerPagedListAsync(SalesOrderManagerSearchDto request)
+        public async Task<PagedResponseBase<SalesOrderHeaderManagerDto>> GetSalesOrderHeaderManagerPagedListAsync(SalesOrderManagerSearchRequest request)
         {
-            request ??= new SalesOrderManagerSearchDto();
+            request ??= new SalesOrderManagerSearchRequest();
 
             string orderBy = $"h.{nameof(SalesOrderHeader.CreatedDate)} DESC";
 
@@ -215,7 +216,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
             var total = await multi.ReadFirstAsync<int>();
             var items = await multi.ReadAsync<SalesOrderHeaderManagerDto>();
 
-            return new PagedResultDto<SalesOrderHeaderManagerDto>
+            return new PagedResponseBase<SalesOrderHeaderManagerDto>
             {
                 Items = items.ToList(),
                 TotalCount = total,

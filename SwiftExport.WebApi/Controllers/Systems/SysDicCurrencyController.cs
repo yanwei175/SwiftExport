@@ -1,24 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Contracts.DTOs.Customers;
-using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.SystemDtos;
-using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Common;
-using SwiftExport.WebApi.Filters;
-
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.Systems;
+using SwiftExport.WebApi.Controllers.Base;
+using SwiftExport.WebApi.Filters;
 namespace SwiftExport.WebApi.Controllers.Systems;
 
-/// <summary>
-/// 货币主数据控制器
-/// 基类已提供标准 CRUD + BatchSave + GetPagedList，
-/// 此处仅补充货币专属业务接口。
-/// </summary>
-[ApiController]
-[Route("api/[controller]")]
-public class SysDicCurrencyController(ISysDicCurrencyService service) : ControllerBase
+public class SysDicCurrencyController(ISysDicCurrencyService service) : BaseController<SysDicCurrency, SysDicCurrencyDto>(service)
 {
     // 向下转型，方便调用扩展方法
     private ISysDicCurrencyService CurrencyService => service;
@@ -49,29 +40,10 @@ public class SysDicCurrencyController(ISysDicCurrencyService service) : Controll
         return await service.SetNewBaseCurrencyAsync(dto);
     }
 
-    //[HttpGet("defaultbasecurrency")]
-    //public async Task<ServiceResult<SysDicCurrencyDetailDto>> GetDefaultBaseCurrency()
-    //{
-    //    return await CurrencyService.GetDefaultBaseCurrencyAsync();
-    //}
-    [HttpGet("{id}")]
-    public async Task<ServiceResult<SysDicCurrencyDto>> GetById(Guid id) => await service.GetByIdAsync(id);
-
-    [HttpPost]
-    [PreventDuplicateRequest]
-    public async Task<ServiceResult<Guid>> Create([FromBody] SysDicCurrencyDto dto) => await service.AddAsync(dto);
-
-    [HttpPut("{id}")]
-    [PreventDuplicateRequest]
-    public async Task<ServiceResult<int>> Update(Guid id, [FromBody] SysDicCurrencyDto dto) => await service.UpdateAsync(dto);
-
-    [HttpDelete("{id}")]
-    [PreventDuplicateRequest]
-    public async Task<ServiceResult<int>> Delete(Guid id) => await service.DeleteAsync(id);
 
     [HttpPost("page")]
-    public async Task<ServiceResult<PagedResultDto<SysDicCurrencyDto>>> GetPagedList([FromBody] QueryCriteria criteria, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 500)
-        => await service.GetPagedListAsync(criteria, pageIndex, pageSize);
+    public async Task<ServiceResult<PagedResponseBase<SysDicCurrencyDto>>> GetPaged([FromBody] SysDicCurrencySearchRequest request) => await service.GetPagedAsync(request);
+
 
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]

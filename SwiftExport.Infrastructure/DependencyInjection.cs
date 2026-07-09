@@ -59,7 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IDemandExecutionLinkRepository, DemandExecutionLinkRepository>();
         services.AddScoped<IIndependentDemandRepository, IndependentDemandRepository>();
         services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();
-        services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
+        services.AddScoped<IPurchaseOrderHeadRepository, PurchaseOrderRepository>();
         services.AddScoped<IPurchaseOrderLineRepository, PurchaseOrderLineRepository>();
         services.AddScoped<IReceiveHeadRepository, ReceiveHeadRepository>();
         services.AddScoped<IReceiveLineRepository, ReceiveLineRepository>();

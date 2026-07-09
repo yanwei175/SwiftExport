@@ -1,23 +1,16 @@
 using SwiftExport.Contracts.DTOs.PackingLists;
-using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Entities.Orders;
-using SwiftExport.Core.Common;
-
 using SwiftExport.Contracts.DTOs.PackingLists.Requests;
 using SwiftExport.Contracts.DTOs.PackingLists.Responses;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.Orders;
 namespace SwiftExport.Application.Interfaces;
 
-public partial interface IPackingListService
+public partial interface IPackingListService : IBaseService<PackingListHead, PackingListHeadDto>
 {
-    Task<ServiceResult<PackingListHeadDto>> GetByIdAsync(Guid uid);
-    Task<ServiceResult<IReadOnlyList<PackingListHeadDto>>> GetAllAsync();
-    Task<ServiceResult<PagedResultDto<PackingListHeadDto>>> GetPagedListAsync(QueryCriteria criteria, int pageIndex, int pageSize, string orderBy = "Uid DESC");
-    Task<ServiceResult<Guid>> AddAsync(PackingListHeadDto dto);
-    Task<ServiceResult<int>> UpdateAsync(PackingListHeadDto dto);
-    Task<ServiceResult<int>> DeleteAsync(Guid uid);
-    Task<ServiceResult<PackingListBatchSaveResponse>> BatchSaveAsync(PackingListBatchSaveRequest batchReq);
 
-    Task<ServiceResult<PagedResultDto<PackingListHeadDto>>> GetHeadPagedListAsync(PackingListSearchDto search);
+    Task<ServiceResult<IReadOnlyList<PackingListHeadDto>>> GetAllAsync();
+    Task<ServiceResult<PackingListBatchSaveResponse>> BatchSaveAsync(PackingListBatchSaveRequest batchReq);
+    Task<ServiceResult<PagedResponseBase<PackingListHeadDto>>> GetHeadPagedListAsync(PackingListSearchRequest search);
     Task<ServiceResult<PackingListDetailDto>> GetDetailByIdAsync(Guid id);
     Task<ServiceResult<Guid>> SaveDetailAsync(PackingListDetailDto request);
     Task<ServiceResult<PackingListPostResultDto>> PostPackingListAsync(PackingListPostRequestDto request);

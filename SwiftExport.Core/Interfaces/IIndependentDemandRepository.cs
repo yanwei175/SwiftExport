@@ -2,7 +2,7 @@ using SwiftExport.Core.Entities.Orders;
 
 namespace SwiftExport.Core.Interfaces;
 
-public interface IIndependentDemandRepository : IRepository<IndependentDemand>, IPagedCriteriaRepository<IndependentDemand>, IBatchWriteRepository<IndependentDemand>
+public interface IIndependentDemandRepository : IRepository<IndependentDemand>
 {
 
     /// <summary>
