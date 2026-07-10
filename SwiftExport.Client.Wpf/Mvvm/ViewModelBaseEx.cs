@@ -57,7 +57,10 @@ public abstract class ViewModelBaseEx : ObservableObjectEx
 
     protected void RegisterBusyAwareCommand(IRelayCommand command)
     {
-        _busyAwareCommands.Add(command);
+        if (!_busyAwareCommands.Contains(command))
+        {
+            _busyAwareCommands.Add(command);
+        }
     }
 
     protected async Task RunBusyAsync(
@@ -76,6 +79,10 @@ public abstract class ViewModelBaseEx : ObservableObjectEx
         try
         {
             await action();
+        }
+        catch (OperationCanceledException)
+        {
+            // 用户取消不属于页面错误；调用方如需提示，应在具体命令中表达。
         }
         catch (Exception ex)
         {

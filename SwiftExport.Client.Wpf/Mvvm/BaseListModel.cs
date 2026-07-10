@@ -8,16 +8,19 @@ public sealed class BaseListModel<TLine, TDto> : ObservableObjectEx
     where TLine : BaseLineModel<TDto>
 {
     private readonly List<TLine> _allLines = [];
+    private readonly ObservableCollection<TLine> _items = [];
     private readonly Func<TDto, TLine> _lineFactory;
     private TLine? _selectedItem;
+    private bool _isUpdatingItems;
 
     public BaseListModel(Func<TDto, TLine> lineFactory)
     {
         _lineFactory = lineFactory;
-        Items.CollectionChanged += OnItemsCollectionChanged;
+        Items = new ReadOnlyObservableCollection<TLine>(_items);
+        _items.CollectionChanged += OnItemsCollectionChanged;
     }
 
-    public ObservableCollection<TLine> Items { get; } = [];
+    public ReadOnlyObservableCollection<TLine> Items { get; }
 
     public TLine? SelectedItem
     {
@@ -27,14 +30,14 @@ public sealed class BaseListModel<TLine, TDto> : ObservableObjectEx
 
     public bool HasChanges => _allLines.Any(line => line.IsDirty);
 
-    public int CheckedCount => Items.Count(line => line.IsChecked);
+    public int CheckedCount => _items.Count(line => line.IsChecked);
 
     public bool IsAllChecked
     {
-        get => Items.Count > 0 && Items.All(line => line.IsChecked);
+        get => _items.Count > 0 && _items.All(line => line.IsChecked);
         set
         {
-            foreach (var line in Items)
+            foreach (var line in _items)
             {
                 line.IsChecked = value;
             }
@@ -59,14 +62,22 @@ public sealed class BaseListModel<TLine, TDto> : ObservableObjectEx
             line.PropertyChanged -= OnLinePropertyChanged;
         }
 
-        _allLines.Clear();
-        Items.Clear();
-
-        foreach (var dto in dtos)
+        _isUpdatingItems = true;
+        try
         {
-            var line = _lineFactory(dto);
-            line.Load(dto);
-            AddLine(line);
+            _allLines.Clear();
+            _items.Clear();
+
+            foreach (var dto in dtos)
+            {
+                var line = _lineFactory(dto);
+                line.Load(dto);
+                AddLine(line);
+            }
+        }
+        finally
+        {
+            _isUpdatingItems = false;
         }
 
         Reindex();
@@ -87,9 +98,12 @@ public sealed class BaseListModel<TLine, TDto> : ObservableObjectEx
         }
 
         line.MarkAsDeleted();
-        Items.Remove(line);
-        Reindex();
-        RaiseListStateChanged();
+        if (ReferenceEquals(SelectedItem, line))
+        {
+            SelectedItem = null;
+        }
+
+        _items.Remove(line);
     }
 
     public void RemoveCompletely(TLine? line)
@@ -100,10 +114,18 @@ public sealed class BaseListModel<TLine, TDto> : ObservableObjectEx
         }
 
         line.PropertyChanged -= OnLinePropertyChanged;
-        Items.Remove(line);
+        if (ReferenceEquals(SelectedItem, line))
+        {
+            SelectedItem = null;
+        }
+
+        var wasVisible = _items.Remove(line);
         _allLines.Remove(line);
-        Reindex();
-        RaiseListStateChanged();
+        if (!wasVisible)
+        {
+            Reindex();
+            RaiseListStateChanged();
+        }
     }
 
     public GridChangeSet<TDto> GetChangeSet()
@@ -128,6 +150,11 @@ public sealed class BaseListModel<TLine, TDto> : ObservableObjectEx
             line.AcceptChanges();
         }
 
+        if (SelectedItem is not null && !_items.Contains(SelectedItem))
+        {
+            SelectedItem = null;
+        }
+
         Reindex();
         RaiseListStateChanged();
     }
@@ -137,22 +164,38 @@ public sealed class BaseListModel<TLine, TDto> : ObservableObjectEx
         var added = _allLines.Where(line => line.State == LineState.Added).ToArray();
         foreach (var line in added)
         {
-            RemoveCompletely(line);
+            line.PropertyChanged -= OnLinePropertyChanged;
+            _allLines.Remove(line);
         }
 
         var deleted = _allLines.Where(line => line.State == LineState.Deleted).ToArray();
         foreach (var line in deleted)
         {
             line.RestoreFromDeleted();
-            if (!Items.Contains(line))
-            {
-                Items.Add(line);
-            }
         }
 
         foreach (var line in _allLines.Where(line => line.State == LineState.Modified))
         {
             line.RejectChanges();
+        }
+
+        _isUpdatingItems = true;
+        try
+        {
+            _items.Clear();
+            foreach (var line in _allLines)
+            {
+                _items.Add(line);
+            }
+        }
+        finally
+        {
+            _isUpdatingItems = false;
+        }
+
+        if (SelectedItem is not null && !_items.Contains(SelectedItem))
+        {
+            SelectedItem = null;
         }
 
         Reindex();
@@ -163,6 +206,12 @@ public sealed class BaseListModel<TLine, TDto> : ObservableObjectEx
     {
         foreach (var line in Items)
         {
+            var rowError = line.ValidateRow();
+            if (!string.IsNullOrWhiteSpace(rowError))
+            {
+                return $"第 {line.RowIndex} 行：{rowError}";
+            }
+
             var error = await line.ValidateAsync();
             if (!string.IsNullOrWhiteSpace(error))
             {
@@ -177,7 +226,7 @@ public sealed class BaseListModel<TLine, TDto> : ObservableObjectEx
     {
         for (var i = 0; i < Items.Count; i++)
         {
-            Items[i].RowIndex = i + 1;
+            _items[i].RowIndex = i + 1;
         }
     }
 
@@ -185,12 +234,16 @@ public sealed class BaseListModel<TLine, TDto> : ObservableObjectEx
     {
         line.PropertyChanged += OnLinePropertyChanged;
         _allLines.Add(line);
-        Items.Add(line);
-        Reindex();
+        _items.Add(line);
     }
 
     private void OnItemsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        if (_isUpdatingItems)
+        {
+            return;
+        }
+
         Reindex();
         RaiseListStateChanged();
     }

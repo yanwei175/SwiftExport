@@ -1,13 +1,24 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+
 namespace SwiftExportClient.Mvvm;
 
 public abstract class BaseLineModel<TDto> : ObservableObjectEx
 {
+    private readonly HashSet<string> _changingProperties = new(StringComparer.Ordinal);
     private TDto? _originalDto;
     private LineState _state;
+    private LineState? _stateBeforeDelete;
     private bool _isChecked;
     private bool _isSelected;
     private bool _isReadOnly;
     private int _rowIndex;
+
+    protected BaseLineModel()
+    {
+        PropertyChanging += OnTrackedPropertyChanging;
+        PropertyChanged += OnTrackedPropertyChanged;
+    }
 
     public LineState State
     {
@@ -60,12 +71,14 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
     {
         using var _ = SuppressScope();
         LoadFromDto(dto);
-        _originalDto = dto;
+        _originalDto = ToDto();
+        _stateBeforeDelete = null;
         State = LineState.Unchanged;
     }
 
     public void MarkAsAdded()
     {
+        _stateBeforeDelete = null;
         State = LineState.Added;
     }
 
@@ -79,17 +92,30 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
 
     public void MarkAsDeleted()
     {
+        if (State == LineState.Deleted)
+        {
+            return;
+        }
+
+        _stateBeforeDelete = State;
         State = LineState.Deleted;
     }
 
     public void RestoreFromDeleted()
     {
-        State = _originalDto is null ? LineState.Added : LineState.Unchanged;
+        if (State != LineState.Deleted)
+        {
+            return;
+        }
+
+        State = _stateBeforeDelete ?? (_originalDto is null ? LineState.Added : LineState.Unchanged);
+        _stateBeforeDelete = null;
     }
 
     public void AcceptChanges()
     {
         _originalDto = ToDto();
+        _stateBeforeDelete = null;
         State = LineState.Unchanged;
     }
 
@@ -99,11 +125,18 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
         {
             using var _ = SuppressScope();
             LoadFromDto(_originalDto);
+            _stateBeforeDelete = null;
             State = LineState.Unchanged;
             return;
         }
 
+        _stateBeforeDelete = null;
         State = LineState.Added;
+    }
+
+    public virtual string? ValidateRow()
+    {
+        return null;
     }
 
     public virtual Task<string?> ValidateAsync()
@@ -111,22 +144,60 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
         return Task.FromResult<string?>(null);
     }
 
-    protected bool SetTrackedProperty<T>(ref T field, T value, string? propertyName = null)
+    protected bool SetTrackedProperty<T>(
+        ref T field,
+        T value,
+        [CallerMemberName] string? propertyName = null)
     {
-        if (!SetProperty(ref field, value, propertyName))
-        {
-            return false;
-        }
+        return SetProperty(ref field, value, propertyName);
+    }
 
-        if (!IsSuppressed)
-        {
-            MarkAsModified();
-        }
-
-        return true;
+    protected virtual bool IsTrackingIgnoredProperty(string? propertyName)
+    {
+        return propertyName is null
+            or nameof(State)
+            or nameof(IsDirty)
+            or nameof(IsNew)
+            or nameof(IsModified)
+            or nameof(IsDeleted)
+            or nameof(IsChecked)
+            or nameof(IsSelected)
+            or nameof(IsReadOnly)
+            or nameof(RowIndex)
+            or nameof(IsSuppressed);
     }
 
     protected abstract void LoadFromDto(TDto dto);
 
     public abstract TDto ToDto();
+
+    private void OnTrackedPropertyChanging(object? sender, PropertyChangingEventArgs e)
+    {
+        if (IsSuppressed
+            || State == LineState.Deleted
+            || IsTrackingIgnoredProperty(e.PropertyName))
+        {
+            return;
+        }
+
+        _changingProperties.Add(e.PropertyName!);
+    }
+
+    private void OnTrackedPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is null)
+        {
+            _changingProperties.Clear();
+            return;
+        }
+
+        if (!_changingProperties.Remove(e.PropertyName)
+            || IsSuppressed
+            || State == LineState.Deleted)
+        {
+            return;
+        }
+
+        MarkAsModified();
+    }
 }
