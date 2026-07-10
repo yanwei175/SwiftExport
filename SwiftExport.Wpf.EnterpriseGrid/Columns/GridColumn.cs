@@ -36,6 +36,27 @@ public static class GridColumn
         typeof(GridColumn),
         new PropertyMetadata(null));
 
+    /// <summary>标识列是否参与筛选。默认参与。</summary>
+    public static readonly DependencyProperty CanFilterProperty = DependencyProperty.RegisterAttached(
+        "CanFilter",
+        typeof(bool),
+        typeof(GridColumn),
+        new PropertyMetadata(true));
+
+    /// <summary>标识列是否参与导出。默认参与。</summary>
+    public static readonly DependencyProperty CanExportProperty = DependencyProperty.RegisterAttached(
+        "CanExport",
+        typeof(bool),
+        typeof(GridColumn),
+        new PropertyMetadata(true));
+
+    /// <summary>导出标题；为空时回退到原生 Header 的文本表达。</summary>
+    public static readonly DependencyProperty ExportHeaderProperty = DependencyProperty.RegisterAttached(
+        "ExportHeader",
+        typeof(string),
+        typeof(GridColumn),
+        new PropertyMetadata(null));
+
     /// <summary>
     /// 获取列的稳定标识。
     /// </summary>
@@ -67,6 +88,26 @@ public static class GridColumn
     /// <summary>设置列对应的数据字段路径。</summary>
     public static void SetFieldPath(DependencyObject element, string? value) =>
         element.SetValue(FieldPathProperty, string.IsNullOrWhiteSpace(value) ? null : value.Trim());
+
+    /// <summary>获取列是否参与筛选。</summary>
+    public static bool GetCanFilter(DependencyObject element) => (bool)element.GetValue(CanFilterProperty);
+
+    /// <summary>设置列是否参与筛选。</summary>
+    public static void SetCanFilter(DependencyObject element, bool value) => element.SetValue(CanFilterProperty, value);
+
+    /// <summary>获取列是否参与导出。</summary>
+    public static bool GetCanExport(DependencyObject element) => (bool)element.GetValue(CanExportProperty);
+
+    /// <summary>设置列是否参与导出。</summary>
+    public static void SetCanExport(DependencyObject element, bool value) => element.SetValue(CanExportProperty, value);
+
+    /// <summary>获取列的导出标题。</summary>
+    public static string? GetExportHeader(DependencyObject element) =>
+        (string?)element.GetValue(ExportHeaderProperty);
+
+    /// <summary>设置列的导出标题。</summary>
+    public static void SetExportHeader(DependencyObject element, string? value) =>
+        element.SetValue(ExportHeaderProperty, string.IsNullOrWhiteSpace(value) ? null : value.Trim());
 
     internal static DataGridColumn? FindByKey(DataGrid dataGrid, string? key)
     {

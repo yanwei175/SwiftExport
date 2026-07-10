@@ -4,6 +4,7 @@
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridEditing="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Editing;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridNumeric="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns.Numeric;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
@@ -194,18 +195,22 @@
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     Width="120" />
-                <DataGridTextColumn Header="人民币价"
-                                    gridColumns:GridColumn.Key="cny-price"
-                                    Binding="{Binding CnyPrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}"
-                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                    Width="100" />
-                <DataGridTextColumn Header="美元价"
-                                    gridColumns:GridColumn.Key="usd-price"
-                                    Binding="{Binding UsdPrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}"
-                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                    Width="100" />
+                <gridNumeric:NumericDataGridColumn Header="人民币价"
+                                                   gridColumns:GridColumn.Key="cny-price"
+                                                   Binding="{Binding CnyPrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}"
+                                                   Minimum="0"
+                                                   MaximumDecimalPlaces="2"
+                                                   ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                                   EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                                   Width="100" />
+                <gridNumeric:NumericDataGridColumn Header="美元价"
+                                                   gridColumns:GridColumn.Key="usd-price"
+                                                   Binding="{Binding UsdPrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}"
+                                                   Minimum="0"
+                                                   MaximumDecimalPlaces="2"
+                                                   ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                                   EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                                   Width="100" />
                 <DataGridTextColumn Header="备注"
                                     gridColumns:GridColumn.Key="note"
                                     Binding="{Binding Note, UpdateSourceTrigger=PropertyChanged}"
