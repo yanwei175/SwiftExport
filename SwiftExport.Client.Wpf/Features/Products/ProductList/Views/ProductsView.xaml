@@ -4,6 +4,7 @@
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridEditing="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Editing;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridFilter="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Filtering;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridNumeric="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns.Numeric;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
@@ -127,7 +128,16 @@
                        VerticalAlignment="Center" />
         </Grid>
 
-        <DataGrid Grid.Row="6"
+        <Grid Grid.Row="6" ClipToBounds="True">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <gridFilter:GridFilterRow Grid.Row="0"
+                                      TargetGrid="{Binding ElementName=ProductsGrid}"
+                                      FilterDelay="0:0:0.3" />
+            <DataGrid x:Name="ProductsGrid"
+                  Grid.Row="1"
                   ItemsSource="{Binding Lines.Items}"
                   SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
                   Style="{StaticResource SwiftExportDataGrid}"
@@ -136,6 +146,7 @@
                   CanUserSortColumns="True"
                   gridCore:EnterpriseGrid.IsEnabled="True"
                   gridEditing:GridEditing.IsEnabled="True"
+                  gridFilter:GridFilter.Mode="Local"
                   gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                   gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                   gridValidation:GridValidation.IsEnabled="True"
@@ -143,6 +154,7 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="#"
                                     gridColumns:GridColumn.Key="row-index"
+                                    gridColumns:GridColumn.CanFilter="False"
                                     Binding="{Binding RowIndex}"
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                     Width="48"
@@ -197,6 +209,7 @@
                                     Width="120" />
                 <gridNumeric:NumericDataGridColumn Header="人民币价"
                                                    gridColumns:GridColumn.Key="cny-price"
+                                                   gridFilter:GridFilter.Operator="Equals"
                                                    Binding="{Binding CnyPrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}"
                                                    Minimum="0"
                                                    MaximumDecimalPlaces="2"
@@ -205,6 +218,7 @@
                                                    Width="100" />
                 <gridNumeric:NumericDataGridColumn Header="美元价"
                                                    gridColumns:GridColumn.Key="usd-price"
+                                                   gridFilter:GridFilter.Operator="Equals"
                                                    Binding="{Binding UsdPrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}"
                                                    Minimum="0"
                                                    MaximumDecimalPlaces="2"
@@ -218,7 +232,8 @@
                                     EditingElementStyle="{StaticResource SwiftExportDataGridPopupTextBoxEditingStyle}"
                                     Width="2*" />
             </DataGrid.Columns>
-        </DataGrid>
+            </DataGrid>
+        </Grid>
 
         <Grid Grid.Row="8">
             <Grid.ColumnDefinitions>
