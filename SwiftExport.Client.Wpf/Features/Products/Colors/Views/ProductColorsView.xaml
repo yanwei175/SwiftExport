@@ -3,6 +3,7 @@
              xmlns:controls="clr-namespace:SwiftExportClient.Controls"
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridEditing="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Editing;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
@@ -132,6 +133,7 @@
                       IsReadOnly="False"
                       CanUserSortColumns="True"
                       gridCore:EnterpriseGrid.IsEnabled="True"
+                      gridEditing:GridEditing.IsEnabled="True"
                       gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                       gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                       RowHeight="36">

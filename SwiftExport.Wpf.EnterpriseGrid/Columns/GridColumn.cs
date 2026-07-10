@@ -19,6 +19,15 @@ public static class GridColumn
         IsValidKey);
 
     /// <summary>
+    /// 标识该列是否参与 Enterprise Grid 的键盘单元格导航。默认参与。
+    /// </summary>
+    public static readonly DependencyProperty CanNavigateProperty = DependencyProperty.RegisterAttached(
+        "CanNavigate",
+        typeof(bool),
+        typeof(GridColumn),
+        new PropertyMetadata(true));
+
+    /// <summary>
     /// 获取列的稳定标识。
     /// </summary>
     public static string? GetKey(DependencyObject element)
@@ -33,6 +42,14 @@ public static class GridColumn
     {
         element.SetValue(KeyProperty, value?.Trim());
     }
+
+    /// <summary>获取该列是否参与键盘单元格导航。</summary>
+    public static bool GetCanNavigate(DependencyObject element) =>
+        (bool)element.GetValue(CanNavigateProperty);
+
+    /// <summary>设置该列是否参与键盘单元格导航。</summary>
+    public static void SetCanNavigate(DependencyObject element, bool value) =>
+        element.SetValue(CanNavigateProperty, value);
 
     internal static DataGridColumn? FindByKey(DataGrid dataGrid, string? key)
     {
