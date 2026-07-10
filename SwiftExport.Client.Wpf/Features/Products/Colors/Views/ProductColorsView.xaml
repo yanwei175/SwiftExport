@@ -1,6 +1,9 @@
 <UserControl x:Class="SwiftExportClient.Features.Products.Colors.Views.ProductColorsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:controls="clr-namespace:SwiftExportClient.Controls"
+             xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources>
@@ -128,29 +131,37 @@
                       RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                       IsReadOnly="False"
                       CanUserSortColumns="True"
+                      gridCore:EnterpriseGrid.IsEnabled="True"
+                      gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
+                      gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                       RowHeight="36">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="#"
+                                        gridColumns:GridColumn.Key="row-index"
                                         Binding="{Binding RowIndex}"
                                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                         Width="48"
                                         IsReadOnly="True" />
                     <DataGridTextColumn Header="唯一颜色代码"
+                                        gridColumns:GridColumn.Key="color-code-unique"
                                         Binding="{Binding ColorCodeUnique, UpdateSourceTrigger=PropertyChanged}"
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                         Width="180" />
                     <DataGridTextColumn Header="颜色代码"
+                                        gridColumns:GridColumn.Key="color-code"
                                         Binding="{Binding ColorCode, UpdateSourceTrigger=PropertyChanged}"
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                         Width="160" />
                     <DataGridTextColumn Header="英文名称"
+                                        gridColumns:GridColumn.Key="color-name-en"
                                         Binding="{Binding ColorNameEn, UpdateSourceTrigger=PropertyChanged}"
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                         Width="2*" />
                     <DataGridTextColumn Header="中文名称"
+                                        gridColumns:GridColumn.Key="color-name-zh"
                                         Binding="{Binding ColorNameZh, UpdateSourceTrigger=PropertyChanged}"
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"

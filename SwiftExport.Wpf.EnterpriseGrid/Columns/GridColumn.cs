@@ -1,0 +1,67 @@
+using System.Windows;
+using System.Windows.Controls;
+
+namespace SwiftExport.Wpf.EnterpriseGrid.Columns;
+
+/// <summary>
+/// 为任意原生 DataGridColumn 提供跨模块共享的稳定元数据。
+/// </summary>
+public static class GridColumn
+{
+    /// <summary>
+    /// 列的稳定标识。需要双向 CurrentCell、筛选、导出或布局持久化时必须设置。
+    /// </summary>
+    public static readonly DependencyProperty KeyProperty = DependencyProperty.RegisterAttached(
+        "Key",
+        typeof(string),
+        typeof(GridColumn),
+        new PropertyMetadata(null),
+        IsValidKey);
+
+    /// <summary>
+    /// 获取列的稳定标识。
+    /// </summary>
+    public static string? GetKey(DependencyObject element)
+    {
+        return (string?)element.GetValue(KeyProperty);
+    }
+
+    /// <summary>
+    /// 设置列的稳定标识。
+    /// </summary>
+    public static void SetKey(DependencyObject element, string? value)
+    {
+        element.SetValue(KeyProperty, value?.Trim());
+    }
+
+    internal static DataGridColumn? FindByKey(DataGrid dataGrid, string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return null;
+        }
+
+        DataGridColumn? match = null;
+        foreach (var column in dataGrid.Columns)
+        {
+            if (!string.Equals(GetKey(column), key, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (match is not null)
+            {
+                throw new InvalidOperationException($"DataGrid 中存在重复的 Enterprise Grid ColumnKey：{key}");
+            }
+
+            match = column;
+        }
+
+        return match;
+    }
+
+    private static bool IsValidKey(object value)
+    {
+        return value is null || value is string key && !string.IsNullOrWhiteSpace(key);
+    }
+}

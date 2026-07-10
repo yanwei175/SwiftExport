@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj" />
+    <ProjectReference Include="..\SwiftExport.Wpf.EnterpriseGrid\SwiftExport.Wpf.EnterpriseGrid.csproj" />
   </ItemGroup>
 
   <ItemGroup>
