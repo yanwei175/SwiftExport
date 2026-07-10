@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using SwiftExport.Wpf.EnterpriseGrid.Exporting;
 
 namespace SwiftExport.Wpf.EnterpriseGrid.Columns;
 
@@ -57,6 +58,13 @@ public static class GridColumn
         typeof(GridColumn),
         new PropertyMetadata(null));
 
+    /// <summary>模板列或特殊显示值的显式导出值访问器。</summary>
+    public static readonly DependencyProperty ValueAccessorProperty = DependencyProperty.RegisterAttached(
+        "ValueAccessor",
+        typeof(IGridValueAccessor),
+        typeof(GridColumn),
+        new PropertyMetadata(null));
+
     /// <summary>
     /// 获取列的稳定标识。
     /// </summary>
@@ -108,6 +116,14 @@ public static class GridColumn
     /// <summary>设置列的导出标题。</summary>
     public static void SetExportHeader(DependencyObject element, string? value) =>
         element.SetValue(ExportHeaderProperty, string.IsNullOrWhiteSpace(value) ? null : value.Trim());
+
+    /// <summary>获取显式导出值访问器。</summary>
+    public static IGridValueAccessor? GetValueAccessor(DependencyObject element) =>
+        (IGridValueAccessor?)element.GetValue(ValueAccessorProperty);
+
+    /// <summary>设置显式导出值访问器。</summary>
+    public static void SetValueAccessor(DependencyObject element, IGridValueAccessor? value) =>
+        element.SetValue(ValueAccessorProperty, value);
 
     internal static DataGridColumn? FindByKey(DataGrid dataGrid, string? key)
     {
