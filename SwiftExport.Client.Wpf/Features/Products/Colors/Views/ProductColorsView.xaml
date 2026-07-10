@@ -5,6 +5,7 @@
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridEditing="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Editing;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources>
@@ -136,6 +137,7 @@
                       gridEditing:GridEditing.IsEnabled="True"
                       gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                       gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
+                      gridValidation:GridValidation.IsEnabled="True"
                       RowHeight="36">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="#"

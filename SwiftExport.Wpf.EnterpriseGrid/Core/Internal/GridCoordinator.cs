@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using SwiftExport.Wpf.EnterpriseGrid.Editing.Internal;
 using SwiftExport.Wpf.EnterpriseGrid.Selection.Internal;
+using SwiftExport.Wpf.EnterpriseGrid.Validation.Internal;
 
 namespace SwiftExport.Wpf.EnterpriseGrid.Core.Internal;
 
@@ -18,11 +19,14 @@ internal sealed class GridCoordinator : IDisposable
         _dataGrid = dataGrid;
         Selection = new GridSelectionModule(dataGrid);
         Editing = new GridEditingModule(dataGrid);
+        Validation = new GridValidationModule(dataGrid);
     }
 
     internal GridSelectionModule Selection { get; }
 
     internal GridEditingModule Editing { get; }
+
+    internal GridValidationModule Validation { get; }
 
     internal bool IsActive { get; private set; }
 
@@ -74,6 +78,7 @@ internal sealed class GridCoordinator : IDisposable
         }
 
         Selection.Attach();
+        Validation.Attach();
         Editing.Attach();
         IsActive = true;
     }
@@ -86,6 +91,7 @@ internal sealed class GridCoordinator : IDisposable
         }
 
         Editing.Detach();
+        Validation.Detach();
         Selection.Detach();
         IsActive = false;
     }

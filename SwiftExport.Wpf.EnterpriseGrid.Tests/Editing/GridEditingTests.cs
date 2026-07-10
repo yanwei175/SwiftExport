@@ -9,6 +9,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Wpf.EnterpriseGrid.Columns;
 using SwiftExport.Wpf.EnterpriseGrid.Editing;
 using SwiftExport.Wpf.EnterpriseGrid.Tests.TestInfrastructure;
+using SwiftExport.Wpf.EnterpriseGrid.Validation;
 using EnterpriseGridCore = SwiftExport.Wpf.EnterpriseGrid.Core.EnterpriseGrid;
 
 namespace SwiftExport.Wpf.EnterpriseGrid.Tests.Editing;
@@ -145,12 +146,14 @@ public sealed class GridEditingTests
                 Binding = new Binding(nameof(TestRow.Name))
                 {
                     UpdateSourceTrigger = UpdateSourceTrigger.LostFocus,
+                    NotifyOnValidationError = true,
                     ValidationRules = { new RequiredRule() }
                 }
             };
             GridColumn.SetKey(validatedColumn, "name");
             dataGrid.Columns.Add(validatedColumn);
             AddTextColumn(dataGrid, "code", nameof(TestRow.Code));
+            GridValidation.SetIsEnabled(dataGrid, true);
             Enable(dataGrid);
 
             using var host = Show(dataGrid);
@@ -165,7 +168,9 @@ public sealed class GridEditingTests
             Assert.IsTrue(editing.HandleKey(Key.Tab, ModifierKeys.None, editor));
             Assert.AreSame(first, dataGrid.CurrentCell.Item);
             Assert.AreSame(validatedColumn, dataGrid.CurrentCell.Column);
-            Assert.IsTrue(Validation.GetHasError(editor));
+            Assert.IsTrue(System.Windows.Controls.Validation.GetHasError(editor));
+            Assert.AreEqual(1, GridValidation.GetErrorCount(dataGrid));
+            Assert.AreEqual("name", GridValidation.GetFirstError(dataGrid)?.ColumnKey);
         });
     }
 

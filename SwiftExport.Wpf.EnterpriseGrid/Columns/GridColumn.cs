@@ -28,6 +28,15 @@ public static class GridColumn
         new PropertyMetadata(true));
 
     /// <summary>
+    /// 数据字段路径。验证、筛选与导出需要稳定字段语义时设置；原生绑定列可自动推断简单 Path。
+    /// </summary>
+    public static readonly DependencyProperty FieldPathProperty = DependencyProperty.RegisterAttached(
+        "FieldPath",
+        typeof(string),
+        typeof(GridColumn),
+        new PropertyMetadata(null));
+
+    /// <summary>
     /// 获取列的稳定标识。
     /// </summary>
     public static string? GetKey(DependencyObject element)
@@ -50,6 +59,14 @@ public static class GridColumn
     /// <summary>设置该列是否参与键盘单元格导航。</summary>
     public static void SetCanNavigate(DependencyObject element, bool value) =>
         element.SetValue(CanNavigateProperty, value);
+
+    /// <summary>获取列对应的数据字段路径。</summary>
+    public static string? GetFieldPath(DependencyObject element) =>
+        (string?)element.GetValue(FieldPathProperty);
+
+    /// <summary>设置列对应的数据字段路径。</summary>
+    public static void SetFieldPath(DependencyObject element, string? value) =>
+        element.SetValue(FieldPathProperty, string.IsNullOrWhiteSpace(value) ? null : value.Trim());
 
     internal static DataGridColumn? FindByKey(DataGrid dataGrid, string? key)
     {
