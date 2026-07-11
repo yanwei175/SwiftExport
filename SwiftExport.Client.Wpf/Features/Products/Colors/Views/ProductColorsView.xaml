@@ -134,6 +134,7 @@
                       IsReadOnly="False"
                       CanUserSortColumns="True"
                       gridCore:EnterpriseGrid.IsEnabled="True"
+                      gridCore:GridVirtualization.IsEnabled="True"
                       gridEditing:GridEditing.IsEnabled="True"
                       gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                       gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"

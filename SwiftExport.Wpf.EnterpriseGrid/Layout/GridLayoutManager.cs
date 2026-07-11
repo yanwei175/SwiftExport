@@ -9,6 +9,7 @@ namespace SwiftExport.Wpf.EnterpriseGrid.Layout;
 /// <summary>捕获和恢复原生 DataGridColumn 布局，不保存业务数据。</summary>
 public static class GridLayoutManager
 {
+    /// <summary>当前支持的布局序列化版本。</summary>
     public const int CurrentVersion = 1;
 
     /// <summary>捕获当前可持久化布局；没有稳定 ColumnKey 的列不会进入快照。</summary>
@@ -54,6 +55,15 @@ public static class GridLayoutManager
             if (duplicateStateKey is not null)
             {
                 return GridLayoutApplyResult.Failure($"布局中存在重复 ColumnKey：{duplicateStateKey}");
+            }
+
+            var invalidWidth = state.Columns.FirstOrDefault(layout =>
+                !double.IsFinite(layout.Width.Value) ||
+                layout.Width.Unit == GridColumnWidthUnit.Pixel && layout.Width.Value < 0 ||
+                layout.Width.Unit == GridColumnWidthUnit.Star && layout.Width.Value <= 0);
+            if (invalidWidth is not null)
+            {
+                return GridLayoutApplyResult.Failure($"列 {invalidWidth.ColumnKey} 包含无效宽度。");
             }
 
             var columnsByKey = dataGrid.Columns

@@ -19,12 +19,14 @@ public class GridColumnChooser : StackPanel
 
     private DataGrid? _subscribedGrid;
 
+    /// <summary>初始化列选择器并配置加载/卸载生命周期。</summary>
     public GridColumnChooser()
     {
         Loaded += (_, _) => Attach();
         Unloaded += (_, _) => Detach();
     }
 
+    /// <summary>获取或设置目标原生 DataGrid。</summary>
     public DataGrid? TargetGrid
     {
         get => (DataGrid?)GetValue(TargetGridProperty);

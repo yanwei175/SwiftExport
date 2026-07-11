@@ -6,6 +6,10 @@ namespace SwiftExport.Wpf.EnterpriseGrid.Exporting;
 /// <summary>零第三方依赖、流式写入的 CSV 导出提供器。</summary>
 public sealed class CsvGridExportProvider : IGridExportProvider
 {
+    /// <summary>初始化 CSV 提供器。</summary>
+    /// <param name="delimiter">字段分隔符。</param>
+    /// <param name="encoding">文本编码；默认带 BOM 的 UTF-8。</param>
+    /// <param name="newLine">换行符；默认使用当前系统换行符。</param>
     public CsvGridExportProvider(char delimiter = ',', Encoding? encoding = null, string? newLine = null)
     {
         if (delimiter is '"' or '\r' or '\n')
@@ -18,12 +22,16 @@ public sealed class CsvGridExportProvider : IGridExportProvider
         NewLine = newLine ?? Environment.NewLine;
     }
 
+    /// <summary>获取字段分隔符。</summary>
     public char Delimiter { get; }
 
+    /// <summary>获取输出文本编码。</summary>
     public Encoding Encoding { get; }
 
+    /// <summary>获取输出换行符。</summary>
     public string NewLine { get; }
 
+    /// <inheritdoc />
     public async Task ExportAsync(
         GridExportRequest request,
         Stream target,

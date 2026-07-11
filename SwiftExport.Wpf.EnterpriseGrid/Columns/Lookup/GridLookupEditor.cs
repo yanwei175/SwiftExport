@@ -68,6 +68,7 @@ public class GridLookupEditor : ComboBox
     private TextBox? _editableTextBox;
     private bool _isLoaded;
 
+    /// <summary>初始化可编辑的原生 ComboBox Lookup 编辑器。</summary>
     public GridLookupEditor()
     {
         IsEditable = true;
@@ -111,6 +112,7 @@ public class GridLookupEditor : ComboBox
     /// <summary>获取最近一次搜索错误文本。</summary>
     public string? SearchError => (string?)GetValue(SearchErrorProperty);
 
+    /// <inheritdoc />
     public override void OnApplyTemplate()
     {
         DetachEditableTextBox();
@@ -246,6 +248,7 @@ public class GridLookupEditor : ComboBox
         }
     }
 
+    /// <inheritdoc />
     protected override void OnSelectionChanged(SelectionChangedEventArgs e)
     {
         base.OnSelectionChanged(e);
@@ -255,6 +258,7 @@ public class GridLookupEditor : ComboBox
         }
     }
 
+    /// <inheritdoc />
     protected override void OnItemsChanged(NotifyCollectionChangedEventArgs e)
     {
         base.OnItemsChanged(e);

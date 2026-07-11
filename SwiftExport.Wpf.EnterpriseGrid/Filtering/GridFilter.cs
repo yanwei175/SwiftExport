@@ -78,43 +78,57 @@ public static class GridFilter
     /// <summary>最近一次应用失败的文本原因。</summary>
     public static readonly DependencyProperty LastApplyErrorProperty = LastApplyErrorPropertyKey.DependencyProperty;
 
+    /// <summary>获取筛选模式。</summary>
     public static GridFilterMode GetMode(DependencyObject element) => (GridFilterMode)element.GetValue(ModeProperty);
 
+    /// <summary>设置筛选模式。</summary>
     public static void SetMode(DependencyObject element, GridFilterMode value) => element.SetValue(ModeProperty, value);
 
+    /// <summary>获取不可变筛选集合。</summary>
     public static GridFilterSet GetFilterSet(DependencyObject element) =>
         (GridFilterSet?)element.GetValue(FilterSetProperty) ?? GridFilterSet.Empty;
 
+    /// <summary>设置不可变筛选集合。</summary>
     public static void SetFilterSet(DependencyObject element, GridFilterSet? value) =>
         element.SetValue(FilterSetProperty, value ?? GridFilterSet.Empty);
 
+    /// <summary>获取分组描述。</summary>
     public static IReadOnlyList<GridGroupDescriptor> GetGroups(DependencyObject element) =>
         (IReadOnlyList<GridGroupDescriptor>?)element.GetValue(GroupsProperty) ?? Array.Empty<GridGroupDescriptor>();
 
+    /// <summary>设置分组描述并创建快照。</summary>
     public static void SetGroups(DependencyObject element, IReadOnlyList<GridGroupDescriptor>? value) =>
         element.SetValue(GroupsProperty, value?.ToArray() ?? Array.Empty<GridGroupDescriptor>());
 
+    /// <summary>获取 Remote 模式宿主命令。</summary>
     public static ICommand? GetRemoteFilterCommand(DependencyObject element) =>
         (ICommand?)element.GetValue(RemoteFilterCommandProperty);
 
+    /// <summary>设置 Remote 模式宿主命令。</summary>
     public static void SetRemoteFilterCommand(DependencyObject element, ICommand? value) =>
         element.SetValue(RemoteFilterCommandProperty, value);
 
+    /// <summary>获取筛选前编辑事务策略。</summary>
     public static GridFilterEditCommitMode GetEditCommitMode(DependencyObject element) =>
         (GridFilterEditCommitMode)element.GetValue(EditCommitModeProperty);
 
+    /// <summary>设置筛选前编辑事务策略。</summary>
     public static void SetEditCommitMode(DependencyObject element, GridFilterEditCommitMode value) =>
         element.SetValue(EditCommitModeProperty, value);
 
+    /// <summary>获取列默认筛选操作符。</summary>
     public static GridFilterOperator GetOperator(DependencyObject element) =>
         (GridFilterOperator)element.GetValue(OperatorProperty);
 
+    /// <summary>设置列默认筛选操作符。</summary>
     public static void SetOperator(DependencyObject element, GridFilterOperator value) =>
         element.SetValue(OperatorProperty, value);
 
+    /// <summary>获取最近一次筛选应用结果。</summary>
     public static bool GetLastApplySucceeded(DependencyObject element) =>
         (bool)element.GetValue(LastApplySucceededProperty);
 
+    /// <summary>获取最近一次筛选应用错误文本。</summary>
     public static string? GetLastApplyError(DependencyObject element) =>
         (string?)element.GetValue(LastApplyErrorProperty);
 
@@ -148,13 +162,15 @@ public static class GridFilter
                 value));
         }
 
-        SetFilterSet(dataGrid, new GridFilterSet(descriptors, current.LogicalOperator));
+        dataGrid.SetCurrentValue(FilterSetProperty, new GridFilterSet(descriptors, current.LogicalOperator));
     }
 
     /// <summary>清除全部列筛选，保留当前逻辑操作符。</summary>
     public static void Clear(DataGrid dataGrid)
     {
-        SetFilterSet(dataGrid, new GridFilterSet(Array.Empty<GridFilterDescriptor>(), GetFilterSet(dataGrid).LogicalOperator));
+        dataGrid.SetCurrentValue(
+            FilterSetProperty,
+            new GridFilterSet(Array.Empty<GridFilterDescriptor>(), GetFilterSet(dataGrid).LogicalOperator));
     }
 
     internal static void SetApplyResult(DataGrid dataGrid, bool succeeded, string? error)
@@ -172,16 +188,24 @@ public static class GridFilter
     }
 }
 
+/// <summary>筛选执行模式。</summary>
 public enum GridFilterMode
 {
+    /// <summary>关闭框架筛选并恢复原 View Filter。</summary>
     Disabled,
+    /// <summary>在现有 ICollectionView 上组合本地谓词。</summary>
     Local,
+    /// <summary>只向宿主命令发送描述，不修改本地视图。</summary>
     Remote
 }
 
+/// <summary>筛选应用前的编辑事务策略。</summary>
 public enum GridFilterEditCommitMode
 {
+    /// <summary>仅提交当前 Cell。</summary>
     CommitCell,
+    /// <summary>提交当前 Cell 和 Row。</summary>
     CommitCellAndRow,
+    /// <summary>取消当前 Cell 和 Row 编辑。</summary>
     CancelEdit
 }

@@ -74,6 +74,7 @@ public class NumericDataGridColumn : DataGridTextColumn
         set => SetValue(MaximumDecimalPlacesProperty, value);
     }
 
+    /// <inheritdoc />
     protected override object PrepareCellForEdit(FrameworkElement editingElement, RoutedEventArgs editingEventArgs)
     {
         var original = base.PrepareCellForEdit(editingElement, editingEventArgs);
@@ -85,6 +86,7 @@ public class NumericDataGridColumn : DataGridTextColumn
         return original;
     }
 
+    /// <inheritdoc />
     protected override bool CommitCellEdit(FrameworkElement editingElement)
     {
         if (editingElement is TextBox textBox && !TryValidate(textBox, out var message))
@@ -109,6 +111,7 @@ public class NumericDataGridColumn : DataGridTextColumn
         return base.CommitCellEdit(editingElement);
     }
 
+    /// <inheritdoc />
     protected override void CancelCellEdit(FrameworkElement editingElement, object uneditedValue)
     {
         if (editingElement is TextBox textBox)

@@ -15,6 +15,7 @@ internal sealed class GridLayoutModule
     private bool _isObserving;
     private bool _isSynchronizing;
     private bool _capturePending;
+    private DispatcherOperation? _captureOperation;
 
     public GridLayoutModule(DataGrid dataGrid)
     {
@@ -121,6 +122,8 @@ internal sealed class GridLayoutModule
         _columnSubscriptions.Clear();
         _isObserving = false;
         _capturePending = false;
+        _captureOperation?.Abort();
+        _captureOperation = null;
     }
 
     private void RefreshColumnSubscriptions()
@@ -148,8 +151,9 @@ internal sealed class GridLayoutModule
         }
 
         _capturePending = true;
-        _dataGrid.Dispatcher.BeginInvoke(DispatcherPriority.DataBind, new Action(() =>
+        _captureOperation = _dataGrid.Dispatcher.BeginInvoke(DispatcherPriority.DataBind, new Action(() =>
         {
+            _captureOperation = null;
             _capturePending = false;
             CaptureNow();
         }));

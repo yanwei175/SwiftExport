@@ -1,5 +1,5 @@
 using System.Collections;
-using System.ComponentModel;
+using SwiftExport.Wpf.EnterpriseGrid.Core.Internal;
 
 namespace SwiftExport.Wpf.EnterpriseGrid.Columns.Lookup.Internal;
 
@@ -7,29 +7,7 @@ internal static class LookupValueAccessor
 {
     public static object? GetValue(object? source, string? path)
     {
-        if (source is null || string.IsNullOrWhiteSpace(path))
-        {
-            return source;
-        }
-
-        var current = source;
-        foreach (var segment in path.Split('.'))
-        {
-            if (current is null)
-            {
-                return null;
-            }
-
-            if (current is IDictionary dictionary && dictionary.Contains(segment))
-            {
-                current = dictionary[segment];
-                continue;
-            }
-
-            current = TypeDescriptor.GetProperties(current).Find(segment, false)?.GetValue(current);
-        }
-
-        return current;
+        return PropertyPathAccessor.GetValue(source, path);
     }
 
     public static object? FindBySelectedValue(IEnumerable? items, object? selectedValue, string? selectedValuePath)

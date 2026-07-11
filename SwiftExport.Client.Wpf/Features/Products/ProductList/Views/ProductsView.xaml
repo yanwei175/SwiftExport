@@ -146,6 +146,7 @@
                   IsReadOnly="False"
                   CanUserSortColumns="True"
                   gridCore:EnterpriseGrid.IsEnabled="True"
+                  gridCore:GridVirtualization.IsEnabled="True"
                   gridEditing:GridEditing.IsEnabled="True"
                   gridFilter:GridFilter.Mode="Local"
                   gridLayout:GridLayout.IsEnabled="True"

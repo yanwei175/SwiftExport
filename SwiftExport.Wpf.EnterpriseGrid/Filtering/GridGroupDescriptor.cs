@@ -6,6 +6,8 @@ namespace SwiftExport.Wpf.EnterpriseGrid.Filtering;
 public sealed record GridGroupDescriptor(string ColumnKey, string FieldPath);
 
 /// <summary>传递给远程筛选命令的完整请求，不包含服务或控件引用。</summary>
+/// <param name="Filter">筛选快照。</param>
+/// <param name="Groups">分组快照。</param>
 public sealed record GridFilterRequest(
     GridFilterSet Filter,
     IReadOnlyList<GridGroupDescriptor> Groups);

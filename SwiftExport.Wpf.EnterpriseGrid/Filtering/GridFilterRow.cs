@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Threading;
 using System.Windows.Media;
+using System.ComponentModel;
 using SwiftExport.Wpf.EnterpriseGrid.Columns;
 
 namespace SwiftExport.Wpf.EnterpriseGrid.Filtering;
@@ -31,11 +32,16 @@ public class GridFilterRow : StackPanel
     private DataGrid? _subscribedGrid;
     private ScrollViewer? _scrollViewer;
     private readonly TranslateTransform _horizontalTransform = new();
+    private readonly DependencyPropertyDescriptor _filterSetDescriptor;
 
+    /// <summary>初始化水平 FilterRow 并配置加载/卸载生命周期。</summary>
     public GridFilterRow()
     {
         Orientation = Orientation.Horizontal;
         RenderTransform = _horizontalTransform;
+        _filterSetDescriptor = DependencyPropertyDescriptor.FromProperty(
+            GridFilter.FilterSetProperty,
+            typeof(DataGrid));
         Loaded += (_, _) => Attach();
         Unloaded += (_, _) => Detach();
     }
@@ -79,6 +85,7 @@ public class GridFilterRow : StackPanel
         _subscribedGrid = TargetGrid;
         _subscribedGrid.Columns.CollectionChanged += OnColumnsChanged;
         _subscribedGrid.LayoutUpdated += OnGridLayoutUpdated;
+        _filterSetDescriptor.AddValueChanged(_subscribedGrid, OnFilterSetChanged);
         Rebuild();
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, HookScrollViewer);
     }
@@ -92,6 +99,7 @@ public class GridFilterRow : StackPanel
 
         _subscribedGrid.Columns.CollectionChanged -= OnColumnsChanged;
         _subscribedGrid.LayoutUpdated -= OnGridLayoutUpdated;
+        _filterSetDescriptor.RemoveValueChanged(_subscribedGrid, OnFilterSetChanged);
         if (_scrollViewer is not null)
         {
             _scrollViewer.ScrollChanged -= OnGridScrollChanged;
@@ -152,6 +160,21 @@ public class GridFilterRow : StackPanel
         }
     }
 
+    private void OnFilterSetChanged(object? sender, EventArgs e)
+    {
+        if (_subscribedGrid is null)
+        {
+            return;
+        }
+
+        foreach (var cell in Children.OfType<FilterCell>())
+        {
+            var descriptor = GridFilter.GetFilterSet(_subscribedGrid).Descriptors.FirstOrDefault(candidate =>
+                string.Equals(candidate.ColumnKey, GridColumn.GetKey(cell.Column), StringComparison.Ordinal));
+            cell.SynchronizeText(descriptor?.Value?.ToString());
+        }
+    }
+
     private void HookScrollViewer()
     {
         if (_subscribedGrid is null || _scrollViewer is not null)
@@ -182,6 +205,7 @@ public class GridFilterRow : StackPanel
         private readonly DataGridColumn _column;
         private readonly TextBox _textBox;
         private readonly DispatcherTimer _timer;
+        private bool _isSynchronizingText;
 
         public DataGridColumn Column => _column;
 
@@ -214,8 +238,32 @@ public class GridFilterRow : StackPanel
             }
         }
 
+        public void SynchronizeText(string? value)
+        {
+            var normalized = value ?? string.Empty;
+            if (string.Equals(_textBox.Text, normalized, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _isSynchronizingText = true;
+            try
+            {
+                _textBox.Text = normalized;
+            }
+            finally
+            {
+                _isSynchronizingText = false;
+            }
+        }
+
         private void OnTextChanged(object sender, TextChangedEventArgs e)
         {
+            if (_isSynchronizingText)
+            {
+                return;
+            }
+
             _timer.Stop();
             _timer.Interval = _owner.FilterDelay;
             _timer.Start();

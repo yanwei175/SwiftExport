@@ -34,16 +34,21 @@ public static class GridLayout
     /// <summary>最近一次外部 State 恢复结果。</summary>
     public static readonly DependencyProperty LastApplyResultProperty = LastApplyResultPropertyKey.DependencyProperty;
 
+    /// <summary>获取是否启用布局同步。</summary>
     public static bool GetIsEnabled(DependencyObject element) => (bool)element.GetValue(IsEnabledProperty);
 
+    /// <summary>设置是否启用布局同步。</summary>
     public static void SetIsEnabled(DependencyObject element, bool value) => element.SetValue(IsEnabledProperty, value);
 
+    /// <summary>获取当前布局状态。</summary>
     public static GridLayoutState? GetState(DependencyObject element) =>
         (GridLayoutState?)element.GetValue(StateProperty);
 
+    /// <summary>设置并尝试恢复布局状态。</summary>
     public static void SetState(DependencyObject element, GridLayoutState? value) =>
         element.SetValue(StateProperty, value);
 
+    /// <summary>获取最近一次布局恢复结果。</summary>
     public static GridLayoutApplyResult? GetLastApplyResult(DependencyObject element) =>
         (GridLayoutApplyResult?)element.GetValue(LastApplyResultProperty);
 

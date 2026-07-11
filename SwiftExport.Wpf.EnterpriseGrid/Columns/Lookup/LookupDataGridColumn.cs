@@ -44,6 +44,7 @@ public class LookupDataGridColumn : DataGridTemplateColumn
     /// <summary>远程搜索最少字符数。</summary>
     public int MinimumSearchLength { get; set; } = 1;
 
+    /// <inheritdoc />
     protected override FrameworkElement GenerateElement(DataGridCell cell, object dataItem)
     {
         if (DisplayBinding is not null)
@@ -66,6 +67,7 @@ public class LookupDataGridColumn : DataGridTemplateColumn
         return display;
     }
 
+    /// <inheritdoc />
     protected override FrameworkElement GenerateEditingElement(DataGridCell cell, object dataItem)
     {
         var editor = new GridLookupEditor

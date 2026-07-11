@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -175,10 +176,39 @@ public sealed class GridFilterTests
             filterRow.ApplyFilterText(dataGrid.Columns[0], "alp");
             Assert.HasCount(1, dataGrid.Items.Cast<object>());
 
+            GridFilter.SetFilterSet(dataGrid, new GridFilterSet(Array.Empty<GridFilterDescriptor>()));
+            var nameFilterTextBox = (TextBox)((Border)filterRow.Children[1]).Child;
+            Assert.AreEqual(string.Empty, nameFilterTextBox.Text);
+
             var extra = new DataGridTextColumn { Header = "Extra", Binding = new Binding(nameof(FilterRow.Name)) };
             GridColumn.SetKey(extra, "extra");
             dataGrid.Columns.Add(extra);
             Assert.AreEqual(4, filterRow.Children.Count);
+        });
+    }
+
+    [TestMethod]
+    public void FilterRowUpdate_ShouldPreserveTwoWayFilterSetBinding()
+    {
+        StaTest.Run(() =>
+        {
+            var rows = new ObservableCollection<FilterRow> { new("Alpha", 1m, true) };
+            var dataGrid = CreateGrid(rows);
+            var source = new FilterStateSource();
+            BindingOperations.SetBinding(
+                dataGrid,
+                GridFilter.FilterSetProperty,
+                new Binding(nameof(FilterStateSource.Value))
+                {
+                    Source = source,
+                    Mode = BindingMode.TwoWay
+                });
+
+            GridFilter.SetColumnFilter(dataGrid, dataGrid.Columns[0], "alp");
+
+            Assert.IsTrue(BindingOperations.IsDataBound(dataGrid, GridFilter.FilterSetProperty));
+            Assert.HasCount(1, GridFilter.GetFilterSet(dataGrid).Descriptors);
+            Assert.HasCount(1, source.Value.Descriptors);
         });
     }
 
@@ -248,6 +278,23 @@ public sealed class GridFilterTests
         public bool CanExecute(object? parameter) => true;
 
         public void Execute(object? parameter) => LastRequest = (GridFilterRequest?)parameter;
+    }
+
+    private sealed class FilterStateSource : INotifyPropertyChanged
+    {
+        private GridFilterSet _value = GridFilterSet.Empty;
+
+        public GridFilterSet Value
+        {
+            get => _value;
+            set
+            {
+                _value = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Value)));
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 
     private sealed class RequiredRule : ValidationRule

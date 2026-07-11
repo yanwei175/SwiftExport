@@ -1,6 +1,6 @@
-using System.Collections;
 using System.ComponentModel;
 using System.Globalization;
+using SwiftExport.Wpf.EnterpriseGrid.Core.Internal;
 
 namespace SwiftExport.Wpf.EnterpriseGrid.Filtering.Internal;
 
@@ -20,7 +20,7 @@ internal static class GridFilterPredicate
 
     private static bool Matches(object item, GridFilterDescriptor descriptor)
     {
-        var actual = GetValue(item, descriptor.FieldPath);
+        var actual = PropertyPathAccessor.GetValue(item, descriptor.FieldPath);
         return descriptor.Operator switch
         {
             GridFilterOperator.IsNull => actual is null,
@@ -122,25 +122,4 @@ internal static class GridFilterPredicate
             : Convert.ChangeType(value, nonNullableType, CultureInfo.CurrentCulture);
     }
 
-    private static object? GetValue(object? source, string path)
-    {
-        var current = source;
-        foreach (var segment in path.Split('.'))
-        {
-            if (current is null)
-            {
-                return null;
-            }
-
-            if (current is IDictionary dictionary && dictionary.Contains(segment))
-            {
-                current = dictionary[segment];
-                continue;
-            }
-
-            current = TypeDescriptor.GetProperties(current).Find(segment, false)?.GetValue(current);
-        }
-
-        return current;
-    }
 }

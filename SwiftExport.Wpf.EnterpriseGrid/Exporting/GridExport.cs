@@ -6,6 +6,7 @@ using System.Windows.Data;
 using SwiftExport.Wpf.EnterpriseGrid.Columns;
 using SwiftExport.Wpf.EnterpriseGrid.Columns.Enum;
 using SwiftExport.Wpf.EnterpriseGrid.Columns.Lookup;
+using SwiftExport.Wpf.EnterpriseGrid.Core.Internal;
 
 namespace SwiftExport.Wpf.EnterpriseGrid.Exporting;
 
@@ -125,7 +126,7 @@ public static class GridExport
             options.Culture);
         var rawValue = column.Accessor is not null
             ? column.Accessor.GetValue(item, context)
-            : GetPathValue(item, column.Descriptor.FieldPath);
+            : PropertyPathAccessor.GetValue(item, column.Descriptor.FieldPath);
         var displayValue = options.ValueMode == GridExportValueMode.Display
             ? GetDisplayValue(item, rawValue, column, options.Culture)
             : rawValue;
@@ -142,11 +143,11 @@ public static class GridExport
         {
             if (snapshot.DisplayBinding is { } displayBinding && !string.IsNullOrWhiteSpace(displayBinding.Path?.Path))
             {
-                return ApplyBindingPresentation(GetPathValue(item, displayBinding.Path.Path), displayBinding, culture);
+                return ApplyBindingPresentation(PropertyPathAccessor.GetValue(item, displayBinding.Path.Path), displayBinding, culture);
             }
 
             var lookupItem = FindLookupItem(lookup.ItemsSource, rawValue, lookup.SelectedValuePath);
-            return GetPathValue(lookupItem, lookup.DisplayMemberPath) ?? rawValue;
+            return PropertyPathAccessor.GetValue(lookupItem, lookup.DisplayMemberPath) ?? rawValue;
         }
 
         if (snapshot.Column is EnumDataGridColumn enumColumn)
@@ -161,7 +162,7 @@ public static class GridExport
         return presentationBinding is null
             ? rawValue
             : ApplyBindingPresentation(
-                snapshot.DisplayBinding is null ? rawValue : GetPathValue(item, snapshot.DisplayBinding.Path?.Path),
+                snapshot.DisplayBinding is null ? rawValue : PropertyPathAccessor.GetValue(item, snapshot.DisplayBinding.Path?.Path),
                 presentationBinding,
                 culture);
     }
@@ -222,40 +223,13 @@ public static class GridExport
 
         foreach (var item in items)
         {
-            if (Equals(GetPathValue(item, selectedValuePath), selectedValue))
+            if (Equals(PropertyPathAccessor.GetValue(item, selectedValuePath), selectedValue))
             {
                 return item;
             }
         }
 
         return null;
-    }
-
-    private static object? GetPathValue(object? source, string? path)
-    {
-        if (source is null || string.IsNullOrWhiteSpace(path))
-        {
-            return source;
-        }
-
-        var current = source;
-        foreach (var segment in path.Split('.'))
-        {
-            if (current is null)
-            {
-                return null;
-            }
-
-            if (current is IDictionary dictionary && dictionary.Contains(segment))
-            {
-                current = dictionary[segment];
-                continue;
-            }
-
-            current = TypeDescriptor.GetProperties(current).Find(segment, false)?.GetValue(current);
-        }
-
-        return current;
     }
 
     private static bool IsDataItem(object? item) =>

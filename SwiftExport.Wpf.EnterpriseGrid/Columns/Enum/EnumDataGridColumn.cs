@@ -31,6 +31,7 @@ public class EnumDataGridColumn : DataGridComboBoxColumn
         typeof(EnumDataGridColumn),
         new PropertyMetadata(string.Empty, OnOptionsChanged));
 
+    /// <summary>初始化枚举列并配置原生 SelectedValuePath 与 DisplayMemberPath。</summary>
     public EnumDataGridColumn()
     {
         SelectedValuePath = nameof(EnumDataGridItem.Value);

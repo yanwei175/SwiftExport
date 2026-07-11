@@ -11,6 +11,7 @@ public sealed class XlsxGridExportProvider : IGridExportProvider
     private const int MaximumRows = 1_048_576;
     private const int MaximumColumns = 16_384;
 
+    /// <inheritdoc />
     public Task ExportAsync(
         GridExportRequest request,
         Stream target,
