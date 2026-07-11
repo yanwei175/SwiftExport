@@ -19,7 +19,7 @@ public class ProductColorController(IProductColorService service) : BaseControll
     public async Task<ServiceResult<ProductColorBatchSaveResponse>> BatchSave([FromBody] ProductColorBatchSaveRequest request) => await service.BatchSaveAsync(request);
 
     [HttpPost("page")]
-    public async Task<ServiceResult<PagedResponseBase<ProductColorDto>>> GetPaged([FromQuery] ProductColorSearchRequest request) => await service.GetPagedAsync(request);
+    public async Task<ServiceResult<PagedResponseBase<ProductColorDto>>> GetPaged([FromBody] ProductColorSearchRequest request) => await service.GetPagedAsync(request);
 
     [HttpGet("all")]
     public async Task<ServiceResult<IReadOnlyList<ProductColorDto>>> GetAll()

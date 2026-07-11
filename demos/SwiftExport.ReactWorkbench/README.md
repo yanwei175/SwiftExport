@@ -21,7 +21,7 @@ POST /api/Product/search
 GET  /api/Product/{uid}
 ```
 
-前端请求 `/api/Product/search`，由 Vite 代理转发到 `https://localhost:7086/api/Product/search`，避免修改后端 CORS。
+前端请求 `/api/Product/search`，由 Vite 代理转发到 `https://localhost:7286/api/Product/search`，避免修改后端 CORS。
 
 运行：
 

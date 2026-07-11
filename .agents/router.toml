@@ -4,6 +4,30 @@
 default_agent = "planner"
 
 [[routes]]
+id = "model-governance"
+agent = "planner"
+workflow = ".agents/workflows/数据模型治理工作流.md"
+skill_group = ".codex/skills/aspdotnet10/data-model-governance/SKILL.md"
+references = [
+  ".agents/references/业务架构总纲.md",
+  ".agents/references/工程架构总纲.md",
+  ".agents/references/数据模型与状态规则.md",
+]
+triggers = [
+  "数据模型治理",
+  "数据模型分析",
+  "实体设计分析",
+  "实体模型分析",
+  "领域模型分析",
+  "业务模型设计",
+  "DTO设计规划",
+  "数据库模型设计",
+  "数据库模型规划",
+  "逻辑外键分析",
+  "实体变更影响分析",
+]
+
+[[routes]]
 id = "planning"
 agent = "planner"
 workflow = ".agents/workflows/业务规划工作流.md"

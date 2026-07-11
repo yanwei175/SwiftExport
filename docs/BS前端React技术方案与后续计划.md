@@ -32,7 +32,7 @@ POST /api/Product/search
 GET  /api/Product/{uid}
 ```
 
-前端通过 Vite 代理 `/api -> https://localhost:7086/api` 调用现有 WebApi，避免为了 demo 修改后端 CORS。
+前端通过 Vite 代理 `/api -> https://localhost:7286/api` 调用现有 WebApi，避免为了 demo 修改后端 CORS。
 
 ## 2. Demo 验证目标
 

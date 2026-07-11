@@ -11,6 +11,8 @@ namespace SwiftExport.Infrastructure.Repositories.Products;
 
 public class ProductColorRepository(RepositoryBaseContext context) : DapperRepository<ProductColor>(context), IProductColorRepository
 {
+    private static readonly string ProductColorTable = EntityMetadataCache.GetTableName<ProductColor>();
+
     public async Task<bool> ExistByColorCode(string productColor)
     {
         // 1. SQL 修正：查询最小数据（例如数字 1）并使用 = 替代 IN
@@ -82,7 +84,7 @@ public class ProductColorRepository(RepositoryBaseContext context) : DapperRepos
 
         var sql = $@"
                 SELECT COUNT(1)
-                FROM [{TableName}] WITH(NOLOCK)
+                FROM [{ProductColorTable}] WITH(NOLOCK)
                 {where};
 
                 SELECT
@@ -97,7 +99,7 @@ public class ProductColorRepository(RepositoryBaseContext context) : DapperRepos
                     ColorCode,
                     ColorNameEn,
                     ColorNameZh
-                FROM [{TableName}] WITH(NOLOCK)
+                FROM [{ProductColorTable}] WITH(NOLOCK)
                 {where}
                 ORDER BY ColorCodeUnique ASC, Uid ASC
                 OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";

@@ -23,7 +23,7 @@ public class CustomerRepository(RepositoryBaseContext context) : DapperRepositor
 
     public async Task<Customer?> GetByCustomerCodeAsync(string customerCode)
     {
-        var sql = $"SELECT * FROM [{CustomerTable}] WHERE  CustomerCode = @CustomerCode AND (IsDeleted = 0 OR IsDeleted IS NULL)";
+        var sql = $"SELECT * FROM [{TableName}] WHERE  CustomerCode = @CustomerCode AND (IsDeleted = 0 OR IsDeleted IS NULL)";
         return await Connection.QueryFirstOrDefaultAsync<Customer>(sql, new { CustomerCode = customerCode }, transaction: Transaction);
     }
 
@@ -31,7 +31,7 @@ public class CustomerRepository(RepositoryBaseContext context) : DapperRepositor
     {
         var sql = $@"
             SELECT {nameof(Customer.CustomerCode)}
-            FROM [{CustomerTable}]
+            FROM [{TableName}]
             WHERE {nameof(Customer.CustomerCode)} IN @Codes AND {nameof(Customer.Uid)} NOT IN @Uids AND {nameof(Customer.IsDeleted)}=0";
 
         var result = await Connection.QueryAsync<string>(sql,
@@ -93,11 +93,11 @@ public class CustomerRepository(RepositoryBaseContext context) : DapperRepositor
         var sql = $@"
                         SELECT COUNT(1)
                         FROM
-                        {CustomerTable}
+                        {TableName}
                         {whereClause};
                         SELECT *
                         FROM
-                        {CustomerTable}
+                        {TableName}
                         {whereClause}
                         ORDER BY {nameof(Customer.CustomerCode)} DESC
                         OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;

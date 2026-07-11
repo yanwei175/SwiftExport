@@ -287,7 +287,7 @@ export function ProductManagementPage() {
           showIcon
           icon={<WarningOutlined />}
           message="无法连接真实产品 API"
-          description={`请确认后端已运行在 https://localhost:7086，且 Vite 代理已生效。错误：${error}`}
+          description={`请确认后端已运行在 https://localhost:7286，且 Vite 代理已生效。错误：${error}`}
         />
       )}
 

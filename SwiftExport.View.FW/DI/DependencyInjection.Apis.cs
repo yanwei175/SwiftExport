@@ -56,7 +56,7 @@ namespace SwiftExport.View.FW
             services.AddTransient<AuthTokenHandler>();
 
             // TODO：后续从 appsettings / 配置中心读取，避免硬编码
-            const string apiBaseUrl = "https://localhost:7086";
+            const string apiBaseUrl = "https://localhost:7286";
 
             // ================== 认证模块（无需 BaseUrl 前缀，单独注册）==================
             services.AddRefitClient<IAuthApi>()

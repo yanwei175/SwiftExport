@@ -21,7 +21,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
         public async Task<IReadOnlyList<DependentDemand>> GetListBySourceTypeAndSourceUidAsync(string sourceType, Guid sourceUid)
         {
             var sql = $@"SELECT * 
-                    FROM [{DependentDemandTable}] WITH(NOLOCK) 
+                    FROM [{TableName}] WITH(NOLOCK)
                     WHERE     {nameof(DependentDemand.SourceType)} = @SourceType 
                           AND {nameof(DependentDemand.SourceUid)} = @SourceUid 
                           AND (IsDeleted = 0 OR IsDeleted IS NULL)";
@@ -36,7 +36,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
         public async Task<IReadOnlyList<DependentDemand>> GetListBySourceLineIdAsync(string sourceType, Guid sourceLineId)
         {
             var sql = $@"SELECT * 
-                    FROM [{DependentDemandTable}] WITH(NOLOCK) 
+                    FROM [{TableName}] WITH(NOLOCK)
                     WHERE     {nameof(DependentDemand.SourceType)} = @SourceType 
                           AND {nameof(DependentDemand.SourceLineId)} = @SourceLineId 
                           AND (IsDeleted = 0 OR IsDeleted IS NULL)";

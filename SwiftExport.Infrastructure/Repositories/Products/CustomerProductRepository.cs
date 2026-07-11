@@ -13,6 +13,8 @@ namespace SwiftExport.Infrastructure.Repositories.Products;
 public partial class CustomerProductRepository(RepositoryBaseContext context)
     : DapperRepository<CustomerProduct>(context), ICustomerProductRepository
 {
+    private static readonly string CustomerPoConfigTable = EntityMetadataCache.GetTableName<CustomerPoConfig>();
+
     // ============================================================
     // 按 ID 联表查询单条，返回完整 DTO
     // ============================================================
@@ -111,7 +113,7 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
         var sql = $@"
                         SELECT COUNT(1)
                         FROM
-                        {CustomerProductTable}
+                        {TableName}
                         {whereClause};
                         SELECT *
                         FROM

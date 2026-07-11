@@ -18,7 +18,7 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
     {
         var sql = $@"SELECT {nameof(CustomerPoConfig.CustomerCode)},
                             {nameof(CustomerPoConfig.SupplierCode)} 
-                    FROM [{CustomerPoConfigTable}] 
+                    FROM [{TableName}]
                     WHERE  {nameof(Customer.IsDeleted)}=0 
                       AND {nameof(CustomerPoConfig.CustomerCode)} IN @CustomerCode
                       AND  {nameof(CustomerPoConfig.SupplierCode)} IN @SupplierCode";
@@ -110,11 +110,11 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
         var sql = $@"
                         SELECT COUNT(1)
                         FROM
-                        {CustomerPoConfigTable}
+                        {TableName}
                         {whereClause};
                         SELECT *
                         FROM
-                        {CustomerPoConfigTable}
+                        {TableName}
                         {whereClause}
                         ORDER BY {nameof(CustomerPoConfig.CreatedDate)} DESC
                         OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
@@ -171,7 +171,7 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
                            {nameof(CustomerPoConfig.Uid)},
                            {nameof(CustomerPoConfig.CustomerCode)},
                            {nameof(CustomerPoConfig.SupplierCode)}
-                       FROM {CustomerPoConfigTable}
+                       FROM {TableName}
                        WHERE {nameof(CustomerPoConfig.IsDeleted)} = 0
                          AND {nameof(CustomerPoConfig.CustomerCode)} IN @CustomerCodes
                          AND {nameof(CustomerPoConfig.SupplierCode)} IN @SupplierCodes;

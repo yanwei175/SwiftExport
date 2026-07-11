@@ -15,6 +15,11 @@ namespace SwiftExport.Infrastructure.Repositories.Products;
 
 public partial class ProductRepository(RepositoryBaseContext context) : DapperRepository<Product>(context), IProductRepository
 {
+    private static readonly string CustomerProductTable = EntityMetadataCache.GetTableName<CustomerProduct>();
+    private static readonly string CustomerTable = EntityMetadataCache.GetTableName<Customer>();
+    private static readonly string ProductColorTable = EntityMetadataCache.GetTableName<ProductColor>();
+    private static readonly string ProductCategoryTable = EntityMetadataCache.GetTableName<ProductCategory>();
+    private static readonly string ProductPackageTable = EntityMetadataCache.GetTableName<ProductPackage>();
 
     public async Task<IReadOnlyList<string>> GetAllCustomerCodeListAsync()
     {
@@ -250,7 +255,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         var whereClause = whereSb.ToString();
 
         var countFromClause = $@"
-                            FROM [{ProductTable}] p WITH(NOLOCK)
+                            FROM [{TableName}] p WITH(NOLOCK)
 
                             LEFT JOIN [{ProductColorTable}] pc WITH(NOLOCK)
                                 ON p.{nameof(Product.ColorId)} = pc.{nameof(ProductColor.Uid)}

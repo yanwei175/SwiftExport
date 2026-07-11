@@ -11,9 +11,6 @@ namespace SwiftExport.Contracts.Apis.ProductApis
     {
         [Post("/page")]
         Task<ServiceResult<PagedResponseBase<ProductColorDto>>> GetPagedAsync([Body] ProductColorSearchRequest request);
-        [Get("/")]
-        Task<ServiceResult<PagedResponseBase<ProductColorDto>>> GetPagedRootAsync([Query] ProductColorSearchRequest request);
-
         [Post("/batch-save")]
         Task<ServiceResult<ProductColorBatchSaveResponse>> BatchSaveAsync([Body] ProductColorBatchSaveRequest request);
     }

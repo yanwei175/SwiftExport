@@ -1,57 +1,44 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExportClient.Mvvm;
+using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Products.Colors.Models;
 
-public sealed class ProductColorLineModel : BaseLineModel<ProductColorDto>
+public sealed partial class ProductColorLineModel : BaseLineModel<ProductColorDto>, IDataErrorInfo
 {
-    private Guid _uid;
-    private int _version;
+    [ObservableProperty]
+    private Guid uid;
+
+    [ObservableProperty]
+    private int version;
+
     private bool _isDeleted;
     private DateTime? _createdDate;
     private string? _createdBy;
     private DateTime? _updatedDate;
     private string? _updatedBy;
-    private string _colorCodeUnique = string.Empty;
-    private string _colorCode = string.Empty;
-    private string _colorNameEn = string.Empty;
-    private string _colorNameZh = string.Empty;
 
-    public Guid Uid
-    {
-        get => _uid;
-        set => SetProperty(ref _uid, value);
-    }
+    [ObservableProperty]
+    private string colorCodeUnique = string.Empty;
 
-    public int Version
-    {
-        get => _version;
-        set => SetProperty(ref _version, value);
-    }
+    [ObservableProperty]
+    private string colorCode = string.Empty;
 
-    public string ColorCodeUnique
-    {
-        get => _colorCodeUnique;
-        set => SetTrackedProperty(ref _colorCodeUnique, value);
-    }
+    [ObservableProperty]
+    private string colorNameEn = string.Empty;
 
-    public string ColorCode
-    {
-        get => _colorCode;
-        set => SetTrackedProperty(ref _colorCode, value);
-    }
+    [ObservableProperty]
+    private string colorNameZh = string.Empty;
 
-    public string ColorNameEn
-    {
-        get => _colorNameEn;
-        set => SetTrackedProperty(ref _colorNameEn, value);
-    }
+    public string Error => string.Empty;
 
-    public string ColorNameZh
+    public string this[string columnName] => columnName switch
     {
-        get => _colorNameZh;
-        set => SetTrackedProperty(ref _colorNameZh, value);
-    }
+        nameof(ColorCodeUnique) when string.IsNullOrWhiteSpace(ColorCodeUnique) => "唯一颜色代码不能为空。",
+        nameof(ColorCode) when string.IsNullOrWhiteSpace(ColorCode) => "颜色代码不能为空。",
+        _ => string.Empty
+    };
 
     public override Task<string?> ValidateAsync()
     {

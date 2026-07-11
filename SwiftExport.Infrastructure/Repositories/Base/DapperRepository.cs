@@ -3,12 +3,6 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
-using SwiftExport.Core.Entities.Auth;
-using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.Orders;
-using SwiftExport.Core.Entities.Relations;
-using SwiftExport.Core.Entities.SystemEntities;
-using SwiftExport.Core.Entities.Systems;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure.Contexts;
@@ -37,56 +31,6 @@ public class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T>
     protected static readonly EntityMetadata Metadata = EntityMetadataCache.GetMetadata<T>();
 
     protected static readonly string TableName = Metadata.TableName;
-
-    #region 常用实体表名缓存
-    protected static readonly string AccessControlListTable = EntityMetadataCache.GetTableName<AccessControlList>();
-    protected static readonly string ExcelImportConfigTable = EntityMetadataCache.GetTableName<ExcelImportConfig>();
-    protected static readonly string SysPermissionTable = EntityMetadataCache.GetTableName<SysPermission>();
-    protected static readonly string SysRoleTable = EntityMetadataCache.GetTableName<SysRole>();
-    protected static readonly string SysRolePermissionTable = EntityMetadataCache.GetTableName<SysRolePermission>();
-    protected static readonly string SysUserTable = EntityMetadataCache.GetTableName<SysUser>();
-    protected static readonly string SysUserRoleTable = EntityMetadataCache.GetTableName<SysUserRole>();
-    protected static readonly string UserRoleViewTable = EntityMetadataCache.GetTableName<UserRoleView>();
-    protected static readonly string BomTable = EntityMetadataCache.GetTableName<Bom>();
-    protected static readonly string CustomerTable = EntityMetadataCache.GetTableName<Customer>();
-    protected static readonly string ProductTable = EntityMetadataCache.GetTableName<Product>();
-    protected static readonly string ProductCategoryTable = EntityMetadataCache.GetTableName<ProductCategory>();
-    protected static readonly string ProductColorTable = EntityMetadataCache.GetTableName<ProductColor>();
-    protected static readonly string ProductDetailTable = EntityMetadataCache.GetTableName<ProductDetail>();
-    protected static readonly string ProductMasterTable = EntityMetadataCache.GetTableName<ProductMaster>();
-    protected static readonly string ProductPackageTable = EntityMetadataCache.GetTableName<ProductPackage>();
-    protected static readonly string SupplierTable = EntityMetadataCache.GetTableName<Supplier>();
-    protected static readonly string WarehouseTable = EntityMetadataCache.GetTableName<Warehouse>();
-    protected static readonly string DemandExecutionLinkTable = EntityMetadataCache.GetTableName<DemandExecutionLink>();
-    protected static readonly string DependentDemandTable = EntityMetadataCache.GetTableName<DependentDemand>();
-    protected static readonly string FollowUpLogTable = EntityMetadataCache.GetTableName<FollowUpLog>();
-    protected static readonly string IndependentDemandTable = EntityMetadataCache.GetTableName<IndependentDemand>();
-    protected static readonly string InventoryTable = EntityMetadataCache.GetTableName<Inventory>();
-    protected static readonly string InventoryTransactionTable = EntityMetadataCache.GetTableName<InventoryTransaction>();
-    protected static readonly string OutboundHeadTable = EntityMetadataCache.GetTableName<OutboundHead>();
-    protected static readonly string OutboundLineTable = EntityMetadataCache.GetTableName<OutboundLine>();
-    protected static readonly string PackingListHeadTable = EntityMetadataCache.GetTableName<PackingListHead>();
-    protected static readonly string PackingListLineTable = EntityMetadataCache.GetTableName<PackingListLine>();
-    protected static readonly string PlanOrderItemTable = EntityMetadataCache.GetTableName<PlanOrderItem>();
-    protected static readonly string PurchaseOrderHeadTable = EntityMetadataCache.GetTableName<PurchaseOrderHead>();
-    protected static readonly string PurchaseOrderLineTable = EntityMetadataCache.GetTableName<PurchaseOrderLine>();
-    protected static readonly string ReceiptItemTable = EntityMetadataCache.GetTableName<ReceiptItem>();
-    protected static readonly string ReceiveHeadTable = EntityMetadataCache.GetTableName<ReceiveHead>();
-    protected static readonly string ReceiveLineTable = EntityMetadataCache.GetTableName<ReceiveLine>();
-    protected static readonly string SalesOrderHeaderTable = EntityMetadataCache.GetTableName<SalesOrderHeader>();
-    protected static readonly string SalesOrderLineTable = EntityMetadataCache.GetTableName<SalesOrderLine>();
-    protected static readonly string CustomerPoConfigTable = EntityMetadataCache.GetTableName<CustomerPoConfig>();
-    protected static readonly string CustomerProductTable = EntityMetadataCache.GetTableName<CustomerProduct>();
-    protected static readonly string SupplierProductTable = EntityMetadataCache.GetTableName<SupplierProduct>();
-    protected static readonly string SysViewRouteTable = EntityMetadataCache.GetTableName<SysViewRoute>();
-    protected static readonly string DocumentSequenceTable = EntityMetadataCache.GetTableName<DocumentSequence>();
-    protected static readonly string SysDicCurrencyTable = EntityMetadataCache.GetTableName<SysDicCurrency>();
-    protected static readonly string SysDicCurrencyExchangeTable = EntityMetadataCache.GetTableName<SysDicCurrencyExchange>();
-    protected static readonly string SysDictDataTable = EntityMetadataCache.GetTableName<SysDictData>();
-    protected static readonly string SysDictTypeTable = EntityMetadataCache.GetTableName<SysDictType>();
-
-
-    #endregion
 
 
     protected virtual IReadOnlyList<string> WriteableProperties => WriteablePropertyCache.Value;

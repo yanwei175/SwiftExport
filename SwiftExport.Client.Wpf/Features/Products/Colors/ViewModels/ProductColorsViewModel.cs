@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
@@ -12,7 +13,7 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Products.Colors.ViewModels;
 
-public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializable
+public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializable
 {
     private const int DefaultPageSize = 20;
     private const int SearchDebounceMilliseconds = 500;
@@ -22,12 +23,32 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
     private readonly IDialogService _dialogService;
     private bool _isInitialized;
     private CancellationTokenSource? _searchDebounceCts;
-    private string _keyword = string.Empty;
-    private int _pageIndex = 1;
-    private int _pageSize = DefaultPageSize;
-    private int _totalCount;
-    private ProductColorLineModel? _selectedLine;
-    private string _resultSummary = "尚未加载产品颜色。";
+    [ObservableProperty]
+    private string keyword = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    private int pageIndex = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalPages))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    private int pageSize = DefaultPageSize;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalPages))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    private int totalCount;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
+    private ProductColorLineModel? selectedLine;
+
+    [ObservableProperty]
+    private string resultSummary = "尚未加载产品颜色。";
+
+    [ObservableProperty]
+    private bool hasValidationError;
 
     public ProductColorsViewModel(
         IProductColorApi colorApi,
@@ -44,21 +65,12 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
         Lines = new BaseListModel<ProductColorLineModel, ProductColorDto>(_ => new ProductColorLineModel());
         Lines.PropertyChanged += OnLinesPropertyChanged;
 
-        SearchCommand = new AsyncRelayCommand(SearchImmediatelyAsync, CanRunCommand);
-        RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRunCommand);
-        PageChangeCommand = new AsyncRelayCommand<PageChangeRequest>(PageChangeAsync, CanChangePage);
-        AddRowCommand = new RelayCommand(AddRow, CanWriteCommand);
-        DeleteSelectedCommand = new AsyncRelayCommand(DeleteSelectedAsync, CanDeleteSelected);
-        RejectChangesCommand = new RelayCommand(RejectColorChanges, CanRejectChanges);
-        SaveCommand = new AsyncRelayCommand(SaveAsync, CanSave);
-        MoreCommand = new RelayCommand<string?>(ShowPlaceholderAction);
-
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
         RegisterBusyAwareCommand(AddRowCommand);
         RegisterBusyAwareCommand(DeleteSelectedCommand);
-        RegisterBusyAwareCommand(RejectChangesCommand);
+        RegisterBusyAwareCommand(UndoChangesCommand);
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(MoreCommand);
     }
@@ -67,102 +79,13 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
 
     public BaseListModel<ProductColorLineModel, ProductColorDto> Lines { get; }
 
-    public string Keyword
-    {
-        get => _keyword;
-        set
-        {
-            if (SetProperty(ref _keyword, value) && _isInitialized)
-            {
-                ScheduleDebouncedSearch();
-            }
-        }
-    }
-
-    public int PageIndex
-    {
-        get => _pageIndex;
-        private set
-        {
-            if (SetProperty(ref _pageIndex, value))
-            {
-                OnPropertyChanged(nameof(PageStatus));
-                NotifyPagingCommands();
-            }
-        }
-    }
-
-    public int PageSize
-    {
-        get => _pageSize;
-        set
-        {
-            var normalized = value <= 0 ? DefaultPageSize : value;
-            if (SetProperty(ref _pageSize, normalized))
-            {
-                OnPropertyChanged(nameof(TotalPages));
-                OnPropertyChanged(nameof(PageStatus));
-                NotifyPagingCommands();
-            }
-        }
-    }
-
-    public int TotalCount
-    {
-        get => _totalCount;
-        private set
-        {
-            if (SetProperty(ref _totalCount, value))
-            {
-                OnPropertyChanged(nameof(TotalPages));
-                OnPropertyChanged(nameof(PageStatus));
-                NotifyPagingCommands();
-            }
-        }
-    }
-
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
 
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
 
-    public ProductColorLineModel? SelectedLine
-    {
-        get => _selectedLine;
-        set
-        {
-            if (SetProperty(ref _selectedLine, value))
-            {
-                Lines.SelectedItem = value;
-                DeleteSelectedCommand.NotifyCanExecuteChanged();
-            }
-        }
-    }
-
-    public string ResultSummary
-    {
-        get => _resultSummary;
-        private set => SetProperty(ref _resultSummary, value);
-    }
-
     public bool HasChanges => Lines.HasChanges;
 
-    public bool IsEmpty => IsNotBusy && Lines.Items.Count == 0;
-
-    public IAsyncRelayCommand SearchCommand { get; }
-
-    public IAsyncRelayCommand RefreshCommand { get; }
-
-    public IAsyncRelayCommand<PageChangeRequest> PageChangeCommand { get; }
-
-    public IRelayCommand AddRowCommand { get; }
-
-    public IAsyncRelayCommand DeleteSelectedCommand { get; }
-
-    public IRelayCommand RejectChangesCommand { get; }
-
-    public IAsyncRelayCommand SaveCommand { get; }
-
-    public IRelayCommand<string?> MoreCommand { get; }
+    public bool IsEmpty => Lines.Items.Count == 0;
 
     public async Task InitializeAsync()
     {
@@ -175,18 +98,21 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
         await LoadPageAsync(confirmChanges: false);
     }
 
-    private async Task SearchImmediatelyAsync()
+    [RelayCommand(CanExecute = nameof(CanRunCommand))]
+    private async Task SearchAsync()
     {
         CancelPendingSearch();
         await SearchCoreAsync();
     }
 
+    [RelayCommand(CanExecute = nameof(CanRunCommand))]
     private Task RefreshAsync()
     {
         CancelPendingSearch();
         return LoadPageAsync(confirmChanges: true);
     }
 
+    [RelayCommand(CanExecute = nameof(CanChangePage))]
     private Task PageChangeAsync(PageChangeRequest? request)
     {
         if (request is null)
@@ -231,6 +157,7 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanWriteCommand))]
     private void AddRow()
     {
         var line = Lines.AddNew(new ProductColorDto
@@ -246,6 +173,7 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
         UpdateChangeState();
     }
 
+    [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
     private async Task DeleteSelectedAsync()
     {
         if (SelectedLine is null)
@@ -271,14 +199,17 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
         UpdateChangeState();
     }
 
-    private void RejectColorChanges()
+    [RelayCommand(CanExecute = nameof(CanRejectChanges))]
+    private void UndoChanges()
     {
         Lines.RejectChanges();
         SelectedLine = Lines.Items.FirstOrDefault();
         RejectChanges();
+        SetValidationFeedback(null);
         UpdateChangeState();
     }
 
+    [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
         await RunWriteAsync(async () =>
@@ -286,7 +217,7 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
             var validationError = await Lines.ValidateAllAsync();
             if (!string.IsNullOrWhiteSpace(validationError))
             {
-                ValidationSummary = validationError;
+                SetValidationFeedback(validationError);
                 _messageService.ShowWarning("产品颜色未保存", validationError);
                 return;
             }
@@ -337,13 +268,14 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
 
             if (!result.Success)
             {
-                ValidationSummary = result.Message;
+                SetValidationFeedback(result.Message);
                 _messageService.ShowError("保存产品颜色失败", result.Message);
                 return;
             }
 
             Lines.AcceptChanges();
             AcceptChanges();
+            SetValidationFeedback(null);
             UpdateChangeState();
 
             var affectedRows = result.Data?.SuccessCount ?? 0;
@@ -364,6 +296,7 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
         {
             loaded = await LoadPageCoreAsync();
         }, "正在加载产品颜色...");
+        OnPropertyChanged(nameof(IsEmpty));
 
         return loaded;
     }
@@ -385,7 +318,7 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
 
         if (!result.Success)
         {
-            ValidationSummary = result.Message;
+            SetValidationFeedback(result.Message);
             ResultSummary = "产品颜色加载失败。";
             _messageService.ShowError("加载产品颜色失败", result.Message);
             OnPropertyChanged(nameof(IsEmpty));
@@ -399,7 +332,7 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
         PageIndex = page?.PageIndex > 0 ? page.PageIndex : PageIndex;
         PageSize = page?.PageSize > 0 ? page.PageSize : PageSize;
         ResultSummary = $"共 {TotalCount} 条，本页 {Lines.Items.Count} 条。";
-        ValidationSummary = string.Empty;
+        SetValidationFeedback(null);
         AcceptChanges();
         UpdateChangeState();
         OnPropertyChanged(nameof(IsEmpty));
@@ -450,7 +383,8 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
         _searchDebounceCts = null;
     }
 
-    private void ShowPlaceholderAction(string? actionName)
+    [RelayCommand]
+    private void More(string? actionName)
     {
         var name = string.IsNullOrWhiteSpace(actionName) ? "该功能" : actionName;
         _messageService.ShowInfo("产品颜色管理", $"{name}将在后续阶段接入。");
@@ -501,13 +435,45 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
         OnPropertyChanged(nameof(HasChanges));
         OnPropertyChanged(nameof(IsEmpty));
         SaveCommand.NotifyCanExecuteChanged();
-        RejectChangesCommand.NotifyCanExecuteChanged();
+        UndoChangesCommand.NotifyCanExecuteChanged();
         DeleteSelectedCommand.NotifyCanExecuteChanged();
     }
 
     private void NotifyPagingCommands()
     {
         PageChangeCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnKeywordChanged(string value)
+    {
+        if (_isInitialized)
+        {
+            ScheduleDebouncedSearch();
+        }
+    }
+
+    partial void OnPageIndexChanged(int value) => NotifyPagingCommands();
+
+    partial void OnPageSizeChanged(int value) => NotifyPagingCommands();
+
+    partial void OnTotalCountChanged(int value) => NotifyPagingCommands();
+
+    partial void OnSelectedLineChanged(ProductColorLineModel? value)
+    {
+        Lines.SelectedItem = value;
+    }
+
+    protected override async Task HandleExceptionAsync(Exception exception)
+    {
+        await base.HandleExceptionAsync(exception);
+        HasValidationError = true;
+        _messageService.ShowError("产品颜色操作失败", exception.Message);
+    }
+
+    private void SetValidationFeedback(string? message)
+    {
+        ValidationSummary = string.IsNullOrWhiteSpace(message) ? null : message.Trim();
+        HasValidationError = ValidationSummary is not null;
     }
 
     private static string? NullIfWhiteSpace(string value)
