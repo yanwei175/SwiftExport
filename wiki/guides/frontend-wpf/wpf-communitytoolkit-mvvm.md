@@ -2,19 +2,22 @@
 
 ## 适用场景
 
-用于未来 SwiftExport .NET 10 WPF 前端的页面、ViewModel、行模型、集合模型、导航、弹窗、消息和 DataGrid 基础设计。
+用于当前 SwiftExport .NET 10 WPF 前端的页面、ViewModel、行模型、集合模型、导航、弹窗、消息和 DataGrid 基础设计。
 
 当前 .NET Framework 4.8 + MVVMLight 页面不使用本 Guide；维护旧前端时读取 [WPF MVVMLight](wpf-mvvmlight.md)。
 
+具体写 ViewModel、LineModel、命令和绑定属性时，必须读取 [CommunityToolkit MVVM 源生成器写法](../../skills/frontend-wpf/communitytoolkit-source-generator.md)。
+
 ## SwiftExport 规则
 
-- 新 .NET 10 WPF 前端使用 `CommunityToolkit.Mvvm`，不混用 MVVMLight。
-- 页面 ViewModel 优先继承未来 `ViewModelBaseEx`，承载 Busy、只读保护、异常包装、命令刷新和页面级状态。
+- 当前 .NET 10 WPF 前端使用 `CommunityToolkit.Mvvm`，不混用 MVVMLight。
+- 页面 ViewModel 优先继承 `ViewModelBaseEx`，承载 Busy、只读保护、异常包装、命令刷新和页面级状态。
 - 行模型优先继承 `BaseLineModel<TDto>`，不要继承页面级 ViewModel 基类。
 - 行集合优先继承 `BaseListModel<TLine,TDto>`，统一管理删除池、变更集、批量勾选、验证和提交/回滚。
 - 可编辑 DataGrid 不直接绑定 DTO。
 - ViewModel 调用 Refit API 和前端 UI Service，不直接访问 Repository、SQL、Controller 或 Window。
 - 属性优先用 `[ObservableProperty]`，命令优先用 `[RelayCommand]`。
+- 新增业务 ViewModel / LineModel 时，不手写普通 `SetProperty` 属性，不在构造函数中 `new RelayCommand` / `new AsyncRelayCommand`。
 - 异步命令返回 `Task`，业务命令不要写成 `async void`。
 - 构造函数只做依赖保存、默认值和事件订阅，不执行大量异步加载。
 - 保存成功后必须清理页面和行集合脏状态。

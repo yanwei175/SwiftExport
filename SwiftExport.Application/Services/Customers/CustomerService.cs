@@ -18,9 +18,6 @@ public partial class CustomerService(ICustomerRepository repository, ServiceBase
 
     private readonly ILogger<CustomerService> _logger = context.LoggerFactory.CreateLogger<CustomerService>();
 
-
-
-
     public async Task<ServiceResult<PagedResponseBase<CustomerDto>>> GetPagedAsync(CustomerSearchRequest request)
     {
         try
@@ -35,7 +32,6 @@ public partial class CustomerService(ICustomerRepository repository, ServiceBase
             return ServiceResult<PagedResponseBase<CustomerDto>>.Fail($"查询失败：{ex.Message}");
         }
     }
-
 
     #region 批量保存和验证
     public async Task<ServiceResult<CustomerBatchSaveResponse>> BatchSaveAsync(CustomerBatchSaveRequest batchReq)

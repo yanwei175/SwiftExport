@@ -1,0 +1,4 @@
+interface:
+  display_name: "WPF Grid Export"
+  short_description: "设计可测试的数据导出管线以及 CSV 和 Excel 导出适配"
+  default_prompt: "Use $wpf-grid-export to design Enterprise Grid export."

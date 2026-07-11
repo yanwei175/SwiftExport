@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Controls;
 using SwiftExportClient.Features.Products.Categories.Services;
 using SwiftExportClient.Features.Products.ProductList.Models;
@@ -353,12 +354,25 @@ public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
 
             var request = new ProductBatchSaveRequest
             {
-                CreateItems = changeSet.Added.ToList(),
-                UpdateItems = changeSet.Modified.ToList(),
+                CreateItems = changeSet.Added
+                    .Select(product => new CreateItemRequest<ProductDto> { Data = product })
+                    .ToList(),
+                UpdateItems = changeSet.Modified
+                    .Select(product => new UpdateItemRequest<ProductDto>
+                    {
+                        Uid = product.Uid,
+                        Version = product.Version,
+                        Data = product
+                    })
+                    .ToList(),
                 DeleteItems = changeSet.Deleted
-                    .Select(product => product.Uid)
-                    .Where(uid => uid != Guid.Empty)
-                    .Distinct()
+                    .Where(product => product.Uid != Guid.Empty)
+                    .Select(product => new DeleteItemRequest
+                    {
+                        Uid = product.Uid,
+                        Version = product.Version,
+                        IsSoftDelete = true
+                    })
                     .ToList(),
             };
 
@@ -386,7 +400,7 @@ public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
             AcceptChanges();
             UpdateChangeState();
 
-            var affectedRows = result.Data?.AffectedRowsTotal ?? 0;
+            var affectedRows = result.Data?.SuccessCount ?? 0;
             _messageService.ShowSuccess("产品资料已保存", $"已提交 {affectedRows} 条变更。");
             await LoadPageCoreAsync();
         }, "正在保存产品资料...");

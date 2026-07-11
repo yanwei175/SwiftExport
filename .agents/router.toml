@@ -1,0 +1,151 @@
+# SwiftExport 子 Agent 路由表
+# AGENTS.md 只指向本文件；新增 agent 或 workflow 时优先改这里。
+
+default_agent = "planner"
+
+[[routes]]
+id = "planning"
+agent = "planner"
+workflow = ".agents/workflows/业务规划工作流.md"
+references = [
+  ".agents/references/业务架构总纲.md",
+  ".agents/references/工程架构总纲.md",
+  ".agents/references/数据模型与状态规则.md",
+  ".agents/references/测试与验收总纲.md",
+]
+triggers = ["需求分析", "业务设计", "方案", "计划", "总纲", "流程", "状态机", "改单", "模块拆分"]
+
+[[routes]]
+id = "backend"
+agent = "backend"
+workflow = ".agents/workflows/后端API工作流.md"
+skill_group = ".codex/skills/aspdotnet10/index/SKILL.md"
+triggers = [
+  "后端",
+  "后端接口",
+  "后端服务",
+  "服务层",
+  "业务服务",
+  "Application",
+  "Application Service",
+  "Service",
+  "接口",
+  "接口开发",
+  "新增接口",
+  "查询接口",
+  "保存接口",
+  "删除接口",
+  "确认接口",
+  "取消确认接口",
+  "过账接口",
+  "反过账接口",
+  "红冲接口",
+  "API",
+  "WebApi",
+  "Controller",
+  "Action",
+  "路由",
+  "Swagger",
+  "认证",
+  "授权",
+  "登录",
+  "JWT",
+  "CurrentUser",
+  "中间件",
+  "Middleware",
+  "Filter",
+  "Contracts",
+  "契约",
+  "共享契约",
+  "DTO",
+  "Request",
+  "Response",
+  "Refit",
+  "枚举",
+  "SysEnums",
+  "Wrappers",
+  "ServiceResult",
+  "分页",
+  "批量保存",
+  "Repository",
+  "仓储",
+  "仓储接口",
+  "仓储实现",
+  "Dapper",
+  "SQL",
+  "查询",
+  "联表查询",
+  "分页查询",
+  "复杂查询",
+  "DbSession",
+  "RepositoryBaseContext",
+  "DapperRepository",
+  "IRepository",
+  "事务",
+  "审计",
+  "AuditStamp",
+  "DependencyInjection",
+  "依赖注入",
+  "数据库",
+  "实体",
+  "Entity",
+  "Core",
+  "Infrastructure",
+  "产品接口",
+  "BOM接口",
+  "客户接口",
+  "供应商接口",
+  "销售订单接口",
+  "毛需求接口",
+  "净需求接口",
+  "采购接口",
+  "入库接口",
+  "出库接口",
+  "PackingList接口",
+  "库存接口",
+  "字典接口",
+  "权限接口",
+]
+
+[[routes]]
+id = "wpf-enterprise-grid"
+agent = "wpf-enterprise-grid-architect"
+workflow = ".agents/workflows/WPF企业级DataGrid工作流.md"
+skill_group = ".codex/skills/wpf-dotnet10-design/wpf-enterprise-grid/SKILL.md"
+triggers = [
+  "Enterprise DataGrid",
+  "企业级 DataGrid",
+  "DataGrid 框架",
+  "Grid 框架",
+  "Grid增强",
+  "FocusedRow",
+  "CurrentRow",
+  "CurrentCell",
+  "LookupColumn",
+  "EnumColumn",
+  "NumericColumn",
+  "FilterRow",
+  "ColumnFilter",
+  "ColumnChooser",
+  "Grid导出",
+  "Grid虚拟化",
+]
+
+[[routes]]
+id = "frontend"
+agent = "frontend"
+workflow = ".agents/workflows/前端NET10工作流.md"
+skill_group = ".codex/skills/wpf-dotnet10-design/index/SKILL.md"
+triggers = ["前端", "WPF", ".NET 10", "CommunityToolkit", "ViewModel", "LineModel", "XAML", "DataGrid", "页面", "样式"]
+
+[[routes]]
+id = "review"
+agent = "reviewer"
+workflow = ".agents/workflows/代码审查工作流.md"
+triggers = ["review", "审查", "检查", "风险", "回归", "验收", "重构评估"]
+
+[policy]
+single_primary_agent = true
+workflow_required = true
+skills_optional = true
+wiki_default_read = false

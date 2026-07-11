@@ -4,6 +4,7 @@ using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 namespace SwiftExport.Contracts.Apis.ProductApis
 {
@@ -14,5 +15,7 @@ namespace SwiftExport.Contracts.Apis.ProductApis
 
         [Post("/batch-save")]
         Task<ServiceResult<ProductCategoryBatchSaveResponse>> BatchSaveAsync([Body] ProductCategoryBatchSaveRequest request);
+        [Get("/all")]
+        Task<ServiceResult<List<ProductCategoryDto>>> GetAllAsync();
     }
 }

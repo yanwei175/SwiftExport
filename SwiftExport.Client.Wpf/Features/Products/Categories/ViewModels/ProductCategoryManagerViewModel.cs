@@ -3,6 +3,7 @@ using GongSolutions.Wpf.DragDrop;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Products.Categories.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
@@ -213,19 +214,19 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
 
             var request = new ProductCategoryBatchSaveRequest
             {
+
                 CreateItems = allNodes
                     .Where(node => node.State == ProductCategoryNodeState.Added)
-                    .Select(node => node.ToDto())
+                    .Select(node => new CreateItemRequest<ProductCategoryDto> { Data = node.ToDto() })
                     .ToList(),
+
                 UpdateItems = allNodes
                     .Where(node => node.State == ProductCategoryNodeState.Modified)
-                    .Select(node => node.ToDto())
+                    .Select(node => new UpdateItemRequest<ProductCategoryDto> { Uid = node.Uid, Data = node.ToDto() })
                     .ToList(),
                 DeleteItems = _deletedNodes
                     .Where(node => node.State != ProductCategoryNodeState.Added)
-                    .Select(node => node.Uid)
-                    .Where(uid => uid != Guid.Empty)
-                    .Distinct()
+                    .Select(node => new DeleteItemRequest { Uid = node.Uid, IsSoftDelete = true })
                     .ToList()
             };
 
@@ -258,7 +259,7 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
                 return;
             }
 
-            var affectedRows = result.Data?.AffectedRowsTotal ?? 0;
+            var affectedRows = result.Data?.SuccessCount ?? 0;
             _messageService.ShowSuccess("产品分类已保存", $"已提交 {affectedRows} 条变更。");
             await LoadAsync();
         }, "正在保存产品分类...");

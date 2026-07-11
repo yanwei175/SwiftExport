@@ -1,0 +1,4 @@
+interface:
+  display_name: "WPF Grid State"
+  short_description: "将业务行状态无侵入映射为 DataGrid 视觉状态"
+  default_prompt: "Use $wpf-grid-state to map business row state into Grid visuals."

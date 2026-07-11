@@ -33,6 +33,7 @@
 ## 当前前端：.NET 10 WPF
 
 - 当前前端页面、MVVM、基类、Feature 目录、DataGrid 行集合模型：读 [.NET 10 前端 MVVM 基础设计](project/dotnet10-frontend-mvvm-blueprint.md)。
+- 写 ViewModel、LineModel、命令、绑定属性：必须读 [CommunityToolkit MVVM 源生成器写法](skills/frontend-wpf/communitytoolkit-source-generator.md)。
 - CommunityToolkit 具体写法：补读 [WPF CommunityToolkit MVVM](guides/frontend-wpf/wpf-communitytoolkit-mvvm.md)。
 - 页面布局、4px 间距、表单、卡片、DataGrid 页面：补读 [.NET 10 WPF Fluent Layout](guides/frontend-wpf/wpf-fluent-layout-guide.md)。
 - 官方 Fluent 主题、ThemeMode、系统强调色、命名 Style：补读 [.NET 10 WPF Official Theme Style](guides/frontend-wpf/wpf-official-theme-style-guide.md)。

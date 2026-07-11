@@ -1,0 +1,6 @@
+interface:
+  display_name: "wpf-dotnet10-design"
+  short_description: "wpf前端设计工作,探索,研究,评估,评审,QA,和共享的主要入口."
+  default_prompt: "wpf-dotnet10-design可以做什么?"
+policy:
+  allow_implicit_invocation: true

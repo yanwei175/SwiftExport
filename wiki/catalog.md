@@ -33,6 +33,7 @@
 - [DbSession 与 RepositoryBaseContext](skills/backend/db-session-context.md) - 数据库连接、事务和仓储上下文。
 - [Dapper Repository](skills/backend/dapper-repository.md) - Dapper 仓储、SQL、分页、批量保存和 DI。
 - [Refit Contract Change](skills/shared/refit-contract-change.md) - DTO、Refit、Controller 路由和契约同步。
+- [CommunityToolkit MVVM 源生成器写法](skills/frontend-wpf/communitytoolkit-source-generator.md) - 当前 .NET 10 WPF ViewModel、LineModel、命令和绑定属性写法。
 - [WPF DataGrid Editing](skills/frontend-wpf/wpf-datagrid-editing.md) - 旧/通用 WPF DataGrid 编辑、行模型和删除池。
 - [WPF Theme Fix](skills/frontend-wpf/wpf-theme-fix.md) - 旧/通用 WPF 主题资源和视觉修复。
 - [Skills Index](skills/index.md) - Skill 子索引。

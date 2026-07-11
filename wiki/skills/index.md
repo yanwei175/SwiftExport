@@ -13,5 +13,6 @@
 
 ## Frontend WPF
 
+- [CommunityToolkit MVVM 源生成器写法](frontend-wpf/communitytoolkit-source-generator.md) - 当前 .NET 10 WPF ViewModel、LineModel、命令和绑定属性必须优先使用 Source Generator 的规则。
 - [WPF DataGrid Editing](frontend-wpf/wpf-datagrid-editing.md) - DataGrid 编辑列、行模型、脏数据追踪、删除池、保存流程规则。
 - [WPF Theme Fix](frontend-wpf/wpf-theme-fix.md) - ResourceDictionary、主题资源、局部/全局样式、DataGrid 视觉修复规则。

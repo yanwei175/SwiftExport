@@ -1,0 +1,4 @@
+interface:
+  display_name: "WPF Grid Editing"
+  short_description: "实现 DataGrid 单元格编辑生命周期与键盘交互"
+  default_prompt: "Use $wpf-grid-editing to implement native DataGrid editing behavior."

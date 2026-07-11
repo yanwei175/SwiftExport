@@ -341,6 +341,7 @@
   - 通过 WPF-UI `ContentDialogHost` 阻断式显示。
   - `IDialogService` 增加 `ShowContentAsync`，用于承载自定义 UserControl 内容。
   - `ProductCategoryManagerViewModel` 使用 `IProductCategoryApi.GetAllAsync()` 加载分类，使用 `BatchSaveAsync(BatchRequestDto<ProductCategoryDto>)` 批量保存。
+  - `ProductCategoryTreeItemModel` 继承 `ObservableObjectEx`，使用 `SuppressScope()` 防止 DTO 加载时误标记 Modified；模型显式保留 `ProductCategoryDto` 的 `Uid`、`Version`、`IsDeleted` 和审计字段，并通过 `ToDto()` 显式回写业务字段。
   - 支持分类树展示、选中编辑、新增一级 / 同级 / 子级、删除、刷新、保存和拖拽排序。
   - 新客户端已引入 `gong-wpf-dragdrop 4.0.0`，只复用拖拽库和旧页面拖放语义，不迁移旧 XAML / 旧主题资源。
   - 拖拽规则：拖到节点中部变为子级，拖到上 / 下边缘调整同级排序，拖到空白处变为顶级，禁止拖入自身子孙。

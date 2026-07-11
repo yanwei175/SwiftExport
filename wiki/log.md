@@ -1,5 +1,19 @@
 # SwiftExport AI Wiki Log
 
+## 2026-07-10 workflow | 将 MVVM Toolkit Samples 项目化为 Codex 原生 Skill
+
+- 读取用户提供的 `C:\Users\BigBigBigDv\.codex\skills\mvvm-toolkit-samples\SKILL.md`，并按其 reference map 只读取与 SwiftExport 当前问题相关的 `ObservableObject`、`RelayCommand`、`AsyncRelayCommand`、`ObservableValidator`、`Ioc` 资料。
+- 新增 `.codex/skills/swiftexport-communitytoolkit-mvvm/SKILL.md`，按 Codex 原生 skill 目录结构沉淀 SwiftExport 当前 .NET 10 WPF MVVM 强制写法。
+- 更新 `AGENTS.md`，明确 Codex 原生技能放在 `.codex/skills/**/SKILL.md`，当前 .NET 10 WPF MVVM 代码必须遵循 `swiftexport-communitytoolkit-mvvm` skill。
+- 更新 `wiki/skills/frontend-wpf/communitytoolkit-source-generator.md`，标记其为 wiki 路由版，原生强制规则以 `.codex/skills/**/SKILL.md` 为准。
+
+## 2026-07-09 frontend | 建立 CommunityToolkit MVVM 源生成器 Skill
+
+- 读取 `SwiftExport.Client.Wpf/Mvvm/**` 和当前 Feature/Shell MVVM 用法，确认新客户端仍存在大量手写 `SetProperty`、构造函数 `new RelayCommand` / `new AsyncRelayCommand` 的写法。
+- 新增 `wiki/skills/frontend-wpf/communitytoolkit-source-generator.md`，规定当前 .NET 10 WPF 业务 ViewModel、LineModel、TreeItemModel 必须优先使用 `[ObservableProperty]`、`[RelayCommand]`、`[NotifyCanExecuteChangedFor]` 和 `partial void OnXxxChanged`。
+- 更新 `wiki/index.md`、`wiki/skills/index.md`、`wiki/catalog.md` 和 CommunityToolkit guide，将源生成器 skill 纳入当前前端默认路由。
+- 轻量核对 Microsoft Learn 的 `ObservableProperty` / `RelayCommand` 生成器规则；未操作桌面 Sample App，避免额外上下文消耗。
+
 ## 2026-07-06 backend | `/page` 分页接口统一 POST Body
 
 - 将 Contracts Refit 中的 `/page` 从 GET Query 改为 POST Body，统一由专用 SearchRequest 承载分页和筛选参数。

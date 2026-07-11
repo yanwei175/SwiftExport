@@ -1,0 +1,4 @@
+interface:
+  display_name: "WPF Grid Selection"
+  short_description: "实现 DataGrid 当前行、当前列、当前单元格与选择同步"
+  default_prompt: "Use $wpf-grid-selection to implement Grid selection and current-cell synchronization."

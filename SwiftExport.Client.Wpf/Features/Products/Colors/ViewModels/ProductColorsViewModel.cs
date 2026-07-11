@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Controls;
 using SwiftExportClient.Features.Products.Colors.Models;
 using SwiftExportClient.Mvvm;
@@ -299,12 +300,25 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
 
             var request = new ProductColorBatchSaveRequest
             {
-                CreateItems = changeSet.Added.ToList(),
-                UpdateItems = changeSet.Modified.ToList(),
+                CreateItems = changeSet.Added
+                    .Select(color => new CreateItemRequest<ProductColorDto> { Data = color })
+                    .ToList(),
+                UpdateItems = changeSet.Modified
+                    .Select(color => new UpdateItemRequest<ProductColorDto>
+                    {
+                        Uid = color.Uid,
+                        Version = color.Version,
+                        Data = color
+                    })
+                    .ToList(),
                 DeleteItems = changeSet.Deleted
-                    .Select(color => color.Uid)
-                    .Where(uid => uid != Guid.Empty)
-                    .Distinct()
+                    .Where(color => color.Uid != Guid.Empty)
+                    .Select(color => new DeleteItemRequest
+                    {
+                        Uid = color.Uid,
+                        Version = color.Version,
+                        IsSoftDelete = true
+                    })
                     .ToList(),
             };
 
@@ -332,7 +346,7 @@ public sealed class ProductColorsViewModel : ViewModelBaseEx, IAsyncInitializabl
             AcceptChanges();
             UpdateChangeState();
 
-            var affectedRows = result.Data?.AffectedRowsTotal ?? 0;
+            var affectedRows = result.Data?.SuccessCount ?? 0;
             _messageService.ShowSuccess("产品颜色已保存", $"已提交 {affectedRows} 条变更。");
             await LoadPageCoreAsync();
         }, "正在保存产品颜色...");

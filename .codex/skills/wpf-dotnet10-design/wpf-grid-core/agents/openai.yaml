@@ -1,0 +1,4 @@
+interface:
+  display_name: "WPF Grid Core"
+  short_description: "实现原生 DataGrid 增强框架核心、附加属性与基础设施"
+  default_prompt: "Use $wpf-grid-core to implement or review the Enterprise Grid core."

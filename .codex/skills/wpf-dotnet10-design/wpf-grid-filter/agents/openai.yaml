@@ -1,0 +1,4 @@
+interface:
+  display_name: "WPF Grid Filter"
+  short_description: "设计 DataGrid 筛选行、列筛选描述与视图适配"
+  default_prompt: "Use $wpf-grid-filter to design Enterprise Grid filtering."
