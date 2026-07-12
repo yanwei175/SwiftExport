@@ -100,9 +100,7 @@
         <Setter Property="controls:PopupTextBoxAssist.PopupMinWidth" Value="320" />
     </Style>
 
-    <Style x:Key="SwiftExportDataGridColumnHeader"
-           TargetType="{x:Type DataGridColumnHeader}"
-           BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+    <Style x:Key="SwiftExportDataGridColumnHeader" TargetType="{x:Type DataGridColumnHeader}" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
         <Setter Property="Padding" Value="{DynamicResource SwiftExportDataGridHeaderPadding}" />
         <Setter Property="Background" Value="{DynamicResource SwiftExportBrush.DataGridHeaderBackground}" />
         <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.DataGridGridLine}" />
@@ -110,6 +108,24 @@
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- 窄复选列不能叠加通用列头 Padding，否则 Margin 微调后会压缩 CheckBox。 -->
+    <Style x:Key="SwiftExportDataGridCheckBoxColumnHeader"
+           TargetType="{x:Type DataGridColumnHeader}"
+           BasedOn="{StaticResource SwiftExportDataGridColumnHeader}">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- 默认 RowHeader 只按内容测量；必须显式 Stretch，行号模板才能使用完整 RowHeaderWidth。 -->
+    <Style x:Key="SwiftExportDataGridRowHeader"
+           TargetType="{x:Type DataGridRowHeader}"
+           BasedOn="{StaticResource {x:Type DataGridRowHeader}}">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Stretch" />
     </Style>
 
     <Style x:Key="SwiftExportDataGridRow" TargetType="{x:Type DataGridRow}" BasedOn="{StaticResource {x:Type DataGridRow}}">
@@ -307,6 +323,7 @@
         <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource SwiftExportBrush.DataGridGridLine}" />
         <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource SwiftExportBrush.DataGridGridLine}" />
         <Setter Property="RowHeaderWidth" Value="32" />
+        <Setter Property="RowHeaderStyle" Value="{StaticResource SwiftExportDataGridRowHeader}" />
         <Setter Property="RowHeaderTemplate" Value="{StaticResource SwiftExportEnterpriseGridRowHeaderTemplate}" />
         <Setter Property="SelectionMode" Value="Extended" />
         <Setter Property="SelectionUnit" Value="FullRow" />

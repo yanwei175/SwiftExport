@@ -13,8 +13,7 @@ namespace SwiftExport.Wpf.EnterpriseGrid.Columns;
 public class CheckBoxDataGridColumn : DataGridTemplateColumn
 {
     private static readonly ReadOnlyStateToEnabledConverter EnabledConverter = new();
-    private readonly Border _headerContainer;
-    private readonly CheckBox _headerCheckBox;
+    private BindingBase? _itemCheckBinding;
     private BindingBase? _allCheckBinding;
 
     /// <summary>表头 CheckBox 左侧 Margin。</summary>
@@ -39,29 +38,20 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
         CanUserSort = false;
         GridColumn.SetCanFilter(this, false);
         GridColumn.SetCanExport(this, false);
-
-        _headerCheckBox = new CheckBox
-        {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            IsThreeState = false,
-            ToolTip = "全选/取消全选"
-        };
-        AutomationProperties.SetName(_headerCheckBox, "全选/取消全选");
-        _headerContainer = new Border
-        {
-            Background = System.Windows.Media.Brushes.Transparent,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch,
-            Child = _headerCheckBox
-        };
-        Header = _headerContainer;
-        UpdateHeaderMargin();
-        ApplyHeaderEnabledBinding();
+        Header = string.Empty;
+        RefreshTemplates();
     }
 
     /// <summary>行 CheckBox 的双向 Binding。</summary>
-    public BindingBase? ItemCheckBinding { get; set; }
+    public BindingBase? ItemCheckBinding
+    {
+        get => _itemCheckBinding;
+        set
+        {
+            _itemCheckBinding = value;
+            RefreshCellTemplates();
+        }
+    }
 
     /// <summary>表头全选 CheckBox 的 Binding；DataGridColumn 不继承 DataContext，应使用显式 RelativeSource。</summary>
     public BindingBase? AllCheckBinding
@@ -70,14 +60,7 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
         set
         {
             _allCheckBinding = value;
-            BindingOperations.ClearBinding(_headerCheckBox, System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty);
-            if (value is not null)
-            {
-                BindingOperations.SetBinding(
-                    _headerCheckBox,
-                    System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty,
-                    value);
-            }
+            HeaderTemplate = CreateHeaderTemplate();
         }
     }
 
@@ -95,26 +78,51 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
         set => SetValue(HeaderCheckBoxMarginRightProperty, value);
     }
 
-    /// <inheritdoc />
-    protected override FrameworkElement GenerateElement(DataGridCell cell, object dataItem) =>
-        CreateCellCheckBox();
-
-    /// <inheritdoc />
-    protected override FrameworkElement GenerateEditingElement(DataGridCell cell, object dataItem) =>
-        CreateCellCheckBox();
-
-    private CheckBox CreateCellCheckBox()
+    private void RefreshTemplates()
     {
-        var checkBox = new CheckBox
+        HeaderTemplate = CreateHeaderTemplate();
+        RefreshCellTemplates();
+    }
+
+    private void RefreshCellTemplates()
+    {
+        var template = CreateCellTemplate();
+        CellTemplate = template;
+        CellEditingTemplate = template;
+    }
+
+    private DataTemplate CreateHeaderTemplate()
+    {
+        var checkBoxFactory = CreateCheckBoxFactory();
+        checkBoxFactory.SetValue(
+            FrameworkElement.MarginProperty,
+            new Thickness(HeaderCheckBoxMarginLeft, 0, HeaderCheckBoxMarginRight, 0));
+        checkBoxFactory.SetValue(FrameworkElement.ToolTipProperty, "全选/取消全选");
+        checkBoxFactory.SetValue(AutomationProperties.NameProperty, "全选/取消全选");
+        if (AllCheckBinding is not null)
         {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            IsThreeState = false
-        };
+            checkBoxFactory.SetBinding(
+                System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty,
+                AllCheckBinding);
+        }
+
+        var enabledBinding = new MultiBinding { Converter = EnabledConverter };
+        enabledBinding.Bindings.Add(new Binding(nameof(DataGrid.IsReadOnly))
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(DataGrid), 1)
+        });
+        enabledBinding.Bindings.Add(new Binding(nameof(IsReadOnly)) { Source = this });
+        checkBoxFactory.SetBinding(UIElement.IsEnabledProperty, enabledBinding);
+
+        return CreateTemplate(checkBoxFactory);
+    }
+
+    private DataTemplate CreateCellTemplate()
+    {
+        var checkBoxFactory = CreateCheckBoxFactory();
         if (ItemCheckBinding is not null)
         {
-            BindingOperations.SetBinding(
-                checkBox,
+            checkBoxFactory.SetBinding(
                 System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty,
                 ItemCheckBinding);
         }
@@ -128,30 +136,30 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
         {
             RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(DataGridCell), 1)
         });
-        BindingOperations.SetBinding(checkBox, UIElement.IsEnabledProperty, enabledBinding);
-        return checkBox;
+        checkBoxFactory.SetBinding(UIElement.IsEnabledProperty, enabledBinding);
+
+        return CreateTemplate(checkBoxFactory);
     }
 
-    private void ApplyHeaderEnabledBinding()
+    private static FrameworkElementFactory CreateCheckBoxFactory()
     {
-        var enabledBinding = new MultiBinding { Converter = EnabledConverter };
-        enabledBinding.Bindings.Add(new Binding(nameof(DataGrid.IsReadOnly))
-        {
-            RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(DataGrid), 1)
-        });
-        enabledBinding.Bindings.Add(new Binding(nameof(IsReadOnly)) { Source = this });
-        BindingOperations.SetBinding(_headerCheckBox, UIElement.IsEnabledProperty, enabledBinding);
+        var checkBoxFactory = new FrameworkElementFactory(typeof(CheckBox));
+        checkBoxFactory.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        checkBoxFactory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        checkBoxFactory.SetValue(System.Windows.Controls.Primitives.ToggleButton.IsThreeStateProperty, false);
+        return checkBoxFactory;
+    }
+
+    private static DataTemplate CreateTemplate(FrameworkElementFactory visualTree)
+    {
+        var template = new DataTemplate { VisualTree = visualTree };
+        template.Seal();
+        return template;
     }
 
     private static void OnHeaderMarginChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e) =>
-        ((CheckBoxDataGridColumn)dependencyObject).UpdateHeaderMargin();
-
-    private void UpdateHeaderMargin()
-    {
-        // Margin 直接作用于窄列中的 CheckBox 会扩大布局尺寸并被 Header 裁剪。
-        // 公开 API 保持 Margin 命名，但内部映射为容器 Padding，只调整对齐而不越出列边界。
-        _headerContainer.Padding = new Thickness(HeaderCheckBoxMarginLeft, 0, HeaderCheckBoxMarginRight, 0);
-    }
+        ((CheckBoxDataGridColumn)dependencyObject).HeaderTemplate =
+            ((CheckBoxDataGridColumn)dependencyObject).CreateHeaderTemplate();
 
     private static bool IsValidMargin(object value) =>
         value is double margin && double.IsFinite(margin) && margin >= 0;

@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Media;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -32,7 +34,7 @@ public sealed class CheckBoxDataGridColumnTests
             toggleProvider.Toggle();
             Assert.IsTrue(rows[0].IsChecked);
 
-            var headerCheckBox = GetHeaderCheckBox(column);
+            var headerCheckBox = GetHeaderCheckBox(dataGrid, column);
             Assert.AreEqual(HorizontalAlignment.Center, headerCheckBox.HorizontalAlignment);
             Assert.AreEqual(VerticalAlignment.Center, headerCheckBox.VerticalAlignment);
             headerCheckBox.IsChecked = true;
@@ -58,10 +60,8 @@ public sealed class CheckBoxDataGridColumnTests
             var dataGrid = CreateGrid(rows, column, new TestGridViewModel(rows));
             using var host = Show(dataGrid);
 
-            var headerContainer = (Border)column.Header;
-            var headerCheckBox = GetHeaderCheckBox(column);
-            Assert.AreEqual(new Thickness(3, 0, 5, 0), headerContainer.Padding);
-            Assert.AreEqual(new Thickness(0), headerCheckBox.Margin);
+            var headerCheckBox = GetHeaderCheckBox(dataGrid, column);
+            Assert.AreEqual(new Thickness(3, 0, 5, 0), headerCheckBox.Margin);
             Assert.IsFalse(column.CanUserSort);
 
             dataGrid.IsReadOnly = true;
@@ -112,13 +112,60 @@ public sealed class CheckBoxDataGridColumnTests
     {
         dataGrid.ScrollIntoView(item, column);
         dataGrid.UpdateLayout();
-        return column.GetCellContent(item) as CheckBox ??
+        return FindVisualDescendant<CheckBox>(column.GetCellContent(item)) ??
             throw new AssertFailedException("未生成 CheckBox Cell 内容。");
     }
 
-    private static CheckBox GetHeaderCheckBox(CheckBoxDataGridColumn column) =>
-        ((Border)column.Header).Child as CheckBox ??
-        throw new AssertFailedException("未生成 Header CheckBox 内容。");
+    private static CheckBox GetHeaderCheckBox(DataGrid dataGrid, CheckBoxDataGridColumn column)
+    {
+        var headers = FindVisualDescendants<DataGridColumnHeader>(dataGrid);
+        var header = headers.Single(candidate => ReferenceEquals(candidate.Column, column));
+        return FindVisualDescendant<CheckBox>(header) ??
+            throw new AssertFailedException("未生成 Header CheckBox 内容。");
+    }
+
+    private static T? FindVisualDescendant<T>(DependencyObject? parent)
+        where T : DependencyObject
+    {
+        if (parent is null)
+        {
+            return null;
+        }
+
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, index);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            if (FindVisualDescendant<T>(child) is { } descendant)
+            {
+                return descendant;
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<T> FindVisualDescendants<T>(DependencyObject parent)
+        where T : DependencyObject
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, index);
+            if (child is T match)
+            {
+                yield return match;
+            }
+
+            foreach (var descendant in FindVisualDescendants<T>(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
 
     private static IDisposable Show(DataGrid dataGrid)
     {
