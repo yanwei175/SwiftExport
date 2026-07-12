@@ -10,36 +10,36 @@ namespace SwiftExport.Infrastructure.Repositories.Products;
 
 public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom>(context), IBomRepository
 {
+    private static readonly string ProductTable = EntityMetadataCache.GetTableName<Product>();
+    private static readonly string BomTable = EntityMetadataCache.GetTableName<Bom>();
+    private static readonly string ProductColorTable = EntityMetadataCache.GetTableName<ProductColor>();
 
     public async Task<IEnumerable<BomDto>> GetBomDtoByBomNoAsync(string bomNo)
     {
-        var sql = @"SELECT 
+        var sql = $@"SELECT 
                         t1.*, 
-                        t2.DescriptionZh, 
-                        t3.ColorNameZh as Finish,
-                        t2.FeaturesZh,
-                        t2.MainImage
-                    FROM Bom t1
-                    LEFT JOIN Product t2 ON t1.SubSkuId = t2.Uid
-                    LEFT JOIN ProductColor t3 ON t2.ColorId = t3.Uid
-                    WHERE t1.BomNo = @BomNo";
+                        t2.{nameof(Product.DescriptionZh)}  as {nameof(BomDto.Description)}, 
+                        t3.{nameof(ProductColor.ColorNameZh)} as {nameof(BomDto.Finish)},
+                        t2.{nameof(Product.FeaturesZh)} as {nameof(BomDto.Features)},
+                        t2.{nameof(Product.MainImage)} as {nameof(BomDto.MainImage)}
+                    FROM {BomTable} t1
+                    LEFT JOIN {ProductTable} t2 ON t1.{nameof(Bom.SubSkuId)} = t2.{nameof(Product.Uid)}
+                    LEFT JOIN {ProductColorTable} t3 ON t2.{nameof(Product.ColorId)} = t3.{nameof(ProductColor.Uid)}
+                    WHERE t1.{nameof(Bom.BomNo)} = @BomNo";
 
         return await Connection.QueryAsync<BomDto>(sql, new { BomNo = bomNo });
     }
-
-
     public async Task<IEnumerable<Bom>> GetBomByBomNoAsync(string bomNo)
     {
-        var sql = $"SELECT * FROM  [{TableName}] Where BomNo = @BomNo";
+        var sql = $"SELECT * FROM  [{BomTable}] Where {nameof(Bom.BomNo)} = @BomNo";
         return await Connection.QueryAsync<Bom>(sql, new { BomNo = bomNo });
     }
-
-    public async Task<Dictionary<string, IEnumerable<Bom>>> Get一堆BomBy一堆Bom号(IEnumerable<string> bomNos)
+    public async Task<Dictionary<string, IEnumerable<Bom>>> GetBomsCollectionByBomNoListAsync(IEnumerable<string> bomNos)
     {
-        if (bomNos == null || !bomNos.Any()) return new Dictionary<string, IEnumerable<Bom>>();
+        if (bomNos == null || !bomNos.Any()) return [];
 
         // 【核心优化】使用 WHERE IN 进行单次查询
-        var sql = $"SELECT * FROM [{TableName}] WHERE BomNo IN @BomNos";
+        var sql = $@"SELECT * FROM [{BomTable}] WHERE {nameof(Bom.BomNo)} IN @BomNos";
 
         // Dapper 会自动将 IEnumerable<string> BomNos 转换为 SQL 参数列表
 
@@ -51,35 +51,19 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
                       .ToDictionary(g => g.Key, g => g.AsEnumerable());
 
     }
-
     public async Task<int> DeleteBomByBomNoAsync(string bomNo)
     {
-        var sql = $"DELETE FROM [{TableName}] WHERE BomNo = @BomNo";
+        var sql = $"DELETE FROM [{BomTable}] WHERE {nameof(Bom.BomNo)} = @BomNo";
         // 使用基类已有的字段
         return await Connection.ExecuteAsync(sql, new { BomNo = bomNo }, transaction: Transaction);
     }
-
     public async Task<bool> IsBomItemExistAsync(string bomNo, string productSku)
     {
         return await Connection.ExecuteScalarAsync<bool>(
-            $"SELECT COUNT(1) FROM [{TableName}] WHERE BomNo = @BomNo AND SubSku = @SubSku",
+            $"SELECT COUNT(1) FROM [{BomTable}] WHERE {nameof(Bom.BomNo)} = @BomNo AND {nameof(Bom.SubSku)} = @SubSku",
             new { BomNo = bomNo, SubSku = productSku },
             transaction: Transaction
         );
     }
-
-
-
-    //public async Task<int> SyncBomItemsAsync(IEnumerable<Bom> items)
-    //{
-    //   var dt= await _fac.CreatDtByEntityPropertysAsync(items);
-    //            return await Connection.ExecuteAsync(
-    //                "SyncBoms",
-    //                new { Boms = dt.AsTableValuedParameter("BomType") },
-    //                transaction: Transaction,
-    //                commandType: CommandType.StoredProcedure
-    //            );
-    //}
-
 
 }

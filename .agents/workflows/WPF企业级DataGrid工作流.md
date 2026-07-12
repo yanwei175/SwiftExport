@@ -23,7 +23,8 @@
 |---|---|
 | 框架入口、附加属性、生命周期、资源 | `wpf-grid-core` |
 | CurrentRow、SelectedItem、CurrentCell | `wpf-grid-selection` |
-| 双击、F2、Enter、Tab、Esc | `wpf-grid-editing` |
+| 原生双击、F2、Enter、Tab、Esc 兼容 | `wpf-grid-editing` |
+| Ctrl+Z、Ctrl+D、单元格历史 | `wpf-grid-core` + `wpf-grid-column` + `wpf-grid-editing` |
 | 列标识、Lookup、Enum、Numeric | `wpf-grid-column` |
 | Cell/Row Validation、错误导航 | `wpf-grid-validation` |
 | 业务状态到视觉状态的适配 | `wpf-grid-state` |
@@ -37,9 +38,9 @@
 - 不替换 `DataGrid` 或重建 `DataGridColumn` 基类体系。
 - 不让框架引用业务 Model、业务状态枚举、Contracts 或服务层。
 - 不使用 VisualTree 扫描导出数据，不关闭行/列虚拟化来换取功能。
-- 输入事件只有一个协调点；模块声明优先级，避免 Selection 与 Editing 互相抢事件。
+- 编辑按键由原生 DataGrid/编辑器拥有；Selection 与 Operations 不得抢占双击、F2、Enter、Tab 或 Esc。
 - 双向附加属性有重入保护，禁用或 Unloaded 时解绑事件。
-- 验证失败时不得移动焦点或静默丢弃编辑值。
+- 业务软验证允许离开 Cell；只有原生转换提交失败时保持焦点，任何模式都不得静默丢弃编辑值。
 - 公开 API 具备默认值、绑定方向、空值、只读和版本兼容说明。
 
 ## 输出

@@ -1,8 +1,10 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
+using System.Windows.Threading;
 using SwiftExport.Wpf.EnterpriseGrid.Columns;
 
 namespace SwiftExport.Wpf.EnterpriseGrid.Selection.Internal;
@@ -12,6 +14,7 @@ internal sealed class GridSelectionModule
     private readonly DataGrid _dataGrid;
     private bool _isAttached;
     private bool _isSynchronizing;
+    private DispatcherOperation? _pendingSynchronization;
 
     public GridSelectionModule(DataGrid dataGrid)
     {
@@ -29,6 +32,7 @@ internal sealed class GridSelectionModule
         _dataGrid.SelectionChanged += OnSelectionChanged;
         _dataGrid.CurrentCellChanged += OnCurrentCellChanged;
         _dataGrid.PreviewMouseLeftButtonDown += OnPreviewMouseLeftButtonDown;
+        _dataGrid.ItemContainerGenerator.ItemsChanged += OnItemsChanged;
         ApplyInitialState();
     }
 
@@ -42,6 +46,8 @@ internal sealed class GridSelectionModule
         _dataGrid.SelectionChanged -= OnSelectionChanged;
         _dataGrid.CurrentCellChanged -= OnCurrentCellChanged;
         _dataGrid.PreviewMouseLeftButtonDown -= OnPreviewMouseLeftButtonDown;
+        _dataGrid.ItemContainerGenerator.ItemsChanged -= OnItemsChanged;
+        CancelPendingSynchronization();
         _isAttached = false;
     }
 
@@ -52,6 +58,7 @@ internal sealed class GridSelectionModule
             return;
         }
 
+        CancelPendingSynchronization();
         RunSynchronized(() =>
         {
             if (item is not null && !_dataGrid.Items.Contains(item))
@@ -60,7 +67,10 @@ internal sealed class GridSelectionModule
                 return;
             }
 
-            _dataGrid.SelectedItem = item;
+            if (_dataGrid.SelectionUnit == DataGridSelectionUnit.FullRow)
+            {
+                _dataGrid.SelectedItem = item;
+            }
             if (item is null)
             {
                 _dataGrid.CurrentCell = new DataGridCellInfo();
@@ -69,7 +79,11 @@ internal sealed class GridSelectionModule
             }
 
             _dataGrid.ScrollIntoView(item);
-            if (_dataGrid.CurrentCell.Column is { } currentColumn)
+            var currentColumn = _dataGrid.CurrentCell.Column ?? _dataGrid.Columns
+                .Where(column => column.Visibility == Visibility.Visible)
+                .OrderBy(column => column.DisplayIndex)
+                .FirstOrDefault();
+            if (currentColumn is not null)
             {
                 _dataGrid.CurrentCell = new DataGridCellInfo(item, currentColumn);
             }
@@ -85,6 +99,7 @@ internal sealed class GridSelectionModule
             return;
         }
 
+        CancelPendingSynchronization();
         RunSynchronized(() =>
         {
             if (cellReference?.Item is null || !_dataGrid.Items.Contains(cellReference.Item))
@@ -101,7 +116,10 @@ internal sealed class GridSelectionModule
                 return;
             }
 
-            _dataGrid.SelectedItem = cellReference.Item;
+            if (_dataGrid.SelectionUnit == DataGridSelectionUnit.FullRow)
+            {
+                _dataGrid.SelectedItem = cellReference.Item;
+            }
             _dataGrid.CurrentCell = new DataGridCellInfo(cellReference.Item, column);
             _dataGrid.ScrollIntoView(cellReference.Item, column);
             SynchronizeFromGrid();
@@ -138,9 +156,11 @@ internal sealed class GridSelectionModule
             return;
         }
 
+        CancelPendingSynchronization();
         RunSynchronized(() =>
         {
-            if (_dataGrid.SelectionMode == DataGridSelectionMode.Single)
+            if (_dataGrid.SelectionUnit == DataGridSelectionUnit.FullRow &&
+                _dataGrid.SelectionMode == DataGridSelectionMode.Single)
             {
                 _dataGrid.SelectedItem = row.Item;
             }
@@ -170,18 +190,12 @@ internal sealed class GridSelectionModule
 
     private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!_isSynchronizing)
-        {
-            RunSynchronized(SynchronizeFromGrid);
-        }
+        ScheduleSynchronization();
     }
 
     private void OnCurrentCellChanged(object? sender, EventArgs e)
     {
-        if (!_isSynchronizing)
-        {
-            RunSynchronized(SynchronizeFromGrid);
-        }
+        ScheduleSynchronization();
     }
 
     private void OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -192,11 +206,54 @@ internal sealed class GridSelectionModule
         }
     }
 
+    private void OnItemsChanged(object? sender, System.Windows.Controls.Primitives.ItemsChangedEventArgs e)
+    {
+        ScheduleSynchronization();
+    }
+
+    private void ScheduleSynchronization()
+    {
+        if (!_isAttached || _isSynchronizing ||
+            _pendingSynchronization is { Status: DispatcherOperationStatus.Pending or DispatcherOperationStatus.Executing })
+        {
+            return;
+        }
+
+        // DataGrid 在一次 Cell 输入中可能短暂发布无效 CurrentCell。合并同一轮原生事件，
+        // 只把输入处理结束后的稳定状态回写给 ViewModel，避免 SelectedLine 瞬态变为 null。
+        _pendingSynchronization = _dataGrid.Dispatcher.BeginInvoke(
+            DispatcherPriority.DataBind,
+            new Action(() =>
+            {
+                _pendingSynchronization = null;
+                if (_isAttached && !_isSynchronizing)
+                {
+                    RunSynchronized(SynchronizeFromGrid);
+                }
+            }));
+    }
+
+    private void CancelPendingSynchronization()
+    {
+        if (_pendingSynchronization is { Status: DispatcherOperationStatus.Pending } operation)
+        {
+            operation.Abort();
+        }
+
+        _pendingSynchronization = null;
+    }
+
     private void SynchronizeFromGrid()
     {
-        var cell = _dataGrid.CurrentCell;
+        var nativeCell = _dataGrid.CurrentCell;
+        var cellIsCurrent = nativeCell.IsValid &&
+            nativeCell.Item is not null &&
+            nativeCell.Column is not null &&
+            _dataGrid.Items.Contains(nativeCell.Item) &&
+            _dataGrid.Columns.Contains(nativeCell.Column);
+        var cell = cellIsCurrent ? nativeCell : new DataGridCellInfo();
         var column = cell.Column;
-        var row = _dataGrid.SelectionUnit == DataGridSelectionUnit.Cell && cell.IsValid
+        var row = _dataGrid.SelectionUnit != DataGridSelectionUnit.FullRow && cell.IsValid
             ? cell.Item
             : _dataGrid.SelectedItem ?? (cell.IsValid ? cell.Item : null);
         var columnKey = column is null ? null : GridColumn.GetKey(column);
@@ -209,6 +266,62 @@ internal sealed class GridSelectionModule
             cell.Item is null || column is null
                 ? null
                 : new GridCellReference(cell.Item, columnKey));
+
+        SynchronizeSelectionSnapshot(row, cell, columnKey);
+    }
+
+    private void SynchronizeSelectionSnapshot(object? currentRow, DataGridCellInfo currentCell, string? columnKey)
+    {
+        if (!GridSelection.HasSelectionSnapshotBinding(_dataGrid))
+        {
+            return;
+        }
+
+        var selectedItems = new HashSet<object>();
+        if (_dataGrid.SelectionUnit == DataGridSelectionUnit.FullRow)
+        {
+            foreach (var item in _dataGrid.SelectedItems.Cast<object>())
+            {
+                AddSelectableItem(selectedItems, item);
+            }
+        }
+        else
+        {
+            foreach (var selectedCell in _dataGrid.SelectedCells)
+            {
+                AddSelectableItem(selectedItems, selectedCell.Item);
+            }
+
+            // CellOrRowHeader 的行头选择由原生 SelectedItems 表示，需与 Cell 选区合并。
+            foreach (var item in _dataGrid.SelectedItems.Cast<object>())
+            {
+                AddSelectableItem(selectedItems, item);
+            }
+
+            if (selectedItems.Count == 0 && currentRow is not null)
+            {
+                AddSelectableItem(selectedItems, currentRow);
+            }
+        }
+
+        var rowsInViewOrder = _dataGrid.Items.Cast<object>()
+            .Where(item => item != CollectionView.NewItemPlaceholder && selectedItems.Contains(item))
+            .ToArray();
+        var cellReference = currentCell.IsValid && currentCell.Item is not null && currentCell.Column is not null
+            ? new GridCellReference(currentCell.Item, columnKey)
+            : null;
+
+        GridSelection.SetSelectionSnapshotFromView(
+            _dataGrid,
+            new GridSelectionSnapshot(currentRow, cellReference, rowsInViewOrder, _dataGrid.SelectedCells.Count));
+    }
+
+    private static void AddSelectableItem(ISet<object> target, object? item)
+    {
+        if (item is not null && item != CollectionView.NewItemPlaceholder)
+        {
+            target.Add(item);
+        }
     }
 
     private void RunSynchronized(Action action)

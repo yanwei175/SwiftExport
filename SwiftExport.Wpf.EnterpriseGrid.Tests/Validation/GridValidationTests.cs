@@ -1,5 +1,6 @@
 using System.Collections;
 using System.ComponentModel;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -90,6 +91,37 @@ public sealed class GridValidationTests
             Assert.IsTrue(errors.Any(error => error.ColumnKey is null && error.Message == "行错误"));
             Assert.IsTrue(errors.Any(error => error.ColumnKey == "template" && error.Message == "模板字段错误"));
         });
+    }
+
+    [TestMethod]
+    public void CellStateConverter_ShouldExposeSoftErrorWithoutCreatingWpfValidationError()
+    {
+        var item = new object();
+        var errors = new[]
+        {
+            new GridValidationError(item, "name", "名称不能为空"),
+            new GridValidationError(item, "name", "名称格式错误"),
+            new GridValidationError(item, "code", "代码错误")
+        };
+        var converter = new GridCellValidationStateConverter();
+
+        var state = (GridCellValidationState)converter.Convert(
+            [item, "name", errors],
+            typeof(GridCellValidationState),
+            parameter: null!,
+            CultureInfo.CurrentCulture);
+
+        Assert.IsTrue(state.HasError);
+        StringAssert.Contains(state.Message, "名称不能为空");
+        StringAssert.Contains(state.Message, "名称格式错误");
+
+        var rowState = (GridCellValidationState)converter.Convert(
+            [item, errors],
+            typeof(GridCellValidationState),
+            parameter: null!,
+            CultureInfo.CurrentCulture);
+        Assert.IsTrue(rowState.HasError);
+        StringAssert.Contains(rowState.Message, "代码错误");
     }
 
     private static DataGrid CreateGrid(params ErrorRow[] rows)

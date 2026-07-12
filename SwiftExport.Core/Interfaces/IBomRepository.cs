@@ -14,7 +14,7 @@ namespace SwiftExport.Core.Interfaces
         /// 一堆BOM号的集合
         /// </param>
         /// <returns>字典(BOM号,对应的BOM集合)</returns>
-        Task<Dictionary<string, IEnumerable<Bom>>> Get一堆BomBy一堆Bom号(IEnumerable<String> bomNos);
+        Task<Dictionary<string, IEnumerable<Bom>>> GetBomsCollectionByBomNoListAsync(IEnumerable<String> bomNos);
 
         /// <summary>
         /// 根据BOM号删除一张BOM

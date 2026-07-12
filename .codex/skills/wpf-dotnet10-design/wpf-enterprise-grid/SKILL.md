@@ -17,12 +17,13 @@ description: 原生 WPF DataGrid 企业级增强框架技能组入口。用于�
 
 - 框架入口、AttachedProperty、生命周期、Helper：读 `../wpf-grid-core/SKILL.md`。
 - CurrentRow、SelectedItem、CurrentCell、CurrentColumn：读 `../wpf-grid-selection/SKILL.md`。
-- 双击、F2、Enter、Tab、Shift+Tab、Esc：读 `../wpf-grid-editing/SKILL.md`。
+- 原生双击、F2、Enter、Tab、Shift+Tab、Esc 兼容：读 `../wpf-grid-editing/SKILL.md`。
 - 列标识、Lookup、Enum、Numeric：读 `../wpf-grid-column/SKILL.md`。
 - 单元格/行验证和错误导航：读 `../wpf-grid-validation/SKILL.md`。
 - 业务行状态到视觉的无侵入映射：读 `../wpf-grid-state/SKILL.md`。
 - FilterRow、ColumnFilter、本地/远程筛选：读 `../wpf-grid-filter/SKILL.md`。
 - CSV/Excel 和数据导出：读 `../wpf-grid-export/SKILL.md`。
+- Ctrl+Z、Ctrl+D 与单元格历史由 `GridOperations` 负责，需同时检查 core、selection、column 和 editing 兼容边界。
 
 跨模块任务可以同时读取多个子 Skill，但由一个协调器统一事件顺序和公共 API。
 

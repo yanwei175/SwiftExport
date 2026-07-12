@@ -59,9 +59,6 @@ public partial class CustomerProductRepository(RepositoryBaseContext context)
             sql, new { Uid = uid }, transaction: Transaction);
     }
 
-    // ============================================================
-    // 联表分页查询（隐藏基类泛型 GetPagedSalesOrderLineSourceDtoAsync）
-    // ============================================================
     /// <summary>
     /// 联表分页查询，返回 CustomerProductPagedItem 读模型。
     /// 关联：CustomerProduct cp

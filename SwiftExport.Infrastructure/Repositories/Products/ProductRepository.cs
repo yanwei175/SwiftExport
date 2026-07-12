@@ -272,7 +272,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
                                                     pp.{nameof(ProductPackage.PcsPerPackage)},
                                                     pp.{nameof(ProductPackage.Nw_KG)},
                                                     pp.{nameof(ProductPackage.Gw_KG)},
-                                                    pp.{nameof(ProductPackage.Cbm_m3)}
+                                                    pp.{nameof(ProductPackage.Cbm)}
                                                 FROM [{ProductPackageTable}] pp WITH(NOLOCK)
                                                 WHERE pp.{nameof(ProductPackage.ProductId)} = p.{nameof(Product.Uid)}
                                                   AND (pp.{nameof(ProductPackage.IsDeleted)} = 0 OR pp.{nameof(ProductPackage.IsDeleted)} IS NULL)
@@ -301,7 +301,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
                         pkg.{nameof(ProductPackage.PcsPerPackage)} AS {nameof(ProductDto.PcsOfCarton)},
                         pkg.{nameof(ProductPackage.Nw_KG)} AS {nameof(ProductDto.NwOfCarton)},
                         pkg.{nameof(ProductPackage.Gw_KG)} AS {nameof(ProductDto.GwOfCarton)},
-                        pkg.{nameof(ProductPackage.Cbm_m3)} AS {nameof(ProductDto.CbmOfCarton)}
+                        pkg.{nameof(ProductPackage.Cbm)} AS {nameof(ProductDto.CbmOfCarton)}
 
                     {dataFromClause}
                     {whereClause}

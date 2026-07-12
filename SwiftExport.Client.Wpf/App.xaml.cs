@@ -4,6 +4,8 @@ using Microsoft.Extensions.Hosting;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Bootstrapper;
 using SwiftExportClient.Shell;
+using SwiftExportClient.Resources.Controls;
+using SwiftExportClient.Services.Images;
 using SwiftExportClient.Updates;
 
 namespace SwiftExportClient;
@@ -20,6 +22,8 @@ public partial class App : Application
 
         _host = AppHost.Build();
         await _host.StartAsync();
+        Resources[CachedImage.ImageCacheServiceResourceKey] =
+            _host.Services.GetRequiredService<IImageCacheService>();
 
         var versionCheck = await _host.Services.GetRequiredService<IClientVersionService>().CheckAsync();
         if (!versionCheck.CanContinue)

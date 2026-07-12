@@ -50,6 +50,9 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
     [ObservableProperty]
     private bool hasValidationError;
 
+    [ObservableProperty]
+    private bool isCellSelectionMode;
+
     public ProductColorsViewModel(
         IProductColorApi colorApi,
         IApiCallRunner apiCallRunner,
@@ -70,7 +73,7 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
         RegisterBusyAwareCommand(PageChangeCommand);
         RegisterBusyAwareCommand(AddRowCommand);
         RegisterBusyAwareCommand(DeleteSelectedCommand);
-        RegisterBusyAwareCommand(UndoChangesCommand);
+        RegisterBusyAwareCommand(RejectAllChangesCommand);
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(MoreCommand);
     }
@@ -176,14 +179,15 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
     [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
     private async Task DeleteSelectedAsync()
     {
-        if (SelectedLine is null)
+        var line = SelectedLine;
+        if (line is null)
         {
             return;
         }
 
-        var displayCode = string.IsNullOrWhiteSpace(SelectedLine.ColorCodeUnique)
-            ? SelectedLine.ColorCode
-            : SelectedLine.ColorCodeUnique;
+        var displayCode = string.IsNullOrWhiteSpace(line.ColorCodeUnique)
+            ? line.ColorCode
+            : line.ColorCodeUnique;
         var confirmed = await _dialogService.ConfirmAsync(
             "删除产品颜色",
             $"确定要删除颜色 {displayCode} 吗？保存前可以撤销。",
@@ -194,13 +198,13 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
             return;
         }
 
-        Lines.Remove(SelectedLine);
+        Lines.Remove(line);
         SelectedLine = Lines.Items.FirstOrDefault();
         UpdateChangeState();
     }
 
     [RelayCommand(CanExecute = nameof(CanRejectChanges))]
-    private void UndoChanges()
+    private void RejectAllChanges()
     {
         Lines.RejectChanges();
         SelectedLine = Lines.Items.FirstOrDefault();
@@ -435,8 +439,7 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
         OnPropertyChanged(nameof(HasChanges));
         OnPropertyChanged(nameof(IsEmpty));
         SaveCommand.NotifyCanExecuteChanged();
-        UndoChangesCommand.NotifyCanExecuteChanged();
-        DeleteSelectedCommand.NotifyCanExecuteChanged();
+        RejectAllChangesCommand.NotifyCanExecuteChanged();
     }
 
     private void NotifyPagingCommands()

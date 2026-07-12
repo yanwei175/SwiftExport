@@ -13,13 +13,13 @@
 
 ```xml
 <DataGrid xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
-          xmlns:gridEditing="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Editing;assembly=SwiftExport.Wpf.EnterpriseGrid"
+          xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
           xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
           gridCore:EnterpriseGrid.IsEnabled="True"
           gridCore:GridVirtualization.IsEnabled="True"
           gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
           gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
-          gridEditing:GridEditing.IsEnabled="True" />
+          gridOperations:GridOperations.IsEnabled="True" />
 ```
 
 每个功能都有独立开关。仅设置 `EnterpriseGrid.IsEnabled` 只创建协调器，不会自动改变全部原生交互。
@@ -28,11 +28,13 @@
 
 | 能力 | 主要 API |
 |---|---|
-| 选择与焦点 | `GridSelection.CurrentRow/CurrentCell/CurrentColumnKey` |
-| 编辑 | `GridEditing`；双击/F2/Enter/Tab/Shift+Tab，Esc 保持原生语义 |
+| 选择与焦点 | `GridSelection.CurrentRow/CurrentCell/CurrentColumnKey`、`GridSelectionUnitConverter` |
+| 编辑 | 完全沿用原生 DataGrid/Column 的双击、F2、Enter、Tab、Shift+Tab、Esc |
+| Excel 操作 | `GridOperations`；Ctrl+Z 撤销已提交 Cell，Ctrl+D 仅在 Cell/CellOrRowHeader 下矩形向下填充 |
 | 验证 | `GridValidation.Errors/FirstError/FocusFirstError` |
 | 行状态视觉 | `GridRowPresentation.MarkerBrush/MarkerText/MarkerGlyph` |
-| 列 | `GridColumn` 元数据、`NumericDataGridColumn`、`EnumDataGridColumn`、`LookupDataGridColumn` |
+| 列 | `GridColumn` 元数据、`CheckBoxDataGridColumn`、`NumericDataGridColumn`、`EnumDataGridColumn`、`LookupDataGridColumn` |
+| 行号 | `GridRowHeader.ShowRowNumber`，按当前 DataGrid 视图显示一基行号 |
 | 筛选与分组 | `GridFilter`、`GridFilterSet`、`GridFilterRow`、`GridGroupDescriptor` |
 | 列选择与布局 | `GridColumnChooser`、`GridLayout.State`、`GridLayoutManager` |
 | 导出 | `GridExport.CreateRequest`、`CsvGridExportProvider`、`XlsxGridExportProvider` |

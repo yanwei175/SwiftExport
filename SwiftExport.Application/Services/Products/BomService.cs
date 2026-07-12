@@ -422,7 +422,7 @@ public partial class BomService(
             foreach (var bomNo in toLoadBomNos)
                 loadedBomNos.Add(bomNo);
 
-            var bomMap = await bomRepo.Get一堆BomBy一堆Bom号(toLoadBomNos);
+            var bomMap = await bomRepo.GetBomsCollectionByBomNoListAsync(toLoadBomNos);
             var nextLevelSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var kv in bomMap)

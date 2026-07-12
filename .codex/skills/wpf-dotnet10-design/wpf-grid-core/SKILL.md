@@ -17,7 +17,7 @@ description: SwiftExport 原生 WPF DataGrid 增强核心技能。用于 Enterpr
 - 使用 `FrameworkPropertyMetadataOptions.BindsTwoWayByDefault` 仅限真正的双向状态。
 - 区分配置属性、双向状态和只读诊断属性，不用一个 DP 同时承担三种语义。
 - 对 DataGridColumn 的元数据使用附加属性，避免创建平行 Column 基类。
-- 命名使用 `EnterpriseGrid`、`GridSelection`、`GridEditing`、`GridColumn` 等稳定域前缀。
+- 命名使用 `EnterpriseGrid`、`GridSelection`、`GridOperations`、`GridValidation`、`GridColumn` 等稳定域前缀。
 
 ## 依赖与视觉
 
@@ -32,3 +32,4 @@ description: SwiftExport 原生 WPF DataGrid 增强核心技能。用于 Enterpr
 - 不通过 `UpdateLayout` 全局强制布局；需要容器时先 `ScrollIntoView`，再处理生成结果。
 - 设计可注入的导航、列可见性等策略，但避免过早建立通用插件平台。
 - 测试重复启停、卸载重载、空 ItemsSource、列动态变化和多个 DataGrid 并存。
+- `GridRowHeader.ShowRowNumber` 只能表达当前视图行号，不得读取业务 RowIndex、关闭虚拟化或长期缓存 DataGridRow。

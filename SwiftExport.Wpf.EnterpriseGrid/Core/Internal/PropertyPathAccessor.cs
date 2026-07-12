@@ -41,5 +41,71 @@ internal static class PropertyPathAccessor
         return current;
     }
 
+    public static bool CanSetValue(object? source, string? path)
+    {
+        return TryGetTarget(source, path, out var target, out var segment) &&
+               (target is IDictionary || segment.Descriptor is { IsReadOnly: false });
+    }
+
+    public static bool TrySetValue(object? source, string? path, object? value)
+    {
+        if (!TryGetTarget(source, path, out var target, out var segment))
+        {
+            return false;
+        }
+
+        if (target is IDictionary dictionary)
+        {
+            dictionary[segment.Name] = value;
+            return true;
+        }
+
+        if (segment.Descriptor is null || segment.Descriptor.IsReadOnly)
+        {
+            return false;
+        }
+
+        segment.Descriptor.SetValue(target, value);
+        return true;
+    }
+
+    private static bool TryGetTarget(
+        object? source,
+        string? path,
+        out object target,
+        out WritablePropertySegment segment)
+    {
+        target = null!;
+        segment = default;
+        if (source is null || string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var parts = Segments.GetOrAdd(path, static value => value.Split('.'));
+        var current = source;
+        for (var index = 0; index < parts.Length - 1; index++)
+        {
+            current = GetValue(current, parts[index]);
+            if (current is null)
+            {
+                return false;
+            }
+        }
+
+        target = current;
+        var name = parts[^1];
+        var descriptor = current is IDictionary
+            ? null
+            : Properties.GetOrAdd(
+                (current.GetType(), name),
+                static key => new PropertySegment(TypeDescriptor.GetProperties(key.Type).Find(key.Name, false)))
+                .Descriptor;
+        segment = new WritablePropertySegment(name, descriptor);
+        return current is IDictionary || descriptor is not null;
+    }
+
     private sealed record PropertySegment(PropertyDescriptor? Descriptor);
+
+    private readonly record struct WritablePropertySegment(string Name, PropertyDescriptor? Descriptor);
 }

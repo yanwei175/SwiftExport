@@ -6,6 +6,7 @@ using SwiftExportClient.Mappings;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using SwiftExportClient.Services.Images;
 using SwiftExportClient.Updates;
 using Wpf.Ui;
 
@@ -19,6 +20,7 @@ public static class ServiceCollectionExtensions
     {
         services.Configure<ApiOptions>(configuration.GetSection(ApiOptions.SectionName));
         services.Configure<ClientOptions>(configuration.GetSection(ClientOptions.SectionName));
+        services.Configure<ImageCacheOptions>(configuration.GetSection(ImageCacheOptions.SectionName));
         TypeAdapterConfig.GlobalSettings.Scan(typeof(MapsterConfig).Assembly);
         services.AddSingleton<ITokenStore, LocalTokenStore>();
         services.AddSingleton<ICurrentUserService, CurrentUserService>();
@@ -33,6 +35,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMessageService, WpfUiMessageService>();
         services.AddSingleton<IDialogService, WpfUiDialogService>();
         services.AddSingleton<IClientVersionService, ClientVersionService>();
+        services.AddSingleton<IImageCacheService, ImageCacheService>();
         services.AddTransient<AuthTokenHandler>();
         services.AddSwiftExportApis();
 

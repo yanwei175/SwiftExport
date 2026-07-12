@@ -153,6 +153,10 @@ triggers = [
   "ColumnChooser",
   "Grid导出",
   "Grid虚拟化",
+  "GridOperations",
+  "Ctrl+D",
+  "向下填充",
+  "单元格撤销",
 ]
 
 [[routes]]

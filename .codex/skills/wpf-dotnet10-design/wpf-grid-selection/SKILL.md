@@ -7,9 +7,10 @@ description: SwiftExport WPF DataGrid 选择与当前单元格技能。用于任
 
 ## 真相源
 
-- `DataGrid.SelectedItem` 与 `DataGrid.CurrentCell` 保持原生真相源。
+- FullRow 模式以 `DataGrid.SelectedItem` 为当前行真相；Cell/CellOrRowHeader 模式以 `DataGrid.CurrentCell.Item` 为当前行真相。
 - `CurrentRow` 是 MVVM 友好的当前项镜像，不创建第二套行对象。
 - `CurrentColumn` 可镜像 `DataGridColumn`；跨 ViewModel 使用稳定的 `CurrentColumnKey`，避免业务 VM 依赖 WPF 类型。
+- `IsCurrentCell` 仅用于宿主样式区分活动 Cell；通过 Item、Column 与 DataGrid.CurrentCell 比较，不缓存虚拟化容器。
 - 不自动写业务对象的 `IsSelected` 属性；多选集合同步必须是独立、显式功能。
 
 ## 鼠标同步
@@ -22,9 +23,11 @@ description: SwiftExport WPF DataGrid 选择与当前单元格技能。用于任
 ## 双向同步
 
 - View 到 VM：SelectionChanged/CurrentCellChanged 更新附加属性。
-- VM 到 View：CurrentRow 更新时设置 SelectedItem；存在容器时再滚动和定位。
+- VM 到 View：FullRow 更新 SelectedItem；Cell/CellOrRowHeader 只移动既有 CurrentColumn 对应的 CurrentCell，不破坏 SelectedCells。
 - 使用重入门闩区分 View 更新与 Binding 回写，处理 ItemsSource 重置和项被移除。
 - CurrentCell 镜像不取代原生属性，不持有已虚拟化的 DataGridCell 控件实例。
+- `CurrentRow` 是单值活动行，不等于 SelectedCells 涉及的所有行；没有真实批量业务需求时不输出选区集合。
+- 页面可用 `GridSelectionUnitConverter` 将普通 bool 开关映射到 FullRow/CellOrRowHeader；Convert/ConvertBack 的非法输入统一回退 FullRow。
 
 ## 验收
 

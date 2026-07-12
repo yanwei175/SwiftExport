@@ -1,8 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
-using SwiftExport.Wpf.EnterpriseGrid.Editing.Internal;
 using SwiftExport.Wpf.EnterpriseGrid.Filtering.Internal;
 using SwiftExport.Wpf.EnterpriseGrid.Layout.Internal;
+using SwiftExport.Wpf.EnterpriseGrid.Operations.Internal;
 using SwiftExport.Wpf.EnterpriseGrid.Selection.Internal;
 using SwiftExport.Wpf.EnterpriseGrid.Validation.Internal;
 
@@ -20,7 +20,8 @@ internal sealed class GridCoordinator : IDisposable
     {
         _dataGrid = dataGrid;
         Selection = new GridSelectionModule(dataGrid);
-        Editing = new GridEditingModule(dataGrid);
+        RowNumbers = new GridRowNumberModule(dataGrid);
+        Operations = new GridOperationsModule(dataGrid);
         Validation = new GridValidationModule(dataGrid);
         Filtering = new GridFilterModule(dataGrid);
         Layout = new GridLayoutModule(dataGrid);
@@ -28,7 +29,9 @@ internal sealed class GridCoordinator : IDisposable
 
     internal GridSelectionModule Selection { get; }
 
-    internal GridEditingModule Editing { get; }
+    internal GridRowNumberModule RowNumbers { get; }
+
+    internal GridOperationsModule Operations { get; }
 
     internal GridValidationModule Validation { get; }
 
@@ -86,10 +89,11 @@ internal sealed class GridCoordinator : IDisposable
         }
 
         Selection.Attach();
+        RowNumbers.Attach();
         Validation.Attach();
         Filtering.Attach();
         Layout.Attach();
-        Editing.Attach();
+        Operations.Attach();
         IsActive = true;
     }
 
@@ -100,11 +104,12 @@ internal sealed class GridCoordinator : IDisposable
             return;
         }
 
-        Editing.Detach();
+        Operations.Detach();
         Layout.Detach();
         Filtering.Detach();
         Validation.Detach();
         Selection.Detach();
+        RowNumbers.Detach();
         IsActive = false;
     }
 }

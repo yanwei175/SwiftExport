@@ -1,11 +1,14 @@
 using System.ComponentModel;
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 
 namespace SwiftExportClient.Mvvm;
 
 public abstract class BaseLineModel<TDto> : ObservableObjectEx
 {
+    private static readonly ConcurrentDictionary<Type, PropertyDescriptor[]> WritableProperties = [];
     private readonly HashSet<string> _changingProperties = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, object?> _baselineValues = new(StringComparer.Ordinal);
     private TDto? _originalDto;
     private LineState _state;
     private LineState? _stateBeforeDelete;
@@ -72,6 +75,7 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
         using var _ = SuppressScope();
         LoadFromDto(dto);
         _originalDto = ToDto();
+        CaptureBaselineValues();
         _stateBeforeDelete = null;
         State = LineState.Unchanged;
     }
@@ -115,6 +119,7 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
     public void AcceptChanges()
     {
         _originalDto = ToDto();
+        CaptureBaselineValues();
         _stateBeforeDelete = null;
         State = LineState.Unchanged;
     }
@@ -198,6 +203,46 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
             return;
         }
 
-        MarkAsModified();
+        ReconcileModifiedState();
+    }
+
+    private void CaptureBaselineValues()
+    {
+        _baselineValues.Clear();
+        foreach (var property in GetTrackableProperties())
+        {
+            _baselineValues[property.Name] = property.GetValue(this);
+        }
+    }
+
+    private void ReconcileModifiedState()
+    {
+        if (State is LineState.Added or LineState.Deleted)
+        {
+            return;
+        }
+
+        foreach (var property in GetTrackableProperties())
+        {
+            if (!_baselineValues.TryGetValue(property.Name, out var baseline) ||
+                !Equals(baseline, property.GetValue(this)))
+            {
+                State = LineState.Modified;
+                return;
+            }
+        }
+
+        State = LineState.Unchanged;
+    }
+
+    private IEnumerable<PropertyDescriptor> GetTrackableProperties()
+    {
+        var properties = WritableProperties.GetOrAdd(
+            GetType(),
+            static type => TypeDescriptor.GetProperties(type)
+                .Cast<PropertyDescriptor>()
+                .Where(property => !property.IsReadOnly)
+                .ToArray());
+        return properties.Where(property => !IsTrackingIgnoredProperty(property.Name));
     }
 }

@@ -38,7 +38,7 @@ public class ProductPackage : BaseEntity
     /// 体积CBM (数据库计算列)
     /// 特别注意：在EF Core中需标记为由数据库生成
     /// </summary>
-    public decimal? Cbm_m3 { get; set; }
+    public decimal? Cbm { get; set; }
 
     /// <summary>
     /// 是否为出货默认计算规格

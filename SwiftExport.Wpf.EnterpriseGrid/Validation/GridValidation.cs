@@ -52,6 +52,22 @@ public static class GridValidation
     /// <summary>当前视图顺序中的首个错误。</summary>
     public static readonly DependencyProperty FirstErrorProperty = FirstErrorPropertyKey.DependencyProperty;
 
+    /// <summary>
+    /// 由宿主 CellStyle 绑定的非阻断错误状态。该属性只负责呈现，不参与 DataGrid 提交事务。
+    /// </summary>
+    public static readonly DependencyProperty CellStateProperty = DependencyProperty.RegisterAttached(
+        "CellState",
+        typeof(GridCellValidationState),
+        typeof(GridValidation),
+        new PropertyMetadata(GridCellValidationState.Empty));
+
+    /// <summary>由宿主 RowStyle 绑定的非阻断行错误状态。</summary>
+    public static readonly DependencyProperty RowStateProperty = DependencyProperty.RegisterAttached(
+        "RowState",
+        typeof(GridCellValidationState),
+        typeof(GridValidation),
+        new PropertyMetadata(GridCellValidationState.Empty));
+
     /// <summary>获取是否启用验证聚合。</summary>
     public static bool GetIsEnabled(DependencyObject element) => (bool)element.GetValue(IsEnabledProperty);
 
@@ -71,6 +87,22 @@ public static class GridValidation
     /// <summary>获取当前首错。</summary>
     public static GridValidationError? GetFirstError(DependencyObject element) =>
         (GridValidationError?)element.GetValue(FirstErrorProperty);
+
+    /// <summary>获取宿主样式计算出的当前 Cell 软验证状态。</summary>
+    public static GridCellValidationState GetCellState(DependencyObject element) =>
+        (GridCellValidationState)element.GetValue(CellStateProperty);
+
+    /// <summary>设置当前 Cell 的软验证状态，通常由 MultiBinding 转换器调用。</summary>
+    public static void SetCellState(DependencyObject element, GridCellValidationState value) =>
+        element.SetValue(CellStateProperty, value ?? GridCellValidationState.Empty);
+
+    /// <summary>获取宿主样式计算出的当前行软验证状态。</summary>
+    public static GridCellValidationState GetRowState(DependencyObject element) =>
+        (GridCellValidationState)element.GetValue(RowStateProperty);
+
+    /// <summary>设置当前行软验证状态，通常由 MultiBinding 转换器调用。</summary>
+    public static void SetRowState(DependencyObject element, GridCellValidationState value) =>
+        element.SetValue(RowStateProperty, value ?? GridCellValidationState.Empty);
 
     /// <summary>
     /// 将原生 DataGrid 导航到当前首错。仅定位数据项与 ColumnKey，不缓存虚拟化容器。
