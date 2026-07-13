@@ -15,10 +15,17 @@ description: SwiftExport WPF DataGrid 列扩展技能。用于原生 DataGridCol
 
 - 业务列默认使用原生 `DataGridTextColumn`、`DataGridComboBoxColumn`、`DataGridCheckBoxColumn`，视觉修改走 `ElementStyle/EditingElementStyle`。
 - 常规页面只允许图片列和需要直接点击/表头全选的复选列使用 `DataGridTemplateColumn`；复杂远程 Lookup 若必须使用模板编辑器，需作为明确例外评审，不能成为普通列默认写法。
-- 需要直接点击和 Header 全选时，使用基于 `DataGridTemplateColumn` 的 `CheckBoxDataGridColumn`；Item/All Binding 必须由宿主显式提供，不能约定 BaseLineModel 属性名。
+- 需要直接点击和 Header 全选时，页面优先直接使用原生 `DataGridTemplateColumn`，分别在 HeaderTemplate 和 CellTemplate 中放置 CheckBox，并显式绑定 Item/All 状态。不要约定 BaseLineModel 属性名，也不要为了微调对齐建立参与测量的多层包装模板。
 - Enum 优先组合原生 `DataGridComboBoxColumn`；Numeric 优先组合 `DataGridTextColumn`、Binding 转换和验证。
 - 便利列只负责呈现/编辑模板，不加载 API、不缓存业务字典、不写业务状态。
 - DataGridColumn 不在可视树中，禁止假设它自动继承 DataContext；ItemsSource/Provider 必须是显式 Binding 或宿主服务。
+
+## 静态枚举列
+
+- 静态枚举优先使用原生 `DataGridComboBoxColumn`，`ItemsSource` 通过 `x:Static` 或应用级稳定资源提供；禁止让列的候选源依赖页面 DataContext 中会随卸载变为 null 的临时 `CollectionViewSource`。
+- 字符串枚举需要兼容历史未知值时使用 TwoWay `TextBinding`，不要使用 `SelectedItemBinding`。候选源被清空时，原生 `SelectedItemBinding` 可能把空值回写业务属性并制造误脏。
+- 原生非编辑元素对 ItemsSource 之外的旧值可能显示为空；仍保留 `DataGridComboBoxColumn`，仅通过轻量 `ElementStyle` 显示绑定文本，编辑态继续使用原生 ComboBox。
+- 用户主动选择候选项才允许回写并推进 Modified；页面加载、卸载、重建和候选源初始化不得修改业务值。
 
 ## Lookup 契约
 

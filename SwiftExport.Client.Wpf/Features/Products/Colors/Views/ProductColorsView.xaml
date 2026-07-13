@@ -1,7 +1,7 @@
 <UserControl x:Class="SwiftExportClient.Features.Products.Colors.Views.ProductColorsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:controls="clr-namespace:SwiftExportClient.Controls"
+             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
              d:Width="1200"
@@ -216,19 +216,24 @@
                       gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                       gridValidation:GridValidation.IsEnabled="True">
                 <DataGrid.Columns>
-                    <gridColumns:CheckBoxDataGridColumn Width="55"
-                                                        HeaderStyle="{StaticResource SwiftExportDataGridCheckBoxColumnHeader}"
-                                                        HeaderCheckBoxWidth="12"
-                                                        HeaderCheckBoxHeight="12"
-                                                        CellCheckBoxWidth="12"
-                                                        CellCheckBoxHeight="12"
-                                                        HeaderCheckBoxStyle="{StaticResource SwiftExportDataGridCompactCheckBox}"
-                                                        CellCheckBoxStyle="{StaticResource SwiftExportDataGridCompactCheckBox}"
-                                                        ItemCheckBinding="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                        AllCheckBinding="{Binding DataContext.Lines.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
-                                                        gridColumns:GridColumn.Key="row-check"
-                                                        gridColumns:GridColumn.CanFilter="False"
-                                                        gridColumns:GridColumn.CanExport="False" />
+                    <DataGridTemplateColumn Width="55"
+                                            CanUserSort="False"
+                                            gridColumns:GridColumn.Key="row-check"
+                                            gridColumns:GridColumn.CanFilter="False"
+                                            gridColumns:GridColumn.CanExport="False">
+                        <DataGridTemplateColumn.HeaderTemplate>
+                            <DataTemplate>
+                                <CheckBox IsChecked="{Binding DataContext.Lines.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
+                                          HorizontalAlignment="Left" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.HeaderTemplate>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          HorizontalAlignment="Left" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
 
                     <DataGridTextColumn Header="唯一颜色代码"
                                         Width="180"

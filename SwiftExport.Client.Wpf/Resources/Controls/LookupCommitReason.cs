@@ -1,4 +1,4 @@
-namespace SwiftExportClient.Controls;
+namespace SwiftExportClient.Resources.Controls;
 
 public enum LookupCommitReason
 {

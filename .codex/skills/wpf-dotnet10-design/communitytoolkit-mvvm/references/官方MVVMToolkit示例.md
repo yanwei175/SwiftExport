@@ -50,7 +50,7 @@ SwiftExport 新业务代码优先写：
 
 ```csharp
 [ObservableProperty]
-private string name = string.Empty;
+public partial string Name { get; set; } = string.Empty;
 ```
 
 需要通知派生属性：
@@ -58,7 +58,7 @@ private string name = string.Empty;
 ```csharp
 [ObservableProperty]
 [NotifyPropertyChangedFor(nameof(DisplayName))]
-private string productName = string.Empty;
+public partial string ProductName { get; set; } = string.Empty;
 
 public string DisplayName => ProductName;
 ```
@@ -84,7 +84,7 @@ private bool CanSave()
 ```csharp
 [ObservableProperty]
 [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
-private string name = string.Empty;
+public partial string Name { get; set; } = string.Empty;
 ```
 
 ### 异步命令
@@ -125,7 +125,7 @@ public sealed partial class ProductEditModel : ObservableValidator
 {
     [ObservableProperty]
     [Required(ErrorMessage = "产品编码不能为空")]
-    private string productCode = string.Empty;
+    public partial string ProductCode { get; set; } = string.Empty;
 
     partial void OnProductCodeChanged(string value)
     {
@@ -154,4 +154,5 @@ public sealed partial class ProductEditModel : ObservableValidator
 - 不要把 WinUI `x:Bind` 复制到 WPF。
 - 不要在新业务 ViewModel 中使用构造函数 `new RelayCommand` 作为默认写法。
 - 不要为普通属性回退到手写 backing field + `SetProperty`。
+- 不要在当前 .NET 10 客户端新增字段式 `[ObservableProperty] private ...`；统一使用 partial property。
 - 不要把 sample 中通用命名替换 SwiftExport 的业务命名规范。

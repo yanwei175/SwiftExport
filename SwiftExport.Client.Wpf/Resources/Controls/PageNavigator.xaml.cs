@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
-namespace SwiftExportClient.Controls;
+namespace SwiftExportClient.Resources.Controls;
 
 public partial class PageNavigator : UserControl
 {

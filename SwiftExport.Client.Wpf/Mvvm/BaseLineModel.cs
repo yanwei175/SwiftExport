@@ -1,21 +1,21 @@
-using System.ComponentModel;
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using CommunityToolkit.Mvvm.ComponentModel;
+using SwiftExport.Contracts.DTOs.Base;
 
 namespace SwiftExportClient.Mvvm;
 
-public abstract class BaseLineModel<TDto> : ObservableObjectEx
+public abstract partial class BaseLineModel<TDto> : ObservableObjectEx
+    where TDto : BaseDto
 {
     private static readonly ConcurrentDictionary<Type, PropertyDescriptor[]> WritableProperties = [];
     private readonly HashSet<string> _changingProperties = new(StringComparer.Ordinal);
     private readonly Dictionary<string, object?> _baselineValues = new(StringComparer.Ordinal);
     private TDto? _originalDto;
-    private LineState _state;
     private LineState? _stateBeforeDelete;
-    private bool _isChecked;
-    private bool _isSelected;
-    private bool _isReadOnly;
-    private int _rowIndex;
+    private readonly HashSet<string> _suppressedChangedProperties = new(StringComparer.Ordinal);
+    private int _changeTrackingSuppressionCount;
 
     protected BaseLineModel()
     {
@@ -23,20 +23,12 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
         PropertyChanged += OnTrackedPropertyChanged;
     }
 
-    public LineState State
-    {
-        get => _state;
-        private set
-        {
-            if (SetProperty(ref _state, value))
-            {
-                OnPropertyChanged(nameof(IsDirty));
-                OnPropertyChanged(nameof(IsNew));
-                OnPropertyChanged(nameof(IsModified));
-                OnPropertyChanged(nameof(IsDeleted));
-            }
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDirty))]
+    [NotifyPropertyChangedFor(nameof(IsNew))]
+    [NotifyPropertyChangedFor(nameof(IsModified))]
+    [NotifyPropertyChangedFor(nameof(IsDeleted))]
+    public partial LineState State { get; private set; }
 
     public bool IsDirty => State is LineState.Added or LineState.Modified or LineState.Deleted;
 
@@ -46,29 +38,37 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
 
     public bool IsDeleted => State == LineState.Deleted;
 
-    public bool IsChecked
-    {
-        get => _isChecked;
-        set => SetProperty(ref _isChecked, value);
-    }
+    [ObservableProperty]
+    public partial Guid Uid { get; set; }
 
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set => SetProperty(ref _isSelected, value);
-    }
+    [ObservableProperty]
+    public partial int Version { get; set; }
 
-    public bool IsReadOnly
-    {
-        get => _isReadOnly;
-        set => SetProperty(ref _isReadOnly, value);
-    }
+    [ObservableProperty]
+    public partial DateTime? CreatedDate { get; set; }
 
-    public int RowIndex
-    {
-        get => _rowIndex;
-        internal set => SetProperty(ref _rowIndex, value);
-    }
+    [ObservableProperty]
+    public partial string? CreatedBy { get; set; }
+
+    [ObservableProperty]
+    public partial DateTime? UpdatedDate { get; set; }
+
+    [ObservableProperty]
+    public partial string? UpdatedBy { get; set; }
+
+    internal bool PersistedIsDeleted { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsChecked { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsSelected { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsReadOnly { get; set; }
+
+    [ObservableProperty]
+    public partial int RowIndex { get; internal set; }
 
     public void Load(TDto dto)
     {
@@ -129,7 +129,14 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
         if (_originalDto is not null)
         {
             using var _ = SuppressScope();
-            LoadFromDto(_originalDto);
+            foreach (var property in GetTrackableProperties())
+            {
+                if (_baselineValues.TryGetValue(property.Name, out var baseline))
+                {
+                    property.SetValue(this, baseline);
+                }
+            }
+
             _stateBeforeDelete = null;
             State = LineState.Unchanged;
             return;
@@ -137,6 +144,15 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
 
         _stateBeforeDelete = null;
         State = LineState.Added;
+    }
+
+    /// <summary>
+    /// 临时抑制程序回填产生的脏状态。最外层作用域结束时，仅将作用域内变更的属性接纳到基线。
+    /// </summary>
+    public IDisposable SuppressChangeTracking()
+    {
+        _changeTrackingSuppressionCount++;
+        return new ChangeTrackingSuppression(this, SuppressScope());
     }
 
     public virtual string? ValidateRow()
@@ -165,6 +181,13 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
             or nameof(IsNew)
             or nameof(IsModified)
             or nameof(IsDeleted)
+            or nameof(Uid)
+            or nameof(Version)
+            or nameof(CreatedDate)
+            or nameof(CreatedBy)
+            or nameof(UpdatedDate)
+            or nameof(UpdatedBy)
+            or nameof(PersistedIsDeleted)
             or nameof(IsChecked)
             or nameof(IsSelected)
             or nameof(IsReadOnly)
@@ -196,9 +219,18 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
             return;
         }
 
-        if (!_changingProperties.Remove(e.PropertyName)
-            || IsSuppressed
-            || State == LineState.Deleted)
+        if (IsSuppressed)
+        {
+            _changingProperties.Remove(e.PropertyName);
+            if (_changeTrackingSuppressionCount > 0 && !IsTrackingIgnoredProperty(e.PropertyName))
+            {
+                _suppressedChangedProperties.Add(e.PropertyName);
+            }
+
+            return;
+        }
+
+        if (!_changingProperties.Remove(e.PropertyName) || State == LineState.Deleted)
         {
             return;
         }
@@ -244,5 +276,47 @@ public abstract class BaseLineModel<TDto> : ObservableObjectEx
                 .Where(property => !property.IsReadOnly)
                 .ToArray());
         return properties.Where(property => !IsTrackingIgnoredProperty(property.Name));
+    }
+
+    private void EndChangeTrackingSuppression(IDisposable suppressionScope)
+    {
+        suppressionScope.Dispose();
+        if (_changeTrackingSuppressionCount <= 0 || --_changeTrackingSuppressionCount > 0)
+        {
+            return;
+        }
+
+        if (_suppressedChangedProperties.Count == 0)
+        {
+            return;
+        }
+
+        var properties = GetTrackableProperties()
+            .Where(property => _suppressedChangedProperties.Contains(property.Name));
+        foreach (var property in properties)
+        {
+            _baselineValues[property.Name] = property.GetValue(this);
+        }
+
+        _suppressedChangedProperties.Clear();
+        ReconcileModifiedState();
+    }
+
+    private sealed class ChangeTrackingSuppression(
+        BaseLineModel<TDto> owner,
+        IDisposable suppressionScope) : IDisposable
+    {
+        private BaseLineModel<TDto>? _owner = owner;
+        private IDisposable? _suppressionScope = suppressionScope;
+
+        public void Dispose()
+        {
+            var currentOwner = Interlocked.Exchange(ref _owner, null);
+            var currentScope = Interlocked.Exchange(ref _suppressionScope, null);
+            if (currentOwner is not null && currentScope is not null)
+            {
+                currentOwner.EndChangeTrackingSuppression(currentScope);
+            }
+        }
     }
 }

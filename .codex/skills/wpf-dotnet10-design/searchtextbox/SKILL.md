@@ -37,6 +37,9 @@ description: SwiftExport .NET 10 WPF 搜索输入、搜索选择器、远程搜�
 - 有对象选择语义时，使用搜索选择器模型：`SearchText`、`SelectedItem`、`SelectedValue`、`ItemsSource`、`IsDropDownOpen`。
 - 远程搜索由 ViewModel 或前端服务调用 Refit API；控件只负责输入、弹层、选择和交互状态。
 - 远程 SearchCommand 只能由用户正在编辑时的文本变化触发；初始化 Binding、SelectedItem 显示回填、ItemsSource 替换和虚拟化重载不得触发 API 搜索。
+- Popup 不得由 Loaded、ItemsSource 初始化或获得焦点自动打开；只允许由用户输入产生的候选结果、显式键盘操作或外部 `IsDropDownOpen` 绑定打开。
+- 空文本查看全部候选使用 `Space` 或 `Down`；单击控件只负责获得输入焦点。
+- 所有搜索模式在失焦时取消待执行防抖，禁止焦点离开后由计时器重新打开 Popup。
 - 控件不得直接调用后端 API、Repository、Application Service。
 
 ## 推荐 API

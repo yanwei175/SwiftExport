@@ -6,7 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 
-namespace SwiftExportClient.Controls;
+namespace SwiftExportClient.Resources.Controls;
 
 public static class PopupTextBoxAssist
 {

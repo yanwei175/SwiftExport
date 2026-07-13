@@ -1,8 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Mapster;
 using SwiftExportClient.Authentication;
-using SwiftExportClient.Mappings;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
@@ -21,7 +19,6 @@ public static class ServiceCollectionExtensions
         services.Configure<ApiOptions>(configuration.GetSection(ApiOptions.SectionName));
         services.Configure<ClientOptions>(configuration.GetSection(ClientOptions.SectionName));
         services.Configure<ImageCacheOptions>(configuration.GetSection(ImageCacheOptions.SectionName));
-        TypeAdapterConfig.GlobalSettings.Scan(typeof(MapsterConfig).Assembly);
         services.AddSingleton<ITokenStore, LocalTokenStore>();
         services.AddSingleton<ICurrentUserService, CurrentUserService>();
         services.AddSingleton<ISessionService, SessionService>();

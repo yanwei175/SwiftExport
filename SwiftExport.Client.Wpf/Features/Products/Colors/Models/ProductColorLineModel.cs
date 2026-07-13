@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Mapster;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExportClient.Mvvm;
 using System.ComponentModel;
@@ -8,28 +9,16 @@ namespace SwiftExportClient.Features.Products.Colors.Models;
 public sealed partial class ProductColorLineModel : BaseLineModel<ProductColorDto>, IDataErrorInfo
 {
     [ObservableProperty]
-    private Guid uid;
+    public partial string ColorCodeUnique { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private int version;
-
-    private bool _isDeleted;
-    private DateTime? _createdDate;
-    private string? _createdBy;
-    private DateTime? _updatedDate;
-    private string? _updatedBy;
+    public partial string ColorCode { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private string colorCodeUnique = string.Empty;
+    public partial string ColorNameEn { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private string colorCode = string.Empty;
-
-    [ObservableProperty]
-    private string colorNameEn = string.Empty;
-
-    [ObservableProperty]
-    private string colorNameZh = string.Empty;
+    public partial string ColorNameZh { get; set; } = string.Empty;
 
     public string Error => string.Empty;
 
@@ -57,34 +46,8 @@ public sealed partial class ProductColorLineModel : BaseLineModel<ProductColorDt
 
     protected override void LoadFromDto(ProductColorDto dto)
     {
-        Uid = dto.Uid;
-        Version = dto.Version;
-        _isDeleted = dto.IsDeleted;
-        _createdDate = dto.CreatedDate;
-        _createdBy = dto.CreatedBy;
-        _updatedDate = dto.UpdatedDate;
-        _updatedBy = dto.UpdatedBy;
-        ColorCodeUnique = dto.ColorCodeUnique ?? string.Empty;
-        ColorCode = dto.ColorCode ?? string.Empty;
-        ColorNameEn = dto.ColorNameEn ?? string.Empty;
-        ColorNameZh = dto.ColorNameZh ?? string.Empty;
+        dto.Adapt(this);
     }
 
-    public override ProductColorDto ToDto()
-    {
-        return new ProductColorDto
-        {
-            Uid = Uid,
-            Version = Version,
-            IsDeleted = _isDeleted,
-            CreatedDate = _createdDate,
-            CreatedBy = _createdBy,
-            UpdatedDate = _updatedDate,
-            UpdatedBy = _updatedBy,
-            ColorCodeUnique = ColorCodeUnique,
-            ColorCode = ColorCode,
-            ColorNameEn = ColorNameEn,
-            ColorNameZh = ColorNameZh,
-        };
-    }
+    public override ProductColorDto ToDto() => this.Adapt<ProductColorDto>();
 }

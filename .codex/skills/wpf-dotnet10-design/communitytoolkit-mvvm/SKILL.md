@@ -40,7 +40,7 @@ description: SwiftExport 当前 .NET 10 WPF 客户端的 CommunityToolkit.Mvvm �
 
 - 业务 ViewModel / Model 必须优先使用 CommunityToolkit 源生成器。
 - ViewModel / Model 必须声明为 `partial class`。
-- 绑定属性优先写成 `[ObservableProperty] private ...` 字段。
+- 绑定属性统一写成 `[ObservableProperty] public partial ... { get; set; }` partial property；不再新增字段式生成属性。
 - 命令优先写成 `[RelayCommand] private ...` 方法。
 - 命令刷新优先用 `[NotifyCanExecuteChangedFor(nameof(XxxCommand))]`。
 - 依赖属性变化的派生属性优先用 `[NotifyPropertyChangedFor(nameof(Xxx))]`。
@@ -75,14 +75,14 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SearchCommand))]
-    private string? keyword;
+    public partial string? Keyword { get; set; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
-    private ProductLineModel? selectedLine;
+    public partial ProductLineModel? SelectedLine { get; set; }
 
     [ObservableProperty]
-    private string? resultSummary;
+    public partial string? ResultSummary { get; set; }
 
     [RelayCommand(CanExecute = nameof(CanRunCommand))]
     private async Task SearchAsync()
@@ -175,7 +175,7 @@ private bool CanDelete(ProductLineModel? line)
 [ObservableProperty]
 [NotifyPropertyChangedFor(nameof(DisplayName))]
 [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
-private string? productName;
+public partial string? ProductName { get; set; }
 
 public string DisplayName => string.IsNullOrWhiteSpace(ProductName)
     ? "(未命名产品)"
@@ -202,18 +202,12 @@ partial void OnProductNameChanged(string? value)
 public sealed partial class ProductLineModel : BaseLineModel<ProductDto>
 {
     [ObservableProperty]
-    private Guid uid;
-
-    [ObservableProperty]
-    private int version;
+    [NotifyPropertyChangedFor(nameof(DisplayText))]
+    public partial string ProductCode { get; set; } = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayText))]
-    private string productCode = string.Empty;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(DisplayText))]
-    private string productName = string.Empty;
+    public partial string ProductName { get; set; } = string.Empty;
 
     public string DisplayText => $"{ProductCode} {ProductName}".Trim();
 
@@ -222,10 +216,7 @@ public sealed partial class ProductLineModel : BaseLineModel<ProductDto>
         dto.Adapt(this);
     }
 
-    public override ProductDto ToDto()
-    {
-        return this.Adapt<ProductDto>();
-    }
+    public override ProductDto ToDto() => this.Adapt<ProductDto>();
 
     protected override bool IsTrackingIgnoredProperty(string? propertyName)
     {
@@ -238,11 +229,15 @@ public sealed partial class ProductLineModel : BaseLineModel<ProductDto>
 规则：
 
 - `Load(dto)` 已由基类使用 `SuppressScope()`；`LoadFromDto` 内可以直接赋值或 Mapster。
+- DTO 与 LineModel 的字段差异、空值归一化和命名差异必须集中写入 `Mappings/MapsterConfig.cs`；具体模型中的 `LoadFromDto`/`ToDto` 只保留基类要求的一行适配入口，不手写逐字段映射。
 - `[ObservableProperty]`、普通 `SetProperty` 和兼容期的 `SetTrackedProperty` 都由基类自动跟踪。
 - `partial void OnXxxChanged` 只用于派生属性通知、局部 UI 状态或明确副作用，不再重复调用 `MarkAsModified()`。
 - 计算属性、审计回填或纯 UI 属性若会发出完整的 PropertyChanging/Changed，使用 `IsTrackingIgnoredProperty` 排除。
 - 计算属性用 `[NotifyPropertyChangedFor]`，不要手写 setter。
 - 不重复声明 `IsChecked`、`IsSelected`、`IsReadOnly` 等基类已有 UI 状态。
+- 不重复声明 `Uid`、`Version`、审计字段和持久化删除元数据；这些系统字段由 `BaseLineModel<TDto>` 统一承载，并默认排除脏跟踪。
+- 服务端回填、Lookup 显示值同步等程序性赋值使用 `SuppressChangeTracking()`；最外层作用域结束后只接纳作用域内改变的属性，不能覆盖行上其他未保存修改。
+- `Load(dto)` 与 `RejectChanges()` 使用基类内部低层抑制。页面导航、Tab 切换不得用抑制作用域包住，因为失焦提交的真实编辑仍应成为修改。
 - `SetTrackedProperty` 仅为现有手写属性保留；新增 LineModel 不以它代替 CommunityToolkit 源生成器。
 
 ## 列表模型规则
@@ -252,6 +247,9 @@ public sealed partial class ProductLineModel : BaseLineModel<ProductDto>
 - 已持久化行删除后仍保留在内部删除池；回滚时按原始列表顺序恢复。
 - Modified 行被删除后执行单步恢复时回到 Modified，不得错误变成 Unchanged。
 - `GetChangeSet()` 只输出 UI 层通用变更集，不直接构造后端 Batch Request。
+- `LoadFromDtos()` 必须先物化输入，再清空旧集合并解绑事件，允许安全传入当前集合的投影。
+- 批量勾选、加载、回滚和清空使用 `SuppressListEvents()` 合并通知；抑制必须支持嵌套，最外层退出时统一发布一次 `ListStateChanged`。
+- 批量业务读取使用 `AllLines`、`CheckedItems`、`AddedItems`、`ModifiedItems`、`DeletedItems`，不得通过反射或绕过基类访问删除池。
 
 ## 验证规则
 
@@ -272,7 +270,7 @@ public sealed partial class ProductLineModel : BaseLineModel<ProductDto>
 
 ## 基类例外
 
-以下基础设施类可以保留少量手写 `SetProperty`：
+以下基础设施类只有在属性具有派生 setter、事务状态或并发计数等无法等价生成的语义时，才可以保留少量手写实现：
 
 - `ObservableObjectEx`
 - `ViewModelBaseEx`
@@ -280,7 +278,7 @@ public sealed partial class ProductLineModel : BaseLineModel<ProductDto>
 - `BaseListModel<TLine,TDto>`
 - Shell 级基础设施模型
 
-但新增业务页面、业务 ViewModel、业务 LineModel、业务树节点不得以这些基类为借口继续手写样板属性和命令。
+这些基类中的普通可绑定状态同样使用 partial property。新增业务页面、业务 ViewModel、业务 LineModel、业务树节点不得以基类例外为借口继续手写样板属性和命令。
 
 ## 修改现有代码策略
 
@@ -298,6 +296,7 @@ dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj
 
 - 禁止新增 `public IRelayCommand XxxCommand { get; }` 并在构造函数中赋值。
 - 禁止新增 `private T _field; public T Field { get => _field; set => SetProperty(...) }` 样板属性。
+- 禁止新增 `[ObservableProperty] private T field;` 字段式生成属性；当前 .NET 10 客户端统一使用 public partial property。
 - 禁止用 `ICommand` 作为业务命令默认类型。
 - 禁止把 API 调用写在属性 setter 或 `partial void OnXxxChanged` 中。
 - 禁止让 ViewModel 直接访问 Repository、SQL、Controller 或 Window。

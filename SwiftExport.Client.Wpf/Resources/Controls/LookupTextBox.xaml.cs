@@ -4,13 +4,12 @@ using System.ComponentModel;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 
-namespace SwiftExportClient.Controls;
+namespace SwiftExportClient.Resources.Controls;
 
 public enum LookupTextBoxSearchMode
 {
@@ -25,6 +24,7 @@ public partial class LookupTextBox : UserControl
     private readonly Dictionary<Type, Dictionary<string, PropertyInfo?>> _propertyCache = [];
     private bool _isInternalChanging;
     private bool _isSelectionDisplayMode;
+    private bool _hasUserInputIntent;
     private INotifyCollectionChanged? _itemsCollectionChangedSource;
 
     public LookupTextBox()
@@ -376,8 +376,7 @@ public partial class LookupTextBox : UserControl
             control.ResultList.ItemsSource = control.FilteredView;
             control.ApplyItemTemplate();
             control.AttachCollectionChanged(source);
-            control.FilteredView.Refresh();
-            control.OpenDropDownIfHasItems();
+            control.UpdateDropDownAfterItemsChanged();
         }
         else
         {
@@ -430,6 +429,7 @@ public partial class LookupTextBox : UserControl
 
     private void LookupTextBox_Loaded(object sender, RoutedEventArgs e)
     {
+        _hasUserInputIntent = false;
         ApplyItemTemplate();
         UpdateDisplayTextFromSelectedItem();
         UpdateTextVisualState();
@@ -442,13 +442,15 @@ public partial class LookupTextBox : UserControl
     private void LookupTextBox_Unloaded(object sender, RoutedEventArgs e)
     {
         _debounceTimer.Stop();
+        _hasUserInputIntent = false;
+        IsDropDownOpen = false;
         DetachCollectionChanged();
     }
 
     private void InputTextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
+        _hasUserInputIntent = false;
         UpdateTextVisualState();
-        OpenDropDownIfHasItems();
     }
 
     private void InputTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -460,6 +462,7 @@ public partial class LookupTextBox : UserControl
 
         var newText = InputTextBox.Text ?? string.Empty;
         _isSelectionDisplayMode = false;
+        _hasUserInputIntent = IsLoaded && InputTextBox.IsKeyboardFocusWithin;
 
         if (SelectedItem is not null)
         {
@@ -470,6 +473,20 @@ public partial class LookupTextBox : UserControl
 
         SyncTextDependencySilently(newText);
         UpdateTextVisualState();
+
+        if (!_hasUserInputIntent)
+        {
+            _debounceTimer.Stop();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newText))
+        {
+            _debounceTimer.Stop();
+            FilteredView?.Refresh();
+            IsDropDownOpen = false;
+            return;
+        }
 
         if (ShouldUseLocalFilter())
         {
@@ -487,13 +504,19 @@ public partial class LookupTextBox : UserControl
         else
         {
             _debounceTimer.Stop();
-            OpenDropDownIfHasItems();
+            OpenDropDownFromUserIntent(selectFirstItem: false);
         }
     }
 
     private void DebounceTimer_Tick(object? sender, EventArgs e)
     {
         _debounceTimer.Stop();
+
+        if (!HasActiveUserQuery())
+        {
+            IsDropDownOpen = false;
+            return;
+        }
 
         if (!ShouldUseLocalFilter())
         {
@@ -508,6 +531,7 @@ public partial class LookupTextBox : UserControl
     private void BtnClear_Click(object sender, RoutedEventArgs e)
     {
         _debounceTimer.Stop();
+        _hasUserInputIntent = false;
         _isSelectionDisplayMode = false;
         SetSelectedItemSilently(null);
         SelectedValue = null;
@@ -524,14 +548,14 @@ public partial class LookupTextBox : UserControl
     {
         if (e.Key == Key.Space && string.IsNullOrWhiteSpace(InputTextBox.Text))
         {
-            FilteredView?.Refresh();
+            OpenDropDownFromUserIntent(selectFirstItem: true);
+            e.Handled = true;
+            return;
+        }
 
-            if (FilteredView is not null && !FilteredView.IsEmpty)
-            {
-                ResultList.SelectedIndex = 0;
-                IsDropDownOpen = true;
-            }
-
+        if (e.Key == Key.Down && !IsDropDownOpen)
+        {
+            OpenDropDownFromUserIntent(selectFirstItem: true);
             e.Handled = true;
             return;
         }
@@ -581,12 +605,12 @@ public partial class LookupTextBox : UserControl
 
     private void InputTextBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
-        if (SearchMode == LookupTextBoxSearchMode.Remote)
-        {
-            _debounceTimer.Stop();
-        }
+        var wasDropDownOpen = IsDropDownOpen;
+        _debounceTimer.Stop();
+        _hasUserInputIntent = false;
+        IsDropDownOpen = false;
 
-        if (!RequireItemMatch || IsDropDownOpen)
+        if (!RequireItemMatch || wasDropDownOpen)
         {
             UpdateTextVisualState();
             return;
@@ -649,13 +673,7 @@ public partial class LookupTextBox : UserControl
             return;
         }
 
-        FilteredView?.Refresh();
-
-        if (!ShouldUseLocalFilter() && InputTextBox.IsKeyboardFocusWithin)
-        {
-            var hasInput = !string.IsNullOrWhiteSpace(InputTextBox.Text);
-            IsDropDownOpen = hasInput && FilteredView is not null && !FilteredView.IsEmpty;
-        }
+        UpdateDropDownAfterItemsChanged();
     }
 
     private bool FilterItem(object item)
@@ -692,6 +710,7 @@ public partial class LookupTextBox : UserControl
         }
 
         _debounceTimer.Stop();
+        _hasUserInputIntent = false;
         SetSelectedItemSilently(item);
         SelectedValue = GetSelectedValue(item);
         SetDisplayText(GetDisplayText(item));
@@ -743,6 +762,7 @@ public partial class LookupTextBox : UserControl
 
     private void BeginEditSelection()
     {
+        _hasUserInputIntent = false;
         _isSelectionDisplayMode = false;
         SetSelectedItemSilently(null);
         SelectedValue = null;
@@ -821,22 +841,55 @@ public partial class LookupTextBox : UserControl
         IsDropDownOpen = !FilteredView.IsEmpty;
     }
 
-    private void OpenDropDownIfHasItems()
+    private bool OpenDropDownFromUserIntent(bool selectFirstItem)
     {
         if (FilteredView is null)
         {
-            return;
+            IsDropDownOpen = false;
+            return false;
         }
 
         FilteredView.Refresh();
+        if (FilteredView.IsEmpty)
+        {
+            IsDropDownOpen = false;
+            return false;
+        }
 
-        if (!ShouldUseLocalFilter() && string.IsNullOrWhiteSpace(InputTextBox.Text))
+        if (selectFirstItem)
+        {
+            ResultList.SelectedIndex = 0;
+            ResultList.ScrollIntoView(ResultList.SelectedItem);
+        }
+
+        IsDropDownOpen = true;
+        return true;
+    }
+
+    private void UpdateDropDownAfterItemsChanged()
+    {
+        if (FilteredView is null)
         {
             IsDropDownOpen = false;
             return;
         }
 
-        IsDropDownOpen = !FilteredView.IsEmpty;
+        FilteredView.Refresh();
+        if (IsDropDownOpen || HasActiveUserQuery())
+        {
+            IsDropDownOpen = !FilteredView.IsEmpty;
+        }
+    }
+
+    private bool HasActiveUserQuery()
+    {
+        if (!_hasUserInputIntent || !IsLoaded || !InputTextBox.IsKeyboardFocusWithin)
+        {
+            return false;
+        }
+
+        var input = (InputTextBox.Text ?? string.Empty).Trim();
+        return input.Length >= Math.Max(1, MinimumSearchLength);
     }
 
     private void UpdateDisplayTextFromSelectedItem()

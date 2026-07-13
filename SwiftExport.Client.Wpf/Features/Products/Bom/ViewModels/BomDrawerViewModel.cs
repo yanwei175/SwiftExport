@@ -49,19 +49,22 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddItemCommand))]
-    private bool isOpen;
+    public partial bool IsOpen { get; set; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddItemCommand))]
-    private ProductLineModel? activeProduct;
+    public partial ProductLineModel? ActiveProduct { get; set; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteItemCommand))]
-    private BomLineModel? selectedLine;
+    public partial BomLineModel? SelectedLine { get; set; }
 
-    [ObservableProperty] private ProductDto? selectedCandidate;
-    [ObservableProperty] private bool isLookupBusy;
-    [ObservableProperty] private string statusText = "选择产品后打开 BOM 抽屉。";
+    [ObservableProperty]
+    public partial ProductDto? SelectedCandidate { get; set; }
+    [ObservableProperty]
+    public partial bool IsLookupBusy { get; set; }
+    [ObservableProperty]
+    public partial string StatusText { get; set; } = "选择产品后打开 BOM 抽屉。";
 
     public event EventHandler<ProductLineModel?>? SelectionRestoreRequested;
 

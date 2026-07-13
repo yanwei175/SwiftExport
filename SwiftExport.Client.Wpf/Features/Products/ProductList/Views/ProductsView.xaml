@@ -4,23 +4,43 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
              d:Height="800"
-             xmlns:controls="clr-namespace:SwiftExportClient.Controls"
+             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:imageControls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:staticEnums="clr-namespace:SwiftExport.Contracts.SysEnums.StaticEnums;assembly=SwiftExport.Contracts"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources>
-        <CollectionViewSource x:Key="ProductMaterialTypesView" Source="{Binding MaterialTypes}" />
-        <CollectionViewSource x:Key="ProductSupplyTypesView" Source="{Binding SupplyTypes}" />
         <Style x:Key="ProductsToolbarButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinHeight" Value="32" />
             <Setter Property="MinWidth" Value="68" />
             <Setter Property="Padding" Value="8,4" />
             <Setter Property="Margin" Value="0,0,4,0" />
+        </Style>
+        <!-- 原生 DataGridComboBoxColumn 的非编辑元素不会显示 ItemsSource 之外的旧值。 -->
+        <Style x:Key="ProductMaterialTypeComboBoxElement" TargetType="{x:Type ComboBox}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBox}">
+                        <TextBlock Text="{Binding MaterialType}"
+                                   Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ProductSupplyTypeComboBoxElement" TargetType="{x:Type ComboBox}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBox}">
+                        <TextBlock Text="{Binding SupplyType}"
+                                   Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
 
@@ -109,13 +129,19 @@
                                     IsBusy="{Binding IsColorLookupBusy}" ItemsSource="{Binding ColorCandidates}"
                                     DisplayMemberPath="ColorNameZh" FilterMemberPaths="ColorCodeUnique,ColorCode,ColorNameZh,ColorNameEn"
                                     SelectedValuePath="Uid" SelectedItem="{Binding FilterColor, Mode=TwoWay}" />
-            <controls:LookupTextBox Grid.Column="4" Placeholder="产品分类"
-                                    SearchMode="Local" ItemsSource="{Binding CategoryCandidates}"
-                                    DisplayMemberPath="CategoryName" FilterMemberPaths="CategoryName,CategoryCode"
+            
+            <controls:LookupTextBox Grid.Column="4" Placeholder="产品分类"                                    
+                                    SearchMode="Local" 
+                                    ItemsSource="{Binding CategoryCandidates}"
+                                    DisplayMemberPath="CategoryName" 
+                                    FilterMemberPaths="CategoryName,CategoryCode"
                                     SelectedValuePath="Uid" SelectedItem="{Binding FilterCategory, Mode=TwoWay}" />
+            
             <controls:LookupTextBox Grid.Column="6" Placeholder="物料类型"
-                                    SearchMode="Local" ItemsSource="{Binding MaterialTypes}"
+                                    SearchMode="Local" 
+                                    ItemsSource="{Binding MaterialTypes}"
                                     SelectedItem="{Binding FilterMaterialType, Mode=TwoWay}" />
+            
             <Button Grid.Column="8" Content="重置筛选" Command="{Binding ResetFiltersCommand}" MinHeight="32" Padding="8,4" />
         </Grid>
 
@@ -142,14 +168,22 @@
                           gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                           gridValidation:GridValidation.IsEnabled="True">
                     <DataGrid.Columns>
-                        <gridColumns:CheckBoxDataGridColumn Width="36"
-                                                            HeaderStyle="{StaticResource SwiftExportDataGridCheckBoxColumnHeader}"
-                                                            HeaderCheckBoxWidth="16" HeaderCheckBoxHeight="16"
-                                                            CellCheckBoxWidth="16" CellCheckBoxHeight="16"
-                                                            HeaderCheckBoxStyle="{StaticResource SwiftExportDataGridCompactCheckBox}"
-                                                            CellCheckBoxStyle="{StaticResource SwiftExportDataGridCompactCheckBox}"
-                                                            ItemCheckBinding="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                            AllCheckBinding="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}" />
+
+                        <DataGridTemplateColumn Width="43" CanUserSort="False">
+                            <DataGridTemplateColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <CheckBox
+                                        IsChecked="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
+                                        HorizontalAlignment="Left" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.HeaderTemplate>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              HorizontalAlignment="Left" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTemplateColumn Header="图片" Width="64" IsReadOnly="True">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -188,12 +222,14 @@
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                         
                         <DataGridComboBoxColumn Header="物料类型" Width="100"
-                                                ItemsSource="{Binding Source={StaticResource ProductMaterialTypesView}}"
-                                                SelectedItemBinding="{Binding MaterialType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                ItemsSource="{x:Static staticEnums:MaterialTypesEnum.MaterialTypes}"
+                                                ElementStyle="{StaticResource ProductMaterialTypeComboBoxElement}"
+                                                TextBinding="{Binding MaterialType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                         
                         <DataGridComboBoxColumn Header="供货类型" Width="100"
-                                                ItemsSource="{Binding Source={StaticResource ProductSupplyTypesView}}"
-                                                SelectedItemBinding="{Binding SupplyType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                ItemsSource="{x:Static staticEnums:SupplyTypeEnums.SupplyTypes}"
+                                                ElementStyle="{StaticResource ProductSupplyTypeComboBoxElement}"
+                                                TextBinding="{Binding SupplyType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                         
                         <DataGridTextColumn Header="BOM" Width="110" Binding="{Binding BomNo, UpdateSourceTrigger=PropertyChanged}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" />

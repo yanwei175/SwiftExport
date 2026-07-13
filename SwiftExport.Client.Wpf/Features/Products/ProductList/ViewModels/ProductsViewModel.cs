@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using SwiftExportClient.Resources.Controls;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
@@ -12,7 +13,6 @@ using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
-using SwiftExportClient.Controls;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.Categories.Services;
 using SwiftExportClient.Features.Products.ProductList.Models;
@@ -84,38 +84,51 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public IReadOnlyList<string> MaterialTypes { get; } = MaterialTypesEnum.MaterialTypes;
     public IReadOnlyList<string> SupplyTypes { get; } = SupplyTypeEnums.SupplyTypes;
 
-    [ObservableProperty] private string keyword = string.Empty;
-    [ObservableProperty] private CustomerDto? filterCustomer;
-    [ObservableProperty] private ProductColorDto? filterColor;
-    [ObservableProperty] private ProductCategoryDto? filterCategory;
-    [ObservableProperty] private string? filterMaterialType;
-    [ObservableProperty] private ProductCategoryDto? editCategory;
-    [ObservableProperty] private ProductColorDto? editColor;
-    [ObservableProperty] private CustomerDto? editCustomer;
-    [ObservableProperty] private SupplierDto? editSupplier;
-    [ObservableProperty] private bool isCustomerLookupBusy;
-    [ObservableProperty] private bool isColorLookupBusy;
-    [ObservableProperty] private bool isSupplierLookupBusy;
+    [ObservableProperty]
+    public partial string Keyword { get; set; } = string.Empty;
+    [ObservableProperty]
+    public partial CustomerDto? FilterCustomer { get; set; }
+    [ObservableProperty]
+    public partial ProductColorDto? FilterColor { get; set; }
+    [ObservableProperty]
+    public partial ProductCategoryDto? FilterCategory { get; set; }
+    [ObservableProperty]
+    public partial string? FilterMaterialType { get; set; }
+    [ObservableProperty]
+    public partial ProductCategoryDto? EditCategory { get; set; }
+    [ObservableProperty]
+    public partial ProductColorDto? EditColor { get; set; }
+    [ObservableProperty]
+    public partial CustomerDto? EditCustomer { get; set; }
+    [ObservableProperty]
+    public partial SupplierDto? EditSupplier { get; set; }
+    [ObservableProperty]
+    public partial bool IsCustomerLookupBusy { get; set; }
+    [ObservableProperty]
+    public partial bool IsColorLookupBusy { get; set; }
+    [ObservableProperty]
+    public partial bool IsSupplierLookupBusy { get; set; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
-    private ProductLineModel? selectedLine;
+    public partial ProductLineModel? SelectedLine { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
-    private int pageIndex = 1;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TotalPages))]
-    [NotifyPropertyChangedFor(nameof(PageStatus))]
-    private int pageSize = DefaultPageSize;
+    public partial int PageIndex { get; set; } = 1;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TotalPages))]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
-    private int totalCount;
+    public partial int PageSize { get; set; } = DefaultPageSize;
 
-    [ObservableProperty] private string resultSummary = "尚未加载产品资料。";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalPages))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    public partial int TotalCount { get; set; }
+
+    [ObservableProperty]
+    public partial string ResultSummary { get; set; } = "尚未加载产品资料。";
 
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";

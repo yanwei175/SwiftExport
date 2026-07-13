@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Mapster;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExportClient.Mvvm;
 
@@ -6,18 +7,26 @@ namespace SwiftExportClient.Features.Products.Bom.Models;
 
 public sealed partial class BomLineModel : BaseLineModel<BomDto>
 {
-    [ObservableProperty] private Guid uid;
-    [ObservableProperty] private int version;
-    [ObservableProperty] private string bomNo = string.Empty;
-    [ObservableProperty] private Guid subSkuId;
-    [ObservableProperty] private string subSku = string.Empty;
-    [ObservableProperty] private int numerator = 1;
-    [ObservableProperty] private int denominator = 1;
-    [ObservableProperty] private string note = string.Empty;
-    [ObservableProperty] private string description = string.Empty;
-    [ObservableProperty] private string finish = string.Empty;
-    [ObservableProperty] private string features = string.Empty;
-    [ObservableProperty] private string mainImage = string.Empty;
+    [ObservableProperty]
+    public partial string BomNo { get; set; } = string.Empty;
+    [ObservableProperty]
+    public partial Guid SubSkuId { get; set; }
+    [ObservableProperty]
+    public partial string SubSku { get; set; } = string.Empty;
+    [ObservableProperty]
+    public partial int Numerator { get; set; } = 1;
+    [ObservableProperty]
+    public partial int Denominator { get; set; } = 1;
+    [ObservableProperty]
+    public partial string Note { get; set; } = string.Empty;
+    [ObservableProperty]
+    public partial string Description { get; set; } = string.Empty;
+    [ObservableProperty]
+    public partial string Finish { get; set; } = string.Empty;
+    [ObservableProperty]
+    public partial string Features { get; set; } = string.Empty;
+    [ObservableProperty]
+    public partial string MainImage { get; set; } = string.Empty;
 
     public override string? ValidateRow()
     {
@@ -29,17 +38,8 @@ public sealed partial class BomLineModel : BaseLineModel<BomDto>
 
     protected override void LoadFromDto(BomDto dto)
     {
-        Uid = dto.Uid; Version = dto.Version; BomNo = dto.BomNo ?? string.Empty;
-        SubSkuId = dto.SubSkuId; SubSku = dto.SubSku ?? string.Empty;
-        Numerator = dto.Numerator; Denominator = dto.Denominator; Note = dto.Note ?? string.Empty;
-        Description = dto.Description ?? string.Empty; Finish = dto.Finish ?? string.Empty;
-        Features = dto.Features ?? string.Empty; MainImage = dto.MainImage ?? string.Empty;
+        dto.Adapt(this);
     }
 
-    public override BomDto ToDto() => new()
-    {
-        Uid = Uid, Version = Version, BomNo = BomNo, SubSkuId = SubSkuId, SubSku = SubSku,
-        Numerator = Numerator, Denominator = Denominator, Note = Note,
-        Description = Description, Finish = Finish, Features = Features, MainImage = MainImage,
-    };
+    public override BomDto ToDto() => this.Adapt<BomDto>();
 }

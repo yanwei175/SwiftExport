@@ -1,59 +1,36 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace SwiftExportClient.Mvvm;
 
-public abstract class ViewModelBaseEx : ObservableObjectEx
+public abstract partial class ViewModelBaseEx : ObservableObjectEx
 {
     private readonly List<IRelayCommand> _busyAwareCommands = [];
     private int _busyCount;
-    private string _title = string.Empty;
-    private string? _busyMessage;
-    private string? _validationSummary;
-    private bool _isDirty;
-    private bool _isReadOnly;
 
-    public string Title
-    {
-        get => _title;
-        protected set => SetProperty(ref _title, value);
-    }
+    [ObservableProperty]
+    public partial string Title { get; protected set; } = string.Empty;
 
-    public string? BusyMessage
-    {
-        get => _busyMessage;
-        protected set => SetProperty(ref _busyMessage, value);
-    }
+    [ObservableProperty]
+    public partial string? BusyMessage { get; protected set; }
 
-    public string? ValidationSummary
-    {
-        get => _validationSummary;
-        protected set => SetProperty(ref _validationSummary, value);
-    }
+    [ObservableProperty]
+    public partial string? ValidationSummary { get; protected set; }
 
-    public bool IsDirty
-    {
-        get => _isDirty;
-        protected set => SetProperty(ref _isDirty, value);
-    }
+    [ObservableProperty]
+    public partial bool IsDirty { get; protected set; }
 
     public bool IsBusy => _busyCount > 0;
 
     public bool IsNotBusy => !IsBusy;
 
-    public bool IsReadOnly
-    {
-        get => _isReadOnly;
-        protected set
-        {
-            if (SetProperty(ref _isReadOnly, value))
-            {
-                OnPropertyChanged(nameof(CanWrite));
-                NotifyRegisteredCommands();
-            }
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanWrite))]
+    public partial bool IsReadOnly { get; protected set; }
 
     public bool CanWrite => !IsReadOnly;
+
+    partial void OnIsReadOnlyChanged(bool value) => NotifyRegisteredCommands();
 
     protected void RegisterBusyAwareCommand(IRelayCommand command)
     {

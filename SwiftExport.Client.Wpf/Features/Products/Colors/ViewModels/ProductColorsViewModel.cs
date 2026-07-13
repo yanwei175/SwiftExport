@@ -1,10 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using SwiftExportClient.Resources.Controls;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExportClient.Controls;
 using SwiftExportClient.Features.Products.Colors.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
@@ -24,34 +24,34 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
     private bool _isInitialized;
     private CancellationTokenSource? _searchDebounceCts;
     [ObservableProperty]
-    private string keyword = string.Empty;
+    public partial string Keyword { get; set; } = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
-    private int pageIndex = 1;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TotalPages))]
-    [NotifyPropertyChangedFor(nameof(PageStatus))]
-    private int pageSize = DefaultPageSize;
+    public partial int PageIndex { get; set; } = 1;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TotalPages))]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
-    private int totalCount;
+    public partial int PageSize { get; set; } = DefaultPageSize;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalPages))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    public partial int TotalCount { get; set; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
-    private ProductColorLineModel? selectedLine;
+    public partial ProductColorLineModel? SelectedLine { get; set; }
 
     [ObservableProperty]
-    private string resultSummary = "尚未加载产品颜色。";
+    public partial string ResultSummary { get; set; } = "尚未加载产品颜色。";
 
     [ObservableProperty]
-    private bool hasValidationError;
+    public partial bool HasValidationError { get; set; }
 
     [ObservableProperty]
-    private bool isCellSelectionMode;
+    public partial bool IsCellSelectionMode { get; set; }
 
     public ProductColorsViewModel(
         IProductColorApi colorApi,

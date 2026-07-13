@@ -3,6 +3,8 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- 避免 XAML 生成代码把第三方 Wpf.Ui 解析为 SwiftExport.Wpf.Ui。根之后的命名空间必须与目录一致。 -->
+    <RootNamespace>SwiftExportClient</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>

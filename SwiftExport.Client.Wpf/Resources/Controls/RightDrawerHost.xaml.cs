@@ -3,7 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 
-namespace SwiftExportClient.Controls;
+namespace SwiftExportClient.Resources.Controls;
 
 public enum DrawerDisplayMode
 {

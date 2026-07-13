@@ -1,10 +1,13 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
-using SwiftExportClient.Controls;
+using SwiftExportClient.Resources.Controls;
 
 namespace SwiftExport.Client.Wpf.Tests.Controls;
 
@@ -116,6 +119,7 @@ public sealed class LookupTextBoxTests
                 Assert.AreEqual(0, searchCommand.ExecutionCount, "初始 Text 不应触发远程搜索。");
 
                 lookup.ItemsSource = new[] { new LookupItem("A") };
+                Assert.IsFalse(lookup.IsDropDownOpen, "ItemsSource 初始化不得打开 Popup。");
                 lookup.SelectedItem = ((LookupItem[])lookup.ItemsSource)[0];
                 lookup.Text = "external";
                 await Task.Delay(80);
@@ -132,15 +136,21 @@ public sealed class LookupTextBoxTests
                 input.Text = "a";
                 input.Text = "ab";
                 input.Text = "abc";
-                await Task.Delay(80);
+                await WaitForDispatcherAsync(80);
 
                 Assert.AreEqual(1, searchCommand.ExecutionCount, "快速连续输入应合并为一次远程搜索。");
                 Assert.AreEqual("abc", searchCommand.LastParameter);
+                Assert.IsFalse(lookup.IsDropDownOpen, "远程命令执行本身不得在结果返回前打开 Popup。");
+
+                lookup.ItemsSource = new[] { new LookupItem("ABC Result") };
+                await Task.Delay(20);
+                Assert.IsTrue(lookup.IsDropDownOpen, "用户输入后的远程结果替换应打开 Popup。");
 
                 lookup.MinimumSearchLength = 5;
                 input.Text = "four";
-                await Task.Delay(80);
+                await WaitForDispatcherAsync(80);
                 Assert.AreEqual(1, searchCommand.ExecutionCount, "不足最小搜索长度时不得执行搜索。");
+                Assert.IsFalse(lookup.IsDropDownOpen, "不足最小搜索长度时应关闭 Popup。");
 
                 lookup.MinimumSearchLength = 1;
                 input.Text = "cancelled";
@@ -154,6 +164,180 @@ public sealed class LookupTextBoxTests
                 {
                     window.Close();
                 }
+            }
+        });
+    }
+
+    [TestMethod]
+    public void LocalLookup_InitializationAndFocus_ShouldNeverOpenDropDown()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var items = new ObservableCollection<LookupItem> { new("Alpha") };
+            var lookup = new LookupTextBox
+            {
+                SearchMode = LookupTextBoxSearchMode.Local,
+                SearchDelay = TimeSpan.FromMilliseconds(20),
+                DisplayMemberPath = nameof(LookupItem.Name),
+            };
+            var everOpened = false;
+            var descriptor = DependencyPropertyDescriptor.FromProperty(
+                LookupTextBox.IsDropDownOpenProperty,
+                typeof(LookupTextBox));
+            EventHandler changed = (_, _) => everOpened |= lookup.IsDropDownOpen;
+            descriptor.AddValueChanged(lookup, changed);
+            lookup.ItemsSource = items;
+
+            var window = new Window
+            {
+                Width = 320,
+                Height = 120,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None,
+                Content = lookup,
+            };
+
+            try
+            {
+                window.Show();
+                await Task.Delay(30);
+                Assert.IsFalse(lookup.IsDropDownOpen, "首次显示不得打开 Popup。");
+
+                var input = (TextBox?)lookup.FindName("InputTextBox");
+                Assert.IsNotNull(input);
+                window.Activate();
+                input.Focus();
+                Keyboard.Focus(input);
+                await Task.Delay(30);
+                Assert.IsFalse(lookup.IsDropDownOpen, "鼠标或键盘聚焦不得打开 Popup。");
+
+                items.Add(new LookupItem("Beta"));
+                await Task.Delay(30);
+                Assert.IsFalse(lookup.IsDropDownOpen, "空文本聚焦时集合变化不得打开 Popup。");
+
+                lookup.FocusEditor();
+                await Task.Delay(30);
+                Assert.IsFalse(lookup.IsDropDownOpen, "FocusEditor 只能聚焦编辑器。");
+                Assert.IsFalse(everOpened, "初始化和聚焦过程中不得出现瞬时打开记录。");
+            }
+            finally
+            {
+                descriptor.RemoveValueChanged(lookup, changed);
+                window.Close();
+            }
+        });
+    }
+
+    [TestMethod]
+    public void LocalLookup_UserInput_ShouldOpenMatchesAndCancelOnLostFocus()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var lookup = new LookupTextBox
+            {
+                SearchMode = LookupTextBoxSearchMode.Local,
+                SearchDelay = TimeSpan.FromMilliseconds(20),
+                ItemsSource = new[] { new LookupItem("Alpha"), new LookupItem("Beta") },
+                DisplayMemberPath = nameof(LookupItem.Name),
+            };
+            var nextControl = new Button { Content = "Next" };
+            var panel = new StackPanel();
+            panel.Children.Add(lookup);
+            panel.Children.Add(nextControl);
+            var window = new Window
+            {
+                Width = 320,
+                Height = 160,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None,
+                Content = panel,
+            };
+
+            try
+            {
+                window.Show();
+                var input = (TextBox?)lookup.FindName("InputTextBox");
+                Assert.IsNotNull(input);
+                window.Activate();
+                input.Focus();
+                Keyboard.Focus(input);
+
+                input.Text = "Al";
+                await WaitForDispatcherAsync(60);
+                Assert.IsTrue(lookup.IsDropDownOpen, "用户输入后有匹配项应打开 Popup。");
+                Assert.IsTrue(input.IsKeyboardFocusWithin, "Popup 打开后输入框必须保持键盘焦点。");
+
+                input.Text = "missing";
+                await WaitForDispatcherAsync(60);
+                Assert.IsFalse(lookup.IsDropDownOpen, "无匹配项应关闭 Popup。");
+
+                input.Text = "Be";
+                nextControl.Focus();
+                Keyboard.Focus(nextControl);
+                await WaitForDispatcherAsync(60);
+                Assert.IsFalse(lookup.IsDropDownOpen, "失焦必须取消本地防抖，不能延迟重开 Popup。");
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [TestMethod]
+    public void EmptyLookup_SpaceAndDown_ShouldExplicitlyOpenAllCandidates()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var items = new ObservableCollection<LookupItem> { new("Alpha"), new("Beta") };
+            var lookup = new LookupTextBox
+            {
+                SearchMode = LookupTextBoxSearchMode.Local,
+                ItemsSource = items,
+                DisplayMemberPath = nameof(LookupItem.Name),
+            };
+            var window = new Window
+            {
+                Width = 320,
+                Height = 120,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None,
+                Content = lookup,
+            };
+
+            try
+            {
+                window.Show();
+                var input = (TextBox?)lookup.FindName("InputTextBox");
+                var resultList = (ListBox?)lookup.FindName("ResultList");
+                Assert.IsNotNull(input);
+                Assert.IsNotNull(resultList);
+                window.Activate();
+                input.Focus();
+                Keyboard.Focus(input);
+
+                RaisePreviewKey(input, Key.Down);
+                await Task.Delay(20);
+                Assert.IsTrue(lookup.IsDropDownOpen);
+                Assert.AreEqual(0, resultList.SelectedIndex);
+
+                lookup.IsDropDownOpen = false;
+                resultList.SelectedIndex = -1;
+                RaisePreviewKey(input, Key.Space);
+                await Task.Delay(20);
+                Assert.IsTrue(lookup.IsDropDownOpen);
+                Assert.AreEqual(0, resultList.SelectedIndex);
+
+                lookup.IsDropDownOpen = false;
+                lookup.IsDropDownOpen = true;
+                Assert.IsTrue(lookup.IsDropDownOpen, "外部仍可显式打开 Popup。");
+                items.Clear();
+                await Task.Delay(20);
+                Assert.IsFalse(lookup.IsDropDownOpen, "显式打开后候选清空应关闭 Popup。");
+            }
+            finally
+            {
+                window.Close();
             }
         });
     }
@@ -176,6 +360,22 @@ public sealed class LookupTextBoxTests
                 yield return descendant;
             }
         }
+    }
+
+    private static void RaisePreviewKey(UIElement target, Key key)
+    {
+        var source = PresentationSource.FromVisual(target)
+                     ?? throw new InvalidOperationException("测试控件尚未连接到 PresentationSource。");
+        target.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, source, Environment.TickCount, key)
+        {
+            RoutedEvent = Keyboard.PreviewKeyDownEvent,
+        });
+    }
+
+    private static async Task WaitForDispatcherAsync(int milliseconds)
+    {
+        await Task.Delay(milliseconds);
+        await Dispatcher.Yield(DispatcherPriority.Background);
     }
 
     private sealed class RecordingCommand : ICommand

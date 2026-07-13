@@ -4,9 +4,9 @@ using Microsoft.Extensions.Hosting;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Bootstrapper;
 using SwiftExportClient.Shell;
-using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Images;
 using SwiftExportClient.Updates;
+using SwiftExportClient.Resources.Controls;
 
 namespace SwiftExportClient;
 

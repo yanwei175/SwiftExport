@@ -1,4 +1,4 @@
-<UserControl x:Class="SwiftExportClient.Controls.LookupTextBox"
+<UserControl x:Class="SwiftExportClient.Resources.Controls.LookupTextBox"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Name="Root"

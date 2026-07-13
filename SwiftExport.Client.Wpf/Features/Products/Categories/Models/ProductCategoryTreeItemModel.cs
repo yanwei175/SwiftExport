@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Mapster;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExportClient.Mvvm;
 using System.Collections.ObjectModel;
@@ -8,51 +9,51 @@ namespace SwiftExportClient.Features.Products.Categories.Models;
 public sealed partial class ProductCategoryTreeItemModel : ObservableObjectEx
 {
     [ObservableProperty]
-    private Guid uid;
+    public partial Guid Uid { get; set; }
 
     [ObservableProperty]
-    private int version;
+    public partial int Version { get; set; }
 
     [ObservableProperty]
-    private bool isDeleted;
+    public partial bool IsDeleted { get; set; }
 
     [ObservableProperty]
-    private DateTime? createdDate;
+    public partial DateTime? CreatedDate { get; set; }
 
     [ObservableProperty]
-    private string? createdBy;
+    public partial string? CreatedBy { get; set; }
 
     [ObservableProperty]
-    private DateTime? updatedDate;
+    public partial DateTime? UpdatedDate { get; set; }
 
     [ObservableProperty]
-    private string? updatedBy;
+    public partial string? UpdatedBy { get; set; }
 
     [ObservableProperty]
-    private Guid? parentId;
+    public partial Guid? ParentId { get; set; }
 
     [ObservableProperty]
-    private string categoryName = string.Empty;
+    public partial string CategoryName { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private string fakeName = string.Empty;
+    public partial string FakeName { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private string categoryCode = string.Empty;
+    public partial string CategoryCode { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private int sortNo;
+    public partial int SortNo { get; set; }
 
     [ObservableProperty]
-    private bool isExpanded;
+    public partial bool IsExpanded { get; set; }
 
     [ObservableProperty]
-    private bool isSelected;
+    public partial bool IsSelected { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAdded))]
     [NotifyPropertyChangedFor(nameof(IsModified))]
-    private ProductCategoryNodeState state;
+    public partial ProductCategoryNodeState State { get; set; }
 
     public bool IsAdded => State == ProductCategoryNodeState.Added;
 
@@ -65,42 +66,14 @@ public sealed partial class ProductCategoryTreeItemModel : ObservableObjectEx
         var item = new ProductCategoryTreeItemModel();
         using (item.SuppressScope())
         {
-            item.Uid = dto.Uid;
-            item.Version = dto.Version;
-            item.IsDeleted = dto.IsDeleted;
-            item.CreatedDate = dto.CreatedDate;
-            item.CreatedBy = dto.CreatedBy;
-            item.UpdatedDate = dto.UpdatedDate;
-            item.UpdatedBy = dto.UpdatedBy;
-            item.ParentId = dto.ParentId;
-            item.CategoryName = dto.CategoryName ?? string.Empty;
-            item.FakeName = dto.FakeName ?? string.Empty;
-            item.CategoryCode = dto.CategoryCode ?? string.Empty;
-            item.SortNo = dto.SortNo;
+            dto.Adapt(item);
             item.State = ProductCategoryNodeState.Unchanged;
         }
 
         return item;
     }
 
-    public ProductCategoryDto ToDto()
-    {
-        return new ProductCategoryDto
-        {
-            Uid = Uid,
-            Version = Version,
-            IsDeleted = IsDeleted,
-            CreatedDate = CreatedDate,
-            CreatedBy = CreatedBy,
-            UpdatedDate = UpdatedDate,
-            UpdatedBy = UpdatedBy,
-            ParentId = ParentId == Guid.Empty ? null : ParentId,
-            CategoryName = CategoryName.Trim(),
-            FakeName = FakeName.Trim(),
-            CategoryCode = CategoryCode.Trim(),
-            SortNo = SortNo,
-        };
-    }
+    public ProductCategoryDto ToDto() => this.Adapt<ProductCategoryDto>();
 
     partial void OnParentIdChanged(Guid? value) => MarkModified();
 

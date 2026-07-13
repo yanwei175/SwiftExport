@@ -1,6 +1,6 @@
+using SwiftExportClient.Services.Images;
 using System.Windows;
 using System.Windows.Controls;
-using SwiftExportClient.Services.Images;
 
 namespace SwiftExportClient.Resources.Controls;
 

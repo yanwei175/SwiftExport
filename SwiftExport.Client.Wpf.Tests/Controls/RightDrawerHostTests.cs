@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls.Primitives;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
-using SwiftExportClient.Controls;
+using SwiftExportClient.Resources.Controls;
 
 namespace SwiftExport.Client.Wpf.Tests.Controls;
 
