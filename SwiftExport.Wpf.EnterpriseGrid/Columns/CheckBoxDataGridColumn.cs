@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Media;
 
 namespace SwiftExport.Wpf.EnterpriseGrid.Columns;
 
@@ -16,21 +17,13 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
     private BindingBase? _itemCheckBinding;
     private BindingBase? _allCheckBinding;
 
-    /// <summary>表头 CheckBox 左侧 Margin。</summary>
-    public static readonly DependencyProperty HeaderCheckBoxMarginLeftProperty = DependencyProperty.Register(
-        nameof(HeaderCheckBoxMarginLeft),
+    /// <summary>表头 CheckBox 水平视觉偏移；正数向右，负数向左，默认 0。</summary>
+    public static readonly DependencyProperty HeaderCheckBoxHorizontalOffsetProperty = DependencyProperty.Register(
+        nameof(HeaderCheckBoxHorizontalOffset),
         typeof(double),
         typeof(CheckBoxDataGridColumn),
-        new PropertyMetadata(0d, OnHeaderMarginChanged),
-        IsValidMargin);
-
-    /// <summary>表头 CheckBox 右侧 Margin。</summary>
-    public static readonly DependencyProperty HeaderCheckBoxMarginRightProperty = DependencyProperty.Register(
-        nameof(HeaderCheckBoxMarginRight),
-        typeof(double),
-        typeof(CheckBoxDataGridColumn),
-        new PropertyMetadata(0d, OnHeaderMarginChanged),
-        IsValidMargin);
+        new PropertyMetadata(0d, OnHeaderAppearanceChanged),
+        IsValidOffset);
 
     /// <summary>表头 CheckBox 宽度；默认 Auto。</summary>
     public static readonly DependencyProperty HeaderCheckBoxWidthProperty = DependencyProperty.Register(
@@ -110,18 +103,11 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
         }
     }
 
-    /// <summary>获取或设置表头 CheckBox 左侧 Margin。</summary>
-    public double HeaderCheckBoxMarginLeft
+    /// <summary>获取或设置表头 CheckBox 水平视觉偏移；正数向右，负数向左。</summary>
+    public double HeaderCheckBoxHorizontalOffset
     {
-        get => (double)GetValue(HeaderCheckBoxMarginLeftProperty);
-        set => SetValue(HeaderCheckBoxMarginLeftProperty, value);
-    }
-
-    /// <summary>获取或设置表头 CheckBox 右侧 Margin。</summary>
-    public double HeaderCheckBoxMarginRight
-    {
-        get => (double)GetValue(HeaderCheckBoxMarginRightProperty);
-        set => SetValue(HeaderCheckBoxMarginRightProperty, value);
+        get => (double)GetValue(HeaderCheckBoxHorizontalOffsetProperty);
+        set => SetValue(HeaderCheckBoxHorizontalOffsetProperty, value);
     }
 
     /// <summary>获取或设置表头 CheckBox 宽度；使用 NaN 表示 Auto。</summary>
@@ -183,9 +169,12 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
     {
         var checkBoxFactory = CreateCheckBoxFactory(HeaderCheckBoxStyle);
         var viewboxFactory = CreateViewboxFactory(HeaderCheckBoxWidth, HeaderCheckBoxHeight);
+        var gridFactory = new FrameworkElementFactory(typeof(Grid));
+        gridFactory.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Stretch);
+        gridFactory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Stretch);
         viewboxFactory.SetValue(
-            FrameworkElement.MarginProperty,
-            new Thickness(HeaderCheckBoxMarginLeft, 0, HeaderCheckBoxMarginRight, 0));
+            UIElement.RenderTransformProperty,
+            new TranslateTransform(HeaderCheckBoxHorizontalOffset, 0));
         checkBoxFactory.SetValue(FrameworkElement.ToolTipProperty, "全选/取消全选");
         checkBoxFactory.SetValue(AutomationProperties.NameProperty, "全选/取消全选");
         if (AllCheckBinding is not null)
@@ -203,8 +192,9 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
         enabledBinding.Bindings.Add(new Binding(nameof(IsReadOnly)) { Source = this });
         checkBoxFactory.SetBinding(UIElement.IsEnabledProperty, enabledBinding);
         viewboxFactory.AppendChild(checkBoxFactory);
+        gridFactory.AppendChild(viewboxFactory);
 
-        return CreateTemplate(viewboxFactory);
+        return CreateTemplate(gridFactory);
     }
 
     private DataTemplate CreateCellTemplate()
@@ -266,9 +256,6 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
         return template;
     }
 
-    private static void OnHeaderMarginChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e) =>
-        OnHeaderAppearanceChanged(dependencyObject, e);
-
     private static void OnHeaderAppearanceChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e) =>
         ((CheckBoxDataGridColumn)dependencyObject).HeaderTemplate =
             ((CheckBoxDataGridColumn)dependencyObject).CreateHeaderTemplate();
@@ -276,8 +263,8 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
     private static void OnCellAppearanceChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e) =>
         ((CheckBoxDataGridColumn)dependencyObject).RefreshCellTemplates();
 
-    private static bool IsValidMargin(object value) =>
-        value is double margin && double.IsFinite(margin) && margin >= 0;
+    private static bool IsValidOffset(object value) =>
+        value is double offset && double.IsFinite(offset);
 
     private static bool IsValidDimension(object value) =>
         value is double dimension && (double.IsNaN(dimension) || double.IsFinite(dimension) && dimension >= 0);

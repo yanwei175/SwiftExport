@@ -3,20 +3,45 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Name="Root"
              MinHeight="30">
+    <UserControl.Resources>
+        <!--
+            LookupTextBox 由外层统一提供边框和清除按钮。
+            内部输入框只保留 WPF TextBox 必需的 PART_ContentHost，避免 Fluent
+            默认模板在聚焦且有文本时再生成一个 ClearButton。
+        -->
+        <Style x:Key="LookupInputTextBoxStyle"
+               TargetType="{x:Type TextBox}">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}">
+                        <ScrollViewer x:Name="PART_ContentHost"
+                                      Margin="{TemplateBinding Padding}"
+                                      Focusable="False"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Hidden"
+                                      SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
     <Grid>
         <Border x:Name="EditorBorder"
                 Height="{Binding ActualHeight, ElementName=Root}"
                 MinHeight="30"
                 Background="{DynamicResource SwiftExportBrush.Surface}"
                 BorderBrush="{DynamicResource SwiftExportBrush.Border}"
-                BorderThickness="{StaticResource SwiftExportBorderThickness}"
-                CornerRadius="{StaticResource SwiftExportControlCornerRadius}"
+                BorderThickness="{DynamicResource SwiftExportBorderThickness}"
+                CornerRadius="{DynamicResource SwiftExportControlCornerRadius}"
                 MouseLeftButtonDown="EditorBorder_MouseLeftButtonDown">
             <Grid>
                 <TextBox x:Name="InputTextBox"
+                         Style="{StaticResource LookupInputTextBoxStyle}"
                          BorderThickness="0"
                          Background="Transparent"
-                         Padding="8,0,32,0"
+                         Padding="4,0,32,0"
                          VerticalContentAlignment="Center"
                          TextChanged="InputTextBox_TextChanged"
                          GotKeyboardFocus="InputTextBox_GotKeyboardFocus"
@@ -24,7 +49,7 @@
                          PreviewKeyDown="InputTextBox_PreviewKeyDown" />
 
                 <TextBlock x:Name="DisplayTextBlock"
-                           Margin="8,0,32,0"
+                           Margin="4,0,32,0"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            IsHitTestVisible="False"
@@ -49,6 +74,8 @@
                         BorderThickness="0"
                         Padding="0"
                         Content="x"
+                        ToolTip="清除"
+                        AutomationProperties.Name="清除当前输入和选择"
                         Click="BtnClear_Click">
                     <Button.Style>
                         <Style TargetType="{x:Type Button}"
@@ -94,8 +121,8 @@
                     MaxHeight="260"
                     Background="{DynamicResource SwiftExportBrush.Surface}"
                     BorderBrush="{DynamicResource SwiftExportBrush.Border}"
-                    BorderThickness="{StaticResource SwiftExportBorderThickness}"
-                    CornerRadius="{StaticResource SwiftExportControlCornerRadius}"
+                    BorderThickness="{DynamicResource SwiftExportBorderThickness}"
+                    CornerRadius="{DynamicResource SwiftExportControlCornerRadius}"
                     Margin="0,4,0,0">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="12"

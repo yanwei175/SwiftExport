@@ -226,8 +226,6 @@
                                                         CellCheckBoxStyle="{StaticResource SwiftExportDataGridCompactCheckBox}"
                                                         ItemCheckBinding="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                         AllCheckBinding="{Binding DataContext.Lines.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
-                                                        HeaderCheckBoxMarginLeft="10"
-                                                        HeaderCheckBoxMarginRight="0"
                                                         gridColumns:GridColumn.Key="row-check"
                                                         gridColumns:GridColumn.CanFilter="False"
                                                         gridColumns:GridColumn.CanExport="False" />

@@ -471,10 +471,18 @@ public partial class LookupTextBox : UserControl
         SyncTextDependencySilently(newText);
         UpdateTextVisualState();
 
-        if (ShouldUseLocalFilter() || SearchMode == LookupTextBoxSearchMode.Remote && SearchCommand is not null)
+        if (ShouldUseLocalFilter())
         {
             _debounceTimer.Stop();
             _debounceTimer.Start();
+        }
+        else if (SearchMode == LookupTextBoxSearchMode.Remote && SearchCommand is not null)
+        {
+            _debounceTimer.Stop();
+            if (IsLoaded && InputTextBox.IsKeyboardFocusWithin)
+            {
+                _debounceTimer.Start();
+            }
         }
         else
         {
@@ -507,7 +515,7 @@ public partial class LookupTextBox : UserControl
         SetInputTextSilently(string.Empty);
         SyncTextDependencySilently(string.Empty);
         FilteredView?.Refresh();
-        IsDropDownOpen = FilteredView is not null && !FilteredView.IsEmpty;
+        IsDropDownOpen = false;
         UpdateTextVisualState();
         InputTextBox.Focus();
     }
@@ -573,6 +581,11 @@ public partial class LookupTextBox : UserControl
 
     private void InputTextBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
+        if (SearchMode == LookupTextBoxSearchMode.Remote)
+        {
+            _debounceTimer.Stop();
+        }
+
         if (!RequireItemMatch || IsDropDownOpen)
         {
             UpdateTextVisualState();
@@ -754,6 +767,12 @@ public partial class LookupTextBox : UserControl
 
     private void ExecuteSearchCommand()
     {
+        if (SearchMode == LookupTextBoxSearchMode.Remote &&
+            (!IsLoaded || !InputTextBox.IsKeyboardFocusWithin))
+        {
+            return;
+        }
+
         var text = (InputTextBox.Text ?? string.Empty).Trim();
         if (text.Length < MinimumSearchLength)
         {

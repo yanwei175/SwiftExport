@@ -118,14 +118,14 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
-    <!-- 窄复选列不能叠加通用列头 Padding，否则 Margin 微调后会压缩 CheckBox。 -->
+    <!-- 窄复选列不叠加通用列头 Padding；内部微调由列的视觉偏移完成。 -->
     <Style x:Key="SwiftExportDataGridCheckBoxColumnHeader"
            TargetType="{x:Type DataGridColumnHeader}"
            BasedOn="{StaticResource SwiftExportDataGridColumnHeader}">
-        <Setter Property="Padding" Value="10" />
+        <Setter Property="Padding" Value="0" />
         <Setter Property="Margin" Value="0" />
-        <Setter Property="HorizontalContentAlignment" Value="Center" />
-        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Stretch" />
     </Style>
 
     <!-- 默认 RowHeader 只按内容测量；必须显式 Stretch，行号模板才能使用完整 RowHeaderWidth。 -->

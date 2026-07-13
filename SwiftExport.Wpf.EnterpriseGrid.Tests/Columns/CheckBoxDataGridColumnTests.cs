@@ -49,31 +49,43 @@ public sealed class CheckBoxDataGridColumnTests
     }
 
     [TestMethod]
-    public void HeaderMarginsAndReadOnlyState_ShouldApplyWithoutEnablingSort()
+    public void HeaderOffsetAndReadOnlyState_ShouldNotCompressOrClipCheckBox()
     {
         StaTest.Run(() =>
         {
             var rows = new[] { new TestRow() };
             var column = CreateColumn();
-            column.HeaderCheckBoxMarginLeft = 3;
-            column.HeaderCheckBoxMarginRight = 5;
-            column.HeaderCheckBoxWidth = 17;
-            column.HeaderCheckBoxHeight = 18;
+            column.Width = new DataGridLength(36);
+            column.HeaderCheckBoxWidth = 16;
+            column.HeaderCheckBoxHeight = 16;
             column.CellCheckBoxWidth = 15;
             column.CellCheckBoxHeight = 16;
             var compactStyle = new Style(typeof(CheckBox));
             compactStyle.Setters.Add(new Setter(FrameworkElement.TagProperty, "compact"));
             column.HeaderCheckBoxStyle = compactStyle;
             column.CellCheckBoxStyle = compactStyle;
+            var headerStyle = new Style(typeof(DataGridColumnHeader));
+            headerStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(0)));
+            column.HeaderStyle = headerStyle;
             var dataGrid = CreateGrid(rows, column, new TestGridViewModel(rows));
             using var host = Show(dataGrid);
 
             var headerCheckBox = GetHeaderCheckBox(dataGrid, column);
             var headerViewbox = FindVisualAncestor<Viewbox>(headerCheckBox);
             Assert.IsNotNull(headerViewbox);
-            Assert.AreEqual(new Thickness(3, 0, 5, 0), headerViewbox.Margin);
-            Assert.AreEqual(17, headerViewbox.Width);
-            Assert.AreEqual(18, headerViewbox.Height);
+            Assert.IsInstanceOfType<Grid>(VisualTreeHelper.GetParent(headerViewbox));
+            Assert.AreEqual(new Thickness(0), headerViewbox.Margin);
+            Assert.AreEqual(16, headerViewbox.Width);
+            Assert.AreEqual(16, headerViewbox.Height);
+            Assert.AreEqual(16, headerViewbox.DesiredSize.Width, 0.01);
+            Assert.AreEqual(16, headerViewbox.DesiredSize.Height, 0.01);
+            var baselineActualWidth = headerViewbox.ActualWidth;
+            var baselineActualHeight = headerViewbox.ActualHeight;
+            Assert.IsGreaterThan(0, baselineActualWidth);
+            Assert.IsGreaterThan(0, baselineActualHeight);
+            var header = GetColumnHeader(dataGrid, column);
+            var centeredPosition = headerViewbox.TranslatePoint(new Point(0, 0), header);
+            AssertHeaderContentIsVisible(header, headerViewbox, centeredPosition);
             Assert.AreSame(compactStyle, headerCheckBox.Style);
             var itemCheckBox = GetCellCheckBox(dataGrid, rows[0], column);
             var cellViewbox = FindVisualAncestor<Viewbox>(itemCheckBox);
@@ -81,7 +93,30 @@ public sealed class CheckBoxDataGridColumnTests
             Assert.AreEqual(15, cellViewbox.Width);
             Assert.AreEqual(16, cellViewbox.Height);
             Assert.AreSame(compactStyle, itemCheckBox.Style);
+            Assert.AreEqual(new Thickness(0), header.Padding);
             Assert.IsFalse(column.CanUserSort);
+
+            column.HeaderCheckBoxHorizontalOffset = 4;
+            dataGrid.UpdateLayout();
+            headerCheckBox = GetHeaderCheckBox(dataGrid, column);
+            headerViewbox = FindVisualAncestor<Viewbox>(headerCheckBox);
+            Assert.IsNotNull(headerViewbox);
+            Assert.AreEqual(baselineActualWidth, headerViewbox.ActualWidth, 0.01, "正偏移不得改变 CheckBox 的布局宽度。");
+            Assert.AreEqual(baselineActualHeight, headerViewbox.ActualHeight, 0.01, "正偏移不得改变 CheckBox 的布局高度。");
+            var positivePosition = headerViewbox.TranslatePoint(new Point(0, 0), header);
+            Assert.AreEqual(centeredPosition.X + 4, positivePosition.X, 0.5);
+            AssertHeaderContentIsVisible(header, headerViewbox, positivePosition);
+
+            column.HeaderCheckBoxHorizontalOffset = -4;
+            dataGrid.UpdateLayout();
+            headerCheckBox = GetHeaderCheckBox(dataGrid, column);
+            headerViewbox = FindVisualAncestor<Viewbox>(headerCheckBox);
+            Assert.IsNotNull(headerViewbox);
+            Assert.AreEqual(baselineActualWidth, headerViewbox.ActualWidth, 0.01, "负偏移不得改变 CheckBox 的布局宽度。");
+            Assert.AreEqual(baselineActualHeight, headerViewbox.ActualHeight, 0.01, "负偏移不得改变 CheckBox 的布局高度。");
+            var negativePosition = headerViewbox.TranslatePoint(new Point(0, 0), header);
+            Assert.AreEqual(centeredPosition.X - 4, negativePosition.X, 0.5);
+            AssertHeaderContentIsVisible(header, headerViewbox, negativePosition);
 
             dataGrid.IsReadOnly = true;
             dataGrid.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
@@ -94,6 +129,18 @@ public sealed class CheckBoxDataGridColumnTests
             Assert.IsFalse(headerCheckBox.IsEnabled);
             Assert.IsFalse(GetCellCheckBox(dataGrid, rows[0], column).IsEnabled);
         });
+    }
+
+    private static void AssertHeaderContentIsVisible(
+        DataGridColumnHeader header,
+        Viewbox viewbox,
+        Point position)
+    {
+        Assert.IsGreaterThanOrEqualTo(0, position.X, "CheckBox 左侧不得被列头裁剪。");
+        Assert.IsLessThanOrEqualTo(
+            header.ActualWidth,
+            position.X + viewbox.ActualWidth,
+            "CheckBox 右侧不得被列头裁剪。");
     }
 
     private static CheckBoxDataGridColumn CreateColumn() => new()
@@ -137,11 +184,14 @@ public sealed class CheckBoxDataGridColumnTests
 
     private static CheckBox GetHeaderCheckBox(DataGrid dataGrid, CheckBoxDataGridColumn column)
     {
-        var headers = FindVisualDescendants<DataGridColumnHeader>(dataGrid);
-        var header = headers.Single(candidate => ReferenceEquals(candidate.Column, column));
+        var header = GetColumnHeader(dataGrid, column);
         return FindVisualDescendant<CheckBox>(header) ??
             throw new AssertFailedException("未生成 Header CheckBox 内容。");
     }
+
+    private static DataGridColumnHeader GetColumnHeader(DataGrid dataGrid, CheckBoxDataGridColumn column) =>
+        FindVisualDescendants<DataGridColumnHeader>(dataGrid)
+            .Single(candidate => ReferenceEquals(candidate.Column, column));
 
     private static T? FindVisualDescendant<T>(DependencyObject? parent)
         where T : DependencyObject

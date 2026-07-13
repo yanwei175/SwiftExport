@@ -148,7 +148,6 @@
                                                             CellCheckBoxWidth="16" CellCheckBoxHeight="16"
                                                             HeaderCheckBoxStyle="{StaticResource SwiftExportDataGridCompactCheckBox}"
                                                             CellCheckBoxStyle="{StaticResource SwiftExportDataGridCompactCheckBox}"
-                                                            HeaderCheckBoxMarginLeft="15"
                                                             ItemCheckBinding="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                             AllCheckBinding="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}" />
                         <DataGridTemplateColumn Header="图片" Width="64" IsReadOnly="True">
@@ -189,11 +188,11 @@
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                         
                         <DataGridComboBoxColumn Header="物料类型" Width="100"
-                                                ItemsSource="{Binding Source={StaticResource ProductMaterialTypesView}, Path=View}"
+                                                ItemsSource="{Binding Source={StaticResource ProductMaterialTypesView}}"
                                                 SelectedItemBinding="{Binding MaterialType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                         
                         <DataGridComboBoxColumn Header="供货类型" Width="100"
-                                                ItemsSource="{Binding Source={StaticResource ProductSupplyTypesView}, Path=View}"
+                                                ItemsSource="{Binding Source={StaticResource ProductSupplyTypesView}}"
                                                 SelectedItemBinding="{Binding SupplyType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                         
                         <DataGridTextColumn Header="BOM" Width="110" Binding="{Binding BomNo, UpdateSourceTrigger=PropertyChanged}" 

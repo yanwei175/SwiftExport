@@ -79,6 +79,17 @@ ViewModel 应依赖项目抽象接口，例如：
 
 不要在 ViewModel 中直接依赖 `IContentDialogService`、`ISnackbarService`，除非正在实现 UI service 本身。
 
+### WPF-UI 4.3.0 已知问题
+
+WPF-UI 4.3.0 的 `ui:Button` 按下状态模板会把 `Foreground` 绑定到
+`RelativeSource TemplatedParent.PressedForeground`。当按钮位于 `ContentDialog` 模板内时，
+TemplatedParent 是 `ContentDialog`，调试输出会报告找不到 `PressedForeground`。该诊断不影响按钮命令执行。
+
+- 上游模板：https://github.com/lepoco/wpfui/blob/main/src/Wpf.Ui/Controls/Button/Button.xaml
+- 上游修复：https://github.com/lepoco/wpfui/pull/1723
+
+当前不在客户端复制 WPF-UI 完整 Button 模板。后续稳定版包含修复后升级依赖，并删除本段兼容说明。
+
 ## 图标
 
 Shell 当前使用 `ui:SymbolIcon` 和 `SymbolRegular`。

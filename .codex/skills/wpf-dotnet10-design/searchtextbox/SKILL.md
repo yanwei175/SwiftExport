@@ -36,6 +36,7 @@ description: SwiftExport .NET 10 WPF 搜索输入、搜索选择器、远程搜�
 - 简单关键词搜索优先使用普通 `TextBox` + 显式 Search 命令。
 - 有对象选择语义时，使用搜索选择器模型：`SearchText`、`SelectedItem`、`SelectedValue`、`ItemsSource`、`IsDropDownOpen`。
 - 远程搜索由 ViewModel 或前端服务调用 Refit API；控件只负责输入、弹层、选择和交互状态。
+- 远程 SearchCommand 只能由用户正在编辑时的文本变化触发；初始化 Binding、SelectedItem 显示回填、ItemsSource 替换和虚拟化重载不得触发 API 搜索。
 - 控件不得直接调用后端 API、Repository、Application Service。
 
 ## 推荐 API
