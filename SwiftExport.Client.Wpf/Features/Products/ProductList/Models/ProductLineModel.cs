@@ -1,228 +1,83 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExportClient.Mvvm;
 
 namespace SwiftExportClient.Features.Products.ProductList.Models;
 
-public sealed class ProductLineModel : BaseLineModel<ProductDto>
+public sealed partial class ProductLineModel : BaseLineModel<ProductDto>
 {
-    private Guid _uid;
-    private int _version;
-    private bool _isDeleted;
-    private DateTime? _createdDate;
-    private string? _createdBy;
-    private DateTime? _updatedDate;
-    private string? _updatedBy;
-    private Guid _categoryId;
-    private Guid _colorId;
-    private string? _featuresEn;
-    private string? _featuresZh;
-    private string? _finish;
-    private string? _linkSku;
-    private decimal? _pcsOfCarton;
-    private decimal? _nwOfCarton;
-    private decimal? _gwOfCarton;
-    private decimal? _cbmOfCarton;
-    private string? _supplierName;
-    private string? _defaultCustomerCode;
-    private string? _defaultCustomerSku;
-    private string? _defaultSupplierCode;
-    private string? _defaultSupplierSku;
-    private string? _mainImage;
-    private string _sku = string.Empty;
-    private string _masterSku = string.Empty;
-    private string _descriptionEn = string.Empty;
-    private string _descriptionZh = string.Empty;
-    private string _categoryName = string.Empty;
-    private string _materialType = string.Empty;
-    private string _supplyType = string.Empty;
-    private int _bomVersion;
-    private string _bomNo = string.Empty;
-    private decimal _cnyPrice;
-    private decimal _usdPrice;
-    private string _note = string.Empty;
-
-    public Guid Uid
-    {
-        get => _uid;
-        set => SetProperty(ref _uid, value);
-    }
-
-    public int Version
-    {
-        get => _version;
-        set => SetProperty(ref _version, value);
-    }
-
-    public string Sku
-    {
-        get => _sku;
-        set => SetTrackedProperty(ref _sku, value);
-    }
-
-    public string MasterSku
-    {
-        get => _masterSku;
-        set => SetTrackedProperty(ref _masterSku, value);
-    }
-
-    public string DescriptionEn
-    {
-        get => _descriptionEn;
-        set => SetTrackedProperty(ref _descriptionEn, value);
-    }
-
-    public string DescriptionZh
-    {
-        get => _descriptionZh;
-        set => SetTrackedProperty(ref _descriptionZh, value);
-    }
-
-    public string CategoryName
-    {
-        get => _categoryName;
-        set => SetTrackedProperty(ref _categoryName, value);
-    }
-
-    public string MaterialType
-    {
-        get => _materialType;
-        set => SetTrackedProperty(ref _materialType, value);
-    }
-
-    public string SupplyType
-    {
-        get => _supplyType;
-        set => SetTrackedProperty(ref _supplyType, value);
-    }
-
-    public int BomVersion
-    {
-        get => _bomVersion;
-        set => SetTrackedProperty(ref _bomVersion, value);
-    }
-
-    public string BomNo
-    {
-        get => _bomNo;
-        set => SetTrackedProperty(ref _bomNo, value);
-    }
-
-    public decimal CnyPrice
-    {
-        get => _cnyPrice;
-        set => SetTrackedProperty(ref _cnyPrice, value);
-    }
-
-    public decimal UsdPrice
-    {
-        get => _usdPrice;
-        set => SetTrackedProperty(ref _usdPrice, value);
-    }
-
-    public string Note
-    {
-        get => _note;
-        set => SetTrackedProperty(ref _note, value);
-    }
+    [ObservableProperty] private Guid uid;
+    [ObservableProperty] private int version;
+    [ObservableProperty] private bool isDeleted;
+    [ObservableProperty] private DateTime? createdDate;
+    [ObservableProperty] private string? createdBy;
+    [ObservableProperty] private DateTime? updatedDate;
+    [ObservableProperty] private string? updatedBy;
+    [ObservableProperty] private string sku = string.Empty;
+    [ObservableProperty] private string masterSku = string.Empty;
+    [ObservableProperty] private string descriptionEn = string.Empty;
+    [ObservableProperty] private string descriptionZh = string.Empty;
+    [ObservableProperty] private string featuresEn = string.Empty;
+    [ObservableProperty] private string featuresZh = string.Empty;
+    [ObservableProperty] private string finish = string.Empty;
+    [ObservableProperty] private string materialType = string.Empty;
+    [ObservableProperty] private string supplyType = string.Empty;
+    [ObservableProperty] private int bomVersion;
+    [ObservableProperty] private string bomNo = string.Empty;
+    [ObservableProperty] private string note = string.Empty;
+    [ObservableProperty] private string linkSku = string.Empty;
+    [ObservableProperty] private decimal cnyPrice;
+    [ObservableProperty] private decimal usdPrice;
+    [ObservableProperty] private decimal? pcsOfCarton;
+    [ObservableProperty] private decimal? nwOfCarton;
+    [ObservableProperty] private decimal? gwOfCarton;
+    [ObservableProperty] private decimal? cbmOfCarton;
+    [ObservableProperty] private Guid categoryId;
+    [ObservableProperty] private Guid colorId;
+    [ObservableProperty] private string categoryName = string.Empty;
+    [ObservableProperty] private string supplierName = string.Empty;
+    [ObservableProperty] private string defaultCustomerCode = string.Empty;
+    [ObservableProperty] private string defaultCustomerSku = string.Empty;
+    [ObservableProperty] private string defaultSupplierCode = string.Empty;
+    [ObservableProperty] private string defaultSupplierSku = string.Empty;
+    [ObservableProperty] private string mainImage = string.Empty;
 
     public override Task<string?> ValidateAsync()
     {
-        if (string.IsNullOrWhiteSpace(Sku))
-        {
-            return Task.FromResult<string?>("SKU 不能为空。");
-        }
-
-        if (BomVersion < 0)
-        {
-            return Task.FromResult<string?>("BOM 版本不能小于 0。");
-        }
-
-        if (CnyPrice < 0 || UsdPrice < 0)
-        {
-            return Task.FromResult<string?>("价格不能小于 0。");
-        }
-
+        if (string.IsNullOrWhiteSpace(Sku)) return Task.FromResult<string?>("SKU 不能为空。");
+        if (BomVersion < 0) return Task.FromResult<string?>("BOM 版本不能小于 0。");
+        if (CnyPrice < 0 || UsdPrice < 0) return Task.FromResult<string?>("价格不能小于 0。");
         return Task.FromResult<string?>(null);
     }
 
     protected override void LoadFromDto(ProductDto dto)
     {
-        Uid = dto.Uid;
-        Version = dto.Version;
-        _isDeleted = dto.IsDeleted;
-        _createdDate = dto.CreatedDate;
-        _createdBy = dto.CreatedBy;
-        _updatedDate = dto.UpdatedDate;
-        _updatedBy = dto.UpdatedBy;
-        _categoryId = dto.CategoryId;
-        _colorId = dto.ColorId;
-        _featuresEn = dto.FeaturesEn;
-        _featuresZh = dto.FeaturesZh;
-        _finish = dto.Finish;
-        _linkSku = dto.LinkSku;
-        _pcsOfCarton = dto.PcsOfCarton;
-        _nwOfCarton = dto.NwOfCarton;
-        _gwOfCarton = dto.GwOfCarton;
-        _cbmOfCarton = dto.CbmOfCarton;
-        _supplierName = dto.SupplierName;
-        _defaultCustomerCode = dto.DefaultCustomerCode;
-        _defaultCustomerSku = dto.DefaultCustomerSku;
-        _defaultSupplierCode = dto.DefaultSupplierCode;
-        _defaultSupplierSku = dto.DefaultSupplierSku;
-        _mainImage = dto.MainImage;
-        Sku = dto.Sku ?? string.Empty;
-        MasterSku = dto.MasterSku ?? string.Empty;
-        DescriptionEn = dto.DescriptionEn ?? string.Empty;
-        DescriptionZh = dto.DescriptionZh ?? string.Empty;
-        CategoryName = dto.CategoryName ?? string.Empty;
-        MaterialType = dto.MaterialType ?? string.Empty;
-        SupplyType = dto.SupplyType ?? string.Empty;
-        BomVersion = dto.BomVersion;
-        BomNo = dto.BomNo ?? string.Empty;
-        CnyPrice = dto.CNYPrice;
-        UsdPrice = dto.USDPrice;
-        Note = dto.Note ?? string.Empty;
+        Uid = dto.Uid; Version = dto.Version; IsDeleted = dto.IsDeleted;
+        CreatedDate = dto.CreatedDate; CreatedBy = dto.CreatedBy; UpdatedDate = dto.UpdatedDate; UpdatedBy = dto.UpdatedBy;
+        Sku = dto.Sku ?? string.Empty; MasterSku = dto.MasterSku ?? string.Empty;
+        DescriptionEn = dto.DescriptionEn ?? string.Empty; DescriptionZh = dto.DescriptionZh ?? string.Empty;
+        FeaturesEn = dto.FeaturesEn ?? string.Empty; FeaturesZh = dto.FeaturesZh ?? string.Empty;
+        Finish = dto.Finish ?? string.Empty; MaterialType = dto.MaterialType ?? string.Empty; SupplyType = dto.SupplyType ?? string.Empty;
+        BomVersion = dto.BomVersion; BomNo = dto.BomNo ?? string.Empty; Note = dto.Note ?? string.Empty; LinkSku = dto.LinkSku ?? string.Empty;
+        CnyPrice = dto.CNYPrice; UsdPrice = dto.USDPrice;
+        PcsOfCarton = dto.PcsOfCarton; NwOfCarton = dto.NwOfCarton; GwOfCarton = dto.GwOfCarton; CbmOfCarton = dto.CbmOfCarton;
+        CategoryId = dto.CategoryId; ColorId = dto.ColorId; CategoryName = dto.CategoryName ?? string.Empty; SupplierName = dto.SupplierName ?? string.Empty;
+        DefaultCustomerCode = dto.DefaultCustomerCode ?? string.Empty; DefaultCustomerSku = dto.DefaultCustomerSku ?? string.Empty;
+        DefaultSupplierCode = dto.DefaultSupplierCode ?? string.Empty; DefaultSupplierSku = dto.DefaultSupplierSku ?? string.Empty;
+        MainImage = dto.MainImage ?? string.Empty;
     }
 
-    public override ProductDto ToDto()
+    public override ProductDto ToDto() => new()
     {
-        return new ProductDto
-        {
-            Uid = Uid,
-            Version = Version,
-            IsDeleted = _isDeleted,
-            CreatedDate = _createdDate,
-            CreatedBy = _createdBy,
-            UpdatedDate = _updatedDate,
-            UpdatedBy = _updatedBy,
-            CategoryId = _categoryId,
-            ColorId = _colorId,
-            Sku = Sku,
-            MasterSku = MasterSku,
-            DescriptionEn = DescriptionEn,
-            DescriptionZh = DescriptionZh,
-            FeaturesEn = _featuresEn,
-            FeaturesZh = _featuresZh,
-            Finish = _finish,
-            CategoryName = CategoryName,
-            MaterialType = MaterialType,
-            SupplyType = SupplyType,
-            BomVersion = BomVersion,
-            BomNo = BomNo,
-            CNYPrice = CnyPrice,
-            USDPrice = UsdPrice,
-            Note = Note,
-            LinkSku = _linkSku,
-            PcsOfCarton = _pcsOfCarton,
-            NwOfCarton = _nwOfCarton,
-            GwOfCarton = _gwOfCarton,
-            CbmOfCarton = _cbmOfCarton,
-            SupplierName = _supplierName,
-            DefaultCustomerCode = _defaultCustomerCode,
-            DefaultCustomerSku = _defaultCustomerSku,
-            DefaultSupplierCode = _defaultSupplierCode,
-            DefaultSupplierSku = _defaultSupplierSku,
-            MainImage = _mainImage,
-        };
-    }
+        Uid = Uid, Version = Version, IsDeleted = IsDeleted,
+        CreatedDate = CreatedDate, CreatedBy = CreatedBy, UpdatedDate = UpdatedDate, UpdatedBy = UpdatedBy,
+        Sku = Sku, MasterSku = MasterSku, DescriptionEn = DescriptionEn, DescriptionZh = DescriptionZh,
+        FeaturesEn = FeaturesEn, FeaturesZh = FeaturesZh, Finish = Finish, MaterialType = MaterialType, SupplyType = SupplyType,
+        BomVersion = BomVersion, BomNo = BomNo, Note = Note, LinkSku = LinkSku,
+        CNYPrice = CnyPrice, USDPrice = UsdPrice,
+        PcsOfCarton = PcsOfCarton, NwOfCarton = NwOfCarton, GwOfCarton = GwOfCarton, CbmOfCarton = CbmOfCarton,
+        CategoryId = CategoryId, ColorId = ColorId, CategoryName = CategoryName, SupplierName = SupplierName,
+        DefaultCustomerCode = DefaultCustomerCode, DefaultCustomerSku = DefaultCustomerSku,
+        DefaultSupplierCode = DefaultSupplierCode, DefaultSupplierSku = DefaultSupplierSku, MainImage = MainImage,
+    };
 }

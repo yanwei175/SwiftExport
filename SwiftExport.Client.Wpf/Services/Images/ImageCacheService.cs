@@ -323,10 +323,23 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
             {
                 var encoder = new PngBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                using var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                encoder.Save(stream);
-                stream.Flush(flushToDisk: true);
-                File.Move(temporary, target, overwrite: true);
+                // 必须在发布临时文件前关闭流；using var 会延迟到整个 lambda 结束，
+                // 导致 File.Move 移动一个仍被当前进程以 FileShare.None 打开的文件。
+                using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    encoder.Save(stream);
+                    stream.Flush(flushToDisk: true);
+                }
+
+                try
+                {
+                    File.Move(temporary, target, overwrite: false);
+                }
+                catch (IOException) when (File.Exists(target))
+                {
+                    // 多个 ImageCacheService 实例可能同时发布同一 Key；先完成者即为有效缓存。
+                    TryDelete(temporary);
+                }
             }).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException)

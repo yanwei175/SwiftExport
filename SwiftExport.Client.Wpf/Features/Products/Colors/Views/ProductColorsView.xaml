@@ -161,7 +161,7 @@
                                 <Button Margin="0,4,0,0"
                                         Content="向下填充（Ctrl+D）"
                                         Command="{x:Static gridOperations:GridOperations.FillDownCommand}"
-                                        CommandTarget="{Binding ElementName=ColorsGrid}"
+                                        CommandTarget="{x:Reference ColorsGrid}"
                                         HorizontalAlignment="Stretch" />
                                 <Button Margin="0,4,0,0"
                                         Content="批量规范化代码"
@@ -216,8 +216,14 @@
                       gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                       gridValidation:GridValidation.IsEnabled="True">
                 <DataGrid.Columns>
-                    <gridColumns:CheckBoxDataGridColumn Width="44"
+                    <gridColumns:CheckBoxDataGridColumn Width="55"
                                                         HeaderStyle="{StaticResource SwiftExportDataGridCheckBoxColumnHeader}"
+                                                        HeaderCheckBoxWidth="12"
+                                                        HeaderCheckBoxHeight="12"
+                                                        CellCheckBoxWidth="12"
+                                                        CellCheckBoxHeight="12"
+                                                        HeaderCheckBoxStyle="{StaticResource SwiftExportDataGridCompactCheckBox}"
+                                                        CellCheckBoxStyle="{StaticResource SwiftExportDataGridCompactCheckBox}"
                                                         ItemCheckBinding="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                         AllCheckBinding="{Binding DataContext.Lines.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
                                                         HeaderCheckBoxMarginLeft="10"
@@ -225,6 +231,7 @@
                                                         gridColumns:GridColumn.Key="row-check"
                                                         gridColumns:GridColumn.CanFilter="False"
                                                         gridColumns:GridColumn.CanExport="False" />
+
                     <DataGridTextColumn Header="唯一颜色代码"
                                         Width="180"
                                         Binding="{Binding ColorCodeUnique, UpdateSourceTrigger=PropertyChanged}"

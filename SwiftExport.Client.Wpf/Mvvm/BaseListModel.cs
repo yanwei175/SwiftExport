@@ -4,7 +4,7 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Mvvm;
 
-public sealed class BaseListModel<TLine, TDto> : ObservableObjectEx
+public class BaseListModel<TLine, TDto> : ObservableObjectEx
     where TLine : BaseLineModel<TDto>
 {
     private readonly List<TLine> _allLines = [];

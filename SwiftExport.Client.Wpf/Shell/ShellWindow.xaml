@@ -152,7 +152,8 @@
                                   Margin="{StaticResource SwiftExportShellNavigationChildMargin}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Button Style="{StaticResource SwiftExportShellNavigationItemButton}"
+                                <Button x:Name="ChildButton"
+                                        Style="{StaticResource SwiftExportShellNavigationItemButton}"
                                         HorizontalAlignment="Stretch"
                                         Command="{Binding DataContext.OpenRouteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding RouteKey}">
@@ -204,7 +205,7 @@
                                                 Property="Visibility"
                                                 Value="Visible" />
                                     </DataTrigger>
-                                    <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                    <DataTrigger Binding="{Binding IsMouseOver, ElementName=ChildButton}" Value="True">
                                         <Setter TargetName="ChildSurface"
                                                 Property="Background"
                                                 Value="{DynamicResource SwiftExportBrush.SurfaceMuted}" />

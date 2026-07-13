@@ -113,6 +113,43 @@ public sealed class ImageCacheServiceTests
         Assert.AreEqual(2L, service.GetStatistics().DecodeCount);
     }
 
+    [TestMethod]
+    public async Task DiskCache_ShouldPublishAfterClosingTemporaryStreamAndBeReusable()
+    {
+        await using var scope = new ImageTestScope();
+        var source = scope.CreateImage("source.png", 256, 256, seed: 11);
+
+        using (var writer = scope.CreateService())
+        {
+            Assert.IsNotNull(await writer.GetAsync(source, 96));
+        }
+
+        Assert.AreEqual(1, Directory.EnumerateFiles(scope.CacheRoot, "*.png").Count());
+        Assert.AreEqual(0, Directory.EnumerateFiles(scope.CacheRoot, "*.tmp").Count());
+
+        using var reader = scope.CreateService();
+        Assert.IsNotNull(await reader.GetAsync(source, 96));
+        Assert.AreEqual(1L, reader.GetStatistics().DiskHits);
+        Assert.AreEqual(0L, reader.GetStatistics().DecodeCount);
+    }
+
+    [TestMethod]
+    public async Task DiskCache_ConcurrentServiceInstances_ShouldPublishSingleFileWithoutTemporaryResidue()
+    {
+        await using var scope = new ImageTestScope();
+        var source = scope.CreateImage("source.png", 256, 256, seed: 23);
+        using var first = scope.CreateService();
+        using var second = scope.CreateService();
+
+        var results = await Task.WhenAll(
+            first.GetAsync(source, 96).AsTask(),
+            second.GetAsync(source, 96).AsTask());
+
+        Assert.IsTrue(results.All(bitmap => bitmap is not null));
+        Assert.AreEqual(1, Directory.EnumerateFiles(scope.CacheRoot, "*.png").Count());
+        Assert.AreEqual(0, Directory.EnumerateFiles(scope.CacheRoot, "*.tmp").Count());
+    }
+
     private sealed class ImageTestScope : IAsyncDisposable
     {
         public ImageTestScope()

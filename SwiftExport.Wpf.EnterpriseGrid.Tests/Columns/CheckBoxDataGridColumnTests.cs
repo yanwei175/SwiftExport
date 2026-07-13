@@ -57,11 +57,30 @@ public sealed class CheckBoxDataGridColumnTests
             var column = CreateColumn();
             column.HeaderCheckBoxMarginLeft = 3;
             column.HeaderCheckBoxMarginRight = 5;
+            column.HeaderCheckBoxWidth = 17;
+            column.HeaderCheckBoxHeight = 18;
+            column.CellCheckBoxWidth = 15;
+            column.CellCheckBoxHeight = 16;
+            var compactStyle = new Style(typeof(CheckBox));
+            compactStyle.Setters.Add(new Setter(FrameworkElement.TagProperty, "compact"));
+            column.HeaderCheckBoxStyle = compactStyle;
+            column.CellCheckBoxStyle = compactStyle;
             var dataGrid = CreateGrid(rows, column, new TestGridViewModel(rows));
             using var host = Show(dataGrid);
 
             var headerCheckBox = GetHeaderCheckBox(dataGrid, column);
-            Assert.AreEqual(new Thickness(3, 0, 5, 0), headerCheckBox.Margin);
+            var headerViewbox = FindVisualAncestor<Viewbox>(headerCheckBox);
+            Assert.IsNotNull(headerViewbox);
+            Assert.AreEqual(new Thickness(3, 0, 5, 0), headerViewbox.Margin);
+            Assert.AreEqual(17, headerViewbox.Width);
+            Assert.AreEqual(18, headerViewbox.Height);
+            Assert.AreSame(compactStyle, headerCheckBox.Style);
+            var itemCheckBox = GetCellCheckBox(dataGrid, rows[0], column);
+            var cellViewbox = FindVisualAncestor<Viewbox>(itemCheckBox);
+            Assert.IsNotNull(cellViewbox);
+            Assert.AreEqual(15, cellViewbox.Width);
+            Assert.AreEqual(16, cellViewbox.Height);
+            Assert.AreSame(compactStyle, itemCheckBox.Style);
             Assert.IsFalse(column.CanUserSort);
 
             dataGrid.IsReadOnly = true;
@@ -144,6 +163,23 @@ public sealed class CheckBoxDataGridColumnTests
             {
                 return descendant;
             }
+        }
+
+        return null;
+    }
+
+    private static T? FindVisualAncestor<T>(DependencyObject child)
+        where T : DependencyObject
+    {
+        var current = VisualTreeHelper.GetParent(child);
+        while (current is not null)
+        {
+            if (current is T match)
+            {
+                return match;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
         }
 
         return null;

@@ -13,7 +13,8 @@ description: SwiftExport WPF DataGrid 列扩展技能。用于原生 DataGridCol
 
 ## 便利列边界
 
-- Lookup 需要模板生成时，可提供基于 `DataGridTemplateColumn` 的薄便利列。
+- 业务列默认使用原生 `DataGridTextColumn`、`DataGridComboBoxColumn`、`DataGridCheckBoxColumn`，视觉修改走 `ElementStyle/EditingElementStyle`。
+- 常规页面只允许图片列和需要直接点击/表头全选的复选列使用 `DataGridTemplateColumn`；复杂远程 Lookup 若必须使用模板编辑器，需作为明确例外评审，不能成为普通列默认写法。
 - 需要直接点击和 Header 全选时，使用基于 `DataGridTemplateColumn` 的 `CheckBoxDataGridColumn`；Item/All Binding 必须由宿主显式提供，不能约定 BaseLineModel 属性名。
 - Enum 优先组合原生 `DataGridComboBoxColumn`；Numeric 优先组合 `DataGridTextColumn`、Binding 转换和验证。
 - 便利列只负责呈现/编辑模板，不加载 API、不缓存业务字典、不写业务状态。

@@ -32,6 +32,52 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
         new PropertyMetadata(0d, OnHeaderMarginChanged),
         IsValidMargin);
 
+    /// <summary>表头 CheckBox 宽度；默认 Auto。</summary>
+    public static readonly DependencyProperty HeaderCheckBoxWidthProperty = DependencyProperty.Register(
+        nameof(HeaderCheckBoxWidth),
+        typeof(double),
+        typeof(CheckBoxDataGridColumn),
+        new PropertyMetadata(double.NaN, OnHeaderAppearanceChanged),
+        IsValidDimension);
+
+    /// <summary>表头 CheckBox 高度；默认 Auto。</summary>
+    public static readonly DependencyProperty HeaderCheckBoxHeightProperty = DependencyProperty.Register(
+        nameof(HeaderCheckBoxHeight),
+        typeof(double),
+        typeof(CheckBoxDataGridColumn),
+        new PropertyMetadata(double.NaN, OnHeaderAppearanceChanged),
+        IsValidDimension);
+
+    /// <summary>单元格 CheckBox 宽度；默认 Auto。</summary>
+    public static readonly DependencyProperty CellCheckBoxWidthProperty = DependencyProperty.Register(
+        nameof(CellCheckBoxWidth),
+        typeof(double),
+        typeof(CheckBoxDataGridColumn),
+        new PropertyMetadata(double.NaN, OnCellAppearanceChanged),
+        IsValidDimension);
+
+    /// <summary>单元格 CheckBox 高度；默认 Auto。</summary>
+    public static readonly DependencyProperty CellCheckBoxHeightProperty = DependencyProperty.Register(
+        nameof(CellCheckBoxHeight),
+        typeof(double),
+        typeof(CheckBoxDataGridColumn),
+        new PropertyMetadata(double.NaN, OnCellAppearanceChanged),
+        IsValidDimension);
+
+    /// <summary>表头 CheckBox 样式；为空时使用宿主主题默认样式。</summary>
+    public static readonly DependencyProperty HeaderCheckBoxStyleProperty = DependencyProperty.Register(
+        nameof(HeaderCheckBoxStyle),
+        typeof(Style),
+        typeof(CheckBoxDataGridColumn),
+        new PropertyMetadata(null, OnHeaderAppearanceChanged));
+
+    /// <summary>单元格 CheckBox 样式；为空时使用宿主主题默认样式。</summary>
+    public static readonly DependencyProperty CellCheckBoxStyleProperty = DependencyProperty.Register(
+        nameof(CellCheckBoxStyle),
+        typeof(Style),
+        typeof(CheckBoxDataGridColumn),
+        new PropertyMetadata(null, OnCellAppearanceChanged));
+
     /// <summary>初始化复选列；该列默认不可排序。</summary>
     public CheckBoxDataGridColumn()
     {
@@ -78,6 +124,48 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
         set => SetValue(HeaderCheckBoxMarginRightProperty, value);
     }
 
+    /// <summary>获取或设置表头 CheckBox 宽度；使用 NaN 表示 Auto。</summary>
+    public double HeaderCheckBoxWidth
+    {
+        get => (double)GetValue(HeaderCheckBoxWidthProperty);
+        set => SetValue(HeaderCheckBoxWidthProperty, value);
+    }
+
+    /// <summary>获取或设置表头 CheckBox 高度；使用 NaN 表示 Auto。</summary>
+    public double HeaderCheckBoxHeight
+    {
+        get => (double)GetValue(HeaderCheckBoxHeightProperty);
+        set => SetValue(HeaderCheckBoxHeightProperty, value);
+    }
+
+    /// <summary>获取或设置单元格 CheckBox 宽度；使用 NaN 表示 Auto。</summary>
+    public double CellCheckBoxWidth
+    {
+        get => (double)GetValue(CellCheckBoxWidthProperty);
+        set => SetValue(CellCheckBoxWidthProperty, value);
+    }
+
+    /// <summary>获取或设置单元格 CheckBox 高度；使用 NaN 表示 Auto。</summary>
+    public double CellCheckBoxHeight
+    {
+        get => (double)GetValue(CellCheckBoxHeightProperty);
+        set => SetValue(CellCheckBoxHeightProperty, value);
+    }
+
+    /// <summary>获取或设置表头 CheckBox 样式。</summary>
+    public Style? HeaderCheckBoxStyle
+    {
+        get => (Style?)GetValue(HeaderCheckBoxStyleProperty);
+        set => SetValue(HeaderCheckBoxStyleProperty, value);
+    }
+
+    /// <summary>获取或设置单元格 CheckBox 样式。</summary>
+    public Style? CellCheckBoxStyle
+    {
+        get => (Style?)GetValue(CellCheckBoxStyleProperty);
+        set => SetValue(CellCheckBoxStyleProperty, value);
+    }
+
     private void RefreshTemplates()
     {
         HeaderTemplate = CreateHeaderTemplate();
@@ -93,8 +181,9 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
 
     private DataTemplate CreateHeaderTemplate()
     {
-        var checkBoxFactory = CreateCheckBoxFactory();
-        checkBoxFactory.SetValue(
+        var checkBoxFactory = CreateCheckBoxFactory(HeaderCheckBoxStyle);
+        var viewboxFactory = CreateViewboxFactory(HeaderCheckBoxWidth, HeaderCheckBoxHeight);
+        viewboxFactory.SetValue(
             FrameworkElement.MarginProperty,
             new Thickness(HeaderCheckBoxMarginLeft, 0, HeaderCheckBoxMarginRight, 0));
         checkBoxFactory.SetValue(FrameworkElement.ToolTipProperty, "全选/取消全选");
@@ -113,13 +202,15 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
         });
         enabledBinding.Bindings.Add(new Binding(nameof(IsReadOnly)) { Source = this });
         checkBoxFactory.SetBinding(UIElement.IsEnabledProperty, enabledBinding);
+        viewboxFactory.AppendChild(checkBoxFactory);
 
-        return CreateTemplate(checkBoxFactory);
+        return CreateTemplate(viewboxFactory);
     }
 
     private DataTemplate CreateCellTemplate()
     {
-        var checkBoxFactory = CreateCheckBoxFactory();
+        var checkBoxFactory = CreateCheckBoxFactory(CellCheckBoxStyle);
+        var viewboxFactory = CreateViewboxFactory(CellCheckBoxWidth, CellCheckBoxHeight);
         if (ItemCheckBinding is not null)
         {
             checkBoxFactory.SetBinding(
@@ -137,17 +228,35 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
             RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(DataGridCell), 1)
         });
         checkBoxFactory.SetBinding(UIElement.IsEnabledProperty, enabledBinding);
+        viewboxFactory.AppendChild(checkBoxFactory);
 
-        return CreateTemplate(checkBoxFactory);
+        return CreateTemplate(viewboxFactory);
     }
 
-    private static FrameworkElementFactory CreateCheckBoxFactory()
+    private static FrameworkElementFactory CreateCheckBoxFactory(Style? style)
     {
         var checkBoxFactory = new FrameworkElementFactory(typeof(CheckBox));
         checkBoxFactory.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
         checkBoxFactory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
         checkBoxFactory.SetValue(System.Windows.Controls.Primitives.ToggleButton.IsThreeStateProperty, false);
+        if (style is not null)
+        {
+            checkBoxFactory.SetValue(FrameworkElement.StyleProperty, style);
+        }
+
         return checkBoxFactory;
+    }
+
+    private static FrameworkElementFactory CreateViewboxFactory(double width, double height)
+    {
+        var viewboxFactory = new FrameworkElementFactory(typeof(Viewbox));
+        viewboxFactory.SetValue(FrameworkElement.WidthProperty, width);
+        viewboxFactory.SetValue(FrameworkElement.HeightProperty, height);
+        viewboxFactory.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        viewboxFactory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        viewboxFactory.SetValue(Viewbox.StretchProperty, System.Windows.Media.Stretch.Uniform);
+        viewboxFactory.SetValue(Viewbox.StretchDirectionProperty, StretchDirection.Both);
+        return viewboxFactory;
     }
 
     private static DataTemplate CreateTemplate(FrameworkElementFactory visualTree)
@@ -158,11 +267,20 @@ public class CheckBoxDataGridColumn : DataGridTemplateColumn
     }
 
     private static void OnHeaderMarginChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e) =>
+        OnHeaderAppearanceChanged(dependencyObject, e);
+
+    private static void OnHeaderAppearanceChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e) =>
         ((CheckBoxDataGridColumn)dependencyObject).HeaderTemplate =
             ((CheckBoxDataGridColumn)dependencyObject).CreateHeaderTemplate();
 
+    private static void OnCellAppearanceChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e) =>
+        ((CheckBoxDataGridColumn)dependencyObject).RefreshCellTemplates();
+
     private static bool IsValidMargin(object value) =>
         value is double margin && double.IsFinite(margin) && margin >= 0;
+
+    private static bool IsValidDimension(object value) =>
+        value is double dimension && (double.IsNaN(dimension) || double.IsFinite(dimension) && dimension >= 0);
 
     private sealed class ReadOnlyStateToEnabledConverter : IMultiValueConverter
     {

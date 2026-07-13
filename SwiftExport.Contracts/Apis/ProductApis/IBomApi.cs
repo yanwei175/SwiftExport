@@ -1,6 +1,8 @@
 using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -17,5 +19,8 @@ namespace SwiftExport.Contracts.Apis.ProductApis
 
         [Get("/validate/{productSku}")]
         Task<ServiceResult<bool>> ValidateBomAsync(string productSku);
+
+        [Post("/batch-save")]
+        Task<ServiceResult<BomBatchSaveResponse>> BatchSaveAsync([Body] BomBatchSaveRequest request);
     }
 }

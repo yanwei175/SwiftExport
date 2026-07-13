@@ -1,424 +1,265 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.ProductApis;
+using SwiftExport.Contracts.Apis.SupplierApis;
+using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.Customers.Requests;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
-using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.DTOs.Suppliers;
+using SwiftExport.Contracts.DTOs.Suppliers.Requests;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Controls;
+using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.Categories.Services;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
-using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
-public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
+public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
 {
     private const int DefaultPageSize = 20;
     private readonly IProductApi _productApi;
+    private readonly ICustomerApi _customerApi;
+    private readonly IProductColorApi _colorApi;
+    private readonly IProductCategoryApi _categoryApi;
+    private readonly ISupplierApi _supplierApi;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
     private readonly IProductCategoryManagerDialogService _categoryManagerDialogService;
     private bool _isInitialized;
-    private string _keyword = string.Empty;
-    private string _categoryName = string.Empty;
-    private string _materialType = string.Empty;
-    private int _pageIndex = 1;
-    private int _pageSize = DefaultPageSize;
-    private int _totalCount;
-    private ProductLineModel? _selectedLine;
-    private string _resultSummary = "尚未加载产品资料。";
+    private bool _restoringSelection;
+    private long _customerSearchVersion;
+    private long _colorSearchVersion;
+    private long _supplierSearchVersion;
 
     public ProductsViewModel(
         IProductApi productApi,
+        ICustomerApi customerApi,
+        IProductColorApi colorApi,
+        IProductCategoryApi categoryApi,
+        ISupplierApi supplierApi,
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
         IDialogService dialogService,
-        IProductCategoryManagerDialogService categoryManagerDialogService)
+        IProductCategoryManagerDialogService categoryManagerDialogService,
+        BomDrawerViewModel bomDrawer)
     {
         _productApi = productApi;
+        _customerApi = customerApi;
+        _colorApi = colorApi;
+        _categoryApi = categoryApi;
+        _supplierApi = supplierApi;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _dialogService = dialogService;
         _categoryManagerDialogService = categoryManagerDialogService;
-
+        BomDrawer = bomDrawer;
         Title = "产品资料";
-        Lines = new BaseListModel<ProductLineModel, ProductDto>(_ => new ProductLineModel());
-        Lines.PropertyChanged += OnLinesPropertyChanged;
-
-        SearchCommand = new AsyncRelayCommand(SearchAsync, CanRunCommand);
-        ResetCommand = new AsyncRelayCommand(ResetAsync, CanRunCommand);
-        RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRunCommand);
-        PreviousPageCommand = new AsyncRelayCommand(PreviousPageAsync, CanGoPreviousPage);
-        NextPageCommand = new AsyncRelayCommand(NextPageAsync, CanGoNextPage);
-        PageChangeCommand = new AsyncRelayCommand<PageChangeRequest>(PageChangeAsync, CanChangePage);
-        AddRowCommand = new RelayCommand(AddRow, CanWriteCommand);
-        DeleteSelectedCommand = new AsyncRelayCommand(DeleteSelectedAsync, CanDeleteSelected);
-        RejectChangesCommand = new RelayCommand(RejectProductChanges, CanRejectChanges);
-        SaveCommand = new AsyncRelayCommand(SaveAsync, CanSave);
-        OpenCategoryManagerCommand = new AsyncRelayCommand(OpenCategoryManagerAsync, CanRunCommand);
+        Products.PropertyChanged += OnProductsPropertyChanged;
+        BomDrawer.SelectionRestoreRequested += (_, product) => RestoreSelection(product);
 
         RegisterBusyAwareCommand(SearchCommand);
-        RegisterBusyAwareCommand(ResetCommand);
         RegisterBusyAwareCommand(RefreshCommand);
-        RegisterBusyAwareCommand(PreviousPageCommand);
-        RegisterBusyAwareCommand(NextPageCommand);
-        RegisterBusyAwareCommand(PageChangeCommand);
+        RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(AddRowCommand);
         RegisterBusyAwareCommand(DeleteSelectedCommand);
-        RegisterBusyAwareCommand(RejectChangesCommand);
-        RegisterBusyAwareCommand(SaveCommand);
-        RegisterBusyAwareCommand(OpenCategoryManagerCommand);
+        RegisterBusyAwareCommand(RejectProductChangesCommand);
+        RegisterBusyAwareCommand(PageChangeCommand);
     }
 
-    public string Description { get; } = "查询、编辑和维护产品基础资料。";
+    public ProductListModel Products { get; } = new();
+    public BomDrawerViewModel BomDrawer { get; }
+    public ObservableCollection<CustomerDto> CustomerCandidates { get; } = [];
+    public ObservableCollection<ProductColorDto> ColorCandidates { get; } = [];
+    public ObservableCollection<ProductCategoryDto> CategoryCandidates { get; } = [];
+    public ObservableCollection<SupplierDto> SupplierCandidates { get; } = [];
+    public IReadOnlyList<string> MaterialTypes { get; } = MaterialTypesEnum.MaterialTypes;
+    public IReadOnlyList<string> SupplyTypes { get; } = SupplyTypeEnums.SupplyTypes;
 
-    public BaseListModel<ProductLineModel, ProductDto> Lines { get; }
+    [ObservableProperty] private string keyword = string.Empty;
+    [ObservableProperty] private CustomerDto? filterCustomer;
+    [ObservableProperty] private ProductColorDto? filterColor;
+    [ObservableProperty] private ProductCategoryDto? filterCategory;
+    [ObservableProperty] private string? filterMaterialType;
+    [ObservableProperty] private ProductCategoryDto? editCategory;
+    [ObservableProperty] private ProductColorDto? editColor;
+    [ObservableProperty] private CustomerDto? editCustomer;
+    [ObservableProperty] private SupplierDto? editSupplier;
+    [ObservableProperty] private bool isCustomerLookupBusy;
+    [ObservableProperty] private bool isColorLookupBusy;
+    [ObservableProperty] private bool isSupplierLookupBusy;
 
-    public string Keyword
-    {
-        get => _keyword;
-        set => SetProperty(ref _keyword, value);
-    }
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
+    private ProductLineModel? selectedLine;
 
-    public string CategoryName
-    {
-        get => _categoryName;
-        set => SetProperty(ref _categoryName, value);
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    private int pageIndex = 1;
 
-    public string MaterialType
-    {
-        get => _materialType;
-        set => SetProperty(ref _materialType, value);
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalPages))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    private int pageSize = DefaultPageSize;
 
-    public int PageIndex
-    {
-        get => _pageIndex;
-        private set
-        {
-            if (SetProperty(ref _pageIndex, value))
-            {
-                OnPropertyChanged(nameof(PageStatus));
-                NotifyPagingCommands();
-            }
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalPages))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    private int totalCount;
 
-    public int PageSize
-    {
-        get => _pageSize;
-        set
-        {
-            var normalized = value <= 0 ? DefaultPageSize : value;
-            if (SetProperty(ref _pageSize, normalized))
-            {
-                OnPropertyChanged(nameof(TotalPages));
-                OnPropertyChanged(nameof(PageStatus));
-                NotifyPagingCommands();
-            }
-        }
-    }
-
-    public int TotalCount
-    {
-        get => _totalCount;
-        private set
-        {
-            if (SetProperty(ref _totalCount, value))
-            {
-                OnPropertyChanged(nameof(TotalPages));
-                OnPropertyChanged(nameof(PageStatus));
-                NotifyPagingCommands();
-            }
-        }
-    }
+    [ObservableProperty] private string resultSummary = "尚未加载产品资料。";
 
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
-
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
-
-    public ProductLineModel? SelectedLine
-    {
-        get => _selectedLine;
-        set
-        {
-            if (SetProperty(ref _selectedLine, value))
-            {
-                Lines.SelectedItem = value;
-                DeleteSelectedCommand.NotifyCanExecuteChanged();
-            }
-        }
-    }
-
-    public string ResultSummary
-    {
-        get => _resultSummary;
-        private set => SetProperty(ref _resultSummary, value);
-    }
-
-    public bool HasChanges => Lines.HasChanges;
-
-    public IAsyncRelayCommand SearchCommand { get; }
-
-    public IAsyncRelayCommand ResetCommand { get; }
-
-    public IAsyncRelayCommand RefreshCommand { get; }
-
-    public IAsyncRelayCommand PreviousPageCommand { get; }
-
-    public IAsyncRelayCommand NextPageCommand { get; }
-
-    public IAsyncRelayCommand<PageChangeRequest> PageChangeCommand { get; }
-
-    public IRelayCommand AddRowCommand { get; }
-
-    public IAsyncRelayCommand DeleteSelectedCommand { get; }
-
-    public IRelayCommand RejectChangesCommand { get; }
-
-    public IAsyncRelayCommand SaveCommand { get; }
-
-    public IAsyncRelayCommand OpenCategoryManagerCommand { get; }
+    public bool HasChanges => Products.HasChanges;
 
     public async Task InitializeAsync()
     {
-        if (_isInitialized)
-        {
-            return;
-        }
-
+        if (_isInitialized) return;
         _isInitialized = true;
-        await LoadPageAsync(confirmChanges: false);
+        await LoadCategoriesAsync();
+        await LoadPageAsync(false);
     }
 
-    private Task SearchAsync()
+    partial void OnSelectedLineChanged(ProductLineModel? value)
     {
-        return SearchCoreAsync();
+        Products.SelectedItem = value;
+        if (!_restoringSelection) BomDrawer.NotifyProductSelection(value);
     }
 
-    private async Task ResetAsync()
-    {
-        if (!await EnsureCanDiscardChangesAsync())
-        {
-            return;
-        }
+    partial void OnPageIndexChanged(int value) => PageChangeCommand.NotifyCanExecuteChanged();
+    partial void OnPageSizeChanged(int value) => PageChangeCommand.NotifyCanExecuteChanged();
 
-        Keyword = string.Empty;
-        CategoryName = string.Empty;
-        MaterialType = string.Empty;
-        PageSize = DefaultPageSize;
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private async Task SearchAsync(string? query)
+    {
+        if (query is not null) Keyword = query;
+        if (!await EnsureCanDiscardChangesAsync()) return;
         PageIndex = 1;
-        await LoadPageAsync(confirmChanges: false);
+        await LoadPageAsync(false);
     }
 
-    private Task RefreshAsync()
-    {
-        return LoadPageAsync(confirmChanges: true);
-    }
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private Task RefreshAsync() => LoadPageAsync(true);
 
-    private Task PreviousPageAsync()
-    {
-        return GoToPageAsync(Math.Max(1, PageIndex - 1));
-    }
-
-    private Task NextPageAsync()
-    {
-        return GoToPageAsync(Math.Min(TotalPages, PageIndex + 1));
-    }
-
-    private Task PageChangeAsync(PageChangeRequest? request)
-    {
-        if (request is null)
-        {
-            return Task.CompletedTask;
-        }
-
-        return GoToPageAsync(request.NewIndex, request.NewSize);
-    }
-
-    private async Task SearchCoreAsync()
-    {
-        if (!await EnsureCanDiscardChangesAsync())
-        {
-            return;
-        }
-
-        PageIndex = 1;
-        await LoadPageAsync(confirmChanges: false);
-    }
-
-    private Task GoToPageAsync(int targetPage)
-    {
-        return GoToPageAsync(targetPage, PageSize);
-    }
-
-    private async Task GoToPageAsync(int targetPage, int targetPageSize)
-    {
-        var normalizedPageSize = targetPageSize <= 0 ? DefaultPageSize : targetPageSize;
-        var normalizedPageIndex = Math.Max(1, targetPage);
-
-        if (normalizedPageIndex == PageIndex && normalizedPageSize == PageSize)
-        {
-            return;
-        }
-
-        var previousPage = PageIndex;
-        var previousPageSize = PageSize;
-        PageSize = normalizedPageSize;
-        PageIndex = normalizedPageIndex;
-        var loaded = await LoadPageAsync(confirmChanges: true);
-        if (!loaded)
-        {
-            PageIndex = previousPage;
-            PageSize = previousPageSize;
-        }
-    }
-
+    [RelayCommand(CanExecute = nameof(CanWriteCommand))]
     private void AddRow()
     {
-        var line = Lines.AddNew(new ProductDto
-        {
-            Uid = Guid.Empty,
-            Sku = string.Empty,
-            MasterSku = string.Empty,
-            DescriptionEn = string.Empty,
-            DescriptionZh = string.Empty,
-            CategoryName = string.Empty,
-            MaterialType = string.Empty,
-            SupplyType = string.Empty,
-            BomNo = string.Empty,
-            Note = string.Empty,
-        });
-
-        SelectedLine = line;
+        SelectedLine = Products.AddNewProduct();
         UpdateChangeState();
     }
 
+    [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
     private async Task DeleteSelectedAsync()
     {
-        if (SelectedLine is null)
-        {
-            return;
-        }
-
-        var confirmed = await _dialogService.ConfirmAsync(
-            "删除产品行",
-            $"确定要删除产品 {SelectedLine.Sku} 吗？保存前可以撤销。",
-            "删除");
-
-        if (!confirmed)
-        {
-            return;
-        }
-
-        Lines.Remove(SelectedLine);
-        SelectedLine = Lines.Items.FirstOrDefault();
+        if (SelectedLine is null) return;
+        if (!await _dialogService.ConfirmAsync("删除产品", $"确定删除产品 {SelectedLine.Sku} 吗？保存前可以撤销。", "删除")) return;
+        Products.Remove(SelectedLine);
+        SelectedLine = Products.Items.FirstOrDefault();
         UpdateChangeState();
     }
 
+    [RelayCommand(CanExecute = nameof(CanRejectChanges))]
     private void RejectProductChanges()
     {
-        Lines.RejectChanges();
-        SelectedLine = Lines.Items.FirstOrDefault();
-        RejectChanges();
+        Products.RejectChanges();
+        SelectedLine = Products.Items.FirstOrDefault();
         UpdateChangeState();
     }
 
-    private Task OpenCategoryManagerAsync()
-    {
-        return _categoryManagerDialogService.ShowAsync();
-    }
-
+    [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
         await RunWriteAsync(async () =>
         {
-            var validationError = await Lines.ValidateAllAsync();
-            if (!string.IsNullOrWhiteSpace(validationError))
+            var error = await Products.ValidateAllAsync();
+            if (!string.IsNullOrWhiteSpace(error))
             {
-                ValidationSummary = validationError;
-                _messageService.ShowWarning("产品资料未保存", validationError);
+                _messageService.ShowWarning("产品资料未保存", error);
                 return;
             }
 
-            var changeSet = Lines.GetChangeSet();
-            if (!changeSet.HasChanges)
-            {
-                _messageService.ShowInfo("产品资料", "没有需要保存的变更。");
-                return;
-            }
-
-            var request = new ProductBatchSaveRequest
-            {
-                CreateItems = changeSet.Added
-                    .Select(product => new CreateItemRequest<ProductDto> { Data = product })
-                    .ToList(),
-                UpdateItems = changeSet.Modified
-                    .Select(product => new UpdateItemRequest<ProductDto>
-                    {
-                        Uid = product.Uid,
-                        Version = product.Version,
-                        Data = product
-                    })
-                    .ToList(),
-                DeleteItems = changeSet.Deleted
-                    .Where(product => product.Uid != Guid.Empty)
-                    .Select(product => new DeleteItemRequest
-                    {
-                        Uid = product.Uid,
-                        Version = product.Version,
-                        IsSoftDelete = true
-                    })
-                    .ToList(),
-            };
-
-            if (!request.HasChanges)
-            {
-                Lines.AcceptChanges();
-                AcceptChanges();
-                UpdateChangeState();
-                _messageService.ShowInfo("产品资料", "新增行已移除，没有需要提交到服务端的变更。");
-                return;
-            }
-
-            var result = await _apiCallRunner.RunAsync(
-                () => _productApi.BatchSaveAsync(request),
-                "保存产品资料失败");
-
+            var request = Products.CreateSaveRequest();
+            if (!request.HasChanges) return;
+            var result = await _apiCallRunner.RunAsync(() => _productApi.BatchSaveAsync(request), "保存产品资料失败");
             if (!result.Success)
             {
-                ValidationSummary = result.Message;
                 _messageService.ShowError("保存产品资料失败", result.Message);
                 return;
             }
 
-            Lines.AcceptChanges();
-            AcceptChanges();
+            Products.AcceptChanges();
             UpdateChangeState();
-
-            var affectedRows = result.Data?.SuccessCount ?? 0;
-            _messageService.ShowSuccess("产品资料已保存", $"已提交 {affectedRows} 条变更。");
+            _messageService.ShowSuccess("产品资料已保存", $"已提交 {result.Data?.SuccessCount ?? 0} 条变更。");
             await LoadPageCoreAsync();
         }, "正在保存产品资料...");
     }
 
+    [RelayCommand]
+    private async Task ResetFiltersAsync()
+    {
+        if (!await EnsureCanDiscardChangesAsync()) return;
+        Keyword = string.Empty; FilterCustomer = null; FilterColor = null; FilterCategory = null; FilterMaterialType = null;
+        PageIndex = 1;
+        await LoadPageAsync(false);
+    }
+
+    [RelayCommand]
+    private Task OpenCategoryManagerAsync() => _categoryManagerDialogService.ShowAsync();
+
+    [RelayCommand]
+    private Task PageChangeAsync(PageChangeRequest? request)
+    {
+        if (request is null) return Task.CompletedTask;
+        return GoToPageAsync(request.NewIndex, request.NewSize);
+    }
+
+    [RelayCommand] private Task SearchCustomersAsync(string? keyword) => LoadCustomersAsync(keyword);
+    [RelayCommand] private Task SearchColorsAsync(string? keyword) => LoadColorsAsync(keyword);
+    [RelayCommand] private Task SearchSuppliersAsync(string? keyword) => LoadSuppliersAsync(keyword);
+
+    [RelayCommand]
+    private void CommitCategory(ProductLineModel? line)
+    {
+        if (line is null || EditCategory is null) return;
+        line.CategoryId = EditCategory.Uid; line.CategoryName = EditCategory.CategoryName ?? string.Empty;
+    }
+
+    [RelayCommand]
+    private void CommitColor(ProductLineModel? line)
+    {
+        if (line is null || EditColor is null) return;
+        line.ColorId = EditColor.Uid; line.Finish = EditColor.ColorNameZh ?? EditColor.ColorNameEn ?? string.Empty;
+    }
+
+    [RelayCommand]
+    private void CommitCustomer(ProductLineModel? line)
+    {
+        if (line is null || EditCustomer is null) return;
+        line.DefaultCustomerCode = EditCustomer.CustomerCode ?? string.Empty;
+    }
+
+    [RelayCommand]
+    private void CommitSupplier(ProductLineModel? line)
+    {
+        if (line is null || EditSupplier is null) return;
+        line.DefaultSupplierCode = EditSupplier.SupplierCode ?? string.Empty;
+        line.SupplierName = EditSupplier.SupplierName ?? string.Empty;
+    }
+
     private async Task<bool> LoadPageAsync(bool confirmChanges)
     {
-        if (confirmChanges && !await EnsureCanDiscardChangesAsync())
-        {
-            return false;
-        }
-
+        if (confirmChanges && !await EnsureCanDiscardChangesAsync()) return false;
         var loaded = false;
-        await RunBusyAsync(async () =>
-        {
-            loaded = await LoadPageCoreAsync();
-        }, "正在加载产品资料...");
-
+        await RunBusyAsync(async () => loaded = await LoadPageCoreAsync(), "正在加载产品资料...");
         return loaded;
     }
 
@@ -426,118 +267,95 @@ public sealed class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
     {
         var request = new ProductSearchRequest
         {
-            Keyword = NullIfWhiteSpace(Keyword),
-            CategoryName = NullIfWhiteSpace(CategoryName),
-            MaterialType = NullIfWhiteSpace(MaterialType),
-            PageIndex = PageIndex,
-            PageSize = PageSize,
+            Keyword = NullIfWhiteSpace(Keyword), CustomerId = FilterCustomer?.Uid ?? Guid.Empty,
+            ColorCodeUnique = FilterColor?.ColorCodeUnique, CategoryId = FilterCategory?.Uid ?? Guid.Empty,
+            MaterialType = FilterMaterialType, PageIndex = PageIndex, PageSize = PageSize,
         };
-
-        var result = await _apiCallRunner.RunAsync(
-            () => _productApi.GetPagedAsync(request),
-            "加载产品资料失败");
-
+        var result = await _apiCallRunner.RunAsync(() => _productApi.GetPagedAsync(request), "加载产品资料失败");
         if (!result.Success)
         {
-            ValidationSummary = result.Message;
             ResultSummary = "产品资料加载失败。";
             _messageService.ShowError("加载产品资料失败", result.Message);
             return false;
         }
 
         var page = result.Data;
-        Lines.LoadFromDtos(page?.Items ?? []);
-        SelectedLine = Lines.Items.FirstOrDefault();
-        TotalCount = page?.TotalCount ?? 0;
-        PageIndex = page?.PageIndex > 0 ? page.PageIndex : PageIndex;
+        Products.LoadFromDtos(page?.Items ?? []);
+        SelectedLine = Products.Items.FirstOrDefault();
+        TotalCount = page?.TotalCount ?? 0; PageIndex = page?.PageIndex > 0 ? page.PageIndex : PageIndex;
         PageSize = page?.PageSize > 0 ? page.PageSize : PageSize;
-        ResultSummary = $"共 {TotalCount} 条，本页 {Lines.Items.Count} 条。";
-        AcceptChanges();
-        UpdateChangeState();
-
+        ResultSummary = $"共 {TotalCount} 条，本页 {Products.Items.Count} 条。";
+        AcceptChanges(); UpdateChangeState();
         return true;
     }
 
-    private async Task<bool> EnsureCanDiscardChangesAsync()
+    private async Task GoToPageAsync(int index, int size)
     {
-        if (!Lines.HasChanges)
-        {
-            return true;
-        }
-
-        return await _dialogService.ConfirmAsync(
-            "放弃未保存变更",
-            "当前产品列表有未保存的修改。继续操作会放弃这些修改。",
-            "继续");
+        if (!await EnsureCanDiscardChangesAsync()) return;
+        PageIndex = Math.Max(1, index); PageSize = size <= 0 ? DefaultPageSize : size;
+        await LoadPageAsync(false);
     }
 
-    private bool CanRunCommand()
+    private async Task LoadCategoriesAsync()
     {
-        return IsNotBusy;
+        var result = await _apiCallRunner.RunAsync(() => _categoryApi.GetAllAsync(), "加载产品分类失败");
+        CategoryCandidates.ReplaceWith(result.Success ? result.Data ?? [] : []);
     }
 
-    private bool CanWriteCommand()
+    private async Task LoadCustomersAsync(string? keyword)
     {
-        return IsNotBusy && CanWrite;
+        var version = Interlocked.Increment(ref _customerSearchVersion); IsCustomerLookupBusy = true;
+        var result = await _apiCallRunner.RunAsync(() => _customerApi.GetPagedAsync(new CustomerSearchRequest { Keyword = keyword, PageIndex = 1, PageSize = 30 }), "搜索客户失败");
+        if (version == Volatile.Read(ref _customerSearchVersion)) CustomerCandidates.ReplaceWith(result.Success ? result.Data?.Items ?? [] : []);
+        IsCustomerLookupBusy = false;
     }
 
-    private bool CanDeleteSelected()
+    private async Task LoadColorsAsync(string? keyword)
     {
-        return IsNotBusy && CanWrite && SelectedLine is not null;
+        var version = Interlocked.Increment(ref _colorSearchVersion); IsColorLookupBusy = true;
+        var result = await _apiCallRunner.RunAsync(() => _colorApi.GetPagedAsync(new ProductColorSearchRequest { Keyword = keyword, PageIndex = 1, PageSize = 30 }), "搜索颜色失败");
+        if (version == Volatile.Read(ref _colorSearchVersion)) ColorCandidates.ReplaceWith(result.Success ? result.Data?.Items ?? [] : []);
+        IsColorLookupBusy = false;
     }
 
-    private bool CanRejectChanges()
+    private async Task LoadSuppliersAsync(string? keyword)
     {
-        return IsNotBusy && Lines.HasChanges;
+        var version = Interlocked.Increment(ref _supplierSearchVersion); IsSupplierLookupBusy = true;
+        var result = await _apiCallRunner.RunAsync(() => _supplierApi.GetPagedAsync(new SupplierSearchRequest { Keyword = keyword, PageIndex = 1, PageSize = 30 }), "搜索供应商失败");
+        if (version == Volatile.Read(ref _supplierSearchVersion)) SupplierCandidates.ReplaceWith(result.Success ? result.Data?.Items ?? [] : []);
+        IsSupplierLookupBusy = false;
     }
 
-    private bool CanSave()
+    private async Task<bool> EnsureCanDiscardChangesAsync() =>
+        !Products.HasChanges || await _dialogService.ConfirmAsync("放弃未保存变更", "当前产品列表有未保存修改，继续将放弃这些修改。", "继续");
+
+    private void RestoreSelection(ProductLineModel? product)
     {
-        return IsNotBusy && CanWrite && Lines.HasChanges;
+        _restoringSelection = true;
+        try { SelectedLine = product; }
+        finally { _restoringSelection = false; }
     }
 
-    private bool CanGoPreviousPage()
-    {
-        return IsNotBusy && PageIndex > 1;
-    }
-
-    private bool CanGoNextPage()
-    {
-        return IsNotBusy && PageIndex < TotalPages;
-    }
-
-    private bool CanChangePage(PageChangeRequest? request)
-    {
-        return IsNotBusy && request is not null;
-    }
-
-    private void OnLinesPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(BaseListModel<ProductLineModel, ProductDto>.HasChanges)
-            or nameof(BaseListModel<ProductLineModel, ProductDto>.CheckedCount))
-        {
-            UpdateChangeState();
-        }
-    }
-
+    private void OnProductsPropertyChanged(object? sender, PropertyChangedEventArgs e) => UpdateChangeState();
     private void UpdateChangeState()
     {
-        IsDirty = Lines.HasChanges;
-        OnPropertyChanged(nameof(HasChanges));
-        SaveCommand.NotifyCanExecuteChanged();
-        RejectChangesCommand.NotifyCanExecuteChanged();
-        DeleteSelectedCommand.NotifyCanExecuteChanged();
+        IsDirty = Products.HasChanges; OnPropertyChanged(nameof(HasChanges));
+        SaveCommand.NotifyCanExecuteChanged(); RejectProductChangesCommand.NotifyCanExecuteChanged(); DeleteSelectedCommand.NotifyCanExecuteChanged();
     }
 
-    private void NotifyPagingCommands()
-    {
-        PreviousPageCommand.NotifyCanExecuteChanged();
-        NextPageCommand.NotifyCanExecuteChanged();
-        PageChangeCommand.NotifyCanExecuteChanged();
-    }
+    private bool CanRun() => IsNotBusy;
+    private bool CanWriteCommand() => IsNotBusy && CanWrite;
+    private bool CanDeleteSelected() => IsNotBusy && CanWrite && SelectedLine is not null;
+    private bool CanRejectChanges() => IsNotBusy && Products.HasChanges;
+    private bool CanSave() => IsNotBusy && CanWrite && Products.HasChanges;
+    private static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
 
-    private static string? NullIfWhiteSpace(string value)
+internal static class ObservableCollectionExtensions
+{
+    public static void ReplaceWith<T>(this ObservableCollection<T> collection, IEnumerable<T> items)
     {
-        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        collection.Clear();
+        foreach (var item in items) collection.Add(item);
     }
 }

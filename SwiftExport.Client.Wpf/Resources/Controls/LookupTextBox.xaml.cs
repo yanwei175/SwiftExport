@@ -31,7 +31,7 @@ public partial class LookupTextBox : UserControl
     {
         InitializeComponent();
 
-        _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         _debounceTimer.Tick += DebounceTimer_Tick;
 
         Loaded += LookupTextBox_Loaded;
@@ -62,6 +62,72 @@ public partial class LookupTextBox : UserControl
     {
         get => (LookupTextBoxSearchMode)GetValue(SearchModeProperty);
         set => SetValue(SearchModeProperty, value);
+    }
+
+    public static readonly DependencyProperty SearchCommandProperty =
+        DependencyProperty.Register(
+            nameof(SearchCommand),
+            typeof(ICommand),
+            typeof(LookupTextBox),
+            new PropertyMetadata(null));
+
+    public ICommand? SearchCommand
+    {
+        get => (ICommand?)GetValue(SearchCommandProperty);
+        set => SetValue(SearchCommandProperty, value);
+    }
+
+    public static readonly DependencyProperty QueryCommandProperty =
+        DependencyProperty.Register(
+            nameof(QueryCommand),
+            typeof(ICommand),
+            typeof(LookupTextBox),
+            new PropertyMetadata(null));
+
+    public ICommand? QueryCommand
+    {
+        get => (ICommand?)GetValue(QueryCommandProperty);
+        set => SetValue(QueryCommandProperty, value);
+    }
+
+    public static readonly DependencyProperty SearchDelayProperty =
+        DependencyProperty.Register(
+            nameof(SearchDelay),
+            typeof(TimeSpan),
+            typeof(LookupTextBox),
+            new PropertyMetadata(TimeSpan.FromMilliseconds(300), OnSearchDelayChanged),
+            value => value is TimeSpan delay && delay >= TimeSpan.Zero);
+
+    public TimeSpan SearchDelay
+    {
+        get => (TimeSpan)GetValue(SearchDelayProperty);
+        set => SetValue(SearchDelayProperty, value);
+    }
+
+    public static readonly DependencyProperty MinimumSearchLengthProperty =
+        DependencyProperty.Register(
+            nameof(MinimumSearchLength),
+            typeof(int),
+            typeof(LookupTextBox),
+            new PropertyMetadata(1, null, (_, value) => Math.Max(0, (int)value)));
+
+    public int MinimumSearchLength
+    {
+        get => (int)GetValue(MinimumSearchLengthProperty);
+        set => SetValue(MinimumSearchLengthProperty, value);
+    }
+
+    public static readonly DependencyProperty IsBusyProperty =
+        DependencyProperty.Register(
+            nameof(IsBusy),
+            typeof(bool),
+            typeof(LookupTextBox),
+            new PropertyMetadata(false));
+
+    public bool IsBusy
+    {
+        get => (bool)GetValue(IsBusyProperty);
+        set => SetValue(IsBusyProperty, value);
     }
 
     public static readonly DependencyProperty TextProperty =
@@ -279,6 +345,11 @@ public partial class LookupTextBox : UserControl
         ((LookupTextBox)d).UpdateTextVisualState();
     }
 
+    private static void OnSearchDelayChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        ((LookupTextBox)d)._debounceTimer.Interval = (TimeSpan)e.NewValue;
+    }
+
     private static void OnTextChangedCallback(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var control = (LookupTextBox)d;
@@ -400,7 +471,7 @@ public partial class LookupTextBox : UserControl
         SyncTextDependencySilently(newText);
         UpdateTextVisualState();
 
-        if (ShouldUseLocalFilter())
+        if (ShouldUseLocalFilter() || SearchMode == LookupTextBoxSearchMode.Remote && SearchCommand is not null)
         {
             _debounceTimer.Stop();
             _debounceTimer.Start();
@@ -418,6 +489,7 @@ public partial class LookupTextBox : UserControl
 
         if (!ShouldUseLocalFilter())
         {
+            ExecuteSearchCommand();
             return;
         }
 
@@ -456,6 +528,13 @@ public partial class LookupTextBox : UserControl
             return;
         }
 
+        if (e.Key == Key.Enter && (!IsDropDownOpen || ResultList.Items.Count == 0))
+        {
+            ExecuteQueryCommand();
+            e.Handled = true;
+            return;
+        }
+
         if (!IsDropDownOpen || ResultList.Items.Count == 0)
         {
             return;
@@ -475,7 +554,14 @@ public partial class LookupTextBox : UserControl
         }
         else if (e.Key == Key.Enter || e.Key == Key.Tab)
         {
-            CommitSelection(ResultList.SelectedItem, e.Key == Key.Tab ? LookupCommitReason.Tab : LookupCommitReason.Enter);
+            if (ResultList.SelectedItem is not null)
+            {
+                CommitSelection(ResultList.SelectedItem, e.Key == Key.Tab ? LookupCommitReason.Tab : LookupCommitReason.Enter);
+            }
+            else if (e.Key == Key.Enter)
+            {
+                ExecuteQueryCommand();
+            }
             e.Handled = e.Key != Key.Tab;
         }
         else if (e.Key == Key.Escape)
@@ -663,6 +749,30 @@ public partial class LookupTextBox : UserControl
         if (command?.CanExecute(parameter) == true)
         {
             command.Execute(parameter);
+        }
+    }
+
+    private void ExecuteSearchCommand()
+    {
+        var text = (InputTextBox.Text ?? string.Empty).Trim();
+        if (text.Length < MinimumSearchLength)
+        {
+            IsDropDownOpen = false;
+            return;
+        }
+
+        if (SearchCommand?.CanExecute(text) == true)
+        {
+            SearchCommand.Execute(text);
+        }
+    }
+
+    private void ExecuteQueryCommand()
+    {
+        var text = (InputTextBox.Text ?? string.Empty).Trim();
+        if (QueryCommand?.CanExecute(text) == true)
+        {
+            QueryCommand.Execute(text);
         }
     }
 

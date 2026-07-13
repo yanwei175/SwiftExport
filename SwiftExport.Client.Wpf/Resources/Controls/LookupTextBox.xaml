@@ -64,6 +64,22 @@
                         </Style>
                     </Button.Style>
                 </Button>
+
+                <ProgressBar Height="2"
+                             VerticalAlignment="Bottom"
+                             IsIndeterminate="True">
+                    <ProgressBar.Style>
+                        <Style TargetType="{x:Type ProgressBar}"
+                               BasedOn="{StaticResource {x:Type ProgressBar}}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsBusy, ElementName=Root}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ProgressBar.Style>
+                </ProgressBar>
             </Grid>
         </Border>
 

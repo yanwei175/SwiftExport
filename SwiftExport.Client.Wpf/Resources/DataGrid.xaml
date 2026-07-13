@@ -15,7 +15,7 @@
         <Grid MinWidth="24"
               Background="Transparent"
               ToolTip="{Binding RelativeSource={RelativeSource AncestorType={x:Type DataGridRowHeader}}, Path=(gridState:GridRowPresentation.MarkerText)}"
-              AutomationProperties.Name="{Binding RelativeSource={RelativeSource AncestorType={x:Type DataGridRowHeader}}, Path=(gridState:GridRowPresentation.MarkerText)}">
+              AutomationProperties.Name="{Binding RelativeSource={RelativeSource AncestorType={x:Type DataGridRowHeader}}, Path=(gridState:GridRowPresentation.MarkerText), FallbackValue=普通行, TargetNullValue=普通行}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="4" />
                 <ColumnDefinition Width="*" />
@@ -85,7 +85,14 @@
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
     </Style>
+    <Style x:Key="SwiftExportDataGridWarpTextBox" TargetType="{x:Type TextBox}" BasedOn="{StaticResource SwiftExportDataGridTextBox}">
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="AcceptsReturn" Value="True" />
+    </Style>
 
+    
+    
+    
     <Style x:Key="SwiftExportDataGridNumberTextBox"
            TargetType="{x:Type TextBox}"
            BasedOn="{StaticResource SwiftExportDataGridTextBox}">
@@ -100,13 +107,14 @@
         <Setter Property="controls:PopupTextBoxAssist.PopupMinWidth" Value="320" />
     </Style>
 
-    <Style x:Key="SwiftExportDataGridColumnHeader" TargetType="{x:Type DataGridColumnHeader}" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+    <Style x:Key="SwiftExportDataGridColumnHeader" TargetType="{x:Type DataGridColumnHeader}" 
+           BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
         <Setter Property="Padding" Value="{DynamicResource SwiftExportDataGridHeaderPadding}" />
         <Setter Property="Background" Value="{DynamicResource SwiftExportBrush.DataGridHeaderBackground}" />
         <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.DataGridGridLine}" />
         <Setter Property="BorderThickness" Value="0,0,1,1" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
@@ -114,8 +122,9 @@
     <Style x:Key="SwiftExportDataGridCheckBoxColumnHeader"
            TargetType="{x:Type DataGridColumnHeader}"
            BasedOn="{StaticResource SwiftExportDataGridColumnHeader}">
-        <Setter Property="Padding" Value="0" />
-        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Padding" Value="10" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
@@ -126,6 +135,15 @@
         <Setter Property="Padding" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Stretch" />
+    </Style>
+
+    <Style x:Key="SwiftExportDataGridCompactCheckBox"
+           TargetType="{x:Type CheckBox}"
+           BasedOn="{StaticResource {x:Type CheckBox}}">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0" />
     </Style>
 
     <Style x:Key="SwiftExportDataGridRow" TargetType="{x:Type DataGridRow}" BasedOn="{StaticResource {x:Type DataGridRow}}">

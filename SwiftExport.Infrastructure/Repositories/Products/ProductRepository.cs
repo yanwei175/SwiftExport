@@ -305,7 +305,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
 
                     {dataFromClause}
                     {whereClause}
-                    ORDER BY p.{nameof(Product.Sku)} DESC
+                    ORDER BY p.{nameof(Product.Sku)} ASC
                     OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;
                     ";
 
