@@ -2,12 +2,15 @@ using Mapster;
 using System.Runtime.CompilerServices;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExportClient.Features.Customers.CustomerManagement.Models;
 using SwiftExportClient.Features.Customers.CustomerProducts.Models;
 using SwiftExportClient.Features.Products.Bom.Models;
 using SwiftExportClient.Features.Products.Categories.Models;
 using SwiftExportClient.Features.Products.Colors.Models;
 using SwiftExportClient.Features.Products.ProductList.Models;
+using SwiftExportClient.Features.Suppliers.SupplierManagement.Models;
+using SwiftExportClient.Features.Suppliers.SupplierProducts.Models;
 
 namespace SwiftExportClient.Mappings;
 
@@ -71,6 +74,26 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.USDPrice, src => src.UsdPrice)
             .Map(dest => dest.CNYPrice, src => src.CnyPrice)
             .Map(dest => dest.MOQ, src => src.Moq);
+
+        config.NewConfig<SupplierDto, SupplierLineModel>()
+            .IgnoreNullValues(true)
+            .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
+            .Map(dest => dest.Discount, src => src.ZheKou)
+            .Map(dest => dest.DiscountRemark, src => src.ZheKouBeiZhu)
+            .Map(dest => dest.DefaultLeadTimeDays, src => src.DefaultLeadTime);
+
+        config.NewConfig<SupplierLineModel, SupplierDto>()
+            .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted)
+            .Map(dest => dest.ZheKou, src => src.Discount)
+            .Map(dest => dest.ZheKouBeiZhu, src => src.DiscountRemark)
+            .Map(dest => dest.DefaultLeadTime, src => src.DefaultLeadTimeDays);
+
+        config.NewConfig<SupplierProductDto, SupplierProductLineModel>()
+            .IgnoreNullValues(true)
+            .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted);
+
+        config.NewConfig<SupplierProductLineModel, SupplierProductDto>()
+            .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted);
     }
 }
 

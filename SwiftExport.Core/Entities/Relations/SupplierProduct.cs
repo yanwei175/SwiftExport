@@ -6,12 +6,13 @@ namespace SwiftExport.Core.Entities.Relations;
 [Table("SupplierProduct")]
 public class SupplierProduct : BaseEntity
 {
-    public string? ProductSku { get; set; }
-    public string? SupplierCode { get; set; }
-    public string? SupplierSku { get; set; }
-    public string? SupplierSkuDescriptionEn { get; set; }
+    public Guid SupplierId { get; set; }
+    public required string SupplierCode { get; set; }
+    public Guid SkuId { get; set; }
+    public required string ProductSku { get; set; }
+    public required string SupplierSku { get; set; }
+    public string? SupplierSkuDescriptionZh { get; set; }
     public string? SupplierSkuFeaturesZh { get; set; }
-    public decimal UnitPrice { get; set; }
-    public decimal TaxPrice { get; set; }
-
+    public decimal? UnitPrice { get; set; }
+    public decimal? TaxPrice { get; set; }
 }

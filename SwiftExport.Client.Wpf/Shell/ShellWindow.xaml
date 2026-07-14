@@ -14,6 +14,8 @@
         xmlns:productListViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductList.ViewModels"
         xmlns:productPlaceholderViews="clr-namespace:SwiftExportClient.Features.Products.Placeholders.Views"
         xmlns:productPlaceholderViewModels="clr-namespace:SwiftExportClient.Features.Products.Placeholders.ViewModels"
+        xmlns:supplierViews="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierManagement.Views"
+        xmlns:supplierViewModels="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels"
         xmlns:purchasing="clr-namespace:SwiftExportClient.Features.Purchasing"
         xmlns:sales="clr-namespace:SwiftExportClient.Features.Sales"
         xmlns:shell="clr-namespace:SwiftExportClient.Shell"
@@ -49,8 +51,8 @@
         <DataTemplate DataType="{x:Type customerViewModels:CustomerManagerViewModel}">
             <customerViews:CustomerManagerView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type productPlaceholderViewModels:SupplierProductsViewModel}">
-            <productPlaceholderViews:ProductPlaceholderView />
+        <DataTemplate DataType="{x:Type supplierViewModels:SupplierManagerViewModel}">
+            <supplierViews:SupplierManagerView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type sales:SalesViewModel}">
             <sales:SalesView />

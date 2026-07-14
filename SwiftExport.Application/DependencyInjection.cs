@@ -30,6 +30,7 @@ public static class DependencyInjection
         // ✅ 补充注册客户产品服务
         services.AddScoped<ICustomerProductService, CustomerProductServices>();
         services.AddScoped<ISupplierService, SupplierService>();
+        services.AddScoped<ISupplierProductService, SupplierProductService>();
         services.AddScoped<IProductColorService, ProductColorService>();
         services.AddScoped<IProductCategoryService, ProductCategoryService>();
         services.AddScoped<ISysDictDataService, SysDictDataService>();

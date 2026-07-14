@@ -65,6 +65,7 @@ public static class ApiRegistrationExtensions
     private static void AddSupplierApis(this IServiceCollection services)
     {
         services.AddControllerApi<ISupplierApi>("Supplier");
+        services.AddControllerApi<ISupplierProductApi>("SupplierProduct");
     }
 
     private static void AddCustomerApis(this IServiceCollection services)

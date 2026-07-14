@@ -4,6 +4,11 @@ using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
 
+using SwiftExport.Contracts.DTOs.Suppliers;
+using SwiftExport.Contracts.DTOs.Suppliers.Requests;
+using SwiftExport.Contracts.Wrappers;
+using System.Text;
+
 namespace SwiftExport.Infrastructure.Repositories.Suppliers
 {
     public class SupplierRepository(RepositoryBaseContext context) : DapperRepository<Supplier>(context), ISupplierRepository
@@ -35,6 +40,77 @@ namespace SwiftExport.Infrastructure.Repositories.Suppliers
             var sql = $"SELECT SupplierCode FROM [{TableName}] WHERE  SupplierCode IN @Codes";
             var rst = await Connection.QueryAsync<string>(sql, new { Codes = supplierCodeList }, transaction: Transaction);
             return [.. rst];
+        }
+
+        public async Task<IReadOnlyList<string>> GetSupplierCodesUsedByOtherSuppliersAsync(
+            IEnumerable<(Guid Uid, string SupplierCode)> items)
+        {
+            var materialized = items.ToArray();
+            if (materialized.Length == 0) return [];
+            var sql = $"""
+                SELECT DISTINCT SupplierCode
+                FROM [{TableName}]
+                WHERE SupplierCode IN @Codes
+                  AND Uid NOT IN @Uids;
+                """;
+            return (await Connection.QueryAsync<string>(sql, new
+            {
+                Codes = materialized.Select(item => item.SupplierCode),
+                Uids = materialized.Select(item => item.Uid),
+            }, transaction: Transaction)).ToList();
+        }
+
+        public async Task<PagedResponseBase<SupplierDto>> GetPagedAsync(SupplierSearchRequest request)
+        {
+            request ??= new SupplierSearchRequest();
+            var pageIndex = Math.Max(1, request.PageIndex);
+            var pageSize = Math.Min(request.PageSize <= 0 ? 20 : request.PageSize, 200);
+            var parameters = new DynamicParameters(new
+            {
+                Offset = (pageIndex - 1) * pageSize,
+                PageSize = pageSize,
+            });
+            var where = new StringBuilder();
+            where.AppendLine("WHERE ISNULL(s.IsDeleted, 0) = 0");
+            if (!string.IsNullOrWhiteSpace(request.Keyword))
+            {
+                where.AppendLine("""
+                    AND (
+                           s.SupplierCode LIKE @Keyword
+                        OR s.SupplierName LIKE @Keyword
+                        OR s.DocRelateNo LIKE @Keyword
+                        OR s.ContactPerson LIKE @Keyword
+                    )
+                    """);
+                parameters.Add("Keyword", $"%{request.Keyword.Trim()}%");
+            }
+
+            var sql = $"""
+                SELECT COUNT(1)
+                FROM dbo.Supplier s
+                {where};
+
+                SELECT
+                    s.Uid, s.Version, s.IsDeleted,
+                    s.CreatedDate, s.CreatedBy, s.UpdatedDate, s.UpdatedBy,
+                    s.SupplierCode, s.SupplierName, s.ZheKou, s.ZheKouBeiZhu,
+                    s.DocRelateNo, s.ContactPerson, s.ContactEmail, s.ContactPhone,
+                    s.Address, s.Currency, s.TaxRate, s.PaymentTerms, s.DefaultLeadTime
+                FROM dbo.Supplier s
+                {where}
+                ORDER BY s.SupplierCode ASC, s.Uid ASC
+                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+                """;
+            using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
+            var totalCount = await multi.ReadFirstAsync<int>();
+            var suppliers = await multi.ReadAsync<SupplierDto>();
+            return new PagedResponseBase<SupplierDto>
+            {
+                Items = suppliers.ToList(),
+                TotalCount = totalCount,
+                PageIndex = pageIndex,
+                PageSize = pageSize,
+            };
         }
 
         /// <summary>

@@ -95,6 +95,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
                 p.{nameof(Product.MainImage)} AS {nameof(ProductLookupDto.MainImage)},
                 pc.{nameof(ProductColor.ColorNameZh)} AS {nameof(ProductLookupDto.Finish)},
                 p.{nameof(Product.FeaturesEn)} AS {nameof(ProductLookupDto.FeaturesEn)},
+                p.{nameof(Product.FeaturesZh)} AS {nameof(ProductLookupDto.FeaturesZh)},
                 p.{nameof(Product.MaterialType)} AS {nameof(ProductLookupDto.MaterialType)},
                 p.{nameof(Product.USDPrice)} AS {nameof(ProductLookupDto.USDPrice)},
                 p.{nameof(Product.CNYPrice)} AS {nameof(ProductLookupDto.CNYPrice)}

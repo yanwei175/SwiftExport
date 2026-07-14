@@ -20,11 +20,3 @@ public sealed class ProductBomViewModel : ProductPlaceholderViewModel
     {
     }
 }
-
-public sealed class SupplierProductsViewModel : ProductPlaceholderViewModel
-{
-    public SupplierProductsViewModel()
-        : base("供应商产品", "供应商产品页面将在后续阶段接入。")
-    {
-    }
-}

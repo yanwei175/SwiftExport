@@ -46,6 +46,7 @@ public static class DependencyInjection
         // 注册客户产品仓储
         services.AddScoped<ICustomerProductRepository, CustomerProductRepository>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
+        services.AddScoped<ISupplierProductRepository, SupplierProductRepository>();
         services.AddScoped<IProductColorRepository, ProductColorRepository>();
         services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
         services.AddScoped<ISysDicCurrencyRepository, SysDicCurrencyRepository>();

@@ -10,6 +10,8 @@ using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.Placeholders.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
+using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
+using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 using SwiftExportClient.Features.Purchasing;
 using SwiftExportClient.Features.Sales;
 using SwiftExportClient.Features.Shipping;
@@ -34,7 +36,8 @@ public static class ViewRegistrationExtensions
         services.AddTransient<ProductBomViewModel>();
         services.AddTransient<CustomerManagerViewModel>();
         services.AddTransient<CustomerProductManagerViewModel>();
-        services.AddTransient<SupplierProductsViewModel>();
+        services.AddTransient<SupplierManagerViewModel>();
+        services.AddTransient<SupplierProductManagerViewModel>();
         services.AddTransient<SalesViewModel>();
         services.AddTransient<PlanningViewModel>();
         services.AddTransient<PurchasingViewModel>();
