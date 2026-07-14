@@ -1,6 +1,9 @@
 using Mapster;
 using System.Runtime.CompilerServices;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExportClient.Features.Customers.CustomerManagement.Models;
+using SwiftExportClient.Features.Customers.CustomerProducts.Models;
 using SwiftExportClient.Features.Products.Bom.Models;
 using SwiftExportClient.Features.Products.Categories.Models;
 using SwiftExportClient.Features.Products.Colors.Models;
@@ -48,6 +51,26 @@ public sealed class MapsterConfig : IRegister
 
         config.NewConfig<BomLineModel, BomDto>()
             .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted);
+
+        config.NewConfig<CustomerDto, CustomerLineModel>()
+            .IgnoreNullValues(true)
+            .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted);
+
+        config.NewConfig<CustomerLineModel, CustomerDto>()
+            .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted);
+
+        config.NewConfig<CustomerProductDto, CustomerProductLineModel>()
+            .IgnoreNullValues(true)
+            .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
+            .Map(dest => dest.UsdPrice, src => src.USDPrice)
+            .Map(dest => dest.CnyPrice, src => src.CNYPrice)
+            .Map(dest => dest.Moq, src => src.MOQ);
+
+        config.NewConfig<CustomerProductLineModel, CustomerProductDto>()
+            .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted)
+            .Map(dest => dest.USDPrice, src => src.UsdPrice)
+            .Map(dest => dest.CNYPrice, src => src.CnyPrice)
+            .Map(dest => dest.MOQ, src => src.Moq);
     }
 }
 

@@ -103,6 +103,24 @@ public partial class ProductLookupTextBox : UserControl
         set => SetValue(SelectionCommittedCommandParameterProperty, value);
     }
 
+    public static readonly DependencyProperty SelectionClearedCommandProperty = DependencyProperty.Register(
+        nameof(SelectionClearedCommand), typeof(ICommand), typeof(ProductLookupTextBox), new PropertyMetadata(null));
+
+    public ICommand? SelectionClearedCommand
+    {
+        get => (ICommand?)GetValue(SelectionClearedCommandProperty);
+        set => SetValue(SelectionClearedCommandProperty, value);
+    }
+
+    public static readonly DependencyProperty SelectionClearedCommandParameterProperty = DependencyProperty.Register(
+        nameof(SelectionClearedCommandParameter), typeof(object), typeof(ProductLookupTextBox), new PropertyMetadata(null));
+
+    public object? SelectionClearedCommandParameter
+    {
+        get => GetValue(SelectionClearedCommandParameterProperty);
+        set => SetValue(SelectionClearedCommandParameterProperty, value);
+    }
+
     public static readonly DependencyProperty IsBusyProperty = DependencyProperty.Register(
         nameof(IsBusy),
         typeof(bool),

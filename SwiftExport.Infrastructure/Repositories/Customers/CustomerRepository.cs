@@ -57,17 +57,14 @@ public class CustomerRepository(RepositoryBaseContext context) : DapperRepositor
         request ??= new CustomerSearchRequest();
 
         var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
-        var pageSize = request.PageSize <= 0 ? 50 : request.PageSize;
-        // 防止前端一次请求太多
-        if (pageSize > 500)
-            pageSize = 500;
+        var pageSize = Math.Min(request.PageSize <= 0 ? 20 : request.PageSize, 200);
 
         var offset = (pageIndex - 1) * pageSize;
 
         var parameters = new DynamicParameters();
 
         var whereSb = new StringBuilder();
-        whereSb.AppendLine(@$"WHERE ISNULL(cpc.{nameof(Customer.IsDeleted)}, 0) = 0");
+        whereSb.AppendLine("WHERE ISNULL(c.IsDeleted, 0) = 0");
 
         // =========================================================
         // 1. 普通模糊关键词
@@ -78,8 +75,8 @@ public class CustomerRepository(RepositoryBaseContext context) : DapperRepositor
 
             whereSb.AppendLine(@$"
                                AND (
-                                       {nameof(Customer.CustomerCode)}       LIKE @Keyword
-                                    OR {nameof(Customer.CustomerName)}       LIKE @Keyword
+                                       c.CustomerCode LIKE @Keyword
+                                    OR c.CustomerName LIKE @Keyword
                                     )");
 
             parameters.Add("@Keyword", $"%{keyword}%");
@@ -92,14 +89,21 @@ public class CustomerRepository(RepositoryBaseContext context) : DapperRepositor
 
         var sql = $@"
                         SELECT COUNT(1)
-                        FROM
-                        {TableName}
+                        FROM dbo.[Customer] c
                         {whereClause};
-                        SELECT *
-                        FROM
-                        {TableName}
+                        SELECT
+                            c.Uid, c.Version, c.IsDeleted,
+                            c.CreatedDate, c.CreatedBy, c.UpdatedDate, c.UpdatedBy,
+                            c.CustomerCode, c.CustomerName, c.Address, c.PhoneNumber,
+                            c.ContactPerson, c.LabelFolderPath, c.ManualFolderPath,
+                            c.DrawingFolderPath, c.LinedrawingFolderPath,
+                            c.BarcodeFolderPath, c.SpecSheetFolderPath, c.DocRelateNo,
+                            c.IncotermSortRemark, c.Incoterm, c.IncotermLocation,
+                            c.DepositRate, c.LeadTimeDays, c.PaymentMethod, c.Currency,
+                            c.EtdSortRemark, c.ShippedBy
+                        FROM dbo.[Customer] c
                         {whereClause}
-                        ORDER BY {nameof(Customer.CustomerCode)} DESC
+                        ORDER BY c.CustomerCode ASC, c.Uid ASC
                         OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
                         ";
 

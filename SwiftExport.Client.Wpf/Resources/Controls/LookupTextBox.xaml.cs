@@ -447,6 +447,32 @@ public partial class LookupTextBox : UserControl
         DetachCollectionChanged();
     }
 
+    public static readonly DependencyProperty SelectionClearedCommandProperty =
+        DependencyProperty.Register(
+            nameof(SelectionClearedCommand),
+            typeof(ICommand),
+            typeof(LookupTextBox),
+            new PropertyMetadata(null));
+
+    public ICommand? SelectionClearedCommand
+    {
+        get => (ICommand?)GetValue(SelectionClearedCommandProperty);
+        set => SetValue(SelectionClearedCommandProperty, value);
+    }
+
+    public static readonly DependencyProperty SelectionClearedCommandParameterProperty =
+        DependencyProperty.Register(
+            nameof(SelectionClearedCommandParameter),
+            typeof(object),
+            typeof(LookupTextBox),
+            new PropertyMetadata(null));
+
+    public object? SelectionClearedCommandParameter
+    {
+        get => GetValue(SelectionClearedCommandParameterProperty);
+        set => SetValue(SelectionClearedCommandParameterProperty, value);
+    }
+
     private void InputTextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
         _hasUserInputIntent = false;
@@ -542,6 +568,10 @@ public partial class LookupTextBox : UserControl
         IsDropDownOpen = false;
         UpdateTextVisualState();
         InputTextBox.Focus();
+        if (SelectionClearedCommand?.CanExecute(SelectionClearedCommandParameter) == true)
+        {
+            SelectionClearedCommand.Execute(SelectionClearedCommandParameter);
+        }
     }
 
     private void InputTextBox_PreviewKeyDown(object sender, KeyEventArgs e)

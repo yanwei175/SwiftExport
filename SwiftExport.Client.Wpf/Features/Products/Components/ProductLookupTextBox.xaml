@@ -51,6 +51,8 @@
                             SearchCommand="{Binding SearchCommand, ElementName=Root}"
                             SelectionCommittedCommand="{Binding SelectionCommittedCommand, ElementName=Root}"
                             SelectionCommittedCommandParameter="{Binding SelectionCommittedCommandParameter, ElementName=Root}"
+                            SelectionClearedCommand="{Binding SelectionClearedCommand, ElementName=Root}"
+                            SelectionClearedCommandParameter="{Binding SelectionClearedCommandParameter, ElementName=Root}"
                             IsBusy="{Binding IsBusy, ElementName=Root}"
                             SearchDelay="{Binding SearchDelay, ElementName=Root}"
                             MinimumSearchLength="{Binding MinimumSearchLength, ElementName=Root}"

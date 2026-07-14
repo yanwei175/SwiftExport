@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Customers.Requests;
 using SwiftExport.Contracts.Wrappers;
@@ -10,171 +10,163 @@ using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Products;
 
-public partial class CustomerProductRepository(RepositoryBaseContext context)
+public sealed class CustomerProductRepository(RepositoryBaseContext context)
     : DapperRepository<CustomerProduct>(context), ICustomerProductRepository
 {
-    private static readonly string CustomerPoConfigTable = EntityMetadataCache.GetTableName<CustomerPoConfig>();
+    private const string SelectColumns = """
+        cp.Uid, cp.Version, cp.IsDeleted,
+        cp.CreatedDate, cp.CreatedBy, cp.UpdatedDate, cp.UpdatedBy,
+        cp.CustomerId, c.CustomerCode,
+        cp.SkuId, cp.Sku, cp.LinkSku,
+        COALESCE(p.DescriptionEn, cp.DescriptionEn) AS Description,
+        cp.DescriptionEn, cp.FeaturesEn,
+        pc.CategoryName, p.MaterialType, p.MainImage,
+        cp.CustomerSku, cp.CustomerPdDescription, cp.CustomerPdSeries,
+        cp.CustomerColorName, cp.CustomerPdFeatures,
+        cp.CustomerBarcode1, cp.CustomerBarcode2, cp.CustomerSkuUnit,
+        cp.USDPrice, cp.CNYPrice, cp.Currency,
+        cp.LeadTimeDays, cp.MOQ, cp.IsActive, cp.Note
+        """;
 
-    // ============================================================
-    // 按 ID 联表查询单条，返回完整 DTO
-    // ============================================================
-    /// <summary>
-    /// 按 ID 联表查询，返回含 CustomerCode / DescriptionEn / CategoryName 等联表字段的完整 DTO。
-    /// </summary>
+    private const string FromAndJoins = """
+        FROM dbo.CustomerProduct cp WITH (NOLOCK)
+        INNER JOIN dbo.Customer c WITH (NOLOCK) ON c.Uid = cp.CustomerId
+        LEFT JOIN dbo.Product p WITH (NOLOCK) ON p.Uid = cp.SkuId AND ISNULL(p.IsDeleted, 0) = 0
+        LEFT JOIN dbo.ProductCategory pc WITH (NOLOCK) ON pc.Uid = p.CategoryId AND ISNULL(pc.IsDeleted, 0) = 0
+        """;
+
     public async Task<CustomerProductDto?> GetDtoByIdAsync(Guid uid)
     {
-        const string sql = @"
-            SELECT
-                cp.Uid,
-                cp.CustomerId,
-                cp.SkuId,
-                cp.Sku,
-                cp.LinkSku,
-                cp.CustomerSku,
-                cp.CustomerPdSeries,
-                cp.CustomerPdDescription,
-                cp.CustomerColorName,
-                cp.CustomerPdFeatures,
-                cp.CustomerBarcode1,
-                cp.CustomerBarcode2,
-                cp.CustomerSkuUnit,
-                cp.USDPrice,
-                cp.CNYPrice,
-                cp.Currency,
-                cp.LeadTimeDays,
-                cp.MOQ,
-                cp.IsActive,
-                cp.IsDeleted,
-                c.CustomerCode,
-                p.DescriptionEn,
-                p.MainImage,
-                pc.CategoryName
-            FROM [CustomerProduct] cp WITH(NOLOCK)
-            LEFT JOIN [Product]         p  WITH(NOLOCK) ON cp.SkuId     = p.Uid
-            LEFT JOIN [Customer]        c  WITH(NOLOCK) ON cp.CustomerId = c.Uid
-            LEFT JOIN [ProductCategory] pc WITH(NOLOCK) ON p.CategoryId  = pc.Uid
-            WHERE cp.Uid = @Uid AND (cp.IsDeleted = 0 OR cp.IsDeleted IS NULL)";
-
+        var sql = $"""
+            SELECT {SelectColumns}
+            {FromAndJoins}
+            WHERE cp.Uid = @Uid
+              AND ISNULL(cp.IsDeleted, 0) = 0
+              AND ISNULL(c.IsDeleted, 0) = 0;
+            """;
         return await Connection.QueryFirstOrDefaultAsync<CustomerProductDto>(
             sql, new { Uid = uid }, transaction: Transaction);
     }
 
-    /// <summary>
-    /// 联表分页查询，返回 CustomerProductPagedItem 读模型。
-    /// 关联：CustomerProduct cp
-    ///        LEFT JOIN Product  p  ON cp.SkuId = p.Uid
-    ///        LEFT JOIN Customer c  ON cp.CustomerId = c.Uid
-    ///        LEFT JOIN ProductCategory pc ON p.CategoryId = pc.Uid
-    /// criteria 字段说明：
-    ///   - 直接写字段名（如 CustomerId / CustomerSku / Sku）→ 映射到 cp.字段
-    ///   - CategoryId → 映射到 p.CategoryId
-    /// </summary>
     public async Task<PagedResponseBase<CustomerProductDto>> GetPagedAsync(CustomerProductSearchRequest request)
     {
         request ??= new CustomerProductSearchRequest();
-
-        var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
-        var pageSize = request.PageSize <= 0 ? 50 : request.PageSize;
-        // 防止前端一次请求太多
-        if (pageSize > 500)
-            pageSize = 500;
-
-        var offset = (pageIndex - 1) * pageSize;
-
-        var parameters = new DynamicParameters();
-
-        var whereSb = new StringBuilder();
-        whereSb.AppendLine(@$"WHERE ISNULL(cpc.{nameof(CustomerProduct.IsDeleted)}, 0) = 0");
-
-        // =========================================================
-        // 1. 普通模糊关键词
-        // =========================================================
-        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        var pageIndex = Math.Max(1, request.PageIndex);
+        var pageSize = Math.Min(request.PageSize <= 0 ? 20 : request.PageSize, 200);
+        var parameters = new DynamicParameters(new
         {
-            var keyword = request.Keyword.Trim();
+            Offset = (pageIndex - 1) * pageSize,
+            PageSize = pageSize,
+        });
+        var where = new StringBuilder("WHERE ISNULL(cp.IsDeleted, 0) = 0 AND ISNULL(c.IsDeleted, 0) = 0");
 
-            whereSb.AppendLine(@$"
-                               AND (
-                                      {nameof(CustomerProduct.CustomerCode)}       LIKE @Keyword
-                                   OR {nameof(CustomerProduct.Sku)}       LIKE @Keyword
-                               )");
-
-            parameters.Add("@Keyword", $"%{keyword}%");
+        if (request.CustomerId != Guid.Empty)
+        {
+            where.AppendLine(" AND cp.CustomerId = @CustomerId");
+            parameters.Add("CustomerId", request.CustomerId);
         }
 
-        var whereClause = whereSb.ToString();
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            where.AppendLine("""
+                AND (
+                       cp.CustomerSku LIKE @Keyword
+                    OR cp.Sku LIKE @Keyword
+                    OR cp.LinkSku LIKE @Keyword
+                    OR cp.CustomerPdDescription LIKE @Keyword
+                    OR cp.CustomerPdSeries LIKE @Keyword
+                )
+                """);
+            parameters.Add("Keyword", $"%{request.Keyword.Trim()}%");
+        }
 
-        parameters.Add("@Offset", offset);
-        parameters.Add("@PageSize", pageSize);
+        var sql = $"""
+            SELECT COUNT(1)
+            {FromAndJoins}
+            {where};
 
-        var sql = $@"
-                        SELECT COUNT(1)
-                        FROM
-                        {TableName}
-                        {whereClause};
-                        SELECT *
-                        FROM
-                        {CustomerPoConfigTable}
-                        {whereClause}
-                        ORDER BY {nameof(CustomerProduct.CreatedDate)} DESC
-                        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
-                        ";
-
-
-        using var multi = await Connection.QueryMultipleAsync(
-            sql,
-            parameters,
-            transaction: Transaction);
-
+            SELECT {SelectColumns}
+            {FromAndJoins}
+            {where}
+            ORDER BY cp.CustomerSku ASC, cp.Uid ASC
+            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            """;
+        using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
         var total = await multi.ReadFirstAsync<int>();
         var items = await multi.ReadAsync<CustomerProductDto>();
-
         return new PagedResponseBase<CustomerProductDto>
         {
-            Items = [.. items],
+            Items = items.ToList(),
             TotalCount = total,
             PageIndex = pageIndex,
-            PageSize = pageSize
+            PageSize = pageSize,
         };
     }
 
-    // ============================================================
-    // 其他查询方法
-    // ============================================================
-
-    /// <summary>
-    /// 获取所有有客户产品记录的 CustomerId 列表（去重）
-    /// </summary>
-    public async Task<IReadOnlyList<int>> GetAllCustomerIdListAsync()
+    public async Task<IReadOnlyList<Guid>> GetAllCustomerIdListAsync()
     {
-        var sql = $"SELECT CustomerId FROM [{TableName}] WHERE CustomerId IS NOT NULL AND IsDeleted = 0 GROUP BY CustomerId";
-        var rst = await Connection.QueryAsync<int>(sql, transaction: Transaction);
-        return [.. rst];
+        const string sql = """
+            SELECT DISTINCT CustomerId
+            FROM dbo.CustomerProduct
+            WHERE CustomerId IS NOT NULL AND ISNULL(IsDeleted, 0) = 0;
+            """;
+        return (await Connection.QueryAsync<Guid>(sql, transaction: Transaction)).ToList();
     }
 
-    /// <summary>
-    /// 按客户料号 + 客户 ID 精确查找一条客户产品记录
-    /// </summary>
     public async Task<CustomerProduct?> GetByCustomerSkuAsync(string customerSku, Guid customerId)
     {
-        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE [CustomerSku] = @Sku AND [CustomerId] = @CustomerId AND IsDeleted = 0";
+        const string sql = """
+            SELECT * FROM dbo.CustomerProduct WITH (NOLOCK)
+            WHERE CustomerSku = @CustomerSku AND CustomerId = @CustomerId
+              AND ISNULL(IsDeleted, 0) = 0;
+            """;
         return await Connection.QueryFirstOrDefaultAsync<CustomerProduct>(
-            sql, new { Sku = customerSku, CustomerId = customerId }, transaction: Transaction);
+            sql, new { CustomerSku = customerSku, CustomerId = customerId }, transaction: Transaction);
     }
 
-    /// <summary>
-    /// 批量检查客户料号是否已存在（用于新增前去重校验）
-    /// </summary>
-    public async Task<IReadOnlyList<string>> GetExistingCustomerSkuListAsync(IEnumerable<string> skuList, Guid customerId)
+    public async Task<IReadOnlyList<string>> GetExistingCustomerSkuListAsync(
+        IEnumerable<string> skuList,
+        Guid customerId)
     {
-        var sql = $"SELECT CustomerSku FROM [{TableName}] WHERE CustomerSku IN @SkuList AND CustomerId = @CustomerId AND IsDeleted = 0";
-        var rst = await Connection.QueryAsync<string>(sql, new { SkuList = skuList, CustomerId = customerId }, transaction: Transaction);
-        return [.. rst];
+        const string sql = """
+            SELECT CustomerSku FROM dbo.CustomerProduct
+            WHERE CustomerSku IN @SkuList AND CustomerId = @CustomerId
+              AND ISNULL(IsDeleted, 0) = 0;
+            """;
+        return (await Connection.QueryAsync<string>(
+            sql, new { SkuList = skuList, CustomerId = customerId }, transaction: Transaction)).ToList();
     }
 
-    public Task<List<string>> GetCustomerCodesUsedByOtherCustomersAsync(IEnumerable<(Guid Uid, string CustomerCode)> items)
+    public async Task<IReadOnlyList<string>> GetCustomerSkusUsedByOtherRecordsAsync(
+        Guid customerId,
+        IEnumerable<(Guid Uid, string CustomerSku)> items)
     {
-        throw new NotImplementedException();
+        var materialized = items.ToArray();
+        if (materialized.Length == 0) return [];
+        const string sql = """
+            SELECT DISTINCT CustomerSku FROM dbo.CustomerProduct
+            WHERE CustomerId = @CustomerId
+              AND CustomerSku IN @Codes
+              AND Uid NOT IN @Uids
+              AND ISNULL(IsDeleted, 0) = 0;
+            """;
+        return (await Connection.QueryAsync<string>(sql, new
+        {
+            CustomerId = customerId,
+            Codes = materialized.Select(x => x.CustomerSku),
+            Uids = materialized.Select(x => x.Uid),
+        }, transaction: Transaction)).ToList();
+    }
+
+    public async Task<IReadOnlyList<Guid>> GetCustomerIdsWithProductsAsync(IEnumerable<Guid> customerIds)
+    {
+        var ids = customerIds.Distinct().ToArray();
+        if (ids.Length == 0) return [];
+        const string sql = """
+            SELECT DISTINCT CustomerId FROM dbo.CustomerProduct
+            WHERE CustomerId IN @CustomerIds AND ISNULL(IsDeleted, 0) = 0;
+            """;
+        return (await Connection.QueryAsync<Guid>(
+            sql, new { CustomerIds = ids }, transaction: Transaction)).ToList();
     }
 }
-

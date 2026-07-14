@@ -11,13 +11,15 @@ namespace SwiftExport.Contracts.DTOs.Customers
         // 外键
         public Guid CustomerId { get; set; }
         public string CustomerCode { get; set; }
-        public Guid SkuId { get; set; }
+        public Guid? SkuId { get; set; }
         public string Sku { get; set; }
         public string LinkSku { get; set; }
         public string Description { get; set; }
         public string CategoryName { get; set; }
         public string MaterialType { get; set; }
         public string MainImage { get; set; }
+        public string DescriptionEn { get; set; }
+        public string FeaturesEn { get; set; }
 
         // 客户自定义字段
         public string CustomerSku { get; set; }      // 客户料号
@@ -47,6 +49,7 @@ namespace SwiftExport.Contracts.DTOs.Customers
 
         // 状态
         public bool IsActive { get; set; }
+        public string Note { get; set; }
 
     }
 

@@ -3,6 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:home="clr-namespace:SwiftExportClient.Features.Home"
+        xmlns:customerViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerManagement.Views"
+        xmlns:customerViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerManagement.ViewModels"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:planning="clr-namespace:SwiftExportClient.Features.Planning"
@@ -44,8 +46,8 @@
         <DataTemplate DataType="{x:Type productPlaceholderViewModels:ProductBomViewModel}">
             <productPlaceholderViews:ProductPlaceholderView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type productPlaceholderViewModels:CustomerProductsViewModel}">
-            <productPlaceholderViews:ProductPlaceholderView />
+        <DataTemplate DataType="{x:Type customerViewModels:CustomerManagerViewModel}">
+            <customerViews:CustomerManagerView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type productPlaceholderViewModels:SupplierProductsViewModel}">
             <productPlaceholderViews:ProductPlaceholderView />

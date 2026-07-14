@@ -7,8 +7,7 @@ namespace SwiftExport.Application.Interfaces;
 
 /// <summary>
 /// 客户产品服务接口。
-/// 因 CustomerProduct 实体与 CustomerProductDto 不对称（DTO 含联表字段），
-/// 故不继承 IBaseService，独立定义读写方法，职责边界清晰。
+/// DTO 含联表字段；基础 CRUD 继承 IBaseService，联表分页和批量保存显式定义。
 /// </summary>
 public interface ICustomerProductService : IBaseService<CustomerProduct, CustomerProductDto>
 {

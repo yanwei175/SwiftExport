@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExportClient.Authentication;
+using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
+using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Features.Home;
 using SwiftExportClient.Features.Planning;
 using SwiftExportClient.Features.Products.Categories.Services;
@@ -30,7 +32,8 @@ public static class ViewRegistrationExtensions
         services.AddTransient<ProductCategoryManagerViewModel>();
         services.AddTransient<IProductCategoryManagerDialogService, ProductCategoryManagerDialogService>();
         services.AddTransient<ProductBomViewModel>();
-        services.AddTransient<CustomerProductsViewModel>();
+        services.AddTransient<CustomerManagerViewModel>();
+        services.AddTransient<CustomerProductManagerViewModel>();
         services.AddTransient<SupplierProductsViewModel>();
         services.AddTransient<SalesViewModel>();
         services.AddTransient<PlanningViewModel>();

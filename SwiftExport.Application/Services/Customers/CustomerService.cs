@@ -13,7 +13,10 @@ using SwiftExport.Core.Interfaces;
 using System.Text;
 namespace SwiftExport.Application.Services.Customers;
 
-public partial class CustomerService(ICustomerRepository repository, ServiceBaseContext context) : BaseService<Customer, CustomerDto>(repository, context), ICustomerService
+public partial class CustomerService(
+    ICustomerRepository repository,
+    ICustomerProductRepository customerProductRepository,
+    ServiceBaseContext context) : BaseService<Customer, CustomerDto>(repository, context), ICustomerService
 {
 
     private readonly ILogger<CustomerService> _logger = context.LoggerFactory.CreateLogger<CustomerService>();
@@ -319,6 +322,13 @@ public partial class CustomerService(ICustomerRepository repository, ServiceBase
         {
             return "删除失败：包含不存在的客户 Id：" +
                    string.Join(", ", notFoundUids);
+        }
+
+        var referencedCustomerIds = await customerProductRepository.GetCustomerIdsWithProductsAsync(uids);
+        if (referencedCustomerIds.Count > 0)
+        {
+            return "删除失败：以下客户仍有关联客户产品，请先删除客户产品：" +
+                   string.Join(", ", referencedCustomerIds);
         }
 
         return null;

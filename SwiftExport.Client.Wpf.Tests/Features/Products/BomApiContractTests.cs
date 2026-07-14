@@ -50,6 +50,10 @@ public sealed class BomApiContractTests
                 nameof(ProductLookupDto.CategoryName),
                 nameof(ProductLookupDto.MainImage),
                 nameof(ProductLookupDto.Finish),
+                nameof(ProductLookupDto.FeaturesEn),
+                nameof(ProductLookupDto.MaterialType),
+                nameof(ProductLookupDto.USDPrice),
+                nameof(ProductLookupDto.CNYPrice),
             },
             dtoProperties);
     }

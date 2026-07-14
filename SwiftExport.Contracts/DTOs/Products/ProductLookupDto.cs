@@ -15,5 +15,9 @@ namespace SwiftExport.Contracts.DTOs.Products
         public string CategoryName { get; set; }
         public string MainImage { get; set; }
         public string Finish { get; set; }
+        public string FeaturesEn { get; set; }
+        public string MaterialType { get; set; }
+        public decimal? USDPrice { get; set; }
+        public decimal? CNYPrice { get; set; }
     }
 }

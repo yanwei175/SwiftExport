@@ -21,14 +21,6 @@ public sealed class ProductBomViewModel : ProductPlaceholderViewModel
     }
 }
 
-public sealed class CustomerProductsViewModel : ProductPlaceholderViewModel
-{
-    public CustomerProductsViewModel()
-        : base("客户产品", "客户产品页面将在后续阶段接入。")
-    {
-    }
-}
-
 public sealed class SupplierProductsViewModel : ProductPlaceholderViewModel
 {
     public SupplierProductsViewModel()

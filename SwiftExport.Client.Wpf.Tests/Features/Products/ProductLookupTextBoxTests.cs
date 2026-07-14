@@ -213,6 +213,39 @@ public sealed class ProductLookupTextBoxTests
         });
     }
 
+    [TestMethod]
+    public void ProductLookup_ClearButton_ShouldForwardExplicitClearCommand()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var parameter = new object();
+            var command = new RecordingCommand();
+            var lookup = new ProductLookupTextBox
+            {
+                Text = "SKU-1",
+                SelectionClearedCommand = command,
+                SelectionClearedCommandParameter = parameter,
+            };
+            var window = new Window { Width = 400, Height = 120, ShowInTaskbar = false, WindowStyle = WindowStyle.None, Content = lookup };
+            try
+            {
+                window.Show();
+                await WaitForDispatcherAsync(20);
+                var editor = FindVisualChild<LookupTextBox>(lookup);
+                Assert.IsNotNull(editor);
+                var clear = (Button?)editor.FindName("BtnClear");
+                Assert.IsNotNull(clear);
+                clear.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.AreEqual(1, command.ExecutionCount);
+                Assert.AreSame(parameter, command.LastParameter);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
     private static DataGridTemplateColumn CreateLookupColumn()
     {
 #pragma warning disable CS0618

@@ -5,6 +5,7 @@ using SwiftExport.Contracts.DTOs.Customers.Requests;
 using SwiftExport.Contracts.DTOs.Customers.Responses;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
+using System;
 using System.Threading.Tasks;
 namespace SwiftExport.Contracts.Apis.CustomerApis
 {
@@ -17,7 +18,7 @@ namespace SwiftExport.Contracts.Apis.CustomerApis
         Task<ServiceResult<List<CustomerDto>>> GetAllHaveProductCustomerList();
 
         [Get("/customersku/{sku}")]
-        Task<ServiceResult<CustomerProductDto>> GetByCustomerSku(int customerId, string sku);
+        Task<ServiceResult<CustomerProductDto>> GetByCustomerSku(Guid customerId, string sku);
 
         [Post("/batch-save")]
         Task<ServiceResult<CustomerProductBatchSaveResponse>> BatchSaveAsync([Body] CustomerProductBatchSaveRequest request);

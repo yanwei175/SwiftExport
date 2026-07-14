@@ -21,6 +21,8 @@ public sealed class LookupTextBoxTests
         {
             var item = new LookupItem("A");
             var searchCommand = new RecordingCommand();
+            var clearedCommand = new RecordingCommand();
+            var clearedParameter = new object();
             var lookup = new LookupTextBox
             {
                 SearchMode = LookupTextBoxSearchMode.Remote,
@@ -30,7 +32,9 @@ public sealed class LookupTextBoxTests
                 ItemsSource = new[] { item },
                 DisplayMemberPath = nameof(LookupItem.Name),
                 SelectedValuePath = nameof(LookupItem.Name),
-                SelectedItem = item
+                SelectedItem = item,
+                SelectionClearedCommand = clearedCommand,
+                SelectionClearedCommandParameter = clearedParameter,
             };
             var window = new Window
             {
@@ -78,6 +82,8 @@ public sealed class LookupTextBoxTests
                 Assert.IsFalse(lookup.HasTextOrSelection);
                 Assert.IsFalse(lookup.IsDropDownOpen);
                 Assert.AreEqual(0, searchCommand.ExecutionCount, "清除操作不得触发远程搜索。");
+                Assert.AreEqual(1, clearedCommand.ExecutionCount, "只有显式点击清除按钮才发布解除关联命令。");
+                Assert.AreSame(clearedParameter, clearedCommand.LastParameter);
             }
             finally
             {

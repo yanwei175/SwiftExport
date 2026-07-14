@@ -15,8 +15,7 @@ namespace SwiftExport.Application.Services.Customers;
 
 /// <summary>
 /// 客户产品服务。
-/// 因 CustomerProduct 实体与 CustomerProductDto 不对称（DTO 含联表字段），
-/// 不继承 BaseService，写操作手动映射实体字段，读操作走仓储联表查询直接返回 DTO。
+/// DTO 含联表只读字段；写操作复用 BaseService 的实体映射，读操作走仓储联表 DTO 查询。
 /// </summary>
 public class CustomerProductServices(
     ICustomerRepository customerRepository,
@@ -24,8 +23,6 @@ public class CustomerProductServices(
     ServiceBaseContext context)
     : BaseService<CustomerProduct, CustomerProductDto>(repository, context), ICustomerProductService
 {
-    private readonly ILogger? _loggerInstance;
-
     /// <summary>按 ID 联表查询单条（含 CustomerCode / DescriptionEn / CategoryName 等）</summary>
     public override async Task<ServiceResult<CustomerProductDto>> GetByIdAsync(Guid id)
     {
@@ -79,7 +76,7 @@ public class CustomerProductServices(
         if (ids == null || ids.Count == 0)
             return ServiceResult<IReadOnlyList<CustomerDto>>.Fail("暂无客户产品记录");
 
-        var list = await customerRepository.GetByIdListAsync(ids.Select(x => Guid.Empty));
+        var list = await customerRepository.GetByIdListAsync(ids);
         if (list == null || list.Count == 0)
             return ServiceResult<IReadOnlyList<CustomerDto>>.Fail("未找到对应客户");
 
@@ -127,7 +124,7 @@ public class CustomerProductServices(
                 if (!writeResult.Success)
                 {
                     throw new InvalidOperationException(
-                        writeResult.Message ?? "新增客户失败。");
+                        writeResult.Message ?? "新增客户产品失败。");
                 }
             }
 
@@ -146,7 +143,7 @@ public class CustomerProductServices(
                 if (!writeResult.Success)
                 {
                     throw new InvalidOperationException(
-                        writeResult.Message ?? "更新客户失败。");
+                        writeResult.Message ?? "更新客户产品失败。");
                 }
             }
 
@@ -163,7 +160,7 @@ public class CustomerProductServices(
                 if (!writeResult.Success)
                 {
                     throw new InvalidOperationException(
-                        writeResult.Message ?? "删除客户失败。");
+                        writeResult.Message ?? "删除客户产品失败。");
                 }
             }
 
@@ -186,6 +183,25 @@ public class CustomerProductServices(
     private async Task<string?> ValidateBatchSaveAsync(CustomerProductBatchSaveRequest batchReq)
     {
         var errorMsg = new StringBuilder();
+
+        var submittedRows = batchReq.CreateItems
+            .Where(x => x.Data is not null)
+            .Select(x => (x.Data.CustomerId, CustomerSku: x.Data.CustomerSku?.Trim(), x.RowIndex))
+            .Concat(batchReq.UpdateItems
+                .Where(x => x.Data is not null)
+                .Select(x => (x.Data.CustomerId, CustomerSku: x.Data.CustomerSku?.Trim(), x.RowIndex)))
+            .Where(x => x.CustomerId != Guid.Empty && !string.IsNullOrWhiteSpace(x.CustomerSku))
+            .ToList();
+        var duplicateRows = submittedRows
+            .GroupBy(x => new { x.CustomerId, CustomerSku = x.CustomerSku!.ToUpperInvariant() })
+            .Where(group => group.Count() > 1)
+            .Select(group => group.First().CustomerSku)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (duplicateRows.Count > 0)
+        {
+            errorMsg.AppendLine("本次提交中同一客户存在重复客户料号：" + string.Join(", ", duplicateRows));
+        }
 
         if (batchReq.CreateItems.Count > 0)
         {
@@ -220,12 +236,16 @@ public class CustomerProductServices(
     }
     protected override async Task<string?> ValidateBeforeCreateAsync(List<CreateItemRequest<CustomerProductDto>> createItems)
     {
-        var cSkuList = new List<string>();
         foreach (var item in createItems)
         {
             if (item.Data == null)
             {
                 return $"第 {item.RowIndex} 行：新增数据不能为空。";
+            }
+
+            if (item.Data.CustomerId == Guid.Empty)
+            {
+                return $"第 {item.RowIndex} 行：客户 ID 不能为空。";
             }
 
             if (string.IsNullOrWhiteSpace(item.Data.CustomerCode))
@@ -235,31 +255,18 @@ public class CustomerProductServices(
 
             if (string.IsNullOrWhiteSpace(item.Data.CustomerSku))
             {
-                return $"第 {item.RowIndex} 行：客户产品编号不能为空。";
+                return $"第 {item.RowIndex} 行：客户料号不能为空。";
             }
-
-            cSkuList.Add(item.Data.CustomerSku.Trim());
         }
 
-        var duplicateInRequest = cSkuList
-            .GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key)
-            .ToList();
-
-        if (duplicateInRequest.Count > 0)
+        foreach (var group in createItems.GroupBy(x => x.Data.CustomerId))
         {
-            return "新增失败：本次提交中存在重复客户代码：" +
-                   string.Join(", ", duplicateInRequest);
-        }
-        var customerUid = createItems.FirstOrDefault()?.Data?.CustomerId ?? Guid.Empty;
-
-        var existedCodes = await repository.GetExistingCustomerSkuListAsync(cSkuList, customerUid);
-
-        if (existedCodes.Count > 0)
-        {
-            return "新增失败：客户代码在数据库中已存在：" +
-                   string.Join(", ", existedCodes);
+            var skus = group.Select(x => x.Data.CustomerSku.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            var existing = await repository.GetExistingCustomerSkuListAsync(skus, group.Key);
+            if (existing.Count > 0)
+            {
+                return "新增失败：客户料号在该客户下已存在：" + string.Join(", ", existing);
+            }
         }
 
         return null;
@@ -283,6 +290,11 @@ public class CustomerProductServices(
                 return $"第 {item.RowIndex} 行：修改数据不能为空。";
             }
 
+            if (item.Data.CustomerId == Guid.Empty)
+            {
+                return $"第 {item.RowIndex} 行：客户 ID 不能为空。";
+            }
+
             if (string.IsNullOrWhiteSpace(item.Data.CustomerCode))
             {
                 return $"第 {item.RowIndex} 行：客户代码不能为空。";
@@ -290,7 +302,7 @@ public class CustomerProductServices(
 
             if (string.IsNullOrWhiteSpace(item.Data.CustomerSku))
             {
-                return $"第 {item.RowIndex} 行：客户产品编号不能为空。";
+                return $"第 {item.RowIndex} 行：客户料号不能为空。";
             }
         }
 
@@ -311,33 +323,16 @@ public class CustomerProductServices(
                    string.Join(", ", notFoundUids);
         }
 
-        var codePairs = updateItems
-            .Select(x => new
+        foreach (var group in updateItems.GroupBy(x => x.Data.CustomerId))
+        {
+            var occupied = await repository.GetCustomerSkusUsedByOtherRecordsAsync(
+                group.Key,
+                group.Select(x => (x.Uid, x.Data.CustomerSku.Trim())));
+            if (occupied.Count > 0)
             {
-                x.Uid,
-                CustomerCode = x.Data.CustomerCode.Trim()
-            })
-            .ToList();
-
-        var duplicateCodesInRequest = codePairs
-            .GroupBy(x => x.CustomerCode, StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Select(x => x.Uid).Distinct().Count() > 1)
-            .Select(g => g.Key)
-            .ToList();
-
-        if (duplicateCodesInRequest.Count > 0)
-        {
-            return "修改失败：本次提交中存在重复客户代码：" +
-                   string.Join(", ", duplicateCodesInRequest);
-        }
-
-        var occupiedCodes = await repository.GetCustomerCodesUsedByOtherCustomersAsync(
-            codePairs.Select(x => (x.Uid, x.CustomerCode)));
-
-        if (occupiedCodes.Count > 0)
-        {
-            return "修改失败：以下客户代码已被其他客户使用：" +
-                   string.Join(", ", occupiedCodes);
+                return "修改失败：以下客户料号已被该客户的其他记录使用：" +
+                       string.Join(", ", occupied);
+            }
         }
 
         return null;

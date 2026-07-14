@@ -6,11 +6,12 @@ using SwiftExport.Contracts.DTOs.Customers.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.WebApi.Controllers.Base;
+using SwiftExport.WebApi.Filters;
 namespace SwiftExport.WebApi.Controllers.Customers;
 
 /// <summary>
 /// 客户产品 API。
-/// 因 CustomerProductDto 含联表字段，不继承 BaseController 泛型，独立定义端点。
+/// 基础 CRUD 复用 BaseController；联表分页和批量保存端点在此显式定义。
 /// </summary>
 public class CustomerProductController(ICustomerProductService service) : BaseController<CustomerProduct, CustomerProductDto>(service)
 {
@@ -34,6 +35,7 @@ public class CustomerProductController(ICustomerProductService service) : BaseCo
 
     /// <summary>批量保存（新增 / 修改 / 删除），事务保护</summary>
     [HttpPost("batch-save")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
     public async Task<ServiceResult<CustomerProductBatchSaveResponse>> BatchSave([FromBody] CustomerProductBatchSaveRequest request)
         => await service.BatchSaveAsync(request);
 }
