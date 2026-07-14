@@ -118,16 +118,6 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
-    <!-- 窄复选列不叠加通用列头 Padding；内部微调由列的视觉偏移完成。 -->
-    <Style x:Key="SwiftExportDataGridCheckBoxColumnHeader"
-           TargetType="{x:Type DataGridColumnHeader}"
-           BasedOn="{StaticResource SwiftExportDataGridColumnHeader}">
-        <Setter Property="Padding" Value="0" />
-        <Setter Property="Margin" Value="0" />
-        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-        <Setter Property="VerticalContentAlignment" Value="Stretch" />
-    </Style>
-
     <!-- 默认 RowHeader 只按内容测量；必须显式 Stretch，行号模板才能使用完整 RowHeaderWidth。 -->
     <Style x:Key="SwiftExportDataGridRowHeader"
            TargetType="{x:Type DataGridRowHeader}"
@@ -135,15 +125,6 @@
         <Setter Property="Padding" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Stretch" />
-    </Style>
-
-    <Style x:Key="SwiftExportDataGridCompactCheckBox"
-           TargetType="{x:Type CheckBox}"
-           BasedOn="{StaticResource {x:Type CheckBox}}">
-        <Setter Property="MinWidth" Value="0" />
-        <Setter Property="MinHeight" Value="0" />
-        <Setter Property="Padding" Value="0" />
-        <Setter Property="Margin" Value="0" />
     </Style>
 
     <Style x:Key="SwiftExportDataGridRow" TargetType="{x:Type DataGridRow}" BasedOn="{StaticResource {x:Type DataGridRow}}">
@@ -154,7 +135,7 @@
             <Setter.Value>
                 <MultiBinding Converter="{StaticResource SwiftExportGridCurrentRowStateConverter}">
                     <Binding />
-                    <Binding Path="CurrentCell" RelativeSource="{RelativeSource AncestorType={x:Type DataGrid}}" />
+                    <Binding Path="(gridSelection:GridSelection.NativeCurrentCellState)" RelativeSource="{RelativeSource Self}" />
                 </MultiBinding>
             </Setter.Value>
         </Setter>
@@ -186,7 +167,7 @@
             <Setter.Value>
                 <MultiBinding Converter="{StaticResource SwiftExportGridCellValidationStateConverter}">
                     <Binding />
-                    <Binding Path="(gridValidation:GridValidation.Errors)" RelativeSource="{RelativeSource AncestorType={x:Type DataGrid}}" />
+                    <Binding Path="(gridValidation:GridValidation.Errors)" RelativeSource="{RelativeSource Self}" />
                 </MultiBinding>
             </Setter.Value>
         </Setter>
@@ -244,7 +225,7 @@
                 <MultiBinding Converter="{StaticResource SwiftExportGridCellValidationStateConverter}">
                     <Binding />
                     <Binding Path="Column.(gridColumns:GridColumn.Key)" RelativeSource="{RelativeSource Self}" />
-                    <Binding Path="(gridValidation:GridValidation.Errors)" RelativeSource="{RelativeSource AncestorType={x:Type DataGrid}}" />
+                    <Binding Path="(gridValidation:GridValidation.Errors)" RelativeSource="{RelativeSource Self}" />
                 </MultiBinding>
             </Setter.Value>
         </Setter>
@@ -253,7 +234,7 @@
                 <MultiBinding Converter="{StaticResource SwiftExportGridCurrentCellStateConverter}">
                     <Binding />
                     <Binding Path="Column" RelativeSource="{RelativeSource Self}" />
-                    <Binding Path="CurrentCell" RelativeSource="{RelativeSource AncestorType={x:Type DataGrid}}" />
+                    <Binding Path="(gridSelection:GridSelection.NativeCurrentCellState)" RelativeSource="{RelativeSource Self}" />
                 </MultiBinding>
             </Setter.Value>
         </Setter>

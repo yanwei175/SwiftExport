@@ -13,6 +13,7 @@ public interface IProductRepository : IRepository<Product>
     /// </summary>
     Task<IReadOnlyList<Product>> GetBySkuListAsync(IEnumerable<string> skuList);
     Task<PagedResponseBase<ProductDto>> GetPagedAsync(ProductSearchRequest request);
+    Task<IReadOnlyList<ProductLookupDto>> SearchLookupAsync(ProductLookupRequest request);
     Task<IReadOnlyList<string>> GetExistingSkuListAsync(IEnumerable<string> skuList);
 }
 

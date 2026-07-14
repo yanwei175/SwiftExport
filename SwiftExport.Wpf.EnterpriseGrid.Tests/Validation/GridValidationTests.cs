@@ -16,6 +16,14 @@ namespace SwiftExport.Wpf.EnterpriseGrid.Tests.Validation;
 public sealed class GridValidationTests
 {
     [TestMethod]
+    public void ErrorsProperty_ShouldInheritToGridContainersWithoutAncestorBinding()
+    {
+        var metadata = (FrameworkPropertyMetadata)GridValidation.ErrorsProperty.GetMetadata(typeof(DependencyObject));
+
+        Assert.IsTrue(metadata.Inherits);
+    }
+
+    [TestMethod]
     public void NotifyDataErrors_ShouldAggregateInViewAndDisplayOrderAndFocusFirstError()
     {
         StaTest.Run(() =>

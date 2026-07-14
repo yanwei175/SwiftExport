@@ -24,7 +24,7 @@
 | 框架入口、附加属性、生命周期、资源 | `wpf-grid-core` |
 | CurrentRow、SelectedItem、CurrentCell | `wpf-grid-selection` |
 | 原生双击、F2、Enter、Tab、Esc 兼容 | `wpf-grid-editing` |
-| Ctrl+Z、Ctrl+D、单元格历史 | `wpf-grid-core` + `wpf-grid-column` + `wpf-grid-editing` |
+| Ctrl+Z、Ctrl+C、Ctrl+V、Ctrl+D、Delete 清空、单元格历史 | `wpf-grid-core` + `wpf-grid-column` + `wpf-grid-editing` |
 | 列标识、Lookup、Enum、Numeric | `wpf-grid-column` |
 | Cell/Row Validation、错误导航 | `wpf-grid-validation` |
 | 业务状态到视觉状态的适配 | `wpf-grid-state` |

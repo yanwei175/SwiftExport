@@ -1,12 +1,10 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Wpf.EnterpriseGrid.Columns;
-using SwiftExport.Wpf.EnterpriseGrid.Columns.Enum;
 using SwiftExport.Wpf.EnterpriseGrid.Columns.Lookup;
 using SwiftExport.Wpf.EnterpriseGrid.Exporting;
 using SwiftExport.Wpf.EnterpriseGrid.Tests.TestInfrastructure;
@@ -17,7 +15,7 @@ namespace SwiftExport.Wpf.EnterpriseGrid.Tests.Exporting;
 public sealed class GridExportTests
 {
     [TestMethod]
-    public void CreateRequest_ShouldUseViewOrderColumnMetadataLookupEnumAndExplicitAccessor()
+    public void CreateRequest_ShouldUseViewOrderColumnMetadataLookupTemplateAndExplicitAccessor()
     {
         StaTest.Run(() =>
         {
@@ -44,14 +42,10 @@ public sealed class GridExportTests
             };
             GridColumn.SetKey(lookup, "supplier");
             dataGrid.Columns.Add(lookup);
-            var enumColumn = new EnumDataGridColumn
-            {
-                Header = "状态",
-                EnumType = typeof(ExportStatus),
-                SelectedValueBinding = new Binding(nameof(ExportRow.Status))
-            };
-            GridColumn.SetKey(enumColumn, "status");
-            dataGrid.Columns.Add(enumColumn);
+            var statusColumn = new DataGridTemplateColumn { Header = "状态" };
+            GridColumn.SetKey(statusColumn, "status");
+            GridColumn.SetFieldPath(statusColumn, nameof(ExportRow.Status));
+            dataGrid.Columns.Add(statusColumn);
             var unbound = new DataGridTemplateColumn { Header = "不可导出模板" };
             GridColumn.SetKey(unbound, "unbound");
             dataGrid.Columns.Add(unbound);
@@ -62,7 +56,7 @@ public sealed class GridExportTests
 
             price.DisplayIndex = 0;
             lookup.DisplayIndex = 1;
-            enumColumn.DisplayIndex = 2;
+            statusColumn.DisplayIndex = 2;
             accessorColumn.DisplayIndex = 3;
             name.DisplayIndex = 4;
             unbound.DisplayIndex = 5;
@@ -84,7 +78,7 @@ public sealed class GridExportTests
             Assert.AreEqual("10.00", request.Rows[0].Cells[0].DisplayText);
             Assert.AreEqual(1, request.Rows[0].Cells[1].RawValue);
             Assert.AreEqual("供应商一", request.Rows[0].Cells[1].DisplayText);
-            Assert.AreEqual("启用", request.Rows[0].Cells[2].DisplayText);
+            Assert.AreEqual(nameof(ExportStatus.Active), request.Rows[0].Cells[2].DisplayText);
             Assert.IsNull(request.Rows[0].Cells[3].RawValue);
             Assert.AreEqual(string.Empty, request.Rows[0].Cells[3].DisplayText);
         });
@@ -172,10 +166,8 @@ public sealed class GridExportTests
 
     private enum ExportStatus
     {
-        [Display(Name = "启用")]
         Active,
 
-        [Display(Name = "停用")]
         Disabled
     }
 

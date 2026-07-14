@@ -1,9 +1,13 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using SwiftExport.Wpf.EnterpriseGrid.Columns;
 using SwiftExport.Wpf.EnterpriseGrid.Core.Internal;
@@ -18,6 +22,9 @@ internal sealed class GridOperationsModule
     private readonly Stack<IUndoAction> _undoStack = [];
     private readonly CommandBinding _undoBinding;
     private readonly CommandBinding _fillDownBinding;
+    private readonly CommandBinding _copyBinding;
+    private readonly CommandBinding _pasteBinding;
+    private readonly CommandBinding _deleteBinding;
     private readonly DependencyPropertyDescriptor? _selectionUnitDescriptor;
     private EditSnapshot? _activeEdit;
     private EditSnapshot? _pendingCommittedEdit;
@@ -32,6 +39,9 @@ internal sealed class GridOperationsModule
             GridOperations.FillDownCommand,
             OnFillDownExecuted,
             OnFillDownCanExecute);
+        _copyBinding = new CommandBinding(ApplicationCommands.Copy, OnCopyExecuted, OnCopyCanExecute);
+        _pasteBinding = new CommandBinding(ApplicationCommands.Paste, OnPasteExecuted, OnPasteCanExecute);
+        _deleteBinding = new CommandBinding(ApplicationCommands.Delete, OnDeleteExecuted, OnDeleteCanExecute);
         _selectionUnitDescriptor = DependencyPropertyDescriptor.FromProperty(
             DataGrid.SelectionUnitProperty,
             typeof(DataGrid));
@@ -49,6 +59,9 @@ internal sealed class GridOperationsModule
         _dataGrid.CellEditEnding += OnCellEditEnding;
         _dataGrid.CommandBindings.Add(_undoBinding);
         _dataGrid.CommandBindings.Add(_fillDownBinding);
+        _dataGrid.CommandBindings.Add(_copyBinding);
+        _dataGrid.CommandBindings.Add(_pasteBinding);
+        _dataGrid.CommandBindings.Add(_deleteBinding);
         ((INotifyCollectionChanged)_dataGrid.Items).CollectionChanged += OnItemsCollectionChanged;
         _selectionUnitDescriptor?.AddValueChanged(_dataGrid, OnSelectionUnitChanged);
         RefreshEnabledState();
@@ -65,6 +78,9 @@ internal sealed class GridOperationsModule
         _dataGrid.CellEditEnding -= OnCellEditEnding;
         _dataGrid.CommandBindings.Remove(_undoBinding);
         _dataGrid.CommandBindings.Remove(_fillDownBinding);
+        _dataGrid.CommandBindings.Remove(_copyBinding);
+        _dataGrid.CommandBindings.Remove(_pasteBinding);
+        _dataGrid.CommandBindings.Remove(_deleteBinding);
         ((INotifyCollectionChanged)_dataGrid.Items).CollectionChanged -= OnItemsCollectionChanged;
         _selectionUnitDescriptor?.RemoveValueChanged(_dataGrid, OnSelectionUnitChanged);
         _activeEdit = null;
@@ -128,6 +144,146 @@ internal sealed class GridOperationsModule
 
                 changes.Add(new CellChange(target, path, oldValue, GridColumn.GetKey(column)));
             }
+        }
+
+        if (changes.Count > 0)
+        {
+            Push(new CompositeUndoAction(changes, CaptureCurrentCell()));
+        }
+
+        return true;
+    }
+
+    internal bool CanCopy() => IsEnabled && SupportsCellSelection && TryCreateCopyPlan(out _);
+
+    internal bool TryBuildCopyText(out string text)
+    {
+        text = string.Empty;
+        if (!IsEnabled || !SupportsCellSelection || !TryCreateCopyPlan(out var plan))
+        {
+            return false;
+        }
+
+        var rows = plan.Items
+            .Select(item => (IReadOnlyList<string>)plan.Columns
+                .Select(column => FormatClipboardValue(
+                    PropertyPathAccessor.GetValue(item, GetFieldPath(column))))
+                .ToArray())
+            .ToArray();
+        text = ClipboardTsvSerializer.Serialize(rows);
+        return true;
+    }
+
+    internal bool CanPasteText(string text) =>
+        IsEnabled && SupportsCellSelection &&
+        ClipboardTsvSerializer.TryParse(text, out var values) &&
+        TryCreatePastePlan(values, out _);
+
+    internal bool PasteText(string text)
+    {
+        if (!IsEnabled || !SupportsCellSelection)
+        {
+            return false;
+        }
+
+        if (_activeEdit is not null && !_dataGrid.CommitEdit(DataGridEditingUnit.Cell, true))
+        {
+            return false;
+        }
+
+        CompletePendingEdit();
+        if (!ClipboardTsvSerializer.TryParse(text, out var values) ||
+            !TryCreatePastePlan(values, out var plan))
+        {
+            return false;
+        }
+
+        var changes = new List<CellChange>();
+        try
+        {
+            foreach (var assignment in plan.Assignments)
+            {
+                if (Equals(assignment.OldValue, assignment.NewValue))
+                {
+                    continue;
+                }
+
+                var change = new CellChange(
+                    assignment.Item,
+                    assignment.Path,
+                    assignment.OldValue,
+                    GridColumn.GetKey(assignment.Column));
+                changes.Add(change);
+                if (!PropertyPathAccessor.TrySetValue(assignment.Item, assignment.Path, assignment.NewValue))
+                {
+                    RollBack(changes);
+                    return false;
+                }
+            }
+        }
+        catch
+        {
+            RollBack(changes);
+            return false;
+        }
+
+        if (changes.Count > 0)
+        {
+            Push(new CompositeUndoAction(changes, plan.StartCell));
+        }
+
+        SelectPasteRange(plan);
+        return true;
+    }
+
+    internal bool CanClearSelectedCells() =>
+        IsEnabled && SupportsCellSelection && TryCreateClearPlan(out _);
+
+    internal bool ClearSelectedCells()
+    {
+        if (!IsEnabled || !SupportsCellSelection)
+        {
+            return false;
+        }
+
+        if (_activeEdit is not null && !_dataGrid.CommitEdit(DataGridEditingUnit.Cell, true))
+        {
+            return false;
+        }
+
+        CompletePendingEdit();
+        if (!TryCreateClearPlan(out var plan))
+        {
+            return false;
+        }
+
+        var changes = new List<CellChange>();
+        try
+        {
+            foreach (var assignment in plan.Assignments)
+            {
+                if (Equals(assignment.OldValue, assignment.NewValue))
+                {
+                    continue;
+                }
+
+                var change = new CellChange(
+                    assignment.Item,
+                    assignment.Path,
+                    assignment.OldValue,
+                    GridColumn.GetKey(assignment.Column));
+                changes.Add(change);
+                if (!PropertyPathAccessor.TrySetValue(assignment.Item, assignment.Path, assignment.NewValue))
+                {
+                    RollBack(changes);
+                    return false;
+                }
+            }
+        }
+        catch
+        {
+            RollBack(changes);
+            return false;
         }
 
         if (changes.Count > 0)
@@ -285,6 +441,302 @@ internal sealed class GridOperationsModule
         return true;
     }
 
+    private bool TryCreateCopyPlan(out SelectionRectangle plan)
+    {
+        plan = null!;
+        if (!TryGetSelectionRectangle(out var selection))
+        {
+            return false;
+        }
+
+        foreach (var column in selection.Columns)
+        {
+            var path = GetFieldPath(column);
+            if (string.IsNullOrWhiteSpace(path) ||
+                selection.Items.Any(item => !PropertyPathAccessor.TryGetValueType(item, path, out _)))
+            {
+                return false;
+            }
+        }
+
+        plan = selection;
+        return true;
+    }
+
+    private bool TryCreatePastePlan(
+        IReadOnlyList<IReadOnlyList<string>> values,
+        out PastePlan plan)
+    {
+        plan = null!;
+        if (!SupportsCellSelection || values.Count == 0 || values[0].Count == 0 || _dataGrid.IsReadOnly)
+        {
+            return false;
+        }
+
+        IReadOnlyList<object> targetItems;
+        IReadOnlyList<DataGridColumn> targetColumns;
+        var current = _dataGrid.CurrentCell;
+
+        if (values.Count == 1 && values[0].Count == 1 &&
+            TryGetSelectionRectangle(out var selectedRectangle) &&
+            selectedRectangle.Items.Count * selectedRectangle.Columns.Count > 1)
+        {
+            targetItems = selectedRectangle.Items;
+            targetColumns = selectedRectangle.Columns;
+        }
+        else
+        {
+            if (!current.IsValid || !IsDataItem(current.Item) || current.Column is null)
+            {
+                return false;
+            }
+
+            var startRow = _dataGrid.Items.IndexOf(current.Item);
+            var visibleColumns = GetVisibleColumns();
+            var startColumn = Array.IndexOf(visibleColumns, current.Column);
+            if (startRow < 0 || startColumn < 0 ||
+                startRow + values.Count > _dataGrid.Items.Count ||
+                startColumn + values[0].Count > visibleColumns.Length)
+            {
+                return false;
+            }
+
+            targetItems = Enumerable.Range(startRow, values.Count)
+                .Select(index => _dataGrid.Items[index])
+                .ToArray();
+            targetColumns = visibleColumns.Skip(startColumn).Take(values[0].Count).ToArray();
+        }
+
+        if (targetItems.Any(item => !IsDataItem(item)))
+        {
+            return false;
+        }
+
+        var assignments = new List<PasteAssignment>(targetItems.Count * targetColumns.Count);
+        for (var rowIndex = 0; rowIndex < targetItems.Count; rowIndex++)
+        {
+            for (var columnIndex = 0; columnIndex < targetColumns.Count; columnIndex++)
+            {
+                var item = targetItems[rowIndex];
+                var column = targetColumns[columnIndex];
+                var path = GetFieldPath(column);
+                var sourceText = values.Count == 1 && values[0].Count == 1
+                    ? values[0][0]
+                    : values[rowIndex][columnIndex];
+                if (column.IsReadOnly || string.IsNullOrWhiteSpace(path) ||
+                    !PropertyPathAccessor.CanSetValue(item, path) ||
+                    !TryConvertClipboardValue(item, path, sourceText, out var convertedValue))
+                {
+                    return false;
+                }
+
+                assignments.Add(new PasteAssignment(
+                    item,
+                    column,
+                    path,
+                    PropertyPathAccessor.GetValue(item, path),
+                    convertedValue));
+            }
+        }
+
+        var startCell = new GridCellReference(
+            targetItems[0],
+            GridColumn.GetKey(targetColumns[0]));
+        plan = new PastePlan(assignments, targetItems, targetColumns, startCell);
+        return true;
+    }
+
+    private bool TryCreateClearPlan(out ClearPlan plan)
+    {
+        plan = null!;
+        if (!SupportsCellSelection || _dataGrid.IsReadOnly)
+        {
+            return false;
+        }
+
+        var selected = _dataGrid.SelectedCells
+            .Where(cell => cell.IsValid && IsDataItem(cell.Item) && cell.Column is not null)
+            .Distinct()
+            .OrderBy(cell => _dataGrid.Items.IndexOf(cell.Item))
+            .ThenBy(cell => cell.Column.DisplayIndex)
+            .ToArray();
+        if (selected.Length == 0)
+        {
+            return false;
+        }
+
+        var assignments = new List<ClearAssignment>(selected.Length);
+        foreach (var cell in selected)
+        {
+            // Delete 清空只面向可编辑的原生文本列；模板、复选框、下拉和 Lookup 列不参与。
+            if (cell.Column is not DataGridTextColumn textColumn || textColumn.IsReadOnly)
+            {
+                return false;
+            }
+
+            var path = GetFieldPath(textColumn);
+            if (string.IsNullOrWhiteSpace(path) ||
+                !PropertyPathAccessor.CanSetValue(cell.Item, path) ||
+                !PropertyPathAccessor.TryGetValueType(cell.Item, path, out var valueType))
+            {
+                return false;
+            }
+
+            assignments.Add(new ClearAssignment(
+                cell.Item,
+                textColumn,
+                path,
+                PropertyPathAccessor.GetValue(cell.Item, path),
+                GetClearedValue(valueType)));
+        }
+
+        plan = new ClearPlan(assignments);
+        return true;
+    }
+
+    private static object? GetClearedValue(Type valueType)
+    {
+        if (valueType == typeof(string))
+        {
+            return string.Empty;
+        }
+
+        if (!valueType.IsValueType || Nullable.GetUnderlyingType(valueType) is not null)
+        {
+            return null;
+        }
+
+        return Activator.CreateInstance(valueType);
+    }
+
+    private bool TryGetSelectionRectangle(out SelectionRectangle rectangle)
+    {
+        rectangle = null!;
+        var selected = _dataGrid.SelectedCells
+            .Where(cell => cell.IsValid && IsDataItem(cell.Item) && cell.Column is not null)
+            .ToArray();
+        if (selected.Length == 0)
+        {
+            return false;
+        }
+
+        var rowIndexes = selected
+            .Select(cell => _dataGrid.Items.IndexOf(cell.Item))
+            .Where(index => index >= 0)
+            .Distinct()
+            .Order()
+            .ToArray();
+        var visibleColumns = GetVisibleColumns();
+        var columns = selected
+            .Select(cell => cell.Column)
+            .Distinct()
+            .OrderBy(column => column.DisplayIndex)
+            .ToArray();
+        var columnIndexes = columns.Select(column => Array.IndexOf(visibleColumns, column)).ToArray();
+        if (rowIndexes.Length == 0 || columns.Length == 0 ||
+            !AreContiguous(rowIndexes) || columnIndexes.Any(index => index < 0) || !AreContiguous(columnIndexes))
+        {
+            return false;
+        }
+
+        var pairs = selected
+            .Select(cell => (_dataGrid.Items.IndexOf(cell.Item), cell.Column))
+            .ToHashSet();
+        if (pairs.Count != rowIndexes.Length * columns.Length ||
+            rowIndexes.Any(row => columns.Any(column => !pairs.Contains((row, column)))))
+        {
+            return false;
+        }
+
+        rectangle = new SelectionRectangle(
+            rowIndexes.Select(index => _dataGrid.Items[index]).ToArray(),
+            columns);
+        return true;
+    }
+
+    private DataGridColumn[] GetVisibleColumns() =>
+        _dataGrid.Columns
+            .Where(column => column.Visibility == Visibility.Visible)
+            .OrderBy(column => column.DisplayIndex)
+            .ToArray();
+
+    private void SelectPasteRange(PastePlan plan)
+    {
+        _dataGrid.SelectedCells.Clear();
+        foreach (var item in plan.Items)
+        {
+            foreach (var column in plan.Columns)
+            {
+                _dataGrid.SelectedCells.Add(new DataGridCellInfo(item, column));
+            }
+        }
+
+        var firstItem = plan.Items[0];
+        var firstColumn = plan.Columns[0];
+        _dataGrid.CurrentCell = new DataGridCellInfo(firstItem, firstColumn);
+        _dataGrid.ScrollIntoView(firstItem, firstColumn);
+        _dataGrid.Focus();
+    }
+
+    private static string FormatClipboardValue(object? value) => value switch
+    {
+        null => string.Empty,
+        string text => text,
+        IFormattable formattable => formattable.ToString(null, CultureInfo.CurrentCulture) ?? string.Empty,
+        _ => Convert.ToString(value, CultureInfo.CurrentCulture) ?? string.Empty
+    };
+
+    private static bool TryConvertClipboardValue(
+        object item,
+        string path,
+        string text,
+        out object? value)
+    {
+        value = null;
+        if (!PropertyPathAccessor.TryGetValueType(item, path, out var propertyType))
+        {
+            return false;
+        }
+
+        var underlyingType = Nullable.GetUnderlyingType(propertyType);
+        var targetType = underlyingType ?? propertyType;
+        if (targetType == typeof(string))
+        {
+            value = text;
+            return true;
+        }
+
+        if (text.Length == 0 && (underlyingType is not null || !propertyType.IsValueType))
+        {
+            value = null;
+            return true;
+        }
+
+        try
+        {
+            if (targetType.IsEnum)
+            {
+                value = Enum.Parse(targetType, text, ignoreCase: true);
+                return true;
+            }
+
+            var converter = TypeDescriptor.GetConverter(targetType);
+            if (converter.CanConvertFrom(typeof(string)))
+            {
+                value = converter.ConvertFrom(null, CultureInfo.CurrentCulture, text);
+                return value is not null;
+            }
+
+            value = Convert.ChangeType(text, targetType, CultureInfo.CurrentCulture);
+            return value is not null;
+        }
+        catch (Exception exception) when (exception is FormatException or InvalidCastException or NotSupportedException or ArgumentException)
+        {
+            value = null;
+            return false;
+        }
+    }
+
     private static bool AreContiguous(IReadOnlyList<int> indexes)
     {
         for (var index = 1; index < indexes.Count; index++)
@@ -404,10 +856,167 @@ internal sealed class GridOperationsModule
         e.Handled = FillDown();
     }
 
+    private void OnCopyCanExecute(object sender, CanExecuteRoutedEventArgs e)
+    {
+        if (!IsEnabled || IsInputOwnedByEditor())
+        {
+            return;
+        }
+
+        e.CanExecute = CanCopy();
+        e.Handled = true;
+    }
+
+    private void OnCopyExecuted(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (!TryBuildCopyText(out var text))
+        {
+            e.Handled = true;
+            return;
+        }
+
+        try
+        {
+            var data = new DataObject();
+            data.SetData(DataFormats.UnicodeText, text);
+            data.SetData(DataFormats.Text, text);
+            Clipboard.SetDataObject(data, copy: true);
+        }
+        catch (ExternalException)
+        {
+        }
+
+        e.Handled = true;
+    }
+
+    private void OnPasteCanExecute(object sender, CanExecuteRoutedEventArgs e)
+    {
+        if (!IsEnabled || IsInputOwnedByEditor())
+        {
+            return;
+        }
+
+        e.CanExecute = SupportsCellSelection &&
+                       _dataGrid.CurrentCell.IsValid &&
+                       TryGetClipboardText(out _);
+        e.Handled = true;
+    }
+
+    private void OnPasteExecuted(object sender, ExecutedRoutedEventArgs e)
+    {
+        e.Handled = TryGetClipboardText(out var text) && PasteText(text);
+        if (!e.Handled)
+        {
+            // GridOperations 已接管 Grid 级 Paste；失败时也不能继续落到其他 DataGrid handler。
+            e.Handled = true;
+        }
+    }
+
+    private void OnDeleteCanExecute(object sender, CanExecuteRoutedEventArgs e)
+    {
+        if (!IsEnabled || IsInputOwnedByEditor())
+        {
+            return;
+        }
+
+        e.CanExecute = CanClearSelectedCells();
+        e.Handled = true;
+    }
+
+    private void OnDeleteExecuted(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (!IsEnabled || IsInputOwnedByEditor())
+        {
+            return;
+        }
+
+        ClearSelectedCells();
+        // GridOperations 已接管 Grid 级 Delete；失败时也禁止回落为 DataGrid 的删除行行为。
+        e.Handled = true;
+    }
+
+    private static bool TryGetClipboardText(out string text)
+    {
+        text = string.Empty;
+        try
+        {
+            if (Clipboard.ContainsText(TextDataFormat.UnicodeText))
+            {
+                text = Clipboard.GetText(TextDataFormat.UnicodeText);
+                return true;
+            }
+
+            if (Clipboard.ContainsText(TextDataFormat.Text))
+            {
+                text = Clipboard.GetText(TextDataFormat.Text);
+                return true;
+            }
+        }
+        catch (ExternalException)
+        {
+        }
+
+        return false;
+    }
+
+    private static bool IsInputOwnedByEditor()
+    {
+        if (Keyboard.FocusedElement is not DependencyObject focused)
+        {
+            return false;
+        }
+
+        if (focused is TextBoxBase or PasswordBox)
+        {
+            return true;
+        }
+
+        var current = focused;
+        while (current is not null)
+        {
+            if (current is DataGridCell cell)
+            {
+                return cell.IsEditing && !ReferenceEquals(focused, cell);
+            }
+
+            current = current is Visual or System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(current)
+                : (current as FrameworkContentElement)?.Parent;
+        }
+
+        return false;
+    }
+
     private static bool IsDataItem(object? item) =>
         item is not null && !ReferenceEquals(item, CollectionView.NewItemPlaceholder);
 
     private sealed record EditSnapshot(object Item, string Path, object? OldValue, string? ColumnKey);
+
+    private sealed record SelectionRectangle(
+        IReadOnlyList<object> Items,
+        IReadOnlyList<DataGridColumn> Columns);
+
+    private sealed record PasteAssignment(
+        object Item,
+        DataGridColumn Column,
+        string Path,
+        object? OldValue,
+        object? NewValue);
+
+    private sealed record PastePlan(
+        IReadOnlyList<PasteAssignment> Assignments,
+        IReadOnlyList<object> Items,
+        IReadOnlyList<DataGridColumn> Columns,
+        GridCellReference StartCell);
+
+    private sealed record ClearAssignment(
+        object Item,
+        DataGridTextColumn Column,
+        string Path,
+        object? OldValue,
+        object? NewValue);
+
+    private sealed record ClearPlan(IReadOnlyList<ClearAssignment> Assignments);
 
     private sealed record CellChange(object Item, string Path, object? OldValue, string? ColumnKey)
     {

@@ -19,6 +19,9 @@ namespace SwiftExport.Contracts.Apis.ProductApis
         [Post("/page")]
         Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync([Body] ProductSearchRequest request);
 
+        [Post("/lookup")]
+        Task<ServiceResult<List<ProductLookupDto>>> SearchLookupAsync([Body] ProductLookupRequest request);
+
         // 3. 获取单个详情
         [Get("/customerCodes")]
         Task<ServiceResult<List<string>>> GetAllCustomerCodeListAsync();

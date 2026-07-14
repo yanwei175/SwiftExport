@@ -16,4 +16,6 @@ public partial interface IProductService : IBaseService<Product, ProductDto>
     Task<ServiceResult<ProductDto>> GetBySkuAsync(string sku);
 
     Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync(ProductSearchRequest search);
+
+    Task<ServiceResult<List<ProductLookupDto>>> SearchLookupAsync(ProductLookupRequest request);
 }

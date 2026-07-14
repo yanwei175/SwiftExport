@@ -66,6 +66,22 @@ public static class GridSelection
     /// </summary>
     public static readonly DependencyProperty CurrentColumnProperty = CurrentColumnPropertyKey.DependencyProperty;
 
+    private static readonly DependencyPropertyKey NativeCurrentCellStatePropertyKey =
+        DependencyProperty.RegisterAttachedReadOnly(
+            "NativeCurrentCellState",
+            typeof(DataGridCellInfo),
+            typeof(GridSelection),
+            new FrameworkPropertyMetadata(
+                default(DataGridCellInfo),
+                FrameworkPropertyMetadataOptions.Inherits));
+
+    /// <summary>
+    /// 供宿主样式读取的原生当前单元格状态。该只读值由 DataGrid 向其可视子树继承，
+    /// 避免虚拟化 Cell 在挂载和回收期间依赖 FindAncestor 产生绑定诊断。
+    /// </summary>
+    public static readonly DependencyProperty NativeCurrentCellStateProperty =
+        NativeCurrentCellStatePropertyKey.DependencyProperty;
+
     /// <summary>
     /// 当前选区的只读业务快照。建议使用 Mode=OneWayToSource 绑定；框架仅在该属性存在绑定时构造快照。
     /// Cell/CellOrRowHeader 模式下原生 DataGrid.SelectedItem 不保证等于活动行，业务代码应使用
@@ -131,6 +147,10 @@ public static class GridSelection
     public static DataGridColumn? GetCurrentColumn(DependencyObject element) =>
         (DataGridColumn?)element.GetValue(CurrentColumnProperty);
 
+    /// <summary>获取供宿主样式使用的原生当前单元格状态。</summary>
+    public static DataGridCellInfo GetNativeCurrentCellState(DependencyObject element) =>
+        (DataGridCellInfo)element.GetValue(NativeCurrentCellStateProperty);
+
     /// <summary>获取当前选区快照。</summary>
     public static GridSelectionSnapshot? GetSelectionSnapshot(DependencyObject element) =>
         (GridSelectionSnapshot?)element.GetValue(SelectionSnapshotProperty);
@@ -184,6 +204,9 @@ public static class GridSelection
 
     internal static void SetCurrentColumnFromView(DataGrid dataGrid, DataGridColumn? value) =>
         dataGrid.SetValue(CurrentColumnPropertyKey, value);
+
+    internal static void SetNativeCurrentCellStateFromView(DataGrid dataGrid, DataGridCellInfo value) =>
+        dataGrid.SetValue(NativeCurrentCellStatePropertyKey, value);
 
     private static void UpdateBindingSource(DataGrid dataGrid, DependencyProperty property)
     {

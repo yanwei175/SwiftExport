@@ -48,6 +48,7 @@ internal sealed class GridSelectionModule
         _dataGrid.PreviewMouseLeftButtonDown -= OnPreviewMouseLeftButtonDown;
         _dataGrid.ItemContainerGenerator.ItemsChanged -= OnItemsChanged;
         CancelPendingSynchronization();
+        GridSelection.SetNativeCurrentCellStateFromView(_dataGrid, new DataGridCellInfo());
         _isAttached = false;
     }
 
@@ -260,6 +261,7 @@ internal sealed class GridSelectionModule
 
         GridSelection.SetCurrentRowFromView(_dataGrid, row);
         GridSelection.SetCurrentColumnFromView(_dataGrid, column);
+        GridSelection.SetNativeCurrentCellStateFromView(_dataGrid, cell);
         GridSelection.SetCurrentColumnKeyFromView(_dataGrid, columnKey);
         GridSelection.SetCurrentCellFromView(
             _dataGrid,

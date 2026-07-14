@@ -30,10 +30,10 @@
 |---|---|
 | 选择与焦点 | `GridSelection.CurrentRow/CurrentCell/CurrentColumnKey`、`GridSelectionUnitConverter` |
 | 编辑 | 完全沿用原生 DataGrid/Column 的双击、F2、Enter、Tab、Shift+Tab、Esc |
-| Excel 操作 | `GridOperations`；Ctrl+Z 撤销已提交 Cell，Ctrl+D 仅在 Cell/CellOrRowHeader 下矩形向下填充 |
+| Excel 操作 | `GridOperations`；Ctrl+Z 撤销，Ctrl+C/Ctrl+V 复制粘贴，Ctrl+D 向下填充，Delete 清空选中的可编辑文本 Cell；Grid 级操作仅在 Cell/CellOrRowHeader 下生效 |
 | 验证 | `GridValidation.Errors/FirstError/FocusFirstError` |
 | 行状态视觉 | `GridRowPresentation.MarkerBrush/MarkerText/MarkerGlyph` |
-| 列 | `GridColumn` 元数据、`CheckBoxDataGridColumn`、`NumericDataGridColumn`、`EnumDataGridColumn`、`LookupDataGridColumn` |
+| 列 | `GridColumn` 元数据、`NumericDataGridColumn`、基于模板列的 `LookupDataGridColumn` |
 | 行号 | `GridRowHeader.ShowRowNumber`，按当前 DataGrid 视图显示一基行号 |
 | 筛选与分组 | `GridFilter`、`GridFilterSet`、`GridFilterRow`、`GridGroupDescriptor` |
 | 列选择与布局 | `GridColumnChooser`、`GridLayout.State`、`GridLayoutManager` |

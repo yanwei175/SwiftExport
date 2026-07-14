@@ -114,6 +114,9 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public partial ProductLineModel? SelectedLine { get; set; }
 
     [ObservableProperty]
+    public partial bool IsCellSelectionMode { get; set; }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int PageIndex { get; set; } = 1;
 
@@ -173,10 +176,31 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
     private async Task DeleteSelectedAsync()
     {
-        if (SelectedLine is null) return;
-        if (!await _dialogService.ConfirmAsync("删除产品", $"确定删除产品 {SelectedLine.Sku} 吗？保存前可以撤销。", "删除")) return;
-        Products.Remove(SelectedLine);
-        SelectedLine = Products.Items.FirstOrDefault();
+        var checkedLines = Products.CheckedItems;
+        var lines = checkedLines.Count > 0
+            ? checkedLines.ToArray()
+            : SelectedLine is null
+                ? []
+                : [SelectedLine];
+        if (lines.Length == 0) return;
+
+        var persistedLines = lines.Where(line => !line.IsNew).ToArray();
+        if (persistedLines.Length > 0)
+        {
+            var message = lines.Length == 1
+                ? $"确定删除产品 {lines[0].Sku} 吗？保存前可以撤销。"
+                : $"确定删除已勾选的 {lines.Length} 个产品吗？其中 {persistedLines.Length} 个已保存产品将在下次保存时删除。";
+            if (!await _dialogService.ConfirmAsync("删除产品", message, "删除")) return;
+        }
+
+        foreach (var line in lines)
+        {
+            Products.Remove(line);
+        }
+
+        SelectedLine = SelectedLine is not null && Products.Items.Contains(SelectedLine)
+            ? SelectedLine
+            : Products.Items.FirstOrDefault();
         UpdateChangeState();
     }
 
@@ -358,7 +382,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
 
     private bool CanRun() => IsNotBusy;
     private bool CanWriteCommand() => IsNotBusy && CanWrite;
-    private bool CanDeleteSelected() => IsNotBusy && CanWrite && SelectedLine is not null;
+    private bool CanDeleteSelected() =>
+        IsNotBusy && CanWrite && (Products.CheckedCount > 0 || SelectedLine is not null);
     private bool CanRejectChanges() => IsNotBusy && Products.HasChanges;
     private bool CanSave() => IsNotBusy && CanWrite && Products.HasChanges;
     private static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

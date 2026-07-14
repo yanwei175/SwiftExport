@@ -16,6 +16,10 @@ public class ProductController(IProductService service) : BaseController<Product
     [HttpPost("page")]
     public async Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPaged([FromBody] ProductSearchRequest request) => await service.GetPagedAsync(request);
 
+    [HttpPost("lookup")]
+    public async Task<ServiceResult<List<ProductLookupDto>>> SearchLookup([FromBody] ProductLookupRequest request) =>
+        await service.SearchLookupAsync(request);
+
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
     public async Task<ServiceResult<ProductBatchSaveResponse>> BatchSave([FromBody] ProductBatchSaveRequest req) => await service.BatchSaveAsync(req);

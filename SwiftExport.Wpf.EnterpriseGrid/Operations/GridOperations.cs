@@ -5,10 +5,10 @@ using EnterpriseGridCore = SwiftExport.Wpf.EnterpriseGrid.Core.EnterpriseGrid;
 
 namespace SwiftExport.Wpf.EnterpriseGrid.Operations;
 
-/// <summary>为原生 DataGrid 提供可撤销的单元格操作和 Excel 式向下填充。</summary>
+/// <summary>为原生 DataGrid 提供可撤销的单元格操作、Excel 式复制粘贴和向下填充。</summary>
 public static class GridOperations
 {
-    /// <summary>启用单元格提交历史、Ctrl+Z 和 Ctrl+D。默认关闭。</summary>
+    /// <summary>启用单元格提交历史、Ctrl+Z、Ctrl+C、Ctrl+V、Ctrl+D 和 Delete 清空。默认关闭。</summary>
     public static readonly DependencyProperty IsEnabledProperty = DependencyProperty.RegisterAttached(
         "IsEnabled",
         typeof(bool),

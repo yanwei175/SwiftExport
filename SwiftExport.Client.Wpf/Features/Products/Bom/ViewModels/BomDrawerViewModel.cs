@@ -44,7 +44,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
     }
 
     public BomListModel Boms { get; } = new();
-    public ObservableCollection<ProductDto> ProductCandidates { get; } = [];
+    public ObservableCollection<ProductLookupDto> ProductCandidates { get; } = [];
     public bool HasChanges => Boms.HasChanges;
 
     [ObservableProperty]
@@ -60,7 +60,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
     public partial BomLineModel? SelectedLine { get; set; }
 
     [ObservableProperty]
-    public partial ProductDto? SelectedCandidate { get; set; }
+    public partial ProductLookupDto? SelectedCandidate { get; set; }
     [ObservableProperty]
     public partial bool IsLookupBusy { get; set; }
     [ObservableProperty]
@@ -95,6 +95,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
     {
         if (!await ConfirmDiscardAsync()) return;
         Interlocked.Increment(ref _loadVersion);
+        ClearProductLookupState();
         IsOpen = false;
         StatusText = "BOM 抽屉已关闭。";
     }
@@ -156,26 +157,36 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
 
     private bool CanReject() => Boms.HasChanges;
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task SearchProductsAsync(string? keyword)
     {
         var version = Interlocked.Increment(ref _searchVersion);
         if (string.IsNullOrWhiteSpace(keyword))
         {
             ProductCandidates.Clear();
+            SelectedCandidate = null;
+            IsLookupBusy = false;
             return;
         }
 
+        SelectedCandidate = null;
         IsLookupBusy = true;
         var result = await _apiCallRunner.RunAsync(
-            () => _productApi.GetPagedAsync(new ProductSearchRequest { Keyword = keyword.Trim(), PageIndex = 1, PageSize = 20 }),
+            () => _productApi.SearchLookupAsync(new ProductLookupRequest
+            {
+                Keyword = keyword.Trim(),
+                ExcludeProductId = ActiveProduct?.Uid ?? Guid.Empty,
+                Limit = 20,
+            }),
             "搜索 BOM 子件失败");
         if (version != Volatile.Read(ref _searchVersion)) return;
+
         ProductCandidates.Clear();
         if (result.Success && result.Data is not null)
         {
-            foreach (var item in result.Data.Items) ProductCandidates.Add(item);
+            foreach (var item in result.Data) ProductCandidates.Add(item);
         }
+
         IsLookupBusy = false;
     }
 
@@ -186,7 +197,9 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
         line.BomNo = ActiveProduct.BomNo;
         line.SubSkuId = SelectedCandidate.Uid;
         line.SubSku = SelectedCandidate.Sku ?? string.Empty;
-        line.Description = SelectedCandidate.DescriptionEn ?? SelectedCandidate.DescriptionZh ?? string.Empty;
+        line.Description = !string.IsNullOrWhiteSpace(SelectedCandidate.DescriptionEn)
+            ? SelectedCandidate.DescriptionEn
+            : SelectedCandidate.DescriptionZh ?? string.Empty;
         line.Finish = SelectedCandidate.Finish ?? string.Empty;
         line.MainImage = SelectedCandidate.MainImage ?? string.Empty;
         if (line.Numerator <= 0) line.Numerator = 1;
@@ -209,6 +222,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
     private async Task LoadProductAsync(ProductLineModel? product)
     {
         var version = Interlocked.Increment(ref _loadVersion);
+        ClearProductLookupState();
         ActiveProduct = product;
         Boms.LoadFromDtos([]);
         SelectedLine = null;
@@ -236,6 +250,14 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
         Boms.LoadFromDtos(result.Data ?? []);
         SelectedLine = Boms.Items.FirstOrDefault();
         StatusText = $"BOM {product.BomNo}，共 {Boms.Items.Count} 项。";
+    }
+
+    private void ClearProductLookupState()
+    {
+        Interlocked.Increment(ref _searchVersion);
+        ProductCandidates.Clear();
+        SelectedCandidate = null;
+        IsLookupBusy = false;
     }
 
     private async Task<bool> ConfirmDiscardAsync()

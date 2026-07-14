@@ -59,6 +59,17 @@ public partial class ProductService(IProductRepository productRepository, Servic
 
     }
 
+    public async Task<ServiceResult<List<ProductLookupDto>>> SearchLookupAsync(ProductLookupRequest request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            return ServiceResult<List<ProductLookupDto>>.Ok([]);
+        }
+
+        var items = await productRepository.SearchLookupAsync(request);
+        return ServiceResult<List<ProductLookupDto>>.Ok(items.ToList());
+    }
+
 
 
     public async Task<ServiceResult<ProductBatchSaveResponse>> BatchSaveAsync(ProductBatchSaveRequest batchReq)

@@ -3,7 +3,6 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
-using System.Windows.Markup;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
@@ -19,7 +18,7 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 public sealed class ProductsViewComboBoxBindingTests
 {
     [TestMethod]
-    public void ComboBoxColumns_RecreateAfterUnload_ShouldKeepCurrentEmptyAndLegacyValuesUnchanged()
+    public void TemplateComboBoxColumns_RecreateAfterUnload_ShouldKeepCurrentEmptyAndLegacyValuesUnchanged()
     {
         StaTest.RunAsync(() =>
         {
@@ -57,7 +56,7 @@ public sealed class ProductsViewComboBoxBindingTests
     }
 
     [TestMethod]
-    public void TextBinding_ShouldDisplayLegacyValueAndWriteOnlyUserSelection()
+    public void TemplateComboBox_ShouldWriteOnlyUserSelection()
     {
         StaTest.RunAsync(() =>
         {
@@ -70,24 +69,13 @@ public sealed class ProductsViewComboBoxBindingTests
 
             var row = (DataGridRow)grid.ItemContainerGenerator.ContainerFromIndex(0);
             var cell = GetCell(grid, row, 0);
-            var display = cell.Content as TextBlock ?? FindVisualChild<TextBlock>(cell);
-            Assert.AreEqual(
-                "旧物料类型",
-                display?.Text,
-                $"Content={cell.Content?.GetType().FullName}, Source={list.Items[0].MaterialType}, Binding={(display is null ? "none" : BindingOperations.GetBindingExpression(display, TextBlock.TextProperty)?.Status.ToString())}");
-            Assert.AreEqual(LineState.Unchanged, list.Items[0].State);
-
-            grid.CurrentCell = new DataGridCellInfo(list.Items[0], grid.Columns[0]);
-            grid.SelectedCells.Clear();
-            grid.SelectedCells.Add(grid.CurrentCell);
-            Assert.IsTrue(grid.BeginEdit());
-            PumpDispatcher();
-
             var editor = FindVisualChild<ComboBox>(cell);
             Assert.IsNotNull(editor);
+            Assert.AreEqual("旧物料类型", list.Items[0].MaterialType);
+            Assert.AreEqual(LineState.Unchanged, list.Items[0].State);
+
             editor.SelectedItem = MaterialTypesEnum.零件;
             PumpDispatcher();
-            grid.CommitEdit(DataGridEditingUnit.Cell, true);
 
             Assert.AreEqual(MaterialTypesEnum.零件, list.Items[0].MaterialType);
             Assert.AreEqual(LineState.Modified, list.Items[0].State);
@@ -105,45 +93,40 @@ public sealed class ProductsViewComboBoxBindingTests
             ItemsSource = list.Items,
             SelectionUnit = DataGridSelectionUnit.Cell,
         };
-        var materialDisplayStyle = CreateDisplayStyle(nameof(ProductLineModel.MaterialType));
-        grid.Columns.Add(new DataGridComboBoxColumn
-        {
-            Header = "物料类型",
-            ItemsSource = MaterialTypesEnum.MaterialTypes,
-            TextBinding = new Binding(nameof(ProductLineModel.MaterialType))
-            {
-                Mode = BindingMode.TwoWay,
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-            },
-            ElementStyle = materialDisplayStyle,
-        });
+        grid.Columns.Add(CreateTemplateColumn(
+            "物料类型",
+            MaterialTypesEnum.MaterialTypes,
+            nameof(ProductLineModel.MaterialType)));
 
         if (includeSupplyType)
         {
-            var supplyDisplayStyle = CreateDisplayStyle(nameof(ProductLineModel.SupplyType));
-            grid.Columns.Add(new DataGridComboBoxColumn
-            {
-                Header = "供货类型",
-                ItemsSource = SupplyTypeEnums.SupplyTypes,
-                TextBinding = new Binding(nameof(ProductLineModel.SupplyType))
-                {
-                    Mode = BindingMode.TwoWay,
-                    UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-                },
-                ElementStyle = supplyDisplayStyle,
-            });
+            grid.Columns.Add(CreateTemplateColumn(
+                "供货类型",
+                SupplyTypeEnums.SupplyTypes,
+                nameof(ProductLineModel.SupplyType)));
         }
 
         return grid;
     }
 
-    private static Style CreateDisplayStyle(string propertyName)
+    private static DataGridTemplateColumn CreateTemplateColumn(
+        string header,
+        IEnumerable<string> itemsSource,
+        string propertyName)
     {
-        var template = (ControlTemplate)XamlReader.Parse(
-            $"<ControlTemplate xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" TargetType=\"ComboBox\"><TextBlock Text=\"{{Binding {propertyName}}}\" /></ControlTemplate>");
-        var style = new Style(typeof(ComboBox));
-        style.Setters.Add(new Setter(Control.TemplateProperty, template));
-        return style;
+#pragma warning disable CS0618
+        var factory = new FrameworkElementFactory(typeof(ComboBox));
+        factory.SetValue(ItemsControl.ItemsSourceProperty, itemsSource);
+        factory.SetBinding(
+            System.Windows.Controls.Primitives.Selector.SelectedValueProperty,
+            new Binding(propertyName)
+            {
+                Mode = BindingMode.TwoWay,
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+            });
+        var template = new DataTemplate { VisualTree = factory };
+#pragma warning restore CS0618
+        return new DataGridTemplateColumn { Header = header, CellTemplate = template };
     }
 
     private static DataGridCell GetCell(DataGrid grid, DataGridRow row, int columnIndex)

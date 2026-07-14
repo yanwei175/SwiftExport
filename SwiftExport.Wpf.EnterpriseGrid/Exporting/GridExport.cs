@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Windows.Controls;
 using System.Windows.Data;
 using SwiftExport.Wpf.EnterpriseGrid.Columns;
-using SwiftExport.Wpf.EnterpriseGrid.Columns.Enum;
 using SwiftExport.Wpf.EnterpriseGrid.Columns.Lookup;
 using SwiftExport.Wpf.EnterpriseGrid.Core.Internal;
 
@@ -150,14 +149,6 @@ public static class GridExport
             return PropertyPathAccessor.GetValue(lookupItem, lookup.DisplayMemberPath) ?? rawValue;
         }
 
-        if (snapshot.Column is EnumDataGridColumn enumColumn)
-        {
-            var enumItem = enumColumn.ItemsSource?.Cast<object>()
-                .OfType<EnumDataGridItem>()
-                .FirstOrDefault(candidate => Equals(candidate.Value, rawValue));
-            return enumItem?.DisplayName ?? rawValue;
-        }
-
         var presentationBinding = snapshot.DisplayBinding ?? snapshot.Binding;
         return presentationBinding is null
             ? rawValue
@@ -202,9 +193,6 @@ public static class GridExport
     private static Binding? GetRawValueBinding(DataGridColumn column) => column switch
     {
         LookupDataGridColumn lookup => lookup.SelectedValueBinding as Binding,
-        DataGridComboBoxColumn comboBox => comboBox.SelectedValueBinding as Binding
-            ?? comboBox.SelectedItemBinding as Binding
-            ?? comboBox.TextBinding as Binding,
         DataGridBoundColumn bound => bound.Binding as Binding,
         _ => null
     };

@@ -20,7 +20,9 @@ public static class GridValidation
         "Errors",
         typeof(IReadOnlyList<GridValidationError>),
         typeof(GridValidation),
-        new PropertyMetadata(Array.Empty<GridValidationError>()));
+        new FrameworkPropertyMetadata(
+            Array.Empty<GridValidationError>(),
+            FrameworkPropertyMetadataOptions.Inherits));
 
     /// <summary>按当前视图行序和列 DisplayIndex 排序的只读错误列表。</summary>
     public static readonly DependencyProperty ErrorsProperty = ErrorsPropertyKey.DependencyProperty;

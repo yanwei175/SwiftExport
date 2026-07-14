@@ -57,6 +57,31 @@ public sealed class GridSelectionTests
     }
 
     [TestMethod]
+    public void NativeCurrentCellState_ShouldInheritToRealizedCell()
+    {
+        StaTest.Run(() =>
+        {
+            var first = new TestRow("A");
+            var dataGrid = CreateCellGrid(first);
+            try
+            {
+                GridSelection.SetCurrentCell(dataGrid, new GridCellReference(first, "name"));
+                DrainDispatcher();
+                var cell = CreateRealizedCell(dataGrid, first, dataGrid.Columns[0]);
+
+                var inheritedState = GridSelection.GetNativeCurrentCellState(cell);
+                Assert.IsTrue(inheritedState.IsValid);
+                Assert.AreSame(first, inheritedState.Item);
+                Assert.AreSame(dataGrid.Columns[0], inheritedState.Column);
+            }
+            finally
+            {
+                ((Window)dataGrid.Tag).Close();
+            }
+        });
+    }
+
+    [TestMethod]
     public void CurrentRowChange_ShouldMoveExistingCurrentColumnAndRefreshCellReference()
     {
         StaTest.Run(() =>

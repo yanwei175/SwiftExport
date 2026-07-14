@@ -47,6 +47,29 @@ internal static class PropertyPathAccessor
                (target is IDictionary || segment.Descriptor is { IsReadOnly: false });
     }
 
+    public static bool TryGetValueType(object? source, string? path, out Type valueType)
+    {
+        valueType = null!;
+        if (!TryGetTarget(source, path, out var target, out var segment))
+        {
+            return false;
+        }
+
+        if (target is IDictionary dictionary)
+        {
+            valueType = dictionary[segment.Name]?.GetType() ?? typeof(string);
+            return true;
+        }
+
+        if (segment.Descriptor is null)
+        {
+            return false;
+        }
+
+        valueType = segment.Descriptor.PropertyType;
+        return true;
+    }
+
     public static bool TrySetValue(object? source, string? path, object? value)
     {
         if (!TryGetTarget(source, path, out var target, out var segment))

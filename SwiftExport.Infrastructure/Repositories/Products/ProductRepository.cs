@@ -61,6 +61,95 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         return [.. rst];
     }
 
+    /// <summary>
+    /// 为产品 Lookup 返回轻量候选。CustomerProduct 使用 EXISTS，避免同一产品重复返回。
+    /// </summary>
+    public async Task<IReadOnlyList<ProductLookupDto>> SearchLookupAsync(ProductLookupRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var keyword = request.Keyword?.Trim();
+        if (string.IsNullOrWhiteSpace(keyword))
+        {
+            return [];
+        }
+
+        var limit = Math.Clamp(request.Limit <= 0 ? 20 : request.Limit, 1, 50);
+        var parameters = new
+        {
+            Limit = limit,
+            request.ExcludeProductId,
+            ExactKeyword = keyword,
+            PrefixKeyword = $"{keyword}%",
+            ContainsKeyword = $"%{keyword}%"
+        };
+
+        var sql = $@"
+            SELECT TOP (@Limit)
+                p.{nameof(Product.Uid)} AS {nameof(ProductLookupDto.Uid)},
+                p.{nameof(Product.Sku)} AS {nameof(ProductLookupDto.Sku)},
+                p.{nameof(Product.DescriptionEn)} AS {nameof(ProductLookupDto.DescriptionEn)},
+                p.{nameof(Product.DescriptionZh)} AS {nameof(ProductLookupDto.DescriptionZh)},
+                p.{nameof(Product.LinkSku)} AS {nameof(ProductLookupDto.LinkSku)},
+                pat.{nameof(ProductCategory.CategoryName)} AS {nameof(ProductLookupDto.CategoryName)},
+                p.{nameof(Product.MainImage)} AS {nameof(ProductLookupDto.MainImage)},
+                pc.{nameof(ProductColor.ColorNameZh)} AS {nameof(ProductLookupDto.Finish)}
+            FROM [{TableName}] p WITH(NOLOCK)
+            LEFT JOIN [{ProductCategoryTable}] pat WITH(NOLOCK)
+                ON pat.{nameof(ProductCategory.Uid)} = p.{nameof(Product.CategoryId)}
+               AND (pat.{nameof(ProductCategory.IsDeleted)} = 0 OR pat.{nameof(ProductCategory.IsDeleted)} IS NULL)
+            LEFT JOIN [{ProductColorTable}] pc WITH(NOLOCK)
+                ON pc.{nameof(ProductColor.Uid)} = p.{nameof(Product.ColorId)}
+               AND (pc.{nameof(ProductColor.IsDeleted)} = 0 OR pc.{nameof(ProductColor.IsDeleted)} IS NULL)
+            WHERE (p.{nameof(Product.IsDeleted)} = 0 OR p.{nameof(Product.IsDeleted)} IS NULL)
+              AND (@ExcludeProductId = '00000000-0000-0000-0000-000000000000'
+                   OR p.{nameof(Product.Uid)} <> @ExcludeProductId)
+              AND (
+                     p.{nameof(Product.Sku)} LIKE @ContainsKeyword
+                  OR p.{nameof(Product.DefaultCustomerSku)} LIKE @ContainsKeyword
+                  OR p.{nameof(Product.DescriptionEn)} LIKE @ContainsKeyword
+                  OR p.{nameof(Product.DescriptionZh)} LIKE @ContainsKeyword
+                  OR p.{nameof(Product.LinkSku)} LIKE @ContainsKeyword
+                  OR pat.{nameof(ProductCategory.CategoryName)} LIKE @ContainsKeyword
+                  OR EXISTS (
+                      SELECT 1
+                      FROM [{CustomerProductTable}] cp WITH(NOLOCK)
+                      WHERE cp.{nameof(CustomerProduct.SkuId)} = p.{nameof(Product.Uid)}
+                        AND (cp.{nameof(CustomerProduct.IsDeleted)} = 0 OR cp.{nameof(CustomerProduct.IsDeleted)} IS NULL)
+                        AND cp.{nameof(CustomerProduct.CustomerSku)} LIKE @ContainsKeyword
+                  )
+              )
+            ORDER BY
+                CASE
+                    WHEN p.{nameof(Product.Sku)} = @ExactKeyword THEN 0
+                    WHEN p.{nameof(Product.DefaultCustomerSku)} = @ExactKeyword
+                         OR EXISTS (
+                             SELECT 1
+                             FROM [{CustomerProductTable}] exactCp WITH(NOLOCK)
+                             WHERE exactCp.{nameof(CustomerProduct.SkuId)} = p.{nameof(Product.Uid)}
+                               AND (exactCp.{nameof(CustomerProduct.IsDeleted)} = 0 OR exactCp.{nameof(CustomerProduct.IsDeleted)} IS NULL)
+                               AND exactCp.{nameof(CustomerProduct.CustomerSku)} = @ExactKeyword
+                         ) THEN 1
+                    WHEN p.{nameof(Product.Sku)} LIKE @PrefixKeyword THEN 2
+                    WHEN p.{nameof(Product.DefaultCustomerSku)} LIKE @PrefixKeyword
+                         OR EXISTS (
+                             SELECT 1
+                             FROM [{CustomerProductTable}] prefixCp WITH(NOLOCK)
+                             WHERE prefixCp.{nameof(CustomerProduct.SkuId)} = p.{nameof(Product.Uid)}
+                               AND (prefixCp.{nameof(CustomerProduct.IsDeleted)} = 0 OR prefixCp.{nameof(CustomerProduct.IsDeleted)} IS NULL)
+                               AND prefixCp.{nameof(CustomerProduct.CustomerSku)} LIKE @PrefixKeyword
+                         ) THEN 3
+                    ELSE 4
+                END,
+                p.{nameof(Product.Sku)} ASC;";
+
+        var items = await Connection.QueryAsync<ProductLookupDto>(
+            sql,
+            parameters,
+            transaction: Transaction);
+        return items.ToArray();
+    }
+
     public async Task<PagedResponseBase<ProductDto>> GetPagedAsync(ProductSearchRequest request)
     {
         request ??= new ProductSearchRequest();
