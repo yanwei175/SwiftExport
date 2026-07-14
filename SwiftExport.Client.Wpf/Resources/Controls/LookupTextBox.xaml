@@ -41,7 +41,7 @@
                          Style="{StaticResource LookupInputTextBoxStyle}"
                          BorderThickness="0"
                          Background="Transparent"
-                         Padding="4,0,32,0"
+                         Padding="4,0,14,0"
                          VerticalContentAlignment="Center"
                          TextChanged="InputTextBox_TextChanged"
                          GotKeyboardFocus="InputTextBox_GotKeyboardFocus"
@@ -49,14 +49,15 @@
                          PreviewKeyDown="InputTextBox_PreviewKeyDown" />
 
                 <TextBlock x:Name="DisplayTextBlock"
-                           Margin="4,0,32,0"
+                           Margin="4,0,14,0"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            IsHitTestVisible="False"
                            Visibility="Collapsed" />
 
                 <TextBlock x:Name="PlaceholderTextBlock"
-                           Margin="8,0,32,0"
+                           Margin="8,0,8,0"
+                           FontSize="10"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
                            IsHitTestVisible="False"

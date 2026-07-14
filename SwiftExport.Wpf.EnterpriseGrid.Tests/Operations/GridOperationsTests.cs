@@ -171,6 +171,7 @@ public sealed class GridOperationsTests
             editor.SelectAll();
 
             Assert.IsTrue(ApplicationCommands.Copy.CanExecute(null, editor));
+            ApplicationCommands.Copy.Execute(null, editor);
             Assert.IsTrue(ApplicationCommands.Paste.CanExecute(null, editor));
         });
     }

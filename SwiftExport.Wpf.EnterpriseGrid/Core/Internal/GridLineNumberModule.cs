@@ -6,12 +6,9 @@ namespace SwiftExport.Wpf.EnterpriseGrid.Core.Internal;
 
 internal sealed class GridRowNumberModule
 {
-    private const double DefaultRowNumberHeaderWidth = 48;
     private readonly DataGrid _dataGrid;
     private bool _isAttached;
     private bool _eventsSubscribed;
-    private bool _widthAdjusted;
-    private double _originalRowHeaderWidth;
     private DispatcherOperation? _pendingRefresh;
 
     public GridRowNumberModule(DataGrid dataGrid)
@@ -69,16 +66,6 @@ internal sealed class GridRowNumberModule
             _eventsSubscribed = true;
         }
 
-        if (!_widthAdjusted)
-        {
-            _originalRowHeaderWidth = _dataGrid.RowHeaderWidth;
-            if (double.IsNaN(_dataGrid.RowHeaderWidth) || _dataGrid.RowHeaderWidth < DefaultRowNumberHeaderWidth)
-            {
-                _dataGrid.RowHeaderWidth = DefaultRowNumberHeaderWidth;
-                _widthAdjusted = true;
-            }
-        }
-
         ScheduleRefresh();
     }
 
@@ -95,11 +82,6 @@ internal sealed class GridRowNumberModule
         }
 
         UpdateRealizedRows(clear: true);
-        if (_widthAdjusted)
-        {
-            _dataGrid.RowHeaderWidth = _originalRowHeaderWidth;
-            _widthAdjusted = false;
-        }
     }
 
     private void OnLoadingRow(object? sender, DataGridRowEventArgs e) =>

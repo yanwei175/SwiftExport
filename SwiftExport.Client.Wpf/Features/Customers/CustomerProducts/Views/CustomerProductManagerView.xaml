@@ -48,7 +48,7 @@
             <DataGrid.Columns>
                 <DataGridTemplateColumn Width="43" CanUserSort="False">
                     <DataGridTemplateColumn.HeaderTemplate><DataTemplate><CheckBox HorizontalAlignment="Left" IsChecked="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
-                    <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox HorizontalAlignment="Left" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox Margin="4,0" HorizontalAlignment="Left" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTemplateColumn Header="图片" Width="56" IsReadOnly="True"><DataGridTemplateColumn.CellTemplate><DataTemplate>
                     <controls:CachedImage Width="40" Height="40" Style="{StaticResource SwiftExportCachedImage}" DecodePixelWidth="96" SourcePath="{Binding MainImage}" Stretch="Uniform" />

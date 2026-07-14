@@ -15,7 +15,7 @@ namespace SwiftExport.Wpf.EnterpriseGrid.Tests.Core;
 public sealed class GridRowHeaderTests
 {
     [TestMethod]
-    public void ShowRowNumber_ShouldNumberCurrentViewAndRestoreHeaderWidthWhenDisabled()
+    public void ShowRowNumber_ShouldNumberCurrentViewWithoutChangingHeaderWidth()
     {
         StaTest.Run(() =>
         {
@@ -28,7 +28,7 @@ public sealed class GridRowHeaderTests
             var dataGrid = CreateGrid(rows);
             using var host = Show(dataGrid);
 
-            Assert.AreEqual(48d, dataGrid.RowHeaderWidth);
+            Assert.AreEqual(32d, dataGrid.RowHeaderWidth);
             AssertRowNumbers(dataGrid);
 
             dataGrid.Items.SortDescriptions.Add(new SortDescription(nameof(TestRow.Name), ListSortDirection.Ascending));
@@ -61,6 +61,29 @@ public sealed class GridRowHeaderTests
                     Assert.IsNull(row.Header);
                 }
             }
+        });
+    }
+
+    [TestMethod]
+    public void ShowRowNumber_ShouldPreserveHostDefinedHeaderWidth()
+    {
+        StaTest.Run(() =>
+        {
+            var rows = new ObservableCollection<TestRow> { new("A") };
+            var dataGrid = CreateGrid(rows);
+            dataGrid.RowHeaderWidth = 40;
+            using var host = Show(dataGrid);
+
+            Assert.AreEqual(40d, dataGrid.RowHeaderWidth);
+            AssertRowNumbers(dataGrid);
+
+            GridRowHeader.SetShowRowNumber(dataGrid, false);
+            Assert.AreEqual(40d, dataGrid.RowHeaderWidth);
+
+            GridRowHeader.SetShowRowNumber(dataGrid, true);
+            Assert.AreEqual(40d, dataGrid.RowHeaderWidth);
+            DrainDispatcher();
+            AssertRowNumbers(dataGrid);
         });
     }
 

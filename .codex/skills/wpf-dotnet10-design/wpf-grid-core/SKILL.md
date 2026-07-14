@@ -32,4 +32,4 @@ description: SwiftExport 原生 WPF DataGrid 增强核心技能。用于 Enterpr
 - 不通过 `UpdateLayout` 全局强制布局；需要容器时先 `ScrollIntoView`，再处理生成结果。
 - 设计可注入的导航、列可见性等策略，但避免过早建立通用插件平台。
 - 测试重复启停、卸载重载、空 ItemsSource、列动态变化和多个 DataGrid 并存。
-- `GridRowHeader.ShowRowNumber` 只能表达当前视图行号，不得读取业务 RowIndex、关闭虚拟化或长期缓存 DataGridRow。
+- `GridRowHeader.ShowRowNumber` 只能表达当前视图行号，不得读取业务 RowIndex、修改宿主 RowHeaderWidth、关闭虚拟化或长期缓存 DataGridRow。
