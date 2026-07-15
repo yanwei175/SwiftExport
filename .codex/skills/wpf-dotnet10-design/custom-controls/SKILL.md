@@ -48,6 +48,12 @@ description: SwiftExport.Client.Wpf 自定义控件设计规则。用于 PopupTe
 - 编辑值必须回写绑定。
 - 错误状态要能被 DataGrid 行/单元格展示。
 
+## 业务抽屉输入规则
+
+- `RightDrawerHost.CloseOnEscape` 默认关闭，必须由页面显式启用。
+- Esc 只能在抽屉内部焦点范围内、子编辑器未处理后发起关闭请求；不得在 Preview 阶段抢占 DataGrid、TextBox 或 Popup 的 Esc。
+- 已绑定 CloseCommand 时必须尊重 CanExecute，不得回退为直接修改 IsOpen。
+
 ## 禁止事项
 
 - 禁止控件直接访问 Repository、API、Application Service。

@@ -4,7 +4,6 @@ using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
 using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Features.Home;
 using SwiftExportClient.Features.Planning;
-using SwiftExportClient.Features.Products.Categories.Services;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.Colors.ViewModels;
@@ -32,7 +31,6 @@ public static class ViewRegistrationExtensions
         services.AddTransient<BomDrawerViewModel>();
         services.AddTransient<ProductColorsViewModel>();
         services.AddTransient<ProductCategoryManagerViewModel>();
-        services.AddTransient<IProductCategoryManagerDialogService, ProductCategoryManagerDialogService>();
         services.AddTransient<ProductBomViewModel>();
         services.AddTransient<CustomerManagerViewModel>();
         services.AddTransient<CustomerProductManagerViewModel>();

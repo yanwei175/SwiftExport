@@ -5,7 +5,6 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Options;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Bootstrapper;
-using SwiftExportClient.Features.Products.Categories.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.UI;
@@ -16,9 +15,7 @@ namespace SwiftExportClient.Shell;
 public sealed class ShellViewModel : ViewModelBaseEx
 {
     private const string HomeRouteKey = "home";
-    private const string ProductCategoryManagerRouteKey = "product-category-manager";
     private readonly INavigationService _navigationService;
-    private readonly IProductCategoryManagerDialogService _productCategoryManagerDialogService;
     private readonly ISessionService _sessionService;
     private readonly IStatusMessageService _statusMessageService;
     private readonly IReadOnlyList<ShellNavigationItem> _allMenuItems;
@@ -37,12 +34,10 @@ public sealed class ShellViewModel : ViewModelBaseEx
         ICurrentUserService currentUserService,
         INavigationRouteRegistry routeRegistry,
         INavigationService navigationService,
-        IProductCategoryManagerDialogService productCategoryManagerDialogService,
         ISessionService sessionService,
         IStatusMessageService statusMessageService)
     {
         _navigationService = navigationService;
-        _productCategoryManagerDialogService = productCategoryManagerDialogService;
         _sessionService = sessionService;
         _statusMessageService = statusMessageService;
         _allMenuItems = routeRegistry.MenuItems
@@ -183,9 +178,7 @@ public sealed class ShellViewModel : ViewModelBaseEx
             return Task.CompletedTask;
         }
 
-        return string.Equals(routeKey, ProductCategoryManagerRouteKey, StringComparison.OrdinalIgnoreCase)
-            ? _productCategoryManagerDialogService.ShowAsync()
-            : _navigationService.OpenAsync(routeKey);
+        return _navigationService.OpenAsync(routeKey);
     }
 
     private Task CloseTabAsync(NavigationTabItem? tab)

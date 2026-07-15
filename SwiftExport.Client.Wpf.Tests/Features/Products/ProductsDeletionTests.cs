@@ -1,8 +1,11 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Mvvm;
+using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.UI;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
@@ -97,11 +100,24 @@ public sealed class ProductsDeletionTests
         Assert.IsTrue(viewModel.DeleteSelectedCommand.CanExecute(null));
     }
 
-    private static ProductsViewModel CreateViewModel(RecordingDialogService dialogService)
+    [TestMethod]
+    public async Task OpenCategoryManager_ShouldOpenRegisteredTabRoute()
+    {
+        var navigation = new RecordingNavigationService();
+        var viewModel = CreateViewModel(new RecordingDialogService(), navigation);
+
+        await viewModel.OpenCategoryManagerCommand.ExecuteAsync(null);
+
+        Assert.AreEqual("product-category-manager", navigation.LastOpenedRoute);
+    }
+
+    private static ProductsViewModel CreateViewModel(
+        RecordingDialogService dialogService,
+        INavigationService? navigationService = null)
     {
         var bomDrawer = new BomDrawerViewModel(null!, null!, null!, null!, dialogService);
         return new ProductsViewModel(
-            null!, null!, null!, null!, null!, null!, null!, dialogService, null!, bomDrawer);
+            null!, null!, null!, null!, null!, null!, null!, dialogService, navigationService!, bomDrawer);
     }
 
     private static ProductDto CreateDto(string sku) => new()
@@ -137,5 +153,36 @@ public sealed class ProductsDeletionTests
             string title,
             string message,
             CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class RecordingNavigationService : INavigationService
+    {
+        public event PropertyChangedEventHandler? PropertyChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public ObservableCollection<NavigationTabItem> OpenTabs { get; } = [];
+
+        public NavigationTabItem? SelectedTab { get; set; }
+
+        public string? LastOpenedRoute { get; private set; }
+
+        public Task OpenAsync(string routeKey)
+        {
+            LastOpenedRoute = routeKey;
+            return Task.CompletedTask;
+        }
+
+        public void Activate(NavigationTabItem? tab)
+        {
+        }
+
+        public Task CloseAsync(NavigationTabItem? tab) => Task.CompletedTask;
+
+        public void Reset()
+        {
+        }
     }
 }

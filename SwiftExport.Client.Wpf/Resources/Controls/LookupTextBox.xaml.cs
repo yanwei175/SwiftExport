@@ -941,14 +941,14 @@ public partial class LookupTextBox : UserControl
         if (_isSelectionDisplayMode && hasDisplay)
         {
             InputTextBox.Visibility = Visibility.Collapsed;
-            DisplayTextBlock.Visibility = Visibility.Visible;
+            DisplayTextBlockBorder.Visibility = Visibility.Visible;
             PlaceholderTextBlock.Visibility = Visibility.Collapsed;
             HasTextOrSelection = true;
             return;
         }
 
         InputTextBox.Visibility = Visibility.Visible;
-        DisplayTextBlock.Visibility = Visibility.Collapsed;
+        DisplayTextBlockBorder.Visibility = Visibility.Collapsed;
         PlaceholderTextBlock.Visibility = hasInput || hasDisplay ? Visibility.Collapsed : Visibility.Visible;
         HasTextOrSelection = hasInput || hasDisplay;
     }

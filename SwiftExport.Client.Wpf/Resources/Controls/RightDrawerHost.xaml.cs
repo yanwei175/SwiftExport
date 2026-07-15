@@ -68,6 +68,12 @@ public partial class RightDrawerHost : UserControl
     public static readonly DependencyProperty CloseCommandProperty = DependencyProperty.Register(
         nameof(CloseCommand), typeof(ICommand), typeof(RightDrawerHost));
 
+    public static readonly DependencyProperty CloseOnEscapeProperty = DependencyProperty.Register(
+        nameof(CloseOnEscape),
+        typeof(bool),
+        typeof(RightDrawerHost),
+        new PropertyMetadata(false));
+
     public RightDrawerHost()
     {
         InitializeComponent();
@@ -86,6 +92,7 @@ public partial class RightDrawerHost : UserControl
     public bool IsResizable { get => (bool)GetValue(IsResizableProperty); set => SetValue(IsResizableProperty, value); }
     public DrawerDisplayMode DisplayMode { get => (DrawerDisplayMode)GetValue(DisplayModeProperty); set => SetValue(DisplayModeProperty, value); }
     public ICommand? CloseCommand { get => (ICommand?)GetValue(CloseCommandProperty); set => SetValue(CloseCommandProperty, value); }
+    public bool CloseOnEscape { get => (bool)GetValue(CloseOnEscapeProperty); set => SetValue(CloseOnEscapeProperty, value); }
 
     private static void OnLayoutPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
         ((RightDrawerHost)d).UpdateLayoutState();
@@ -124,20 +131,23 @@ public partial class RightDrawerHost : UserControl
         Grid.SetColumnSpan(MainPresenter, isPush ? 1 : 2);
     }
 
-    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    private void OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (!IsOpen || e.Key != Key.Escape)
+        if (!IsOpen || !CloseOnEscape || e.Key != Key.Escape || !DrawerBorder.IsKeyboardFocusWithin)
         {
             return;
         }
 
-        if (CloseCommand?.CanExecute(null) == true)
+        if (CloseCommand is not null)
         {
-            CloseCommand.Execute(null);
+            if (CloseCommand.CanExecute(null))
+            {
+                CloseCommand.Execute(null);
+            }
         }
         else
         {
-            IsOpen = false;
+            SetCurrentValue(IsOpenProperty, false);
         }
 
         e.Handled = true;

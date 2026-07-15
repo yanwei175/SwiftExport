@@ -1,6 +1,7 @@
 <UserControl x:Class="SwiftExportClient.Resources.Controls.LookupTextBox"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              x:Name="Root"
              MinHeight="30">
     <UserControl.Resources>
@@ -9,89 +10,108 @@
             内部输入框只保留 WPF TextBox 必需的 PART_ContentHost，避免 Fluent
             默认模板在聚焦且有文本时再生成一个 ClearButton。
         -->
-        <Style x:Key="LookupInputTextBoxStyle"
-               TargetType="{x:Type TextBox}">
-            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type TextBox}">
-                        <ScrollViewer x:Name="PART_ContentHost"
-                                      Margin="{TemplateBinding Padding}"
-                                      Focusable="False"
-                                      HorizontalScrollBarVisibility="Hidden"
-                                      VerticalScrollBarVisibility="Hidden"
-                                      SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <!-- 与紧凑 DataGrid 编辑器保持相同布局，但不依赖页面级命名资源。 -->
+        <Style x:Key="LookupInputBaseStyle"
+               TargetType="{x:Type TextBox}"
+               BasedOn="{StaticResource {x:Type TextBoxBase}}">
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="2,0,0,0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
         </Style>
+        <Style x:Key="LookupInputTextBoxStyle"
+               TargetType="{x:Type TextBox}" BasedOn="{StaticResource LookupInputBaseStyle}">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextControlForeground}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource TextControlForeground}" />
+            <Setter Property="Background" Value="{DynamicResource TextControlBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource TextControlElevationBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1,1,1,1" />
+            <Setter Property="FontSize" Value="{DynamicResource ControlContentThemeFontSize}" />
+        </Style>
+
+        <Style x:Key="LookupEditorBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource TextControlBackgroundPointerOver}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
     </UserControl.Resources>
 
     <Grid>
         <Border x:Name="EditorBorder"
                 Height="{Binding ActualHeight, ElementName=Root}"
+                Style="{DynamicResource LookupEditorBorderStyle}"
                 MinHeight="30"
-                Background="{DynamicResource SwiftExportBrush.Surface}"
-                BorderBrush="{DynamicResource SwiftExportBrush.Border}"
-                BorderThickness="{DynamicResource SwiftExportBorderThickness}"
-                CornerRadius="{DynamicResource SwiftExportControlCornerRadius}"
+                Padding="0"
                 MouseLeftButtonDown="EditorBorder_MouseLeftButtonDown">
             <Grid>
                 <TextBox x:Name="InputTextBox"
                          Style="{StaticResource LookupInputTextBoxStyle}"
-                         BorderThickness="0"
-                         Background="Transparent"
-                         Padding="4,0,14,0"
                          VerticalContentAlignment="Center"
                          TextChanged="InputTextBox_TextChanged"
                          GotKeyboardFocus="InputTextBox_GotKeyboardFocus"
                          LostKeyboardFocus="InputTextBox_LostKeyboardFocus"
                          PreviewKeyDown="InputTextBox_PreviewKeyDown" />
-
-                <TextBlock x:Name="DisplayTextBlock"
-                           Margin="4,0,14,0"
+                <Border x:Name="DisplayTextBlockBorder"
+                        Height="{Binding ActualHeight, ElementName=Root}"
+                        Style="{DynamicResource LookupEditorBorderStyle}"
+                        BorderBrush="{DynamicResource TextControlElevationBorderBrush}"
+                        BorderThickness="{DynamicResource TextBoxBorderThemeThickness}"
+                        Visibility="{Binding ElementName=DisplayTextBlock, Path=Visibility}">
+                    <TextBlock x:Name="DisplayTextBlock"
+                           Margin="14,0,0,0"
+                           Padding="0,0"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
-                           IsHitTestVisible="False"
-                           Visibility="Collapsed" />
+                           IsHitTestVisible="False" />
+                </Border>
+
 
                 <TextBlock x:Name="PlaceholderTextBlock"
-                           Margin="8,0,8,0"
-                           FontSize="10"
+                           Margin="14,0,0,0"
+                           Padding="0,0"
+                           FontSize="{DynamicResource ControlContentThemeFontSize}"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
                            IsHitTestVisible="False"
                            Text="{Binding Placeholder, ElementName=Root}" />
 
-                <Button x:Name="BtnClear"
+                <ui:Button x:Name="BtnClear"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center"
-                        Margin="0,0,4,0"
-                        Width="24"
-                        MinHeight="24"
-                        Focusable="False"
-                        Cursor="Hand"
+                        MinWidth="{DynamicResource TextBoxClearButtonHeight}"
+                        MinHeight="{DynamicResource TextBoxClearButtonHeight}"
+                        Margin="{DynamicResource TextBoxClearButtonMargin}"
+                        Padding="{DynamicResource TextBoxClearButtonPadding}"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Appearance="Secondary"
                         Background="Transparent"
+                        BorderBrush="Transparent"
                         BorderThickness="0"
-                        Padding="0"
-                        Content="x"
+                        Command="{Binding Path=TemplateButtonCommand, RelativeSource={RelativeSource TemplatedParent}}"
+                        Cursor="Arrow"
+                        Foreground="{DynamicResource TextControlButtonForeground}"
+                        IsTabStop="False"
+                        MouseOverBackground="{DynamicResource SubtleFillColorSecondaryBrush}"
+                        MouseOverBorderBrush="Transparent"
+                        PressedBackground="{DynamicResource SubtleFillColorTertiaryBrush}"
+                        PressedBorderBrush="Transparent"
+                        Content="{ui:SymbolIcon Symbol=Dismiss24}"
                         ToolTip="清除"
                         AutomationProperties.Name="清除当前输入和选择"
+                        Visibility="{Binding HasTextOrSelection, ElementName=Root,Converter={StaticResource BooleanToVisibilityConverter}}"
                         Click="BtnClear_Click">
-                    <Button.Style>
-                        <Style TargetType="{x:Type Button}"
-                               BasedOn="{StaticResource {x:Type Button}}">
-                            <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextSecondary}" />
-                            <Setter Property="FontWeight" Value="SemiBold" />
-                            <Setter Property="Visibility" Value="Collapsed" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding HasTextOrSelection, ElementName=Root}" Value="True">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
+                </ui:Button>
 
                 <ProgressBar Height="2"
                              VerticalAlignment="Bottom"
@@ -132,12 +152,13 @@
                                       Color="Black" />
                 </Border.Effect>
 
-                <ScrollViewer CanContentScroll="True"
-                              VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Disabled">
                     <ListBox x:Name="ResultList"
                              BorderThickness="0"
+                             Background="White"
                              Focusable="False"
+                             ScrollViewer.CanContentScroll="True"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              PreviewMouseLeftButtonUp="ResultList_PreviewMouseLeftButtonUp">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="{x:Type ListBoxItem}"
@@ -153,7 +174,6 @@
                             </Style>
                         </ListBox.ItemContainerStyle>
                     </ListBox>
-                </ScrollViewer>
             </Border>
         </Popup>
     </Grid>

@@ -348,6 +348,64 @@ public sealed class LookupTextBoxTests
         });
     }
 
+    [TestMethod]
+    public void PopupResults_MouseWheelShouldUseListBoxInternalScrollViewer()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var lookup = new LookupTextBox
+            {
+                SearchMode = LookupTextBoxSearchMode.Local,
+                ItemsSource = Enumerable.Range(1, 60).Select(index => new LookupItem($"Item {index}")),
+                DisplayMemberPath = nameof(LookupItem.Name),
+            };
+            var window = new Window
+            {
+                Width = 320,
+                Height = 180,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None,
+                Content = lookup,
+            };
+
+            try
+            {
+                window.Show();
+                lookup.IsDropDownOpen = true;
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                lookup.UpdateLayout();
+
+                var resultList = (ListBox?)lookup.FindName("ResultList");
+                Assert.IsNotNull(resultList);
+                resultList.UpdateLayout();
+                Assert.AreEqual(ScrollBarVisibility.Auto, ScrollViewer.GetVerticalScrollBarVisibility(resultList));
+                Assert.AreEqual(ScrollBarVisibility.Disabled, ScrollViewer.GetHorizontalScrollBarVisibility(resultList));
+                Assert.IsTrue(ScrollViewer.GetCanContentScroll(resultList));
+
+                var scrollViewers = FindVisualDescendants<ScrollViewer>(resultList).ToArray();
+                Assert.AreEqual(1, scrollViewers.Length, "Lookup 结果只应使用 ListBox 模板自身的滚动宿主。");
+                var scrollViewer = scrollViewers[0];
+                Assert.IsTrue(scrollViewer.ScrollableHeight > 0, "大量候选项必须产生可滚动范围。");
+
+                var firstItem = (ListBoxItem?)resultList.ItemContainerGenerator.ContainerFromIndex(0);
+                Assert.IsNotNull(firstItem);
+                var source = PresentationSource.FromVisual(firstItem)
+                             ?? throw new InvalidOperationException("Lookup 候选项尚未连接到 PresentationSource。");
+                firstItem.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
+                {
+                    RoutedEvent = Mouse.MouseWheelEvent,
+                });
+                await Dispatcher.Yield(DispatcherPriority.Background);
+
+                Assert.IsTrue(scrollViewer.VerticalOffset > 0, "向下滚动鼠标滚轮必须推进候选列表偏移。");
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
     private sealed record LookupItem(string Name);
 
     private static IEnumerable<T> FindVisualDescendants<T>(DependencyObject root)

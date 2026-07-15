@@ -49,7 +49,7 @@
     </DataTemplate>
 
     <Style x:Key="SwiftExportDataGridTextBlock"
-           TargetType="{x:Type TextBlock}">
+           TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Margin" Value="2,0"/>
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />

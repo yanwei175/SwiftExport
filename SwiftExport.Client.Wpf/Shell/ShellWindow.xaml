@@ -8,6 +8,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:planning="clr-namespace:SwiftExportClient.Features.Planning"
+        xmlns:productCategoryViews="clr-namespace:SwiftExportClient.Features.Products.Categories.Views"
+        xmlns:productCategoryViewModels="clr-namespace:SwiftExportClient.Features.Products.Categories.ViewModels"
         xmlns:productColorViews="clr-namespace:SwiftExportClient.Features.Products.Colors.Views"
         xmlns:productColorViewModels="clr-namespace:SwiftExportClient.Features.Products.Colors.ViewModels"
         xmlns:productListViews="clr-namespace:SwiftExportClient.Features.Products.ProductList.Views"
@@ -41,6 +43,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type productListViewModels:ProductsViewModel}">
             <productListViews:ProductsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type productCategoryViewModels:ProductCategoryManagerViewModel}">
+            <productCategoryViews:ProductCategoryManagerView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type productColorViewModels:ProductColorsViewModel}">
             <productColorViews:ProductColorsView />

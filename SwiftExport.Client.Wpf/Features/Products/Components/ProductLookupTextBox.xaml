@@ -36,7 +36,7 @@
                 <TextBlock Grid.Row="1"
                            Grid.Column="2"
                            Margin="0,2,0,0"
-                           Text="{Binding DescriptionZh}"
+                           Text="{Binding DescriptionEn}"
                            TextWrapping="Wrap"
                            Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
             </Grid>
@@ -45,6 +45,7 @@
 
     <controls:LookupTextBox x:Name="LookupEditor"
                             Text="{Binding Text, ElementName=Root, Mode=TwoWay}"
+                            FontSize="10"
                             ItemsSource="{Binding ItemsSource, ElementName=Root}"
                             SelectedItem="{Binding SelectedProduct, ElementName=Root, Mode=TwoWay}"
                             SelectedValue="{Binding SelectedProductId, ElementName=Root, Mode=TwoWay}"

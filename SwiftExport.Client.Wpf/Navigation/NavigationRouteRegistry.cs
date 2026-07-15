@@ -1,6 +1,7 @@
 using SwiftExportClient.Features.Home;
 using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
 using SwiftExportClient.Features.Planning;
+using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.Placeholders.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
@@ -17,6 +18,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
     [
         new("home", "首页", "Workspace", typeof(HomeViewModel), CanClose: false),
         new("products", "产品", "Workspace", typeof(ProductsViewModel)),
+        new("product-category-manager", "产品分类管理", "Workspace", typeof(ProductCategoryManagerViewModel)),
         new("product-colors", "产品颜色管理", "Workspace", typeof(ProductColorsViewModel)),
         new("product-bom", "BOM", "Workspace", typeof(ProductBomViewModel)),
         new("customers", "客户管理", "Workspace", typeof(CustomerManagerViewModel)),
