@@ -11,6 +11,8 @@ public class SalesOrderLine : BaseEntity
     public required Guid SalesOrderId { get; set; }
     public string? OrderNo { get; set; }
     public bool IsNonStandard { get; set; } = false;
+    public Guid? ProductId { get; set; }
+    public Guid? CustomerProductId { get; set; }
 
     public required string Sku { get; set; }
     public string? LinkSku { get; set; }

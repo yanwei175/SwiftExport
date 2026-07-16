@@ -197,6 +197,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
+                        
                         <DataGridTemplateColumn Header="图片" Width="64" IsReadOnly="True">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -381,11 +382,11 @@
                                                 ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}"
                                                 EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"/>
                             
-                            <DataGridTextColumn Header="分子" Width="64" 
+                            <DataGridTextColumn Header="用量(分子)" Width="80" 
                                                 Binding="{Binding Numerator, UpdateSourceTrigger=PropertyChanged}" 
                                                 ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
                             
-                            <DataGridTextColumn Header="分母" Width="64" 
+                            <DataGridTextColumn Header="底数(分母)" Width="80" 
                                                 Binding="{Binding Denominator, UpdateSourceTrigger=PropertyChanged}" 
                                                 ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
                             

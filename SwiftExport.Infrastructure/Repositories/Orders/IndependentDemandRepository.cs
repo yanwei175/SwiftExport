@@ -1,5 +1,6 @@
 using Dapper;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
@@ -16,12 +17,70 @@ public partial class IndependentDemandRepository(RepositoryBaseContext context) 
         return rst > 0;
     }
 
-    public async Task<IReadOnlyList<IndependentDemand>> GetListBySourceTypeAndSourceUidAsync(string sourceType, Guid uid)
+    public async Task<IReadOnlyList<IndependentDemand>> GetListBySourceTypeAndSourceUidAsync(string sourceType, Guid uid, bool withUpdLock = false)
     {
-        var sql = $"SELECT * FROM [IndependentDemand] WHERE SourceType =@sourceType AND SourceUid = @uid AND IsDeleted = 0";
+        var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+        var sql = $"SELECT * FROM [IndependentDemand] {lockHint} WHERE SourceType = @sourceType AND SourceUid = @uid AND IsDeleted = 0";
         var rst = await Connection.QueryAsync<IndependentDemand>(sql, new { sourceType, uid }, transaction: Transaction);
         return [.. rst];
     }
+
+    public async Task<IReadOnlyList<RepositoryWriteResult>> AddWorkspaceDemandsAsync(IEnumerable<IndependentDemand> demands)
+    {
+        var results = new List<RepositoryWriteResult>();
+        foreach (var demand in demands) results.Add(await AddAsync(demand));
+        return results;
+    }
+
+    public async Task<bool> HasSalesOrderCancellationBlockerAsync(string sourceType, Guid sourceUid, IEnumerable<Guid> sourceLineIds)
+    {
+        var lineIds = sourceLineIds.Distinct().ToArray();
+        if (lineIds.Length == 0) return false;
+
+        const string sql = @"
+            SELECT CASE WHEN
+                EXISTS (
+                    SELECT 1 FROM IndependentDemand d WITH(UPDLOCK, ROWLOCK)
+                    WHERE d.SourceType = @SourceType AND d.SourceUid = @SourceUid AND d.IsDeleted = 0
+                      AND (d.IsDecomposed = 1 OR d.FilledQty > 0 OR d.ShippedQty > 0 OR d.IsShipped = 1
+                           OR d.OrderStatus <> @ConfirmedDemandStatus))
+                OR EXISTS (
+                    SELECT 1
+                    FROM DependentDemand dd WITH(UPDLOCK, ROWLOCK)
+                    INNER JOIN IndependentDemand d ON d.Uid = dd.IndependentDemandId
+                    WHERE d.SourceType = @SourceType AND d.SourceUid = @SourceUid
+                      AND d.IsDeleted = 0 AND dd.IsDeleted = 0)
+                OR EXISTS (
+                    SELECT 1 FROM PackingListLine pl WITH(NOLOCK)
+                    WHERE pl.SoLineId IN @LineIds AND (pl.IsDeleted = 0 OR pl.IsDeleted IS NULL))
+                OR EXISTS (
+                    SELECT 1 FROM PurchaseReceiveLine rl WITH(NOLOCK)
+                    WHERE rl.SoLineId IN @LineIds AND (rl.IsDeleted = 0 OR rl.IsDeleted IS NULL))
+            THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
+        return await Connection.ExecuteScalarAsync<bool>(sql, new
+        {
+            SourceType = sourceType,
+            SourceUid = sourceUid,
+            LineIds = lineIds,
+            ConfirmedDemandStatus = IndependentDemandStatusEnum.已确认
+        }, transaction: Transaction);
+    }
+
+    public Task<int> SoftDeleteBySourceAsync(string sourceType, Guid sourceUid)
+        => Connection.ExecuteAsync(@"
+            UPDATE IndependentDemand
+            SET IsDeleted = 1,
+                UpdatedDate = @Now,
+                UpdatedBy = @UserName,
+                Version = Version + 1
+            WHERE SourceType = @SourceType AND SourceUid = @SourceUid AND IsDeleted = 0;",
+            new
+            {
+                SourceType = sourceType,
+                SourceUid = sourceUid,
+                Now = DateTime.Now,
+                UserName = CurrentUser.UserName
+            }, transaction: Transaction);
 
     public async Task<IReadOnlyList<IndependentDemand>> GetListBySourceTypeAndSourceNoAsync(string sourceType, string sourceNo)
     {
@@ -39,46 +98,6 @@ public partial class IndependentDemandRepository(RepositoryBaseContext context) 
         var sql = $"SELECT * FROM [IndependentDemand] WHERE SourceType = @sourceType AND SourceLineId IN @sourceLineIds AND IsDeleted = 0";
         var rst = await Connection.QueryAsync<IndependentDemand>(sql, new { sourceType, sourceLineIds = ids }, transaction: Transaction);
         return [.. rst];
-    }
-
-    public async Task<int> 批量更新完工数量Async(IDictionary<string, IDictionary<Guid, decimal>> sourceTypeLineQtyMap)
-    {
-        throw new NotImplementedException();
-        //if (sourceTypeLineQtyMap == null || sourceTypeLineQtyMap.Count == 0)
-        //    return 0;
-
-        //var totalAffected = 0;
-        //foreach (var kv in sourceTypeLineQtyMap)
-        //{
-        //    var sourceType = kv.Key;
-        //    var sourceLineIdQtyMap = kv.Value;
-
-        //    if (string.IsNullOrWhiteSpace(sourceType) || sourceLineIdQtyMap == null || sourceLineIdQtyMap.Count == 0)
-        //        continue;
-
-        //    var sourceLineIds = sourceLineIdQtyMap.Keys.Distinct().ToList();
-        //    var demands = await GetListBySourceTypeAndSourceLineIdsAsync(sourceType, sourceLineIds);
-        //    if (demands.Count == 0)
-        //        continue;
-
-        //    foreach (var demand in demands)
-        //    {
-        //        if (!sourceLineIdQtyMap.TryGetValue(demand.SourceLineId, out var addQty) || addQty <= 0)
-        //            continue;
-
-        //        demand.FilledQty += addQty;
-
-        //        if (demand.FilledQty >= demand.OriginalQty && demand.OrderStatus != IndependentDemandStatusEnum.已完成)
-        //            demand.OrderStatus = IndependentDemandStatusEnum.已到货;
-
-        //        if (demand.FilledQty >= demand.OriginalQty && demand.ShippedQty >= demand.OriginalQty)
-        //            demand.OrderStatus = IndependentDemandStatusEnum.已完成;
-        //    }
-
-        //    totalAffected += await UpdateRangeAsync(demands);
-        //}
-
-        //return totalAffected;
     }
 
     public async Task<int> TryMarkDecomposedAsync(string sourceType, string sourceNo, IEnumerable<Guid> sourceLineIds, DateTime decomposedTime)
@@ -135,12 +154,14 @@ public partial class IndependentDemandRepository(RepositoryBaseContext context) 
 
     public async Task<bool> CanCanceAsync(IEnumerable<Guid> independIds)
     {
-        //判断净需求下对应毛需求的状态是否为草稿，如果毛需求不是草稿，则不允许取消净需求
-        var sql = @"SELECT COUNT(1) FROM [IndependentDemand]
-                    WHERE Uid IN @independIds
-                      AND IsDeleted = 0
-                      AND (ExecutedQty>0 OR ReceivedQty>0 OR ShippedQty>0 OR StatusFlag >1)";
-        var rst = await Connection.ExecuteScalarAsync<int>(sql, new { independIds = independIds.ToList(), draftStatus = IndependentDemandStatusEnum.未确认 }, transaction: Transaction);
+        var ids = independIds.Distinct().ToArray();
+        if (ids.Length == 0) return true;
+        var sql = @"SELECT COUNT(1)
+                    FROM IndependentDemand d
+                    WHERE d.Uid IN @Ids AND d.IsDeleted = 0
+                      AND (d.IsDecomposed = 1 OR d.FilledQty > 0 OR d.ShippedQty > 0
+                           OR EXISTS (SELECT 1 FROM DependentDemand dd WHERE dd.IndependentDemandId = d.Uid AND dd.IsDeleted = 0));";
+        var rst = await Connection.ExecuteScalarAsync<int>(sql, new { Ids = ids }, transaction: Transaction);
         return rst == 0;
     }
 }

@@ -1,5 +1,6 @@
 ﻿using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 namespace SwiftExport.Core.Interfaces;
@@ -15,5 +16,6 @@ public interface IProductRepository : IRepository<Product>
     Task<PagedResponseBase<ProductDto>> GetPagedAsync(ProductSearchRequest request);
     Task<IReadOnlyList<ProductLookupDto>> SearchLookupAsync(ProductLookupRequest request);
     Task<IReadOnlyList<string>> GetExistingSkuListAsync(IEnumerable<string> skuList);
+    Task<PagedResponseBase<SalesOrderProductLookupDto>> SearchSalesOrderProductsAsync(SalesOrderProductSearchRequest request);
 }
 

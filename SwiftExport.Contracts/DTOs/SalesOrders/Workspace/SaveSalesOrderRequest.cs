@@ -7,6 +7,6 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Workspace
     {
         public SalesOrderEditHeaderDto Header { get; set; }
         public List<SalesOrderEditLineDto> Lines { get; set; } = new List<SalesOrderEditLineDto>();
-        public List<Guid> DeletedLineIds { get; set; } = new List<Guid>();
+        public List<SalesOrderDeletedLineDto> DeletedLines { get; set; } = new List<SalesOrderDeletedLineDto>();
     }
 }

@@ -34,9 +34,13 @@ public sealed class SalesOrderLineListModel
                 .Where(line => !line.IsDeleted)
                 .Select(line => line.ToEditDto())
                 .ToList(),
-            DeletedLineIds = DeletedItems
+            DeletedLines = DeletedItems
                 .Where(line => line.Uid != Guid.Empty)
-                .Select(line => line.Uid)
+                .Select(line => new SalesOrderDeletedLineDto
+                {
+                    Uid = line.Uid,
+                    Version = line.Version,
+                })
                 .ToList(),
         };
     }

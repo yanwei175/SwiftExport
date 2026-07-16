@@ -1,5 +1,6 @@
 ﻿using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 
@@ -13,6 +14,7 @@ namespace SwiftExport.Core.Interfaces
 
         Task<PagedResponseBase<CustomerDto>> GetPagedAsync(CustomerSearchRequest request);
         Task<List<string>> GetCustomerCodesUsedByOtherCustomersAsync(IEnumerable<(Guid Uid, string CustomerCode)> items);
+        Task<PagedResponseBase<SalesOrderCustomerLookupDto>> SearchSalesOrderCustomersAsync(SalesOrderCustomerSearchRequest request);
 
     }
 }

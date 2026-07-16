@@ -77,7 +77,6 @@ public static class ApiRegistrationExtensions
 
     private static void AddOrderApis(this IServiceCollection services)
     {
-        services.AddControllerApi<ISalesOrderApi>("SalesOrder");
         services.AddControllerApi<ISalesOrderWorkspaceApi>("sales-orders/workspace");
         services.AddControllerApi<IIndependentDemandApi>("IndependentDemand");
         services.AddControllerApi<IDependentDemandApi>("DependentDemand");

@@ -1,4 +1,5 @@
 using SwiftExport.Core.Entities.Orders;
+using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Core.Interfaces;
 
@@ -11,7 +12,10 @@ public interface IIndependentDemandRepository : IRepository<IndependentDemand>
     /// <param name="sourceType">来源单据类型</param>
     /// <param name="uid">来源单据UID</param>
     /// <returns></returns>
-    Task<IReadOnlyList<IndependentDemand>> GetListBySourceTypeAndSourceUidAsync(string sourceType, Guid uid);
+    Task<IReadOnlyList<IndependentDemand>> GetListBySourceTypeAndSourceUidAsync(string sourceType, Guid uid, bool withUpdLock = false);
+    Task<IReadOnlyList<RepositoryWriteResult>> AddWorkspaceDemandsAsync(IEnumerable<IndependentDemand> demands);
+    Task<bool> HasSalesOrderCancellationBlockerAsync(string sourceType, Guid sourceUid, IEnumerable<Guid> sourceLineIds);
+    Task<int> SoftDeleteBySourceAsync(string sourceType, Guid sourceUid);
 
     /// <summary>
     /// 根据SourceType和SourceId删除单据记录
@@ -36,13 +40,6 @@ public interface IIndependentDemandRepository : IRepository<IndependentDemand>
     /// <param name="sourceLineIds">来源行ID列表</param>
     /// <returns>销售需求列表</returns>
     Task<IReadOnlyList<IndependentDemand>> GetListBySourceTypeAndSourceLineIdsAsync(string sourceType, IEnumerable<Guid> sourceLineIds);
-
-    /// <summary>
-    /// 批量更新销售需求的已填充数量并按规则推进状态。
-    /// </summary>
-    /// <param name="sourceTypeLineQtyMap">来源类型 -> 来源行ID与增量数量映射</param>
-    /// <returns>受影响行数</returns>
-    Task<int> 批量更新完工数量Async(IDictionary<string, IDictionary<Guid, decimal>> sourceTypeLineQtyMap);
 
     /// <summary>
     /// 并发防重：尝试将指定来源行标记为已拆解。

@@ -365,11 +365,6 @@ public partial class PackingListService(
         //var totalQty = demands.Sum(x => x.OriginalQty);
         //var shippedQty = demands.Sum(x => x.ShippedQty);
 
-        ////header.OrderStatus = shippedQty <= 0
-        ////    ? SalesOrderStatusEnum.草稿
-        ////    : shippedQty >= totalQty
-        ////        ? SalesOrderStatusEnum.全部发完
-        ////        : SalesOrderStatusEnum.部分发货;
         //header.UpdatedDate = DateTime.Now;
 
         //await _salesOrderHeaderRepository.UpdateAsync(header);

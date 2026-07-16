@@ -1,0 +1,585 @@
+using Microsoft.Extensions.Logging;
+using SwiftExport.Application.Contexts;
+using SwiftExport.Application.Interfaces;
+using SwiftExport.Contracts.Common;
+using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.MasterData;
+using SwiftExport.Core.Entities.Orders;
+using SwiftExport.Core.Entities.Relations;
+using SwiftExport.Core.Interfaces;
+using SwiftExport.Infrastructure.Data;
+
+namespace SwiftExport.Application.Services.Orders;
+
+public sealed class SalesOrderWorkspaceService(
+    ServiceBaseContext context,
+    ISalesOrderHeadRepository headRepository,
+    ISalesOrderLineRepository lineRepository,
+    IProductRepository productRepository,
+    ICustomerRepository customerRepository,
+    ICustomerProductRepository customerProductRepository,
+    IIndependentDemandRepository independentDemandRepository,
+    IDocumentNoService documentNoService) : ISalesOrderWorkspaceService
+{
+    private readonly DbSession _session = context.Session;
+    private readonly ILogger<SalesOrderWorkspaceService> _logger = context.LoggerFactory.CreateLogger<SalesOrderWorkspaceService>();
+
+    public Task<ServiceResult<PagedResponseBase<SalesOrderListItemDto>>> SearchAsync(
+        SalesOrderSearchRequest request,
+        CancellationToken cancellationToken = default)
+        => ExecuteReadAsync(() => headRepository.SearchWorkspaceAsync(request), "查询销售订单失败", cancellationToken);
+
+    public async Task<ServiceResult<SalesOrderDocumentDto>> GetDocumentAsync(Guid uid, CancellationToken cancellationToken = default)
+    {
+        if (uid == Guid.Empty) return ServiceResult<SalesOrderDocumentDto>.Fail("销售订单 Uid 不能为空。");
+        return await ExecuteReadAsync(async () =>
+        {
+            var document = await headRepository.GetWorkspaceDocumentAsync(uid);
+            return document ?? throw new WorkspaceValidationException("未找到销售订单。");
+        }, "加载销售订单失败", cancellationToken);
+    }
+
+    public Task<ServiceResult<PagedResponseBase<SalesOrderProductLookupDto>>> SearchProductsAsync(
+        SalesOrderProductSearchRequest request,
+        CancellationToken cancellationToken = default)
+        => ExecuteReadAsync(() => productRepository.SearchSalesOrderProductsAsync(request), "查询销售产品失败", cancellationToken);
+
+    public Task<ServiceResult<PagedResponseBase<SalesOrderCustomerLookupDto>>> SearchCustomersAsync(
+        SalesOrderCustomerSearchRequest request,
+        CancellationToken cancellationToken = default)
+        => ExecuteReadAsync(() => customerRepository.SearchSalesOrderCustomersAsync(request), "查询销售客户失败", cancellationToken);
+
+    public Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request)
+        => ExecuteTransactionAsync(async () =>
+        {
+            ValidateSaveShape(request);
+            var headerRequest = request.Header;
+            var isCreate = headerRequest.Uid == Guid.Empty;
+            var customer = await customerRepository.GetByIdAsync(headerRequest.CustomerId)
+                ?? throw new WorkspaceValidationException("所选客户不存在或已删除。");
+
+            SalesOrderHeader header;
+            IReadOnlyList<SalesOrderLine> existingLines;
+            if (isCreate)
+            {
+                var documentNoResult = await documentNoService.GetNextDocumentNoAsync(new DocumentNoRequest
+                {
+                    DocType = DocumentTypeStaticsEnum.SalesOrder,
+                    BusinessDate = headerRequest.OrderDate
+                });
+                if (!documentNoResult.Success || documentNoResult.Data is null)
+                    throw new WorkspaceValidationException(documentNoResult.Message);
+
+                header = new SalesOrderHeader { OrderNo = documentNoResult.Data.DocumentNo };
+                existingLines = [];
+            }
+            else
+            {
+                header = await headRepository.GetByIdAsync(headerRequest.Uid, true)
+                    ?? throw new WorkspaceValidationException("销售订单不存在或已删除。");
+                EnsureEditable(header);
+                if (header.Version != headerRequest.Version)
+                    throw new WorkspaceValidationException("销售订单已被其他用户修改，请刷新后重试。");
+                existingLines = await lineRepository.GetLinesByOrderIdAsync(header.Uid, true);
+            }
+
+            var lineBuild = await BuildLinesAsync(request, header, existingLines, customer);
+            ApplyHeaderChanges(header, headerRequest, customer, lineBuild.ActiveLines);
+
+            if (isCreate)
+            {
+                header.DocumentStatus = SalesOrderDocumentStatusEnum.Open;
+                header.ConfirmationStatus = ConfirmationStatusEnum.待确认;
+                var addHeaderResult = await headRepository.AddAsync(header);
+                EnsureWriteSucceeded(addHeaderResult);
+                foreach (var line in lineBuild.ActiveLines)
+                {
+                    line.SalesOrderId = header.Uid;
+                    line.OrderNo = header.OrderNo;
+                }
+            }
+            else
+            {
+                var updateHeaderResult = await headRepository.UpdateAsync(header);
+                EnsureWriteSucceeded(updateHeaderResult);
+                await lineRepository.PrepareLineNumbersAsync(header.Uid);
+            }
+
+            EnsureAllWritesSucceeded(await lineRepository.DeleteWorkspaceLinesAsync(lineBuild.DeletedLines));
+            EnsureAllWritesSucceeded(await lineRepository.UpdateWorkspaceLinesAsync(lineBuild.UpdatedLines));
+            EnsureAllWritesSucceeded(await lineRepository.AddWorkspaceLinesAsync(lineBuild.AddedLines));
+
+            var document = await headRepository.GetWorkspaceDocumentAsync(header.Uid)
+                ?? throw new WorkspaceValidationException("销售订单已保存，但重新加载失败。");
+            return new SaveSalesOrderResponse { Document = document };
+        }, "保存销售订单失败");
+
+    public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, SalesOrderCommandRequest request)
+        => ExecuteTransactionAsync(async () =>
+        {
+            ValidateCommandIdentity(uid, request.Uid);
+            var header = await headRepository.GetByIdAsync(uid, true)
+                ?? throw new WorkspaceValidationException("销售订单不存在或已删除。");
+            if (header.DocumentStatus != SalesOrderDocumentStatusEnum.Open)
+                throw new WorkspaceValidationException("已关闭的销售订单不能确认。");
+
+            var alreadyConfirmed = header.ConfirmationStatus == ConfirmationStatusEnum.已确认;
+            if (!alreadyConfirmed && header.Version != request.Version)
+                throw new WorkspaceValidationException("销售订单已被其他用户修改，请刷新后重试。");
+
+            var lines = await lineRepository.GetLinesByOrderIdAsync(uid, true);
+            if (lines.Count == 0) throw new WorkspaceValidationException("销售订单没有有效明细，不能确认。");
+
+            var existingDemands = await independentDemandRepository.GetListBySourceTypeAndSourceUidAsync(
+                DocumentTypeStaticsEnum.SalesOrder,
+                uid,
+                true);
+            var duplicateDemand = existingDemands.GroupBy(item => item.SourceLineId).FirstOrDefault(group => group.Count() > 1);
+            if (duplicateDemand is not null)
+                throw new WorkspaceValidationException($"订单行 {duplicateDemand.Key} 存在重复活动毛需求，请先执行数据清理脚本。");
+
+            var lineIds = lines.Select(line => line.Uid).ToHashSet();
+            if (existingDemands.Any(demand => !lineIds.Contains(demand.SourceLineId)))
+                throw new WorkspaceValidationException("销售订单存在无法对应当前明细的活动毛需求，请先清理历史数据。");
+
+            var demandByLineId = existingDemands.ToDictionary(item => item.SourceLineId);
+            var addedDemands = new List<IndependentDemand>();
+            foreach (var line in lines)
+            {
+                if (demandByLineId.TryGetValue(line.Uid, out var existingDemand))
+                {
+                    if (!alreadyConfirmed && (existingDemand.IsDecomposed || existingDemand.FilledQty > 0 || existingDemand.ShippedQty > 0))
+                        throw new WorkspaceValidationException($"订单行 {line.LineNumber} 已产生下游执行，不能重新确认。");
+                    if (!alreadyConfirmed)
+                    {
+                        ApplyDemandSnapshot(existingDemand, header, line);
+                        EnsureWriteSucceeded(await independentDemandRepository.UpdateAsync(existingDemand));
+                    }
+                    continue;
+                }
+
+                var demand = new IndependentDemand
+                {
+                    SourceType = DocumentTypeStaticsEnum.SalesOrder,
+                    SourceUid = header.Uid,
+                    SourceNo = header.OrderNo,
+                    SourceLineId = line.Uid,
+                    Sku = line.Sku,
+                    OriginalQty = line.Qty,
+                    IsNonStandard = line.IsNonStandard
+                };
+                ApplyDemandSnapshot(demand, header, line);
+                addedDemands.Add(demand);
+            }
+            EnsureAllWritesSucceeded(await independentDemandRepository.AddWorkspaceDemandsAsync(addedDemands));
+
+            var version = header.Version;
+            if (!alreadyConfirmed)
+            {
+                var statusResult = await headRepository.SetConfirmationStatusAsync(uid, request.Version, ConfirmationStatusEnum.已确认);
+                EnsureWriteSucceeded(statusResult);
+                version = statusResult.NewVersion ?? request.Version + 1;
+            }
+
+            return new SalesOrderConfirmationResultDto
+            {
+                Uid = uid,
+                Version = version,
+                ConfirmationStatus = ConfirmationStatusEnum.已确认,
+                GrossDemandCount = lines.Count
+            };
+        }, "确认销售订单失败");
+
+    public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(Guid uid, SalesOrderCommandRequest request)
+        => ExecuteTransactionAsync(async () =>
+        {
+            ValidateCommandIdentity(uid, request.Uid);
+            var header = await headRepository.GetByIdAsync(uid, true)
+                ?? throw new WorkspaceValidationException("销售订单不存在或已删除。");
+            if (header.DocumentStatus != SalesOrderDocumentStatusEnum.Open)
+                throw new WorkspaceValidationException("已关闭的销售订单不能取消确认。");
+            if (header.ConfirmationStatus == ConfirmationStatusEnum.待确认)
+            {
+                return new SalesOrderConfirmationResultDto
+                {
+                    Uid = uid,
+                    Version = header.Version,
+                    ConfirmationStatus = ConfirmationStatusEnum.待确认,
+                    GrossDemandCount = 0
+                };
+            }
+            if (header.Version != request.Version)
+                throw new WorkspaceValidationException("销售订单已被其他用户修改，请刷新后重试。");
+
+            var lines = await lineRepository.GetLinesByOrderIdAsync(uid, true);
+            var demands = await independentDemandRepository.GetListBySourceTypeAndSourceUidAsync(
+                DocumentTypeStaticsEnum.SalesOrder,
+                uid,
+                true);
+            if (demands.Count != lines.Count || demands.GroupBy(item => item.SourceLineId).Any(group => group.Count() != 1))
+                throw new WorkspaceValidationException("销售订单毛需求数量与订单行不一致，请先修复历史数据。");
+            if (await independentDemandRepository.HasSalesOrderCancellationBlockerAsync(
+                    DocumentTypeStaticsEnum.SalesOrder,
+                    uid,
+                    lines.Select(line => line.Uid)))
+                throw new WorkspaceValidationException("销售订单已产生拆解、净需求、收货或出货记录，不能取消确认。");
+
+            await independentDemandRepository.SoftDeleteBySourceAsync(DocumentTypeStaticsEnum.SalesOrder, uid);
+            var statusResult = await headRepository.SetConfirmationStatusAsync(uid, request.Version, ConfirmationStatusEnum.待确认);
+            EnsureWriteSucceeded(statusResult);
+            return new SalesOrderConfirmationResultDto
+            {
+                Uid = uid,
+                Version = statusResult.NewVersion ?? request.Version + 1,
+                ConfirmationStatus = ConfirmationStatusEnum.待确认,
+                GrossDemandCount = 0
+            };
+        }, "取消销售订单确认失败");
+
+    public Task<ServiceResult<SalesOrderDocumentDto>> CloseAsync(Guid uid, CloseSalesOrderRequest request)
+        => ExecuteTransactionAsync(async () =>
+        {
+            ValidateCommandIdentity(uid, request.Uid);
+            var reason = request.Reason?.Trim();
+            if (string.IsNullOrWhiteSpace(reason)) throw new WorkspaceValidationException("关闭原因不能为空。");
+            if (reason.Length > 1000) throw new WorkspaceValidationException("关闭原因不能超过 1000 个字符。");
+
+            var header = await headRepository.GetByIdAsync(uid, true)
+                ?? throw new WorkspaceValidationException("销售订单不存在或已删除。");
+            if (header.DocumentStatus != SalesOrderDocumentStatusEnum.Open)
+                throw new WorkspaceValidationException("销售订单已经关闭。");
+            if (header.Version != request.Version)
+                throw new WorkspaceValidationException("销售订单已被其他用户修改，请刷新后重试。");
+
+            EnsureWriteSucceeded(await headRepository.CloseWorkspaceAsync(uid, request.Version, reason));
+            return await headRepository.GetWorkspaceDocumentAsync(uid)
+                ?? throw new WorkspaceValidationException("销售订单已关闭，但重新加载失败。");
+        }, "关闭销售订单失败");
+
+    public Task<ServiceResult<bool>> DeleteDraftAsync(Guid uid, SalesOrderCommandRequest request)
+        => ExecuteTransactionAsync(async () =>
+        {
+            ValidateCommandIdentity(uid, request.Uid);
+            var header = await headRepository.GetByIdAsync(uid, true)
+                ?? throw new WorkspaceValidationException("销售订单不存在或已删除。");
+            EnsureEditable(header);
+            if (header.Version != request.Version)
+                throw new WorkspaceValidationException("销售订单已被其他用户修改，请刷新后重试。");
+            var demands = await independentDemandRepository.GetListBySourceTypeAndSourceUidAsync(
+                DocumentTypeStaticsEnum.SalesOrder,
+                uid,
+                true);
+            if (demands.Count > 0)
+                throw new WorkspaceValidationException("销售订单已经生成毛需求，不能作为草稿删除。");
+
+            EnsureWriteSucceeded(await headRepository.DeleteDraftAsync(uid, request.Version));
+            await lineRepository.DeleteByOrderIdAsync(uid);
+            return true;
+        }, "删除销售订单草稿失败");
+
+    private async Task<LineBuildResult> BuildLinesAsync(
+        SaveSalesOrderRequest request,
+        SalesOrderHeader header,
+        IReadOnlyList<SalesOrderLine> existingLines,
+        Customer customer)
+    {
+        var requestedLines = request.Lines ?? [];
+        if (requestedLines.Count == 0) throw new WorkspaceValidationException("销售订单至少需要一条明细。");
+        if (requestedLines.Any(line => line.Uid == Guid.Empty))
+            throw new WorkspaceValidationException("销售订单行 Uid 不能为空。");
+        if (requestedLines.GroupBy(line => line.Uid).Any(group => group.Count() > 1))
+            throw new WorkspaceValidationException("销售订单行 Uid 不能重复。");
+
+        var deletedLines = request.DeletedLines ?? [];
+        if (deletedLines.Any(line => line.Uid == Guid.Empty || line.Version <= 0))
+            throw new WorkspaceValidationException("删除行必须包含有效的 Uid 和 Version。");
+        if (deletedLines.GroupBy(line => line.Uid).Any(group => group.Count() > 1))
+            throw new WorkspaceValidationException("删除行 Uid 不能重复。");
+        if (deletedLines.Any(deleted => requestedLines.Any(line => line.Uid == deleted.Uid)))
+            throw new WorkspaceValidationException("同一订单行不能同时更新和删除。");
+
+        var existingById = existingLines.ToDictionary(line => line.Uid);
+        foreach (var deleted in deletedLines)
+        {
+            if (!existingById.TryGetValue(deleted.Uid, out var existing))
+                throw new WorkspaceValidationException($"待删除订单行 {deleted.Uid} 不属于当前订单。");
+            if (existing.Version != deleted.Version)
+                throw new WorkspaceValidationException($"订单行 {existing.LineNumber} 已被其他用户修改，请刷新后重试。");
+        }
+
+        var existingIdSet = (await lineRepository.GetExistingIdListAsync(requestedLines.Select(line => line.Uid))).ToHashSet();
+        if (existingIdSet.Any(uid => !existingById.ContainsKey(uid)))
+            throw new WorkspaceValidationException("请求中包含属于其他订单的行 Uid。");
+        var handledExistingIds = requestedLines.Where(line => existingById.ContainsKey(line.Uid)).Select(line => line.Uid)
+            .Concat(deletedLines.Select(line => line.Uid)).ToHashSet();
+        if (existingLines.Any(line => !handledExistingIds.Contains(line.Uid)))
+            throw new WorkspaceValidationException("保存请求必须明确包含每条现有订单行，或在 DeletedLines 中提交删除版本。");
+
+        var productIds = requestedLines.Where(line => !line.IsNonStandard && line.ProductId.HasValue)
+            .Select(line => line.ProductId!.Value).Distinct().ToArray();
+        var products = (await productRepository.GetByIdListAsync(productIds)).ToDictionary(product => product.Uid);
+        var customerProductIds = requestedLines.Where(line => !line.IsNonStandard && line.CustomerProductId.HasValue)
+            .Select(line => line.CustomerProductId!.Value).Distinct().ToArray();
+        var customerProducts = (await customerProductRepository.GetByIdListAsync(customerProductIds)).ToDictionary(item => item.Uid);
+
+        var activeLines = new List<SalesOrderLine>(requestedLines.Count);
+        var addedLines = new List<SalesOrderLine>();
+        var updatedLines = new List<SalesOrderLine>();
+        for (var index = 0; index < requestedLines.Count; index++)
+        {
+            var dto = requestedLines[index];
+            existingById.TryGetValue(dto.Uid, out var existing);
+            if (existing is not null)
+            {
+                if (existing.Version != dto.Version)
+                    throw new WorkspaceValidationException($"订单行 {existing.LineNumber} 已被其他用户修改，请刷新后重试。");
+                if (existing.IsNonStandard != dto.IsNonStandard)
+                    throw new WorkspaceValidationException($"订单行 {existing.LineNumber} 不能在标准件与非标件之间原地切换。");
+            }
+
+            var entity = existing ?? new SalesOrderLine
+            {
+                Uid = dto.Uid,
+                SalesOrderId = header.Uid,
+                Sku = string.Empty
+            };
+            ApplyLineChanges(entity, dto, index + 1, header, customer, products, customerProducts);
+            activeLines.Add(entity);
+            if (existing is null) addedLines.Add(entity); else updatedLines.Add(entity);
+        }
+
+        return new LineBuildResult(activeLines, addedLines, updatedLines, deletedLines);
+    }
+
+    private static void ApplyLineChanges(
+        SalesOrderLine entity,
+        SalesOrderEditLineDto dto,
+        int lineNumber,
+        SalesOrderHeader header,
+        Customer customer,
+        IReadOnlyDictionary<Guid, Product> products,
+        IReadOnlyDictionary<Guid, CustomerProduct> customerProducts)
+    {
+        if (dto.Qty <= 0) throw new WorkspaceValidationException($"第 {lineNumber} 行数量必须大于零。");
+        entity.LineNumber = lineNumber;
+        entity.SalesOrderId = header.Uid;
+        entity.OrderNo = header.OrderNo;
+        entity.IsNonStandard = dto.IsNonStandard;
+
+        Product? product = null;
+        if (dto.IsNonStandard)
+        {
+            if (dto.ProductId.HasValue || dto.CustomerProductId.HasValue)
+                throw new WorkspaceValidationException($"第 {lineNumber} 行是非标件，不能关联产品主数据。");
+            if (string.IsNullOrWhiteSpace(dto.DescriptionEn))
+                throw new WorkspaceValidationException($"第 {lineNumber} 行非标件必须填写产品描述。");
+            entity.ProductId = null;
+            entity.CustomerProductId = null;
+            entity.Sku = NonStandardSkuGenerator.Create(dto.Uid);
+            entity.MainImage = null;
+        }
+        else
+        {
+            if (!dto.ProductId.HasValue || dto.ProductId.Value == Guid.Empty || !products.TryGetValue(dto.ProductId.Value, out product))
+                throw new WorkspaceValidationException($"第 {lineNumber} 行必须选择有效产品。");
+            if (!string.Equals(dto.Sku?.Trim(), product.Sku, StringComparison.OrdinalIgnoreCase))
+                throw new WorkspaceValidationException($"第 {lineNumber} 行的 ProductId 与 SKU 不一致，请重新选择产品。");
+            entity.ProductId = product.Uid;
+            entity.Sku = product.Sku;
+            entity.MainImage = product.MainImage;
+            if (dto.CustomerProductId.HasValue)
+            {
+                if (!customerProducts.TryGetValue(dto.CustomerProductId.Value, out var customerProduct)
+                    || customerProduct.CustomerId != customer.Uid
+                    || customerProduct.SkuId != product.Uid)
+                    throw new WorkspaceValidationException($"第 {lineNumber} 行客户产品不属于当前客户或产品。");
+                entity.CustomerProductId = customerProduct.Uid;
+            }
+            else
+            {
+                entity.CustomerProductId = null;
+            }
+        }
+
+        entity.LinkSku = dto.LinkSku?.Trim();
+        entity.CustomerSku = dto.CustomerSku?.Trim();
+        entity.DescriptionEn = dto.DescriptionEn?.Trim();
+        entity.ColorNameEn = dto.ColorNameEn?.Trim();
+        entity.FeaturesEn = dto.FeaturesEn?.Trim();
+        entity.Qty = dto.Qty;
+        entity.CnyPrice = dto.CnyPrice;
+        entity.UsdPrice = dto.UsdPrice;
+        entity.CnyAmount = dto.CnyPrice * dto.Qty;
+        entity.UsdAmount = dto.UsdPrice * dto.Qty;
+        entity.PcsOfCarton = dto.PcsOfCarton;
+        entity.NwOfCarton = dto.NwOfCarton;
+        entity.GwOfCarton = dto.GwOfCarton;
+        entity.CbmOfCarton = dto.CbmOfCarton;
+        entity.Ctns = dto.PcsOfCarton > 0 ? dto.Qty / dto.PcsOfCarton : null;
+        entity.NwSubTotal = entity.Ctns * dto.NwOfCarton;
+        entity.GwSubTotal = entity.Ctns * dto.GwOfCarton;
+        entity.CbmSubTotal = entity.Ctns * dto.CbmOfCarton;
+        entity.ExpectedDeliveryDate = dto.ExpectedDeliveryDate;
+        entity.SubNote = dto.SubNote?.Trim();
+    }
+
+    private static void ApplyHeaderChanges(
+        SalesOrderHeader header,
+        SalesOrderEditHeaderDto dto,
+        Customer customer,
+        IReadOnlyList<SalesOrderLine> lines)
+    {
+        if (!dto.OrderDate.HasValue) throw new WorkspaceValidationException("订单日期不能为空。");
+        if (dto.ExchangeRate <= 0) throw new WorkspaceValidationException("汇率必须大于零。");
+        if (dto.DepositRate is < 0 or > 1) throw new WorkspaceValidationException("定金比例必须在 0 到 1 之间。");
+
+        header.CustomerId = customer.Uid;
+        header.CustomerCode = customer.CustomerCode;
+        header.InvoiceNo = dto.InvoiceNo?.Trim();
+        header.CustomerPoNo = dto.CustomerPoNo?.Trim();
+        header.ShippedBy = dto.ShippedBy?.Trim();
+        header.Currency = string.IsNullOrWhiteSpace(dto.Currency) ? "USD" : dto.Currency.Trim().ToUpperInvariant();
+        header.ExchangeRate = dto.ExchangeRate;
+        header.TotalAmountLocalCurrency = lines.Sum(line => line.CnyAmount ?? 0);
+        header.TotalAmountOriginalCurrency = string.Equals(header.Currency, "CNY", StringComparison.OrdinalIgnoreCase)
+            ? header.TotalAmountLocalCurrency
+            : lines.Sum(line => line.UsdAmount ?? 0);
+        header.ShipToName = dto.ShipToName?.Trim();
+        header.ShipToAddress = dto.ShipToAddress?.Trim();
+        header.ShipToPhone = dto.ShipToPhone?.Trim();
+        header.Incoterm = dto.Incoterm?.Trim();
+        header.IncotermSortRemark = dto.IncotermSortRemark?.Trim();
+        header.IncotermLocation = dto.IncotermLocation?.Trim();
+        header.DepositRate = dto.DepositRate;
+        header.LeadTimeDays = dto.LeadTimeDays;
+        header.PaymentMethod = dto.PaymentMethod?.Trim();
+        header.SoFolder = dto.SoFolder?.Trim();
+        header.Remark = dto.Remark?.Trim();
+        header.OrderDate = dto.OrderDate;
+        header.DeliveryDate = dto.DeliveryDate;
+        header.ReplyDate = dto.ReplyDate;
+        header.ETA = dto.Eta;
+        header.ETD = dto.Etd;
+    }
+
+    private static void ApplyDemandSnapshot(IndependentDemand demand, SalesOrderHeader header, SalesOrderLine line)
+    {
+        demand.OrderStatus = IndependentDemandStatusEnum.已确认;
+        demand.ConfirmationStatus = ConfirmationStatusEnum.已确认;
+        demand.SourceType = DocumentTypeStaticsEnum.SalesOrder;
+        demand.SourceUid = header.Uid;
+        demand.SourceNo = header.OrderNo;
+        demand.SourceLineId = line.Uid;
+        demand.SourceSku = line.CustomerSku;
+        demand.Sku = line.Sku;
+        demand.Description = line.DescriptionEn;
+        demand.ColorName = line.ColorNameEn;
+        demand.Features = line.FeaturesEn;
+        demand.OriginalQty = line.Qty;
+        demand.FilledQty = 0;
+        demand.ShippedQty = 0;
+        demand.IsShipped = false;
+        demand.LastShippedDate = null;
+        demand.KittingRate = 0;
+        demand.HopefulDate = line.ExpectedDeliveryDate ?? header.DeliveryDate;
+        demand.Remark = line.SubNote;
+        demand.IsDecomposed = false;
+        demand.DecomposedTime = null;
+        demand.IsNonStandard = line.IsNonStandard;
+    }
+
+    private static void ValidateSaveShape(SaveSalesOrderRequest request)
+    {
+        if (request?.Header is null) throw new WorkspaceValidationException("销售订单头不能为空。");
+        if (request.Header.CustomerId == Guid.Empty) throw new WorkspaceValidationException("请选择客户。");
+    }
+
+    private static void EnsureEditable(SalesOrderHeader header)
+    {
+        if (header.DocumentStatus != SalesOrderDocumentStatusEnum.Open)
+            throw new WorkspaceValidationException("已关闭的销售订单不能编辑或删除。");
+        if (header.ConfirmationStatus != ConfirmationStatusEnum.待确认)
+            throw new WorkspaceValidationException("已确认的销售订单不能编辑或删除。");
+    }
+
+    private static void ValidateCommandIdentity(Guid routeUid, Guid bodyUid)
+    {
+        if (routeUid == Guid.Empty || bodyUid == Guid.Empty || routeUid != bodyUid)
+            throw new WorkspaceValidationException("路由 Uid 与请求体 Uid 不一致。");
+    }
+
+    private static void EnsureWriteSucceeded(RepositoryWriteResult result)
+    {
+        if (!result.Success) throw new WorkspaceValidationException(result.Message ?? "数据库写入失败。");
+    }
+
+    private static void EnsureAllWritesSucceeded(IEnumerable<RepositoryWriteResult> results)
+    {
+        var failure = results.FirstOrDefault(result => !result.Success);
+        if (failure is not null) EnsureWriteSucceeded(failure);
+    }
+
+    private async Task<ServiceResult<T>> ExecuteReadAsync<T>(Func<Task<T>> action, string failureMessage, CancellationToken cancellationToken)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ServiceResult<T>.Ok(await action());
+        }
+        catch (WorkspaceValidationException ex)
+        {
+            return ServiceResult<T>.Fail(ex.Message);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "{FailureMessage}", failureMessage);
+            return ServiceResult<T>.Fail(failureMessage);
+        }
+    }
+
+    private async Task<ServiceResult<T>> ExecuteTransactionAsync<T>(Func<Task<T>> action, string failureMessage)
+    {
+        if (_session.Transaction is not null)
+            return ServiceResult<T>.Fail("当前请求已存在未完成事务。");
+
+        _session.Transaction = _session.Connection.BeginTransaction();
+        try
+        {
+            var data = await action();
+            _session.Transaction.Commit();
+            return ServiceResult<T>.Ok(data);
+        }
+        catch (WorkspaceValidationException ex)
+        {
+            _session.Transaction.Rollback();
+            return ServiceResult<T>.Fail(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _session.Transaction.Rollback();
+            _logger.LogError(ex, "{FailureMessage}，事务已回滚。", failureMessage);
+            return ServiceResult<T>.Fail(failureMessage);
+        }
+        finally
+        {
+            _session.Transaction.Dispose();
+            _session.Transaction = null;
+        }
+    }
+
+    private sealed class WorkspaceValidationException(string message) : Exception(message);
+
+    private sealed record LineBuildResult(
+        IReadOnlyList<SalesOrderLine> ActiveLines,
+        IReadOnlyList<SalesOrderLine> AddedLines,
+        IReadOnlyList<SalesOrderLine> UpdatedLines,
+        IReadOnlyList<SalesOrderDeletedLineDto> DeletedLines);
+}

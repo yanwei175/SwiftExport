@@ -7,9 +7,8 @@ namespace SwiftExport.Core.Entities.Orders;
 [Table("SalesOrderHeader")]
 public class SalesOrderHeader : BaseEntity
 {
-    public SalesOrderStatusEnum OrderStatus { get; set; } = SalesOrderStatusEnum.未确认;
+    public SalesOrderDocumentStatusEnum DocumentStatus { get; set; } = SalesOrderDocumentStatusEnum.Open;
     public ConfirmationStatusEnum ConfirmationStatus { get; set; } = ConfirmationStatusEnum.待确认;
-    public ApprovalStatusEnum ApprovalStatus { get; set; } = ApprovalStatusEnum.待审批;// 如 "未审批", "审批中", "已审批", "驳回" 等
 
     public required string OrderNo { get; set; }
     public string? InvoiceNo { get; set; }
@@ -48,6 +47,10 @@ public class SalesOrderHeader : BaseEntity
 
     public DateTime? ETA { get; set; }
     public DateTime? ETD { get; set; }
+
+    public string? CloseReason { get; set; }
+    public DateTime? ClosedDate { get; set; }
+    public string? ClosedBy { get; set; }
 
 }
 

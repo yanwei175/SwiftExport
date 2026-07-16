@@ -13,15 +13,6 @@
         已驳回 = 9
     }
 
-    /// <summary>销售单状态枚举</summary>
-    public enum SalesOrderStatusEnum
-    {
-        未确认 = 0,
-        已确认 = 1,
-        部分发货 = 2,
-        全部发货 = 3,
-        已关闭 = 9
-    }
     /// <summary>采购单状态枚举</summary>
     public enum PurchaseOrderStatusEnum
     {

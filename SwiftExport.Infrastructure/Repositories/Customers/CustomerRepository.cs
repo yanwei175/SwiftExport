@@ -10,7 +10,7 @@ using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Customers;
 
-public class CustomerRepository(RepositoryBaseContext context) : DapperRepository<Customer>(context), ICustomerRepository
+public partial class CustomerRepository(RepositoryBaseContext context) : DapperRepository<Customer>(context), ICustomerRepository
 {
 
     public async Task<bool> ExistByCustomerCode(string customerCode)

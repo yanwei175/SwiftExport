@@ -383,6 +383,12 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         Header.CustomerCode = customer.CustomerCode ?? string.Empty;
         Header.Currency = string.IsNullOrWhiteSpace(customer.Currency) ? Header.Currency : customer.Currency;
         Header.PaymentMethod = customer.PaymentMethod ?? string.Empty;
+        Header.ShippedBy = customer.ShippedBy ?? string.Empty;
+        Header.Incoterm = customer.Incoterm ?? string.Empty;
+        Header.IncotermSortRemark = customer.IncotermSortRemark ?? string.Empty;
+        Header.IncotermLocation = customer.IncotermLocation ?? string.Empty;
+        Header.DepositRate = customer.DepositRate;
+        Header.LeadTimeDays = customer.LeadTimeDays;
         Header.ShipToName = customer.ShipToName ?? string.Empty;
         Header.ShipToAddress = customer.ShipToAddress ?? string.Empty;
         Header.ShipToPhone = customer.ShipToPhone ?? string.Empty;

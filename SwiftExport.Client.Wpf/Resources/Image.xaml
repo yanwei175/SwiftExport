@@ -6,11 +6,11 @@
              Placement="Mouse"
              Padding="0"
              HasDropShadow="True">
-        <Border Padding="4"
-                Background="{DynamicResource SwiftExportBrush.Surface}"
-                BorderBrush="{DynamicResource SwiftExportBrush.Border}"
-                BorderThickness="1"
-                CornerRadius="4">
+        <Border Padding="0"
+                Background="Transparent"
+                BorderBrush="Transparent"
+                BorderThickness="0"
+                CornerRadius="0">
             <controls:CachedImage MaxWidth="500"
                                   MaxHeight="500"
                                   DecodePixelWidth="400"

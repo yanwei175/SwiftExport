@@ -1,15 +1,15 @@
-﻿using SwiftExport.Contracts.DTOs.SalesOrders;
-using SwiftExport.Contracts.DTOs.SalesOrders.Requests;
+using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 
-namespace SwiftExport.Core.Interfaces
+namespace SwiftExport.Core.Interfaces;
+
+public interface ISalesOrderHeadRepository : IRepository<SalesOrderHeader>
 {
-    public interface ISalesOrderHeadRepository : IRepository<SalesOrderHeader>
-    {
-        Task<PagedResponseBase<SalesOrderHeaderManagerDto>> GetSalesOrderHeaderManagerPagedListAsync(SalesOrderManagerSearchRequest req);
-        Task<SalesOrderHeaderManagerDto?> GetSalesOrderHeaderManagerByIdAsync(Guid orderId);
-        Task<List<SalesOrderHeaderManagerDto>> GetSalesOrderHeaderManagerListByIdListAsync(List<Guid> uidList);
-        Task<bool> DeleteSalesOrderAsync(Guid orderId, int version);
-    }
+    Task<PagedResponseBase<SalesOrderListItemDto>> SearchWorkspaceAsync(SalesOrderSearchRequest request);
+    Task<SalesOrderDocumentDto?> GetWorkspaceDocumentAsync(Guid uid);
+    Task<RepositoryWriteResult> SetConfirmationStatusAsync(Guid uid, int version, ConfirmationStatusEnum status);
+    Task<RepositoryWriteResult> CloseWorkspaceAsync(Guid uid, int version, string reason);
+    Task<RepositoryWriteResult> DeleteDraftAsync(Guid uid, int version);
 }

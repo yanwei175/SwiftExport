@@ -35,9 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IProductCategoryService, ProductCategoryService>();
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
-        services.AddScoped<ISalesOrderHeadService, SalesOrderHeadService>();
-        services.AddScoped<ISalesOrderManagerService, SalesOrderManagerService>();
-        services.AddScoped<ISalesOrderDetailService, SalesOrderDetailService>();
+        services.AddScoped<ISalesOrderWorkspaceService, SalesOrderWorkspaceService>();
         services.AddScoped<IIndependentDemandServices, IndependentDemandService>();
         services.AddScoped<IDependentDemandService, DependentDemandService>();
         services.AddScoped<IDocumentNoService, DocumentNoService>();
@@ -45,7 +43,6 @@ public static class DependencyInjection
         services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();
         // 视图路由配置服务
         services.AddScoped<ISysViewRouteService, SysViewRouteService>();
-        services.AddScoped<ISalesOrderLineService, SalesOrderLineService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<IFollowUpService, FollowUpService>();
         services.AddScoped<IReceiptService, ReceiveService>();
