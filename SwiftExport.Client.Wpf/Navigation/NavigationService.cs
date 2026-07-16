@@ -58,6 +58,75 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService
         }
     }
 
+    public async Task OpenDocumentAsync(
+        string routeKey,
+        string documentKey,
+        object? parameter = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(documentKey))
+        {
+            throw new ArgumentException("文档键不能为空。", nameof(documentKey));
+        }
+
+        if (!_routeRegistry.TryGetRoute(routeKey, out var route))
+        {
+            _statusMessageService.Show("导航", $"页面路由未注册：{routeKey}", UiMessageSeverity.Warning);
+            return;
+        }
+
+        var existingTab = OpenTabs.FirstOrDefault(tab =>
+            string.Equals(tab.DocumentKey, documentKey, StringComparison.OrdinalIgnoreCase));
+        if (existingTab is not null)
+        {
+            Activate(existingTab);
+            return;
+        }
+
+        var viewModel = _serviceProvider.GetRequiredService(route.ViewModelType);
+        var tab = new NavigationTabItem(route, viewModel, documentKey);
+        OpenTabs.Add(tab);
+        Activate(tab);
+
+        if (viewModel is IDocumentTabInitializable initializable)
+        {
+            await initializable.InitializeDocumentAsync(parameter, cancellationToken);
+        }
+    }
+
+    public void UpdateDocumentKey(object contentViewModel, string documentKey)
+    {
+        ArgumentNullException.ThrowIfNull(contentViewModel);
+        if (string.IsNullOrWhiteSpace(documentKey))
+        {
+            throw new ArgumentException("文档键不能为空。", nameof(documentKey));
+        }
+
+        var current = OpenTabs.FirstOrDefault(tab => ReferenceEquals(tab.ContentViewModel, contentViewModel));
+        if (current is null)
+        {
+            return;
+        }
+
+        var duplicate = OpenTabs.FirstOrDefault(tab =>
+            !ReferenceEquals(tab, current)
+            && string.Equals(tab.DocumentKey, documentKey, StringComparison.OrdinalIgnoreCase));
+        if (duplicate is not null)
+        {
+            var currentIndex = OpenTabs.IndexOf(current);
+            if (currentIndex >= 0)
+            {
+                OpenTabs.RemoveAt(currentIndex);
+                current.Dispose();
+            }
+
+            Activate(duplicate);
+            return;
+        }
+
+        current.DocumentKey = documentKey;
+    }
+
     public void Activate(NavigationTabItem? tab)
     {
         if (tab is null || !OpenTabs.Contains(tab))
@@ -68,20 +137,27 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService
         SelectedTab = tab;
     }
 
-    public Task CloseAsync(NavigationTabItem? tab)
+    public async Task CloseAsync(NavigationTabItem? tab)
     {
         if (tab is null || !tab.CanClose)
         {
-            return Task.CompletedTask;
+            return;
+        }
+
+        if (tab.ContentViewModel is IDocumentTabViewModel document
+            && !await document.CanCloseAsync(CancellationToken.None))
+        {
+            return;
         }
 
         var index = OpenTabs.IndexOf(tab);
         if (index < 0)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         OpenTabs.RemoveAt(index);
+        tab.Dispose();
 
         if (ReferenceEquals(SelectedTab, tab))
         {
@@ -90,11 +166,15 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService
                 : OpenTabs[Math.Clamp(index, 0, OpenTabs.Count - 1)];
         }
 
-        return Task.CompletedTask;
     }
 
     public void Reset()
     {
+        foreach (var tab in OpenTabs)
+        {
+            tab.Dispose();
+        }
+
         OpenTabs.Clear();
         SelectedTab = null;
     }

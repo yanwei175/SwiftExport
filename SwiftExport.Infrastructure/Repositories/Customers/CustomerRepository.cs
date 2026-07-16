@@ -71,15 +71,13 @@ public class CustomerRepository(RepositoryBaseContext context) : DapperRepositor
         // =========================================================
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            var keyword = request.Keyword.Trim();
-
             whereSb.AppendLine(@$"
                                AND (
-                                       c.CustomerCode LIKE @Keyword
-                                    OR c.CustomerName LIKE @Keyword
+                                       c.CustomerCode LIKE @Keyword ESCAPE '~'
+                                    OR c.CustomerName LIKE @Keyword ESCAPE '~'
                                     )");
 
-            parameters.Add("@Keyword", $"%{keyword}%");
+            parameters.Add("@Keyword", SqlLikePattern.Build(request.Keyword));
         }
 
         var whereClause = whereSb.ToString();

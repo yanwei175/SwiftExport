@@ -20,7 +20,7 @@ namespace SwiftExport.Contracts.DTOs.Products.Requests
         public Guid CategoryId { get; set; } // 按分类id单选
         public List<Guid> CategoryIds { get; set; } // 按分类id多选
 
-        public string MaterialType { get; set; } //物料类型
+        public List<string> MaterialTypeList { get; set; } = new List<string>(); // 物料类型多选
 
     }
 }

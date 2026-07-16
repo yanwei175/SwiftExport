@@ -53,16 +53,21 @@
                                     Text="{Binding Keyword, Mode=TwoWay}"
                                     QueryCommand="{Binding SearchCommand}" />
 
-            <Button Grid.Column="2" Width="36" MinHeight="32" Padding="6,4"
-                    Command="{Binding SearchCommand}" Style="{StaticResource AccentButton}" ToolTip="查询">
-                <ui:SymbolIcon Symbol="Search24" />
-            </Button>
+            <ui:Button Margin="6,0,0,0" Grid.Column="2"
+                       Appearance="Primary"
+                       Command="{Binding SearchCommand}"
+                       Icon="{ui:SymbolIcon Symbol=Search24}"
+                       ToolTip="查询">
+            </ui:Button>
 
             <StackPanel Grid.Column="4" Orientation="Horizontal">
-                <Button Command="{Binding AddRowCommand}" Style="{StaticResource AccentButton}"
-                        MinHeight="32" Padding="8,4" Margin="0,0,4,0" ToolTip="新增产品">
-                    <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Add24" /><TextBlock Margin="6,0,0,0" Text="新增" /></StackPanel>
-                </Button>
+                <ui:Button Margin="6,0,0,0"
+                           Appearance="Primary"
+                           Command="{Binding AddRowCommand}"
+                           Content="新增"
+                           Icon="{ui:SymbolIcon Symbol=Add24}"
+                           ToolTip="新增产品">
+                </ui:Button>
 
                 <ui:Button Margin="6,0,0,0"
                            Appearance="Success"
@@ -73,7 +78,6 @@
                 </ui:Button>
 
                 <ui:Button Margin="6,0,0,0"
-                           Appearance="Secondary"
                            Content="删除"
                            Icon="{ui:SymbolIcon Symbol=Delete24}"
                            Command="{Binding DeleteSelectedCommand}"
@@ -93,9 +97,11 @@
                     ToolTip="刷新"/>
 
 
-                <Button Command="{Binding OpenCategoryManagerCommand}" Style="{StaticResource ProductsToolbarButton}" ToolTip="产品分类管理">
-                    <TextBlock Text="分类管理" />
-                </Button>
+                <ui:Button Margin="6,0,0,0"
+                           Content="分类管理"
+                           Command="{Binding OpenCategoryManagerCommand}"
+                           ToolTip="产品分类管理">
+                </ui:Button>
             </StackPanel>
 
             <StackPanel Grid.Column="6" Orientation="Horizontal">
@@ -143,11 +149,10 @@
                                     DisplayMemberPath="CategoryName" 
                                     FilterMemberPaths="CategoryName,CategoryCode"
                                     SelectedValuePath="Uid" SelectedItem="{Binding FilterCategory, Mode=TwoWay}" />
-            
-            <controls:LookupTextBox Grid.Column="6" Placeholder="物料类型"
-                                    SearchMode="Local" 
-                                    ItemsSource="{Binding MaterialTypes}"
-                                    SelectedItem="{Binding FilterMaterialType, Mode=TwoWay}" />
+            <controls:DropDownCheckBox Grid.Column="6"
+                                       Placeholder="物料类型"
+                                       ItemsSource="{Binding MaterialTypes}"
+                                       SelectedItems="{Binding FilterMaterialTypes, Mode=TwoWay}" />
             
             <Button Grid.Column="8" Content="重置筛选" Command="{Binding ResetFiltersCommand}" MinHeight="32" Padding="8,4" />
         </Grid>
@@ -284,21 +289,12 @@
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             gridColumns:GridColumn.Key="default-supplier-code" />
-                        
+
                         <DataGridTextColumn Header="供应商型号" Width="120" 
                                             Binding="{Binding DefaultSupplierSku, UpdateSourceTrigger=PropertyChanged}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             gridColumns:GridColumn.Key="default-supplier-sku" />
 
-                        <DataGridTemplateColumn Header="人民币价1" Width="100">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <ui:NumberBox Value="{Binding CnyPrice, UpdateSourceTrigger=LostFocus, StringFormat=N2}"
-                                                  Icon="NumberSymbolSquare24" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        
                         <DataGridTextColumn Header="人民币价" Width="100" 
                                             Binding="{Binding CnyPrice, UpdateSourceTrigger=LostFocus, StringFormat=N2}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"

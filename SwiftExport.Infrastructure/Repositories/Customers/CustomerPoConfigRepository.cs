@@ -91,15 +91,13 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
         // =========================================================
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            var keyword = request.Keyword.Trim();
-
             whereSb.AppendLine(@$"
                                     AND (
-                                           {nameof(CustomerPoConfig.CustomerCode)}       LIKE @Keyword
-                                        OR {nameof(CustomerPoConfig.SupplierCode)}       LIKE @Keyword
+                                           {nameof(CustomerPoConfig.CustomerCode)}       LIKE @Keyword ESCAPE '~'
+                                        OR {nameof(CustomerPoConfig.SupplierCode)}       LIKE @Keyword ESCAPE '~'
                                     )");
 
-            parameters.Add("@Keyword", $"%{keyword}%");
+            parameters.Add("@Keyword", SqlLikePattern.Build(request.Keyword));
         }
 
         var whereClause = whereSb.ToString();

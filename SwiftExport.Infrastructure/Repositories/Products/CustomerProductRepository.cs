@@ -70,14 +70,14 @@ public sealed class CustomerProductRepository(RepositoryBaseContext context)
         {
             where.AppendLine("""
                 AND (
-                       cp.CustomerSku LIKE @Keyword
-                    OR cp.Sku LIKE @Keyword
-                    OR cp.LinkSku LIKE @Keyword
-                    OR cp.CustomerPdDescription LIKE @Keyword
-                    OR cp.CustomerPdSeries LIKE @Keyword
+                       cp.CustomerSku LIKE @Keyword ESCAPE '~'
+                    OR cp.Sku LIKE @Keyword ESCAPE '~'
+                    OR cp.LinkSku LIKE @Keyword ESCAPE '~'
+                    OR cp.CustomerPdDescription LIKE @Keyword ESCAPE '~'
+                    OR cp.CustomerPdSeries LIKE @Keyword ESCAPE '~'
                 )
                 """);
-            parameters.Add("Keyword", $"%{request.Keyword.Trim()}%");
+            parameters.Add("Keyword", SqlLikePattern.Build(request.Keyword));
         }
 
         var sql = $"""

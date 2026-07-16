@@ -11,6 +11,14 @@ public interface INavigationService : INotifyPropertyChanged
 
     Task OpenAsync(string routeKey);
 
+    Task OpenDocumentAsync(
+        string routeKey,
+        string documentKey,
+        object? parameter = null,
+        CancellationToken cancellationToken = default);
+
+    void UpdateDocumentKey(object contentViewModel, string documentKey);
+
     void Activate(NavigationTabItem? tab);
 
     Task CloseAsync(NavigationTabItem? tab);

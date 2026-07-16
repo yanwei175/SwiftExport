@@ -46,13 +46,13 @@ public class ProductColorRepository(RepositoryBaseContext context) : DapperRepos
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            parameters.Add("@Keyword", $"%{request.Keyword.Trim()}%");
+            parameters.Add("@Keyword", SqlLikePattern.Build(request.Keyword));
             where.Append(@"
                     AND (
-                           ColorCodeUnique LIKE @Keyword
-                        OR ColorCode LIKE @Keyword
-                        OR ColorNameEn LIKE @Keyword
-                        OR ColorNameZh LIKE @Keyword
+                           ColorCodeUnique LIKE @Keyword ESCAPE '~'
+                        OR ColorCode LIKE @Keyword ESCAPE '~'
+                        OR ColorNameEn LIKE @Keyword ESCAPE '~'
+                        OR ColorNameZh LIKE @Keyword ESCAPE '~'
                     )");
         }
 
@@ -64,22 +64,12 @@ public class ProductColorRepository(RepositoryBaseContext context) : DapperRepos
 
         if (batchKeywords is { Count: > 0 })
         {
-            var groups = new List<string>();
-            for (var i = 0; i < batchKeywords.Count; i++)
-            {
-                var paramName = $"@Keyword_{i}";
-                parameters.Add(paramName, $"%{batchKeywords[i]}%");
-                groups.Add($@"(
-                           ColorCodeUnique LIKE {paramName}
-                        OR ColorCode LIKE {paramName}
-                        OR ColorNameEn LIKE {paramName}
-                        OR ColorNameZh LIKE {paramName}
+            parameters.Add("@BatchKeywords", batchKeywords);
+            where.Append(@"
+                    AND (
+                           ColorCodeUnique IN @BatchKeywords
+                        OR ColorCode IN @BatchKeywords
                     )");
-            }
-
-            where.Append(" AND (")
-                .Append(string.Join(" OR ", groups))
-                .Append(')');
         }
 
         var sql = $@"

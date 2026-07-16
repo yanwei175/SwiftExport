@@ -147,29 +147,22 @@
                         </StackPanel>
                     </ui:DropDownButton.Content>
                     <ui:DropDownButton.Flyout>
-                        <ui:Flyout Placement="Bottom">
-                            <StackPanel MinWidth="180" Margin="4">
-                                <Button Content="导入颜色"
-                                        Command="{Binding MoreCommand}"
-                                        CommandParameter="导入颜色"
-                                        HorizontalAlignment="Stretch" />
-                                <Button Margin="0,4,0,0"
-                                        Content="导出颜色"
-                                        Command="{Binding MoreCommand}"
-                                        CommandParameter="导出颜色"
-                                        HorizontalAlignment="Stretch" />
-                                <Button Margin="0,4,0,0"
-                                        Content="向下填充（Ctrl+D）"
-                                        Command="{x:Static gridOperations:GridOperations.FillDownCommand}"
-                                        CommandTarget="{x:Reference ColorsGrid}"
-                                        HorizontalAlignment="Stretch" />
-                                <Button Margin="0,4,0,0"
-                                        Content="批量规范化代码"
-                                        Command="{Binding MoreCommand}"
-                                        CommandParameter="批量规范化代码"
-                                        HorizontalAlignment="Stretch" />
-                            </StackPanel>
-                        </ui:Flyout>
+                        <ContextMenu MinWidth="180"
+                                     DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                            <MenuItem Header="导入颜色"
+                                      Command="{Binding MoreCommand}"
+                                      CommandParameter="导入颜色" />
+                            <MenuItem Header="导出颜色"
+                                      Command="{Binding MoreCommand}"
+                                      CommandParameter="导出颜色" />
+                            <Separator />
+                            <MenuItem Header="向下填充（Ctrl+D）"
+                                      Command="{x:Static gridOperations:GridOperations.FillDownCommand}"
+                                      CommandTarget="{x:Reference ColorsGrid}" />
+                            <MenuItem Header="批量规范化代码"
+                                      Command="{Binding MoreCommand}"
+                                      CommandParameter="批量规范化代码" />
+                        </ContextMenu>
                     </ui:DropDownButton.Flyout>
                 </ui:DropDownButton>
             </StackPanel>

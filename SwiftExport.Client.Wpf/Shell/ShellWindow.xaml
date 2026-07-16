@@ -20,6 +20,8 @@
         xmlns:supplierViewModels="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels"
         xmlns:purchasing="clr-namespace:SwiftExportClient.Features.Purchasing"
         xmlns:sales="clr-namespace:SwiftExportClient.Features.Sales"
+        xmlns:salesOrderViews="clr-namespace:SwiftExportClient.Features.Sales.Orders.Views"
+        xmlns:salesOrderViewModels="clr-namespace:SwiftExportClient.Features.Sales.Orders.ViewModels"
         xmlns:shell="clr-namespace:SwiftExportClient.Shell"
         xmlns:shipping="clr-namespace:SwiftExportClient.Features.Shipping"
         mc:Ignorable="d"
@@ -61,6 +63,12 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type sales:SalesViewModel}">
             <sales:SalesView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type salesOrderViewModels:SalesOrderManagerViewModel}">
+            <salesOrderViews:SalesOrderManagerView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type salesOrderViewModels:SalesOrderDetailViewModel}">
+            <salesOrderViews:SalesOrderDetailView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type planning:PlanningViewModel}">
             <planning:PlanningView />
@@ -288,8 +296,8 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
@@ -316,14 +324,7 @@
                 </ui:TitleBar.TrailingContent>
             </ui:TitleBar>
 
-            <ui:InfoBar Grid.Row="1"
-                        Title="{Binding InfoBarTitle}"
-                        Message="{Binding InfoBarMessage}"
-                        Severity="{Binding InfoBarSeverity}"
-                        IsOpen="{Binding IsInfoBarOpen}"
-                        Margin="16,8,16,0" />
-
-            <Grid Grid.Row="2">
+            <Grid Grid.Row="1">
 
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="{Binding NavigationPaneWidth}" />
@@ -410,10 +411,16 @@
                                 <DockPanel LastChildFill="False">
                                     <TextBlock Text="{Binding Title}"
                                                VerticalAlignment="Center"
-                                               Margin="0,0,10,0" />
-                                    <Button DockPanel.Dock="Right"
-                                            Content="x"
-                                            Style="{StaticResource SwiftExportTabCloseButton}"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,0,0,0" />
+                                    <TextBlock Text="*"
+                                               Margin="2,0,0,0"
+                                               Foreground="{DynamicResource SwiftExportBrush.Accent}"
+                                               FontWeight="SemiBold"
+                                               Visibility="{Binding IsDirty, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    <ui:Button DockPanel.Dock="Right"
+                                               Style="{StaticResource SwiftExportTabCloseButton}"
+                                            Content="{ui:SymbolIcon Symbol=Dismiss28}"
                                             Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding}"
                                             Visibility="{Binding CanClose, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -429,6 +436,13 @@
                     </TabControl>
                 </Border>
             </Grid>
+
+            <ui:InfoBar Grid.Row="2"
+                        Title="{Binding InfoBarTitle}"
+                        Message="{Binding InfoBarMessage}"
+                        Severity="{Binding InfoBarSeverity}"
+                        IsOpen="{Binding IsInfoBarOpen}"
+                        Margin="16,8,16,0" />
 
             <Border Grid.Row="3"
                     Padding="16,8"

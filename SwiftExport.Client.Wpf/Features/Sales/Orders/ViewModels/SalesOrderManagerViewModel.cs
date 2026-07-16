@@ -1,0 +1,420 @@
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using SwiftExport.Contracts.Apis.SalesOrderApis;
+using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.SysEnums;
+using SwiftExportClient.Features.Sales.Orders.Models;
+using SwiftExportClient.Mvvm;
+using SwiftExportClient.Navigation;
+using SwiftExportClient.Resources.Controls;
+using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.UI;
+
+namespace SwiftExportClient.Features.Sales.Orders.ViewModels;
+
+public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsyncInitializable
+{
+    public const string ManagerRouteKey = "sales-orders";
+    public const string DetailRouteKey = "sales-order-detail";
+
+    private readonly ISalesOrderWorkspaceApi _api;
+    private readonly IApiCallRunner _apiCallRunner;
+    private readonly INavigationService _navigationService;
+    private readonly IDialogService _dialogService;
+    private readonly IMessageService _messageService;
+    private CancellationTokenSource? _lineLoadCancellation;
+    private bool _initialized;
+
+    public SalesOrderManagerViewModel(
+        ISalesOrderWorkspaceApi api,
+        IApiCallRunner apiCallRunner,
+        INavigationService navigationService,
+        IDialogService dialogService,
+        IMessageService messageService)
+    {
+        _api = api;
+        _apiCallRunner = apiCallRunner;
+        _navigationService = navigationService;
+        _dialogService = dialogService;
+        _messageService = messageService;
+        Title = "销售订单管理";
+
+        RegisterBusyAwareCommand(SearchCommand);
+        RegisterBusyAwareCommand(RefreshCommand);
+        RegisterBusyAwareCommand(ClearFiltersCommand);
+        RegisterBusyAwareCommand(OpenNewCommand);
+        RegisterBusyAwareCommand(OpenSelectedCommand);
+        RegisterBusyAwareCommand(ConfirmSelectedCommand);
+        RegisterBusyAwareCommand(CancelConfirmationCommand);
+        RegisterBusyAwareCommand(CloseSelectedCommand);
+        RegisterBusyAwareCommand(DeleteDraftCommand);
+        RegisterBusyAwareCommand(PageChangeCommand);
+    }
+
+    public ObservableCollection<SalesOrderListItemDto> Orders { get; } = [];
+    public ObservableCollection<SalesOrderDocumentLineDto> SelectedOrderLines { get; } = [];
+    public IReadOnlyList<SalesOrderDocumentStatusEnum> DocumentStatusOptions { get; } = Enum.GetValues<SalesOrderDocumentStatusEnum>();
+    public IReadOnlyList<ConfirmationStatusEnum> ConfirmationStatusOptions { get; } = Enum.GetValues<ConfirmationStatusEnum>();
+    public IReadOnlyList<SalesOrderFulfillmentStatusEnum> FulfillmentStatusOptions { get; } = Enum.GetValues<SalesOrderFulfillmentStatusEnum>();
+    public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
+    public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
+
+    [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
+    [ObservableProperty] public partial string CustomerCode { get; set; } = string.Empty;
+    [ObservableProperty] public partial string OrderNo { get; set; } = string.Empty;
+    [ObservableProperty] public partial string CustomerPoNo { get; set; } = string.Empty;
+    [ObservableProperty] public partial string InvoiceNo { get; set; } = string.Empty;
+    [ObservableProperty] public partial string CustomerSkusText { get; set; } = string.Empty;
+    [ObservableProperty] public partial DateTime? OrderDateFrom { get; set; }
+    [ObservableProperty] public partial DateTime? OrderDateTo { get; set; }
+    [ObservableProperty] public partial DateTime? DeliveryDateFrom { get; set; }
+    [ObservableProperty] public partial DateTime? DeliveryDateTo { get; set; }
+    [ObservableProperty] public partial SalesOrderDocumentStatusEnum? SelectedDocumentStatus { get; set; }
+    [ObservableProperty] public partial ConfirmationStatusEnum? SelectedConfirmationStatus { get; set; }
+    [ObservableProperty] public partial SalesOrderFulfillmentStatusEnum? SelectedFulfillmentStatus { get; set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CancelConfirmationCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CloseSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteDraftCommand))]
+    public partial SalesOrderListItemDto? SelectedOrder { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalPages))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    public partial int TotalCount { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    public partial int PageIndex { get; set; } = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalPages))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    public partial int PageSize { get; set; } = 20;
+
+    [ObservableProperty] public partial string ResultSummary { get; set; } = "尚未加载销售订单。";
+
+    public async Task InitializeAsync()
+    {
+        if (_initialized)
+        {
+            return;
+        }
+
+        _initialized = true;
+        await LoadPageAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private async Task SearchAsync(string? query)
+    {
+        if (query is not null)
+        {
+            Keyword = query;
+        }
+
+        PageIndex = 1;
+        await LoadPageAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private Task RefreshAsync() => LoadPageAsync();
+
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private async Task ClearFiltersAsync()
+    {
+        Keyword = string.Empty;
+        CustomerCode = string.Empty;
+        OrderNo = string.Empty;
+        CustomerPoNo = string.Empty;
+        InvoiceNo = string.Empty;
+        CustomerSkusText = string.Empty;
+        OrderDateFrom = null;
+        OrderDateTo = null;
+        DeliveryDateFrom = null;
+        DeliveryDateTo = null;
+        SelectedDocumentStatus = null;
+        SelectedConfirmationStatus = null;
+        SelectedFulfillmentStatus = null;
+        PageIndex = 1;
+        await LoadPageAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private Task OpenNewAsync()
+    {
+        var instanceId = Guid.NewGuid();
+        return _navigationService.OpenDocumentAsync(
+            DetailRouteKey,
+            $"sales-order:new:{instanceId:N}",
+            new SalesOrderDocumentOpenRequest(null));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseSelected))]
+    private Task OpenSelectedAsync()
+    {
+        if (SelectedOrder is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return _navigationService.OpenDocumentAsync(
+            DetailRouteKey,
+            $"sales-order:{SelectedOrder.Uid:N}",
+            new SalesOrderDocumentOpenRequest(SelectedOrder.Uid));
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task LoadSelectedLinesAsync()
+    {
+        _lineLoadCancellation?.Cancel();
+        _lineLoadCancellation?.Dispose();
+        _lineLoadCancellation = new CancellationTokenSource();
+        var selected = SelectedOrder;
+        SelectedOrderLines.Clear();
+        if (selected is null)
+        {
+            return;
+        }
+
+        var cancellationToken = _lineLoadCancellation.Token;
+        var result = await _apiCallRunner.RunAsync(
+            () => _api.GetDocumentAsync(selected.Uid, cancellationToken),
+            "加载销售订单明细失败");
+        if (cancellationToken.IsCancellationRequested || !ReferenceEquals(selected, SelectedOrder))
+        {
+            return;
+        }
+
+        if (!result.Success || result.Data is null)
+        {
+            ResultSummary = result.Message;
+            return;
+        }
+
+        foreach (var line in result.Data.Lines)
+        {
+            SelectedOrderLines.Add(line);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanConfirm))]
+    private async Task ConfirmSelectedAsync()
+    {
+        var order = SelectedOrder;
+        if (order is null || !await _dialogService.ConfirmAsync(
+                "确认销售订单",
+                $"确认订单 {order.OrderNo} 后将生成毛需求，但不会拆解 BOM。是否继续？",
+                "确认"))
+        {
+            return;
+        }
+
+        await RunWriteAsync(async () =>
+        {
+            var result = await _apiCallRunner.RunAsync(
+                () => _api.ConfirmAsync(order.Uid, CreateCommandRequest(order)),
+                "确认销售订单失败");
+            if (!result.Success || result.Data is null)
+            {
+                _messageService.ShowError("确认销售订单失败", result.Message);
+                return;
+            }
+
+            _messageService.ShowSuccess("销售订单已确认", $"已生成 {result.Data.GrossDemandCount} 条毛需求。等待需求工作台拆解。");
+            await LoadPageAsync();
+        }, "正在确认销售订单...");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCancelConfirmation))]
+    private async Task CancelConfirmationAsync()
+    {
+        var order = SelectedOrder;
+        if (order is null || !await _dialogService.ConfirmAsync(
+                "取消确认",
+                "只有毛需求尚未拆解且没有下游执行记录时才能取消确认。是否继续？",
+                "取消确认"))
+        {
+            return;
+        }
+
+        await RunWriteAsync(async () =>
+        {
+            var result = await _apiCallRunner.RunAsync(
+                () => _api.CancelConfirmationAsync(order.Uid, CreateCommandRequest(order)),
+                "取消销售订单确认失败");
+            if (!result.Success)
+            {
+                _messageService.ShowError("取消确认失败", result.Message);
+                return;
+            }
+
+            _messageService.ShowSuccess("已取消确认", order.OrderNo);
+            await LoadPageAsync();
+        }, "正在取消确认...");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCloseOrder))]
+    private async Task CloseSelectedAsync()
+    {
+        var order = SelectedOrder;
+        if (order is null || !await _dialogService.ConfirmAsync(
+                "关闭销售订单",
+                $"关闭订单 {order.OrderNo} 后将保留全部历史，但不能继续编辑。是否继续？",
+                "关闭"))
+        {
+            return;
+        }
+
+        await RunWriteAsync(async () =>
+        {
+            var result = await _apiCallRunner.RunAsync(
+                () => _api.CloseAsync(order.Uid, new CloseSalesOrderRequest
+                {
+                    Uid = order.Uid,
+                    Version = order.Version,
+                    Reason = "用户从销售订单管理页关闭",
+                }),
+                "关闭销售订单失败");
+            if (!result.Success)
+            {
+                _messageService.ShowError("关闭销售订单失败", result.Message);
+                return;
+            }
+
+            _messageService.ShowSuccess("销售订单已关闭", order.OrderNo);
+            await LoadPageAsync();
+        }, "正在关闭销售订单...");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDeleteDraft))]
+    private async Task DeleteDraftAsync()
+    {
+        var order = SelectedOrder;
+        if (order is null || !await _dialogService.ConfirmAsync(
+                "删除销售订单草稿",
+                $"确定删除未确认草稿 {order.OrderNo} 吗？",
+                "删除"))
+        {
+            return;
+        }
+
+        await RunWriteAsync(async () =>
+        {
+            var result = await _apiCallRunner.RunAsync(
+                () => _api.DeleteDraftAsync(order.Uid, CreateCommandRequest(order)),
+                "删除销售订单草稿失败");
+            if (!result.Success)
+            {
+                _messageService.ShowError("删除草稿失败", result.Message);
+                return;
+            }
+
+            _messageService.ShowSuccess("销售订单草稿已删除", order.OrderNo);
+            await LoadPageAsync();
+        }, "正在删除销售订单草稿...");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private Task PageChangeAsync(PageChangeRequest? request)
+    {
+        if (request is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        PageIndex = request.NewIndex;
+        PageSize = request.NewSize;
+        return LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        await RunBusyAsync(async () =>
+        {
+            _lineLoadCancellation?.Cancel();
+            SelectedOrderLines.Clear();
+            var result = await _apiCallRunner.RunAsync(
+                () => _api.SearchAsync(CreateSearchRequest()),
+                "查询销售订单失败");
+            if (!result.Success || result.Data is null)
+            {
+                Orders.Clear();
+                SelectedOrder = null;
+                TotalCount = 0;
+                ResultSummary = result.Message;
+                return;
+            }
+
+            Orders.Clear();
+            foreach (var order in result.Data.Items)
+            {
+                Orders.Add(order);
+            }
+
+            TotalCount = result.Data.TotalCount;
+            PageIndex = result.Data.PageIndex <= 0 ? PageIndex : result.Data.PageIndex;
+            SelectedOrder = Orders.FirstOrDefault();
+            ResultSummary = $"共 {TotalCount} 张销售订单，本页 {Orders.Count} 张。";
+        }, "正在加载销售订单...");
+    }
+
+    private SalesOrderSearchRequest CreateSearchRequest()
+    {
+        var request = new SalesOrderSearchRequest
+        {
+            Keyword = Keyword.Trim(),
+            CustomerCode = CustomerCode.Trim(),
+            OrderNo = OrderNo.Trim(),
+            CustomerPoNo = CustomerPoNo.Trim(),
+            InvoiceNo = InvoiceNo.Trim(),
+            OrderDateFrom = OrderDateFrom,
+            OrderDateTo = OrderDateTo,
+            DeliveryDateFrom = DeliveryDateFrom,
+            DeliveryDateTo = DeliveryDateTo,
+            PageIndex = PageIndex,
+            PageSize = PageSize,
+            CustomerSkus = SplitValues(CustomerSkusText),
+        };
+
+        if (SelectedDocumentStatus is { } documentStatus) request.DocumentStatuses.Add(documentStatus);
+        if (SelectedConfirmationStatus is { } confirmationStatus) request.ConfirmationStatuses.Add(confirmationStatus);
+        if (SelectedFulfillmentStatus is { } fulfillmentStatus) request.FulfillmentStatuses.Add(fulfillmentStatus);
+        return request;
+    }
+
+    private static List<string> SplitValues(string text)
+    {
+        return text.Split(['\r', '\n', ',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static SalesOrderCommandRequest CreateCommandRequest(SalesOrderListItemDto order)
+    {
+        return new SalesOrderCommandRequest { Uid = order.Uid, Version = order.Version };
+    }
+
+    private bool CanRun() => IsNotBusy;
+    private bool CanUseSelected() => IsNotBusy && SelectedOrder is not null;
+    private bool CanConfirm() => CanWrite && IsNotBusy && SelectedOrder is
+    {
+        DocumentStatus: SalesOrderDocumentStatusEnum.Open,
+        ConfirmationStatus: ConfirmationStatusEnum.待确认,
+    };
+    private bool CanCancelConfirmation() => CanWrite && IsNotBusy && SelectedOrder is
+    {
+        DocumentStatus: SalesOrderDocumentStatusEnum.Open,
+        ConfirmationStatus: ConfirmationStatusEnum.已确认,
+    };
+    private bool CanCloseOrder() => CanWrite && IsNotBusy && SelectedOrder?.DocumentStatus == SalesOrderDocumentStatusEnum.Open;
+    private bool CanDeleteDraft() => CanWrite && IsNotBusy && SelectedOrder is
+    {
+        DocumentStatus: SalesOrderDocumentStatusEnum.Open,
+        ConfirmationStatus: ConfirmationStatusEnum.待确认,
+    };
+}

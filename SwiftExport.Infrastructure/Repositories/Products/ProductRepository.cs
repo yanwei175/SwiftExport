@@ -177,24 +177,22 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         // =========================================================
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            var keyword = request.Keyword.Trim();
-
             whereSb.AppendLine($@"
                                 AND (
-                                       p.{nameof(Product.Sku)}             LIKE @Keyword
-                                    OR p.{nameof(Product.DescriptionEn)}     LIKE @Keyword
-                                    OR p.{nameof(Product.DescriptionZh)}     LIKE @Keyword
-                                    OR pc.{nameof(ProductColor.ColorCode)}       LIKE @Keyword
-                                    OR pc.{nameof(ProductColor.ColorNameEn)}     LIKE @Keyword
-                                    OR pc.{nameof(ProductColor.ColorNameZh)}     LIKE @Keyword
-                                    OR pat.{nameof(ProductCategory.CategoryName)}     LIKE @Keyword
+                                       p.{nameof(Product.Sku)}             LIKE @Keyword ESCAPE '~'
+                                    OR p.{nameof(Product.DescriptionEn)}     LIKE @Keyword ESCAPE '~'
+                                    OR p.{nameof(Product.DescriptionZh)}     LIKE @Keyword ESCAPE '~'
+                                    OR pc.{nameof(ProductColor.ColorCode)}       LIKE @Keyword ESCAPE '~'
+                                    OR pc.{nameof(ProductColor.ColorNameEn)}     LIKE @Keyword ESCAPE '~'
+                                    OR pc.{nameof(ProductColor.ColorNameZh)}     LIKE @Keyword ESCAPE '~'
+                                    OR pat.{nameof(ProductCategory.CategoryName)}     LIKE @Keyword ESCAPE '~'
                                 )");
 
-            parameters.Add("@Keyword", $"%{keyword}%");
+            parameters.Add("@Keyword", SqlLikePattern.Build(request.Keyword));
         }
 
         // =========================================================
-        // 2. 批量关键词
+        // 2. 批量关键词（SKU、颜色代码精确匹配）
         // =========================================================
         var batchKeywords = request.BatchKeywords?
             .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -205,29 +203,12 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
 
         if (batchKeywords.Count > 0)
         {
-            whereSb.AppendLine("AND (");
-
-            for (var i = 0; i < batchKeywords.Count; i++)
-            {
-                var paramName = $"@BatchKeyword{i}";
-
-                if (i > 0)
-                    whereSb.AppendLine("OR");
-
-                whereSb.AppendLine($@"
-                                    (
-                                           p.{nameof(Product.Sku)}              LIKE {paramName}
-                                        OR p.{nameof(Product.DescriptionEn)}    LIKE {paramName}
-                                        OR p.{nameof(Product.DescriptionZh)}    LIKE {paramName}
-                                        OR pc.{nameof(ProductColor.ColorCode)}         LIKE {paramName}
-                                        OR pc.{nameof(ProductColor.ColorNameEn)}       LIKE {paramName}
-                                        OR pc.{nameof(ProductColor.ColorNameZh)}       LIKE {paramName}
-                                    )");
-
-                parameters.Add(paramName, $"%{batchKeywords[i]}%");
-            }
-
-            whereSb.AppendLine(")");
+            whereSb.AppendLine($@"
+                                AND (
+                                       p.{nameof(Product.Sku)} IN @BatchKeywords
+                                    OR pc.{nameof(ProductColor.ColorCode)} IN @BatchKeywords
+                                )");
+            parameters.Add("@BatchKeywords", batchKeywords);
         }
 
         // =========================================================
@@ -242,10 +223,16 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         // =========================================================
         // 5. 物料类型
         // =========================================================
-        if (!string.IsNullOrWhiteSpace(request.MaterialType))
+        var materialTypeList = request.MaterialTypeList?
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? [];
+
+        if (materialTypeList.Count > 0)
         {
-            whereSb.AppendLine($@"AND p.{nameof(Product.MaterialType)} = @MaterialType");
-            parameters.Add("@MaterialType", request.MaterialType.Trim());
+            whereSb.AppendLine($@"AND p.{nameof(Product.MaterialType)} IN @MaterialTypeList");
+            parameters.Add("@MaterialTypeList", materialTypeList);
         }
 
         // =========================================================

@@ -152,27 +152,21 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
                     : " AND p.DefaultCustomerSku IN @BatchCustomerSkuList");
             }
 
-            // 中文注释：批量关键词模糊匹配（Sku/DescriptionEn/FeaturesEn/CustomerSku）
-            if (request.BatchKeywords != null && request.BatchKeywords.Count > 0)
+            // 中文注释：批量关键词仅对 SKU、客户 SKU、关联 SKU 做精确匹配。
+            var batchKeywords = request.BatchKeywords?
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? [];
+
+            if (batchKeywords.Count > 0)
             {
-                var keywordGroupSql = new List<string>();
-                for (int i = 0; i < request.BatchKeywords.Count; i++)
-                {
-                    var kw = request.BatchKeywords[i] ?? string.Empty;
-                    var paramName = $"@Keyword_{i}";
-                    parameters.Add(paramName, $"%{kw}%");
+                var customerSkuField = useCustomerProduct ? "cp.CustomerSku" : "p.DefaultCustomerSku";
+                var skuField = useCustomerProduct ? "cp.Sku" : "p.Sku";
+                var linkSkuField = useCustomerProduct ? "cp.LinkSku" : "p.LinkSku";
 
-                    var customerSkuField = useCustomerProduct ? "cp.CustomerSku" : "p.DefaultCustomerSku";
-                    var skuField = useCustomerProduct ? "cp.Sku" : "p.Sku";
-                    var linkSkuField = useCustomerProduct ? "cp.LinkSku" : "p.LinkSku";
-
-                    keywordGroupSql.Add($"({skuField} LIKE {paramName} OR {customerSkuField} LIKE {paramName} OR p.DescriptionEn LIKE {paramName} OR p.FeaturesEn LIKE {paramName} OR {linkSkuField} LIKE {paramName})");
-                }
-
-                if (keywordGroupSql.Count > 0)
-                {
-                    sb.Append(" AND (").Append(string.Join(" OR ", keywordGroupSql)).Append(')');
-                }
+                parameters.Add("@BatchKeywords", batchKeywords);
+                sb.Append($" AND ({skuField} IN @BatchKeywords OR {customerSkuField} IN @BatchKeywords OR {linkSkuField} IN @BatchKeywords)");
             }
 
             int pageIndex = request.PageIndex > 0 ? request.PageIndex : 1;

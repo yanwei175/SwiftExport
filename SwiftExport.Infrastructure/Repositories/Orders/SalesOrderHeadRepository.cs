@@ -90,7 +90,7 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
 
             if (!string.IsNullOrWhiteSpace(request.Keyword))
             {
-                parameters.Add("@Keyword", $"%{request.Keyword.Trim()}%");
+                parameters.Add("@Keyword", SqlLikePattern.Build(request.Keyword));
 
                 sb.Append($@"
                              AND EXISTS (
@@ -98,11 +98,11 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
                                     FROM [SalesOrderLine] l WITH(NOLOCK)
                                     WHERE l.{nameof(SalesOrderLine.SalesOrderId)} = h.{nameof(SalesOrderHeader.Uid)}
                                       AND (
-                                            l.{nameof(SalesOrderLine.Sku)} LIKE @Keyword
-                                         OR l.{nameof(SalesOrderLine.DescriptionEn)} LIKE @Keyword
-                                         OR l.{nameof(SalesOrderLine.ColorNameEn)} LIKE @Keyword
-                                         OR l.{nameof(SalesOrderLine.CustomerSku)} LIKE @Keyword
-                                         OR l.{nameof(SalesOrderLine.LinkSku)} LIKE @Keyword
+                                            l.{nameof(SalesOrderLine.Sku)} LIKE @Keyword ESCAPE '~'
+                                         OR l.{nameof(SalesOrderLine.DescriptionEn)} LIKE @Keyword ESCAPE '~'
+                                         OR l.{nameof(SalesOrderLine.ColorNameEn)} LIKE @Keyword ESCAPE '~'
+                                         OR l.{nameof(SalesOrderLine.CustomerSku)} LIKE @Keyword ESCAPE '~'
+                                         OR l.{nameof(SalesOrderLine.LinkSku)} LIKE @Keyword ESCAPE '~'
                                       )
                              )");
             }
@@ -110,35 +110,23 @@ namespace SwiftExport.Infrastructure.Repositories.Orders
             var btKeywords = request.BatchKeywords?
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             if (btKeywords?.Count > 0)
             {
-                var existsGroups = new List<string>();
-
-                for (int i = 0; i < btKeywords.Count; i++)
-                {
-                    var paramName = $"@Keyword_{i}";
-                    parameters.Add(paramName, $"%{btKeywords[i]}%");
-
-                    existsGroups.Add($@"
-                                        EXISTS (
-                                                SELECT 1
-                                                FROM [SalesOrderLine] l WITH(NOLOCK)
-                                                WHERE l.{nameof(SalesOrderLine.SalesOrderId)} = h.{nameof(SalesOrderHeader.Uid)}
-                                                  AND (
-                                                        l.{nameof(SalesOrderLine.Sku)} LIKE {paramName}
-                                                     OR l.{nameof(SalesOrderLine.CustomerSku)} LIKE {paramName}
-                                                     OR l.{nameof(SalesOrderLine.DescriptionEn)} LIKE {paramName}
-                                                     OR l.{nameof(SalesOrderLine.ColorNameEn)} LIKE {paramName}
-                                                     OR l.{nameof(SalesOrderLine.LinkSku)} LIKE {paramName}
-                                                  )
-                                        )");
-                }
-
-                sb.Append(" AND (")
-                  .Append(string.Join(" OR ", existsGroups))
-                  .Append(')');
+                parameters.Add("@BatchKeywords", btKeywords);
+                sb.Append($@"
+                             AND EXISTS (
+                                    SELECT 1
+                                    FROM [SalesOrderLine] l WITH(NOLOCK)
+                                    WHERE l.{nameof(SalesOrderLine.SalesOrderId)} = h.{nameof(SalesOrderHeader.Uid)}
+                                      AND (
+                                            l.{nameof(SalesOrderLine.Sku)} IN @BatchKeywords
+                                         OR l.{nameof(SalesOrderLine.CustomerSku)} IN @BatchKeywords
+                                         OR l.{nameof(SalesOrderLine.LinkSku)} IN @BatchKeywords
+                                      )
+                             )");
             }
 
             int pageIndex = request.PageIndex > 0 ? request.PageIndex : 1;

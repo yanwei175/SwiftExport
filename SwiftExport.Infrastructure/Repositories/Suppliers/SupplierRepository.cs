@@ -76,13 +76,13 @@ namespace SwiftExport.Infrastructure.Repositories.Suppliers
             {
                 where.AppendLine("""
                     AND (
-                           s.SupplierCode LIKE @Keyword
-                        OR s.SupplierName LIKE @Keyword
-                        OR s.DocRelateNo LIKE @Keyword
-                        OR s.ContactPerson LIKE @Keyword
+                           s.SupplierCode LIKE @Keyword ESCAPE '~'
+                        OR s.SupplierName LIKE @Keyword ESCAPE '~'
+                        OR s.DocRelateNo LIKE @Keyword ESCAPE '~'
+                        OR s.ContactPerson LIKE @Keyword ESCAPE '~'
                     )
                     """);
-                parameters.Add("Keyword", $"%{request.Keyword.Trim()}%");
+                parameters.Add("Keyword", SqlLikePattern.Build(request.Keyword));
             }
 
             var sql = $"""

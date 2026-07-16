@@ -175,6 +175,16 @@ public sealed class ProductsDeletionTests
             return Task.CompletedTask;
         }
 
+        public Task OpenDocumentAsync(
+            string routeKey,
+            string documentKey,
+            object? parameter = null,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public void UpdateDocumentKey(object contentViewModel, string documentKey)
+        {
+        }
+
         public void Activate(NavigationTabItem? tab)
         {
         }

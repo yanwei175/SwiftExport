@@ -8,6 +8,7 @@ using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Purchasing;
 using SwiftExportClient.Features.Sales;
+using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Features.Shipping;
 
 namespace SwiftExportClient.Navigation;
@@ -24,6 +25,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new("customers", "客户管理", "Workspace", typeof(CustomerManagerViewModel)),
         new("suppliers", "供应商管理", "Workspace", typeof(SupplierManagerViewModel)),
         new("sales", "销售", "Workspace", typeof(SalesViewModel)),
+        new(SalesOrderManagerViewModel.ManagerRouteKey, "销售订单管理", "Workspace", typeof(SalesOrderManagerViewModel)),
+        new(SalesOrderManagerViewModel.DetailRouteKey, "销售订单", "Workspace", typeof(SalesOrderDetailViewModel)),
         new("planning", "计划", "Workspace", typeof(PlanningViewModel)),
         new("purchasing", "采购", "Workspace", typeof(PurchasingViewModel)),
         new("shipping", "出货", "Workspace", typeof(ShippingViewModel)),
@@ -52,7 +55,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 ]),
             new("customers", "客户管理", "Workspace", "People24"),
             new("suppliers", "供应商管理", "Workspace", "PeopleTeam24"),
-            new("sales", "销售", "Workspace", "ReceiptMoney24"),
+            new(SalesOrderManagerViewModel.ManagerRouteKey, "销售订单", "Workspace", "ReceiptMoney24"),
             new("planning", "计划", "Workspace", "CalendarLtr24"),
             new("purchasing", "采购", "Workspace", "Cart24"),
             new("shipping", "出货", "VehicleTruckProfile24"),

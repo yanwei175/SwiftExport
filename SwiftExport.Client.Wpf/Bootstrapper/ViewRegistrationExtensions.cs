@@ -13,6 +13,7 @@ using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 using SwiftExportClient.Features.Purchasing;
 using SwiftExportClient.Features.Sales;
+using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Features.Shipping;
 using SwiftExportClient.Shell;
 
@@ -37,6 +38,8 @@ public static class ViewRegistrationExtensions
         services.AddTransient<SupplierManagerViewModel>();
         services.AddTransient<SupplierProductManagerViewModel>();
         services.AddTransient<SalesViewModel>();
+        services.AddTransient<SalesOrderManagerViewModel>();
+        services.AddTransient<SalesOrderDetailViewModel>();
         services.AddTransient<PlanningViewModel>();
         services.AddTransient<PurchasingViewModel>();
         services.AddTransient<ShippingViewModel>();

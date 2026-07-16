@@ -83,6 +83,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public ObservableCollection<ProductCategoryDto> CategoryCandidates { get; } = [];
     public ObservableCollection<SupplierDto> SupplierCandidates { get; } = [];
     public IReadOnlyList<string> MaterialTypes { get; } = MaterialTypesEnum.MaterialTypes;
+    [ObservableProperty]
+    public partial ObservableCollection<string> FilterMaterialTypes { get; set; } = [];
     public IReadOnlyList<string> SupplyTypes { get; } = SupplyTypeEnums.SupplyTypes;
 
     [ObservableProperty]
@@ -93,8 +95,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public partial ProductColorDto? FilterColor { get; set; }
     [ObservableProperty]
     public partial ProductCategoryDto? FilterCategory { get; set; }
-    [ObservableProperty]
-    public partial string? FilterMaterialType { get; set; }
     [ObservableProperty]
     public partial ProductCategoryDto? EditCategory { get; set; }
     [ObservableProperty]
@@ -245,7 +245,11 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private async Task ResetFiltersAsync()
     {
         if (!await EnsureCanDiscardChangesAsync()) return;
-        Keyword = string.Empty; FilterCustomer = null; FilterColor = null; FilterCategory = null; FilterMaterialType = null;
+        Keyword = string.Empty;
+        FilterCustomer = null;
+        FilterColor = null;
+        FilterCategory = null;
+        FilterMaterialTypes.Clear();
         PageIndex = 1;
         await LoadPageAsync(false);
     }
@@ -307,7 +311,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         {
             Keyword = NullIfWhiteSpace(Keyword), CustomerId = FilterCustomer?.Uid ?? Guid.Empty,
             ColorCodeUnique = FilterColor?.ColorCodeUnique, CategoryId = FilterCategory?.Uid ?? Guid.Empty,
-            MaterialType = FilterMaterialType, PageIndex = PageIndex, PageSize = PageSize,
+            MaterialTypeList = FilterMaterialTypes.ToList(), PageIndex = PageIndex, PageSize = PageSize,
         };
         var result = await _apiCallRunner.RunAsync(() => _productApi.GetPagedAsync(request), "加载产品资料失败");
         if (!result.Success)
