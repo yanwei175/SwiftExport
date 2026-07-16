@@ -54,9 +54,26 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
 
     public ObservableCollection<SalesOrderListItemDto> Orders { get; } = [];
     public ObservableCollection<SalesOrderDocumentLineDto> SelectedOrderLines { get; } = [];
-    public IReadOnlyList<SalesOrderDocumentStatusEnum> DocumentStatusOptions { get; } = Enum.GetValues<SalesOrderDocumentStatusEnum>();
-    public IReadOnlyList<ConfirmationStatusEnum> ConfirmationStatusOptions { get; } = Enum.GetValues<ConfirmationStatusEnum>();
-    public IReadOnlyList<SalesOrderFulfillmentStatusEnum> FulfillmentStatusOptions { get; } = Enum.GetValues<SalesOrderFulfillmentStatusEnum>();
+    public ObservableCollection<string> CustomerCodeOptions { get; } = [];
+    public IReadOnlyList<SalesOrderFilterOption<SalesOrderDocumentStatusEnum>> DocumentStatusOptions { get; } =
+    [
+        new(SalesOrderDocumentStatusEnum.Open, "正常"),
+        new(SalesOrderDocumentStatusEnum.Closed, "已关闭"),
+    ];
+    public IReadOnlyList<SalesOrderFilterOption<ConfirmationStatusEnum>> ConfirmationStatusOptions { get; } =
+    [
+        new(ConfirmationStatusEnum.待确认, "待确认"),
+        new(ConfirmationStatusEnum.已确认, "已确认"),
+    ];
+    public IReadOnlyList<SalesOrderFilterOption<SalesOrderFulfillmentStatusEnum>> FulfillmentStatusOptions { get; } =
+    [
+        new(SalesOrderFulfillmentStatusEnum.NotStarted, "未发货"),
+        new(SalesOrderFulfillmentStatusEnum.PartiallyShipped, "部分发货"),
+        new(SalesOrderFulfillmentStatusEnum.FullyShipped, "全部发货"),
+    ];
+    public ObservableCollection<SalesOrderFilterOption<SalesOrderDocumentStatusEnum>> SelectedDocumentStatuses { get; } = [];
+    public ObservableCollection<SalesOrderFilterOption<ConfirmationStatusEnum>> SelectedConfirmationStatuses { get; } = [];
+    public ObservableCollection<SalesOrderFilterOption<SalesOrderFulfillmentStatusEnum>> SelectedFulfillmentStatuses { get; } = [];
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
 
@@ -70,10 +87,6 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     [ObservableProperty] public partial DateTime? OrderDateTo { get; set; }
     [ObservableProperty] public partial DateTime? DeliveryDateFrom { get; set; }
     [ObservableProperty] public partial DateTime? DeliveryDateTo { get; set; }
-    [ObservableProperty] public partial SalesOrderDocumentStatusEnum? SelectedDocumentStatus { get; set; }
-    [ObservableProperty] public partial ConfirmationStatusEnum? SelectedConfirmationStatus { get; set; }
-    [ObservableProperty] public partial SalesOrderFulfillmentStatusEnum? SelectedFulfillmentStatus { get; set; }
-
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConfirmSelectedCommand))]
@@ -106,7 +119,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         }
 
         _initialized = true;
-        await LoadPageAsync();
+        await Task.WhenAll(LoadCustomerCodesAsync(), LoadPageAsync());
     }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
@@ -137,9 +150,9 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         OrderDateTo = null;
         DeliveryDateFrom = null;
         DeliveryDateTo = null;
-        SelectedDocumentStatus = null;
-        SelectedConfirmationStatus = null;
-        SelectedFulfillmentStatus = null;
+        SelectedDocumentStatuses.Clear();
+        SelectedConfirmationStatuses.Clear();
+        SelectedFulfillmentStatuses.Clear();
         PageIndex = 1;
         await LoadPageAsync();
     }
@@ -172,33 +185,52 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     private async Task LoadSelectedLinesAsync()
     {
         _lineLoadCancellation?.Cancel();
-        _lineLoadCancellation?.Dispose();
-        _lineLoadCancellation = new CancellationTokenSource();
+        var requestCancellation = new CancellationTokenSource();
+        _lineLoadCancellation = requestCancellation;
         var selected = SelectedOrder;
         SelectedOrderLines.Clear();
         if (selected is null)
         {
+            if (ReferenceEquals(_lineLoadCancellation, requestCancellation))
+            {
+                _lineLoadCancellation = null;
+            }
+
+            requestCancellation.Dispose();
             return;
         }
 
-        var cancellationToken = _lineLoadCancellation.Token;
-        var result = await _apiCallRunner.RunAsync(
-            () => _api.GetDocumentAsync(selected.Uid, cancellationToken),
-            "加载销售订单明细失败");
-        if (cancellationToken.IsCancellationRequested || !ReferenceEquals(selected, SelectedOrder))
+        var cancellationToken = requestCancellation.Token;
+        try
         {
-            return;
-        }
+            var result = await _apiCallRunner.RunAsync(
+                () => _api.GetDocumentAsync(selected.Uid, cancellationToken),
+                cancellationToken,
+                "加载销售订单明细失败");
+            if (cancellationToken.IsCancellationRequested || !ReferenceEquals(selected, SelectedOrder))
+            {
+                return;
+            }
 
-        if (!result.Success || result.Data is null)
-        {
-            ResultSummary = result.Message;
-            return;
-        }
+            if (!result.Success || result.Data is null)
+            {
+                ResultSummary = result.Message;
+                return;
+            }
 
-        foreach (var line in result.Data.Lines)
+            foreach (var line in result.Data.Lines)
+            {
+                SelectedOrderLines.Add(line);
+            }
+        }
+        finally
         {
-            SelectedOrderLines.Add(line);
+            if (ReferenceEquals(_lineLoadCancellation, requestCancellation))
+            {
+                _lineLoadCancellation = null;
+            }
+
+            requestCancellation.Dispose();
         }
     }
 
@@ -337,6 +369,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         await RunBusyAsync(async () =>
         {
             _lineLoadCancellation?.Cancel();
+            _lineLoadCancellation = null;
             SelectedOrderLines.Clear();
             var result = await _apiCallRunner.RunAsync(
                 () => _api.SearchAsync(CreateSearchRequest()),
@@ -363,12 +396,28 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         }, "正在加载销售订单...");
     }
 
+    private async Task LoadCustomerCodesAsync()
+    {
+        var result = await _apiCallRunner.RunAsync(
+            () => _api.GetCustomerCodesAsync(),
+            "加载客户代码建议失败");
+        if (!result.Success || result.Data is null)
+        {
+            return;
+        }
+
+        CustomerCodeOptions.Clear();
+        foreach (var code in result.Data)
+        {
+            CustomerCodeOptions.Add(code);
+        }
+    }
+
     private SalesOrderSearchRequest CreateSearchRequest()
     {
         var request = new SalesOrderSearchRequest
         {
             Keyword = Keyword.Trim(),
-            CustomerCode = CustomerCode.Trim(),
             OrderNo = OrderNo.Trim(),
             CustomerPoNo = CustomerPoNo.Trim(),
             InvoiceNo = InvoiceNo.Trim(),
@@ -379,11 +428,13 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
             PageIndex = PageIndex,
             PageSize = PageSize,
             CustomerSkus = SplitValues(CustomerSkusText),
+            CustomerCodes = string.IsNullOrWhiteSpace(CustomerCode)
+                ? []
+                : [CustomerCode.Trim()],
+            DocumentStatuses = SelectedDocumentStatuses.Select(option => option.Value).Distinct().ToList(),
+            ConfirmationStatuses = SelectedConfirmationStatuses.Select(option => option.Value).Distinct().ToList(),
+            FulfillmentStatuses = SelectedFulfillmentStatuses.Select(option => option.Value).Distinct().ToList(),
         };
-
-        if (SelectedDocumentStatus is { } documentStatus) request.DocumentStatuses.Add(documentStatus);
-        if (SelectedConfirmationStatus is { } confirmationStatus) request.ConfirmationStatuses.Add(confirmationStatus);
-        if (SelectedFulfillmentStatus is { } fulfillmentStatus) request.FulfillmentStatuses.Add(fulfillmentStatus);
         return request;
     }
 

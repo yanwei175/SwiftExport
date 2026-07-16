@@ -26,6 +26,10 @@ public sealed class SalesOrderWorkspaceController(ISalesOrderWorkspaceService se
         CancellationToken cancellationToken)
         => service.GetDocumentAsync(uid, cancellationToken);
 
+    [HttpGet("customer-codes")]
+    public Task<ServiceResult<List<string>>> GetCustomerCodesAsync(CancellationToken cancellationToken)
+        => service.GetCustomerCodesAsync(cancellationToken);
+
     [HttpPost("products/search")]
     public Task<ServiceResult<PagedResponseBase<SalesOrderProductLookupDto>>> SearchProductsAsync(
         [FromBody] SalesOrderProductSearchRequest request,

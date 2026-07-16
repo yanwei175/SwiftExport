@@ -94,6 +94,43 @@
            TargetType="{x:Type TextBox}"
            BasedOn="{StaticResource SwiftExportDataGridTextBox}">
         <Setter Property="HorizontalContentAlignment" Value="Right" />
+        <Style.Triggers>
+            <Trigger Property="Validation.HasError" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
+                <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
+                <Setter Property="ToolTip"
+                        Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent, FallbackValue={x:Null}}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="SwiftExportDataGridDateTextBlock"
+           TargetType="{x:Type TextBlock}"
+           BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="TextAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="SwiftExportDataGridDatePicker"
+           TargetType="{x:Type DatePicker}"
+           BasedOn="{StaticResource {x:Type DatePicker}}">
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
+        <Style.Triggers>
+            <Trigger Property="Validation.HasError" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
+                <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
+                <Setter Property="ToolTip"
+                        Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent, FallbackValue={x:Null}}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style x:Key="SwiftExportDataGridPopupTextBoxEditingStyle"

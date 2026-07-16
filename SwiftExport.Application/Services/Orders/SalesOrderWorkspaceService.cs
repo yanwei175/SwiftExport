@@ -31,14 +31,17 @@ public sealed class SalesOrderWorkspaceService(
     public Task<ServiceResult<PagedResponseBase<SalesOrderListItemDto>>> SearchAsync(
         SalesOrderSearchRequest request,
         CancellationToken cancellationToken = default)
-        => ExecuteReadAsync(() => headRepository.SearchWorkspaceAsync(request), "查询销售订单失败", cancellationToken);
+        => ExecuteReadAsync(
+            () => headRepository.SearchWorkspaceAsync(request, cancellationToken),
+            "查询销售订单失败",
+            cancellationToken);
 
     public async Task<ServiceResult<SalesOrderDocumentDto>> GetDocumentAsync(Guid uid, CancellationToken cancellationToken = default)
     {
         if (uid == Guid.Empty) return ServiceResult<SalesOrderDocumentDto>.Fail("销售订单 Uid 不能为空。");
         return await ExecuteReadAsync(async () =>
         {
-            var document = await headRepository.GetWorkspaceDocumentAsync(uid);
+            var document = await headRepository.GetWorkspaceDocumentAsync(uid, cancellationToken);
             return document ?? throw new WorkspaceValidationException("未找到销售订单。");
         }, "加载销售订单失败", cancellationToken);
     }
@@ -46,12 +49,25 @@ public sealed class SalesOrderWorkspaceService(
     public Task<ServiceResult<PagedResponseBase<SalesOrderProductLookupDto>>> SearchProductsAsync(
         SalesOrderProductSearchRequest request,
         CancellationToken cancellationToken = default)
-        => ExecuteReadAsync(() => productRepository.SearchSalesOrderProductsAsync(request), "查询销售产品失败", cancellationToken);
+        => ExecuteReadAsync(
+            () => productRepository.SearchSalesOrderProductsAsync(request, cancellationToken),
+            "查询销售产品失败",
+            cancellationToken);
 
     public Task<ServiceResult<PagedResponseBase<SalesOrderCustomerLookupDto>>> SearchCustomersAsync(
         SalesOrderCustomerSearchRequest request,
         CancellationToken cancellationToken = default)
-        => ExecuteReadAsync(() => customerRepository.SearchSalesOrderCustomersAsync(request), "查询销售客户失败", cancellationToken);
+        => ExecuteReadAsync(
+            () => customerRepository.SearchSalesOrderCustomersAsync(request, cancellationToken),
+            "查询销售客户失败",
+            cancellationToken);
+
+    public Task<ServiceResult<List<string>>> GetCustomerCodesAsync(
+        CancellationToken cancellationToken = default)
+        => ExecuteReadAsync(
+            () => customerRepository.GetSalesOrderCustomerCodesAsync(cancellationToken),
+            "加载客户代码失败",
+            cancellationToken);
 
     public Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request)
         => ExecuteTransactionAsync(async () =>

@@ -8,7 +8,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Workspace
     public class SalesOrderSearchRequest : PagedRequestBase
     {
         public Guid? CustomerId { get; set; }
-        public string CustomerCode { get; set; }
+        public List<string> CustomerCodes { get; set; } = new List<string>();
         public string OrderNo { get; set; }
         public string CustomerPoNo { get; set; }
         public string InvoiceNo { get; set; }

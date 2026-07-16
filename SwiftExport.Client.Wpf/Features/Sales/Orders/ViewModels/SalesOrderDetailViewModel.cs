@@ -85,7 +85,13 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         {
             var result = await _apiCallRunner.RunAsync(
                 () => _api.GetDocumentAsync(orderId, cancellationToken),
+                cancellationToken,
                 "加载销售订单失败");
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
             if (!result.Success || result.Data is null)
             {
                 _messageService.ShowError("加载销售订单失败", result.Message);
@@ -255,16 +261,17 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     private async Task SearchProductsAsync(string? keyword)
     {
         _productLookupCancellation?.Cancel();
-        _productLookupCancellation?.Dispose();
-        var requestCancellation = new CancellationTokenSource();
-        _productLookupCancellation = requestCancellation;
+        _productLookupCancellation = null;
         ProductCandidates.Clear();
         SelectedProductCandidate = null;
         if (string.IsNullOrWhiteSpace(keyword))
         {
+            IsProductLookupBusy = false;
             return;
         }
 
+        var requestCancellation = new CancellationTokenSource();
+        _productLookupCancellation = requestCancellation;
         IsProductLookupBusy = true;
         var token = requestCancellation.Token;
         try
@@ -277,6 +284,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
                     PageIndex = 1,
                     PageSize = 30,
                 }, token),
+                token,
                 "查询销售产品失败");
             if (!token.IsCancellationRequested && result.Success && result.Data is not null)
             {
@@ -290,8 +298,11 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         {
             if (ReferenceEquals(_productLookupCancellation, requestCancellation))
             {
+                _productLookupCancellation = null;
                 IsProductLookupBusy = false;
             }
+
+            requestCancellation.Dispose();
         }
     }
 
@@ -331,16 +342,17 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     private async Task SearchCustomersAsync(string? keyword)
     {
         _customerLookupCancellation?.Cancel();
-        _customerLookupCancellation?.Dispose();
-        var requestCancellation = new CancellationTokenSource();
-        _customerLookupCancellation = requestCancellation;
+        _customerLookupCancellation = null;
         CustomerCandidates.Clear();
         SelectedCustomerCandidate = null;
         if (string.IsNullOrWhiteSpace(keyword))
         {
+            IsCustomerLookupBusy = false;
             return;
         }
 
+        var requestCancellation = new CancellationTokenSource();
+        _customerLookupCancellation = requestCancellation;
         IsCustomerLookupBusy = true;
         var token = requestCancellation.Token;
         try
@@ -352,6 +364,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
                     PageIndex = 1,
                     PageSize = 30,
                 }, token),
+                token,
                 "查询客户失败");
             if (!token.IsCancellationRequested && result.Success && result.Data is not null)
             {
@@ -365,8 +378,11 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         {
             if (ReferenceEquals(_customerLookupCancellation, requestCancellation))
             {
+                _customerLookupCancellation = null;
                 IsCustomerLookupBusy = false;
             }
+
+            requestCancellation.Dispose();
         }
     }
 

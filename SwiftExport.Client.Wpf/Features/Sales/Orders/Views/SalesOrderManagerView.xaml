@@ -82,21 +82,36 @@
                     <ColumnDefinition Width="120" /><ColumnDefinition Width="4" />
                     <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <ui:AutoSuggestBox Grid.Column="0" ToolTip="客户代码"
-                         Text="{Binding CustomerCode, UpdateSourceTrigger=PropertyChanged}" />
+                <ui:AutoSuggestBox Grid.Column="0"
+                                   ToolTip="客户代码"
+                                   PlaceholderText="客户代码"
+                                   ClearButtonEnabled="True"
+                                   UpdateTextOnSelect="True"
+                                   MaxSuggestionListHeight="280"
+                                   OriginalItemsSource="{Binding CustomerCodeOptions}"
+                                   Text="{Binding CustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 <DatePicker Grid.Column="2" ToolTip="订单日期从" 
                             SelectedDate="{Binding OrderDateFrom}" />
                 <DatePicker Grid.Column="4" ToolTip="订单日期到" 
                             SelectedDate="{Binding OrderDateTo}" />
-                <ComboBox Grid.Column="6" ToolTip="确认状态" 
-                          ItemsSource="{Binding ConfirmationStatusOptions}" 
-                          SelectedItem="{Binding SelectedConfirmationStatus}" />
-                <ComboBox Grid.Column="8" ToolTip="单据状态" 
-                          ItemsSource="{Binding DocumentStatusOptions}" 
-                          SelectedItem="{Binding SelectedDocumentStatus}" />
-                <ComboBox Grid.Column="10" ToolTip="执行状态" 
-                          ItemsSource="{Binding FulfillmentStatusOptions}" 
-                          SelectedItem="{Binding SelectedFulfillmentStatus}" />
+                <controls:DropDownCheckBox Grid.Column="6"
+                                           ToolTip="确认状态"
+                                           Placeholder="确认状态"
+                                           DisplayMemberPath="DisplayText"
+                                           ItemsSource="{Binding ConfirmationStatusOptions}"
+                                           SelectedItems="{Binding SelectedConfirmationStatuses}" />
+                <controls:DropDownCheckBox Grid.Column="8"
+                                           ToolTip="单据状态"
+                                           Placeholder="单据状态"
+                                           DisplayMemberPath="DisplayText"
+                                           ItemsSource="{Binding DocumentStatusOptions}"
+                                           SelectedItems="{Binding SelectedDocumentStatuses}" />
+                <controls:DropDownCheckBox Grid.Column="10"
+                                           ToolTip="执行状态"
+                                           Placeholder="执行状态"
+                                           DisplayMemberPath="DisplayText"
+                                           ItemsSource="{Binding FulfillmentStatusOptions}"
+                                           SelectedItems="{Binding SelectedFulfillmentStatuses}" />
                 <Button Grid.Column="12" 
                         Command="{Binding ClearFiltersCommand}" 
                         Content="清空筛选" />

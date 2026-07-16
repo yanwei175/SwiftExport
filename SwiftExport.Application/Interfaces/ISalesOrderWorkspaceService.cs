@@ -7,6 +7,7 @@ public interface ISalesOrderWorkspaceService
 {
     Task<ServiceResult<PagedResponseBase<SalesOrderListItemDto>>> SearchAsync(SalesOrderSearchRequest request, CancellationToken cancellationToken = default);
     Task<ServiceResult<SalesOrderDocumentDto>> GetDocumentAsync(Guid uid, CancellationToken cancellationToken = default);
+    Task<ServiceResult<List<string>>> GetCustomerCodesAsync(CancellationToken cancellationToken = default);
     Task<ServiceResult<PagedResponseBase<SalesOrderProductLookupDto>>> SearchProductsAsync(SalesOrderProductSearchRequest request, CancellationToken cancellationToken = default);
     Task<ServiceResult<PagedResponseBase<SalesOrderCustomerLookupDto>>> SearchCustomersAsync(SalesOrderCustomerSearchRequest request, CancellationToken cancellationToken = default);
     Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request);

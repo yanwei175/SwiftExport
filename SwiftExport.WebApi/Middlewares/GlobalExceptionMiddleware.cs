@@ -20,6 +20,14 @@ namespace SwiftExport.WebApi.Middlewares
             {
                 await _next(context);
             }
+            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+            {
+                _logger.LogDebug("客户端已取消请求。请求路径: {Path}", context.Request.Path);
+                if (!context.Response.HasStarted)
+                {
+                    context.Response.StatusCode = 499;
+                }
+            }
             catch (Exception ex)
             {
                 await HandleExceptionAsync(context, ex);

@@ -7,8 +7,12 @@ namespace SwiftExport.Core.Interfaces;
 
 public interface ISalesOrderHeadRepository : IRepository<SalesOrderHeader>
 {
-    Task<PagedResponseBase<SalesOrderListItemDto>> SearchWorkspaceAsync(SalesOrderSearchRequest request);
-    Task<SalesOrderDocumentDto?> GetWorkspaceDocumentAsync(Guid uid);
+    Task<PagedResponseBase<SalesOrderListItemDto>> SearchWorkspaceAsync(
+        SalesOrderSearchRequest request,
+        CancellationToken cancellationToken = default);
+    Task<SalesOrderDocumentDto?> GetWorkspaceDocumentAsync(
+        Guid uid,
+        CancellationToken cancellationToken = default);
     Task<RepositoryWriteResult> SetConfirmationStatusAsync(Guid uid, int version, ConfirmationStatusEnum status);
     Task<RepositoryWriteResult> CloseWorkspaceAsync(Guid uid, int version, string reason);
     Task<RepositoryWriteResult> DeleteDraftAsync(Guid uid, int version);

@@ -14,7 +14,9 @@ namespace SwiftExport.Infrastructure.Repositories.Orders;
 public class SalesOrderHeadRepository(RepositoryBaseContext context)
     : DapperRepository<SalesOrderHeader>(context), ISalesOrderHeadRepository
 {
-    public async Task<PagedResponseBase<SalesOrderListItemDto>> SearchWorkspaceAsync(SalesOrderSearchRequest request)
+    public async Task<PagedResponseBase<SalesOrderListItemDto>> SearchWorkspaceAsync(
+        SalesOrderSearchRequest request,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -28,7 +30,16 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
         });
         var where = new StringBuilder("WHERE h.IsDeleted = 0");
 
-        AddLikeFilter(where, parameters, "h.CustomerCode", "CustomerCode", request.CustomerCode);
+        var customerCodes = request.CustomerCodes?
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray() ?? [];
+        if (customerCodes.Length > 0)
+        {
+            where.Append(" AND h.CustomerCode IN @CustomerCodes");
+            parameters.Add("CustomerCodes", customerCodes);
+        }
         AddLikeFilter(where, parameters, "h.OrderNo", "OrderNo", request.OrderNo);
         AddLikeFilter(where, parameters, "h.CustomerPoNo", "CustomerPoNo", request.CustomerPoNo);
         AddLikeFilter(where, parameters, "h.InvoiceNo", "InvoiceNo", request.InvoiceNo);
@@ -157,7 +168,12 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
             ORDER BY h.CreatedDate DESC, h.Uid DESC
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
 
-        using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
+        var command = new CommandDefinition(
+            sql,
+            parameters,
+            transaction: Transaction,
+            cancellationToken: cancellationToken);
+        using var multi = await Connection.QueryMultipleAsync(command);
         var totalCount = await multi.ReadFirstAsync<int>();
         var items = (await multi.ReadAsync<SalesOrderListItemDto>()).ToList();
         return new PagedResponseBase<SalesOrderListItemDto>
@@ -169,7 +185,9 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
         };
     }
 
-    public async Task<SalesOrderDocumentDto?> GetWorkspaceDocumentAsync(Guid uid)
+    public async Task<SalesOrderDocumentDto?> GetWorkspaceDocumentAsync(
+        Guid uid,
+        CancellationToken cancellationToken = default)
     {
         const string sql = @"
             SELECT * FROM SalesOrderHeader WITH(NOLOCK)
@@ -196,11 +214,16 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
             WHERE l.SalesOrderId = @Uid AND l.IsDeleted = 0
             ORDER BY l.LineNumber, l.Uid;";
 
-        using var multi = await Connection.QueryMultipleAsync(sql, new
-        {
-            Uid = uid,
-            SourceType = DocumentTypeStaticsEnum.SalesOrder
-        }, transaction: Transaction);
+        var command = new CommandDefinition(
+            sql,
+            new
+            {
+                Uid = uid,
+                SourceType = DocumentTypeStaticsEnum.SalesOrder
+            },
+            transaction: Transaction,
+            cancellationToken: cancellationToken);
+        using var multi = await Connection.QueryMultipleAsync(command);
         var header = await multi.ReadSingleOrDefaultAsync<SalesOrderHeader>();
         if (header is null) return null;
 

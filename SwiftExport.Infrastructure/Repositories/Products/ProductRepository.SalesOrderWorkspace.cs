@@ -7,7 +7,9 @@ namespace SwiftExport.Infrastructure.Repositories.Products;
 
 public partial class ProductRepository
 {
-    public async Task<PagedResponseBase<SalesOrderProductLookupDto>> SearchSalesOrderProductsAsync(SalesOrderProductSearchRequest request)
+    public async Task<PagedResponseBase<SalesOrderProductLookupDto>> SearchSalesOrderProductsAsync(
+        SalesOrderProductSearchRequest request,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
@@ -83,7 +85,12 @@ public partial class ProductRepository
             {fromSql} {keywordFilter}
             ORDER BY p.Sku, p.Uid
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
-        using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
+        var command = new CommandDefinition(
+            sql,
+            parameters,
+            transaction: Transaction,
+            cancellationToken: cancellationToken);
+        using var multi = await Connection.QueryMultipleAsync(command);
         return new PagedResponseBase<SalesOrderProductLookupDto>
         {
             TotalCount = await multi.ReadFirstAsync<int>(),

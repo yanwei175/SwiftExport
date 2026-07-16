@@ -38,6 +38,26 @@ public sealed class ApiCallRunner(ILogger<ApiCallRunner> logger) : IApiCallRunne
         }
     }
 
+    public async Task<ServiceResult<T>> RunAsync<T>(
+        Func<Task<ServiceResult<T>>> action,
+        CancellationToken cancellationToken,
+        string failureMessage = "请求失败")
+    {
+        try
+        {
+            return await action() ?? ServiceResult<T>.Fail($"{failureMessage}：服务端返回为空。");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogDebug("API request was canceled by the caller.");
+            return ServiceResult<T>.Fail(string.Empty);
+        }
+        catch (Exception exception) when (TryMapException<T>(exception, failureMessage, out var result))
+        {
+            return result;
+        }
+    }
+
     private bool TryMapException<T>(
         Exception exception,
         string failureMessage,

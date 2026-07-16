@@ -7,7 +7,9 @@ namespace SwiftExport.Infrastructure.Repositories.Customers;
 
 public partial class CustomerRepository
 {
-    public async Task<PagedResponseBase<SalesOrderCustomerLookupDto>> SearchSalesOrderCustomersAsync(SalesOrderCustomerSearchRequest request)
+    public async Task<PagedResponseBase<SalesOrderCustomerLookupDto>> SearchSalesOrderCustomersAsync(
+        SalesOrderCustomerSearchRequest request,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
@@ -51,7 +53,12 @@ public partial class CustomerRepository
             WHERE c.IsDeleted = 0 {keywordSql}
             ORDER BY c.CustomerCode, c.Uid
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
-        using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
+        var command = new CommandDefinition(
+            sql,
+            parameters,
+            transaction: Transaction,
+            cancellationToken: cancellationToken);
+        using var multi = await Connection.QueryMultipleAsync(command);
         return new PagedResponseBase<SalesOrderCustomerLookupDto>
         {
             TotalCount = await multi.ReadFirstAsync<int>(),
@@ -59,5 +66,21 @@ public partial class CustomerRepository
             PageIndex = pageIndex,
             PageSize = pageSize
         };
+    }
+
+    public async Task<List<string>> GetSalesOrderCustomerCodesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = @"
+            SELECT DISTINCT LTRIM(RTRIM(c.CustomerCode)) AS CustomerCode
+            FROM Customer c WITH(NOLOCK)
+            WHERE c.IsDeleted = 0
+              AND NULLIF(LTRIM(RTRIM(c.CustomerCode)), '') IS NOT NULL
+            ORDER BY CustomerCode;";
+        var command = new CommandDefinition(
+            sql,
+            transaction: Transaction,
+            cancellationToken: cancellationToken);
+        return (await Connection.QueryAsync<string>(command)).ToList();
     }
 }

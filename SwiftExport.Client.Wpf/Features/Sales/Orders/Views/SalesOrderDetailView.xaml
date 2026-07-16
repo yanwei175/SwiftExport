@@ -246,21 +246,24 @@
                 
                 <DataGridTextColumn Header="数量" Width="78" 
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                    Binding="{Binding Qty, UpdateSourceTrigger=LostFocus}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                    Binding="{Binding QtyText, UpdateSourceTrigger=PropertyChanged}"
                                     gridColumns:GridColumn.Key="qty" 
-                                    gridColumns:GridColumn.FieldPath="Qty" />
+                                    gridColumns:GridColumn.FieldPath="QtyText" />
                 
                 <DataGridTextColumn Header="USD单价" Width="88" 
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                    Binding="{Binding UsdPrice, UpdateSourceTrigger=LostFocus}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                    Binding="{Binding UsdPriceText, UpdateSourceTrigger=PropertyChanged}"
                                     gridColumns:GridColumn.Key="usd-price" 
-                                    gridColumns:GridColumn.FieldPath="UsdPrice" />
+                                    gridColumns:GridColumn.FieldPath="UsdPriceText" />
                 
                 <DataGridTextColumn Header="CNY单价" Width="88" 
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                    Binding="{Binding CnyPrice, UpdateSourceTrigger=LostFocus}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                    Binding="{Binding CnyPriceText, UpdateSourceTrigger=PropertyChanged}"
                                     gridColumns:GridColumn.Key="cny-price" 
-                                    gridColumns:GridColumn.FieldPath="CnyPrice" />
+                                    gridColumns:GridColumn.FieldPath="CnyPriceText" />
                 
                 <DataGridTextColumn Header="USD金额" Width="92" IsReadOnly="True" 
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
@@ -272,11 +275,23 @@
                                     Binding="{Binding CnyAmount, StringFormat=N2}" 
                                     gridColumns:GridColumn.Key="cny-amount" />
                 
-                <DataGridTextColumn Header="预计交期" Width="104" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                    Binding="{Binding ExpectedDeliveryDate, UpdateSourceTrigger=LostFocus, StringFormat=yyyy-MM-dd}"
-                                    gridColumns:GridColumn.Key="expected-date" 
-                                    gridColumns:GridColumn.FieldPath="ExpectedDeliveryDate" />
+                <DataGridTemplateColumn Header="预计交期" Width="112"
+                                        SortMemberPath="ExpectedDeliveryDate"
+                                        gridColumns:GridColumn.Key="expected-date"
+                                        gridColumns:GridColumn.FieldPath="ExpectedDeliveryDateText">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding ExpectedDeliveryDateDisplayText}"
+                                       Style="{StaticResource SwiftExportDataGridDateTextBlock}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <controls:SoftInputDatePicker RawText="{Binding ExpectedDeliveryDateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource SwiftExportDataGridDatePicker}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
                 
                 <DataGridTextColumn Header="备注" Width="*" 
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"

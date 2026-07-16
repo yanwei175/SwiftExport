@@ -140,6 +140,7 @@ public sealed class CustomerProductDrawerLoadingTests
     private sealed class DirectApiCallRunner : IApiCallRunner
     {
         public Task<ServiceResult<T>> RunAsync<T>(Func<Task<ServiceResult<T>>> action, string failureMessage = "请求失败") => action();
+        public Task<ServiceResult<T>> RunAsync<T>(Func<Task<ServiceResult<T>>> action, CancellationToken cancellationToken, string failureMessage = "请求失败") => action();
         public async Task<ServiceResult<T>> RunValueAsync<T>(Func<Task<T>> action, string successMessage = "成功", string failureMessage = "请求失败") =>
             ServiceResult<T>.Ok(await action(), successMessage);
     }

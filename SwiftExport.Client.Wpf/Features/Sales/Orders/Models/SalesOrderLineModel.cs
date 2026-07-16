@@ -4,11 +4,14 @@ using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
 using SwiftExportClient.Mvvm;
 using System.ComponentModel;
+using System.Globalization;
 
 namespace SwiftExportClient.Features.Sales.Orders.Models;
 
 public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocumentLineDto>, IDataErrorInfo
 {
+    private bool _synchronizingEditorText;
+
     [ObservableProperty] public partial int LineNumber { get; set; }
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LineTypeText))]
@@ -40,20 +43,34 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocume
     [ObservableProperty] public partial string MainImage { get; set; } = string.Empty;
     [ObservableProperty] public partial decimal ShippedQty { get; set; }
     [ObservableProperty] public partial decimal UnshippedQty { get; set; }
+    [ObservableProperty] public partial string QtyText { get; set; } = string.Empty;
+    [ObservableProperty] public partial string CnyPriceText { get; set; } = string.Empty;
+    [ObservableProperty] public partial string UsdPriceText { get; set; } = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExpectedDeliveryDateDisplayText))]
+    public partial string ExpectedDeliveryDateText { get; set; } = string.Empty;
 
     public string LineTypeText => IsNonStandard ? "非标" : "标准";
     public decimal? CnyAmount => CnyPrice * Qty;
     public decimal? UsdAmount => UsdPrice * Qty;
+    public string ExpectedDeliveryDateDisplayText => FormatDateDisplayText(ExpectedDeliveryDateText);
     public string Error => ValidateRow() ?? string.Empty;
 
     public string this[string columnName] => columnName switch
     {
-        nameof(Qty) when Qty <= 0 => "数量必须大于零。",
+        nameof(QtyText) => GetQtyTextError() ?? string.Empty,
+        nameof(CnyPriceText) => GetNullableDecimalTextError(CnyPriceText, "CNY 单价") ?? string.Empty,
+        nameof(UsdPriceText) => GetNullableDecimalTextError(UsdPriceText, "USD 单价") ?? string.Empty,
+        nameof(ExpectedDeliveryDateText) => GetDateTextError() ?? string.Empty,
         nameof(DescriptionEn) when IsNonStandard && string.IsNullOrWhiteSpace(DescriptionEn) => "非标行必须填写产品描述。",
         _ => string.Empty,
     };
 
-    protected override void LoadFromDto(SalesOrderDocumentLineDto dto) => dto.Adapt(this);
+    protected override void LoadFromDto(SalesOrderDocumentLineDto dto)
+    {
+        dto.Adapt(this);
+        SynchronizeEditorTexts();
+    }
 
     public override SalesOrderDocumentLineDto ToDto() => this.Adapt<SalesOrderDocumentLineDto>();
 
@@ -92,9 +109,13 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocume
 
     public override string? ValidateRow()
     {
-        if (Qty <= 0)
+        var editorError = GetQtyTextError()
+            ?? GetNullableDecimalTextError(CnyPriceText, "CNY 单价")
+            ?? GetNullableDecimalTextError(UsdPriceText, "USD 单价")
+            ?? GetDateTextError();
+        if (!string.IsNullOrWhiteSpace(editorError))
         {
-            return "数量必须大于零。";
+            return editorError;
         }
 
         if (IsNonStandard)
@@ -125,12 +146,171 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocume
         return null;
     }
 
+    partial void OnQtyTextChanged(string value)
+    {
+        if (TryParseDecimal(value, out var parsedValue))
+        {
+            SetStrongValue(() => Qty = parsedValue);
+        }
+    }
+
+    partial void OnCnyPriceTextChanged(string value) =>
+        ApplyNullableDecimalText(value, parsedValue => CnyPrice = parsedValue);
+
+    partial void OnUsdPriceTextChanged(string value) =>
+        ApplyNullableDecimalText(value, parsedValue => UsdPrice = parsedValue);
+
+    partial void OnExpectedDeliveryDateTextChanged(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            SetStrongValue(() => ExpectedDeliveryDate = null);
+            return;
+        }
+
+        if (DateTime.TryParse(
+                value.Trim(),
+                CultureInfo.CurrentCulture,
+                DateTimeStyles.AllowWhiteSpaces,
+                out var parsedDate))
+        {
+            SetStrongValue(() => ExpectedDeliveryDate = parsedDate.Date);
+        }
+    }
+
+    partial void OnQtyChanged(decimal value) =>
+        SynchronizeEditorText(() => QtyText = FormatDecimal(value));
+
+    partial void OnCnyPriceChanged(decimal? value) =>
+        SynchronizeEditorText(() => CnyPriceText = FormatNullableDecimal(value));
+
+    partial void OnUsdPriceChanged(decimal? value) =>
+        SynchronizeEditorText(() => UsdPriceText = FormatNullableDecimal(value));
+
+    partial void OnExpectedDeliveryDateChanged(DateTime? value) =>
+        SynchronizeEditorText(() => ExpectedDeliveryDateText = value?.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) ?? string.Empty);
+
+    private string? GetQtyTextError()
+    {
+        if (!TryParseDecimal(QtyText, out var parsedValue))
+        {
+            return "请输入有效数量。";
+        }
+
+        return parsedValue <= 0 ? "数量必须大于零。" : null;
+    }
+
+    private string? GetDateTextError()
+    {
+        return string.IsNullOrWhiteSpace(ExpectedDeliveryDateText)
+            || DateTime.TryParse(
+                ExpectedDeliveryDateText.Trim(),
+                CultureInfo.CurrentCulture,
+                DateTimeStyles.AllowWhiteSpaces,
+                out _)
+                ? null
+                : "请输入有效预计交期。";
+    }
+
+    private static string? GetNullableDecimalTextError(string value, string displayName)
+    {
+        return string.IsNullOrWhiteSpace(value) || TryParseDecimal(value, out _)
+            ? null
+            : $"请输入有效的 {displayName}。";
+    }
+
+    private void ApplyNullableDecimalText(string value, Action<decimal?> setter)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            SetStrongValue(() => setter(null));
+            return;
+        }
+
+        if (TryParseDecimal(value, out var parsedValue))
+        {
+            SetStrongValue(() => setter(parsedValue));
+        }
+    }
+
+    private void SetStrongValue(Action setter)
+    {
+        _synchronizingEditorText = true;
+        try
+        {
+            setter();
+        }
+        finally
+        {
+            _synchronizingEditorText = false;
+        }
+    }
+
+    private void SynchronizeEditorText(Action setter)
+    {
+        if (_synchronizingEditorText)
+        {
+            return;
+        }
+
+        _synchronizingEditorText = true;
+        try
+        {
+            setter();
+        }
+        finally
+        {
+            _synchronizingEditorText = false;
+        }
+    }
+
+    private void SynchronizeEditorTexts()
+    {
+        SynchronizeEditorText(() =>
+        {
+            QtyText = FormatDecimal(Qty);
+            CnyPriceText = FormatNullableDecimal(CnyPrice);
+            UsdPriceText = FormatNullableDecimal(UsdPrice);
+            ExpectedDeliveryDateText = ExpectedDeliveryDate?.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) ?? string.Empty;
+        });
+    }
+
+    private static bool TryParseDecimal(string value, out decimal parsedValue) =>
+        decimal.TryParse(
+            value?.Trim(),
+            NumberStyles.Number,
+            CultureInfo.CurrentCulture,
+            out parsedValue);
+
+    private static string FormatDecimal(decimal value) =>
+        value.ToString("0.############################", CultureInfo.CurrentCulture);
+
+    private static string FormatNullableDecimal(decimal? value) =>
+        value.HasValue ? FormatDecimal(value.Value) : string.Empty;
+
+    private static string FormatDateDisplayText(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return DateTime.TryParse(
+            value.Trim(),
+            CultureInfo.CurrentCulture,
+            DateTimeStyles.AllowWhiteSpaces,
+            out var parsedDate)
+            ? parsedDate.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture)
+            : value;
+    }
+
     protected override bool IsTrackingIgnoredProperty(string? propertyName)
     {
         return base.IsTrackingIgnoredProperty(propertyName)
             || propertyName is nameof(LineTypeText)
                 or nameof(CnyAmount)
                 or nameof(UsdAmount)
+                or nameof(ExpectedDeliveryDateDisplayText)
                 or nameof(MainImage)
                 or nameof(ShippedQty)
                 or nameof(UnshippedQty);

@@ -19,6 +19,9 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         [Get("/{uid}")]
         Task<ServiceResult<SalesOrderDocumentDto>> GetDocumentAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken));
 
+        [Get("/customer-codes")]
+        Task<ServiceResult<List<string>>> GetCustomerCodesAsync(CancellationToken cancellationToken = default(CancellationToken));
+
         [Post("/products/search")]
         Task<ServiceResult<PagedResponseBase<SalesOrderProductLookupDto>>> SearchProductsAsync([Body] SalesOrderProductSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));
 

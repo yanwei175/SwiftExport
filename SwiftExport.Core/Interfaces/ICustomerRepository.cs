@@ -14,7 +14,10 @@ namespace SwiftExport.Core.Interfaces
 
         Task<PagedResponseBase<CustomerDto>> GetPagedAsync(CustomerSearchRequest request);
         Task<List<string>> GetCustomerCodesUsedByOtherCustomersAsync(IEnumerable<(Guid Uid, string CustomerCode)> items);
-        Task<PagedResponseBase<SalesOrderCustomerLookupDto>> SearchSalesOrderCustomersAsync(SalesOrderCustomerSearchRequest request);
+        Task<PagedResponseBase<SalesOrderCustomerLookupDto>> SearchSalesOrderCustomersAsync(
+            SalesOrderCustomerSearchRequest request,
+            CancellationToken cancellationToken = default);
+        Task<List<string>> GetSalesOrderCustomerCodesAsync(CancellationToken cancellationToken = default);
 
     }
 }
