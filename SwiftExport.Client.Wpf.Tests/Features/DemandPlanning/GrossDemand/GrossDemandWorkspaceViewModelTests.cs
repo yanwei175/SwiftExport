@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Reflection;
+using System.Xml.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.Apis.ProductApis;
@@ -62,7 +64,82 @@ public sealed class GrossDemandWorkspaceViewModelTests
         CollectionAssert.AreEquivalent(new[] { "C-1", "C-2" }, api.LastSearchRequest.CustomerSkus);
     }
 
-    private static GrossDemandWorkspaceViewModel CreateViewModel(FakeGrossDemandApi api)
+    [TestMethod]
+    public async Task CloseDrawer_WhenManualEditorIsClean_ShouldCloseWithoutConfirmation()
+    {
+        var dialog = new RecordingDialogService(confirmResult: false);
+        using var viewModel = CreateViewModel(new FakeGrossDemandApi(), dialog);
+        await viewModel.InitializeAsync();
+        await viewModel.CreateManualCommand.ExecuteAsync(null);
+
+        await viewModel.CloseDrawerCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(viewModel.IsDrawerOpen);
+        Assert.IsFalse(viewModel.ManualEditor.IsOpen);
+        Assert.AreEqual(0, dialog.ConfirmCount);
+    }
+
+    [TestMethod]
+    public async Task CloseDrawer_WhenManualEditorIsDirtyAndDiscardRejected_ShouldKeepEditorOpen()
+    {
+        var dialog = new RecordingDialogService(confirmResult: false);
+        using var viewModel = CreateViewModel(new FakeGrossDemandApi(), dialog);
+        await viewModel.InitializeAsync();
+        await viewModel.CreateManualCommand.ExecuteAsync(null);
+        viewModel.ManualEditor.Edit.Remark = "尚未保存";
+
+        await viewModel.CloseDrawerCommand.ExecuteAsync(null);
+
+        Assert.IsTrue(viewModel.IsDrawerOpen);
+        Assert.IsTrue(viewModel.ManualEditor.IsOpen);
+        Assert.IsTrue(viewModel.ManualEditor.HasUnsavedChanges);
+        Assert.AreEqual(1, dialog.ConfirmCount);
+    }
+
+    [TestMethod]
+    public async Task CloseDrawer_WhenManualEditorIsDirtyAndDiscardConfirmed_ShouldDiscardAndClose()
+    {
+        var dialog = new RecordingDialogService(confirmResult: true);
+        using var viewModel = CreateViewModel(new FakeGrossDemandApi(), dialog);
+        await viewModel.InitializeAsync();
+        await viewModel.CreateManualCommand.ExecuteAsync(null);
+        viewModel.ManualEditor.Edit.Remark = "尚未保存";
+
+        await viewModel.CloseDrawerCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(viewModel.IsDrawerOpen);
+        Assert.IsFalse(viewModel.ManualEditor.IsOpen);
+        Assert.IsFalse(viewModel.ManualEditor.HasUnsavedChanges);
+        Assert.AreEqual(1, dialog.ConfirmCount);
+    }
+
+    [TestMethod]
+    public void ManualEditorCancelButton_ShouldBindWorkspaceCloseDrawerCommand()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var xamlPath = Path.Combine(
+            repositoryRoot,
+            "SwiftExport.Client.Wpf",
+            "Features",
+            "DemandPlanning",
+            "GrossDemand",
+            "Views",
+            "GrossDemandManualEditorView.xaml");
+        var document = XDocument.Load(xamlPath);
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var cancelButton = document
+            .Descendants(presentation + "Button")
+            .Single(element => string.Equals((string?)element.Attribute(x + "Name"), "CancelButton", StringComparison.Ordinal));
+
+        Assert.AreEqual("取消", (string?)cancelButton.Attribute("Content"));
+        StringAssert.Contains((string?)cancelButton.Attribute("Command") ?? string.Empty, "DataContext.CloseDrawerCommand");
+        StringAssert.Contains((string?)cancelButton.Attribute("Command") ?? string.Empty, "GrossDemandWorkspaceView");
+    }
+
+    private static GrossDemandWorkspaceViewModel CreateViewModel(
+        FakeGrossDemandApi api,
+        IDialogService? dialogService = null)
     {
         var runner = new PassThroughApiCallRunner();
         var messages = new TestMessageService();
@@ -76,10 +153,27 @@ public sealed class GrossDemandWorkspaceViewModelTests
             api,
             runner,
             DispatchProxy.Create<INavigationService, NoCallProxy>(),
-            new ConfirmingDialogService(),
+            dialogService ?? new RecordingDialogService(confirmResult: true),
             messages,
             manual,
             trace);
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "SwiftExport-Frontend.slnx")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        Assert.Fail("无法定位 SwiftExport 仓库根目录。");
+        return string.Empty;
     }
 
     private static GrossDemandListItemDto CreateItem(string sourceNo, bool canDecompose) => new()
@@ -138,10 +232,16 @@ public sealed class GrossDemandWorkspaceViewModelTests
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) => throw new NotSupportedException(targetMethod?.Name);
     }
 
-    private sealed class ConfirmingDialogService : IDialogService
+    private sealed class RecordingDialogService(bool confirmResult) : IDialogService
     {
+        public int ConfirmCount { get; private set; }
+
         public Task ShowContentAsync(string title, object content, string closeButtonText = "关闭", CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<bool> ConfirmAsync(string title, string message, string primaryButtonText = "确定", string closeButtonText = "取消", CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<bool> ConfirmAsync(string title, string message, string primaryButtonText = "确定", string closeButtonText = "取消", CancellationToken cancellationToken = default)
+        {
+            ConfirmCount++;
+            return Task.FromResult(confirmResult);
+        }
         public Task ShowErrorAsync(string title, string message, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
