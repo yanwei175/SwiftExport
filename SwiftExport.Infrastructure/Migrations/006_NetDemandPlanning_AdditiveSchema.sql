@@ -97,8 +97,8 @@ BEGIN TRY
         ALTER TABLE dbo.PurchaseOrderHead ADD DemandSourceUid uniqueidentifier NULL;
     IF COL_LENGTH(N'dbo.PurchaseOrderHead',N'DemandSourceNo') IS NULL
         ALTER TABLE dbo.PurchaseOrderHead ADD DemandSourceNo nvarchar(100) NULL;
-    IF COL_LENGTH(N'dbo.PurchaseOrderHead',N'GenerationRequestId') IS NULL
-        ALTER TABLE dbo.PurchaseOrderHead ADD GenerationRequestId uniqueidentifier NULL;
+    IF COL_LENGTH(N'dbo.PurchaseOrderHead',N'ExecutionRequestId') IS NULL
+        ALTER TABLE dbo.PurchaseOrderHead ADD ExecutionRequestId uniqueidentifier NULL;
     IF COL_LENGTH(N'dbo.PurchaseOrderHead',N'LifecycleStatus') IS NULL
         ALTER TABLE dbo.PurchaseOrderHead ADD LifecycleStatus int NULL;
 
@@ -122,7 +122,7 @@ BEGIN TRY
         ALTER TABLE dbo.PurchaseOrderLine ADD SourceLineNumber int NULL;
 
     IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.Product') AND name=N'IX_Product_DefaultSupplierId')
-        CREATE INDEX IX_Product_DefaultSupplierId ON dbo.Product(DefaultSupplierId) WHERE DefaultSupplierId IS NOT NULL;
+        EXEC(N'CREATE INDEX IX_Product_DefaultSupplierId ON dbo.Product(DefaultSupplierId) WHERE DefaultSupplierId IS NOT NULL;');
     IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.NetDemandAllocation') AND name=N'IX_NetDemandAllocation_NetDemandLifecycle')
         CREATE INDEX IX_NetDemandAllocation_NetDemandLifecycle ON dbo.NetDemandAllocation(NetDemandId,LifecycleStatus,IsDeleted);
     IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.NetDemandAllocation') AND name=N'IX_NetDemandAllocation_PurchaseSupplier')
@@ -130,9 +130,9 @@ BEGIN TRY
     IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.NetDemandAllocation') AND name=N'IX_NetDemandAllocation_DeliveryTarget')
         CREATE INDEX IX_NetDemandAllocation_DeliveryTarget ON dbo.NetDemandAllocation(DeliveryTargetAllocationId);
     IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.DemandExecutionLink') AND name=N'IX_DemandExecutionLink_AllocationStatus')
-        CREATE INDEX IX_DemandExecutionLink_AllocationStatus ON dbo.DemandExecutionLink(NetDemandAllocationId,LinkStatus,IsDeleted);
+        EXEC(N'CREATE INDEX IX_DemandExecutionLink_AllocationStatus ON dbo.DemandExecutionLink(NetDemandAllocationId,LinkStatus,IsDeleted);');
     IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.PurchaseOrderHead') AND name=N'IX_PurchaseOrderHead_DemandSource')
-        CREATE INDEX IX_PurchaseOrderHead_DemandSource ON dbo.PurchaseOrderHead(DemandSourceType,DemandSourceNo,IsDeleted);
+        EXEC(N'CREATE INDEX IX_PurchaseOrderHead_DemandSource ON dbo.PurchaseOrderHead(DemandSourceType,DemandSourceNo,IsDeleted);');
     IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.NetDemandPlanCommandLog') AND name=N'IX_NetDemandPlanCommandLog_CommandAllocation')
         CREATE INDEX IX_NetDemandPlanCommandLog_CommandAllocation
             ON dbo.NetDemandPlanCommandLog(CommandId,OriginalAllocationId,IsDeleted);

@@ -7,7 +7,7 @@ SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 SELECT N'DATABASE' AS AuditSection, DB_NAME() AS DatabaseName, SYSDATETIME() AS AuditedAt;
 
-SELECT N'TABLE_COUNTS' AS AuditSection,N'Product' AS TableName,COUNT_BIG(1) AS RowCount FROM dbo.Product
+SELECT N'TABLE_COUNTS' AS AuditSection,N'Product' AS TableName,COUNT_BIG(1) AS [RowCount] FROM dbo.Product
 UNION ALL SELECT N'TABLE_COUNTS',N'Supplier',COUNT_BIG(1) FROM dbo.Supplier
 UNION ALL SELECT N'TABLE_COUNTS',N'SupplierProduct',COUNT_BIG(1) FROM dbo.SupplierProduct
 UNION ALL SELECT N'TABLE_COUNTS',N'IndependentDemand',COUNT_BIG(1) FROM dbo.IndependentDemand

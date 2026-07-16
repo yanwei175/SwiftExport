@@ -244,10 +244,10 @@ BEGIN TRY
     IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.PurchaseOrderLine') AND name=N'UX_PurchaseOrderLine_HeadLineNumber')
         CREATE UNIQUE INDEX UX_PurchaseOrderLine_HeadLineNumber ON dbo.PurchaseOrderLine(PurchaseOrderId,LineNumber)
             WHERE IsDeleted=0;
-    IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.PurchaseOrderHead') AND name=N'UX_PurchaseOrderHead_GenerationSourceSupplier')
-        CREATE UNIQUE INDEX UX_PurchaseOrderHead_GenerationSourceSupplier
-            ON dbo.PurchaseOrderHead(GenerationRequestId,DemandSourceType,DemandSourceUid,SupplierId)
-            WHERE GenerationRequestId IS NOT NULL AND IsDeleted=0;
+    IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.PurchaseOrderHead') AND name=N'UX_PurchaseOrderHead_ExecutionRequestSourceSupplier')
+        CREATE UNIQUE INDEX UX_PurchaseOrderHead_ExecutionRequestSourceSupplier
+            ON dbo.PurchaseOrderHead(ExecutionRequestId,DemandSourceType,DemandSourceUid,SupplierId)
+            WHERE ExecutionRequestId IS NOT NULL AND IsDeleted=0;
     IF EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.NetDemandPlanCommandLog') AND name=N'IX_NetDemandPlanCommandLog_CommandAllocation')
         DROP INDEX IX_NetDemandPlanCommandLog_CommandAllocation ON dbo.NetDemandPlanCommandLog;
     IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.NetDemandPlanCommandLog') AND name=N'UX_NetDemandPlanCommandLog_CommandAllocation')

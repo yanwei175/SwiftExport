@@ -36,6 +36,13 @@ SELECT N'DUPLICATE_PURCHASE_LINE_NUMBER' AS AuditSection,PurchaseOrderId,LineNum
 FROM dbo.PurchaseOrderLine WHERE IsDeleted=0
 GROUP BY PurchaseOrderId,LineNumber HAVING COUNT_BIG(1)>1;
 
+SELECT N'DUPLICATE_PURCHASE_EXECUTION_REQUEST' AS AuditSection,
+       ExecutionRequestId,DemandSourceType,DemandSourceUid,SupplierId,COUNT_BIG(1) AS DuplicateCount
+FROM dbo.PurchaseOrderHead
+WHERE ExecutionRequestId IS NOT NULL AND IsDeleted=0
+GROUP BY ExecutionRequestId,DemandSourceType,DemandSourceUid,SupplierId
+HAVING COUNT_BIG(1)>1;
+
 SELECT N'DUPLICATE_PLAN_COMMAND_KEY' AS AuditSection,CommandId,OriginalAllocationId,COUNT_BIG(1) AS DuplicateCount
 FROM dbo.NetDemandPlanCommandLog WHERE IsDeleted=0
 GROUP BY CommandId,OriginalAllocationId HAVING COUNT_BIG(1)>1;
