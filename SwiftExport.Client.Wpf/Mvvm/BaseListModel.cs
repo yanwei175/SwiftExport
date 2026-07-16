@@ -18,6 +18,7 @@ public partial class BaseListModel<TLine, TDto> : ObservableObjectEx
     where TDto : BaseDto
 {
     private readonly List<TLine> _allLines = [];
+    private readonly List<TLine> _acceptedOrder = [];
     private readonly ObservableCollection<TLine> _items = [];
     private readonly Func<TDto, TLine> _lineFactory;
     private bool _isUpdatingItems;
@@ -116,6 +117,7 @@ public partial class BaseListModel<TLine, TDto> : ObservableObjectEx
             _isUpdatingItems = false;
         }
 
+        AcceptOrderBaseline();
         Reindex();
         RaiseListStateChanged();
     }
@@ -190,11 +192,45 @@ public partial class BaseListModel<TLine, TDto> : ObservableObjectEx
 
         var wasVisible = _items.Remove(line);
         _allLines.Remove(line);
+        _acceptedOrder.Remove(line);
         if (!wasVisible)
         {
             Reindex();
             RaiseListStateChanged(line);
         }
+    }
+
+    /// <summary>
+    /// 将指定可见行移动到新的集合索引。该方法只调整集合顺序，不修改任何业务行号。
+    /// </summary>
+    public bool Move(TLine? line, int newIndex)
+    {
+        if (line is null || line.IsDeleted)
+        {
+            return false;
+        }
+
+        var oldIndex = _items.IndexOf(line);
+        if (oldIndex < 0 || newIndex < 0 || newIndex >= _items.Count || oldIndex == newIndex)
+        {
+            return false;
+        }
+
+        using var _ = SuppressListEvents();
+        _isUpdatingItems = true;
+        try
+        {
+            _items.Move(oldIndex, newIndex);
+            SynchronizeAllLinesFromVisibleOrder();
+        }
+        finally
+        {
+            _isUpdatingItems = false;
+        }
+
+        Reindex();
+        RaiseListStateChanged(line);
+        return true;
     }
 
     public GridChangeSet<TDto> GetChangeSet()
@@ -225,6 +261,7 @@ public partial class BaseListModel<TLine, TDto> : ObservableObjectEx
             SelectedItem = null;
         }
 
+        AcceptOrderBaseline();
         Reindex();
         RaiseListStateChanged();
     }
@@ -248,6 +285,8 @@ public partial class BaseListModel<TLine, TDto> : ObservableObjectEx
         {
             line.RejectChanges();
         }
+
+        RestoreAcceptedOrder();
 
         _isUpdatingItems = true;
         try
@@ -315,6 +354,7 @@ public partial class BaseListModel<TLine, TDto> : ObservableObjectEx
         }
 
         _allLines.Clear();
+        _acceptedOrder.Clear();
         _items.Clear();
         SelectedItem = null;
     }
@@ -339,6 +379,54 @@ public partial class BaseListModel<TLine, TDto> : ObservableObjectEx
 
         Reindex();
         RaiseListStateChanged();
+    }
+
+    private void SynchronizeAllLinesFromVisibleOrder()
+    {
+        var visibleIndex = 0;
+        for (var index = 0; index < _allLines.Count && visibleIndex < _items.Count; index++)
+        {
+            if (_allLines[index].IsDeleted)
+            {
+                continue;
+            }
+
+            _allLines[index] = _items[visibleIndex++];
+        }
+    }
+
+    private void AcceptOrderBaseline()
+    {
+        _acceptedOrder.Clear();
+        _acceptedOrder.AddRange(_allLines);
+    }
+
+    private void RestoreAcceptedOrder()
+    {
+        if (_acceptedOrder.Count == 0)
+        {
+            return;
+        }
+
+        var restored = new List<TLine>(_allLines.Count);
+        foreach (var acceptedLine in _acceptedOrder)
+        {
+            if (_allLines.Any(line => ReferenceEquals(line, acceptedLine)))
+            {
+                restored.Add(acceptedLine);
+            }
+        }
+
+        foreach (var line in _allLines)
+        {
+            if (!restored.Any(existing => ReferenceEquals(existing, line)))
+            {
+                restored.Add(line);
+            }
+        }
+
+        _allLines.Clear();
+        _allLines.AddRange(restored);
     }
 
     private void OnLinePropertyChanged(object? sender, PropertyChangedEventArgs e)

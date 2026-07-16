@@ -161,6 +161,7 @@
                   RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
+                  CanUserSortColumns="False"
                   IsReadOnly="{Binding IsReadOnly}"
                   SelectionMode="Extended"
                   SelectionUnit="CellOrRowHeader"
@@ -168,6 +169,10 @@
                   gridCore:GridVirtualization.IsEnabled="True"
                   gridCore:GridRowHeader.ShowRowNumber="True"
                   gridOperations:GridOperations.IsEnabled="True"
+                  gridOperations:DataGridLineReorder.IsEnabled="True"
+                  gridOperations:DataGridLineReorder.MoveUpCommand="{Binding MoveLineUpCommand}"
+                  gridOperations:DataGridLineReorder.MoveDownCommand="{Binding MoveLineDownCommand}"
+                  gridOperations:DataGridLineReorder.ShowWhenReadOnly="False"
                   gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                   gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                   gridValidation:GridValidation.IsEnabled="True">

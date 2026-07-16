@@ -48,6 +48,8 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         RegisterBusyAwareCommand(AddStandardLineCommand);
         RegisterBusyAwareCommand(AddNonStandardLineCommand);
         RegisterBusyAwareCommand(DeleteSelectedLineCommand);
+        RegisterBusyAwareCommand(MoveLineUpCommand);
+        RegisterBusyAwareCommand(MoveLineDownCommand);
     }
 
     public SalesOrderHeaderEditModel Header { get; } = new();
@@ -64,6 +66,8 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedLineCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveLineUpCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveLineDownCommand))]
     public partial SalesOrderLineModel? SelectedLine { get; set; }
 
     [ObservableProperty] public partial SalesOrderProductLookupDto? SelectedProductCandidate { get; set; }
@@ -120,23 +124,87 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanEdit))]
     private void AddStandardLine()
     {
-        SelectedLine = Lines.AddStandardLine(Header.DeliveryDate);
-        UpdateChangeState();
+        using (Lines.SuppressListEvents())
+        {
+            SelectedLine = Lines.AddStandardLine(Header.DeliveryDate);
+            ResetLineNumbers();
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanEdit))]
     private void AddNonStandardLine()
     {
-        SelectedLine = Lines.AddNonStandardLine(Header.DeliveryDate);
-        UpdateChangeState();
+        using (Lines.SuppressListEvents())
+        {
+            SelectedLine = Lines.AddNonStandardLine(Header.DeliveryDate);
+            ResetLineNumbers();
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanDeleteLine))]
     private void DeleteSelectedLine()
     {
-        Lines.Remove(SelectedLine);
+        using (Lines.SuppressListEvents())
+        {
+            Lines.Remove(SelectedLine);
+            ResetLineNumbers();
+        }
+
         SelectedLine = Lines.Items.FirstOrDefault();
-        UpdateChangeState();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMoveLineUp))]
+    private void MoveLineUp(SalesOrderLineModel? line)
+    {
+        if (line is null)
+        {
+            return;
+        }
+
+        var index = Lines.Items.IndexOf(line);
+        if (index <= 0)
+        {
+            return;
+        }
+
+        using (Lines.SuppressListEvents())
+        {
+            if (!Lines.Move(line, index - 1))
+            {
+                return;
+            }
+
+            ResetLineNumbers();
+        }
+
+        SelectedLine = line;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMoveLineDown))]
+    private void MoveLineDown(SalesOrderLineModel? line)
+    {
+        if (line is null)
+        {
+            return;
+        }
+
+        var index = Lines.Items.IndexOf(line);
+        if (index < 0 || index >= Lines.Items.Count - 1)
+        {
+            return;
+        }
+
+        using (Lines.SuppressListEvents())
+        {
+            if (!Lines.Move(line, index + 1))
+            {
+                return;
+            }
+
+            ResetLineNumbers();
+        }
+
+        SelectedLine = line;
     }
 
     [RelayCommand(CanExecute = nameof(CanSave))]
@@ -484,6 +552,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         OnPropertyChanged(nameof(TotalQty));
         OnPropertyChanged(nameof(TotalCnyAmount));
         OnPropertyChanged(nameof(TotalUsdAmount));
+        NotifyLineReorderCommands();
     }
 
     private void UpdateChangeState()
@@ -510,10 +579,37 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         AddStandardLineCommand.NotifyCanExecuteChanged();
         AddNonStandardLineCommand.NotifyCanExecuteChanged();
         DeleteSelectedLineCommand.NotifyCanExecuteChanged();
+        NotifyLineReorderCommands();
+    }
+
+    private void ResetLineNumbers()
+    {
+        for (var index = 0; index < Lines.Items.Count; index++)
+        {
+            Lines.Items[index].LineNumber = index + 1;
+        }
+    }
+
+    private void NotifyLineReorderCommands()
+    {
+        MoveLineUpCommand.NotifyCanExecuteChanged();
+        MoveLineDownCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanEdit() => CanWrite && IsNotBusy && !IsReadOnly;
     private bool CanDeleteLine() => CanEdit() && SelectedLine is not null;
+    private bool CanMoveLineUp(SalesOrderLineModel? line) =>
+        CanEdit() && line is not null && Lines.Items.IndexOf(line) > 0;
+    private bool CanMoveLineDown(SalesOrderLineModel? line)
+    {
+        if (!CanEdit() || line is null)
+        {
+            return false;
+        }
+
+        var index = Lines.Items.IndexOf(line);
+        return index >= 0 && index < Lines.Items.Count - 1;
+    }
     private bool CanSave() => CanEdit() && IsDirty;
     private bool CanConfirm() => CanWrite
         && IsNotBusy

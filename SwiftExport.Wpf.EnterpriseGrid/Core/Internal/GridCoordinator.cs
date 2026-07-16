@@ -22,6 +22,7 @@ internal sealed class GridCoordinator : IDisposable
         Selection = new GridSelectionModule(dataGrid);
         RowNumbers = new GridRowNumberModule(dataGrid);
         Operations = new GridOperationsModule(dataGrid);
+        LineReorder = new GridLineReorderModule(dataGrid);
         Validation = new GridValidationModule(dataGrid);
         Filtering = new GridFilterModule(dataGrid);
         Layout = new GridLayoutModule(dataGrid);
@@ -32,6 +33,8 @@ internal sealed class GridCoordinator : IDisposable
     internal GridRowNumberModule RowNumbers { get; }
 
     internal GridOperationsModule Operations { get; }
+
+    internal GridLineReorderModule LineReorder { get; }
 
     internal GridValidationModule Validation { get; }
 
@@ -94,6 +97,7 @@ internal sealed class GridCoordinator : IDisposable
         Filtering.Attach();
         Layout.Attach();
         Operations.Attach();
+        LineReorder.Attach();
         IsActive = true;
     }
 
@@ -104,6 +108,7 @@ internal sealed class GridCoordinator : IDisposable
             return;
         }
 
+        LineReorder.Detach();
         Operations.Detach();
         Layout.Detach();
         Filtering.Detach();
