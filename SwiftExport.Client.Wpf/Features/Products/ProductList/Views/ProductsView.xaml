@@ -285,11 +285,15 @@
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             gridColumns:GridColumn.Key="default-customer-sku" />
                         
-                        <DataGridTextColumn Header="供应商代码" Width="110"
-                                            Binding="{Binding DefaultSupplierCode, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                            gridColumns:GridColumn.Key="default-supplier-code" />
+                        <DataGridTextColumn Header="默认供应商代码" Width="125" IsReadOnly="True"
+                                            Binding="{Binding DefaultSupplierCode, Mode=OneWay}"
+                                            gridColumns:GridColumn.Key="default-supplier-code">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
+                                    <Setter Property="ToolTip" Value="默认供应商请在供应商产品抽屉中设置" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
 
                         <DataGridTextColumn Header="供应商型号" Width="120" 
                                             Binding="{Binding DefaultSupplierSku, UpdateSourceTrigger=PropertyChanged}" 

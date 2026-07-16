@@ -4,6 +4,9 @@ using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExportClient.Mvvm;
+using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
+using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
+using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
 
@@ -14,17 +17,20 @@ public sealed partial class GrossDemandTraceViewModel : ViewModelBaseEx, IDispos
     private readonly IGrossDemandWorkspaceApi _api;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
+    private readonly INavigationService _navigationService;
     private CancellationTokenSource? _loadCancellation;
     private bool _disposed;
 
     public GrossDemandTraceViewModel(
         IGrossDemandWorkspaceApi api,
         IApiCallRunner apiCallRunner,
-        IMessageService messageService)
+        IMessageService messageService,
+        INavigationService navigationService)
     {
         _api = api;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
+        _navigationService = navigationService;
         Title = "需求追溯";
     }
 
@@ -106,11 +112,14 @@ public sealed partial class GrossDemandTraceViewModel : ViewModelBaseEx, IDispos
     }
 
     [RelayCommand]
-    private void OpenNetDemand(NetDemandTraceItemDto? netDemand)
+    private async Task OpenNetDemandAsync(NetDemandTraceItemDto? netDemand)
     {
         if (netDemand is not null)
         {
-            _messageService.ShowInfo("净需求", $"净需求 {netDemand.Sku} 已生成；净需求工作台尚未接入。");
+            await _navigationService.OpenDocumentAsync(
+                NetDemandWorkspaceViewModel.RouteKey,
+                $"net-demand:{netDemand.Uid:N}",
+                new NetDemandWorkspaceOpenRequest { NetDemandId = netDemand.Uid });
         }
     }
 

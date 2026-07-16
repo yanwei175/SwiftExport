@@ -6,6 +6,7 @@ using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
 using SwiftExportClient.Services.Images;
 using SwiftExportClient.Updates;
+using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 using Wpf.Ui;
 
 namespace SwiftExportClient.Bootstrapper;
@@ -33,6 +34,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDialogService, WpfUiDialogService>();
         services.AddSingleton<IClientVersionService, ClientVersionService>();
         services.AddSingleton<IImageCacheService, ImageCacheService>();
+        services.AddTransient<INetDemandTraceExportService, NetDemandTraceExportService>();
         services.AddTransient<AuthTokenHandler>();
         services.AddSwiftExportApis();
 

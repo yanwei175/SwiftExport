@@ -3,6 +3,7 @@ using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
 using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
+using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 using SwiftExportClient.Features.Home;
 using SwiftExportClient.Features.Planning;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
@@ -44,6 +45,9 @@ public static class ViewRegistrationExtensions
         services.AddTransient<GrossDemandWorkspaceViewModel>();
         services.AddTransient<GrossDemandManualEditorViewModel>();
         services.AddTransient<GrossDemandTraceViewModel>();
+        services.AddTransient<NetDemandWorkspaceViewModel>();
+        services.AddTransient<NetDemandPlanEditorViewModel>();
+        services.AddTransient<NetDemandTraceViewModel>();
         services.AddTransient<PlanningViewModel>();
         services.AddTransient<PurchasingViewModel>();
         services.AddTransient<ShippingViewModel>();

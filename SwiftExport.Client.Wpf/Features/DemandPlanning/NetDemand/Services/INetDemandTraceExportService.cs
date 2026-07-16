@@ -1,0 +1,12 @@
+using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+
+namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
+
+public interface INetDemandTraceExportService
+{
+    Task<string?> ExportAsync(
+        NetDemandListItemDto summary,
+        IReadOnlyList<NetDemandAllocationDto> allocations,
+        IReadOnlyList<NetDemandExecutionLinkDto> executionLinks,
+        CancellationToken cancellationToken = default);
+}

@@ -2,6 +2,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.ComponentModel;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
+using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.UI;
@@ -35,6 +36,9 @@ public sealed class NavigationServiceTests
         var group = registry.MenuItems.Single(item => item.RouteKey == "demand-planning");
         Assert.AreEqual("需求计划", group.Title);
         Assert.IsTrue(group.Children.Any(item => item.RouteKey == GrossDemandWorkspaceViewModel.RouteKey));
+        Assert.IsTrue(group.Children.Any(item => item.RouteKey == NetDemandWorkspaceViewModel.RouteKey));
+        Assert.IsTrue(registry.TryGetRoute(NetDemandWorkspaceViewModel.RouteKey, out var netDemandRoute));
+        Assert.AreEqual(typeof(NetDemandWorkspaceViewModel), netDemandRoute.ViewModelType);
         Assert.IsFalse(registry.MenuItems.Any(item => item.RouteKey == "planning"));
         Assert.IsTrue(registry.TryGetRoute("planning", out _));
     }

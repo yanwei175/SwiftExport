@@ -47,6 +47,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
         RegisterBusyAwareCommand(AddItemCommand);
         RegisterBusyAwareCommand(DeleteSelectedCommand);
         RegisterBusyAwareCommand(SaveCommand);
+        RegisterBusyAwareCommand(SetProductDefaultSupplierCommand);
         RegisterBusyAwareCommand(RejectCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
     }
@@ -61,6 +62,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     [ObservableProperty] public partial SupplierLineModel? ActiveSupplier { get; set; }
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SetProductDefaultSupplierCommand))]
     public partial SupplierProductLineModel? SelectedLine { get; set; }
     [ObservableProperty] public partial ProductLookupDto? SelectedCandidate { get; set; }
     [ObservableProperty] public partial bool IsLookupBusy { get; set; }
@@ -200,6 +202,51 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
         UpdateChangeState();
     }
 
+    [RelayCommand(CanExecute = nameof(CanSetProductDefaultSupplier))]
+    private async Task SetProductDefaultSupplierAsync()
+    {
+        var selected = SelectedLine;
+        if (selected is null
+            || !await _dialogService.ConfirmAsync(
+                "设置产品默认供应商",
+                $"将 {selected.SupplierCode} 设置为产品 {selected.ProductSku} 的默认供应商。既有净需求计划不会自动改变，是否继续？",
+                "设为默认"))
+        {
+            return;
+        }
+
+        await RunWriteAsync(async () =>
+        {
+            var productResult = await _apiCallRunner.RunAsync(
+                () => _productApi.GetByIdAsync(selected.SkuId),
+                "读取产品并发版本失败");
+            if (!productResult.Success || productResult.Data is null)
+            {
+                _messageService.ShowError("无法设置默认供应商", productResult.Message);
+                return;
+            }
+
+            var result = await _apiCallRunner.RunAsync(
+                () => _supplierProductApi.SetProductDefaultSupplierAsync(new SetProductDefaultSupplierCommand
+                {
+                    SupplierProductId = selected.Uid,
+                    ProductId = selected.SkuId,
+                    SupplierId = selected.SupplierId,
+                    ExpectedProductVersion = productResult.Data.Version,
+                }),
+                "设置产品默认供应商失败");
+            if (!result.Success || result.Data is null)
+            {
+                _messageService.ShowError("设置默认供应商失败", result.Message);
+                return;
+            }
+
+            await LoadPageCoreAsync();
+            StatusText = $"产品 {selected.ProductSku} 的默认供应商已设置为 {result.Data.SupplierCode}。";
+            _messageService.ShowSuccess("默认供应商已更新", StatusText);
+        }, "正在设置产品默认供应商...");
+    }
+
     [RelayCommand]
     private Task PageChangeAsync(PageChangeRequest? request)
     {
@@ -302,35 +349,34 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
         await LoadPageAsync();
     }
 
-    private async Task LoadPageAsync()
+    private Task LoadPageAsync() => RunBusyAsync(LoadPageCoreAsync, "正在加载供应商产品...");
+
+    private async Task LoadPageCoreAsync()
     {
         var supplier = ActiveSupplier;
         if (!IsOpen || supplier is null || supplier.Uid == Guid.Empty) return;
         var version = Interlocked.Increment(ref _loadVersion);
-        await RunBusyAsync(async () =>
+        var result = await _apiCallRunner.RunAsync(() => _supplierProductApi.GetPagedAsync(new SupplierProductSearchRequest
         {
-            var result = await _apiCallRunner.RunAsync(() => _supplierProductApi.GetPagedAsync(new SupplierProductSearchRequest
-            {
-                SupplierId = supplier.Uid,
-                Keyword = NullIfWhiteSpace(Keyword),
-                PageIndex = PageIndex,
-                PageSize = PageSize,
-            }), "加载供应商产品失败");
-            if (version != Volatile.Read(ref _loadVersion)) return;
-            if (!result.Success)
-            {
-                StatusText = result.Message;
-                _messageService.ShowError("加载供应商产品失败", result.Message);
-                return;
-            }
-            Products.LoadFromDtos(result.Data?.Items ?? []);
-            SelectedLine = Products.Items.FirstOrDefault();
-            TotalCount = result.Data?.TotalCount ?? 0;
-            PageIndex = result.Data?.PageIndex > 0 ? result.Data.PageIndex : PageIndex;
-            PageSize = result.Data?.PageSize > 0 ? result.Data.PageSize : PageSize;
-            StatusText = $"供应商 {supplier.SupplierCode}，共 {TotalCount} 条供应商产品。";
-            UpdateChangeState();
-        }, "正在加载供应商产品...");
+            SupplierId = supplier.Uid,
+            Keyword = NullIfWhiteSpace(Keyword),
+            PageIndex = PageIndex,
+            PageSize = PageSize,
+        }), "加载供应商产品失败");
+        if (version != Volatile.Read(ref _loadVersion)) return;
+        if (!result.Success)
+        {
+            StatusText = result.Message;
+            _messageService.ShowError("加载供应商产品失败", result.Message);
+            return;
+        }
+        Products.LoadFromDtos(result.Data?.Items ?? []);
+        SelectedLine = Products.Items.FirstOrDefault();
+        TotalCount = result.Data?.TotalCount ?? 0;
+        PageIndex = result.Data?.PageIndex > 0 ? result.Data.PageIndex : PageIndex;
+        PageSize = result.Data?.PageSize > 0 ? result.Data.PageSize : PageSize;
+        StatusText = $"供应商 {supplier.SupplierCode}，共 {TotalCount} 条供应商产品。";
+        UpdateChangeState();
     }
 
     private async Task<bool> EnsureCanDiscardChangesAsync()
@@ -377,6 +423,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
         SaveCommand.NotifyCanExecuteChanged();
         RejectCommand.NotifyCanExecuteChanged();
         DeleteSelectedCommand.NotifyCanExecuteChanged();
+        SetProductDefaultSupplierCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanRun() => IsNotBusy && IsOpen && ActiveSupplier is not null;
@@ -384,6 +431,15 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     private bool CanDelete() => IsNotBusy && CanWrite && (Products.CheckedCount > 0 || SelectedLine is not null);
     private bool CanSave() => IsNotBusy && CanWrite && Products.HasChanges;
     private bool CanReject() => IsNotBusy && Products.HasChanges;
+    private bool CanSetProductDefaultSupplier() => CanWrite
+        && IsNotBusy
+        && IsOpen
+        && !Products.HasChanges
+        && ActiveSupplier is not null
+        && SelectedLine is { IsNew: false, IsDeleted: false, IsProductDefaultSupplier: false }
+        && SelectedLine.Uid != Guid.Empty
+        && SelectedLine.SkuId != Guid.Empty
+        && SelectedLine.SupplierId == ActiveSupplier.Uid;
     private static string FirstNonEmpty(string? first, string? second) => !string.IsNullOrWhiteSpace(first) ? first : second ?? string.Empty;
     private static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

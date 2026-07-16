@@ -20,6 +20,8 @@
             <StackPanel Grid.Column="4" Orientation="Horizontal">
                 <Button Command="{Binding AddItemCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0" Content="新增" />
                 <Button Command="{Binding SaveCommand}" Margin="0,0,4,0" Content="保存" />
+                <Button Command="{Binding SetProductDefaultSupplierCommand}" Margin="0,0,4,0" Content="设为产品默认供应商"
+                        ToolTip="只对已保存的供应商产品生效；既有净需求计划不会自动改变" />
                 <Button Command="{Binding DeleteSelectedCommand}" Margin="0,0,4,0" Content="删除" />
                 <Button Command="{Binding RejectCommand}" Margin="0,0,4,0" Content="放弃" />
                 <Button Command="{Binding RefreshCommand}" Content="刷新" />
@@ -41,6 +43,7 @@
                 <DataGridTemplateColumn Header="图片" Width="56" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate><DataTemplate><controls:CachedImage Width="40" Height="40" Style="{StaticResource SwiftExportCachedImage}" DecodePixelWidth="96" SourcePath="{Binding MainImage}" Stretch="Uniform" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+                <DataGridCheckBoxColumn Header="默认" Width="62" IsReadOnly="True" Binding="{Binding IsProductDefaultSupplier}" />
                 <DataGridTemplateColumn Header="标准 SKU" Width="150" SortMemberPath="ProductSku">
                     <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding ProductSku}" Style="{StaticResource SwiftExportDataGridTextBlock}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
                     <DataGridTemplateColumn.CellEditingTemplate><DataTemplate>

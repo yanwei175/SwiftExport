@@ -1,5 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.SupplierApis;
+using SwiftExport.Contracts.Apis.ProductApis;
+using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers.Responses;
@@ -8,6 +10,7 @@ using SwiftExportClient.Features.Suppliers.SupplierManagement.Models;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using System.Reflection;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Suppliers;
 
@@ -55,6 +58,36 @@ public sealed class SupplierProductDrawerLoadingTests
         Assert.IsFalse(viewModel.Products.Items.Any(item => item.SupplierId == first.Uid));
     }
 
+    [TestMethod]
+    public async Task SetProductDefaultSupplier_ShouldUseProductVersionAndRefreshCurrentPage()
+    {
+        var supplierId = Guid.NewGuid();
+        var api = new SupplierProductApiStub();
+        var productApi = CreateProductApi(new ProductDto
+        {
+            Uid = api.ProductId,
+            Version = 7,
+            Sku = "P-1",
+        });
+        var viewModel = new SupplierProductManagerViewModel(
+            api, productApi, new DirectApiCallRunner(), new MessageServiceStub(), new DialogServiceStub());
+
+        await viewModel.ToggleCommand.ExecuteAsync(CreateSupplier(supplierId, "S001", "供应商一"));
+        Assert.IsTrue(viewModel.SetProductDefaultSupplierCommand.CanExecute(null));
+
+        await viewModel.SetProductDefaultSupplierCommand.ExecuteAsync(null);
+
+        Assert.IsNotNull(api.LastSetDefaultCommand);
+        Assert.AreEqual(api.SupplierProductId, api.LastSetDefaultCommand.SupplierProductId);
+        Assert.AreEqual(api.ProductId, api.LastSetDefaultCommand.ProductId);
+        Assert.AreEqual(supplierId, api.LastSetDefaultCommand.SupplierId);
+        Assert.AreEqual(7, api.LastSetDefaultCommand.ExpectedProductVersion);
+        Assert.AreEqual(2, api.Requests.Count, "设置成功后应刷新当前供应商产品页。");
+        Assert.IsTrue(viewModel.Products.Items.Single().IsProductDefaultSupplier);
+        StringAssert.Contains(viewModel.StatusText, "默认供应商已设置");
+        Assert.IsFalse(viewModel.SetProductDefaultSupplierCommand.CanExecute(null));
+    }
+
     private static SupplierLineModel CreateSupplier(Guid uid, string code, string name)
     {
         var supplier = new SupplierLineModel();
@@ -74,8 +107,12 @@ public sealed class SupplierProductDrawerLoadingTests
 
     private sealed class SupplierProductApiStub : ISupplierProductApi
     {
+        public Guid ProductId { get; } = Guid.NewGuid();
+        public Guid SupplierProductId { get; } = Guid.NewGuid();
         public List<SupplierProductSearchRequest> Requests { get; } = [];
         public SupplierProductSearchRequest? LastRequest => Requests.LastOrDefault();
+        public SetProductDefaultSupplierCommand? LastSetDefaultCommand { get; private set; }
+        private bool IsDefaultSupplier { get; set; }
 
         public Task<ServiceResult<PagedResponseBase<SupplierProductDto>>> GetPagedAsync(SupplierProductSearchRequest request)
         {
@@ -87,9 +124,10 @@ public sealed class SupplierProductDrawerLoadingTests
                 [
                     new SupplierProductDto
                     {
-                        Uid = Guid.NewGuid(), Version = 1, SupplierId = request.SupplierId,
-                        SupplierCode = code, SupplierName = code, SkuId = Guid.NewGuid(),
+                        Uid = SupplierProductId, Version = 1, SupplierId = request.SupplierId,
+                        SupplierCode = code, SupplierName = code, SkuId = ProductId,
                         ProductSku = "P-1", SupplierSku = Requests.Count == 1 ? "SP-1" : $"SP-{code}",
+                        IsProductDefaultSupplier = IsDefaultSupplier,
                     },
                 ],
                 TotalCount = 1, PageIndex = request.PageIndex, PageSize = request.PageSize,
@@ -101,9 +139,44 @@ public sealed class SupplierProductDrawerLoadingTests
         public Task<ServiceResult<Guid>> UpdateAsync(Guid id, SupplierProductDto request) => NotSupported<Guid>();
         public Task<ServiceResult<Guid>> DeleteAsync(Guid id) => NotSupported<Guid>();
         public Task<ServiceResult<SupplierProductBatchSaveResponse>> BatchSaveAsync(SupplierProductBatchSaveRequest request) => NotSupported<SupplierProductBatchSaveResponse>();
+        public Task<ServiceResult<SetProductDefaultSupplierResult>> SetProductDefaultSupplierAsync(SetProductDefaultSupplierCommand command)
+        {
+            LastSetDefaultCommand = command;
+            IsDefaultSupplier = true;
+            return Task.FromResult(ServiceResult<SetProductDefaultSupplierResult>.Ok(new SetProductDefaultSupplierResult
+            {
+                ProductId = command.ProductId,
+                SupplierId = command.SupplierId,
+                SupplierCode = "S001",
+                OldProductVersion = command.ExpectedProductVersion,
+                NewProductVersion = command.ExpectedProductVersion + 1,
+            }));
+        }
 
         private static Task<ServiceResult<T>> NotSupported<T>() =>
             Task.FromException<ServiceResult<T>>(new NotSupportedException());
+    }
+
+    private static IProductApi CreateProductApi(ProductDto product)
+    {
+        var api = DispatchProxy.Create<IProductApi, ProductApiProxy>();
+        ((ProductApiProxy)(object)api).Product = product;
+        return api;
+    }
+
+    public class ProductApiProxy : DispatchProxy
+    {
+        public ProductDto Product { get; set; } = new();
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod?.Name == "GetByIdAsync")
+            {
+                return Task.FromResult(ServiceResult<ProductDto>.Ok(Product));
+            }
+
+            throw new NotSupportedException(targetMethod?.Name);
+        }
     }
 
     private sealed class DirectApiCallRunner : IApiCallRunner

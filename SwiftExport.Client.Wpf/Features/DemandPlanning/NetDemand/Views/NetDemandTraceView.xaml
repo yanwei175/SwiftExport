@@ -1,0 +1,49 @@
+<UserControl x:Class="SwiftExportClient.Features.DemandPlanning.NetDemand.Views.NetDemandTraceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid">
+    <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,2*,8,*">
+        <Grid ColumnDefinitions="*,Auto">
+            <StackPanel>
+                <TextBlock Text="净需求追溯" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+            </StackPanel>
+            <Button Grid.Column="1" Content="导出 XLSX" Command="{Binding ExportCommand}" Padding="10,4"
+                    ToolTip="当前先导出所选净需求的计划版本与执行链接；来源级多净需求展开将在 Phase 4 接入后端追溯 API" />
+        </Grid>
+        <Grid Grid.Row="2" DataContext="{Binding Summary}" ColumnDefinitions="Auto,12,*,12,Auto,12,*">
+            <StackPanel><TextBlock Text="来源" Style="{StaticResource CaptionTextBlock}"/><TextBlock Text="{Binding SourceNo}" FontWeight="SemiBold"/></StackPanel>
+            <StackPanel Grid.Column="2"><TextBlock Text="SKU" Style="{StaticResource CaptionTextBlock}"/><TextBlock Text="{Binding Sku}"/></StackPanel>
+            <StackPanel Grid.Column="4"><TextBlock Text="净数量" Style="{StaticResource CaptionTextBlock}"/><TextBlock Text="{Binding NetQty, StringFormat=N4}"/></StackPanel>
+            <StackPanel Grid.Column="6"><TextBlock Text="当前状态" Style="{StaticResource CaptionTextBlock}"/><TextBlock Text="{Binding PlanStatus}"/></StackPanel>
+        </Grid>
+        <DataGrid Grid.Row="4" ItemsSource="{Binding AllocationHistory}" Style="{StaticResource SwiftExportDataGrid}"
+                  IsReadOnly="True" AutoGenerateColumns="False" RowHeight="34"
+                  gridCore:EnterpriseGrid.IsEnabled="True" gridCore:GridVirtualization.IsEnabled="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="计划版本" Width="72" Binding="{Binding PlanRevision}" gridColumns:GridColumn.Key="plan-revision" />
+                <DataGridTextColumn Header="状态" Width="84" Binding="{Binding LifecycleStatus}" gridColumns:GridColumn.Key="lifecycle" />
+                <DataGridTextColumn Header="执行方式" Width="84" Binding="{Binding ExecutionType}" gridColumns:GridColumn.Key="execution-type" />
+                <DataGridTextColumn Header="计划数量" Width="90" Binding="{Binding PlannedQty, StringFormat=N4}" gridColumns:GridColumn.Key="planned-qty" />
+                <DataGridTextColumn Header="采购供应商" Width="140" Binding="{Binding PurchaseSupplierName}" gridColumns:GridColumn.Key="supplier" />
+                <DataGridTextColumn Header="送达供应商" Width="140" Binding="{Binding DeliveryTargetSupplierName}" gridColumns:GridColumn.Key="delivery-supplier" />
+                <DataGridTextColumn Header="计划交期" Width="100" Binding="{Binding PlannedDeliveryDate, StringFormat=yyyy-MM-dd}" gridColumns:GridColumn.Key="planned-date" />
+                <DataGridTextColumn Header="变更原因" Width="*" Binding="{Binding ChangeReason}" gridColumns:GridColumn.Key="change-reason" />
+            </DataGrid.Columns>
+        </DataGrid>
+        <DataGrid Grid.Row="6" ItemsSource="{Binding ExecutionLinks}" Style="{StaticResource SwiftExportDataGrid}"
+                  IsReadOnly="True" AutoGenerateColumns="False" RowHeight="32"
+                  gridCore:EnterpriseGrid.IsEnabled="True" gridCore:GridVirtualization.IsEnabled="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="目标类型" Width="80" Binding="{Binding TargetType}" gridColumns:GridColumn.Key="target-type" />
+                <DataGridTextColumn Header="采购单号" Width="130" Binding="{Binding TargetNo}" gridColumns:GridColumn.Key="target-no" />
+                <DataGridTextColumn Header="行" Width="50" Binding="{Binding TargetLineNumber}" gridColumns:GridColumn.Key="target-line" />
+                <DataGridTextColumn Header="链接状态" Width="84" Binding="{Binding LinkStatus}" gridColumns:GridColumn.Key="link-status" />
+                <DataGridTextColumn Header="分配数量" Width="90" Binding="{Binding AllocatedQty, StringFormat=N4}" gridColumns:GridColumn.Key="allocated-qty" />
+                <DataGridTextColumn Header="计划交期" Width="100" Binding="{Binding PlannedDeliveryDate, StringFormat=yyyy-MM-dd}" gridColumns:GridColumn.Key="planned-date" />
+                <DataGridTextColumn Header="备注" Width="*" Binding="{Binding Remark}" gridColumns:GridColumn.Key="remark" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

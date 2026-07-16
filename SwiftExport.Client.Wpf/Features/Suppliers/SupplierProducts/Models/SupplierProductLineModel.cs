@@ -28,6 +28,7 @@ public sealed partial class SupplierProductLineModel : BaseLineModel<SupplierPro
     [ObservableProperty] public partial decimal? TaxPrice { get; set; }
     [ObservableProperty] public partial string Currency { get; set; } = "CNY";
     [ObservableProperty] public partial decimal? TaxRate { get; set; }
+    [ObservableProperty] public partial bool IsProductDefaultSupplier { get; set; }
 
     public override string? ValidateRow()
     {

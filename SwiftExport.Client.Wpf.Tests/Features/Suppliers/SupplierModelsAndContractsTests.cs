@@ -49,6 +49,7 @@ public sealed class SupplierModelsAndContractsTests
             SkuId = Guid.NewGuid(), ProductSku = "P-1", SupplierSku = "SP-1",
             SupplierSkuDescriptionZh = "供应商描述", SupplierSkuFeaturesZh = "供应商规格",
             UnitPrice = 12.5m, TaxPrice = 14.13m, MainImage = @"C:\p.jpg",
+            IsProductDefaultSupplier = true,
         });
         Assert.AreEqual(LineState.Unchanged, line.State);
         var dto = line.ToDto();
@@ -58,6 +59,7 @@ public sealed class SupplierModelsAndContractsTests
         Assert.AreEqual(12.5m, dto.UnitPrice);
         Assert.AreEqual(14.13m, dto.TaxPrice);
         Assert.AreEqual(@"C:\p.jpg", dto.MainImage);
+        Assert.IsTrue(dto.IsProductDefaultSupplier);
     }
 
     [TestMethod]

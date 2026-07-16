@@ -148,11 +148,12 @@ public sealed class GrossDemandWorkspaceViewModelTests
             DispatchProxy.Create<IProductApi, NoCallProxy>(),
             runner,
             messages);
-        var trace = new GrossDemandTraceViewModel(api, runner, messages);
+        var navigation = DispatchProxy.Create<INavigationService, NoCallProxy>();
+        var trace = new GrossDemandTraceViewModel(api, runner, messages, navigation);
         return new GrossDemandWorkspaceViewModel(
             api,
             runner,
-            DispatchProxy.Create<INavigationService, NoCallProxy>(),
+            navigation,
             dialogService ?? new RecordingDialogService(confirmResult: true),
             messages,
             manual,
