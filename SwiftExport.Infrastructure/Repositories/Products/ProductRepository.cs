@@ -34,6 +34,13 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         return await Connection.QueryFirstOrDefaultAsync<Product>(sql, new { Sku = sku }, transaction: Transaction);
     }
 
+    public Task<Product?> GetByBomNoAsync(string bomNo)
+    {
+        if (string.IsNullOrWhiteSpace(bomNo)) return Task.FromResult<Product?>(null);
+        var sql = $"SELECT TOP 1 * FROM [{TableName}] WITH(NOLOCK) WHERE [BomNo]=@BomNo AND [IsDeleted]=0 ORDER BY [Uid]";
+        return Connection.QueryFirstOrDefaultAsync<Product>(sql, new { BomNo = bomNo.Trim() }, transaction: Transaction);
+    }
+
     /// <summary>
     /// 按 SKU 列表批量查询产品。
     /// </summary>

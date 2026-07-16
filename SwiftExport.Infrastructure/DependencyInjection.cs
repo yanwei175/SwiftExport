@@ -1,11 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
 using SwiftExport.Infrastructure.Repositories.Auth;
 using SwiftExport.Infrastructure.Repositories.Base;
 using SwiftExport.Infrastructure.Repositories.Customers;
+using SwiftExport.Infrastructure.Repositories.DemandPlanning;
 using SwiftExport.Infrastructure.Repositories.MasterData;
 using SwiftExport.Infrastructure.Repositories.Orders;
 using SwiftExport.Infrastructure.Repositories.Products;
@@ -59,6 +61,8 @@ public static class DependencyInjection
         services.AddScoped<IDependentDemandRepository, DependentDemandRepository>();
         services.AddScoped<IDemandExecutionLinkRepository, DemandExecutionLinkRepository>();
         services.AddScoped<IIndependentDemandRepository, IndependentDemandRepository>();
+        services.AddScoped<IGrossDemandRepository, GrossDemandRepository>();
+        services.AddScoped<INetDemandRepository, NetDemandRepository>();
         services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();
         services.AddScoped<IPurchaseOrderHeadRepository, PurchaseOrderRepository>();
         services.AddScoped<IPurchaseOrderLineRepository, PurchaseOrderLineRepository>();

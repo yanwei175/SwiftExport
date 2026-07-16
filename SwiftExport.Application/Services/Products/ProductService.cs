@@ -9,12 +9,51 @@ using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
+using SwiftExport.Application.Services.DemandPlanning;
 namespace SwiftExport.Application.Services.Products;
 
-public partial class ProductService(IProductRepository productRepository, ServiceBaseContext context, IProductCategoryRepository categoryRepository)
+public partial class ProductService(IProductRepository productRepository, ServiceBaseContext context,
+    IProductCategoryRepository categoryRepository, IBomRepository bomRepository)
     : BaseService<Product, ProductDto>(productRepository, context), IProductService
 {
     private readonly ILogger<ProductService> _logger = context.LoggerFactory.CreateLogger<ProductService>();
+
+    protected override async Task<string?> ValidateBeforeCreateAsync(List<CreateItemRequest<ProductDto>> createItems)
+    {
+        foreach (var item in createItems)
+        {
+            var error = await ValidateCustomerSuppliedAsync(item.Data, Guid.Empty);
+            if (error is not null) return error;
+        }
+        return null;
+    }
+
+    protected override async Task<string?> ValidateBeforeUpdateAsync(List<UpdateItemRequest<ProductDto>> updateItems)
+    {
+        foreach (var item in updateItems)
+        {
+            var error = await ValidateCustomerSuppliedAsync(item.Data, item.Uid);
+            if (error is not null) return error;
+        }
+        return null;
+    }
+
+    private async Task<string?> ValidateCustomerSuppliedAsync(ProductDto dto, Guid uid)
+    {
+        if (!string.Equals(dto.MaterialType, SwiftExport.Contracts.SysEnums.StaticEnums.MaterialTypesEnum.客供件, StringComparison.Ordinal))
+            return null;
+        var product = new Product
+        {
+            Uid = uid,
+            Sku = dto.Sku?.Trim() ?? string.Empty,
+            MaterialType = dto.MaterialType,
+            SupplyType = dto.SupplyType,
+            BomVersion = dto.BomVersion,
+            BomNo = dto.BomNo
+        };
+        var hasBom = await bomRepository.HasActiveBomForProductAsync(uid, dto.BomNo);
+        return CustomerSuppliedMaterialPolicy.ValidateProduct(product, hasBom);
+    }
 
 
     public async Task<ServiceResult<IReadOnlyList<ProductDto>>> GetAllAsync()

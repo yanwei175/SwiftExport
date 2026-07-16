@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
+using SwiftExport.Application.Services.DemandPlanning;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
@@ -23,6 +24,45 @@ public partial class BomService(
 {
 
     private readonly ILogger<BomService> _logger = context.LoggerFactory.CreateLogger<BomService>();
+
+    protected override async Task<string?> ValidateBeforeCreateAsync(List<CreateItemRequest<BomDto>> createItems)
+        => await ValidateWriteAsync(createItems.Select(x => (Guid.Empty, x.Data)));
+
+    protected override async Task<string?> ValidateBeforeUpdateAsync(List<UpdateItemRequest<BomDto>> updateItems)
+        => await ValidateWriteAsync(updateItems.Select(x => (x.Uid, x.Data)));
+
+    private async Task<string?> ValidateWriteAsync(IEnumerable<(Guid Uid, BomDto Data)> items)
+    {
+        foreach (var (_, dto) in items)
+        {
+            var parent = await pdRepo.GetByBomNoAsync(dto.BomNo);
+            if (parent is null) return $"BOM {dto.BomNo} 没有对应的父产品。";
+            var parentError = CustomerSuppliedMaterialPolicy.ValidateBomParent(parent);
+            if (parentError is not null) return parentError;
+            if (dto.SubSkuId == Guid.Empty) return "BOM 子产品不能为空。";
+            var child = await pdRepo.GetByIdAsync(dto.SubSkuId);
+            if (child is null) return "BOM 子产品不存在或已删除。";
+            var line = new Bom
+            {
+                BomNo = dto.BomNo,
+                ParentSkuId = parent.Uid,
+                ParentSku = parent.Sku,
+                SubSkuId = child.Uid,
+                SubSku = child.Sku,
+                Numerator = dto.Numerator,
+                Denominator = dto.Denominator
+            };
+            var lineError = CustomerSuppliedMaterialPolicy.ValidateBomLine(line, child);
+            if (lineError is not null) return lineError;
+            if (CustomerSuppliedMaterialPolicy.IsCustomerSupplied(child))
+            {
+                var childError = CustomerSuppliedMaterialPolicy.ValidateProduct(
+                    child, await bomRepo.HasActiveBomForProductAsync(child.Uid, child.BomNo));
+                if (childError is not null) return childError;
+            }
+        }
+        return null;
+    }
 
     #region BOM管理CRUD操作
 

@@ -2,8 +2,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
+using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Mappings;
 using SwiftExport.Application.Services.Customers;
+using SwiftExport.Application.Services.DemandPlanning;
 using SwiftExport.Application.Services.Orders;
 using SwiftExport.Application.Services.Products;
 using SwiftExport.Application.Services.Suppliers;
@@ -36,6 +38,8 @@ public static class DependencyInjection
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
         services.AddScoped<ISalesOrderWorkspaceService, SalesOrderWorkspaceService>();
+        services.AddScoped<IGrossDemandWorkspaceService, GrossDemandWorkspaceService>();
+        services.AddScoped<GrossDemandDecompositionPlanner>();
         services.AddScoped<IIndependentDemandServices, IndependentDemandService>();
         services.AddScoped<IDependentDemandService, DependentDemandService>();
         services.AddScoped<IDocumentNoService, DocumentNoService>();

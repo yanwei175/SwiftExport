@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj" />
   <Project Path="SwiftExport.Application/SwiftExport.Application.csproj" Id="f2495596-07b4-47c1-8318-25dd64e52e07" />
   <Project Path="SwiftExport.Contracts/SwiftExport.Contracts.csproj" Id="73faa5c6-c278-4c02-80d0-27a24a6b831a" />
   <Project Path="SwiftExport.Core/SwiftExport.Core.csproj" Id="6e5ec76f-9246-4853-9938-a255b044e3b7" />

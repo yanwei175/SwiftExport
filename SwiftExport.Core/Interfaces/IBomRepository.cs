@@ -34,6 +34,17 @@ namespace SwiftExport.Core.Interfaces
         /// <returns>一张BOM</returns>
         Task<IEnumerable<Bom>> GetBomByBomNoAsync(string bomNo);
 
+        /// <summary>
+        /// 按 BOM 编号和版本读取当前有效明细。需求拆解必须使用此方法，
+        /// 避免把其他版本或已删除明细混入同一次拆解。
+        /// </summary>
+        Task<IReadOnlyList<Bom>> GetByBomNoAndVersionAsync(string bomNo, int version);
+
+        /// <summary>
+        /// 判断产品是否仍有有效 BOM。用于客供件终端物料约束。
+        /// </summary>
+        Task<bool> HasActiveBomForProductAsync(Guid productId, string? bomNo = null);
+
         Task<IEnumerable<BomDto>> GetBomDtoByBomNoAsync(string bomNo);
 
         /// <summary>

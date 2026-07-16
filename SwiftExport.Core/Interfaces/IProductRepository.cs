@@ -9,6 +9,7 @@ public interface IProductRepository : IRepository<Product>
 {
     Task<IReadOnlyList<string>> GetAllCustomerCodeListAsync();
     Task<Product?> GetBySkuAsync(string sku);
+    Task<Product?> GetByBomNoAsync(string bomNo);
     /// <summary>
     /// 按 SKU 列表批量查询产品。
     /// </summary>

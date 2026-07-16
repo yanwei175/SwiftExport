@@ -34,6 +34,43 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
         var sql = $"SELECT * FROM  [{BomTable}] Where {nameof(Bom.BomNo)} = @BomNo";
         return await Connection.QueryAsync<Bom>(sql, new { BomNo = bomNo });
     }
+
+    public async Task<IReadOnlyList<Bom>> GetByBomNoAndVersionAsync(string bomNo, int version)
+    {
+        if (string.IsNullOrWhiteSpace(bomNo) || version <= 0)
+            return [];
+
+        var sql = $@"SELECT
+                        [Uid], [Version], [IsDeleted], [CreatedDate], [CreatedBy], [UpdatedDate], [UpdatedBy],
+                        [BomNo], [BomVersion], [ParentSkuId], [ParentSku], [LineNumber],
+                        [SubSkuId], [SubSku], [Numerator], [Denominator], [Note]
+                    FROM [{BomTable}]
+                    WHERE [BomNo] = @BomNo
+                      AND [BomVersion] = @BomVersion
+                      AND [IsDeleted] = 0
+                    ORDER BY [LineNumber], [Uid];";
+
+        var rows = await Connection.QueryAsync<Bom>(
+            sql,
+            new { BomNo = bomNo.Trim(), BomVersion = version },
+            transaction: Transaction);
+        return [.. rows];
+    }
+
+    public Task<bool> HasActiveBomForProductAsync(Guid productId, string? bomNo = null)
+    {
+        const string sql = @"SELECT CASE WHEN EXISTS (
+                SELECT 1
+                FROM [Bom]
+                WHERE [IsDeleted] = 0
+                  AND ((@ProductId <> '00000000-0000-0000-0000-000000000000' AND [ParentSkuId] = @ProductId)
+                       OR (@BomNo IS NOT NULL AND [BomNo] = @BomNo))
+            ) THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
+        return Connection.ExecuteScalarAsync<bool>(
+            sql,
+            new { ProductId = productId, BomNo = string.IsNullOrWhiteSpace(bomNo) ? null : bomNo.Trim() },
+            transaction: Transaction);
+    }
     public async Task<Dictionary<string, IEnumerable<Bom>>> GetBomsCollectionByBomNoListAsync(IEnumerable<string> bomNos)
     {
         if (bomNos == null || !bomNos.Any()) return [];
