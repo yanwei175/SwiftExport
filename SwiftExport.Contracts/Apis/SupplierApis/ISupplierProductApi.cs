@@ -15,5 +15,9 @@ namespace SwiftExport.Contracts.Apis.SupplierApis
 
         [Post("/batch-save")]
         Task<ServiceResult<SupplierProductBatchSaveResponse>> BatchSaveAsync([Body] SupplierProductBatchSaveRequest request);
+
+        [Post("/set-product-default-supplier")]
+        Task<ServiceResult<SetProductDefaultSupplierResult>> SetProductDefaultSupplierAsync(
+            [Body] SetProductDefaultSupplierCommand command);
     }
 }

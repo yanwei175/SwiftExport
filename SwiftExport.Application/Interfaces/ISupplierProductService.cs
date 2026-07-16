@@ -10,4 +10,6 @@ public interface ISupplierProductService : IBaseService<SupplierProduct, Supplie
 {
     Task<ServiceResult<PagedResponseBase<SupplierProductDto>>> GetPagedAsync(SupplierProductSearchRequest request);
     Task<ServiceResult<SupplierProductBatchSaveResponse>> BatchSaveAsync(SupplierProductBatchSaveRequest request);
+    Task<ServiceResult<SetProductDefaultSupplierResult>> SetProductDefaultSupplierAsync(
+        SetProductDefaultSupplierCommand command);
 }

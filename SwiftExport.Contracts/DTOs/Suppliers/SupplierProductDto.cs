@@ -30,5 +30,6 @@ namespace SwiftExport.Contracts.DTOs.Suppliers
 
         public string Currency { get; set; } = string.Empty;
         public decimal? TaxRate { get; set; }
+        public bool IsProductDefaultSupplier { get; set; }
     }
 }

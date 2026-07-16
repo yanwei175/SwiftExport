@@ -21,4 +21,9 @@ public sealed class SupplierProductController(ISupplierProductService service)
     [PreventDuplicateRequest(WindowSeconds = 5)]
     public Task<ServiceResult<SupplierProductBatchSaveResponse>> BatchSave(
         [FromBody] SupplierProductBatchSaveRequest request) => service.BatchSaveAsync(request);
+
+    [HttpPost("set-product-default-supplier")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<SetProductDefaultSupplierResult>> SetProductDefaultSupplier(
+        [FromBody] SetProductDefaultSupplierCommand command) => service.SetProductDefaultSupplierAsync(command);
 }

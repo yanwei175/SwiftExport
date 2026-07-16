@@ -17,6 +17,11 @@ public interface IProductRepository : IRepository<Product>
     Task<PagedResponseBase<ProductDto>> GetPagedAsync(ProductSearchRequest request);
     Task<IReadOnlyList<ProductLookupDto>> SearchLookupAsync(ProductLookupRequest request);
     Task<IReadOnlyList<string>> GetExistingSkuListAsync(IEnumerable<string> skuList);
+    Task<RepositoryWriteResult> SetDefaultSupplierAsync(
+        Guid productId,
+        int expectedVersion,
+        Guid supplierId,
+        string supplierCode);
     Task<PagedResponseBase<SalesOrderProductLookupDto>> SearchSalesOrderProductsAsync(
         SalesOrderProductSearchRequest request,
         CancellationToken cancellationToken = default);

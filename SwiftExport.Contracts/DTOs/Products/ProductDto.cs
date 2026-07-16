@@ -43,6 +43,7 @@ namespace SwiftExport.Contracts.DTOs.Products
         // 你的旧系统特定字段 (用于兼容 Excel 导入导出)
         public string DefaultCustomerCode { get; set; }
         public string DefaultCustomerSku { get; set; }
+        public Guid? DefaultSupplierId { get; set; }
         public string DefaultSupplierCode { get; set; }
         public string DefaultSupplierSku { get; set; }
 

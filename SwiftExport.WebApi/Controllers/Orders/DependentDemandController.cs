@@ -13,9 +13,24 @@ namespace SwiftExport.WebApi.Controllers.Orders;
 
 public class DependentDemandController(IDependentDemandService service) : BaseController<DependentDemand, DependentDemandDto>(service)
 {
+    private const string LegacyWriteDisabled = "LEGACY_DEMAND_WRITE_DISABLED：旧净需求写链路已冻结，请使用净需求工作台。";
+
+    [HttpPost]
+    public override Task<ServiceResult<SaveItemResult>> Create([FromBody] CreateItemRequest<DependentDemandDto> dto)
+        => Task.FromResult(ServiceResult<SaveItemResult>.Fail(LegacyWriteDisabled));
+
+    [HttpPut("{id}")]
+    public override Task<ServiceResult<SaveItemResult>> Update(Guid id, [FromBody] UpdateItemRequest<DependentDemandDto> dto)
+        => Task.FromResult(ServiceResult<SaveItemResult>.Fail(LegacyWriteDisabled));
+
+    [HttpDelete("{id}")]
+    public override Task<ServiceResult<SaveItemResult>> Delete(DeleteItemRequest id)
+        => Task.FromResult(ServiceResult<SaveItemResult>.Fail(LegacyWriteDisabled));
+
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<DependentDemandBatchSaveResponse>> BatchSave([FromBody] DependentDemandBatchSaveRequest req) => await service.BatchSaveAsync(req);
+    public Task<ServiceResult<DependentDemandBatchSaveResponse>> BatchSave([FromBody] DependentDemandBatchSaveRequest req)
+        => Task.FromResult(ServiceResult<DependentDemandBatchSaveResponse>.Fail(LegacyWriteDisabled));
 
     /// <summary>
     /// 分页查询净需求。
@@ -31,42 +46,22 @@ public class DependentDemandController(IDependentDemandService service) : BaseCo
     /// 按选中需求池ID列表转采购。
     /// </summary>
     [HttpPost("convert-to-po/by-ids")]
-    public async Task<ServiceResult<List<string>>> CoverToPoByIdList([FromBody] List<Guid> req)
-    {
-        return await service.CoverToPurchaseOrderByDependentIdListAsync(req);
-    }
+    public Task<ServiceResult<List<string>>> CoverToPoByIdList([FromBody] List<Guid> req)
+        => Task.FromResult(ServiceResult<List<string>>.Fail(LegacyWriteDisabled));
 
     /// <summary>
     /// CoverToPurchaseOrderBySourceTypeAndSourceNoAsync
     /// </summary>
     [HttpPost("convert-to-po/{sourceType}/{sourceNo}")]
-    public async Task<ServiceResult<List<string>>> CoverToPoBySourceTypeAndSourceNo(string sourceType, string sourceNo)
-    {
-        sourceType = sourceType.Trim();
-        sourceNo = sourceNo.Trim();
-
-        if (string.IsNullOrWhiteSpace(sourceType))
-            return ServiceResult<List<string>>.Fail("来源类型不能为空");
-
-        if (string.IsNullOrWhiteSpace(sourceNo))
-            return ServiceResult<List<string>>.Fail("来源单号不能为空");
-
-        if (!DependSourceTypesEnum.SourceTypes.Any(x => x == sourceType))
-        {
-            return ServiceResult<List<string>>.Fail($"不支持的来源类型: {sourceType}");
-        }
-
-        return await service.CoverToPurchaseOrderBySourceTypeAndSourceNoAsync(sourceType, sourceNo);
-    }
+    public Task<ServiceResult<List<string>>> CoverToPoBySourceTypeAndSourceNo(string sourceType, string sourceNo)
+        => Task.FromResult(ServiceResult<List<string>>.Fail(LegacyWriteDisabled));
 
     /// <summary>
     /// 手工指定需求池行供应商并持久化。
     /// </summary>
     [HttpPost("{id}/set-supplier")]
-    public async Task<ServiceResult<bool>> UpdateSupplierAsync(Guid id, [FromQuery] string supplierCode, [FromQuery] string supplierName = "")
-    {
-        return await service.UpdateSupplierAsync(id, supplierCode, supplierName);
-    }
+    public Task<ServiceResult<bool>> UpdateSupplierAsync(Guid id, [FromQuery] string supplierCode, [FromQuery] string supplierName = "")
+        => Task.FromResult(ServiceResult<bool>.Fail(LegacyWriteDisabled));
 
 
 

@@ -20,11 +20,14 @@ public sealed class GrossDemandWorkspaceService(
     ServiceBaseContext context,
     IGrossDemandRepository grossDemandRepository,
     INetDemandRepository netDemandRepository,
+    INetDemandAllocationRepository allocationRepository,
     IDemandExecutionLinkRepository executionLinkRepository,
     IProductRepository productRepository,
+    ISupplierRepository supplierRepository,
     IBomRepository bomRepository,
     IDocumentNoService documentNoService,
-    GrossDemandDecompositionPlanner planner) : IGrossDemandWorkspaceService
+    GrossDemandDecompositionPlanner planner,
+    NetDemandInitialAllocationPlanner allocationPlanner) : IGrossDemandWorkspaceService
 {
     private readonly DbSession _session = context.Session;
     private readonly ILogger<GrossDemandWorkspaceService> _logger = context.LoggerFactory.CreateLogger<GrossDemandWorkspaceService>();
@@ -204,11 +207,15 @@ public sealed class GrossDemandWorkspaceService(
             if (demand.LifecycleStatus != GrossDemandLifecycleStatusEnum.Active)
                 throw new GrossDemandItemException("INVALID_LIFECYCLE", "只有活动毛需求可以拆解。");
             var activeNetDemands = await netDemandRepository.GetActiveByGrossDemandForUpdateAsync(demand.Uid);
+            var activeAllocations = await allocationRepository.GetActiveByGrossDemandForUpdateAsync(demand.Uid);
             if (demand.DecompositionStatus == GrossDemandDecompositionStatusEnum.Decomposed)
             {
                 if (demand.DecompositionRevision == item.ExpectedDecompositionRevision + 1 && activeNetDemands.Count > 0
                     && activeNetDemands.All(x => x.DecompositionRevision == demand.DecompositionRevision))
                 {
+                    var allocationError = ValidateActiveAllocations(activeNetDemands, activeAllocations);
+                    if (allocationError is not null)
+                        throw new GrossDemandItemException("CORRUPTED_STATE", allocationError);
                     result.Outcome = GrossDemandCommandOutcomeEnum.AlreadyApplied;
                     result.Message = "该拆解命令已成功应用。";
                     result.NewVersion = demand.Version;
@@ -218,8 +225,8 @@ public sealed class GrossDemandWorkspaceService(
                 }
                 throw new GrossDemandItemException("REVISION_CONFLICT", "毛需求已存在其他活动拆解版本，请刷新后重试。");
             }
-            if (activeNetDemands.Count > 0)
-                throw new GrossDemandItemException("CORRUPTED_STATE", "毛需求拆解状态与活动净需求不一致，请联系管理员修复数据。");
+            if (activeNetDemands.Count > 0 || activeAllocations.Count > 0)
+                throw new GrossDemandItemException("CORRUPTED_STATE", "毛需求拆解状态与活动净需求/计划分配不一致，请联系管理员修复数据。");
             if (demand.Version != item.Version || demand.DecompositionRevision != item.ExpectedDecompositionRevision)
                 throw new GrossDemandItemException("CONCURRENCY_CONFLICT", "毛需求已被其他用户修改，请刷新后重试。");
 
@@ -230,14 +237,14 @@ public sealed class GrossDemandWorkspaceService(
             {
                 if (!demand.ProductId.HasValue)
                     throw new GrossDemandItemException("PRODUCT_NOT_FOUND", "标准毛需求没有关联产品。");
-                root = await productRepository.GetByIdAsync(demand.ProductId.Value)
+                root = await productRepository.GetByIdAsync(demand.ProductId.Value, withUpdLock: true)
                     ?? throw new GrossDemandItemException("PRODUCT_NOT_FOUND", "毛需求关联产品不存在或已删除。");
                 if (CustomerSuppliedMaterialPolicy.IsCustomerSupplied(root))
                     throw new GrossDemandItemException("CUSTOMER_SUPPLIED_ROOT_NOT_ALLOWED", "客供件不能作为标准毛需求根产品。");
                 if (root.BomVersion > 0 && !string.IsNullOrWhiteSpace(root.BomNo))
                     boms = await bomRepository.GetByBomNoAndVersionAsync(root.BomNo, root.BomVersion);
                 var childIds = boms.Where(x => x.SubSkuId.HasValue).Select(x => x.SubSkuId!.Value).Distinct().ToArray();
-                children = (await productRepository.GetByIdListAsync(childIds)).ToDictionary(x => x.Uid);
+                children = (await productRepository.GetByIdListAsync(childIds, withUpdLock: true)).ToDictionary(x => x.Uid);
                 foreach (var child in children.Values.Where(CustomerSuppliedMaterialPolicy.IsCustomerSupplied))
                 {
                     var error = CustomerSuppliedMaterialPolicy.ValidateProduct(
@@ -248,15 +255,37 @@ public sealed class GrossDemandWorkspaceService(
             var nextRevision = demand.DecompositionRevision + 1;
             var plan = planner.BuildPlan(demand, root, boms, children, nextRevision);
             if (!plan.IsValid) throw new GrossDemandItemException(plan.ErrorCode!, plan.ErrorMessage!);
+
+            var allProducts = children.ToDictionary(x => x.Key, x => x.Value);
+            if (root is not null) allProducts[root.Uid] = root;
+            var supplierIds = allProducts.Values
+                .Where(x => x.DefaultSupplierId.HasValue)
+                .Select(x => x.DefaultSupplierId!.Value)
+                .Distinct()
+                .ToArray();
+            var suppliers = (await supplierRepository.GetByIdListAsync(supplierIds, withUpdLock: true))
+                .ToDictionary(x => x.Uid);
+            var initialPlan = allocationPlanner.Build(plan.NetDemands, allProducts, suppliers);
+            if (!initialPlan.IsValid)
+                throw new GrossDemandItemException(initialPlan.ErrorCode!, initialPlan.ErrorMessage!);
+
             var writes = await netDemandRepository.AddDecompositionAsync(plan.NetDemands);
             var writeFailure = writes.FirstOrDefault(x => !x.Success);
             if (writeFailure is not null)
                 throw new GrossDemandItemException(writeFailure.ErrorCode ?? "INSERT_FAILED", writeFailure.Message);
+            var allocationWrites = await allocationRepository.AddInitialAsync(initialPlan.Allocations);
+            var allocationFailure = allocationWrites.FirstOrDefault(x => !x.Success);
+            if (allocationFailure is not null)
+                throw new GrossDemandItemException(allocationFailure.ErrorCode ?? "INSERT_FAILED", allocationFailure.Message);
             var stateWrite = await grossDemandRepository.UpdateDecompositionStateAsync(
                 demand.Uid, demand.Version, GrossDemandDecompositionStatusEnum.Decomposed, nextRevision, DateTime.Now);
             EnsureItemWriteSucceeded(stateWrite);
             result.Outcome = GrossDemandCommandOutcomeEnum.Succeeded;
-            result.Message = "拆解成功。";
+            var unassignedCount = initialPlan.Allocations.Count(x =>
+                x.ExecutionType == DemandExecutionTypeEnum.Purchase && !x.PurchaseSupplierId.HasValue);
+            result.Message = unassignedCount > 0
+                ? $"拆解成功；{unassignedCount} 条采购计划待分配供应商。"
+                : "拆解成功。";
             result.NewVersion = stateWrite.NewVersion ?? demand.Version + 1;
             result.DecompositionRevision = nextRevision;
             result.CreatedNetDemandCount = plan.NetDemands.Count;
@@ -279,7 +308,9 @@ public sealed class GrossDemandWorkspaceService(
                 ?? throw new GrossDemandItemException("NOT_FOUND", "毛需求不存在或已删除。");
             result.OldVersion = demand.Version;
             var active = await netDemandRepository.GetActiveByGrossDemandForUpdateAsync(demand.Uid);
+            var activeAllocations = await allocationRepository.GetActiveByGrossDemandForUpdateAsync(demand.Uid);
             if (demand.DecompositionStatus == GrossDemandDecompositionStatusEnum.Pending && active.Count == 0
+                && activeAllocations.Count == 0
                 && demand.DecompositionRevision == item.ExpectedDecompositionRevision)
             {
                 result.Outcome = GrossDemandCommandOutcomeEnum.AlreadyApplied;
@@ -297,6 +328,9 @@ public sealed class GrossDemandWorkspaceService(
                 throw new GrossDemandItemException("CONCURRENCY_CONFLICT", "毛需求已被其他用户修改，请刷新后重试。");
             if (active.Count == 0 || active.Any(x => x.DecompositionRevision != demand.DecompositionRevision))
                 throw new GrossDemandItemException("CORRUPTED_STATE", "毛需求拆解状态与活动净需求不一致，请联系管理员修复数据。");
+            var allocationError = ValidateActiveAllocations(active, activeAllocations);
+            if (allocationError is not null)
+                throw new GrossDemandItemException("CORRUPTED_STATE", allocationError);
             var blockers = await executionLinkRepository.GetActiveRollbackBlockersAsync(active.Select(x => x.Uid));
             if (blockers.Count > 0)
             {
@@ -305,6 +339,10 @@ public sealed class GrossDemandWorkspaceService(
                 result.Blockers = [.. blockers];
                 return result;
             }
+            var cancelled = await allocationRepository.CancelRevisionAsync(
+                demand.Uid, demand.DecompositionRevision, "Rollback", reason);
+            if (cancelled != activeAllocations.Count)
+                throw new GrossDemandItemException("CONCURRENCY_CONFLICT", "计划分配版本已变化，回退未执行。");
             var rolledBack = await netDemandRepository.RollbackRevisionAsync(demand.Uid, demand.DecompositionRevision, reason);
             if (rolledBack != active.Count)
                 throw new GrossDemandItemException("CONCURRENCY_CONFLICT", "净需求版本已变化，回退未执行。");
@@ -424,6 +462,33 @@ public sealed class GrossDemandWorkspaceService(
         if (items.Any(x => x.Uid == Guid.Empty || x.Version <= 0 || x.ExpectedDecompositionRevision < 0))
             return "批量命令包含无效的 Uid、Version 或拆解版本。";
         if (items.GroupBy(x => x.Uid).Any(x => x.Count() > 1)) return "同一毛需求不能重复提交。";
+        return null;
+    }
+
+    private static string? ValidateActiveAllocations(
+        IReadOnlyList<NetDemand> netDemands,
+        IReadOnlyList<NetDemandAllocation> allocations)
+    {
+        if (netDemands.Count == 0 || allocations.Count != netDemands.Count)
+            return "活动净需求与活动计划分配数量不一致，请联系管理员修复数据。";
+        var allocationByDemand = allocations.GroupBy(x => x.NetDemandId).ToDictionary(x => x.Key, x => x.ToArray());
+        foreach (var demand in netDemands)
+        {
+            if (!allocationByDemand.TryGetValue(demand.Uid, out var rows) || rows.Length != 1)
+                return $"净需求 {demand.SkuSnapshot} 没有且仅有一条活动计划分配。";
+            var allocation = rows[0];
+            if (allocation.PlanRevision <= 0 || allocation.Sequence <= 0 || allocation.PlannedQty != demand.NetQty)
+                return $"净需求 {demand.SkuSnapshot} 的活动计划版本或数量不完整。";
+            if (demand.DeliveryMode == DemandDeliveryModeEnum.ParentExecutionSupplier)
+            {
+                if (!demand.DeliveryTargetNetDemandId.HasValue
+                    || !allocationByDemand.TryGetValue(demand.DeliveryTargetNetDemandId.Value, out var targetRows)
+                    || targetRows.Length != 1
+                    || allocation.DeliveryTargetAllocationId != targetRows[0].Uid
+                    || allocation.DeliveryTargetSupplierId != targetRows[0].PurchaseSupplierId)
+                    return $"客供件净需求 {demand.SkuSnapshot} 的送达目标计划不完整。";
+            }
+        }
         return null;
     }
 

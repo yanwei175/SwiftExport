@@ -40,6 +40,10 @@ public static class DependencyInjection
         services.AddScoped<ISalesOrderWorkspaceService, SalesOrderWorkspaceService>();
         services.AddScoped<IGrossDemandWorkspaceService, GrossDemandWorkspaceService>();
         services.AddScoped<GrossDemandDecompositionPlanner>();
+        services.AddScoped<NetDemandInitialAllocationPlanner>();
+        services.AddScoped<NetDemandPlanReplacementPlanner>();
+        services.AddScoped<NetDemandPlanCommandIdempotencyPolicy>();
+        services.AddScoped<INetDemandWorkspaceService, NetDemandWorkspaceService>();
         services.AddScoped<IIndependentDemandServices, IndependentDemandService>();
         services.AddScoped<IDependentDemandService, DependentDemandService>();
         services.AddScoped<IDocumentNoService, DocumentNoService>();

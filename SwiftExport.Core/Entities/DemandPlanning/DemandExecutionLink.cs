@@ -10,6 +10,9 @@ public sealed class DemandExecutionLink : BaseEntity
 {
     /// <summary>兼容期由专用 SQL 映射到物理列 DependentDemandId。</summary>
     public Guid NetDemandId { get; set; }
+    public Guid? NetDemandAllocationId { get; set; }
+    public Guid? ExecutionRequestId { get; set; }
+    public Guid? CommandItemId { get; set; }
     public string TargetType { get; set; } = string.Empty;
     public Guid TargetHeadId { get; set; }
     public string TargetNo { get; set; } = string.Empty;
@@ -18,6 +21,8 @@ public sealed class DemandExecutionLink : BaseEntity
     public decimal AllocatedQty { get; set; }
     public decimal CompletedQty { get; set; }
     public decimal ReceivedQty { get; set; }
+    public DateTime? DemandRequiredDate { get; set; }
+    public DateTime? PlannedDeliveryDate { get; set; }
     public DateTime? CancelledAt { get; set; }
     public string? CancelledBy { get; set; }
     public string? CancelledReason { get; set; }

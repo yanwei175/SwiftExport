@@ -21,6 +21,44 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
     private static readonly string ProductCategoryTable = EntityMetadataCache.GetTableName<ProductCategory>();
     private static readonly string ProductPackageTable = EntityMetadataCache.GetTableName<ProductPackage>();
 
+    // 默认供应商只能通过供应商产品的显式业务命令维护，普通 Product 保存不得覆盖。
+    protected override IReadOnlyList<string> InsertProperties => [.. base.InsertProperties
+        .Where(property => !property.Equals(nameof(Product.DefaultSupplierId), StringComparison.OrdinalIgnoreCase)
+                           && !property.Equals(nameof(Product.DefaultSupplierCode), StringComparison.OrdinalIgnoreCase))];
+
+    protected override IReadOnlyList<string> UpdateProperties => [.. base.UpdateProperties
+        .Where(property => !property.Equals(nameof(Product.DefaultSupplierId), StringComparison.OrdinalIgnoreCase)
+                           && !property.Equals(nameof(Product.DefaultSupplierCode), StringComparison.OrdinalIgnoreCase))];
+
+    public async Task<RepositoryWriteResult> SetDefaultSupplierAsync(
+        Guid productId,
+        int expectedVersion,
+        Guid supplierId,
+        string supplierCode)
+    {
+        const string sql = @"
+UPDATE [dbo].[Product]
+SET [DefaultSupplierId]=@SupplierId,
+    [DefaultSupplierCode]=@SupplierCode,
+    [UpdatedDate]=@Now,
+    [UpdatedBy]=@UserName,
+    [Version]=[Version]+1
+OUTPUT INSERTED.[Version]
+WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
+        var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>(sql, new
+        {
+            ProductId = productId,
+            ExpectedVersion = expectedVersion,
+            SupplierId = supplierId,
+            SupplierCode = supplierCode,
+            Now = DateTime.Now,
+            UserName = CurrentUser.UserName
+        }, transaction: Transaction);
+        return newVersion.HasValue
+            ? RepositoryWriteResult.Ok(productId, expectedVersion, newVersion.Value, "默认供应商设置成功。")
+            : RepositoryWriteResult.Fail(productId, expectedVersion, "CONCURRENCY_CONFLICT", "产品已被其他用户修改，请刷新后重试。");
+    }
+
     public async Task<IReadOnlyList<string>> GetAllCustomerCodeListAsync()
     {
         var sql = $"SELECT CustomerCode FROM [{TableName}] WHERE CustomerCode <> '' AND IsDeleted = 0 GROUP BY CustomerCode";

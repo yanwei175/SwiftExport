@@ -9,7 +9,7 @@ using System.Data;
 
 namespace SwiftExport.Infrastructure.Repositories.DemandPlanning;
 
-public sealed class NetDemandRepository(RepositoryBaseContext context) : INetDemandRepository
+public sealed partial class NetDemandRepository(RepositoryBaseContext context) : INetDemandRepository
 {
     private readonly RepositoryBaseContext _context = context;
     private IDbConnection Connection => _context.Session.Connection;

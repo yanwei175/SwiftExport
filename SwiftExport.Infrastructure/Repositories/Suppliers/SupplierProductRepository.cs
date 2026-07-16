@@ -21,7 +21,8 @@ public sealed class SupplierProductRepository(RepositoryBaseContext context)
         p.DescriptionEn, p.DescriptionZh, p.FeaturesZh,
         pc.CategoryName, p.MaterialType, p.MainImage,
         sp.SupplierSku, sp.SupplierSkuDescriptionZh, sp.SupplierSkuFeaturesZh,
-        sp.UnitPrice, sp.TaxPrice, s.Currency, s.TaxRate
+        sp.UnitPrice, sp.TaxPrice, s.Currency, s.TaxRate,
+        CASE WHEN p.DefaultSupplierId = sp.SupplierId THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsProductDefaultSupplier
         """;
 
     private const string FromAndJoins = """

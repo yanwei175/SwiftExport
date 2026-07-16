@@ -51,6 +51,8 @@ public class Product : BaseEntity
 
     public string? DefaultCustomerCode { get; set; }
     public string? DefaultCustomerSku { get; set; }
+    /// <summary>默认供应商权威关系；编码仅作为兼容和人工查账字段。</summary>
+    public Guid? DefaultSupplierId { get; set; }
     public string? DefaultSupplierCode { get; set; }
     public string? DefaultSupplierSku { get; set; }
     public Guid CategoryId { get; set; }

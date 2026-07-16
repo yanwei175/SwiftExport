@@ -61,6 +61,75 @@ namespace SwiftExport.Contracts.SysEnums
     }
 
     /// <summary>
+    /// 净需求计划分配的生命周期。计划调整通过新增替代记录保留历史。
+    /// </summary>
+    public enum NetDemandAllocationLifecycleStatusEnum
+    {
+        Active = 0,
+        Superseded = 8,
+        Cancelled = 9
+    }
+
+    /// <summary>
+    /// 净需求的计划执行方式。
+    /// </summary>
+    public enum DemandExecutionTypeEnum
+    {
+        Purchase = 0,
+        Production = 1,
+        Outsourcing = 2
+    }
+
+    /// <summary>
+    /// 计划供应商或执行方式的分配来源。
+    /// </summary>
+    public enum SupplierAssignmentSourceEnum
+    {
+        ProductDefault = 0,
+        Unassigned = 1,
+        Manual = 2,
+        Reassigned = 3,
+        AppliedProductDefault = 4,
+        Split = 5
+    }
+
+    /// <summary>
+    /// 净需求工作台查询计算状态，不持久化到净需求或计划分配。
+    /// </summary>
+    public enum NetDemandPlanStatusEnum
+    {
+        UnassignedSupplier = 0,
+        DeliveryTargetPending = 1,
+        ReadyForPurchase = 2,
+        PartiallyAllocated = 3,
+        FullyAllocated = 4,
+        DownstreamDraft = 5,
+        DownstreamConfirmed = 6,
+        DataCorrupted = 8,
+        ExecutionWorkspacePending = 9
+    }
+
+    /// <summary>
+    /// 净需求业务命令的逐项结果。
+    /// </summary>
+    public enum NetDemandCommandOutcomeEnum
+    {
+        Succeeded = 0,
+        AlreadyApplied = 1,
+        Failed = 2
+    }
+
+    /// <summary>
+    /// 采购单据自身的生命周期；草稿由 Active + 待确认共同表达。
+    /// </summary>
+    public enum PurchaseOrderLifecycleStatusEnum
+    {
+        Active = 0,
+        Closed = 8,
+        Voided = 9
+    }
+
+    /// <summary>
     /// 毛需求批量命令的逐项结果。
     /// </summary>
     public enum GrossDemandCommandOutcomeEnum
