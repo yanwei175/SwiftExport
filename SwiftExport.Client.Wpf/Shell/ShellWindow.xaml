@@ -5,6 +5,8 @@
         xmlns:home="clr-namespace:SwiftExportClient.Features.Home"
         xmlns:customerViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerManagement.Views"
         xmlns:customerViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerManagement.ViewModels"
+        xmlns:grossDemandViews="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.Views"
+        xmlns:grossDemandViewModels="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:planning="clr-namespace:SwiftExportClient.Features.Planning"
@@ -69,6 +71,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type salesOrderViewModels:SalesOrderDetailViewModel}">
             <salesOrderViews:SalesOrderDetailView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type grossDemandViewModels:GrossDemandWorkspaceViewModel}">
+            <grossDemandViews:GrossDemandWorkspaceView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type planning:PlanningViewModel}">
             <planning:PlanningView />

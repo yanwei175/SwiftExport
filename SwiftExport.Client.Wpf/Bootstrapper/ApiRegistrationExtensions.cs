@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using Refit;
 using SwiftExport.Contracts.Apis.AuthApis;
 using SwiftExport.Contracts.Apis.CustomerApis;
+using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
@@ -78,7 +79,7 @@ public static class ApiRegistrationExtensions
     private static void AddOrderApis(this IServiceCollection services)
     {
         services.AddControllerApi<ISalesOrderWorkspaceApi>("sales-orders/workspace");
-        services.AddControllerApi<IIndependentDemandApi>("IndependentDemand");
+        services.AddControllerApi<IGrossDemandWorkspaceApi>("demand-planning/gross-demands");
         services.AddControllerApi<IDependentDemandApi>("DependentDemand");
         services.AddControllerApi<IPurchaseOrderApi>("PurchaseOrder");
         services.AddControllerApi<IFollowUpApi>("FollowUp");

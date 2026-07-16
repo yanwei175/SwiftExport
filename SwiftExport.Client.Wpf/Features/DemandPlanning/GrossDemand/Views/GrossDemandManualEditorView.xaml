@@ -1,0 +1,107 @@
+<UserControl x:Class="SwiftExportClient.Features.DemandPlanning.GrossDemand.Views.GrossDemandManualEditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
+             xmlns:images="clr-namespace:SwiftExportClient.Resources.Controls"
+             mc:Ignorable="d"
+             d:Width="520" d:Height="760">
+    <Grid Margin="12" RowDefinitions="Auto,8,*,8,Auto">
+        <Grid ColumnDefinitions="*,Auto">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock Text="只有活动且待拆解的手工需求可以编辑。"
+                           Style="{StaticResource CaptionTextBlock}"
+                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+            </StackPanel>
+            <Button Grid.Column="1" Content="保存" Command="{Binding SaveCommand}"
+                    Style="{StaticResource AccentButton}" MinWidth="72" />
+        </Grid>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <Grid DataContext="{Binding Edit}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="112" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="需求类型" VerticalAlignment="Center" />
+                <CheckBox Grid.Column="1" Content="非标件（不关联产品/BOM）"
+                          IsChecked="{Binding IsNonStandard, Mode=TwoWay}" />
+
+                <TextBlock Grid.Row="2" Text="标准产品" VerticalAlignment="Center" />
+                <productComponents:ProductLookupTextBox Grid.Row="2" Grid.Column="1"
+                    Text="{Binding Sku, Mode=OneWay}"
+                    ItemsSource="{Binding DataContext.ProductCandidates, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    SelectedProduct="{Binding DataContext.SelectedProduct, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay}"
+                    SearchCommand="{Binding DataContext.SearchProductsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    SelectionCommittedCommand="{Binding DataContext.CommitProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    SelectionClearedCommand="{Binding DataContext.ClearProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    IsBusy="{Binding DataContext.IsLookupBusy, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    IsEnabled="{Binding CanSelectProduct}" />
+
+                <TextBlock Grid.Row="4" Text="SKU/临时 SKU" VerticalAlignment="Center" />
+                <TextBox Grid.Row="4" Grid.Column="1" IsReadOnly="True"
+                         ToolTip="标准件取产品 SKU；非标件保存时由系统生成临时 SKU。"
+                         Text="{Binding Sku}" />
+
+                <TextBlock Grid.Row="6" Text="Link SKU" VerticalAlignment="Center" />
+                <TextBox Grid.Row="6" Grid.Column="1" IsEnabled="{Binding IsNonStandard}"
+                         Text="{Binding LinkSku, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Grid.Row="8" Text="客户型号" VerticalAlignment="Center" />
+                <TextBox Grid.Row="8" Grid.Column="1" Text="{Binding CustomerSku, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Grid.Row="10" Text="描述（非标必填）" VerticalAlignment="Center" />
+                <TextBox Grid.Row="10" Grid.Column="1" IsEnabled="{Binding IsNonStandard}"
+                         Text="{Binding Description, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}" />
+
+                <TextBlock Grid.Row="12" Text="颜色" VerticalAlignment="Center" />
+                <TextBox Grid.Row="12" Grid.Column="1" IsEnabled="{Binding IsNonStandard}"
+                         Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Grid.Row="14" Text="规格" VerticalAlignment="Center" />
+                <TextBox Grid.Row="14" Grid.Column="1" IsEnabled="{Binding IsNonStandard}"
+                         Text="{Binding Specification, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Grid.Row="16" Text="需求数量 *" VerticalAlignment="Center" />
+                <TextBox Grid.Row="16" Grid.Column="1" Text="{Binding DemandQty, UpdateSourceTrigger=LostFocus, ValidatesOnNotifyDataErrors=True}" />
+
+                <TextBlock Grid.Row="18" Text="需求交期" VerticalAlignment="Center" />
+                <DatePicker Grid.Row="18" Grid.Column="1" SelectedDate="{Binding RequiredDate}" />
+
+                <TextBlock Grid.Row="20" Text="图片" VerticalAlignment="Top" />
+                <StackPanel Grid.Row="20" Grid.Column="1">
+                    <images:CachedImage Width="72" Height="72" HorizontalAlignment="Left"
+                                        Style="{StaticResource SwiftExportCachedImage}"
+                                        SourcePath="{Binding ImagePath}" DecodePixelWidth="144" Stretch="Uniform" />
+                    <TextBox IsEnabled="{Binding IsNonStandard}" Text="{Binding ImagePath, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+
+                <TextBlock Grid.Row="22" Text="备注" VerticalAlignment="Top" />
+                <TextBox Grid.Row="22" Grid.Column="1" MinHeight="84" AcceptsReturn="True"
+                         TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                         Text="{Binding Remark, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="4" Text="{Binding ValidationSummary}"
+                   Foreground="#B10E1E"
+                   TextWrapping="Wrap" />
+    </Grid>
+</UserControl>

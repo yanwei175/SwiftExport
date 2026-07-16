@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.ComponentModel;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
+using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.UI;
@@ -21,6 +22,21 @@ public sealed class NavigationServiceTests
         Assert.AreEqual(typeof(ProductCategoryManagerViewModel), route.ViewModelType);
         Assert.AreEqual("产品分类管理", route.Title);
         Assert.IsTrue(route.CanClose);
+    }
+
+    [TestMethod]
+    public void RouteRegistry_ShouldExposeGrossDemandUnderDemandPlanningAndKeepLegacyRouteHidden()
+    {
+        var registry = new NavigationRouteRegistry();
+
+        Assert.IsTrue(registry.TryGetRoute(GrossDemandWorkspaceViewModel.RouteKey, out var route));
+        Assert.AreEqual(typeof(GrossDemandWorkspaceViewModel), route.ViewModelType);
+
+        var group = registry.MenuItems.Single(item => item.RouteKey == "demand-planning");
+        Assert.AreEqual("需求计划", group.Title);
+        Assert.IsTrue(group.Children.Any(item => item.RouteKey == GrossDemandWorkspaceViewModel.RouteKey));
+        Assert.IsFalse(registry.MenuItems.Any(item => item.RouteKey == "planning"));
+        Assert.IsTrue(registry.TryGetRoute("planning", out _));
     }
 
     [TestMethod]
@@ -102,6 +118,19 @@ public sealed class NavigationServiceTests
         Assert.AreSame(existing, navigation.SelectedTab);
     }
 
+    [TestMethod]
+    public void NavigationTabItem_Dispose_ShouldDisposeContentViewModel()
+    {
+        var viewModel = new DisposablePageViewModel();
+        var tab = new NavigationTabItem(
+            new NavigationRoute("disposable", "可释放页面", "Workspace", typeof(DisposablePageViewModel)),
+            viewModel);
+
+        tab.Dispose();
+
+        Assert.IsTrue(viewModel.IsDisposed);
+    }
+
     private sealed class TestServiceProvider : IServiceProvider
     {
         public int CreatedCount { get; private set; }
@@ -145,6 +174,16 @@ public sealed class NavigationServiceTests
         {
             InitializeCount++;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class DisposablePageViewModel : IDisposable
+    {
+        public bool IsDisposed { get; private set; }
+
+        public void Dispose()
+        {
+            IsDisposed = true;
         }
     }
 

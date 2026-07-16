@@ -63,6 +63,11 @@ public sealed class NavigationTabItem : ObservableObjectEx, IDisposable
             _documentNotifier.PropertyChanged -= OnDocumentPropertyChanged;
             _documentNotifier = null;
         }
+
+        if (ContentViewModel is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
     }
 
     private void OnDocumentPropertyChanged(object? sender, PropertyChangedEventArgs e)

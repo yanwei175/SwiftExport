@@ -1,5 +1,6 @@
 using SwiftExportClient.Features.Home;
 using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
+using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 using SwiftExportClient.Features.Planning;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.Products.Colors.ViewModels;
@@ -27,6 +28,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new("sales", "销售", "Workspace", typeof(SalesViewModel)),
         new(SalesOrderManagerViewModel.ManagerRouteKey, "销售订单管理", "Workspace", typeof(SalesOrderManagerViewModel)),
         new(SalesOrderManagerViewModel.DetailRouteKey, "销售订单", "Workspace", typeof(SalesOrderDetailViewModel)),
+        new(GrossDemandWorkspaceViewModel.RouteKey, "毛需求", "Workspace", typeof(GrossDemandWorkspaceViewModel)),
         new("planning", "计划", "Workspace", typeof(PlanningViewModel)),
         new("purchasing", "采购", "Workspace", typeof(PurchasingViewModel)),
         new("shipping", "出货", "Workspace", typeof(ShippingViewModel)),
@@ -56,7 +58,16 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
             new("customers", "客户管理", "Workspace", "People24"),
             new("suppliers", "供应商管理", "Workspace", "PeopleTeam24"),
             new(SalesOrderManagerViewModel.ManagerRouteKey, "销售订单", "Workspace", "ReceiptMoney24"),
-            new("planning", "计划", "Workspace", "CalendarLtr24"),
+            new(
+                "demand-planning",
+                "需求计划",
+                "Workspace",
+                "CalendarLtr24",
+                IsExpanded: true,
+                Children:
+                [
+                    new(GrossDemandWorkspaceViewModel.RouteKey, "毛需求", "Workspace", "DataTrending24"),
+                ]),
             new("purchasing", "采购", "Workspace", "Cart24"),
             new("shipping", "出货", "VehicleTruckProfile24"),
         ];
