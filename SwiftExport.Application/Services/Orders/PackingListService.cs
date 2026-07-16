@@ -19,7 +19,6 @@ public partial class PackingListService(
     IReceiveLineRepository receiveLineRepository,
     IPurchaseOrderLineRepository purchaseOrderLineRepository,
     ISalesOrderHeadRepository salesOrderHeaderRepository,
-    IIndependentDemandRepository salesDemandRepository,
     IProductRepository productRepository,
     IBomRepository bomRepository,
     IInventoryRepository inventoryRepository,
@@ -36,7 +35,6 @@ public partial class PackingListService(
     private readonly IReceiveLineRepository _receiveLineRepository = receiveLineRepository;
     private readonly IPurchaseOrderLineRepository _purchaseOrderLineRepository = purchaseOrderLineRepository;
     private readonly ISalesOrderHeadRepository _salesOrderHeaderRepository = salesOrderHeaderRepository;
-    private readonly IIndependentDemandRepository _salesDemandRepository = salesDemandRepository;
     private readonly IProductRepository _productRepository = productRepository;
     private readonly IBomRepository _bomRepository = bomRepository;
     private readonly IInventoryRepository _inventoryRepository = inventoryRepository;

@@ -18,8 +18,6 @@ namespace SwiftExport.Application.Services.Orders
         IReceiveLineRepository receiveLineRepository,
         IPurchaseOrderHeadRepository purchaseOrderRepository,
         IPurchaseOrderLineRepository purchaseOrderLineRepository,
-        IDependentDemandRepository dependRepo,
-        IIndependentDemandRepository salesDemandRepository,
         IInventoryRepository inventoryRepository,
         IInventoryTransactionRepository inventoryTransactionRepository,
         IDocumentNoService documentNoService,
@@ -30,8 +28,6 @@ namespace SwiftExport.Application.Services.Orders
         private readonly IReceiveLineRepository _receiveLineRepository = receiveLineRepository;
         private readonly IPurchaseOrderHeadRepository _purchaseOrderRepository = purchaseOrderRepository;
         private readonly IPurchaseOrderLineRepository _purchaseOrderLineRepository = purchaseOrderLineRepository;
-        private readonly IDependentDemandRepository _dependRepo = dependRepo;
-        private readonly IIndependentDemandRepository _salesDemandRepository = salesDemandRepository;
         private readonly IInventoryRepository _inventoryRepository = inventoryRepository;
         private readonly IInventoryTransactionRepository _inventoryTransactionRepository = inventoryTransactionRepository;
         private readonly IDocumentNoService _documentNoService = documentNoService;

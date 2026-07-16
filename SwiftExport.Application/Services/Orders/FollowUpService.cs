@@ -17,7 +17,6 @@ namespace SwiftExport.Application.Services.Orders;
 public partial class FollowUpService(
     IRepository<FollowUpLog> followUpRepository,
     IPurchaseOrderLineRepository purchaseOrderLineRepository,
-    IDependentDemandRepository dependentDemandRepository,
     ServiceBaseContext context)
     : BaseService<FollowUpLog, FollowUpLogDto>(followUpRepository, context), IFollowUpService
 {

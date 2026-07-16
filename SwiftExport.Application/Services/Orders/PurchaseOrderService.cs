@@ -26,7 +26,6 @@ public partial class PurchaseOrderService(
     IProductRepository productRepository,
     IDocumentNoService documentNoService,
     IRepository<FollowUpLog> followUpRepository,
-    IDependentDemandRepository dependentDemandRepository,
     ServiceBaseContext context)
     : BaseService<PurchaseOrderHead, PurchaseOrderHeadDto>(headRepository, context), IPurchaseOrderService
 {

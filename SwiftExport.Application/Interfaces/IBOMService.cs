@@ -3,7 +3,6 @@ using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.Orders;
 namespace SwiftExport.Application.Interfaces;
 
 public partial interface IBomService : IBaseService<Bom, BomDto>
@@ -11,14 +10,6 @@ public partial interface IBomService : IBaseService<Bom, BomDto>
     Task<ServiceResult<IReadOnlyList<BomDto>>> GetAllAsync();
     Task<ServiceResult<PagedResponseBase<BomDto>>> GetPagedListAsync(BomSearchRequest request);
     Task<ServiceResult<BomBatchSaveResponse>> BatchSaveAsync(BomBatchSaveRequest batchReq);
-
-
-    /// <summary>
-    /// 根据毛需求集合拆解为净需求集合（核心拆解入口）。
-    /// </summary>
-    /// <param name="request">毛需求集合</param>
-    /// <returns>拆解后的依赖需求集合</returns>
-    Task<List<DependentDemand>> 根据毛需求集合拆解成净需求(List<IndependentDemand> request);
 
     Task<ServiceResult<int>> DeleteBomByBomNoAsync(string bomNo);
 

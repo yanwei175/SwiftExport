@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:views="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.Views"
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
              xmlns:images="clr-namespace:SwiftExportClient.Resources.Controls"
              mc:Ignorable="d"
@@ -15,8 +16,15 @@
                            Style="{StaticResource CaptionTextBlock}"
                            Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
             </StackPanel>
-            <Button Grid.Column="1" Content="保存" Command="{Binding SaveCommand}"
-                    Style="{StaticResource AccentButton}" MinWidth="72" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="CancelButton"
+                        Content="取消"
+                        Command="{Binding DataContext.CloseDrawerCommand, RelativeSource={RelativeSource AncestorType={x:Type views:GrossDemandWorkspaceView}}}"
+                        MinWidth="72"
+                        Margin="0,0,8,0" />
+                <Button Content="保存" Command="{Binding SaveCommand}"
+                        Style="{StaticResource AccentButton}" MinWidth="72" />
+            </StackPanel>
         </Grid>
 
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">

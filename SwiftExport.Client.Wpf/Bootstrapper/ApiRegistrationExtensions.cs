@@ -80,7 +80,6 @@ public static class ApiRegistrationExtensions
     {
         services.AddControllerApi<ISalesOrderWorkspaceApi>("sales-orders/workspace");
         services.AddControllerApi<IGrossDemandWorkspaceApi>("demand-planning/gross-demands");
-        services.AddControllerApi<IDependentDemandApi>("DependentDemand");
         services.AddControllerApi<IPurchaseOrderApi>("PurchaseOrder");
         services.AddControllerApi<IFollowUpApi>("FollowUp");
         services.AddControllerApi<IReceiveApi>("Receive");

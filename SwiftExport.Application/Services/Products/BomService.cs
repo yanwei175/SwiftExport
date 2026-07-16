@@ -215,7 +215,7 @@ public partial class BomService(
     //==========拆解BOM入口========
 
 
-    public async Task<List<DependentDemand>> 根据毛需求集合拆解成净需求(List<IndependentDemand> request)
+    private async Task<List<DependentDemand>> 根据毛需求集合拆解成净需求(List<IndependentDemand> request)
     {
         if (request == null || request.Count <= 0)
             return [];

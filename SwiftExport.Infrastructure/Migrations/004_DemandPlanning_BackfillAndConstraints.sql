@@ -29,6 +29,20 @@ IF COL_LENGTH(N'dbo.IndependentDemand', N'LifecycleStatus') IS NULL
 BEGIN TRY
     BEGIN TRANSACTION;
 
+    /*
+        003 为迁移期间查询建立的普通索引会依赖当前可空列。
+        SQL Server 不允许在依赖索引存在时把这些列改为 NOT NULL，
+        因此在同一事务内临时移除，并在约束完成后按原定义重建。
+    */
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Bom') AND name = N'IX_Bom_DemandPlanningLookup')
+        DROP INDEX IX_Bom_DemandPlanningLookup ON dbo.Bom;
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.IndependentDemand') AND name = N'IX_IndependentDemand_DemandPlanningSearch')
+        DROP INDEX IX_IndependentDemand_DemandPlanningSearch ON dbo.IndependentDemand;
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.DependentDemand') AND name = N'IX_DependentDemand_GrossDemandLifecycle')
+        DROP INDEX IX_DependentDemand_GrossDemandLifecycle ON dbo.DependentDemand;
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'IX_DemandExecutionLink_NetDemandStatus')
+        DROP INDEX IX_DemandExecutionLink_NetDemandStatus ON dbo.DemandExecutionLink;
+
     /* ---------- BOM 可证明回填 ---------- */
     IF EXISTS (
         SELECT 1
@@ -386,32 +400,55 @@ BEGIN TRY
         THROW 51419, N'BOM ratio or parent-child relation is invalid.', 1;
 
     /* ---------- 必填、默认和检查约束 ---------- */
-    ALTER TABLE dbo.Bom ALTER COLUMN BomVersion int NOT NULL;
-    ALTER TABLE dbo.Bom ALTER COLUMN ParentSkuId uniqueidentifier NOT NULL;
-    ALTER TABLE dbo.Bom ALTER COLUMN ParentSku nvarchar(255) NOT NULL;
-    ALTER TABLE dbo.Bom ALTER COLUMN LineNumber int NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Bom') AND name = N'BomVersion' AND is_nullable = 1)
+        ALTER TABLE dbo.Bom ALTER COLUMN BomVersion int NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Bom') AND name = N'ParentSkuId' AND is_nullable = 1)
+        ALTER TABLE dbo.Bom ALTER COLUMN ParentSkuId uniqueidentifier NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Bom') AND name = N'ParentSku' AND is_nullable = 1)
+        ALTER TABLE dbo.Bom ALTER COLUMN ParentSku nvarchar(255) NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Bom') AND name = N'LineNumber' AND is_nullable = 1)
+        ALTER TABLE dbo.Bom ALTER COLUMN LineNumber int NOT NULL;
 
-    ALTER TABLE dbo.IndependentDemand ALTER COLUMN LifecycleStatus int NOT NULL;
-    ALTER TABLE dbo.IndependentDemand ALTER COLUMN DecompositionStatus int NOT NULL;
-    ALTER TABLE dbo.IndependentDemand ALTER COLUMN DecompositionRevision int NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.IndependentDemand') AND name = N'LifecycleStatus' AND is_nullable = 1)
+        ALTER TABLE dbo.IndependentDemand ALTER COLUMN LifecycleStatus int NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.IndependentDemand') AND name = N'DecompositionStatus' AND is_nullable = 1)
+        ALTER TABLE dbo.IndependentDemand ALTER COLUMN DecompositionStatus int NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.IndependentDemand') AND name = N'DecompositionRevision' AND is_nullable = 1)
+        ALTER TABLE dbo.IndependentDemand ALTER COLUMN DecompositionRevision int NOT NULL;
 
-    ALTER TABLE dbo.DependentDemand ALTER COLUMN LifecycleStatus int NOT NULL;
-    ALTER TABLE dbo.DependentDemand ALTER COLUMN DecompositionRevision int NOT NULL;
-    ALTER TABLE dbo.DependentDemand ALTER COLUMN LineNumber int NOT NULL;
-    ALTER TABLE dbo.DependentDemand ALTER COLUMN RootNetDemandId uniqueidentifier NOT NULL;
-    ALTER TABLE dbo.DependentDemand ALTER COLUMN DeliveryMode int NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DependentDemand') AND name = N'LifecycleStatus' AND is_nullable = 1)
+        ALTER TABLE dbo.DependentDemand ALTER COLUMN LifecycleStatus int NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DependentDemand') AND name = N'DecompositionRevision' AND is_nullable = 1)
+        ALTER TABLE dbo.DependentDemand ALTER COLUMN DecompositionRevision int NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DependentDemand') AND name = N'LineNumber' AND is_nullable = 1)
+        ALTER TABLE dbo.DependentDemand ALTER COLUMN LineNumber int NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DependentDemand') AND name = N'RootNetDemandId' AND is_nullable = 1)
+        ALTER TABLE dbo.DependentDemand ALTER COLUMN RootNetDemandId uniqueidentifier NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DependentDemand') AND name = N'DeliveryMode' AND is_nullable = 1)
+        ALTER TABLE dbo.DependentDemand ALTER COLUMN DeliveryMode int NOT NULL;
 
-    ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN Version int NOT NULL;
-    ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN IsDeleted bit NOT NULL;
-    ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN DependentDemandId uniqueidentifier NOT NULL;
-    ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN TargetType nvarchar(30) NOT NULL;
-    ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN TargetHeadId uniqueidentifier NOT NULL;
-    ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN TargetNo nvarchar(50) NOT NULL;
-    ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN TargetLineId uniqueidentifier NOT NULL;
-    ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN LinkStatus int NOT NULL;
-    ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN AllocatedQty decimal(18,4) NOT NULL;
-    ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN CompletedQty decimal(18,4) NOT NULL;
-    ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN ReceivedQty decimal(18,4) NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'Version' AND is_nullable = 1)
+        ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN Version int NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'IsDeleted' AND is_nullable = 1)
+        ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN IsDeleted bit NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'DependentDemandId' AND is_nullable = 1)
+        ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN DependentDemandId uniqueidentifier NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'TargetType' AND is_nullable = 1)
+        ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN TargetType nvarchar(30) NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'TargetHeadId' AND is_nullable = 1)
+        ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN TargetHeadId uniqueidentifier NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'TargetNo' AND is_nullable = 1)
+        ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN TargetNo nvarchar(50) NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'TargetLineId' AND is_nullable = 1)
+        ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN TargetLineId uniqueidentifier NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'LinkStatus' AND is_nullable = 1)
+        ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN LinkStatus int NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'AllocatedQty' AND is_nullable = 1)
+        ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN AllocatedQty decimal(18,4) NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'CompletedQty' AND is_nullable = 1)
+        ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN CompletedQty decimal(18,4) NOT NULL;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'ReceivedQty' AND is_nullable = 1)
+        ALTER TABLE dbo.DemandExecutionLink ALTER COLUMN ReceivedQty decimal(18,4) NOT NULL;
 
     IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.IndependentDemand') AND name = N'DF_IndependentDemand_LifecycleStatus')
         ALTER TABLE dbo.IndependentDemand ADD CONSTRAINT DF_IndependentDemand_LifecycleStatus DEFAULT (0) FOR LifecycleStatus;
@@ -451,6 +488,22 @@ BEGIN TRY
         ALTER TABLE dbo.DemandExecutionLink WITH CHECK ADD CONSTRAINT CK_DemandExecutionLink_TargetState CHECK (LinkStatus IN (0,8,9) AND AllocatedQty >= 0 AND CompletedQty >= 0 AND ReceivedQty >= 0);
 
     /* ---------- 唯一性、查询索引与强关系 ---------- */
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Bom') AND name = N'IX_Bom_DemandPlanningLookup')
+        CREATE INDEX IX_Bom_DemandPlanningLookup
+            ON dbo.Bom(BomNo, BomVersion, LineNumber);
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.IndependentDemand') AND name = N'IX_IndependentDemand_DemandPlanningSearch')
+        CREATE INDEX IX_IndependentDemand_DemandPlanningSearch
+            ON dbo.IndependentDemand(LifecycleStatus, DecompositionStatus, HopefulDate, Uid);
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.DependentDemand') AND name = N'IX_DependentDemand_GrossDemandLifecycle')
+        CREATE INDEX IX_DependentDemand_GrossDemandLifecycle
+            ON dbo.DependentDemand(IndependentDemandId, LifecycleStatus, DecompositionRevision);
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.DemandExecutionLink') AND name = N'IX_DemandExecutionLink_NetDemandStatus')
+        CREATE INDEX IX_DemandExecutionLink_NetDemandStatus
+            ON dbo.DemandExecutionLink(DependentDemandId, LinkStatus, IsDeleted);
+
     IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.IndependentDemand') AND name = N'UX_IndependentDemand_ActiveSourceLine')
         CREATE UNIQUE INDEX UX_IndependentDemand_ActiveSourceLine
             ON dbo.IndependentDemand(SourceType, SourceLineId)

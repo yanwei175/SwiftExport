@@ -40,8 +40,6 @@ public static class DependencyInjection
         services.AddScoped<ISalesOrderWorkspaceService, SalesOrderWorkspaceService>();
         services.AddScoped<IGrossDemandWorkspaceService, GrossDemandWorkspaceService>();
         services.AddScoped<GrossDemandDecompositionPlanner>();
-        services.AddScoped<IIndependentDemandServices, IndependentDemandService>();
-        services.AddScoped<IDependentDemandService, DependentDemandService>();
         services.AddScoped<IDocumentNoService, DocumentNoService>();
         services.AddScoped<ISysDicCurrencyService, SysDicCurrencyService>();
         services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();
