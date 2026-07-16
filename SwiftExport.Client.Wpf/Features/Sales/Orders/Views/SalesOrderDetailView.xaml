@@ -283,17 +283,17 @@
                 <DataGridTemplateColumn Header="预计交期" Width="112"
                                         SortMemberPath="ExpectedDeliveryDate"
                                         gridColumns:GridColumn.Key="expected-date"
-                                        gridColumns:GridColumn.FieldPath="ExpectedDeliveryDateText">
+                                        gridColumns:GridColumn.FieldPath="ExpectedDeliveryDate">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding ExpectedDeliveryDateDisplayText}"
+                            <TextBlock Text="{Binding ExpectedDeliveryDate, StringFormat=yyyy-MM-dd}"
                                        Style="{StaticResource SwiftExportDataGridDateTextBlock}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                     <DataGridTemplateColumn.CellEditingTemplate>
                         <DataTemplate>
-                            <controls:SoftInputDatePicker RawText="{Binding ExpectedDeliveryDateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                          Style="{StaticResource SwiftExportDataGridDatePicker}" />
+                            <DatePicker SelectedDate="{Binding ExpectedDeliveryDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource SwiftExportDataGridDatePicker}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>

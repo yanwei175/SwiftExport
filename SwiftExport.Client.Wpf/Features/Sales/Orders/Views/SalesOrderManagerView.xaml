@@ -99,19 +99,19 @@
                                            Placeholder="确认状态"
                                            DisplayMemberPath="DisplayText"
                                            ItemsSource="{Binding ConfirmationStatusOptions}"
-                                           SelectedItems="{Binding SelectedConfirmationStatuses}" />
+                                           SelectedItems="{Binding SelectedConfirmationStatuses, Mode=OneWay}" />
                 <controls:DropDownCheckBox Grid.Column="8"
                                            ToolTip="单据状态"
                                            Placeholder="单据状态"
                                            DisplayMemberPath="DisplayText"
                                            ItemsSource="{Binding DocumentStatusOptions}"
-                                           SelectedItems="{Binding SelectedDocumentStatuses}" />
+                                           SelectedItems="{Binding SelectedDocumentStatuses, Mode=OneWay}" />
                 <controls:DropDownCheckBox Grid.Column="10"
                                            ToolTip="执行状态"
                                            Placeholder="执行状态"
                                            DisplayMemberPath="DisplayText"
                                            ItemsSource="{Binding FulfillmentStatusOptions}"
-                                           SelectedItems="{Binding SelectedFulfillmentStatuses}" />
+                                           SelectedItems="{Binding SelectedFulfillmentStatuses, Mode=OneWay}" />
                 <Button Grid.Column="12" 
                         Command="{Binding ClearFiltersCommand}" 
                         Content="清空筛选" />

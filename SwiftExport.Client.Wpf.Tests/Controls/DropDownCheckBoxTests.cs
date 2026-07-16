@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -14,6 +15,63 @@ namespace SwiftExport.Client.Wpf.Tests.Controls;
 [TestClass]
 public sealed class DropDownCheckBoxTests
 {
+    [TestMethod]
+    public void GetterOnlySelectedItemsBinding_ShouldMutateExistingCollectionWithoutReplacingIt()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var source = new GetterOnlySelectionSource();
+            var originalCollection = source.SelectedItems;
+            var control = new DropDownCheckBox
+            {
+                Width = 180,
+                ItemsSource = new[] { "待确认", "已确认" }
+            };
+            BindingOperations.SetBinding(
+                control,
+                DropDownCheckBox.SelectedItemsProperty,
+                new Binding(nameof(GetterOnlySelectionSource.SelectedItems))
+                {
+                    Source = source
+                });
+            var window = CreateWindow(control);
+
+            try
+            {
+                window.Show();
+                await PumpDispatcherAsync();
+
+                Assert.AreSame(originalCollection, control.SelectedItems);
+                var metadata = (FrameworkPropertyMetadata)DropDownCheckBox.SelectedItemsProperty
+                    .GetMetadata(typeof(DropDownCheckBox));
+                Assert.IsFalse(metadata.BindsTwoWayByDefault);
+
+                var button = (Button?)control.FindName("DropDownButton");
+                var itemsControl = (ItemsControl?)control.FindName("OptionItemsControl");
+                Assert.IsNotNull(button);
+                Assert.IsNotNull(itemsControl);
+                RaiseClick(button);
+                await PumpDispatcherAsync();
+
+                var first = FindCheckBox(itemsControl, 0);
+                first.IsChecked = true;
+                await PumpDispatcherAsync();
+
+                Assert.AreSame(originalCollection, source.SelectedItems);
+                CollectionAssert.AreEqual(new[] { "待确认" }, source.SelectedItems.ToArray());
+
+                first.IsChecked = false;
+                await PumpDispatcherAsync();
+                Assert.IsEmpty(source.SelectedItems);
+            }
+            finally
+            {
+                control.IsDropDownOpen = false;
+                window.Close();
+            }
+        });
+    }
+
     [TestMethod]
     public void SelectionText_ShouldFollowItemsSourceOrderAndExternalSelection()
     {
@@ -341,4 +399,9 @@ public sealed class DropDownCheckBoxTests
     }
 
     private sealed record DisplayItem(string Code, string Name);
+
+    private sealed class GetterOnlySelectionSource
+    {
+        public ObservableCollection<string> SelectedItems { get; } = [];
+    }
 }

@@ -6,7 +6,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Features.Sales.Orders.Models;
-using SwiftExportClient.Resources.Controls;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 
@@ -14,7 +13,7 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 public sealed class SalesOrderSoftEditorTests
 {
     [TestMethod]
-    public void InvalidNumberAndDateText_ShouldCommitCellAndPreserveRawText()
+    public void InvalidNumberText_ShouldCommitCellAndPreserveRawText()
     {
         StaTest.RunAsync(() =>
         {
@@ -25,7 +24,6 @@ public sealed class SalesOrderSoftEditorTests
                 ProductId = Guid.NewGuid(),
                 Sku = "STD-001",
                 Qty = 2m,
-                ExpectedDeliveryDate = new DateTime(2026, 8, 1),
             });
             var numberColumn = new DataGridTextColumn
             {
@@ -35,11 +33,6 @@ public sealed class SalesOrderSoftEditorTests
                     UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
                 },
             };
-            var dateColumn = new DataGridTemplateColumn
-            {
-                CellTemplate = CreateDateTemplate(editing: false),
-                CellEditingTemplate = CreateDateTemplate(editing: true),
-            };
             var dataGrid = new DataGrid
             {
                 AutoGenerateColumns = false,
@@ -47,7 +40,6 @@ public sealed class SalesOrderSoftEditorTests
                 ItemsSource = new[] { line },
             };
             dataGrid.Columns.Add(numberColumn);
-            dataGrid.Columns.Add(dateColumn);
             var window = new Window
             {
                 Width = 420,
@@ -69,27 +61,6 @@ public sealed class SalesOrderSoftEditorTests
                 Assert.IsTrue(dataGrid.CommitEdit(DataGridEditingUnit.Cell, true));
                 Assert.AreEqual("invalid-number", line.QtyText);
                 Assert.AreEqual(2m, line.Qty);
-
-                BeginEdit(dataGrid, line, dateColumn);
-                var datePicker = FindVisualDescendant<SoftInputDatePicker>(dataGrid);
-                datePicker.Text = "invalid-date";
-                Assert.IsTrue(dataGrid.CommitEdit(DataGridEditingUnit.Cell, true));
-                Assert.AreEqual("invalid-date", line.ExpectedDeliveryDateText);
-                Assert.AreEqual(line.ExpectedDeliveryDate, (DateTime?)new DateTime(2026, 8, 1));
-
-                BeginEdit(dataGrid, line, dateColumn);
-                datePicker = FindVisualDescendant<SoftInputDatePicker>(dataGrid);
-                datePicker.Text = "2026-09-15";
-                Assert.IsTrue(dataGrid.CommitEdit(DataGridEditingUnit.Cell, true));
-                Assert.AreEqual("2026-09-15", line.ExpectedDeliveryDateText);
-                Assert.AreEqual(line.ExpectedDeliveryDate, (DateTime?)new DateTime(2026, 9, 15));
-
-                BeginEdit(dataGrid, line, dateColumn);
-                datePicker = FindVisualDescendant<SoftInputDatePicker>(dataGrid);
-                datePicker.Text = string.Empty;
-                Assert.IsTrue(dataGrid.CommitEdit(DataGridEditingUnit.Cell, true));
-                Assert.IsEmpty(line.ExpectedDeliveryDateText);
-                Assert.IsNull(line.ExpectedDeliveryDate);
             }
             finally
             {
@@ -98,22 +69,6 @@ public sealed class SalesOrderSoftEditorTests
 
             return Task.CompletedTask;
         });
-    }
-
-    private static DataTemplate CreateDateTemplate(bool editing)
-    {
-        var template = new DataTemplate();
-#pragma warning disable CS0618
-        var factory = new FrameworkElementFactory(editing ? typeof(SoftInputDatePicker) : typeof(TextBlock));
-#pragma warning restore CS0618
-        var property = editing ? SoftInputDatePicker.RawTextProperty : TextBlock.TextProperty;
-        factory.SetBinding(property, new Binding(nameof(SalesOrderLineModel.ExpectedDeliveryDateText))
-        {
-            Mode = editing ? BindingMode.TwoWay : BindingMode.OneWay,
-            UpdateSourceTrigger = editing ? UpdateSourceTrigger.PropertyChanged : UpdateSourceTrigger.Default,
-        });
-        template.VisualTree = factory;
-        return template;
     }
 
     private static void BeginEdit(DataGrid dataGrid, object item, DataGridColumn column)

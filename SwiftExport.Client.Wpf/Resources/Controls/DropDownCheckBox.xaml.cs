@@ -39,7 +39,7 @@ public partial class DropDownCheckBox : UserControl
             typeof(DropDownCheckBox),
             new FrameworkPropertyMetadata(
                 null,
-                FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
+                FrameworkPropertyMetadataOptions.None,
                 OnSelectedItemsChanged));
 
     public static readonly DependencyProperty PlaceholderProperty =

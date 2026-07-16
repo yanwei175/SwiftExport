@@ -109,43 +109,34 @@ public sealed class SalesOrderModelsAndContractsTests
     }
 
     [TestMethod]
-    public void SoftEditorText_ShouldPreserveInvalidInputAndLastValidStrongValue()
+    public void NumericSoftEditorText_ShouldPreserveInvalidInputAndLastValidStrongValue()
     {
         var line = new SalesOrderLineModel();
-        var originalDate = new DateTime(2026, 8, 1);
         line.Load(new SalesOrderDocumentLineDto
         {
             Uid = Guid.NewGuid(),
             Qty = 12.5m,
             CnyPrice = 8.2m,
             UsdPrice = 1.1m,
-            ExpectedDeliveryDate = originalDate,
             ProductId = Guid.NewGuid(),
             Sku = "STD-001",
         });
 
         line.QtyText = "not-a-number";
         line.CnyPriceText = "bad-price";
-        line.ExpectedDeliveryDateText = "not-a-date";
 
         Assert.AreEqual(12.5m, line.Qty);
         Assert.AreEqual(8.2m, line.CnyPrice);
-        Assert.AreEqual(line.ExpectedDeliveryDate, (DateTime?)originalDate);
         Assert.AreEqual("not-a-number", line.QtyText);
         Assert.AreEqual("请输入有效数量。", line[nameof(SalesOrderLineModel.QtyText)]);
         Assert.AreEqual("请输入有效的 CNY 单价。", line[nameof(SalesOrderLineModel.CnyPriceText)]);
-        Assert.AreEqual("请输入有效预计交期。", line[nameof(SalesOrderLineModel.ExpectedDeliveryDateText)]);
-        Assert.AreEqual("not-a-date", line.ExpectedDeliveryDateDisplayText);
         Assert.AreEqual("请输入有效数量。", line.ValidateRow());
 
         line.QtyText = "20";
         line.CnyPriceText = string.Empty;
-        line.ExpectedDeliveryDateText = "2026-09-15";
 
         Assert.AreEqual(20m, line.Qty);
         Assert.IsNull(line.CnyPrice);
-        Assert.AreEqual(line.ExpectedDeliveryDate, (DateTime?)new DateTime(2026, 9, 15));
-        Assert.AreEqual("2026-09-15", line.ExpectedDeliveryDateDisplayText);
         Assert.AreEqual(string.Empty, line[nameof(SalesOrderLineModel.QtyText)]);
         Assert.IsNull(line.ValidateRow());
     }
@@ -166,12 +157,12 @@ public sealed class SalesOrderModelsAndContractsTests
 
         line.QtyText = "invalid";
         line.UsdPriceText = "invalid";
-        line.ExpectedDeliveryDateText = "invalid";
+        line.ExpectedDeliveryDate = new DateTime(2027, 1, 3);
         line.RejectChanges();
 
         Assert.AreEqual("2", line.QtyText);
         Assert.AreEqual("3.5", line.UsdPriceText);
-        Assert.AreEqual("2026-10-02", line.ExpectedDeliveryDateText);
+        Assert.IsTrue(line.ExpectedDeliveryDate == new DateTime(2026, 10, 2));
         Assert.IsNull(line.ValidateRow());
     }
 }

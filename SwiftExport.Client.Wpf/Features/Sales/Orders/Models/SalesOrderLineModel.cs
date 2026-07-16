@@ -46,14 +46,10 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocume
     [ObservableProperty] public partial string QtyText { get; set; } = string.Empty;
     [ObservableProperty] public partial string CnyPriceText { get; set; } = string.Empty;
     [ObservableProperty] public partial string UsdPriceText { get; set; } = string.Empty;
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ExpectedDeliveryDateDisplayText))]
-    public partial string ExpectedDeliveryDateText { get; set; } = string.Empty;
 
     public string LineTypeText => IsNonStandard ? "非标" : "标准";
     public decimal? CnyAmount => CnyPrice * Qty;
     public decimal? UsdAmount => UsdPrice * Qty;
-    public string ExpectedDeliveryDateDisplayText => FormatDateDisplayText(ExpectedDeliveryDateText);
     public string Error => ValidateRow() ?? string.Empty;
 
     public string this[string columnName] => columnName switch
@@ -61,7 +57,6 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocume
         nameof(QtyText) => GetQtyTextError() ?? string.Empty,
         nameof(CnyPriceText) => GetNullableDecimalTextError(CnyPriceText, "CNY 单价") ?? string.Empty,
         nameof(UsdPriceText) => GetNullableDecimalTextError(UsdPriceText, "USD 单价") ?? string.Empty,
-        nameof(ExpectedDeliveryDateText) => GetDateTextError() ?? string.Empty,
         nameof(DescriptionEn) when IsNonStandard && string.IsNullOrWhiteSpace(DescriptionEn) => "非标行必须填写产品描述。",
         _ => string.Empty,
     };
@@ -111,8 +106,7 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocume
     {
         var editorError = GetQtyTextError()
             ?? GetNullableDecimalTextError(CnyPriceText, "CNY 单价")
-            ?? GetNullableDecimalTextError(UsdPriceText, "USD 单价")
-            ?? GetDateTextError();
+            ?? GetNullableDecimalTextError(UsdPriceText, "USD 单价");
         if (!string.IsNullOrWhiteSpace(editorError))
         {
             return editorError;
@@ -160,24 +154,6 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocume
     partial void OnUsdPriceTextChanged(string value) =>
         ApplyNullableDecimalText(value, parsedValue => UsdPrice = parsedValue);
 
-    partial void OnExpectedDeliveryDateTextChanged(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            SetStrongValue(() => ExpectedDeliveryDate = null);
-            return;
-        }
-
-        if (DateTime.TryParse(
-                value.Trim(),
-                CultureInfo.CurrentCulture,
-                DateTimeStyles.AllowWhiteSpaces,
-                out var parsedDate))
-        {
-            SetStrongValue(() => ExpectedDeliveryDate = parsedDate.Date);
-        }
-    }
-
     partial void OnQtyChanged(decimal value) =>
         SynchronizeEditorText(() => QtyText = FormatDecimal(value));
 
@@ -187,9 +163,6 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocume
     partial void OnUsdPriceChanged(decimal? value) =>
         SynchronizeEditorText(() => UsdPriceText = FormatNullableDecimal(value));
 
-    partial void OnExpectedDeliveryDateChanged(DateTime? value) =>
-        SynchronizeEditorText(() => ExpectedDeliveryDateText = value?.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) ?? string.Empty);
-
     private string? GetQtyTextError()
     {
         if (!TryParseDecimal(QtyText, out var parsedValue))
@@ -198,18 +171,6 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocume
         }
 
         return parsedValue <= 0 ? "数量必须大于零。" : null;
-    }
-
-    private string? GetDateTextError()
-    {
-        return string.IsNullOrWhiteSpace(ExpectedDeliveryDateText)
-            || DateTime.TryParse(
-                ExpectedDeliveryDateText.Trim(),
-                CultureInfo.CurrentCulture,
-                DateTimeStyles.AllowWhiteSpaces,
-                out _)
-                ? null
-                : "请输入有效预计交期。";
     }
 
     private static string? GetNullableDecimalTextError(string value, string displayName)
@@ -271,7 +232,6 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocume
             QtyText = FormatDecimal(Qty);
             CnyPriceText = FormatNullableDecimal(CnyPrice);
             UsdPriceText = FormatNullableDecimal(UsdPrice);
-            ExpectedDeliveryDateText = ExpectedDeliveryDate?.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) ?? string.Empty;
         });
     }
 
@@ -288,29 +248,12 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocume
     private static string FormatNullableDecimal(decimal? value) =>
         value.HasValue ? FormatDecimal(value.Value) : string.Empty;
 
-    private static string FormatDateDisplayText(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return string.Empty;
-        }
-
-        return DateTime.TryParse(
-            value.Trim(),
-            CultureInfo.CurrentCulture,
-            DateTimeStyles.AllowWhiteSpaces,
-            out var parsedDate)
-            ? parsedDate.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture)
-            : value;
-    }
-
     protected override bool IsTrackingIgnoredProperty(string? propertyName)
     {
         return base.IsTrackingIgnoredProperty(propertyName)
             || propertyName is nameof(LineTypeText)
                 or nameof(CnyAmount)
                 or nameof(UsdAmount)
-                or nameof(ExpectedDeliveryDateDisplayText)
                 or nameof(MainImage)
                 or nameof(ShippedQty)
                 or nameof(UnshippedQty);
