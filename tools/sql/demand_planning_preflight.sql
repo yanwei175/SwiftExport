@@ -80,7 +80,7 @@ BEGIN
           AND (head.Uid IS NULL OR line.Uid IS NULL OR line.SalesOrderId <> head.Uid);
         SET @BlockingIssues += @Count;
 
-        SELECT N'CLOSED_SO_HAS_ACTIVE_GROSS_DEMAND' AS IssueCode,
+        SELECT N'CLOSED_SO_HAS_DOWNSTREAM_GROSS_DEMAND' AS IssueCode,
                demand.Uid AS GrossDemandId,
                head.Uid AS SalesOrderId,
                head.OrderNo
@@ -89,7 +89,11 @@ BEGIN
         WHERE demand.SourceType = N'SO'
           AND demand.IsDeleted = 0
           AND head.IsDeleted = 0
-          AND head.DocumentStatus = 9;
+          AND head.DocumentStatus = 9
+          AND EXISTS (
+              SELECT 1 FROM dbo.DependentDemand net
+              WHERE net.IndependentDemandId = demand.Uid AND net.IsDeleted = 0
+          );
 
         SELECT @Count = COUNT(*)
         FROM dbo.IndependentDemand demand
@@ -97,7 +101,11 @@ BEGIN
         WHERE demand.SourceType = N'SO'
           AND demand.IsDeleted = 0
           AND head.IsDeleted = 0
-          AND head.DocumentStatus = 9;
+          AND head.DocumentStatus = 9
+          AND EXISTS (
+              SELECT 1 FROM dbo.DependentDemand net
+              WHERE net.IndependentDemandId = demand.Uid AND net.IsDeleted = 0
+          );
         SET @BlockingIssues += @Count;
 
         IF OBJECT_ID(N'dbo.Product', N'U') IS NOT NULL
@@ -298,6 +306,13 @@ BEGIN
     WHERE IsDeleted = 0 AND (Numerator <= 0 OR Denominator <= 0);
     SET @BlockingIssues += @Count;
 
+    /*
+        兼容三类 BOM 结构：
+        1. 目标结构：ParentSkuId + SubSkuId；
+        2. 中间结构：ParentSku + SubSku；
+        3. 原始结构：仅 BomNo + SubSkuId/SubSku，父件由 Product.BomNo 唯一反查。
+        可选列必须放入动态 SQL，否则 SQL Server 会在进入 IF 分支前解析失败。
+    */
     IF COL_LENGTH(N'dbo.Bom', N'ParentSkuId') IS NOT NULL
        AND COL_LENGTH(N'dbo.Bom', N'SubSkuId') IS NOT NULL
     BEGIN
@@ -313,52 +328,185 @@ BEGIN
         EXEC sys.sp_executesql @Sql, N'@IssueCount int OUTPUT', @IssueCount = @Count OUTPUT;
         SET @BlockingIssues += @Count;
     END
-    ELSE
+    ELSE IF COL_LENGTH(N'dbo.Bom', N'ParentSku') IS NOT NULL
+    BEGIN
+        SET @Sql = N'
+            SELECT N''BOM_PARENT_EQUALS_CHILD'' AS IssueCode,
+                   Uid AS BomLineId, ParentSku, SubSku
+            FROM dbo.Bom
+            WHERE IsDeleted = 0
+              AND NULLIF(LTRIM(RTRIM(ParentSku)), N'''') IS NOT NULL
+              AND ParentSku = SubSku;
+            SELECT @IssueCount = COUNT(*)
+            FROM dbo.Bom
+            WHERE IsDeleted = 0
+              AND NULLIF(LTRIM(RTRIM(ParentSku)), N'''') IS NOT NULL
+              AND ParentSku = SubSku;';
+        SET @Count = 0;
+        EXEC sys.sp_executesql @Sql, N'@IssueCount int OUTPUT', @IssueCount = @Count OUTPUT;
+        SET @BlockingIssues += @Count;
+    END
+    ELSE IF OBJECT_ID(N'dbo.Product', N'U') IS NOT NULL
     BEGIN
         SELECT N'BOM_PARENT_EQUALS_CHILD' AS IssueCode,
-               Uid AS BomLineId,
-               ParentSku,
-               SubSku
-        FROM dbo.Bom
-        WHERE IsDeleted = 0
-          AND NULLIF(LTRIM(RTRIM(ParentSku)), N'') IS NOT NULL
-          AND ParentSku = SubSku;
+               bom.Uid AS BomLineId,
+               parent.Uid AS ParentProductId,
+               bom.SubSkuId,
+               bom.SubSku
+        FROM dbo.Bom bom
+        JOIN dbo.Product parent ON parent.BomNo = bom.BomNo
+        WHERE bom.IsDeleted = 0
+          AND (bom.SubSkuId = parent.Uid OR (bom.SubSkuId IS NULL AND bom.SubSku = parent.Sku));
 
         SELECT @Count = COUNT(*)
-        FROM dbo.Bom
-        WHERE IsDeleted = 0
-          AND NULLIF(LTRIM(RTRIM(ParentSku)), N'') IS NOT NULL
-          AND ParentSku = SubSku;
+        FROM dbo.Bom bom
+        JOIN dbo.Product parent ON parent.BomNo = bom.BomNo
+        WHERE bom.IsDeleted = 0
+          AND (bom.SubSkuId = parent.Uid OR (bom.SubSkuId IS NULL AND bom.SubSku = parent.Sku));
         SET @BlockingIssues += @Count;
     END;
 
     IF OBJECT_ID(N'dbo.Product', N'U') IS NOT NULL
     BEGIN
-        SELECT N'BOM_CHILD_PRODUCT_MISSING' AS IssueCode,
-               bom.Uid AS BomLineId,
-               bom.SubSku
-        FROM dbo.Bom bom
-        LEFT JOIN dbo.Product product ON product.Sku = bom.SubSku AND product.IsDeleted = 0
-        WHERE bom.IsDeleted = 0 AND product.Uid IS NULL;
+        /* 父件必须能唯一映射到 Product；规则与 004 的回填条件完全一致。 */
+        IF COL_LENGTH(N'dbo.Bom', N'ParentSku') IS NOT NULL
+        BEGIN
+            SET @Sql = N'
+                SELECT N''BOM_PARENT_PRODUCT_NOT_UNIQUE'' AS IssueCode,
+                       bom.Uid AS BomLineId, bom.BomNo, bom.ParentSku, product_match.MatchCount
+                FROM dbo.Bom bom
+                OUTER APPLY (
+                    SELECT COUNT(*) AS MatchCount
+                    FROM dbo.Product product
+                    WHERE (NULLIF(LTRIM(RTRIM(bom.ParentSku)), N'''') IS NOT NULL AND product.Sku = bom.ParentSku)
+                       OR (NULLIF(LTRIM(RTRIM(bom.ParentSku)), N'''') IS NULL AND product.BomNo = bom.BomNo)
+                ) product_match
+                WHERE bom.IsDeleted = 0 AND product_match.MatchCount <> 1;
+                SELECT @IssueCount = COUNT(*)
+                FROM dbo.Bom bom
+                OUTER APPLY (
+                    SELECT COUNT(*) AS MatchCount
+                    FROM dbo.Product product
+                    WHERE (NULLIF(LTRIM(RTRIM(bom.ParentSku)), N'''') IS NOT NULL AND product.Sku = bom.ParentSku)
+                       OR (NULLIF(LTRIM(RTRIM(bom.ParentSku)), N'''') IS NULL AND product.BomNo = bom.BomNo)
+                ) product_match
+                WHERE bom.IsDeleted = 0 AND product_match.MatchCount <> 1;';
+            SET @Count = 0;
+            EXEC sys.sp_executesql @Sql, N'@IssueCount int OUTPUT', @IssueCount = @Count OUTPUT;
+            SET @BlockingIssues += @Count;
+        END
+        ELSE
+        BEGIN
+            SELECT N'BOM_PARENT_PRODUCT_NOT_UNIQUE' AS IssueCode,
+                   bom.Uid AS BomLineId,
+                   bom.BomNo,
+                   product_match.MatchCount
+            FROM dbo.Bom bom
+            OUTER APPLY (
+                SELECT COUNT(*) AS MatchCount
+                FROM dbo.Product product
+                WHERE product.BomNo = bom.BomNo
+            ) product_match
+            WHERE bom.IsDeleted = 0 AND product_match.MatchCount <> 1;
 
-        SELECT @Count = COUNT(*)
-        FROM dbo.Bom bom
-        LEFT JOIN dbo.Product product ON product.Sku = bom.SubSku AND product.IsDeleted = 0
-        WHERE bom.IsDeleted = 0 AND product.Uid IS NULL;
+            SELECT @Count = COUNT(*)
+            FROM dbo.Bom bom
+            OUTER APPLY (
+                SELECT COUNT(*) AS MatchCount
+                FROM dbo.Product product
+                WHERE product.BomNo = bom.BomNo
+            ) product_match
+            WHERE bom.IsDeleted = 0 AND product_match.MatchCount <> 1;
+            SET @BlockingIssues += @Count;
+        END;
+
+        /* 子件以已有 SubSkuId 为权威；为空时才按 SKU 唯一映射。 */
+        IF COL_LENGTH(N'dbo.Bom', N'SubSkuId') IS NOT NULL
+        BEGIN
+            SET @Sql = N'
+                SELECT N''BOM_CHILD_PRODUCT_NOT_UNIQUE'' AS IssueCode,
+                       bom.Uid AS BomLineId, bom.SubSkuId, bom.SubSku, product_match.MatchCount
+                FROM dbo.Bom bom
+                OUTER APPLY (
+                    SELECT COUNT(*) AS MatchCount
+                    FROM dbo.Product product
+                    WHERE (bom.SubSkuId IS NOT NULL AND product.Uid = bom.SubSkuId)
+                       OR (bom.SubSkuId IS NULL AND product.Sku = bom.SubSku)
+                ) product_match
+                WHERE bom.IsDeleted = 0 AND product_match.MatchCount <> 1;
+                SELECT @IssueCount = COUNT(*)
+                FROM dbo.Bom bom
+                OUTER APPLY (
+                    SELECT COUNT(*) AS MatchCount
+                    FROM dbo.Product product
+                    WHERE (bom.SubSkuId IS NOT NULL AND product.Uid = bom.SubSkuId)
+                       OR (bom.SubSkuId IS NULL AND product.Sku = bom.SubSku)
+                ) product_match
+                WHERE bom.IsDeleted = 0 AND product_match.MatchCount <> 1;';
+        END
+        ELSE
+        BEGIN
+            SET @Sql = N'
+                SELECT N''BOM_CHILD_PRODUCT_NOT_UNIQUE'' AS IssueCode,
+                       bom.Uid AS BomLineId, bom.SubSku, product_match.MatchCount
+                FROM dbo.Bom bom
+                OUTER APPLY (
+                    SELECT COUNT(*) AS MatchCount FROM dbo.Product product WHERE product.Sku = bom.SubSku
+                ) product_match
+                WHERE bom.IsDeleted = 0 AND product_match.MatchCount <> 1;
+                SELECT @IssueCount = COUNT(*)
+                FROM dbo.Bom bom
+                OUTER APPLY (
+                    SELECT COUNT(*) AS MatchCount FROM dbo.Product product WHERE product.Sku = bom.SubSku
+                ) product_match
+                WHERE bom.IsDeleted = 0 AND product_match.MatchCount <> 1;';
+        END;
+        SET @Count = 0;
+        EXEC sys.sp_executesql @Sql, N'@IssueCount int OUTPUT', @IssueCount = @Count OUTPUT;
         SET @BlockingIssues += @Count;
 
-        SELECT N'CUSTOMER_SUPPLIED_PRODUCT_HAS_ACTIVE_BOM' AS IssueCode,
-               product.Uid AS ProductId,
-               product.Sku,
-               bom.Uid AS BomLineId
-        FROM dbo.Product product
-        JOIN dbo.Bom bom ON bom.ParentSku = product.Sku AND bom.IsDeleted = 0
-        WHERE product.IsDeleted = 0 AND product.MaterialType = N'客供件';
-
-        SELECT @Count = COUNT(*)
-        FROM dbo.Product product
-        JOIN dbo.Bom bom ON bom.ParentSku = product.Sku AND bom.IsDeleted = 0
-        WHERE product.IsDeleted = 0 AND product.MaterialType = N'客供件';
+        /* 客供件不得成为 BOM 父件；根据当前结构选择关系字段。 */
+        IF COL_LENGTH(N'dbo.Bom', N'ParentSkuId') IS NOT NULL
+        BEGIN
+            SET @Sql = N'
+                SELECT N''CUSTOMER_SUPPLIED_PRODUCT_HAS_ACTIVE_BOM'' AS IssueCode,
+                       product.Uid AS ProductId, product.Sku, bom.Uid AS BomLineId
+                FROM dbo.Product product
+                JOIN dbo.Bom bom ON bom.ParentSkuId = product.Uid AND bom.IsDeleted = 0
+                WHERE product.IsDeleted = 0 AND product.MaterialType = N''客供件'';
+                SELECT @IssueCount = COUNT(*)
+                FROM dbo.Product product
+                JOIN dbo.Bom bom ON bom.ParentSkuId = product.Uid AND bom.IsDeleted = 0
+                WHERE product.IsDeleted = 0 AND product.MaterialType = N''客供件'';';
+        END
+        ELSE IF COL_LENGTH(N'dbo.Bom', N'ParentSku') IS NOT NULL
+        BEGIN
+            SET @Sql = N'
+                SELECT N''CUSTOMER_SUPPLIED_PRODUCT_HAS_ACTIVE_BOM'' AS IssueCode,
+                       product.Uid AS ProductId, product.Sku, bom.Uid AS BomLineId
+                FROM dbo.Product product
+                JOIN dbo.Bom bom ON bom.ParentSku = product.Sku AND bom.IsDeleted = 0
+                WHERE product.IsDeleted = 0 AND product.MaterialType = N''客供件'';
+                SELECT @IssueCount = COUNT(*)
+                FROM dbo.Product product
+                JOIN dbo.Bom bom ON bom.ParentSku = product.Sku AND bom.IsDeleted = 0
+                WHERE product.IsDeleted = 0 AND product.MaterialType = N''客供件'';';
+        END
+        ELSE
+        BEGIN
+            SET @Sql = N'
+                SELECT N''CUSTOMER_SUPPLIED_PRODUCT_HAS_ACTIVE_BOM'' AS IssueCode,
+                       product.Uid AS ProductId, product.Sku, bom.Uid AS BomLineId
+                FROM dbo.Product product
+                JOIN dbo.Bom bom ON bom.BomNo = product.BomNo AND bom.IsDeleted = 0
+                WHERE product.IsDeleted = 0 AND product.MaterialType = N''客供件'';
+                SELECT @IssueCount = COUNT(*)
+                FROM dbo.Product product
+                JOIN dbo.Bom bom ON bom.BomNo = product.BomNo AND bom.IsDeleted = 0
+                WHERE product.IsDeleted = 0 AND product.MaterialType = N''客供件'';';
+        END;
+        SET @Count = 0;
+        EXEC sys.sp_executesql @Sql, N'@IssueCount int OUTPUT', @IssueCount = @Count OUTPUT;
         SET @BlockingIssues += @Count;
     END;
 
