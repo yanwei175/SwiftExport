@@ -26,8 +26,10 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public Guid Uid { get; set; }
         public int Version { get; set; }
         public string OrderNo { get; set; }
+        public string BoNo { get; set; }
         public DateTime? OrderDate { get; set; }
         public DateTime? ExpectedDate { get; set; }
+        public DateTime? ReplyDate { get; set; }
         public Guid? SupplierId { get; set; }
         public string SupplierCode { get; set; }
         public string SupplierName { get; set; }
@@ -39,6 +41,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public int LineCount { get; set; }
         public decimal TotalQty { get; set; }
         public decimal TotalAmount { get; set; }
+        public string OrderStatusText { get; set; }
+        public string UnshippedQtyText { get; set; }
         public int ArrangedLineCount { get; set; }
         public int ReportedLineCount { get; set; }
         public decimal LatestReadyQty { get; set; }
@@ -54,9 +58,35 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
     public class PurchaseOrderDetailDto
     {
         public PurchaseOrderListItemDto Head { get; set; }
+        public string SalesOrderNo { get; set; }
+        public string CustomerCode { get; set; }
+        public string CustomerPoNo { get; set; }
+        public string SalesPerson { get; set; }
+        public string PurchasePerson { get; set; }
+        public string InletHoseType { get; set; }
+        public string AeratorType { get; set; }
+        public string PalletType { get; set; }
+        public string BoxType { get; set; }
+        public string LabelType { get; set; }
+        public string InstructionManualType { get; set; }
+        public string CartonType { get; set; }
+        public string LogoType { get; set; }
+        public string ReviewedBy { get; set; }
+        public string PurchaseOrderFolder { get; set; }
+        public string DiscountRemark { get; set; }
         public string Remark { get; set; }
         public DateTime? ConfirmedDate { get; set; }
         public string ConfirmedBy { get; set; }
+        public DateTime? CreatedDate { get; set; }
+        public string CreatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
+        public string UpdatedBy { get; set; }
+        public string CurrencyText { get; set; }
+        public string UsdTotalText { get; set; }
+        public string CartonTotalText { get; set; }
+        public string CbmTotalText { get; set; }
+        public string InboundStatusText { get; set; }
+        public string ShippedStatusText { get; set; }
         public List<PurchaseOrderLineDetailDto> Lines { get; set; } = new List<PurchaseOrderLineDetailDto>();
         public List<BusinessOperationTraceItemDto> Operations { get; set; } = new List<BusinessOperationTraceItemDto>();
     }
@@ -68,8 +98,15 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public int LineNumber { get; set; }
         public Guid? ProductId { get; set; }
         public string Sku { get; set; }
+        public string CustomerSku { get; set; }
+        public string LinkSku { get; set; }
         public string SupplierSku { get; set; }
         public string DescriptionZh { get; set; }
+        public string FinishZh { get; set; }
+        public string FeaturesZh { get; set; }
+        public string MaterialType { get; set; }
+        public string SupplyType { get; set; }
+        public string MainImage { get; set; }
         public decimal Quantity { get; set; }
         public decimal? UnitPrice { get; set; }
         public decimal? TaxPrice { get; set; }
@@ -81,6 +118,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public string DeliverySupplierName { get; set; }
         public string SubNote { get; set; }
         public decimal LinkedQty { get; set; }
+        public decimal RecQty { get; set; }
+        public string UnreceivedQtyText { get; set; }
         public SupplierProgressReportDto LatestProgress { get; set; }
         public List<PurchaseOrderSourceContributionDto> Contributions { get; set; } = new List<PurchaseOrderSourceContributionDto>();
         public List<SupplierProgressReportDto> ProgressHistory { get; set; } = new List<SupplierProgressReportDto>();
@@ -149,6 +188,20 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public Guid CommandId { get; set; }
         public int ExpectedVersion { get; set; }
         public string Remark { get; set; }
+        public string BoNo { get; set; }
+        public string CustomerPoNo { get; set; }
+        public string SalesPerson { get; set; }
+        public string PurchasePerson { get; set; }
+        public DateTime? ReplyDate { get; set; }
+        public string InletHoseType { get; set; }
+        public string AeratorType { get; set; }
+        public string PalletType { get; set; }
+        public string BoxType { get; set; }
+        public string LabelType { get; set; }
+        public string InstructionManualType { get; set; }
+        public string CartonType { get; set; }
+        public string LogoType { get; set; }
+        public string DiscountRemark { get; set; }
         public List<UpdatePurchaseOrderDraftLineCommand> Lines { get; set; } = new List<UpdatePurchaseOrderDraftLineCommand>();
     }
 

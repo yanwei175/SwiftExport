@@ -94,6 +94,30 @@ public sealed class ProcurementWorkspaceContractTests
         Assert.IsFalse(sql.Contains("DROP TABLE", StringComparison.OrdinalIgnoreCase));
     }
 
+    [TestMethod]
+    public void LegacyFieldCoverage_MustRemainAdditiveAndExplicit()
+    {
+        var sql = Read("SwiftExport.Infrastructure", "Migrations", "010_ProcurementWorkspace_LegacyFieldCoverage.sql");
+        StringAssert.Contains(sql, "COL_LENGTH(N'dbo.PurchaseOrderHead',N'BoNo')");
+        StringAssert.Contains(sql, "COL_LENGTH(N'dbo.PurchaseOrderLine',N'FinishZh')");
+        Assert.IsFalse(sql.Contains("DROP TABLE", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(sql.Contains("UPDATE dbo.PurchaseOrderHead", StringComparison.OrdinalIgnoreCase));
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderWorkspaceRepository.cs");
+        StringAssert.Contains(repository, "COALESCE(h.DemandSourceNo,h.SalesOrderNo) AS DemandSourceNo");
+        StringAssert.Contains(repository, "COALESCE(p.MainImage,N'') AS MainImage");
+        StringAssert.Contains(repository, "N'尚未接入' AS UnreceivedQtyText");
+    }
+
+    [TestMethod]
+    public void DraftUpdate_MustWhitelistLegacyCommercialFields()
+    {
+        var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrderWorkspaceService.cs");
+        foreach (var field in new[] { "BoNo", "CustomerPoNo", "SoPerson", "PoPerson", "ReplyDate", "InletrHoseType", "AeratorType", "PalletType", "BoxType", "LabelType", "IMType", "CartonType", "LogoType", "ZheKouBeiZhu" })
+            StringAssert.Contains(service, field);
+        Assert.IsFalse(service.Contains("head.SupplierId =", StringComparison.Ordinal));
+        Assert.IsFalse(service.Contains("line.QTY =", StringComparison.Ordinal));
+    }
+
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));
     private static string Root()
     {

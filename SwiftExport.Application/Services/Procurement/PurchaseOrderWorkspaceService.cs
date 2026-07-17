@@ -54,9 +54,35 @@ public sealed class PurchaseOrderWorkspaceService(
             return ServiceResult<PurchaseOrderDetailDto>.Ok(new PurchaseOrderDetailDto
             {
                 Head = summary,
+                SalesOrderNo = head.SalesOrderNo,
+                CustomerCode = head.CustomerCode,
+                CustomerPoNo = head.CustomerPoNo,
+                SalesPerson = head.SoPerson,
+                PurchasePerson = head.PoPerson,
+                InletHoseType = head.InletrHoseType,
+                AeratorType = head.AeratorType,
+                PalletType = head.PalletType,
+                BoxType = head.BoxType,
+                LabelType = head.LabelType,
+                InstructionManualType = head.IMType,
+                CartonType = head.CartonType,
+                LogoType = head.LogoType,
+                ReviewedBy = head.ReviewedBy,
+                PurchaseOrderFolder = head.PoFolder,
+                DiscountRemark = head.ZheKouBeiZhu,
                 Remark = head.Remark,
                 ConfirmedDate = head.ConfirmedDate,
                 ConfirmedBy = head.ConfirmedBy,
+                CreatedDate = head.CreatedDate,
+                CreatedBy = head.CreatedBy,
+                UpdatedDate = head.UpdatedDate,
+                UpdatedBy = head.UpdatedBy,
+                CurrencyText = string.IsNullOrWhiteSpace(head.Currency) ? "CNY" : head.Currency,
+                UsdTotalText = "不适用（当前仅人民币）",
+                CartonTotalText = "尚未接入",
+                CbmTotalText = "尚未接入",
+                InboundStatusText = "尚未接入",
+                ShippedStatusText = "尚未接入",
                 Lines = lines,
                 Operations = (await operationLogs.GetByAggregateAsync(Module, uid, cancellationToken)).ToList()
             });
@@ -122,11 +148,25 @@ public sealed class PurchaseOrderWorkspaceService(
                 line.TaxPrice = submitted.TaxPrice;
                 line.SubNote = Normalize(submitted.SubNote, 1000);
             }
+            head.BoNo = Normalize(command.BoNo, 100);
+            head.CustomerPoNo = Normalize(command.CustomerPoNo, 100);
+            head.SoPerson = Normalize(command.SalesPerson, 100);
+            head.PoPerson = Normalize(command.PurchasePerson, 100);
+            head.ReplyDate = command.ReplyDate;
+            head.InletrHoseType = Normalize(command.InletHoseType, 200);
+            head.AeratorType = Normalize(command.AeratorType, 200);
+            head.PalletType = Normalize(command.PalletType, 200);
+            head.BoxType = Normalize(command.BoxType, 200);
+            head.LabelType = Normalize(command.LabelType, 200);
+            head.IMType = Normalize(command.InstructionManualType, 200);
+            head.CartonType = Normalize(command.CartonType, 200);
+            head.LogoType = Normalize(command.LogoType, 200);
+            head.ZheKouBeiZhu = Normalize(command.DiscountRemark, 1000);
             head.Remark = Normalize(command.Remark, 2000);
             var affected = await purchaseOrders.UpdateDraftAsync(head, lines, command.ExpectedVersion);
             if (affected != lines.Count + 1) throw new ProcurementException("草稿保存发生并发冲突，请刷新后重试。");
             await WriteLogAsync(head, command.CommandId, "PurchaseOrder.DraftUpdated", "采购草稿已更新", null,
-                "已更新采购草稿商业字段。", JsonSerializer.Serialize(new { Head = new[] { "Remark" }, Lines = new[] { "PlannedDeliveryDate", "SupplierSku", "DescriptionZh", "UnitPrice", "TaxPrice", "SubNote" } }), null);
+                "已更新采购草稿商业与包装字段。", JsonSerializer.Serialize(new { Head = new[] { "BoNo", "CustomerPoNo", "SoPerson", "PoPerson", "ReplyDate", "InletrHoseType", "AeratorType", "PalletType", "BoxType", "LabelType", "IMType", "CartonType", "LogoType", "ZheKouBeiZhu", "Remark" }, Lines = new[] { "PlannedDeliveryDate", "SupplierSku", "DescriptionZh", "UnitPrice", "TaxPrice", "SubNote" } }), null);
             var saved = Result(head, ConfirmationStatusEnum.待确认, "采购草稿已保存。"); saved.Version = head.Version + 1; return saved;
         }, cancellationToken);
     }

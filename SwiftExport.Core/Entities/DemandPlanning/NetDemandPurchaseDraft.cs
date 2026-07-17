@@ -16,12 +16,46 @@ public sealed class NetDemandPurchaseDraftHead : BaseEntity
     public PurchaseOrderLifecycleStatusEnum? LifecycleStatus { get; set; }
     /// <summary>采购单号。</summary>
     public required string OrderNo { get; set; }
+    /// <summary>诗亦霖内部采购单号快照。</summary>
+    public string? BoNo { get; set; }
+    /// <summary>遗留销售来源单号快照；新链路优先读取 DemandSourceNo。</summary>
+    public string? SalesOrderNo { get; set; }
+    /// <summary>客户采购单号快照。</summary>
+    public string? CustomerPoNo { get; set; }
+    /// <summary>客户代码快照。</summary>
+    public string? CustomerCode { get; set; }
     /// <summary>币种代码；当前净需求采购固定人民币。</summary>
     public string? Currency { get; set; }
     /// <summary>采购供应商编码快照。</summary>
     public required string SupplierCode { get; set; }
     /// <summary>采购供应商名称快照。</summary>
     public string? SupplierName { get; set; }
+    /// <summary>业务员名称快照。</summary>
+    public string? SoPerson { get; set; }
+    /// <summary>采购或跟单员名称快照。</summary>
+    public string? PoPerson { get; set; }
+    /// <summary>进水管要求。</summary>
+    public string? InletrHoseType { get; set; }
+    /// <summary>起泡器要求。</summary>
+    public string? AeratorType { get; set; }
+    /// <summary>托盘要求。</summary>
+    public string? PalletType { get; set; }
+    /// <summary>内盒要求。</summary>
+    public string? BoxType { get; set; }
+    /// <summary>标贴要求。</summary>
+    public string? LabelType { get; set; }
+    /// <summary>说明书要求。</summary>
+    public string? IMType { get; set; }
+    /// <summary>外箱要求。</summary>
+    public string? CartonType { get; set; }
+    /// <summary>Logo 或标识要求。</summary>
+    public string? LogoType { get; set; }
+    /// <summary>复核人快照。</summary>
+    public string? ReviewedBy { get; set; }
+    /// <summary>采购文件夹路径或编号。</summary>
+    public string? PoFolder { get; set; }
+    /// <summary>折扣及特殊商务备注。</summary>
+    public string? ZheKouBeiZhu { get; set; }
     /// <summary>采购供应商 Uid，是新链路的供应商权威关联。</summary>
     public Guid? SupplierId { get; set; }
     /// <summary>形成采购草稿的需求来源类型。</summary>
@@ -52,6 +86,8 @@ public sealed class NetDemandPurchaseDraftHead : BaseEntity
     public DateTime? OrderDate { get; set; }
     /// <summary>采购单预计交付日期。</summary>
     public DateTime? ExpectedDate { get; set; }
+    /// <summary>供应商回复交期。</summary>
+    public DateTime? ReplyDate { get; set; }
     /// <summary>最近一次确认日期；取消确认时清空，完整历史由业务操作日志保留。</summary>
     public DateTime? ConfirmedDate { get; set; }
     /// <summary>最近一次确认人名称；取消确认时清空。</summary>
@@ -82,6 +118,10 @@ public sealed class NetDemandPurchaseDraftLine : BaseEntity
     public string? SupplierSku { get; set; }
     /// <summary>采购品中文描述快照。</summary>
     public string? DescriptionZh { get; set; }
+    /// <summary>表面处理或颜色快照。</summary>
+    public string? FinishZh { get; set; }
+    /// <summary>产品配置快照。</summary>
+    public string? FeaturesZh { get; set; }
     /// <summary>未税单价；采购资料未完成时可以为空。</summary>
     public decimal? UnitPrice { get; set; }
     /// <summary>含税单价；采购资料未完成时可以为空。</summary>
@@ -124,4 +164,6 @@ public sealed class NetDemandPurchaseDraftLine : BaseEntity
     public decimal ReadyQty { get; set; }
     /// <summary>已收货数量，当前仅兼容保存，未来由入库链路维护。</summary>
     public decimal RecQty { get; set; }
+    /// <summary>最近一次遗留收货日期，仅用于下游安全检查和兼容展示。</summary>
+    public DateTime? LastRecDate { get; set; }
 }
