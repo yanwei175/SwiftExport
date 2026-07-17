@@ -9,6 +9,12 @@
         xmlns:grossDemandViewModels="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels"
         xmlns:netDemandViews="clr-namespace:SwiftExportClient.Features.DemandPlanning.NetDemand.Views"
         xmlns:netDemandViewModels="clr-namespace:SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels"
+        xmlns:inventoryWarehouseViews="clr-namespace:SwiftExportClient.Features.Inventory.WarehouseSites.Views"
+        xmlns:inventoryWarehouseViewModels="clr-namespace:SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels"
+        xmlns:inventoryBalanceViews="clr-namespace:SwiftExportClient.Features.Inventory.Balances.Views"
+        xmlns:inventoryBalanceViewModels="clr-namespace:SwiftExportClient.Features.Inventory.Balances.ViewModels"
+        xmlns:inventoryLedgerViews="clr-namespace:SwiftExportClient.Features.Inventory.Ledger.Views"
+        xmlns:inventoryLedgerViewModels="clr-namespace:SwiftExportClient.Features.Inventory.Ledger.ViewModels"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:planning="clr-namespace:SwiftExportClient.Features.Planning"
@@ -85,6 +91,15 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type procurementViewModels:PurchaseOrderDetailViewModel}">
             <procurementViews:PurchaseOrderDetailView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type inventoryWarehouseViewModels:WarehouseSitesViewModel}">
+            <inventoryWarehouseViews:WarehouseSitesView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type inventoryBalanceViewModels:InventoryBalancesViewModel}">
+            <inventoryBalanceViews:InventoryBalancesView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type inventoryLedgerViewModels:InventoryLedgerViewModel}">
+            <inventoryLedgerViews:InventoryLedgerView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type planning:PlanningViewModel}">
             <planning:PlanningView />

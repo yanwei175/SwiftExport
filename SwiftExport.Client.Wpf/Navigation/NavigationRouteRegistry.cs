@@ -11,6 +11,9 @@ using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Sales;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
+using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
+using SwiftExportClient.Features.Inventory.Balances.ViewModels;
+using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
 
 namespace SwiftExportClient.Navigation;
 
@@ -32,6 +35,9 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(NetDemandWorkspaceViewModel.RouteKey, "净需求", "Workspace", typeof(NetDemandWorkspaceViewModel)),
         new(PurchaseOrderWorkspaceViewModel.RouteKey, "采购工作台", "Workspace", typeof(PurchaseOrderWorkspaceViewModel)),
         new(PurchaseOrderDetailViewModel.RouteKey, "采购单详情", "Workspace", typeof(PurchaseOrderDetailViewModel)),
+        new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", typeof(WarehouseSitesViewModel)),
+        new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", typeof(InventoryBalancesViewModel)),
+        new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", typeof(InventoryLedgerViewModel)),
         new("planning", "计划", "Workspace", typeof(PlanningViewModel)),
     ];
 
@@ -79,6 +85,18 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 Children:
                 [
                     new(PurchaseOrderWorkspaceViewModel.RouteKey, "采购工作台", "Workspace", "DocumentBulletList24"),
+                ]),
+            new(
+                "inventory",
+                "库存",
+                "Workspace",
+                "Database24",
+                IsExpanded: true,
+                Children:
+                [
+                    new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", "BuildingRetail24"),
+                    new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", "DataBarHorizontal24"),
+                    new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", "ClipboardTextLtr24"),
                 ]),
         ];
     }
