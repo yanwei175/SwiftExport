@@ -228,9 +228,28 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
             FROM dbo.PurchaseOrderHead h
             CROSS APPLY(SELECT COUNT_BIG(1) LineCount,SUM(l.QTY) TotalQty,SUM(COALESCE(l.TaxPrice,l.UnitPrice,0)*l.QTY) TotalAmount,MIN(l.PlannedDeliveryDate) ExpectedDate FROM dbo.PurchaseOrderLine l WHERE l.PurchaseOrderId=h.Uid AND ISNULL(l.IsDeleted,0)=0)f
             WHERE h.Uid=@Uid AND h.Version=@ExpectedVersion AND h.LifecycleStatus=0 AND h.ConfirmationStatus=0 AND ISNULL(h.IsDeleted,0)=0;
-            """, new { head.Uid, ExpectedVersion = expectedVersion, head.BoNo, head.CustomerPoNo, head.SoPerson, head.PoPerson,
-                head.ReplyDate, head.InletrHoseType, head.AeratorType, head.PalletType, head.BoxType, head.LabelType, head.IMType,
-                head.CartonType, head.LogoType, head.ZheKouBeiZhu, head.Remark, Now = DateTime.Now, UserName = context.CurrentUser.UserName }, Session.Transaction);
+            """, new
+        {
+            head.Uid,
+            ExpectedVersion = expectedVersion,
+            head.BoNo,
+            head.CustomerPoNo,
+            head.SoPerson,
+            head.PoPerson,
+            head.ReplyDate,
+            head.InletrHoseType,
+            head.AeratorType,
+            head.PalletType,
+            head.BoxType,
+            head.LabelType,
+            head.IMType,
+            head.CartonType,
+            head.LogoType,
+            head.ZheKouBeiZhu,
+            head.Remark,
+            Now = DateTime.Now,
+            UserName = context.CurrentUser.UserName
+        }, Session.Transaction);
         return headCount == 1 ? affected + 1 : 0;
     }
 
