@@ -19,6 +19,7 @@ public sealed class InventoryPostingItem
     public string SourceDocumentType { get; set; } = string.Empty;
     public Guid? SourceDocumentId { get; set; }
     public Guid? SourceLineId { get; set; }
+    public Guid? ReversalOfLedgerId { get; set; }
     public string? Reason { get; set; }
     public bool AllowNegativeStock { get; set; }
     public DateTime OccurredDate { get; set; }

@@ -52,7 +52,7 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
             {
                 Uid = GuidSequentialGenerator.NewGuid(), Sequence = sequence, WarehouseSiteId = item.WarehouseSiteId, ProductId = item.ProductId,
                 TransactionType = item.TransactionType, QuantityDelta = item.QuantityDelta, BalanceAfter = after, SourceDocumentType = item.SourceDocumentType,
-                SourceDocumentId = item.SourceDocumentId, SourceLineId = item.SourceLineId, CommandId = commandId, CommandItemId = item.CommandItemId,
+                SourceDocumentId = item.SourceDocumentId, SourceLineId = item.SourceLineId, ReversalOfLedgerId = item.ReversalOfLedgerId, CommandId = commandId, CommandItemId = item.CommandItemId,
                 Reason = Normalize(item.Reason, 500), OccurredDate = item.OccurredDate == default ? DateTime.Now : item.OccurredDate, WarehouseCodeSnapshot = site.Code
             };
             if (await inventory.InsertLedgerAsync(ledger) != 1) throw new InventoryPostingException("库存流水写入失败。");

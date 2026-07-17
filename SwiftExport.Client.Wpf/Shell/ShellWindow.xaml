@@ -15,6 +15,8 @@
         xmlns:inventoryBalanceViewModels="clr-namespace:SwiftExportClient.Features.Inventory.Balances.ViewModels"
         xmlns:inventoryLedgerViews="clr-namespace:SwiftExportClient.Features.Inventory.Ledger.Views"
         xmlns:inventoryLedgerViewModels="clr-namespace:SwiftExportClient.Features.Inventory.Ledger.ViewModels"
+        xmlns:inboundViews="clr-namespace:SwiftExportClient.Features.Inventory.Inbounds.Views"
+        xmlns:inboundViewModels="clr-namespace:SwiftExportClient.Features.Inventory.Inbounds.ViewModels"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:planning="clr-namespace:SwiftExportClient.Features.Planning"
@@ -100,6 +102,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type inventoryLedgerViewModels:InventoryLedgerViewModel}">
             <inventoryLedgerViews:InventoryLedgerView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type inboundViewModels:InboundWorkspaceViewModel}">
+            <inboundViews:InboundWorkspaceView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type planning:PlanningViewModel}">
             <planning:PlanningView />

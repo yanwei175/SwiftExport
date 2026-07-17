@@ -90,6 +90,7 @@ public static class ApiRegistrationExtensions
     {
         services.AddControllerApi<IInventoryApi>("inventory");
         services.AddControllerApi<IWarehouseSiteApi>("inventory/warehouse-sites");
+        services.AddControllerApi<IInboundWorkspaceApi>("inventory/inbounds");
     }
 
     private static IHttpClientBuilder AddControllerApi<TApi>(

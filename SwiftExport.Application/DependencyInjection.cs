@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IPurchaseOrderWorkspaceService, PurchaseOrderWorkspaceService>();
         services.AddScoped<IInventoryPostingService, InventoryPostingService>();
         services.AddScoped<IInventoryService, InventoryService>();
+        services.AddScoped<IInboundWorkspaceService, InboundWorkspaceService>();
         services.AddScoped<IDocumentNoService, DocumentNoService>();
         services.AddScoped<ISysDicCurrencyService, SysDicCurrencyService>();
         services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();

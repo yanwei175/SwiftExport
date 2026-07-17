@@ -19,6 +19,7 @@ using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Inventory.Balances.ViewModels;
 using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
+using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 using SwiftExportClient.Shell;
 
 namespace SwiftExportClient.Bootstrapper;
@@ -58,6 +59,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<WarehouseSitesViewModel>();
         services.AddTransient<InventoryBalancesViewModel>();
         services.AddTransient<InventoryLedgerViewModel>();
+        services.AddTransient<InboundWorkspaceViewModel>();
 
         return services;
     }

@@ -14,6 +14,7 @@ using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Inventory.Balances.ViewModels;
 using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
+using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 
 namespace SwiftExportClient.Navigation;
 
@@ -38,6 +39,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", typeof(WarehouseSitesViewModel)),
         new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", typeof(InventoryBalancesViewModel)),
         new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", typeof(InventoryLedgerViewModel)),
+        new(InboundWorkspaceViewModel.RouteKey, "入库工作台", "Workspace", typeof(InboundWorkspaceViewModel)),
         new("planning", "计划", "Workspace", typeof(PlanningViewModel)),
     ];
 
@@ -97,6 +99,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                     new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", "BuildingRetail24"),
                     new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", "DataBarHorizontal24"),
                     new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", "ClipboardTextLtr24"),
+                    new(InboundWorkspaceViewModel.RouteKey, "入库工作台", "Workspace", "ArrowDownload24"),
                 ]),
         ];
     }
