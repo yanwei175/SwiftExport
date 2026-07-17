@@ -53,6 +53,8 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public SupplierAssignmentSourceEnum AssignmentSource { get; set; }
         public decimal PlannedQty { get; set; }
         public decimal AllocatedQty { get; set; }
+        public decimal ReleasedQty { get; set; }
+        public decimal EffectiveQty { get; set; }
         public decimal RemainingQty { get; set; }
         public DateTime? PlannedDeliveryDate { get; set; }
 
@@ -121,6 +123,9 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public DemandExecutionLinkStatusEnum LinkStatus { get; set; }
         public string TargetType { get; set; }
         public Guid TargetHeadId { get; set; }
+        public int? TargetHeadVersion { get; set; }
+        public PurchaseOrderLifecycleStatusEnum? TargetHeadLifecycleStatus { get; set; }
+        public ConfirmationStatusEnum? TargetHeadConfirmationStatus { get; set; }
         public string TargetNo { get; set; }
         public Guid TargetLineId { get; set; }
         public int? TargetLineNumber { get; set; }

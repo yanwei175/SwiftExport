@@ -46,7 +46,7 @@ FROM [dbo].[DependentDemand] nd
 LEFT JOIN [dbo].[DependentDemand] root ON root.[Uid]=nd.[RootNetDemandId]
 LEFT JOIN [dbo].[DependentDemand] target ON target.[Uid]=nd.[DeliveryTargetNetDemandId]
 OUTER APPLY (
-    SELECT SUM(l.[AllocatedQty]) AS [AllocatedQty],SUM(l.[CompletedQty]) AS [CompletedQty],SUM(l.[ReceivedQty]) AS [ReceivedQty]
+    SELECT SUM(l.[AllocatedQty]-l.[ReleasedQty]) AS [AllocatedQty],SUM(l.[CompletedQty]) AS [CompletedQty],SUM(l.[ReceivedQty]) AS [ReceivedQty]
     FROM [dbo].[DemandExecutionLink] l
     WHERE l.[DependentDemandId]=nd.[Uid] AND l.[LinkStatus]=0 AND l.[IsDeleted]=0
 ) x

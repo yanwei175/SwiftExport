@@ -14,6 +14,10 @@ public interface INetDemandRepository
     Task<IReadOnlyList<NetDemandListItemDto>> GetWorkspaceFamilyAsync(
         Guid rootNetDemandId,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<NetDemandListItemDto>> GetWorkspaceBySourceAsync(
+        string sourceType,
+        Guid sourceUid,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<NetDemand>> GetActiveFamilyForUpdateAsync(Guid netDemandId);
     Task<IReadOnlyList<NetDemand>> GetActiveByGrossDemandForUpdateAsync(Guid grossDemandId);
     Task<IReadOnlyList<NetDemandTraceItemDto>> GetByGrossDemandForTraceAsync(

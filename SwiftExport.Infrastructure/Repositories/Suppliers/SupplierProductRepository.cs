@@ -149,4 +149,49 @@ public sealed class SupplierProductRepository(RepositoryBaseContext context)
         return (await Connection.QueryAsync<Guid>(
             sql, new { SupplierIds = ids }, transaction: Transaction)).ToList();
     }
+
+    public async Task<IReadOnlyList<SupplierProduct>> GetPurchaseDataAsync(
+        IEnumerable<(Guid ProductId, Guid SupplierId)> keys)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+        var materialized = keys
+            .Where(x => x.ProductId != Guid.Empty && x.SupplierId != Guid.Empty)
+            .Distinct()
+            .ToArray();
+        if (materialized.Length == 0) return [];
+
+        var result = new List<SupplierProduct>();
+        foreach (var chunk in materialized.Chunk(500))
+        {
+            var parameters = new DynamicParameters();
+            var values = new string[chunk.Length];
+            for (var index = 0; index < chunk.Length; index++)
+            {
+                var productParameter = $"ProductId{index}";
+                var supplierParameter = $"SupplierId{index}";
+                values[index] = $"(@{productParameter},@{supplierParameter})";
+                parameters.Add(productParameter, chunk[index].ProductId);
+                parameters.Add(supplierParameter, chunk[index].SupplierId);
+            }
+
+            var sql = $"""
+                SELECT sp.Uid,sp.Version,sp.IsDeleted,sp.CreatedDate,sp.CreatedBy,sp.UpdatedDate,sp.UpdatedBy,
+                       sp.SupplierId,sp.SupplierCode,sp.SkuId,sp.ProductSku,sp.SupplierSku,
+                       sp.SupplierSkuDescriptionZh,sp.SupplierSkuFeaturesZh,sp.UnitPrice,sp.TaxPrice
+                FROM dbo.SupplierProduct sp
+                INNER JOIN (VALUES {string.Join(',', values)}) requested(ProductId,SupplierId)
+                        ON requested.ProductId=sp.SkuId AND requested.SupplierId=sp.SupplierId
+                WHERE ISNULL(sp.IsDeleted,0)=0
+                ORDER BY sp.SkuId,sp.SupplierId,sp.Uid;
+                """;
+            result.AddRange(await Connection.QueryAsync<SupplierProduct>(
+                sql, parameters, transaction: Transaction));
+        }
+
+        return result
+            .OrderBy(x => x.SkuId)
+            .ThenBy(x => x.SupplierId)
+            .ThenBy(x => x.Uid)
+            .ToList();
+    }
 }

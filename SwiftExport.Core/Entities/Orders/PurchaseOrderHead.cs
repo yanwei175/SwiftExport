@@ -14,6 +14,11 @@ public class PurchaseOrderHead : BaseEntity
     public PurchaseOrderStatusEnum OrderStatus { get; set; } = PurchaseOrderStatusEnum.未确认;
     public ConfirmationStatusEnum ConfirmationStatus { get; set; } = ConfirmationStatusEnum.待确认;
 
+    /// <summary>
+    /// 新采购链路的单据生命周期。遗留采购单允许为空；新净需求草稿必须显式写入 Active。
+    /// </summary>
+    public PurchaseOrderLifecycleStatusEnum? LifecycleStatus { get; set; }
+
 
     /// <summary>
     /// 关联字段：与明细保持一致，便于链路追踪。
@@ -28,6 +33,21 @@ public class PurchaseOrderHead : BaseEntity
 
     public required string SupplierCode { get; set; }
     public string? SupplierName { get; set; }
+
+    /// <summary>新采购链路的权威供应商关系；遗留采购单允许为空。</summary>
+    public Guid? SupplierId { get; set; }
+
+    /// <summary>毛需求来源类型快照，例如 SO/MD/CR。</summary>
+    public string? DemandSourceType { get; set; }
+
+    /// <summary>毛需求来源单据 Uid；与来源类型共同限定采购单聚合边界。</summary>
+    public Guid? DemandSourceUid { get; set; }
+
+    /// <summary>来源单号快照，用于采购查询和 Excel 追溯。</summary>
+    public string? DemandSourceNo { get; set; }
+
+    /// <summary>净需求转采购执行请求 Uid，用于采购头幂等和追溯。</summary>
+    public Guid? ExecutionRequestId { get; set; }
     public string? SoPerson { get; set; }
     public string? PoPerson { get; set; }
 

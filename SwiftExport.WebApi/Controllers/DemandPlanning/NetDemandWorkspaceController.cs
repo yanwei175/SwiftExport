@@ -45,4 +45,23 @@ public sealed class NetDemandWorkspaceController(INetDemandWorkspaceService serv
     public Task<ServiceResult<NetDemandPlanCommandResult>> BatchAssignSupplierAsync(
         [FromBody] BatchAssignSupplierCommand command)
         => service.BatchAssignSupplierAsync(command);
+
+    [HttpPost("purchase-drafts/preview")]
+    public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewPurchaseDraftsAsync(
+        [FromBody] PurchaseDraftPreviewRequest request,
+        CancellationToken cancellationToken)
+        => service.PreviewPurchaseDraftsAsync(request, cancellationToken);
+
+    [HttpPost("purchase-drafts/create")]
+    public Task<ServiceResult<CreatePurchaseDraftsResult>> CreatePurchaseDraftsAsync(
+        [FromBody] CreatePurchaseDraftsCommand command,
+        CancellationToken cancellationToken)
+        => service.CreatePurchaseDraftsAsync(command, cancellationToken);
+
+    [HttpGet("sources/{sourceType}/{sourceUid:guid}/purchase-trace")]
+    public Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
+        string sourceType,
+        Guid sourceUid,
+        CancellationToken cancellationToken)
+        => service.GetPurchaseTraceBySourceAsync(sourceType, sourceUid, cancellationToken);
 }

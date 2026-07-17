@@ -19,6 +19,8 @@ public sealed class DemandExecutionLink : BaseEntity
     public Guid TargetLineId { get; set; }
     public DemandExecutionLinkStatusEnum LinkStatus { get; set; } = DemandExecutionLinkStatusEnum.Active;
     public decimal AllocatedQty { get; set; }
+    /// <summary>取消或减量累计释放数量；有效贡献为 AllocatedQty-ReleasedQty。</summary>
+    public decimal ReleasedQty { get; set; }
     public decimal CompletedQty { get; set; }
     public decimal ReceivedQty { get; set; }
     public DateTime? DemandRequiredDate { get; set; }

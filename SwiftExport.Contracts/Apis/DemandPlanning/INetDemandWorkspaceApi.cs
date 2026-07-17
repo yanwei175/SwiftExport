@@ -38,5 +38,21 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
         [Post("/plans/batch-assign-supplier")]
         Task<ServiceResult<NetDemandPlanCommandResult>> BatchAssignSupplierAsync(
             [Body] BatchAssignSupplierCommand command);
+
+        [Post("/purchase-drafts/preview")]
+        Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewPurchaseDraftsAsync(
+            [Body] PurchaseDraftPreviewRequest request,
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        [Post("/purchase-drafts/create")]
+        Task<ServiceResult<CreatePurchaseDraftsResult>> CreatePurchaseDraftsAsync(
+            [Body] CreatePurchaseDraftsCommand command,
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        [Get("/sources/{sourceType}/{sourceUid}/purchase-trace")]
+        Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
+            string sourceType,
+            Guid sourceUid,
+            CancellationToken cancellationToken = default(CancellationToken));
     }
 }

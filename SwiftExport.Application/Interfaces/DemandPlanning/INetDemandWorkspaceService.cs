@@ -13,4 +13,14 @@ public interface INetDemandWorkspaceService
     Task<ServiceResult<NetDemandPlanCommandResult>> ReplacePlanAsync(ReplaceNetDemandPlanCommand command);
     Task<ServiceResult<NetDemandPlanCommandResult>> ApplyDefaultSupplierAsync(ApplyProductDefaultSupplierCommand command);
     Task<ServiceResult<NetDemandPlanCommandResult>> BatchAssignSupplierAsync(BatchAssignSupplierCommand command);
+    Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewPurchaseDraftsAsync(
+        PurchaseDraftPreviewRequest request,
+        CancellationToken cancellationToken = default);
+    Task<ServiceResult<CreatePurchaseDraftsResult>> CreatePurchaseDraftsAsync(
+        CreatePurchaseDraftsCommand command,
+        CancellationToken cancellationToken = default);
+    Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
+        string sourceType,
+        Guid sourceUid,
+        CancellationToken cancellationToken = default);
 }

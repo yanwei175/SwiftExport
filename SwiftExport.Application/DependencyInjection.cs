@@ -43,6 +43,11 @@ public static class DependencyInjection
         services.AddScoped<NetDemandInitialAllocationPlanner>();
         services.AddScoped<NetDemandPlanReplacementPlanner>();
         services.AddScoped<NetDemandPlanCommandIdempotencyPolicy>();
+        services.AddScoped<PurchaseDraftPreviewBuilder>();
+        services.AddScoped<PurchaseDraftWriteModelBuilder>();
+        services.AddScoped<PurchaseDraftCreationService>();
+        services.AddScoped<PurchaseDraftReleasePlanner>();
+        services.AddScoped<IPurchaseDraftLifecycleService, PurchaseDraftLifecycleService>();
         services.AddScoped<INetDemandWorkspaceService, NetDemandWorkspaceService>();
         services.AddScoped<IIndependentDemandServices, IndependentDemandService>();
         services.AddScoped<IDependentDemandService, DependentDemandService>();

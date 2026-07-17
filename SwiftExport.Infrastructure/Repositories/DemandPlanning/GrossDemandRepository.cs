@@ -87,7 +87,7 @@ OUTER APPLY (
     WHERE nd.[IndependentDemandId] = d.[Uid] AND nd.[LifecycleStatus] = 0 AND nd.[IsDeleted] = 0
 ) na
 OUTER APPLY (
-    SELECT COUNT(1) AS [ActiveLinkCount], SUM(l.[AllocatedQty]) AS [AllocatedQty],
+    SELECT COUNT(1) AS [ActiveLinkCount], SUM(l.[AllocatedQty]-l.[ReleasedQty]) AS [AllocatedQty],
            SUM(l.[CompletedQty]) AS [CompletedQty], SUM(l.[ReceivedQty]) AS [ReceivedQty]
     FROM [dbo].[DemandExecutionLink] l
     INNER JOIN [dbo].[DependentDemand] nd ON nd.[Uid] = l.[DependentDemandId]
@@ -317,7 +317,7 @@ CASE
  WHEN NOT EXISTS (SELECT 1 FROM [dbo].[DependentDemand] epn WHERE epn.[IndependentDemandId]=d.[Uid] AND epn.[LifecycleStatus]=0 AND epn.[IsDeleted]=0) THEN 0
  WHEN ISNULL((SELECT SUM(epl.[ReceivedQty]) FROM [dbo].[DemandExecutionLink] epl INNER JOIN [dbo].[DependentDemand] epn ON epn.[Uid]=epl.[DependentDemandId] WHERE epn.[IndependentDemandId]=d.[Uid] AND epn.[LifecycleStatus]=0 AND epn.[IsDeleted]=0 AND epl.[LinkStatus]=0 AND epl.[IsDeleted]=0),0)>=d.[OriginalQty] THEN 4
  WHEN ISNULL((SELECT SUM(epl.[CompletedQty]) FROM [dbo].[DemandExecutionLink] epl INNER JOIN [dbo].[DependentDemand] epn ON epn.[Uid]=epl.[DependentDemandId] WHERE epn.[IndependentDemandId]=d.[Uid] AND epn.[LifecycleStatus]=0 AND epn.[IsDeleted]=0 AND epl.[LinkStatus]=0 AND epl.[IsDeleted]=0),0)>0 THEN 3
- WHEN ISNULL((SELECT SUM(epl.[AllocatedQty]) FROM [dbo].[DemandExecutionLink] epl INNER JOIN [dbo].[DependentDemand] epn ON epn.[Uid]=epl.[DependentDemandId] WHERE epn.[IndependentDemandId]=d.[Uid] AND epn.[LifecycleStatus]=0 AND epn.[IsDeleted]=0 AND epl.[LinkStatus]=0 AND epl.[IsDeleted]=0),0)>=d.[OriginalQty] THEN 2
- WHEN ISNULL((SELECT SUM(epl.[AllocatedQty]) FROM [dbo].[DemandExecutionLink] epl INNER JOIN [dbo].[DependentDemand] epn ON epn.[Uid]=epl.[DependentDemandId] WHERE epn.[IndependentDemandId]=d.[Uid] AND epn.[LifecycleStatus]=0 AND epn.[IsDeleted]=0 AND epl.[LinkStatus]=0 AND epl.[IsDeleted]=0),0)>0 THEN 1
+ WHEN ISNULL((SELECT SUM(epl.[AllocatedQty]-epl.[ReleasedQty]) FROM [dbo].[DemandExecutionLink] epl INNER JOIN [dbo].[DependentDemand] epn ON epn.[Uid]=epl.[DependentDemandId] WHERE epn.[IndependentDemandId]=d.[Uid] AND epn.[LifecycleStatus]=0 AND epn.[IsDeleted]=0 AND epl.[LinkStatus]=0 AND epl.[IsDeleted]=0),0)>=d.[OriginalQty] THEN 2
+ WHEN ISNULL((SELECT SUM(epl.[AllocatedQty]-epl.[ReleasedQty]) FROM [dbo].[DemandExecutionLink] epl INNER JOIN [dbo].[DependentDemand] epn ON epn.[Uid]=epl.[DependentDemandId] WHERE epn.[IndependentDemandId]=d.[Uid] AND epn.[LifecycleStatus]=0 AND epn.[IsDeleted]=0 AND epl.[LinkStatus]=0 AND epl.[IsDeleted]=0),0)>0 THEN 1
  ELSE 0 END";
 }

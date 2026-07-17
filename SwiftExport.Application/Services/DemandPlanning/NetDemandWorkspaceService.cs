@@ -22,10 +22,27 @@ public sealed class NetDemandWorkspaceService(
     IProductRepository productRepository,
     ISupplierRepository supplierRepository,
     NetDemandPlanReplacementPlanner replacementPlanner,
-    NetDemandPlanCommandIdempotencyPolicy idempotencyPolicy) : INetDemandWorkspaceService
+    NetDemandPlanCommandIdempotencyPolicy idempotencyPolicy,
+    PurchaseDraftCreationService purchaseDrafts) : INetDemandWorkspaceService
 {
     private readonly DbSession _session = context.Session;
     private readonly ILogger<NetDemandWorkspaceService> _logger = context.LoggerFactory.CreateLogger<NetDemandWorkspaceService>();
+
+    public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewPurchaseDraftsAsync(
+        PurchaseDraftPreviewRequest request,
+        CancellationToken cancellationToken = default)
+        => purchaseDrafts.PreviewAsync(request, cancellationToken);
+
+    public Task<ServiceResult<CreatePurchaseDraftsResult>> CreatePurchaseDraftsAsync(
+        CreatePurchaseDraftsCommand command,
+        CancellationToken cancellationToken = default)
+        => purchaseDrafts.CreateAsync(command, cancellationToken);
+
+    public Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
+        string sourceType,
+        Guid sourceUid,
+        CancellationToken cancellationToken = default)
+        => purchaseDrafts.GetSourceTraceAsync(sourceType, sourceUid, cancellationToken);
 
     public async Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
         NetDemandSearchRequest request,

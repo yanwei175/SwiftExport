@@ -14,6 +14,10 @@ public class PurchaseOrderLine : BaseEntity
     public int LineNumber { get; set; }
     public required Guid PurchaseOrderId { get; set; }
     public string OrderNo { get; set; } = string.Empty;
+
+    /// <summary>稳定的产品关系；遗留采购行允许为空。</summary>
+    public Guid? ProductId { get; set; }
+
     public string Sku { get; set; } = string.Empty;
     public string? CustomerSku { get; set; }
     public string? LinkSku { get; set; }
@@ -38,6 +42,21 @@ public class PurchaseOrderLine : BaseEntity
     /// 含税价小计(TaxPrice * QTY)，回写需求池时同步更新。
     /// </summary>
     public decimal? TaxAmount { get; set; }
+
+    /// <summary>由净需求计划交期形成的采购交期。</summary>
+    public DateTime? PlannedDeliveryDate { get; set; }
+
+    /// <summary>客供件送达目标的权威计划分配。</summary>
+    public Guid? DeliveryTargetAllocationId { get; set; }
+
+    /// <summary>客供件送达供应商 Uid。</summary>
+    public Guid? DeliveryTargetSupplierId { get; set; }
+
+    /// <summary>转单时的送达供应商代码快照。</summary>
+    public string? DeliverySupplierCodeSnapshot { get; set; }
+
+    /// <summary>转单时的送达供应商名称快照。</summary>
+    public string? DeliverySupplierNameSnapshot { get; set; }
     /// <summary>
     /// 行备注
     /// </summary>
@@ -67,6 +86,15 @@ public class PurchaseOrderLine : BaseEntity
     /// 冗余字段,方便查询和统计分析，回写需求池时同步更新（SourceType + SourceNo 唯一索引）。
     /// </summary>
     public string SourceNo { get; set; } = string.Empty;
+
+    /// <summary>来源单据 Uid 快照。</summary>
+    public Guid? SourceUid { get; set; }
+
+    /// <summary>来源明细 Uid 快照。</summary>
+    public Guid? SourceLineId { get; set; }
+
+    /// <summary>来源行号快照。</summary>
+    public int? SourceLineNumber { get; set; }
     ///// <summary>
     ///// 毛需求打散成了净需求,再聚合成了采购单,这个Id根本就对应不上了,所以这个字段没什么意义,先注释掉,后续如果有需要再说
     ///// </summary>

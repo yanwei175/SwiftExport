@@ -17,7 +17,7 @@ public partial class PurchaseOrderRepository(RepositoryBaseContext context)
         if (string.IsNullOrWhiteSpace(boNo)) throw new ArgumentNullException(nameof(boNo));
         var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
 
-        var sql = $"SELECT * FROM [PurchaseOrderHead] {lockHint} WHERE BoNo = @BoNo AND (IsDelete = 0 OR IsDelete IS NULL)";
+        var sql = $"SELECT * FROM [PurchaseOrderHead] {lockHint} WHERE BoNo = @BoNo AND (IsDeleted = 0 OR IsDeleted IS NULL)";
 
         return await Connection.QuerySingleOrDefaultAsync<PurchaseOrderHead>(sql, new { BoNo = boNo }, transaction: Transaction);
     }

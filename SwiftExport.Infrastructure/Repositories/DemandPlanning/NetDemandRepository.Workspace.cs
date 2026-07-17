@@ -35,6 +35,19 @@ public sealed partial class NetDemandRepository
         return response.Items;
     }
 
+    public async Task<IReadOnlyList<NetDemandListItemDto>> GetWorkspaceBySourceAsync(
+        string sourceType,
+        Guid sourceUid,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await QueryWorkspaceAsync(new NetDemandSearchRequest
+        {
+            SourceTypes = [sourceType],
+            SourceUids = [sourceUid]
+        }, null, false, cancellationToken);
+        return response.Items;
+    }
+
     public async Task<IReadOnlyList<NetDemand>> GetActiveFamilyForUpdateAsync(Guid netDemandId)
     {
         const string locatorSql = @"
@@ -239,7 +252,7 @@ WITH Workspace AS
       ON deliverySupplier.[Uid]=a.[DeliveryTargetSupplierId] AND ISNULL(deliverySupplier.[IsDeleted],0)=0
     OUTER APPLY
     (
-        SELECT SUM(l.[AllocatedQty]) AS [AllocatedQty],COUNT_BIG(1) AS [LinkCount],
+        SELECT SUM(l.[AllocatedQty]-l.[ReleasedQty]) AS [AllocatedQty],COUNT_BIG(1) AS [LinkCount],
                MAX(CASE WHEN l.[TargetType]=@PurchaseTargetType AND poh.[LifecycleStatus]=0 AND poh.[ConfirmationStatus]=1 THEN 1 ELSE 0 END) AS [HasConfirmedPurchase],
                MAX(CASE WHEN l.[TargetType]=@PurchaseTargetType AND poh.[LifecycleStatus]=0 AND poh.[ConfirmationStatus]=0 THEN 1 ELSE 0 END) AS [HasDraftPurchase]
         FROM [dbo].[DemandExecutionLink] l
