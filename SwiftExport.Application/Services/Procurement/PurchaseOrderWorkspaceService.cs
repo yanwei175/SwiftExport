@@ -105,10 +105,12 @@ public sealed class PurchaseOrderWorkspaceService(
         {
             var head = await RequireOperableHeadAsync(uid, command.ExpectedVersion, ConfirmationStatusEnum.待确认);
             var lines = await purchaseOrders.GetLinesForUpdateAsync(uid);
-            _ = await purchaseOrders.GetContributionsForUpdateAsync(uid, cancellationToken);
+            var lockedContributions = await purchaseOrders.GetContributionsForUpdateAsync(uid, cancellationToken);
             if (await purchaseOrders.HasDownstreamFactsAsync(uid)) throw new ProcurementException("采购单已有收货或库存事实，不能编辑草稿。");
             if (lines.Count != command.Lines.Count || lines.Select(x => x.Uid).Except(command.Lines.Select(x => x.PurchaseOrderLineId)).Any())
                 throw new ProcurementException("草稿行集合已变化，请刷新后重试。");
+            if (lockedContributions.Count == 0 || lines.Any(line => lockedContributions.Where(x => x.PurchaseOrderLineId == line.Uid).Sum(x => x.EffectiveQty) != line.QTY))
+                throw new ProcurementException("采购行需求 Link 不完整或数量不守恒，遗留/损坏采购单只允许查看。");
             foreach (var line in lines)
             {
                 var submitted = command.Lines.Single(x => x.PurchaseOrderLineId == line.Uid);

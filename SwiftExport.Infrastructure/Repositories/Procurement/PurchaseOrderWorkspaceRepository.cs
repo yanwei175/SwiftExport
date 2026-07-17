@@ -62,10 +62,18 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
                         WHEN h.LifecycleStatus IS NULL OR h.ExecutionRequestId IS NULL THEN N'缺少新采购生命周期或执行请求'
                         WHEN NOT EXISTS(SELECT 1 FROM dbo.DemandExecutionLink operableLink WHERE operableLink.TargetHeadId=h.Uid AND operableLink.TargetType=N'PO' AND operableLink.LinkStatus=0 AND ISNULL(operableLink.IsDeleted,0)=0) THEN N'缺少有效需求追溯 Link'
                         ELSE NULL END AS ReadOnlyReason,
-                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=0 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS CanEditDraft,
-                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=0 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS CanConfirm,
-                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=1 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS CanCancelConfirmation,
-                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=1 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS CanReportProgress
+                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=0 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL
+                                  AND h.DemandSourceType IS NOT NULL AND h.DemandSourceUid IS NOT NULL AND h.DemandSourceNo IS NOT NULL
+                                  AND EXISTS(SELECT 1 FROM dbo.DemandExecutionLink actionLink WHERE actionLink.TargetHeadId=h.Uid AND actionLink.TargetType=N'PO' AND actionLink.LinkStatus=0 AND ISNULL(actionLink.IsDeleted,0)=0) THEN 1 ELSE 0 END AS bit) AS CanEditDraft,
+                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=0 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL
+                                  AND h.DemandSourceType IS NOT NULL AND h.DemandSourceUid IS NOT NULL AND h.DemandSourceNo IS NOT NULL
+                                  AND EXISTS(SELECT 1 FROM dbo.DemandExecutionLink actionLink WHERE actionLink.TargetHeadId=h.Uid AND actionLink.TargetType=N'PO' AND actionLink.LinkStatus=0 AND ISNULL(actionLink.IsDeleted,0)=0) THEN 1 ELSE 0 END AS bit) AS CanConfirm,
+                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=1 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL
+                                  AND h.DemandSourceType IS NOT NULL AND h.DemandSourceUid IS NOT NULL AND h.DemandSourceNo IS NOT NULL
+                                  AND EXISTS(SELECT 1 FROM dbo.DemandExecutionLink actionLink WHERE actionLink.TargetHeadId=h.Uid AND actionLink.TargetType=N'PO' AND actionLink.LinkStatus=0 AND ISNULL(actionLink.IsDeleted,0)=0) THEN 1 ELSE 0 END AS bit) AS CanCancelConfirmation,
+                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=1 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL
+                                  AND h.DemandSourceType IS NOT NULL AND h.DemandSourceUid IS NOT NULL AND h.DemandSourceNo IS NOT NULL
+                                  AND EXISTS(SELECT 1 FROM dbo.DemandExecutionLink actionLink WHERE actionLink.TargetHeadId=h.Uid AND actionLink.TargetType=N'PO' AND actionLink.LinkStatus=0 AND ISNULL(actionLink.IsDeleted,0)=0) THEN 1 ELSE 0 END AS bit) AS CanReportProgress
             FROM dbo.PurchaseOrderHead h
             OUTER APPLY ({LineFactsSql}) lineFacts
             WHERE {whereSql}
@@ -93,10 +101,18 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
                    CASE WHEN h.SupplierId IS NULL THEN N'缺少供应商 Uid' WHEN h.DemandSourceType IS NULL OR h.DemandSourceUid IS NULL OR h.DemandSourceNo IS NULL THEN N'缺少需求来源'
                         WHEN h.LifecycleStatus IS NULL OR h.ExecutionRequestId IS NULL THEN N'缺少新采购生命周期或执行请求'
                         WHEN NOT EXISTS(SELECT 1 FROM dbo.DemandExecutionLink l WHERE l.TargetHeadId=h.Uid AND l.TargetType=N'PO' AND l.LinkStatus=0 AND ISNULL(l.IsDeleted,0)=0) THEN N'缺少有效需求追溯 Link' END AS ReadOnlyReason,
-                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=0 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS CanEditDraft,
-                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=0 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS CanConfirm,
-                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=1 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS CanCancelConfirmation,
-                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=1 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS CanReportProgress
+                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=0 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL
+                                  AND h.DemandSourceType IS NOT NULL AND h.DemandSourceUid IS NOT NULL AND h.DemandSourceNo IS NOT NULL
+                                  AND EXISTS(SELECT 1 FROM dbo.DemandExecutionLink actionLink WHERE actionLink.TargetHeadId=h.Uid AND actionLink.TargetType=N'PO' AND actionLink.LinkStatus=0 AND ISNULL(actionLink.IsDeleted,0)=0) THEN 1 ELSE 0 END AS bit) AS CanEditDraft,
+                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=0 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL
+                                  AND h.DemandSourceType IS NOT NULL AND h.DemandSourceUid IS NOT NULL AND h.DemandSourceNo IS NOT NULL
+                                  AND EXISTS(SELECT 1 FROM dbo.DemandExecutionLink actionLink WHERE actionLink.TargetHeadId=h.Uid AND actionLink.TargetType=N'PO' AND actionLink.LinkStatus=0 AND ISNULL(actionLink.IsDeleted,0)=0) THEN 1 ELSE 0 END AS bit) AS CanConfirm,
+                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=1 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL
+                                  AND h.DemandSourceType IS NOT NULL AND h.DemandSourceUid IS NOT NULL AND h.DemandSourceNo IS NOT NULL
+                                  AND EXISTS(SELECT 1 FROM dbo.DemandExecutionLink actionLink WHERE actionLink.TargetHeadId=h.Uid AND actionLink.TargetType=N'PO' AND actionLink.LinkStatus=0 AND ISNULL(actionLink.IsDeleted,0)=0) THEN 1 ELSE 0 END AS bit) AS CanCancelConfirmation,
+                   CAST(CASE WHEN h.LifecycleStatus=0 AND h.ConfirmationStatus=1 AND h.SupplierId IS NOT NULL AND h.ExecutionRequestId IS NOT NULL
+                                  AND h.DemandSourceType IS NOT NULL AND h.DemandSourceUid IS NOT NULL AND h.DemandSourceNo IS NOT NULL
+                                  AND EXISTS(SELECT 1 FROM dbo.DemandExecutionLink actionLink WHERE actionLink.TargetHeadId=h.Uid AND actionLink.TargetType=N'PO' AND actionLink.LinkStatus=0 AND ISNULL(actionLink.IsDeleted,0)=0) THEN 1 ELSE 0 END AS bit) AS CanReportProgress
             FROM dbo.PurchaseOrderHead h
             OUTER APPLY
             (
@@ -142,6 +158,7 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
     private async Task<IReadOnlyList<PurchaseOrderSourceContributionDto>> GetContributionsCoreAsync(Guid uid, bool forUpdate, CancellationToken cancellationToken)
     {
         var lockHint = forUpdate ? "WITH(UPDLOCK,HOLDLOCK)" : string.Empty;
+        var activeClause = forUpdate ? "AND link.LinkStatus=0" : string.Empty;
         var sql = $"""
             SELECT link.Uid AS LinkId,line.Uid AS PurchaseOrderLineId,link.NetDemandAllocationId AS AllocationId,nd.Uid AS NetDemandId,gd.Uid AS GrossDemandId,
                    gd.SourceType,gd.SourceUid,gd.SourceNo,gd.SourceLineNumber,nd.Sku,link.AllocatedQty,link.ReleasedQty,
@@ -151,7 +168,7 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
             INNER JOIN dbo.DependentDemand nd ON nd.Uid=allocation.NetDemandId AND nd.Uid=link.DependentDemandId AND ISNULL(nd.IsDeleted,0)=0
             INNER JOIN dbo.IndependentDemand gd ON gd.Uid=nd.IndependentDemandId AND ISNULL(gd.IsDeleted,0)=0
             INNER JOIN dbo.PurchaseOrderLine line ON line.Uid=link.TargetLineId AND line.PurchaseOrderId=@Uid AND ISNULL(line.IsDeleted,0)=0
-            WHERE link.TargetHeadId=@Uid AND link.TargetType=N'PO' AND link.LinkStatus=0 AND ISNULL(link.IsDeleted,0)=0
+            WHERE link.TargetHeadId=@Uid AND link.TargetType=N'PO' {activeClause} AND ISNULL(link.IsDeleted,0)=0
             ORDER BY line.LineNumber,gd.SourceLineNumber,allocation.Uid,link.Uid;
             """;
         var rows = await Session.Connection.QueryAsync<PurchaseOrderSourceContributionDto>(new CommandDefinition(sql, new { Uid = uid }, Session.Transaction, cancellationToken: cancellationToken));

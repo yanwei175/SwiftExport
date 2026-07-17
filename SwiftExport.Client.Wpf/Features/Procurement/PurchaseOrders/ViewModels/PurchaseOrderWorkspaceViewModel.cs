@@ -217,6 +217,7 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
         {
             Remark = result.Data.Remark ?? string.Empty; foreach (var line in result.Data.Lines) Lines.Add(PurchaseOrderLineEditorModel.FromDto(line));
             foreach (var operation in result.Data.Operations) Operations.Add(operation); SelectedLine = Lines.FirstOrDefault();
+            SaveDraftCommand.NotifyCanExecuteChanged();
         }
         if (ReferenceEquals(_detailCancellation, cts)) _detailCancellation = null; cts.Dispose();
     }
