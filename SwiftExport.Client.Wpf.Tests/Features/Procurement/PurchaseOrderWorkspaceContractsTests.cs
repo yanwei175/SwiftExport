@@ -79,6 +79,21 @@ public sealed class PurchaseOrderWorkspaceContractsTests
         StringAssert.Contains(detail, "CbmTotalText");
     }
 
+    [TestMethod]
+    public void Workspace_MustUseHeadLineMasterDetailWithoutOpeningDrawerOnSelection()
+    {
+        var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderWorkspaceView.xaml");
+        StringAssert.Contains(view, "ItemsSource=\"{Binding Orders}\"");
+        StringAssert.Contains(view, "ItemsSource=\"{Binding Lines}\"");
+        StringAssert.Contains(view, "采购行明细");
+        StringAssert.Contains(view, "ResizeDirection=\"Rows\"");
+        StringAssert.Contains(view, "Command=\"{Binding OpenDrawerCommand}\"");
+
+        var viewModel = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderWorkspaceViewModel.cs");
+        Assert.IsFalse(viewModel.Contains("IsDrawerOpen = order is not null", StringComparison.Ordinal));
+        StringAssert.Contains(viewModel, "private void OpenDrawer() => IsDrawerOpen = true;");
+    }
+
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));
     private static string Root()
     {

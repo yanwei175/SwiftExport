@@ -73,7 +73,10 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(ArrangementSummary))]
     [NotifyCanExecuteChangedFor(nameof(SaveDraftCommand))] [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelConfirmationCommand))] [NotifyCanExecuteChangedFor(nameof(OpenTraceCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ExportCommand))] [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))] public partial PurchaseOrderListItemDto? SelectedOrder { get; set; }
+    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenDrawerCommand))]
+    public partial PurchaseOrderListItemDto? SelectedOrder { get; set; }
     [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(ReportProgressCommand))] public partial PurchaseOrderLineEditorModel? SelectedLine { get; set; }
     [ObservableProperty] public partial bool IsDrawerOpen { get; set; }
     [ObservableProperty] public partial string Remark { get; set; } = string.Empty;
@@ -105,6 +108,9 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     [RelayCommand] private async Task ClearFiltersAsync()
     { Keyword = OrderNo = SourceNo = SupplierKeyword = Sku = string.Empty; ConfirmationStatus = null; LifecycleStatus = null; ArrangementStatus = null; PlannedDeliveryDateFrom = PlannedDeliveryDateTo = ExpectedReadyDateFrom = ExpectedReadyDateTo = null; PageIndex = 1; await LoadPageAsync(); }
     [RelayCommand] private Task CloseDrawerAsync() { IsDrawerOpen = false; return Task.CompletedTask; }
+
+    [RelayCommand(CanExecute = nameof(CanUseSelected))]
+    private void OpenDrawer() => IsDrawerOpen = true;
 
     [RelayCommand(CanExecute = nameof(CanSaveDraft))]
     private async Task SaveDraftAsync()
@@ -225,7 +231,7 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     private async Task LoadDetailAsync(PurchaseOrderListItemDto? order)
     {
         _detailCancellation?.Cancel(); _detailCancellation?.Dispose(); var cts = new CancellationTokenSource(); _detailCancellation = cts;
-        Lines.Clear(); Operations.Clear(); IsDrawerOpen = order is not null; if (order is null) { cts.Dispose(); return; }
+        Lines.Clear(); Operations.Clear(); if (order is null) { IsDrawerOpen = false; cts.Dispose(); return; }
         var result = await _runner.RunAsync(() => _api.GetDetailAsync(order.Uid, cts.Token), cts.Token, "加载采购详情失败");
         if (!cts.IsCancellationRequested && ReferenceEquals(_detailCancellation, cts) && ReferenceEquals(order, SelectedOrder) && result.Success && result.Data is not null)
         {
