@@ -13,10 +13,8 @@ using SwiftExportClient.Features.Products.Placeholders.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
-using SwiftExportClient.Features.Purchasing;
 using SwiftExportClient.Features.Sales;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
-using SwiftExportClient.Features.Shipping;
 using SwiftExportClient.Shell;
 
 namespace SwiftExportClient.Bootstrapper;
@@ -50,8 +48,6 @@ public static class ViewRegistrationExtensions
         services.AddTransient<NetDemandTraceViewModel>();
         services.AddTransient<PurchaseDraftPreviewViewModel>();
         services.AddTransient<PlanningViewModel>();
-        services.AddTransient<PurchasingViewModel>();
-        services.AddTransient<ShippingViewModel>();
 
         return services;
     }

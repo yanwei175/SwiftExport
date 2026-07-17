@@ -8,15 +8,12 @@ public sealed class NetDemandLegacyDependencyGuardTests
 {
     private static readonly string[] ScopeDirectories =
     [
-        "SwiftExport.Contracts/DTOs/DemandPlanning",
-        "SwiftExport.Contracts/Apis/DemandPlanning",
-        "SwiftExport.Application/Services/DemandPlanning",
-        "SwiftExport.Application/Interfaces/DemandPlanning",
-        "SwiftExport.Core/Entities/DemandPlanning",
-        "SwiftExport.Core/Interfaces/DemandPlanning",
-        "SwiftExport.Infrastructure/Repositories/DemandPlanning",
-        "SwiftExport.WebApi/Controllers/DemandPlanning",
-        "SwiftExport.Client.Wpf/Features/DemandPlanning/NetDemand"
+        "SwiftExport.Contracts",
+        "SwiftExport.Application",
+        "SwiftExport.Core",
+        "SwiftExport.Infrastructure",
+        "SwiftExport.WebApi",
+        "SwiftExport.Client.Wpf"
     ];
 
     private static readonly (string Name, Regex Pattern)[] ForbiddenDependencies =
@@ -42,8 +39,19 @@ public sealed class NetDemandLegacyDependencyGuardTests
         CreateRule(
             "旧需求 StatusEnum",
             @"\b(?:IndependentDemand|DependentDemand)StatusEnum\b"),
-        CreateRule("旧 BomService", @"\bI?BomService\b"),
-        CreateRule("旧 PurchaseOrderService", @"\bI?PurchaseOrderService\b")
+        CreateRule("旧采购服务", @"\bI?(?:PurchaseOrder|FollowUp)Service\b"),
+        CreateRule("旧执行服务", @"\bI?(?:Receipt|PackingList|Stock)Service\b"),
+        CreateRule("旧采购/执行 API", @"\bI(?:PurchaseOrder|FollowUp|Receive|PackingList)Api\b"),
+        CreateRule(
+            "旧采购/执行 Repository",
+            @"\bI?(?:PurchaseOrder(?:Head|Line)|Receive(?:Head|Line)|Outbound(?:Head|Line)|PackingList(?:Head|Line)|Inventory(?:Transaction)?|Warehouse)Repository\b"),
+        CreateRule(
+            "旧采购/执行 Entity",
+            @"\b(?:PurchaseOrderHead|PurchaseOrderLine|FollowUpLog|ReceiveHead|ReceiveLine|ReceiptItem|OutboundHead|OutboundLine|PackingListHead|PackingListLine|Inventory|InventoryTransaction|Warehouse)\b"),
+        CreateRule("旧采购状态枚举", @"\bPurchaseOrderStatusEnum\b"),
+        CreateRule(
+            "旧采购/执行 DTO namespace",
+            @"\bSwiftExport\.Contracts\.DTOs\.(?:PurchaseOrders|PackingLists|Warehouses)(?:\.|\b)")
     ];
 
     private static readonly Regex IgnoredSourceText = new(
@@ -69,7 +77,8 @@ public sealed class NetDemandLegacyDependencyGuardTests
             var sourceFiles = Directory
                 .EnumerateFiles(absoluteDirectory, "*.*", SearchOption.AllDirectories)
                 .Where(path => path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
-                    || path.EndsWith(".xaml", StringComparison.OrdinalIgnoreCase));
+                    || path.EndsWith(".xaml", StringComparison.OrdinalIgnoreCase))
+                .Where(path => !ContainsBuildOutputDirectory(path));
 
             foreach (var sourceFile in sourceFiles)
             {
@@ -82,6 +91,13 @@ public sealed class NetDemandLegacyDependencyGuardTests
             "净需求专项代码禁止重新依赖旧 IndependentDemand/DependentDemand 链路："
             + Environment.NewLine
             + string.Join(Environment.NewLine, violations));
+    }
+
+    private static bool ContainsBuildOutputDirectory(string path)
+    {
+        var segments = path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return segments.Any(segment => string.Equals(segment, "bin", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(segment, "obj", StringComparison.OrdinalIgnoreCase));
     }
 
     private static void InspectFile(string repositoryRoot, string sourceFile, ICollection<string> violations)

@@ -22,12 +22,10 @@
         xmlns:productPlaceholderViewModels="clr-namespace:SwiftExportClient.Features.Products.Placeholders.ViewModels"
         xmlns:supplierViews="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierManagement.Views"
         xmlns:supplierViewModels="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels"
-        xmlns:purchasing="clr-namespace:SwiftExportClient.Features.Purchasing"
         xmlns:sales="clr-namespace:SwiftExportClient.Features.Sales"
         xmlns:salesOrderViews="clr-namespace:SwiftExportClient.Features.Sales.Orders.Views"
         xmlns:salesOrderViewModels="clr-namespace:SwiftExportClient.Features.Sales.Orders.ViewModels"
         xmlns:shell="clr-namespace:SwiftExportClient.Shell"
-        xmlns:shipping="clr-namespace:SwiftExportClient.Features.Shipping"
         mc:Ignorable="d"
         Title="{Binding Title}"
         Width="1920"
@@ -83,13 +81,6 @@
         <DataTemplate DataType="{x:Type planning:PlanningViewModel}">
             <planning:PlanningView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type purchasing:PurchasingViewModel}">
-            <purchasing:PurchasingView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type shipping:ShippingViewModel}">
-            <shipping:ShippingView />
-        </DataTemplate>
-
         <DataTemplate x:Key="ShellNavigationItemTemplate">
             <Grid HorizontalAlignment="Stretch">
                 <Button x:Name="LeafButton"

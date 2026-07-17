@@ -8,10 +8,8 @@ using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.Placeholders.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
-using SwiftExportClient.Features.Purchasing;
 using SwiftExportClient.Features.Sales;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
-using SwiftExportClient.Features.Shipping;
 
 namespace SwiftExportClient.Navigation;
 
@@ -32,8 +30,6 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(GrossDemandWorkspaceViewModel.RouteKey, "毛需求", "Workspace", typeof(GrossDemandWorkspaceViewModel)),
         new(NetDemandWorkspaceViewModel.RouteKey, "净需求", "Workspace", typeof(NetDemandWorkspaceViewModel)),
         new("planning", "计划", "Workspace", typeof(PlanningViewModel)),
-        new("purchasing", "采购", "Workspace", typeof(PurchasingViewModel)),
-        new("shipping", "出货", "Workspace", typeof(ShippingViewModel)),
     ];
 
     private readonly Dictionary<string, NavigationRoute> _routeMap;
@@ -71,8 +67,6 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                     new(GrossDemandWorkspaceViewModel.RouteKey, "毛需求", "Workspace", "DataTrending24"),
                     new(NetDemandWorkspaceViewModel.RouteKey, "净需求", "Workspace", "ClipboardTaskListLtr24"),
                 ]),
-            new("purchasing", "采购", "Workspace", "Cart24"),
-            new("shipping", "出货", "VehicleTruckProfile24"),
         ];
     }
 

@@ -44,6 +44,16 @@ public sealed class NavigationServiceTests
     }
 
     [TestMethod]
+    public void RouteRegistry_ShouldNotExposeRemovedPurchaseOrShippingPlaceholders()
+    {
+        var registry = new NavigationRouteRegistry();
+
+        Assert.IsFalse(registry.TryGetRoute("purchasing", out _));
+        Assert.IsFalse(registry.TryGetRoute("shipping", out _));
+        Assert.IsFalse(registry.MenuItems.Any(item => item.RouteKey is "purchasing" or "shipping"));
+    }
+
+    [TestMethod]
     public async Task OpenAsync_ShouldReuseExistingTabAndRecreateAfterClose()
     {
         var provider = new TestServiceProvider();

@@ -49,18 +49,11 @@ public static class DependencyInjection
         services.AddScoped<PurchaseDraftReleasePlanner>();
         services.AddScoped<PurchaseDraftLifecycleService>();
         services.AddScoped<INetDemandWorkspaceService, NetDemandWorkspaceService>();
-        services.AddScoped<IIndependentDemandServices, IndependentDemandService>();
-        services.AddScoped<IDependentDemandService, DependentDemandService>();
         services.AddScoped<IDocumentNoService, DocumentNoService>();
         services.AddScoped<ISysDicCurrencyService, SysDicCurrencyService>();
         services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();
         // 视图路由配置服务
         services.AddScoped<ISysViewRouteService, SysViewRouteService>();
-        services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
-        services.AddScoped<IFollowUpService, FollowUpService>();
-        services.AddScoped<IReceiptService, ReceiveService>();
-        services.AddScoped<IStockService, StockService>();
-        services.AddScoped<IPackingListService, PackingListService>();
 
         return services;
     }

@@ -8,7 +8,6 @@ using SwiftExport.Infrastructure.Repositories.Auth;
 using SwiftExport.Infrastructure.Repositories.Base;
 using SwiftExport.Infrastructure.Repositories.Customers;
 using SwiftExport.Infrastructure.Repositories.DemandPlanning;
-using SwiftExport.Infrastructure.Repositories.MasterData;
 using SwiftExport.Infrastructure.Repositories.Orders;
 using SwiftExport.Infrastructure.Repositories.Products;
 using SwiftExport.Infrastructure.Repositories.Suppliers;
@@ -58,26 +57,13 @@ public static class DependencyInjection
         // 视图路由配置仓储
         services.AddScoped<ISysViewRouteRepository, SysViewRouteRepository>();
         services.AddScoped<ISalesOrderLineRepository, SalesOrderLineRepository>();
-        services.AddScoped<IDependentDemandRepository, DependentDemandRepository>();
         services.AddScoped<INetDemandExecutionLinkRepository, NetDemandExecutionLinkRepository>();
-        services.AddScoped<IIndependentDemandRepository, IndependentDemandRepository>();
         services.AddScoped<IGrossDemandRepository, GrossDemandRepository>();
         services.AddScoped<INetDemandRepository, NetDemandRepository>();
         services.AddScoped<INetDemandAllocationRepository, NetDemandAllocationRepository>();
         services.AddScoped<INetDemandPlanCommandRepository, NetDemandPlanCommandRepository>();
         services.AddScoped<INetDemandPurchaseDraftRepository, NetDemandPurchaseDraftRepository>();
         services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();
-        services.AddScoped<IPurchaseOrderHeadRepository, PurchaseOrderRepository>();
-        services.AddScoped<IPurchaseOrderLineRepository, PurchaseOrderLineRepository>();
-        services.AddScoped<IReceiveHeadRepository, ReceiveHeadRepository>();
-        services.AddScoped<IReceiveLineRepository, ReceiveLineRepository>();
-        services.AddScoped<IOutboundHeadRepository, OutboundHeadRepository>();
-        services.AddScoped<IOutboundLineRepository, OutboundLineRepository>();
-        services.AddScoped<IPackingListHeadRepository, PackingListHeadRepository>();
-        services.AddScoped<IPackingListLineRepository, PackingListLineRepository>();
-        services.AddScoped<IInventoryRepository, InventoryRepository>();
-        services.AddScoped<IInventoryTransactionRepository, InventoryTransactionRepository>();
-        services.AddScoped<IWarehouseRepository, WarehouseRepository>();
 
         return services;
     }
