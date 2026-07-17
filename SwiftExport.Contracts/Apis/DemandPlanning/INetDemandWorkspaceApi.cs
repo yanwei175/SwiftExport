@@ -49,6 +49,24 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
             [Body] CreatePurchaseDraftsCommand command,
             CancellationToken cancellationToken = default(CancellationToken));
 
+        [Post("/purchase-drafts/{uid}/cancel")]
+        Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelPurchaseDraftAsync(
+            Guid uid,
+            [Body] CancelPurchaseDraftCommand command,
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        [Post("/purchase-drafts/{uid}/release-preview")]
+        Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewPurchaseDraftReleaseAsync(
+            Guid uid,
+            [Body] PurchaseDraftReleasePreviewRequest request,
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        [Post("/purchase-drafts/{uid}/release")]
+        Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleasePurchaseDraftAsync(
+            Guid uid,
+            [Body] ReleasePurchaseDraftCommand command,
+            CancellationToken cancellationToken = default(CancellationToken));
+
         [Get("/sources/{sourceType}/{sourceUid}/purchase-trace")]
         Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
             string sourceType,

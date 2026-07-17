@@ -1,9 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using SwiftExport.Contracts.Apis.DemandPlanning;
-using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
-using SwiftExport.Contracts.DTOs.PurchaseOrders;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
@@ -15,7 +13,6 @@ namespace SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 public sealed partial class NetDemandTraceViewModel : ViewModelBaseEx, IDisposable
 {
     private readonly INetDemandWorkspaceApi _api;
-    private readonly IPurchaseOrderDraftLifecycleApi _lifecycleApi;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly INetDemandTraceExportService _exportService;
     private readonly IMessageService _messageService;
@@ -24,14 +21,12 @@ public sealed partial class NetDemandTraceViewModel : ViewModelBaseEx, IDisposab
 
     public NetDemandTraceViewModel(
         INetDemandWorkspaceApi api,
-        IPurchaseOrderDraftLifecycleApi lifecycleApi,
         IApiCallRunner apiCallRunner,
         INetDemandTraceExportService exportService,
         IMessageService messageService,
         IDialogService dialogService)
     {
         _api = api;
-        _lifecycleApi = lifecycleApi;
         _apiCallRunner = apiCallRunner;
         _exportService = exportService;
         _messageService = messageService;
@@ -170,7 +165,7 @@ public sealed partial class NetDemandTraceViewModel : ViewModelBaseEx, IDisposab
         await RunWriteAsync(async () =>
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _lifecycleApi.CancelAsync(link.TargetHeadId, new CancelPurchaseDraftCommand
+                () => _api.CancelPurchaseDraftAsync(link.TargetHeadId, new CancelPurchaseDraftCommand
                 {
                     CommandId = Guid.NewGuid(),
                     ExpectedVersion = link.TargetHeadVersion.Value,

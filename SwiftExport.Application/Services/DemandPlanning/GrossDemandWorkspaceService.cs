@@ -21,7 +21,7 @@ public sealed class GrossDemandWorkspaceService(
     IGrossDemandRepository grossDemandRepository,
     INetDemandRepository netDemandRepository,
     INetDemandAllocationRepository allocationRepository,
-    IDemandExecutionLinkRepository executionLinkRepository,
+    INetDemandExecutionLinkRepository executionLinkRepository,
     IProductRepository productRepository,
     ISupplierRepository supplierRepository,
     IBomRepository bomRepository,

@@ -19,6 +19,18 @@ public interface INetDemandWorkspaceService
     Task<ServiceResult<CreatePurchaseDraftsResult>> CreatePurchaseDraftsAsync(
         CreatePurchaseDraftsCommand command,
         CancellationToken cancellationToken = default);
+    Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelPurchaseDraftAsync(
+        Guid uid,
+        CancelPurchaseDraftCommand command,
+        CancellationToken cancellationToken = default);
+    Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewPurchaseDraftReleaseAsync(
+        Guid uid,
+        PurchaseDraftReleasePreviewRequest request,
+        CancellationToken cancellationToken = default);
+    Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleasePurchaseDraftAsync(
+        Guid uid,
+        ReleasePurchaseDraftCommand command,
+        CancellationToken cancellationToken = default);
     Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
         string sourceType,
         Guid sourceUid,

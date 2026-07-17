@@ -1,6 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Services.DemandPlanning;
-using SwiftExport.Contracts.DTOs.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 

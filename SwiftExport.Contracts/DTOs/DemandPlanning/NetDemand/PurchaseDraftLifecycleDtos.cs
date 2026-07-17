@@ -2,9 +2,8 @@ using SwiftExport.Contracts.SysEnums;
 using System;
 using System.Collections.Generic;
 
-namespace SwiftExport.Contracts.DTOs.PurchaseOrders
+namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
 {
-    /// <summary>安全取消采购草稿；仅允许新净需求链路生成的活动待确认草稿。</summary>
     public class CancelPurchaseDraftCommand
     {
         public Guid CommandId { get; set; }
@@ -12,7 +11,6 @@ namespace SwiftExport.Contracts.DTOs.PurchaseOrders
         public string Reason { get; set; }
     }
 
-    /// <summary>采购草稿减量预览请求。</summary>
     public class PurchaseDraftReleasePreviewRequest
     {
         public int ExpectedVersion { get; set; }
@@ -20,7 +18,6 @@ namespace SwiftExport.Contracts.DTOs.PurchaseOrders
         public string Reason { get; set; }
     }
 
-    /// <summary>确认减量命令；执行时服务端重新锁定并校验预览事实。</summary>
     public class ReleasePurchaseDraftCommand
     {
         public Guid CommandId { get; set; }
@@ -43,7 +40,6 @@ namespace SwiftExport.Contracts.DTOs.PurchaseOrders
         public List<PurchaseDraftLinkReleaseDto> Releases { get; set; } = new List<PurchaseDraftLinkReleaseDto>();
     }
 
-    /// <summary>按冻结顺序计算出的 Link 释放贡献。</summary>
     public class PurchaseDraftLinkReleaseDto
     {
         public Guid LinkId { get; set; }
@@ -56,7 +52,6 @@ namespace SwiftExport.Contracts.DTOs.PurchaseOrders
         public decimal RemainingEffectiveQty { get; set; }
     }
 
-    /// <summary>仓储提供给生命周期编排的锁定 Link 事实。</summary>
     public class PurchaseDraftLifecycleLinkFactDto
     {
         public Guid LinkId { get; set; }

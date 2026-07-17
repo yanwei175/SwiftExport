@@ -9,7 +9,6 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.DemandPlanning;
@@ -25,9 +24,8 @@ public sealed class PurchaseDraftCreationService(
     IGrossDemandRepository grossDemandRepository,
     INetDemandRepository netDemandRepository,
     INetDemandAllocationRepository allocationRepository,
-    IDemandExecutionLinkRepository executionLinkRepository,
-    IPurchaseOrderHeadRepository purchaseOrderHeadRepository,
-    IPurchaseOrderLineRepository purchaseOrderLineRepository,
+    INetDemandExecutionLinkRepository executionLinkRepository,
+    INetDemandPurchaseDraftRepository purchaseDraftRepository,
     IProductRepository productRepository,
     ISupplierRepository supplierRepository,
     ISupplierProductRepository supplierProductRepository,
@@ -195,14 +193,14 @@ public sealed class PurchaseDraftCreationService(
             {
                 var target = targetBySupplier.GetValueOrDefault(document.SupplierId);
                 var targetMode = target?.TargetMode ?? PurchaseDraftTargetModeEnum.CreateNew;
-                PurchaseOrderHead? appendHead = null;
+                NetDemandPurchaseDraftHead? appendHead = null;
                 Guid purchaseOrderId;
                 string orderNo;
                 int firstLineNumber;
 
                 if (targetMode == PurchaseDraftTargetModeEnum.AppendExisting)
                 {
-                    appendHead = await purchaseOrderHeadRepository.GetSafeDraftForUpdateAsync(
+                    appendHead = await purchaseDraftRepository.GetSafeDraftForUpdateAsync(
                         target!.ExistingPurchaseOrderId!.Value,
                         target.ExpectedPurchaseOrderVersion!.Value)
                         ?? throw new PurchaseDraftException("APPEND_TARGET_UNSAFE",
@@ -210,11 +208,11 @@ public sealed class PurchaseDraftCreationService(
                     ValidateAppendHead(appendHead, source, document);
                     purchaseOrderId = appendHead.Uid;
                     orderNo = appendHead.OrderNo;
-                    firstLineNumber = await purchaseOrderLineRepository.GetMaxLineNumberForUpdateAsync(purchaseOrderId) + 1;
+                    firstLineNumber = await purchaseDraftRepository.GetMaxLineNumberForUpdateAsync(purchaseOrderId) + 1;
                 }
                 else
                 {
-                    var duplicateHead = await purchaseOrderHeadRepository.GetByExecutionScopeForUpdateAsync(
+                    var duplicateHead = await purchaseDraftRepository.GetByExecutionScopeForUpdateAsync(
                         command.ExecutionRequestId, source.SourceType, source.SourceUid, document.SupplierId);
                     if (duplicateHead is not null)
                         throw new PurchaseDraftException("IDEMPOTENCY_PARTIAL_STATE",
@@ -236,14 +234,14 @@ public sealed class PurchaseDraftCreationService(
                     document, command.ExecutionRequestId, purchaseOrderId, orderNo,
                     firstLineNumber, targetMode == PurchaseDraftTargetModeEnum.CreateNew);
                 if (writeModel.Head is not null
-                    && await purchaseOrderHeadRepository.InsertPurchaseDraftAsync(writeModel.Head) != 1)
+                    && await purchaseDraftRepository.InsertPurchaseDraftAsync(writeModel.Head) != 1)
                     throw new PurchaseDraftException("PURCHASE_HEAD_INSERT_FAILED", "采购草稿头写入失败。");
-                if (await purchaseOrderLineRepository.InsertPurchaseDraftLinesAsync(writeModel.Lines) != writeModel.Lines.Count)
+                if (await purchaseDraftRepository.InsertPurchaseDraftLinesAsync(writeModel.Lines) != writeModel.Lines.Count)
                     throw new PurchaseDraftException("PURCHASE_LINE_INSERT_FAILED", "采购草稿行写入不完整。");
                 if (await executionLinkRepository.InsertPurchaseLinksAsync(writeModel.Links) != writeModel.Links.Count)
                     throw new PurchaseDraftException("PURCHASE_LINK_INSERT_FAILED", "采购追溯 Link 写入不完整。");
                 if (appendHead is not null
-                    && await purchaseOrderHeadRepository.RefreshDraftSummaryAfterAppendAsync(
+                    && await purchaseDraftRepository.RefreshDraftSummaryAfterAppendAsync(
                         appendHead.Uid, appendHead.Version) != 1)
                     throw new PurchaseDraftException("APPEND_CONCURRENCY_CONFLICT", "追加采购草稿时版本已变化。");
 
@@ -319,7 +317,7 @@ public sealed class PurchaseDraftCreationService(
                     "CommandItemId 已被不同的执行事实使用。");
         }
 
-        var heads = await purchaseOrderHeadRepository.GetPurchaseDraftsByIdsAsync(
+        var heads = await purchaseDraftRepository.GetPurchaseDraftsByIdsAsync(
             links.Select(x => x.TargetHeadId), cancellationToken);
         if (heads.Count != links.Select(x => x.TargetHeadId).Distinct().Count()) return null;
         return new CreatePurchaseDraftSourceResult
@@ -421,7 +419,7 @@ public sealed class PurchaseDraftCreationService(
             foreach (var source in candidates.Where(x => x.IsSelected)
                          .Select(x => (x.SourceType, x.SourceUid)).Distinct())
             {
-                var rows = await purchaseOrderHeadRepository.GetSafeAppendCandidatesAsync(
+                var rows = await purchaseDraftRepository.GetSafeAppendCandidatesAsync(
                     source.SourceType, source.SourceUid, supplierIds, cancellationToken);
                 safeAppend.AddRange(rows.Select(x => new PurchaseDraftSafeAppendCandidate
                 {
@@ -706,7 +704,7 @@ public sealed class PurchaseDraftCreationService(
     }
 
     private static void ValidateAppendHead(
-        PurchaseOrderHead head,
+        NetDemandPurchaseDraftHead head,
         CreatePurchaseDraftSourceCommand source,
         PurchaseDraftPreviewDocumentDto document)
     {

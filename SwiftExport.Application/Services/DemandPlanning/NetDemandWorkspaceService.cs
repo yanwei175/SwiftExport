@@ -18,12 +18,13 @@ public sealed class NetDemandWorkspaceService(
     INetDemandRepository netDemandRepository,
     INetDemandAllocationRepository allocationRepository,
     INetDemandPlanCommandRepository commandRepository,
-    IDemandExecutionLinkRepository executionLinkRepository,
+    INetDemandExecutionLinkRepository executionLinkRepository,
     IProductRepository productRepository,
     ISupplierRepository supplierRepository,
     NetDemandPlanReplacementPlanner replacementPlanner,
     NetDemandPlanCommandIdempotencyPolicy idempotencyPolicy,
-    PurchaseDraftCreationService purchaseDrafts) : INetDemandWorkspaceService
+    PurchaseDraftCreationService purchaseDrafts,
+    PurchaseDraftLifecycleService purchaseDraftLifecycle) : INetDemandWorkspaceService
 {
     private readonly DbSession _session = context.Session;
     private readonly ILogger<NetDemandWorkspaceService> _logger = context.LoggerFactory.CreateLogger<NetDemandWorkspaceService>();
@@ -37,6 +38,24 @@ public sealed class NetDemandWorkspaceService(
         CreatePurchaseDraftsCommand command,
         CancellationToken cancellationToken = default)
         => purchaseDrafts.CreateAsync(command, cancellationToken);
+
+    public Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelPurchaseDraftAsync(
+        Guid uid,
+        CancelPurchaseDraftCommand command,
+        CancellationToken cancellationToken = default)
+        => purchaseDraftLifecycle.CancelAsync(uid, command, cancellationToken);
+
+    public Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewPurchaseDraftReleaseAsync(
+        Guid uid,
+        PurchaseDraftReleasePreviewRequest request,
+        CancellationToken cancellationToken = default)
+        => purchaseDraftLifecycle.PreviewReleaseAsync(uid, request, cancellationToken);
+
+    public Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleasePurchaseDraftAsync(
+        Guid uid,
+        ReleasePurchaseDraftCommand command,
+        CancellationToken cancellationToken = default)
+        => purchaseDraftLifecycle.ReleaseAsync(uid, command, cancellationToken);
 
     public Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
         string sourceType,

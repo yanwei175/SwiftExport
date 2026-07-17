@@ -3,7 +3,6 @@ using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.DemandPlanning;
-using SwiftExport.Core.Entities.Orders;
 
 namespace SwiftExport.Application.Services.DemandPlanning;
 
@@ -29,7 +28,7 @@ public sealed class PurchaseDraftWriteModelBuilder
         var result = new PurchaseDraftWriteModel();
         if (createHead)
         {
-            result.Head = new PurchaseOrderHead
+            result.Head = new NetDemandPurchaseDraftHead
             {
                 Uid = purchaseOrderId,
                 Version = 1,
@@ -43,7 +42,7 @@ public sealed class PurchaseDraftWriteModelBuilder
                 ExecutionRequestId = executionRequestId,
                 LifecycleStatus = PurchaseOrderLifecycleStatusEnum.Active,
                 ConfirmationStatus = ConfirmationStatusEnum.待确认,
-                OrderStatus = PurchaseOrderStatusEnum.未确认,
+                OrderStatus = 0,
                 Currency = CurrencyEnum.CNY,
                 OrderDate = DateTime.Now,
                 ExpectedDate = document.EarliestPlannedDeliveryDate,
@@ -69,7 +68,7 @@ public sealed class PurchaseDraftWriteModelBuilder
             var singleContribution = previewLine.Contributions.Count == 1
                 ? previewLine.Contributions[0]
                 : null;
-            var line = new PurchaseOrderLine
+            var line = new NetDemandPurchaseDraftLine
             {
                 Uid = purchaseLineId,
                 Version = 1,
@@ -135,7 +134,7 @@ public sealed class PurchaseDraftWriteModelBuilder
 
 public sealed class PurchaseDraftWriteModel
 {
-    public PurchaseOrderHead? Head { get; set; }
-    public List<PurchaseOrderLine> Lines { get; } = [];
+    public NetDemandPurchaseDraftHead? Head { get; set; }
+    public List<NetDemandPurchaseDraftLine> Lines { get; } = [];
     public List<DemandExecutionLink> Links { get; } = [];
 }

@@ -1,12 +1,11 @@
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
-using SwiftExport.Application.Interfaces.DemandPlanning;
-using SwiftExport.Contracts.DTOs.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Entities.Orders;
-using SwiftExport.Core.Interfaces;
+using SwiftExport.Core.Entities.DemandPlanning;
+using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Services.DemandPlanning;
@@ -14,10 +13,9 @@ namespace SwiftExport.Application.Services.DemandPlanning;
 /// <summary>净需求专项采购草稿的安全取消和减量编排。</summary>
 public sealed class PurchaseDraftLifecycleService(
     ServiceBaseContext context,
-    IPurchaseOrderHeadRepository headRepository,
-    IPurchaseOrderLineRepository lineRepository,
-    IDemandExecutionLinkRepository linkRepository,
-    PurchaseDraftReleasePlanner releasePlanner) : IPurchaseDraftLifecycleService
+    INetDemandPurchaseDraftRepository purchaseDraftRepository,
+    INetDemandExecutionLinkRepository linkRepository,
+    PurchaseDraftReleasePlanner releasePlanner)
 {
     private readonly DbSession _session = context.Session;
     private readonly ILogger<PurchaseDraftLifecycleService> _logger =
@@ -39,7 +37,7 @@ public sealed class PurchaseDraftLifecycleService(
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var head = await headRepository.GetLifecycleDraftAsync(uid, withUpdLock: true);
+            var head = await purchaseDraftRepository.GetLifecycleDraftAsync(uid, withUpdLock: true);
             if (head is null)
                 return RollbackFail<PurchaseDraftLifecycleResult>("采购草稿不存在，或属于缺少新来源字段的遗留采购单。");
             if (head.LifecycleStatus == PurchaseOrderLifecycleStatusEnum.Voided)
@@ -55,7 +53,7 @@ public sealed class PurchaseDraftLifecycleService(
                 });
             }
             EnsureMutableDraft(head, command.ExpectedVersion);
-            if (await headRepository.HasDownstreamFactsAsync(uid, withUpdLock: true))
+            if (await purchaseDraftRepository.HasDownstreamFactsAsync(uid, withUpdLock: true))
                 return RollbackFail<PurchaseDraftLifecycleResult>("采购草稿已有收货或库存事实，不能取消。");
 
             var links = await linkRepository.GetPurchaseLinksByHeadAsync(uid, withUpdLock: true, cancellationToken);
@@ -64,10 +62,10 @@ public sealed class PurchaseDraftLifecycleService(
             if (links.Any(x => x.LinkId == Guid.Empty || x.AllocationId == Guid.Empty
                 || x.PurchaseOrderLineId == Guid.Empty))
                 return RollbackFail<PurchaseDraftLifecycleResult>("采购草稿混有遗留或不完整 Link，不能执行专项取消。");
-            _ = await lineRepository.GetDraftLinesForUpdateAsync(uid);
+            _ = await purchaseDraftRepository.GetDraftLinesForUpdateAsync(uid);
             if (await linkRepository.CancelPurchaseLinksByHeadAsync(uid, command.Reason.Trim()) != links.Count)
                 throw new PurchaseDraftLifecycleException("LINK_CONCURRENCY_CONFLICT", "取消 Link 时事实已变化。");
-            if (await headRepository.VoidDraftAsync(uid, command.ExpectedVersion, command.Reason.Trim()) != 1)
+            if (await purchaseDraftRepository.VoidDraftAsync(uid, command.ExpectedVersion, command.Reason.Trim()) != 1)
                 throw new PurchaseDraftLifecycleException("PURCHASE_DRAFT_CONCURRENCY_CONFLICT", "采购草稿版本已变化。");
 
             _session.Transaction.Commit();
@@ -114,13 +112,13 @@ public sealed class PurchaseDraftLifecycleService(
             return ServiceResult<PurchaseDraftReleasePreviewResponse>.Fail("采购草稿、版本和减量原因不能为空。");
         try
         {
-            var head = await headRepository.GetLifecycleDraftAsync(uid);
+            var head = await purchaseDraftRepository.GetLifecycleDraftAsync(uid);
             if (head is null)
                 return ServiceResult<PurchaseDraftReleasePreviewResponse>.Fail("采购草稿不存在，或属于遗留采购单。");
             EnsureMutableDraft(head, request.ExpectedVersion);
             var links = await linkRepository.GetPurchaseLinksByHeadAsync(uid, false, cancellationToken);
             var preview = releasePlanner.Build(uid, request.ExpectedVersion, request.NewTotalQty, links);
-            if (await headRepository.HasDownstreamFactsAsync(uid))
+            if (await purchaseDraftRepository.HasDownstreamFactsAsync(uid))
             {
                 preview.Blockers.Add("采购草稿已有收货或库存事实，不能减量。");
                 preview.HasBlockers = true;
@@ -155,14 +153,14 @@ public sealed class PurchaseDraftLifecycleService(
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var head = await headRepository.GetLifecycleDraftAsync(uid, withUpdLock: true)
+            var head = await purchaseDraftRepository.GetLifecycleDraftAsync(uid, withUpdLock: true)
                 ?? throw new PurchaseDraftLifecycleException("LEGACY_OR_NOT_FOUND", "采购草稿不存在，或属于遗留采购单。");
             EnsureMutableDraft(head, command.ExpectedVersion);
-            if (await headRepository.HasDownstreamFactsAsync(uid, withUpdLock: true))
+            if (await purchaseDraftRepository.HasDownstreamFactsAsync(uid, withUpdLock: true))
                 throw new PurchaseDraftLifecycleException("DOWNSTREAM_FACT_EXISTS", "采购草稿已有收货或库存事实，不能减量。");
 
             var links = await linkRepository.GetPurchaseLinksByHeadAsync(uid, withUpdLock: true, cancellationToken);
-            var lines = await lineRepository.GetDraftLinesForUpdateAsync(uid);
+            var lines = await purchaseDraftRepository.GetDraftLinesForUpdateAsync(uid);
             if (lines.Sum(x => x.QTY) != links.Sum(x => x.EffectiveQty))
                 throw new PurchaseDraftLifecycleException("CORRUPTED_STATE", "采购行数量与活动 Link 有效贡献不守恒。");
             var preview = releasePlanner.Build(uid, command.ExpectedVersion, command.NewTotalQty, links);
@@ -186,9 +184,9 @@ public sealed class PurchaseDraftLifecycleService(
             if (await linkRepository.ApplyPurchaseLinkReleasesAsync(preview.Releases, command.Reason.Trim())
                 != preview.Releases.Count)
                 throw new PurchaseDraftLifecycleException("LINK_CONCURRENCY_CONFLICT", "释放 Link 时事实已变化。");
-            if (await lineRepository.UpdateDraftLineQuantitiesAsync(changed, command.Reason.Trim()) != changed.Count)
+            if (await purchaseDraftRepository.UpdateDraftLineQuantitiesAsync(changed, command.Reason.Trim()) != changed.Count)
                 throw new PurchaseDraftLifecycleException("PURCHASE_LINE_CONCURRENCY_CONFLICT", "更新采购行数量时事实已变化。");
-            if (await headRepository.RefreshDraftSummaryAfterReleaseAsync(uid, command.ExpectedVersion) != 1)
+            if (await purchaseDraftRepository.RefreshDraftSummaryAfterReleaseAsync(uid, command.ExpectedVersion) != 1)
                 throw new PurchaseDraftLifecycleException("PURCHASE_DRAFT_CONCURRENCY_CONFLICT", "采购草稿版本已变化。");
 
             _session.Transaction.Commit();
@@ -231,7 +229,7 @@ public sealed class PurchaseDraftLifecycleService(
         return ServiceResult<T>.Fail(message);
     }
 
-    private static void EnsureMutableDraft(PurchaseOrderHead head, int expectedVersion)
+    private static void EnsureMutableDraft(NetDemandPurchaseDraftHead head, int expectedVersion)
     {
         if (head.Version != expectedVersion)
             throw new PurchaseDraftLifecycleException("CONCURRENCY_CONFLICT", "采购草稿版本已变化。");

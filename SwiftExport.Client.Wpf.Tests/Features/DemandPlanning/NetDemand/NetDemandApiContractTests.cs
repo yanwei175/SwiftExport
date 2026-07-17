@@ -1,7 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Contracts.Apis.DemandPlanning;
-using SwiftExport.Contracts.Apis.Orders;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using System.Reflection;
 
@@ -21,6 +20,9 @@ public sealed class NetDemandApiContractTests
         AssertRoute(nameof(INetDemandWorkspaceApi.BatchAssignSupplierAsync), typeof(PostAttribute), "/plans/batch-assign-supplier", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.PreviewPurchaseDraftsAsync), typeof(PostAttribute), "/purchase-drafts/preview", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.CreatePurchaseDraftsAsync), typeof(PostAttribute), "/purchase-drafts/create", 0);
+        AssertRoute(nameof(INetDemandWorkspaceApi.CancelPurchaseDraftAsync), typeof(PostAttribute), "/purchase-drafts/{uid}/cancel", 1);
+        AssertRoute(nameof(INetDemandWorkspaceApi.PreviewPurchaseDraftReleaseAsync), typeof(PostAttribute), "/purchase-drafts/{uid}/release-preview", 1);
+        AssertRoute(nameof(INetDemandWorkspaceApi.ReleasePurchaseDraftAsync), typeof(PostAttribute), "/purchase-drafts/{uid}/release", 1);
         AssertRoute(nameof(INetDemandWorkspaceApi.GetPurchaseTraceBySourceAsync), typeof(GetAttribute), "/sources/{sourceType}/{sourceUid}/purchase-trace");
     }
 
@@ -50,21 +52,11 @@ public sealed class NetDemandApiContractTests
     }
 
     [TestMethod]
-    public void PurchaseDraftLifecycleApi_ShouldExposeDedicatedCancelAndReleaseRoutes()
+    public void PurchaseDraftLifecycleRoutes_ShouldBelongToNetDemandWorkspaceApi()
     {
-        AssertLifecycleRoute(nameof(IPurchaseOrderDraftLifecycleApi.CancelAsync), "/drafts/{uid}/cancel");
-        AssertLifecycleRoute(nameof(IPurchaseOrderDraftLifecycleApi.PreviewReleaseAsync), "/drafts/{uid}/release-preview");
-        AssertLifecycleRoute(nameof(IPurchaseOrderDraftLifecycleApi.ReleaseAsync), "/drafts/{uid}/release");
-    }
-
-    private static void AssertLifecycleRoute(string methodName, string path)
-    {
-        var method = typeof(IPurchaseOrderDraftLifecycleApi).GetMethod(methodName);
-        Assert.IsNotNull(method);
-        var attribute = method.GetCustomAttributes(typeof(PostAttribute), false).Single();
-        Assert.AreEqual(path, ((PostAttribute)attribute).Path);
-        Assert.IsTrue(method.GetParameters().Any(parameter => parameter.ParameterType == typeof(CancellationToken)));
-        Assert.IsNotNull(method.GetParameters()[1].GetCustomAttributes(typeof(BodyAttribute), false).SingleOrDefault());
+        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.CancelPurchaseDraftAsync));
+        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.PreviewPurchaseDraftReleaseAsync));
+        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.ReleasePurchaseDraftAsync));
     }
 
     private static void AssertRoute(string methodName, Type attributeType, string path, int? bodyParameterIndex = null)

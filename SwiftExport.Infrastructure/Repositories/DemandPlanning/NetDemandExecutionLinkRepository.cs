@@ -1,19 +1,18 @@
 using Dapper;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
-using SwiftExport.Contracts.DTOs.PurchaseOrders;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Entities.DemandPlanning;
-using SwiftExport.Core.Interfaces;
+using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Infrastructure.Contexts;
 
-namespace SwiftExport.Infrastructure.Repositories.Orders;
+namespace SwiftExport.Infrastructure.Repositories.DemandPlanning;
 
 /// <summary>
 /// 净需求执行关系仓储实现。
 /// </summary>
-public class DemandExecutionLinkRepository(RepositoryBaseContext context)
-    : IDemandExecutionLinkRepository
+public sealed class NetDemandExecutionLinkRepository(RepositoryBaseContext context)
+    : INetDemandExecutionLinkRepository
 {
     public async Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetByNetDemandIdsAsync(
         IEnumerable<Guid> netDemandIds,

@@ -1,14 +1,13 @@
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
-using SwiftExport.Contracts.DTOs.PurchaseOrders;
 using SwiftExport.Core.Entities.DemandPlanning;
 
-namespace SwiftExport.Core.Interfaces;
+namespace SwiftExport.Core.Interfaces.DemandPlanning;
 
 /// <summary>
 /// 净需求执行关系仓储接口。
 /// </summary>
-public interface IDemandExecutionLinkRepository
+public interface INetDemandExecutionLinkRepository
 {
     Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetByNetDemandIdsAsync(
         IEnumerable<Guid> netDemandIds,

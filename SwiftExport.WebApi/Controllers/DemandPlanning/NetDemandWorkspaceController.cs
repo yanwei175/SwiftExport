@@ -58,6 +58,27 @@ public sealed class NetDemandWorkspaceController(INetDemandWorkspaceService serv
         CancellationToken cancellationToken)
         => service.CreatePurchaseDraftsAsync(command, cancellationToken);
 
+    [HttpPost("purchase-drafts/{uid:guid}/cancel")]
+    public Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelPurchaseDraftAsync(
+        Guid uid,
+        [FromBody] CancelPurchaseDraftCommand command,
+        CancellationToken cancellationToken)
+        => service.CancelPurchaseDraftAsync(uid, command, cancellationToken);
+
+    [HttpPost("purchase-drafts/{uid:guid}/release-preview")]
+    public Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewPurchaseDraftReleaseAsync(
+        Guid uid,
+        [FromBody] PurchaseDraftReleasePreviewRequest request,
+        CancellationToken cancellationToken)
+        => service.PreviewPurchaseDraftReleaseAsync(uid, request, cancellationToken);
+
+    [HttpPost("purchase-drafts/{uid:guid}/release")]
+    public Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleasePurchaseDraftAsync(
+        Guid uid,
+        [FromBody] ReleasePurchaseDraftCommand command,
+        CancellationToken cancellationToken)
+        => service.ReleasePurchaseDraftAsync(uid, command, cancellationToken);
+
     [HttpGet("sources/{sourceType}/{sourceUid:guid}/purchase-trace")]
     public Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
         string sourceType,
