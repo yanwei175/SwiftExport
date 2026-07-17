@@ -9,6 +9,7 @@ using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
+using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Resources.Controls;
@@ -30,6 +31,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IDialogService _dialogService;
     private readonly IMessageService _messageService;
+    private readonly INetDemandDialogService _netDemandDialogService;
     private CancellationTokenSource? _searchCancellation;
     private CancellationTokenSource? _detailCancellation;
     private long _supplierSearchVersion;
@@ -44,6 +46,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         IApiCallRunner apiCallRunner,
         IDialogService dialogService,
         IMessageService messageService,
+        INetDemandDialogService netDemandDialogService,
         NetDemandPlanEditorViewModel planEditor,
         NetDemandTraceViewModel trace)
     {
@@ -52,6 +55,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         _apiCallRunner = apiCallRunner;
         _dialogService = dialogService;
         _messageService = messageService;
+        _netDemandDialogService = netDemandDialogService;
         PlanEditor = planEditor;
         Trace = trace;
         Title = "净需求";
@@ -65,6 +69,8 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         RegisterBusyAwareCommand(BatchAssignSupplierCommand);
         RegisterBusyAwareCommand(ApplyDefaultSupplierCommand);
         RegisterBusyAwareCommand(OpenTraceCommand);
+        RegisterBusyAwareCommand(TransferSelectedPurchaseCommand);
+        RegisterBusyAwareCommand(TransferSourcePurchaseCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
     }
 
@@ -167,6 +173,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     [NotifyCanExecuteChangedFor(nameof(ModifyPlanCommand))]
     [NotifyCanExecuteChangedFor(nameof(ApplyDefaultSupplierCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenTraceCommand))]
+    [NotifyCanExecuteChangedFor(nameof(TransferSourcePurchaseCommand))]
     public partial NetDemandRowModel? SelectedItem { get; set; }
 
     [ObservableProperty]
@@ -399,6 +406,48 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         if (!await Trace.LoadAsync(selected.Uid))
         {
             _messageService.ShowWarning("净需求追溯", Trace.StatusText);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanTransferSelectedPurchase))]
+    private async Task TransferSelectedPurchaseAsync()
+    {
+        var selected = Items.Where(item => item.IsChecked).ToArray();
+        if (selected.Length == 0 || !await ConfirmDiscardPlanChangesAsync())
+        {
+            return;
+        }
+
+        var applied = await _netDemandDialogService.ShowPurchaseDraftPreviewAsync(new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = selected,
+        });
+        if (applied)
+        {
+            await LoadPageAsync();
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanTransferSourcePurchase))]
+    private async Task TransferSourcePurchaseAsync()
+    {
+        var selected = SelectedItem;
+        if (selected is null || !await ConfirmDiscardPlanChangesAsync())
+        {
+            return;
+        }
+
+        var applied = await _netDemandDialogService.ShowPurchaseDraftPreviewAsync(new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.SourceOneClick,
+            SourceType = selected.SourceType,
+            SourceUid = selected.SourceUid,
+            SourceNo = selected.SourceNo,
+        });
+        if (applied)
+        {
+            await LoadPageAsync();
         }
     }
 
@@ -684,6 +733,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     {
         OnPropertyChanged(nameof(CheckedCount));
         BatchAssignSupplierCommand.NotifyCanExecuteChanged();
+        TransferSelectedPurchaseCommand.NotifyCanExecuteChanged();
     }
 
     private void OnPlanEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -710,6 +760,14 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         && IsNotBusy
         && Items.Any(item => item.IsChecked)
         && Items.Where(item => item.IsChecked).All(item => item.CanReplacePlan && item.ExecutionType == DemandExecutionTypeEnum.Purchase);
+    private bool CanTransferSelectedPurchase() => CanWrite
+        && IsNotBusy
+        && Items.Any(item => item.IsChecked)
+        && Items.Where(item => item.IsChecked).All(item => item.ExecutionType == DemandExecutionTypeEnum.Purchase && item.RemainingQty > 0);
+    private bool CanTransferSourcePurchase() => CanWrite
+        && IsNotBusy
+        && SelectedItem is { } selected
+        && selected.SourceUid != Guid.Empty;
 
     private void DetachRows()
     {

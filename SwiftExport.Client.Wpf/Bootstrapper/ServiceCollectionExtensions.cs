@@ -35,6 +35,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IClientVersionService, ClientVersionService>();
         services.AddSingleton<IImageCacheService, ImageCacheService>();
         services.AddTransient<INetDemandTraceExportService, NetDemandTraceExportService>();
+        services.AddTransient<INetDemandDialogService, NetDemandDialogService>();
         services.AddTransient<AuthTokenHandler>();
         services.AddSwiftExportApis();
 

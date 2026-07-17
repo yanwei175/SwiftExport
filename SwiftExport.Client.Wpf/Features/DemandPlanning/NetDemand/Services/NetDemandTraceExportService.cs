@@ -9,11 +9,34 @@ public sealed class NetDemandTraceExportService : INetDemandTraceExportService
 {
     private readonly IGridExportProvider _provider = new XlsxGridExportProvider();
 
+    public async Task<string?> ExportSourceAsync(
+        SourcePurchaseTraceDto trace,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(trace);
+        var path = SelectPath(trace.SourceNo);
+        if (path is null) return null;
+        var request = NetDemandTraceExportBuilder.CreateRequest(trace);
+        await using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
+        await _provider.ExportAsync(request, stream, cancellationToken: cancellationToken);
+        return path;
+    }
+
     public async Task<string?> ExportAsync(
         NetDemandListItemDto summary,
         IReadOnlyList<NetDemandAllocationDto> allocations,
         IReadOnlyList<NetDemandExecutionLinkDto> executionLinks,
         CancellationToken cancellationToken = default)
+    {
+        var path = SelectPath(summary.SourceNo);
+        if (path is null) return null;
+        var request = NetDemandTraceExportBuilder.CreateRequest(summary, allocations, executionLinks);
+        await using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
+        await _provider.ExportAsync(request, stream, cancellationToken: cancellationToken);
+        return path;
+    }
+
+    private static string? SelectPath(string? sourceNo)
     {
         var dialog = new SaveFileDialog
         {
@@ -21,16 +44,12 @@ public sealed class NetDemandTraceExportService : INetDemandTraceExportService
             Filter = "Excel 工作簿 (*.xlsx)|*.xlsx",
             DefaultExt = ".xlsx",
             AddExtension = true,
-            FileName = $"净需求采购追溯_{SanitizeFileName(summary.SourceNo)}_{DateTime.Now:yyyyMMddHHmm}.xlsx",
+            FileName = $"净需求采购追溯_{SanitizeFileName(sourceNo)}_{DateTime.Now:yyyyMMddHHmm}.xlsx",
         };
         if (dialog.ShowDialog() != true)
         {
             return null;
         }
-
-        var request = NetDemandTraceExportBuilder.CreateRequest(summary, allocations, executionLinks);
-        await using var stream = new FileStream(dialog.FileName, FileMode.Create, FileAccess.Write, FileShare.None);
-        await _provider.ExportAsync(request, stream, cancellationToken: cancellationToken);
         return dialog.FileName;
     }
 

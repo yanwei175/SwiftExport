@@ -10,6 +10,18 @@ namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 /// </summary>
 public static class NetDemandTraceExportBuilder
 {
+    private static readonly IReadOnlyList<GridExportColumn> SourceColumns =
+    [
+        new("source-type", "来源类型", null, 0, null),new("source-no", "来源单号", null, 1, null),
+        new("source-line", "来源行号", null, 2, null),new("sku", "SKU", null, 3, null),
+        new("net-qty", "净需求数量", null, 4, "N4"),new("link-status", "Link状态", null, 5, null),
+        new("original-link-qty", "原Link数量", null, 6, "N4"),new("released-qty", "已释放数量", null, 7, "N4"),
+        new("link-qty", "有效Link数量", null, 8, "N4"),new("purchase-no", "采购单号", null, 9, null),
+        new("purchase-line", "采购行号", null, 10, null),new("purchase-lifecycle", "采购生命周期", null, 11, null),
+        new("confirmation", "确认状态", null, 12, null),new("supplier", "采购供应商", null, 13, null),
+        new("demand-date", "原需求交期", null, 14, "yyyy-MM-dd"),new("planned-date", "计划交期", null, 15, "yyyy-MM-dd"),
+    ];
+
     private static readonly IReadOnlyList<GridExportColumn> Columns =
     [
         new("source-type", "来源类型", null, 0, null),
@@ -31,6 +43,30 @@ public static class NetDemandTraceExportBuilder
         new("demand-required-date", "原需求交期", null, 16, "yyyy-MM-dd"),
         new("planned-delivery-date", "计划交期", null, 17, "yyyy-MM-dd"),
     ];
+
+    public static GridExportRequest CreateRequest(SourcePurchaseTraceDto trace)
+    {
+        ArgumentNullException.ThrowIfNull(trace);
+        var rows = trace.Lines.Select(line => new GridExportRow(
+        [
+            Cell(trace.SourceType),Cell(trace.SourceNo),Cell(line.SourceLineNumber),Cell(line.Sku),
+            Cell(line.NetDemandQty, line.NetDemandQty.ToString("N4", CultureInfo.GetCultureInfo("zh-CN"))),
+            Cell(line.LinkStatus),
+            Cell(line.OriginalLinkQty, line.OriginalLinkQty.ToString("N4", CultureInfo.GetCultureInfo("zh-CN"))),
+            Cell(line.ReleasedQty, line.ReleasedQty.ToString("N4", CultureInfo.GetCultureInfo("zh-CN"))),
+            Cell(line.LinkQty, line.LinkQty.ToString("N4", CultureInfo.GetCultureInfo("zh-CN"))),
+            Cell(line.PurchaseOrderNo),Cell(line.PurchaseOrderLineNumber),Cell(line.PurchaseLifecycleStatus),
+            Cell(line.PurchaseConfirmationStatus),Cell($"{line.SupplierCode} {line.SupplierName}".Trim()),
+            Cell(line.DemandRequiredDate, FormatDate(line.DemandRequiredDate)),
+            Cell(line.PlannedDeliveryDate, FormatDate(line.PlannedDeliveryDate)),
+        ])).ToList();
+        return new GridExportRequest(SourceColumns, rows, new GridExportOptions
+        {
+            IncludeHeaders = true,ValueMode = GridExportValueMode.Display,
+            FormulaInjectionPolicy = GridFormulaInjectionPolicy.EscapeText,
+            Culture = CultureInfo.GetCultureInfo("zh-CN"),WorksheetName = "来源采购追溯",
+        });
+    }
 
     public static GridExportRequest CreateRequest(
         NetDemandListItemDto summary,

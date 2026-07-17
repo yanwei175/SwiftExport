@@ -57,4 +57,38 @@ public sealed class NetDemandTraceExportBuilderTests
         Assert.AreEqual((byte)'P', stream.ToArray()[0]);
         Assert.AreEqual((byte)'K', stream.ToArray()[1]);
     }
+
+    [TestMethod]
+    public void CreateRequest_ShouldExportSourceLevelPurchaseTraceWithReleasedQuantity()
+    {
+        var trace = new SourcePurchaseTraceDto
+        {
+            SourceType = "SO",
+            SourceUid = Guid.NewGuid(),
+            SourceNo = "SO-2002",
+            Lines =
+            {
+                new SourcePurchaseTraceLineDto
+                {
+                    SourceLineNumber = 3,
+                    Sku = "B-200",
+                    NetDemandQty = 10,
+                    OriginalLinkQty = 8,
+                    ReleasedQty = 2,
+                    LinkQty = 6,
+                    PurchaseOrderNo = "PO-3003",
+                    SupplierCode = "S01",
+                    SupplierName = "供应商甲",
+                },
+            },
+        };
+
+        var request = NetDemandTraceExportBuilder.CreateRequest(trace);
+
+        Assert.AreEqual(16, request.Columns.Count);
+        Assert.AreEqual("SO-2002", request.Rows.Single().Cells[1].DisplayText);
+        Assert.AreEqual(8m, request.Rows.Single().Cells[6].RawValue);
+        Assert.AreEqual(2m, request.Rows.Single().Cells[7].RawValue);
+        Assert.AreEqual("PO-3003", request.Rows.Single().Cells[9].DisplayText);
+    }
 }

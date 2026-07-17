@@ -49,6 +49,8 @@
                         <Button Command="{Binding ModifyPlanCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0" Padding="8,4" Content="修改计划" />
                         <Button Command="{Binding BatchAssignSupplierCommand}" Style="{StaticResource NetDemandToolbarButton}" Content="批量分配供应商" />
                         <Button Command="{Binding ApplyDefaultSupplierCommand}" Style="{StaticResource NetDemandToolbarButton}" Content="应用产品默认供应商" />
+                        <Button Command="{Binding TransferSelectedPurchaseCommand}" Style="{StaticResource NetDemandToolbarButton}" Content="人工转采购" />
+                        <Button Command="{Binding TransferSourcePurchaseCommand}" Style="{StaticResource NetDemandToolbarButton}" Content="来源一键转采购" />
                         <Button Command="{Binding OpenTraceCommand}" Style="{StaticResource NetDemandToolbarButton}" Content="计划追溯" />
                         <Button Command="{Binding RefreshCommand}" Style="{StaticResource NetDemandToolbarButton}">
                             <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="ArrowClockwise24"/><TextBlock Margin="6,0,0,0" Text="刷新"/></StackPanel>

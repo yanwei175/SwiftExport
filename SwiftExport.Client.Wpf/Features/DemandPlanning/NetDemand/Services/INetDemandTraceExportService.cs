@@ -4,6 +4,10 @@ namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 
 public interface INetDemandTraceExportService
 {
+    Task<string?> ExportSourceAsync(
+        SourcePurchaseTraceDto trace,
+        CancellationToken cancellationToken = default);
+
     Task<string?> ExportAsync(
         NetDemandListItemDto summary,
         IReadOnlyList<NetDemandAllocationDto> allocations,
