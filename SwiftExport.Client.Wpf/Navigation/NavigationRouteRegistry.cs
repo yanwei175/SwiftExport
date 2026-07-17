@@ -31,6 +31,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(GrossDemandWorkspaceViewModel.RouteKey, "毛需求", "Workspace", typeof(GrossDemandWorkspaceViewModel)),
         new(NetDemandWorkspaceViewModel.RouteKey, "净需求", "Workspace", typeof(NetDemandWorkspaceViewModel)),
         new(PurchaseOrderWorkspaceViewModel.RouteKey, "采购工作台", "Workspace", typeof(PurchaseOrderWorkspaceViewModel)),
+        new(PurchaseOrderDetailViewModel.RouteKey, "采购单详情", "Workspace", typeof(PurchaseOrderDetailViewModel)),
         new("planning", "计划", "Workspace", typeof(PlanningViewModel)),
     ];
 

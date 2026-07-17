@@ -18,6 +18,8 @@ public sealed class PurchaseOrderWorkspaceContractsTests
         Assert.AreEqual(typeof(PurchaseOrderWorkspaceViewModel), route.ViewModelType);
         var group = registry.MenuItems.Single(x => x.RouteKey == "procurement");
         Assert.IsTrue(group.Children.Any(x => x.RouteKey == PurchaseOrderWorkspaceViewModel.RouteKey));
+        Assert.IsTrue(registry.TryGetRoute(PurchaseOrderDetailViewModel.RouteKey, out var detailRoute));
+        Assert.AreEqual(typeof(PurchaseOrderDetailViewModel), detailRoute.ViewModelType);
     }
 
     [TestMethod]
@@ -44,6 +46,37 @@ public sealed class PurchaseOrderWorkspaceContractsTests
         var source = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderWorkspaceViewModel.cs");
         StringAssert.Contains(source, "ReportReadyQty < (line.LatestProgress?.ReadyQty ?? 0)");
         StringAssert.Contains(source, "CorrectionReason");
+    }
+
+    [TestMethod]
+    public void WorkspaceAndDetail_MustCoverLegacyVisibleFields()
+    {
+        var workspace = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderWorkspaceView.xaml");
+        foreach (var header in new[] { "订单状态", "采购单号", "诗亦霖采购单号", "供应商", "日期", "预计交期", "回复交期", "数量", "未发货", "已备好", "金额" })
+            StringAssert.Contains(workspace, $"Header=\"{header}\"");
+
+        var detail = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderDetailView.xaml");
+        foreach (var label in new[] { "客户代码", "客户PO号", "业务员", "采购/跟单员", "进水管", "起泡器", "托盘", "内盒", "标贴", "说明书", "外箱", "Logo/标识", "特殊要求", "折扣备注", "采购文件夹", "复核人" })
+            StringAssert.Contains(detail, label);
+        foreach (var header in new[] { "图片", "客户型号", "物料编号", "AQ/关联型号", "供应商型号", "中文描述", "表面处理/颜色", "配置", "物料类型", "供货方式", "未收货", "已备好", "预计备妥", "送达供应商", "来源单/行" })
+            StringAssert.Contains(detail, $"Header=\"{header}\"");
+    }
+
+    [TestMethod]
+    public void DetailDocument_MustPreserveUnknownDownstreamSemanticsAndDocumentKey()
+    {
+        var viewModel = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderDetailViewModel.cs");
+        StringAssert.Contains(viewModel, "IDocumentTabViewModel");
+        StringAssert.Contains(viewModel, "IDocumentTabInitializable");
+        StringAssert.Contains(viewModel, "UpdateLegacyHeaderFields = true");
+        StringAssert.Contains(viewModel, "HasUnsavedChanges");
+        var workspace = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderWorkspaceViewModel.cs");
+        StringAssert.Contains(workspace, "$\"purchase-order:{order.Uid:N}\"");
+        var detail = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderDetailView.xaml");
+        StringAssert.Contains(detail, "入库模块尚未接入");
+        StringAssert.Contains(detail, "UsdTotalText");
+        StringAssert.Contains(detail, "CartonTotalText");
+        StringAssert.Contains(detail, "CbmTotalText");
     }
 
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));

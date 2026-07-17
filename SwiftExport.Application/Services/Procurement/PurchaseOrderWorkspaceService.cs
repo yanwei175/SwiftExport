@@ -148,20 +148,23 @@ public sealed class PurchaseOrderWorkspaceService(
                 line.TaxPrice = submitted.TaxPrice;
                 line.SubNote = Normalize(submitted.SubNote, 1000);
             }
-            head.BoNo = Normalize(command.BoNo, 100);
-            head.CustomerPoNo = Normalize(command.CustomerPoNo, 100);
-            head.SoPerson = Normalize(command.SalesPerson, 100);
-            head.PoPerson = Normalize(command.PurchasePerson, 100);
-            head.ReplyDate = command.ReplyDate;
-            head.InletrHoseType = Normalize(command.InletHoseType, 200);
-            head.AeratorType = Normalize(command.AeratorType, 200);
-            head.PalletType = Normalize(command.PalletType, 200);
-            head.BoxType = Normalize(command.BoxType, 200);
-            head.LabelType = Normalize(command.LabelType, 200);
-            head.IMType = Normalize(command.InstructionManualType, 200);
-            head.CartonType = Normalize(command.CartonType, 200);
-            head.LogoType = Normalize(command.LogoType, 200);
-            head.ZheKouBeiZhu = Normalize(command.DiscountRemark, 1000);
+            if (command.UpdateLegacyHeaderFields)
+            {
+                head.BoNo = Normalize(command.BoNo, 100);
+                head.CustomerPoNo = Normalize(command.CustomerPoNo, 100);
+                head.SoPerson = Normalize(command.SalesPerson, 100);
+                head.PoPerson = Normalize(command.PurchasePerson, 100);
+                head.ReplyDate = command.ReplyDate;
+                head.InletrHoseType = Normalize(command.InletHoseType, 200);
+                head.AeratorType = Normalize(command.AeratorType, 200);
+                head.PalletType = Normalize(command.PalletType, 200);
+                head.BoxType = Normalize(command.BoxType, 200);
+                head.LabelType = Normalize(command.LabelType, 200);
+                head.IMType = Normalize(command.InstructionManualType, 200);
+                head.CartonType = Normalize(command.CartonType, 200);
+                head.LogoType = Normalize(command.LogoType, 200);
+                head.ZheKouBeiZhu = Normalize(command.DiscountRemark, 1000);
+            }
             head.Remark = Normalize(command.Remark, 2000);
             var affected = await purchaseOrders.UpdateDraftAsync(head, lines, command.ExpectedVersion);
             if (affected != lines.Count + 1) throw new ProcurementException("草稿保存发生并发冲突，请刷新后重试。");

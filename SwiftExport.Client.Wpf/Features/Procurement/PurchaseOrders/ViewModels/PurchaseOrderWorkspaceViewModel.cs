@@ -27,20 +27,22 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     private readonly IProcurementDialogService _procurementDialogs;
     private readonly INetDemandDialogService _netDemandDialogs;
     private readonly IPurchaseOrderTraceExportService _exportService;
+    private readonly INavigationService _navigationService;
     private CancellationTokenSource? _searchCancellation;
     private CancellationTokenSource? _detailCancellation;
     private bool _initialized;
 
     public PurchaseOrderWorkspaceViewModel(IPurchaseOrderWorkspaceApi api, IApiCallRunner runner, IDialogService dialogs,
         IMessageService messages, IProcurementDialogService procurementDialogs, INetDemandDialogService netDemandDialogs,
-        IPurchaseOrderTraceExportService exportService)
+        IPurchaseOrderTraceExportService exportService, INavigationService navigationService)
     {
         _api = api; _runner = runner; _dialogs = dialogs; _messages = messages; _procurementDialogs = procurementDialogs;
-        _netDemandDialogs = netDemandDialogs; _exportService = exportService; Title = "采购工作台";
+        _netDemandDialogs = netDemandDialogs; _exportService = exportService; _navigationService = navigationService; Title = "采购工作台";
         RegisterBusyAwareCommand(SearchCommand); RegisterBusyAwareCommand(RefreshCommand); RegisterBusyAwareCommand(ClearFiltersCommand);
         RegisterBusyAwareCommand(SaveDraftCommand); RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
         RegisterBusyAwareCommand(ReportProgressCommand); RegisterBusyAwareCommand(OpenTraceCommand); RegisterBusyAwareCommand(ExportCommand);
         RegisterBusyAwareCommand(GetFromNetDemandCommand); RegisterBusyAwareCommand(PageChangeCommand);
+        RegisterBusyAwareCommand(OpenDetailCommand);
     }
 
     public ObservableCollection<PurchaseOrderListItemDto> Orders { get; } = [];
@@ -71,7 +73,7 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(ArrangementSummary))]
     [NotifyCanExecuteChangedFor(nameof(SaveDraftCommand))] [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelConfirmationCommand))] [NotifyCanExecuteChangedFor(nameof(OpenTraceCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ExportCommand))] public partial PurchaseOrderListItemDto? SelectedOrder { get; set; }
+    [NotifyCanExecuteChangedFor(nameof(ExportCommand))] [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))] public partial PurchaseOrderListItemDto? SelectedOrder { get; set; }
     [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(ReportProgressCommand))] public partial PurchaseOrderLineEditorModel? SelectedLine { get; set; }
     [ObservableProperty] public partial bool IsDrawerOpen { get; set; }
     [ObservableProperty] public partial string Remark { get; set; } = string.Empty;
@@ -171,6 +173,16 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
         var order = SelectedOrder; if (order is null) return;
         var result = await _runner.RunAsync(() => _api.GetTraceAsync(order.Uid), "加载采购追溯失败");
         if (result.Success && result.Data is not null) await _dialogs.ShowContentAsync($"采购追溯 · {order.OrderNo}", new Views.PurchaseOrderTraceView { DataContext = result.Data });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseSelected))]
+    private Task OpenDetailAsync()
+    {
+        var order = SelectedOrder;
+        return order is null
+            ? Task.CompletedTask
+            : _navigationService.OpenDocumentAsync(PurchaseOrderDetailViewModel.RouteKey, $"purchase-order:{order.Uid:N}",
+                new PurchaseOrderDocumentOpenRequest { PurchaseOrderId = order.Uid });
     }
 
     [RelayCommand(CanExecute = nameof(CanUseSelected))]

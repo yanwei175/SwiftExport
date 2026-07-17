@@ -187,6 +187,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
     {
         public Guid CommandId { get; set; }
         public int ExpectedVersion { get; set; }
+        public bool UpdateLegacyHeaderFields { get; set; }
         public string Remark { get; set; }
         public string BoNo { get; set; }
         public string CustomerPoNo { get; set; }
