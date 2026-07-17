@@ -18,6 +18,8 @@
         xmlns:productColorViewModels="clr-namespace:SwiftExportClient.Features.Products.Colors.ViewModels"
         xmlns:productListViews="clr-namespace:SwiftExportClient.Features.Products.ProductList.Views"
         xmlns:productListViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductList.ViewModels"
+        xmlns:procurementViews="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.Views"
+        xmlns:procurementViewModels="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels"
         xmlns:productPlaceholderViews="clr-namespace:SwiftExportClient.Features.Products.Placeholders.Views"
         xmlns:productPlaceholderViewModels="clr-namespace:SwiftExportClient.Features.Products.Placeholders.ViewModels"
         xmlns:supplierViews="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierManagement.Views"
@@ -77,6 +79,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type netDemandViewModels:NetDemandWorkspaceViewModel}">
             <netDemandViews:NetDemandWorkspaceView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type procurementViewModels:PurchaseOrderWorkspaceViewModel}">
+            <procurementViews:PurchaseOrderWorkspaceView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type planning:PlanningViewModel}">
             <planning:PlanningView />

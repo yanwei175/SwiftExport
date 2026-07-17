@@ -7,6 +7,7 @@ using SwiftExportClient.Services.UI;
 using SwiftExportClient.Services.Images;
 using SwiftExportClient.Updates;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
 using Wpf.Ui;
 
 namespace SwiftExportClient.Bootstrapper;
@@ -36,6 +37,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IImageCacheService, ImageCacheService>();
         services.AddTransient<INetDemandTraceExportService, NetDemandTraceExportService>();
         services.AddTransient<INetDemandDialogService, NetDemandDialogService>();
+        services.AddTransient<IProcurementDialogService, ProcurementDialogService>();
+        services.AddTransient<IPurchaseOrderTraceExportService, PurchaseOrderTraceExportService>();
         services.AddTransient<AuthTokenHandler>();
         services.AddSwiftExportApis();
 

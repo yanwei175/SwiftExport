@@ -49,7 +49,14 @@ public sealed partial class PurchaseDraftPreviewViewModel : ViewModelBaseEx, IDi
     ];
 
     public bool IsManualSelection => EntryMode == PurchaseDraftEntryModeEnum.ManualSelection;
-    public string EntryModeText => IsManualSelection ? "人工勾选" : "按来源一键转采购";
+    public bool IsSourceOneClick => EntryMode == PurchaseDraftEntryModeEnum.SourceOneClick;
+    public string EntryModeText => EntryMode switch
+    {
+        PurchaseDraftEntryModeEnum.ManualSelection => "净需求人工勾选",
+        PurchaseDraftEntryModeEnum.SourceOneClick => "按来源一键转采购",
+        PurchaseDraftEntryModeEnum.PurchaseWorkspace => "采购工作台获取净需求",
+        _ => EntryMode.ToString(),
+    };
     public bool HasPreview => _preview is not null;
     public bool HasBlockers => _preview?.HasBlockers == true || Warnings.Any(item => item.IsBlocker);
     public bool HasUnconfirmedWarnings => Warnings.Any(item => item.RequiresConfirmation && !item.IsConfirmed);
@@ -58,6 +65,7 @@ public sealed partial class PurchaseDraftPreviewViewModel : ViewModelBaseEx, IDi
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsManualSelection))]
+    [NotifyPropertyChangedFor(nameof(IsSourceOneClick))]
     [NotifyPropertyChangedFor(nameof(EntryModeText))]
     public partial PurchaseDraftEntryModeEnum EntryMode { get; private set; }
 
@@ -326,7 +334,7 @@ public sealed partial class PurchaseDraftPreviewViewModel : ViewModelBaseEx, IDi
         {
             _preview = response;
             LineMode = response.LineMode;
-            if (!IsManualSelection)
+            if (IsSourceOneClick)
             {
                 RebuildOneClickItems(response);
             }
@@ -497,7 +505,7 @@ public sealed partial class PurchaseDraftPreviewViewModel : ViewModelBaseEx, IDi
         {
             return "人工转采购至少需要一条计划。";
         }
-        if (EntryMode != PurchaseDraftEntryModeEnum.ManualSelection && SourceUid is null)
+        if (IsSourceOneClick && SourceUid is null)
         {
             return "按来源一键转采购缺少来源 Uid。";
         }

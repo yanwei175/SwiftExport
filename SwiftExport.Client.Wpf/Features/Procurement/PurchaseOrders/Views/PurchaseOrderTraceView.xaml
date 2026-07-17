@@ -1,0 +1,11 @@
+<UserControl x:Class="SwiftExportClient.Features.Procurement.PurchaseOrders.Views.PurchaseOrderTraceView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <Grid Width="950" Height="620" Margin="8" RowDefinitions="Auto,8,*,8,180">
+  <TextBlock Text="{Binding OrderNo,StringFormat=采购单：{0}}" FontSize="18" FontWeight="SemiBold" />
+  <DataGrid Grid.Row="2" ItemsSource="{Binding Contributions}" AutoGenerateColumns="False" IsReadOnly="True">
+   <DataGrid.Columns><DataGridTextColumn Header="来源单号" Binding="{Binding SourceNo}" Width="140"/><DataGridTextColumn Header="来源行" Binding="{Binding SourceLineNumber}" Width="70"/><DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="150"/><DataGridTextColumn Header="有效数量" Binding="{Binding EffectiveQty,StringFormat=N4}" Width="100"/><DataGridTextColumn Header="原需求交期" Binding="{Binding DemandRequiredDate,StringFormat=yyyy-MM-dd}" Width="110"/><DataGridTextColumn Header="计划交期" Binding="{Binding PlannedDeliveryDate,StringFormat=yyyy-MM-dd}" Width="110"/></DataGrid.Columns>
+  </DataGrid>
+  <DataGrid Grid.Row="4" ItemsSource="{Binding Operations}" AutoGenerateColumns="False" IsReadOnly="True">
+   <DataGrid.Columns><DataGridTextColumn Header="时间" Binding="{Binding OccurredDate,StringFormat=yyyy-MM-dd HH:mm}" Width="140"/><DataGridTextColumn Header="操作" Binding="{Binding OperationName}" Width="170"/><DataGridTextColumn Header="操作人" Binding="{Binding UserName}" Width="110"/><DataGridTextColumn Header="摘要" Binding="{Binding Summary}" Width="*"/></DataGrid.Columns>
+  </DataGrid>
+ </Grid>
+</UserControl>

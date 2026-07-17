@@ -11,6 +11,7 @@ using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.Placeholders.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 using SwiftExportClient.Features.Sales;
@@ -47,6 +48,8 @@ public static class ViewRegistrationExtensions
         services.AddTransient<NetDemandPlanEditorViewModel>();
         services.AddTransient<NetDemandTraceViewModel>();
         services.AddTransient<PurchaseDraftPreviewViewModel>();
+        services.AddTransient<PurchaseOrderWorkspaceViewModel>();
+        services.AddTransient<NetDemandPurchasePickerViewModel>();
         services.AddTransient<PlanningViewModel>();
 
         return services;

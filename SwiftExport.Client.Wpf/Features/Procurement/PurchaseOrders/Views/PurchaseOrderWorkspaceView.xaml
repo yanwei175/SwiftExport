@@ -1,0 +1,76 @@
+<UserControl x:Class="SwiftExportClient.Features.Procurement.PurchaseOrders.Views.PurchaseOrderWorkspaceView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml" xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+ xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
+ xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid">
+ <controls:RightDrawerHost IsOpen="{Binding IsDrawerOpen}" CloseCommand="{Binding CloseDrawerCommand}" DrawerWidth="760" MinDrawerWidth="620" MaxDrawerWidth="1050" IsResizable="True" DisplayMode="Overlay">
+  <controls:RightDrawerHost.DrawerContent>
+   <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="16">
+    <TextBlock Text="{Binding SelectedOrder.OrderNo}" FontSize="20" FontWeight="SemiBold" />
+    <TextBlock Margin="0,4,0,10" Text="{Binding SelectedOrder.ReadOnlyReason}" Foreground="DarkOrange" />
+    <Grid ColumnDefinitions="*,8,*,8,*"><TextBlock Text="{Binding ArrangementSummary}"/><TextBlock Grid.Column="2" Text="{Binding InboundText,StringFormat=已入库：{0}}"/><TextBlock Grid.Column="4" Text="{Binding ShippedText,StringFormat=最终已发货：{0}}"/></Grid>
+    <TextBlock Margin="0,12,0,4" Text="采购行与商业字段" FontWeight="SemiBold" />
+    <DataGrid ItemsSource="{Binding Lines}" SelectedItem="{Binding SelectedLine}" AutoGenerateColumns="False" MinHeight="220">
+     <DataGrid.Columns>
+      <DataGridTextColumn Header="行" Binding="{Binding LineNumber}" Width="42" IsReadOnly="True"/><DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="115" IsReadOnly="True"/>
+      <DataGridTextColumn Header="数量" Binding="{Binding Quantity,StringFormat=N4}" Width="80" IsReadOnly="True"/><DataGridTextColumn Header="计划交期" Binding="{Binding PlannedDeliveryDate,Mode=TwoWay}" Width="105"/>
+      <DataGridTextColumn Header="供应商SKU" Binding="{Binding SupplierSku,Mode=TwoWay}" Width="120"/><DataGridTextColumn Header="中文描述" Binding="{Binding DescriptionZh,Mode=TwoWay}" Width="160"/>
+      <DataGridTextColumn Header="未税价" Binding="{Binding UnitPrice,Mode=TwoWay,StringFormat=N4}" Width="85"/><DataGridTextColumn Header="含税价" Binding="{Binding TaxPrice,Mode=TwoWay,StringFormat=N4}" Width="85"/>
+      <DataGridTextColumn Header="行备注" Binding="{Binding SubNote,Mode=TwoWay}" Width="150"/>
+     </DataGrid.Columns>
+    </DataGrid>
+    <TextBlock Margin="0,8,0,2" Text="采购备注"/><TextBox Text="{Binding Remark,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="48"/>
+    <Button Margin="0,6,0,0" HorizontalAlignment="Left" Content="保存草稿商业字段" Command="{Binding SaveDraftCommand}" Style="{StaticResource AccentButton}"/>
+    <Separator Margin="0,12"/>
+    <TextBlock Text="供应商进度反馈（累计口径）" FontWeight="SemiBold"/>
+    <Grid Margin="0,6" ColumnDefinitions="160,8,120,8,130,8,130">
+     <ComboBox ItemsSource="{Binding ReportArrangementOptions}" SelectedItem="{Binding ReportArrangementStatus}" />
+     <TextBox Grid.Column="2" Text="{Binding ReportReadyQty,UpdateSourceTrigger=PropertyChanged}" ToolTip="累计已备好数量"/>
+     <DatePicker Grid.Column="4" SelectedDate="{Binding ReportExpectedReadyDate}" ToolTip="预计备妥日期"/>
+     <DatePicker Grid.Column="6" SelectedDate="{Binding ReportedDate}" ToolTip="供应商反馈日期"/>
+    </Grid>
+    <TextBox Text="{Binding ReportNote}" ToolTip="反馈备注"/><TextBox Margin="0,4,0,0" Text="{Binding CorrectionReason}" ToolTip="累计数量下降时必填纠错原因"/>
+    <Button Margin="0,6,0,0" HorizontalAlignment="Left" Content="登记不可覆盖反馈" Command="{Binding ReportProgressCommand}"/>
+    <DataGrid Margin="0,6,0,0" ItemsSource="{Binding SelectedLine.ProgressHistory}" AutoGenerateColumns="False" IsReadOnly="True" MaxHeight="180">
+     <DataGrid.Columns><DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="50"/><DataGridTextColumn Header="安排" Binding="{Binding ArrangementStatus}" Width="80"/><DataGridTextColumn Header="已备好" Binding="{Binding ReadyQty,StringFormat=N4}" Width="90"/><DataGridTextColumn Header="反馈日期" Binding="{Binding SupplierReportedDate,StringFormat=yyyy-MM-dd}" Width="100"/><DataGridTextColumn Header="备注" Binding="{Binding Note}" Width="*"/></DataGrid.Columns>
+    </DataGrid>
+    <Separator Margin="0,12"/>
+    <TextBlock Text="取消确认原因"/><TextBox Text="{Binding CancellationReason,UpdateSourceTrigger=PropertyChanged}"/>
+    <DataGrid Margin="0,8,0,0" ItemsSource="{Binding Operations}" AutoGenerateColumns="False" IsReadOnly="True" MaxHeight="180">
+     <DataGrid.Columns><DataGridTextColumn Header="时间" Binding="{Binding OccurredDate,StringFormat=MM-dd HH:mm}" Width="95"/><DataGridTextColumn Header="操作" Binding="{Binding OperationName}" Width="150"/><DataGridTextColumn Header="操作人" Binding="{Binding UserName}" Width="90"/><DataGridTextColumn Header="摘要" Binding="{Binding Summary}" Width="*"/></DataGrid.Columns>
+    </DataGrid>
+   </StackPanel></ScrollViewer>
+  </controls:RightDrawerHost.DrawerContent>
+  <controls:RightDrawerHost.MainContent>
+   <Grid Margin="12,8" RowDefinitions="Auto,8,Auto,8,*,8,Auto">
+    <Grid ColumnDefinitions="220,8,160,8,160,8,Auto,8,*">
+     <TextBox Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" ToolTip="采购单、来源、供应商"/><TextBox Grid.Column="2" Text="{Binding SourceNo}" ToolTip="来源单号"/><TextBox Grid.Column="4" Text="{Binding Sku}" ToolTip="SKU"/>
+     <Button Grid.Column="6" Content="查询" Command="{Binding SearchCommand}" Style="{StaticResource AccentButton}"/>
+     <StackPanel Grid.Column="8" Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button Content="从净需求获取" Command="{Binding GetFromNetDemandCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0"/>
+      <Button Content="确认" Command="{Binding ConfirmCommand}" Margin="0,0,4,0"/><Button Content="取消确认" Command="{Binding CancelConfirmationCommand}" Margin="0,0,4,0"/>
+      <Button Content="Trace" Command="{Binding OpenTraceCommand}" Margin="0,0,4,0"/><Button Content="导出" Command="{Binding ExportCommand}" Margin="0,0,4,0"/><Button Content="刷新" Command="{Binding RefreshCommand}"/>
+     </StackPanel>
+    </Grid>
+    <Grid Grid.Row="2" ColumnDefinitions="160,8,160,8,150,8,150,8,140,8,140,8,Auto">
+     <TextBox Text="{Binding OrderNo}" ToolTip="采购单号"/><TextBox Grid.Column="2" Text="{Binding SupplierKeyword}" ToolTip="供应商"/>
+     <ComboBox Grid.Column="4" ItemsSource="{Binding ConfirmationOptions}" SelectedItem="{Binding ConfirmationStatus}" ToolTip="确认状态"/>
+     <ComboBox Grid.Column="6" ItemsSource="{Binding ArrangementOptions}" SelectedItem="{Binding ArrangementStatus}" ToolTip="安排状态"/>
+     <DatePicker Grid.Column="8" SelectedDate="{Binding PlannedDeliveryDateFrom}" ToolTip="计划交期从"/><DatePicker Grid.Column="10" SelectedDate="{Binding PlannedDeliveryDateTo}" ToolTip="计划交期到"/>
+     <Button Grid.Column="12" Content="清空筛选" Command="{Binding ClearFiltersCommand}"/>
+    </Grid>
+    <DataGrid Grid.Row="4" ItemsSource="{Binding Orders}" SelectedItem="{Binding SelectedOrder}" AutoGenerateColumns="False" IsReadOnly="True" Style="{StaticResource SwiftExportDataGrid}"
+     gridCore:EnterpriseGrid.IsEnabled="True" gridCore:GridVirtualization.IsEnabled="True" gridSelection:GridSelection.CurrentRow="{Binding SelectedOrder,Mode=TwoWay}">
+     <DataGrid.Columns>
+      <DataGridTextColumn Header="采购单号" Binding="{Binding OrderNo}" Width="145"/><DataGridTextColumn Header="来源单号" Binding="{Binding DemandSourceNo}" Width="130"/><DataGridTextColumn Header="供应商" Binding="{Binding SupplierName}" Width="170"/>
+      <DataGridTextColumn Header="确认" Binding="{Binding ConfirmationStatus}" Width="70"/><DataGridTextColumn Header="日期" Binding="{Binding OrderDate,StringFormat=yyyy-MM-dd}" Width="100"/><DataGridTextColumn Header="最早交期" Binding="{Binding ExpectedDate,StringFormat=yyyy-MM-dd}" Width="105"/>
+      <DataGridTextColumn Header="行数" Binding="{Binding LineCount}" Width="60"/><DataGridTextColumn Header="数量" Binding="{Binding TotalQty,StringFormat=N4}" Width="95"/><DataGridTextColumn Header="金额" Binding="{Binding TotalAmount,StringFormat=N2}" Width="110"/>
+      <DataGridTextColumn Header="已安排" Binding="{Binding ArrangedLineCount}" Width="70"/><DataGridTextColumn Header="已反馈" Binding="{Binding ReportedLineCount}" Width="70"/><DataGridTextColumn Header="已备好" Binding="{Binding LatestReadyQty,StringFormat=N4}" Width="95"/>
+      <DataGridTextColumn Header="预计备妥" Binding="{Binding LatestExpectedReadyDate,StringFormat=yyyy-MM-dd}" Width="105"/><DataGridTextColumn Header="只读原因" Binding="{Binding ReadOnlyReason}" Width="200"/>
+     </DataGrid.Columns>
+    </DataGrid>
+    <Grid Grid.Row="6" ColumnDefinitions="*,Auto,12,Auto"><TextBlock Text="{Binding ResultSummary}"/><TextBlock Grid.Column="1" Text="{Binding PageStatus}"/><controls:PageNavigator Grid.Column="3" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}" PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}"/></Grid>
+   </Grid>
+  </controls:RightDrawerHost.MainContent>
+ </controls:RightDrawerHost>
+</UserControl>

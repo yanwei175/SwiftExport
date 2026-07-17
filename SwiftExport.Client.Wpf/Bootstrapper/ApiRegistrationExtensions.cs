@@ -5,6 +5,7 @@ using SwiftExport.Contracts.Apis.AuthApis;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.Apis.ProductApis;
+using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
@@ -80,6 +81,7 @@ public static class ApiRegistrationExtensions
         services.AddControllerApi<ISalesOrderWorkspaceApi>("sales-orders/workspace");
         services.AddControllerApi<IGrossDemandWorkspaceApi>("demand-planning/gross-demands");
         services.AddControllerApi<INetDemandWorkspaceApi>("demand-planning/net-demands");
+        services.AddControllerApi<IPurchaseOrderWorkspaceApi>("procurement/purchase-orders");
     }
 
     private static IHttpClientBuilder AddControllerApi<TApi>(
