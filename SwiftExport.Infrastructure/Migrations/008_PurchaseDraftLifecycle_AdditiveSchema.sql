@@ -17,9 +17,9 @@ BEGIN TRY
                 CONSTRAINT DF_DemandExecutionLink_ReleasedQty DEFAULT(0) WITH VALUES;
 
     IF OBJECT_ID(N'dbo.CK_DemandExecutionLink_ReleasedQty',N'C') IS NULL
-        ALTER TABLE dbo.DemandExecutionLink WITH CHECK
+        EXEC(N'ALTER TABLE dbo.DemandExecutionLink WITH CHECK
             ADD CONSTRAINT CK_DemandExecutionLink_ReleasedQty
-            CHECK(ReleasedQty>=0 AND ReleasedQty<=AllocatedQty);
+            CHECK(ReleasedQty>=0 AND ReleasedQty<=AllocatedQty);');
 
     IF NOT EXISTS
     (
@@ -27,9 +27,9 @@ BEGIN TRY
         WHERE object_id=OBJECT_ID(N'dbo.DemandExecutionLink')
           AND name=N'IX_DemandExecutionLink_TargetHeadStatus'
     )
-        CREATE INDEX IX_DemandExecutionLink_TargetHeadStatus
+        EXEC(N'CREATE INDEX IX_DemandExecutionLink_TargetHeadStatus
             ON dbo.DemandExecutionLink(TargetHeadId,TargetType,LinkStatus,IsDeleted)
-            INCLUDE(TargetLineId,NetDemandAllocationId,AllocatedQty,ReleasedQty,PlannedDeliveryDate);
+            INCLUDE(TargetLineId,NetDemandAllocationId,AllocatedQty,ReleasedQty,PlannedDeliveryDate);');
 
     IF OBJECT_ID(N'dbo.PurchaseReceiveLine',N'U') IS NOT NULL
        AND COL_LENGTH(N'dbo.PurchaseReceiveLine',N'PoLineId') IS NOT NULL

@@ -189,6 +189,50 @@ BEGIN TRY
     )
         ALTER TABLE dbo.PurchaseOrderLine ALTER COLUMN QTY decimal(18,4) NULL;
 
+    /* 旧采购行只在 OrderNo 唯一指向活动采购头时回填 PurchaseOrderId。 */
+    ;WITH UniquePurchaseHead AS
+    (
+        SELECT OrderNo,MIN(Uid) AS PurchaseOrderId
+        FROM dbo.PurchaseOrderHead
+        WHERE ISNULL(IsDeleted,0)=0 AND NULLIF(LTRIM(RTRIM(OrderNo)),N'') IS NOT NULL
+        GROUP BY OrderNo
+        HAVING COUNT_BIG(1)=1
+    )
+    UPDATE line
+       SET PurchaseOrderId=head.PurchaseOrderId
+    FROM dbo.PurchaseOrderLine line
+    JOIN UniquePurchaseHead head ON head.OrderNo=line.OrderNo
+    WHERE ISNULL(line.IsDeleted,0)=0 AND line.PurchaseOrderId IS NULL;
+
+    /* 可证明采购头下缺失或重复的行号确定性重排；无头遗留行保持空值并排除在新命令之外。 */
+    ;WITH RankedLine AS
+    (
+        SELECT Uid,PurchaseOrderId,LineNumber,
+               COUNT_BIG(1) OVER(PARTITION BY PurchaseOrderId,LineNumber) AS SameNumberCount
+        FROM dbo.PurchaseOrderLine
+        WHERE ISNULL(IsDeleted,0)=0 AND PurchaseOrderId IS NOT NULL
+    ),
+    HeadMax AS
+    (
+        SELECT PurchaseOrderId,ISNULL(MAX(LineNumber),0) AS MaxLineNumber
+        FROM dbo.PurchaseOrderLine
+        WHERE ISNULL(IsDeleted,0)=0 AND PurchaseOrderId IS NOT NULL
+        GROUP BY PurchaseOrderId
+    ),
+    Renumber AS
+    (
+        SELECT line.Uid,
+               head.MaxLineNumber+ROW_NUMBER() OVER
+               (PARTITION BY line.PurchaseOrderId ORDER BY line.Uid) AS NewLineNumber
+        FROM RankedLine line
+        JOIN HeadMax head ON head.PurchaseOrderId=line.PurchaseOrderId
+        WHERE line.LineNumber IS NULL OR line.SameNumberCount>1
+    )
+    UPDATE line
+       SET LineNumber=renumber.NewLineNumber
+    FROM dbo.PurchaseOrderLine line
+    JOIN Renumber renumber ON renumber.Uid=line.Uid;
+
     /* 删除仅由 (OrderNo,Sku) 组成的旧唯一索引/约束。 */
     DECLARE @LegacyIndex sysname,@LegacyIsConstraint bit,@DropSql nvarchar(1000);
     SELECT TOP(1) @LegacyIndex=i.name,@LegacyIsConstraint=i.is_unique_constraint
@@ -210,7 +254,8 @@ BEGIN TRY
     IF EXISTS
     (
         SELECT PurchaseOrderId,LineNumber FROM dbo.PurchaseOrderLine
-        WHERE ISNULL(IsDeleted,0)=0 GROUP BY PurchaseOrderId,LineNumber HAVING COUNT_BIG(1)>1
+        WHERE ISNULL(IsDeleted,0)=0 AND PurchaseOrderId IS NOT NULL AND LineNumber IS NOT NULL
+        GROUP BY PurchaseOrderId,LineNumber HAVING COUNT_BIG(1)>1
     )
         THROW 51709,N'PurchaseOrderLine contains duplicate active (PurchaseOrderId,LineNumber).',1;
 
@@ -229,6 +274,9 @@ BEGIN TRY
     IF OBJECT_ID(N'dbo.CK_PurchaseOrderHead_LifecycleStatus',N'C') IS NULL
         ALTER TABLE dbo.PurchaseOrderHead WITH CHECK ADD CONSTRAINT CK_PurchaseOrderHead_LifecycleStatus
         CHECK(LifecycleStatus IS NULL OR LifecycleStatus IN(0,8,9));
+    IF OBJECT_ID(N'dbo.CK_PurchaseOrderHead_ConfirmationStatus',N'C') IS NULL
+        ALTER TABLE dbo.PurchaseOrderHead WITH CHECK ADD CONSTRAINT CK_PurchaseOrderHead_ConfirmationStatus
+        CHECK(ConfirmationStatus IS NULL OR ConfirmationStatus IN(0,1));
     IF OBJECT_ID(N'dbo.CK_NetDemandPlanCommandLog_Outcome',N'C') IS NULL
         ALTER TABLE dbo.NetDemandPlanCommandLog WITH CHECK ADD CONSTRAINT CK_NetDemandPlanCommandLog_Outcome
         CHECK(Outcome IN(0,1) AND NewAllocationVersion>0);
@@ -243,7 +291,7 @@ BEGIN TRY
             WHERE CommandItemId IS NOT NULL AND IsDeleted=0;
     IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.PurchaseOrderLine') AND name=N'UX_PurchaseOrderLine_HeadLineNumber')
         CREATE UNIQUE INDEX UX_PurchaseOrderLine_HeadLineNumber ON dbo.PurchaseOrderLine(PurchaseOrderId,LineNumber)
-            WHERE IsDeleted=0;
+            WHERE IsDeleted=0 AND PurchaseOrderId IS NOT NULL AND LineNumber IS NOT NULL;
     IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.PurchaseOrderHead') AND name=N'UX_PurchaseOrderHead_ExecutionRequestSourceSupplier')
         CREATE UNIQUE INDEX UX_PurchaseOrderHead_ExecutionRequestSourceSupplier
             ON dbo.PurchaseOrderHead(ExecutionRequestId,DemandSourceType,DemandSourceUid,SupplierId)

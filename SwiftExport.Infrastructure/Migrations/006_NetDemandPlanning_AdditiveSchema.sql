@@ -101,6 +101,8 @@ BEGIN TRY
         ALTER TABLE dbo.PurchaseOrderHead ADD ExecutionRequestId uniqueidentifier NULL;
     IF COL_LENGTH(N'dbo.PurchaseOrderHead',N'LifecycleStatus') IS NULL
         ALTER TABLE dbo.PurchaseOrderHead ADD LifecycleStatus int NULL;
+    IF COL_LENGTH(N'dbo.PurchaseOrderHead',N'ConfirmationStatus') IS NULL
+        ALTER TABLE dbo.PurchaseOrderHead ADD ConfirmationStatus int NULL;
 
     IF COL_LENGTH(N'dbo.PurchaseOrderLine',N'ProductId') IS NULL
         ALTER TABLE dbo.PurchaseOrderLine ADD ProductId uniqueidentifier NULL;
