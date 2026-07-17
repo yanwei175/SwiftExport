@@ -1,15 +1,19 @@
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.DemandPlanning;
+using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
 using SwiftExport.Infrastructure.Repositories.Auth;
+using SwiftExport.Infrastructure.Repositories.Auditing;
 using SwiftExport.Infrastructure.Repositories.Base;
 using SwiftExport.Infrastructure.Repositories.Customers;
 using SwiftExport.Infrastructure.Repositories.DemandPlanning;
 using SwiftExport.Infrastructure.Repositories.Orders;
 using SwiftExport.Infrastructure.Repositories.Products;
+using SwiftExport.Infrastructure.Repositories.Procurement;
 using SwiftExport.Infrastructure.Repositories.Suppliers;
 using SwiftExport.Infrastructure.Repositories.SystemRepositories;
 using SwiftExport.Infrastructure.Repositories.Systems;
@@ -63,6 +67,9 @@ public static class DependencyInjection
         services.AddScoped<INetDemandAllocationRepository, NetDemandAllocationRepository>();
         services.AddScoped<INetDemandPlanCommandRepository, NetDemandPlanCommandRepository>();
         services.AddScoped<INetDemandPurchaseDraftRepository, NetDemandPurchaseDraftRepository>();
+        services.AddScoped<IPurchaseOrderWorkspaceRepository, PurchaseOrderWorkspaceRepository>();
+        services.AddScoped<ISupplierProgressReportRepository, SupplierProgressReportRepository>();
+        services.AddScoped<IBusinessOperationLogRepository, BusinessOperationLogRepository>();
         services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();
 
         return services;
