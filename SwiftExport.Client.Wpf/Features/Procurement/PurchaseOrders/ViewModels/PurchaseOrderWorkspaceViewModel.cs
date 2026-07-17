@@ -47,6 +47,7 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     public ObservableCollection<PurchaseOrderLineEditorModel> Lines { get; } = [];
     public ObservableCollection<BusinessOperationTraceItemDto> Operations { get; } = [];
     public IReadOnlyList<ConfirmationStatusEnum?> ConfirmationOptions { get; } = [null, ConfirmationStatusEnum.待确认, ConfirmationStatusEnum.已确认];
+    public IReadOnlyList<PurchaseOrderLifecycleStatusEnum?> LifecycleOptions { get; } = [null, PurchaseOrderLifecycleStatusEnum.Active, PurchaseOrderLifecycleStatusEnum.Closed, PurchaseOrderLifecycleStatusEnum.Voided];
     public IReadOnlyList<SupplierArrangementStatusEnum?> ArrangementOptions { get; } = [null, SupplierArrangementStatusEnum.Unknown, SupplierArrangementStatusEnum.NotArranged, SupplierArrangementStatusEnum.Arranged, SupplierArrangementStatusEnum.NotApplicable];
     public IReadOnlyList<SupplierArrangementStatusEnum> ReportArrangementOptions { get; } = [SupplierArrangementStatusEnum.Unknown, SupplierArrangementStatusEnum.NotArranged, SupplierArrangementStatusEnum.Arranged, SupplierArrangementStatusEnum.NotApplicable];
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
@@ -61,6 +62,7 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     [ObservableProperty] public partial string SupplierKeyword { get; set; } = string.Empty;
     [ObservableProperty] public partial string Sku { get; set; } = string.Empty;
     [ObservableProperty] public partial ConfirmationStatusEnum? ConfirmationStatus { get; set; }
+    [ObservableProperty] public partial PurchaseOrderLifecycleStatusEnum? LifecycleStatus { get; set; }
     [ObservableProperty] public partial SupplierArrangementStatusEnum? ArrangementStatus { get; set; }
     [ObservableProperty] public partial DateTime? PlannedDeliveryDateFrom { get; set; }
     [ObservableProperty] public partial DateTime? PlannedDeliveryDateTo { get; set; }
@@ -99,7 +101,7 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     [RelayCommand(AllowConcurrentExecutions = true)] private async Task SearchAsync() { PageIndex = 1; await LoadPageAsync(); }
     [RelayCommand(AllowConcurrentExecutions = true)] private Task RefreshAsync() => LoadPageAsync();
     [RelayCommand] private async Task ClearFiltersAsync()
-    { Keyword = OrderNo = SourceNo = SupplierKeyword = Sku = string.Empty; ConfirmationStatus = null; ArrangementStatus = null; PlannedDeliveryDateFrom = PlannedDeliveryDateTo = ExpectedReadyDateFrom = ExpectedReadyDateTo = null; PageIndex = 1; await LoadPageAsync(); }
+    { Keyword = OrderNo = SourceNo = SupplierKeyword = Sku = string.Empty; ConfirmationStatus = null; LifecycleStatus = null; ArrangementStatus = null; PlannedDeliveryDateFrom = PlannedDeliveryDateTo = ExpectedReadyDateFrom = ExpectedReadyDateTo = null; PageIndex = 1; await LoadPageAsync(); }
     [RelayCommand] private Task CloseDrawerAsync() { IsDrawerOpen = false; return Task.CompletedTask; }
 
     [RelayCommand(CanExecute = nameof(CanSaveDraft))]
@@ -223,7 +225,7 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     }
 
     private async Task ReloadCurrentAsync(Guid uid) { await LoadPageAsync(); SelectedOrder = Orders.FirstOrDefault(x => x.Uid == uid) ?? SelectedOrder; }
-    private PurchaseOrderSearchRequest CreateRequest() => new() { Keyword = Keyword.Trim(), OrderNo = OrderNo.Trim(), SourceNo = SourceNo.Trim(), SupplierKeyword = SupplierKeyword.Trim(), Sku = Sku.Trim(), ConfirmationStatus = ConfirmationStatus, ArrangementStatus = ArrangementStatus, PlannedDeliveryDateFrom = PlannedDeliveryDateFrom, PlannedDeliveryDateTo = PlannedDeliveryDateTo, ExpectedReadyDateFrom = ExpectedReadyDateFrom, ExpectedReadyDateTo = ExpectedReadyDateTo, PageIndex = PageIndex, PageSize = PageSize };
+    private PurchaseOrderSearchRequest CreateRequest() => new() { Keyword = Keyword.Trim(), OrderNo = OrderNo.Trim(), SourceNo = SourceNo.Trim(), SupplierKeyword = SupplierKeyword.Trim(), Sku = Sku.Trim(), ConfirmationStatus = ConfirmationStatus, LifecycleStatus = LifecycleStatus, ArrangementStatus = ArrangementStatus, PlannedDeliveryDateFrom = PlannedDeliveryDateFrom, PlannedDeliveryDateTo = PlannedDeliveryDateTo, ExpectedReadyDateFrom = ExpectedReadyDateFrom, ExpectedReadyDateTo = ExpectedReadyDateTo, PageIndex = PageIndex, PageSize = PageSize };
     private bool CanUseSelected() => IsNotBusy && SelectedOrder is not null;
     private bool CanSaveDraft() => CanWrite && IsNotBusy && SelectedOrder?.CanEditDraft == true && Lines.Count > 0;
     private bool CanConfirm() => CanWrite && IsNotBusy && SelectedOrder?.CanConfirm == true;

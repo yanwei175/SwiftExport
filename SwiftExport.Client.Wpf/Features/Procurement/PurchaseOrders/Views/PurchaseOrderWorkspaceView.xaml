@@ -19,6 +19,10 @@
       <DataGridTextColumn Header="行备注" Binding="{Binding SubNote,Mode=TwoWay}" Width="150"/>
      </DataGrid.Columns>
     </DataGrid>
+    <TextBlock Margin="0,8,0,2" Text="所选采购行的需求来源贡献" FontWeight="SemiBold" />
+    <DataGrid ItemsSource="{Binding SelectedLine.Contributions}" AutoGenerateColumns="False" IsReadOnly="True" MaxHeight="150">
+     <DataGrid.Columns><DataGridTextColumn Header="来源单号" Binding="{Binding SourceNo}" Width="130"/><DataGridTextColumn Header="来源行" Binding="{Binding SourceLineNumber}" Width="65"/><DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="120"/><DataGridTextColumn Header="有效贡献" Binding="{Binding EffectiveQty,StringFormat=N4}" Width="90"/><DataGridTextColumn Header="原需求交期" Binding="{Binding DemandRequiredDate,StringFormat=yyyy-MM-dd}" Width="105"/><DataGridTextColumn Header="计划交期" Binding="{Binding PlannedDeliveryDate,StringFormat=yyyy-MM-dd}" Width="105"/></DataGrid.Columns>
+    </DataGrid>
     <TextBlock Margin="0,8,0,2" Text="采购备注"/><TextBox Text="{Binding Remark,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="48"/>
     <Button Margin="0,6,0,0" HorizontalAlignment="Left" Content="保存草稿商业字段" Command="{Binding SaveDraftCommand}" Style="{StaticResource AccentButton}"/>
     <Separator Margin="0,12"/>
@@ -52,13 +56,19 @@
       <Button Content="Trace" Command="{Binding OpenTraceCommand}" Margin="0,0,4,0"/><Button Content="导出" Command="{Binding ExportCommand}" Margin="0,0,4,0"/><Button Content="刷新" Command="{Binding RefreshCommand}"/>
      </StackPanel>
     </Grid>
-    <Grid Grid.Row="2" ColumnDefinitions="160,8,160,8,150,8,150,8,140,8,140,8,Auto">
-     <TextBox Text="{Binding OrderNo}" ToolTip="采购单号"/><TextBox Grid.Column="2" Text="{Binding SupplierKeyword}" ToolTip="供应商"/>
-     <ComboBox Grid.Column="4" ItemsSource="{Binding ConfirmationOptions}" SelectedItem="{Binding ConfirmationStatus}" ToolTip="确认状态"/>
-     <ComboBox Grid.Column="6" ItemsSource="{Binding ArrangementOptions}" SelectedItem="{Binding ArrangementStatus}" ToolTip="安排状态"/>
-     <DatePicker Grid.Column="8" SelectedDate="{Binding PlannedDeliveryDateFrom}" ToolTip="计划交期从"/><DatePicker Grid.Column="10" SelectedDate="{Binding PlannedDeliveryDateTo}" ToolTip="计划交期到"/>
-     <Button Grid.Column="12" Content="清空筛选" Command="{Binding ClearFiltersCommand}"/>
-    </Grid>
+    <StackPanel Grid.Row="2">
+     <Grid ColumnDefinitions="150,8,150,8,130,8,130,8,130,8,120,8,120,8,Auto">
+      <TextBox Text="{Binding OrderNo}" ToolTip="采购单号"/><TextBox Grid.Column="2" Text="{Binding SupplierKeyword}" ToolTip="供应商"/>
+      <ComboBox Grid.Column="4" ItemsSource="{Binding ConfirmationOptions}" SelectedItem="{Binding ConfirmationStatus}" ToolTip="确认状态"/>
+      <ComboBox Grid.Column="6" ItemsSource="{Binding LifecycleOptions}" SelectedItem="{Binding LifecycleStatus}" ToolTip="生命周期"/>
+      <ComboBox Grid.Column="8" ItemsSource="{Binding ArrangementOptions}" SelectedItem="{Binding ArrangementStatus}" ToolTip="安排状态"/>
+      <DatePicker Grid.Column="10" SelectedDate="{Binding PlannedDeliveryDateFrom}" ToolTip="计划交期从"/><DatePicker Grid.Column="12" SelectedDate="{Binding PlannedDeliveryDateTo}" ToolTip="计划交期到"/>
+      <Button Grid.Column="14" Content="清空筛选" Command="{Binding ClearFiltersCommand}"/>
+     </Grid>
+     <Grid Margin="0,4,0,0" ColumnDefinitions="150,8,150,*">
+      <DatePicker SelectedDate="{Binding ExpectedReadyDateFrom}" ToolTip="预计备妥日期从"/><DatePicker Grid.Column="2" SelectedDate="{Binding ExpectedReadyDateTo}" ToolTip="预计备妥日期到"/>
+     </Grid>
+    </StackPanel>
     <DataGrid Grid.Row="4" ItemsSource="{Binding Orders}" SelectedItem="{Binding SelectedOrder}" AutoGenerateColumns="False" IsReadOnly="True" Style="{StaticResource SwiftExportDataGrid}"
      gridCore:EnterpriseGrid.IsEnabled="True" gridCore:GridVirtualization.IsEnabled="True" gridSelection:GridSelection.CurrentRow="{Binding SelectedOrder,Mode=TwoWay}">
      <DataGrid.Columns>
