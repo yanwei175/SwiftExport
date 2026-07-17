@@ -52,6 +52,10 @@ public sealed class NetDemandPurchaseDraftHead : BaseEntity
     public DateTime? OrderDate { get; set; }
     /// <summary>采购单预计交付日期。</summary>
     public DateTime? ExpectedDate { get; set; }
+    /// <summary>最近一次确认日期；取消确认时清空，完整历史由业务操作日志保留。</summary>
+    public DateTime? ConfirmedDate { get; set; }
+    /// <summary>最近一次确认人名称；取消确认时清空。</summary>
+    public string? ConfirmedBy { get; set; }
 }
 
 /// <summary>净需求链路创建的最小采购草稿行；物理表继续兼容 dbo.PurchaseOrderLine。</summary>

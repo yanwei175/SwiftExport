@@ -3,6 +3,7 @@ using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using SwiftExport.Application;
 using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Infrastructure;
 using SwiftExport.WebApi.Middlewares;
 using SwiftExport.WebApi.Services;
@@ -85,6 +86,7 @@ try
     builder.Services.AddHttpContextAccessor();
     // 注册 ICurrentUser（Scoped，每次请求从 HttpContext 读取）
     builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+    builder.Services.AddScoped<ICorrelationContext, HttpCorrelationContext>();
 
     // ══════════════════════════════════════════════════════
     // 4. 注册 Web API 核心服务
@@ -115,6 +117,7 @@ try
     // ★ 挂载全局异常拦截器 (必须放在这里，也就是管道的最前面！)
     // 这样才能确保接住后面所有中间件和 Controller 抛出的异常。
     app.UseMiddleware<GlobalExceptionMiddleware>();
+    app.UseMiddleware<CorrelationIdMiddleware>();
 
     // DevUser 免登录注入（仅 Development 且 UseDevUser=true 时激活）
     // 注意：必须在 UseAuthentication 之前，这样才能覆盖 HttpContext.User

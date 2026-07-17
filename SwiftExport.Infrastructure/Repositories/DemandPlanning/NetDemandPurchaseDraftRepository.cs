@@ -342,7 +342,7 @@ public sealed class NetDemandPurchaseDraftRepository(RepositoryBaseContext conte
         h.SupplierCode,h.SupplierName,h.SupplierId,h.DemandSourceType,h.DemandSourceUid,
         h.DemandSourceNo,h.ExecutionRequestId,h.Remark,h.IsLocked,h.LineCount,
         h.TotalAmountLocalCurrency,h.TotalQty,h.TotalShippedQty,h.TotalUnshippedQty,
-        h.TotalReadyQty,h.OrderDate,h.ExpectedDate
+        h.TotalReadyQty,h.OrderDate,h.ExpectedDate,h.ConfirmedDate,h.ConfirmedBy
         """;
 
     private const string SafeAppendFactsPredicate = """
