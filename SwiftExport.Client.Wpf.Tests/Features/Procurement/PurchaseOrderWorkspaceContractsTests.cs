@@ -94,6 +94,17 @@ public sealed class PurchaseOrderWorkspaceContractsTests
         StringAssert.Contains(viewModel, "private void OpenDrawer() => IsDrawerOpen = true;");
     }
 
+    [TestMethod]
+    public void DetailReadOnlyFieldsAndQuickDrawerClose_MustUseSafeBindings()
+    {
+        var detail = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderDetailView.xaml");
+        foreach (var property in new[] { "OrderNo", "SourceNo", "CustomerCode", "SupplierName", "Currency", "OrderDate", "ExpectedDate", "PurchaseOrderFolder", "ReviewedBy" })
+            StringAssert.Contains(detail, $"Header.{property},Mode=OneWay");
+
+        var workspace = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderWorkspaceView.xaml");
+        StringAssert.Contains(workspace, "Content=\"关闭\" Command=\"{Binding CloseDrawerCommand}\"");
+    }
+
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));
     private static string Root()
     {

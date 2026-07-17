@@ -24,21 +24,21 @@
     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
     <StackPanel>
      <TextBlock Text="基本信息" FontWeight="SemiBold" Margin="0,0,0,6"/>
-     <TextBlock Text="采购单号"/><TextBox Text="{Binding Header.OrderNo}" IsReadOnly="True"/>
+     <TextBlock Text="采购单号"/><TextBox Text="{Binding Header.OrderNo,Mode=OneWay}" IsReadOnly="True"/>
      <TextBlock Text="诗亦霖采购单号"/><TextBox Text="{Binding Header.BoNo,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanEditDraft}"/>
-     <TextBlock Text="来源单号"/><TextBox Text="{Binding Header.SourceNo}" IsReadOnly="True"/>
-     <TextBlock Text="客户代码"/><TextBox Text="{Binding Header.CustomerCode}" IsReadOnly="True"/>
+     <TextBlock Text="来源单号"/><TextBox Text="{Binding Header.SourceNo,Mode=OneWay}" IsReadOnly="True"/>
+     <TextBlock Text="客户代码"/><TextBox Text="{Binding Header.CustomerCode,Mode=OneWay}" IsReadOnly="True"/>
      <TextBlock Text="客户PO号"/><TextBox Text="{Binding Header.CustomerPoNo,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanEditDraft}"/>
-     <TextBlock Text="供应商"/><TextBox Text="{Binding Header.SupplierName}" IsReadOnly="True"/>
-     <TextBlock Text="币种"/><TextBox Text="{Binding Header.Currency}" IsReadOnly="True"/>
+     <TextBlock Text="供应商"/><TextBox Text="{Binding Header.SupplierName,Mode=OneWay}" IsReadOnly="True"/>
+     <TextBlock Text="币种"/><TextBox Text="{Binding Header.Currency,Mode=OneWay}" IsReadOnly="True"/>
      <TextBlock Text="确认 / 生命周期"/><TextBox Text="{Binding Header.ConfirmationStatus}" IsReadOnly="True" ToolTip="生命周期在采购单状态中组合展示"/>
     </StackPanel>
     <StackPanel Grid.Column="2">
      <TextBlock Text="人员与日期" FontWeight="SemiBold" Margin="0,0,0,6"/>
      <TextBlock Text="业务员"/><TextBox Text="{Binding Header.SalesPerson,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanEditDraft}"/>
      <TextBlock Text="采购/跟单员"/><TextBox Text="{Binding Header.PurchasePerson,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanEditDraft}"/>
-     <TextBlock Text="下单日期"/><DatePicker SelectedDate="{Binding Header.OrderDate}" IsEnabled="False"/>
-     <TextBlock Text="预计交期"/><DatePicker SelectedDate="{Binding Header.ExpectedDate}" IsEnabled="False"/>
+     <TextBlock Text="下单日期"/><DatePicker SelectedDate="{Binding Header.OrderDate,Mode=OneWay}" IsEnabled="False"/>
+     <TextBlock Text="预计交期"/><DatePicker SelectedDate="{Binding Header.ExpectedDate,Mode=OneWay}" IsEnabled="False"/>
      <TextBlock Text="回复交期"/><DatePicker SelectedDate="{Binding Header.ReplyDate,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanEditDraft}"/>
      <TextBlock Text="确认信息"/><TextBox Text="{Binding Header.ConfirmedBy}" IsReadOnly="True"/>
      <TextBlock Text="确认时间"/><TextBox Text="{Binding Header.ConfirmedDate,StringFormat=yyyy-MM-dd HH:mm}" IsReadOnly="True"/>
@@ -47,8 +47,8 @@
      <TextBlock Text="商务与文档" FontWeight="SemiBold" Margin="0,0,0,6"/>
      <TextBlock Text="特殊要求"/><TextBox Text="{Binding Header.Remark,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanEditDraft}" AcceptsReturn="True" MinHeight="56"/>
      <TextBlock Text="折扣备注"/><TextBox Text="{Binding Header.DiscountRemark,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanEditDraft}" AcceptsReturn="True" MinHeight="44"/>
-     <TextBlock Text="采购文件夹"/><TextBox Text="{Binding Header.PurchaseOrderFolder}" IsReadOnly="True"/>
-     <TextBlock Text="复核人"/><TextBox Text="{Binding Header.ReviewedBy}" IsReadOnly="True"/>
+     <TextBlock Text="采购文件夹"/><TextBox Text="{Binding Header.PurchaseOrderFolder,Mode=OneWay}" IsReadOnly="True"/>
+     <TextBlock Text="复核人"/><TextBox Text="{Binding Header.ReviewedBy,Mode=OneWay}" IsReadOnly="True"/>
      <TextBlock Text="取消确认原因"/><TextBox Text="{Binding CancellationReason,UpdateSourceTrigger=PropertyChanged}"/>
     </StackPanel>
    </Grid>
