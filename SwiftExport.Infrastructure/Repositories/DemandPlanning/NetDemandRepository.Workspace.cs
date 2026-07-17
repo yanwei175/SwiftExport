@@ -153,9 +153,9 @@ ORDER BY nd.[LineNumber],nd.[Uid];",
             outerWhere.Add(request.HasRemainingQty.Value ? "w.[RemainingQty]>0" : "w.[RemainingQty]<=0");
 
         var workspaceSql = $@"
-WITH Workspace AS
-(
-    SELECT
+IF OBJECT_ID(N'tempdb..#Workspace',N'U') IS NOT NULL DROP TABLE #Workspace;
+
+SELECT
         nd.[Uid],nd.[Version],nd.[LifecycleStatus],nd.[IndependentDemandId] AS [GrossDemandId],
         nd.[DecompositionRevision],nd.[LineNumber],gd.[SourceType],gd.[SourceUid],gd.[SourceNo],
         gd.[SourceLineId],gd.[SourceLineNumber],nd.[ParentNetDemandId],nd.[RootNetDemandId],
@@ -222,6 +222,7 @@ WITH Workspace AS
                        AND COALESCE(a.[PlannedQty],0)>COALESCE(linkFacts.[AllocatedQty],0)
                        AND a.[PlannedQty]=nd.[NetQty] AND allocationFacts.[ActiveCount]=1 THEN 1 ELSE 0 END AS bit) AS [CanTransferPurchase],
         nd.[CreatedDate],nd.[CreatedBy],a.[UpdatedDate],a.[UpdatedBy]
+    INTO #Workspace
     FROM [dbo].[DependentDemand] nd
     INNER JOIN [dbo].[IndependentDemand] gd ON gd.[Uid]=nd.[IndependentDemandId]
     LEFT JOIN [dbo].[DependentDemand] root ON root.[Uid]=nd.[RootNetDemandId]
@@ -271,18 +272,18 @@ WITH Workspace AS
               AND l.[TargetType]=@PurchaseTargetType
         ) numbers
     ) purchaseNos
-    WHERE {string.Join(" AND ", innerWhere)}
-)
+    WHERE {string.Join(" AND ", innerWhere)};
 ";
         var outerClause = outerWhere.Count == 0 ? string.Empty : "WHERE " + string.Join(" AND ", outerWhere);
         var pageClause = paged
             ? "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY"
             : string.Empty;
         var sql = workspaceSql + $@"
-SELECT COUNT(1) FROM Workspace w {outerClause};
-SELECT w.* FROM Workspace w {outerClause}
+SELECT COUNT(1) FROM #Workspace w {outerClause};
+SELECT w.* FROM #Workspace w {outerClause}
 ORDER BY w.[SourceNo],w.[SourceLineNumber],w.[LineNumber],w.[Uid]
-{pageClause};";
+{pageClause};
+DROP TABLE #Workspace;";
         using var multi = await Connection.QueryMultipleAsync(new CommandDefinition(
             sql, parameters, Transaction, cancellationToken: cancellationToken));
         var totalCount = await multi.ReadFirstAsync<int>();
