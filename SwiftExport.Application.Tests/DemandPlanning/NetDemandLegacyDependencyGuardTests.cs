@@ -50,8 +50,8 @@ public sealed class NetDemandLegacyDependencyGuardTests
             "旧采购/执行 Repository",
             @"\bI?(?:PurchaseOrder(?:Head|Line)|Receive(?:Head|Line)|Outbound(?:Head|Line)|PackingList(?:Head|Line)|Inventory(?:Transaction)?|Warehouse)Repository\b"),
         CreateRule(
-            "旧采购/执行 Entity",
-            @"\b(?:PurchaseOrderHead|PurchaseOrderLine|FollowUpLog|ReceiveHead|ReceiveLine|ReceiptItem|OutboundHead|OutboundLine|PackingListHead|PackingListLine|Inventory|InventoryTransaction|Warehouse)\b"),
+            "旧执行 Entity",
+            @"\b(?:FollowUpLog|ReceiveHead|ReceiveLine|ReceiptItem|OutboundHead|OutboundLine|PackingListHead|PackingListLine|Inventory|InventoryTransaction|Warehouse)\b"),
         CreateRule("旧采购状态枚举", @"\bPurchaseOrderStatusEnum\b"),
         CreateRule(
             "旧采购/执行 DTO namespace",

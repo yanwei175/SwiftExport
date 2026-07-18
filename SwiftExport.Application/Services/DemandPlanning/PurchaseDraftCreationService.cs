@@ -9,9 +9,11 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.MasterData;
+using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.DemandPlanning;
+using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Services.DemandPlanning;
@@ -25,7 +27,7 @@ public sealed class PurchaseDraftCreationService(
     INetDemandRepository netDemandRepository,
     INetDemandAllocationRepository allocationRepository,
     INetDemandExecutionLinkRepository executionLinkRepository,
-    INetDemandPurchaseDraftRepository purchaseDraftRepository,
+    IPurchaseOrderDraftRepository purchaseDraftRepository,
     IProductRepository productRepository,
     ISupplierRepository supplierRepository,
     ISupplierProductRepository supplierProductRepository,
@@ -193,7 +195,7 @@ public sealed class PurchaseDraftCreationService(
             {
                 var target = targetBySupplier.GetValueOrDefault(document.SupplierId);
                 var targetMode = target?.TargetMode ?? PurchaseDraftTargetModeEnum.CreateNew;
-                NetDemandPurchaseDraftHead? appendHead = null;
+                PurchaseOrderHead? appendHead = null;
                 Guid purchaseOrderId;
                 string orderNo;
                 int firstLineNumber;
@@ -241,7 +243,7 @@ public sealed class PurchaseDraftCreationService(
                 if (await executionLinkRepository.InsertPurchaseLinksAsync(writeModel.Links) != writeModel.Links.Count)
                     throw new PurchaseDraftException("PURCHASE_LINK_INSERT_FAILED", "采购追溯 Link 写入不完整。");
                 if (appendHead is not null
-                    && await purchaseDraftRepository.RefreshDraftSummaryAfterAppendAsync(
+                    && await purchaseDraftRepository.AdvanceDraftVersionAfterAppendAsync(
                         appendHead.Uid, appendHead.Version) != 1)
                     throw new PurchaseDraftException("APPEND_CONCURRENCY_CONFLICT", "追加采购草稿时版本已变化。");
 
@@ -331,7 +333,7 @@ public sealed class PurchaseDraftCreationService(
                 PurchaseOrderId = x.Uid,
                 Version = x.Version,
                 OrderNo = x.OrderNo,
-                SupplierId = x.SupplierId ?? Guid.Empty,
+                SupplierId = x.SupplierId,
                 SupplierCode = x.SupplierCode,
                 SupplierName = x.SupplierName,
                 AppendedToExisting = x.ExecutionRequestId != command.ExecutionRequestId
@@ -704,7 +706,7 @@ public sealed class PurchaseDraftCreationService(
     }
 
     private static void ValidateAppendHead(
-        NetDemandPurchaseDraftHead head,
+        PurchaseOrderHead head,
         CreatePurchaseDraftSourceCommand source,
         PurchaseDraftPreviewDocumentDto document)
     {

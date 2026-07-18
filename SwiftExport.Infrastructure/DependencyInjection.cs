@@ -70,7 +70,7 @@ public static class DependencyInjection
         services.AddScoped<INetDemandRepository, NetDemandRepository>();
         services.AddScoped<INetDemandAllocationRepository, NetDemandAllocationRepository>();
         services.AddScoped<INetDemandPlanCommandRepository, NetDemandPlanCommandRepository>();
-        services.AddScoped<INetDemandPurchaseDraftRepository, NetDemandPurchaseDraftRepository>();
+        services.AddScoped<IPurchaseOrderDraftRepository, PurchaseOrderDraftRepository>();
         services.AddScoped<IPurchaseOrderWorkspaceRepository, PurchaseOrderWorkspaceRepository>();
         services.AddScoped<ISupplierProgressReportRepository, SupplierProgressReportRepository>();
         services.AddScoped<IBusinessOperationLogRepository, BusinessOperationLogRepository>();

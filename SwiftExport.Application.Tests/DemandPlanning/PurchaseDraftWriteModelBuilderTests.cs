@@ -31,7 +31,7 @@ public sealed class PurchaseDraftWriteModelBuilderTests
         Assert.AreEqual(2, model.Links.Count);
         Assert.AreEqual(model.Lines[0].Uid, model.Links[0].TargetLineId);
         Assert.AreEqual(model.Lines[0].Uid, model.Links[1].TargetLineId);
-        Assert.AreEqual(model.Lines[0].QTY, model.Links.Sum(x => x.AllocatedQty));
+        Assert.AreEqual(model.Lines[0].Quantity, model.Links.Sum(x => x.AllocatedQty));
         Assert.IsTrue(model.Links.All(x => x.ExecutionRequestId == executionRequestId));
     }
 

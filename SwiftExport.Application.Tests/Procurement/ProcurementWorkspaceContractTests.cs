@@ -2,6 +2,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Core.Entities.Procurement;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Application.Tests.Procurement;
 
@@ -55,7 +57,7 @@ public sealed class ProcurementWorkspaceContractTests
         var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrderWorkspaceService.cs");
         StringAssert.Contains(service, "!line.TaxPrice.HasValue || line.TaxPrice.Value < 0");
         StringAssert.Contains(service, "明确的零价允许确认");
-        StringAssert.Contains(service, "linked != line.QTY");
+        StringAssert.Contains(service, "linked != line.Quantity");
     }
 
     [TestMethod]
@@ -95,17 +97,16 @@ public sealed class ProcurementWorkspaceContractTests
     }
 
     [TestMethod]
-    public void LegacyFieldCoverage_MustRemainAdditiveAndExplicit()
+    public void Workspace_MustReadOfficialSourceAndInboundFacts()
     {
-        var sql = Read("SwiftExport.Infrastructure", "Migrations", "010_ProcurementWorkspace_LegacyFieldCoverage.sql");
-        StringAssert.Contains(sql, "COL_LENGTH(N'dbo.PurchaseOrderHead',N'BoNo')");
-        StringAssert.Contains(sql, "COL_LENGTH(N'dbo.PurchaseOrderLine',N'FinishZh')");
-        Assert.IsFalse(sql.Contains("DROP TABLE", StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(sql.Contains("UPDATE dbo.PurchaseOrderHead", StringComparison.OrdinalIgnoreCase));
         var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderWorkspaceRepository.cs");
-        StringAssert.Contains(repository, "COALESCE(h.DemandSourceNo,h.SalesOrderNo) AS DemandSourceNo");
+        StringAssert.Contains(repository, "h.DemandSourceNo");
         StringAssert.Contains(repository, "COALESCE(p.MainImage,N'') AS MainImage");
-        StringAssert.Contains(repository, "N'尚未接入' AS UnreceivedQtyText");
+        StringAssert.Contains(repository, "receiveLine.SourceType=10");
+        StringAssert.Contains(repository, "receiveLink.TargetLineId=l.Uid");
+        StringAssert.Contains(repository, "receiveHead.PostingStatus=1");
+        Assert.IsFalse(repository.Contains("h.SalesOrderNo", StringComparison.Ordinal));
+        Assert.IsFalse(repository.Contains("l.RecQty", StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -114,8 +115,38 @@ public sealed class ProcurementWorkspaceContractTests
         var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrderWorkspaceService.cs");
         foreach (var field in new[] { "BoNo", "CustomerPoNo", "SoPerson", "PoPerson", "ReplyDate", "InletrHoseType", "AeratorType", "PalletType", "BoxType", "LabelType", "IMType", "CartonType", "LogoType", "ZheKouBeiZhu" })
             StringAssert.Contains(service, field);
-        Assert.IsFalse(service.Contains("head.SupplierId =", StringComparison.Ordinal));
-        Assert.IsFalse(service.Contains("line.QTY =", StringComparison.Ordinal));
+        Assert.IsFalse(service.Contains("head.SupplierId = command", StringComparison.Ordinal));
+        Assert.IsFalse(service.Contains("line.Quantity =", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void OfficialEntities_MustMapCleanPurchaseTables()
+    {
+        Assert.AreEqual("PurchaseOrderHead", typeof(PurchaseOrderHead).GetCustomAttributes(typeof(TableAttribute), false).Cast<TableAttribute>().Single().Name);
+        Assert.AreEqual("PurchaseOrderLine", typeof(PurchaseOrderLine).GetCustomAttributes(typeof(TableAttribute), false).Cast<TableAttribute>().Single().Name);
+        Assert.AreEqual("QTY", typeof(PurchaseOrderLine).GetProperty(nameof(PurchaseOrderLine.Quantity))!
+            .GetCustomAttributes(typeof(ColumnAttribute), false).Cast<ColumnAttribute>().Single().Name);
+
+        var headProperties = typeof(PurchaseOrderHead).GetProperties().Select(x => x.Name).ToHashSet(StringComparer.Ordinal);
+        var lineProperties = typeof(PurchaseOrderLine).GetProperties().Select(x => x.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var removed in new[] { "OrderStatus", "SalesOrderNo", "LineCount", "TotalQty", "TotalReadyQty", "TotalShippedQty" })
+            Assert.IsFalse(headProperties.Contains(removed), $"采购头不应继续缓存 {removed}。");
+        foreach (var removed in new[] { "ReadyStatus", "ReadyQty", "RecQty", "LastRecDate", "DeliveryTo" })
+            Assert.IsFalse(lineProperties.Contains(removed), $"采购行不应继续缓存 {removed}。");
+    }
+
+    [TestMethod]
+    public void DevelopmentRebuild_MustBeExplicitlyGuardedAndMatchOfficialModel()
+    {
+        var sql = Read("SwiftExport.Infrastructure", "Migrations", "015_PurchaseOrder_Rebuild_DevelopmentOnly.sql");
+        StringAssert.Contains(sql, "DECLARE @AllowDestructiveRebuild bit = 0");
+        StringAssert.Contains(sql, "DROP TABLE dbo.PurchaseOrderLine");
+        StringAssert.Contains(sql, "CREATE TABLE dbo.PurchaseOrderHead");
+        StringAssert.Contains(sql, "CREATE TABLE dbo.PurchaseOrderLine");
+        StringAssert.Contains(sql, "QTY decimal(18,4) NOT NULL");
+        StringAssert.Contains(sql, "UnitSnapshot nvarchar(50) NULL");
+        Assert.IsFalse(sql.Contains("ReadyQty", StringComparison.Ordinal));
+        Assert.IsFalse(sql.Contains("RecQty", StringComparison.Ordinal));
     }
 
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));

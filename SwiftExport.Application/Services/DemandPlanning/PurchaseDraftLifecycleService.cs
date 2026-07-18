@@ -4,8 +4,9 @@ using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Entities.DemandPlanning;
+using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Interfaces.DemandPlanning;
+using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Services.DemandPlanning;
@@ -13,7 +14,7 @@ namespace SwiftExport.Application.Services.DemandPlanning;
 /// <summary>净需求专项采购草稿的安全取消和减量编排。</summary>
 public sealed class PurchaseDraftLifecycleService(
     ServiceBaseContext context,
-    INetDemandPurchaseDraftRepository purchaseDraftRepository,
+    IPurchaseOrderDraftRepository purchaseDraftRepository,
     INetDemandExecutionLinkRepository linkRepository,
     PurchaseDraftReleasePlanner releasePlanner)
 {
@@ -161,7 +162,7 @@ public sealed class PurchaseDraftLifecycleService(
 
             var links = await linkRepository.GetPurchaseLinksByHeadAsync(uid, withUpdLock: true, cancellationToken);
             var lines = await purchaseDraftRepository.GetDraftLinesForUpdateAsync(uid);
-            if (lines.Sum(x => x.QTY) != links.Sum(x => x.EffectiveQty))
+            if (lines.Sum(x => x.Quantity) != links.Sum(x => x.EffectiveQty))
                 throw new PurchaseDraftLifecycleException("CORRUPTED_STATE", "采购行数量与活动 Link 有效贡献不守恒。");
             var preview = releasePlanner.Build(uid, command.ExpectedVersion, command.NewTotalQty, links);
             if (preview.HasBlockers)
@@ -169,7 +170,7 @@ public sealed class PurchaseDraftLifecycleService(
             if (!string.Equals(preview.PreviewToken, command.PreviewToken, StringComparison.Ordinal))
                 throw new PurchaseDraftLifecycleException("PREVIEW_EXPIRED", "采购草稿事实已变化，请重新预览减量结果。");
 
-            var quantities = lines.ToDictionary(x => x.Uid, x => x.QTY);
+            var quantities = lines.ToDictionary(x => x.Uid, x => x.Quantity);
             foreach (var release in preview.Releases)
             {
                 if (!quantities.TryGetValue(release.PurchaseOrderLineId, out var current))
@@ -179,14 +180,14 @@ public sealed class PurchaseDraftLifecycleService(
                     throw new PurchaseDraftLifecycleException("CORRUPTED_STATE", "采购行数量小于待释放 Link 贡献。");
                 quantities[release.PurchaseOrderLineId] = next;
             }
-            var changed = quantities.Where(x => lines.Single(line => line.Uid == x.Key).QTY != x.Value)
+            var changed = quantities.Where(x => lines.Single(line => line.Uid == x.Key).Quantity != x.Value)
                 .ToDictionary(x => x.Key, x => x.Value);
             if (await linkRepository.ApplyPurchaseLinkReleasesAsync(preview.Releases, command.Reason.Trim())
                 != preview.Releases.Count)
                 throw new PurchaseDraftLifecycleException("LINK_CONCURRENCY_CONFLICT", "释放 Link 时事实已变化。");
             if (await purchaseDraftRepository.UpdateDraftLineQuantitiesAsync(changed, command.Reason.Trim()) != changed.Count)
                 throw new PurchaseDraftLifecycleException("PURCHASE_LINE_CONCURRENCY_CONFLICT", "更新采购行数量时事实已变化。");
-            if (await purchaseDraftRepository.RefreshDraftSummaryAfterReleaseAsync(uid, command.ExpectedVersion) != 1)
+            if (await purchaseDraftRepository.AdvanceDraftVersionAfterReleaseAsync(uid, command.ExpectedVersion) != 1)
                 throw new PurchaseDraftLifecycleException("PURCHASE_DRAFT_CONCURRENCY_CONFLICT", "采购草稿版本已变化。");
 
             _session.Transaction.Commit();
@@ -229,7 +230,7 @@ public sealed class PurchaseDraftLifecycleService(
         return ServiceResult<T>.Fail(message);
     }
 
-    private static void EnsureMutableDraft(NetDemandPurchaseDraftHead head, int expectedVersion)
+    private static void EnsureMutableDraft(PurchaseOrderHead head, int expectedVersion)
     {
         if (head.Version != expectedVersion)
             throw new PurchaseDraftLifecycleException("CONCURRENCY_CONFLICT", "采购草稿版本已变化。");

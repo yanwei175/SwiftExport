@@ -5,7 +5,6 @@ using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auditing;
-using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
@@ -54,7 +53,7 @@ public sealed class PurchaseOrderWorkspaceService(
             return ServiceResult<PurchaseOrderDetailDto>.Ok(new PurchaseOrderDetailDto
             {
                 Head = summary,
-                SalesOrderNo = head.SalesOrderNo,
+                SalesOrderNo = head.DemandSourceNo,
                 CustomerCode = head.CustomerCode,
                 CustomerPoNo = head.CustomerPoNo,
                 SalesPerson = head.SoPerson,
@@ -135,7 +134,7 @@ public sealed class PurchaseOrderWorkspaceService(
             if (await purchaseOrders.HasDownstreamFactsAsync(uid)) throw new ProcurementException("采购单已有收货或库存事实，不能编辑草稿。");
             if (lines.Count != command.Lines.Count || lines.Select(x => x.Uid).Except(command.Lines.Select(x => x.PurchaseOrderLineId)).Any())
                 throw new ProcurementException("草稿行集合已变化，请刷新后重试。");
-            if (lockedContributions.Count == 0 || lines.Any(line => lockedContributions.Where(x => x.PurchaseOrderLineId == line.Uid).Sum(x => x.EffectiveQty) != line.QTY))
+            if (lockedContributions.Count == 0 || lines.Any(line => lockedContributions.Where(x => x.PurchaseOrderLineId == line.Uid).Sum(x => x.EffectiveQty) != line.Quantity))
                 throw new ProcurementException("采购行需求 Link 不完整或数量不守恒，遗留/损坏采购单只允许查看。");
             foreach (var line in lines)
             {
@@ -181,16 +180,16 @@ public sealed class PurchaseOrderWorkspaceService(
         return await ExecuteMutationAsync(uid, command.CommandId, "PurchaseOrder.Confirmed", async () =>
         {
             var head = await RequireOperableHeadAsync(uid, command.ExpectedVersion, ConfirmationStatusEnum.待确认);
-            if (!head.SupplierId.HasValue || !await purchaseOrders.IsActiveSupplierAsync(head.SupplierId.Value)) throw new ProcurementException("采购供应商不存在或已失效。");
+            if (head.SupplierId == Guid.Empty || !await purchaseOrders.IsActiveSupplierAsync(head.SupplierId)) throw new ProcurementException("采购供应商不存在或已失效。");
             var lines = await purchaseOrders.GetLinesForUpdateAsync(uid);
             if (lines.Count == 0) throw new ProcurementException("采购单至少需要一条有效采购行。");
             var contributions = await purchaseOrders.GetContributionsForUpdateAsync(uid, cancellationToken);
             foreach (var line in lines)
             {
-                if (string.IsNullOrWhiteSpace(line.Sku) || line.QTY <= 0) throw new ProcurementException($"采购行 {line.LineNumber} 的 SKU 或数量无效。");
+                if (string.IsNullOrWhiteSpace(line.Sku) || line.Quantity <= 0) throw new ProcurementException($"采购行 {line.LineNumber} 的 SKU 或数量无效。");
                 if (!line.TaxPrice.HasValue || line.TaxPrice.Value < 0) throw new ProcurementException($"采购行 {line.LineNumber} 必须填写含税单价；明确的零价允许确认。");
                 var linked = contributions.Where(x => x.PurchaseOrderLineId == line.Uid).Sum(x => x.EffectiveQty);
-                if (linked != line.QTY) throw new ProcurementException($"采购行 {line.LineNumber} 的需求 Link 数量不守恒。");
+                if (linked != line.Quantity) throw new ProcurementException($"采购行 {line.LineNumber} 的需求 Link 数量不守恒。");
                 if (line.DeliveryTargetAllocationId.HasValue != line.DeliveryTargetSupplierId.HasValue) throw new ProcurementException($"采购行 {line.LineNumber} 的客供件送达目标不完整。");
             }
             var now = DateTime.Now;
@@ -229,7 +228,7 @@ public sealed class PurchaseOrderWorkspaceService(
             var lines = await purchaseOrders.GetLinesForUpdateAsync(uid);
             var line = lines.SingleOrDefault(x => x.Uid == command.PurchaseOrderLineId) ?? throw new ProcurementException("采购行不存在。");
             if (line.Version != command.ExpectedLineVersion) throw new ProcurementException("采购行已被其他用户修改，请刷新后重试。");
-            if (command.ReadyQty > line.QTY) throw new ProcurementException("累计已备好数量不能超过采购行当前有效数量。");
+            if (command.ReadyQty > line.Quantity) throw new ProcurementException("累计已备好数量不能超过采购行当前有效数量。");
             var latest = await progressReports.GetLatestForUpdateAsync(line.Uid);
             var correction = latest is not null && command.ReadyQty < latest.ReadyQty;
             if (correction && string.IsNullOrWhiteSpace(command.CorrectionReason)) throw new ProcurementException("累计已备好数量下降时必须填写纠错原因。");
@@ -284,18 +283,18 @@ public sealed class PurchaseOrderWorkspaceService(
         finally { _session.Transaction.Dispose(); _session.Transaction = null; }
     }
 
-    private async Task<NetDemandPurchaseDraftHead> RequireOperableHeadAsync(Guid uid, int expectedVersion, ConfirmationStatusEnum expectedStatus)
+    private async Task<PurchaseOrderHead> RequireOperableHeadAsync(Guid uid, int expectedVersion, ConfirmationStatusEnum expectedStatus)
     {
         var head = await purchaseOrders.GetHeadForUpdateAsync(uid) ?? throw new ProcurementException("采购单不存在。");
         if (head.Version != expectedVersion) throw new ProcurementException("采购单已被其他用户修改，请刷新后重试。");
         if (head.LifecycleStatus != PurchaseOrderLifecycleStatusEnum.Active || head.ConfirmationStatus != expectedStatus)
             throw new ProcurementException("采购单当前状态不允许执行此操作。");
-        if (!head.SupplierId.HasValue || string.IsNullOrWhiteSpace(head.DemandSourceType) || !head.DemandSourceUid.HasValue || string.IsNullOrWhiteSpace(head.DemandSourceNo) || !head.ExecutionRequestId.HasValue)
+        if (head.SupplierId == Guid.Empty || string.IsNullOrWhiteSpace(head.DemandSourceType) || head.DemandSourceUid == Guid.Empty || string.IsNullOrWhiteSpace(head.DemandSourceNo) || head.ExecutionRequestId == Guid.Empty)
             throw new ProcurementException("遗留采购单缺少新链路所需关系，只允许查看。");
         return head;
     }
 
-    private async Task WriteLogAsync(NetDemandPurchaseDraftHead head, Guid commandId, string operationType, string operationName, string? reason, string summary, string? changedFieldsJson, string? relatedObjectsJson)
+    private async Task WriteLogAsync(PurchaseOrderHead head, Guid commandId, string operationType, string operationName, string? reason, string summary, string? changedFieldsJson, string? relatedObjectsJson)
     {
         var log = new BusinessOperationLog
         {
@@ -319,7 +318,7 @@ public sealed class PurchaseOrderWorkspaceService(
         if (await operationLogs.InsertAsync(log) != 1) throw new ProcurementException("业务操作日志写入失败。");
     }
 
-    private static ProcurementCommandResult Result(NetDemandPurchaseDraftHead head, ConfirmationStatusEnum status, string message)
+    private static ProcurementCommandResult Result(PurchaseOrderHead head, ConfirmationStatusEnum status, string message)
         => new() { Outcome = ProcurementCommandOutcomeEnum.Succeeded, PurchaseOrderId = head.Uid, Version = head.Version, ConfirmationStatus = status, Message = message };
     private static string? Normalize(string? value, int maxLength) { var text = value?.Trim(); if (string.IsNullOrEmpty(text)) return null; return text.Length <= maxLength ? text : text[..maxLength]; }
     private sealed class ProcurementException(string message) : Exception(message);

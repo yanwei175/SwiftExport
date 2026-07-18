@@ -3,6 +3,7 @@ using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.DemandPlanning;
+using SwiftExport.Core.Entities.Procurement;
 
 namespace SwiftExport.Application.Services.DemandPlanning;
 
@@ -28,7 +29,7 @@ public sealed class PurchaseDraftWriteModelBuilder
         var result = new PurchaseDraftWriteModel();
         if (createHead)
         {
-            result.Head = new NetDemandPurchaseDraftHead
+            result.Head = new PurchaseOrderHead
             {
                 Uid = purchaseOrderId,
                 Version = 1,
@@ -42,17 +43,9 @@ public sealed class PurchaseDraftWriteModelBuilder
                 ExecutionRequestId = executionRequestId,
                 LifecycleStatus = PurchaseOrderLifecycleStatusEnum.Active,
                 ConfirmationStatus = ConfirmationStatusEnum.待确认,
-                OrderStatus = 0,
                 Currency = CurrencyEnum.CNY,
                 OrderDate = DateTime.Now,
-                ExpectedDate = document.EarliestPlannedDeliveryDate,
-                IsLocked = false,
-                LineCount = document.Lines.Count,
-                TotalQty = document.TotalQty,
-                TotalReadyQty = 0,
-                TotalShippedQty = 0,
-                TotalUnshippedQty = document.TotalQty,
-                TotalAmountLocalCurrency = document.Lines.Sum(x => (x.TaxPrice ?? x.UnitPrice ?? 0m) * x.PurchaseQty)
+                ExpectedDate = document.EarliestPlannedDeliveryDate
             };
         }
 
@@ -68,7 +61,7 @@ public sealed class PurchaseDraftWriteModelBuilder
             var singleContribution = previewLine.Contributions.Count == 1
                 ? previewLine.Contributions[0]
                 : null;
-            var line = new NetDemandPurchaseDraftLine
+            var line = new PurchaseOrderLine
             {
                 Uid = purchaseLineId,
                 Version = 1,
@@ -81,9 +74,10 @@ public sealed class PurchaseDraftWriteModelBuilder
                 CustomerSku = previewLine.CustomerSku,
                 SupplierSku = previewLine.SupplierSku,
                 DescriptionZh = previewLine.Description,
+                UnitSnapshot = previewLine.Unit,
                 UnitPrice = previewLine.UnitPrice,
                 TaxPrice = previewLine.TaxPrice,
-                QTY = previewLine.PurchaseQty,
+                Quantity = previewLine.PurchaseQty,
                 UnitAmount = previewLine.UnitPrice * previewLine.PurchaseQty,
                 TaxAmount = previewLine.TaxPrice * previewLine.PurchaseQty,
                 PlannedDeliveryDate = previewLine.PlannedDeliveryDate,
@@ -91,16 +85,13 @@ public sealed class PurchaseDraftWriteModelBuilder
                 DeliveryTargetSupplierId = previewLine.DeliveryTargetSupplierId,
                 DeliverySupplierCodeSnapshot = previewLine.DeliveryTargetSupplierCode,
                 DeliverySupplierNameSnapshot = previewLine.DeliveryTargetSupplierName,
-                DeliveryTo = previewLine.DeliveryTargetSupplierCode,
                 SupplyType = SupplyTypeEnums.采购,
                 MaterialType = previewLine.MaterialType,
                 SourceType = document.SourceType,
                 SourceUid = document.SourceUid,
                 SourceNo = document.SourceNo,
                 SourceLineId = singleContribution?.SourceLineId,
-                SourceLineNumber = singleContribution?.SourceLineNumber,
-                ReadyQty = 0,
-                RecQty = 0
+                SourceLineNumber = singleContribution?.SourceLineNumber
             };
             result.Lines.Add(line);
 
@@ -134,7 +125,7 @@ public sealed class PurchaseDraftWriteModelBuilder
 
 public sealed class PurchaseDraftWriteModel
 {
-    public NetDemandPurchaseDraftHead? Head { get; set; }
-    public List<NetDemandPurchaseDraftLine> Lines { get; } = [];
+    public PurchaseOrderHead? Head { get; set; }
+    public List<PurchaseOrderLine> Lines { get; } = [];
     public List<DemandExecutionLink> Links { get; } = [];
 }

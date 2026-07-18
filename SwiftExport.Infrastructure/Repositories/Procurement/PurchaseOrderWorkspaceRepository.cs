@@ -2,7 +2,7 @@ using Dapper;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Entities.DemandPlanning;
+using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
@@ -21,9 +21,9 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
         var pageSize = Math.Clamp(request.PageSize, 1, 200);
         var where = new List<string> { "ISNULL(h.IsDeleted,0)=0" };
         var parameters = new DynamicParameters(new { Offset = (pageIndex - 1) * pageSize, PageSize = pageSize });
-        AddLike(request.Keyword, "(h.OrderNo LIKE @Keyword OR h.BoNo LIKE @Keyword OR COALESCE(h.DemandSourceNo,h.SalesOrderNo) LIKE @Keyword OR h.SupplierCode LIKE @Keyword OR h.SupplierName LIKE @Keyword)", "Keyword", where, parameters);
+        AddLike(request.Keyword, "(h.OrderNo LIKE @Keyword OR h.BoNo LIKE @Keyword OR h.DemandSourceNo LIKE @Keyword OR h.SupplierCode LIKE @Keyword OR h.SupplierName LIKE @Keyword)", "Keyword", where, parameters);
         AddLike(request.OrderNo, "h.OrderNo LIKE @OrderNo", "OrderNo", where, parameters);
-        AddLike(request.SourceNo, "COALESCE(h.DemandSourceNo,h.SalesOrderNo) LIKE @SourceNo", "SourceNo", where, parameters);
+        AddLike(request.SourceNo, "h.DemandSourceNo LIKE @SourceNo", "SourceNo", where, parameters);
         AddLike(request.SupplierKeyword, "(h.SupplierCode LIKE @SupplierKeyword OR h.SupplierName LIKE @SupplierKeyword)", "SupplierKeyword", where, parameters);
         AddLike(request.Sku, "EXISTS(SELECT 1 FROM dbo.PurchaseOrderLine skuLine WHERE skuLine.PurchaseOrderId=h.Uid AND ISNULL(skuLine.IsDeleted,0)=0 AND skuLine.Sku LIKE @Sku)", "Sku", where, parameters);
         if (request.SupplierId.HasValue) { where.Add("h.SupplierId=@SupplierId"); parameters.Add("SupplierId", request.SupplierId.Value); }
@@ -46,7 +46,7 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
 
             SELECT h.Uid,h.Version,h.OrderNo,h.BoNo,h.OrderDate,h.ReplyDate,
                    COALESCE(h.ExpectedDate,lineFacts.EarliestPlannedDeliveryDate) AS ExpectedDate,
-                   h.SupplierId,h.SupplierCode,h.SupplierName,h.DemandSourceType,h.DemandSourceUid,COALESCE(h.DemandSourceNo,h.SalesOrderNo) AS DemandSourceNo,
+                   h.SupplierId,h.SupplierCode,h.SupplierName,h.DemandSourceType,h.DemandSourceUid,h.DemandSourceNo,
                    h.ConfirmationStatus,h.LifecycleStatus,
                    CONVERT(int,COALESCE(lineFacts.LineCount,0)) AS LineCount,
                    COALESCE(lineFacts.TotalQty,0) AS TotalQty,COALESCE(lineFacts.TotalAmount,0) AS TotalAmount,
@@ -95,7 +95,7 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
     {
         var sql = """
             SELECT h.Uid,h.Version,h.OrderNo,h.BoNo,h.OrderDate,h.ReplyDate,COALESCE(h.ExpectedDate,lineFacts.EarliestPlannedDeliveryDate) AS ExpectedDate,
-                   h.SupplierId,h.SupplierCode,h.SupplierName,h.DemandSourceType,h.DemandSourceUid,COALESCE(h.DemandSourceNo,h.SalesOrderNo) AS DemandSourceNo,
+                   h.SupplierId,h.SupplierCode,h.SupplierName,h.DemandSourceType,h.DemandSourceUid,h.DemandSourceNo,
                    h.ConfirmationStatus,h.LifecycleStatus,CONVERT(int,COALESCE(lineFacts.LineCount,0)) AS LineCount,
                    COALESCE(lineFacts.TotalQty,0) AS TotalQty,COALESCE(lineFacts.TotalAmount,0) AS TotalAmount,
                    CONVERT(int,COALESCE(lineFacts.ArrangedLineCount,0)) AS ArrangedLineCount,
@@ -140,8 +140,8 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
         return await Session.Connection.QuerySingleOrDefaultAsync<PurchaseOrderListItemDto>(new CommandDefinition(sql, new { Uid = uid }, Session.Transaction, cancellationToken: cancellationToken));
     }
 
-    public Task<NetDemandPurchaseDraftHead?> GetHeadAsync(Guid uid, CancellationToken cancellationToken = default)
-        => Session.Connection.QuerySingleOrDefaultAsync<NetDemandPurchaseDraftHead>(new CommandDefinition($"SELECT {HeadColumns} FROM dbo.PurchaseOrderHead h WHERE h.Uid=@Uid AND ISNULL(h.IsDeleted,0)=0;", new { Uid = uid }, Session.Transaction, cancellationToken: cancellationToken));
+    public Task<PurchaseOrderHead?> GetHeadAsync(Guid uid, CancellationToken cancellationToken = default)
+        => Session.Connection.QuerySingleOrDefaultAsync<PurchaseOrderHead>(new CommandDefinition($"SELECT {HeadColumns} FROM dbo.PurchaseOrderHead h WHERE h.Uid=@Uid AND ISNULL(h.IsDeleted,0)=0;", new { Uid = uid }, Session.Transaction, cancellationToken: cancellationToken));
 
     public async Task<IReadOnlyList<PurchaseOrderLineDetailDto>> GetLineDetailsAsync(Guid uid, CancellationToken cancellationToken = default)
     {
@@ -150,10 +150,21 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
                    l.FinishZh,l.FeaturesZh,l.MaterialType,l.SupplyType,COALESCE(p.MainImage,N'') AS MainImage,l.QTY AS Quantity,
                    l.UnitPrice,l.TaxPrice,l.UnitAmount,l.TaxAmount,l.PlannedDeliveryDate,l.DeliveryTargetAllocationId,
                    l.DeliveryTargetSupplierId,l.DeliverySupplierNameSnapshot AS DeliverySupplierName,l.SubNote,
-                   COALESCE(linkFacts.LinkedQty,0) AS LinkedQty,COALESCE(l.RecQty,0) AS RecQty,N'尚未接入' AS UnreceivedQtyText
+                   COALESCE(linkFacts.LinkedQty,0) AS LinkedQty,COALESCE(receiveFacts.ReceivedQty,0) AS RecQty,
+                   CONCAT(CONVERT(decimal(18,4),CASE WHEN l.QTY>COALESCE(receiveFacts.ReceivedQty,0) THEN l.QTY-COALESCE(receiveFacts.ReceivedQty,0) ELSE 0 END),N' / ',CONVERT(decimal(18,4),l.QTY)) AS UnreceivedQtyText
             FROM dbo.PurchaseOrderLine l
             LEFT JOIN dbo.Product p ON p.Uid=l.ProductId AND ISNULL(p.IsDeleted,0)=0
             OUTER APPLY(SELECT SUM(link.AllocatedQty-link.ReleasedQty) AS LinkedQty FROM dbo.DemandExecutionLink link WHERE link.TargetLineId=l.Uid AND link.TargetHeadId=@Uid AND link.TargetType=N'PO' AND link.LinkStatus=0 AND ISNULL(link.IsDeleted,0)=0)linkFacts
+            OUTER APPLY
+            (
+                SELECT SUM(CASE WHEN receiveHead.PostingStatus=1 THEN receiveLine.Quantity WHEN receiveHead.PostingStatus=2 THEN -receiveLine.Quantity ELSE 0 END) AS ReceivedQty
+                FROM dbo.PurchaseReceiveLine receiveLine
+                INNER JOIN dbo.PurchaseReceiveHead receiveHead ON receiveHead.Uid=receiveLine.PurchaseReceiveHeadId
+                INNER JOIN dbo.DemandExecutionLink receiveLink ON receiveLink.Uid=receiveLine.SourceUid
+                    AND receiveLink.TargetType=N'PO' AND ISNULL(receiveLink.IsDeleted,0)=0
+                WHERE receiveLine.SourceType=10 AND receiveLink.TargetLineId=l.Uid
+                  AND ISNULL(receiveLine.IsDeleted,0)=0 AND ISNULL(receiveHead.IsDeleted,0)=0
+            ) receiveFacts
             WHERE l.PurchaseOrderId=@Uid AND ISNULL(l.IsDeleted,0)=0
             ORDER BY l.LineNumber,l.Uid;
             """;
@@ -187,12 +198,12 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
         return [.. rows];
     }
 
-    public Task<NetDemandPurchaseDraftHead?> GetHeadForUpdateAsync(Guid uid)
-        => Session.Connection.QuerySingleOrDefaultAsync<NetDemandPurchaseDraftHead>($"SELECT {HeadColumns} FROM dbo.PurchaseOrderHead h WITH(UPDLOCK,HOLDLOCK) WHERE h.Uid=@Uid AND ISNULL(h.IsDeleted,0)=0;", new { Uid = uid }, Session.Transaction);
+    public Task<PurchaseOrderHead?> GetHeadForUpdateAsync(Guid uid)
+        => Session.Connection.QuerySingleOrDefaultAsync<PurchaseOrderHead>($"SELECT {HeadColumns} FROM dbo.PurchaseOrderHead h WITH(UPDLOCK,HOLDLOCK) WHERE h.Uid=@Uid AND ISNULL(h.IsDeleted,0)=0;", new { Uid = uid }, Session.Transaction);
 
-    public async Task<IReadOnlyList<NetDemandPurchaseDraftLine>> GetLinesForUpdateAsync(Guid uid)
+    public async Task<IReadOnlyList<PurchaseOrderLine>> GetLinesForUpdateAsync(Guid uid)
     {
-        var rows = await Session.Connection.QueryAsync<NetDemandPurchaseDraftLine>($"SELECT {LineColumns} FROM dbo.PurchaseOrderLine l WITH(UPDLOCK,HOLDLOCK) WHERE l.PurchaseOrderId=@Uid AND ISNULL(l.IsDeleted,0)=0 ORDER BY l.LineNumber,l.Uid;", new { Uid = uid }, Session.Transaction);
+        var rows = await Session.Connection.QueryAsync<PurchaseOrderLine>($"SELECT {LineColumns} FROM dbo.PurchaseOrderLine l WITH(UPDLOCK,HOLDLOCK) WHERE l.PurchaseOrderId=@Uid AND ISNULL(l.IsDeleted,0)=0 ORDER BY l.LineNumber,l.Uid;", new { Uid = uid }, Session.Transaction);
         return [.. rows];
     }
 
@@ -201,12 +212,11 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
 
     public Task<bool> HasDownstreamFactsAsync(Guid uid)
         => Session.Connection.ExecuteScalarAsync<bool>("""
-            SELECT CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.PurchaseOrderLine l WITH(UPDLOCK,HOLDLOCK) WHERE l.PurchaseOrderId=@Uid AND ISNULL(l.IsDeleted,0)=0 AND (ISNULL(l.RecQty,0)>0 OR l.LastRecDate IS NOT NULL))
-             OR EXISTS(SELECT 1 FROM dbo.PurchaseReceiveLine r WITH(UPDLOCK,HOLDLOCK) WHERE ISNULL(r.IsDeleted,0)=0 AND (r.PoLineId IN(SELECT l.Uid FROM dbo.PurchaseOrderLine l WHERE l.PurchaseOrderId=@Uid AND ISNULL(l.IsDeleted,0)=0) OR (r.PoLineId IS NULL AND r.PoNo=(SELECT OrderNo FROM dbo.PurchaseOrderHead WHERE Uid=@Uid))))
+            SELECT CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.PurchaseReceiveLine r WITH(UPDLOCK,HOLDLOCK) WHERE ISNULL(r.IsDeleted,0)=0 AND ((r.SourceType=10 AND r.SourceUid IN(SELECT link.Uid FROM dbo.DemandExecutionLink link WHERE link.TargetHeadId=@Uid AND link.TargetType=N'PO' AND ISNULL(link.IsDeleted,0)=0)) OR r.PoLineId IN(SELECT l.Uid FROM dbo.PurchaseOrderLine l WHERE l.PurchaseOrderId=@Uid AND ISNULL(l.IsDeleted,0)=0) OR (r.PoLineId IS NULL AND r.PoNo=(SELECT OrderNo FROM dbo.PurchaseOrderHead WHERE Uid=@Uid))))
              OR EXISTS(SELECT 1 FROM dbo.InventoryTransaction i WITH(UPDLOCK,HOLDLOCK) WHERE ISNULL(i.IsDeleted,0)=0 AND (i.BizLineId IN(SELECT l.Uid FROM dbo.PurchaseOrderLine l WHERE l.PurchaseOrderId=@Uid AND ISNULL(l.IsDeleted,0)=0) OR i.RefNo=(SELECT OrderNo FROM dbo.PurchaseOrderHead WHERE Uid=@Uid))) THEN 1 ELSE 0 END AS bit);
             """, new { Uid = uid }, Session.Transaction);
 
-    public async Task<int> UpdateDraftAsync(NetDemandPurchaseDraftHead head, IReadOnlyList<NetDemandPurchaseDraftLine> lines, int expectedVersion)
+    public async Task<int> UpdateDraftAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines, int expectedVersion)
     {
         var affected = 0;
         const string lineSql = """
@@ -227,10 +237,9 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
             UPDATE h SET BoNo=@BoNo,CustomerPoNo=@CustomerPoNo,SoPerson=@SoPerson,PoPerson=@PoPerson,ReplyDate=@ReplyDate,
               InletrHoseType=@InletrHoseType,AeratorType=@AeratorType,PalletType=@PalletType,BoxType=@BoxType,
               LabelType=@LabelType,IMType=@IMType,CartonType=@CartonType,LogoType=@LogoType,ZheKouBeiZhu=@ZheKouBeiZhu,
-              Remark=@Remark,LineCount=f.LineCount,TotalQty=f.TotalQty,TotalAmountLocalCurrency=f.TotalAmount,
-              ExpectedDate=f.ExpectedDate,UpdatedDate=@Now,UpdatedBy=@UserName,Version=Version+1
+              Remark=@Remark,ExpectedDate=f.ExpectedDate,UpdatedDate=@Now,UpdatedBy=@UserName,Version=Version+1
             FROM dbo.PurchaseOrderHead h
-            CROSS APPLY(SELECT COUNT_BIG(1) LineCount,SUM(l.QTY) TotalQty,SUM(COALESCE(l.TaxPrice,l.UnitPrice,0)*l.QTY) TotalAmount,MIN(l.PlannedDeliveryDate) ExpectedDate FROM dbo.PurchaseOrderLine l WHERE l.PurchaseOrderId=h.Uid AND ISNULL(l.IsDeleted,0)=0)f
+            CROSS APPLY(SELECT MIN(l.PlannedDeliveryDate) ExpectedDate FROM dbo.PurchaseOrderLine l WHERE l.PurchaseOrderId=h.Uid AND ISNULL(l.IsDeleted,0)=0)f
             WHERE h.Uid=@Uid AND h.Version=@ExpectedVersion AND h.LifecycleStatus=0 AND h.ConfirmationStatus=0 AND ISNULL(h.IsDeleted,0)=0;
             """, new
         {
@@ -287,8 +296,8 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
               WHERE link.TargetHeadId=h.Uid AND link.TargetType=N'PO' AND link.LinkStatus=0 AND ISNULL(link.IsDeleted,0)=0
           )
         """;
-    private const string HeadColumns = "h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,h.OrderStatus,h.ConfirmationStatus,h.LifecycleStatus,h.OrderNo,h.BoNo,h.SalesOrderNo,h.CustomerPoNo,h.CustomerCode,h.Currency,h.SupplierCode,h.SupplierName,h.SoPerson,h.PoPerson,h.InletrHoseType,h.AeratorType,h.PalletType,h.BoxType,h.LabelType,h.IMType,h.CartonType,h.LogoType,h.ReviewedBy,h.PoFolder,h.ZheKouBeiZhu,h.SupplierId,h.DemandSourceType,h.DemandSourceUid,h.DemandSourceNo,h.ExecutionRequestId,h.Remark,h.IsLocked,h.LineCount,h.TotalAmountLocalCurrency,h.TotalQty,h.TotalShippedQty,h.TotalUnshippedQty,h.TotalReadyQty,h.OrderDate,h.ExpectedDate,h.ReplyDate,h.ConfirmedDate,h.ConfirmedBy";
-    private const string LineColumns = "l.Uid,l.Version,l.IsDeleted,l.CreatedDate,l.CreatedBy,l.UpdatedDate,l.UpdatedBy,l.ReadyStatus,l.LineNumber,l.PurchaseOrderId,l.OrderNo,l.ProductId,l.Sku,l.CustomerSku,l.LinkSku,l.SupplierSku,l.DescriptionZh,l.FinishZh,l.FeaturesZh,l.UnitPrice,l.TaxPrice,l.QTY,l.UnitAmount,l.TaxAmount,l.PlannedDeliveryDate,l.DeliveryTargetAllocationId,l.DeliveryTargetSupplierId,l.DeliverySupplierCodeSnapshot,l.DeliverySupplierNameSnapshot,l.SubNote,l.SupplyType,l.MaterialType,l.DeliveryTo,l.SourceType,l.SourceNo,l.SourceUid,l.SourceLineId,l.SourceLineNumber,l.ReadyQty,l.RecQty,l.LastRecDate";
+    private const string HeadColumns = "h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,h.ConfirmationStatus,h.LifecycleStatus,h.OrderNo,h.BoNo,h.CustomerPoNo,h.CustomerCode,h.Currency,h.SupplierId,h.SupplierCode,h.SupplierName,h.DemandSourceType,h.DemandSourceUid,h.DemandSourceNo,h.ExecutionRequestId,h.SoPerson,h.PoPerson,h.InletrHoseType,h.AeratorType,h.PalletType,h.BoxType,h.LabelType,h.IMType,h.CartonType,h.LogoType,h.ReviewedBy,h.PoFolder,h.ZheKouBeiZhu,h.Remark,h.OrderDate,h.ExpectedDate,h.ReplyDate,h.ConfirmedDate,h.ConfirmedBy";
+    private const string LineColumns = "l.Uid,l.Version,l.IsDeleted,l.CreatedDate,l.CreatedBy,l.UpdatedDate,l.UpdatedBy,l.PurchaseOrderId,l.LineNumber,l.OrderNo,l.ProductId,l.Sku,l.CustomerSku,l.LinkSku,l.SupplierSku,l.DescriptionZh,l.FinishZh,l.FeaturesZh,l.UnitSnapshot,l.QTY AS Quantity,l.UnitPrice,l.TaxPrice,l.UnitAmount,l.TaxAmount,l.PlannedDeliveryDate,l.DeliveryTargetAllocationId,l.DeliveryTargetSupplierId,l.DeliverySupplierCodeSnapshot,l.DeliverySupplierNameSnapshot,l.SubNote,l.SupplyType,l.MaterialType,l.SourceType,l.SourceNo,l.SourceUid,l.SourceLineId,l.SourceLineNumber";
 
     private static void AddLike(string? value, string clause, string parameterName, ICollection<string> where, DynamicParameters parameters)
     { if (!string.IsNullOrWhiteSpace(value)) { where.Add(clause); parameters.Add(parameterName, "%" + value.Trim() + "%"); } }
