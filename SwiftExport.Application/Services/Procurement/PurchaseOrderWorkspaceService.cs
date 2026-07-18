@@ -82,7 +82,7 @@ public sealed class PurchaseOrderWorkspaceService(
                 CartonTotalText = "尚未接入",
                 CbmTotalText = "尚未接入",
                 InboundStatusText = "尚未接入",
-                ShippedStatusText = "尚未接入",
+                ShippedStatusText = $"{summary.FinalShippedQty:N4} / {summary.TotalQty:N4}",
                 Lines = lines,
                 Operations = (await operationLogs.GetByAggregateAsync(Module, uid, cancellationToken)).ToList()
             });

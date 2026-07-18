@@ -121,11 +121,15 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
                     END AS FulfillmentStatus
                 FROM (
                     SELECT l.Qty,
-                           ISNULL((SELECT SUM(d.ShippedQty)
-                                   FROM IndependentDemand d WITH(NOLOCK)
-                                   WHERE d.SourceType = @SourceType
-                                     AND d.SourceLineId = l.Uid
-                                     AND d.IsDeleted = 0), 0) AS ShippedQty
+                           ISNULL((SELECT SUM(outLine.Quantity)
+                                   FROM dbo.OutboundLine outLine WITH(NOLOCK)
+                                   JOIN dbo.OutboundHead outHead WITH(NOLOCK) ON outHead.Uid=outLine.OutboundDocumentId
+                                   JOIN dbo.NetDemandAllocation allocation WITH(NOLOCK) ON allocation.Uid=outLine.NetDemandAllocationId
+                                   JOIN dbo.DependentDemand netDemand WITH(NOLOCK) ON netDemand.Uid=allocation.NetDemandId
+                                   JOIN dbo.IndependentDemand demand WITH(NOLOCK) ON demand.Uid=netDemand.IndependentDemandId
+                                   WHERE demand.SourceType=@SourceType AND demand.SourceLineId=l.Uid
+                                     AND outHead.DocumentType=20 AND outHead.PostingStatus=1
+                                     AND ISNULL(outHead.IsDeleted,0)=0 AND ISNULL(outLine.IsDeleted,0)=0), 0) AS ShippedQty
                     FROM SalesOrderLine l WITH(NOLOCK)
                     WHERE l.SalesOrderId = h.Uid AND l.IsDeleted = 0
                 ) lineTotals
@@ -205,11 +209,15 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
                 ISNULL(l.UsdAmount, l.UsdPrice * l.Qty) AS UsdAmount
             FROM SalesOrderLine l WITH(NOLOCK)
             OUTER APPLY (
-                SELECT ISNULL(SUM(d.ShippedQty), 0) AS ShippedQty
-                FROM IndependentDemand d WITH(NOLOCK)
-                WHERE d.SourceType = @SourceType
-                  AND d.SourceLineId = l.Uid
-                  AND d.IsDeleted = 0
+                SELECT ISNULL(SUM(outLine.Quantity),0) AS ShippedQty
+                FROM dbo.OutboundLine outLine WITH(NOLOCK)
+                JOIN dbo.OutboundHead outHead WITH(NOLOCK) ON outHead.Uid=outLine.OutboundDocumentId
+                JOIN dbo.NetDemandAllocation allocation WITH(NOLOCK) ON allocation.Uid=outLine.NetDemandAllocationId
+                JOIN dbo.DependentDemand netDemand WITH(NOLOCK) ON netDemand.Uid=allocation.NetDemandId
+                JOIN dbo.IndependentDemand demand WITH(NOLOCK) ON demand.Uid=netDemand.IndependentDemandId
+                WHERE demand.SourceType=@SourceType AND demand.SourceLineId=l.Uid
+                  AND outHead.DocumentType=20 AND outHead.PostingStatus=1
+                  AND ISNULL(outHead.IsDeleted,0)=0 AND ISNULL(outLine.IsDeleted,0)=0
             ) shipped
             WHERE l.SalesOrderId = @Uid AND l.IsDeleted = 0
             ORDER BY l.LineNumber, l.Uid;";

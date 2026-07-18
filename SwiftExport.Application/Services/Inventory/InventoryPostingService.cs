@@ -20,27 +20,73 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
         if (items.Any(x => x.CommandItemId == Guid.Empty || x.WarehouseSiteId == Guid.Empty || x.ProductId == Guid.Empty || x.QuantityDelta == 0)) throw new InventoryPostingException("库存过账明细不完整。");
         if (items.Select(x => x.CommandItemId).Distinct().Count() != items.Count) throw new InventoryPostingException("同一命令中的 CommandItemId 必须唯一。");
 
-        var results = new List<InventoryPostingResultDto>();
-        foreach (var item in items.OrderBy(x => x.WarehouseSiteId).ThenBy(x => x.ProductId).ThenBy(x => x.CommandItemId))
+        var orderedItems = items
+            .OrderBy(x => x.WarehouseSiteId)
+            .ThenBy(x => x.ProductId)
+            .ThenBy(x => x.CommandItemId)
+            .ToList();
+        var preexisting = new Dictionary<Guid, InventoryLedgerEntry>();
+        foreach (var item in orderedItems)
+        {
+            var ledger = await inventory.FindLedgerByCommandItemAsync(item.CommandItemId);
+            if (ledger is null) continue;
+            if (!IsSamePostingFact(ledger, commandId, item))
+                throw new InventoryPostingException("IDEMPOTENCY_CONFLICT：CommandItemId 已用于不同库存事实。");
+            preexisting[item.CommandItemId] = ledger;
+        }
+        var lockedBalances = new Dictionary<(Guid WarehouseSiteId, Guid ProductId), InventoryBalance>();
+        var lockedSites = new Dictionary<Guid, WarehouseSite>();
+
+        // 所有调用方使用相同的仓库、产品锁序，避免多仓批量过账互相等待。
+        foreach (var key in orderedItems.Where(x => !preexisting.ContainsKey(x.CommandItemId)).Select(x => (x.WarehouseSiteId, x.ProductId)).Distinct())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var existing = await inventory.FindLedgerByCommandItemAsync(item.CommandItemId);
+            if (!lockedSites.TryGetValue(key.WarehouseSiteId, out var site))
+            {
+                site = await warehouseSites.GetForUpdateAsync(key.WarehouseSiteId)
+                    ?? throw new InventoryPostingException("虚拟仓不存在。");
+                if (!site.IsActive) throw new InventoryPostingException("虚拟仓已停用，不能过账。");
+                lockedSites.Add(key.WarehouseSiteId, site);
+            }
+
+            if (!await inventory.IsActiveProductAsync(key.ProductId))
+                throw new InventoryPostingException("产品不存在或已停用。");
+
+            var balance = await inventory.LockBalanceAsync(key.WarehouseSiteId, key.ProductId);
+            if (balance is null)
+            {
+                balance = new InventoryBalance
+                {
+                    Uid = GuidSequentialGenerator.NewGuid(),
+                    WarehouseSiteId = key.WarehouseSiteId,
+                    ProductId = key.ProductId,
+                    OnHandQty = 0,
+                    LastLedgerSequence = 0
+                };
+                if (await inventory.InsertBalanceAsync(balance) != 1)
+                    throw new InventoryPostingException("库存余额创建失败。");
+            }
+
+            lockedBalances.Add(key, balance);
+        }
+
+        var results = new List<InventoryPostingResultDto>();
+        foreach (var item in orderedItems)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            // 余额键加锁后再次检查，关闭两个并发命令同时越过首次幂等检查的窗口。
+            var existing = preexisting.TryGetValue(item.CommandItemId, out var applied)
+                ? applied
+                : await inventory.LockLedgerByCommandItemAsync(item.CommandItemId);
             if (existing is not null)
             {
-                if (existing.CommandId != commandId || existing.WarehouseSiteId != item.WarehouseSiteId || existing.ProductId != item.ProductId || existing.QuantityDelta != item.QuantityDelta || existing.TransactionType != item.TransactionType)
+                if (!IsSamePostingFact(existing, commandId, item))
                     throw new InventoryPostingException("IDEMPOTENCY_CONFLICT：CommandItemId 已用于不同库存事实。");
                 results.Add(new InventoryPostingResultDto { CommandItemId = item.CommandItemId, LedgerId = existing.Uid, Delta = existing.QuantityDelta, AfterQty = existing.BalanceAfter, BeforeQty = existing.BalanceAfter - existing.QuantityDelta, AlreadyApplied = true });
                 continue;
             }
-            var site = await warehouseSites.GetForUpdateAsync(item.WarehouseSiteId) ?? throw new InventoryPostingException("虚拟仓不存在。");
-            if (!site.IsActive) throw new InventoryPostingException("虚拟仓已停用，不能过账。");
-            if (!await inventory.IsActiveProductAsync(item.ProductId)) throw new InventoryPostingException("产品不存在或已停用。");
-            var balance = await inventory.LockBalanceAsync(item.WarehouseSiteId, item.ProductId);
-            if (balance is null)
-            {
-                balance = new InventoryBalance { Uid = GuidSequentialGenerator.NewGuid(), WarehouseSiteId = item.WarehouseSiteId, ProductId = item.ProductId, OnHandQty = 0, LastLedgerSequence = 0 };
-                if (await inventory.InsertBalanceAsync(balance) != 1) throw new InventoryPostingException("库存余额创建失败。");
-            }
+            var site = lockedSites[item.WarehouseSiteId];
+            var balance = lockedBalances[(item.WarehouseSiteId, item.ProductId)];
             var before = balance.OnHandQty;
             var after = before + item.QuantityDelta;
             if (after < 0 && (!item.AllowNegativeStock || item.TransactionType != InventoryTransactionTypeEnum.NegativeStockExceptionOutbound || string.IsNullOrWhiteSpace(item.Reason)))
@@ -60,6 +106,20 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
         }
         return results;
     }
+
+    private static bool IsSamePostingFact(InventoryLedgerEntry existing, Guid commandId, InventoryPostingItem item)
+        => existing.CommandId == commandId
+            && existing.CommandItemId == item.CommandItemId
+            && existing.WarehouseSiteId == item.WarehouseSiteId
+            && existing.ProductId == item.ProductId
+            && existing.QuantityDelta == item.QuantityDelta
+            && existing.TransactionType == item.TransactionType
+            && string.Equals(Normalize(existing.SourceDocumentType, 50), Normalize(item.SourceDocumentType, 50), StringComparison.Ordinal)
+            && existing.SourceDocumentId == item.SourceDocumentId
+            && existing.SourceLineId == item.SourceLineId
+            && existing.ReversalOfLedgerId == item.ReversalOfLedgerId
+            && string.Equals(Normalize(existing.Reason, 500), Normalize(item.Reason, 500), StringComparison.Ordinal)
+            && (item.OccurredDate == default || existing.OccurredDate == item.OccurredDate);
 
     private static string? Normalize(string? text, int max) { var value = text?.Trim(); return string.IsNullOrEmpty(value) ? null : value[..Math.Min(value.Length, max)]; }
 }

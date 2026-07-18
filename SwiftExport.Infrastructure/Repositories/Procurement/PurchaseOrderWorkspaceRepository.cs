@@ -55,7 +55,8 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
                    COALESCE(lineFacts.LatestReadyQty,0) AS LatestReadyQty,lineFacts.LatestExpectedReadyDate,
                    CASE WHEN h.LifecycleStatus=9 THEN N'已作废' WHEN h.LifecycleStatus=8 THEN N'已关闭'
                         WHEN h.ConfirmationStatus=1 THEN N'已确认' ELSE N'待确认' END AS OrderStatusText,
-                   N'尚未接入' AS UnshippedQtyText,
+                   COALESCE(shippedFacts.FinalShippedQty,0) AS FinalShippedQty,
+                   CONCAT(CONVERT(decimal(18,4),CASE WHEN COALESCE(lineFacts.TotalQty,0)>COALESCE(shippedFacts.FinalShippedQty,0) THEN COALESCE(lineFacts.TotalQty,0)-COALESCE(shippedFacts.FinalShippedQty,0) ELSE 0 END),N' / ',CONVERT(decimal(18,4),COALESCE(lineFacts.TotalQty,0))) AS UnshippedQtyText,
                    CAST(CASE WHEN h.SupplierId IS NULL OR h.DemandSourceType IS NULL OR h.DemandSourceUid IS NULL
                                    OR h.DemandSourceNo IS NULL OR h.LifecycleStatus IS NULL OR h.ExecutionRequestId IS NULL
                                    OR NOT EXISTS(SELECT 1 FROM dbo.DemandExecutionLink operableLink WHERE operableLink.TargetHeadId=h.Uid AND operableLink.TargetType=N'PO' AND operableLink.LinkStatus=0 AND ISNULL(operableLink.IsDeleted,0)=0)
@@ -79,6 +80,7 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
                                   AND EXISTS(SELECT 1 FROM dbo.DemandExecutionLink actionLink WHERE actionLink.TargetHeadId=h.Uid AND actionLink.TargetType=N'PO' AND actionLink.LinkStatus=0 AND ISNULL(actionLink.IsDeleted,0)=0) THEN 1 ELSE 0 END AS bit) AS CanReportProgress
             FROM dbo.PurchaseOrderHead h
             OUTER APPLY ({LineFactsSql}) lineFacts
+            OUTER APPLY ({ShippedFactsSql}) shippedFacts
             WHERE {whereSql}
             ORDER BY h.OrderDate DESC,h.Uid DESC
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
@@ -91,7 +93,7 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
 
     public async Task<PurchaseOrderListItemDto?> GetHeadSummaryAsync(Guid uid, CancellationToken cancellationToken = default)
     {
-        const string sql = """
+        var sql = """
             SELECT h.Uid,h.Version,h.OrderNo,h.BoNo,h.OrderDate,h.ReplyDate,COALESCE(h.ExpectedDate,lineFacts.EarliestPlannedDeliveryDate) AS ExpectedDate,
                    h.SupplierId,h.SupplierCode,h.SupplierName,h.DemandSourceType,h.DemandSourceUid,COALESCE(h.DemandSourceNo,h.SalesOrderNo) AS DemandSourceNo,
                    h.ConfirmationStatus,h.LifecycleStatus,CONVERT(int,COALESCE(lineFacts.LineCount,0)) AS LineCount,
@@ -101,7 +103,8 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
                    COALESCE(lineFacts.LatestReadyQty,0) AS LatestReadyQty,lineFacts.LatestExpectedReadyDate,
                    CASE WHEN h.LifecycleStatus=9 THEN N'已作废' WHEN h.LifecycleStatus=8 THEN N'已关闭'
                         WHEN h.ConfirmationStatus=1 THEN N'已确认' ELSE N'待确认' END AS OrderStatusText,
-                   N'尚未接入' AS UnshippedQtyText,
+                   COALESCE(shippedFacts.FinalShippedQty,0) AS FinalShippedQty,
+                   CONCAT(CONVERT(decimal(18,4),CASE WHEN COALESCE(lineFacts.TotalQty,0)>COALESCE(shippedFacts.FinalShippedQty,0) THEN COALESCE(lineFacts.TotalQty,0)-COALESCE(shippedFacts.FinalShippedQty,0) ELSE 0 END),N' / ',CONVERT(decimal(18,4),COALESCE(lineFacts.TotalQty,0))) AS UnshippedQtyText,
                    CAST(CASE WHEN h.SupplierId IS NULL OR h.DemandSourceType IS NULL OR h.DemandSourceUid IS NULL OR h.DemandSourceNo IS NULL OR h.LifecycleStatus IS NULL OR h.ExecutionRequestId IS NULL
                                   OR NOT EXISTS(SELECT 1 FROM dbo.DemandExecutionLink l WHERE l.TargetHeadId=h.Uid AND l.TargetType=N'PO' AND l.LinkStatus=0 AND ISNULL(l.IsDeleted,0)=0) THEN 1 ELSE 0 END AS bit) AS IsLegacyReadOnly,
                    CASE WHEN h.SupplierId IS NULL THEN N'缺少供应商 Uid' WHEN h.DemandSourceType IS NULL OR h.DemandSourceUid IS NULL OR h.DemandSourceNo IS NULL THEN N'缺少需求来源'
@@ -131,8 +134,9 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
                 OUTER APPLY(SELECT TOP(1) f.Sequence,f.ArrangementStatus,f.ReadyQty,f.ExpectedReadyDate FROM dbo.FollowUpLog f WHERE f.RefLineType=N'PurchaseOrderLine' AND f.RefLineId=l.Uid AND ISNULL(f.IsDeleted,0)=0 ORDER BY f.Sequence DESC,f.Uid DESC) latest
                 WHERE l.PurchaseOrderId=h.Uid AND ISNULL(l.IsDeleted,0)=0
             )lineFacts
+            OUTER APPLY ({ShippedFactsSql}) shippedFacts
             WHERE h.Uid=@Uid AND ISNULL(h.IsDeleted,0)=0;
-            """;
+            """.Replace("{ShippedFactsSql}", ShippedFactsSql, StringComparison.Ordinal);
         return await Session.Connection.QuerySingleOrDefaultAsync<PurchaseOrderListItemDto>(new CommandDefinition(sql, new { Uid = uid }, Session.Transaction, cancellationToken: cancellationToken));
     }
 
@@ -270,6 +274,18 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
         FROM dbo.PurchaseOrderLine l
         OUTER APPLY(SELECT TOP(1) f.Sequence,f.ArrangementStatus,f.ReadyQty,f.ExpectedReadyDate FROM dbo.FollowUpLog f WHERE f.RefLineType=N'PurchaseOrderLine' AND f.RefLineId=l.Uid AND ISNULL(f.IsDeleted,0)=0 ORDER BY f.Sequence DESC,f.Uid DESC) latest
         WHERE l.PurchaseOrderId=h.Uid AND ISNULL(l.IsDeleted,0)=0
+        """;
+    private const string ShippedFactsSql = """
+        SELECT SUM(outLine.Quantity) AS FinalShippedQty
+        FROM dbo.OutboundLine outLine
+        JOIN dbo.OutboundHead outHead ON outHead.Uid=outLine.OutboundDocumentId
+        WHERE outHead.DocumentType=20 AND outHead.PostingStatus=1
+          AND ISNULL(outHead.IsDeleted,0)=0 AND ISNULL(outLine.IsDeleted,0)=0
+          AND outLine.NetDemandAllocationId IN
+          (
+              SELECT link.NetDemandAllocationId FROM dbo.DemandExecutionLink link
+              WHERE link.TargetHeadId=h.Uid AND link.TargetType=N'PO' AND link.LinkStatus=0 AND ISNULL(link.IsDeleted,0)=0
+          )
         """;
     private const string HeadColumns = "h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,h.OrderStatus,h.ConfirmationStatus,h.LifecycleStatus,h.OrderNo,h.BoNo,h.SalesOrderNo,h.CustomerPoNo,h.CustomerCode,h.Currency,h.SupplierCode,h.SupplierName,h.SoPerson,h.PoPerson,h.InletrHoseType,h.AeratorType,h.PalletType,h.BoxType,h.LabelType,h.IMType,h.CartonType,h.LogoType,h.ReviewedBy,h.PoFolder,h.ZheKouBeiZhu,h.SupplierId,h.DemandSourceType,h.DemandSourceUid,h.DemandSourceNo,h.ExecutionRequestId,h.Remark,h.IsLocked,h.LineCount,h.TotalAmountLocalCurrency,h.TotalQty,h.TotalShippedQty,h.TotalUnshippedQty,h.TotalReadyQty,h.OrderDate,h.ExpectedDate,h.ReplyDate,h.ConfirmedDate,h.ConfirmedBy";
     private const string LineColumns = "l.Uid,l.Version,l.IsDeleted,l.CreatedDate,l.CreatedBy,l.UpdatedDate,l.UpdatedBy,l.ReadyStatus,l.LineNumber,l.PurchaseOrderId,l.OrderNo,l.ProductId,l.Sku,l.CustomerSku,l.LinkSku,l.SupplierSku,l.DescriptionZh,l.FinishZh,l.FeaturesZh,l.UnitPrice,l.TaxPrice,l.QTY,l.UnitAmount,l.TaxAmount,l.PlannedDeliveryDate,l.DeliveryTargetAllocationId,l.DeliveryTargetSupplierId,l.DeliverySupplierCodeSnapshot,l.DeliverySupplierNameSnapshot,l.SubNote,l.SupplyType,l.MaterialType,l.DeliveryTo,l.SourceType,l.SourceNo,l.SourceUid,l.SourceLineId,l.SourceLineNumber,l.ReadyQty,l.RecQty,l.LastRecDate";

@@ -12,6 +12,7 @@ public interface IInboundDocumentRepository
     Task<InboundDocument?> GetForUpdateAsync(Guid uid);
     Task<IReadOnlyList<InboundDocumentLine>> GetLinesForUpdateAsync(Guid uid);
     Task<InboundDocument?> GetByCommandForUpdateAsync(Guid commandId);
+    Task<IReadOnlyList<InboundDocument>> GetByPackingListForUpdateAsync(Guid packingListId);
     Task<int> InsertAsync(InboundDocument document, IReadOnlyList<InboundDocumentLine> lines);
     Task<int> UpdateDraftAsync(InboundDocument document, IReadOnlyList<InboundDocumentLine> lines, int expectedVersion);
     Task<int> SetPostedAsync(Guid uid, int expectedVersion, DateTime postedDate, string postedBy, Guid commandId);

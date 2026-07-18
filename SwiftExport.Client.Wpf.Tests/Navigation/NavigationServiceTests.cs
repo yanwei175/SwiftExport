@@ -3,6 +3,7 @@ using System.ComponentModel;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
+using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.UI;
@@ -44,13 +45,18 @@ public sealed class NavigationServiceTests
     }
 
     [TestMethod]
-    public void RouteRegistry_ShouldNotExposeRemovedPurchaseOrShippingPlaceholders()
+    public void RouteRegistry_ShouldExposeRealShippingWorkspaceWithoutLegacyPlaceholderRoute()
     {
         var registry = new NavigationRouteRegistry();
 
         Assert.IsFalse(registry.TryGetRoute("purchasing", out _));
         Assert.IsFalse(registry.TryGetRoute("shipping", out _));
-        Assert.IsFalse(registry.MenuItems.Any(item => item.RouteKey is "purchasing" or "shipping"));
+        Assert.IsFalse(registry.MenuItems.Any(item => item.RouteKey == "purchasing"));
+        var shipping = registry.MenuItems.Single(item => item.RouteKey == "shipping");
+        Assert.AreEqual("出货", shipping.Title);
+        Assert.IsTrue(shipping.Children.Any(item => item.RouteKey == PackingListWorkspaceViewModel.RouteKey));
+        Assert.IsTrue(registry.TryGetRoute(PackingListWorkspaceViewModel.RouteKey, out var packingListRoute));
+        Assert.AreEqual(typeof(PackingListWorkspaceViewModel), packingListRoute.ViewModelType);
     }
 
     [TestMethod]

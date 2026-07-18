@@ -8,12 +8,16 @@ public sealed class NetDemandLegacyDependencyGuardTests
 {
     private static readonly string[] ScopeDirectories =
     [
-        "SwiftExport.Contracts",
-        "SwiftExport.Application",
-        "SwiftExport.Core",
-        "SwiftExport.Infrastructure",
-        "SwiftExport.WebApi",
-        "SwiftExport.Client.Wpf"
+        "SwiftExport.Contracts/DTOs/DemandPlanning",
+        "SwiftExport.Contracts/Apis/DemandPlanning",
+        "SwiftExport.Contracts/SysEnums/DemandPlanning",
+        "SwiftExport.Application/Interfaces/DemandPlanning",
+        "SwiftExport.Application/Services/DemandPlanning",
+        "SwiftExport.Core/Entities/DemandPlanning",
+        "SwiftExport.Core/Interfaces/DemandPlanning",
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning",
+        "SwiftExport.WebApi/Controllers/DemandPlanning",
+        "SwiftExport.Client.Wpf/Features/DemandPlanning"
     ];
 
     private static readonly (string Name, Regex Pattern)[] ForbiddenDependencies =

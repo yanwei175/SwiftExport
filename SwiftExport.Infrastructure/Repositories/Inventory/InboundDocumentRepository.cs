@@ -81,6 +81,18 @@ public sealed class InboundDocumentRepository(RepositoryBaseContext context) : I
         FROM dbo.PurchaseReceiveHead WITH(UPDLOCK,HOLDLOCK) WHERE CommandId=@CommandId AND ISNULL(IsDeleted,0)=0 ORDER BY CreatedDate DESC;
         """, new { CommandId = commandId }, context.Session.Transaction);
 
+    public async Task<IReadOnlyList<InboundDocument>> GetByPackingListForUpdateAsync(Guid packingListId)
+    {
+        var rows = await context.Session.Connection.QueryAsync<InboundDocument>("""
+            SELECT Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,ReceiveNo AS DocumentNo,DocumentType,LifecycleStatus,PostingStatus,WarehouseSiteId,
+                   WarehouseCode AS WarehouseCodeSnapshot,WarehouseNameSnapshot,SupplierId,SupplierCode AS SupplierCodeSnapshot,SupplierNameSnapshot,ReceiveDate AS ReceiptDate,Remark,
+                   PostedDate,PostedBy,ReversedDate,ReversedBy,ReverseReason,SourcePackingListId,CommandId
+            FROM dbo.PurchaseReceiveHead WITH(UPDLOCK,HOLDLOCK)
+            WHERE SourcePackingListId=@PackingListId AND DocumentType=@DocumentType AND ISNULL(IsDeleted,0)=0 ORDER BY WarehouseSiteId,Uid;
+            """, new { PackingListId = packingListId, DocumentType = InboundDocumentTypeEnum.PackingListAutoReceipt }, context.Session.Transaction);
+        return rows.ToList();
+    }
+
     public async Task<int> InsertAsync(InboundDocument document, IReadOnlyList<InboundDocumentLine> lines)
     {
         context.AuditStamp.StampForInsert(document);

@@ -15,6 +15,8 @@ using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Inventory.Balances.ViewModels;
 using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
 using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
+using SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
+using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
 
 namespace SwiftExportClient.Navigation;
 
@@ -40,6 +42,9 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", typeof(InventoryBalancesViewModel)),
         new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", typeof(InventoryLedgerViewModel)),
         new(InboundWorkspaceViewModel.RouteKey, "入库工作台", "Workspace", typeof(InboundWorkspaceViewModel)),
+        new(OutboundWorkspaceViewModel.RouteKey, "出库工作台", "Workspace", typeof(OutboundWorkspaceViewModel)),
+        new(PackingListWorkspaceViewModel.RouteKey, "PackingList 工作台", "Workspace", typeof(PackingListWorkspaceViewModel)),
+        new(PackingListDetailViewModel.RouteKey, "PackingList 详情", "Workspace", typeof(PackingListDetailViewModel)),
         new("planning", "计划", "Workspace", typeof(PlanningViewModel)),
     ];
 
@@ -100,6 +105,17 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                     new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", "DataBarHorizontal24"),
                     new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", "ClipboardTextLtr24"),
                     new(InboundWorkspaceViewModel.RouteKey, "入库工作台", "Workspace", "ArrowDownload24"),
+                    new(OutboundWorkspaceViewModel.RouteKey, "出库工作台", "Workspace", "ArrowUpload24"),
+                ]),
+            new(
+                "shipping",
+                "出货",
+                "Workspace",
+                "VehicleTruckBag24",
+                IsExpanded: true,
+                Children:
+                [
+                    new(PackingListWorkspaceViewModel.RouteKey, "PackingList 工作台", "Workspace", "DocumentTable24"),
                 ]),
         ];
     }

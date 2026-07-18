@@ -41,6 +41,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public int LineCount { get; set; }
         public decimal TotalQty { get; set; }
         public decimal TotalAmount { get; set; }
+        public decimal FinalShippedQty { get; set; }
         public string OrderStatusText { get; set; }
         public string UnshippedQtyText { get; set; }
         public int ArrangedLineCount { get; set; }

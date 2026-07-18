@@ -10,6 +10,7 @@ using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.Apis.Inventory;
+using SwiftExport.Contracts.Apis.Shipping;
 using SwiftExportClient.Services.Api;
 
 namespace SwiftExportClient.Bootstrapper;
@@ -91,6 +92,8 @@ public static class ApiRegistrationExtensions
         services.AddControllerApi<IInventoryApi>("inventory");
         services.AddControllerApi<IWarehouseSiteApi>("inventory/warehouse-sites");
         services.AddControllerApi<IInboundWorkspaceApi>("inventory/inbounds");
+        services.AddControllerApi<IOutboundWorkspaceApi>("inventory/outbounds");
+        services.AddControllerApi<IPackingListWorkspaceApi>("shipping/packing-lists");
     }
 
     private static IHttpClientBuilder AddControllerApi<TApi>(

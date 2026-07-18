@@ -12,6 +12,7 @@ public interface IInventoryRepository
     Task<IReadOnlyList<InventoryLedgerItemDto>> GetLedgerByBalanceAsync(Guid balanceId, CancellationToken cancellationToken = default);
     Task<InventoryBalance?> LockBalanceAsync(Guid warehouseSiteId, Guid productId);
     Task<InventoryLedgerEntry?> FindLedgerByCommandItemAsync(Guid commandItemId);
+    Task<InventoryLedgerEntry?> LockLedgerByCommandItemAsync(Guid commandItemId);
     Task<bool> IsActiveProductAsync(Guid productId);
     Task<int> InsertBalanceAsync(InventoryBalance balance);
     Task<int> UpdateBalanceAsync(InventoryBalance balance, int expectedVersion);

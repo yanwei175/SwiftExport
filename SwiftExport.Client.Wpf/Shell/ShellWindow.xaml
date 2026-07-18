@@ -17,6 +17,10 @@
         xmlns:inventoryLedgerViewModels="clr-namespace:SwiftExportClient.Features.Inventory.Ledger.ViewModels"
         xmlns:inboundViews="clr-namespace:SwiftExportClient.Features.Inventory.Inbounds.Views"
         xmlns:inboundViewModels="clr-namespace:SwiftExportClient.Features.Inventory.Inbounds.ViewModels"
+        xmlns:outboundViews="clr-namespace:SwiftExportClient.Features.Inventory.Outbounds.Views"
+        xmlns:outboundViewModels="clr-namespace:SwiftExportClient.Features.Inventory.Outbounds.ViewModels"
+        xmlns:packingViews="clr-namespace:SwiftExportClient.Features.Shipping.PackingLists.Views"
+        xmlns:packingViewModels="clr-namespace:SwiftExportClient.Features.Shipping.PackingLists.ViewModels"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:planning="clr-namespace:SwiftExportClient.Features.Planning"
@@ -106,6 +110,15 @@
         <DataTemplate DataType="{x:Type inboundViewModels:InboundWorkspaceViewModel}">
             <inboundViews:InboundWorkspaceView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type outboundViewModels:OutboundWorkspaceViewModel}">
+            <outboundViews:OutboundWorkspaceView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type packingViewModels:PackingListWorkspaceViewModel}">
+            <packingViews:PackingListWorkspaceView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type packingViewModels:PackingListDetailViewModel}">
+            <packingViews:PackingListDetailView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type planning:PlanningViewModel}">
             <planning:PlanningView />
         </DataTemplate>
@@ -148,7 +161,6 @@
                                        Text="{Binding Title}"
                                        Style="{StaticResource SwiftExportShellNavigationText}" />
                         </Grid>
-                        
                     </Border>
                 </Button>
 
@@ -481,7 +493,6 @@
                 <TextBlock Text="{Binding CurrentPageStatus}"
                            Style="{StaticResource CaptionTextBlock}" />
             </Border>
-            
         </Grid>
 
         <ui:ContentDialogHost x:Name="RootContentDialogHost" />

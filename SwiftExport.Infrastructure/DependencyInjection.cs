@@ -5,6 +5,7 @@ using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Shipping;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
 using SwiftExport.Infrastructure.Repositories.Auth;
@@ -19,6 +20,7 @@ using SwiftExport.Infrastructure.Repositories.Suppliers;
 using SwiftExport.Infrastructure.Repositories.SystemRepositories;
 using SwiftExport.Infrastructure.Repositories.Systems;
 using SwiftExport.Infrastructure.Repositories.Inventory;
+using SwiftExport.Infrastructure.Repositories.Shipping;
 using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Infrastructure;
@@ -78,6 +80,11 @@ public static class DependencyInjection
         services.AddScoped<IInboundDocumentRepository, InboundDocumentRepository>();
         services.AddScoped<IInboundSourceRepository, InboundSourceRepository>();
         services.AddScoped<IInboundQueryRepository, InboundQueryRepository>();
+        services.AddScoped<IOutboundDocumentRepository, OutboundDocumentRepository>();
+        services.AddScoped<IPackingListDocumentRepository, PackingListDocumentRepository>();
+        services.AddScoped<PackingListWorkspaceRepository>();
+        services.AddScoped<IPackingListPlanningRepository>(provider => provider.GetRequiredService<PackingListWorkspaceRepository>());
+        services.AddScoped<IPackingListQueryRepository>(provider => provider.GetRequiredService<PackingListWorkspaceRepository>());
 
         return services;
     }
