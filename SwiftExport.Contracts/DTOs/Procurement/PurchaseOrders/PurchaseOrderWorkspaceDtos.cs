@@ -21,6 +21,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public DateTime? ExpectedReadyDateTo { get; set; }
     }
 
+    /// <remarks>来源表：PurchaseOrderHead、Supplier、PurchaseOrderLine。</remarks>
     public class PurchaseOrderListItemDto
     {
         public Guid Uid { get; set; }
@@ -56,6 +57,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public bool CanReportProgress { get; set; }
     }
 
+    /// <remarks>来源表：PurchaseOrderHead、Supplier、PurchaseOrderLine。</remarks>
     public class PurchaseOrderDetailDto
     {
         public PurchaseOrderListItemDto Head { get; set; }
@@ -92,6 +94,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public List<BusinessOperationTraceItemDto> Operations { get; set; } = new List<BusinessOperationTraceItemDto>();
     }
 
+    /// <remarks>来源表：PurchaseOrderLine、Product、SupplierProgressReport、DemandExecutionLink。</remarks>
     public class PurchaseOrderLineDetailDto
     {
         public Guid Uid { get; set; }
@@ -126,6 +129,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public List<SupplierProgressReportDto> ProgressHistory { get; set; } = new List<SupplierProgressReportDto>();
     }
 
+    /// <remarks>来源表：DemandExecutionLink、NetDemandAllocation、NetDemand、GrossDemand。</remarks>
     public class PurchaseOrderSourceContributionDto
     {
         public Guid LinkId { get; set; }
@@ -145,6 +149,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public DateTime? PlannedDeliveryDate { get; set; }
     }
 
+    /// <remarks>来源表：PurchaseOrderHead、PurchaseOrderLine、DemandExecutionLink、InboundDocumentLine、SupplierProgressReport。</remarks>
     public class PurchaseOrderTraceDto
     {
         public Guid PurchaseOrderId { get; set; }
@@ -170,6 +175,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public string CreatedBy { get; set; }
     }
 
+    /// <remarks>来源表：BusinessOperationLog。</remarks>
     public class BusinessOperationTraceItemDto
     {
         public Guid Uid { get; set; }

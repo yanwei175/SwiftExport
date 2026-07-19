@@ -2,6 +2,7 @@
 
 namespace SwiftExport.Contracts.DTOs.SystemDtos
 {
+    /// <remarks>来源表：SysDicCurrency、SysDicCurrencyExchange。</remarks>
     public class SysDicCurrencyDetailDto
     {
 

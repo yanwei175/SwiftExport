@@ -3,6 +3,7 @@ using SwiftExport.Core.Common;
 
 namespace SwiftExport.Core.Entities.Auth;
 
+/// <summary>系统用户实体，保存登录身份、账号状态和用户资料。</summary>
 [Table("SysUser")]
 public class SysUser : BaseEntity
 {

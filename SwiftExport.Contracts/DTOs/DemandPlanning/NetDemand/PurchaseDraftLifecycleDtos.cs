@@ -52,6 +52,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public decimal RemainingEffectiveQty { get; set; }
     }
 
+    /// <remarks>来源表：DemandExecutionLink、NetDemandAllocation、PurchaseOrderHead、PurchaseOrderLine。</remarks>
     public class PurchaseDraftLifecycleLinkFactDto
     {
         public Guid LinkId { get; set; }

@@ -19,6 +19,7 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public string Sku { get; set; }
     }
 
+    /// <remarks>来源表：InboundDocument、WarehouseSite、Supplier、InboundDocumentLine。</remarks>
     public class InboundListItemDto
     {
         public Guid Uid { get; set; }
@@ -44,6 +45,7 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public List<InventoryLedgerItemDto> Ledgers { get; set; } = new List<InventoryLedgerItemDto>();
     }
 
+    /// <remarks>来源表：InboundDocument、WarehouseSite、Supplier。</remarks>
     public class InboundHeaderDto
     {
         public Guid Uid { get; set; }
@@ -69,6 +71,7 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public string ReadOnlyReason { get; set; }
     }
 
+    /// <remarks>来源表：InboundDocumentLine、Product、DemandExecutionLink、NetDemandAllocation。</remarks>
     public class InboundLineDto
     {
         public Guid Uid { get; set; }
@@ -94,6 +97,7 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public InboundDocumentTypeEnum DocumentType { get; set; }
     }
 
+    /// <remarks>来源表：NetDemandAllocation、NetDemand、Product、DemandExecutionLink、PurchaseOrderLine、PurchaseOrderHead。</remarks>
     public class InboundSourceDto
     {
         public Guid SourceUid { get; set; }
@@ -195,6 +199,7 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public string Message { get; set; }
     }
 
+    /// <remarks>来源表：InboundDocument、InboundDocumentLine、InventoryLedgerEntry、DemandExecutionLink。</remarks>
     public class InboundTraceDto
     {
         public InboundDetailDto Document { get; set; }

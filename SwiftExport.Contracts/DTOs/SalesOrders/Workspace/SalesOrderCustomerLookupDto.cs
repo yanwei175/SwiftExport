@@ -2,6 +2,7 @@ using System;
 
 namespace SwiftExport.Contracts.DTOs.SalesOrders.Workspace
 {
+    /// <remarks>来源表：Customer。</remarks>
     public class SalesOrderCustomerLookupDto
     {
         public Guid CustomerId { get; set; }

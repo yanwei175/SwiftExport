@@ -5,6 +5,7 @@ using System.Text;
 
 namespace SwiftExport.Contracts.DTOs.Products
 {
+    /// <remarks>来源表：Bom、Product（父产品与组件产品）。</remarks>
     public class BomDto : BaseDto
     {
         public string BomNo { get; set; } 

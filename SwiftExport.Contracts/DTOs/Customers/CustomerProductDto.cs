@@ -5,18 +5,24 @@ using System.Text;
 
 namespace SwiftExport.Contracts.DTOs.Customers
 {
+    /// <remarks>来源表：CustomerProduct、Customer、Product、ProductCategory。</remarks>
     public class CustomerProductDto : BaseDto
     {
 
         // 外键
         public Guid CustomerId { get; set; }
+        /// <remarks>来源：Customer.CustomerCode；关联 CustomerProduct.CustomerId = Customer.Uid。</remarks>
         public string CustomerCode { get; set; }
         public Guid? SkuId { get; set; }
         public string Sku { get; set; }
         public string LinkSku { get; set; }
+        /// <remarks>来源：优先 Product.DescriptionEn，为空时使用 CustomerProduct.DescriptionEn。</remarks>
         public string Description { get; set; }
+        /// <remarks>来源：ProductCategory.CategoryName；经 Product.CategoryId 关联。</remarks>
         public string CategoryName { get; set; }
+        /// <remarks>来源：Product.MaterialType。</remarks>
         public string MaterialType { get; set; }
+        /// <remarks>来源：Product.MainImage。</remarks>
         public string MainImage { get; set; }
         public string DescriptionEn { get; set; }
         public string FeaturesEn { get; set; }

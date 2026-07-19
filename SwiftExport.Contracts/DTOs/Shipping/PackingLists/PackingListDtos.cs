@@ -18,6 +18,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public DateTime? ShipmentDateTo { get; set; }
     }
 
+    /// <remarks>来源表：PackingListDocument、Customer、PackingListContributionLine。</remarks>
     public class PackingListListItemDto
     {
         public Guid Uid { get; set; }
@@ -42,6 +43,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public List<PackingListContributionDto> Lines { get; set; } = new List<PackingListContributionDto>();
     }
 
+    /// <remarks>来源表：PackingListDocument、Customer。</remarks>
     public class PackingListHeaderDto
     {
         public Guid Uid { get; set; }
@@ -70,6 +72,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public string ReadOnlyReason { get; set; }
     }
 
+    /// <remarks>来源表：PackingListContributionLine、Product、GrossDemand、NetDemand、NetDemandAllocation、WarehouseSite。</remarks>
     public class PackingListContributionDto
     {
         public Guid Uid { get; set; }
@@ -115,6 +118,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public string SupplierKeyword { get; set; }
     }
 
+    /// <remarks>来源表：NetDemandAllocation、NetDemand、GrossDemand、Product、InventoryBalance、WarehouseSite。</remarks>
     public class PackingListSourceDto : PackingListContributionDto
     {
         public Guid CustomerId { get; set; }
@@ -266,12 +270,14 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public string Message { get; set; }
     }
 
+    /// <remarks>来源表：PackingListDocument、PackingListContributionLine、InboundDocument、OutboundDocument、InventoryLedgerEntry。</remarks>
     public class PackingListTraceDto
     {
         public PackingListDetailDto Document { get; set; }
         public List<PackingListTraceItemDto> Items { get; set; } = new List<PackingListTraceItemDto>();
     }
 
+    /// <remarks>来源表：PackingListContributionLine、InboundDocumentLine、OutboundDocumentLine、InventoryLedgerEntry。</remarks>
     public class PackingListTraceItemDto
     {
         public string Stage { get; set; }
@@ -281,6 +287,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public decimal? Quantity { get; set; }
     }
 
+    /// <remarks>来源表：PackingListDocument、Customer、PackingListContributionLine。</remarks>
     public class PackingListExportDto
     {
         public PackingListHeaderDto Header { get; set; }
@@ -288,6 +295,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public List<PackingListContributionDto> SourceTrace { get; set; } = new List<PackingListContributionDto>();
     }
 
+    /// <remarks>来源表：PackingListContributionLine、Product。</remarks>
     public class PackingListProductSummaryDto
     {
         public Guid ProductId { get; set; }

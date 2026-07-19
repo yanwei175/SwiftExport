@@ -27,6 +27,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
     }
 
     /// <summary>来源与供应商对应的采购草稿写入目标。</summary>
+    /// <remarks>来源表：NetDemandAllocation、NetDemand、Product、Supplier。</remarks>
     public class PurchaseDraftTargetSelectionDto
     {
         public string SourceType { get; set; }
@@ -142,6 +143,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public string Message { get; set; }
     }
 
+    /// <remarks>来源表：NetDemandAllocation、NetDemand、GrossDemand、Product、Supplier、DemandExecutionLink。</remarks>
     public class SafePurchaseDraftCandidateDto
     {
         public Guid PurchaseOrderId { get; set; }
@@ -217,6 +219,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
     }
 
     /// <summary>按毛需求来源展开的采购追溯结果。</summary>
+    /// <remarks>来源表：GrossDemand、NetDemand、DemandExecutionLink、PurchaseOrderHead。</remarks>
     public class SourcePurchaseTraceDto
     {
         public string SourceType { get; set; }
@@ -225,6 +228,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public List<SourcePurchaseTraceLineDto> Lines { get; set; } = new List<SourcePurchaseTraceLineDto>();
     }
 
+    /// <remarks>来源表：DemandExecutionLink、PurchaseOrderHead、PurchaseOrderLine。</remarks>
     public class SourcePurchaseTraceLineDto
     {
         public Guid GrossDemandId { get; set; }

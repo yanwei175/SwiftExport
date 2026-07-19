@@ -62,6 +62,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
         public List<GrossDemandRollbackBlockerDto> Blockers { get; set; } = new List<GrossDemandRollbackBlockerDto>();
     }
 
+    /// <remarks>来源表：DemandExecutionLink、PurchaseOrderHead、PurchaseOrderLine、InboundDocumentLine、OutboundDocumentLine。</remarks>
     public class GrossDemandRollbackBlockerDto
     {
         public Guid NetDemandId { get; set; }

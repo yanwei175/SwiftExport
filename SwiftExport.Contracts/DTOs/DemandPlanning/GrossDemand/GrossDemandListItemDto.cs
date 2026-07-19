@@ -6,6 +6,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
     /// <summary>
     /// 毛需求工作台只读查询行；不包含选择、脏状态等客户端状态。
     /// </summary>
+    /// <remarks>来源表：GrossDemand、Product、SalesOrderHeader、SalesOrderLine、NetDemand。</remarks>
     public class GrossDemandListItemDto
     {
         public Guid Uid { get; set; }

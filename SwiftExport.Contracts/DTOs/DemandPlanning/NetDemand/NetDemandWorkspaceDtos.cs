@@ -7,6 +7,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
     /// <summary>
     /// 净需求工作台只读行。选择、脏状态和本次转单数量由客户端模型维护。
     /// </summary>
+    /// <remarks>来源表：NetDemand、GrossDemand、Product、NetDemandAllocation、DemandExecutionLink、PurchaseOrderHead。</remarks>
     public class NetDemandListItemDto
     {
         public Guid Uid { get; set; }
@@ -85,6 +86,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public string UpdatedBy { get; set; }
     }
 
+    /// <remarks>来源表：NetDemandAllocation、Supplier、DemandExecutionLink。</remarks>
     public class NetDemandAllocationDto
     {
         public Guid Uid { get; set; }
@@ -115,6 +117,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public string CreatedBy { get; set; }
     }
 
+    /// <remarks>来源表：DemandExecutionLink、PurchaseOrderHead、PurchaseOrderLine。</remarks>
     public class NetDemandExecutionLinkDto
     {
         public Guid Uid { get; set; }

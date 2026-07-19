@@ -18,6 +18,7 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public string WarehouseKeyword { get; set; }
     }
 
+    /// <remarks>来源表：OutboundDocument、WarehouseSite、OutboundDocumentLine。</remarks>
     public class OutboundListItemDto
     {
         public Guid Uid { get; set; }
@@ -41,6 +42,7 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public List<InventoryLedgerItemDto> Ledgers { get; set; } = new List<InventoryLedgerItemDto>();
     }
 
+    /// <remarks>来源表：OutboundDocument、WarehouseSite。</remarks>
     public class OutboundHeaderDto
     {
         public Guid Uid { get; set; }
@@ -63,6 +65,7 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public string ReadOnlyReason { get; set; }
     }
 
+    /// <remarks>来源表：OutboundDocumentLine、Product、PackingListContributionLine、NetDemandAllocation。</remarks>
     public class OutboundLineDto
     {
         public Guid Uid { get; set; }
@@ -78,6 +81,7 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public Guid CommandItemId { get; set; }
     }
 
+    /// <remarks>来源表：OutboundDocument、OutboundDocumentLine、InventoryLedgerEntry、PackingListContributionLine。</remarks>
     public class OutboundTraceDto
     {
         public OutboundDetailDto Document { get; set; }

@@ -3,6 +3,7 @@ using System;
 
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
 {
+    /// <remarks>来源表：DemandExecutionLink、PurchaseOrderHead、PurchaseOrderLine、InboundDocument、InboundDocumentLine、OutboundDocument、OutboundDocumentLine。</remarks>
     public class DemandExecutionTraceItemDto
     {
         public Guid Uid { get; set; }

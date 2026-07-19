@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
+/// <summary>产品包装规格实体，保存产品装率、尺寸、重量、体积和包材要求。</summary>
 [Table("ProductPackage")]
 public class ProductPackage : BaseEntity
 {/// <summary>
@@ -20,8 +21,11 @@ public class ProductPackage : BaseEntity
     /// </summary>
     public int PcsPerPackage { get; set; } = 1;
 
+    /// <summary>该实体保存的包装长度（厘米）。</summary>
     public decimal? Length_CM { get; set; }
+    /// <summary>该实体保存的包装宽度（厘米）。</summary>
     public decimal? Width_CM { get; set; }
+    /// <summary>该实体保存的包装高度（厘米）。</summary>
     public decimal? Height_CM { get; set; }
 
     /// <summary>
@@ -50,6 +54,7 @@ public class ProductPackage : BaseEntity
     /// </summary>
     public string? PackagingMaterialSku { get; set; }
 
+    /// <summary>该实体保存的业务备注。</summary>
     public string? Note { get; set; }
 
 }

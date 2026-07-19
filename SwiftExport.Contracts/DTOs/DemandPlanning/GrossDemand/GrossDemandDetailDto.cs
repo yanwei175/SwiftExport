@@ -6,6 +6,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
     /// <summary>
     /// 毛需求详情及来源快照。
     /// </summary>
+    /// <remarks>来源表：GrossDemand、Product、SalesOrderHeader、SalesOrderLine。</remarks>
     public class GrossDemandDetailDto
     {
         public Guid Uid { get; set; }

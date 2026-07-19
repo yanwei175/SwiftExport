@@ -3,6 +3,7 @@ using System;
 
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
 {
+    /// <remarks>来源表：NetDemand、DemandExecutionLink。</remarks>
     public class NetDemandTraceItemDto
     {
         public Guid Uid { get; set; }

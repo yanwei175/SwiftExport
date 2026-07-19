@@ -6,6 +6,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Workspace
     /// <summary>
     /// 销售订单管理页只读查询行。
     /// </summary>
+    /// <remarks>来源表：SalesOrderHeader、Customer、SalesOrderLine。</remarks>
     public class SalesOrderListItemDto
     {
         public Guid Uid { get; set; }
