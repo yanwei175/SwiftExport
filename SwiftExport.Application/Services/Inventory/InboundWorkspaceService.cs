@@ -43,7 +43,7 @@ public sealed class InboundWorkspaceService(ServiceBaseContext context, IInbound
             var built = await BuildLinesAsync(command.DocumentType, command.Lines);
             var first = built.Sources[0];
             if (built.Sources.Any(x => x.WarehouseSiteId != first.WarehouseSiteId)) throw new InboundException("同一入库单的所有明细必须属于同一目标虚拟仓。");
-            var document = new InboundDocument { Uid = GuidSequentialGenerator.NewGuid(), DocumentNo = $"IR{DateTime.Now:yyyyMMddHHmmssfff}", DocumentType = command.DocumentType, LifecycleStatus = 0, PostingStatus = InboundPostingStatusEnum.Unposted, WarehouseSiteId = first.WarehouseSiteId, WarehouseNameSnapshot = first.WarehouseName, SupplierId = first.SupplierId, SupplierNameSnapshot = first.SupplierName, ReceiptDate = command.ReceiptDate == default ? DateTime.Today : command.ReceiptDate.Date, Remark = Normalize(command.Remark, 2000), CommandId = command.CommandId };
+            var document = new InboundDocument { Uid = GuidSequentialGenerator.NewGuid(), DocumentNo = $"IR{DateTime.Now:yyyyMMddHHmmssfff}", DocumentType = command.DocumentType, LifecycleStatus = InventoryDocumentLifecycleStatusEnum.Active, PostingStatus = InboundPostingStatusEnum.Unposted, WarehouseSiteId = first.WarehouseSiteId, WarehouseNameSnapshot = first.WarehouseName, SupplierId = first.SupplierId, SupplierNameSnapshot = first.SupplierName, ReceiptDate = command.ReceiptDate == default ? DateTime.Today : command.ReceiptDate.Date, Remark = Normalize(command.Remark, 2000), CommandId = command.CommandId };
             if (await documents.InsertAsync(document, built.Lines) != built.Lines.Count + 1) throw new InboundException("入库草稿保存失败。");
             return Result(document, false, "入库草稿已保存。");
         }, cancellationToken);

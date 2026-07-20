@@ -5,11 +5,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Shipping;
 
 /// <summary>装箱单头实体，保存客户最终出货编排及提交、反向状态。</summary>
-[Table("PackingListHead")]
+[Table("PackingListDocument")]
 public sealed class PackingListDocument : BaseEntity
 {
-    /// <summary>旧装箱单整型主键兼容值，仅用于识别历史数据，不作为新业务关系依据。</summary>
-    public int LegacyHeadId { get; set; }
     /// <summary>该实体保存的装箱单号。</summary>
     public string PackingListNo { get; set; } = string.Empty;
     /// <summary>关联的客户主数据唯一标识。</summary>
@@ -62,8 +60,4 @@ public sealed class PackingListDocument : BaseEntity
     public Guid? ReverseCommandId { get; set; }
     /// <summary>该实体保存的反向预览令牌。</summary>
     public string? ReversePreviewToken { get; set; }
-    /// <summary>标识旧装箱单是否只能查询；属于迁移期兼容状态。</summary>
-    public bool IsLegacyReadOnly { get; set; }
-    /// <summary>旧装箱单被限制为只读时供用户查账的原因说明。</summary>
-    public string? ReadOnlyReason { get; set; }
 }

@@ -30,34 +30,34 @@ public sealed class InboundSourceRepository(RepositoryBaseContext context) : IIn
     }
 
     public Task<decimal> GetReceivedNetQtyAsync(InboundSourceTypeEnum sourceType, Guid sourceUid, Guid? excludeInboundDocumentId = null) => context.Session.Connection.ExecuteScalarAsync<decimal>("""
-        SELECT ISNULL(SUM(CASE WHEN h.PostingStatus=@Posted THEN l.Quantity WHEN h.PostingStatus=@Reversed THEN -l.Quantity ELSE 0 END),0)
-        FROM dbo.PurchaseReceiveLine l INNER JOIN dbo.PurchaseReceiveHead h ON h.Uid=l.PurchaseReceiveHeadId
+        SELECT ISNULL(SUM(CASE WHEN h.PostingStatus=@Posted THEN l.Quantity ELSE 0 END),0)
+        FROM dbo.InboundDocumentLine l INNER JOIN dbo.InboundDocument h ON h.Uid=l.InboundDocumentId
         WHERE l.SourceType=@SourceType AND l.SourceUid=@SourceUid AND ISNULL(l.IsDeleted,0)=0 AND ISNULL(h.IsDeleted,0)=0
           AND (@ExcludeInboundDocumentId IS NULL OR h.Uid<>@ExcludeInboundDocumentId);
-        """, new { SourceType = sourceType, SourceUid = sourceUid, ExcludeInboundDocumentId = excludeInboundDocumentId, Posted = InboundPostingStatusEnum.Posted, Reversed = InboundPostingStatusEnum.Reversed }, context.Session.Transaction);
+        """, new { SourceType = sourceType, SourceUid = sourceUid, ExcludeInboundDocumentId = excludeInboundDocumentId, Posted = InboundPostingStatusEnum.Posted }, context.Session.Transaction);
 
     public Task<bool> HasDownstreamOutboundAsync(Guid inboundDocumentId) => context.Session.Connection.ExecuteScalarAsync<bool>("""
-        SELECT CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.InventoryTransaction t INNER JOIN dbo.PurchaseReceiveLine l ON l.Uid=t.SourceLineId WHERE l.PurchaseReceiveHeadId=@InboundDocumentId AND t.TransactionType IN (20,21) AND ISNULL(t.IsDeleted,0)=0) THEN 1 ELSE 0 END AS bit);
+        SELECT CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.InventoryLedgerEntry t INNER JOIN dbo.InboundDocumentLine l ON l.Uid=t.SourceLineId WHERE l.InboundDocumentId=@InboundDocumentId AND t.TransactionType IN (20,21)) THEN 1 ELSE 0 END AS bit);
         """, new { InboundDocumentId = inboundDocumentId }, context.Session.Transaction);
 
     private async Task<List<InboundSourceDto>> LoadAsync(InboundDocumentTypeEnum type, bool lockRows, CancellationToken cancellationToken)
     {
         var hint = lockRows ? "WITH(UPDLOCK,HOLDLOCK)" : string.Empty;
         var sql = type == InboundDocumentTypeEnum.CustomerSuppliedReceipt ? $"""
-            SELECT a.Uid AS SourceUid,a.Version AS SourceVersion,CAST(@SourceType AS int) AS SourceType,nd.ProductId,nd.Sku,COALESCE(p.DescriptionZh,p.DescriptionEn,nd.Sku) AS Description,COALESCE(p.Unit,N'PCS') AS Unit,
-                   a.PlannedQty AS EffectiveQty,CAST(0 AS decimal(18,4)) AS ReceivedQty,a.PlannedQty AS RemainingReceivableQty,w.Uid AS WarehouseSiteId,w.WhseName AS WarehouseName,w.SupplierId,w.SupplierNameSnapshot AS SupplierName,
+            SELECT a.Uid AS SourceUid,a.Version AS SourceVersion,CAST(@SourceType AS int) AS SourceType,nd.ProductId,nd.SkuSnapshot AS Sku,COALESCE(p.DescriptionZh,p.DescriptionEn,nd.SkuSnapshot) AS Description,COALESCE(p.Unit,N'PCS') AS Unit,
+                   a.PlannedQty AS EffectiveQty,CAST(0 AS decimal(18,4)) AS ReceivedQty,a.PlannedQty AS RemainingReceivableQty,w.Uid AS WarehouseSiteId,w.Name AS WarehouseName,w.SupplierId,w.SupplierNameSnapshot AS SupplierName,
                    CAST(NULL AS uniqueidentifier) AS DemandExecutionLinkId,a.Uid AS NetDemandAllocationId,CAST(NULL AS nvarchar(100)) AS PurchaseOrderNo,gd.SourceNo AS SalesOrderNo
-            FROM dbo.NetDemandAllocation a {hint} INNER JOIN dbo.DependentDemand nd ON nd.Uid=a.NetDemandId AND ISNULL(nd.IsDeleted,0)=0 INNER JOIN dbo.IndependentDemand gd ON gd.Uid=nd.IndependentDemandId AND ISNULL(gd.IsDeleted,0)=0
+            FROM dbo.NetDemandAllocation a {hint} INNER JOIN dbo.NetDemand nd ON nd.Uid=a.NetDemandId AND ISNULL(nd.IsDeleted,0)=0 INNER JOIN dbo.GrossDemand gd ON gd.Uid=nd.GrossDemandId AND ISNULL(gd.IsDeleted,0)=0
             INNER JOIN dbo.NetDemandAllocation parent ON parent.Uid=a.DeliveryTargetAllocationId AND parent.LifecycleStatus=0 AND ISNULL(parent.IsDeleted,0)=0
-            INNER JOIN dbo.Warehouse w ON w.SupplierId=parent.PurchaseSupplierId AND w.SiteType=0 AND w.IsActive=1 AND ISNULL(w.IsDeleted,0)=0 LEFT JOIN dbo.Product p ON p.Uid=nd.ProductId AND ISNULL(p.IsDeleted,0)=0
+            INNER JOIN dbo.WarehouseSite w ON w.SupplierId=parent.PurchaseSupplierId AND w.SiteType=0 AND w.IsActive=1 AND ISNULL(w.IsDeleted,0)=0 LEFT JOIN dbo.Product p ON p.Uid=nd.ProductId AND ISNULL(p.IsDeleted,0)=0
             WHERE a.LifecycleStatus=0 AND a.DeliveryTargetAllocationId IS NOT NULL AND ISNULL(a.IsDeleted,0)=0;
             """ : $"""
             SELECT l.Uid AS SourceUid,l.Version AS SourceVersion,CAST(@SourceType AS int) AS SourceType,pol.ProductId,pol.Sku,COALESCE(p.DescriptionZh,p.DescriptionEn,pol.Sku) AS Description,COALESCE(p.Unit,pol.UnitSnapshot,N'PCS') AS Unit,
-                   l.AllocatedQty-l.ReleasedQty AS EffectiveQty,CAST(0 AS decimal(18,4)) AS ReceivedQty,l.AllocatedQty-l.ReleasedQty AS RemainingReceivableQty,w.Uid AS WarehouseSiteId,w.WhseName AS WarehouseName,w.SupplierId,w.SupplierNameSnapshot AS SupplierName,
+                   l.AllocatedQty-l.ReleasedQty AS EffectiveQty,CAST(0 AS decimal(18,4)) AS ReceivedQty,l.AllocatedQty-l.ReleasedQty AS RemainingReceivableQty,w.Uid AS WarehouseSiteId,w.Name AS WarehouseName,w.SupplierId,w.SupplierNameSnapshot AS SupplierName,
                    l.Uid AS DemandExecutionLinkId,l.NetDemandAllocationId,h.OrderNo AS PurchaseOrderNo,gd.SourceNo AS SalesOrderNo
             FROM dbo.DemandExecutionLink l {hint} INNER JOIN dbo.PurchaseOrderLine pol ON pol.Uid=l.TargetLineId AND ISNULL(pol.IsDeleted,0)=0 INNER JOIN dbo.PurchaseOrderHead h ON h.Uid=l.TargetHeadId AND h.ConfirmationStatus=1 AND ISNULL(h.IsDeleted,0)=0
-            INNER JOIN dbo.NetDemandAllocation a ON a.Uid=l.NetDemandAllocationId AND a.LifecycleStatus=0 AND ISNULL(a.IsDeleted,0)=0 INNER JOIN dbo.DependentDemand nd ON nd.Uid=l.DependentDemandId AND ISNULL(nd.IsDeleted,0)=0 INNER JOIN dbo.IndependentDemand gd ON gd.Uid=nd.IndependentDemandId AND ISNULL(gd.IsDeleted,0)=0
-            INNER JOIN dbo.Warehouse w ON w.SupplierId=COALESCE(a.DeliveryTargetSupplierId,h.SupplierId) AND w.SiteType=0 AND w.IsActive=1 AND ISNULL(w.IsDeleted,0)=0 LEFT JOIN dbo.Product p ON p.Uid=pol.ProductId AND ISNULL(p.IsDeleted,0)=0
+            INNER JOIN dbo.NetDemandAllocation a ON a.Uid=l.NetDemandAllocationId AND a.LifecycleStatus=0 AND ISNULL(a.IsDeleted,0)=0 INNER JOIN dbo.NetDemand nd ON nd.Uid=l.NetDemandId AND ISNULL(nd.IsDeleted,0)=0 INNER JOIN dbo.GrossDemand gd ON gd.Uid=nd.GrossDemandId AND ISNULL(gd.IsDeleted,0)=0
+            INNER JOIN dbo.WarehouseSite w ON w.SupplierId=COALESCE(a.DeliveryTargetSupplierId,h.SupplierId) AND w.SiteType=0 AND w.IsActive=1 AND ISNULL(w.IsDeleted,0)=0 LEFT JOIN dbo.Product p ON p.Uid=pol.ProductId AND ISNULL(p.IsDeleted,0)=0
             WHERE l.TargetType=N'PO' AND l.LinkStatus=0 AND ISNULL(l.IsDeleted,0)=0;
             """;
         var sourceType = type == InboundDocumentTypeEnum.CustomerSuppliedReceipt ? InboundSourceTypeEnum.NetDemandAllocation : InboundSourceTypeEnum.PurchaseOrderLine;

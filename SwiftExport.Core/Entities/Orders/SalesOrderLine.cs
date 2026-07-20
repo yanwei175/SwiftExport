@@ -69,10 +69,6 @@ public class SalesOrderLine : BaseEntity
     public string? SubNote { get; set; }
 
     /// <summary>
-    /// 最后一次发货日期
-    /// </summary>
-    public DateTime? LastShippedDate { get; set; }
-    /// <summary>
     /// 预计交货日期
     /// </summary>
     public DateTime? ExpectedDeliveryDate { get; set; }

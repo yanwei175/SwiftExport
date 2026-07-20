@@ -31,7 +31,6 @@ public partial class ProductRepository
                          OR cp.DescriptionEn LIKE @Keyword ESCAPE '~'
                          OR p.DescriptionEn LIKE @Keyword ESCAPE '~')"
                 : @" AND (p.Sku LIKE @Keyword ESCAPE '~'
-                         OR p.DefaultCustomerSku LIKE @Keyword ESCAPE '~'
                          OR p.LinkSku LIKE @Keyword ESCAPE '~'
                          OR p.DescriptionEn LIKE @Keyword ESCAPE '~')";
         }
@@ -68,7 +67,7 @@ public partial class ProductRepository
             selectSql = @"
                 p.Uid AS ProductId,
                 CAST(NULL AS uniqueidentifier) AS CustomerProductId,
-                ISNULL(p.DefaultCustomerSku, '') AS CustomerSku,
+                CAST(N'' AS nvarchar(200)) AS CustomerSku,
                 ISNULL(p.Sku, '') AS Sku,
                 ISNULL(p.LinkSku, '') AS LinkSku,
                 ISNULL(p.DescriptionEn, '') AS DescriptionEn,

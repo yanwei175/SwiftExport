@@ -343,48 +343,38 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
     private const string SafeFactsPredicate = """
         NOT EXISTS
         (
-            SELECT 1 FROM dbo.PurchaseReceiveLine receiveFact
+            SELECT 1 FROM dbo.InboundDocumentLine receiveFact
             WHERE ISNULL(receiveFact.IsDeleted,0)=0
-              AND ((receiveFact.SourceType=10 AND receiveFact.SourceUid IN
+              AND receiveFact.SourceType=10 AND receiveFact.SourceUid IN
                    (SELECT linkFact.Uid FROM dbo.DemandExecutionLink linkFact
-                    WHERE linkFact.TargetHeadId=h.Uid AND linkFact.TargetType=N'PO' AND ISNULL(linkFact.IsDeleted,0)=0))
-                   OR receiveFact.PoLineId IN
-                   (SELECT lineFact.Uid FROM dbo.PurchaseOrderLine lineFact
-                    WHERE lineFact.PurchaseOrderId=h.Uid AND ISNULL(lineFact.IsDeleted,0)=0)
-                   OR (receiveFact.PoLineId IS NULL AND receiveFact.PoNo=h.OrderNo))
+                    WHERE linkFact.TargetHeadId=h.Uid AND linkFact.TargetType=N'PO' AND ISNULL(linkFact.IsDeleted,0)=0)
         )
         AND NOT EXISTS
         (
-            SELECT 1 FROM dbo.InventoryTransaction inventoryFact
-            WHERE ISNULL(inventoryFact.IsDeleted,0)=0
-              AND (inventoryFact.BizLineId IN
-                   (SELECT lineFact.Uid FROM dbo.PurchaseOrderLine lineFact
-                    WHERE lineFact.PurchaseOrderId=h.Uid AND ISNULL(lineFact.IsDeleted,0)=0)
-                   OR inventoryFact.RefNo=h.OrderNo)
+            SELECT 1 FROM dbo.InventoryLedgerEntry inventoryFact
+            JOIN dbo.InboundDocumentLine receiveFact ON receiveFact.Uid=inventoryFact.SourceLineId
+            WHERE receiveFact.SourceType=10 AND receiveFact.SourceUid IN
+                  (SELECT linkFact.Uid FROM dbo.DemandExecutionLink linkFact
+                   WHERE linkFact.TargetHeadId=h.Uid AND linkFact.TargetType=N'PO' AND ISNULL(linkFact.IsDeleted,0)=0)
         )
         """;
 
     private const string SafeFactsPredicateWithLocks = """
         NOT EXISTS
         (
-            SELECT 1 FROM dbo.PurchaseReceiveLine receiveFact WITH (UPDLOCK,HOLDLOCK)
+            SELECT 1 FROM dbo.InboundDocumentLine receiveFact WITH (UPDLOCK,HOLDLOCK)
             WHERE ISNULL(receiveFact.IsDeleted,0)=0
-              AND ((receiveFact.SourceType=10 AND receiveFact.SourceUid IN
+              AND receiveFact.SourceType=10 AND receiveFact.SourceUid IN
                    (SELECT linkFact.Uid FROM dbo.DemandExecutionLink linkFact WITH (UPDLOCK,HOLDLOCK)
-                    WHERE linkFact.TargetHeadId=h.Uid AND linkFact.TargetType=N'PO' AND ISNULL(linkFact.IsDeleted,0)=0))
-                   OR receiveFact.PoLineId IN
-                   (SELECT lineFact.Uid FROM dbo.PurchaseOrderLine lineFact WITH (UPDLOCK,HOLDLOCK)
-                    WHERE lineFact.PurchaseOrderId=h.Uid AND ISNULL(lineFact.IsDeleted,0)=0)
-                   OR (receiveFact.PoLineId IS NULL AND receiveFact.PoNo=h.OrderNo))
+                    WHERE linkFact.TargetHeadId=h.Uid AND linkFact.TargetType=N'PO' AND ISNULL(linkFact.IsDeleted,0)=0)
         )
         AND NOT EXISTS
         (
-            SELECT 1 FROM dbo.InventoryTransaction inventoryFact WITH (UPDLOCK,HOLDLOCK)
-            WHERE ISNULL(inventoryFact.IsDeleted,0)=0
-              AND (inventoryFact.BizLineId IN
-                   (SELECT lineFact.Uid FROM dbo.PurchaseOrderLine lineFact WITH (UPDLOCK,HOLDLOCK)
-                    WHERE lineFact.PurchaseOrderId=h.Uid AND ISNULL(lineFact.IsDeleted,0)=0)
-                   OR inventoryFact.RefNo=h.OrderNo)
+            SELECT 1 FROM dbo.InventoryLedgerEntry inventoryFact WITH (UPDLOCK,HOLDLOCK)
+            JOIN dbo.InboundDocumentLine receiveFact WITH (UPDLOCK,HOLDLOCK) ON receiveFact.Uid=inventoryFact.SourceLineId
+            WHERE receiveFact.SourceType=10 AND receiveFact.SourceUid IN
+                  (SELECT linkFact.Uid FROM dbo.DemandExecutionLink linkFact WITH (UPDLOCK,HOLDLOCK)
+                   WHERE linkFact.TargetHeadId=h.Uid AND linkFact.TargetType=N'PO' AND ISNULL(linkFact.IsDeleted,0)=0)
         )
         """;
 }

@@ -1,56 +1,47 @@
 using Microsoft.Data.SqlClient;
+using System;
 
-// 尝试 sa 连接，失败则用 Windows 认证
-SqlConnection conn;
-try
+var connectionString = Environment.GetEnvironmentVariable("SWIFTEXPORT_DBSEED_CONNECTION");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException("缺少环境变量 SWIFTEXPORT_DBSEED_CONNECTION，DbSeed 不允许使用内置连接信息。");
+
+var userName = Environment.GetEnvironmentVariable("SWIFTEXPORT_DBSEED_USERNAME");
+var passwordHash = Environment.GetEnvironmentVariable("SWIFTEXPORT_DBSEED_PASSWORD_HASH");
+var nickName = Environment.GetEnvironmentVariable("SWIFTEXPORT_DBSEED_NICKNAME") ?? userName;
+if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(passwordHash))
+    throw new InvalidOperationException("必须同时设置 SWIFTEXPORT_DBSEED_USERNAME 和 SWIFTEXPORT_DBSEED_PASSWORD_HASH。");
+
+await using var connection = new SqlConnection(connectionString);
+await connection.OpenAsync();
+
+const string schemaCheckSql = """
+    SELECT CAST(CASE WHEN OBJECT_ID(N'dbo.SysUser',N'U') IS NOT NULL
+                          AND COL_LENGTH(N'dbo.SysUser',N'Uid') IS NOT NULL
+                          AND COL_LENGTH(N'dbo.SysUser',N'Version') IS NOT NULL
+                          AND COL_LENGTH(N'dbo.SysUser',N'UserName') IS NOT NULL
+                          AND COL_LENGTH(N'dbo.SysUser',N'PasswordHash') IS NOT NULL
+                     THEN 1 ELSE 0 END AS bit);
+    """;
+await using (var schemaCommand = new SqlCommand(schemaCheckSql, connection))
 {
-    conn = new SqlConnection("Server=localhost;Database=dv;User Id=sa;Password=yw313131;TrustServerCertificate=True;");
-    conn.Open();
-    System.Console.WriteLine("Connected (sa)");
-}
-catch
-{
-    conn = new SqlConnection("Server=localhost;Database=dv;Integrated Security=True;TrustServerCertificate=True;");
-    conn.Open();
-    System.Console.WriteLine("Connected (Windows Auth)");
-}
-
-// 1. 建表
-var createTable = @"
-IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[SysUser]') AND type = N'U')
-BEGIN
-    CREATE TABLE [dbo].[SysUser] (
-        [Id]           INT IDENTITY(1,1)   NOT NULL PRIMARY KEY,
-        [UserName]     NVARCHAR(50)        NOT NULL,
-        [NickName]     NVARCHAR(50)        NULL,
-        [PasswordHash] NVARCHAR(200)       NOT NULL,
-        [Email]        NVARCHAR(100)       NULL,
-        [PhoneNumber]  NVARCHAR(30)        NULL,
-        [IsActive]     BIT                 NOT NULL DEFAULT 1,
-        [IsDeleted]    BIT                 NOT NULL DEFAULT 0,
-        [CreatedDate]  DATETIME2           NULL,
-        [CreatedBy]    NVARCHAR(50)        NULL,
-        [UpdatedDate]  DATETIME2           NULL,
-        [UpdatedBy]    NVARCHAR(50)        NULL,
-        CONSTRAINT [UQ_SysUser_UserName] UNIQUE ([UserName])
-    );
-END";
-
-using (var cmd = new SqlCommand(createTable, conn))
-    cmd.ExecuteNonQuery();
-System.Console.WriteLine("SysUser 表 OK");
-
-// 2. Seed dev 用户
-var seedSql = @"
-IF NOT EXISTS (SELECT 1 FROM [dbo].[SysUser] WHERE [UserName] = 'dev')
-INSERT INTO [dbo].[SysUser] ([UserName],[NickName],[PasswordHash],[IsActive],[IsDeleted],[CreatedDate],[CreatedBy])
-VALUES ('dev', N'开发用户', @hash, 1, 0, GETDATE(), 'system')";
-
-using (var cmd = new SqlCommand(seedSql, conn))
-{
-    cmd.Parameters.AddWithValue("@hash", "$2a$11$qZVGHh67AXMUiUtS5OU64O/iBhUVJ2zOgOAuHg3VEKKczOTQQsJdS");
-    var rows = cmd.ExecuteNonQuery();
-    System.Console.WriteLine(rows > 0 ? "dev 用户插入成功" : "dev 用户已存在，跳过");
+    if (!(bool)(await schemaCommand.ExecuteScalarAsync() ?? false))
+        throw new InvalidOperationException("dbo.SysUser 不存在或不是当前 Uid/Version 基线；DbSeed 不负责创建例外表。");
 }
 
-conn.Dispose();
+const string seedSql = """
+    IF NOT EXISTS (SELECT 1 FROM dbo.SysUser WHERE UserName=@UserName AND ISNULL(IsDeleted,0)=0)
+    BEGIN
+        INSERT dbo.SysUser
+            (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,UserName,NickName,PasswordHash,IsActive)
+        VALUES
+            (NEWID(),1,0,SYSUTCDATETIME(),N'DbSeed',SYSUTCDATETIME(),N'DbSeed',@UserName,@NickName,@PasswordHash,1);
+    END;
+    """;
+await using (var seedCommand = new SqlCommand(seedSql, connection))
+{
+    seedCommand.Parameters.AddWithValue("@UserName", userName);
+    seedCommand.Parameters.AddWithValue("@NickName", (object?)nickName ?? DBNull.Value);
+    seedCommand.Parameters.AddWithValue("@PasswordHash", passwordHash);
+    var rows = await seedCommand.ExecuteNonQueryAsync();
+    Console.WriteLine(rows > 0 ? $"用户 {userName} 已写入。" : $"用户 {userName} 已存在，未修改。");
+}

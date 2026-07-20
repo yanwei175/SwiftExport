@@ -33,7 +33,7 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
         AddDateRange(request.ExpectedReadyDateFrom, request.ExpectedReadyDateTo, "lineFacts.LatestExpectedReadyDate", "Ready", where, parameters);
         if (request.ArrangementStatus.HasValue)
         {
-            where.Add("EXISTS(SELECT 1 FROM dbo.PurchaseOrderLine arrangementLine OUTER APPLY (SELECT TOP(1) f.ArrangementStatus FROM dbo.FollowUpLog f WHERE f.RefLineType=N'PurchaseOrderLine' AND f.RefLineId=arrangementLine.Uid AND ISNULL(f.IsDeleted,0)=0 ORDER BY f.Sequence DESC,f.Uid DESC) latestArrangement WHERE arrangementLine.PurchaseOrderId=h.Uid AND ISNULL(arrangementLine.IsDeleted,0)=0 AND latestArrangement.ArrangementStatus=@ArrangementStatus)");
+            where.Add("EXISTS(SELECT 1 FROM dbo.PurchaseOrderLine arrangementLine OUTER APPLY (SELECT TOP(1) f.ArrangementStatus FROM dbo.SupplierProgressReport f WHERE f.PurchaseOrderLineId=arrangementLine.Uid AND ISNULL(f.IsDeleted,0)=0 ORDER BY f.Sequence DESC,f.Uid DESC) latestArrangement WHERE arrangementLine.PurchaseOrderId=h.Uid AND ISNULL(arrangementLine.IsDeleted,0)=0 AND latestArrangement.ArrangementStatus=@ArrangementStatus)");
             parameters.Add("ArrangementStatus", request.ArrangementStatus.Value);
         }
 
@@ -131,7 +131,7 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
                        SUM(CASE WHEN latest.Sequence IS NOT NULL THEN 1 ELSE 0 END) AS ReportedLineCount,
                        SUM(COALESCE(latest.ReadyQty,0)) AS LatestReadyQty,MAX(latest.ExpectedReadyDate) AS LatestExpectedReadyDate
                 FROM dbo.PurchaseOrderLine l
-                OUTER APPLY(SELECT TOP(1) f.Sequence,f.ArrangementStatus,f.ReadyQty,f.ExpectedReadyDate FROM dbo.FollowUpLog f WHERE f.RefLineType=N'PurchaseOrderLine' AND f.RefLineId=l.Uid AND ISNULL(f.IsDeleted,0)=0 ORDER BY f.Sequence DESC,f.Uid DESC) latest
+                OUTER APPLY(SELECT TOP(1) f.Sequence,f.ArrangementStatus,f.ReadyQty,f.ExpectedReadyDate FROM dbo.SupplierProgressReport f WHERE f.PurchaseOrderLineId=l.Uid AND ISNULL(f.IsDeleted,0)=0 ORDER BY f.Sequence DESC,f.Uid DESC) latest
                 WHERE l.PurchaseOrderId=h.Uid AND ISNULL(l.IsDeleted,0)=0
             )lineFacts
             OUTER APPLY ({ShippedFactsSql}) shippedFacts
@@ -157,9 +157,9 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
             OUTER APPLY(SELECT SUM(link.AllocatedQty-link.ReleasedQty) AS LinkedQty FROM dbo.DemandExecutionLink link WHERE link.TargetLineId=l.Uid AND link.TargetHeadId=@Uid AND link.TargetType=N'PO' AND link.LinkStatus=0 AND ISNULL(link.IsDeleted,0)=0)linkFacts
             OUTER APPLY
             (
-                SELECT SUM(CASE WHEN receiveHead.PostingStatus=1 THEN receiveLine.Quantity WHEN receiveHead.PostingStatus=2 THEN -receiveLine.Quantity ELSE 0 END) AS ReceivedQty
-                FROM dbo.PurchaseReceiveLine receiveLine
-                INNER JOIN dbo.PurchaseReceiveHead receiveHead ON receiveHead.Uid=receiveLine.PurchaseReceiveHeadId
+                SELECT SUM(CASE WHEN receiveHead.PostingStatus=1 THEN receiveLine.Quantity ELSE 0 END) AS ReceivedQty
+                FROM dbo.InboundDocumentLine receiveLine
+                INNER JOIN dbo.InboundDocument receiveHead ON receiveHead.Uid=receiveLine.InboundDocumentId
                 INNER JOIN dbo.DemandExecutionLink receiveLink ON receiveLink.Uid=receiveLine.SourceUid
                     AND receiveLink.TargetType=N'PO' AND ISNULL(receiveLink.IsDeleted,0)=0
                 WHERE receiveLine.SourceType=10 AND receiveLink.TargetLineId=l.Uid
@@ -184,12 +184,12 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
         var activeClause = forUpdate ? "AND link.LinkStatus=0" : string.Empty;
         var sql = $"""
             SELECT link.Uid AS LinkId,line.Uid AS PurchaseOrderLineId,link.NetDemandAllocationId AS AllocationId,nd.Uid AS NetDemandId,gd.Uid AS GrossDemandId,
-                   gd.SourceType,gd.SourceUid,gd.SourceNo,gd.SourceLineNumber,nd.Sku,link.AllocatedQty,link.ReleasedQty,
+                   gd.SourceType,gd.SourceUid,gd.SourceNo,gd.SourceLineNumber,nd.SkuSnapshot AS Sku,link.AllocatedQty,link.ReleasedQty,
                    link.AllocatedQty-link.ReleasedQty AS EffectiveQty,link.DemandRequiredDate,link.PlannedDeliveryDate
             FROM dbo.DemandExecutionLink link {lockHint}
             INNER JOIN dbo.NetDemandAllocation allocation ON allocation.Uid=link.NetDemandAllocationId AND ISNULL(allocation.IsDeleted,0)=0
-            INNER JOIN dbo.DependentDemand nd ON nd.Uid=allocation.NetDemandId AND nd.Uid=link.DependentDemandId AND ISNULL(nd.IsDeleted,0)=0
-            INNER JOIN dbo.IndependentDemand gd ON gd.Uid=nd.IndependentDemandId AND ISNULL(gd.IsDeleted,0)=0
+            INNER JOIN dbo.NetDemand nd ON nd.Uid=allocation.NetDemandId AND nd.Uid=link.NetDemandId AND ISNULL(nd.IsDeleted,0)=0
+            INNER JOIN dbo.GrossDemand gd ON gd.Uid=nd.GrossDemandId AND ISNULL(gd.IsDeleted,0)=0
             INNER JOIN dbo.PurchaseOrderLine line ON line.Uid=link.TargetLineId AND line.PurchaseOrderId=@Uid AND ISNULL(line.IsDeleted,0)=0
             WHERE link.TargetHeadId=@Uid AND link.TargetType=N'PO' {activeClause} AND ISNULL(link.IsDeleted,0)=0
             ORDER BY line.LineNumber,gd.SourceLineNumber,allocation.Uid,link.Uid;
@@ -212,8 +212,16 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
 
     public Task<bool> HasDownstreamFactsAsync(Guid uid)
         => Session.Connection.ExecuteScalarAsync<bool>("""
-            SELECT CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.PurchaseReceiveLine r WITH(UPDLOCK,HOLDLOCK) WHERE ISNULL(r.IsDeleted,0)=0 AND ((r.SourceType=10 AND r.SourceUid IN(SELECT link.Uid FROM dbo.DemandExecutionLink link WHERE link.TargetHeadId=@Uid AND link.TargetType=N'PO' AND ISNULL(link.IsDeleted,0)=0)) OR r.PoLineId IN(SELECT l.Uid FROM dbo.PurchaseOrderLine l WHERE l.PurchaseOrderId=@Uid AND ISNULL(l.IsDeleted,0)=0) OR (r.PoLineId IS NULL AND r.PoNo=(SELECT OrderNo FROM dbo.PurchaseOrderHead WHERE Uid=@Uid))))
-             OR EXISTS(SELECT 1 FROM dbo.InventoryTransaction i WITH(UPDLOCK,HOLDLOCK) WHERE ISNULL(i.IsDeleted,0)=0 AND (i.BizLineId IN(SELECT l.Uid FROM dbo.PurchaseOrderLine l WHERE l.PurchaseOrderId=@Uid AND ISNULL(l.IsDeleted,0)=0) OR i.RefNo=(SELECT OrderNo FROM dbo.PurchaseOrderHead WHERE Uid=@Uid))) THEN 1 ELSE 0 END AS bit);
+            SELECT CAST(CASE WHEN EXISTS(
+                SELECT 1 FROM dbo.InboundDocumentLine inboundLine WITH(UPDLOCK,HOLDLOCK)
+                WHERE ISNULL(inboundLine.IsDeleted,0)=0 AND inboundLine.SourceType=10
+                  AND inboundLine.SourceUid IN(SELECT link.Uid FROM dbo.DemandExecutionLink link WHERE link.TargetHeadId=@Uid AND link.TargetType=N'PO' AND ISNULL(link.IsDeleted,0)=0))
+             OR EXISTS(
+                SELECT 1 FROM dbo.InventoryLedgerEntry ledger WITH(UPDLOCK,HOLDLOCK)
+                JOIN dbo.InboundDocumentLine inboundLine ON inboundLine.Uid=ledger.SourceLineId
+                WHERE inboundLine.SourceType=10
+                  AND inboundLine.SourceUid IN(SELECT link.Uid FROM dbo.DemandExecutionLink link WHERE link.TargetHeadId=@Uid AND link.TargetType=N'PO' AND ISNULL(link.IsDeleted,0)=0))
+             THEN 1 ELSE 0 END AS bit);
             """, new { Uid = uid }, Session.Transaction);
 
     public async Task<int> UpdateDraftAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines, int expectedVersion)
@@ -281,13 +289,13 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
                SUM(CASE WHEN latest.Sequence IS NOT NULL THEN 1 ELSE 0 END) AS ReportedLineCount,
                SUM(COALESCE(latest.ReadyQty,0)) AS LatestReadyQty,MAX(latest.ExpectedReadyDate) AS LatestExpectedReadyDate
         FROM dbo.PurchaseOrderLine l
-        OUTER APPLY(SELECT TOP(1) f.Sequence,f.ArrangementStatus,f.ReadyQty,f.ExpectedReadyDate FROM dbo.FollowUpLog f WHERE f.RefLineType=N'PurchaseOrderLine' AND f.RefLineId=l.Uid AND ISNULL(f.IsDeleted,0)=0 ORDER BY f.Sequence DESC,f.Uid DESC) latest
+        OUTER APPLY(SELECT TOP(1) f.Sequence,f.ArrangementStatus,f.ReadyQty,f.ExpectedReadyDate FROM dbo.SupplierProgressReport f WHERE f.PurchaseOrderLineId=l.Uid AND ISNULL(f.IsDeleted,0)=0 ORDER BY f.Sequence DESC,f.Uid DESC) latest
         WHERE l.PurchaseOrderId=h.Uid AND ISNULL(l.IsDeleted,0)=0
         """;
     private const string ShippedFactsSql = """
         SELECT SUM(outLine.Quantity) AS FinalShippedQty
-        FROM dbo.OutboundLine outLine
-        JOIN dbo.OutboundHead outHead ON outHead.Uid=outLine.OutboundDocumentId
+        FROM dbo.OutboundDocumentLine outLine
+        JOIN dbo.OutboundDocument outHead ON outHead.Uid=outLine.OutboundDocumentId
         WHERE outHead.DocumentType=20 AND outHead.PostingStatus=1
           AND ISNULL(outHead.IsDeleted,0)=0 AND ISNULL(outLine.IsDeleted,0)=0
           AND outLine.NetDemandAllocationId IN

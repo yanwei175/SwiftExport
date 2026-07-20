@@ -4,8 +4,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Inventory;
 
-/// <summary>新入库业务模型，兼容映射 dbo.PurchaseReceiveHead。</summary>
-[Table("PurchaseReceiveHead")]
+/// <summary>入库单头，保存入库来源、目标仓库和过账状态。</summary>
+[Table("InboundDocument")]
 public sealed class InboundDocument : BaseEntity
 {
     /// <summary>该实体保存的业务单据号。</summary>
@@ -13,7 +13,7 @@ public sealed class InboundDocument : BaseEntity
     /// <summary>该实体保存的业务单据类型。</summary>
     public InboundDocumentTypeEnum DocumentType { get; set; }
     /// <summary>单据生命周期状态，用于判断当前记录允许执行的业务操作。</summary>
-    public byte LifecycleStatus { get; set; }
+    public InventoryDocumentLifecycleStatusEnum LifecycleStatus { get; set; }
     /// <summary>库存过账状态，用于判断当前记录允许执行的业务操作。</summary>
     public InboundPostingStatusEnum PostingStatus { get; set; }
     /// <summary>关联的仓库站点唯一标识。</summary>

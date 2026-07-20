@@ -17,13 +17,15 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
     public async Task<IEnumerable<BomDto>> GetBomDtoByBomNoAsync(string bomNo)
     {
         var sql = $@"SELECT 
-                        t1.*, 
+                        t1.[Uid],t1.[Version],t1.[IsDeleted],t1.[CreatedDate],t1.[CreatedBy],t1.[UpdatedDate],t1.[UpdatedBy],
+                        t1.[BomNo],t1.[ComponentProductId] AS [SubSkuId],t1.[ComponentSkuSnapshot] AS [SubSku],
+                        t1.[Numerator],t1.[Denominator],t1.[Note],
                         t2.{nameof(Product.DescriptionZh)}  as {nameof(BomDto.Description)}, 
                         t3.{nameof(ProductColor.ColorNameZh)} as {nameof(BomDto.Finish)},
                         t2.{nameof(Product.FeaturesZh)} as {nameof(BomDto.Features)},
                         t2.{nameof(Product.MainImage)} as {nameof(BomDto.MainImage)}
                     FROM {BomTable} t1
-                    LEFT JOIN {ProductTable} t2 ON t1.{nameof(Bom.SubSkuId)} = t2.{nameof(Product.Uid)}
+                    LEFT JOIN {ProductTable} t2 ON t1.{nameof(Bom.ComponentProductId)} = t2.{nameof(Product.Uid)}
                     LEFT JOIN {ProductColorTable} t3 ON t2.{nameof(Product.ColorId)} = t3.{nameof(ProductColor.Uid)}
                     WHERE t1.{nameof(Bom.BomNo)} = @BomNo";
 
@@ -42,8 +44,8 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
 
         var sql = $@"SELECT
                         [Uid], [Version], [IsDeleted], [CreatedDate], [CreatedBy], [UpdatedDate], [UpdatedBy],
-                        [BomNo], [BomVersion], [ParentSkuId], [ParentSku], [LineNumber],
-                        [SubSkuId], [SubSku], [Numerator], [Denominator], [Note]
+                        [BomNo], [BomVersion], [ParentProductId], [ParentSkuSnapshot], [LineNumber],
+                        [ComponentProductId], [ComponentSkuSnapshot], [Numerator], [Denominator], [Note]
                     FROM [{BomTable}]
                     WHERE [BomNo] = @BomNo
                       AND [BomVersion] = @BomVersion
@@ -63,7 +65,7 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
                 SELECT 1
                 FROM [Bom]
                 WHERE [IsDeleted] = 0
-                  AND ((@ProductId <> '00000000-0000-0000-0000-000000000000' AND [ParentSkuId] = @ProductId)
+                  AND ((@ProductId <> '00000000-0000-0000-0000-000000000000' AND [ParentProductId] = @ProductId)
                        OR (@BomNo IS NOT NULL AND [BomNo] = @BomNo))
             ) THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
         return Connection.ExecuteScalarAsync<bool>(
@@ -97,7 +99,7 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
     public async Task<bool> IsBomItemExistAsync(string bomNo, string productSku)
     {
         return await Connection.ExecuteScalarAsync<bool>(
-            $"SELECT COUNT(1) FROM [{BomTable}] WHERE {nameof(Bom.BomNo)} = @BomNo AND {nameof(Bom.SubSku)} = @SubSku",
+            $"SELECT COUNT(1) FROM [{BomTable}] WHERE {nameof(Bom.BomNo)} = @BomNo AND {nameof(Bom.ComponentSkuSnapshot)} = @SubSku",
             new { BomNo = bomNo, SubSku = productSku },
             transaction: Transaction
         );

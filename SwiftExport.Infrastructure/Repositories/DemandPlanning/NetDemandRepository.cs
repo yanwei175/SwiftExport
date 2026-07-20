@@ -18,8 +18,8 @@ public sealed partial class NetDemandRepository(RepositoryBaseContext context) :
     public async Task<IReadOnlyList<NetDemand>> GetActiveByGrossDemandForUpdateAsync(Guid grossDemandId)
     {
         var rows = await Connection.QueryAsync<NetDemand>(NetDemandSelect + @"
-FROM [dbo].[DependentDemand] nd WITH (UPDLOCK, ROWLOCK)
-WHERE nd.[IndependentDemandId]=@GrossDemandId AND nd.[LifecycleStatus]=@Active AND nd.[IsDeleted]=0
+FROM [dbo].[NetDemand] nd WITH (UPDLOCK, ROWLOCK)
+WHERE nd.[GrossDemandId]=@GrossDemandId AND nd.[LifecycleStatus]=@Active AND nd.[IsDeleted]=0
 ORDER BY nd.[DecompositionRevision],nd.[LineNumber],nd.[Uid];",
             new { GrossDemandId = grossDemandId, Active = NetDemandLifecycleStatusEnum.Active }, Transaction);
         return [.. rows];
@@ -30,27 +30,43 @@ ORDER BY nd.[DecompositionRevision],nd.[LineNumber],nd.[Uid];",
         CancellationToken cancellationToken = default)
     {
         const string sql = @"
-SELECT nd.[Uid],nd.[Version],nd.[IndependentDemandId] AS [GrossDemandId],nd.[DecompositionRevision],
-       nd.[LineNumber],nd.[LifecycleStatus],nd.[ParentNetDemandId],nd.[ParentSku] AS [ParentSku],
-       nd.[RootNetDemandId],root.[Sku] AS [RootSku],nd.[DeliveryTargetNetDemandId],target.[Sku] AS [DeliveryTargetSku],
+SELECT nd.[Uid],nd.[Version],nd.[GrossDemandId],nd.[DecompositionRevision],
+       nd.[LineNumber],nd.[LifecycleStatus],nd.[ParentNetDemandId],nd.[ParentSkuSnapshot] AS [ParentSku],
+       nd.[RootNetDemandId],root.[SkuSnapshot] AS [RootSku],nd.[DeliveryTargetNetDemandId],target.[SkuSnapshot] AS [DeliveryTargetSku],
        nd.[DeliveryMode],nd.[ProductId],nd.[BomLineId],nd.[BomVersion],nd.[BomPath],
-       nd.[MaterialTypeSnapshot] AS [MaterialType],nd.[SupplyType] AS [SupplyType],nd.[Sku] AS [Sku],
-       nd.[SourceSku] AS [CustomerSku],nd.[Description],nd.[ColorName] AS [Color],nd.[Features] AS [Specification],
-       nd.[GrossQty],nd.[NetQty],nd.[RequiredDate],nd.[PreferredSupplierId],nd.[PreferredSupplierCode],
+       nd.[MaterialTypeSnapshot] AS [MaterialType],nd.[SupplyTypeSnapshot] AS [SupplyType],nd.[SkuSnapshot] AS [Sku],
+       nd.[CustomerSkuSnapshot] AS [CustomerSku],nd.[DescriptionSnapshot] AS [Description],
+       nd.[ColorSnapshot] AS [Color],nd.[SpecificationSnapshot] AS [Specification],
+       nd.[GrossQty],nd.[NetQty],nd.[RequiredDate],allocation.[PurchaseSupplierId] AS [PreferredSupplierId],
+       allocation.[SupplierCodeSnapshot] AS [PreferredSupplierCode],
        CASE WHEN ISNULL(x.[ReceivedQty],0)>=nd.[NetQty] THEN 4
-            WHEN ISNULL(x.[CompletedQty],0)>0 THEN 3
+            WHEN ISNULL(x.[ReceivedQty],0)>0 THEN 3
             WHEN ISNULL(x.[AllocatedQty],0)>=nd.[NetQty] THEN 2
             WHEN ISNULL(x.[AllocatedQty],0)>0 THEN 1 ELSE 0 END AS [ExecutionProgress],
        nd.[RolledBackAt],nd.[RolledBackBy],nd.[RolledBackReason]
-FROM [dbo].[DependentDemand] nd
-LEFT JOIN [dbo].[DependentDemand] root ON root.[Uid]=nd.[RootNetDemandId]
-LEFT JOIN [dbo].[DependentDemand] target ON target.[Uid]=nd.[DeliveryTargetNetDemandId]
+FROM [dbo].[NetDemand] nd
+LEFT JOIN [dbo].[NetDemand] root ON root.[Uid]=nd.[RootNetDemandId]
+LEFT JOIN [dbo].[NetDemand] target ON target.[Uid]=nd.[DeliveryTargetNetDemandId]
 OUTER APPLY (
-    SELECT SUM(l.[AllocatedQty]-l.[ReleasedQty]) AS [AllocatedQty],SUM(l.[CompletedQty]) AS [CompletedQty],SUM(l.[ReceivedQty]) AS [ReceivedQty]
+    SELECT TOP(1) a.[PurchaseSupplierId],a.[SupplierCodeSnapshot]
+    FROM [dbo].[NetDemandAllocation] a
+    WHERE a.[NetDemandId]=nd.[Uid] AND a.[LifecycleStatus]=0 AND a.[IsDeleted]=0
+    ORDER BY a.[PlanRevision] DESC,a.[Sequence],a.[Uid]
+) allocation
+OUTER APPLY (
+    SELECT SUM(l.[AllocatedQty]-l.[ReleasedQty]) AS [AllocatedQty],
+           SUM(ISNULL(receipts.[ReceivedQty],0)) AS [ReceivedQty]
     FROM [dbo].[DemandExecutionLink] l
-    WHERE l.[DependentDemandId]=nd.[Uid] AND l.[LinkStatus]=0 AND l.[IsDeleted]=0
+    OUTER APPLY (
+        SELECT SUM(il.[Quantity]) AS [ReceivedQty]
+        FROM [dbo].[InboundDocumentLine] il
+        INNER JOIN [dbo].[InboundDocument] ih ON ih.[Uid]=il.[InboundDocumentId]
+        WHERE il.[DemandExecutionLinkId]=l.[Uid] AND ih.[PostingStatus]=1
+          AND il.[IsDeleted]=0 AND ih.[IsDeleted]=0
+    ) receipts
+    WHERE l.[NetDemandId]=nd.[Uid] AND l.[LinkStatus]=0 AND l.[IsDeleted]=0
 ) x
-WHERE nd.[IndependentDemandId]=@GrossDemandId AND nd.[IsDeleted]=0
+WHERE nd.[GrossDemandId]=@GrossDemandId AND nd.[IsDeleted]=0
 ORDER BY nd.[DecompositionRevision],nd.[LineNumber],nd.[Uid];";
         var rows = await Connection.QueryAsync<NetDemandTraceItemDto>(new CommandDefinition(
             sql, new { GrossDemandId = grossDemandId }, Transaction, cancellationToken: cancellationToken));
@@ -66,29 +82,22 @@ ORDER BY nd.[DecompositionRevision],nd.[LineNumber],nd.[Uid];";
             if (demand.Uid == Guid.Empty) demand.Uid = SwiftExport.Contracts.Common.GuidSequentialGenerator.NewGuid();
             if (demand.Version <= 0) demand.Version = 1;
             const string sql = @"
-INSERT INTO [dbo].[DependentDemand]
+INSERT INTO [dbo].[NetDemand]
 ([Uid],[Version],[IsDeleted],[CreatedDate],[CreatedBy],[UpdatedDate],[UpdatedBy],
- [IndependentDemandId],[DecompositionRevision],[LineNumber],[LifecycleStatus],
+ [GrossDemandId],[DecompositionRevision],[LineNumber],[LifecycleStatus],
  [ParentNetDemandId],[RootNetDemandId],[DeliveryTargetNetDemandId],[DeliveryMode],
  [ProductId],[BomLineId],[BomVersion],[BomPath],[MaterialTypeSnapshot],
- [SupplyType],[Sku],[ParentSku],[SourceSku],[Description],[ColorName],[Features],
- [GrossQty],[NetQty],[RequiredDate],[PreferredSupplierId],[PreferredSupplierCode],[Remark],
- [RolledBackAt],[RolledBackBy],[RolledBackReason],
- [SourceType],[SourceUid],[SourceNo],[SourceLineId],[OrderStatus],[ConfirmationStatus],
- [ExecutedQty],[ReceivedQty],[ReadyQty],[IsReady],[IsNonStandard])
-SELECT
- @Uid,@Version,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
+ [SupplyTypeSnapshot],[SkuSnapshot],[ParentSkuSnapshot],[CustomerSkuSnapshot],
+ [DescriptionSnapshot],[ColorSnapshot],[SpecificationSnapshot],
+ [GrossQty],[NetQty],[RequiredDate],[Remark],[RolledBackAt],[RolledBackBy],[RolledBackReason])
+VALUES
+(@Uid,@Version,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
  @GrossDemandId,@DecompositionRevision,@LineNumber,@LifecycleStatus,
  @ParentNetDemandId,@RootNetDemandId,@DeliveryTargetNetDemandId,@DeliveryMode,
  @ProductId,@BomLineId,@BomVersion,@BomPath,@MaterialTypeSnapshot,
  @SupplyTypeSnapshot,@SkuSnapshot,@ParentSkuSnapshot,@CustomerSkuSnapshot,
  @DescriptionSnapshot,@ColorSnapshot,@SpecificationSnapshot,
- @GrossQty,@NetQty,@RequiredDate,@PreferredSupplierId,@PreferredSupplierCode,@Remark,
- @RolledBackAt,@RolledBackBy,@RolledBackReason,
- gd.[SourceType],gd.[SourceUid],gd.[SourceNo],gd.[SourceLineId],0,0,
- 0,0,0,0,@IsNonStandard
-FROM [dbo].[IndependentDemand] gd
-WHERE gd.[Uid]=@GrossDemandId AND gd.[IsDeleted]=0;";
+ @GrossQty,@NetQty,@RequiredDate,@Remark,@RolledBackAt,@RolledBackBy,@RolledBackReason);";
             var rows = await Connection.ExecuteAsync(sql, new
             {
                 demand.Uid, demand.Version, demand.CreatedDate, demand.CreatedBy, demand.UpdatedDate, demand.UpdatedBy,
@@ -97,9 +106,8 @@ WHERE gd.[Uid]=@GrossDemandId AND gd.[IsDeleted]=0;";
                 demand.ProductId, demand.BomLineId, demand.BomVersion, demand.BomPath, demand.MaterialTypeSnapshot,
                 demand.SupplyTypeSnapshot, demand.SkuSnapshot, demand.ParentSkuSnapshot, demand.CustomerSkuSnapshot,
                 demand.DescriptionSnapshot, demand.ColorSnapshot, demand.SpecificationSnapshot,
-                demand.GrossQty, demand.NetQty, demand.RequiredDate, demand.PreferredSupplierId,
-                demand.PreferredSupplierCode, demand.Remark, demand.RolledBackAt, demand.RolledBackBy,
-                demand.RolledBackReason, IsNonStandard = !demand.ProductId.HasValue
+                demand.GrossQty, demand.NetQty, demand.RequiredDate, demand.Remark,
+                demand.RolledBackAt, demand.RolledBackBy, demand.RolledBackReason
             }, Transaction);
             results.Add(rows == 1
                 ? RepositoryWriteResult.Ok(demand.Uid, null, demand.Version, "新增成功。")
@@ -110,10 +118,10 @@ WHERE gd.[Uid]=@GrossDemandId AND gd.[IsDeleted]=0;";
 
     public Task<int> RollbackRevisionAsync(Guid grossDemandId, int revision, string reason)
         => Connection.ExecuteAsync(@"
-UPDATE [dbo].[DependentDemand]
+UPDATE [dbo].[NetDemand]
 SET [LifecycleStatus]=@RolledBack,[RolledBackAt]=@Now,[RolledBackBy]=@UserName,
     [RolledBackReason]=@Reason,[UpdatedDate]=@Now,[UpdatedBy]=@UserName,[Version]=[Version]+1
-WHERE [IndependentDemandId]=@GrossDemandId AND [DecompositionRevision]=@Revision
+WHERE [GrossDemandId]=@GrossDemandId AND [DecompositionRevision]=@Revision
   AND [LifecycleStatus]=@Active AND [IsDeleted]=0;",
             new { GrossDemandId = grossDemandId, Revision = revision, Reason = reason, Now = DateTime.Now,
                 UserName = _context.CurrentUser.UserName, RolledBack = NetDemandLifecycleStatusEnum.RolledBack,
@@ -121,12 +129,11 @@ WHERE [IndependentDemandId]=@GrossDemandId AND [DecompositionRevision]=@Revision
 
     private const string NetDemandSelect = @"
 SELECT nd.[Uid],nd.[Version],nd.[IsDeleted],nd.[CreatedDate],nd.[CreatedBy],nd.[UpdatedDate],nd.[UpdatedBy],
-       nd.[IndependentDemandId] AS [GrossDemandId],nd.[DecompositionRevision],nd.[LineNumber],nd.[LifecycleStatus],
+       nd.[GrossDemandId],nd.[DecompositionRevision],nd.[LineNumber],nd.[LifecycleStatus],
        nd.[ParentNetDemandId],nd.[RootNetDemandId],nd.[DeliveryTargetNetDemandId],nd.[DeliveryMode],
        nd.[ProductId],nd.[BomLineId],nd.[BomVersion],nd.[BomPath],nd.[MaterialTypeSnapshot],
-       nd.[SupplyType] AS [SupplyTypeSnapshot],nd.[Sku] AS [SkuSnapshot],nd.[ParentSku] AS [ParentSkuSnapshot],
-       nd.[SourceSku] AS [CustomerSkuSnapshot],nd.[Description] AS [DescriptionSnapshot],
-       nd.[ColorName] AS [ColorSnapshot],nd.[Features] AS [SpecificationSnapshot],
-       nd.[GrossQty],nd.[NetQty],nd.[RequiredDate],nd.[PreferredSupplierId],nd.[PreferredSupplierCode],nd.[Remark],
+       nd.[SupplyTypeSnapshot],nd.[SkuSnapshot],nd.[ParentSkuSnapshot],nd.[CustomerSkuSnapshot],
+       nd.[DescriptionSnapshot],nd.[ColorSnapshot],nd.[SpecificationSnapshot],
+       nd.[GrossQty],nd.[NetQty],nd.[RequiredDate],nd.[Remark],
        nd.[RolledBackAt],nd.[RolledBackBy],nd.[RolledBackReason] ";
 }

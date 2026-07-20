@@ -8,6 +8,7 @@ using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
 using System.Data;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Infrastructure.Repositories.Base;
 
@@ -53,7 +54,9 @@ public class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T>
         };
 
         return [.. typeof(T).GetProperties()
-            .Where(p => p.CanWrite && !excluded.Contains(p.Name))
+            .Where(p => p.CanWrite
+                        && !excluded.Contains(p.Name)
+                        && p.GetCustomAttributes(typeof(NotMappedAttribute), true).Length == 0)
             .Select(p => p.Name)];
     }
 

@@ -87,6 +87,9 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
             {
                 var entity = item.Data.Adapt<CustomerPoConfig>();
 
+                if (!await repository.PopulateRelationIdsAsync(entity))
+                    throw new InvalidOperationException("客户或供应商编码无法唯一解析为 Uid。");
+
                 var writeResult = await _repository.AddAsync(entity);
 
                 response.Items.Add(
@@ -102,6 +105,9 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
             foreach (var item in batchReq.UpdateItems)
             {
                 var entity = item.Data.Adapt<CustomerPoConfig>();
+
+                if (!await repository.PopulateRelationIdsAsync(entity))
+                    throw new InvalidOperationException("客户或供应商编码无法唯一解析为 Uid。");
 
                 entity.Uid = item.Uid;
                 entity.Version = item.Version;

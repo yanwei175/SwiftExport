@@ -5,9 +5,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.DemandPlanning;
 
 /// <summary>
-/// 原始业务需求。兼容期继续落在 IndependentDemand 物理表。
+/// 原始业务需求。
 /// </summary>
-[Table("IndependentDemand")]
+[Table("GrossDemand")]
 public sealed class GrossDemand : BaseEntity
 {
     /// <summary>毛需求生命周期；关闭后不能继续拆解。</summary>

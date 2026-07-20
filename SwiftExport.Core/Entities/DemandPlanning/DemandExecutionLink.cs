@@ -8,14 +8,14 @@ namespace SwiftExport.Core.Entities.DemandPlanning;
 [Table("DemandExecutionLink")]
 public sealed class DemandExecutionLink : BaseEntity
 {
-    /// <summary>兼容期由专用 SQL 映射到物理列 DependentDemandId。</summary>
+    /// <summary>关联的净需求 Uid。</summary>
     public Guid NetDemandId { get; set; }
     /// <summary>实际消耗数量的计划分配 Uid，是净需求执行追溯的计划锚点。</summary>
-    public Guid? NetDemandAllocationId { get; set; }
+    public Guid NetDemandAllocationId { get; set; }
     /// <summary>一次采购草稿创建请求的幂等标识。</summary>
-    public Guid? ExecutionRequestId { get; set; }
+    public Guid ExecutionRequestId { get; set; }
     /// <summary>请求内单条贡献的幂等标识，防止重复生成 Link。</summary>
-    public Guid? CommandItemId { get; set; }
+    public Guid CommandItemId { get; set; }
     /// <summary>下游执行对象类型，例如采购单行。</summary>
     public string TargetType { get; set; } = string.Empty;
     /// <summary>下游单据头 Uid。</summary>
@@ -30,10 +30,6 @@ public sealed class DemandExecutionLink : BaseEntity
     public decimal AllocatedQty { get; set; }
     /// <summary>取消或减量累计释放数量；有效贡献为 AllocatedQty-ReleasedQty。</summary>
     public decimal ReleasedQty { get; set; }
-    /// <summary>下游已经完成的数量，由未来执行模块回写或汇总。</summary>
-    public decimal CompletedQty { get; set; }
-    /// <summary>下游已经收货的数量，由未来入库链路回写或汇总。</summary>
-    public decimal ReceivedQty { get; set; }
     /// <summary>建立 Link 时保留的原始需求交期。</summary>
     public DateTime? DemandRequiredDate { get; set; }
     /// <summary>建立 Link 时保留的计划交付日期。</summary>

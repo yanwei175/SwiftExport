@@ -4,15 +4,11 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Procurement;
 
-/// <summary>供应商对采购行的追加式进度反馈；物理表复用 dbo.FollowUpLog。</summary>
-[Table("FollowUpLog")]
+/// <summary>供应商对采购行的追加式进度反馈。</summary>
+[Table("SupplierProgressReport")]
 public sealed class SupplierProgressReport : BaseEntity
 {
-    /// <summary>固定为 PurchaseOrderLine，用于区分同表可能承载的其他跟单对象。</summary>
-    public string RefLineType { get; set; } = "PurchaseOrderLine";
-
-    /// <summary>采购行权威 Uid；物理列沿用 RefLineId。</summary>
-    [Column("RefLineId")]
+    /// <summary>采购行权威 Uid。</summary>
     public Guid PurchaseOrderLineId { get; set; }
 
     /// <summary>同一采购行内严格递增的反馈序号。</summary>
@@ -26,8 +22,7 @@ public sealed class SupplierProgressReport : BaseEntity
     /// <summary>该实体保存的供应商报告日期。</summary>
     public DateTime SupplierReportedDate { get; set; }
 
-    /// <summary>供应商反馈或跟单备注；物理列沿用 NoteContent。</summary>
-    [Column("NoteContent")]
+    /// <summary>供应商反馈或跟单备注。</summary>
     public string? Note { get; set; }
 
     /// <summary>进度修正标记，用于控制该记录的业务适用范围。</summary>

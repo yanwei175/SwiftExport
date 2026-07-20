@@ -51,8 +51,8 @@ public sealed partial class NetDemandRepository
     public async Task<IReadOnlyList<NetDemand>> GetActiveFamilyForUpdateAsync(Guid netDemandId)
     {
         const string locatorSql = @"
-SELECT [IndependentDemandId] AS [GrossDemandId],[RootNetDemandId]
-FROM [dbo].[DependentDemand] WITH (NOLOCK)
+SELECT [GrossDemandId],[RootNetDemandId]
+FROM [dbo].[NetDemand] WITH (NOLOCK)
 WHERE [Uid]=@NetDemandId AND [LifecycleStatus]=@NetDemandActive AND [IsDeleted]=0;";
         var locator = await Connection.QuerySingleOrDefaultAsync<FamilyLocator>(
             locatorSql,
@@ -62,7 +62,7 @@ WHERE [Uid]=@NetDemandId AND [LifecycleStatus]=@NetDemandActive AND [IsDeleted]=
 
         const string grossLockSql = @"
 SELECT [Uid]
-FROM [dbo].[IndependentDemand] WITH (UPDLOCK,HOLDLOCK)
+FROM [dbo].[GrossDemand] WITH (UPDLOCK,HOLDLOCK)
 WHERE [Uid]=@GrossDemandId AND [LifecycleStatus]=@GrossDemandActive AND [IsDeleted]=0;";
         var lockedGrossDemandId = await Connection.QuerySingleOrDefaultAsync<Guid?>(
             grossLockSql,
@@ -73,8 +73,8 @@ WHERE [Uid]=@GrossDemandId AND [LifecycleStatus]=@GrossDemandActive AND [IsDelet
             }, Transaction);
         if (!lockedGrossDemandId.HasValue) return [];
         var rows = await Connection.QueryAsync<NetDemand>(NetDemandSelect + @"
-FROM [dbo].[DependentDemand] nd WITH (UPDLOCK,HOLDLOCK)
-WHERE nd.[IndependentDemandId]=@GrossDemandId AND nd.[RootNetDemandId]=@RootNetDemandId
+FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
+WHERE nd.[GrossDemandId]=@GrossDemandId AND nd.[RootNetDemandId]=@RootNetDemandId
   AND nd.[LifecycleStatus]=@Active AND nd.[IsDeleted]=0
 ORDER BY nd.[LineNumber],nd.[Uid];",
             new
@@ -118,19 +118,19 @@ ORDER BY nd.[LineNumber],nd.[Uid];",
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             innerWhere.Add(@"(gd.[SourceNo] LIKE @Keyword ESCAPE '~'
-                              OR nd.[Sku] LIKE @Keyword ESCAPE '~'
-                              OR nd.[SourceSku] LIKE @Keyword ESCAPE '~'
-                              OR nd.[Description] LIKE @Keyword ESCAPE '~'
+                              OR nd.[SkuSnapshot] LIKE @Keyword ESCAPE '~'
+                              OR nd.[CustomerSkuSnapshot] LIKE @Keyword ESCAPE '~'
+                              OR nd.[DescriptionSnapshot] LIKE @Keyword ESCAPE '~'
                               OR p.[LinkSku] LIKE @Keyword ESCAPE '~')");
             parameters.Add("Keyword", SqlLikePattern.Build(request.Keyword));
         }
         AddListFilter(request.NetDemandIds, "nd.[Uid]", "NetDemandIds", innerWhere, parameters);
-        AddListFilter(request.GrossDemandIds, "nd.[IndependentDemandId]", "GrossDemandIds", innerWhere, parameters);
+        AddListFilter(request.GrossDemandIds, "nd.[GrossDemandId]", "GrossDemandIds", innerWhere, parameters);
         AddListFilter(request.SourceUids, "gd.[SourceUid]", "SourceUids", innerWhere, parameters);
         AddListFilter(request.SourceTypes, "gd.[SourceType]", "SourceTypes", innerWhere, parameters);
         AddListFilter(request.SourceNos, "gd.[SourceNo]", "SourceNos", innerWhere, parameters);
-        AddListFilter(request.Skus, "nd.[Sku]", "Skus", innerWhere, parameters);
-        AddListFilter(request.CustomerSkus, "nd.[SourceSku]", "CustomerSkus", innerWhere, parameters);
+        AddListFilter(request.Skus, "nd.[SkuSnapshot]", "Skus", innerWhere, parameters);
+        AddListFilter(request.CustomerSkus, "nd.[CustomerSkuSnapshot]", "CustomerSkus", innerWhere, parameters);
         AddDateRange(request.DemandRequiredDateFrom, request.DemandRequiredDateTo, "nd.[RequiredDate]",
             "DemandRequiredDate", innerWhere, parameters);
         AddDateRange(request.PlannedDeliveryDateFrom, request.PlannedDeliveryDateTo, "a.[PlannedDeliveryDate]",
@@ -156,15 +156,15 @@ ORDER BY nd.[LineNumber],nd.[Uid];",
 IF OBJECT_ID(N'tempdb..#Workspace',N'U') IS NOT NULL DROP TABLE #Workspace;
 
 SELECT
-        nd.[Uid],nd.[Version],nd.[LifecycleStatus],nd.[IndependentDemandId] AS [GrossDemandId],
+        nd.[Uid],nd.[Version],nd.[LifecycleStatus],nd.[GrossDemandId],
         nd.[DecompositionRevision],nd.[LineNumber],gd.[SourceType],gd.[SourceUid],gd.[SourceNo],
         gd.[SourceLineId],gd.[SourceLineNumber],nd.[ParentNetDemandId],nd.[RootNetDemandId],
-        root.[Sku] AS [RootSku],CAST(CASE WHEN nd.[DeliveryMode]=1 THEN 1 ELSE 0 END AS bit) AS [IsCustomerSupplied],
+        root.[SkuSnapshot] AS [RootSku],CAST(CASE WHEN nd.[DeliveryMode]=1 THEN 1 ELSE 0 END AS bit) AS [IsCustomerSupplied],
         nd.[DeliveryMode],nd.[ProductId],CAST(CASE WHEN nd.[ProductId] IS NULL THEN 1 ELSE 0 END AS bit) AS [IsNonStandard],
-        nd.[Sku],COALESCE(p.[LinkSku],gd.[LinkSkuSnapshot]) AS [LinkSku],nd.[SourceSku] AS [CustomerSku],
-        nd.[Description],nd.[ColorName] AS [Color],nd.[Features] AS [Specification],
+        nd.[SkuSnapshot] AS [Sku],COALESCE(p.[LinkSku],gd.[LinkSkuSnapshot]) AS [LinkSku],nd.[CustomerSkuSnapshot] AS [CustomerSku],
+        nd.[DescriptionSnapshot] AS [Description],nd.[ColorSnapshot] AS [Color],nd.[SpecificationSnapshot] AS [Specification],
         COALESCE(gd.[ImagePathSnapshot],p.[MainImage]) AS [ImagePath],nd.[MaterialTypeSnapshot] AS [MaterialType],
-        nd.[SupplyType],nd.[GrossQty],nd.[NetQty],nd.[RequiredDate] AS [DemandRequiredDate],
+        nd.[SupplyTypeSnapshot] AS [SupplyType],nd.[GrossQty],nd.[NetQty],nd.[RequiredDate] AS [DemandRequiredDate],
         a.[Uid] AS [AllocationId],a.[Version] AS [AllocationVersion],a.[PlanRevision],a.[Sequence] AS [AllocationSequence],
         a.[LifecycleStatus] AS [AllocationLifecycleStatus],a.[ExecutionType],a.[AssignmentSource],a.[PlannedQty],
         COALESCE(linkFacts.[AllocatedQty],0) AS [AllocatedQty],
@@ -174,7 +174,7 @@ SELECT
         a.[DeliveryTargetAllocationId],a.[DeliveryTargetSupplierId],
         a.[DeliverySupplierCodeSnapshot] AS [DeliveryTargetSupplierCode],
         a.[DeliverySupplierNameSnapshot] AS [DeliveryTargetSupplierName],
-        p.[DefaultSupplierId],p.[DefaultSupplierCode],defaultSupplier.[SupplierName] AS [DefaultSupplierName],
+        p.[DefaultSupplierId],defaultSupplier.[SupplierCode] AS [DefaultSupplierCode],defaultSupplier.[SupplierName] AS [DefaultSupplierName],
         CAST(CASE WHEN ISNULL(CONVERT(nvarchar(36),p.[DefaultSupplierId]),N'')
                             <>ISNULL(CONVERT(nvarchar(36),a.[PurchaseSupplierId]),N'') THEN 1 ELSE 0 END AS bit) AS [DefaultSupplierChanged],
         CAST(CASE
@@ -223,9 +223,9 @@ SELECT
                        AND a.[PlannedQty]=nd.[NetQty] AND allocationFacts.[ActiveCount]=1 THEN 1 ELSE 0 END AS bit) AS [CanTransferPurchase],
         nd.[CreatedDate],nd.[CreatedBy],a.[UpdatedDate],a.[UpdatedBy]
     INTO #Workspace
-    FROM [dbo].[DependentDemand] nd
-    INNER JOIN [dbo].[IndependentDemand] gd ON gd.[Uid]=nd.[IndependentDemandId]
-    LEFT JOIN [dbo].[DependentDemand] root ON root.[Uid]=nd.[RootNetDemandId]
+    FROM [dbo].[NetDemand] nd
+    INNER JOIN [dbo].[GrossDemand] gd ON gd.[Uid]=nd.[GrossDemandId]
+    LEFT JOIN [dbo].[NetDemand] root ON root.[Uid]=nd.[RootNetDemandId]
     LEFT JOIN [dbo].[Product] p ON p.[Uid]=nd.[ProductId] AND ISNULL(p.[IsDeleted],0)=0
     OUTER APPLY
     (

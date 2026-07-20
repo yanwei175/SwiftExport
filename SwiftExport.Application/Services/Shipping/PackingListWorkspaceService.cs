@@ -283,8 +283,6 @@ public sealed class PackingListWorkspaceService(
     private async Task<PackingListPreviewDto> BuildReversePreviewAsync(Guid uid, int expectedVersion, bool forUpdate, CancellationToken cancellationToken)
     {
         var snapshot = await planning.LoadSnapshotAsync(uid, forUpdate, cancellationToken) ?? throw new PackingListBusinessException("NOT_FOUND", "PackingList 不存在。");
-        if (snapshot.Document.IsLegacyReadOnly)
-            throw new PackingListBusinessException("LEGACY_READ_ONLY", snapshot.Document.ReadOnlyReason ?? "遗留 PackingList 只能只读查看。");
         if (snapshot.Document.Version != expectedVersion || snapshot.Document.PostingStatus != PackingListPostingStatusEnum.Posted)
             throw new PackingListBusinessException("VERSION_CONFLICT", "PackingList 状态或版本不允许反过账。", PackingListCommandStatusEnum.VersionConflict);
         var result = new PackingListPreviewDto { PackingListId = uid, Version = expectedVersion, IsReverse = true };
@@ -360,7 +358,6 @@ public sealed class PackingListWorkspaceService(
 
     private static void RequireDraft(PackingListDocument document, int version)
     {
-        if (document.IsLegacyReadOnly) throw new PackingListBusinessException("LEGACY_READ_ONLY", document.ReadOnlyReason ?? "遗留 PackingList 只能只读查看。");
         if (document.Version != version) throw new PackingListBusinessException("VERSION_CONFLICT", "PackingList 版本已变化。", PackingListCommandStatusEnum.VersionConflict);
         if (document.LifecycleStatus != PackingListLifecycleStatusEnum.Active || document.PostingStatus != PackingListPostingStatusEnum.Unposted)
             throw new PackingListBusinessException("STATE_INVALID", "PackingList 不是可操作草稿。");

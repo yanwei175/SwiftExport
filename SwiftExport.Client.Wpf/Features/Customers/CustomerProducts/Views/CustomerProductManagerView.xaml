@@ -39,9 +39,16 @@
             <Button Grid.Column="5" Command="{Binding CloseCommand}" Content="关闭" />
         </Grid>
         <TextBlock Grid.Row="2" Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
-        <DataGrid Grid.Row="4" ItemsSource="{Binding Products.Items}" SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
-                  Style="{StaticResource SwiftExportDataGrid}" RowStyle="{StaticResource SwiftExportStateDataGridRow}"
-                  SelectionMode="Extended" SelectionUnit="FullRow" FrozenColumnCount="4" RowHeight="48"
+        <DataGrid Grid.Row="4" 
+                  ItemsSource="{Binding Products.Items}" 
+                  SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
+                  Style="{StaticResource SwiftExportDataGrid}" 
+                  RowStyle="{StaticResource SwiftExportStateDataGridRow}"
+                  SelectionMode="Extended" 
+                  SelectionUnit="FullRow" 
+                  FrozenColumnCount="4" 
+                  RowHeight="{StaticResource DataGridRowHeightSmall}"
+                  FontSize="12"
                   gridCore:EnterpriseGrid.IsEnabled="True" gridCore:GridVirtualization.IsEnabled="True"
                   gridCore:GridRowHeader.ShowRowNumber="True" gridOperations:GridOperations.IsEnabled="True"
                   gridValidation:GridValidation.IsEnabled="True">

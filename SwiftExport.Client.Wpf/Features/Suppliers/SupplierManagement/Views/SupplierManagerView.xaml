@@ -44,7 +44,9 @@
             <controls:RightDrawerHost.MainContent>
                 <DataGrid ItemsSource="{Binding Suppliers.Items}" SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
                           Style="{StaticResource SwiftExportDataGrid}" RowStyle="{StaticResource SwiftExportStateDataGridRow}"
-                          SelectionMode="Extended" SelectionUnit="FullRow" FrozenColumnCount="3" RowHeight="32"
+                          RowHeight="{StaticResource DataGridRowHeightSmall}"
+                          FontSize="12"
+                          SelectionMode="Extended" SelectionUnit="FullRow" FrozenColumnCount="3"
                           gridCore:EnterpriseGrid.IsEnabled="True" gridCore:GridVirtualization.IsEnabled="True"
                           gridCore:GridRowHeader.ShowRowNumber="True" gridOperations:GridOperations.IsEnabled="True"
                           gridValidation:GridValidation.IsEnabled="True">

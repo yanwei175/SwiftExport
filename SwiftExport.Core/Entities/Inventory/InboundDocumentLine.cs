@@ -4,8 +4,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Inventory;
 
-/// <summary>新入库明细，兼容映射 dbo.PurchaseReceiveLine。</summary>
-[Table("PurchaseReceiveLine")]
+/// <summary>入库单明细，保存产品、数量和可追溯来源。</summary>
+[Table("InboundDocumentLine")]
 public sealed class InboundDocumentLine : BaseEntity
 {
     /// <summary>关联的入库单头唯一标识。</summary>

@@ -14,6 +14,20 @@ namespace SwiftExport.Infrastructure.Repositories.Customers;
 
 public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperRepository<CustomerPoConfig>(context), ICustomerPoConfigRepository
 {
+    public async Task<bool> PopulateRelationIdsAsync(CustomerPoConfig entity)
+    {
+        const string sql = """
+            SELECT
+              (SELECT CASE WHEN COUNT_BIG(*)=1 THEN MAX(Uid) END FROM dbo.Customer WHERE CustomerCode=@CustomerCode AND ISNULL(IsDeleted,0)=0) AS CustomerId,
+              (SELECT CASE WHEN COUNT_BIG(*)=1 THEN MAX(Uid) END FROM dbo.Supplier WHERE SupplierCode=@SupplierCode AND ISNULL(IsDeleted,0)=0) AS SupplierId;
+            """;
+        var ids = await Connection.QuerySingleAsync<RelationIds>(sql, new { entity.CustomerCode, entity.SupplierCode }, Transaction);
+        if (!ids.CustomerId.HasValue || !ids.SupplierId.HasValue) return false;
+        entity.CustomerId = ids.CustomerId;
+        entity.SupplierId = ids.SupplierId;
+        return true;
+    }
+
     public async Task<IReadOnlyList<string>> GetExistingCustomerCodesAsync(IEnumerable<PoConfigCheck> items)
     {
         var sql = $@"SELECT {nameof(CustomerPoConfig.CustomerCode)},
@@ -201,6 +215,12 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
         }
 
         return [.. usedPairs.Distinct(StringComparer.OrdinalIgnoreCase)];
+    }
+
+    private sealed class RelationIds
+    {
+        public Guid? CustomerId { get; set; }
+        public Guid? SupplierId { get; set; }
     }
 }
 

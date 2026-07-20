@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Inventory;
 
 /// <summary>出库单明细实体，保存产品出库数量及其装箱和需求来源。</summary>
-[Table("OutboundLine")]
+[Table("OutboundDocumentLine")]
 public sealed class OutboundDocumentLine : BaseEntity
 {
     /// <summary>关联的出库单头唯一标识。</summary>

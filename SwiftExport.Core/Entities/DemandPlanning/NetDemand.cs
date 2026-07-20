@@ -5,12 +5,12 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.DemandPlanning;
 
 /// <summary>
-/// 毛需求一次拆解版本中的计划执行行。兼容期继续落在 DependentDemand 物理表。
+/// 毛需求一次拆解版本中的计划执行行。
 /// </summary>
-[Table("DependentDemand")]
+[Table("NetDemand")]
 public sealed class NetDemand : BaseEntity
 {
-    /// <summary>所属毛需求 Uid；物理列名仍为 IndependentDemandId。</summary>
+    /// <summary>所属毛需求 Uid。</summary>
     public Guid GrossDemandId { get; set; }
     /// <summary>生成本行的毛需求拆解修订号。</summary>
     public int DecompositionRevision { get; set; }
@@ -59,10 +59,6 @@ public sealed class NetDemand : BaseEntity
     public decimal NetQty { get; set; }
     /// <summary>从毛需求继承的原始业务交期，只读保留。</summary>
     public DateTime? RequiredDate { get; set; }
-    /// <summary>兼容保留的建议供应商 Uid；实际执行供应商以活动 Allocation 为准。</summary>
-    public Guid? PreferredSupplierId { get; set; }
-    /// <summary>兼容保留的建议供应商编码快照；不作为当前计划权威来源。</summary>
-    public string? PreferredSupplierCode { get; set; }
     /// <summary>拆解产生或人工维护的净需求备注。</summary>
     public string? Remark { get; set; }
 

@@ -7,8 +7,12 @@ namespace SwiftExport.Core.Entities.Relations;
 [Table("CustomerPoConfig")]
 public class CustomerPoConfig : BaseEntity
 {
+    /// <summary>关联的客户主数据 Uid；旧数据按客户编码回填。</summary>
+    public Guid? CustomerId { get; set; }
     /// <summary>该实体保存的客户业务编码。</summary>
     public string? CustomerCode { get; set; }
+    /// <summary>关联的供应商主数据 Uid；未指定供应商时允许为空。</summary>
+    public Guid? SupplierId { get; set; }
     /// <summary>该实体保存的供应商业务编码。</summary>
     public string? SupplierCode { get; set; }
     /// <summary>该实体保存的进水管类型。</summary>

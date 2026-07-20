@@ -111,8 +111,6 @@ public sealed class PurchaseDraftWriteModelBuilder
                     TargetLineId = purchaseLineId,
                     LinkStatus = DemandExecutionLinkStatusEnum.Active,
                     AllocatedQty = contribution.PurchaseQty,
-                    CompletedQty = 0,
-                    ReceivedQty = 0,
                     DemandRequiredDate = contribution.DemandRequiredDate,
                     PlannedDeliveryDate = contribution.PlannedDeliveryDate
                 });

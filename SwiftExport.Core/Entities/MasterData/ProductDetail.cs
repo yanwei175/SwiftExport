@@ -7,6 +7,8 @@ namespace SwiftExport.Core.Entities.MasterData;
 [Table("ProductDetails")]
 public class ProductDetail : BaseEntity
 {
+    /// <summary>关联的产品主数据 Uid；旧数据按 ProductSKU 非破坏性回填。</summary>
+    public Guid? ProductId { get; set; }
     /// <summary>该实体保存的产品编码。</summary>
     public string ProductSKU { get; set; } = default!;
     /// <summary>该实体保存的产品标签文件路径。</summary>

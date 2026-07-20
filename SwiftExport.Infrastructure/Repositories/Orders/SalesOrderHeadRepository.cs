@@ -122,11 +122,11 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
                 FROM (
                     SELECT l.Qty,
                            ISNULL((SELECT SUM(outLine.Quantity)
-                                   FROM dbo.OutboundLine outLine WITH(NOLOCK)
-                                   JOIN dbo.OutboundHead outHead WITH(NOLOCK) ON outHead.Uid=outLine.OutboundDocumentId
+                                   FROM dbo.OutboundDocumentLine outLine WITH(NOLOCK)
+                                   JOIN dbo.OutboundDocument outHead WITH(NOLOCK) ON outHead.Uid=outLine.OutboundDocumentId
                                    JOIN dbo.NetDemandAllocation allocation WITH(NOLOCK) ON allocation.Uid=outLine.NetDemandAllocationId
-                                   JOIN dbo.DependentDemand netDemand WITH(NOLOCK) ON netDemand.Uid=allocation.NetDemandId
-                                   JOIN dbo.IndependentDemand demand WITH(NOLOCK) ON demand.Uid=netDemand.IndependentDemandId
+                                   JOIN dbo.NetDemand netDemand WITH(NOLOCK) ON netDemand.Uid=allocation.NetDemandId
+                                   JOIN dbo.GrossDemand demand WITH(NOLOCK) ON demand.Uid=netDemand.GrossDemandId
                                    WHERE demand.SourceType=@SourceType AND demand.SourceLineId=l.Uid
                                      AND outHead.DocumentType=20 AND outHead.PostingStatus=1
                                      AND ISNULL(outHead.IsDeleted,0)=0 AND ISNULL(outLine.IsDeleted,0)=0), 0) AS ShippedQty
@@ -210,11 +210,11 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
             FROM SalesOrderLine l WITH(NOLOCK)
             OUTER APPLY (
                 SELECT ISNULL(SUM(outLine.Quantity),0) AS ShippedQty
-                FROM dbo.OutboundLine outLine WITH(NOLOCK)
-                JOIN dbo.OutboundHead outHead WITH(NOLOCK) ON outHead.Uid=outLine.OutboundDocumentId
+                FROM dbo.OutboundDocumentLine outLine WITH(NOLOCK)
+                JOIN dbo.OutboundDocument outHead WITH(NOLOCK) ON outHead.Uid=outLine.OutboundDocumentId
                 JOIN dbo.NetDemandAllocation allocation WITH(NOLOCK) ON allocation.Uid=outLine.NetDemandAllocationId
-                JOIN dbo.DependentDemand netDemand WITH(NOLOCK) ON netDemand.Uid=allocation.NetDemandId
-                JOIN dbo.IndependentDemand demand WITH(NOLOCK) ON demand.Uid=netDemand.IndependentDemandId
+                JOIN dbo.NetDemand netDemand WITH(NOLOCK) ON netDemand.Uid=allocation.NetDemandId
+                JOIN dbo.GrossDemand demand WITH(NOLOCK) ON demand.Uid=netDemand.GrossDemandId
                 WHERE demand.SourceType=@SourceType AND demand.SourceLineId=l.Uid
                   AND outHead.DocumentType=20 AND outHead.PostingStatus=1
                   AND ISNULL(outHead.IsDeleted,0)=0 AND ISNULL(outLine.IsDeleted,0)=0

@@ -26,7 +26,7 @@ public sealed class NetDemandExecutionLinkRepository(RepositoryBaseContext conte
 FROM [dbo].[DemandExecutionLink] l
 LEFT JOIN [dbo].[PurchaseOrderLine] pol
   ON pol.[Uid]=l.[TargetLineId] AND l.[TargetType]=@PurchaseTargetType AND ISNULL(pol.[IsDeleted],0)=0
-WHERE l.[DependentDemandId] IN @Ids AND l.[IsDeleted]=0 {statusFilter}
+WHERE l.[NetDemandId] IN @Ids AND l.[IsDeleted]=0 {statusFilter}
 ORDER BY l.[CreatedDate],l.[Uid];";
         var rows = await context.Session.Connection.QueryAsync<NetDemandExecutionLinkDto>(new CommandDefinition(
             sql,
@@ -57,10 +57,10 @@ ORDER BY l.[CreatedDate],l.[Uid];",
         var ids = netDemandIds.Distinct().ToArray();
         if (ids.Length == 0) return [];
         const string sql = @"
-SELECT l.[DependentDemandId] AS [NetDemandId],l.[TargetType],l.[TargetNo],l.[TargetLineId],l.[LinkStatus],
+SELECT l.[NetDemandId],l.[TargetType],l.[TargetNo],l.[TargetLineId],l.[LinkStatus],
        CONCAT(N'净需求已关联 ',l.[TargetType],N' ',l.[TargetNo],N'，请先取消或完成反向处理。') AS [Message]
 FROM [dbo].[DemandExecutionLink] l WITH (UPDLOCK, HOLDLOCK)
-WHERE l.[DependentDemandId] IN @Ids AND l.[LinkStatus]=@Active AND l.[IsDeleted]=0
+WHERE l.[NetDemandId] IN @Ids AND l.[LinkStatus]=@Active AND l.[IsDeleted]=0
 ORDER BY l.[TargetType],l.[TargetNo],l.[TargetLineId];";
         var rows = await context.Session.Connection.QueryAsync<GrossDemandRollbackBlockerDto>(
             sql, new { Ids = ids, Active = DemandExecutionLinkStatusEnum.Active }, context.Session.Transaction);
@@ -74,17 +74,25 @@ ORDER BY l.[TargetType],l.[TargetNo],l.[TargetLineId];";
         var ids = netDemandIds.Distinct().ToArray();
         if (ids.Length == 0) return [];
         const string sql = @"
-SELECT l.[Uid],l.[DependentDemandId] AS [NetDemandId],l.[LinkStatus],l.[TargetType],
+SELECT l.[Uid],l.[NetDemandId],l.[LinkStatus],l.[TargetType],
        l.[TargetHeadId],l.[TargetNo],l.[TargetLineId],
        l.[AllocatedQty]-l.[ReleasedQty] AS [AllocatedQty],l.[ReleasedQty],
-       l.[AllocatedQty]-l.[ReleasedQty] AS [EffectiveQty],l.[CompletedQty],l.[ReceivedQty],
+       l.[AllocatedQty]-l.[ReleasedQty] AS [EffectiveQty],
+       ISNULL((SELECT SUM(il.[Quantity]) FROM [dbo].[InboundDocumentLine] il
+               INNER JOIN [dbo].[InboundDocument] ih ON ih.[Uid]=il.[InboundDocumentId]
+               WHERE il.[DemandExecutionLinkId]=l.[Uid] AND ih.[PostingStatus]=1
+                 AND il.[IsDeleted]=0 AND ih.[IsDeleted]=0),0) AS [CompletedQty],
+       ISNULL((SELECT SUM(il.[Quantity]) FROM [dbo].[InboundDocumentLine] il
+               INNER JOIN [dbo].[InboundDocument] ih ON ih.[Uid]=il.[InboundDocumentId]
+               WHERE il.[DemandExecutionLinkId]=l.[Uid] AND ih.[PostingStatus]=1
+                 AND il.[IsDeleted]=0 AND ih.[IsDeleted]=0),0) AS [ReceivedQty],
        poh.[Version] AS [TargetHeadVersion],poh.[LifecycleStatus] AS [TargetHeadLifecycleStatus],
        poh.[ConfirmationStatus] AS [TargetHeadConfirmationStatus],
        l.[CancelledAt],l.[CancelledBy],l.[CancelledReason],l.[ReversedAt],l.[ReversedBy],l.[ReversedReason],l.[Remark]
 FROM [dbo].[DemandExecutionLink] l
 LEFT JOIN [dbo].[PurchaseOrderHead] poh
   ON poh.[Uid]=l.[TargetHeadId] AND l.[TargetType]=N'PO' AND poh.[IsDeleted]=0
-WHERE l.[DependentDemandId] IN @Ids AND l.[IsDeleted]=0
+WHERE l.[NetDemandId] IN @Ids AND l.[IsDeleted]=0
 ORDER BY l.[CreatedDate],l.[Uid];";
         var rows = await context.Session.Connection.QueryAsync<DemandExecutionTraceItemDto>(new CommandDefinition(
             sql, new { Ids = ids }, context.Session.Transaction, cancellationToken: cancellationToken));
@@ -98,9 +106,9 @@ ORDER BY l.[CreatedDate],l.[Uid];";
         if (ids.Length == 0) return [];
         const string sql = @"
 SELECT l.[Uid],l.[Version],l.[IsDeleted],l.[CreatedDate],l.[CreatedBy],l.[UpdatedDate],l.[UpdatedBy],
-       l.[DependentDemandId] AS [NetDemandId],l.[NetDemandAllocationId],l.[ExecutionRequestId],l.[CommandItemId],
+       l.[NetDemandId],l.[NetDemandAllocationId],l.[ExecutionRequestId],l.[CommandItemId],
        l.[TargetType],l.[TargetHeadId],l.[TargetNo],l.[TargetLineId],l.[LinkStatus],l.[AllocatedQty],
-       l.[CompletedQty],l.[ReceivedQty],l.[DemandRequiredDate],l.[PlannedDeliveryDate],
+       l.[ReleasedQty],l.[DemandRequiredDate],l.[PlannedDeliveryDate],
        l.[CancelledAt],l.[CancelledBy],l.[CancelledReason],l.[ReversedAt],l.[ReversedBy],l.[ReversedReason],l.[Remark]
 FROM [dbo].[DemandExecutionLink] l WITH (UPDLOCK,HOLDLOCK)
 WHERE l.[CommandItemId] IN @Ids AND l.[IsDeleted]=0
@@ -128,14 +136,14 @@ ORDER BY l.[CommandItemId],l.[Uid];";
         const string sql = @"
 INSERT INTO [dbo].[DemandExecutionLink]
 ([Uid],[Version],[IsDeleted],[CreatedDate],[CreatedBy],[UpdatedDate],[UpdatedBy],
- [DependentDemandId],[NetDemandAllocationId],[ExecutionRequestId],[CommandItemId],
- [TargetType],[TargetHeadId],[TargetNo],[TargetLineId],[LinkStatus],[AllocatedQty],[ReleasedQty],[CompletedQty],[ReceivedQty],
+ [NetDemandId],[NetDemandAllocationId],[ExecutionRequestId],[CommandItemId],
+ [TargetType],[TargetHeadId],[TargetNo],[TargetLineId],[LinkStatus],[AllocatedQty],[ReleasedQty],
  [DemandRequiredDate],[PlannedDeliveryDate],[CancelledAt],[CancelledBy],[CancelledReason],
  [ReversedAt],[ReversedBy],[ReversedReason],[Remark])
 VALUES
 (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
  @NetDemandId,@NetDemandAllocationId,@ExecutionRequestId,@CommandItemId,
- @TargetType,@TargetHeadId,@TargetNo,@TargetLineId,@LinkStatus,@AllocatedQty,@ReleasedQty,@CompletedQty,@ReceivedQty,
+ @TargetType,@TargetHeadId,@TargetNo,@TargetLineId,@LinkStatus,@AllocatedQty,@ReleasedQty,
  @DemandRequiredDate,@PlannedDeliveryDate,@CancelledAt,@CancelledBy,@CancelledReason,
  @ReversedAt,@ReversedBy,@ReversedReason,@Remark);";
         return await context.Session.Connection.ExecuteAsync(
@@ -154,23 +162,23 @@ VALUES
 
         const string sql = @"
 SELECT TOP(1) d.[SourceType],d.[SourceUid],d.[SourceNo]
-FROM [dbo].[IndependentDemand] d
+FROM [dbo].[GrossDemand] d
 WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[IsDeleted]=0
 ORDER BY d.[SourceNo],d.[Uid];
 
 SELECT d.[Uid] AS [GrossDemandId],nd.[Uid] AS [NetDemandId],l.[NetDemandAllocationId] AS [AllocationId],
-       l.[Uid] AS [DemandExecutionLinkId],l.[LinkStatus],d.[SourceLineNumber],nd.[Sku],nd.[NetQty] AS [NetDemandQty],
+       l.[Uid] AS [DemandExecutionLinkId],l.[LinkStatus],d.[SourceLineNumber],nd.[SkuSnapshot] AS [Sku],nd.[NetQty] AS [NetDemandQty],
        l.[AllocatedQty] AS [OriginalLinkQty],l.[ReleasedQty],
        l.[AllocatedQty]-l.[ReleasedQty] AS [LinkQty],l.[DemandRequiredDate],l.[PlannedDeliveryDate],
        h.[Uid] AS [PurchaseOrderId],h.[OrderNo] AS [PurchaseOrderNo],
        h.[LifecycleStatus] AS [PurchaseLifecycleStatus],h.[ConfirmationStatus] AS [PurchaseConfirmationStatus],
        line.[Uid] AS [PurchaseOrderLineId],line.[LineNumber] AS [PurchaseOrderLineNumber],
        h.[SupplierId],h.[SupplierCode],h.[SupplierName]
-FROM [dbo].[IndependentDemand] d
-INNER JOIN [dbo].[DependentDemand] nd
-        ON nd.[IndependentDemandId]=d.[Uid] AND nd.[IsDeleted]=0
+FROM [dbo].[GrossDemand] d
+INNER JOIN [dbo].[NetDemand] nd
+        ON nd.[GrossDemandId]=d.[Uid] AND nd.[IsDeleted]=0
 INNER JOIN [dbo].[DemandExecutionLink] l
-        ON l.[DependentDemandId]=nd.[Uid] AND l.[NetDemandAllocationId] IS NOT NULL
+        ON l.[NetDemandId]=nd.[Uid]
        AND l.[TargetType]=@PurchaseTargetType AND l.[IsDeleted]=0
 INNER JOIN [dbo].[NetDemandAllocation] allocation
         ON allocation.[Uid]=l.[NetDemandAllocationId] AND allocation.[NetDemandId]=nd.[Uid]
@@ -210,8 +218,8 @@ ORDER BY d.[SourceLineNumber],nd.[LineNumber],line.[LineNumber],l.[Uid];";
                    l.TargetLineId AS PurchaseOrderLineId,gd.SourceLineNumber,l.PlannedDeliveryDate,
                    l.AllocatedQty,l.ReleasedQty,l.AllocatedQty-l.ReleasedQty AS EffectiveQty
             FROM dbo.DemandExecutionLink l {lockHint}
-            INNER JOIN dbo.DependentDemand nd ON nd.Uid=l.DependentDemandId AND nd.IsDeleted=0
-            INNER JOIN dbo.IndependentDemand gd ON gd.Uid=nd.IndependentDemandId AND gd.IsDeleted=0
+            INNER JOIN dbo.NetDemand nd ON nd.Uid=l.NetDemandId AND nd.IsDeleted=0
+            INNER JOIN dbo.GrossDemand gd ON gd.Uid=nd.GrossDemandId AND gd.IsDeleted=0
             WHERE l.TargetHeadId=@PurchaseOrderId AND l.TargetType=@PurchaseTargetType
               AND l.LinkStatus=@Active AND l.IsDeleted=0
             ORDER BY l.PlannedDeliveryDate DESC,gd.SourceLineNumber DESC,l.NetDemandAllocationId DESC,l.Uid DESC;
@@ -233,8 +241,7 @@ ORDER BY d.[SourceLineNumber],nd.[LineNumber],line.[LineNumber],l.[Uid];";
             SET ReleasedQty=AllocatedQty,LinkStatus=@Cancelled,CancelledAt=@Now,CancelledBy=@UserName,
                 CancelledReason=@Reason,UpdatedDate=@Now,UpdatedBy=@UserName,Version=Version+1
             WHERE TargetHeadId=@PurchaseOrderId AND TargetType=@PurchaseTargetType
-              AND NetDemandAllocationId IS NOT NULL AND ExecutionRequestId IS NOT NULL
-              AND CommandItemId IS NOT NULL AND LinkStatus=@Active AND IsDeleted=0;
+              AND LinkStatus=@Active AND IsDeleted=0;
             """;
         return context.Session.Connection.ExecuteAsync(sql, new
         {
@@ -285,10 +292,17 @@ ORDER BY d.[SourceLineNumber],nd.[LineNumber],line.[LineNumber],l.[Uid];";
     }
 
     private const string LinkSelect = @"
-SELECT l.[Uid],l.[DependentDemandId] AS [NetDemandId],l.[NetDemandAllocationId],l.[LinkStatus],
+SELECT l.[Uid],l.[NetDemandId],l.[NetDemandAllocationId],l.[LinkStatus],
        l.[TargetType],l.[TargetHeadId],l.[TargetNo],l.[TargetLineId],pol.[LineNumber] AS [TargetLineNumber],
        l.[AllocatedQty]-l.[ReleasedQty] AS [AllocatedQty],l.[ReleasedQty],
        l.[AllocatedQty]-l.[ReleasedQty] AS [EffectiveQty],
-       CAST(0 AS decimal(18,4)) AS [CompletedQty],CAST(0 AS decimal(18,4)) AS [ReceivedQty],
+       ISNULL((SELECT SUM(il.[Quantity]) FROM [dbo].[InboundDocumentLine] il
+               INNER JOIN [dbo].[InboundDocument] ih ON ih.[Uid]=il.[InboundDocumentId]
+               WHERE il.[DemandExecutionLinkId]=l.[Uid] AND ih.[PostingStatus]=1
+                 AND il.[IsDeleted]=0 AND ih.[IsDeleted]=0),0) AS [CompletedQty],
+       ISNULL((SELECT SUM(il.[Quantity]) FROM [dbo].[InboundDocumentLine] il
+               INNER JOIN [dbo].[InboundDocument] ih ON ih.[Uid]=il.[InboundDocumentId]
+               WHERE il.[DemandExecutionLinkId]=l.[Uid] AND ih.[PostingStatus]=1
+                 AND il.[IsDeleted]=0 AND ih.[IsDeleted]=0),0) AS [ReceivedQty],
        l.[DemandRequiredDate],l.[PlannedDeliveryDate],l.[CancelledAt],l.[CancelledBy],l.[CancelledReason],l.[Remark] ";
 }

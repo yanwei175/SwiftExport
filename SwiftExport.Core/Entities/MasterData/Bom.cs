@@ -12,15 +12,25 @@ namespace SwiftExport.Core.Entities.MasterData
         /// <summary>该实体保存的BOM 版本。</summary>
         public int BomVersion { get; set; }
         /// <summary>关联的父产品唯一标识。</summary>
-        public Guid? ParentSkuId { get; set; }
+        public Guid? ParentProductId { get; set; }
         /// <summary>该实体保存的父产品编码。</summary>
-        public string ParentSku { get; set; } = default!;
+        public string ParentSkuSnapshot { get; set; } = default!;
         /// <summary>该实体保存的单据行号。</summary>
         public int LineNumber { get; set; } = 1;
         /// <summary>关联的组件产品唯一标识。</summary>
-        public Guid? SubSkuId { get; set; }
+        public Guid? ComponentProductId { get; set; }
         /// <summary>该实体保存的组件产品编码。</summary>
-        public string SubSku { get; set; } = default!;
+        public string ComponentSkuSnapshot { get; set; } = default!;
+
+        // API/WPF 契约暂时沿用旧属性名；这些别名不进入目标数据库。
+        [NotMapped]
+        public Guid? ParentSkuId { get => ParentProductId; set => ParentProductId = value; }
+        [NotMapped]
+        public string ParentSku { get => ParentSkuSnapshot; set => ParentSkuSnapshot = value; }
+        [NotMapped]
+        public Guid? SubSkuId { get => ComponentProductId; set => ComponentProductId = value; }
+        [NotMapped]
+        public string SubSku { get => ComponentSkuSnapshot; set => ComponentSkuSnapshot = value; }
         /// <summary>组件用量比例的分子，与分母共同计算父需求对应的组件需求量。</summary>
         public int Numerator { get; set; } = 1;
         /// <summary>组件用量比例的分母，必须大于零。</summary>

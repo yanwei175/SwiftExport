@@ -24,11 +24,17 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
     // 默认供应商只能通过供应商产品的显式业务命令维护，普通 Product 保存不得覆盖。
     protected override IReadOnlyList<string> InsertProperties => [.. base.InsertProperties
         .Where(property => !property.Equals(nameof(Product.DefaultSupplierId), StringComparison.OrdinalIgnoreCase)
-                           && !property.Equals(nameof(Product.DefaultSupplierCode), StringComparison.OrdinalIgnoreCase))];
+                           && !property.Equals(nameof(Product.DefaultSupplierCode), StringComparison.OrdinalIgnoreCase)
+                           && !property.Equals(nameof(Product.DefaultSupplierSku), StringComparison.OrdinalIgnoreCase)
+                           && !property.Equals(nameof(Product.DefaultCustomerCode), StringComparison.OrdinalIgnoreCase)
+                           && !property.Equals(nameof(Product.DefaultCustomerSku), StringComparison.OrdinalIgnoreCase))];
 
     protected override IReadOnlyList<string> UpdateProperties => [.. base.UpdateProperties
         .Where(property => !property.Equals(nameof(Product.DefaultSupplierId), StringComparison.OrdinalIgnoreCase)
-                           && !property.Equals(nameof(Product.DefaultSupplierCode), StringComparison.OrdinalIgnoreCase))];
+                           && !property.Equals(nameof(Product.DefaultSupplierCode), StringComparison.OrdinalIgnoreCase)
+                           && !property.Equals(nameof(Product.DefaultSupplierSku), StringComparison.OrdinalIgnoreCase)
+                           && !property.Equals(nameof(Product.DefaultCustomerCode), StringComparison.OrdinalIgnoreCase)
+                           && !property.Equals(nameof(Product.DefaultCustomerSku), StringComparison.OrdinalIgnoreCase))];
 
     public async Task<RepositoryWriteResult> SetDefaultSupplierAsync(
         Guid productId,
@@ -39,7 +45,6 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         const string sql = @"
 UPDATE [dbo].[Product]
 SET [DefaultSupplierId]=@SupplierId,
-    [DefaultSupplierCode]=@SupplierCode,
     [UpdatedDate]=@Now,
     [UpdatedBy]=@UserName,
     [Version]=[Version]+1
@@ -50,7 +55,6 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
             ProductId = productId,
             ExpectedVersion = expectedVersion,
             SupplierId = supplierId,
-            SupplierCode = supplierCode,
             Now = DateTime.Now,
             UserName = CurrentUser.UserName
         }, transaction: Transaction);

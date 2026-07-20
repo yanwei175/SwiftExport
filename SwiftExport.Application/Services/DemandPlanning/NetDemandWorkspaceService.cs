@@ -314,9 +314,6 @@ public sealed class NetDemandWorkspaceService(
                         ?? throw new PlanCommandException("DEFAULT_SUPPLIER_MISSING", "产品尚未设置有效默认供应商。");
                     desiredSupplier = await supplierRepository.GetByIdAsync(desiredSupplierId.Value, withUpdLock: true)
                         ?? throw new PlanCommandException("DEFAULT_SUPPLIER_INVALID", "产品默认供应商已失效。");
-                    if (!string.IsNullOrWhiteSpace(product.DefaultSupplierCode)
-                        && !string.Equals(product.DefaultSupplierCode.Trim(), desiredSupplier.SupplierCode, StringComparison.OrdinalIgnoreCase))
-                        throw new PlanCommandException("DEFAULT_SUPPLIER_INVALID", "产品默认供应商 Uid 与编码不一致。");
                     break;
                 case MutationMode.AssignSupplier:
                     if (current.ExecutionType != DemandExecutionTypeEnum.Purchase)

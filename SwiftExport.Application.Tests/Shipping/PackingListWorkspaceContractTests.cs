@@ -49,14 +49,16 @@ public sealed class PackingListWorkspaceContractTests
     }
 
     [TestMethod]
-    public void Migrations_AreAdditiveAndKeepLegacyPackingListHeadId()
+    public void TargetPersistence_RemovesLegacyPackingListCompatibilityColumns()
     {
-        var migration = Read("SwiftExport.Infrastructure", "Migrations", "014_PackingListWorkspace_AdditiveSchema.sql");
-        StringAssert.Contains(migration, "PackingListDocumentId uniqueidentifier");
-        StringAssert.Contains(migration, "PackingListHeadId int");
-        StringAssert.Contains(migration, "UX_PackingListLine_Allocation_New");
-        Assert.IsFalse(migration.Contains("DROP TABLE", StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(migration.Contains("UPDATE dbo.PackingList", StringComparison.OrdinalIgnoreCase));
+        var entity = Read("SwiftExport.Core", "Entities", "Shipping", "PackingListDocument.cs");
+        var line = Read("SwiftExport.Core", "Entities", "Shipping", "PackingListContributionLine.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingListDocumentRepository.cs");
+        Assert.IsFalse(entity.Contains("LegacyHeadId", StringComparison.Ordinal));
+        Assert.IsFalse(entity.Contains("IsLegacyReadOnly", StringComparison.Ordinal));
+        Assert.IsFalse(line.Contains("LegacyPackingListHeadId", StringComparison.Ordinal));
+        StringAssert.Contains(repository, "dbo.PackingListDocument");
+        StringAssert.Contains(repository, "dbo.PackingListContributionLine");
     }
 
     [TestMethod]

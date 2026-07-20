@@ -42,7 +42,7 @@ public sealed class InventoryService(
         return ExecuteAsync(command.CommandId, "WarehouseSite.Created", async () =>
         {
             if (!await warehouseSites.IsActiveSupplierAsync(command.SupplierId)) throw new InventoryPostingException("供应商不存在或已停用。");
-            var site = new WarehouseSite { Uid = GuidSequentialGenerator.NewGuid(), Code = Normalize(command.Code, 50)!, Name = Normalize(command.Name, 200)!, SiteType = 0, SupplierId = command.SupplierId, IsActive = true };
+            var site = new WarehouseSite { Uid = GuidSequentialGenerator.NewGuid(), Code = Normalize(command.Code, 50)!, Name = Normalize(command.Name, 200)!, SiteType = WarehouseSiteTypeEnum.SupplierVirtual, SupplierId = command.SupplierId, IsActive = true };
             if (await warehouseSites.InsertAsync(site) != 1) throw new InventoryPostingException("虚拟仓创建失败。");
             await WriteLogAsync(command.CommandId, "WarehouseSite", site.Uid, site.Code, "WarehouseSite.Created", "供应商虚拟仓已创建", null, $"创建虚拟仓 {site.Code}。", null);
             return await warehouseSites.GetDtoAsync(site.Uid) ?? throw new InventoryPostingException("虚拟仓创建后无法读取。");

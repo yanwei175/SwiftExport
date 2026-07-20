@@ -40,7 +40,7 @@ public sealed class InboundPostingPort(
             var document = new InboundDocument
             {
                 Uid = GuidSequentialGenerator.NewGuid(), DocumentNo = no, DocumentType = InboundDocumentTypeEnum.PackingListAutoReceipt,
-                LifecycleStatus = 0, PostingStatus = InboundPostingStatusEnum.Posted, WarehouseSiteId = group.Key,
+                LifecycleStatus = InventoryDocumentLifecycleStatusEnum.Active, PostingStatus = InboundPostingStatusEnum.Posted, WarehouseSiteId = group.Key,
                 WarehouseCodeSnapshot = first.WarehouseCode, WarehouseNameSnapshot = first.WarehouseName,
                 SupplierId = first.SupplierId, SupplierNameSnapshot = first.SupplierName, ReceiptDate = businessDate,
                 Remark = $"PackingList {packingListNo} 自动补入库", SourcePackingListId = packingListId,
@@ -138,7 +138,7 @@ public sealed class OutboundPostingPort(
             var document = new OutboundDocument
             {
                 Uid = GuidSequentialGenerator.NewGuid(), DocumentNo = noResult.Data.DocumentNo, DocumentType = documentType,
-                LifecycleStatus = 0, PostingStatus = OutboundPostingStatusEnum.Posted, WarehouseSiteId = group.Key,
+                LifecycleStatus = InventoryDocumentLifecycleStatusEnum.Active, PostingStatus = OutboundPostingStatusEnum.Posted, WarehouseSiteId = group.Key,
                 WarehouseCodeSnapshot = first.WarehouseCode, WarehouseNameSnapshot = first.WarehouseName, ShipmentDate = businessDate,
                 SourcePackingListId = packingListId, PackingListNoSnapshot = packingListNo, PostedDate = DateTime.Now,
                 PostedBy = currentUser.UserName, CommandId = documentCommandId

@@ -19,5 +19,8 @@ namespace SwiftExport.Core.Interfaces
 
         Task<PagedResponseBase<CustomerPoConfigDto>> GetPagedAsync(CustomerPoConfigSearchRequest request);
 
+        /// <summary>按唯一业务编码解析并写入权威客户、供应商 Uid；无法唯一解析时返回 false。</summary>
+        Task<bool> PopulateRelationIdsAsync(CustomerPoConfig entity);
+
     }
 }

@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Inventory;
 
 /// <summary>库存流水实体，保存每次库存增减及反向的不可变业务事实。</summary>
-[Table("InventoryTransaction")]
+[Table("InventoryLedgerEntry")]
 public sealed class InventoryLedgerEntry : BaseEntity
 {
     /// <summary>该实体保存的业务流水顺序号。</summary>

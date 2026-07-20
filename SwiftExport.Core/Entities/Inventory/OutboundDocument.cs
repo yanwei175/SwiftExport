@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Inventory;
 
 /// <summary>出库单头实体，保存正式出库、目标仓库及过账和反向状态。</summary>
-[Table("OutboundHead")]
+[Table("OutboundDocument")]
 public sealed class OutboundDocument : BaseEntity
 {
     /// <summary>该实体保存的业务单据号。</summary>
@@ -13,7 +13,7 @@ public sealed class OutboundDocument : BaseEntity
     /// <summary>该实体保存的业务单据类型。</summary>
     public OutboundDocumentTypeEnum DocumentType { get; set; }
     /// <summary>单据生命周期状态，用于判断当前记录允许执行的业务操作。</summary>
-    public byte LifecycleStatus { get; set; }
+    public InventoryDocumentLifecycleStatusEnum LifecycleStatus { get; set; }
     /// <summary>库存过账状态，用于判断当前记录允许执行的业务操作。</summary>
     public OutboundPostingStatusEnum PostingStatus { get; set; }
     /// <summary>关联的仓库站点唯一标识。</summary>

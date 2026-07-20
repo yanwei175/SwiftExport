@@ -96,8 +96,8 @@ SELECT a.[Uid],a.[Version],a.[IsDeleted],a.[CreatedDate],a.[CreatedBy],a.[Update
        a.[DeliverySupplierCodeSnapshot],a.[DeliverySupplierNameSnapshot],a.[AssignmentSource],
        a.[ReplacesAllocationId],a.[ChangeReason],a.[CancelReasonCode],a.[CancelledAt],a.[CancelledBy],a.[CancelledReason]
 FROM [dbo].[NetDemandAllocation] a WITH (UPDLOCK, HOLDLOCK)
-INNER JOIN [dbo].[DependentDemand] nd ON nd.[Uid]=a.[NetDemandId]
-WHERE nd.[IndependentDemandId]=@GrossDemandId
+INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=a.[NetDemandId]
+WHERE nd.[GrossDemandId]=@GrossDemandId
   AND nd.[LifecycleStatus]=@NetDemandActive AND nd.[IsDeleted]=0
   AND a.[LifecycleStatus]=@AllocationActive AND a.[IsDeleted]=0
 ORDER BY nd.[LineNumber],a.[Sequence],a.[Uid];";
@@ -154,8 +154,8 @@ SET a.[LifecycleStatus]=@Cancelled,a.[CancelReasonCode]=@ReasonCode,a.[Cancelled
     a.[CancelledBy]=@UserName,a.[CancelledReason]=@Reason,a.[UpdatedDate]=@Now,
     a.[UpdatedBy]=@UserName,a.[Version]=a.[Version]+1
 FROM [dbo].[NetDemandAllocation] a
-INNER JOIN [dbo].[DependentDemand] nd ON nd.[Uid]=a.[NetDemandId]
-WHERE nd.[IndependentDemandId]=@GrossDemandId AND nd.[DecompositionRevision]=@DecompositionRevision
+INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=a.[NetDemandId]
+WHERE nd.[GrossDemandId]=@GrossDemandId AND nd.[DecompositionRevision]=@DecompositionRevision
   AND nd.[LifecycleStatus]=@NetDemandActive AND nd.[IsDeleted]=0
   AND a.[LifecycleStatus]=@AllocationActive AND a.[IsDeleted]=0;",
             new

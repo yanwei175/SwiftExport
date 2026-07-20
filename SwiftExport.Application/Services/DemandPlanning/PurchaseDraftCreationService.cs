@@ -303,8 +303,8 @@ public sealed class PurchaseDraftCreationService(
     {
         if (links.Count != source.Items.Count) return null;
         var byCommandItem = links
-            .Where(x => x.CommandItemId.HasValue)
-            .GroupBy(x => x.CommandItemId!.Value)
+            .Where(x => x.CommandItemId != Guid.Empty)
+            .GroupBy(x => x.CommandItemId)
             .ToDictionary(x => x.Key, x => x.ToList());
         if (byCommandItem.Count != source.Items.Count) return null;
         foreach (var item in source.Items)

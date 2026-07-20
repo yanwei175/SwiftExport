@@ -39,9 +39,6 @@ public sealed class NetDemandInitialAllocationPlanner
             {
                 if (!suppliers.TryGetValue(supplierId, out supplier))
                     return NetDemandInitialAllocationPlan.Fail("INVALID_DEFAULT_SUPPLIER", $"产品 {product.Sku} 的默认供应商已失效。");
-                if (!string.IsNullOrWhiteSpace(product.DefaultSupplierCode)
-                    && !string.Equals(product.DefaultSupplierCode.Trim(), supplier.SupplierCode, StringComparison.OrdinalIgnoreCase))
-                    return NetDemandInitialAllocationPlan.Fail("INVALID_DEFAULT_SUPPLIER", $"产品 {product.Sku} 的默认供应商 Uid 与编码不一致。");
             }
 
             var allocation = new NetDemandAllocation

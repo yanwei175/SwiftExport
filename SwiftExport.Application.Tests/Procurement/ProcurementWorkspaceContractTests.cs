@@ -64,9 +64,9 @@ public sealed class ProcurementWorkspaceContractTests
     public void Progress_MustBeAppendOnlyAndRequireCorrectionReason()
     {
         var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "SupplierProgressReportRepository.cs");
-        StringAssert.Contains(repository, "INSERT dbo.FollowUpLog");
-        Assert.IsFalse(repository.Contains("UPDATE dbo.FollowUpLog", StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(repository.Contains("DELETE FROM dbo.FollowUpLog", StringComparison.OrdinalIgnoreCase));
+        StringAssert.Contains(repository, "INSERT dbo.SupplierProgressReport");
+        Assert.IsFalse(repository.Contains("UPDATE dbo.SupplierProgressReport", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(repository.Contains("DELETE FROM dbo.SupplierProgressReport", StringComparison.OrdinalIgnoreCase));
         var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrderWorkspaceService.cs");
         StringAssert.Contains(service, "command.ReadyQty < latest.ReadyQty");
         StringAssert.Contains(service, "累计已备好数量下降时必须填写纠错原因");
@@ -85,14 +85,14 @@ public sealed class ProcurementWorkspaceContractTests
     }
 
     [TestMethod]
-    public void Migration_IsAdditiveAndDoesNotRecreatePurchaseTables()
+    public void TargetBaseline_RecreatesPurchaseTablesWithOfficialProgress()
     {
-        var sql = Read("SwiftExport.Infrastructure", "Migrations", "009_ProcurementWorkspace_AdditiveSchema.sql");
-        StringAssert.Contains(sql, "ALTER TABLE dbo.PurchaseOrderHead ADD ConfirmedDate");
-        StringAssert.Contains(sql, "CREATE TABLE dbo.FollowUpLog");
+        var sql = Read("SwiftExport.Infrastructure", "Database", "FreshInstall", "030_初始化目标业务表.sql");
+        StringAssert.Contains(sql, "CREATE TABLE dbo.PurchaseOrderHead");
+        StringAssert.Contains(sql, "CREATE TABLE dbo.PurchaseOrderLine");
+        StringAssert.Contains(sql, "CREATE TABLE dbo.SupplierProgressReport");
         StringAssert.Contains(sql, "CREATE TABLE dbo.BusinessOperationLog");
-        StringAssert.Contains(sql, "THROW 51000");
-        Assert.IsFalse(sql.Contains("CREATE TABLE dbo.PurchaseOrderHead", StringComparison.OrdinalIgnoreCase));
+        StringAssert.Contains(sql, "@AllowInitializeNewDatabase bit=1");
         Assert.IsFalse(sql.Contains("DROP TABLE", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -136,17 +136,17 @@ public sealed class ProcurementWorkspaceContractTests
     }
 
     [TestMethod]
-    public void DevelopmentRebuild_MustBeExplicitlyGuardedAndMatchOfficialModel()
+    public void FreshInstall_MustBeExplicitlyGuardedAndMatchOfficialModel()
     {
-        var sql = Read("SwiftExport.Infrastructure", "Migrations", "015_PurchaseOrder_Rebuild_DevelopmentOnly.sql");
-        StringAssert.Contains(sql, "DECLARE @AllowDestructiveRebuild bit = 0");
-        StringAssert.Contains(sql, "DROP TABLE dbo.PurchaseOrderLine");
+        var sql = Read("SwiftExport.Infrastructure", "Database", "FreshInstall", "030_初始化目标业务表.sql");
+        StringAssert.Contains(sql, "DECLARE @AllowInitializeNewDatabase bit=1");
+        Assert.IsFalse(sql.Contains("DROP TABLE", StringComparison.OrdinalIgnoreCase));
         StringAssert.Contains(sql, "CREATE TABLE dbo.PurchaseOrderHead");
         StringAssert.Contains(sql, "CREATE TABLE dbo.PurchaseOrderLine");
         StringAssert.Contains(sql, "QTY decimal(18,4) NOT NULL");
-        StringAssert.Contains(sql, "UnitSnapshot nvarchar(50) NULL");
-        Assert.IsFalse(sql.Contains("ReadyQty", StringComparison.Ordinal));
+        StringAssert.Contains(sql, "UnitSnapshot nvarchar(100) NULL");
         Assert.IsFalse(sql.Contains("RecQty", StringComparison.Ordinal));
+        Assert.IsFalse(sql.Contains("LastRecDate", StringComparison.Ordinal));
     }
 
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));

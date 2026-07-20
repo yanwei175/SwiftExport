@@ -4,11 +4,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Shipping;
 
 /// <summary>装箱单来源贡献实体，逐行保存本次出货数量及其销售、需求、执行计划和仓库来源。</summary>
-[Table("PackingListLine")]
+[Table("PackingListContributionLine")]
 public sealed class PackingListContributionLine : BaseEntity
 {
-    /// <summary>旧装箱单头整型主键兼容值，仅用于历史数据关联。</summary>
-    public int LegacyPackingListHeadId { get; set; }
     /// <summary>关联的装箱单头唯一标识。</summary>
     public Guid PackingListDocumentId { get; set; }
     /// <summary>该实体保存的单据行号。</summary>
