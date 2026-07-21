@@ -1,4 +1,6 @@
 ﻿using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 
 namespace SwiftExport.Core.Interfaces
@@ -44,6 +46,12 @@ namespace SwiftExport.Core.Interfaces
         /// 判断产品是否仍有有效 BOM。用于客供件终端物料约束。
         /// </summary>
         Task<bool> HasActiveBomForProductAsync(Guid productId, string? bomNo = null);
+
+        /// <summary>获取所有父产品当前版本下的有效 BOM 行。</summary>
+        Task<IReadOnlyList<Bom>> GetCurrentVersionBomGraphAsync();
+
+        /// <summary>分页查询父产品当前版本下的有效 BOM 组成行。</summary>
+        Task<PagedResponseBase<BomDto>> GetPagedAsync(BomSearchRequest request);
 
         Task<IEnumerable<BomDto>> GetBomDtoByBomNoAsync(string bomNo);
 

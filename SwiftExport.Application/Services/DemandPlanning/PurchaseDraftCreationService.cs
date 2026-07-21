@@ -384,8 +384,8 @@ public sealed class PurchaseDraftCreationService(
 
         var rows = new Dictionary<Guid, NetDemandListItemDto>();
         foreach (var rootId in rootIds)
-        foreach (var row in await netDemandRepository.GetWorkspaceFamilyAsync(rootId, cancellationToken))
-            rows[row.AllocationId] = row;
+            foreach (var row in await netDemandRepository.GetWorkspaceFamilyAsync(rootId, cancellationToken))
+                rows[row.AllocationId] = row;
         foreach (var row in selectedRows) rows[row.AllocationId] = row;
         return rows.Values.ToList();
     }

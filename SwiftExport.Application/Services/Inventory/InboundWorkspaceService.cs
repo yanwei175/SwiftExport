@@ -5,11 +5,10 @@ using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Entities.Auditing;
+using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
-using SwiftExport.Application.Interfaces;
 using SwiftExport.Core.Interfaces.Inventory;
 using SwiftExport.Infrastructure.Data;
 using System.Security.Cryptography;
@@ -155,9 +154,23 @@ public sealed class InboundWorkspaceService(ServiceBaseContext context, IInbound
     private async Task WriteLogAsync(Guid commandId, InboundDocument document, string operationType, string operationName, string? reason)
     {
         if (await operationLogs.GetByCommandAsync("Inventory", operationType, commandId) is not null) return;
-        var log = new BusinessOperationLog { Uid = GuidSequentialGenerator.NewGuid(), CorrelationId = Normalize(correlation.CorrelationId, 64) ?? commandId.ToString("N"), CommandId = commandId,
-            Module = "Inventory", AggregateType = "InboundDocument", AggregateUid = document.Uid, AggregateNoSnapshot = document.DocumentNo, OperationType = operationType,
-            OperationName = operationName, Reason = Normalize(reason, 1000), Summary = operationName, UserUid = currentUser.UserId, UserNameSnapshot = currentUser.UserName, OccurredDate = DateTime.Now };
+        var log = new BusinessOperationLog
+        {
+            Uid = GuidSequentialGenerator.NewGuid(),
+            CorrelationId = Normalize(correlation.CorrelationId, 64) ?? commandId.ToString("N"),
+            CommandId = commandId,
+            Module = "Inventory",
+            AggregateType = "InboundDocument",
+            AggregateUid = document.Uid,
+            AggregateNoSnapshot = document.DocumentNo,
+            OperationType = operationType,
+            OperationName = operationName,
+            Reason = Normalize(reason, 1000),
+            Summary = operationName,
+            UserUid = currentUser.UserId,
+            UserNameSnapshot = currentUser.UserName,
+            OccurredDate = DateTime.Now
+        };
         if (await operationLogs.InsertAsync(log) != 1) throw new InboundException("业务操作日志写入失败。");
     }
     private static InboundCommandResultDto Result(InboundDocument document, bool alreadyApplied, string message) => new() { InboundDocumentId = document.Uid, Version = document.Version, PostingStatus = document.PostingStatus, AlreadyApplied = alreadyApplied, Message = message };

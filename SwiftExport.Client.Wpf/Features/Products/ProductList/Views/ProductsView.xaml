@@ -167,7 +167,7 @@
             <controls:RightDrawerHost.MainContent>
                 <DataGrid ItemsSource="{Binding Products.Items}"
                           Style="{StaticResource SwiftExportDataGrid}"
-                          RowHeight="{StaticResource DataGridRowHeightSmall}"
+                          RowHeight="{StaticResource DataGridRowHeightMedium}"
                           FontSize="12"
                           RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                           IsReadOnly="{Binding IsReadOnly}"

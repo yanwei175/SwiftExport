@@ -39,27 +39,52 @@ public sealed class InboundPostingPort(
             var no = await NextNoAsync("IR", businessDate);
             var document = new InboundDocument
             {
-                Uid = GuidSequentialGenerator.NewGuid(), DocumentNo = no, DocumentType = InboundDocumentTypeEnum.PackingListAutoReceipt,
-                LifecycleStatus = InventoryDocumentLifecycleStatusEnum.Active, PostingStatus = InboundPostingStatusEnum.Posted, WarehouseSiteId = group.Key,
-                WarehouseCodeSnapshot = first.WarehouseCode, WarehouseNameSnapshot = first.WarehouseName,
-                SupplierId = first.SupplierId, SupplierNameSnapshot = first.SupplierName, ReceiptDate = businessDate,
-                Remark = $"PackingList {packingListNo} 自动补入库", SourcePackingListId = packingListId,
-                PostedDate = DateTime.Now, PostedBy = currentUser.UserName, CommandId = documentCommandId
+                Uid = GuidSequentialGenerator.NewGuid(),
+                DocumentNo = no,
+                DocumentType = InboundDocumentTypeEnum.PackingListAutoReceipt,
+                LifecycleStatus = InventoryDocumentLifecycleStatusEnum.Active,
+                PostingStatus = InboundPostingStatusEnum.Posted,
+                WarehouseSiteId = group.Key,
+                WarehouseCodeSnapshot = first.WarehouseCode,
+                WarehouseNameSnapshot = first.WarehouseName,
+                SupplierId = first.SupplierId,
+                SupplierNameSnapshot = first.SupplierName,
+                ReceiptDate = businessDate,
+                Remark = $"PackingList {packingListNo} 自动补入库",
+                SourcePackingListId = packingListId,
+                PostedDate = DateTime.Now,
+                PostedBy = currentUser.UserName,
+                CommandId = documentCommandId
             };
             var documentLines = group.Select((x, index) => new InboundDocumentLine
             {
-                Uid = GuidSequentialGenerator.NewGuid(), InboundDocumentId = document.Uid, LineNumber = index + 1,
-                ProductId = x.ProductId, SkuSnapshot = x.Sku, DescriptionSnapshot = x.Description, UnitSnapshot = x.Unit,
-                Quantity = x.Quantity, SourceType = InboundSourceTypeEnum.PackingListContribution, SourceUid = x.ContributionId,
-                NetDemandAllocationId = x.NetDemandAllocationId, GrossDemandId = x.GrossDemandId, SalesOrderNoSnapshot = x.SalesOrderNo
+                Uid = GuidSequentialGenerator.NewGuid(),
+                InboundDocumentId = document.Uid,
+                LineNumber = index + 1,
+                ProductId = x.ProductId,
+                SkuSnapshot = x.Sku,
+                DescriptionSnapshot = x.Description,
+                UnitSnapshot = x.Unit,
+                Quantity = x.Quantity,
+                SourceType = InboundSourceTypeEnum.PackingListContribution,
+                SourceUid = x.ContributionId,
+                NetDemandAllocationId = x.NetDemandAllocationId,
+                GrossDemandId = x.GrossDemandId,
+                SalesOrderNoSnapshot = x.SalesOrderNo
             }).ToList();
             if (await documents.InsertAsync(document, documentLines) != 1 + documentLines.Count)
                 throw new InventoryPostingException("PackingList 自动入库单写入失败。");
             var postingItems = documentLines.Select((x, index) => new InventoryPostingItem
             {
-                CommandItemId = group.ElementAt(index).CommandItemId, WarehouseSiteId = document.WarehouseSiteId, ProductId = x.ProductId,
-                QuantityDelta = x.Quantity, TransactionType = InventoryTransactionTypeEnum.PackingListAutoReceiptInbound,
-                SourceDocumentType = "InboundDocument", SourceDocumentId = document.Uid, SourceLineId = x.Uid, OccurredDate = businessDate
+                CommandItemId = group.ElementAt(index).CommandItemId,
+                WarehouseSiteId = document.WarehouseSiteId,
+                ProductId = x.ProductId,
+                QuantityDelta = x.Quantity,
+                TransactionType = InventoryTransactionTypeEnum.PackingListAutoReceiptInbound,
+                SourceDocumentType = "InboundDocument",
+                SourceDocumentId = document.Uid,
+                SourceLineId = x.Uid,
+                OccurredDate = businessDate
             }).ToList();
             await inventoryPosting.PostAsync(commandId, postingItems, cancellationToken);
             generated.Add(new PackingListGeneratedDocumentDto { DocumentKind = "AutoInbound", Uid = document.Uid, DocumentNo = document.DocumentNo });
@@ -77,10 +102,17 @@ public sealed class InboundPostingPort(
             var ledgers = await documents.GetLedgersAsync(document.Uid, cancellationToken);
             var items = ledgers.Where(x => x.QuantityDelta > 0).Select(x => new InventoryPostingItem
             {
-                CommandItemId = PostingPortIds.Create(commandId, x.Uid, "INBOUND_REVERSE"), WarehouseSiteId = x.WarehouseSiteId,
-                ProductId = x.ProductId, QuantityDelta = -x.QuantityDelta, TransactionType = InventoryTransactionTypeEnum.Reversal,
-                SourceDocumentType = "InboundDocumentReverse", SourceDocumentId = document.Uid, SourceLineId = x.SourceLineId,
-                ReversalOfLedgerId = x.Uid, Reason = reason, OccurredDate = DateTime.Now
+                CommandItemId = PostingPortIds.Create(commandId, x.Uid, "INBOUND_REVERSE"),
+                WarehouseSiteId = x.WarehouseSiteId,
+                ProductId = x.ProductId,
+                QuantityDelta = -x.QuantityDelta,
+                TransactionType = InventoryTransactionTypeEnum.Reversal,
+                SourceDocumentType = "InboundDocumentReverse",
+                SourceDocumentId = document.Uid,
+                SourceLineId = x.SourceLineId,
+                ReversalOfLedgerId = x.Uid,
+                Reason = reason,
+                OccurredDate = DateTime.Now
             }).ToList();
             await inventoryPosting.PostAsync(commandId, items, cancellationToken);
             if (await documents.SetReversedAsync(document.Uid, document.Version, DateTime.Now, currentUser.UserName, reason, commandId) != 1)
@@ -137,26 +169,50 @@ public sealed class OutboundPostingPort(
             if (!noResult.Success || noResult.Data is null) throw new InventoryPostingException("出库单号生成失败。");
             var document = new OutboundDocument
             {
-                Uid = GuidSequentialGenerator.NewGuid(), DocumentNo = noResult.Data.DocumentNo, DocumentType = documentType,
-                LifecycleStatus = InventoryDocumentLifecycleStatusEnum.Active, PostingStatus = OutboundPostingStatusEnum.Posted, WarehouseSiteId = group.Key,
-                WarehouseCodeSnapshot = first.WarehouseCode, WarehouseNameSnapshot = first.WarehouseName, ShipmentDate = businessDate,
-                SourcePackingListId = packingListId, PackingListNoSnapshot = packingListNo, PostedDate = DateTime.Now,
-                PostedBy = currentUser.UserName, CommandId = documentCommandId
+                Uid = GuidSequentialGenerator.NewGuid(),
+                DocumentNo = noResult.Data.DocumentNo,
+                DocumentType = documentType,
+                LifecycleStatus = InventoryDocumentLifecycleStatusEnum.Active,
+                PostingStatus = OutboundPostingStatusEnum.Posted,
+                WarehouseSiteId = group.Key,
+                WarehouseCodeSnapshot = first.WarehouseCode,
+                WarehouseNameSnapshot = first.WarehouseName,
+                ShipmentDate = businessDate,
+                SourcePackingListId = packingListId,
+                PackingListNoSnapshot = packingListNo,
+                PostedDate = DateTime.Now,
+                PostedBy = currentUser.UserName,
+                CommandId = documentCommandId
             };
             var detail = group.Select((x, index) => new OutboundDocumentLine
             {
-                Uid = GuidSequentialGenerator.NewGuid(), OutboundDocumentId = document.Uid, LineNumber = index + 1,
-                ProductId = x.ProductId, SkuSnapshot = x.Sku, DescriptionSnapshot = x.Description, UnitSnapshot = x.Unit,
-                Quantity = x.Quantity, PackingListContributionId = x.ContributionId, NetDemandAllocationId = x.NetDemandAllocationId,
-                GrossDemandId = x.GrossDemandId, SalesOrderNoSnapshot = x.SalesOrderNo, CommandItemId = x.CommandItemId
+                Uid = GuidSequentialGenerator.NewGuid(),
+                OutboundDocumentId = document.Uid,
+                LineNumber = index + 1,
+                ProductId = x.ProductId,
+                SkuSnapshot = x.Sku,
+                DescriptionSnapshot = x.Description,
+                UnitSnapshot = x.Unit,
+                Quantity = x.Quantity,
+                PackingListContributionId = x.ContributionId,
+                NetDemandAllocationId = x.NetDemandAllocationId,
+                GrossDemandId = x.GrossDemandId,
+                SalesOrderNoSnapshot = x.SalesOrderNo,
+                CommandItemId = x.CommandItemId
             }).ToList();
             if (await documents.InsertAsync(document, detail) != 1 + detail.Count)
                 throw new InventoryPostingException("PackingList 出库单写入失败。");
             var postingItems = detail.Select(x => new InventoryPostingItem
             {
-                CommandItemId = x.CommandItemId, WarehouseSiteId = document.WarehouseSiteId, ProductId = x.ProductId,
-                QuantityDelta = -x.Quantity, TransactionType = transactionType, SourceDocumentType = "OutboundDocument",
-                SourceDocumentId = document.Uid, SourceLineId = x.Uid, OccurredDate = businessDate
+                CommandItemId = x.CommandItemId,
+                WarehouseSiteId = document.WarehouseSiteId,
+                ProductId = x.ProductId,
+                QuantityDelta = -x.Quantity,
+                TransactionType = transactionType,
+                SourceDocumentType = "OutboundDocument",
+                SourceDocumentId = document.Uid,
+                SourceLineId = x.Uid,
+                OccurredDate = businessDate
             }).ToList();
             await inventoryPosting.PostAsync(commandId, postingItems, cancellationToken);
             generated.Add(new PackingListGeneratedDocumentDto { DocumentKind = kind, Uid = document.Uid, DocumentNo = document.DocumentNo });
@@ -175,10 +231,17 @@ public sealed class OutboundPostingPort(
             var ledgers = await documents.GetLedgersAsync(document.Uid, cancellationToken);
             var items = ledgers.Where(x => x.QuantityDelta < 0).Select(x => new InventoryPostingItem
             {
-                CommandItemId = PostingPortIds.Create(commandId, x.Uid, "OUTBOUND_REVERSE"), WarehouseSiteId = x.WarehouseSiteId,
-                ProductId = x.ProductId, QuantityDelta = -x.QuantityDelta, TransactionType = InventoryTransactionTypeEnum.Reversal,
-                SourceDocumentType = "OutboundDocumentReverse", SourceDocumentId = document.Uid, SourceLineId = x.SourceLineId,
-                ReversalOfLedgerId = x.Uid, Reason = reason, OccurredDate = DateTime.Now
+                CommandItemId = PostingPortIds.Create(commandId, x.Uid, "OUTBOUND_REVERSE"),
+                WarehouseSiteId = x.WarehouseSiteId,
+                ProductId = x.ProductId,
+                QuantityDelta = -x.QuantityDelta,
+                TransactionType = InventoryTransactionTypeEnum.Reversal,
+                SourceDocumentType = "OutboundDocumentReverse",
+                SourceDocumentId = document.Uid,
+                SourceLineId = x.SourceLineId,
+                ReversalOfLedgerId = x.Uid,
+                Reason = reason,
+                OccurredDate = DateTime.Now
             }).ToList();
             await inventoryPosting.PostAsync(commandId, items, cancellationToken);
             if (await documents.SetReversedAsync(document.Uid, document.Version, DateTime.Now, currentUser.UserName, reason) != 1)

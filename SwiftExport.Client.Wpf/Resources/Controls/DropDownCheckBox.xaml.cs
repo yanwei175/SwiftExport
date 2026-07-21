@@ -72,6 +72,13 @@ public partial class DropDownCheckBox : UserControl
                 false,
                 FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
 
+    public static readonly DependencyProperty ShowClearOptionProperty =
+        DependencyProperty.Register(
+            nameof(ShowClearOption),
+            typeof(bool),
+            typeof(DropDownCheckBox),
+            new PropertyMetadata(true));
+
     private readonly ObservableCollection<DropDownCheckBoxOption> _options = [];
     private INotifyCollectionChanged? _itemsSourceNotifier;
     private INotifyCollectionChanged? _selectedItemsNotifier;
@@ -127,6 +134,15 @@ public partial class DropDownCheckBox : UserControl
     {
         get => (bool)GetValue(IsDropDownOpenProperty);
         set => SetValue(IsDropDownOpenProperty, value);
+    }
+
+    /// <summary>
+    /// 获取或设置是否在下拉列表顶部显示“清空选择”操作。默认显示。
+    /// </summary>
+    public bool ShowClearOption
+    {
+        get => (bool)GetValue(ShowClearOptionProperty);
+        set => SetValue(ShowClearOptionProperty, value);
     }
 
     public string SelectionText => (string)GetValue(SelectionTextProperty);
@@ -222,6 +238,27 @@ public partial class DropDownCheckBox : UserControl
         SetCurrentValue(IsDropDownOpenProperty, false);
         DropDownButton.Focus();
         e.Handled = true;
+    }
+
+    private void ClearSelectionButton_Click(object sender, RoutedEventArgs e)
+    {
+        var selectedItems = SelectedItems;
+        if (!CanClearSelection(selectedItems))
+        {
+            UpdateClearOptionState();
+            return;
+        }
+
+        try
+        {
+            selectedItems!.Clear();
+        }
+        catch (Exception exception) when (exception is NotSupportedException or InvalidOperationException)
+        {
+            // 外部集合可能仅在运行时拒绝修改；重新同步 UI，且不替换绑定集合。
+        }
+
+        SynchronizeOptionsFromSelection();
     }
 
     private void FocusInitialOption()
@@ -473,6 +510,17 @@ public partial class DropDownCheckBox : UserControl
         SetValue(
             SelectionTextPropertyKey,
             ordinals.Length == 0 ? Placeholder ?? string.Empty : string.Join(",", ordinals));
+        UpdateClearOptionState();
+    }
+
+    private void UpdateClearOptionState()
+    {
+        ClearSelectionButton.IsEnabled = CanClearSelection(SelectedItems);
+    }
+
+    private static bool CanClearSelection(IList? selectedItems)
+    {
+        return selectedItems is { Count: > 0, IsReadOnly: false, IsFixedSize: false };
     }
 
     private sealed class DropDownCheckBoxOption : ObservableObject

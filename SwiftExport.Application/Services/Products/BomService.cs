@@ -4,6 +4,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
 using SwiftExport.Application.Services.DemandPlanning;
+using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
@@ -20,6 +21,7 @@ public partial class BomService(
 {
 
     private readonly ILogger<BomService> _logger = context.LoggerFactory.CreateLogger<BomService>();
+    private readonly BomStructureValidator _structureValidator = new();
 
     protected override async Task<string?> ValidateBeforeCreateAsync(List<CreateItemRequest<BomDto>> createItems)
         => await ValidateWriteAsync(createItems.Select(x => (Guid.Empty, x.Data)));
@@ -229,76 +231,328 @@ public partial class BomService(
 
     public async Task<ServiceResult<BomBatchSaveResponse>> BatchSaveAsync(BomBatchSaveRequest batchReq)
     {
-        //_session.Transaction = _session.Connection.BeginTransaction();
-        //var result = new BomBatchSaveResponse();
+        if (batchReq is null)
+            return ServiceResult<BomBatchSaveResponse>.Fail("请求不能为空。");
 
-        //var createList = batchReq.CreateItems?.Adapt<List<Bom>>();
-        //var updateList = batchReq.UpdateItems?.Adapt<List<Bom>>();
-        //var deleteIds = batchReq.DeleteItems;
+        batchReq.CreateItems ??= [];
+        batchReq.UpdateItems ??= [];
+        batchReq.DeleteItems ??= [];
+        if (batchReq.CreateItems.Any(x => x is null)
+            || batchReq.UpdateItems.Any(x => x is null)
+            || batchReq.DeleteItems.Any(x => x is null))
+            return ServiceResult<BomBatchSaveResponse>.Fail("批量保存明细不能包含空项。");
+        if (!batchReq.HasChanges)
+            return ServiceResult<BomBatchSaveResponse>.Fail("没有需要保存的数据。");
+        if (_session.Transaction is not null)
+            return ServiceResult<BomBatchSaveResponse>.Fail("当前请求已存在未完成事务，不能重复开始 BOM 批量保存。");
 
-        //try
-        //{
-        //    var errorMsg = new StringBuilder();
+        var response = new BomBatchSaveResponse { TotalCount = batchReq.TotalCount };
+        try
+        {
+            _session.Transaction = _session.Connection.BeginTransaction();
+            var preparation = await PrepareBatchSaveAsync(batchReq);
+            if (preparation.Error is not null)
+            {
+                _session.Transaction.Rollback();
+                return ServiceResult<BomBatchSaveResponse>.Fail(preparation.Error);
+            }
 
-        //    if (updateList is { Count: > 0 })
-        //    {
-        //        var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
-        //        if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
+            foreach (var (request, entity) in preparation.CreateItems)
+            {
+                var writeResult = await bomRepo.AddAsync(entity);
+                response.Items.Add(SaveItemResultFactory.FromCreate(request, writeResult));
+                EnsureWriteSucceeded(writeResult, "新增 BOM 行失败。");
+            }
 
-        //        var needUpdateUids = updateList.Select(x => x.Uid).ToList();
-        //        var existingUids = await bomRepo.GetExistingIdListAsync(needUpdateUids);
-        //        var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
-        //        if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
-        //    }
+            foreach (var (request, entity) in preparation.UpdateItems)
+            {
+                var writeResult = await bomRepo.UpdateAsync(entity);
+                response.Items.Add(SaveItemResultFactory.FromUpdate(request, writeResult));
+                EnsureWriteSucceeded(writeResult, "更新 BOM 行失败。");
+            }
 
-        //    if (deleteIds is { Count: > 0 })
-        //    {
-        //        var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
-        //        if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
-        //    }
+            foreach (var request in batchReq.DeleteItems)
+            {
+                var writeResult = await bomRepo.DeleteAsync(request.Uid, request.Version, request.IsSoftDelete);
+                response.Items.Add(SaveItemResultFactory.FromDelete(request, writeResult));
+                EnsureWriteSucceeded(writeResult, "删除 BOM 行失败。");
+            }
 
-        //    if (errorMsg.Length > 0)
-        //        return ServiceResult<BomBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
-
-        //    if (bomRepo is not IBatchWriteRepository<Bom> batchRepository)
-        //        return ServiceResult<BomBatchSaveResponse>.Fail($"{nameof(Bom)} 仓储未实现批量保存");
-
-        //    if (createList is { Count: > 0 })
-        //    {
-        //        result.AddIdList = [.. await batchRepository.AddRangeAsync(createList)];
-        //    }
-
-        //    if (updateList is { Count: > 0 })
-        //    {
-        //        await batchRepository.UpdateRangeAsync(updateList);
-        //        result.UpdateIdList = [.. updateList.Select(x => x.Uid)];
-        //    }
-
-        //    if (deleteIds is { Count: > 0 })
-        //    {
-        //        await batchRepository.DeleteRangeAsync(deleteIds);
-        //        result.DeleteIdList = deleteIds;
-        //    }
-
-        //    _session.Transaction.Commit();
-        //    return ServiceResult<BomBatchSaveResponse>.Ok(result);
-        //}
-        //catch (Exception ex)
-        //{
-        //    _session.Transaction.Rollback();
-        //    return ServiceResult<BomBatchSaveResponse>.Fail(ex.Message);
-        //}
-        //finally
-        //{
-        //    _session.Transaction.Dispose();
-        //    _session.Transaction = null;
-        //}
-        throw new NotImplementedException();
+            _session.Transaction.Commit();
+            return ServiceResult<BomBatchSaveResponse>.Ok(
+                response,
+                $"批量保存完成，成功 {response.SuccessCount} 条。");
+        }
+        catch (BomBatchWriteException ex)
+        {
+            TryRollbackTransaction();
+            _logger.LogWarning(ex, "BOM 批量保存因写入冲突失败，已回滚全部操作。");
+            return ServiceResult<BomBatchSaveResponse>.Fail(
+                $"BOM 批量保存失败，所有操作已回滚。原因：{ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            TryRollbackTransaction();
+            _logger.LogError(ex, "BOM 批量保存发生未预期异常，已回滚全部操作。");
+            return ServiceResult<BomBatchSaveResponse>.Fail(
+                "BOM 批量保存失败，所有操作已回滚，请刷新后重试。");
+        }
+        finally
+        {
+            _session.Transaction?.Dispose();
+            _session.Transaction = null;
+        }
     }
 
-    public Task<ServiceResult<PagedResponseBase<BomDto>>> GetPagedListAsync(BomSearchRequest request)
+    public async Task<ServiceResult<PagedResponseBase<BomDto>>> GetPagedListAsync(BomSearchRequest request)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var result = await bomRepo.GetPagedAsync(request ?? new BomSearchRequest());
+            return ServiceResult<PagedResponseBase<BomDto>>.Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "BOM 分页查询失败。");
+            return ServiceResult<PagedResponseBase<BomDto>>.Fail($"查询失败：{ex.Message}");
+        }
+    }
+
+    private async Task<BomBatchPreparation> PrepareBatchSaveAsync(BomBatchSaveRequest request)
+    {
+        var requestError = ValidateBatchRequest(request);
+        if (requestError is not null) return BomBatchPreparation.Fail(requestError);
+
+        var operationIds = request.UpdateItems.Select(x => x.Uid)
+            .Concat(request.DeleteItems.Select(x => x.Uid))
+            .Distinct()
+            .ToArray();
+        var existingRows = await bomRepo.GetByIdListAsync(operationIds, withUpdLock: true);
+        var existingById = existingRows.ToDictionary(x => x.Uid);
+        var missingIds = operationIds.Except(existingById.Keys).ToArray();
+        if (missingIds.Length > 0)
+            return BomBatchPreparation.Fail("包含不存在或已删除的 BOM 行：" + string.Join(", ", missingIds));
+
+        foreach (var item in request.UpdateItems)
+            if (existingById[item.Uid].Version != item.Version)
+                return BomBatchPreparation.Fail($"BOM 行 {item.Uid} 已被其他人修改，请刷新后重试。");
+        foreach (var item in request.DeleteItems)
+            if (existingById[item.Uid].Version != item.Version)
+                return BomBatchPreparation.Fail($"BOM 行 {item.Uid} 已被其他人修改，请刷新后重试。");
+
+        var parentByBomNo = new Dictionary<string, Product>(StringComparer.OrdinalIgnoreCase);
+        foreach (var bomNo in request.CreateItems.Select(x => x.Data.BomNo)
+                     .Concat(request.UpdateItems.Select(x => x.Data.BomNo))
+                     .Where(x => !string.IsNullOrWhiteSpace(x))
+                     .Select(x => x.Trim())
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var foundParent = await pdRepo.GetByBomNoAsync(bomNo);
+            if (foundParent is null)
+                return BomBatchPreparation.Fail($"BOM {bomNo} 没有对应的父产品。");
+            var parent = await pdRepo.GetByIdAsync(foundParent.Uid, withUpdLock: true);
+            if (parent is null || !string.Equals(parent.BomNo, bomNo, StringComparison.OrdinalIgnoreCase))
+                return BomBatchPreparation.Fail($"BOM {bomNo} 对应的父产品已发生变化，请刷新后重试。");
+            if (parent.BomVersion <= 0)
+                return BomBatchPreparation.Fail($"父产品 {parent.Sku} 的 BOM 版本必须大于零。");
+            var parentError = CustomerSuppliedMaterialPolicy.ValidateBomParent(parent);
+            if (parentError is not null) return BomBatchPreparation.Fail(parentError);
+            parentByBomNo[bomNo] = parent;
+        }
+
+        var existingParentIds = existingRows
+            .Where(x => x.ParentProductId.HasValue)
+            .Select(x => x.ParentProductId!.Value)
+            .Distinct()
+            .ToArray();
+        var existingParents = await pdRepo.GetByIdListAsync(existingParentIds, withUpdLock: true);
+        var parentById = existingParents.ToDictionary(x => x.Uid);
+        foreach (var row in existingRows)
+        {
+            if (!row.ParentProductId.HasValue || !parentById.TryGetValue(row.ParentProductId.Value, out var parent))
+                return BomBatchPreparation.Fail($"BOM 行 {row.Uid} 的父产品不存在或已删除。");
+            if (string.IsNullOrWhiteSpace(parent.BomNo)
+                || !string.Equals(row.BomNo, parent.BomNo, StringComparison.OrdinalIgnoreCase))
+                return BomBatchPreparation.Fail($"BOM 行 {row.Uid} 与父产品的 BOM 号不一致，不能修改或删除。");
+            if (row.BomVersion != parent.BomVersion)
+                return BomBatchPreparation.Fail($"BOM 行 {row.Uid} 属于历史版本，不能修改或删除。");
+            parentByBomNo[parent.BomNo] = parent;
+        }
+
+        var componentIds = request.CreateItems.Select(x => x.Data.SubSkuId)
+            .Concat(request.UpdateItems.Select(x => x.Data.SubSkuId))
+            .Distinct()
+            .ToArray();
+        var components = await pdRepo.GetByIdListAsync(componentIds, withUpdLock: true);
+        var componentById = components.ToDictionary(x => x.Uid);
+        var missingComponents = componentIds.Except(componentById.Keys).ToArray();
+        if (missingComponents.Length > 0)
+            return BomBatchPreparation.Fail("以下 BOM 子产品不存在或已删除：" + string.Join(", ", missingComponents));
+
+        var currentGraph = (await bomRepo.GetCurrentVersionBomGraphAsync()).ToList();
+        var nextLineByParent = currentGraph
+            .Where(x => x.ParentProductId.HasValue)
+            .GroupBy(x => (ParentId: x.ParentProductId!.Value, x.BomVersion))
+            .ToDictionary(x => x.Key, x => x.Max(line => line.LineNumber));
+
+        var createItems = new List<(CreateItemRequest<BomDto> Request, Bom Entity)>();
+        foreach (var item in request.CreateItems)
+        {
+            var parent = parentByBomNo[item.Data.BomNo.Trim()];
+            var key = (parent.Uid, parent.BomVersion);
+            var lineNumber = nextLineByParent.TryGetValue(key, out var currentMax) ? currentMax + 1 : 1;
+            nextLineByParent[key] = lineNumber;
+            createItems.Add((item, BuildBomEntity(item.Data, parent, componentById[item.Data.SubSkuId], lineNumber)));
+        }
+
+        var updateItems = new List<(UpdateItemRequest<BomDto> Request, Bom Entity)>();
+        foreach (var item in request.UpdateItems)
+        {
+            var existing = existingById[item.Uid];
+            var parent = parentById[existing.ParentProductId!.Value];
+            if (!string.Equals(existing.BomNo, item.Data.BomNo.Trim(), StringComparison.OrdinalIgnoreCase))
+                return BomBatchPreparation.Fail($"BOM 行 {item.Uid} 不能修改所属 BOM 号。");
+
+            existing.ComponentProductId = item.Data.SubSkuId;
+            existing.ComponentSkuSnapshot = componentById[item.Data.SubSkuId].Sku;
+            existing.Numerator = item.Data.Numerator;
+            existing.Denominator = item.Data.Denominator;
+            existing.Note = NormalizeNote(item.Data.Note);
+            existing.ParentProductId = parent.Uid;
+            existing.ParentSkuSnapshot = parent.Sku;
+            existing.BomVersion = parent.BomVersion;
+            existing.Version = item.Version;
+            updateItems.Add((item, existing));
+        }
+
+        var deletedIds = request.DeleteItems.Select(x => x.Uid).ToHashSet();
+        var updatedById = updateItems.ToDictionary(x => x.Entity.Uid, x => x.Entity);
+        var finalGraph = currentGraph
+            .Where(x => !deletedIds.Contains(x.Uid))
+            .Select(x => updatedById.TryGetValue(x.Uid, out var updated) ? updated : x)
+            .Concat(createItems.Select(x => x.Entity))
+            .ToArray();
+
+        var affectedParentIds = createItems.Select(x => x.Entity.ParentProductId!.Value)
+            .Concat(updateItems.Select(x => x.Entity.ParentProductId!.Value))
+            .Concat(request.DeleteItems.Select(x => existingById[x.Uid].ParentProductId!.Value))
+            .Distinct()
+            .ToArray();
+        var affectedParentIdSet = affectedParentIds.ToHashSet();
+        var validationProductIds = affectedParentIds
+            .Concat(finalGraph
+                .Where(x => x.ParentProductId.HasValue
+                            && affectedParentIdSet.Contains(x.ParentProductId.Value)
+                            && x.ComponentProductId.HasValue)
+                .Select(x => x.ComponentProductId!.Value))
+            .Distinct()
+            .ToArray();
+        var validationProducts = await pdRepo.GetByIdListAsync(validationProductIds, withUpdLock: true);
+        var affectedProducts = validationProducts
+            .Concat(parentById.Values)
+            .Concat(parentByBomNo.Values)
+            .GroupBy(x => x.Uid)
+            .ToDictionary(x => x.Key, x => x.First());
+        var structureError = _structureValidator.Validate(finalGraph, affectedParentIds, affectedProducts);
+        return structureError is null
+            ? BomBatchPreparation.Ok(createItems, updateItems)
+            : BomBatchPreparation.Fail(structureError);
+    }
+
+    private static string? ValidateBatchRequest(BomBatchSaveRequest request)
+    {
+        foreach (var item in request.CreateItems)
+        {
+            var error = ValidateDto(item.Data, item.RowIndex, "新增");
+            if (error is not null) return error;
+        }
+        foreach (var item in request.UpdateItems)
+        {
+            if (item.Uid == Guid.Empty || item.Version <= 0)
+                return $"第 {FormatRowIndex(item.RowIndex)} 行：修改 BOM 的标识或版本无效。";
+            var error = ValidateDto(item.Data, item.RowIndex, "修改");
+            if (error is not null) return error;
+        }
+        foreach (var item in request.DeleteItems)
+            if (item.Uid == Guid.Empty || item.Version <= 0)
+                return $"第 {FormatRowIndex(item.RowIndex)} 行：删除 BOM 的标识或版本无效。";
+
+        var duplicateUpdateId = FindDuplicateUid(request.UpdateItems.Select(x => x.Uid));
+        if (duplicateUpdateId.HasValue) return $"BOM 行 {duplicateUpdateId} 在修改列表中重复。";
+        var duplicateDeleteId = FindDuplicateUid(request.DeleteItems.Select(x => x.Uid));
+        if (duplicateDeleteId.HasValue) return $"BOM 行 {duplicateDeleteId} 在删除列表中重复。";
+        var conflictingId = request.UpdateItems.Select(x => x.Uid)
+            .Intersect(request.DeleteItems.Select(x => x.Uid))
+            .FirstOrDefault();
+        return conflictingId == Guid.Empty ? null : $"同一 BOM 行不能同时修改和删除：{conflictingId}。";
+    }
+
+    private static string? ValidateDto(BomDto? dto, int? rowIndex, string operation)
+    {
+        if (dto is null) return $"第 {FormatRowIndex(rowIndex)} 行：{operation}数据不能为空。";
+        if (string.IsNullOrWhiteSpace(dto.BomNo)) return $"第 {FormatRowIndex(rowIndex)} 行：BOM 号不能为空。";
+        if (dto.SubSkuId == Guid.Empty) return $"第 {FormatRowIndex(rowIndex)} 行：BOM 子产品不能为空。";
+        if (dto.Numerator <= 0 || dto.Denominator <= 0)
+            return $"第 {FormatRowIndex(rowIndex)} 行：用量分子和分母必须大于零。";
+        dto.BomNo = dto.BomNo.Trim();
+        return null;
+    }
+
+    private static Bom BuildBomEntity(BomDto dto, Product parent, Product child, int lineNumber) => new()
+    {
+        BomNo = parent.BomNo!.Trim(),
+        BomVersion = parent.BomVersion,
+        ParentProductId = parent.Uid,
+        ParentSkuSnapshot = parent.Sku,
+        LineNumber = lineNumber,
+        ComponentProductId = child.Uid,
+        ComponentSkuSnapshot = child.Sku,
+        Numerator = dto.Numerator,
+        Denominator = dto.Denominator,
+        Note = NormalizeNote(dto.Note)
+    };
+
+    private static string? NormalizeNote(string? note) => string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+    private static string FormatRowIndex(int? rowIndex) => rowIndex?.ToString() ?? "?";
+    private static Guid? FindDuplicateUid(IEnumerable<Guid> ids) => ids
+        .Where(x => x != Guid.Empty)
+        .GroupBy(x => x)
+        .FirstOrDefault(x => x.Count() > 1)
+        ?.Key;
+
+    private static void EnsureWriteSucceeded(RepositoryWriteResult result, string fallbackMessage)
+    {
+        if (!result.Success) throw new BomBatchWriteException(result.Message ?? fallbackMessage);
+    }
+
+    private void TryRollbackTransaction()
+    {
+        try
+        {
+            _session.Transaction?.Rollback();
+        }
+        catch (Exception rollbackException)
+        {
+            _logger.LogError(rollbackException, "BOM 批量保存事务回滚失败。");
+        }
+    }
+
+    private sealed class BomBatchWriteException(string message) : Exception(message);
+
+    private sealed class BomBatchPreparation
+    {
+        public string? Error { get; private init; }
+        public IReadOnlyList<(CreateItemRequest<BomDto> Request, Bom Entity)> CreateItems { get; private init; } = [];
+        public IReadOnlyList<(UpdateItemRequest<BomDto> Request, Bom Entity)> UpdateItems { get; private init; } = [];
+
+        public static BomBatchPreparation Fail(string error) => new() { Error = error };
+        public static BomBatchPreparation Ok(
+            IReadOnlyList<(CreateItemRequest<BomDto> Request, Bom Entity)> createItems,
+            IReadOnlyList<(UpdateItemRequest<BomDto> Request, Bom Entity)> updateItems) => new()
+            {
+                CreateItems = createItems,
+                UpdateItems = updateItems
+            };
     }
     #endregion
 

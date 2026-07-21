@@ -255,7 +255,7 @@ EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
             </DataGrid.Columns>
         </DataGrid>
 
-        <GridSplitter Grid.Row="4" Height="5" HorizontalAlignment="Stretch" Background="{DynamicResource SwiftExportBrush.Border}" />
+        <GridSplitter Grid.Row="4" Height="5" HorizontalAlignment="Stretch" />
 
         <DataGrid Grid.Row="5"
                   RowHeight="45"

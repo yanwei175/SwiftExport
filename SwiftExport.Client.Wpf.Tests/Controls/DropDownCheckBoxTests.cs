@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -218,6 +219,141 @@ public sealed class DropDownCheckBoxTests
                 await PumpDispatcherAsync();
                 CollectionAssert.AreEqual(new[] { "客供件" }, selectedItems.ToArray());
                 Assert.AreEqual("4", control.SelectionText);
+            }
+            finally
+            {
+                control.IsDropDownOpen = false;
+                window.Close();
+            }
+        });
+    }
+
+    [TestMethod]
+    public void ClearOption_ShouldBeVisibleByDefaultAndCanBeHidden()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var control = new DropDownCheckBox
+            {
+                Width = 180,
+                ItemsSource = new[] { "成品", "零件" }
+            };
+            var window = CreateWindow(control);
+
+            try
+            {
+                window.Show();
+                await PumpDispatcherAsync();
+
+                var clearButton = (Button?)control.FindName("ClearSelectionButton");
+                var clearPanel = (StackPanel?)control.FindName("ClearOptionPanel");
+                Assert.IsNotNull(clearButton);
+                Assert.IsNotNull(clearPanel);
+                Assert.IsTrue(control.ShowClearOption);
+                Assert.AreEqual(Visibility.Visible, clearPanel.Visibility);
+
+                control.ShowClearOption = false;
+                await PumpDispatcherAsync();
+                Assert.AreEqual(Visibility.Collapsed, clearPanel.Visibility);
+
+                control.ShowClearOption = true;
+                await PumpDispatcherAsync();
+                Assert.AreEqual(Visibility.Visible, clearPanel.Visibility);
+            }
+            finally
+            {
+                control.IsDropDownOpen = false;
+                window.Close();
+            }
+        });
+    }
+
+    [TestMethod]
+    public void ClearOption_ShouldClearOriginalCollectionAndKeepPopupOpen()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var selectedItems = new ObservableCollection<string> { "成品", "虚拟件" };
+            var originalCollection = selectedItems;
+            var control = new DropDownCheckBox
+            {
+                Width = 180,
+                Placeholder = "物料类型",
+                ItemsSource = new[] { "成品", "零件", "虚拟件" },
+                SelectedItems = selectedItems
+            };
+            var window = CreateWindow(control);
+
+            try
+            {
+                window.Show();
+                await PumpDispatcherAsync();
+
+                var triggerButton = (Button?)control.FindName("DropDownButton");
+                var clearButton = (Button?)control.FindName("ClearSelectionButton");
+                var popup = (Popup?)control.FindName("DropDownPopup");
+                var itemsControl = (ItemsControl?)control.FindName("OptionItemsControl");
+                Assert.IsNotNull(triggerButton);
+                Assert.IsNotNull(clearButton);
+                Assert.IsNotNull(popup);
+                Assert.IsNotNull(itemsControl);
+
+                RaiseClick(triggerButton);
+                await PumpDispatcherAsync();
+                Assert.IsTrue(clearButton.IsEnabled);
+                Assert.AreEqual("1,3", control.SelectionText);
+
+                RaiseClick(clearButton);
+                await PumpDispatcherAsync();
+
+                Assert.AreSame(originalCollection, control.SelectedItems, "清空不得替换外部绑定集合。");
+                Assert.IsEmpty(selectedItems);
+                Assert.AreEqual("物料类型", control.SelectionText);
+                Assert.IsFalse(FindCheckBox(itemsControl, 0).IsChecked);
+                Assert.IsFalse(FindCheckBox(itemsControl, 2).IsChecked);
+                Assert.IsFalse(clearButton.IsEnabled);
+                Assert.IsTrue(popup.IsOpen, "清空后应保持 Popup 展开，方便继续选择。");
+            }
+            finally
+            {
+                control.IsDropDownOpen = false;
+                window.Close();
+            }
+        });
+    }
+
+    [TestMethod]
+    public void ClearOption_ShouldDisableForReadOnlyAndFixedSizeSelections()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var readOnlySelection = ArrayList.ReadOnly(new ArrayList { "成品" });
+            var control = new DropDownCheckBox
+            {
+                Width = 180,
+                ItemsSource = new[] { "成品", "零件" },
+                SelectedItems = readOnlySelection
+            };
+            var window = CreateWindow(control);
+
+            try
+            {
+                window.Show();
+                await PumpDispatcherAsync();
+
+                var clearButton = (Button?)control.FindName("ClearSelectionButton");
+                Assert.IsNotNull(clearButton);
+                Assert.IsFalse(clearButton.IsEnabled);
+                RaiseClick(clearButton);
+                Assert.AreEqual(1, readOnlySelection.Count);
+
+                var fixedSizeSelection = new[] { "成品" };
+                control.SelectedItems = fixedSizeSelection;
+                await PumpDispatcherAsync();
+
+                Assert.IsFalse(clearButton.IsEnabled);
+                RaiseClick(clearButton);
+                CollectionAssert.AreEqual(new[] { "成品" }, fixedSizeSelection);
             }
             finally
             {

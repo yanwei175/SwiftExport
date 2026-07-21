@@ -1,10 +1,12 @@
 ﻿using Dapper;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
-using System.Data;
+using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Products;
 
@@ -16,25 +18,45 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
 
     public async Task<IEnumerable<BomDto>> GetBomDtoByBomNoAsync(string bomNo)
     {
-        var sql = $@"SELECT 
-                        t1.[Uid],t1.[Version],t1.[IsDeleted],t1.[CreatedDate],t1.[CreatedBy],t1.[UpdatedDate],t1.[UpdatedBy],
-                        t1.[BomNo],t1.[ComponentProductId] AS [SubSkuId],t1.[ComponentSkuSnapshot] AS [SubSku],
-                        t1.[Numerator],t1.[Denominator],t1.[Note],
-                        t2.{nameof(Product.DescriptionZh)}  as {nameof(BomDto.Description)}, 
-                        t3.{nameof(ProductColor.ColorNameZh)} as {nameof(BomDto.Finish)},
-                        t2.{nameof(Product.FeaturesZh)} as {nameof(BomDto.Features)},
-                        t2.{nameof(Product.MainImage)} as {nameof(BomDto.MainImage)}
-                    FROM {BomTable} t1
-                    LEFT JOIN {ProductTable} t2 ON t1.{nameof(Bom.ComponentProductId)} = t2.{nameof(Product.Uid)}
-                    LEFT JOIN {ProductColorTable} t3 ON t2.{nameof(Product.ColorId)} = t3.{nameof(ProductColor.Uid)}
-                    WHERE t1.{nameof(Bom.BomNo)} = @BomNo";
+        var sql = $@"SELECT
+                        b.[Uid],b.[Version],b.[IsDeleted],b.[CreatedDate],b.[CreatedBy],b.[UpdatedDate],b.[UpdatedBy],
+                        b.[BomNo],b.[ComponentProductId] AS [SubSkuId],b.[ComponentSkuSnapshot] AS [SubSku],
+                        b.[Numerator],b.[Denominator],b.[Note],
+                        child.{nameof(Product.DescriptionZh)} AS {nameof(BomDto.Description)},
+                        color.{nameof(ProductColor.ColorNameZh)} AS {nameof(BomDto.Finish)},
+                        child.{nameof(Product.FeaturesZh)} AS {nameof(BomDto.Features)},
+                        child.{nameof(Product.MainImage)} AS {nameof(BomDto.MainImage)}
+                    FROM [{BomTable}] b
+                    INNER JOIN [{ProductTable}] parent
+                        ON b.{nameof(Bom.ParentProductId)} = parent.{nameof(Product.Uid)}
+                       AND b.{nameof(Bom.BomNo)} = parent.{nameof(Product.BomNo)}
+                       AND b.{nameof(Bom.BomVersion)} = parent.{nameof(Product.BomVersion)}
+                       AND parent.{nameof(Product.IsDeleted)} = 0
+                    LEFT JOIN [{ProductTable}] child
+                        ON b.{nameof(Bom.ComponentProductId)} = child.{nameof(Product.Uid)}
+                       AND child.{nameof(Product.IsDeleted)} = 0
+                    LEFT JOIN [{ProductColorTable}] color
+                        ON child.{nameof(Product.ColorId)} = color.{nameof(ProductColor.Uid)}
+                       AND color.{nameof(ProductColor.IsDeleted)} = 0
+                    WHERE b.{nameof(Bom.BomNo)} = @BomNo
+                      AND b.{nameof(Bom.IsDeleted)} = 0
+                    ORDER BY b.{nameof(Bom.LineNumber)}, b.{nameof(Bom.Uid)}";
 
-        return await Connection.QueryAsync<BomDto>(sql, new { BomNo = bomNo });
+        return await Connection.QueryAsync<BomDto>(sql, new { BomNo = bomNo.Trim() }, transaction: Transaction);
     }
     public async Task<IEnumerable<Bom>> GetBomByBomNoAsync(string bomNo)
     {
-        var sql = $"SELECT * FROM  [{BomTable}] Where {nameof(Bom.BomNo)} = @BomNo";
-        return await Connection.QueryAsync<Bom>(sql, new { BomNo = bomNo });
+        var sql = $@"SELECT b.*
+                    FROM [{BomTable}] b
+                    INNER JOIN [{ProductTable}] parent
+                        ON b.{nameof(Bom.ParentProductId)} = parent.{nameof(Product.Uid)}
+                       AND b.{nameof(Bom.BomNo)} = parent.{nameof(Product.BomNo)}
+                       AND b.{nameof(Bom.BomVersion)} = parent.{nameof(Product.BomVersion)}
+                       AND parent.{nameof(Product.IsDeleted)} = 0
+                    WHERE b.{nameof(Bom.BomNo)} = @BomNo
+                      AND b.{nameof(Bom.IsDeleted)} = 0
+                    ORDER BY b.{nameof(Bom.LineNumber)}, b.{nameof(Bom.Uid)}";
+        return await Connection.QueryAsync<Bom>(sql, new { BomNo = bomNo.Trim() }, transaction: Transaction);
     }
 
     public async Task<IReadOnlyList<Bom>> GetByBomNoAndVersionAsync(string bomNo, int version)
@@ -73,6 +95,107 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
             new { ProductId = productId, BomNo = string.IsNullOrWhiteSpace(bomNo) ? null : bomNo.Trim() },
             transaction: Transaction);
     }
+
+    public async Task<IReadOnlyList<Bom>> GetCurrentVersionBomGraphAsync()
+    {
+        var sql = $@"SELECT b.*
+                    FROM [{BomTable}] b WITH(UPDLOCK,HOLDLOCK)
+                    INNER JOIN [{ProductTable}] parent
+                        ON b.{nameof(Bom.ParentProductId)} = parent.{nameof(Product.Uid)}
+                       AND b.{nameof(Bom.BomNo)} = parent.{nameof(Product.BomNo)}
+                       AND b.{nameof(Bom.BomVersion)} = parent.{nameof(Product.BomVersion)}
+                       AND parent.{nameof(Product.IsDeleted)} = 0
+                    WHERE b.{nameof(Bom.IsDeleted)} = 0;";
+        var rows = await Connection.QueryAsync<Bom>(sql, transaction: Transaction);
+        return [.. rows];
+    }
+
+    public async Task<PagedResponseBase<BomDto>> GetPagedAsync(BomSearchRequest request)
+    {
+        request ??= new BomSearchRequest();
+        var pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
+        var pageSize = Math.Clamp(request.PageSize <= 0 ? 20 : request.PageSize, 1, 500);
+
+        var parameters = new DynamicParameters();
+        parameters.Add("Offset", (pageIndex - 1) * pageSize);
+        parameters.Add("PageSize", pageSize);
+
+        var where = new StringBuilder($@"WHERE b.{nameof(Bom.IsDeleted)} = 0
+                                          AND parent.{nameof(Product.IsDeleted)} = 0");
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            where.AppendLine($@"AND (
+                   b.{nameof(Bom.BomNo)} LIKE @Keyword ESCAPE '~'
+                OR b.{nameof(Bom.ParentSkuSnapshot)} LIKE @Keyword ESCAPE '~'
+                OR b.{nameof(Bom.ComponentSkuSnapshot)} LIKE @Keyword ESCAPE '~'
+                OR child.{nameof(Product.DescriptionEn)} LIKE @Keyword ESCAPE '~'
+                OR child.{nameof(Product.DescriptionZh)} LIKE @Keyword ESCAPE '~'
+                OR child.{nameof(Product.FeaturesEn)} LIKE @Keyword ESCAPE '~'
+                OR child.{nameof(Product.FeaturesZh)} LIKE @Keyword ESCAPE '~'
+                OR color.{nameof(ProductColor.ColorCode)} LIKE @Keyword ESCAPE '~'
+                OR color.{nameof(ProductColor.ColorNameEn)} LIKE @Keyword ESCAPE '~'
+                OR color.{nameof(ProductColor.ColorNameZh)} LIKE @Keyword ESCAPE '~'
+            )");
+            parameters.Add("Keyword", SqlLikePattern.Build(request.Keyword));
+        }
+
+        var batchKeywords = request.BatchKeywords?
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(300)
+            .ToArray() ?? [];
+        if (batchKeywords.Length > 0)
+        {
+            where.AppendLine($@"AND (
+                   b.{nameof(Bom.BomNo)} IN @BatchKeywords
+                OR b.{nameof(Bom.ParentSkuSnapshot)} IN @BatchKeywords
+                OR b.{nameof(Bom.ComponentSkuSnapshot)} IN @BatchKeywords
+            )");
+            parameters.Add("BatchKeywords", batchKeywords);
+        }
+
+        var from = $@"FROM [{BomTable}] b WITH(NOLOCK)
+                      INNER JOIN [{ProductTable}] parent WITH(NOLOCK)
+                          ON b.{nameof(Bom.ParentProductId)} = parent.{nameof(Product.Uid)}
+                         AND b.{nameof(Bom.BomNo)} = parent.{nameof(Product.BomNo)}
+                         AND b.{nameof(Bom.BomVersion)} = parent.{nameof(Product.BomVersion)}
+                      LEFT JOIN [{ProductTable}] child WITH(NOLOCK)
+                          ON b.{nameof(Bom.ComponentProductId)} = child.{nameof(Product.Uid)}
+                         AND child.{nameof(Product.IsDeleted)} = 0
+                      LEFT JOIN [{ProductColorTable}] color WITH(NOLOCK)
+                          ON child.{nameof(Product.ColorId)} = color.{nameof(ProductColor.Uid)}
+                         AND color.{nameof(ProductColor.IsDeleted)} = 0";
+
+        var sql = $@"SELECT COUNT(1)
+                     {from}
+                     {where};
+
+                     SELECT
+                         b.[Uid],b.[Version],b.[IsDeleted],b.[CreatedDate],b.[CreatedBy],b.[UpdatedDate],b.[UpdatedBy],
+                         b.[BomNo],b.[ComponentProductId] AS [SubSkuId],b.[ComponentSkuSnapshot] AS [SubSku],
+                         b.[Numerator],b.[Denominator],b.[Note],
+                         child.{nameof(Product.DescriptionZh)} AS {nameof(BomDto.Description)},
+                         color.{nameof(ProductColor.ColorNameZh)} AS {nameof(BomDto.Finish)},
+                         child.{nameof(Product.FeaturesZh)} AS {nameof(BomDto.Features)},
+                         child.{nameof(Product.MainImage)} AS {nameof(BomDto.MainImage)}
+                     {from}
+                     {where}
+                     ORDER BY b.{nameof(Bom.BomNo)}, b.{nameof(Bom.LineNumber)}, b.{nameof(Bom.Uid)}
+                     OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
+
+        using var multi = await Connection.QueryMultipleAsync(sql, parameters, transaction: Transaction);
+        var totalCount = await multi.ReadFirstAsync<int>();
+        var items = await multi.ReadAsync<BomDto>();
+        return new PagedResponseBase<BomDto>
+        {
+            Items = items.ToList(),
+            TotalCount = totalCount,
+            PageIndex = pageIndex,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<Dictionary<string, IEnumerable<Bom>>> GetBomsCollectionByBomNoListAsync(IEnumerable<string> bomNos)
     {
         if (bomNos == null || !bomNos.Any()) return [];
