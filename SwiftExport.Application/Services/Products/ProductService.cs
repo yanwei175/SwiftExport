@@ -17,6 +17,7 @@ namespace SwiftExport.Application.Services.Products;
 public partial class ProductService(IProductRepository productRepository, ServiceBaseContext context,
     IProductCategoryRepository categoryRepository,
     IProductColorRepository colorRepository,
+    ISupplierRepository supplierRepository,
     IBomRepository bomRepository)
     : BaseService<Product, ProductDto>(productRepository, context), IProductService
 {
@@ -335,7 +336,14 @@ public partial class ProductService(IProductRepository productRepository, Servic
                 return "产品颜色不存在或已失效：" + string.Join(", ", missingIds);
         }
 
-        return null;
+        var supplierIds = ProductDefaultSupplierPolicy.GetReferencedSupplierIds(items);
+        IReadOnlyList<Supplier> suppliers = [];
+        if (supplierIds.Length > 0)
+        {
+            suppliers = await supplierRepository.GetByIdListAsync(supplierIds);
+        }
+
+        return ProductDefaultSupplierPolicy.Normalize(items, suppliers);
     }
 
     private static string? ValidateProduct(ProductDto? product, int? rowIndex, string operation)

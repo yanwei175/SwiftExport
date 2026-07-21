@@ -1,11 +1,9 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Mvvm;
-using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.UI;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
@@ -21,6 +19,43 @@ public sealed class ProductsDeletionTests
         Assert.IsFalse(viewModel.IsCellSelectionMode);
         viewModel.IsCellSelectionMode = true;
         Assert.IsTrue(viewModel.IsCellSelectionMode);
+    }
+
+    [TestMethod]
+    public void FieldMode_ShouldDefaultToSimpleAndRemainBindable()
+    {
+        var viewModel = CreateViewModel(new RecordingDialogService());
+
+        Assert.IsFalse(viewModel.IsComplexFieldMode);
+        viewModel.IsComplexFieldMode = true;
+        Assert.IsTrue(viewModel.IsComplexFieldMode);
+    }
+
+    [TestMethod]
+    public void SupplierCommands_ShouldUpdateAndClearIdCodeAndNameAtomically()
+    {
+        var viewModel = CreateViewModel(new RecordingDialogService());
+        var line = viewModel.Products.AddNewProduct();
+        var supplierId = Guid.NewGuid();
+        viewModel.EditSupplier = new SupplierDto
+        {
+            Uid = supplierId,
+            SupplierCode = "SUP-01",
+            SupplierName = "测试供应商",
+        };
+
+        viewModel.CommitSupplierCommand.Execute(line);
+
+        Assert.AreEqual(supplierId, line.DefaultSupplierId);
+        Assert.AreEqual("SUP-01", line.DefaultSupplierCode);
+        Assert.AreEqual("测试供应商", line.SupplierName);
+        Assert.IsNull(viewModel.EditSupplier);
+
+        viewModel.ClearSupplierCommand.Execute(line);
+
+        Assert.IsNull(line.DefaultSupplierId);
+        Assert.AreEqual(string.Empty, line.DefaultSupplierCode);
+        Assert.AreEqual(string.Empty, line.SupplierName);
     }
 
     [TestMethod]
@@ -100,24 +135,11 @@ public sealed class ProductsDeletionTests
         Assert.IsTrue(viewModel.DeleteSelectedCommand.CanExecute(null));
     }
 
-    [TestMethod]
-    public async Task OpenCategoryManager_ShouldOpenRegisteredTabRoute()
-    {
-        var navigation = new RecordingNavigationService();
-        var viewModel = CreateViewModel(new RecordingDialogService(), navigation);
-
-        await viewModel.OpenCategoryManagerCommand.ExecuteAsync(null);
-
-        Assert.AreEqual("product-category-manager", navigation.LastOpenedRoute);
-    }
-
-    private static ProductsViewModel CreateViewModel(
-        RecordingDialogService dialogService,
-        INavigationService? navigationService = null)
+    private static ProductsViewModel CreateViewModel(RecordingDialogService dialogService)
     {
         var bomDrawer = new BomDrawerViewModel(null!, null!, null!, null!, dialogService);
         return new ProductsViewModel(
-            null!, null!, null!, null!, null!, null!, null!, dialogService, navigationService!, bomDrawer);
+            null!, null!, null!, null!, null!, null!, null!, dialogService, bomDrawer);
     }
 
     private static ProductDto CreateDto(string sku) => new()
@@ -153,46 +175,5 @@ public sealed class ProductsDeletionTests
             string title,
             string message,
             CancellationToken cancellationToken = default) => Task.CompletedTask;
-    }
-
-    private sealed class RecordingNavigationService : INavigationService
-    {
-        public event PropertyChangedEventHandler? PropertyChanged
-        {
-            add { }
-            remove { }
-        }
-
-        public ObservableCollection<NavigationTabItem> OpenTabs { get; } = [];
-
-        public NavigationTabItem? SelectedTab { get; set; }
-
-        public string? LastOpenedRoute { get; private set; }
-
-        public Task OpenAsync(string routeKey)
-        {
-            LastOpenedRoute = routeKey;
-            return Task.CompletedTask;
-        }
-
-        public Task OpenDocumentAsync(
-            string routeKey,
-            string documentKey,
-            object? parameter = null,
-            CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public void UpdateDocumentKey(object contentViewModel, string documentKey)
-        {
-        }
-
-        public void Activate(NavigationTabItem? tab)
-        {
-        }
-
-        public Task CloseAsync(NavigationTabItem? tab) => Task.CompletedTask;
-
-        public void Reset()
-        {
-        }
     }
 }

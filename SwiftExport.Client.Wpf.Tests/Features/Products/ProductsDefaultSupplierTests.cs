@@ -8,7 +8,7 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 public sealed class ProductsDefaultSupplierTests
 {
     [TestMethod]
-    public void DefaultSupplierCodeColumn_ShouldBeReadOnlyAndPointToSupplierProductMaintenance()
+    public void DefaultSupplierCodeColumn_ShouldUseAtomicSupplierLookupTemplate()
     {
         var path = Path.Combine(
             FindRepositoryRoot(),
@@ -20,16 +20,20 @@ public sealed class ProductsDefaultSupplierTests
             "ProductsView.xaml");
         var document = XDocument.Load(path);
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
-        var column = document.Descendants(presentation + "DataGridTextColumn")
+        var column = document.Descendants(presentation + "DataGridTemplateColumn")
             .Single(element => element.Attributes().Any(attribute =>
                 attribute.Name.LocalName.EndsWith("Key", StringComparison.Ordinal)
                 && string.Equals(attribute.Value, "default-supplier-code", StringComparison.Ordinal)));
 
-        Assert.AreEqual("True", (string?)column.Attribute("IsReadOnly"));
-        StringAssert.Contains((string?)column.Attribute("Binding") ?? string.Empty, "Mode=OneWay");
-        Assert.IsTrue(column.Descendants(presentation + "Setter").Any(setter =>
-            string.Equals((string?)setter.Attribute("Property"), "ToolTip", StringComparison.Ordinal)
-            && ((string?)setter.Attribute("Value"))?.Contains("供应商产品", StringComparison.Ordinal) == true));
+        Assert.AreEqual("DefaultSupplierCode", (string?)column.Attribute("SortMemberPath"));
+        Assert.IsFalse(column.Attributes().Any(attribute => attribute.Name.LocalName.EndsWith("FieldPath", StringComparison.Ordinal)));
+        Assert.IsTrue(column.Descendants().Any(element => element.Name.LocalName == "SupplierLookupTextBox"));
+        Assert.IsTrue(column.Descendants().Attributes().Any(attribute =>
+            attribute.Name.LocalName == "SelectionCommittedCommand"
+            && attribute.Value.Contains("CommitSupplierCommand", StringComparison.Ordinal)));
+        Assert.IsTrue(column.Descendants().Attributes().Any(attribute =>
+            attribute.Name.LocalName == "SelectionClearedCommand"
+            && attribute.Value.Contains("ClearSupplierCommand", StringComparison.Ordinal)));
     }
 
     private static string FindRepositoryRoot()

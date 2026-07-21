@@ -16,7 +16,6 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Mvvm;
-using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
 
@@ -25,7 +24,6 @@ namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
 {
     private const int DefaultPageSize = 20;
-    private const string ProductCategoryManagerRouteKey = "product-category-manager";
     private readonly IProductApi _productApi;
     private readonly ICustomerApi _customerApi;
     private readonly IProductColorApi _colorApi;
@@ -34,7 +32,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
-    private readonly INavigationService _navigationService;
     private bool _isInitialized;
     private bool _restoringSelection;
     private long _customerSearchVersion;
@@ -50,7 +47,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
         IDialogService dialogService,
-        INavigationService navigationService,
         BomDrawerViewModel bomDrawer)
     {
         _productApi = productApi;
@@ -61,7 +57,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _dialogService = dialogService;
-        _navigationService = navigationService;
         BomDrawer = bomDrawer;
         Title = "产品资料";
         Products.PropertyChanged += OnProductsPropertyChanged;
@@ -116,6 +111,9 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
 
     [ObservableProperty]
     public partial bool IsCellSelectionMode { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsComplexFieldMode { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
@@ -255,9 +253,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     }
 
     [RelayCommand]
-    private Task OpenCategoryManagerAsync() => _navigationService.OpenAsync(ProductCategoryManagerRouteKey);
-
-    [RelayCommand]
     private Task PageChangeAsync(PageChangeRequest? request)
     {
         if (request is null) return Task.CompletedTask;
@@ -293,8 +288,20 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private void CommitSupplier(ProductLineModel? line)
     {
         if (line is null || EditSupplier is null) return;
+        line.DefaultSupplierId = EditSupplier.Uid;
         line.DefaultSupplierCode = EditSupplier.SupplierCode ?? string.Empty;
         line.SupplierName = EditSupplier.SupplierName ?? string.Empty;
+        EditSupplier = null;
+    }
+
+    [RelayCommand]
+    private void ClearSupplier(ProductLineModel? line)
+    {
+        if (line is null) return;
+        line.DefaultSupplierId = null;
+        line.DefaultSupplierCode = string.Empty;
+        line.SupplierName = string.Empty;
+        EditSupplier = null;
     }
 
     private async Task<bool> LoadPageAsync(bool confirmChanges)

@@ -20,19 +20,16 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
     private static readonly string ProductColorTable = EntityMetadataCache.GetTableName<ProductColor>();
     private static readonly string ProductCategoryTable = EntityMetadataCache.GetTableName<ProductCategory>();
     private static readonly string ProductPackageTable = EntityMetadataCache.GetTableName<ProductPackage>();
+    private static readonly string SupplierTable = EntityMetadataCache.GetTableName<Supplier>();
 
-    // 默认供应商只能通过供应商产品的显式业务命令维护，普通 Product 保存不得覆盖。
+    // DefaultSupplierId 是 Product 的权威关系；兼容代码由 Application 校验并规范化后随产品保存。
     protected override IReadOnlyList<string> InsertProperties => [.. base.InsertProperties
-        .Where(property => !property.Equals(nameof(Product.DefaultSupplierId), StringComparison.OrdinalIgnoreCase)
-                           && !property.Equals(nameof(Product.DefaultSupplierCode), StringComparison.OrdinalIgnoreCase)
-                           && !property.Equals(nameof(Product.DefaultSupplierSku), StringComparison.OrdinalIgnoreCase)
+        .Where(property => !property.Equals(nameof(Product.DefaultSupplierSku), StringComparison.OrdinalIgnoreCase)
                            && !property.Equals(nameof(Product.DefaultCustomerCode), StringComparison.OrdinalIgnoreCase)
                            && !property.Equals(nameof(Product.DefaultCustomerSku), StringComparison.OrdinalIgnoreCase))];
 
     protected override IReadOnlyList<string> UpdateProperties => [.. base.UpdateProperties
-        .Where(property => !property.Equals(nameof(Product.DefaultSupplierId), StringComparison.OrdinalIgnoreCase)
-                           && !property.Equals(nameof(Product.DefaultSupplierCode), StringComparison.OrdinalIgnoreCase)
-                           && !property.Equals(nameof(Product.DefaultSupplierSku), StringComparison.OrdinalIgnoreCase)
+        .Where(property => !property.Equals(nameof(Product.DefaultSupplierSku), StringComparison.OrdinalIgnoreCase)
                            && !property.Equals(nameof(Product.DefaultCustomerCode), StringComparison.OrdinalIgnoreCase)
                            && !property.Equals(nameof(Product.DefaultCustomerSku), StringComparison.OrdinalIgnoreCase))];
 
@@ -45,6 +42,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
         const string sql = @"
 UPDATE [dbo].[Product]
 SET [DefaultSupplierId]=@SupplierId,
+    [DefaultSupplierCode]=@SupplierCode,
     [UpdatedDate]=@Now,
     [UpdatedBy]=@UserName,
     [Version]=[Version]+1
@@ -394,6 +392,10 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
                             LEFT JOIN [{ProductCategoryTable}] pat WITH(NOLOCK)
                                 ON p.{nameof(Product.CategoryId)} = pat.{nameof(ProductCategory.Uid)}
                                AND (pat.{nameof(ProductCategory.IsDeleted)} = 0 OR pat.{nameof(ProductCategory.IsDeleted)} IS NULL)
+
+                            LEFT JOIN [{SupplierTable}] defaultSupplier WITH(NOLOCK)
+                                ON p.{nameof(Product.DefaultSupplierId)} = defaultSupplier.{nameof(Supplier.Uid)}
+                               AND (defaultSupplier.{nameof(Supplier.IsDeleted)} = 0 OR defaultSupplier.{nameof(Supplier.IsDeleted)} IS NULL)
                             ";
 
         var dataFromClause = countFromClause + $@"
@@ -422,6 +424,8 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
 
                         pat.{nameof(ProductCategory.CategoryName)},
                         pat.{nameof(ProductCategory.FakeName)},
+
+                        defaultSupplier.{nameof(Supplier.SupplierName)} AS {nameof(ProductDto.SupplierName)},
 
                         pc.{nameof(ProductColor.ColorCodeUnique)},
                         pc.{nameof(ProductColor.ColorCode)},

@@ -50,6 +50,7 @@
 
     <Style x:Key="SwiftExportDataGridTextBlock"
            TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
+        <Setter Property="FontSize" Value="{StaticResource SwiftExportDefaltFontSize}"/>
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Margin" Value="2,0"/>
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
@@ -75,6 +76,7 @@
     </Style>
 
     <Style x:Key="SwiftExportDataGridTextBox" TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBoxBase}}">
+        <Setter Property="FontSize" Value="{StaticResource SwiftExportDefaltFontSize}"/>
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="Padding" Value="2,0,0,0" />
         <Setter Property="Margin" Value="0" />

@@ -15,5 +15,6 @@
 
     <Thickness x:Key="SwiftExportBorderThickness">1</Thickness>
     <sys:Double x:Key="SwiftExportControlHeight">34</sys:Double>
+    <sys:Double x:Key="SwiftExportDefaltFontSize">12</sys:Double>
 
 </ResourceDictionary>

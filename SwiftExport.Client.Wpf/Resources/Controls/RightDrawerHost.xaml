@@ -21,8 +21,8 @@
                 HorizontalAlignment="Right"
                 Background="{DynamicResource SwiftExportBrush.Surface}"
                 BorderBrush="{DynamicResource SwiftExportBrush.Border}"
-                Margin="0,4,4,4"
-                BorderThickness="1"
+                Margin="0,0,0,15"
+                BorderThickness="0.5"
                 CornerRadius="8"
                 Visibility="Collapsed">
             <Grid>

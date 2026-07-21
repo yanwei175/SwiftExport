@@ -64,7 +64,6 @@ public sealed class ProductsMaterialTypeFilterTests
             runner,
             messageService,
             dialogService,
-            null!,
             bomDrawer);
     }
 

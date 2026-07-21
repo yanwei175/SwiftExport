@@ -32,6 +32,7 @@ public partial class ProductLineModel : BaseLineModel<ProductDto>
     [ObservableProperty] public partial string SupplierName { get; set; } = string.Empty;
     [ObservableProperty] public partial string DefaultCustomerCode { get; set; } = string.Empty;
     [ObservableProperty] public partial string DefaultCustomerSku { get; set; } = string.Empty;
+    [ObservableProperty] public partial Guid? DefaultSupplierId { get; set; }
     [ObservableProperty] public partial string DefaultSupplierCode { get; set; } = string.Empty;
     [ObservableProperty] public partial string DefaultSupplierSku { get; set; } = string.Empty;
     [ObservableProperty] public partial string MainImage { get; set; } = string.Empty;
