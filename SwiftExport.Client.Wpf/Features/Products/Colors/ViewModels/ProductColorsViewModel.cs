@@ -8,6 +8,7 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Products.Colors.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.ComponentModel;
 
@@ -21,6 +22,7 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
+    private readonly IReferenceDataCacheService _referenceDataCache;
     private bool _isInitialized;
     private CancellationTokenSource? _searchDebounceCts;
     [ObservableProperty]
@@ -57,12 +59,14 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
         IProductColorApi colorApi,
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
-        IDialogService dialogService)
+        IDialogService dialogService,
+        IReferenceDataCacheService referenceDataCache)
     {
         _colorApi = colorApi;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _dialogService = dialogService;
+        _referenceDataCache = referenceDataCache;
 
         Title = "产品颜色管理";
         Lines = new BaseListModel<ProductColorLineModel, ProductColorDto>(_ => new ProductColorLineModel());
@@ -285,6 +289,13 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
             var affectedRows = result.Data?.SuccessCount ?? 0;
             _messageService.ShowSuccess("产品颜色已保存", $"已提交 {affectedRows} 条变更。");
             await LoadPageCoreAsync();
+            var cacheResult = await _referenceDataCache.RefreshProductColorsAsync();
+            if (!cacheResult.Success)
+            {
+                _messageService.ShowWarning(
+                    "产品颜色已保存，但缓存刷新失败",
+                    cacheResult.Message);
+            }
         }, "正在保存产品颜色...");
     }
 

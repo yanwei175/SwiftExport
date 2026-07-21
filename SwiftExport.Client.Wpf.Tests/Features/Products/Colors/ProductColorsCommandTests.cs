@@ -10,7 +10,7 @@ public sealed class ProductColorsCommandTests
     [TestMethod]
     public void DeleteSelectedCommand_ShouldReevaluateFromExplicitLineParameter()
     {
-        var viewModel = new ProductColorsViewModel(null!, null!, null!, null!);
+        var viewModel = new ProductColorsViewModel(null!, null!, null!, null!, null!);
         var line = new ProductColorLineModel();
 
         Assert.IsFalse(viewModel.IsCellSelectionMode);

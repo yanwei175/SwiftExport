@@ -5,6 +5,7 @@ using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
 using SwiftExportClient.Services.Images;
+using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Updates;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
@@ -36,6 +37,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDialogService, WpfUiDialogService>();
         services.AddSingleton<IClientVersionService, ClientVersionService>();
         services.AddSingleton<IImageCacheService, ImageCacheService>();
+        services.AddSingleton<IReferenceDataCacheService, ReferenceDataCacheService>();
         services.AddTransient<INetDemandTraceExportService, NetDemandTraceExportService>();
         services.AddTransient<INetDemandDialogService, NetDemandDialogService>();
         services.AddTransient<IProcurementDialogService, ProcurementDialogService>();

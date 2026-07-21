@@ -7,6 +7,7 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Products.Categories.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -21,6 +22,7 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
+    private readonly IReferenceDataCacheService _referenceDataCache;
     private readonly List<ProductCategoryTreeItemModel> _deletedNodes = [];
     private ProductCategoryTreeItemModel? _currentCategory;
     private string _statusMessage = "尚未加载产品分类。";
@@ -30,12 +32,14 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
         IProductCategoryApi categoryApi,
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
-        IDialogService dialogService)
+        IDialogService dialogService,
+        IReferenceDataCacheService referenceDataCache)
     {
         _categoryApi = categoryApi;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _dialogService = dialogService;
+        _referenceDataCache = referenceDataCache;
 
         Title = "产品分类管理";
         AddRootCommand = new RelayCommand(AddRoot, CanWriteCommand);
@@ -262,6 +266,13 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
             var affectedRows = result.Data?.SuccessCount ?? 0;
             _messageService.ShowSuccess("产品分类已保存", $"已提交 {affectedRows} 条变更。");
             await LoadAsync();
+            var cacheResult = await _referenceDataCache.RefreshProductCategoriesAsync();
+            if (!cacheResult.Success)
+            {
+                _messageService.ShowWarning(
+                    "产品分类已保存，但缓存刷新失败",
+                    cacheResult.Message);
+            }
         }, "正在保存产品分类...");
     }
 
