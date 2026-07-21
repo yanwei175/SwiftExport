@@ -71,6 +71,7 @@
 
                 <ui:Button Margin="6,0,0,0"
                            Appearance="Success"
+                           Foreground="White"
                            Content="保存"
                            Icon="{ui:SymbolIcon Symbol=Save24}"
                            Command="{Binding SaveCommand}"
@@ -132,12 +133,19 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <controls:LookupTextBox Grid.Column="0" Placeholder="客户"
-                                    SearchMode="Remote" SearchCommand="{Binding SearchCustomersCommand}"
-                                    IsBusy="{Binding IsCustomerLookupBusy}" ItemsSource="{Binding CustomerCandidates}"
-                                    DisplayMemberPath="CustomerCode" FilterMemberPaths="CustomerCode,CustomerName"
-                                    SelectedValuePath="Uid" SelectedItem="{Binding FilterCustomer, Mode=TwoWay}" />
+            <controls:LookupTextBox Grid.Column="0" 
+                                    Placeholder="客户"
+                                    SearchMode="Remote" 
+                                    ClearSelectionOnEdit="False"
+                                    SearchCommand="{Binding SearchCustomersCommand}"
+                                    IsBusy="{Binding IsCustomerLookupBusy}" 
+                                    ItemsSource="{Binding CustomerCandidates}"
+                                    DisplayMemberPath="CustomerCode" 
+                                    FilterMemberPaths="CustomerCode,CustomerName"
+                                    SelectedValuePath="Uid" 
+                                    SelectedItem="{Binding FilterCustomer, Mode=TwoWay}" />
             <controls:LookupTextBox Grid.Column="2" Placeholder="颜色"
+                                    ClearSelectionOnEdit="False"
                                     SearchMode="Remote" SearchCommand="{Binding SearchColorsCommand}"
                                     IsBusy="{Binding IsColorLookupBusy}" ItemsSource="{Binding ColorCandidates}"
                                     DisplayMemberPath="ColorNameZh" FilterMemberPaths="ColorCodeUnique,ColorCode,ColorNameZh,ColorNameEn"
@@ -145,11 +153,13 @@
             
             <controls:LookupTextBox Grid.Column="4" Placeholder="产品分类"                                    
                                     SearchMode="Local" 
+                                    ClearSelectionOnEdit="False"
                                     ItemsSource="{Binding CategoryCandidates}"
                                     DisplayMemberPath="CategoryName" 
                                     FilterMemberPaths="CategoryName,CategoryCode"
                                     SelectedValuePath="Uid" SelectedItem="{Binding FilterCategory, Mode=TwoWay}" />
             <controls:DropDownCheckBox Grid.Column="6"
+                                       ShowClearOption="True"
                                        Placeholder="物料类型"
                                        ItemsSource="{Binding MaterialTypes}"
                                        SelectedItems="{Binding FilterMaterialTypes, Mode=OneWay}" />
@@ -242,7 +252,8 @@
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             gridColumns:GridColumn.Key="category-name" />
                         
-                        <DataGridTemplateColumn Header="物料类型" Width="100"
+                        <DataGridTemplateColumn Header="物料类型" 
+                                                Width="100"
                                                 gridColumns:GridColumn.Key="material-type"
                                                 gridColumns:GridColumn.FieldPath="MaterialType"
                                                 SortMemberPath="MaterialType">

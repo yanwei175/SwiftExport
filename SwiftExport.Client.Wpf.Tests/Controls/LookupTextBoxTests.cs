@@ -235,6 +235,138 @@ public sealed class LookupTextBoxTests
     }
 
     [TestMethod]
+    public void SelectedLookup_DefaultEditBehavior_ShouldClearCommittedSelection()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var selected = new LookupItem("Alpha");
+            var lookup = new LookupTextBox
+            {
+                ItemsSource = new[] { selected },
+                DisplayMemberPath = nameof(LookupItem.Name),
+                SelectedValuePath = nameof(LookupItem.Name),
+                SelectedItem = selected,
+            };
+            var window = new Window
+            {
+                Width = 320,
+                Height = 120,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None,
+                Content = lookup,
+            };
+
+            try
+            {
+                window.Show();
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+
+                var editorBorder = (Border?)lookup.FindName("EditorBorder");
+                Assert.IsNotNull(editorBorder);
+                Assert.IsTrue(lookup.ClearSelectionOnEdit, "默认值必须兼容既有的进入编辑即清空行为。");
+
+                RaiseMouseLeftButtonDown(editorBorder);
+                await Dispatcher.Yield(DispatcherPriority.Background);
+
+                Assert.IsNull(lookup.SelectedItem);
+                Assert.IsNull(lookup.SelectedValue);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [TestMethod]
+    public void SelectedLookup_PreserveMode_ShouldRestoreSelectionAfterEscapeOrLostFocus()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var selected = new LookupItem("Alpha");
+            var clearedCommand = new RecordingCommand();
+            var lookup = new LookupTextBox
+            {
+                SearchMode = LookupTextBoxSearchMode.Local,
+                SearchDelay = TimeSpan.FromMilliseconds(20),
+                ItemsSource = new[] { selected, new LookupItem("Beta") },
+                DisplayMemberPath = nameof(LookupItem.Name),
+                SelectedValuePath = nameof(LookupItem.Name),
+                SelectedItem = selected,
+                ClearSelectionOnEdit = false,
+                SelectionClearedCommand = clearedCommand,
+            };
+            var nextControl = new Button { Content = "Next" };
+            var panel = new StackPanel();
+            panel.Children.Add(lookup);
+            panel.Children.Add(nextControl);
+            var window = new Window
+            {
+                Width = 320,
+                Height = 160,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None,
+                Content = panel,
+            };
+
+            try
+            {
+                window.Show();
+                window.Activate();
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+
+                var editorBorder = (Border?)lookup.FindName("EditorBorder");
+                var input = (TextBox?)lookup.FindName("InputTextBox");
+                var displayBorder = (Border?)lookup.FindName("DisplayTextBlockBorder");
+                var displayText = (TextBlock?)lookup.FindName("DisplayTextBlock");
+                Assert.IsNotNull(editorBorder);
+                Assert.IsNotNull(input);
+                Assert.IsNotNull(displayBorder);
+                Assert.IsNotNull(displayText);
+
+                RaiseMouseLeftButtonDown(editorBorder);
+                await Dispatcher.Yield(DispatcherPriority.Input);
+                Assert.AreSame(selected, lookup.SelectedItem);
+                Assert.AreEqual("Alpha", lookup.SelectedValue);
+
+                RaisePreviewKey(input, Key.Down);
+                Assert.IsTrue(lookup.IsDropDownOpen);
+                Assert.AreSame(selected, lookup.SelectedItem, "只展开候选列表不得清除旧选择。");
+
+                RaisePreviewKey(input, Key.Escape);
+                await Dispatcher.Yield(DispatcherPriority.Background);
+                Assert.IsFalse(lookup.IsDropDownOpen);
+                Assert.AreSame(selected, lookup.SelectedItem);
+                Assert.AreEqual(Visibility.Collapsed, input.Visibility);
+                Assert.AreEqual(Visibility.Visible, displayBorder.Visibility);
+                Assert.AreEqual("Alpha", displayText.Text);
+
+                RaiseMouseLeftButtonDown(editorBorder);
+                await Dispatcher.Yield(DispatcherPriority.Input);
+                input.Text = "Bet";
+                await WaitForDispatcherAsync(60);
+                Assert.AreSame(selected, lookup.SelectedItem, "搜索输入期间旧选择仍应保持为已提交值。");
+
+                nextControl.Focus();
+                Keyboard.Focus(nextControl);
+                await Dispatcher.Yield(DispatcherPriority.Background);
+
+                Assert.AreSame(selected, lookup.SelectedItem, "放弃候选并失焦后必须保留上一次选择。");
+                Assert.AreEqual("Alpha", lookup.SelectedValue);
+                Assert.AreEqual(string.Empty, lookup.Text);
+                Assert.AreEqual(string.Empty, input.Text);
+                Assert.AreEqual(Visibility.Collapsed, input.Visibility);
+                Assert.AreEqual(Visibility.Visible, displayBorder.Visibility);
+                Assert.AreEqual(0, clearedCommand.ExecutionCount, "只有显式清除按钮才允许发布清除命令。");
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [TestMethod]
     public void LocalLookup_UserInput_ShouldOpenMatchesAndCancelOnLostFocus()
     {
         StaTest.RunAsync(async () =>
@@ -433,6 +565,15 @@ public sealed class LookupTextBoxTests
         target.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, source, Environment.TickCount, key)
         {
             RoutedEvent = Keyboard.PreviewKeyDownEvent,
+        });
+    }
+
+    private static void RaiseMouseLeftButtonDown(UIElement target)
+    {
+        target.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+        {
+            RoutedEvent = UIElement.MouseLeftButtonDownEvent,
+            Source = target,
         });
     }
 

@@ -1,8 +1,8 @@
-using System.Net;
-using System.Net.Http;
 using Microsoft.Extensions.Logging;
 using Refit;
 using SwiftExport.Contracts.Wrappers;
+using System.Net;
+using System.Net.Http;
 
 namespace SwiftExportClient.Services.Api;
 

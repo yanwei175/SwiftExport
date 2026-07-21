@@ -198,6 +198,23 @@ public partial class LookupTextBox : UserControl
         set => SetValue(RequireItemMatchProperty, value);
     }
 
+    public static readonly DependencyProperty ClearSelectionOnEditProperty =
+        DependencyProperty.Register(
+            nameof(ClearSelectionOnEdit),
+            typeof(bool),
+            typeof(LookupTextBox),
+            new PropertyMetadata(true));
+
+    /// <summary>
+    /// 获取或设置已有选择进入搜索编辑态时是否立即清空选择。默认清空以兼容既有行为；
+    /// 筛选场景可设为 false，使旧选择保留到提交新候选或显式清除为止。
+    /// </summary>
+    public bool ClearSelectionOnEdit
+    {
+        get => (bool)GetValue(ClearSelectionOnEditProperty);
+        set => SetValue(ClearSelectionOnEditProperty, value);
+    }
+
     public static readonly DependencyProperty SelectedItemProperty =
         DependencyProperty.Register(
             nameof(SelectedItem),
@@ -490,7 +507,7 @@ public partial class LookupTextBox : UserControl
         _isSelectionDisplayMode = false;
         _hasUserInputIntent = IsLoaded && InputTextBox.IsKeyboardFocusWithin;
 
-        if (SelectedItem is not null)
+        if (ClearSelectionOnEdit && SelectedItem is not null)
         {
             SetSelectedItemSilently(null);
             SelectedValue = null;
@@ -550,7 +567,7 @@ public partial class LookupTextBox : UserControl
             return;
         }
 
-        ResolveSelectionByText();
+        ResolveSelectionByText(clearSelectionOnNoMatch: ClearSelectionOnEdit);
         RefreshAndUpdateDropDown();
     }
 
@@ -576,6 +593,16 @@ public partial class LookupTextBox : UserControl
 
     private void InputTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && (IsDropDownOpen || IsEditingPreservedSelection()))
+        {
+            _debounceTimer.Stop();
+            _hasUserInputIntent = false;
+            IsDropDownOpen = false;
+            RestorePreservedSelectionDisplay();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Space && string.IsNullOrWhiteSpace(InputTextBox.Text))
         {
             OpenDropDownFromUserIntent(selectFirstItem: true);
@@ -626,11 +653,6 @@ public partial class LookupTextBox : UserControl
             }
             e.Handled = e.Key != Key.Tab;
         }
-        else if (e.Key == Key.Escape)
-        {
-            IsDropDownOpen = false;
-            e.Handled = true;
-        }
     }
 
     private void InputTextBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
@@ -639,6 +661,11 @@ public partial class LookupTextBox : UserControl
         _debounceTimer.Stop();
         _hasUserInputIntent = false;
         IsDropDownOpen = false;
+
+        if (RestorePreservedSelectionDisplay())
+        {
+            return;
+        }
 
         if (!RequireItemMatch || wasDropDownOpen)
         {
@@ -755,7 +782,7 @@ public partial class LookupTextBox : UserControl
             new LookupSelectionCommittedEventArgs(item, SelectedValue, Text, reason));
     }
 
-    private bool ResolveSelectionByText()
+    private bool ResolveSelectionByText(bool clearSelectionOnNoMatch = true)
     {
         var text = (InputTextBox.Text ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(text) || ItemsSource is null)
@@ -784,9 +811,13 @@ public partial class LookupTextBox : UserControl
             }
         }
 
-        SetSelectedItemSilently(null);
-        SelectedValue = null;
-        SetDisplayText(string.Empty);
+        if (clearSelectionOnNoMatch)
+        {
+            SetSelectedItemSilently(null);
+            SelectedValue = null;
+            SetDisplayText(string.Empty);
+        }
+
         return false;
     }
 
@@ -794,14 +825,39 @@ public partial class LookupTextBox : UserControl
     {
         _hasUserInputIntent = false;
         _isSelectionDisplayMode = false;
-        SetSelectedItemSilently(null);
-        SelectedValue = null;
-        SetDisplayText(string.Empty);
+        if (ClearSelectionOnEdit)
+        {
+            SetSelectedItemSilently(null);
+            SelectedValue = null;
+            SetDisplayText(string.Empty);
+        }
+
         SetInputTextSilently(string.Empty);
         SyncTextDependencySilently(string.Empty);
         IsDropDownOpen = false;
         UpdateTextVisualState();
         InputTextBox.Focus();
+    }
+
+    private bool IsEditingPreservedSelection()
+    {
+        return !ClearSelectionOnEdit && !_isSelectionDisplayMode && SelectedItem is not null;
+    }
+
+    private bool RestorePreservedSelectionDisplay()
+    {
+        if (!IsEditingPreservedSelection())
+        {
+            return false;
+        }
+
+        ClearInputTextSilently();
+        SyncTextDependencySilently(string.Empty);
+        SetDisplayText(GetDisplayText(SelectedItem!));
+        _isSelectionDisplayMode = true;
+        FilteredView?.Refresh();
+        UpdateTextVisualState();
+        return true;
     }
 
     private void ExecuteSelectionCommittedCommand(object item, LookupCommitReason reason)
