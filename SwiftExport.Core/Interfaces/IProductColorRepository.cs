@@ -8,6 +8,8 @@ namespace SwiftExport.Core.Interfaces
     {
         Task<bool> ExistByColorCode(string productColor);
         Task<IReadOnlyList<string>> GetExistingColorCodesAsync(IEnumerable<string> productColorList);
+        Task<IReadOnlyList<ProductColor>> GetByColorCodesAsync(IEnumerable<string> colorCodes, bool withUpdLock = false);
+        Task<IReadOnlyList<Guid>> GetReferencedColorIdsAsync(IEnumerable<Guid> colorIds);
 
         Task<PagedResponseBase<ProductColor>> GetProductColorPagedAsync(ProductColorSearchRequest request);
 

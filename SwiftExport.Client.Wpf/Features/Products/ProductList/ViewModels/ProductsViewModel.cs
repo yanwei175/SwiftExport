@@ -17,6 +17,7 @@ using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
@@ -26,35 +27,31 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private const int DefaultPageSize = 20;
     private readonly IProductApi _productApi;
     private readonly ICustomerApi _customerApi;
-    private readonly IProductColorApi _colorApi;
-    private readonly IProductCategoryApi _categoryApi;
     private readonly ISupplierApi _supplierApi;
     private readonly IApiCallRunner _apiCallRunner;
+    private readonly IReferenceDataCacheService _referenceDataCache;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
     private bool _isInitialized;
     private bool _restoringSelection;
     private long _customerSearchVersion;
-    private long _colorSearchVersion;
     private long _supplierSearchVersion;
 
     public ProductsViewModel(
         IProductApi productApi,
         ICustomerApi customerApi,
-        IProductColorApi colorApi,
-        IProductCategoryApi categoryApi,
         ISupplierApi supplierApi,
         IApiCallRunner apiCallRunner,
+        IReferenceDataCacheService referenceDataCache,
         IMessageService messageService,
         IDialogService dialogService,
         BomDrawerViewModel bomDrawer)
     {
         _productApi = productApi;
         _customerApi = customerApi;
-        _colorApi = colorApi;
-        _categoryApi = categoryApi;
         _supplierApi = supplierApi;
         _apiCallRunner = apiCallRunner;
+        _referenceDataCache = referenceDataCache;
         _messageService = messageService;
         _dialogService = dialogService;
         BomDrawer = bomDrawer;
@@ -73,9 +70,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
 
     public ProductListModel Products { get; } = new();
     public BomDrawerViewModel BomDrawer { get; }
+    public IReferenceDataCacheService ReferenceDataCache => _referenceDataCache;
     public ObservableCollection<CustomerDto> CustomerCandidates { get; } = [];
-    public ObservableCollection<ProductColorDto> ColorCandidates { get; } = [];
-    public ObservableCollection<ProductCategoryDto> CategoryCandidates { get; } = [];
     public ObservableCollection<SupplierDto> SupplierCandidates { get; } = [];
     public IReadOnlyList<string> MaterialTypes { get; } = MaterialTypesEnum.MaterialTypes;
     [ObservableProperty]
@@ -89,9 +85,9 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     [ObservableProperty]
     public partial ProductColorDto? FilterColor { get; set; }
     [ObservableProperty]
-    public partial ProductCategoryDto? FilterCategory { get; set; }
+    public partial ProductCategoryCacheNode? FilterCategory { get; set; }
     [ObservableProperty]
-    public partial ProductCategoryDto? EditCategory { get; set; }
+    public partial ProductCategoryCacheNode? EditCategory { get; set; }
     [ObservableProperty]
     public partial ProductColorDto? EditColor { get; set; }
     [ObservableProperty]
@@ -101,7 +97,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     [ObservableProperty]
     public partial bool IsCustomerLookupBusy { get; set; }
     [ObservableProperty]
-    public partial bool IsColorLookupBusy { get; set; }
+    public partial bool IsCategoryCacheRefreshing { get; set; }
     [ObservableProperty]
     public partial bool IsSupplierLookupBusy { get; set; }
 
@@ -140,7 +136,11 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     {
         if (_isInitialized) return;
         _isInitialized = true;
-        await LoadCategoriesAsync();
+        var cacheResult = await _referenceDataCache.EnsureLoadedAsync();
+        if (!cacheResult.Success)
+        {
+            _messageService.ShowError("加载基础资料失败", cacheResult.Message);
+        }
         await LoadPageAsync(false);
     }
 
@@ -260,14 +260,46 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     }
 
     [RelayCommand] private Task SearchCustomersAsync(string? keyword) => LoadCustomersAsync(keyword);
-    [RelayCommand] private Task SearchColorsAsync(string? keyword) => LoadColorsAsync(keyword);
     [RelayCommand] private Task SearchSuppliersAsync(string? keyword) => LoadSuppliersAsync(keyword);
+
+    [RelayCommand]
+    private async Task RefreshProductCategoriesAsync()
+    {
+        if (IsCategoryCacheRefreshing)
+        {
+            return;
+        }
+
+        IsCategoryCacheRefreshing = true;
+        try
+        {
+            var result = await _referenceDataCache.RefreshProductCategoriesAsync();
+            if (!result.Success)
+            {
+                _messageService.ShowError("刷新产品分类失败", result.Message);
+            }
+        }
+        finally
+        {
+            IsCategoryCacheRefreshing = false;
+        }
+    }
 
     [RelayCommand]
     private void CommitCategory(ProductLineModel? line)
     {
         if (line is null || EditCategory is null) return;
         line.CategoryId = EditCategory.Uid; line.CategoryName = EditCategory.CategoryName ?? string.Empty;
+        EditCategory = null;
+    }
+
+    [RelayCommand]
+    private void ClearCategory(ProductLineModel? line)
+    {
+        if (line is null) return;
+        line.CategoryId = Guid.Empty;
+        line.CategoryName = string.Empty;
+        EditCategory = null;
     }
 
     [RelayCommand]
@@ -275,6 +307,16 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     {
         if (line is null || EditColor is null) return;
         line.ColorId = EditColor.Uid; line.Finish = EditColor.ColorNameZh ?? EditColor.ColorNameEn ?? string.Empty;
+        EditColor = null;
+    }
+
+    [RelayCommand]
+    private void ClearColor(ProductLineModel? line)
+    {
+        if (line is null) return;
+        line.ColorId = Guid.Empty;
+        line.Finish = string.Empty;
+        EditColor = null;
     }
 
     [RelayCommand]
@@ -317,7 +359,9 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         var request = new ProductSearchRequest
         {
             Keyword = NullIfWhiteSpace(Keyword), CustomerId = FilterCustomer?.Uid ?? Guid.Empty,
-            ColorCodeUnique = FilterColor?.ColorCodeUnique, CategoryId = FilterCategory?.Uid ?? Guid.Empty,
+            ColorCodeUnique = FilterColor?.ColorCodeUnique,
+            CategoryId = Guid.Empty,
+            CategoryIds = FilterCategory is null ? [] : GetCategoryIds(FilterCategory).ToList(),
             MaterialTypeList = FilterMaterialTypes.ToList(), PageIndex = PageIndex, PageSize = PageSize,
         };
         var result = await _apiCallRunner.RunAsync(() => _productApi.GetPagedAsync(request), "加载产品资料失败");
@@ -345,26 +389,12 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         await LoadPageAsync(false);
     }
 
-    private async Task LoadCategoriesAsync()
-    {
-        var result = await _apiCallRunner.RunAsync(() => _categoryApi.GetAllAsync(), "加载产品分类失败");
-        CategoryCandidates.ReplaceWith(result.Success ? result.Data ?? [] : []);
-    }
-
     private async Task LoadCustomersAsync(string? keyword)
     {
         var version = Interlocked.Increment(ref _customerSearchVersion); IsCustomerLookupBusy = true;
         var result = await _apiCallRunner.RunAsync(() => _customerApi.GetPagedAsync(new CustomerSearchRequest { Keyword = keyword, PageIndex = 1, PageSize = 30 }), "搜索客户失败");
         if (version == Volatile.Read(ref _customerSearchVersion)) CustomerCandidates.ReplaceWith(result.Success ? result.Data?.Items ?? [] : []);
         IsCustomerLookupBusy = false;
-    }
-
-    private async Task LoadColorsAsync(string? keyword)
-    {
-        var version = Interlocked.Increment(ref _colorSearchVersion); IsColorLookupBusy = true;
-        var result = await _apiCallRunner.RunAsync(() => _colorApi.GetPagedAsync(new ProductColorSearchRequest { Keyword = keyword, PageIndex = 1, PageSize = 30 }), "搜索颜色失败");
-        if (version == Volatile.Read(ref _colorSearchVersion)) ColorCandidates.ReplaceWith(result.Success ? result.Data?.Items ?? [] : []);
-        IsColorLookupBusy = false;
     }
 
     private async Task LoadSuppliersAsync(string? keyword)
@@ -377,6 +407,18 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
 
     private async Task<bool> EnsureCanDiscardChangesAsync() =>
         !Products.HasChanges || await _dialogService.ConfirmAsync("放弃未保存变更", "当前产品列表有未保存修改，继续将放弃这些修改。", "继续");
+
+    private static IEnumerable<Guid> GetCategoryIds(ProductCategoryCacheNode node)
+    {
+        yield return node.Uid;
+        foreach (var child in node.Children)
+        {
+            foreach (var uid in GetCategoryIds(child))
+            {
+                yield return uid;
+            }
+        }
+    }
 
     private void RestoreSelection(ProductLineModel? product)
     {

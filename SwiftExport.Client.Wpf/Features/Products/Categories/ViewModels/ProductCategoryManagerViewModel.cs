@@ -226,11 +226,21 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
 
                 UpdateItems = allNodes
                     .Where(node => node.State == ProductCategoryNodeState.Modified)
-                    .Select(node => new UpdateItemRequest<ProductCategoryDto> { Uid = node.Uid, Data = node.ToDto() })
+                    .Select(node => new UpdateItemRequest<ProductCategoryDto>
+                    {
+                        Uid = node.Uid,
+                        Version = node.Version,
+                        Data = node.ToDto()
+                    })
                     .ToList(),
                 DeleteItems = _deletedNodes
                     .Where(node => node.State != ProductCategoryNodeState.Added)
-                    .Select(node => new DeleteItemRequest { Uid = node.Uid, IsSoftDelete = true })
+                    .Select(node => new DeleteItemRequest
+                    {
+                        Uid = node.Uid,
+                        Version = node.Version,
+                        IsSoftDelete = true
+                    })
                     .ToList()
             };
 

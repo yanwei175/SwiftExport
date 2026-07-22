@@ -34,6 +34,12 @@ public class SysDicCurrencyController(ISysDicCurrencyService service) : BaseCont
         return await CurrencyService.GetEnabledListAsync();
     }
 
+    [HttpGet("defaultbasecurrency")]
+    public async Task<ServiceResult<SysDicCurrencyDetailDto>> GetDefaultBaseCurrency()
+    {
+        return await CurrencyService.GetDefaultBaseCurrencyAsync();
+    }
+
     [HttpPost("setnewbase")]
     public async Task<ServiceResult<int>> SetNewBaseCurrency([FromBody] SysDicCurrencyDto dto)
     {

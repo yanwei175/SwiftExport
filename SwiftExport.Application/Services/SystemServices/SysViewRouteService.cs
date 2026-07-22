@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
+using SwiftExport.Application.Services.Systems;
+using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
@@ -17,6 +19,7 @@ namespace SwiftExport.Application.Services.SystemServices
     /// </summary>
     public partial class SysViewRouteService(
         ISysViewRouteRepository repository,
+        ISysDictTypeRepository dictTypeRepository,
         ServiceBaseContext context) : BaseService<SysViewRoute, SysViewRouteDto>(repository, context), ISysViewRouteService
     {
         private readonly ILogger<SysViewRouteService> _logger = context.LoggerFactory.CreateLogger<SysViewRouteService>();
@@ -54,78 +57,148 @@ namespace SwiftExport.Application.Services.SystemServices
 
         public async Task<ServiceResult<PagedResponseBase<SysViewRouteDto>>> GetPagedAsync(SysViewRouteSearchRequest request)
         {
-            throw new NotImplementedException();
+            try
+            {
+                return ServiceResult<PagedResponseBase<SysViewRouteDto>>.Ok(
+                    await _routeRepo.GetPagedAsync(request ?? new SysViewRouteSearchRequest()));
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "分页查询视图路由失败。");
+                return ServiceResult<PagedResponseBase<SysViewRouteDto>>.Fail($"查询失败：{exception.Message}");
+            }
         }
 
 
 
         public async Task<ServiceResult<SysViewRouteBatchSaveResponse>> BatchSaveAsync(SysViewRouteBatchSaveRequest batchReq)
         {
-            throw new NotImplementedException();
-            //_session.Transaction = _session.Connection.BeginTransaction();
-            //var result = new SysViewRouteBatchSaveResponse();
+            var requestError = SystemBatchSaveSupport.ValidateRequest(batchReq);
+            if (requestError is not null) return ServiceResult<SysViewRouteBatchSaveResponse>.Fail(requestError);
+            if (_session.Transaction is not null)
+                return ServiceResult<SysViewRouteBatchSaveResponse>.Fail("当前请求已存在未完成事务，不能重复开始视图路由批量保存。");
 
-            //var createList = batchReq.CreateItems?.Adapt<List<SysViewRoute>>();
-            //var updateList = batchReq.UpdateItems?.Adapt<List<SysViewRoute>>();
-            //var deleteIds = batchReq.DeleteItems;
+            var response = new SysViewRouteBatchSaveResponse { TotalCount = batchReq.TotalCount };
+            try
+            {
+                _session.Transaction = _session.Connection.BeginTransaction();
+                var preparation = await PrepareBatchSaveAsync(batchReq);
+                if (preparation.Error is not null)
+                {
+                    _session.Transaction.Rollback();
+                    return ServiceResult<SysViewRouteBatchSaveResponse>.Fail(preparation.Error);
+                }
 
-            //try
-            //{
-            //    var errorMsg = new StringBuilder();
+                foreach (var item in batchReq.CreateItems)
+                {
+                    var writeResult = await _routeRepo.AddAsync(item.Data.Adapt<SysViewRoute>());
+                    response.Items.Add(SaveItemResultFactory.FromCreate(item, writeResult));
+                    SystemBatchSaveSupport.EnsureWriteSucceeded(writeResult, "新增视图路由失败。");
+                }
+                foreach (var item in batchReq.UpdateItems)
+                {
+                    var entity = preparation.Existing[item.Uid];
+                    SystemBatchSaveSupport.AdaptPreservingServerFields(item.Data, entity);
+                    entity.Version = item.Version;
+                    var writeResult = await _routeRepo.UpdateAsync(entity);
+                    response.Items.Add(SaveItemResultFactory.FromUpdate(item, writeResult));
+                    SystemBatchSaveSupport.EnsureWriteSucceeded(writeResult, "更新视图路由失败。");
+                }
+                foreach (var item in batchReq.DeleteItems)
+                {
+                    var writeResult = await _routeRepo.DeleteAsync(item.Uid, item.Version, item.IsSoftDelete);
+                    response.Items.Add(SaveItemResultFactory.FromDelete(item, writeResult));
+                    SystemBatchSaveSupport.EnsureWriteSucceeded(writeResult, "删除视图路由失败。");
+                }
 
-            //    if (updateList is { Count: > 0 })
-            //    {
-            //        var invalidUids = updateList.Where(x => x.Uid == Guid.Empty).Select(x => x.Uid).ToList();
-            //        if (invalidUids.Count != 0) errorMsg.AppendLine($"修改失败：包含无效Uid {string.Join(",", invalidUids)}");
+                _session.Transaction.Commit();
+                return ServiceResult<SysViewRouteBatchSaveResponse>.Ok(response, $"批量保存完成，成功 {response.SuccessCount} 条。");
+            }
+            catch (SystemBatchWriteException exception)
+            {
+                SystemBatchSaveSupport.TryRollback(_session, _logger, "视图路由批量保存");
+                return ServiceResult<SysViewRouteBatchSaveResponse>.Fail($"视图路由批量保存失败，所有操作已回滚。原因：{exception.Message}");
+            }
+            catch (Exception exception)
+            {
+                SystemBatchSaveSupport.TryRollback(_session, _logger, "视图路由批量保存");
+                _logger.LogError(exception, "视图路由批量保存发生未预期异常。");
+                return ServiceResult<SysViewRouteBatchSaveResponse>.Fail("视图路由批量保存失败，所有操作已回滚，请刷新后重试。");
+            }
+            finally
+            {
+                _session.Transaction?.Dispose();
+                _session.Transaction = null;
+            }
+        }
 
-            //        var needUpdateUids = updateList.Select(x => x.Uid).ToList();
-            //        var existingUids = await _routeRepo.GetExistingIdListAsync(needUpdateUids);
-            //        var nonExistentUids = needUpdateUids.Except(existingUids).ToList();
-            //        if (nonExistentUids.Count != 0) errorMsg.AppendLine($"修改失败：以下Uid在数据库中不存在 {string.Join(",", nonExistentUids)}");
-            //    }
+        private async Task<RouteBatchPreparation> PrepareBatchSaveAsync(SysViewRouteBatchSaveRequest request)
+        {
+            foreach (var item in request.CreateItems)
+            {
+                var error = NormalizeAndValidate(item.Data, item.RowIndex, "新增");
+                if (error is not null) return RouteBatchPreparation.Fail(error);
+            }
+            foreach (var item in request.UpdateItems)
+            {
+                var error = NormalizeAndValidate(item.Data, item.RowIndex, "修改");
+                if (error is not null) return RouteBatchPreparation.Fail(error);
+            }
 
-            //    if (deleteIds is { Count: > 0 })
-            //    {
-            //        var invalidUids = deleteIds.Where(uid => uid == Guid.Empty).ToList();
-            //        if (invalidUids.Count != 0) errorMsg.AppendLine($"删除失败：包含无效Uid {string.Join(",", invalidUids)}");
-            //    }
+            var all = await _routeRepo.GetAllForUpdateAsync();
+            var existing = all.ToDictionary(entity => entity.Uid);
+            var targetIds = request.UpdateItems.Select(x => x.Uid).Concat(request.DeleteItems.Select(x => x.Uid)).Distinct().ToArray();
+            var missing = targetIds.Where(uid => !existing.ContainsKey(uid)).ToArray();
+            if (missing.Length > 0) return RouteBatchPreparation.Fail("修改或删除失败，以下视图路由不存在：" + string.Join(", ", missing));
 
-            //    if (errorMsg.Length > 0)
-            //        return ServiceResult<SysViewRouteBatchSaveResponse>.Fail(errorMsg.ToString().TrimEnd());
+            var deleteIds = request.DeleteItems.Select(x => x.Uid).ToHashSet();
+            var updateById = request.UpdateItems.ToDictionary(x => x.Uid);
+            var finalKeys = all.Where(x => !deleteIds.Contains(x.Uid))
+                .Select(x => updateById.TryGetValue(x.Uid, out var update) ? update.Data.TargetViewKey : x.TargetViewKey)
+                .Concat(request.CreateItems.Select(x => x.Data.TargetViewKey))
+                .ToArray();
+            var finalKeyError = ValidateFinalKeys(finalKeys);
+            if (finalKeyError is not null) return RouteBatchPreparation.Fail(finalKeyError);
 
-            //    if (_routeRepo is not IBatchWriteRepository<SysViewRoute> batchRepository)
-            //        return ServiceResult<SysViewRouteBatchSaveResponse>.Fail($"{nameof(SysViewRoute)} 仓储未实现批量保存");
+            var changedOrDeletedKeys = request.DeleteItems.Select(x => existing[x.Uid].TargetViewKey)
+                .Concat(request.UpdateItems.Where(x => !string.Equals(existing[x.Uid].TargetViewKey, x.Data.TargetViewKey, StringComparison.OrdinalIgnoreCase))
+                    .Select(x => existing[x.Uid].TargetViewKey))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var referenced = await dictTypeRepository.GetReferencedTargetViewKeysAsync(changedOrDeletedKeys);
+            if (referenced.Count > 0)
+                return RouteBatchPreparation.Fail("以下路由键仍被字典类型引用，不能改名或删除：" + string.Join(", ", referenced));
 
-            //    if (createList is { Count: > 0 })
-            //    {
-            //        result.AddIdList = [.. await batchRepository.AddRangeAsync(createList)];
-            //    }
+            return RouteBatchPreparation.Ok(existing);
+        }
 
-            //    if (updateList is { Count: > 0 })
-            //    {
-            //        await batchRepository.UpdateRangeAsync(updateList);
-            //        result.UpdateIdList = [.. updateList.Select(x => x.Uid)];
-            //    }
+        internal static string? ValidateFinalKeys(IEnumerable<string> keys)
+        {
+            var duplicate = keys.GroupBy(x => x, StringComparer.OrdinalIgnoreCase).FirstOrDefault(group => group.Count() > 1);
+            return duplicate is null ? null : $"路由键不能重复：{duplicate.Key}。";
+        }
 
-            //    if (deleteIds is { Count: > 0 })
-            //    {
-            //        await batchRepository.DeleteRangeSoftAsync(deleteIds);
-            //        result.DeleteIdList = deleteIds;
-            //    }
+        private static string? NormalizeAndValidate(SysViewRouteDto? dto, int? rowIndex, string operation)
+        {
+            var row = SystemBatchSaveSupport.FormatRow(rowIndex);
+            if (dto is null) return $"第 {row} 行：{operation}数据不能为空。";
+            if (string.IsNullOrWhiteSpace(dto.TargetViewKey)) return $"第 {row} 行：路由键不能为空。";
+            if (string.IsNullOrWhiteSpace(dto.DisplayName)) return $"第 {row} 行：路由显示名称不能为空。";
+            if (string.IsNullOrWhiteSpace(dto.ViewModelTypeName)) return $"第 {row} 行：ViewModel 类型名不能为空。";
+            dto.TargetViewKey = dto.TargetViewKey.Trim();
+            dto.DisplayName = dto.DisplayName.Trim();
+            dto.ViewModelTypeName = dto.ViewModelTypeName.Trim();
+            dto.ViewTypeName = dto.ViewTypeName?.Trim();
+            dto.RouteCategory = dto.RouteCategory?.Trim();
+            dto.AssemblyName = dto.AssemblyName?.Trim();
+            dto.Remark = dto.Remark?.Trim();
+            return null;
+        }
 
-            //    _session.Transaction.Commit();
-            //    return ServiceResult<SysViewRouteBatchSaveResponse>.Ok(result);
-            //}
-            //catch (Exception ex)
-            //{
-            //    _session.Transaction.Rollback();
-            //    return ServiceResult<SysViewRouteBatchSaveResponse>.Fail(ex.Message);
-            //}
-            //finally
-            //{
-            //    _session.Transaction.Dispose();
-            //    _session.Transaction = null;
-            //}
+        private sealed record RouteBatchPreparation(string? Error, Dictionary<Guid, SysViewRoute> Existing)
+        {
+            public static RouteBatchPreparation Fail(string error) => new(error, []);
+            public static RouteBatchPreparation Ok(Dictionary<Guid, SysViewRoute> existing) => new(null, existing);
         }
         #endregion
 

@@ -1,6 +1,8 @@
 using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -13,6 +15,15 @@ namespace SwiftExport.Contracts.Apis.SystemApis
     /// </summary>
     public interface ISysViewRouteApi : IGenericApi<SysViewRouteDto>
     {
+        [Get("/all")]
+        Task<ServiceResult<IReadOnlyList<SysViewRouteDto>>> GetAllAsync();
+
+        [Post("/page")]
+        Task<ServiceResult<PagedResponseBase<SysViewRouteDto>>> GetPagedAsync([Body] SysViewRouteSearchRequest request);
+
+        [Post("/batch-save")]
+        Task<ServiceResult<SysViewRouteBatchSaveResponse>> BatchSaveAsync([Body] SysViewRouteBatchSaveRequest request);
+
         /// <summary>
         /// 获取所有启用的路由配置（IsEnabled=true）。
         /// 前端应用启动时调用一次，结果缓存在 ViewRouteService 中。

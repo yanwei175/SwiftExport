@@ -1,6 +1,8 @@
 using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -14,6 +16,15 @@ namespace SwiftExport.Contracts.Apis.SystemApis
     [Headers("Content-Type: application/json")]
     public interface ISysDicCurrencyApi : IGenericApi<SysDicCurrencyDto>
     {
+        [Get("/all")]
+        Task<ServiceResult<IReadOnlyList<SysDicCurrencyDto>>> GetAllAsync();
+
+        [Post("/page")]
+        Task<ServiceResult<PagedResponseBase<SysDicCurrencyDto>>> GetPagedAsync([Body] SysDicCurrencySearchRequest request);
+
+        [Post("/batch-save")]
+        Task<ServiceResult<SysDicCurrencyBatchSaveResponse>> BatchSaveAsync([Body] SysDicCurrencyBatchSaveRequest request);
+
         /// <summary>获取当前本位币</summary>
         [Get("/base")]
         Task<ServiceResult<SysDicCurrencyDto>> GetBaseCurrencyAsync();

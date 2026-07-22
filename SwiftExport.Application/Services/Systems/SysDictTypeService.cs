@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
+using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
@@ -15,7 +16,11 @@ namespace SwiftExport.Application.Services.Systems
     /// 系统字典类型服务实现
     /// 支持标准 CRUD 操作和分组树查询
     /// </summary>
-    public partial class SysDictTypeService(IRepository<SysDictType> repository, ServiceBaseContext context)
+    public partial class SysDictTypeService(
+        ISysDictTypeRepository repository,
+        ISysDictDataRepository dictDataRepository,
+        ISysViewRouteRepository viewRouteRepository,
+        ServiceBaseContext context)
         : BaseService<SysDictType, SysDictTypeDto>(repository, context), ISysDictTypeService
     {
         private readonly ILogger<SysDictTypeService> _logger = context.LoggerFactory.CreateLogger<SysDictTypeService>();
@@ -247,14 +252,231 @@ namespace SwiftExport.Application.Services.Systems
             }
         }
 
-        public Task<ServiceResult<PagedResponseBase<SysDictTypeDto>>> GetPagedAsync(SysDictTypeSearchRequest request)
+        public async Task<ServiceResult<PagedResponseBase<SysDictTypeDto>>> GetPagedAsync(SysDictTypeSearchRequest request)
         {
-            throw new NotImplementedException();
+            try
+            {
+                return ServiceResult<PagedResponseBase<SysDictTypeDto>>.Ok(
+                    await repository.GetPagedAsync(request ?? new SysDictTypeSearchRequest()));
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "分页查询字典类型失败。");
+                return ServiceResult<PagedResponseBase<SysDictTypeDto>>.Fail($"查询失败：{exception.Message}");
+            }
         }
 
-        public Task<ServiceResult<SysDictTypeBatchSaveResponse>> BatchSaveAsync(SysDictTypeBatchSaveRequest batchReq)
+        public async Task<ServiceResult<SysDictTypeBatchSaveResponse>> BatchSaveAsync(SysDictTypeBatchSaveRequest batchReq)
         {
-            throw new NotImplementedException();
+            var requestError = SystemBatchSaveSupport.ValidateRequest(batchReq);
+            if (requestError is not null) return ServiceResult<SysDictTypeBatchSaveResponse>.Fail(requestError);
+            if (_session.Transaction is not null)
+                return ServiceResult<SysDictTypeBatchSaveResponse>.Fail("当前请求已存在未完成事务，不能重复开始字典类型批量保存。");
+
+            var response = new SysDictTypeBatchSaveResponse { TotalCount = batchReq.TotalCount };
+            try
+            {
+                _session.Transaction = _session.Connection.BeginTransaction();
+                var preparation = await PrepareBatchSaveAsync(batchReq);
+                if (preparation.Error is not null)
+                {
+                    _session.Transaction.Rollback();
+                    return ServiceResult<SysDictTypeBatchSaveResponse>.Fail(preparation.Error);
+                }
+
+                var persistedByLogicalId = preparation.Existing.Keys.ToDictionary(uid => uid, uid => uid);
+                foreach (var item in preparation.OrderedCreates)
+                {
+                    var entity = item.Data.Adapt<SysDictType>();
+                    entity.IsSystem = false;
+                    entity.ParentId = ResolveParentId(item.Data.ParentId, persistedByLogicalId);
+                    var writeResult = await repository.AddAsync(entity);
+                    response.Items.Add(SaveItemResultFactory.FromCreate(item, writeResult));
+                    SystemBatchSaveSupport.EnsureWriteSucceeded(writeResult, "新增字典类型失败。");
+                    persistedByLogicalId[item.Data.Uid] = writeResult.Uid;
+                }
+                foreach (var item in batchReq.UpdateItems)
+                {
+                    var entity = preparation.Existing[item.Uid];
+                    var isSystem = entity.IsSystem;
+                    SystemBatchSaveSupport.AdaptPreservingServerFields(item.Data, entity);
+                    entity.IsSystem = isSystem;
+                    entity.ParentId = ResolveParentId(item.Data.ParentId, persistedByLogicalId);
+                    entity.Version = item.Version;
+                    var writeResult = await repository.UpdateAsync(entity);
+                    response.Items.Add(SaveItemResultFactory.FromUpdate(item, writeResult));
+                    SystemBatchSaveSupport.EnsureWriteSucceeded(writeResult, "更新字典类型失败。");
+                }
+                foreach (var item in batchReq.DeleteItems)
+                {
+                    var writeResult = await repository.DeleteAsync(item.Uid, item.Version, item.IsSoftDelete);
+                    response.Items.Add(SaveItemResultFactory.FromDelete(item, writeResult));
+                    SystemBatchSaveSupport.EnsureWriteSucceeded(writeResult, "删除字典类型失败。");
+                }
+
+                _session.Transaction.Commit();
+                return ServiceResult<SysDictTypeBatchSaveResponse>.Ok(response, $"批量保存完成，成功 {response.SuccessCount} 条。");
+            }
+            catch (SystemBatchWriteException exception)
+            {
+                SystemBatchSaveSupport.TryRollback(_session, _logger, "字典类型批量保存");
+                return ServiceResult<SysDictTypeBatchSaveResponse>.Fail($"字典类型批量保存失败，所有操作已回滚。原因：{exception.Message}");
+            }
+            catch (Exception exception)
+            {
+                SystemBatchSaveSupport.TryRollback(_session, _logger, "字典类型批量保存");
+                _logger.LogError(exception, "字典类型批量保存发生未预期异常。");
+                return ServiceResult<SysDictTypeBatchSaveResponse>.Fail("字典类型批量保存失败，所有操作已回滚，请刷新后重试。");
+            }
+            finally
+            {
+                _session.Transaction?.Dispose();
+                _session.Transaction = null;
+            }
+        }
+
+        private async Task<DictTypeBatchPreparation> PrepareBatchSaveAsync(SysDictTypeBatchSaveRequest request)
+        {
+            foreach (var item in request.CreateItems)
+            {
+                var error = NormalizeAndValidate(item.Data, item.RowIndex, "新增");
+                if (error is not null) return DictTypeBatchPreparation.Fail(error);
+                if (item.Data.Uid == Guid.Empty) item.Data.Uid = Guid.NewGuid();
+            }
+            foreach (var item in request.UpdateItems)
+            {
+                var error = NormalizeAndValidate(item.Data, item.RowIndex, "修改");
+                if (error is not null) return DictTypeBatchPreparation.Fail(error);
+            }
+
+            var submittedRouteKeys = request.CreateItems.Select(x => x.Data.TargetViewKey)
+                .Concat(request.UpdateItems.Select(x => x.Data.TargetViewKey))
+                .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            var routes = await viewRouteRepository.GetByTargetViewKeysAsync(submittedRouteKeys, withUpdLock: true);
+            var existingRouteKeys = routes.Select(x => x.TargetViewKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var missingRouteKeys = submittedRouteKeys.Where(x => !existingRouteKeys.Contains(x)).ToArray();
+            if (missingRouteKeys.Length > 0)
+                return DictTypeBatchPreparation.Fail("以下目标路由不存在：" + string.Join(", ", missingRouteKeys));
+
+            var all = await repository.GetAllForUpdateAsync();
+            var existing = all.ToDictionary(x => x.Uid);
+            var targetIds = request.UpdateItems.Select(x => x.Uid).Concat(request.DeleteItems.Select(x => x.Uid)).Distinct().ToArray();
+            var missing = targetIds.Where(uid => !existing.ContainsKey(uid)).ToArray();
+            if (missing.Length > 0) return DictTypeBatchPreparation.Fail("修改或删除失败，以下字典类型不存在：" + string.Join(", ", missing));
+            var protectedItems = SystemBatchSaveSupport.FindProtectedDeleteIds(request.DeleteItems, existing, entity => entity.IsSystem);
+            if (protectedItems.Length > 0) return DictTypeBatchPreparation.Fail("系统字典类型不能删除：" + string.Join(", ", protectedItems));
+
+            var createIds = request.CreateItems.Select(x => x.Data.Uid).ToArray();
+            if (createIds.Distinct().Count() != createIds.Length || createIds.Any(existing.ContainsKey))
+                return DictTypeBatchPreparation.Fail("新增字典类型的逻辑标识重复或与现有数据冲突。");
+
+            var deleteIds = request.DeleteItems.Select(x => x.Uid).ToHashSet();
+            var updateById = request.UpdateItems.ToDictionary(x => x.Uid);
+            var nodes = new Dictionary<Guid, DictTypeNode>();
+            foreach (var entity in all.Where(x => !deleteIds.Contains(x.Uid)))
+            {
+                var node = updateById.TryGetValue(entity.Uid, out var update)
+                    ? new DictTypeNode(entity.Uid, update.Data.ParentId, update.Data.DictCode, update.Data.TargetViewKey)
+                    : new DictTypeNode(entity.Uid, entity.ParentId, entity.DictCode, entity.TargetViewKey);
+                nodes.Add(node.Uid, node);
+            }
+            foreach (var item in request.CreateItems)
+            {
+                var node = new DictTypeNode(item.Data.Uid, item.Data.ParentId, item.Data.DictCode, item.Data.TargetViewKey);
+                nodes.Add(node.Uid, node);
+            }
+
+            var graphError = ValidateFinalGraph(nodes);
+            if (graphError is not null) return DictTypeBatchPreparation.Fail(graphError);
+
+            var changedOrDeletedCodes = request.DeleteItems.Select(x => existing[x.Uid].DictCode)
+                .Concat(request.UpdateItems.Where(x => !string.Equals(existing[x.Uid].DictCode, x.Data.DictCode, StringComparison.OrdinalIgnoreCase))
+                    .Select(x => existing[x.Uid].DictCode))
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            var codesWithData = await dictDataRepository.GetDictCodesWithDataAsync(changedOrDeletedCodes);
+            if (codesWithData.Count > 0)
+                return DictTypeBatchPreparation.Fail("以下字典类型仍有字典明细，不能改编码或删除：" + string.Join(", ", codesWithData));
+
+            var orderedCreates = OrderCreates(request.CreateItems, existing.Keys.ToHashSet());
+            return orderedCreates.Error is null
+                ? DictTypeBatchPreparation.Ok(existing, orderedCreates.Items)
+                : DictTypeBatchPreparation.Fail(orderedCreates.Error);
+        }
+
+        internal static string? ValidateFinalGraph(IReadOnlyDictionary<Guid, DictTypeNode> nodes)
+        {
+            var duplicate = nodes.Values.GroupBy(x => x.DictCode, StringComparer.OrdinalIgnoreCase).FirstOrDefault(group => group.Count() > 1);
+            if (duplicate is not null) return $"字典编码不能重复：{duplicate.Key}。";
+            foreach (var node in nodes.Values)
+            {
+                if (node.ParentId is null) continue;
+                if (node.ParentId == node.Uid) return $"字典类型不能引用自身作为上级：{node.DictCode}。";
+                if (!nodes.ContainsKey(node.ParentId.Value)) return $"字典类型的上级不存在：{node.DictCode}。";
+
+                var visited = new HashSet<Guid> { node.Uid };
+                var current = node;
+                while (current.ParentId.HasValue)
+                {
+                    if (!visited.Add(current.ParentId.Value)) return $"字典类型层级存在循环引用：{node.DictCode}。";
+                    if (!nodes.TryGetValue(current.ParentId.Value, out var parent))
+                        return $"字典类型的上级不存在：{node.DictCode}。";
+                    current = parent;
+                }
+            }
+            return null;
+        }
+
+        private static (string? Error, List<CreateItemRequest<SysDictTypeDto>> Items) OrderCreates(
+            List<CreateItemRequest<SysDictTypeDto>> creates,
+            HashSet<Guid> persistedIds)
+        {
+            var pending = creates.ToList();
+            var ordered = new List<CreateItemRequest<SysDictTypeDto>>(creates.Count);
+            while (pending.Count > 0)
+            {
+                var ready = pending.Where(x => !x.Data.ParentId.HasValue || persistedIds.Contains(x.Data.ParentId.Value)).ToList();
+                if (ready.Count == 0) return ("新增字典类型无法按父子顺序保存。", []);
+                foreach (var item in ready)
+                {
+                    pending.Remove(item);
+                    ordered.Add(item);
+                    persistedIds.Add(item.Data.Uid);
+                }
+            }
+            return (null, ordered);
+        }
+
+        private static Guid? ResolveParentId(Guid? parentId, IReadOnlyDictionary<Guid, Guid> persistedByLogicalId)
+        {
+            if (!parentId.HasValue) return null;
+            return persistedByLogicalId.TryGetValue(parentId.Value, out var persisted) ? persisted : parentId;
+        }
+
+        private static string? NormalizeAndValidate(SysDictTypeDto? dto, int? rowIndex, string operation)
+        {
+            var row = SystemBatchSaveSupport.FormatRow(rowIndex);
+            if (dto is null) return $"第 {row} 行：{operation}数据不能为空。";
+            if (string.IsNullOrWhiteSpace(dto.DictCode)) return $"第 {row} 行：字典编码不能为空。";
+            if (string.IsNullOrWhiteSpace(dto.DictName)) return $"第 {row} 行：字典名称不能为空。";
+            dto.DictCode = dto.DictCode.Trim();
+            dto.DictName = dto.DictName.Trim();
+            dto.TargetViewKey = dto.TargetViewKey?.Trim();
+            dto.GroupCode = dto.GroupCode?.Trim();
+            dto.GroupName = dto.GroupName?.Trim();
+            dto.Remark = dto.Remark?.Trim();
+            return null;
+        }
+
+        internal sealed record DictTypeNode(Guid Uid, Guid? ParentId, string DictCode, string? TargetViewKey);
+
+        private sealed record DictTypeBatchPreparation(
+            string? Error,
+            Dictionary<Guid, SysDictType> Existing,
+            List<CreateItemRequest<SysDictTypeDto>> OrderedCreates)
+        {
+            public static DictTypeBatchPreparation Fail(string error) => new(error, [], []);
+            public static DictTypeBatchPreparation Ok(Dictionary<Guid, SysDictType> existing, List<CreateItemRequest<SysDictTypeDto>> creates) => new(null, existing, creates);
         }
     }
 }

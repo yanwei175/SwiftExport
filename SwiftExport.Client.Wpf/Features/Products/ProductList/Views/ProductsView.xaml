@@ -148,18 +148,18 @@
                                     SelectedItem="{Binding FilterCustomer, Mode=TwoWay}" />
             <controls:LookupTextBox Grid.Column="2" Placeholder="颜色"
                                     ClearSelectionOnEdit="False"
-                                    SearchMode="Remote" SearchCommand="{Binding SearchColorsCommand}"
-                                    IsBusy="{Binding IsColorLookupBusy}" ItemsSource="{Binding ColorCandidates}"
+                                    SearchMode="Local"
+                                    ItemsSource="{Binding ReferenceDataCache.ProductColors}"
                                     DisplayMemberPath="ColorNameZh" FilterMemberPaths="ColorCodeUnique,ColorCode,ColorNameZh,ColorNameEn"
                                     SelectedValuePath="Uid" SelectedItem="{Binding FilterColor, Mode=TwoWay}" />
             
-            <controls:LookupTextBox Grid.Column="4" Placeholder="产品分类"                                    
-                                    SearchMode="Local" 
-                                    ClearSelectionOnEdit="False"
-                                    ItemsSource="{Binding CategoryCandidates}"
-                                    DisplayMemberPath="CategoryName" 
-                                    FilterMemberPaths="CategoryName,CategoryCode"
-                                    SelectedValuePath="Uid" SelectedItem="{Binding FilterCategory, Mode=TwoWay}" />
+            <productComponents:ProductCategoryLookupTextBox
+                                    Grid.Column="4"
+                                    Placeholder="产品分类"
+                                    ItemsSource="{Binding ReferenceDataCache.ProductCategoryTree}"
+                                    SelectedCategory="{Binding FilterCategory, Mode=TwoWay}"
+                                    RefreshCommand="{Binding RefreshProductCategoriesCommand}"
+                                    IsRefreshing="{Binding IsCategoryCacheRefreshing}" />
             <controls:DropDownCheckBox Grid.Column="6"
                                        ShowClearOption="True"
                                        Placeholder="物料类型"
@@ -273,17 +273,58 @@
                                             EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"
                                             gridColumns:GridColumn.Key="features-en" />
                         
-                        <DataGridTextColumn Header="颜色" Width="120"
-                                            Binding="{Binding Finish, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                            gridColumns:GridColumn.Key="finish" />
+                        <DataGridTemplateColumn Header="颜色" Width="120"
+                                                SortMemberPath="Finish"
+                                                gridColumns:GridColumn.Key="finish">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Finish}"
+                                               Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate>
+                                <DataTemplate>
+                                    <controls:LookupTextBox
+                                        Text="{Binding Finish, Mode=OneWay}"
+                                        SearchMode="Local"
+                                        ItemsSource="{Binding DataContext.ReferenceDataCache.ProductColors, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        SelectedItem="{Binding DataContext.EditColor, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
+                                        DisplayMemberPath="ColorNameZh"
+                                        FilterMemberPaths="ColorCodeUnique,ColorCode,ColorNameZh,ColorNameEn"
+                                        SelectedValuePath="Uid"
+                                        RequireItemMatch="True"
+                                        SelectionCommittedCommand="{Binding DataContext.CommitColorCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        SelectionCommittedCommandParameter="{Binding}"
+                                        SelectionClearedCommand="{Binding DataContext.ClearColorCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        SelectionClearedCommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
                         
-                        <DataGridTextColumn Header="分类" Width="130"
-                                            Binding="{Binding CategoryName, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                            gridColumns:GridColumn.Key="category-name" />
+                        <DataGridTemplateColumn Header="分类" Width="150"
+                                                SortMemberPath="CategoryName"
+                                                gridColumns:GridColumn.Key="category-name">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding CategoryName}"
+                                               Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate>
+                                <DataTemplate>
+                                    <productComponents:ProductCategoryLookupTextBox
+                                        Text="{Binding CategoryName, Mode=OneWay}"
+                                        ItemsSource="{Binding DataContext.ReferenceDataCache.ProductCategoryTree, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        SelectedCategory="{Binding DataContext.EditCategory, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
+                                        RefreshCommand="{Binding DataContext.RefreshProductCategoriesCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        IsRefreshing="{Binding DataContext.IsCategoryCacheRefreshing, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        SelectionCommittedCommand="{Binding DataContext.CommitCategoryCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        SelectionCommittedCommandParameter="{Binding}"
+                                        SelectionClearedCommand="{Binding DataContext.ClearCategoryCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        SelectionClearedCommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
                         
                         <DataGridTemplateColumn Header="物料类型" 
                                                 Width="100"

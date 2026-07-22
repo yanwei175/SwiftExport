@@ -59,9 +59,8 @@ public sealed class ProductsMaterialTypeFilterTests
             productApi,
             null!,
             null!,
-            null!,
-            null!,
             runner,
+            null!,
             messageService,
             dialogService,
             bomDrawer);

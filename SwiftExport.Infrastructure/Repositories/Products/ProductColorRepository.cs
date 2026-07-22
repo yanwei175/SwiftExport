@@ -12,6 +12,7 @@ namespace SwiftExport.Infrastructure.Repositories.Products;
 public class ProductColorRepository(RepositoryBaseContext context) : DapperRepository<ProductColor>(context), IProductColorRepository
 {
     private static readonly string ProductColorTable = EntityMetadataCache.GetTableName<ProductColor>();
+    private static readonly string ProductTable = EntityMetadataCache.GetTableName<Product>();
 
     public async Task<bool> ExistByColorCode(string productColor)
     {
@@ -28,6 +29,57 @@ public class ProductColorRepository(RepositoryBaseContext context) : DapperRepos
         var sql = $"SELECT ColorCodeUnique FROM [{TableName}] WHERE  ColorCodeUnique IN @Codes";
         var rst = await Connection.QueryAsync<string>(sql, new { Codes = productColorList }, transaction: Transaction);
         return [.. rst];
+    }
+
+    public async Task<IReadOnlyList<ProductColor>> GetByColorCodesAsync(
+        IEnumerable<string> colorCodes,
+        bool withUpdLock = false)
+    {
+        var normalized = colorCodes?
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Select(code => code.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray() ?? [];
+        if (normalized.Length == 0) return [];
+
+        var lockHint = withUpdLock ? "WITH (UPDLOCK, ROWLOCK)" : "WITH (NOLOCK)";
+        var sql = $@"
+SELECT
+    [{nameof(ProductColor.Uid)}],
+    [{nameof(ProductColor.Version)}],
+    [{nameof(ProductColor.IsDeleted)}],
+    [{nameof(ProductColor.ColorCodeUnique)}],
+    [{nameof(ProductColor.ColorCode)}],
+    [{nameof(ProductColor.ColorNameEn)}],
+    [{nameof(ProductColor.ColorNameZh)}]
+FROM [{ProductColorTable}] {lockHint}
+WHERE [{nameof(ProductColor.ColorCodeUnique)}] IN @Codes
+  AND [{nameof(ProductColor.IsDeleted)}] = 0;";
+        var items = await Connection.QueryAsync<ProductColor>(
+            sql,
+            new { Codes = normalized },
+            transaction: Transaction);
+        return [.. items];
+    }
+
+    public async Task<IReadOnlyList<Guid>> GetReferencedColorIdsAsync(IEnumerable<Guid> colorIds)
+    {
+        var normalized = colorIds?
+            .Where(uid => uid != Guid.Empty)
+            .Distinct()
+            .ToArray() ?? [];
+        if (normalized.Length == 0) return [];
+
+        var sql = $@"
+SELECT DISTINCT [{nameof(Product.ColorId)}]
+FROM [{ProductTable}] WITH (UPDLOCK, ROWLOCK)
+WHERE [{nameof(Product.ColorId)}] IN @ColorIds
+  AND [{nameof(Product.IsDeleted)}] = 0;";
+        var ids = await Connection.QueryAsync<Guid>(
+            sql,
+            new { ColorIds = normalized },
+            transaction: Transaction);
+        return [.. ids];
     }
 
     public async Task<PagedResponseBase<ProductColor>> GetProductColorPagedAsync(ProductColorSearchRequest request)

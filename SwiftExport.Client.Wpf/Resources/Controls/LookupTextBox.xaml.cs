@@ -26,6 +26,7 @@ public partial class LookupTextBox : UserControl
     private bool _isSelectionDisplayMode;
     private bool _hasUserInputIntent;
     private INotifyCollectionChanged? _itemsCollectionChangedSource;
+    private ILookupResultHost? _customResultHost;
 
     public LookupTextBox()
     {
@@ -330,6 +331,20 @@ public partial class LookupTextBox : UserControl
         set => SetValue(ItemTemplateProperty, value);
     }
 
+    public static readonly DependencyProperty CustomDropDownContentProperty =
+        DependencyProperty.Register(
+            nameof(CustomDropDownContent),
+            typeof(object),
+            typeof(LookupTextBox),
+            new PropertyMetadata(null, OnCustomDropDownContentChanged));
+
+    /// <summary>获取或设置替代默认 ListBox 的下拉内容。</summary>
+    public object? CustomDropDownContent
+    {
+        get => GetValue(CustomDropDownContentProperty);
+        set => SetValue(CustomDropDownContentProperty, value);
+    }
+
     public static readonly DependencyProperty HasTextOrSelectionProperty =
         DependencyProperty.Register(
             nameof(HasTextOrSelection),
@@ -356,6 +371,16 @@ public partial class LookupTextBox : UserControl
             }),
             DispatcherPriority.Input);
     }
+
+    internal void SetCustomResultHost(ILookupResultHost? resultHost)
+    {
+        _customResultHost = resultHost;
+        UpdateResultPresenter();
+        RefreshResultHost();
+    }
+
+    internal void CommitExternalSelection(object? item, LookupCommitReason reason) =>
+        CommitSelection(item, reason);
 
     private static void OnPlaceholderChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -405,6 +430,7 @@ public partial class LookupTextBox : UserControl
             control.IsDropDownOpen = false;
         }
 
+        control.RefreshResultHost();
         control.UpdateTextVisualState();
     }
 
@@ -442,6 +468,13 @@ public partial class LookupTextBox : UserControl
     private static void OnItemTemplateChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         ((LookupTextBox)d).ApplyItemTemplate();
+    }
+
+    private static void OnCustomDropDownContentChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var control = (LookupTextBox)d;
+        control.UpdateResultPresenter();
+        control.RefreshResultHost();
     }
 
     private void LookupTextBox_Loaded(object sender, RoutedEventArgs e)
@@ -527,6 +560,7 @@ public partial class LookupTextBox : UserControl
         {
             _debounceTimer.Stop();
             FilteredView?.Refresh();
+            RefreshResultHost();
             IsDropDownOpen = false;
             return;
         }
@@ -617,35 +651,34 @@ public partial class LookupTextBox : UserControl
             return;
         }
 
-        if (e.Key == Key.Enter && (!IsDropDownOpen || ResultList.Items.Count == 0))
+        if (e.Key == Key.Enter && (!IsDropDownOpen || !HasResultItems()))
         {
             ExecuteQueryCommand();
             e.Handled = true;
             return;
         }
 
-        if (!IsDropDownOpen || ResultList.Items.Count == 0)
+        if (!IsDropDownOpen || !HasResultItems())
         {
             return;
         }
 
         if (e.Key == Key.Down)
         {
-            ResultList.SelectedIndex = Math.Min(ResultList.SelectedIndex + 1, ResultList.Items.Count - 1);
-            ResultList.ScrollIntoView(ResultList.SelectedItem);
+            MoveResultSelection(1);
             e.Handled = true;
         }
         else if (e.Key == Key.Up)
         {
-            ResultList.SelectedIndex = Math.Max(ResultList.SelectedIndex - 1, 0);
-            ResultList.ScrollIntoView(ResultList.SelectedItem);
+            MoveResultSelection(-1);
             e.Handled = true;
         }
         else if (e.Key == Key.Enter || e.Key == Key.Tab)
         {
-            if (ResultList.SelectedItem is not null)
+            var currentItem = GetCurrentResultItem();
+            if (currentItem is not null)
             {
-                CommitSelection(ResultList.SelectedItem, e.Key == Key.Tab ? LookupCommitReason.Tab : LookupCommitReason.Enter);
+                CommitSelection(currentItem, e.Key == Key.Tab ? LookupCommitReason.Tab : LookupCommitReason.Enter);
             }
             else if (e.Key == Key.Enter)
             {
@@ -657,6 +690,11 @@ public partial class LookupTextBox : UserControl
 
     private void InputTextBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
+        if (IsFocusWithinLookup(e.NewFocus as DependencyObject))
+        {
+            return;
+        }
+
         var wasDropDownOpen = IsDropDownOpen;
         _debounceTimer.Stop();
         _hasUserInputIntent = false;
@@ -790,6 +828,15 @@ public partial class LookupTextBox : UserControl
             return string.IsNullOrWhiteSpace(text);
         }
 
+        if (_customResultHost?.TryResolveExact(text, out var customItem) == true && customItem is not null)
+        {
+            SetSelectedItemSilently(customItem);
+            SelectedValue = GetSelectedValue(customItem);
+            SetDisplayText(GetDisplayText(customItem));
+            CommitReason = LookupCommitReason.ExactMatch;
+            return true;
+        }
+
         foreach (var item in ItemsSource)
         {
             if (item is null)
@@ -917,6 +964,13 @@ public partial class LookupTextBox : UserControl
 
     private void RefreshAndUpdateDropDown()
     {
+        if (_customResultHost is not null)
+        {
+            RefreshResultHost();
+            IsDropDownOpen = _customResultHost.HasItems;
+            return;
+        }
+
         if (FilteredView is null)
         {
             IsDropDownOpen = false;
@@ -929,6 +983,24 @@ public partial class LookupTextBox : UserControl
 
     private bool OpenDropDownFromUserIntent(bool selectFirstItem)
     {
+        if (_customResultHost is not null)
+        {
+            RefreshResultHost();
+            if (!_customResultHost.HasItems)
+            {
+                IsDropDownOpen = false;
+                return false;
+            }
+
+            if (selectFirstItem)
+            {
+                _customResultHost.SelectFirst();
+            }
+
+            IsDropDownOpen = true;
+            return true;
+        }
+
         if (FilteredView is null)
         {
             IsDropDownOpen = false;
@@ -954,6 +1026,17 @@ public partial class LookupTextBox : UserControl
 
     private void UpdateDropDownAfterItemsChanged()
     {
+        if (_customResultHost is not null)
+        {
+            RefreshResultHost();
+            if (IsDropDownOpen || HasActiveUserQuery())
+            {
+                IsDropDownOpen = _customResultHost.HasItems;
+            }
+
+            return;
+        }
+
         if (FilteredView is null)
         {
             IsDropDownOpen = false;
@@ -1215,5 +1298,76 @@ public partial class LookupTextBox : UserControl
             _itemsCollectionChangedSource.CollectionChanged -= ItemsSource_CollectionChanged;
             _itemsCollectionChangedSource = null;
         }
+    }
+
+    private void UpdateResultPresenter()
+    {
+        if (ResultList is null || CustomDropDownPresenter is null)
+        {
+            return;
+        }
+
+        var hasCustomContent = CustomDropDownContent is not null;
+        ResultList.Visibility = hasCustomContent ? Visibility.Collapsed : Visibility.Visible;
+        CustomDropDownPresenter.Visibility = hasCustomContent ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void RefreshResultHost() =>
+        _customResultHost?.Refresh(ItemsSource, InputTextBox?.Text ?? Text ?? string.Empty);
+
+    private bool HasResultItems() =>
+        _customResultHost?.HasItems ?? ResultList.Items.Count > 0;
+
+    private object? GetCurrentResultItem() =>
+        _customResultHost?.CurrentItem ?? ResultList.SelectedItem;
+
+    private void MoveResultSelection(int offset)
+    {
+        if (_customResultHost is not null)
+        {
+            _customResultHost.MoveSelection(offset);
+            return;
+        }
+
+        ResultList.SelectedIndex = Math.Clamp(
+            ResultList.SelectedIndex + offset,
+            0,
+            Math.Max(0, ResultList.Items.Count - 1));
+        ResultList.ScrollIntoView(ResultList.SelectedItem);
+    }
+
+    private bool IsFocusWithinLookup(DependencyObject? focusedElement)
+    {
+        if (focusedElement is null)
+        {
+            return false;
+        }
+
+        return IsDescendantOrSelf(focusedElement, this)
+               || DropdownPopup.Child is DependencyObject popupChild
+               && IsDescendantOrSelf(focusedElement, popupChild);
+    }
+
+    private static bool IsDescendantOrSelf(DependencyObject current, DependencyObject ancestor)
+    {
+        for (DependencyObject? node = current; node is not null; node = GetParent(node))
+        {
+            if (ReferenceEquals(node, ancestor))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static DependencyObject? GetParent(DependencyObject current)
+    {
+        if (current is Visual || current is System.Windows.Media.Media3D.Visual3D)
+        {
+            return VisualTreeHelper.GetParent(current);
+        }
+
+        return LogicalTreeHelper.GetParent(current);
     }
 }

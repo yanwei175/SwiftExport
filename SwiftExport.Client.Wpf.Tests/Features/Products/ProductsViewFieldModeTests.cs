@@ -70,6 +70,39 @@ public sealed class ProductsViewFieldModeTests
     }
 
     [TestMethod]
+    public void ColorAndCategoryLookups_ShouldUseReferenceCacheAndEditingTemplates()
+    {
+        var document = LoadProductsView();
+        var colorLookups = document.Descendants()
+            .Where(element => element.Name.LocalName == "LookupTextBox"
+                              && ((string?)element.Attribute("ItemsSource"))?.Contains(
+                                  "ReferenceDataCache.ProductColors",
+                                  StringComparison.Ordinal) == true)
+            .ToArray();
+        Assert.HasCount(2, colorLookups, "筛选和 DataGrid 编辑态应共用颜色缓存。");
+        Assert.IsTrue(colorLookups.All(element => (string?)element.Attribute("SearchMode") == "Local"));
+        Assert.IsFalse(colorLookups.Any(element => element.Attribute("SearchCommand") is not null));
+
+        var categoryLookups = document.Descendants()
+            .Where(element => element.Name.LocalName == "ProductCategoryLookupTextBox")
+            .ToArray();
+        Assert.HasCount(2, categoryLookups, "筛选和 DataGrid 编辑态应共用分类树控件。");
+        Assert.IsTrue(categoryLookups.All(element =>
+            ((string?)element.Attribute("ItemsSource"))?.Contains(
+                "ReferenceDataCache.ProductCategoryTree",
+                StringComparison.Ordinal) == true));
+
+        var colorColumn = FindColumn(document, "finish");
+        var categoryColumn = FindColumn(document, "category-name");
+        Assert.AreEqual("DataGridTemplateColumn", colorColumn.Name.LocalName);
+        Assert.AreEqual("DataGridTemplateColumn", categoryColumn.Name.LocalName);
+        Assert.IsFalse(colorColumn.Attributes().Any(attribute =>
+            attribute.Name.LocalName.EndsWith("FieldPath", StringComparison.Ordinal)));
+        Assert.IsFalse(categoryColumn.Attributes().Any(attribute =>
+            attribute.Name.LocalName.EndsWith("FieldPath", StringComparison.Ordinal)));
+    }
+
+    [TestMethod]
     public void BindingProxyColumnVisibility_ShouldLoadWithoutMarkupExtensionCycleAndTrackViewModel()
     {
         StaTest.RunAsync(() =>

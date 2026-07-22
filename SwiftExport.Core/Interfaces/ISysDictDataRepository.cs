@@ -6,10 +6,14 @@ using SwiftExport.Core.Entities.Systems;
 namespace SwiftExport.Core.Interfaces
 {
     /// <summary>
-    /// ×ÖµäÃ÷Ï¸²Ö´¢½Ó¿Ú
+    /// å­—å…¸æ˜ç»†ä»“å‚¨æ¥å£
     /// </summary>
     public interface ISysDictDataRepository : IRepository<SysDictData>
     {
         Task<PagedResponseBase<SysDictDataDto>> GetPagedAsync(SysDictDataSearchRequest request);
+
+        Task<IReadOnlyList<SysDictData>> GetByCodeAsync(string dictCode);
+
+        Task<IReadOnlyList<string>> GetDictCodesWithDataAsync(IEnumerable<string> dictCodes);
     }
 }

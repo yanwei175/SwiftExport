@@ -1,6 +1,8 @@
 using Refit;
 using SwiftExport.Contracts.Apis.BaseApi;
 using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -12,6 +14,15 @@ namespace SwiftExport.Contracts.Apis.SystemApis
     /// </summary>
     public interface ISysDictTypeApi : IGenericApi<SysDictTypeDto>
     {
+        [Get("/all")]
+        Task<ServiceResult<IReadOnlyList<SysDictTypeDto>>> GetAllAsync();
+
+        [Post("/page")]
+        Task<ServiceResult<PagedResponseBase<SysDictTypeDto>>> GetPagedAsync([Body] SysDictTypeSearchRequest request);
+
+        [Post("/batch-save")]
+        Task<ServiceResult<SysDictTypeBatchSaveResponse>> BatchSaveAsync([Body] SysDictTypeBatchSaveRequest request);
+
         /// <summary>
         /// 获取字典类型分组树
         /// 返回按 GroupCode 分组的树形结构

@@ -139,7 +139,7 @@ public sealed class ProductsDeletionTests
     {
         var bomDrawer = new BomDrawerViewModel(null!, null!, null!, null!, dialogService);
         return new ProductsViewModel(
-            null!, null!, null!, null!, null!, null!, null!, dialogService, bomDrawer);
+            null!, null!, null!, null!, null!, null!, dialogService, bomDrawer);
     }
 
     private static ProductDto CreateDto(string sku) => new()

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
+using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
@@ -31,32 +32,47 @@ namespace SwiftExport.Application.Services.Systems
         // ============================================================
         public async Task<ServiceResult<int>> SetNewBaseCurrencyAsync(SysDicCurrencyDto newSysDicCurrencyDto)
         {
+            if (newSysDicCurrencyDto is null || newSysDicCurrencyDto.Uid == Guid.Empty || newSysDicCurrencyDto.Version <= 0)
+                return ServiceResult<int>.Fail("本位币标识或版本无效。");
+            if (_session.Transaction is not null)
+                return ServiceResult<int>.Fail("当前请求已存在未完成事务，不能重复开始本位币切换。");
+
             _session.Transaction = _session.Connection.BeginTransaction();
             try
             {
-                var entity = newSysDicCurrencyDto.Adapt<SysDicCurrency>();
+                var entity = await repository.GetByIdAsync(newSysDicCurrencyDto.Uid, withUpdLock: true);
+                if (entity is null)
+                {
+                    _session.Transaction.Rollback();
+                    return ServiceResult<int>.Fail("重置本位币失败，未找到目标货币。");
+                }
+                var isSystem = entity.IsSystem;
+                SystemBatchSaveSupport.AdaptPreservingServerFields(newSysDicCurrencyDto, entity);
+                entity.IsSystem = isSystem;
+                entity.Version = newSysDicCurrencyDto.Version;
                 await repository.ResetAllBaseCurrencyAsync();
                 entity.IsBase = true;
+                entity.IsEnabled = true;
+                entity.RateToBase = 1m;
                 var rst = await repository.UpdateAsync(entity);
-                //var rst = 1;
-                if (rst == null)
+                if (!rst.Success)
                 {
                     _session.Transaction.Rollback();
                     _logger.LogWarning("重置本位币失败，未找到匹配的货币代码：{CurrencyCode}", newSysDicCurrencyDto.CurrencyCode);
-                    return ServiceResult<int>.Fail("重置本位币失败，未找到匹配的货币代码");
+                    return ServiceResult<int>.Fail(rst.Message ?? "重置本位币失败。");
                 }
                 _session.Transaction.Commit();
                 return ServiceResult<int>.Ok(1, "成功重置本位币");
             }
             catch (Exception ex)
             {
-                _session.Transaction.Rollback();
+                SystemBatchSaveSupport.TryRollback(_session, _logger, "本位币切换");
                 if (_logger.IsEnabled(LogLevel.Error)) _logger.LogError(ex, "[{EntityName}] 保存时发生错误，事务已回滚！", nameof(SysDicCurrency));
-                throw;
+                return ServiceResult<int>.Fail("重置本位币失败，所有操作已回滚。");
             }
             finally
             {
-                _session.Transaction.Dispose();
+                _session.Transaction?.Dispose();
                 _session.Transaction = null;
             }
 
@@ -67,18 +83,25 @@ namespace SwiftExport.Application.Services.Systems
         /// </summary>
         public async Task<ServiceResult<SysDicCurrencyDto>> GetBaseCurrencyAsync()
         {
-            //// 直接用索引器访问第一个元素，避免在 List<T> 上用 FirstOrDefault()
-            //var list = await repository.GetListAsync(new { IsBase = true, IsDeleted = false });
-            //SysDicCurrency? baseCurrency = (list.Count > 0) ? list[0] : null;
-
-            //if (baseCurrency == null)
-            //{
-            //    _logger.LogWarning("查询失败：系统中未设置本位币");
-            //    return ServiceResult<SysDicCurrencyDto>.Fail("系统中未设置本位币");
-            //}
-
-            //return ServiceResult<SysDicCurrencyDto>.Ok(baseCurrency.Adapt<SysDicCurrencyDto>());
-            throw new NotImplementedException();
+            try
+            {
+                var currencies = await repository.GetBaseCurrenciesAsync();
+                if (currencies.Count == 0)
+                    return ServiceResult<SysDicCurrencyDto>.Fail("系统中未设置本位币。");
+                if (currencies.Count > 1)
+                {
+                    _logger.LogError("检测到多个本位币：{CurrencyCodes}", string.Join(", ", currencies.Select(x => x.CurrencyCode)));
+                    return ServiceResult<SysDicCurrencyDto>.Fail("系统中存在多个本位币，请先修复货币配置。");
+                }
+                if (!currencies[0].IsEnabled || currencies[0].RateToBase != 1m)
+                    return ServiceResult<SysDicCurrencyDto>.Fail("本位币必须启用且对本位币汇率必须为 1。");
+                return ServiceResult<SysDicCurrencyDto>.Ok(currencies[0].Adapt<SysDicCurrencyDto>());
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "查询本位币失败。");
+                return ServiceResult<SysDicCurrencyDto>.Fail($"查询本位币失败：{exception.Message}");
+            }
         }
 
         /// <summary>
@@ -86,7 +109,16 @@ namespace SwiftExport.Application.Services.Systems
         /// </summary>
         public async Task<ServiceResult<IReadOnlyList<SysDicCurrencyDto>>> GetEnabledListAsync()
         {
-            throw new NotImplementedException();
+            try
+            {
+                var currencies = await repository.GetEnabledCurrenciesAsync();
+                return ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Ok(currencies.Adapt<IReadOnlyList<SysDicCurrencyDto>>());
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "查询启用货币列表失败。");
+                return ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Fail($"查询失败：{exception.Message}");
+            }
         }
 
 
@@ -170,30 +202,25 @@ namespace SwiftExport.Application.Services.Systems
 
         public async Task<ServiceResult<SysDicCurrencyDetailDto>> GetDefaultBaseCurrencyAsync()
         {
-
-            var currency = await GetBaseCurrencyAsync();
-            if (!currency.Success)
+            try
             {
-
-                var id = currency.Data?.Uid ?? Guid.Empty;
-                if (id == Guid.Empty) { return ServiceResult<SysDicCurrencyDetailDto>.Fail(currency.Message); }
-
-                var detailDto = new SysDicCurrencyDetailDto { Currency = currency.Data };
+                var currency = await GetBaseCurrencyAsync();
+                if (!currency.Success || currency.Data is null)
+                    return ServiceResult<SysDicCurrencyDetailDto>.Fail(currency.Message);
 
                 var exchange = await exchangeRepository.GetAllAsync();
-                var exchangeDto = exchange?.Adapt<List<SysDicCurrencyExchangeDto>>();
-                if (exchangeDto != null)
+                var detailDto = new SysDicCurrencyDetailDto
                 {
-                    detailDto.CurrencyRates = exchangeDto;
-                }
+                    Currency = currency.Data,
+                    CurrencyRates = exchange.Adapt<List<SysDicCurrencyExchangeDto>>()
+                };
                 return ServiceResult<SysDicCurrencyDetailDto>.Ok(detailDto);
             }
-            else
+            catch (Exception exception)
             {
-                return ServiceResult<SysDicCurrencyDetailDto>.Fail(currency.Message);
+                _logger.LogError(exception, "查询默认本位币详情失败。");
+                return ServiceResult<SysDicCurrencyDetailDto>.Fail($"查询失败：{exception.Message}");
             }
-
-
         }
 
 
@@ -214,14 +241,171 @@ namespace SwiftExport.Application.Services.Systems
             }
         }
 
-        public Task<ServiceResult<PagedResponseBase<SysDicCurrencyDto>>> GetPagedAsync(SysDicCurrencySearchRequest request)
+        public async Task<ServiceResult<PagedResponseBase<SysDicCurrencyDto>>> GetPagedAsync(SysDicCurrencySearchRequest request)
         {
-            throw new NotImplementedException();
+            try
+            {
+                return ServiceResult<PagedResponseBase<SysDicCurrencyDto>>.Ok(
+                    await repository.GetPagedAsync(request ?? new SysDicCurrencySearchRequest()));
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "分页查询货币失败。");
+                return ServiceResult<PagedResponseBase<SysDicCurrencyDto>>.Fail($"查询失败：{exception.Message}");
+            }
         }
 
-        public Task<ServiceResult<SysDicCurrencyBatchSaveResponse>> BatchSaveAsync(SysDicCurrencyBatchSaveRequest batchReq)
+        public async Task<ServiceResult<SysDicCurrencyBatchSaveResponse>> BatchSaveAsync(SysDicCurrencyBatchSaveRequest batchReq)
         {
-            throw new NotImplementedException();
+            var requestError = SystemBatchSaveSupport.ValidateRequest(batchReq);
+            if (requestError is not null) return ServiceResult<SysDicCurrencyBatchSaveResponse>.Fail(requestError);
+            if (_session.Transaction is not null)
+                return ServiceResult<SysDicCurrencyBatchSaveResponse>.Fail("当前请求已存在未完成事务，不能重复开始货币批量保存。");
+
+            var response = new SysDicCurrencyBatchSaveResponse { TotalCount = batchReq.TotalCount };
+            try
+            {
+                _session.Transaction = _session.Connection.BeginTransaction();
+                var preparation = await PrepareBatchSaveAsync(batchReq);
+                if (preparation.Error is not null)
+                {
+                    _session.Transaction.Rollback();
+                    return ServiceResult<SysDicCurrencyBatchSaveResponse>.Fail(preparation.Error);
+                }
+
+                foreach (var item in batchReq.CreateItems)
+                {
+                    var entity = item.Data.Adapt<SysDicCurrency>();
+                    entity.IsSystem = false;
+                    var writeResult = await repository.AddAsync(entity);
+                    response.Items.Add(SaveItemResultFactory.FromCreate(item, writeResult));
+                    SystemBatchSaveSupport.EnsureWriteSucceeded(writeResult, "新增货币失败。");
+                }
+                foreach (var item in batchReq.UpdateItems)
+                {
+                    var entity = preparation.Existing[item.Uid];
+                    var isSystem = entity.IsSystem;
+                    SystemBatchSaveSupport.AdaptPreservingServerFields(item.Data, entity);
+                    entity.IsSystem = isSystem;
+                    entity.Version = item.Version;
+                    var writeResult = await repository.UpdateAsync(entity);
+                    response.Items.Add(SaveItemResultFactory.FromUpdate(item, writeResult));
+                    SystemBatchSaveSupport.EnsureWriteSucceeded(writeResult, "更新货币失败。");
+                }
+                foreach (var item in batchReq.DeleteItems)
+                {
+                    var writeResult = await repository.DeleteAsync(item.Uid, item.Version, item.IsSoftDelete);
+                    response.Items.Add(SaveItemResultFactory.FromDelete(item, writeResult));
+                    SystemBatchSaveSupport.EnsureWriteSucceeded(writeResult, "删除货币失败。");
+                }
+
+                _session.Transaction.Commit();
+                return ServiceResult<SysDicCurrencyBatchSaveResponse>.Ok(response, $"批量保存完成，成功 {response.SuccessCount} 条。");
+            }
+            catch (SystemBatchWriteException exception)
+            {
+                SystemBatchSaveSupport.TryRollback(_session, _logger, "货币批量保存");
+                return ServiceResult<SysDicCurrencyBatchSaveResponse>.Fail($"货币批量保存失败，所有操作已回滚。原因：{exception.Message}");
+            }
+            catch (Exception exception)
+            {
+                SystemBatchSaveSupport.TryRollback(_session, _logger, "货币批量保存");
+                _logger.LogError(exception, "货币批量保存发生未预期异常。");
+                return ServiceResult<SysDicCurrencyBatchSaveResponse>.Fail("货币批量保存失败，所有操作已回滚，请刷新后重试。");
+            }
+            finally
+            {
+                _session.Transaction?.Dispose();
+                _session.Transaction = null;
+            }
+        }
+
+        private async Task<CurrencyBatchPreparation> PrepareBatchSaveAsync(SysDicCurrencyBatchSaveRequest request)
+        {
+            foreach (var item in request.CreateItems)
+            {
+                var error = NormalizeAndValidate(item.Data, item.RowIndex, "新增");
+                if (error is not null) return CurrencyBatchPreparation.Fail(error);
+            }
+            foreach (var item in request.UpdateItems)
+            {
+                var error = NormalizeAndValidate(item.Data, item.RowIndex, "修改");
+                if (error is not null) return CurrencyBatchPreparation.Fail(error);
+            }
+
+            var all = await repository.GetAllForUpdateAsync();
+            var existing = all.ToDictionary(x => x.Uid);
+            var targetIds = request.UpdateItems.Select(x => x.Uid).Concat(request.DeleteItems.Select(x => x.Uid)).Distinct().ToArray();
+            var missing = targetIds.Where(uid => !existing.ContainsKey(uid)).ToArray();
+            if (missing.Length > 0) return CurrencyBatchPreparation.Fail("修改或删除失败，以下货币不存在：" + string.Join(", ", missing));
+            var systemDeleteIds = SystemBatchSaveSupport.FindProtectedDeleteIds(request.DeleteItems, existing, entity => entity.IsSystem);
+            if (systemDeleteIds.Length > 0)
+                return CurrencyBatchPreparation.Fail("系统内置货币不能删除：" + string.Join(", ", systemDeleteIds.Select(uid => existing[uid].CurrencyCode)));
+
+            var deleteIds = request.DeleteItems.Select(x => x.Uid).ToHashSet();
+            var updateById = request.UpdateItems.ToDictionary(x => x.Uid);
+            var finalState = all.Where(x => !deleteIds.Contains(x.Uid))
+                .Select(x => updateById.TryGetValue(x.Uid, out var update)
+                    ? new CurrencyState(update.Data.CurrencyCode, update.Data.IsBase, update.Data.IsEnabled, update.Data.RateToBase)
+                    : new CurrencyState(x.CurrencyCode ?? string.Empty, x.IsBase, x.IsEnabled, x.RateToBase))
+                .Concat(request.CreateItems.Select(x => new CurrencyState(x.Data.CurrencyCode, x.Data.IsBase, x.Data.IsEnabled, x.Data.RateToBase)))
+                .ToArray();
+            var finalError = ValidateFinalState(finalState);
+            if (finalError is not null) return CurrencyBatchPreparation.Fail(finalError);
+
+            var changedOrDeletedCodes = request.DeleteItems.Select(x => existing[x.Uid].CurrencyCode ?? string.Empty)
+                .Concat(request.UpdateItems.Where(x => !string.Equals(existing[x.Uid].CurrencyCode, x.Data.CurrencyCode, StringComparison.OrdinalIgnoreCase))
+                    .Select(x => existing[x.Uid].CurrencyCode ?? string.Empty))
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            var exchangeReferences = await exchangeRepository.GetReferencedCurrencyCodesAsync(changedOrDeletedCodes);
+            var businessReferences = await repository.GetBusinessReferencedCurrencyCodesAsync(changedOrDeletedCodes);
+            var referenced = exchangeReferences.Concat(businessReferences).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (referenced.Length > 0)
+                return CurrencyBatchPreparation.Fail("以下货币仍被汇率或业务数据引用，不能改编码或删除：" + string.Join(", ", referenced));
+
+            return CurrencyBatchPreparation.Ok(existing);
+        }
+
+        internal static string? ValidateFinalState(IReadOnlyList<CurrencyState> currencies)
+        {
+            var duplicate = currencies.GroupBy(x => x.Code, StringComparer.OrdinalIgnoreCase).FirstOrDefault(group => group.Count() > 1);
+            if (duplicate is not null) return $"货币代码不能重复：{duplicate.Key}。";
+            if (currencies.Any(x => string.IsNullOrWhiteSpace(x.Code))) return "货币代码不能为空。";
+            var invalidRate = currencies.FirstOrDefault(x => !x.IsBase && x.RateToBase <= 0);
+            if (invalidRate is not null) return $"非本位币汇率必须大于 0：{invalidRate.Code}。";
+            if (currencies.Count == 0) return null;
+            var bases = currencies.Where(x => x.IsBase).ToArray();
+            if (bases.Length != 1) return "有效货币中必须恰好存在一个本位币。";
+            if (!bases[0].IsEnabled) return "本位币必须处于启用状态。";
+            if (bases[0].RateToBase != 1m) return "本位币对本位币汇率必须为 1。";
+            return null;
+        }
+
+        internal static string? NormalizeAndValidate(SysDicCurrencyDto? dto, int? rowIndex, string operation)
+        {
+            var row = SystemBatchSaveSupport.FormatRow(rowIndex);
+            if (dto is null) return $"第 {row} 行：{operation}数据不能为空。";
+            if (string.IsNullOrWhiteSpace(dto.CurrencyCode)) return $"第 {row} 行：货币代码不能为空。";
+            if (string.IsNullOrWhiteSpace(dto.CurrencyNameZh)) return $"第 {row} 行：货币中文名称不能为空。";
+            if (dto.Precision is < 0 or > 6) return $"第 {row} 行：精度必须在 0 到 6 之间。";
+            if (!dto.IsBase && dto.RateToBase <= 0) return $"第 {row} 行：非本位币汇率必须大于 0。";
+            if (dto.IsBase && dto.RateToBase != 1m) return $"第 {row} 行：本位币汇率必须为 1。";
+            if (dto.IsBase && !dto.IsEnabled) return $"第 {row} 行：本位币必须启用。";
+            dto.CurrencyCode = dto.CurrencyCode.Trim().ToUpperInvariant();
+            dto.CurrencyNameZh = dto.CurrencyNameZh.Trim();
+            dto.CurrencyNameEn = dto.CurrencyNameEn?.Trim();
+            dto.CurrencySymbol = dto.CurrencySymbol?.Trim();
+            dto.Remark = dto.Remark?.Trim();
+            return null;
+        }
+
+        internal sealed record CurrencyState(string Code, bool IsBase, bool IsEnabled, decimal RateToBase);
+
+        private sealed record CurrencyBatchPreparation(string? Error, Dictionary<Guid, SysDicCurrency> Existing)
+        {
+            public static CurrencyBatchPreparation Fail(string error) => new(error, []);
+            public static CurrencyBatchPreparation Ok(Dictionary<Guid, SysDicCurrency> existing) => new(null, existing);
         }
     }
 }

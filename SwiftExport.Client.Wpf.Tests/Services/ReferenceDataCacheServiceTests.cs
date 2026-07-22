@@ -1,4 +1,11 @@
 using System.Collections.Specialized;
+using System.Reflection;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,8 +17,12 @@ using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Bootstrapper;
+using SwiftExportClient.Features.Products.Components;
+using SwiftExportClient.Features.Products.ProductList.ViewModels;
+using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 
 namespace SwiftExport.Client.Wpf.Tests.Services;
 
@@ -193,6 +204,99 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.AreEqual(typeof(ReferenceDataCacheService), descriptor.ImplementationType);
     }
 
+    [TestMethod]
+    public void ProductCategoryLookup_ShouldFilterTreeAndKeepPopupOpenForRefreshFocus()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var root = Category("ROOT", 1);
+            var child = Category("CHILD", 1, root.Uid);
+            using var cache = CreateCache(
+                new ProductColorApiStub(() => SuccessColors()),
+                new ProductCategoryApiStub(() => SuccessCategories(root, child)));
+            Assert.IsTrue((await cache.EnsureLoadedAsync()).Success);
+
+            var refreshCount = 0;
+            var lookup = new ProductCategoryLookupTextBox
+            {
+                ItemsSource = cache.ProductCategoryTree,
+                RefreshCommand = new RelayCommand(() => refreshCount++),
+            };
+            var window = new Window
+            {
+                Width = 420,
+                Height = 180,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None,
+                Content = lookup,
+            };
+
+            try
+            {
+                window.Show();
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                var editor = (LookupTextBox?)lookup.FindName("LookupEditor");
+                Assert.IsNotNull(editor);
+                Assert.IsFalse(editor.IsDropDownOpen, "缓存初始化不得自动展开分类树。");
+
+                var input = (TextBox?)editor.FindName("InputTextBox");
+                Assert.IsNotNull(input);
+                window.Activate();
+                input.Focus();
+                Keyboard.Focus(input);
+                input.Text = "CHILD";
+                await Task.Delay(360);
+                await Dispatcher.Yield(DispatcherPriority.Background);
+
+                Assert.IsTrue(editor.IsDropDownOpen);
+                Assert.HasCount(1, lookup.FilteredRoots);
+                Assert.AreEqual(root.Uid, lookup.FilteredRoots[0].Uid);
+                Assert.HasCount(1, lookup.FilteredRoots[0].Children);
+                Assert.AreEqual(child.Uid, lookup.FilteredRoots[0].Children[0].Uid);
+                Assert.IsTrue(lookup.FilteredRoots[0].IsExpanded);
+
+                var popupContent = (DependencyObject?)editor.CustomDropDownContent;
+                Assert.IsNotNull(popupContent);
+                var categoryTree = FindVisualDescendant<TreeView>(popupContent);
+                Assert.IsNotNull(categoryTree);
+                Assert.AreEqual(1, categoryTree.Items.Count);
+                var refreshButton = FindVisualDescendant<Button>(popupContent);
+                Assert.IsNotNull(refreshButton);
+                Assert.IsNotNull(refreshButton.Command);
+                refreshButton.Focus();
+                Keyboard.Focus(refreshButton);
+                refreshButton.Command.Execute(null);
+                await Dispatcher.Yield(DispatcherPriority.Background);
+                Assert.IsTrue(editor.IsDropDownOpen, "焦点进入 Popup 刷新按钮时不得关闭分类树。");
+                Assert.AreEqual(1, refreshCount);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [TestMethod]
+    public async Task ProductCategoryFilter_ShouldIncludeSelectedNodeAndAllDescendants()
+    {
+        var root = Category("ROOT", 1);
+        var child = Category("CHILD", 1, root.Uid);
+        var grandchild = Category("GRANDCHILD", 1, child.Uid);
+        using var cache = CreateCache(
+            new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => SuccessCategories(root, child, grandchild)));
+        Assert.IsTrue((await cache.EnsureLoadedAsync()).Success);
+
+        var method = typeof(ProductsViewModel).GetMethod(
+            "GetCategoryIds",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.IsNotNull(method);
+        var ids = ((IEnumerable<Guid>)method.Invoke(null, [cache.ProductCategoryTree.Single()])!).ToArray();
+
+        CollectionAssert.AreEqual(new[] { root.Uid, child.Uid, grandchild.Uid }, ids);
+    }
+
     private static ReferenceDataCacheService CreateCache(
         IProductColorApi colorApi,
         IProductCategoryApi categoryApi,
@@ -287,5 +391,25 @@ public sealed class ReferenceDataCacheServiceTests
 
         public void EndSession(SessionEndReason reason) =>
             SessionEnded?.Invoke(this, new SessionEndedEventArgs(reason));
+    }
+
+    private static T? FindVisualDescendant<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            var nested = FindVisualDescendant<T>(child);
+            if (nested is not null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
     }
 }

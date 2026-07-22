@@ -153,9 +153,10 @@
                                       Color="Black" />
                 </Border.Effect>
 
+                <Grid>
                     <ListBox x:Name="ResultList"
                              BorderThickness="0"
-                             FontSize="{StaticResource SwiftExportDefaltFontSize}"
+                              FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                              Background="White"
                              Focusable="False"
                              ScrollViewer.CanContentScroll="True"
@@ -176,6 +177,10 @@
                             </Style>
                         </ListBox.ItemContainerStyle>
                     </ListBox>
+                    <ContentPresenter x:Name="CustomDropDownPresenter"
+                                      Content="{Binding CustomDropDownContent, ElementName=Root}"
+                                      Visibility="Collapsed" />
+                </Grid>
             </Border>
         </Popup>
     </Grid>

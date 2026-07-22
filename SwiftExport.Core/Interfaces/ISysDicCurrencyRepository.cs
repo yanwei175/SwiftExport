@@ -1,4 +1,7 @@
 using SwiftExport.Core.Entities.Systems;
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Core.Interfaces
 {
@@ -21,5 +24,17 @@ namespace SwiftExport.Core.Interfaces
         /// 校验货币代码是否已存在（用于新增去重）
         /// </summary>
         Task<IReadOnlyList<string>> GetExistingCurrencyCodesAsync(IEnumerable<string> currencyCodes);
+
+        Task<PagedResponseBase<SysDicCurrencyDto>> GetPagedAsync(SysDicCurrencySearchRequest request);
+
+        Task<IReadOnlyList<SysDicCurrency>> GetAllForUpdateAsync();
+
+        Task<IReadOnlyList<SysDicCurrency>> GetByCurrencyCodesAsync(IEnumerable<string> currencyCodes, bool withUpdLock = false);
+
+        Task<IReadOnlyList<SysDicCurrency>> GetBaseCurrenciesAsync();
+
+        Task<IReadOnlyList<SysDicCurrency>> GetEnabledCurrenciesAsync();
+
+        Task<IReadOnlyList<string>> GetBusinessReferencedCurrencyCodesAsync(IEnumerable<string> currencyCodes);
     }
 }

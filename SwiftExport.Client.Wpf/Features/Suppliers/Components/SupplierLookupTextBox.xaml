@@ -28,7 +28,7 @@
 
     <controls:LookupTextBox x:Name="LookupEditor"
                             Text="{Binding Text, ElementName=Root, Mode=TwoWay}"
-                            FontSize="{StaticResource SwiftExportDefaltFontSize}"
+                            FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                             ItemsSource="{Binding ItemsSource, ElementName=Root}"
                             SelectedItem="{Binding SelectedSupplier, ElementName=Root, Mode=TwoWay}"
                             SelectedValue="{Binding SelectedSupplierId, ElementName=Root, Mode=TwoWay}"
