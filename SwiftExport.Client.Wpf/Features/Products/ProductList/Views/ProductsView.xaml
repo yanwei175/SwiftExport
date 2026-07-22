@@ -556,8 +556,8 @@
 
         <Grid Grid.Row="6">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-            <TextBlock Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1" Text="{Binding PageStatus}" Style="{StaticResource CaptionTextBlock}" Margin="16,0" VerticalAlignment="Center" />
+            <TextBlock FontSize="12" Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" FontSize="12" Text="{Binding PageStatus}" Style="{StaticResource CaptionTextBlock}" Margin="16,0" VerticalAlignment="Center" />
             <controls:PageNavigator Grid.Column="2" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}" PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}" />
         </Grid>
     </Grid>

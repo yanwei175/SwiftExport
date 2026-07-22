@@ -1,6 +1,4 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Windows;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Options;
 using SwiftExportClient.Authentication;
@@ -8,25 +6,21 @@ using SwiftExportClient.Bootstrapper;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.UI;
-using Wpf.Ui.Controls;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace SwiftExportClient.Shell;
 
-public sealed class ShellViewModel : ViewModelBaseEx
+public sealed partial class ShellViewModel : ViewModelBaseEx
 {
     private const string HomeRouteKey = "home";
+    private static readonly TimeSpan TransientStatusDuration = TimeSpan.FromSeconds(5);
     private readonly INavigationService _navigationService;
     private readonly ISessionService _sessionService;
     private readonly IStatusMessageService _statusMessageService;
     private readonly IReadOnlyList<ShellNavigationItem> _allMenuItems;
     private bool _isInitialized;
-    private bool _isNavigationPaneExpanded = true;
-    private string _menuSearchText = string.Empty;
-    private IReadOnlyList<ShellNavigationItem> _filteredMenuItems = [];
-    private bool _isInfoBarOpen;
-    private string? _infoBarTitle;
-    private string? _infoBarMessage;
-    private InfoBarSeverity _infoBarSeverity = InfoBarSeverity.Informational;
+    private CancellationTokenSource? _statusResetCancellation;
 
     public ShellViewModel(
         IOptions<ClientOptions> clientOptions,
@@ -51,12 +45,6 @@ public sealed class ShellViewModel : ViewModelBaseEx
         StatusMessage = $"v{client.Version} · {currentUserService.DisplayName} · {api.BaseUrl}";
         FilteredMenuItems = _allMenuItems;
         OpenTabs = navigationService.OpenTabs;
-        OpenRouteCommand = new AsyncRelayCommand<string?>(OpenRouteAsync);
-        CloseTabCommand = new AsyncRelayCommand<NavigationTabItem?>(CloseTabAsync);
-        ToggleNavigationPaneCommand = new RelayCommand(ToggleNavigationPane);
-        ToggleNavigationGroupCommand = new RelayCommand<ShellNavigationItem?>(ToggleNavigationGroup);
-        OpenSettingsCommand = new RelayCommand(OpenSettings);
-        LogoutCommand = new RelayCommand(Logout);
 
         navigationService.PropertyChanged += OnNavigationPropertyChanged;
         statusMessageService.MessageChanged += OnStatusMessageChanged;
@@ -64,42 +52,14 @@ public sealed class ShellViewModel : ViewModelBaseEx
 
     public string StatusMessage { get; }
 
-    public IReadOnlyList<ShellNavigationItem> FilteredMenuItems
-    {
-        get => _filteredMenuItems;
-        private set => SetProperty(ref _filteredMenuItems, value);
-    }
+    [ObservableProperty]
+    public partial IReadOnlyList<ShellNavigationItem> FilteredMenuItems { get; private set; } = [];
 
-    public string MenuSearchText
-    {
-        get => _menuSearchText;
-        set
-        {
-            if (SetProperty(ref _menuSearchText, value))
-            {
-                ApplyMenuFilter();
-            }
-        }
-    }
+    [ObservableProperty]
+    public partial string MenuSearchText { get; set; } = string.Empty;
 
-    public bool IsNavigationPaneExpanded
-    {
-        get => _isNavigationPaneExpanded;
-        private set
-        {
-            if (SetProperty(ref _isNavigationPaneExpanded, value))
-            {
-                OnPropertyChanged(nameof(IsNavigationPaneCollapsed));
-                OnPropertyChanged(nameof(NavigationPaneWidth));
-            }
-        }
-    }
-
-    public bool IsNavigationPaneCollapsed => !IsNavigationPaneExpanded;
-
-    public GridLength NavigationPaneWidth => IsNavigationPaneExpanded
-        ? new GridLength(220)
-        : new GridLength(56);
+    [ObservableProperty]
+    public partial bool IsNavigationPaneExpanded { get; set; } = true;
 
     public ObservableCollection<NavigationTabItem> OpenTabs { get; }
 
@@ -122,41 +82,25 @@ public sealed class ShellViewModel : ViewModelBaseEx
 
     public string? SelectedRouteKey => SelectedTab?.RouteKey;
 
-    public bool IsInfoBarOpen
-    {
-        get => _isInfoBarOpen;
-        private set => SetProperty(ref _isInfoBarOpen, value);
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusDisplayText))]
+    public partial string? StatusTitle { get; private set; }
 
-    public string? InfoBarTitle
-    {
-        get => _infoBarTitle;
-        private set => SetProperty(ref _infoBarTitle, value);
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusDisplayText))]
+    public partial string? StatusDetail { get; private set; }
 
-    public string? InfoBarMessage
-    {
-        get => _infoBarMessage;
-        private set => SetProperty(ref _infoBarMessage, value);
-    }
+    [ObservableProperty]
+    public partial UiMessageSeverity StatusSeverity { get; private set; } = UiMessageSeverity.Info;
 
-    public InfoBarSeverity InfoBarSeverity
-    {
-        get => _infoBarSeverity;
-        private set => SetProperty(ref _infoBarSeverity, value);
-    }
+    [ObservableProperty]
+    public partial bool IsStatusMessageOpen { get; private set; }
 
-    public IAsyncRelayCommand<string?> OpenRouteCommand { get; }
-
-    public IAsyncRelayCommand<NavigationTabItem?> CloseTabCommand { get; }
-
-    public IRelayCommand ToggleNavigationPaneCommand { get; }
-
-    public IRelayCommand<ShellNavigationItem?> ToggleNavigationGroupCommand { get; }
-
-    public IRelayCommand OpenSettingsCommand { get; }
-
-    public IRelayCommand LogoutCommand { get; }
+    public string StatusDisplayText => string.IsNullOrWhiteSpace(StatusTitle)
+        ? StatusDetail ?? string.Empty
+        : string.IsNullOrWhiteSpace(StatusDetail)
+            ? StatusTitle
+            : $"{StatusTitle}：{StatusDetail}";
 
     public async Task InitializeAsync()
     {
@@ -171,6 +115,7 @@ public sealed class ShellViewModel : ViewModelBaseEx
         RaiseSelectedTabStateChanged();
     }
 
+    [RelayCommand]
     private Task OpenRouteAsync(string? routeKey)
     {
         if (string.IsNullOrWhiteSpace(routeKey))
@@ -181,29 +126,25 @@ public sealed class ShellViewModel : ViewModelBaseEx
         return _navigationService.OpenAsync(routeKey);
     }
 
+    [RelayCommand]
     private Task CloseTabAsync(NavigationTabItem? tab)
     {
         return _navigationService.CloseAsync(tab);
     }
 
-    private void ToggleNavigationPane()
-    {
-        IsNavigationPaneExpanded = !IsNavigationPaneExpanded;
-    }
-
-    private void ToggleNavigationGroup(ShellNavigationItem? item)
-    {
-        if (item is not null)
-        {
-            item.IsExpanded = !item.IsExpanded;
-        }
-    }
-
+    [RelayCommand]
     private void OpenSettings()
     {
         _statusMessageService.Show("设置", "设置页面将在后续阶段接入。", UiMessageSeverity.Info);
     }
 
+    [RelayCommand]
+    private void DismissStatusMessage()
+    {
+        _statusMessageService.Clear();
+    }
+
+    [RelayCommand]
     private void Logout()
     {
         _sessionService.EndSession(SessionEndReason.Logout);
@@ -240,6 +181,11 @@ public sealed class ShellViewModel : ViewModelBaseEx
             .ToArray();
     }
 
+    partial void OnMenuSearchTextChanged(string value)
+    {
+        ApplyMenuFilter();
+    }
+
     private static ShellNavigationItem? FilterMenuItem(ShellNavigationItem item, string query)
     {
         var selfMatches = item.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
@@ -261,20 +207,47 @@ public sealed class ShellViewModel : ViewModelBaseEx
 
     private void OnStatusMessageChanged(object? sender, StatusMessageChangedEventArgs e)
     {
-        InfoBarTitle = e.Title;
-        InfoBarMessage = e.Message;
-        InfoBarSeverity = ToInfoBarSeverity(e.Severity);
-        IsInfoBarOpen = e.IsOpen;
+        CancelStatusReset();
+
+        StatusTitle = e.Title;
+        StatusDetail = e.Message;
+        StatusSeverity = e.Severity;
+        IsStatusMessageOpen = e.IsOpen;
+
+        if (e.IsOpen && e.Severity is UiMessageSeverity.Info or UiMessageSeverity.Success)
+        {
+            _statusResetCancellation = new CancellationTokenSource();
+            _ = ClearTransientStatusAsync(e.Title, e.Message, _statusResetCancellation.Token);
+        }
     }
 
-    private static InfoBarSeverity ToInfoBarSeverity(UiMessageSeverity severity)
+    private async Task ClearTransientStatusAsync(
+        string? expectedTitle,
+        string? expectedMessage,
+        CancellationToken cancellationToken)
     {
-        return severity switch
+        try
         {
-            UiMessageSeverity.Success => InfoBarSeverity.Success,
-            UiMessageSeverity.Warning => InfoBarSeverity.Warning,
-            UiMessageSeverity.Error => InfoBarSeverity.Error,
-            _ => InfoBarSeverity.Informational,
-        };
+            await Task.Delay(TransientStatusDuration, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (IsStatusMessageOpen
+            && string.Equals(StatusTitle, expectedTitle, StringComparison.Ordinal)
+            && string.Equals(StatusDetail, expectedMessage, StringComparison.Ordinal))
+        {
+            _statusMessageService.Clear();
+        }
+    }
+
+    private void CancelStatusReset()
+    {
+        var cancellation = _statusResetCancellation;
+        _statusResetCancellation = null;
+        cancellation?.Cancel();
+        cancellation?.Dispose();
     }
 }

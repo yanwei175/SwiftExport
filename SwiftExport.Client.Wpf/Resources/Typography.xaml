@@ -3,11 +3,17 @@
 
     <FontFamily x:Key="SwiftExportFontFamily">Segoe UI</FontFamily>
 
-    <Style x:Key="CaptionTextBlock" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource CaptionTextBlockStyle}"/>
+    <Style x:Key="CaptionTextBlock" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource CaptionTextBlockStyle}">
+        <Setter Property="FontSize" Value="{StaticResource SwiftExportDefaltFontSize}"/>
+    </Style>
+    
     <Style x:Key="SecondaryTextBlock" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource BodyTextBlockStyle}">
+        <Setter Property="FontSize" Value="{StaticResource SwiftExportDefaltFontSize}"/>
         <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextSecondary}" />
     </Style>
+    
     <Style x:Key="LabelTextBlock" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+        <Setter Property="FontSize" Value="{StaticResource SwiftExportDefaltFontSize}"/>
         <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextPrimary}" />
     </Style>
     <Style x:Key="BodyTextBlock" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource BodyTextBlockStyle}"/>

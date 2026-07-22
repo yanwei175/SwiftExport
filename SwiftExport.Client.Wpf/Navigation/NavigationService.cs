@@ -1,7 +1,7 @@
-using System.Collections.ObjectModel;
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.UI;
+using System.Collections.ObjectModel;
 
 namespace SwiftExportClient.Navigation;
 
