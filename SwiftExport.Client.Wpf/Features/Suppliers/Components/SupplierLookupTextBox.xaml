@@ -44,7 +44,8 @@
                             SearchMode="Remote"
                             DisplayMemberPath="SupplierCode"
                             FilterMemberPaths="SupplierCode,SupplierName"
-                            SelectedValuePath="Uid"
-                            RequireItemMatch="True"
-                            ItemTemplate="{StaticResource SupplierLookupItemTemplate}" />
+                             SelectedValuePath="Uid"
+                             RequireItemMatch="True"
+                             ClearSelectionOnEdit="False"
+                             ItemTemplate="{StaticResource SupplierLookupItemTemplate}" />
 </UserControl>

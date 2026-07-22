@@ -61,7 +61,8 @@
                             SearchMode="Remote"
                             DisplayMemberPath="Sku"
                             FilterMemberPaths="Sku,DescriptionEn,DescriptionZh,LinkSku,CategoryName"
-                            SelectedValuePath="Uid"
-                            RequireItemMatch="True"
-                            ItemTemplate="{StaticResource ProductLookupItemTemplate}" />
+                             SelectedValuePath="Uid"
+                             RequireItemMatch="True"
+                             ClearSelectionOnEdit="False"
+                             ItemTemplate="{StaticResource ProductLookupItemTemplate}" />
 </UserControl>

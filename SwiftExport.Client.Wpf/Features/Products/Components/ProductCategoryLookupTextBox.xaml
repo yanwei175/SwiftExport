@@ -60,18 +60,27 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="产品分类"
                                FontWeight="SemiBold"
                                VerticalAlignment="Center" />
                     <Button Grid.Column="1"
+                            MinWidth="64"
+                            MinHeight="26"
+                            Padding="8,2"
+                            Content="{Binding TreeExpansionActionText}"
+                            ToolTip="展开或折叠当前可见的分类树"
+                            Click="ToggleTreeExpansion_Click" />
+                    <Button Grid.Column="3"
                             MinWidth="56"
                             MinHeight="26"
                             Padding="8,2"
                             Content="刷新"
                             Command="{Binding RefreshCommand}">
                         <Button.Style>
-                            <Style TargetType="{x:Type Button}">
+                            <Style TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}" >
                                 <Setter Property="IsEnabled" Value="True" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsRefreshing}" Value="True">
@@ -93,6 +102,8 @@
                           Background="Transparent"
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
                           SelectedItemChanged="CategoryTree_SelectedItemChanged"
+                          TreeViewItem.Expanded="CategoryTree_ExpansionChanged"
+                          TreeViewItem.Collapsed="CategoryTree_ExpansionChanged"
                           PreviewMouseLeftButtonUp="CategoryTree_PreviewMouseLeftButtonUp" />
             </Grid>
         </controls:LookupTextBox.CustomDropDownContent>

@@ -122,28 +122,43 @@ internal sealed class GridOperationsModule
         }
 
         var changes = new List<CellChange>();
-        foreach (var column in plan.Columns)
+        try
         {
-            var path = GetFieldPath(column)!;
-            var source = plan.Items[0];
-            var sourceValue = PropertyPathAccessor.GetValue(source, path);
-            for (var rowIndex = 1; rowIndex < plan.Items.Count; rowIndex++)
+            foreach (var column in plan.Columns)
             {
-                var target = plan.Items[rowIndex];
-                var oldValue = PropertyPathAccessor.GetValue(target, path);
-                if (Equals(oldValue, sourceValue))
+                var source = plan.Items[0];
+                foreach (var path in column.FieldPaths)
                 {
-                    continue;
-                }
+                    var sourceValue = PropertyPathAccessor.GetValue(source, path);
+                    for (var rowIndex = 1; rowIndex < plan.Items.Count; rowIndex++)
+                    {
+                        var target = plan.Items[rowIndex];
+                        var oldValue = PropertyPathAccessor.GetValue(target, path);
+                        if (Equals(oldValue, sourceValue))
+                        {
+                            continue;
+                        }
 
-                if (!PropertyPathAccessor.TrySetValue(target, path, sourceValue))
-                {
-                    RollBack(changes);
-                    return false;
-                }
+                        var change = new CellChange(
+                            target,
+                            path,
+                            oldValue,
+                            GridColumn.GetKey(column.Column));
+                        changes.Add(change);
+                        if (!PropertyPathAccessor.TrySetValue(target, path, sourceValue))
+                        {
+                            RollBack(changes);
+                            return false;
+                        }
 
-                changes.Add(new CellChange(target, path, oldValue, GridColumn.GetKey(column)));
+                    }
+                }
             }
+        }
+        catch
+        {
+            RollBack(changes);
+            return false;
         }
 
         if (changes.Count > 0)
@@ -429,8 +444,11 @@ internal sealed class GridOperationsModule
         var items = rowIndexes.Select(index => _dataGrid.Items[index]).ToArray();
         var writableColumns = selectedColumns
             .Where(column => !_dataGrid.IsReadOnly && !column.IsReadOnly)
-            .Where(column => GetFieldPath(column) is { } path &&
-                             items.All(item => PropertyPathAccessor.CanSetValue(item, path)))
+            .Select(column => new FillDownColumnPlan(column, GetFillDownFieldPaths(column)))
+            .Where(column => column.FieldPaths.Count > 0 &&
+                             column.FieldPaths.All(path => items.All(item =>
+                                 PropertyPathAccessor.CanSetValue(item, path) &&
+                                 PropertyPathAccessor.TryGetValueType(item, path, out _))))
             .ToArray();
         if (writableColumns.Length == 0)
         {
@@ -763,6 +781,22 @@ internal sealed class GridOperationsModule
             : null;
     }
 
+    private static IReadOnlyList<string> GetFillDownFieldPaths(DataGridColumn column)
+    {
+        var configured = GridColumn.GetFillDownFieldPaths(column);
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            return configured
+                .Split([',', ';', '|'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        var fieldPath = GetFieldPath(column);
+        return string.IsNullOrWhiteSpace(fieldPath) ? [] : [fieldPath];
+    }
+
     private void Push(IUndoAction action)
     {
         if (_undoStack.Count >= HistoryCapacity)
@@ -1048,5 +1082,9 @@ internal sealed class GridOperationsModule
         }
     }
 
-    private sealed record FillPlan(IReadOnlyList<object> Items, IReadOnlyList<DataGridColumn> Columns);
+    private sealed record FillPlan(IReadOnlyList<object> Items, IReadOnlyList<FillDownColumnPlan> Columns);
+
+    private sealed record FillDownColumnPlan(
+        DataGridColumn Column,
+        IReadOnlyList<string> FieldPaths);
 }

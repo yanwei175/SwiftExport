@@ -37,6 +37,9 @@ public sealed class ProductCategoryCacheNode
     /// <summary>获取分类显示名称。</summary>
     public string FakeName { get; }
 
+    /// <summary>获取包含祖先名称的完整分类路径。</summary>
+    public string CategoryPath { get; private set; } = string.Empty;
+
     /// <summary>获取同级排序号。</summary>
     public int SortNo { get; }
 
@@ -44,4 +47,6 @@ public sealed class ProductCategoryCacheNode
     public ReadOnlyObservableCollection<ProductCategoryCacheNode> Children { get; }
 
     internal void AddChild(ProductCategoryCacheNode child) => _children.Add(child);
+
+    internal void SetCategoryPath(string categoryPath) => CategoryPath = categoryPath;
 }

@@ -79,18 +79,26 @@ public sealed class ProductsViewFieldModeTests
                                   "ReferenceDataCache.ProductColors",
                                   StringComparison.Ordinal) == true)
             .ToArray();
-        Assert.HasCount(2, colorLookups, "筛选和 DataGrid 编辑态应共用颜色缓存。");
+        Assert.HasCount(1, colorLookups, "筛选区继续使用通用本地 Lookup。");
         Assert.IsTrue(colorLookups.All(element => (string?)element.Attribute("SearchMode") == "Local"));
         Assert.IsFalse(colorLookups.Any(element => element.Attribute("SearchCommand") is not null));
 
-        var categoryLookups = document.Descendants()
-            .Where(element => element.Name.LocalName == "ProductCategoryLookupTextBox")
-            .ToArray();
-        Assert.HasCount(2, categoryLookups, "筛选和 DataGrid 编辑态应共用分类树控件。");
-        Assert.IsTrue(categoryLookups.All(element =>
-            ((string?)element.Attribute("ItemsSource"))?.Contains(
-                "ReferenceDataCache.ProductCategoryTree",
-                StringComparison.Ordinal) == true));
+        var colorEditor = document.Descendants()
+            .Single(element => element.Name.LocalName == "ProductColorLookupTextBox");
+        StringAssert.Contains((string?)colorEditor.Attribute("ItemsSource") ?? string.Empty, "ReferenceDataCache.ProductColors");
+        StringAssert.Contains((string?)colorEditor.Attribute("SelectedColor") ?? string.Empty, "Mode=OneWayToSource");
+
+        var categoryTreeLookup = document.Descendants()
+            .Single(element => element.Name.LocalName == "ProductCategoryLookupTextBox");
+        StringAssert.Contains((string?)categoryTreeLookup.Attribute("ItemsSource") ?? string.Empty,
+            "ReferenceDataCache.ProductCategoryTree");
+
+        var categoryEditor = document.Descendants()
+            .Single(element => element.Name.LocalName == "ProductCategoryFlatLookupTextBox");
+        StringAssert.Contains((string?)categoryEditor.Attribute("ItemsSource") ?? string.Empty,
+            "ReferenceDataCache.ProductCategories");
+        StringAssert.Contains((string?)categoryEditor.Attribute("SelectedCategory") ?? string.Empty,
+            "Mode=OneWayToSource");
 
         var colorColumn = FindColumn(document, "finish");
         var categoryColumn = FindColumn(document, "category-name");

@@ -37,6 +37,16 @@ public static class GridColumn
         typeof(GridColumn),
         new PropertyMetadata(null));
 
+    /// <summary>
+    /// Ctrl+D 向下填充时作为一个逻辑单元格原子复制的字段路径集合。
+    /// 多个路径使用逗号、分号或竖线分隔；为空时回退到 FieldPath 或原生 Binding.Path。
+    /// </summary>
+    public static readonly DependencyProperty FillDownFieldPathsProperty = DependencyProperty.RegisterAttached(
+        "FillDownFieldPaths",
+        typeof(string),
+        typeof(GridColumn),
+        new PropertyMetadata(null));
+
     /// <summary>标识列是否参与筛选。默认参与。</summary>
     public static readonly DependencyProperty CanFilterProperty = DependencyProperty.RegisterAttached(
         "CanFilter",
@@ -96,6 +106,16 @@ public static class GridColumn
     /// <summary>设置列对应的数据字段路径。</summary>
     public static void SetFieldPath(DependencyObject element, string? value) =>
         element.SetValue(FieldPathProperty, string.IsNullOrWhiteSpace(value) ? null : value.Trim());
+
+    /// <summary>获取 Ctrl+D 向下填充使用的复合字段路径。</summary>
+    public static string? GetFillDownFieldPaths(DependencyObject element) =>
+        (string?)element.GetValue(FillDownFieldPathsProperty);
+
+    /// <summary>设置 Ctrl+D 向下填充使用的复合字段路径。</summary>
+    public static void SetFillDownFieldPaths(DependencyObject element, string? value) =>
+        element.SetValue(
+            FillDownFieldPathsProperty,
+            string.IsNullOrWhiteSpace(value) ? null : value.Trim());
 
     /// <summary>获取列是否参与筛选。</summary>
     public static bool GetCanFilter(DependencyObject element) => (bool)element.GetValue(CanFilterProperty);

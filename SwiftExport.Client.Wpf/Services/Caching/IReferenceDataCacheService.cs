@@ -19,6 +19,12 @@ public interface IReferenceDataCacheService
     ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; }
 
     /// <summary>
+    /// 获取按树顺序扁平化的产品分类只读缓存，供本地 Lookup 使用。
+    /// 集合中的节点与 <see cref="ProductCategoryTree"/> 使用同一对象实例。
+    /// </summary>
+    ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
+
+    /// <summary>
     /// 首次使用时加载全部已接入缓存；本会话已完整加载时不会重复请求。
     /// </summary>
     Task<CacheRefreshResult> EnsureLoadedAsync();

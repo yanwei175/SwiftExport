@@ -235,6 +235,61 @@ public sealed class LookupTextBoxTests
     }
 
     [TestMethod]
+    public void FocusEditor_WithCommittedSelection_ShouldShowEditableTextAndPreserveSelection()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var selected = new LookupItem("Alpha");
+            var searchCommand = new RecordingCommand();
+            var lookup = new LookupTextBox
+            {
+                SearchMode = LookupTextBoxSearchMode.Remote,
+                SearchCommand = searchCommand,
+                ItemsSource = new[] { selected },
+                DisplayMemberPath = nameof(LookupItem.Name),
+                SelectedValuePath = nameof(LookupItem.Name),
+                SelectedItem = selected,
+                ClearSelectionOnEdit = false,
+            };
+            var window = new Window
+            {
+                Width = 320,
+                Height = 120,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None,
+                Content = lookup,
+            };
+
+            try
+            {
+                window.Show();
+                window.Activate();
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                var input = (TextBox?)lookup.FindName("InputTextBox");
+                var displayBorder = (Border?)lookup.FindName("DisplayTextBlockBorder");
+                Assert.IsNotNull(input);
+                Assert.IsNotNull(displayBorder);
+                Assert.AreEqual(Visibility.Collapsed, input.Visibility);
+
+                lookup.FocusEditor();
+                await Dispatcher.Yield(DispatcherPriority.Background);
+
+                Assert.AreEqual(Visibility.Visible, input.Visibility);
+                Assert.AreEqual(Visibility.Collapsed, displayBorder.Visibility);
+                Assert.AreEqual("Alpha", input.Text);
+                Assert.AreEqual(input.Text.Length, input.SelectionLength);
+                Assert.AreSame(selected, lookup.SelectedItem);
+                Assert.AreEqual(0, searchCommand.ExecutionCount);
+                Assert.IsFalse(lookup.IsDropDownOpen);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [TestMethod]
     public void SelectedLookup_DefaultEditBehavior_ShouldClearCommittedSelection()
     {
         StaTest.RunAsync(async () =>
@@ -414,6 +469,59 @@ public sealed class LookupTextBoxTests
                 Keyboard.Focus(nextControl);
                 await WaitForDispatcherAsync(60);
                 Assert.IsFalse(lookup.IsDropDownOpen, "失焦必须取消本地防抖，不能延迟重开 Popup。");
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [TestMethod]
+    public void LocalLookup_SpacesShouldActAsWildcardsWithoutDebounce()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var lookup = new LookupTextBox
+            {
+                SearchMode = LookupTextBoxSearchMode.Local,
+                SearchDelay = TimeSpan.FromSeconds(30),
+                ItemsSource = new[]
+                {
+                    new LookupItem("Antique Bronze"),
+                    new LookupItem("AntBronze"),
+                    new LookupItem("Antique Brass"),
+                    new LookupItem("Bronze Antique"),
+                },
+                DisplayMemberPath = nameof(LookupItem.Name),
+            };
+            var window = new Window
+            {
+                Width = 320,
+                Height = 160,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None,
+                Content = lookup,
+            };
+
+            try
+            {
+                window.Show();
+                window.Activate();
+                var input = (TextBox?)lookup.FindName("InputTextBox");
+                var resultList = (ListBox?)lookup.FindName("ResultList");
+                Assert.IsNotNull(input);
+                Assert.IsNotNull(resultList);
+                input.Focus();
+                Keyboard.Focus(input);
+
+                input.Text = "Ant   Bronze";
+                await Dispatcher.Yield(DispatcherPriority.Background);
+
+                Assert.IsTrue(lookup.IsDropDownOpen, "本地搜索必须在输入后立即刷新，不能等待 SearchDelay。");
+                CollectionAssert.AreEqual(
+                    new[] { "Antique Bronze", "AntBronze" },
+                    resultList.Items.Cast<LookupItem>().Select(item => item.Name).ToArray());
             }
             finally
             {

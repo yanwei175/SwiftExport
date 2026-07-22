@@ -18,6 +18,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private readonly ISessionService _sessionService;
     private readonly CacheObservableCollection<ProductColorDto> _productColors = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategoryTree = [];
+    private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategories = [];
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly object _ensureSync = new();
     private Task<CacheRefreshResult>? _ensureTask;
@@ -38,6 +39,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         _sessionService = sessionService;
         ProductColors = new ReadOnlyObservableCollection<ProductColorDto>(_productColors);
         ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategoryTree);
+        ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategories);
         _sessionService.SessionEnded += OnSessionEnded;
     }
 
@@ -46,6 +48,9 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
     /// <inheritdoc />
     public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; }
+
+    /// <inheritdoc />
+    public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
 
     /// <inheritdoc />
     public Task<CacheRefreshResult> EnsureLoadedAsync()
@@ -116,6 +121,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             }
 
             var tree = BuildCategoryTree(result.Data ?? []);
+            var categories = FlattenCategoryTree(tree).ToArray();
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
@@ -125,6 +131,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 }
 
                 _productCategoryTree.ReplaceAll(tree);
+                _productCategories.ReplaceAll(categories);
                 _categoriesLoaded = true;
                 applied = true;
             });
@@ -149,6 +156,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         {
             _productColors.ReplaceAll([]);
             _productCategoryTree.ReplaceAll([]);
+            _productCategories.ReplaceAll([]);
         });
 
         lock (_ensureSync)
@@ -211,6 +219,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             }
 
             var categoryTree = BuildCategoryTree(categoriesResult.Data ?? []);
+            var categories = FlattenCategoryTree(categoryTree).ToArray();
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
@@ -221,6 +230,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
                 _productColors.ReplaceAll(colorsResult.Data ?? []);
                 _productCategoryTree.ReplaceAll(categoryTree);
+                _productCategories.ReplaceAll(categories);
                 _colorsLoaded = true;
                 _categoriesLoaded = true;
                 applied = true;
@@ -271,7 +281,36 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             }
         }
 
+        ApplyCategoryPaths(roots, string.Empty);
+
         return roots;
+    }
+
+    private static void ApplyCategoryPaths(
+        IEnumerable<ProductCategoryCacheNode> nodes,
+        string parentPath)
+    {
+        foreach (var node in nodes)
+        {
+            var path = string.IsNullOrWhiteSpace(parentPath)
+                ? node.CategoryName
+                : $"{parentPath} / {node.CategoryName}";
+            node.SetCategoryPath(path);
+            ApplyCategoryPaths(node.Children, path);
+        }
+    }
+
+    private static IEnumerable<ProductCategoryCacheNode> FlattenCategoryTree(
+        IEnumerable<ProductCategoryCacheNode> roots)
+    {
+        foreach (var root in roots)
+        {
+            yield return root;
+            foreach (var child in FlattenCategoryTree(root.Children))
+            {
+                yield return child;
+            }
+        }
     }
 
     private static Guid? NormalizeParentId(

@@ -27,6 +27,10 @@ public sealed class ProductsDefaultSupplierTests
 
         Assert.AreEqual("DefaultSupplierCode", (string?)column.Attribute("SortMemberPath"));
         Assert.IsFalse(column.Attributes().Any(attribute => attribute.Name.LocalName.EndsWith("FieldPath", StringComparison.Ordinal)));
+        Assert.AreEqual(
+            "DefaultSupplierId,DefaultSupplierCode,SupplierName",
+            column.Attributes().Single(attribute =>
+                attribute.Name.LocalName.EndsWith("FillDownFieldPaths", StringComparison.Ordinal)).Value);
         Assert.IsTrue(column.Descendants().Any(element => element.Name.LocalName == "SupplierLookupTextBox"));
         Assert.IsTrue(column.Descendants().Attributes().Any(attribute =>
             attribute.Name.LocalName == "SelectionCommittedCommand"

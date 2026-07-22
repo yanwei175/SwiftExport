@@ -146,11 +146,13 @@
                                     FilterMemberPaths="CustomerCode,CustomerName"
                                     SelectedValuePath="Uid" 
                                     SelectedItem="{Binding FilterCustomer, Mode=TwoWay}" />
+
             <controls:LookupTextBox Grid.Column="2" Placeholder="颜色"
                                     ClearSelectionOnEdit="False"
                                     SearchMode="Local"
                                     ItemsSource="{Binding ReferenceDataCache.ProductColors}"
-                                    DisplayMemberPath="ColorNameZh" FilterMemberPaths="ColorCodeUnique,ColorCode,ColorNameZh,ColorNameEn"
+                                    DisplayMemberPath="ColorNameZh" 
+                                    FilterMemberPaths="ColorCodeUnique,ColorCode,ColorNameZh,ColorNameEn"
                                     SelectedValuePath="Uid" SelectedItem="{Binding FilterColor, Mode=TwoWay}" />
             
             <productComponents:ProductCategoryLookupTextBox
@@ -275,24 +277,21 @@
                         
                         <DataGridTemplateColumn Header="颜色" Width="120"
                                                 SortMemberPath="Finish"
+                                                gridColumns:GridColumn.FillDownFieldPaths="ColorId,Finish"
                                                 gridColumns:GridColumn.Key="finish">
+
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Finish}"
-                                               Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                                    <TextBlock Text="{Binding Finish}" Style="{StaticResource SwiftExportDataGridTextBlock}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
+
                             <DataGridTemplateColumn.CellEditingTemplate>
                                 <DataTemplate>
-                                    <controls:LookupTextBox
+                                    <productComponents:ProductColorLookupTextBox
                                         Text="{Binding Finish, Mode=OneWay}"
-                                        SearchMode="Local"
                                         ItemsSource="{Binding DataContext.ReferenceDataCache.ProductColors, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                        SelectedItem="{Binding DataContext.EditColor, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
-                                        DisplayMemberPath="ColorNameZh"
-                                        FilterMemberPaths="ColorCodeUnique,ColorCode,ColorNameZh,ColorNameEn"
-                                        SelectedValuePath="Uid"
-                                        RequireItemMatch="True"
+                                        SelectedColor="{Binding DataContext.EditColor, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWayToSource}"
                                         SelectionCommittedCommand="{Binding DataContext.CommitColorCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                         SelectionCommittedCommandParameter="{Binding}"
                                         SelectionClearedCommand="{Binding DataContext.ClearColorCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
@@ -303,6 +302,7 @@
                         
                         <DataGridTemplateColumn Header="分类" Width="150"
                                                 SortMemberPath="CategoryName"
+                                                gridColumns:GridColumn.FillDownFieldPaths="CategoryId,CategoryName"
                                                 gridColumns:GridColumn.Key="category-name">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -312,12 +312,10 @@
                             </DataGridTemplateColumn.CellTemplate>
                             <DataGridTemplateColumn.CellEditingTemplate>
                                 <DataTemplate>
-                                    <productComponents:ProductCategoryLookupTextBox
+                                    <productComponents:ProductCategoryFlatLookupTextBox
                                         Text="{Binding CategoryName, Mode=OneWay}"
-                                        ItemsSource="{Binding DataContext.ReferenceDataCache.ProductCategoryTree, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                        SelectedCategory="{Binding DataContext.EditCategory, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
-                                        RefreshCommand="{Binding DataContext.RefreshProductCategoriesCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                        IsRefreshing="{Binding DataContext.IsCategoryCacheRefreshing, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        ItemsSource="{Binding DataContext.ReferenceDataCache.ProductCategories, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        SelectedCategory="{Binding DataContext.EditCategory, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWayToSource}"
                                         SelectionCommittedCommand="{Binding DataContext.CommitCategoryCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                         SelectionCommittedCommandParameter="{Binding}"
                                         SelectionClearedCommand="{Binding DataContext.ClearCategoryCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
@@ -382,7 +380,8 @@
                         
                         <DataGridTemplateColumn Header="默认供应商" Width="90"
                                                 SortMemberPath="DefaultSupplierCode"
-                                                gridColumns:GridColumn.Key="default-supplier-code">
+                                                gridColumns:GridColumn.Key="default-supplier-code"
+                                                gridColumns:GridColumn.FillDownFieldPaths="DefaultSupplierId,DefaultSupplierCode,SupplierName">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding DefaultSupplierCode}"

@@ -137,9 +137,15 @@ public sealed class ProductLookupTextBoxTests
                 Assert.AreEqual(0, FindVisualDescendants<ProductLookupTextBox>(grid).Count());
 
                 grid.CurrentCell = new DataGridCellInfo(row, column);
+                window.Activate();
                 Assert.IsTrue(grid.BeginEdit());
                 PumpDispatcher();
-                Assert.AreEqual(1, FindVisualDescendants<ProductLookupTextBox>(grid).Count());
+                var lookup = FindVisualDescendants<ProductLookupTextBox>(grid).Single();
+                var editor = FindVisualChild<LookupTextBox>(lookup);
+                var input = (TextBox?)editor?.FindName("InputTextBox");
+                Assert.IsNotNull(input);
+                Assert.AreEqual(Visibility.Visible, input.Visibility);
+                Assert.IsTrue(input.IsKeyboardFocusWithin);
 
                 Assert.IsTrue(grid.CommitEdit(DataGridEditingUnit.Cell, true));
                 PumpDispatcher();

@@ -52,6 +52,105 @@ public sealed class GridOperationsTests
     }
 
     [TestMethod]
+    public void FillDown_CompositeTemplateColumn_ShouldCopyAllFieldsAndUndoAtomically()
+    {
+        StaTest.Run(() =>
+        {
+            var sourceId = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+            var rows = new ObservableCollection<CompositeLookupRow>
+            {
+                new(sourceId, "SUP-A", "Supplier A"),
+                new(targetId, "SUP-B", "Supplier B")
+            };
+            var column = new DataGridTemplateColumn { Header = "supplier" };
+            GridColumn.SetKey(column, "supplier");
+            GridColumn.SetFillDownFieldPaths(
+                column,
+                "SupplierId, SupplierCode | SupplierName;SupplierCode");
+            var dataGrid = CreateCompositeLookupGrid(rows, column);
+            using var host = Show(dataGrid);
+            SelectRectangle(dataGrid, 0, 1, 0, 0);
+            dataGrid.CurrentCell = new DataGridCellInfo(rows[0], column);
+
+            var operations = GetOperations(dataGrid);
+            Assert.IsTrue(operations.CanFillDown());
+            Assert.IsTrue(operations.FillDown());
+            Assert.AreEqual(sourceId, rows[1].SupplierId);
+            Assert.AreEqual("SUP-A", rows[1].SupplierCode);
+            Assert.AreEqual("Supplier A", rows[1].SupplierName);
+            Assert.IsTrue(GridOperations.GetCanUndo(dataGrid));
+
+            // 复合填充元数据不能顺带开放 Grid 级 Copy/Paste/Delete。
+            Assert.IsFalse(operations.CanCopy());
+            Assert.IsFalse(operations.CanPasteText("SUP-X"));
+            Assert.IsFalse(operations.CanClearSelectedCells());
+
+            Assert.IsTrue(operations.Undo());
+            Assert.AreEqual(targetId, rows[1].SupplierId);
+            Assert.AreEqual("SUP-B", rows[1].SupplierCode);
+            Assert.AreEqual("Supplier B", rows[1].SupplierName);
+            Assert.IsFalse(GridOperations.GetCanUndo(dataGrid));
+        });
+    }
+
+    [TestMethod]
+    public void FillDown_CompositeTemplateColumnWithInvalidPath_ShouldNotModifyAnyField()
+    {
+        StaTest.Run(() =>
+        {
+            var sourceId = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+            var rows = new ObservableCollection<CompositeLookupRow>
+            {
+                new(sourceId, "SUP-A", "Supplier A"),
+                new(targetId, "SUP-B", "Supplier B")
+            };
+            var column = new DataGridTemplateColumn { Header = "supplier" };
+            GridColumn.SetFillDownFieldPaths(column, "SupplierId,MissingPath,SupplierName");
+            var dataGrid = CreateCompositeLookupGrid(rows, column);
+            using var host = Show(dataGrid);
+            SelectRectangle(dataGrid, 0, 1, 0, 0);
+
+            var operations = GetOperations(dataGrid);
+            Assert.IsFalse(operations.CanFillDown());
+            Assert.IsFalse(operations.FillDown());
+            Assert.AreEqual(targetId, rows[1].SupplierId);
+            Assert.AreEqual("SUP-B", rows[1].SupplierCode);
+            Assert.AreEqual("Supplier B", rows[1].SupplierName);
+            Assert.IsFalse(GridOperations.GetCanUndo(dataGrid));
+        });
+    }
+
+    [TestMethod]
+    public void FillDown_CompositeTemplateColumnSetterFailure_ShouldRollBackWholeOperation()
+    {
+        StaTest.Run(() =>
+        {
+            var sourceId = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+            var rows = new ObservableCollection<CompositeLookupRow>
+            {
+                new(sourceId, "FAIL", "Supplier A"),
+                new(targetId, "SUP-B", "Supplier B") { ThrowOnSupplierCodeSet = true }
+            };
+            var column = new DataGridTemplateColumn { Header = "supplier" };
+            GridColumn.SetFillDownFieldPaths(column, "SupplierId,SupplierCode,SupplierName");
+            var dataGrid = CreateCompositeLookupGrid(rows, column);
+            using var host = Show(dataGrid);
+            SelectRectangle(dataGrid, 0, 1, 0, 0);
+
+            var operations = GetOperations(dataGrid);
+            Assert.IsTrue(operations.CanFillDown());
+            Assert.IsFalse(operations.FillDown());
+            Assert.AreEqual(targetId, rows[1].SupplierId);
+            Assert.AreEqual("SUP-B", rows[1].SupplierCode);
+            Assert.AreEqual("Supplier B", rows[1].SupplierName);
+            Assert.IsFalse(GridOperations.GetCanUndo(dataGrid));
+        });
+    }
+
+    [TestMethod]
     public void FillDown_ShouldRejectNonRectangularSelection()
     {
         StaTest.Run(() =>
@@ -509,6 +608,23 @@ public sealed class GridOperationsTests
         return dataGrid;
     }
 
+    private static DataGrid CreateCompositeLookupGrid(
+        ObservableCollection<CompositeLookupRow> rows,
+        DataGridTemplateColumn column)
+    {
+        var dataGrid = new DataGrid
+        {
+            AutoGenerateColumns = false,
+            ItemsSource = rows,
+            SelectionMode = DataGridSelectionMode.Extended,
+            SelectionUnit = DataGridSelectionUnit.CellOrRowHeader
+        };
+        dataGrid.Columns.Add(column);
+        EnterpriseGridCore.SetIsEnabled(dataGrid, true);
+        GridOperations.SetIsEnabled(dataGrid, true);
+        return dataGrid;
+    }
+
     private static DataGridTextColumn CreateColumn(string key, string path)
     {
         var column = new DataGridTextColumn
@@ -591,6 +707,38 @@ public sealed class GridOperationsTests
         public int? OptionalNumber { get; set; }
 
         public int Number { get; set; }
+    }
+
+    private sealed class CompositeLookupRow
+    {
+        private string? _supplierCode;
+
+        public CompositeLookupRow(Guid supplierId, string? supplierCode, string? supplierName)
+        {
+            SupplierId = supplierId;
+            _supplierCode = supplierCode;
+            SupplierName = supplierName;
+        }
+
+        public Guid SupplierId { get; set; }
+
+        public string? SupplierCode
+        {
+            get => _supplierCode;
+            set
+            {
+                if (ThrowOnSupplierCodeSet && string.Equals(value, "FAIL", StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException("模拟复合字段写入失败。");
+                }
+
+                _supplierCode = value;
+            }
+        }
+
+        public string? SupplierName { get; set; }
+
+        public bool ThrowOnSupplierCodeSet { get; init; }
     }
 
     private enum TestKind

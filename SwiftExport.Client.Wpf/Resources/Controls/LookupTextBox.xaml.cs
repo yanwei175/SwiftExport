@@ -365,6 +365,7 @@ public partial class LookupTextBox : UserControl
         Dispatcher.BeginInvoke(
             new Action(() =>
             {
+                PrepareEditorForInput();
                 InputTextBox.Focus();
                 Keyboard.Focus(InputTextBox);
                 InputTextBox.SelectAll();
@@ -483,6 +484,14 @@ public partial class LookupTextBox : UserControl
         ApplyItemTemplate();
         UpdateDisplayTextFromSelectedItem();
         UpdateTextVisualState();
+
+        var editingCell = FindVisualAncestor<DataGridCell>(this);
+        if (editingCell?.IsEditing == true)
+        {
+            FocusEditor();
+            return;
+        }
+
         if (IsKeyboardFocusWithin || IsFocused)
         {
             FocusEditor();
@@ -568,7 +577,14 @@ public partial class LookupTextBox : UserControl
         if (ShouldUseLocalFilter())
         {
             _debounceTimer.Stop();
-            _debounceTimer.Start();
+            if (!HasActiveUserQuery())
+            {
+                IsDropDownOpen = false;
+                return;
+            }
+
+            ResolveSelectionByText(clearSelectionOnNoMatch: ClearSelectionOnEdit);
+            RefreshAndUpdateDropDown();
         }
         else if (SearchMode == LookupTextBoxSearchMode.Remote && SearchCommand is not null)
         {
@@ -787,8 +803,7 @@ public partial class LookupTextBox : UserControl
         foreach (var path in ParseFilterMemberPaths())
         {
             var value = GetMemberText(item, path);
-            if (!string.IsNullOrEmpty(value) &&
-                value.Contains(input, StringComparison.OrdinalIgnoreCase))
+            if (LookupTextMatcher.IsMatch(value, input))
             {
                 return true;
             }
@@ -870,20 +885,31 @@ public partial class LookupTextBox : UserControl
 
     private void BeginEditSelection()
     {
+        PrepareEditorForInput();
+        InputTextBox.Focus();
+        InputTextBox.SelectAll();
+    }
+
+    private void PrepareEditorForInput()
+    {
+        _debounceTimer.Stop();
         _hasUserInputIntent = false;
+
+        var initialText = _isSelectionDisplayMode
+            ? DisplayTextBlock.Text ?? string.Empty
+            : InputTextBox.Text ?? Text ?? string.Empty;
+
         _isSelectionDisplayMode = false;
-        if (ClearSelectionOnEdit)
+        if (ClearSelectionOnEdit && SelectedItem is not null)
         {
             SetSelectedItemSilently(null);
-            SelectedValue = null;
+            SetCurrentValue(SelectedValueProperty, null);
             SetDisplayText(string.Empty);
         }
 
-        SetInputTextSilently(string.Empty);
-        SyncTextDependencySilently(string.Empty);
+        SetInputTextSilently(initialText);
         IsDropDownOpen = false;
         UpdateTextVisualState();
-        InputTextBox.Focus();
     }
 
     private bool IsEditingPreservedSelection()
@@ -1274,7 +1300,7 @@ public partial class LookupTextBox : UserControl
         _isInternalChanging = true;
         try
         {
-            Text = target;
+            SetCurrentValue(TextProperty, target);
         }
         finally
         {
@@ -1298,6 +1324,21 @@ public partial class LookupTextBox : UserControl
             _itemsCollectionChangedSource.CollectionChanged -= ItemsSource_CollectionChanged;
             _itemsCollectionChangedSource = null;
         }
+    }
+
+    private static T? FindVisualAncestor<T>(DependencyObject? current) where T : DependencyObject
+    {
+        while (current is not null)
+        {
+            if (current is T ancestor)
+            {
+                return ancestor;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return null;
     }
 
     private void UpdateResultPresenter()

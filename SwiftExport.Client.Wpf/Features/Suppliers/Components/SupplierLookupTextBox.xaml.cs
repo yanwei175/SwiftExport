@@ -2,8 +2,6 @@ using System.Collections;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Threading;
 using SwiftExport.Contracts.DTOs.Suppliers;
 
 namespace SwiftExportClient.Features.Suppliers.Components;
@@ -16,7 +14,6 @@ public partial class SupplierLookupTextBox : UserControl
     public SupplierLookupTextBox()
     {
         InitializeComponent();
-        Loaded += SupplierLookupTextBox_Loaded;
     }
 
     public static readonly DependencyProperty TextProperty = DependencyProperty.Register(
@@ -144,38 +141,4 @@ public partial class SupplierLookupTextBox : UserControl
     }
 
     public void FocusEditor() => LookupEditor.FocusEditor();
-
-    private void SupplierLookupTextBox_Loaded(object sender, RoutedEventArgs e)
-    {
-        var cell = FindVisualAncestor<DataGridCell>(this);
-        if (cell?.IsEditing != true)
-        {
-            return;
-        }
-
-        Dispatcher.BeginInvoke(
-            () =>
-            {
-                if (IsLoaded && cell.IsEditing)
-                {
-                    LookupEditor.FocusEditor();
-                }
-            },
-            DispatcherPriority.Input);
-    }
-
-    private static T? FindVisualAncestor<T>(DependencyObject? current) where T : DependencyObject
-    {
-        while (current is not null)
-        {
-            if (current is T ancestor)
-            {
-                return ancestor;
-            }
-
-            current = VisualTreeHelper.GetParent(current);
-        }
-
-        return null;
-    }
 }

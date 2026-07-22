@@ -82,6 +82,11 @@ public sealed class ReferenceDataCacheServiceTests
         CollectionAssert.AreEqual(
             cache.ProductCategoryTree.OrderBy(node => node.SortNo).ThenBy(node => node.CategoryName).Select(node => node.Uid).ToArray(),
             cache.ProductCategoryTree.Select(node => node.Uid).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { child.Uid },
+            cache.ProductCategories.Where(node => node.ParentId == root.Uid).Select(node => node.Uid).ToArray());
+        Assert.AreSame(cachedRoot, cache.ProductCategories.Single(node => node.Uid == root.Uid));
+        Assert.AreEqual("ROOT / CHILD", cache.ProductCategories.Single(node => node.Uid == child.Uid).CategoryPath);
     }
 
     [TestMethod]
@@ -113,6 +118,41 @@ public sealed class ReferenceDataCacheServiceTests
     }
 
     [TestMethod]
+    public async Task RefreshCategories_ShouldKeepTreeAndFlatCollectionInstances()
+    {
+        var firstRoot = Category("FIRST", 1);
+        var secondRoot = Category("SECOND", 1);
+        var secondChild = Category("CHILD", 1, secondRoot.Uid);
+        var responses = new Queue<ServiceResult<List<ProductCategoryDto>>>(
+        [
+            ServiceResult<List<ProductCategoryDto>>.Ok([firstRoot]),
+            ServiceResult<List<ProductCategoryDto>>.Ok([secondRoot, secondChild]),
+        ]);
+        using var cache = CreateCache(
+            new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => Task.FromResult(responses.Dequeue())));
+        var tree = cache.ProductCategoryTree;
+        var flat = cache.ProductCategories;
+        var flatResetCount = 0;
+        ((INotifyCollectionChanged)flat).CollectionChanged += (_, args) =>
+        {
+            if (args.Action == NotifyCollectionChangedAction.Reset)
+            {
+                flatResetCount++;
+            }
+        };
+
+        await cache.RefreshProductCategoriesAsync();
+        await cache.RefreshProductCategoriesAsync();
+
+        Assert.AreSame(tree, cache.ProductCategoryTree);
+        Assert.AreSame(flat, cache.ProductCategories);
+        Assert.AreEqual(2, flatResetCount);
+        CollectionAssert.AreEqual(new[] { secondRoot.Uid, secondChild.Uid }, flat.Select(node => node.Uid).ToArray());
+        Assert.AreEqual("SECOND / CHILD", flat[1].CategoryPath);
+    }
+
+    [TestMethod]
     public async Task RefreshAllAsync_WhenOneRequestFails_ShouldRetainBothOldSnapshots()
     {
         var oldColor = Color("OLD");
@@ -137,6 +177,7 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.IsFalse(failed.Success);
         Assert.AreEqual(oldColor.Uid, cache.ProductColors.Single().Uid);
         Assert.AreEqual(oldCategory.Uid, cache.ProductCategoryTree.Single().Uid);
+        Assert.AreEqual(oldCategory.Uid, cache.ProductCategories.Single().Uid);
     }
 
     [TestMethod]
@@ -152,6 +193,7 @@ public sealed class ReferenceDataCacheServiceTests
 
         Assert.AreEqual(0, cache.ProductColors.Count);
         Assert.AreEqual(0, cache.ProductCategoryTree.Count);
+        Assert.AreEqual(0, cache.ProductCategories.Count);
         Assert.IsTrue((await cache.EnsureLoadedAsync()).Success);
         Assert.AreEqual(2, colorApi.GetAllCallCount);
         Assert.AreEqual(2, categoryApi.GetAllCallCount);
@@ -179,6 +221,7 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.IsFalse(result.Success);
         Assert.AreEqual(0, cache.ProductColors.Count);
         Assert.AreEqual(0, cache.ProductCategoryTree.Count);
+        Assert.AreEqual(0, cache.ProductCategories.Count);
     }
 
     [TestMethod]
@@ -260,7 +303,17 @@ public sealed class ReferenceDataCacheServiceTests
                 var categoryTree = FindVisualDescendant<TreeView>(popupContent);
                 Assert.IsNotNull(categoryTree);
                 Assert.AreEqual(1, categoryTree.Items.Count);
-                var refreshButton = FindVisualDescendant<Button>(popupContent);
+                var buttons = FindVisualDescendants<Button>(popupContent).ToArray();
+                var expansionButton = buttons.Single(button => button.Command is null);
+                Assert.AreEqual("折叠全部", expansionButton.Content);
+                expansionButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.IsFalse(lookup.FilteredRoots[0].IsExpanded);
+                Assert.AreEqual("展开全部", expansionButton.Content);
+                expansionButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.IsTrue(lookup.FilteredRoots[0].IsExpanded);
+                Assert.AreEqual("折叠全部", expansionButton.Content);
+
+                var refreshButton = buttons.Single(button => button.Command is not null);
                 Assert.IsNotNull(refreshButton);
                 Assert.IsNotNull(refreshButton.Command);
                 refreshButton.Focus();
@@ -411,5 +464,22 @@ public sealed class ReferenceDataCacheServiceTests
         }
 
         return null;
+    }
+
+    private static IEnumerable<T> FindVisualDescendants<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is T match)
+            {
+                yield return match;
+            }
+
+            foreach (var nested in FindVisualDescendants<T>(child))
+            {
+                yield return nested;
+            }
+        }
     }
 }

@@ -5,7 +5,6 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Threading;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Caching;
 
@@ -29,10 +28,21 @@ public partial class ProductCategoryLookupTextBox : UserControl, ILookupResultHo
             dropDownContent.DataContext = this;
         }
         LookupEditor.SetCustomResultHost(this);
-        Loaded += ProductCategoryLookupTextBox_Loaded;
     }
 
     public ReadOnlyObservableCollection<ProductCategoryLookupNode> FilteredRoots { get; }
+
+    public static readonly DependencyProperty TreeExpansionActionTextProperty = DependencyProperty.Register(
+        nameof(TreeExpansionActionText),
+        typeof(string),
+        typeof(ProductCategoryLookupTextBox),
+        new PropertyMetadata("展开全部"));
+
+    public string TreeExpansionActionText
+    {
+        get => (string)GetValue(TreeExpansionActionTextProperty);
+        private set => SetValue(TreeExpansionActionTextProperty, value);
+    }
 
     public static readonly DependencyProperty TextProperty = DependencyProperty.Register(
         nameof(Text), typeof(string), typeof(ProductCategoryLookupTextBox),
@@ -165,6 +175,7 @@ public partial class ProductCategoryLookupTextBox : UserControl, ILookupResultHo
         }
 
         SynchronizeSelectedCategory(roots, selectedId);
+        UpdateTreeExpansionActionText();
     }
 
     void ILookupResultHost.SelectFirst()
@@ -270,12 +281,9 @@ public partial class ProductCategoryLookupTextBox : UserControl, ILookupResultHo
     }
 
     private static bool Matches(ProductCategoryCacheNode node, string query) =>
-        Contains(node.CategoryName, query)
-        || Contains(node.CategoryCode, query)
-        || Contains(node.FakeName, query);
-
-    private static bool Contains(string value, string query) =>
-        value.Contains(query.Trim(), StringComparison.CurrentCultureIgnoreCase);
+        LookupTextMatcher.IsMatch(node.CategoryName, query)
+        || LookupTextMatcher.IsMatch(node.CategoryCode, query)
+        || LookupTextMatcher.IsMatch(node.FakeName, query);
 
     private static bool IsExact(string value, string text) =>
         string.Equals(value.Trim(), text.Trim(), StringComparison.CurrentCultureIgnoreCase);
@@ -406,14 +414,36 @@ public partial class ProductCategoryLookupTextBox : UserControl, ILookupResultHo
         e.Handled = true;
     }
 
-    private void ProductCategoryLookupTextBox_Loaded(object sender, RoutedEventArgs e)
+    private void ToggleTreeExpansion_Click(object sender, RoutedEventArgs e)
     {
-        if (FindVisualAncestor<DataGridCell>(this)?.IsEditing != true)
+        var branches = Flatten(FilteredRoots)
+            .Where(node => node.Children.Count > 0)
+            .ToArray();
+        if (branches.Length == 0)
         {
             return;
         }
 
-        Dispatcher.BeginInvoke(() => LookupEditor.FocusEditor(), DispatcherPriority.Input);
+        var expand = branches.Any(node => !node.IsExpanded);
+        foreach (var branch in branches)
+        {
+            branch.IsExpanded = expand;
+        }
+
+        UpdateTreeExpansionActionText();
+    }
+
+    private void CategoryTree_ExpansionChanged(object sender, RoutedEventArgs e) =>
+        UpdateTreeExpansionActionText();
+
+    private void UpdateTreeExpansionActionText()
+    {
+        var branches = Flatten(FilteredRoots)
+            .Where(node => node.Children.Count > 0)
+            .ToArray();
+        TreeExpansionActionText = branches.Length > 0 && branches.All(node => node.IsExpanded)
+            ? "折叠全部"
+            : "展开全部";
     }
 
     private static T? FindVisualAncestor<T>(DependencyObject? current) where T : DependencyObject
