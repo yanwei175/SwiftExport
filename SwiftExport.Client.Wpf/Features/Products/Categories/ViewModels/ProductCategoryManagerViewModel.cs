@@ -110,26 +110,32 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
         return LoadAsync();
     }
 
-    private async Task LoadAsync()
+    private Task LoadAsync()
     {
-        await RunBusyAsync(async () =>
+        return RunBusyAsync(LoadCoreAsync, "正在加载产品分类...");
+    }
+
+    /// <summary>
+    /// 执行实际加载。保存命令已经处于 Busy 作用域中，必须直接调用此方法，
+    /// 避免嵌套 RunBusyAsync 因 skipIfBusy=true 跳过服务端刷新。
+    /// </summary>
+    private async Task LoadCoreAsync()
+    {
+        var result = await _apiCallRunner.RunAsync(
+            () => _categoryApi.GetAllAsync(),
+            "加载产品分类失败");
+
+        if (!result.Success)
         {
-            var result = await _apiCallRunner.RunAsync(
-                () => _categoryApi.GetAllAsync(),
-                "加载产品分类失败");
+            StatusMessage = result.Message;
+            ValidationSummary = result.Message;
+            return;
+        }
 
-            if (!result.Success)
-            {
-                StatusMessage = result.Message;
-                ValidationSummary = result.Message;
-                return;
-            }
-
-            BuildTree(result.Data ?? []);
-            _deletedNodes.Clear();
-            AcceptChanges();
-            UpdateChangeState("产品分类已加载。");
-        }, "正在加载产品分类...");
+        BuildTree(result.Data ?? []);
+        _deletedNodes.Clear();
+        AcceptChanges();
+        UpdateChangeState("产品分类已加载。");
     }
 
     private void AddRoot()
@@ -275,7 +281,10 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
 
             var affectedRows = result.Data?.SuccessCount ?? 0;
             _messageService.ShowSuccess("产品分类已保存", $"已提交 {affectedRows} 条变更。");
-            await LoadAsync();
+            // 当前处于 RunWriteAsync 的 Busy 作用域中；调用核心加载方法，确保真正重新
+            // 获取服务端生成的 Uid、Version 和审计字段。
+            await LoadCoreAsync();
+
             var cacheResult = await _referenceDataCache.RefreshProductCategoriesAsync();
             if (!cacheResult.Success)
             {
@@ -391,7 +400,6 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
         {
             StatusMessage = statusMessage;
         }
-
         OnPropertyChanged(nameof(HasChanges));
         SaveCommand.NotifyCanExecuteChanged();
     }

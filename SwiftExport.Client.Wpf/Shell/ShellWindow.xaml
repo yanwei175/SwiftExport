@@ -165,6 +165,7 @@
                 </Button>
 
                 <StackPanel x:Name="GroupPanel"
+                            Margin="0,0,8,0"
                             HorizontalAlignment="Stretch"
                             Visibility="Collapsed">
                     <Button Style="{StaticResource SwiftExportShellNavigationItemButton}"
@@ -368,13 +369,13 @@
             <Grid Grid.Row="1">
 
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="{Binding NavigationPaneWidth}" />
+                    <ColumnDefinition Width="{Binding NavigationPaneWidth}" d:Width="220" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
                 <Border Background="Transparent"
                         BorderBrush="{DynamicResource SwiftExportBrush.Border}"
-                        BorderThickness="0,0,1,0"
+                        BorderThickness="0,0,0,0"
                         Padding="{StaticResource SwiftExportShellNavigationPadding}">
                     <DockPanel LastChildFill="True">
                         <Button DockPanel.Dock="Top"
@@ -428,7 +429,7 @@
                                 </Grid>
                             </Border>
                         </Button>
-
+                        
                         <ScrollViewer VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollBarVisibility="Disabled">
                             <ItemsControl ItemsSource="{Binding FilteredMenuItems}"
@@ -440,7 +441,7 @@
                 </Border>
 
                 <Border Grid.Column="1"
-                        Margin="16"
+                        Margin="0"
                         Background="{DynamicResource SwiftExportBrush.Surface}"
                         BorderBrush="{DynamicResource SwiftExportBrush.Border}"
                         BorderThickness="1"
@@ -478,16 +479,18 @@
                 </Border>
             </Grid>
 
-            <ui:InfoBar Grid.Row="2"
+             <ui:InfoBar Grid.Row="2"
+                        VerticalAlignment="Bottom"
+                        FontSize="12"
                         Title="{Binding InfoBarTitle}"
                         Message="{Binding InfoBarMessage}"
                         Severity="{Binding InfoBarSeverity}"
-                        IsOpen="{Binding IsInfoBarOpen}"
-                        Margin="16,8,16,0" />
+                        IsOpen="{Binding IsInfoBarOpen}" />
 
-            <Border Grid.Row="3"
+
+                <Border Grid.Row="3"
+                    Background="Transparent"
                     Padding="16,8"
-                    Background="{DynamicResource SwiftExportBrush.Surface}"
                     BorderBrush="{DynamicResource SwiftExportBrush.Border}"
                     BorderThickness="0,1,0,0">
                 <TextBlock Text="{Binding CurrentPageStatus}"
@@ -495,10 +498,10 @@
             </Border>
         </Grid>
 
-        <ui:ContentDialogHost x:Name="RootContentDialogHost" />
+        <ui:ContentDialogHost x:Name="RootContentDialogHost" d:IsHidden="True" />
         <ui:SnackbarPresenter x:Name="RootSnackbarPresenter"
                               HorizontalAlignment="Right"
                               VerticalAlignment="Bottom"
-                              Margin="24" />
+                              Margin="24" d:IsHidden="True" />
     </Grid>
 </ui:FluentWindow>

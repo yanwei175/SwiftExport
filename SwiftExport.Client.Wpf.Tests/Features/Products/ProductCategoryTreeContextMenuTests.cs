@@ -39,6 +39,24 @@ public sealed class ProductCategoryTreeContextMenuTests
     }
 
     [TestMethod]
+    public void Xaml_ShouldPlaceCategoryCommandsAboveMainContent()
+    {
+        var document = XDocument.Load(GetViewPath());
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+
+        var saveButton = document.Descendants(presentation + "Button")
+            .Single(element => (string?)element.Attribute("Content") == "保存");
+        var commandPanel = saveButton.Ancestors(presentation + "StackPanel").First();
+        var mainContent = document.Descendants(presentation + "TreeView").Single()
+            .Ancestors(presentation + "Grid")
+            .First(element => (string?)element.Attribute("Grid.Row") == "2");
+
+        Assert.AreEqual("0", (string?)commandPanel.Attribute("Grid.Row"));
+        Assert.AreEqual("Right", (string?)commandPanel.Attribute("HorizontalAlignment"));
+        Assert.AreEqual("2", (string?)mainContent.Attribute("Grid.Row"));
+    }
+
+    [TestMethod]
     public void RightClickSelection_ShouldSelectNearestTreeViewItem()
     {
         StaTest.RunAsync(() =>
