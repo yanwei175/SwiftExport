@@ -124,7 +124,11 @@ public sealed class SalesOrderWorkspaceService(
             {
                 var updateHeaderResult = await headRepository.UpdateAsync(header);
                 EnsureWriteSucceeded(updateHeaderResult);
-                await lineRepository.PrepareLineNumbersAsync(header.Uid);
+                var stagedLineCount = await lineRepository.StageLineNumbersAsync(
+                    header.Uid,
+                    lineBuild.ActiveLines.Count);
+                if (stagedLineCount != existingLines.Count)
+                    throw new WorkspaceValidationException("销售订单明细已发生变化，请刷新后重试。");
             }
 
             EnsureAllWritesSucceeded(await lineRepository.DeleteWorkspaceLinesAsync(lineBuild.DeletedLines));
@@ -134,7 +138,7 @@ public sealed class SalesOrderWorkspaceService(
             var document = await headRepository.GetWorkspaceDocumentAsync(header.Uid)
                 ?? throw new WorkspaceValidationException("销售订单已保存，但重新加载失败。");
             return new SaveSalesOrderResponse { Document = document };
-        }, "保存销售订单失败");
+        }, "保存销售订单失败", request?.Header?.Uid);
 
     public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, SalesOrderCommandRequest request)
         => ExecuteTransactionAsync(async () =>
@@ -208,7 +212,7 @@ public sealed class SalesOrderWorkspaceService(
                 ConfirmationStatus = ConfirmationStatusEnum.已确认,
                 GrossDemandCount = lines.Count
             };
-        }, "确认销售订单失败");
+        }, "确认销售订单失败", uid);
 
     public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(Guid uid, SalesOrderCommandRequest request)
         => ExecuteTransactionAsync(async () =>
@@ -255,7 +259,7 @@ public sealed class SalesOrderWorkspaceService(
                 ConfirmationStatus = ConfirmationStatusEnum.待确认,
                 GrossDemandCount = 0
             };
-        }, "取消销售订单确认失败");
+        }, "取消销售订单确认失败", uid);
 
     public Task<ServiceResult<SalesOrderDocumentDto>> CloseAsync(Guid uid, CloseSalesOrderRequest request)
         => ExecuteTransactionAsync(async () =>
@@ -288,7 +292,7 @@ public sealed class SalesOrderWorkspaceService(
             EnsureWriteSucceeded(await headRepository.CloseWorkspaceAsync(uid, request.Version, reason));
             return await headRepository.GetWorkspaceDocumentAsync(uid)
                 ?? throw new WorkspaceValidationException("销售订单已关闭，但重新加载失败。");
-        }, "关闭销售订单失败");
+        }, "关闭销售订单失败", uid);
 
     public Task<ServiceResult<bool>> DeleteDraftAsync(Guid uid, SalesOrderCommandRequest request)
         => ExecuteTransactionAsync(async () =>
@@ -308,7 +312,7 @@ public sealed class SalesOrderWorkspaceService(
             EnsureWriteSucceeded(await headRepository.DeleteDraftAsync(uid, request.Version));
             await lineRepository.DeleteByOrderIdAsync(uid);
             return true;
-        }, "删除销售订单草稿失败");
+        }, "删除销售订单草稿失败", uid);
 
     private async Task<LineBuildResult> BuildLinesAsync(
         SaveSalesOrderRequest request,
@@ -574,7 +578,10 @@ public sealed class SalesOrderWorkspaceService(
         }
     }
 
-    private async Task<ServiceResult<T>> ExecuteTransactionAsync<T>(Func<Task<T>> action, string failureMessage)
+    private async Task<ServiceResult<T>> ExecuteTransactionAsync<T>(
+        Func<Task<T>> action,
+        string failureMessage,
+        Guid? documentUid)
     {
         if (_session.Transaction is not null)
             return ServiceResult<T>.Fail("当前请求已存在未完成事务。");
@@ -594,14 +601,28 @@ public sealed class SalesOrderWorkspaceService(
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            _logger.LogError(ex, "{FailureMessage}，事务已回滚。", failureMessage);
-            return ServiceResult<T>.Fail(failureMessage);
+            var errorReference = CreateErrorReference();
+            _logger.LogError(
+                ex,
+                "{FailureMessage}，事务已回滚。ErrorReference={ErrorReference}, DocumentUid={DocumentUid}",
+                failureMessage,
+                errorReference,
+                documentUid);
+            return ServiceResult<T>.Fail($"{failureMessage}（错误编号：{errorReference}）");
         }
         finally
         {
             _session.Transaction.Dispose();
             _session.Transaction = null;
         }
+    }
+
+    private static string CreateErrorReference()
+    {
+        var traceId = System.Diagnostics.Activity.Current?.TraceId.ToString();
+        return !string.IsNullOrWhiteSpace(traceId)
+            ? traceId[..Math.Min(12, traceId.Length)].ToUpperInvariant()
+            : Guid.NewGuid().ToString("N")[..12].ToUpperInvariant();
     }
 
     private sealed class WorkspaceValidationException(string message) : Exception(message);

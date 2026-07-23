@@ -26,7 +26,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="4" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="2*" />
+            <RowDefinition Height="0.5*" />
             <RowDefinition Height="5" />
             <RowDefinition Height="*" />
             <RowDefinition Height="4" />
@@ -90,10 +90,13 @@
                                    MaxSuggestionListHeight="280"
                                    OriginalItemsSource="{Binding CustomerCodeOptions}"
                                    Text="{Binding CustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <DatePicker Grid.Column="2" ToolTip="订单日期从" 
-                            SelectedDate="{Binding OrderDateFrom}" />
+
+                <DatePicker Grid.Column="2" ToolTip="订单日期从"
+                            SelectedDate="{Binding OrderDateFrom}"/>
+
                 <DatePicker Grid.Column="4" ToolTip="订单日期到" 
                             SelectedDate="{Binding OrderDateTo}" />
+                
                 <controls:DropDownCheckBox Grid.Column="6"
                                            ToolTip="确认状态"
                                            Placeholder="确认状态"
@@ -120,25 +123,47 @@
             <Expander Header="高级筛选" IsExpanded="False" Margin="0,2,0,0">
                 <Grid Margin="0,4,0,4">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="130" /><ColumnDefinition Width="4" />
-                        <ColumnDefinition Width="130" /><ColumnDefinition Width="4" />
-                        <ColumnDefinition Width="130" /><ColumnDefinition Width="4" />
-                        <ColumnDefinition Width="180" /><ColumnDefinition Width="4" />
-                        <ColumnDefinition Width="125" /><ColumnDefinition Width="4" />
-                        <ColumnDefinition Width="125" /><ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="130" />                        
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="180" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="125" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="125" />
+                        <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <TextBox Grid.Column="0" ToolTip="订单号" Text="{Binding OrderNo, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBox Grid.Column="2" ToolTip="客户PO" Text="{Binding CustomerPoNo, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBox Grid.Column="4" ToolTip="发票号" Text="{Binding InvoiceNo, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBox Grid.Column="6" ToolTip="多行客户货号，支持换行、逗号或分号" Text="{Binding CustomerSkusText, UpdateSourceTrigger=PropertyChanged}" />
-                    <DatePicker Grid.Column="8" ToolTip="交期从" SelectedDate="{Binding DeliveryDateFrom}" />
-                    <DatePicker Grid.Column="10" ToolTip="交期到" SelectedDate="{Binding DeliveryDateTo}" />
+                    
+                    <ui:TextBox Grid.Column="0" PlaceholderText="订单号" Text="{Binding OrderNo, UpdateSourceTrigger=PropertyChanged}" />
+                    <ui:TextBox Grid.Column="2" PlaceholderText="客户PO" Text="{Binding CustomerPoNo, UpdateSourceTrigger=PropertyChanged}" />
+                    <ui:TextBox Grid.Column="4" PlaceholderText="发票号" Text="{Binding InvoiceNo, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <ui:TextBox Grid.Column="6" PlaceholderText="多行客户型号"
+                                ClearButtonEnabled="False"
+                                 controls:PopupTextBoxAssist.IsEnabled="True"
+                                 Height="{StaticResource SwiftExportControlHeight}"
+                                 Text="{Binding CustomerSkusText, UpdateSourceTrigger=PropertyChanged}" />
+                    
+                    <TextBlock Margin="4" Grid.Column="7" Text="交期从:" Style="{StaticResource LabelTextBlock}" VerticalAlignment="Center"/>
+                    
+                    <DatePicker Grid.Column="8" 
+                                ToolTip="交期从" 
+                                SelectedDate="{Binding DeliveryDateFrom}" />
+
+                    <TextBlock Margin="4" Grid.Column="9" Text="交期至:" Style="{StaticResource LabelTextBlock}" VerticalAlignment="Center"/>
+                    
+                    <DatePicker Grid.Column="10" 
+                                ToolTip="交期到" 
+                                SelectedDate="{Binding DeliveryDateTo}" />
+                    
                 </Grid>
             </Expander>
         </StackPanel>
 
-        <DataGrid x:Name="OrdersGrid"
-                  Grid.Row="3"
+        <DataGrid x:Name="OrdersGrid" Grid.Row="3"
                   RowHeight="35"
                   FontSize="12"
                   ItemsSource="{Binding Orders}"
@@ -265,7 +290,7 @@ EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                   HeadersVisibility="Column"
                   IsReadOnly="True"
                   SelectionMode="Single"
-                  SelectionUnit="FullRow"
+                  SelectionUnit="CellOrRowHeader"
                   AutoGenerateColumns="False"
                   gridCore:EnterpriseGrid.IsEnabled="True"
                   gridCore:GridVirtualization.IsEnabled="True">

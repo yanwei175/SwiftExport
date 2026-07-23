@@ -28,7 +28,6 @@ public partial class ProductRepository
                 ? @" AND (cp.Sku LIKE @Keyword ESCAPE '~'
                          OR cp.CustomerSku LIKE @Keyword ESCAPE '~'
                          OR cp.LinkSku LIKE @Keyword ESCAPE '~'
-                         OR cp.DescriptionEn LIKE @Keyword ESCAPE '~'
                          OR p.DescriptionEn LIKE @Keyword ESCAPE '~')"
                 : @" AND (p.Sku LIKE @Keyword ESCAPE '~'
                          OR p.LinkSku LIKE @Keyword ESCAPE '~'
@@ -51,9 +50,9 @@ public partial class ProductRepository
                 ISNULL(cp.CustomerSku, '') AS CustomerSku,
                 ISNULL(p.Sku, '') AS Sku,
                 ISNULL(cp.LinkSku, p.LinkSku) AS LinkSku,
-                ISNULL(cp.DescriptionEn, p.DescriptionEn) AS DescriptionEn,
+                ISNULL(p.DescriptionEn, '') AS DescriptionEn,
                 ISNULL(pc.ColorNameEn, '') AS ColorNameEn,
-                ISNULL(cp.FeaturesEn, p.FeaturesEn) AS FeaturesEn,
+                ISNULL(p.FeaturesEn, '') AS FeaturesEn,
                 ISNULL(p.MainImage, '') AS MainImage,
                 ISNULL(cp.CNYPrice, p.CNYPrice) AS CnyPrice,
                 ISNULL(cp.USDPrice, p.USDPrice) AS UsdPrice";

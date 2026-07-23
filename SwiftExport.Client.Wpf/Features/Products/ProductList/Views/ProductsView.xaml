@@ -162,6 +162,7 @@
                                     SelectedCategory="{Binding FilterCategory, Mode=TwoWay}"
                                     RefreshCommand="{Binding RefreshProductCategoriesCommand}"
                                     IsRefreshing="{Binding IsCategoryCacheRefreshing}" />
+            
             <controls:DropDownCheckBox Grid.Column="6"
                                        ShowClearOption="True"
                                        Placeholder="物料类型"

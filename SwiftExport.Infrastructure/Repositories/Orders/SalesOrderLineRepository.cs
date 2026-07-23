@@ -40,12 +40,24 @@ public class SalesOrderLineRepository(RepositoryBaseContext context)
             : RepositoryWriteResult.Fail(entity.Uid, null, "INSERT_FAILED", "新增销售订单行失败。");
     }
 
-    public Task<int> PrepareLineNumbersAsync(Guid orderId)
+    public Task<int> StageLineNumbersAsync(Guid orderId, int finalLineCount)
         => Connection.ExecuteAsync(@"
-            UPDATE SalesOrderLine
-            SET LineNumber = -ABS(LineNumber)
+            DECLARE @CurrentMax int =
+                ISNULL((
+                    SELECT MAX(LineNumber)
+                    FROM dbo.SalesOrderLine
+                    WHERE SalesOrderId = @OrderId AND IsDeleted = 0
+                ), 0);
+            DECLARE @Offset bigint =
+                CONVERT(bigint, @CurrentMax) + CONVERT(bigint, @FinalLineCount) + 1;
+
+            IF @Offset + CONVERT(bigint, @CurrentMax) > 2147483647
+                THROW 52720, N'销售订单行号暂存超出 int 范围。', 1;
+
+            UPDATE dbo.SalesOrderLine
+            SET LineNumber = LineNumber + CONVERT(int, @Offset)
             WHERE SalesOrderId = @OrderId AND IsDeleted = 0;",
-            new { OrderId = orderId }, transaction: Transaction);
+            new { OrderId = orderId, FinalLineCount = finalLineCount }, transaction: Transaction);
 
     public async Task<IReadOnlyList<RepositoryWriteResult>> AddWorkspaceLinesAsync(IEnumerable<SalesOrderLine> lines)
     {

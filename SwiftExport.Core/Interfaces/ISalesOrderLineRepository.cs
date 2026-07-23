@@ -7,7 +7,7 @@ namespace SwiftExport.Core.Interfaces;
 public interface ISalesOrderLineRepository : IRepository<SalesOrderLine>
 {
     Task<IReadOnlyList<SalesOrderLine>> GetLinesByOrderIdAsync(Guid orderId, bool withUpdLock = false);
-    Task<int> PrepareLineNumbersAsync(Guid orderId);
+    Task<int> StageLineNumbersAsync(Guid orderId, int finalLineCount);
     Task<IReadOnlyList<RepositoryWriteResult>> AddWorkspaceLinesAsync(IEnumerable<SalesOrderLine> lines);
     Task<IReadOnlyList<RepositoryWriteResult>> UpdateWorkspaceLinesAsync(IEnumerable<SalesOrderLine> lines);
     Task<IReadOnlyList<RepositoryWriteResult>> DeleteWorkspaceLinesAsync(IEnumerable<SalesOrderDeletedLineDto> lines);

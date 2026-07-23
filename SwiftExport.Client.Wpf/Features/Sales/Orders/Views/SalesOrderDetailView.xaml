@@ -12,6 +12,7 @@
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
              mc:Ignorable="d"
+             d:Background="White"
              d:Width="1500"
              d:Height="900">
     <UserControl.Resources>
@@ -21,14 +22,6 @@
             <Setter Property="Padding" Value="8,4" />
             <Setter Property="Margin" Value="0,0,4,0" />
         </Style>
-        <DataTemplate x:Key="SalesOrderProductLookupTemplate">
-            <Grid Margin="4">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="120" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding Sku}" FontWeight="SemiBold" />
-                <TextBlock Grid.Column="1" Text="{Binding CustomerSku}" Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
-                <TextBlock Grid.Column="2" Text="{Binding DescriptionEn}" TextTrimming="CharacterEllipsis" />
-            </Grid>
-        </DataTemplate>
         <DataTemplate x:Key="SalesOrderCustomerLookupTemplate">
             <StackPanel Margin="4" Orientation="Horizontal">
                 <TextBlock Text="{Binding CustomerCode}" FontWeight="SemiBold" Width="100" />
@@ -198,25 +191,25 @@
                                     gridColumns:GridColumn.Key="line-type" />
                 
                 <DataGridTemplateColumn Header="SKU" Width="155" SortMemberPath="Sku" gridColumns:GridColumn.Key="sku">
-                    <DataGridTemplateColumn.CellTemplate><DataTemplate>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
                         <TextBlock Text="{Binding Sku}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
-                    </DataTemplate></DataGridTemplateColumn.CellTemplate>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+
                     <DataGridTemplateColumn.CellEditingTemplate><DataTemplate>
                         <Grid>
-                            <controls:LookupTextBox x:Name="ProductLookup"
-                                                    Text="{Binding Sku, Mode=OneWay}"
-                                                    ItemsSource="{Binding DataContext.ProductCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                    SelectedItem="{Binding DataContext.SelectedProductCandidate, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
-                                                    DisplayMemberPath="Sku"
-                                                    FilterMemberPaths="Sku,CustomerSku,DescriptionEn,LinkSku"
-                                                    ItemTemplate="{StaticResource SalesOrderProductLookupTemplate}"
-                                                    SearchMode="Remote"
-                                                    SearchCommand="{Binding DataContext.SearchProductsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                    SelectionCommittedCommand="{Binding DataContext.CommitProductCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                    SelectionCommittedCommandParameter="{Binding}"
-                                                    SelectionClearedCommand="{Binding DataContext.ClearProductCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                    SelectionClearedCommandParameter="{Binding}"
-                                                    IsBusy="{Binding DataContext.IsProductLookupBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                            <salesComponents:SalesProductLookupTextBox
+                                x:Name="ProductLookup"
+                                Text="{Binding Sku, Mode=OneWay}"
+                                ItemsSource="{Binding DataContext.ProductCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                SelectedProduct="{Binding DataContext.SelectedProductCandidate, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
+                                SearchCommand="{Binding DataContext.SearchProductsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                SelectionCommittedCommand="{Binding DataContext.CommitProductCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                SelectionCommittedCommandParameter="{Binding}"
+                                SelectionClearedCommand="{Binding DataContext.ClearProductCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                SelectionClearedCommandParameter="{Binding}"
+                                IsBusy="{Binding DataContext.IsProductLookupBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
                             <TextBlock x:Name="NonStandardSku" Text="{Binding Sku}" VerticalAlignment="Center" Visibility="Collapsed" />
                         </Grid>
                         <DataTemplate.Triggers>

@@ -8,12 +8,15 @@ using System.Windows.Threading;
 
 namespace SwiftExportClient.Resources.Controls;
 
+/// <summary>
+/// 为紧凑 TextBox 注入一个覆盖宿主的多行编辑 Popup。
+/// </summary>
 public static class PopupTextBoxAssist
 {
-    private static readonly DependencyProperty PopupInstanceProperty =
+    private static readonly DependencyProperty SessionProperty =
         DependencyProperty.RegisterAttached(
-            "PopupInstance",
-            typeof(Popup),
+            "Session",
+            typeof(PopupSession),
             typeof(PopupTextBoxAssist),
             new PropertyMetadata(null));
 
@@ -29,95 +32,20 @@ public static class PopupTextBoxAssist
             "PopupHeight",
             typeof(double),
             typeof(PopupTextBoxAssist),
-            new PropertyMetadata(180d));
+            new PropertyMetadata(180d, OnPopupHeightChanged),
+            IsValidPopupHeight);
 
-    public static readonly DependencyProperty PopupWidthProperty =
-        DependencyProperty.RegisterAttached(
-            "PopupWidth",
-            typeof(double),
-            typeof(PopupTextBoxAssist),
-            new PropertyMetadata(double.NaN));
+    public static bool GetIsEnabled(DependencyObject obj) =>
+        (bool)obj.GetValue(IsEnabledProperty);
 
-    public static readonly DependencyProperty PopupMinWidthProperty =
-        DependencyProperty.RegisterAttached(
-            "PopupMinWidth",
-            typeof(double),
-            typeof(PopupTextBoxAssist),
-            new PropertyMetadata(240d));
-
-    public static readonly DependencyProperty OpenOnFocusProperty =
-        DependencyProperty.RegisterAttached(
-            "OpenOnFocus",
-            typeof(bool),
-            typeof(PopupTextBoxAssist),
-            new PropertyMetadata(true));
-
-    public static readonly DependencyProperty OpenOnClickProperty =
-        DependencyProperty.RegisterAttached(
-            "OpenOnClick",
-            typeof(bool),
-            typeof(PopupTextBoxAssist),
-            new PropertyMetadata(true));
-
-    public static bool GetIsEnabled(DependencyObject obj)
-    {
-        return (bool)obj.GetValue(IsEnabledProperty);
-    }
-
-    public static void SetIsEnabled(DependencyObject obj, bool value)
-    {
+    public static void SetIsEnabled(DependencyObject obj, bool value) =>
         obj.SetValue(IsEnabledProperty, value);
-    }
 
-    public static double GetPopupHeight(DependencyObject obj)
-    {
-        return (double)obj.GetValue(PopupHeightProperty);
-    }
+    public static double GetPopupHeight(DependencyObject obj) =>
+        (double)obj.GetValue(PopupHeightProperty);
 
-    public static void SetPopupHeight(DependencyObject obj, double value)
-    {
+    public static void SetPopupHeight(DependencyObject obj, double value) =>
         obj.SetValue(PopupHeightProperty, value);
-    }
-
-    public static double GetPopupWidth(DependencyObject obj)
-    {
-        return (double)obj.GetValue(PopupWidthProperty);
-    }
-
-    public static void SetPopupWidth(DependencyObject obj, double value)
-    {
-        obj.SetValue(PopupWidthProperty, value);
-    }
-
-    public static double GetPopupMinWidth(DependencyObject obj)
-    {
-        return (double)obj.GetValue(PopupMinWidthProperty);
-    }
-
-    public static void SetPopupMinWidth(DependencyObject obj, double value)
-    {
-        obj.SetValue(PopupMinWidthProperty, value);
-    }
-
-    public static bool GetOpenOnFocus(DependencyObject obj)
-    {
-        return (bool)obj.GetValue(OpenOnFocusProperty);
-    }
-
-    public static void SetOpenOnFocus(DependencyObject obj, bool value)
-    {
-        obj.SetValue(OpenOnFocusProperty, value);
-    }
-
-    public static bool GetOpenOnClick(DependencyObject obj)
-    {
-        return (bool)obj.GetValue(OpenOnClickProperty);
-    }
-
-    public static void SetOpenOnClick(DependencyObject obj, bool value)
-    {
-        obj.SetValue(OpenOnClickProperty, value);
-    }
 
     private static void OnIsEnabledChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -128,183 +56,354 @@ public static class PopupTextBoxAssist
 
         if ((bool)e.NewValue)
         {
-            textBox.GotKeyboardFocus += OnGotKeyboardFocus;
-            textBox.PreviewMouseLeftButtonDown += OnPreviewMouseLeftButtonDown;
-            textBox.PreviewKeyDown += OnCompactTextBoxPreviewKeyDown;
-            textBox.Unloaded += OnUnloaded;
+            textBox.GotKeyboardFocus += OnHostGotKeyboardFocus;
+            textBox.PreviewMouseLeftButtonDown += OnHostPreviewMouseLeftButtonDown;
+            textBox.Loaded += OnHostLoaded;
+            textBox.SizeChanged += OnHostSizeChanged;
+            textBox.Unloaded += OnHostUnloaded;
+            RequestOpen(textBox);
+
             return;
         }
 
-        textBox.GotKeyboardFocus -= OnGotKeyboardFocus;
-        textBox.PreviewMouseLeftButtonDown -= OnPreviewMouseLeftButtonDown;
-        textBox.PreviewKeyDown -= OnCompactTextBoxPreviewKeyDown;
-        textBox.Unloaded -= OnUnloaded;
-        ClosePopup(textBox);
+        textBox.GotKeyboardFocus -= OnHostGotKeyboardFocus;
+        textBox.PreviewMouseLeftButtonDown -= OnHostPreviewMouseLeftButtonDown;
+        textBox.Loaded -= OnHostLoaded;
+        textBox.SizeChanged -= OnHostSizeChanged;
+        textBox.Unloaded -= OnHostUnloaded;
+        DisposeSession(textBox);
     }
 
-    private static void OnGotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    private static void OnPopupHeightChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (sender is TextBox textBox && GetOpenOnFocus(textBox) && !textBox.IsReadOnly)
+        if (d is TextBox textBox)
         {
-            OpenPopup(textBox);
+            GetSession(textBox)?.UpdateSize();
         }
     }
 
-    private static void OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private static bool IsValidPopupHeight(object value) =>
+        value is double height && double.IsFinite(height) && height > 0;
+
+    private static void OnHostGotKeyboardFocus(
+        object sender,
+        KeyboardFocusChangedEventArgs e)
     {
-        if (sender is TextBox textBox && GetOpenOnClick(textBox) && !textBox.IsReadOnly)
+        if (sender is not TextBox textBox ||
+            !GetIsEnabled(textBox) ||
+            textBox.IsReadOnly ||
+            !textBox.IsEnabled)
         {
-            OpenPopup(textBox);
+            return;
+        }
+
+        if (GetOrCreateSession(textBox).ConsumeSuppressNextOpen())
+        {
+            return;
+        }
+
+        RequestOpen(textBox);
+    }
+
+    private static void OnHostPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is TextBox textBox &&
+            GetIsEnabled(textBox) &&
+            !textBox.IsReadOnly &&
+            textBox.IsEnabled)
+        {
+            RequestOpen(textBox);
         }
     }
 
-    private static void OnCompactTextBoxPreviewKeyDown(object sender, KeyEventArgs e)
-    {
-        if (sender is TextBox textBox && e.Key == Key.F4 && !textBox.IsReadOnly)
-        {
-            OpenPopup(textBox);
-            e.Handled = true;
-        }
-    }
-
-    private static void OnUnloaded(object sender, RoutedEventArgs e)
+    private static void OnHostSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (sender is TextBox textBox)
         {
-            ClosePopup(textBox);
+            GetSession(textBox)?.UpdateSize();
         }
+    }
+
+    private static void OnHostLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox textBox && textBox.IsKeyboardFocusWithin)
+        {
+            RequestOpen(textBox);
+        }
+    }
+
+    private static void OnHostUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox textBox)
+        {
+            DisposeSession(textBox);
+        }
+    }
+
+    private static void RequestOpen(TextBox textBox)
+    {
+        textBox.Dispatcher.BeginInvoke(
+            () => OpenPopup(textBox),
+            DispatcherPriority.Input);
     }
 
     private static void OpenPopup(TextBox textBox)
     {
-        var popup = GetPopupInstance(textBox);
-        if (popup is null)
+        if (!GetIsEnabled(textBox) ||
+            !textBox.IsLoaded ||
+            textBox.IsReadOnly ||
+            !textBox.IsEnabled ||
+            !textBox.IsKeyboardFocusWithin)
         {
-            popup = CreatePopup(textBox);
-            SetPopupInstance(textBox, popup);
+            return;
         }
 
-        UpdatePopupSize(textBox, popup);
-        popup.IsOpen = true;
-
-        if (popup.Child is Border { Child: TextBox editor })
-        {
-            editor.Dispatcher.BeginInvoke(() =>
-            {
-                editor.Focus();
-                editor.CaretIndex = editor.Text?.Length ?? 0;
-            }, DispatcherPriority.Input);
-        }
+        GetOrCreateSession(textBox).Open();
     }
 
-    private static Popup CreatePopup(TextBox textBox)
+    private static PopupSession GetOrCreateSession(TextBox textBox)
     {
-        var editor = new TextBox
+        var session = GetSession(textBox);
+        if (session is not null)
         {
-            AcceptsReturn = true,
-            TextWrapping = TextWrapping.Wrap,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Padding = new Thickness(8),
-            MinHeight = 0,
-        };
+            return session;
+        }
 
-        editor.SetBinding(TextBox.TextProperty, new Binding(nameof(TextBox.Text))
-        {
-            Source = textBox,
-            Mode = BindingMode.TwoWay,
-            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-        });
-        editor.SetBinding(TextBox.MaxLengthProperty, new Binding(nameof(TextBox.MaxLength))
-        {
-            Source = textBox,
-            Mode = BindingMode.OneWay,
-        });
-        editor.SetBinding(TextBox.IsReadOnlyProperty, new Binding(nameof(TextBox.IsReadOnly))
-        {
-            Source = textBox,
-            Mode = BindingMode.OneWay,
-        });
+        session = new PopupSession(textBox);
+        textBox.SetValue(SessionProperty, session);
+        return session;
+    }
 
-        editor.PreviewKeyDown += (_, e) =>
+    private static PopupSession? GetSession(DependencyObject obj) =>
+        (PopupSession?)obj.GetValue(SessionProperty);
+
+    private static void DisposeSession(TextBox textBox)
+    {
+        var session = GetSession(textBox);
+        if (session is null)
         {
-            if (e.Key == Key.Escape || (e.Key == Key.Enter && Keyboard.Modifiers.HasFlag(ModifierKeys.Control)))
+            return;
+        }
+
+        session.Dispose();
+        textBox.ClearValue(SessionProperty);
+    }
+
+    private sealed class PopupSession : IDisposable
+    {
+        private readonly TextBox _host;
+        private readonly TextBox _editor;
+        private readonly Border _border;
+        private readonly Popup _popup;
+        private bool _isDisposed;
+        private bool _suppressNextOpen;
+
+        public PopupSession(TextBox host)
+        {
+            _host = host;
+            _editor = CreateEditor(host);
+            _border = CreateBorder(_editor);
+            _popup = new Popup
             {
-                ClosePopup(textBox);
-                textBox.Focus();
-                e.Handled = true;
+                PlacementTarget = host,
+                Placement = PlacementMode.Relative,
+                HorizontalOffset = 0,
+                VerticalOffset = 0,
+                StaysOpen = false,
+                AllowsTransparency = true,
+                Focusable = false,
+                Child = _border,
+            };
+
+            _editor.PreviewKeyDown += OnEditorPreviewKeyDown;
+            _editor.LostKeyboardFocus += OnEditorLostKeyboardFocus;
+            _popup.Closed += OnPopupClosed;
+        }
+
+        public bool ConsumeSuppressNextOpen()
+        {
+            if (!_suppressNextOpen)
+            {
+                return false;
             }
-        };
 
-        var border = new Border
+            _suppressNextOpen = false;
+            return true;
+        }
+
+        public void Open()
         {
-            BorderThickness = new Thickness(1),
-            Padding = new Thickness(4),
-            Child = editor,
-            SnapsToDevicePixels = true,
-            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            if (_isDisposed || _host.IsReadOnly || !_host.IsEnabled)
             {
-                BlurRadius = 16,
-                ShadowDepth = 2,
-                Opacity = 0.18,
-                Color = Colors.Black,
-            },
-        };
+                return;
+            }
 
-        border.SetResourceReference(Border.BackgroundProperty, "SwiftExportBrush.Surface");
-        border.SetResourceReference(Border.BorderBrushProperty, "SwiftExportBrush.Border");
-        border.SetResourceReference(Border.CornerRadiusProperty, "SwiftExportCornerRadius");
+            UpdateSize();
+            _popup.IsOpen = true;
+            _editor.Dispatcher.BeginInvoke(
+                () =>
+                {
+                    if (_isDisposed || !_popup.IsOpen)
+                    {
+                        return;
+                    }
 
-        var popup = new Popup
-        {
-            PlacementTarget = textBox,
-            Placement = PlacementMode.Bottom,
-            StaysOpen = false,
-            AllowsTransparency = true,
-            Focusable = false,
-            Child = border,
-        };
-
-        popup.Closed += (_, _) => textBox.ClearValue(PopupInstanceProperty);
-        return popup;
-    }
-
-    private static void UpdatePopupSize(TextBox textBox, Popup popup)
-    {
-        if (popup.Child is not Border { Child: TextBox editor } border)
-        {
-            return;
+                    _editor.Focus();
+                    _editor.CaretIndex = _editor.Text?.Length ?? 0;
+                },
+                DispatcherPriority.Input);
         }
 
-        var configuredWidth = GetPopupWidth(textBox);
-        var width = double.IsNaN(configuredWidth)
-            ? Math.Max(GetPopupMinWidth(textBox), textBox.ActualWidth)
-            : configuredWidth;
-
-        border.Width = width;
-        border.Height = GetPopupHeight(textBox);
-        editor.Height = Math.Max(0, GetPopupHeight(textBox) - 8);
-    }
-
-    private static Popup? GetPopupInstance(DependencyObject obj)
-    {
-        return (Popup?)obj.GetValue(PopupInstanceProperty);
-    }
-
-    private static void SetPopupInstance(DependencyObject obj, Popup? value)
-    {
-        obj.SetValue(PopupInstanceProperty, value);
-    }
-
-    private static void ClosePopup(TextBox textBox)
-    {
-        var popup = GetPopupInstance(textBox);
-        if (popup is null)
+        public void UpdateSize()
         {
-            return;
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            _border.Width = Math.Max(0, _host.ActualWidth);
+            _border.Height = GetPopupHeight(_host);
         }
 
-        popup.IsOpen = false;
-        SetPopupInstance(textBox, null);
+        public void Dispose()
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            _isDisposed = true;
+            _editor.PreviewKeyDown -= OnEditorPreviewKeyDown;
+            _editor.LostKeyboardFocus -= OnEditorLostKeyboardFocus;
+            _popup.Closed -= OnPopupClosed;
+            _popup.IsOpen = false;
+            BindingOperations.ClearAllBindings(_editor);
+            _popup.Child = null;
+            _popup.PlacementTarget = null;
+        }
+
+        private void OnEditorPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Escape &&
+                (e.Key != Key.Enter || !Keyboard.Modifiers.HasFlag(ModifierKeys.Control)))
+            {
+                return;
+            }
+
+            CloseAndRestoreHostFocus();
+            e.Handled = true;
+        }
+
+        private void OnEditorLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            if (e.NewFocus is DependencyObject newFocus &&
+                IsDescendantOrSelf(newFocus, _border))
+            {
+                return;
+            }
+
+            _popup.IsOpen = false;
+        }
+
+        private void OnPopupClosed(object? sender, EventArgs e)
+        {
+            if (!_host.IsLoaded)
+            {
+                DisposeSession(_host);
+            }
+        }
+
+        private void CloseAndRestoreHostFocus()
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            _suppressNextOpen = true;
+            _popup.IsOpen = false;
+            if (!_host.Focus())
+            {
+                _suppressNextOpen = false;
+            }
+        }
+
+        private static TextBox CreateEditor(TextBox host)
+        {
+            var editor = new TextBox
+            {
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Padding = new Thickness(8),
+                MinHeight = 0,
+            };
+
+            editor.SetBinding(TextBox.TextProperty, new Binding(nameof(TextBox.Text))
+            {
+                Source = host,
+                Mode = BindingMode.TwoWay,
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+            });
+            editor.SetBinding(TextBox.MaxLengthProperty, new Binding(nameof(TextBox.MaxLength))
+            {
+                Source = host,
+                Mode = BindingMode.OneWay,
+            });
+            editor.SetBinding(TextBox.IsReadOnlyProperty, new Binding(nameof(TextBox.IsReadOnly))
+            {
+                Source = host,
+                Mode = BindingMode.OneWay,
+            });
+
+            return editor;
+        }
+
+        private static Border CreateBorder(TextBox editor)
+        {
+            var border = new Border
+            {
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(0),
+                Child = editor,
+                SnapsToDevicePixels = true,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 16,
+                    ShadowDepth = 2,
+                    Opacity = 0.18,
+                    Color = Colors.Black,
+                },
+            };
+
+            border.SetResourceReference(Border.BackgroundProperty, "SwiftExportBrush.Surface");
+            border.SetResourceReference(Border.BorderBrushProperty, "SwiftExportBrush.Border");
+            border.SetResourceReference(Border.CornerRadiusProperty, "SwiftExportCornerRadius");
+            return border;
+        }
+
+        private static bool IsDescendantOrSelf(DependencyObject current, DependencyObject ancestor)
+        {
+            for (DependencyObject? node = current; node is not null; node = GetParent(node))
+            {
+                if (ReferenceEquals(node, ancestor))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static DependencyObject? GetParent(DependencyObject current)
+        {
+            if (current is Visual || current is System.Windows.Media.Media3D.Visual3D)
+            {
+                return VisualTreeHelper.GetParent(current);
+            }
+
+            return LogicalTreeHelper.GetParent(current);
+        }
     }
 }

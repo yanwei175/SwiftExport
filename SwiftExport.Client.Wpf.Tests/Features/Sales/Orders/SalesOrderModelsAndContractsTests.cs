@@ -56,14 +56,22 @@ public sealed class SalesOrderModelsAndContractsTests
 
         Assert.AreEqual("标准行必须通过产品 Lookup 选择产品。", line.ValidateRow());
 
+        var productId = Guid.NewGuid();
+        var customerProductId = Guid.NewGuid();
         line.ApplyProduct(new SalesOrderProductLookupDto
         {
-            ProductId = Guid.NewGuid(),
+            ProductId = productId,
+            CustomerProductId = customerProductId,
             Sku = "STD-001",
             DescriptionEn = "Standard product",
+            FeaturesEn = "Standard product features",
         });
 
         Assert.IsNull(line.ValidateRow());
+        Assert.AreEqual(productId, line.ProductId);
+        Assert.AreEqual(customerProductId, line.CustomerProductId);
+        Assert.AreEqual("Standard product", line.DescriptionEn);
+        Assert.AreEqual("Standard product features", line.FeaturesEn);
     }
 
     [TestMethod]
