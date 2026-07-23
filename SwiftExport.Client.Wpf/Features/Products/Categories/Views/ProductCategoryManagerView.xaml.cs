@@ -14,11 +14,11 @@ public partial class ProductCategoryManagerView : UserControl
         InitializeComponent();
     }
 
-    private void OnSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    private async void OnSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
         if (DataContext is ProductCategoryManagerViewModel viewModel)
         {
-            viewModel.CurrentCategory = e.NewValue as ProductCategoryTreeItemModel;
+            await viewModel.SelectCurrentCategoryAsync(e.NewValue as ProductCategoryTreeItemModel);
         }
     }
 

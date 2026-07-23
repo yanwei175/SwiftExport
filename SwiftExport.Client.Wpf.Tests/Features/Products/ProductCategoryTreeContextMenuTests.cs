@@ -52,8 +52,24 @@ public sealed class ProductCategoryTreeContextMenuTests
             .First(element => (string?)element.Attribute("Grid.Row") == "2");
 
         Assert.AreEqual("0", (string?)commandPanel.Attribute("Grid.Row"));
-        Assert.AreEqual("Right", (string?)commandPanel.Attribute("HorizontalAlignment"));
+        Assert.AreEqual("Left", (string?)commandPanel.Attribute("HorizontalAlignment"));
         Assert.AreEqual("2", (string?)mainContent.Attribute("Grid.Row"));
+    }
+
+    [TestMethod]
+    public void Xaml_ShouldUseLazyReadOnlyDataGridForQuickAssignment()
+    {
+        var document = XDocument.Load(GetViewPath());
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+
+        var openButton = document.Descendants(presentation + "Button")
+            .Single(element => (string?)element.Attribute("Content") == "快速归类");
+        Assert.AreEqual("{Binding Assignment.OpenAssignmentPanelCommand}", (string?)openButton.Attribute("Command"));
+
+        var dataGrid = document.Descendants(presentation + "DataGrid").Single();
+        Assert.AreEqual("True", (string?)dataGrid.Attribute("IsReadOnly"));
+        Assert.AreEqual("True", (string?)dataGrid.Attribute("EnableRowVirtualization"));
+        Assert.AreEqual("Recycling", (string?)dataGrid.Attribute("VirtualizingPanel.VirtualizationMode"));
     }
 
     [TestMethod]

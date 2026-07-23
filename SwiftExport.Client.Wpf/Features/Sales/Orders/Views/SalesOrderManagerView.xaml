@@ -258,10 +258,11 @@ EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
         <GridSplitter Grid.Row="4" Height="5" HorizontalAlignment="Stretch" />
 
         <DataGrid Grid.Row="5"
-                  RowHeight="45"
-                  FontSize="12"
+                  RowHeight="{StaticResource DataGridRowHeightMedium}"
+                  FontSize="{StaticResource SwiftExportDefaltFontSize}"
                   ItemsSource="{Binding SelectedOrderLines}"
                   Style="{StaticResource SwiftExportDataGrid}"
+                  HeadersVisibility="Column"
                   IsReadOnly="True"
                   SelectionMode="Single"
                   SelectionUnit="FullRow"

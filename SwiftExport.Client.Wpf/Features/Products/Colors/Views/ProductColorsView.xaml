@@ -85,59 +85,46 @@
             </StackPanel>
 
             <StackPanel Grid.Column="2" Orientation="Horizontal">
-                <Button Command="{Binding AddRowCommand}"
-                        Margin="0,0,4,0"
-                        MinHeight="32"
-                        Padding="8,4"
-                        Style="{StaticResource AccentButton}"
-                        ToolTip="新增产品颜色">
-                    <StackPanel Orientation="Horizontal">
-                        <ui:SymbolIcon Symbol="Add24" />
-                        <TextBlock Margin="6,0,0,0" Text="新增" />
-                    </StackPanel>
-                </Button>
-                <Button Command="{Binding SaveCommand}"
-                        Style="{StaticResource ProductColorsToolbarButton}"
-                        ToolTip="保存全部变更">
-                    <StackPanel Orientation="Horizontal">
-                        <ui:SymbolIcon Symbol="Save24" />
-                        <TextBlock Margin="6,0,0,0" Text="保存" />
-                    </StackPanel>
-                </Button>
-                <Button Command="{Binding DeleteSelectedCommand}"
-                        Style="{StaticResource ProductColorsToolbarButton}"
-                        ToolTip="删除当前产品颜色">
-                    <StackPanel Orientation="Horizontal">
-                        <ui:SymbolIcon Symbol="Delete24" />
-                        <TextBlock Margin="6,0,0,0" Text="删除" />
-                    </StackPanel>
-                </Button>
-                <Button Command="{x:Static ApplicationCommands.Undo}"
-                        CommandTarget="{Binding ElementName=ColorsGrid}"
-                        Style="{StaticResource ProductColorsToolbarButton}"
-                        ToolTip="撤销上一步单元格操作（Ctrl+Z）">
-                    <StackPanel Orientation="Horizontal">
-                        <ui:SymbolIcon Symbol="ArrowUndo24" />
-                        <TextBlock Margin="6,0,0,0" Text="撤销" />
-                    </StackPanel>
-                </Button>
-                <Button Command="{Binding RejectAllChangesCommand}"
-                        Style="{StaticResource ProductColorsToolbarButton}"
-                        ToolTip="放弃本页全部未保存变更">
-                    <StackPanel Orientation="Horizontal">
-                        <ui:SymbolIcon Symbol="ArrowReset24" />
-                        <TextBlock Margin="6,0,0,0" Text="放弃全部" />
-                    </StackPanel>
-                </Button>
-                <Button Command="{Binding RefreshCommand}"
-                        Style="{StaticResource ProductColorsToolbarButton}"
-                        ToolTip="刷新当前页">
-                    <StackPanel Orientation="Horizontal">
-                        <ui:SymbolIcon Symbol="ArrowClockwise24" />
-                        <TextBlock Margin="6,0,0,0" Text="刷新" />
-                    </StackPanel>
-                </Button>
-                <ui:DropDownButton MinHeight="32"
+
+                <ui:Button Appearance="Primary"
+                            Command="{Binding AddRowCommand}"
+                           Icon="{ui:SymbolIcon Symbol=Add24}"
+                           Content="新增"
+                           ToolTip="新增产品颜色"/>
+
+                <ui:Button Appearance="Success" Margin="6,0,0,0"
+                            Command="{Binding SaveCommand}"
+                          Icon="{ui:SymbolIcon Symbol=Save24}"
+                            Content="保存"
+                        ToolTip="保存全部变更"/>
+
+                <ui:Button Appearance="Danger" Margin="6,0,0,0"
+                            Command="{Binding DeleteSelectedCommand}"
+                           Icon="{ui:SymbolIcon Symbol=Delete24}"
+                           Content="删除"
+                           ToolTip="删除当前产品颜色"/>
+                
+                <ui:Button  Margin="6,0,0,0"
+                            Command="{x:Static ApplicationCommands.Undo}"
+                           CommandTarget="{Binding ElementName=ColorsGrid}"
+                           Icon="{ui:SymbolIcon Symbol=ArrowUndo24}"
+                           Content="撤销"
+                           ToolTip="撤销上一步单元格操作（Ctrl+Z）"/>
+                
+                <ui:Button  Margin="6,0,0,0"
+                           Command="{Binding RejectAllChangesCommand}"
+                           CommandTarget="{Binding ElementName=ColorsGrid}"
+                           Icon="{ui:SymbolIcon Symbol=ArrowReset24}"
+                           Content="放弃全部"
+                           ToolTip="放弃本页全部未保存变更"/>               
+
+                <ui:Button Margin="6,0,0,0"
+                            Command="{Binding RefreshCommand}"
+                          Icon="{ui:SymbolIcon Symbol=ArrowClockwise24}"
+                            Content="刷新"
+                        ToolTip="刷新当前页"/>
+
+                <ui:DropDownButton MinHeight="32" Margin="6,0,0,0"
                                    MinWidth="80"
                                    Padding="10,4">
                     <ui:DropDownButton.Content>
@@ -165,6 +152,7 @@
                         </ContextMenu>
                     </ui:DropDownButton.Flyout>
                 </ui:DropDownButton>
+                
             </StackPanel>
 
             <ui:ToggleSwitch Grid.Column="4"
@@ -201,7 +189,6 @@
                       SelectionMode="Extended"
                       SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
                       RowHeight="{StaticResource DataGridRowHeightSmall}"
-                      FontSize="12"
                       gridCore:EnterpriseGrid.IsEnabled="True"
                       gridCore:GridVirtualization.IsEnabled="True"
                       gridCore:GridRowHeader.ShowRowNumber="True"

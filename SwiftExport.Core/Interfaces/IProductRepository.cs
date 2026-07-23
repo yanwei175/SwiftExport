@@ -15,6 +15,14 @@ public interface IProductRepository : IRepository<Product>
     /// </summary>
     Task<IReadOnlyList<Product>> GetBySkuListAsync(IEnumerable<string> skuList);
     Task<PagedResponseBase<ProductDto>> GetPagedAsync(ProductSearchRequest request);
+    Task<PagedResponseBase<ProductCategoryAssignmentRowDto>> GetCategoryAssignmentPageAsync(
+        ProductCategoryAssignmentSearchRequest request,
+        CancellationToken cancellationToken = default);
+    Task<RepositoryWriteResult> AssignCategoryAsync(
+        Guid productId,
+        int expectedVersion,
+        Guid targetCategoryId,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ProductLookupDto>> SearchLookupAsync(ProductLookupRequest request);
     Task<IReadOnlyList<string>> GetExistingSkuListAsync(IEnumerable<string> skuList);
     Task<RepositoryWriteResult> SetDefaultSupplierAsync(

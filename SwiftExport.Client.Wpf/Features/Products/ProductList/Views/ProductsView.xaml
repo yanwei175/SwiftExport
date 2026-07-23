@@ -104,8 +104,8 @@
 
             <StackPanel Grid.Column="6" Orientation="Horizontal">
                 <ui:ToggleSwitch VerticalAlignment="Center"
-                                 OffContent="简单字段"
-                                 OnContent="复杂字段"
+                                 OffContent="复杂字段"
+                                 OnContent="简单字段"
                                  IsChecked="{Binding IsComplexFieldMode, Mode=TwoWay}" />
                 <ui:ToggleSwitch Margin="12,0,0,0"
                                  VerticalAlignment="Center"
@@ -331,20 +331,20 @@
                                                 SortMemberPath="MaterialType">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox
+                                    <ComboBox Margin="6"
                                         ItemsSource="{x:Static staticEnums:MaterialTypesEnum.MaterialTypes}"
                                         SelectedValue="{Binding MaterialType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        
-                        <DataGridTemplateColumn Header="供货类型" Width="100"
+
+                        <DataGridTemplateColumn Header="供货类型" Width="100" 
                                                 gridColumns:GridColumn.Key="supply-type"
                                                 gridColumns:GridColumn.FieldPath="SupplyType"
                                                 SortMemberPath="SupplyType">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox
+                                    <ComboBox Margin="6"
                                         ItemsSource="{x:Static staticEnums:SupplyTypeEnums.SupplyTypes}"
                                         SelectedValue="{Binding SupplyType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                         />

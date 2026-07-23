@@ -33,13 +33,15 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
         IDialogService dialogService,
-        IReferenceDataCacheService referenceDataCache)
+        IReferenceDataCacheService referenceDataCache,
+        ProductCategoryAssignmentViewModel assignment)
     {
         _categoryApi = categoryApi;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _dialogService = dialogService;
         _referenceDataCache = referenceDataCache;
+        Assignment = assignment;
 
         Title = "产品分类管理";
         AddRootCommand = new RelayCommand(AddRoot, CanWriteCommand);
@@ -59,6 +61,8 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
 
     public ObservableCollection<ProductCategoryTreeItemModel> CategoryTree { get; } = [];
 
+    public ProductCategoryAssignmentViewModel Assignment { get; }
+
     public ProductCategoryTreeItemModel? CurrentCategory
     {
         get => _currentCategory;
@@ -67,6 +71,7 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
             if (SetProperty(ref _currentCategory, value))
             {
                 StatusMessage = value is null ? "请选择一个分类。" : string.Empty;
+                Assignment.SetHostState(value, HasChanges, CanWrite);
                 AddSiblingCommand.NotifyCanExecuteChanged();
                 AddChildCommand.NotifyCanExecuteChanged();
                 DeleteCommand.NotifyCanExecuteChanged();
@@ -103,6 +108,12 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
 
         _isInitialized = true;
         await LoadAsync();
+    }
+
+    public async Task SelectCurrentCategoryAsync(ProductCategoryTreeItemModel? category)
+    {
+        CurrentCategory = category;
+        await Assignment.ChangeTargetAsync(category, HasChanges, CanWrite);
     }
 
     private Task RefreshAsync()
@@ -401,6 +412,7 @@ public sealed class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncIni
             StatusMessage = statusMessage;
         }
         OnPropertyChanged(nameof(HasChanges));
+        Assignment.SetHostState(CurrentCategory, HasChanges, CanWrite);
         SaveCommand.NotifyCanExecuteChanged();
     }
 

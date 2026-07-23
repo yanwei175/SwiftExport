@@ -44,37 +44,31 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="4" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="8" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="4" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
             <StackPanel Orientation="Horizontal">
                 <Button Command="{Binding SaveCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0" Padding="8,4">
-                    <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Save24" /><TextBlock Margin="6,0,0,0" Text="保存" /></StackPanel>
+                    <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Save24" /><TextBlock Margin="6,0,0,0" Text="保存订单" /></StackPanel>
                 </Button>
-                <Button Command="{Binding ConfirmCommand}" Style="{StaticResource SalesOrderDetailToolbarButton}" Content="确认" />
+                <Button Command="{Binding ConfirmCommand}" Style="{StaticResource SalesOrderDetailToolbarButton}" Content="确认订单" />
                 <Button Command="{Binding CancelConfirmationCommand}" Style="{StaticResource SalesOrderDetailToolbarButton}" Content="取消确认" />
-                <Separator Margin="4,0" />
-                <Button Command="{Binding AddStandardLineCommand}" Style="{StaticResource SalesOrderDetailToolbarButton}" Content="添加产品" />
-                <Button Command="{Binding AddNonStandardLineCommand}" Style="{StaticResource SalesOrderDetailToolbarButton}" Content="添加非标件" />
-                <Button Command="{Binding DeleteSelectedLineCommand}" Style="{StaticResource SalesOrderDetailToolbarButton}" Content="删除行" />
-                <Button Command="{x:Static ApplicationCommands.Undo}" CommandTarget="{Binding ElementName=OrderLinesGrid}"
-                        Style="{StaticResource SalesOrderDetailToolbarButton}" Content="撤销" ToolTip="Ctrl+Z" />
+                
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal">
                 <Border Padding="8,4" Margin="0,0,4,0" Background="{DynamicResource SwiftExportBrush.SurfaceMuted}" CornerRadius="4">
-                    <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="确认：" />
                         <TextBlock Text="{Binding Header.ConfirmationStatus}" FontWeight="SemiBold" />
                         <TextBlock Margin="12,0,0,0" Text="单据：" />
                         <TextBlock Text="{Binding Header.DocumentStatus, Converter={StaticResource SalesOrderStateTextConverter}}" FontWeight="SemiBold" />
                     </StackPanel>
                 </Border>
-                <Button Command="{Binding CloseDocumentCommand}" Style="{StaticResource SalesOrderDetailToolbarButton}" Content="关闭页签" />
+                <ui:Button Appearance="Primary" Command="{Binding CloseDocumentCommand}"  Content="关闭页签" />
             </StackPanel>
         </Grid>
 
@@ -118,15 +112,17 @@
                                         SearchCommand="{Binding SearchCustomersCommand}"
                                         SelectionCommittedCommand="{Binding CommitCustomerCommand}"
                                         IsBusy="{Binding IsCustomerLookupBusy}" />
+                
                 <TextBlock Grid.Column="3" Text="订单号" VerticalAlignment="Center" />
-                <TextBox Grid.Column="4" Text="{Binding Header.OrderNo}" IsReadOnly="True" ToolTip="新订单保存时由服务端生成" />
+                <ui:TextBox Grid.Column="4" Text="{Binding Header.OrderNo}" IsReadOnly="True" ToolTip="新订单保存时由服务端生成" />
+                
                 <TextBlock Grid.Column="6" Text="订单日期" VerticalAlignment="Center" />
                 <DatePicker Grid.Column="7" SelectedDate="{Binding Header.OrderDate}" />
                 <TextBlock Grid.Column="9" Text="客户PO" VerticalAlignment="Center" />
                 <TextBox Grid.Column="10" Text="{Binding Header.CustomerPoNo, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="2" Grid.Column="0" Text="发票号" VerticalAlignment="Center" />
-                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Header.InvoiceNo, UpdateSourceTrigger=PropertyChanged}" />
+                <ui:TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Header.InvoiceNo, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Grid.Row="2" Grid.Column="3" Text="订单交期" VerticalAlignment="Center" />
                 <DatePicker Grid.Row="2" Grid.Column="4" SelectedDate="{Binding Header.DeliveryDate}" />
                 <TextBlock Grid.Row="2" Grid.Column="6" Text="回复日期" VerticalAlignment="Center" />
@@ -151,11 +147,17 @@
                 <TextBox Grid.Row="6" Grid.Column="10" Grid.ColumnSpan="2" Text="{Binding Header.Remark, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" />
             </Grid>
         </Border>
-
-        <DataGrid x:Name="OrderLinesGrid"
-                  Grid.Row="6"
-                  RowHeight="45"
-                  FontSize="12"
+<!--DataGrid操作-->
+        <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,4,0,4">
+            <ui:Button Margin="0,0,4,0" Appearance="Primary" Command="{Binding AddStandardLineCommand}"  Content="添加产品" />
+            <ui:Button Margin="0,0,4,0" Appearance="Primary" Command="{Binding AddNonStandardLineCommand}"  Content="添加非标件" />
+            <ui:Button Margin="0,0,4,0" Appearance="Danger" Command="{Binding DeleteSelectedLineCommand}"  Content="删除行" />
+            <ui:Button Margin="0,0,4,0" Command="{x:Static ApplicationCommands.Undo}" CommandTarget="{Binding ElementName=OrderLinesGrid}" Content="撤销" ToolTip="Ctrl+Z" />
+        </StackPanel>
+        
+        <DataGrid x:Name="OrderLinesGrid" Grid.Row="6"                  
+                  RowHeight="{StaticResource DataGridRowHeightMedium}"
+                  FontSize="{StaticResource SwiftExportDefaltFontSize}"
                   ItemsSource="{Binding Lines.Items}"
                   Style="{StaticResource SwiftExportDataGrid}"
                   RowStyle="{StaticResource SwiftExportStateDataGridRow}"
@@ -226,28 +228,32 @@
                     </DataTemplate></DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
                 
-                <DataGridTextColumn Header="客户货号" Width="125"
+                <DataGridTextColumn Header="客户型号" Width="125"
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     Binding="{Binding CustomerSku, UpdateSourceTrigger=PropertyChanged}"
-                                    gridColumns:GridColumn.Key="customer-sku" gridColumns:GridColumn.FieldPath="CustomerSku" />
-                <DataGridTextColumn Header="描述" Width="210" 
+                                    gridColumns:GridColumn.Key="customer-sku" 
+                                    gridColumns:GridColumn.FieldPath="CustomerSku" />
+                
+                <DataGridTextColumn Header="英文描述" Width="210" 
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     Binding="{Binding DescriptionEn, UpdateSourceTrigger=PropertyChanged}"
-                                    gridColumns:GridColumn.Key="description" gridColumns:GridColumn.FieldPath="DescriptionEn" />
+                                    gridColumns:GridColumn.Key="description" 
+                                    gridColumns:GridColumn.FieldPath="DescriptionEn" />
                 
-                <DataGridTextColumn Header="颜色" Width="105" 
+                <DataGridTextColumn Header="英文颜色" Width="105" 
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     Binding="{Binding ColorNameEn, UpdateSourceTrigger=PropertyChanged}"
                                     gridColumns:GridColumn.Key="color" gridColumns:GridColumn.FieldPath="ColorNameEn" />
                 
-                <DataGridTextColumn Header="配置" Width="150" 
+                <DataGridTextColumn Header="英文配置" Width="150" 
                                     ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                     EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"
                                     Binding="{Binding FeaturesEn, UpdateSourceTrigger=PropertyChanged}"
-                                    gridColumns:GridColumn.Key="features" gridColumns:GridColumn.FieldPath="FeaturesEn" />
+                                    gridColumns:GridColumn.Key="features" 
+                                    gridColumns:GridColumn.FieldPath="FeaturesEn" />
                 
                 <DataGridTextColumn Header="数量" Width="78" 
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
@@ -306,7 +312,7 @@
                                     gridColumns:GridColumn.FieldPath="SubNote" />
             </DataGrid.Columns>
         </DataGrid>
-
+<!--汇总-->
         <Grid Grid.Row="8">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="16" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="16" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
             <TextBlock Text="{Binding BusyMessage}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center" />

@@ -38,6 +38,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<ProductsViewModel>();
         services.AddTransient<BomDrawerViewModel>();
         services.AddTransient<ProductColorsViewModel>();
+        services.AddTransient<ProductCategoryAssignmentViewModel>();
         services.AddTransient<ProductCategoryManagerViewModel>();
         services.AddTransient<ProductBomViewModel>();
         services.AddTransient<CustomerManagerViewModel>();

@@ -181,6 +181,147 @@ public partial class ProductService(IProductRepository productRepository, Servic
 
     }
 
+    public async Task<ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>>> GetCategoryAssignmentPageAsync(
+        ProductCategoryAssignmentSearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request is null)
+            return ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>>.Fail("查询条件不能为空。");
+        if (request.TargetCategoryId == Guid.Empty)
+            return ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>>.Fail("请选择目标分类。");
+
+        var categories = await categoryRepository.GetByIdListAsync([request.TargetCategoryId]);
+        if (categories.Count != 1)
+            return ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>>.Fail("目标分类不存在或已失效。");
+
+        request.PageIndex = Math.Max(1, request.PageIndex);
+        request.PageSize = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 200);
+        var result = await productRepository.GetCategoryAssignmentPageAsync(request, cancellationToken);
+        return ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>>.Ok(result);
+    }
+
+    public async Task<ServiceResult<AssignProductsToCategoryResult>> AssignCategoryAsync(
+        AssignProductsToCategoryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request is null)
+            return ServiceResult<AssignProductsToCategoryResult>.Fail("归类请求不能为空。");
+        if (request.TargetCategoryId == Guid.Empty)
+            return ServiceResult<AssignProductsToCategoryResult>.Fail("请选择有效的目标分类。");
+
+        request.Items ??= [];
+        if (request.Items.Count == 0)
+            return ServiceResult<AssignProductsToCategoryResult>.Fail("请选择需要归类的产品。");
+        if (request.Items.Count > 200)
+            return ServiceResult<AssignProductsToCategoryResult>.Fail("单次最多归类 200 个产品。");
+        if (request.Items.Any(item => item is null || item.ProductId == Guid.Empty || item.ExpectedVersion <= 0))
+            return ServiceResult<AssignProductsToCategoryResult>.Fail("归类产品标识或版本无效。");
+
+        var duplicateId = request.Items
+            .GroupBy(item => item.ProductId)
+            .FirstOrDefault(group => group.Count() > 1)
+            ?.Key;
+        if (duplicateId.HasValue)
+            return ServiceResult<AssignProductsToCategoryResult>.Fail($"产品 {duplicateId.Value} 在本次请求中重复。");
+        if (_session.Transaction is not null)
+            return ServiceResult<AssignProductsToCategoryResult>.Fail("当前请求已存在未完成事务，不能重复开始产品归类。");
+
+        try
+        {
+            _session.Transaction = _session.Connection.BeginTransaction();
+
+            var categories = await categoryRepository.GetByIdListAsync(
+                [request.TargetCategoryId],
+                withUpdLock: true);
+            if (categories.Count != 1)
+            {
+                _session.Transaction.Rollback();
+                return ServiceResult<AssignProductsToCategoryResult>.Fail("目标分类不存在或已失效。");
+            }
+
+            var productIds = request.Items.Select(item => item.ProductId).ToArray();
+            var products = await productRepository.GetByIdListAsync(productIds, withUpdLock: true);
+            if (products.Count != productIds.Length)
+            {
+                _session.Transaction.Rollback();
+                return ServiceResult<AssignProductsToCategoryResult>.Fail("部分产品不存在或已被删除，请刷新后重试。");
+            }
+
+            var productMap = products.ToDictionary(product => product.Uid);
+            foreach (var item in request.Items)
+            {
+                var product = productMap[item.ProductId];
+                if (product.Version != item.ExpectedVersion)
+                {
+                    _session.Transaction.Rollback();
+                    return ServiceResult<AssignProductsToCategoryResult>.Fail(
+                        $"产品 {product.Sku} 已被其他用户修改，请刷新后重试。");
+                }
+
+                if (product.CategoryId == request.TargetCategoryId)
+                {
+                    _session.Transaction.Rollback();
+                    return ServiceResult<AssignProductsToCategoryResult>.Fail(
+                        $"产品 {product.Sku} 已属于目标分类，请刷新后重试。");
+                }
+            }
+
+            var response = new AssignProductsToCategoryResult
+            {
+                TargetCategoryId = request.TargetCategoryId
+            };
+            foreach (var item in request.Items)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var writeResult = await productRepository.AssignCategoryAsync(
+                    item.ProductId,
+                    item.ExpectedVersion,
+                    request.TargetCategoryId,
+                    cancellationToken);
+                if (!writeResult.Success)
+                    throw new ProductCategoryAssignmentException(writeResult.Message ?? "产品归类失败。");
+
+                response.Items.Add(new AssignedProductVersionResult
+                {
+                    ProductId = item.ProductId,
+                    OldVersion = item.ExpectedVersion,
+                    NewVersion = writeResult.NewVersion
+                        ?? throw new ProductCategoryAssignmentException("产品归类成功但未返回新版本号。")
+                });
+            }
+
+            response.UpdatedCount = response.Items.Count;
+            _session.Transaction.Commit();
+            return ServiceResult<AssignProductsToCategoryResult>.Ok(
+                response,
+                $"已将 {response.UpdatedCount} 个产品归入目标分类。");
+        }
+        catch (OperationCanceledException)
+        {
+            TryRollbackTransaction();
+            throw;
+        }
+        catch (ProductCategoryAssignmentException exception)
+        {
+            TryRollbackTransaction();
+            _logger.LogWarning(exception, "产品快速归类因并发冲突失败，已回滚全部操作。");
+            return ServiceResult<AssignProductsToCategoryResult>.Fail(
+                $"产品归类失败，所有操作已回滚。原因：{exception.Message}");
+        }
+        catch (Exception exception)
+        {
+            TryRollbackTransaction();
+            _logger.LogError(exception, "产品快速归类发生未预期异常，已回滚全部操作。");
+            return ServiceResult<AssignProductsToCategoryResult>.Fail(
+                "产品归类失败，所有操作已回滚，请刷新后重试。");
+        }
+        finally
+        {
+            _session.Transaction?.Dispose();
+            _session.Transaction = null;
+        }
+    }
+
     public async Task<ServiceResult<List<ProductLookupDto>>> SearchLookupAsync(ProductLookupRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Keyword))
@@ -403,5 +544,7 @@ public partial class ProductService(IProductRepository productRepository, Servic
     }
 
     private sealed class ProductBatchWriteException(string message) : Exception(message);
+
+    private sealed class ProductCategoryAssignmentException(string message) : Exception(message);
 
 }

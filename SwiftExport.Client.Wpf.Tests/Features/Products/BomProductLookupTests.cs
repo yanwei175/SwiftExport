@@ -138,6 +138,8 @@ public sealed class BomProductLookupTests
         public Task<ServiceResult<List<string>>> GetAllCustomerCodeListAsync() => NotSupported<List<string>>();
         public Task<ServiceResult<ProductDto>> GetBySkuAsync(string sku) => NotSupported<ProductDto>();
         public Task<ServiceResult<ProductBatchSaveResponse>> BatchSaveAsync(ProductBatchSaveRequest request) => NotSupported<ProductBatchSaveResponse>();
+        public Task<ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>>> GetCategoryAssignmentPageAsync(ProductCategoryAssignmentSearchRequest request, CancellationToken cancellationToken = default) => NotSupported<PagedResponseBase<ProductCategoryAssignmentRowDto>>();
+        public Task<ServiceResult<AssignProductsToCategoryResult>> AssignCategoryAsync(AssignProductsToCategoryRequest request, CancellationToken cancellationToken = default) => NotSupported<AssignProductsToCategoryResult>();
 
         private static Task<ServiceResult<T>> NotSupported<T>() =>
             Task.FromException<ServiceResult<T>>(new NotSupportedException());

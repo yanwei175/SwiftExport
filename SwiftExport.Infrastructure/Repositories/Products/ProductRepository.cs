@@ -465,6 +465,139 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
         };
     }
 
+    public async Task<PagedResponseBase<ProductCategoryAssignmentRowDto>> GetCategoryAssignmentPageAsync(
+        ProductCategoryAssignmentSearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var pageIndex = Math.Max(1, request.PageIndex);
+        var pageSize = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 200);
+        var parameters = new DynamicParameters();
+        parameters.Add("@TargetCategoryId", request.TargetCategoryId);
+        parameters.Add("@ExcludeTargetCategory", request.ExcludeTargetCategory);
+        parameters.Add("@EmptyGuid", Guid.Empty);
+        parameters.Add("@Offset", (pageIndex - 1) * pageSize);
+        parameters.Add("@Limit", pageSize);
+
+        var where = new StringBuilder($@"
+WHERE (p.{nameof(Product.IsDeleted)} = 0 OR p.{nameof(Product.IsDeleted)} IS NULL)
+  AND (
+       @ExcludeTargetCategory = 0
+    OR p.{nameof(Product.CategoryId)} IS NULL
+    OR p.{nameof(Product.CategoryId)} <> @TargetCategoryId
+  )");
+
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            where.Append($@"
+  AND (
+       p.{nameof(Product.Sku)} LIKE @Keyword ESCAPE '~'
+    OR p.{nameof(Product.LinkSku)} LIKE @Keyword ESCAPE '~'
+    OR p.{nameof(Product.DescriptionZh)} LIKE @Keyword ESCAPE '~'
+  )");
+            parameters.Add("@Keyword", SqlLikePattern.Build(request.Keyword));
+        }
+
+        var from = $@"
+FROM [{TableName}] p WITH(NOLOCK)
+LEFT JOIN [{ProductCategoryTable}] pat WITH(NOLOCK)
+    ON pat.{nameof(ProductCategory.Uid)} = p.{nameof(Product.CategoryId)}
+   AND (pat.{nameof(ProductCategory.IsDeleted)} = 0 OR pat.{nameof(ProductCategory.IsDeleted)} IS NULL)";
+
+        var sql = $@"
+SELECT COUNT(1)
+{from}
+{where};
+
+SELECT
+    p.{nameof(Product.Uid)} AS {nameof(ProductCategoryAssignmentRowDto.Uid)},
+    p.{nameof(Product.Version)} AS {nameof(ProductCategoryAssignmentRowDto.Version)},
+    p.{nameof(Product.MainImage)} AS {nameof(ProductCategoryAssignmentRowDto.MainImage)},
+    p.{nameof(Product.Sku)} AS {nameof(ProductCategoryAssignmentRowDto.Sku)},
+    p.{nameof(Product.LinkSku)} AS {nameof(ProductCategoryAssignmentRowDto.LinkSku)},
+    p.{nameof(Product.DescriptionZh)} AS {nameof(ProductCategoryAssignmentRowDto.DescriptionZh)},
+    COALESCE(p.{nameof(Product.CategoryId)}, @EmptyGuid) AS {nameof(ProductCategoryAssignmentRowDto.OriginalCategoryId)},
+    CASE
+        WHEN p.{nameof(Product.CategoryId)} IS NULL
+          OR p.{nameof(Product.CategoryId)} = @EmptyGuid THEN N'未分类'
+        ELSE COALESCE(pat.{nameof(ProductCategory.CategoryName)}, N'分类已失效')
+    END AS {nameof(ProductCategoryAssignmentRowDto.OriginalCategoryName)}
+{from}
+{where}
+ORDER BY p.{nameof(Product.Sku)} ASC, p.{nameof(Product.Uid)} ASC
+OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
+
+        var command = new CommandDefinition(
+            sql,
+            parameters,
+            transaction: Transaction,
+            cancellationToken: cancellationToken);
+        using var multi = await Connection.QueryMultipleAsync(command);
+        var totalCount = await multi.ReadFirstAsync<int>();
+        var items = await multi.ReadAsync<ProductCategoryAssignmentRowDto>();
+        var itemList = items.ToList();
+
+        Logger.LogDebug(
+            "产品快速归类查询：TargetCategoryId={TargetCategoryId}, ExcludeTargetCategory={ExcludeTargetCategory}, Keyword={Keyword}, PageIndex={PageIndex}, PageSize={PageSize}, TotalCount={TotalCount}, PageItemCount={PageItemCount}",
+            request.TargetCategoryId,
+            request.ExcludeTargetCategory,
+            request.Keyword,
+            pageIndex,
+            pageSize,
+            totalCount,
+            itemList.Count);
+
+        return new PagedResponseBase<ProductCategoryAssignmentRowDto>
+        {
+            Items = itemList,
+            TotalCount = totalCount,
+            PageIndex = pageIndex,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<RepositoryWriteResult> AssignCategoryAsync(
+        Guid productId,
+        int expectedVersion,
+        Guid targetCategoryId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = @"
+UPDATE [dbo].[Product]
+SET [CategoryId] = @TargetCategoryId,
+    [UpdatedDate] = @Now,
+    [UpdatedBy] = @UserName,
+    [Version] = [Version] + 1
+OUTPUT INSERTED.[Version]
+WHERE [Uid] = @ProductId
+  AND [Version] = @ExpectedVersion
+  AND ([CategoryId] IS NULL OR [CategoryId] <> @TargetCategoryId)
+  AND ([IsDeleted] = 0 OR [IsDeleted] IS NULL);";
+
+        var command = new CommandDefinition(
+            sql,
+            new
+            {
+                ProductId = productId,
+                ExpectedVersion = expectedVersion,
+                TargetCategoryId = targetCategoryId,
+                Now = DateTime.Now,
+                UserName = CurrentUser.UserName
+            },
+            transaction: Transaction,
+            cancellationToken: cancellationToken);
+        var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>(command);
+
+        return newVersion.HasValue
+            ? RepositoryWriteResult.Ok(productId, expectedVersion, newVersion.Value, "产品归类成功。")
+            : RepositoryWriteResult.Fail(
+                productId,
+                expectedVersion,
+                "CONCURRENCY_CONFLICT",
+                "产品已被其他用户修改、删除或已归入目标分类，请刷新后重试。");
+    }
+
 
 
 }

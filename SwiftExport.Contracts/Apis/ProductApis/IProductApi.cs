@@ -31,5 +31,15 @@ namespace SwiftExport.Contracts.Apis.ProductApis
 
         [Post("/batch-save")]
         Task<ServiceResult<ProductBatchSaveResponse>> BatchSaveAsync([Body] ProductBatchSaveRequest request);
+
+        [Post("/category-assignment/page")]
+        Task<ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>>> GetCategoryAssignmentPageAsync(
+            [Body] ProductCategoryAssignmentSearchRequest request,
+            System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+
+        [Post("/assign-category")]
+        Task<ServiceResult<AssignProductsToCategoryResult>> AssignCategoryAsync(
+            [Body] AssignProductsToCategoryRequest request,
+            System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
     }
 }

@@ -223,11 +223,6 @@
                         </Style>
                     </ui:NavigationView.Style>
 
-                    <ui:NavigationView.AutoSuggestBox>
-                        <ui:AutoSuggestBox PlaceholderText="搜索..."
-                                           Text="{Binding MenuSearchText, UpdateSourceTrigger=PropertyChanged}" />
-                    </ui:NavigationView.AutoSuggestBox>
-
                     <ui:NavigationView.FooterMenuItems>
                         <ui:NavigationViewItem Content="Settings"
                                                Command="{Binding OpenSettingsCommand}">

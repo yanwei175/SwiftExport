@@ -9,6 +9,7 @@ using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
+using System.Reflection;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
@@ -27,7 +28,12 @@ public sealed class ProductCategoryManagerViewModelTests
             runner,
             new MessageServiceStub(),
             new DialogServiceStub(),
-            cache);
+            cache,
+            new ProductCategoryAssignmentViewModel(
+                DispatchProxy.Create<IProductApi, NoCallProductApiProxy>(),
+                runner,
+                new MessageServiceStub(),
+                new DialogServiceStub()));
 
         await viewModel.InitializeAsync();
         viewModel.CurrentCategory!.CategoryName = "第一次修改";
@@ -143,5 +149,11 @@ public sealed class ProductCategoryManagerViewModelTests
         public event EventHandler<SessionEndedEventArgs>? SessionEnded;
         public void ClearSession() { }
         public void EndSession(SessionEndReason reason) => SessionEnded?.Invoke(this, new SessionEndedEventArgs(reason));
+    }
+
+    private class NoCallProductApiProxy : DispatchProxy
+    {
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
+            throw new AssertFailedException($"不应调用产品 API：{targetMethod?.Name}");
     }
 }

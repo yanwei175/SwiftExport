@@ -5,6 +5,8 @@
              xmlns:dd="urn:gong-wpf-dragdrop"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:categoryModels="clr-namespace:SwiftExportClient.Features.Products.Categories.Models"
+             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:imageControls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              mc:Ignorable="d"
              d:DesignWidth="1200"
@@ -12,6 +14,7 @@
              HorizontalContentAlignment="Stretch"
              VerticalContentAlignment="Stretch">
     <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <HierarchicalDataTemplate x:Key="ProductCategoryTreeTemplate"
                                   DataType="{x:Type categoryModels:ProductCategoryTreeItemModel}"
                                   ItemsSource="{Binding Children}">
@@ -82,25 +85,21 @@
         <StackPanel Grid.Row="0"
                     Orientation="Horizontal"
                     HorizontalAlignment="Left">
-            <Button Content="新增同级"
-                    Style="{DynamicResource AccentButton}"
+            <ui:Button Content="新增同级" Appearance="Primary"
                     Command="{Binding AddSiblingCommand}"
                     CommandParameter="{Binding CurrentCategory}"
                     MinWidth="96" />
-            <Button Content="新增子级"
-                    Style="{DynamicResource AccentButton}"
+            <ui:Button Content="新增子级" 
                     Command="{Binding AddChildCommand}"
                     CommandParameter="{Binding CurrentCategory}"
                     MinWidth="96"
                     Margin="8,0,0,0" />
-            <Button Content="删除"
-                    Style="{DynamicResource AccentButton}"
+            <ui:Button Content="删除" Appearance="Danger"
                     Command="{Binding DeleteCommand}"
                     CommandParameter="{Binding CurrentCategory}"
                     MinWidth="96"
                     Margin="8,0,0,0" />
-            <Button Content="保存"
-                    Style="{DynamicResource AccentButton}"
+            <ui:Button Content="保存" Appearance="Success"
                     Command="{Binding SaveCommand}"
                     MinWidth="96"
                     Margin="8,0,0,0" />
@@ -176,34 +175,41 @@
                     BorderBrush="{DynamicResource SwiftExportBrush.Border}"
                     BorderThickness="{StaticResource SwiftExportBorderThickness}"
                     CornerRadius="{StaticResource SwiftExportCornerRadius}"
-                    Padding="24">
-                <Grid DataContext="{Binding CurrentCategory}">
-                    <Grid.Style>
-                        <Style TargetType="{x:Type Grid}">
-                            <Setter Property="Visibility" Value="Visible" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding}" Value="{x:Null}">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Grid.Style>
-
+                    Padding="16">
+                <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="24" />
+                        <RowDefinition Height="12" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0">
-                        <TextBlock Text="类目基础属性"
-                                   Style="{StaticResource BodyTextBlock}"
-                                   FontWeight="SemiBold" />
-                        <TextBlock Text="修改后点击底部保存，变更会批量提交。"
-                                   Style="{StaticResource CaptionTextBlock}"
-                                   Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
-                                   Margin="0,8,0,0" />
-                    </StackPanel>
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="类目基础属性"
+                                       Style="{StaticResource BodyTextBlock}"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="修改后点击顶部保存，变更会批量提交。"
+                                       Style="{StaticResource CaptionTextBlock}"
+                                       Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Style="{DynamicResource AccentButton}"
+                                Content="快速归类"
+                                Command="{Binding Assignment.OpenAssignmentPanelCommand}"
+                                Padding="12,4"
+                                VerticalAlignment="Top">
+                            <Button.ToolTip>
+                                <TextBlock Text="打开后才会加载待归类产品" />
+                            </Button.ToolTip>
+                        </Button>
+                    </Grid>
 
                     <Grid Grid.Row="2">
                         <Grid.RowDefinitions>
@@ -224,7 +230,7 @@
                                    Style="{StaticResource LabelTextBlock}"
                                    VerticalAlignment="Center" />
                         <TextBox Grid.Column="1"
-                                 Text="{Binding CategoryName, UpdateSourceTrigger=PropertyChanged}" />
+                                 Text="{Binding CurrentCategory.CategoryName, UpdateSourceTrigger=PropertyChanged}" />
 
                         <TextBlock Grid.Row="2"
                                    Text="假名"
@@ -232,7 +238,7 @@
                                    VerticalAlignment="Center" />
                         <TextBox Grid.Row="2"
                                  Grid.Column="1"
-                                 Text="{Binding FakeName, UpdateSourceTrigger=PropertyChanged}" />
+                                 Text="{Binding CurrentCategory.FakeName, UpdateSourceTrigger=PropertyChanged}" />
 
                         <TextBlock Grid.Row="4"
                                    Text="分类代码"
@@ -240,7 +246,7 @@
                                    VerticalAlignment="Center" />
                         <TextBox Grid.Row="4"
                                  Grid.Column="1"
-                                 Text="{Binding CategoryCode, UpdateSourceTrigger=PropertyChanged}" />
+                                 Text="{Binding CurrentCategory.CategoryCode, UpdateSourceTrigger=PropertyChanged}" />
 
                         <TextBlock Grid.Row="6"
                                    Text="排序号"
@@ -250,8 +256,161 @@
                                  Grid.Column="1"
                                  Width="140"
                                  HorizontalAlignment="Left"
-                                 Text="{Binding SortNo, UpdateSourceTrigger=PropertyChanged}" />
+                                 Text="{Binding CurrentCategory.SortNo, UpdateSourceTrigger=PropertyChanged}" />
                     </Grid>
+
+                    <Border Grid.Row="4"
+                            Visibility="{Binding Assignment.IsAssignmentPanelOpen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource SwiftExportCornerRadius}"
+                            Padding="8">
+                        <Grid DataContext="{Binding Assignment}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="4" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="4" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="4" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="快速归类到：" Style="{StaticResource BodyTextBlock}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding TargetCategoryName}"
+                                               Style="{StaticResource BodyTextBlock}"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource SwiftExportBrush.Accent}" />
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Content="关闭"
+                                        Command="{Binding CloseAssignmentPanelCommand}"
+                                        Padding="10,3" />
+                            </Grid>
+
+                            <Grid Grid.Row="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="240" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="输入 SKU、LinkSKU 或中文描述"
+                                         MinHeight="32">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                                    </TextBox.InputBindings>
+                                </TextBox>
+                                
+                                <Button Grid.Column="1"
+                                        Content="查询"
+                                        Command="{Binding SearchCommand}"
+                                        Margin="4,0,0,0"
+                                        Padding="12,4" />
+                                
+                                <Button Grid.Column="2"
+                                        Content="刷新"
+                                        Command="{Binding RefreshCommand}"
+                                        Margin="4,0,0,0"
+                                        Padding="12,4" />
+
+                                <ui:Button Grid.Column="3" Appearance="Primary"
+                                           Margin="4,0,0,0"
+                                           Padding="12,4"                                           
+                                           Command="{Binding AssignSelectedCommand}">
+                                    <TextBlock Text="{Binding CheckedCount, StringFormat=归类 {0} 条}"/>
+                                </ui:Button>
+                                
+                                <TextBlock Grid.Column="4"
+                                           Text="{Binding StatusMessage}"
+                                           Style="{StaticResource CaptionTextBlock}"
+                                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                                           VerticalAlignment="Center"
+                                           Margin="8,0" />
+
+                            </Grid>
+
+                            <DataGrid Grid.Row="4"
+                                      ItemsSource="{Binding Lines}"
+                                      Style="{StaticResource SwiftExportDataGrid}"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      SelectionMode="Extended"
+                                      SelectionUnit="FullRow"
+                                      EnableRowVirtualization="True"
+                                      EnableColumnVirtualization="True"
+                                      VirtualizingPanel.IsVirtualizing="True"
+                                      VirtualizingPanel.VirtualizationMode="Recycling"
+                                      RowHeight="48">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Width="45" IsReadOnly="True" CanUserSort="False">
+                                        <DataGridTemplateColumn.Header>
+                                            <CheckBox IsChecked="{Binding DataContext.IsAllChecked,
+                                                                         RelativeSource={RelativeSource AncestorType={x:Type DataGrid}},
+                                                                         Mode=TwoWay}"
+                                                      HorizontalAlignment="Left"
+                                                      VerticalAlignment="Center" />
+                                        </DataGridTemplateColumn.Header>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                          Margin="4,0,0,0"
+                                                          HorizontalAlignment="Left"
+                                                          VerticalAlignment="Center" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="图片" Width="65" IsReadOnly="True" CanUserSort="False">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <imageControls:CachedImage Width="40"
+                                                                           Height="40"
+                                                                           Style="{StaticResource SwiftExportCachedImage}"
+                                                                           DecodePixelWidth="96"
+                                                                           SourcePath="{Binding MainImage}"
+                                                                           Stretch="Uniform" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="SKU" Width="180" Binding="{Binding Sku}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"/>
+                                    <DataGridTextColumn Header="LinkSKU" Width="180" Binding="{Binding LinkSku}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"/>
+                                    <DataGridTextColumn Header="中文描述" Width="*" Binding="{Binding DescriptionZh}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}"/>
+                                    <DataGridTextColumn Header="原始分类" Width="160" Binding="{Binding OriginalCategoryName}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <Grid Grid.Row="6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding ValidationSummary}"
+                                           Style="{StaticResource CaptionTextBlock}"
+                                           Foreground="#B42318"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding PageStatus}"
+                                           Style="{StaticResource CaptionTextBlock}"
+                                           Margin="12,0"
+                                           VerticalAlignment="Center" />
+                                <controls:PageNavigator Grid.Column="2"
+                                                        TotalCount="{Binding TotalCount}"
+                                                        PageIndex="{Binding PageIndex}"
+                                                        PageSize="{Binding PageSize}"
+                                                        PageSizeOptions="{Binding PageSizeOptions}"
+                                                        PageChangeCommand="{Binding PageChangeCommand}" />
+                            </Grid>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
         </Grid>

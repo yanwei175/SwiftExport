@@ -92,6 +92,14 @@ public sealed class ProductsMaterialTypeFilterTests
 
         public Task<ServiceResult<ProductBatchSaveResponse>> BatchSaveAsync(ProductBatchSaveRequest request) => NotSupported<ProductBatchSaveResponse>();
 
+        public Task<ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>>> GetCategoryAssignmentPageAsync(
+            ProductCategoryAssignmentSearchRequest request,
+            CancellationToken cancellationToken = default) => NotSupported<PagedResponseBase<ProductCategoryAssignmentRowDto>>();
+
+        public Task<ServiceResult<AssignProductsToCategoryResult>> AssignCategoryAsync(
+            AssignProductsToCategoryRequest request,
+            CancellationToken cancellationToken = default) => NotSupported<AssignProductsToCategoryResult>();
+
         public Task<ServiceResult<ProductDto>> GetByIdAsync(Guid id) => NotSupported<ProductDto>();
 
         public Task<ServiceResult<Guid>> CreateAsync(ProductDto request) => NotSupported<Guid>();
