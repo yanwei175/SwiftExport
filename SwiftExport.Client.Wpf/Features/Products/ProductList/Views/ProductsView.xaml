@@ -180,7 +180,8 @@
                                   IsOpen="{Binding BomDrawer.IsOpen, Mode=OneWay}"
                                   CloseCommand="{Binding BomDrawer.CloseCommand}">
             <controls:RightDrawerHost.MainContent>
-                <DataGrid ItemsSource="{Binding Products.Items}"
+                <Grid>
+                    <DataGrid ItemsSource="{Binding Products.Items}"
                           Style="{StaticResource SwiftExportDataGrid}"
                           RowHeight="{StaticResource DataGridRowHeightMedium}"
                           FontSize="{StaticResource SwiftExportDefaltFontSize}"
@@ -462,8 +463,26 @@
                                             ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"
                                             gridColumns:GridColumn.Key="note" />
-                    </DataGrid.Columns>
-                </DataGrid>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <Border Panel.ZIndex="10"
+                            Background="{DynamicResource SwiftExportBrush.Surface}"
+                            BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                            BorderThickness="{StaticResource SwiftExportBorderThickness}"
+                            Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            d:IsHidden="True">
+                        <StackPanel HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                            <ui:ProgressRing Width="32"
+                                             Height="32"
+                                             IsIndeterminate="True" />
+                            <TextBlock Margin="0,8,0,0"
+                                       Text="{Binding BusyMessage, FallbackValue=正在加载产品资料...}"
+                                       Style="{StaticResource BodyTextBlock}" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </controls:RightDrawerHost.MainContent>
 
             <controls:RightDrawerHost.DrawerContent>

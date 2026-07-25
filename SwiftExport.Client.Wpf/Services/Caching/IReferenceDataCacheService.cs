@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.SystemDtos;
 
 namespace SwiftExportClient.Services.Caching;
 
@@ -25,6 +26,21 @@ public interface IReferenceDataCacheService
     ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
 
     /// <summary>
+    /// 获取全部未删除字典类型的只读缓存。
+    /// </summary>
+    ReadOnlyObservableCollection<SysDictTypeDto> DictionaryTypes { get; }
+
+    /// <summary>
+    /// 获取全部未删除字典值的只读缓存，包含停用值。
+    /// </summary>
+    ReadOnlyObservableCollection<SysDictDataDto> DictionaryValues { get; }
+
+    /// <summary>
+    /// 按字典编码读取字典值。业务下拉默认只返回启用值。
+    /// </summary>
+    IReadOnlyList<SysDictDataDto> GetDictionaryValues(string dictCode, bool enabledOnly = true);
+
+    /// <summary>
     /// 首次使用时加载全部已接入缓存；本会话已完整加载时不会重复请求。
     /// </summary>
     Task<CacheRefreshResult> EnsureLoadedAsync();
@@ -43,6 +59,11 @@ public interface IReferenceDataCacheService
     /// 强制重新拉取产品分类缓存；失败时保留旧分类树。
     /// </summary>
     Task<CacheRefreshResult> RefreshProductCategoriesAsync();
+
+    /// <summary>
+    /// 强制原子刷新字典类型和字典值；任一请求失败时保留旧字典快照。
+    /// </summary>
+    Task<CacheRefreshResult> RefreshDictionariesAsync();
 
     /// <summary>
     /// 清除当前登录会话的内存缓存。正常情况下由会话结束事件自动调用。

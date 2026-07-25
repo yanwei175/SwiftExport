@@ -7,6 +7,7 @@ using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Systems;
 using SwiftExport.Core.Interfaces;
@@ -288,7 +289,9 @@ namespace SwiftExport.Application.Services.Systems
                 foreach (var item in preparation.OrderedCreates)
                 {
                     var entity = item.Data.Adapt<SysDictType>();
-                    entity.IsSystem = false;
+                    entity.IsSystem = DictCodes.DictCodeList.Contains(
+                        entity.DictCode,
+                        StringComparer.OrdinalIgnoreCase);
                     entity.ParentId = ResolveParentId(item.Data.ParentId, persistedByLogicalId);
                     var writeResult = await repository.AddAsync(entity);
                     response.Items.Add(SaveItemResultFactory.FromCreate(item, writeResult));
@@ -298,7 +301,9 @@ namespace SwiftExport.Application.Services.Systems
                 foreach (var item in batchReq.UpdateItems)
                 {
                     var entity = preparation.Existing[item.Uid];
-                    var isSystem = entity.IsSystem;
+                    var isSystem = entity.IsSystem
+                        || DictCodes.DictCodeList.Contains(entity.DictCode, StringComparer.OrdinalIgnoreCase)
+                        || DictCodes.DictCodeList.Contains(item.Data.DictCode, StringComparer.OrdinalIgnoreCase);
                     SystemBatchSaveSupport.AdaptPreservingServerFields(item.Data, entity);
                     entity.IsSystem = isSystem;
                     entity.ParentId = ResolveParentId(item.Data.ParentId, persistedByLogicalId);
@@ -364,8 +369,8 @@ namespace SwiftExport.Application.Services.Systems
             var targetIds = request.UpdateItems.Select(x => x.Uid).Concat(request.DeleteItems.Select(x => x.Uid)).Distinct().ToArray();
             var missing = targetIds.Where(uid => !existing.ContainsKey(uid)).ToArray();
             if (missing.Length > 0) return DictTypeBatchPreparation.Fail("修改或删除失败，以下字典类型不存在：" + string.Join(", ", missing));
-            var protectedItems = SystemBatchSaveSupport.FindProtectedDeleteIds(request.DeleteItems, existing, entity => entity.IsSystem);
-            if (protectedItems.Length > 0) return DictTypeBatchPreparation.Fail("系统字典类型不能删除：" + string.Join(", ", protectedItems));
+            var systemProtectionError = ValidateSystemDictionaryProtection(request, existing);
+            if (systemProtectionError is not null) return DictTypeBatchPreparation.Fail(systemProtectionError);
 
             var createIds = request.CreateItems.Select(x => x.Data.Uid).ToArray();
             if (createIds.Distinct().Count() != createIds.Length || createIds.Any(existing.ContainsKey))
@@ -425,6 +430,29 @@ namespace SwiftExport.Application.Services.Systems
                 }
             }
             return null;
+        }
+
+        internal static string? ValidateSystemDictionaryProtection(
+            SysDictTypeBatchSaveRequest request,
+            IReadOnlyDictionary<Guid, SysDictType> existing)
+        {
+            var protectedItems = SystemBatchSaveSupport.FindProtectedDeleteIds(
+                request.DeleteItems,
+                existing,
+                entity => entity.IsSystem
+                    || DictCodes.DictCodeList.Contains(entity.DictCode, StringComparer.OrdinalIgnoreCase));
+            if (protectedItems.Length > 0)
+                return "系统字典类型不能删除：" + string.Join(", ", protectedItems);
+
+            var renamedSystemCodes = request.UpdateItems
+                .Where(item => DictCodes.DictCodeList.Contains(existing[item.Uid].DictCode, StringComparer.OrdinalIgnoreCase)
+                    && !string.Equals(existing[item.Uid].DictCode, item.Data.DictCode, StringComparison.OrdinalIgnoreCase))
+                .Select(item => existing[item.Uid].DictCode)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            return renamedSystemCodes.Length > 0
+                ? "系统字典编码不能修改：" + string.Join(", ", renamedSystemCodes)
+                : null;
         }
 
         private static (string? Error, List<CreateItemRequest<SysDictTypeDto>> Items) OrderCreates(

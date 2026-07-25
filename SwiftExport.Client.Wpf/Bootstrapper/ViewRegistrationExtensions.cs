@@ -22,6 +22,7 @@ using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
 using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 using SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
 using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
 using SwiftExportClient.Shell;
 
 namespace SwiftExportClient.Bootstrapper;
@@ -66,6 +67,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<OutboundWorkspaceViewModel>();
         services.AddTransient<PackingListWorkspaceViewModel>();
         services.AddTransient<PackingListDetailViewModel>();
+        services.AddTransient<DictionaryManagerViewModel>();
 
         return services;
     }

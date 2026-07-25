@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using SwiftExport.Contracts.Apis.ProductApis;
+using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Services.Api;
 
@@ -14,32 +16,43 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 {
     private readonly IProductColorApi _productColorApi;
     private readonly IProductCategoryApi _productCategoryApi;
+    private readonly ISysDictTypeApi _dictTypeApi;
+    private readonly ISysDictDataApi _dictDataApi;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly ISessionService _sessionService;
     private readonly CacheObservableCollection<ProductColorDto> _productColors = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategoryTree = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategories = [];
+    private readonly CacheObservableCollection<SysDictTypeDto> _dictionaryTypes = [];
+    private readonly CacheObservableCollection<SysDictDataDto> _dictionaryValues = [];
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly object _ensureSync = new();
     private Task<CacheRefreshResult>? _ensureTask;
     private volatile bool _colorsLoaded;
     private volatile bool _categoriesLoaded;
+    private volatile bool _dictionariesLoaded;
     private long _sessionGeneration;
     private bool _disposed;
 
     public ReferenceDataCacheService(
         IProductColorApi productColorApi,
         IProductCategoryApi productCategoryApi,
+        ISysDictTypeApi dictTypeApi,
+        ISysDictDataApi dictDataApi,
         IApiCallRunner apiCallRunner,
         ISessionService sessionService)
     {
         _productColorApi = productColorApi;
         _productCategoryApi = productCategoryApi;
+        _dictTypeApi = dictTypeApi;
+        _dictDataApi = dictDataApi;
         _apiCallRunner = apiCallRunner;
         _sessionService = sessionService;
         ProductColors = new ReadOnlyObservableCollection<ProductColorDto>(_productColors);
         ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategoryTree);
         ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategories);
+        DictionaryTypes = new ReadOnlyObservableCollection<SysDictTypeDto>(_dictionaryTypes);
+        DictionaryValues = new ReadOnlyObservableCollection<SysDictDataDto>(_dictionaryValues);
         _sessionService.SessionEnded += OnSessionEnded;
     }
 
@@ -53,11 +66,31 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
 
     /// <inheritdoc />
+    public ReadOnlyObservableCollection<SysDictTypeDto> DictionaryTypes { get; }
+
+    /// <inheritdoc />
+    public ReadOnlyObservableCollection<SysDictDataDto> DictionaryValues { get; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<SysDictDataDto> GetDictionaryValues(string dictCode, bool enabledOnly = true)
+    {
+        if (string.IsNullOrWhiteSpace(dictCode))
+        {
+            return [];
+        }
+
+        return DictionaryValues
+            .Where(item => string.Equals(item.DictCode, dictCode.Trim(), StringComparison.OrdinalIgnoreCase)
+                && (!enabledOnly || item.IsEnabled))
+            .ToArray();
+    }
+
+    /// <inheritdoc />
     public Task<CacheRefreshResult> EnsureLoadedAsync()
     {
         lock (_ensureSync)
         {
-            if (_colorsLoaded && _categoriesLoaded)
+            if (_colorsLoaded && _categoriesLoaded && _dictionariesLoaded)
             {
                 return Task.FromResult(CacheRefreshResult.Ok("缓存已经加载。"));
             }
@@ -149,6 +182,54 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     }
 
     /// <inheritdoc />
+    public async Task<CacheRefreshResult> RefreshDictionariesAsync()
+    {
+        await _refreshGate.WaitAsync();
+        try
+        {
+            var generation = Volatile.Read(ref _sessionGeneration);
+            var typesTask = LoadDictionaryTypesAsync();
+            var valuesTask = LoadDictionaryValuesAsync();
+            await Task.WhenAll(typesTask, valuesTask);
+
+            var typesResult = await typesTask;
+            var valuesResult = await valuesTask;
+            if (!typesResult.Success || !valuesResult.Success)
+            {
+                return CacheRefreshResult.Fail(JoinFailureMessages(
+                    typesResult.Success ? null : typesResult.Message,
+                    valuesResult.Success ? null : valuesResult.Message));
+            }
+
+            var types = OrderDictionaryTypes(typesResult.Data ?? []).ToArray();
+            var values = OrderDictionaryValues(valuesResult.Data ?? []).ToArray();
+            var applied = false;
+            await RunOnUiThreadAsync(() =>
+            {
+                if (generation != Volatile.Read(ref _sessionGeneration))
+                {
+                    return;
+                }
+
+                _dictionaryTypes.ReplaceAll(types);
+                _dictionaryValues.ReplaceAll(values);
+                _dictionariesLoaded = true;
+                applied = true;
+            });
+            if (!applied)
+            {
+                return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次字典缓存结果。");
+            }
+
+            return CacheRefreshResult.Ok("字典类型和字典值缓存已更新。");
+        }
+        finally
+        {
+            _refreshGate.Release();
+        }
+    }
+
+    /// <inheritdoc />
     public void Clear()
     {
         Interlocked.Increment(ref _sessionGeneration);
@@ -157,12 +238,15 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             _productColors.ReplaceAll([]);
             _productCategoryTree.ReplaceAll([]);
             _productCategories.ReplaceAll([]);
+            _dictionaryTypes.ReplaceAll([]);
+            _dictionaryValues.ReplaceAll([]);
         });
 
         lock (_ensureSync)
         {
             _colorsLoaded = false;
             _categoriesLoaded = false;
+            _dictionariesLoaded = false;
             _ensureTask = null;
         }
     }
@@ -202,24 +286,30 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var generation = Volatile.Read(ref _sessionGeneration);
             var colorsTask = LoadColorsAsync();
             var categoriesTask = LoadCategoriesAsync();
-            await Task.WhenAll(colorsTask, categoriesTask);
+            var dictionaryTypesTask = LoadDictionaryTypesAsync();
+            var dictionaryValuesTask = LoadDictionaryValuesAsync();
+            await Task.WhenAll(colorsTask, categoriesTask, dictionaryTypesTask, dictionaryValuesTask);
 
             var colorsResult = await colorsTask;
             var categoriesResult = await categoriesTask;
-            if (!colorsResult.Success || !categoriesResult.Success)
+            var dictionaryTypesResult = await dictionaryTypesTask;
+            var dictionaryValuesResult = await dictionaryValuesTask;
+            if (!colorsResult.Success
+                || !categoriesResult.Success
+                || !dictionaryTypesResult.Success
+                || !dictionaryValuesResult.Success)
             {
-                var messages = new[]
-                    {
-                        colorsResult.Success ? null : colorsResult.Message,
-                        categoriesResult.Success ? null : categoriesResult.Message
-                    }
-                    .Where(message => !string.IsNullOrWhiteSpace(message))
-                    .Select(message => message!);
-                return CacheRefreshResult.Fail(string.Join(Environment.NewLine, messages));
+                return CacheRefreshResult.Fail(JoinFailureMessages(
+                    colorsResult.Success ? null : colorsResult.Message,
+                    categoriesResult.Success ? null : categoriesResult.Message,
+                    dictionaryTypesResult.Success ? null : dictionaryTypesResult.Message,
+                    dictionaryValuesResult.Success ? null : dictionaryValuesResult.Message));
             }
 
             var categoryTree = BuildCategoryTree(categoriesResult.Data ?? []);
             var categories = FlattenCategoryTree(categoryTree).ToArray();
+            var dictionaryTypes = OrderDictionaryTypes(dictionaryTypesResult.Data ?? []).ToArray();
+            var dictionaryValues = OrderDictionaryValues(dictionaryValuesResult.Data ?? []).ToArray();
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
@@ -231,8 +321,11 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 _productColors.ReplaceAll(colorsResult.Data ?? []);
                 _productCategoryTree.ReplaceAll(categoryTree);
                 _productCategories.ReplaceAll(categories);
+                _dictionaryTypes.ReplaceAll(dictionaryTypes);
+                _dictionaryValues.ReplaceAll(dictionaryValues);
                 _colorsLoaded = true;
                 _categoriesLoaded = true;
+                _dictionariesLoaded = true;
                 applied = true;
             });
             if (!applied)
@@ -240,7 +333,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次缓存结果。");
             }
 
-            return CacheRefreshResult.Ok("产品颜色和产品分类缓存已更新。");
+            return CacheRefreshResult.Ok("产品颜色、产品分类和字典缓存已更新。");
         }
         finally
         {
@@ -253,6 +346,33 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
     private Task<SwiftExport.Contracts.Wrappers.ServiceResult<List<ProductCategoryDto>>> LoadCategoriesAsync() =>
         _apiCallRunner.RunAsync(() => _productCategoryApi.GetAllAsync(), "加载产品分类缓存失败");
+
+    private Task<SwiftExport.Contracts.Wrappers.ServiceResult<IReadOnlyList<SysDictTypeDto>>> LoadDictionaryTypesAsync() =>
+        _apiCallRunner.RunAsync(() => _dictTypeApi.GetAllAsync(), "加载字典类型缓存失败");
+
+    private Task<SwiftExport.Contracts.Wrappers.ServiceResult<IReadOnlyList<SysDictDataDto>>> LoadDictionaryValuesAsync() =>
+        _apiCallRunner.RunAsync(() => _dictDataApi.GetAllAsync(), "加载字典值缓存失败");
+
+    private static IEnumerable<SysDictTypeDto> OrderDictionaryTypes(IEnumerable<SysDictTypeDto> source) =>
+        source
+            .OrderByDescending(item => item.IsSystem)
+            .ThenBy(item => item.SortOrder)
+            .ThenBy(item => item.DictName, StringComparer.CurrentCulture)
+            .ThenBy(item => item.DictCode, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Uid);
+
+    private static IEnumerable<SysDictDataDto> OrderDictionaryValues(IEnumerable<SysDictDataDto> source) =>
+        source
+            .OrderBy(item => item.DictCode, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.SortOrder ?? int.MaxValue)
+            .ThenBy(item => item.DataNameZh, StringComparer.CurrentCulture)
+            .ThenBy(item => item.DataNameEn, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Uid);
+
+    private static string JoinFailureMessages(params string?[] messages) =>
+        string.Join(
+            Environment.NewLine,
+            messages.Where(message => !string.IsNullOrWhiteSpace(message)).Select(message => message!));
 
     private static IReadOnlyList<ProductCategoryCacheNode> BuildCategoryTree(
         IReadOnlyCollection<ProductCategoryDto> source)

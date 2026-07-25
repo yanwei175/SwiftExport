@@ -17,6 +17,7 @@ using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
 using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 using SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
 using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
 
 namespace SwiftExportClient.Navigation;
 
@@ -46,6 +47,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(PackingListWorkspaceViewModel.RouteKey, "PackingList 工作台", "Workspace", typeof(PackingListWorkspaceViewModel)),
         new(PackingListDetailViewModel.RouteKey, "PackingList 详情", "Workspace", typeof(PackingListDetailViewModel)),
         new("planning", "计划", "Workspace", typeof(PlanningViewModel)),
+        new(DictionaryManagerViewModel.RouteKey, "字典管理", "Workspace", typeof(DictionaryManagerViewModel)),
     ];
 
     private readonly Dictionary<string, NavigationRoute> _routeMap;
@@ -116,6 +118,16 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 Children:
                 [
                     new(PackingListWorkspaceViewModel.RouteKey, "PackingList 工作台", "Workspace", "DocumentTable24"),
+                ]),
+            new(
+                "system-settings",
+                "系统设置",
+                "Workspace",
+                "Settings24",
+                IsExpanded: true,
+                Children:
+                [
+                    new(DictionaryManagerViewModel.RouteKey, "字典管理", "Workspace", "DocumentBulletList24"),
                 ]),
         ];
     }

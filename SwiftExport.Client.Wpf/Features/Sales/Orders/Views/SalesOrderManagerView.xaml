@@ -91,10 +91,15 @@
                                    OriginalItemsSource="{Binding CustomerCodeOptions}"
                                    Text="{Binding CustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-                <DatePicker Grid.Column="2" ToolTip="订单日期从"
+                <DatePicker Grid.Column="2" 
+                            ToolTipService.ToolTip="订单日期从"
+                            ToolTipService.Placement="Bottom"
+                            ToolTipService.InitialShowDelay="100"
                             SelectedDate="{Binding OrderDateFrom}"/>
 
-                <DatePicker Grid.Column="4" ToolTip="订单日期到" 
+                <DatePicker Grid.Column="4" ToolTip="订单日期到"
+                            ToolTipService.Placement="Bottom"
+                            ToolTipService.InitialShowDelay="100"
                             SelectedDate="{Binding OrderDateTo}" />
                 
                 <controls:DropDownCheckBox Grid.Column="6"
@@ -130,9 +135,9 @@
                         <ColumnDefinition Width="130" />                        
                         <ColumnDefinition Width="4" />
                         <ColumnDefinition Width="180" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="4" />
                         <ColumnDefinition Width="125" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="4" />
                         <ColumnDefinition Width="125" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
@@ -147,16 +152,16 @@
                                  Height="{StaticResource SwiftExportControlHeight}"
                                  Text="{Binding CustomerSkusText, UpdateSourceTrigger=PropertyChanged}" />
                     
-                    <TextBlock Margin="4" Grid.Column="7" Text="交期从:" Style="{StaticResource LabelTextBlock}" VerticalAlignment="Center"/>
-                    
-                    <DatePicker Grid.Column="8" 
-                                ToolTip="交期从" 
+
+                    <DatePicker Grid.Column="8" ToolTip="交期从" 
+                                ToolTipService.Placement="Bottom"
+                                ToolTipService.InitialShowDelay="100"
                                 SelectedDate="{Binding DeliveryDateFrom}" />
 
-                    <TextBlock Margin="4" Grid.Column="9" Text="交期至:" Style="{StaticResource LabelTextBlock}" VerticalAlignment="Center"/>
-                    
                     <DatePicker Grid.Column="10" 
                                 ToolTip="交期到" 
+                            ToolTipService.Placement="Bottom"
+                            ToolTipService.InitialShowDelay="100"
                                 SelectedDate="{Binding DeliveryDateTo}" />
                     
                 </Grid>

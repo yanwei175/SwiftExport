@@ -5,6 +5,7 @@ using SwiftExport.Application.Services.Systems;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Systems;
 using SwiftExport.Core.Interfaces;
@@ -70,6 +71,106 @@ public sealed class SystemSettingsServiceValidationTests
             item => item.IsSystem);
 
         CollectionAssert.AreEqual(new[] { protectedId }, protectedDeletes);
+    }
+
+    [TestMethod]
+    public void DictCodes_OnlyExposeThreeGenericSystemDictionaries()
+    {
+        CollectionAssert.AreEqual(
+            new[] { DictCodes.CustomerType, DictCodes.Incoterm, DictCodes.PaymentMethod },
+            DictCodes.DictCodeList);
+
+        CollectionAssert.DoesNotContain(DictCodes.DictCodeList, DictCodes.Currency);
+        CollectionAssert.DoesNotContain(DictCodes.DictCodeList, DictCodes.ProductCategory);
+        CollectionAssert.DoesNotContain(DictCodes.DictCodeList, DictCodes.ProductColor);
+    }
+
+    [TestMethod]
+    public void SystemDictionaryType_CannotBeDeletedOrRenamedWhenLegacyFlagIsIncorrect()
+    {
+        var protectedId = Guid.NewGuid();
+        var existing = new Dictionary<Guid, SysDictType>
+        {
+            [protectedId] = new SysDictType
+            {
+                Uid = protectedId,
+                DictCode = DictCodes.CustomerType,
+                DictName = "客户类型",
+                IsSystem = false
+            }
+        };
+
+        StringAssert.Contains(
+            SysDictTypeService.ValidateSystemDictionaryProtection(
+                new SysDictTypeBatchSaveRequest
+                {
+                    DeleteItems = [new DeleteItemRequest { Uid = protectedId, Version = 1 }]
+                },
+                existing),
+            "不能删除");
+
+        StringAssert.Contains(
+            SysDictTypeService.ValidateSystemDictionaryProtection(
+                new SysDictTypeBatchSaveRequest
+                {
+                    UpdateItems =
+                    [
+                        new UpdateItemRequest<SysDictTypeDto>
+                        {
+                            Uid = protectedId,
+                            Version = 1,
+                            Data = new SysDictTypeDto
+                            {
+                                DictCode = "Renamed",
+                                DictName = "客户类型"
+                            }
+                        }
+                    ]
+                },
+                existing),
+            "编码不能修改");
+    }
+
+    [TestMethod]
+    public void CustomDictionaryType_AllowsUpdateAndDeleteProtectionCheck()
+    {
+        var customId = Guid.NewGuid();
+        var existing = new Dictionary<Guid, SysDictType>
+        {
+            [customId] = new SysDictType
+            {
+                Uid = customId,
+                DictCode = "CustomStatus",
+                DictName = "自定义状态",
+                IsSystem = false
+            }
+        };
+
+        Assert.IsNull(SysDictTypeService.ValidateSystemDictionaryProtection(
+            new SysDictTypeBatchSaveRequest
+            {
+                UpdateItems =
+                [
+                    new UpdateItemRequest<SysDictTypeDto>
+                    {
+                        Uid = customId,
+                        Version = 1,
+                        Data = new SysDictTypeDto
+                        {
+                            DictCode = "CustomStatus2",
+                            DictName = "自定义状态"
+                        }
+                    }
+                ]
+            },
+            existing));
+
+        Assert.IsNull(SysDictTypeService.ValidateSystemDictionaryProtection(
+            new SysDictTypeBatchSaveRequest
+            {
+                DeleteItems = [new DeleteItemRequest { Uid = customId, Version = 1 }]
+            },
+            existing));
     }
 
     [TestMethod]

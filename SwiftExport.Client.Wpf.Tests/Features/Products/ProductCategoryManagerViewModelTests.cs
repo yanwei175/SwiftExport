@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.ProductApis;
+using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
@@ -22,7 +23,12 @@ public sealed class ProductCategoryManagerViewModelTests
         var categoryApi = new ProductCategoryApiStub();
         var runner = new DirectApiCallRunner();
         using var cache = new ReferenceDataCacheService(
-            new ProductColorApiStub(), categoryApi, runner, new SessionServiceStub());
+            new ProductColorApiStub(),
+            categoryApi,
+            DispatchProxy.Create<ISysDictTypeApi, NoCallApiProxy>(),
+            DispatchProxy.Create<ISysDictDataApi, NoCallApiProxy>(),
+            runner,
+            new SessionServiceStub());
         var viewModel = new ProductCategoryManagerViewModel(
             categoryApi,
             runner,
@@ -155,5 +161,11 @@ public sealed class ProductCategoryManagerViewModelTests
     {
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
             throw new AssertFailedException($"不应调用产品 API：{targetMethod?.Name}");
+    }
+
+    private class NoCallApiProxy : DispatchProxy
+    {
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
+            throw new AssertFailedException($"不应调用系统字典 API：{targetMethod?.Name}");
     }
 }

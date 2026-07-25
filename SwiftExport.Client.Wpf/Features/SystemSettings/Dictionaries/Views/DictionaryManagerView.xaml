@@ -1,0 +1,385 @@
+<UserControl x:Class="SwiftExportClient.Features.SystemSettings.Dictionaries.Views.DictionaryManagerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             mc:Ignorable="d"
+             d:Width="1280"
+             d:Height="820">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+
+        <Style x:Key="DictionaryNavigationButton"
+               TargetType="{x:Type Button}"
+               BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="MinHeight" Value="52" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="12,8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="252" />
+            <ColumnDefinition Width="12" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0"
+                Padding="8"
+                Background="{DynamicResource SwiftExportBrush.SurfaceMuted}"
+                BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                BorderThickness="{StaticResource SwiftExportBorderThickness}"
+                CornerRadius="{StaticResource SwiftExportControlCornerRadius}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="字典类型"
+                                   Style="{StaticResource BodyStrongTextBlock}" />
+                        <TextBlock Margin="0,4,0,0"
+                                   Text="系统类型锁定，自定义类型可维护。"
+                                   TextWrapping="Wrap"
+                                   Style="{StaticResource CaptionTextBlock}"
+                                   Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                    </StackPanel>
+                    <ui:Button Grid.Column="1"
+                               Width="36"
+                               Height="32"
+                               Command="{Binding AddDictionaryTypeCommand}"
+                               Icon="{ui:SymbolIcon Symbol=Add24}"
+                               ToolTip="新增字典类型" />
+                </Grid>
+
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Dictionaries}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource DictionaryNavigationButton}"
+                                         HorizontalAlignment="Stretch"
+                                        Command="{Binding DataContext.SelectDictionaryCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                        CommandParameter="{Binding}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="4" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" CornerRadius="2">
+                                            <Border.Style>
+                                                <Style TargetType="{x:Type Border}">
+                                                    <Setter Property="Background" Value="Transparent" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource SwiftExportBrush.Accent}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="{Binding Name}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Style="{StaticResource BodyStrongTextBlock}" />
+                                            <TextBlock Margin="0,2,0,0"
+                                                       Text="{Binding Code}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Style="{StaticResource CaptionTextBlock}"
+                                                       Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                                            <TextBlock Margin="0,2,0,0"
+                                                       Text="未配置"
+                                                       Foreground="{DynamicResource SwiftExportBrush.Error}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource CaptionTextBlock}">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsConfigured}" Value="False">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <ui:SymbolIcon Grid.Column="3"
+                                                       Margin="8,0,0,0"
+                                                       Symbol="LockClosed24"
+                                                       Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                                                       Visibility="{Binding IsProtected, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="8" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="8" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="4" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="8" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border Padding="12"
+                    IsEnabled="{Binding HasTypeEditor}"
+                    Background="{DynamicResource SwiftExportBrush.SurfaceMuted}"
+                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                    BorderThickness="{StaticResource SwiftExportBorderThickness}"
+                    CornerRadius="{StaticResource SwiftExportControlCornerRadius}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="8" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="字典类型属性"
+                                       Style="{StaticResource BodyStrongTextBlock}" />
+                            <TextBlock Margin="8,0,0,0"
+                                       Text="系统类型只读"
+                                       Style="{StaticResource CaptionTextBlock}"
+                                       Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                                       Visibility="{Binding TypeEditor.IsProtected, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <ui:Button Appearance="Success"
+                                       Command="{Binding SaveDictionaryTypeCommand}"
+                                       Icon="{ui:SymbolIcon Symbol=Save24}"
+                                       Content="保存类型" />
+                            <ui:Button Margin="6,0,0,0"
+                                       Command="{Binding RejectDictionaryTypeChangesCommand}"
+                                       Icon="{ui:SymbolIcon Symbol=ArrowReset24}"
+                                       Content="放弃类型变更" />
+                            <ui:Button Margin="6,0,0,0"
+                                       Appearance="Danger"
+                                       Command="{Binding DeleteDictionaryTypeCommand}"
+                                       Icon="{ui:SymbolIcon Symbol=Delete24}"
+                                       Content="删除类型" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="220" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="88" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="字典编码" Style="{StaticResource CaptionTextBlock}" />
+                            <TextBox Margin="0,4,0,0"
+                                     MinHeight="32"
+                                     IsReadOnly="{Binding IsTypeEditorReadOnly}"
+                                     Text="{Binding TypeEditor.DictCode, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="字典名称" Style="{StaticResource CaptionTextBlock}" />
+                            <TextBox Margin="0,4,0,0"
+                                     MinHeight="32"
+                                     IsReadOnly="{Binding IsTypeEditorReadOnly}"
+                                     Text="{Binding TypeEditor.DictName, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="排序" Style="{StaticResource CaptionTextBlock}" />
+                            <TextBox Margin="0,4,0,0"
+                                     MinHeight="32"
+                                     IsReadOnly="{Binding IsTypeEditorReadOnly}"
+                                     Text="{Binding TypeEditor.SortOrder, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="6">
+                            <TextBlock Text="备注" Style="{StaticResource CaptionTextBlock}" />
+                            <TextBox Margin="0,4,0,0"
+                                     MinHeight="32"
+                                     IsReadOnly="{Binding IsTypeEditorReadOnly}"
+                                     Text="{Binding TypeEditor.Remark, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <ui:InfoBar Grid.Row="2"
+                        Title="请检查当前数据"
+                        Message="{Binding ValidationSummary}"
+                        Severity="Warning"
+                        IsClosable="False"
+                        IsOpen="{Binding HasValidationError}" />
+
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="{Binding SelectedDictionary.Name, FallbackValue=字典值}"
+                               Style="{StaticResource SubtitleTextBlock}" />
+                    <TextBlock Margin="0,2,0,0"
+                               Text="{Binding SelectedDictionary.Code}"
+                               Style="{StaticResource CaptionTextBlock}"
+                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <ui:Button Appearance="Primary"
+                               Command="{Binding AddRowCommand}"
+                               Icon="{ui:SymbolIcon Symbol=Add24}"
+                               Content="新增字典值" />
+                    <ui:Button Margin="6,0,0,0"
+                               Appearance="Success"
+                               Command="{Binding SaveCommand}"
+                               Icon="{ui:SymbolIcon Symbol=Save24}"
+                               Content="保存字典值" />
+                    <ui:Button Margin="6,0,0,0"
+                               Appearance="Danger"
+                               Command="{Binding DeleteSelectedCommand}"
+                               Icon="{ui:SymbolIcon Symbol=Delete24}"
+                               Content="删除字典值" />
+                    <ui:Button Margin="6,0,0,0"
+                               Command="{Binding RejectAllChangesCommand}"
+                               Icon="{ui:SymbolIcon Symbol=ArrowReset24}"
+                               Content="放弃值变更" />
+                    <ui:Button Margin="6,0,0,0"
+                               Command="{Binding RefreshCommand}"
+                               Icon="{ui:SymbolIcon Symbol=ArrowClockwise24}"
+                               Content="刷新" />
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="6">
+                <DataGrid x:Name="DictionaryGrid"
+                          ItemsSource="{Binding Lines.Items}"
+                          Style="{StaticResource SwiftExportDataGrid}"
+                          RowStyle="{StaticResource SwiftExportStateDataGridRow}"
+                          IsReadOnly="{Binding IsValueEditorReadOnly}"
+                          SelectionMode="Extended"
+                          SelectionUnit="FullRow"
+                          RowHeight="{StaticResource DataGridRowHeightSmall}"
+                          gridCore:EnterpriseGrid.IsEnabled="True"
+                          gridCore:GridVirtualization.IsEnabled="True"
+                          gridCore:GridRowHeader.ShowRowNumber="True"
+                          gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
+                          gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
+                          gridValidation:GridValidation.IsEnabled="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="英文名称"
+                                            Width="1.4*"
+                                            Binding="{Binding DataNameEn, UpdateSourceTrigger=PropertyChanged}"
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                            gridColumns:GridColumn.Key="data-name-en"
+                                            gridColumns:GridColumn.FieldPath="DataNameEn" />
+                        <DataGridTextColumn Header="中文名称"
+                                            Width="1.4*"
+                                            Binding="{Binding DataNameZh, UpdateSourceTrigger=PropertyChanged}"
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                            gridColumns:GridColumn.Key="data-name-zh"
+                                            gridColumns:GridColumn.FieldPath="DataNameZh" />
+                        <DataGridTextColumn Header="排序"
+                                            Width="88"
+                                            Binding="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged}"
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                            gridColumns:GridColumn.Key="sort-order"
+                                            gridColumns:GridColumn.FieldPath="SortOrder" />
+                        <DataGridCheckBoxColumn Header="启用"
+                                                Width="72"
+                                                Binding="{Binding IsEnabled, UpdateSourceTrigger=PropertyChanged}"
+                                                gridColumns:GridColumn.Key="is-enabled"
+                                                gridColumns:GridColumn.FieldPath="IsEnabled" />
+                        <DataGridTextColumn Header="备注"
+                                            Width="2*"
+                                            Binding="{Binding Remark, UpdateSourceTrigger=PropertyChanged}"
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                            gridColumns:GridColumn.Key="remark"
+                                            gridColumns:GridColumn.FieldPath="Remark" />
+                        <DataGridCheckBoxColumn Header="系统项"
+                                                Width="76"
+                                                IsReadOnly="True"
+                                                Binding="{Binding IsSystem}"
+                                                gridColumns:GridColumn.Key="is-system"
+                                                gridColumns:GridColumn.FieldPath="IsSystem" />
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <StackPanel HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsHitTestVisible="False"
+                            Visibility="{Binding IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="当前字典暂无字典值"
+                               Style="{StaticResource BodyStrongTextBlock}" />
+                    <TextBlock Margin="0,4,0,0"
+                               Text="点击“新增字典值”建立第一条记录。"
+                               Style="{StaticResource CaptionTextBlock}"
+                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                </StackPanel>
+
+                <Border Panel.ZIndex="10"
+                        Background="{DynamicResource SwiftExportBrush.Surface}"
+                        BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                        BorderThickness="{StaticResource SwiftExportBorderThickness}"
+                        Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <ui:ProgressRing Width="28" Height="28" IsIndeterminate="True" />
+                        <TextBlock Margin="0,8,0,0"
+                                   Text="{Binding BusyMessage, FallbackValue=正在处理...}"
+                                   Style="{StaticResource BodyTextBlock}" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Grid Grid.Row="8">
+                <TextBlock Text="{Binding ResultSummary}"
+                           Style="{StaticResource CaptionTextBlock}" />
+                <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource CaptionTextBlock}">
+                            <Setter Property="Text" Value="所有更改已保存" />
+                            <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDirty}" Value="True">
+                                    <Setter Property="Text" Value="有未保存更改" />
+                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.RowStateModified}" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -39,6 +39,8 @@
         xmlns:sales="clr-namespace:SwiftExportClient.Features.Sales"
         xmlns:salesOrderViews="clr-namespace:SwiftExportClient.Features.Sales.Orders.Views"
         xmlns:salesOrderViewModels="clr-namespace:SwiftExportClient.Features.Sales.Orders.ViewModels"
+        xmlns:dictionaryViews="clr-namespace:SwiftExportClient.Features.SystemSettings.Dictionaries.Views"
+        xmlns:dictionaryViewModels="clr-namespace:SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels"
         xmlns:uiServices="clr-namespace:SwiftExportClient.Services.UI"
         xmlns:shell="clr-namespace:SwiftExportClient.Shell"
         mc:Ignorable="d"
@@ -168,6 +170,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type planning:PlanningViewModel}">
             <planning:PlanningView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type dictionaryViewModels:DictionaryManagerViewModel}">
+            <dictionaryViews:DictionaryManagerView />
         </DataTemplate>
     </ui:FluentWindow.Resources>
 
