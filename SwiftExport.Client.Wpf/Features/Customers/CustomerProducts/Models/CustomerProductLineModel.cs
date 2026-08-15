@@ -27,10 +27,8 @@ public sealed partial class CustomerProductLineModel : BaseLineModel<CustomerPro
     [ObservableProperty] public partial string CustomerPdFeatures { get; set; } = string.Empty;
     [ObservableProperty] public partial string CustomerBarcode1 { get; set; } = string.Empty;
     [ObservableProperty] public partial string CustomerBarcode2 { get; set; } = string.Empty;
-    [ObservableProperty] public partial string CustomerSkuUnit { get; set; } = string.Empty;
     [ObservableProperty] public partial decimal? UsdPrice { get; set; }
     [ObservableProperty] public partial decimal? CnyPrice { get; set; }
-    [ObservableProperty] public partial string Currency { get; set; } = "USD";
     [ObservableProperty] public partial int? LeadTimeDays { get; set; }
     [ObservableProperty] public partial int? Moq { get; set; }
     [ObservableProperty] public partial bool IsActive { get; set; } = true;

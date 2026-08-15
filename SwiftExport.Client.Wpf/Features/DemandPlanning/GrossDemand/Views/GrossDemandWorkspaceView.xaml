@@ -86,59 +86,121 @@
                     </Expander>
                 </StackPanel>
 
-                <DataGrid Grid.Row="4" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
-                          Style="{StaticResource SwiftExportDataGrid}" AutoGenerateColumns="False" IsReadOnly="True"
-                          RowHeight="44" FontSize="12" SelectionMode="Single" SelectionUnit="FullRow"
-                          EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                <DataGrid Grid.Row="4" ItemsSource="{Binding Items}" 
+                          SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                          Style="{StaticResource SwiftExportDataGrid}"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          RowHeight="{StaticResource DataGridRowHeightMedium}" 
+                          FontSize="{StaticResource SwiftExportDefaltFontSize}" 
+                          SelectionMode="Extended" 
+                          SelectionUnit="FullRow"
+                          EnableRowVirtualization="True" 
+                          EnableColumnVirtualization="True"
                           gridCore:EnterpriseGrid.IsEnabled="True"
                           gridCore:GridVirtualization.IsEnabled="True"
                           gridCore:GridRowHeader.ShowRowNumber="True"
                           gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                           gridSelection:GridSelection.CurrentRow="{Binding SelectedItem, Mode=TwoWay}">
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Width="42" CanUserSort="False">
+                        
+                        <DataGridTemplateColumn Width="45" CanUserSort="False">
                             <DataGridTemplateColumn.HeaderTemplate>
                                 <DataTemplate>
-                                    <CheckBox IsThreeState="True"
+                                    <CheckBox IsThreeState="False" 
                                               IsChecked="{Binding DataContext.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.HeaderTemplate>
                             <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate><CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="图片" Width="56" CanUserSort="False" gridColumns:GridColumn.Key="image">
-                            <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <controls:CachedImage Width="40" Height="40" Margin="2" Style="{StaticResource SwiftExportCachedImage}"
-                                                          SourcePath="{Binding ImagePath}" DecodePixelWidth="80" Stretch="Uniform" />
+                                    <CheckBox Margin="3,0,0,0"
+                                        IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="生命周期" Width="78" Binding="{Binding LifecycleStatusText}" gridColumns:GridColumn.Key="lifecycle" />
-                        <DataGridTextColumn Header="拆解" Width="74" Binding="{Binding DecompositionStatusText}" gridColumns:GridColumn.Key="decomposition" />
-                        <DataGridTextColumn Header="执行" Width="100" Binding="{Binding ExecutionProgressText}" gridColumns:GridColumn.Key="execution" />
-                        <DataGridTextColumn Header="来源" Width="58" Binding="{Binding SourceTypeText}" gridColumns:GridColumn.Key="source-type" />
-                        <DataGridTextColumn Header="来源单号" Width="130" Binding="{Binding SourceNo}" gridColumns:GridColumn.Key="source-no" />
-                        <DataGridTextColumn Header="行" Width="44" Binding="{Binding SourceLineNumber}" gridColumns:GridColumn.Key="source-line" />
-                        <DataGridTextColumn Header="类型" Width="62" Binding="{Binding ItemTypeText}" gridColumns:GridColumn.Key="item-type" />
-                        <DataGridTextColumn Header="SKU" Width="130" Binding="{Binding Sku}" gridColumns:GridColumn.Key="sku" />
-                        <DataGridTextColumn Header="Link SKU" Width="110" Binding="{Binding LinkSku}" gridColumns:GridColumn.Key="link-sku" />
-                        <DataGridTextColumn Header="客户型号" Width="120" Binding="{Binding CustomerSku}" gridColumns:GridColumn.Key="customer-sku" />
-                        <DataGridTextColumn Header="需求交期" Width="96" Binding="{Binding RequiredDate, StringFormat=yyyy-MM-dd}" gridColumns:GridColumn.Key="required-date" />
-                        <DataGridTextColumn Header="数量" Width="88" Binding="{Binding DemandQty, StringFormat=N4}" gridColumns:GridColumn.Key="demand-qty" />
-                        <DataGridTextColumn Header="描述" Width="200" Binding="{Binding Description}" gridColumns:GridColumn.Key="description" />
-                        <DataGridTextColumn Header="颜色" Width="100" Binding="{Binding Color}" gridColumns:GridColumn.Key="color" />
-                        <DataGridTextColumn Header="规格" Width="150" Binding="{Binding Specification}" gridColumns:GridColumn.Key="specification" />
-                        <DataGridTextColumn Header="净需求" Width="68" Binding="{Binding ActiveNetDemandCount}" gridColumns:GridColumn.Key="net-count" />
-                        <DataGridTextColumn Header="客供件" Width="68" Binding="{Binding CustomerSuppliedNetDemandCount}" gridColumns:GridColumn.Key="customer-supplied-count" />
-                        <DataGridTextColumn Header="版本" Width="55" Binding="{Binding DecompositionRevision}" gridColumns:GridColumn.Key="revision" />
-                        <DataGridTextColumn Header="阻断原因" Width="180" Binding="{Binding RollbackBlockerSummary}" gridColumns:GridColumn.Key="rollback-blocker" />
-                        <DataGridTextColumn Header="备注" Width="180" Binding="{Binding Remark}" gridColumns:GridColumn.Key="remark" />
-                        <DataGridTextColumn Header="拆解人" Width="88" Binding="{Binding DecomposedBy}" gridColumns:GridColumn.Key="decomposed-by" />
-                        <DataGridTextColumn Header="拆解时间" Width="132" Binding="{Binding DecomposedAt, StringFormat=yyyy-MM-dd HH:mm}" gridColumns:GridColumn.Key="decomposed-at" />
-                        <DataGridTextColumn Header="创建人" Width="88" Binding="{Binding CreatedBy}" gridColumns:GridColumn.Key="created-by" />
-                        <DataGridTextColumn Header="创建时间" Width="132" Binding="{Binding CreatedDate, StringFormat=yyyy-MM-dd HH:mm}" gridColumns:GridColumn.Key="created-at" />
+                        
+                        <DataGridTemplateColumn Header="图片" Width="60" CanUserSort="False" gridColumns:GridColumn.Key="image">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <controls:CachedImage Width="56" Height="56" Margin="2" 
+                                                          Style="{StaticResource SwiftExportCachedImage}"
+                                                          SourcePath="{Binding ImagePath}" 
+                                                          DecodePixelWidth="80" 
+                                                          Stretch="Uniform" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="生命周期" Width="78" Binding="{Binding LifecycleStatusText}"
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="lifecycle" />
+                        <DataGridTextColumn Header="拆解" Width="74" Binding="{Binding DecompositionStatusText}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="decomposition" />
+                        <DataGridTextColumn Header="执行" Width="100" Binding="{Binding ExecutionProgressText}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="execution" />
+                        <DataGridTextColumn Header="来源" Width="58" Binding="{Binding SourceTypeText}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="source-type" />
+                        <DataGridTextColumn Header="来源单号" Width="130" Binding="{Binding SourceNo}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="source-no" />
+                        <DataGridTextColumn Header="行" Width="44" Binding="{Binding SourceLineNumber}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="source-line" />
+                        <DataGridTextColumn Header="类型" Width="62" Binding="{Binding ItemTypeText}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="item-type" />
+                        <DataGridTextColumn Header="SKU" Width="130" Binding="{Binding Sku}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="sku" />
+                        <DataGridTextColumn Header="Link SKU" Width="110" Binding="{Binding LinkSku}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="link-sku" />
+                        <DataGridTextColumn Header="客户型号" Width="120" Binding="{Binding CustomerSku}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="customer-sku" />
+                        <DataGridTextColumn Header="需求交期" Width="96" Binding="{Binding RequiredDate, StringFormat=yyyy-MM-dd}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="required-date" />
+                        <DataGridTextColumn Header="数量" Width="88" Binding="{Binding DemandQty, StringFormat=N4}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="demand-qty" />
+                        <DataGridTextColumn Header="描述" Width="200" Binding="{Binding Description}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="description" />
+                        <DataGridTextColumn Header="颜色" Width="100" Binding="{Binding Color}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="color" />
+                        <DataGridTextColumn Header="规格" Width="150" Binding="{Binding Specification}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="specification" />
+                        <DataGridTextColumn Header="净需求" Width="68" Binding="{Binding ActiveNetDemandCount}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="net-count" />
+                        <DataGridTextColumn Header="客供件" Width="68" Binding="{Binding CustomerSuppliedNetDemandCount}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="customer-supplied-count" />
+                        <DataGridTextColumn Header="版本" Width="55" Binding="{Binding DecompositionRevision}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="revision" />
+                        <DataGridTextColumn Header="阻断原因" Width="180" Binding="{Binding RollbackBlockerSummary}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="rollback-blocker" />
+                        <DataGridTextColumn Header="备注" Width="180" Binding="{Binding Remark}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="remark" />
+                        <DataGridTextColumn Header="拆解人" Width="88" Binding="{Binding DecomposedBy}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="decomposed-by" />
+                        <DataGridTextColumn Header="拆解时间" Width="132" Binding="{Binding DecomposedAt, StringFormat=yyyy-MM-dd HH:mm}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="decomposed-at" />
+                        <DataGridTextColumn Header="创建人" Width="88" Binding="{Binding CreatedBy}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="created-by" />
+                        <DataGridTextColumn Header="创建时间" Width="132" Binding="{Binding CreatedDate, StringFormat=yyyy-MM-dd HH:mm}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="created-at" />
                     </DataGrid.Columns>
                 </DataGrid>
 

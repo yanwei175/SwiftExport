@@ -6,7 +6,11 @@
              xmlns:drawerViews="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierProducts.Views"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid">
+    <UserControl.Resources>
+        <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter" />
+    </UserControl.Resources>
     <Grid Margin="12,8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /><RowDefinition Height="4" /><RowDefinition Height="*" />
@@ -31,10 +35,18 @@
                 <Button Command="{Binding RejectCommand}" Margin="0,0,4,0" Content="放弃" />
                 <Button Command="{Binding RefreshCommand}" Content="刷新" />
             </StackPanel>
-            <ui:ToggleSwitch Grid.Column="6" VerticalAlignment="Center" Content="管理供应商产品"
-                             IsChecked="{Binding SupplierProducts.IsOpen, Mode=OneWay}"
-                             Command="{Binding SupplierProducts.ToggleCommand}"
-                             CommandParameter="{Binding SelectedLine}" />
+            <StackPanel Grid.Column="6" Orientation="Horizontal">
+                <ui:ToggleSwitch Margin="0,0,8,0"
+                                 VerticalAlignment="Center"
+                                 OffContent="整行模式"
+                                 OnContent="格子模式"
+                                 IsEnabled="{Binding CanChangeSelectionMode}"
+                                 IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" />
+                <ui:ToggleSwitch VerticalAlignment="Center"
+                                 Content="管理供应商产品"
+                                 IsChecked="{Binding SupplierProducts.IsOpen, Mode=OneWay}"
+                                 Command="{Binding ToggleSupplierProductsCommand}" />
+            </StackPanel>
         </Grid>
 
         <controls:RightDrawerHost Grid.Row="2" DisplayMode="Overlay" DrawerWidth="960" MinDrawerWidth="520"
@@ -42,13 +54,17 @@
                                   IsOpen="{Binding SupplierProducts.IsOpen, Mode=OneWay}"
                                   CloseCommand="{Binding SupplierProducts.CloseCommand}">
             <controls:RightDrawerHost.MainContent>
-                <DataGrid ItemsSource="{Binding Suppliers.Items}" SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
+                <DataGrid ItemsSource="{Binding Suppliers.Items}"
                           Style="{StaticResource SwiftExportDataGrid}" RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                           RowHeight="{StaticResource DataGridRowHeightSmall}"
                           FontSize="12"
-                          SelectionMode="Extended" SelectionUnit="FullRow" FrozenColumnCount="3"
+                          SelectionMode="Extended"
+                          SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
+                          FrozenColumnCount="3"
                           gridCore:EnterpriseGrid.IsEnabled="True" gridCore:GridVirtualization.IsEnabled="True"
                           gridCore:GridRowHeader.ShowRowNumber="True" gridOperations:GridOperations.IsEnabled="True"
+                          gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
+                          gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                           gridValidation:GridValidation.IsEnabled="True">
                     <DataGrid.Columns>
                         <DataGridTemplateColumn Width="43" CanUserSort="False">

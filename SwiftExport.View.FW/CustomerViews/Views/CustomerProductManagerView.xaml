@@ -226,14 +226,6 @@
                                         EditingElementStyle="{StaticResource MultiLineDataGridTextBoxStyle}"
                                         Binding="{Binding CustomerPdFeatures, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
-                    <!-- 单位 -->
-                    <DataGridTextColumn Header="单位" Width="80"
-                                        Binding="{Binding CustomerSkuUnit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-
-                    <!-- 币种 -->
-                    <DataGridTextColumn Header="币种" Width="80"
-                                        Binding="{Binding Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-
                     <!-- 美元单价 -->
                     <DataGridTextColumn Header="USD单价" Width="90"
                                         Binding="{Binding USDPrice, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>

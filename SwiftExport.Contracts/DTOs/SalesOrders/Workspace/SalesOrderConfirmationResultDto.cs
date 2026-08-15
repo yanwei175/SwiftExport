@@ -9,5 +9,7 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Workspace
         public int Version { get; set; }
         public ConfirmationStatusEnum ConfirmationStatus { get; set; }
         public int GrossDemandCount { get; set; }
+        public int HardDeletedGrossDemandCount { get; set; }
+        public int VoidedGrossDemandCount { get; set; }
     }
 }

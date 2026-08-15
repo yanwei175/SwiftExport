@@ -125,7 +125,7 @@ public sealed class SalesOrderLineReorderTests
     }
 
     private static SalesOrderDetailViewModel CreateViewModel() =>
-        new(null!, null!, null!, null!, null!);
+        new(null!, null!, null!, null!, null!, null!);
 
     private static void SetReadOnly(ViewModelBaseEx viewModel, bool value)
     {

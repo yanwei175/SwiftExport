@@ -39,6 +39,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public string Specification { get; set; }
         public string ImagePath { get; set; }
         public string MaterialType { get; set; }
+        public string Unit { get; set; }
         public string SupplyType { get; set; }
 
         public decimal GrossQty { get; set; }

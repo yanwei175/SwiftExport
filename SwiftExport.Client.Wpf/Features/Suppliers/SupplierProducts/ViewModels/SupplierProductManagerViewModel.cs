@@ -66,6 +66,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     public partial SupplierProductLineModel? SelectedLine { get; set; }
     [ObservableProperty] public partial ProductLookupDto? SelectedCandidate { get; set; }
     [ObservableProperty] public partial bool IsLookupBusy { get; set; }
+    [ObservableProperty] public partial bool IsCellSelectionMode { get; set; }
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
@@ -84,6 +85,41 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
 
     partial void OnSelectedLineChanged(SupplierProductLineModel? value) => Products.SelectedItem = value;
 
+    public async Task<bool> SelectSupplierAsync(SupplierLineModel? supplier)
+    {
+        var target = supplier ?? _pendingSupplier;
+        if (target is null || target.IsNew || target.Uid == Guid.Empty)
+        {
+            _messageService.ShowWarning("无法管理供应商产品", "请先选择一个已保存供应商。");
+            return false;
+        }
+
+        if (IsOpen && ActiveSupplier?.Uid == target.Uid)
+        {
+            return true;
+        }
+
+        if (IsOpen && !await ConfirmDiscardAsync())
+        {
+            return false;
+        }
+
+        IsOpen = true;
+        await LoadSupplierAsync(target);
+        return true;
+    }
+
+    public async Task ToggleForSupplierAsync(SupplierLineModel? supplier)
+    {
+        if (IsOpen)
+        {
+            await CloseAsync();
+            return;
+        }
+
+        await SelectSupplierAsync(supplier);
+    }
+
     public void NotifySupplierSelection(SupplierLineModel? supplier)
     {
         _pendingSupplier = supplier;
@@ -99,24 +135,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     }
 
     [RelayCommand]
-    private async Task ToggleAsync(SupplierLineModel? supplier)
-    {
-        if (IsOpen)
-        {
-            await CloseAsync();
-            return;
-        }
-
-        var target = supplier ?? _pendingSupplier;
-        if (target is null || target.IsNew || target.Uid == Guid.Empty)
-        {
-            _messageService.ShowWarning("无法打开供应商产品", "请先保存供应商，再管理该供应商的产品。");
-            return;
-        }
-
-        IsOpen = true;
-        await LoadSupplierAsync(target);
-    }
+    private Task ToggleAsync(SupplierLineModel? supplier) => ToggleForSupplierAsync(supplier);
 
     [RelayCommand]
     private async Task CloseAsync()
@@ -325,18 +344,27 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
 
     private async Task SwitchSupplierAsync(SupplierLineModel? supplier)
     {
-        if (ReferenceEquals(supplier, ActiveSupplier)) return;
-        if (!await ConfirmDiscardAsync())
+        if (supplier?.Uid != Guid.Empty && supplier?.Uid == ActiveSupplier?.Uid)
         {
-            SelectionRestoreRequested?.Invoke(this, ActiveSupplier);
             return;
         }
+
         if (supplier is null || supplier.IsNew || supplier.Uid == Guid.Empty)
         {
+            if (!await ConfirmDiscardAsync())
+            {
+                SelectionRestoreRequested?.Invoke(this, ActiveSupplier);
+                return;
+            }
+
             CloseCore();
             return;
         }
-        await LoadSupplierAsync(supplier);
+
+        if (!await SelectSupplierAsync(supplier))
+        {
+            SelectionRestoreRequested?.Invoke(this, ActiveSupplier);
+        }
     }
 
     private async Task LoadSupplierAsync(SupplierLineModel supplier)

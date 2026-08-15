@@ -8,6 +8,7 @@ namespace SwiftExport.Contracts.SysEnums
         public const string CustomerType = "CustomerType";
         public const string Incoterm = "Incoterm";
         public const string PaymentMethod = "PaymentMethod";
+        public const string Unit = "Unit";
 
         // 以下常量为旧调用方保留，不进入通用字典管理。
         public const string Currency = "Currency"; // 使用货币及汇率专用主数据。
@@ -21,7 +22,8 @@ namespace SwiftExport.Contracts.SysEnums
         {
             CustomerType,
             Incoterm,
-            PaymentMethod
+            PaymentMethod,
+            Unit
         };
     }
 }

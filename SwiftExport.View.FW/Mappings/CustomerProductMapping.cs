@@ -33,11 +33,9 @@ namespace SwiftExport.View.FW.Mappings
                 .Map(dest => dest.CustomerPdFeatures, dto => dto.CustomerPdFeatures)
                 .Map(dest => dest.CustomerBarcode1, dto => dto.CustomerBarcode1)
                 .Map(dest => dest.CustomerBarcode2, dto => dto.CustomerBarcode2)
-                .Map(dest => dest.CustomerSkuUnit, dto => dto.CustomerSkuUnit)
                 // 价格相关 - 直接映射（保持可空）
                 .Map(dest => dest.USDPrice, dto => dto.USDPrice)
                 .Map(dest => dest.CNYPrice, dto => dto.CNYPrice)
-                .Map(dest => dest.Currency, dto => dto.Currency)
                 // 业务要求 - 直接映射（保持可空）
                 .Map(dest => dest.LeadTimeDays, dto => dto.LeadTimeDays)
                 .Map(dest => dest.MOQ, dto => dto.MOQ)

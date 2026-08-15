@@ -16,6 +16,8 @@ namespace SwiftExport.Contracts.DTOs.Products
         public string FeaturesZh { get; set; } 
         public string Finish { get; set; }
         public string MaterialType { get; set; }
+        /// <summary>产品当前基础计量单位；业务上允许为空。</summary>
+        public string Unit { get; set; }
         public string SupplyType { get; set; }// 供应方式：采购/生产/外协。
         public int BomVersion { get; set; }   // BOM版本：0=无BOM，>0=有BOM。
         public string BomNo { get; set; }

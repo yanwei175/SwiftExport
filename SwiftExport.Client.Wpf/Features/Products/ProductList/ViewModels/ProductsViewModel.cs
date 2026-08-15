@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -12,6 +13,8 @@ using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.Models;
@@ -29,7 +32,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private readonly ICustomerApi _customerApi;
     private readonly ISupplierApi _supplierApi;
     private readonly IApiCallRunner _apiCallRunner;
-    private readonly IReferenceDataCacheService _referenceDataCache;
+    private readonly IReferenceDataCacheService _referenceDataCache = null!;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
     private bool _isInitialized;
@@ -51,13 +54,18 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         _customerApi = customerApi;
         _supplierApi = supplierApi;
         _apiCallRunner = apiCallRunner;
-        _referenceDataCache = referenceDataCache;
+        _referenceDataCache = referenceDataCache!;
         _messageService = messageService;
         _dialogService = dialogService;
         BomDrawer = bomDrawer;
         Title = "产品资料";
         Products.PropertyChanged += OnProductsPropertyChanged;
         BomDrawer.SelectionRestoreRequested += (_, product) => RestoreSelection(product);
+        if (_referenceDataCache?.DictionaryValues is { } dictionaryValues)
+            CollectionChangedEventManager.AddHandler(
+                dictionaryValues,
+                OnDictionaryValuesChanged);
+        RefreshUnitOptions();
 
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
@@ -74,6 +82,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public ObservableCollection<CustomerDto> CustomerCandidates { get; } = [];
     public ObservableCollection<SupplierDto> SupplierCandidates { get; } = [];
     public IReadOnlyList<string> MaterialTypes { get; } = MaterialTypesEnum.MaterialTypes;
+    [ObservableProperty]
+    public partial IReadOnlyList<SysDictDataDto> UnitOptions { get; set; } = [];
     [ObservableProperty]
     public partial ObservableCollection<string> FilterMaterialTypes { get; set; } = [];
     public IReadOnlyList<string> SupplyTypes { get; } = SupplyTypeEnums.SupplyTypes;
@@ -94,6 +104,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public partial CustomerDto? EditCustomer { get; set; }
     [ObservableProperty]
     public partial SupplierDto? EditSupplier { get; set; }
+    [ObservableProperty]
+    public partial SysDictDataDto? EditUnit { get; set; }
     [ObservableProperty]
     public partial bool IsCustomerLookupBusy { get; set; }
     [ObservableProperty]
@@ -320,6 +332,22 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     }
 
     [RelayCommand]
+    private void CommitUnit(ProductLineModel? line)
+    {
+        if (line is null || EditUnit is null) return;
+        line.Unit = EditUnit.DataNameEn?.Trim() ?? string.Empty;
+        EditUnit = null;
+    }
+
+    [RelayCommand]
+    private void ClearUnit(ProductLineModel? line)
+    {
+        if (line is null) return;
+        line.Unit = string.Empty;
+        EditUnit = null;
+    }
+
+    [RelayCommand]
     private void CommitCustomer(ProductLineModel? line)
     {
         if (line is null || EditCustomer is null) return;
@@ -428,6 +456,12 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     }
 
     private void OnProductsPropertyChanged(object? sender, PropertyChangedEventArgs e) => UpdateChangeState();
+    private void OnDictionaryValuesChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        RefreshUnitOptions();
+
+    private void RefreshUnitOptions() =>
+        UnitOptions = _referenceDataCache?.GetDictionaryValues(DictCodes.Unit) ?? [];
+
     private void UpdateChangeState()
     {
         IsDirty = Products.HasChanges; OnPropertyChanged(nameof(HasChanges));

@@ -15,6 +15,7 @@ public partial class ProductLineModel : BaseLineModel<ProductDto>
     [ObservableProperty] public partial string FeaturesZh { get; set; } = string.Empty;
     [ObservableProperty] public partial string Finish { get; set; } = string.Empty;
     [ObservableProperty] public partial string MaterialType { get; set; } = string.Empty;
+    [ObservableProperty] public partial string Unit { get; set; } = string.Empty;
     [ObservableProperty] public partial string SupplyType { get; set; } = string.Empty;
     [ObservableProperty] public partial int BomVersion { get; set; }
     [ObservableProperty] public partial string BomNo { get; set; } = string.Empty;

@@ -1,13 +1,17 @@
 using System.ComponentModel;
+using System.Collections.Specialized;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.Customers.CustomerManagement.Models;
 using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
@@ -19,6 +23,7 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
+    private readonly IReferenceDataCacheService _referenceDataCache;
     private bool _initialized;
     private bool _restoringSelection;
 
@@ -27,16 +32,23 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
         IDialogService dialogService,
+        IReferenceDataCacheService referenceDataCache,
         CustomerProductManagerViewModel customerProducts)
     {
         _customerApi = customerApi;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _dialogService = dialogService;
+        _referenceDataCache = referenceDataCache;
         CustomerProducts = customerProducts;
         Title = "客户管理";
         Customers.PropertyChanged += OnListPropertyChanged;
         CustomerProducts.SelectionRestoreRequested += (_, customer) => RestoreSelection(customer);
+        CustomerProducts.PropertyChanged += OnCustomerProductsPropertyChanged;
+        CollectionChangedEventManager.AddHandler(
+            _referenceDataCache.DictionaryValues,
+            OnDictionaryValuesChanged);
+        RefreshDictionaryOptions();
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(AddRowCommand);
@@ -44,11 +56,13 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(RejectCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
+        RegisterBusyAwareCommand(ToggleCustomerProductsCommand);
     }
 
     public CustomerListModel Customers { get; } = new();
     public CustomerProductManagerViewModel CustomerProducts { get; }
     public bool HasChanges => Customers.HasChanges;
+    public bool CanChangeSelectionMode => !CustomerProducts.IsOpen;
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
 
@@ -56,6 +70,9 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
     public partial CustomerLineModel? SelectedLine { get; set; }
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ToggleCustomerProductsCommand))]
+    public partial bool IsCellSelectionMode { get; set; }
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int PageIndex { get; set; } = 1;
@@ -68,11 +85,22 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
     [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int TotalCount { get; set; }
     [ObservableProperty] public partial string ResultSummary { get; set; } = "尚未加载客户资料。";
+    [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> CurrencyOptions { get; set; } = [];
+    [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> PaymentMethodOptions { get; set; } = [];
+    [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> IncotermOptions { get; set; } = [];
+    [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> IncotermLocationOptions { get; set; } = [];
+    [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> IncotermSortRemarkOptions { get; set; } = [];
 
     public async Task InitializeAsync()
     {
         if (_initialized) return;
         _initialized = true;
+        var cacheResult = await _referenceDataCache.EnsureLoadedAsync();
+        RefreshDictionaryOptions();
+        if (!cacheResult.Success)
+        {
+            _messageService.ShowError("加载客户字典失败", cacheResult.Message);
+        }
         await LoadPageAsync(false);
     }
 
@@ -81,6 +109,18 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
         Customers.SelectedItem = value;
         if (!_restoringSelection) CustomerProducts.NotifyCustomerSelection(value);
     }
+
+    partial void OnIsCellSelectionModeChanged(bool value)
+    {
+        if (value && CustomerProducts.IsOpen)
+        {
+            IsCellSelectionMode = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanToggleCustomerProducts))]
+    private Task ToggleCustomerProductsAsync() =>
+        CustomerProducts.ToggleForCustomerAsync(SelectedLine);
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task SearchAsync(string? query)
@@ -215,6 +255,56 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
 
     private void OnListPropertyChanged(object? sender, PropertyChangedEventArgs e) => UpdateChangeState();
 
+    private void OnCustomerProductsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.PropertyName)
+            || e.PropertyName == nameof(CustomerProductManagerViewModel.IsOpen))
+        {
+            if (CustomerProducts.IsOpen && IsCellSelectionMode)
+            {
+                IsCellSelectionMode = false;
+            }
+
+            OnPropertyChanged(nameof(CanChangeSelectionMode));
+            ToggleCustomerProductsCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    private void OnDictionaryValuesChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        RefreshDictionaryOptions();
+
+    private void RefreshDictionaryOptions()
+    {
+        CurrencyOptions = CreateDictionaryOptions(DictCodes.Currency);
+        PaymentMethodOptions = CreateDictionaryOptions(DictCodes.PaymentMethod);
+        IncotermOptions = CreateDictionaryOptions(DictCodes.Incoterm);
+        IncotermLocationOptions = CreateDictionaryOptions(DictCodes.IncotermLocation);
+        IncotermSortRemarkOptions = CreateDictionaryOptions(DictCodes.IncotermSortRemark);
+    }
+
+    private IReadOnlyList<SysDictDataDto> CreateDictionaryOptions(string dictCode)
+    {
+        var cachedValues = _referenceDataCache.GetDictionaryValues(dictCode);
+        var options = new SysDictDataDto[cachedValues.Count + 1];
+        options[0] = new SysDictDataDto
+        {
+            Uid = Guid.Empty,
+            DictCode = dictCode,
+            DataNameEn = string.Empty,
+            DataNameZh = "（空）",
+            Remark = string.Empty,
+            CssClass = string.Empty,
+            IsEnabled = true,
+        };
+
+        for (var index = 0; index < cachedValues.Count; index++)
+        {
+            options[index + 1] = cachedValues[index];
+        }
+
+        return options;
+    }
+
     private void UpdateChangeState()
     {
         IsDirty = Customers.HasChanges;
@@ -225,6 +315,7 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
     }
 
     private bool CanRun() => IsNotBusy;
+    private bool CanToggleCustomerProducts() => CustomerProducts.IsOpen || !IsCellSelectionMode;
     private bool CanWriteCommand() => IsNotBusy && CanWrite;
     private bool CanDelete() => IsNotBusy && CanWrite && (Customers.CheckedCount > 0 || SelectedLine is not null);
     private bool CanSave() => IsNotBusy && CanWrite && Customers.HasChanges;

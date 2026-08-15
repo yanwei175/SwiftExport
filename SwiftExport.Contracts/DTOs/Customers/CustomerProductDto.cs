@@ -35,8 +35,6 @@ namespace SwiftExport.Contracts.DTOs.Customers
         public string CustomerPdFeatures { get; set; }      // 客户规格
         public string CustomerBarcode1 { get; set; }          // 客户条码
         public string CustomerBarcode2 { get; set; }          // 客户条码
-        public string CustomerSkuUnit { get; set; }             // 客户单位
-
         // 价格相关
         /// <summary>
         /// 客户专用美元单价。
@@ -47,8 +45,6 @@ namespace SwiftExport.Contracts.DTOs.Customers
         /// 客户专用人民币单价。
         /// </summary>
         public decimal? CNYPrice { get; set; }
-        public string Currency { get; set; }  //货币,用户枚举值
-
         // 业务要求
         public int? LeadTimeDays { get; set; }               // 客户交期要求
         public int? MOQ { get; set; }                        // 最小起订量

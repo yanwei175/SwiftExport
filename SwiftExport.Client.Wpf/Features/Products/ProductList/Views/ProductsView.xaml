@@ -21,6 +21,14 @@
         <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter" />
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <resourceProxies:BindingProxy x:Key="ProductsViewModelProxy" Data="{Binding}" />
+        <DataTemplate x:Key="ProductUnitOptionTemplate">
+            <StackPanel Margin="2">
+                <TextBlock Text="{Binding DataNameEn}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding DataNameZh}"
+                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </DataTemplate>
         <Style x:Key="ProductsToolbarButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type ButtonBase}}">
             <Setter Property="MinHeight" Value="32" />
             <Setter Property="MinWidth" Value="68" />
@@ -104,8 +112,8 @@
 
             <StackPanel Grid.Column="6" Orientation="Horizontal">
                 <ui:ToggleSwitch VerticalAlignment="Center"
-                                 OffContent="复杂字段"
-                                 OnContent="简单字段"
+                                 OffContent="简单字段"
+                                 OnContent="复杂字段"
                                  IsChecked="{Binding IsComplexFieldMode, Mode=TwoWay}" />
                 <ui:ToggleSwitch Margin="12,0,0,0"
                                  VerticalAlignment="Center"
@@ -338,6 +346,38 @@
                                         SelectedValue="{Binding MaterialType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="基础单位"
+                                                Width="90"
+                                                SortMemberPath="Unit"
+                                                gridColumns:GridColumn.Key="product-unit"
+                                                gridColumns:GridColumn.FieldPath="Unit">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Unit}"
+                                               Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate>
+                                <DataTemplate>
+                                    <controls:LookupTextBox
+                                        Text="{Binding Unit, Mode=OneWay}"
+                                        ItemsSource="{Binding DataContext.UnitOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        SelectedItem="{Binding DataContext.EditUnit, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWayToSource}"
+                                        SelectionCommittedCommand="{Binding DataContext.CommitUnitCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        SelectionCommittedCommandParameter="{Binding}"
+                                        SelectionClearedCommand="{Binding DataContext.ClearUnitCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                        SelectionClearedCommandParameter="{Binding}"
+                                        SearchMode="Local"
+                                        MinimumSearchLength="0"
+                                        DisplayMemberPath="DataNameEn"
+                                        FilterMemberPaths="DataNameEn,DataNameZh,Remark"
+                                        RequireItemMatch="True"
+                                        ClearSelectionOnEdit="False"
+                                        ItemTemplate="{StaticResource ProductUnitOptionTemplate}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellEditingTemplate>
                         </DataGridTemplateColumn>
 
                         <DataGridTemplateColumn Header="供货类型" Width="100" 

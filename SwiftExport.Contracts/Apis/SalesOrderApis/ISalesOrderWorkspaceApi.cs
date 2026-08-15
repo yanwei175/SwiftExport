@@ -35,7 +35,7 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, [Body] SalesOrderCommandRequest request);
 
         [Post("/{uid}/cancel-confirmation")]
-        Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(Guid uid, [Body] SalesOrderCommandRequest request);
+        Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(Guid uid, [Body] CancelSalesOrderConfirmationCommand request);
 
         [Post("/{uid}/close")]
         Task<ServiceResult<SalesOrderDocumentDto>> CloseAsync(Guid uid, [Body] CloseSalesOrderRequest request);

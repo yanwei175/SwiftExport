@@ -34,6 +34,18 @@ BEGIN TRY
         EXEC sys.sp_executesql N'ALTER TABLE dbo.CustomerPoConfig ADD CustomerId uniqueidentifier NULL;';
     IF COL_LENGTH(N'dbo.CustomerPoConfig',N'SupplierId') IS NULL
         EXEC sys.sp_executesql N'ALTER TABLE dbo.CustomerPoConfig ADD SupplierId uniqueidentifier NULL;';
+    IF COL_LENGTH(N'dbo.Product',N'Unit') IS NULL
+        EXEC sys.sp_executesql N'ALTER TABLE dbo.Product ADD Unit nvarchar(100) NULL;';
+    ELSE
+    BEGIN
+        IF EXISTS(SELECT 1 FROM dbo.Product WHERE LEN(Unit)>100)
+            THROW 52604,N'Product.Unit 存在超过 100 个字符的数据，不能规范列长度。',1;
+        EXEC sys.sp_executesql N'ALTER TABLE dbo.Product ALTER COLUMN Unit nvarchar(100) NULL;';
+    END;
+    IF COL_LENGTH(N'dbo.CustomerProduct',N'CustomerSkuUnit') IS NOT NULL
+        EXEC sys.sp_executesql N'ALTER TABLE dbo.CustomerProduct DROP COLUMN CustomerSkuUnit;';
+    IF COL_LENGTH(N'dbo.CustomerProduct',N'Currency') IS NOT NULL
+        EXEC sys.sp_executesql N'ALTER TABLE dbo.CustomerProduct DROP COLUMN Currency;';
 
     EXEC sys.sp_executesql N'
 ;WITH UniqueProduct AS

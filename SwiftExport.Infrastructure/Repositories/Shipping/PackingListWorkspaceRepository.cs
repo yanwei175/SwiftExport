@@ -29,7 +29,7 @@ public sealed class PackingListWorkspaceRepository(RepositoryBaseContext context
             """, p, context.Session.Transaction);
         var rows = await context.Session.Connection.QueryAsync<PackingListSourceDto>(new CommandDefinition($"""
             SELECT a.Uid AS NetDemandAllocationId,a.Version AS SourceVersion,n.GrossDemandId,n.Uid AS NetDemandId,n.ProductId,
-                   n.SkuSnapshot AS Sku,g.CustomerSkuSnapshot AS CustomerSku,n.DescriptionSnapshot AS Description,COALESCE(pr.Unit,N'PCS') AS Unit,
+                   n.SkuSnapshot AS Sku,g.CustomerSkuSnapshot AS CustomerSku,n.DescriptionSnapshot AS Description,COALESCE(NULLIF(LTRIM(RTRIM(pr.Unit)),N''),N'PCS') AS Unit,
                    so.CustomerId,c.CustomerCode,c.CustomerName,a.PlannedQty,COALESCE(sh.ShippedNetQty,0) AS ShippedNetQty,
                    a.PlannedQty-COALESCE(sh.ShippedNetQty,0) AS ShippableRemainingQty,COALESCE(rc.SourceInboundNetQty,0) AS SourceInboundNetQty,
                    COALESCE(progress.ReadyQty,0) AS ReadyQty,so.Uid AS SalesOrderId,g.SourceLineId AS SalesOrderLineId,so.OrderNo AS SalesOrderNo,g.SourceLineNumber AS SalesOrderLineNumber,
@@ -52,7 +52,7 @@ public sealed class PackingListWorkspaceRepository(RepositoryBaseContext context
     public Task<PackingListSourceDto?> GetSourceForUpdateAsync(Guid allocationId)
         => context.Session.Connection.QuerySingleOrDefaultAsync<PackingListSourceDto>("""
             SELECT a.Uid AS NetDemandAllocationId,a.Version AS SourceVersion,n.GrossDemandId,n.Uid AS NetDemandId,n.ProductId,
-                   n.SkuSnapshot AS Sku,g.CustomerSkuSnapshot AS CustomerSku,n.DescriptionSnapshot AS Description,COALESCE(pr.Unit,N'PCS') AS Unit,
+                   n.SkuSnapshot AS Sku,g.CustomerSkuSnapshot AS CustomerSku,n.DescriptionSnapshot AS Description,COALESCE(NULLIF(LTRIM(RTRIM(pr.Unit)),N''),N'PCS') AS Unit,
                    so.CustomerId,c.CustomerCode,c.CustomerName,a.PlannedQty,COALESCE(sh.ShippedNetQty,0) AS ShippedNetQty,
                    a.PlannedQty-COALESCE(sh.ShippedNetQty,0) AS ShippableRemainingQty,COALESCE(rc.SourceInboundNetQty,0) AS SourceInboundNetQty,
                    COALESCE(progress.ReadyQty,0) AS ReadyQty,so.Uid AS SalesOrderId,g.SourceLineId AS SalesOrderLineId,so.OrderNo AS SalesOrderNo,g.SourceLineNumber AS SalesOrderLineNumber,
@@ -109,7 +109,7 @@ public sealed class PackingListWorkspaceRepository(RepositoryBaseContext context
                 WHERE a.Uid=@AllocationId;
                 """, new { AllocationId = line.NetDemandAllocationId, line.WarehouseSiteId, line.ProductId }, context.Session.Transaction, cancellationToken: cancellationToken)) ?? new PlanningFactRow();
             var children = (await context.Session.Connection.QueryAsync<PackingListCustomerSuppliedSnapshot>(new CommandDefinition($"""
-                SELECT b.Uid AS AllocationId,bn.ProductId,bn.SkuSnapshot AS Sku,COALESCE(bp.Unit,N'PCS') AS Unit,b.PlannedQty,a.PlannedQty AS ParentPlannedQty,
+                SELECT b.Uid AS AllocationId,bn.ProductId,bn.SkuSnapshot AS Sku,COALESCE(NULLIF(LTRIM(RTRIM(bp.Unit)),N''),N'PCS') AS Unit,b.PlannedQty,a.PlannedQty AS ParentPlannedQty,
                        COALESCE(cons.Qty,0) AS HistoricalConsumptionQty,COALESCE(inv.OnHandQty,0) AS BalanceQty,COALESCE(inv.Version,0) AS BalanceVersion
                 FROM dbo.NetDemandAllocation b{hint} JOIN dbo.NetDemand bn{hint} ON bn.Uid=b.NetDemandId JOIN dbo.NetDemandAllocation a{hint} ON a.Uid=b.DeliveryTargetAllocationId
                 LEFT JOIN dbo.Product bp ON bp.Uid=bn.ProductId LEFT JOIN dbo.InventoryBalance inv{hint} ON inv.WarehouseSiteId=@WarehouseSiteId AND inv.ProductId=bn.ProductId AND ISNULL(inv.IsDeleted,0)=0

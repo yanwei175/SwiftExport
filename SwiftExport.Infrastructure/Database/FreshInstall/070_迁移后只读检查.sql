@@ -51,7 +51,8 @@ WHERE s.name=N''dbo'' AND t.name=@TableName
   AND NOT
   (
       (@TableName=N''ProductDetails'' AND c.name=N''ProductId'') OR
-      (@TableName=N''CustomerPoConfig'' AND c.name IN(N''CustomerId'',N''SupplierId''))
+      (@TableName=N''CustomerPoConfig'' AND c.name IN(N''CustomerId'',N''SupplierId'')) OR
+      (@TableName=N''CustomerProduct'' AND c.name IN(N''CustomerSkuUnit'',N''Currency''))
   );';
     EXEC sys.sp_executesql @metadataSql,N'@TableName sysname,@ColumnList nvarchar(max) OUTPUT',@TableName,@ColumnList OUTPUT;
 
@@ -90,6 +91,42 @@ SELECT CASE
        TableName,SourceRowCount,TargetRowCount,SourceDataChecksum,TargetDataChecksum
 FROM #Comparison
 ORDER BY TableName;
+
+SELECT
+    CASE
+        WHEN c.name=N'Unit'
+         AND TYPE_NAME(c.user_type_id)=N'nvarchar'
+         AND c.max_length=200
+         AND c.is_nullable=1 THEN N'PASS'
+        ELSE N'BLOCKER'
+    END Result,
+    N'Product.Unit 必须为 nullable nvarchar(100)' Problem
+FROM (VALUES(1)) expected(Value)
+LEFT JOIN sys.columns c
+  ON c.object_id=OBJECT_ID(N'dbo.Product')
+ AND c.name=N'Unit';
+
+SELECT N'WARNING' Result,N'Product.Unit 不在启用的 Unit 字典中' Problem,COUNT_BIG(*) ProblemCount
+FROM dbo.Product p
+WHERE NULLIF(LTRIM(RTRIM(p.Unit)),N'') IS NOT NULL
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM dbo.SysDictData d
+      WHERE d.DictCode=N'Unit'
+        AND d.IsEnabled=1
+        AND ISNULL(d.IsDeleted,0)=0
+        AND LTRIM(RTRIM(d.DataNameEn))=LTRIM(RTRIM(p.Unit))
+  )
+HAVING COUNT_BIG(*)>0;
+
+SELECT
+    CASE
+        WHEN COL_LENGTH(N'dbo.CustomerProduct',N'CustomerSkuUnit') IS NULL
+         AND COL_LENGTH(N'dbo.CustomerProduct',N'Currency') IS NULL THEN N'PASS'
+        ELSE N'BLOCKER'
+    END Result,
+    N'CustomerProduct 不得保留 CustomerSkuUnit 或 Currency' Problem;
 
 SELECT N'BLOCKER' Result,N'ProductDetails.ProductId 孤立' Problem,COUNT_BIG(*) ProblemCount
 FROM dbo.ProductDetails d

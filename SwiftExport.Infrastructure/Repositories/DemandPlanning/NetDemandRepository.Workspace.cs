@@ -164,6 +164,7 @@ SELECT
         nd.[SkuSnapshot] AS [Sku],COALESCE(p.[LinkSku],gd.[LinkSkuSnapshot]) AS [LinkSku],nd.[CustomerSkuSnapshot] AS [CustomerSku],
         nd.[DescriptionSnapshot] AS [Description],nd.[ColorSnapshot] AS [Color],nd.[SpecificationSnapshot] AS [Specification],
         COALESCE(gd.[ImagePathSnapshot],p.[MainImage]) AS [ImagePath],nd.[MaterialTypeSnapshot] AS [MaterialType],
+        COALESCE(NULLIF(LTRIM(RTRIM(p.[Unit])),N''),N'PCS') AS [Unit],
         nd.[SupplyTypeSnapshot] AS [SupplyType],nd.[GrossQty],nd.[NetQty],nd.[RequiredDate] AS [DemandRequiredDate],
         a.[Uid] AS [AllocationId],a.[Version] AS [AllocationVersion],a.[PlanRevision],a.[Sequence] AS [AllocationSequence],
         a.[LifecycleStatus] AS [AllocationLifecycleStatus],a.[ExecutionType],a.[AssignmentSource],a.[PlannedQty],

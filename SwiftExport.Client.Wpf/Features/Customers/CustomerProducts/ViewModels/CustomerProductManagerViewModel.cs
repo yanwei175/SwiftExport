@@ -64,6 +64,7 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
     public partial CustomerProductLineModel? SelectedLine { get; set; }
     [ObservableProperty] public partial ProductLookupDto? SelectedCandidate { get; set; }
     [ObservableProperty] public partial bool IsLookupBusy { get; set; }
+    [ObservableProperty] public partial bool IsCellSelectionMode { get; set; }
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
@@ -82,6 +83,41 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
 
     partial void OnSelectedLineChanged(CustomerProductLineModel? value) => Products.SelectedItem = value;
 
+    public async Task<bool> SelectCustomerAsync(CustomerLineModel? customer)
+    {
+        var target = customer ?? _pendingCustomer;
+        if (target is null || target.IsNew || target.Uid == Guid.Empty)
+        {
+            _messageService.ShowWarning("无法管理客户产品", "请先选择一个已保存客户。");
+            return false;
+        }
+
+        if (IsOpen && ActiveCustomer?.Uid == target.Uid)
+        {
+            return true;
+        }
+
+        if (IsOpen && !await ConfirmDiscardAsync())
+        {
+            return false;
+        }
+
+        IsOpen = true;
+        await LoadCustomerAsync(target);
+        return true;
+    }
+
+    public async Task ToggleForCustomerAsync(CustomerLineModel? customer)
+    {
+        if (IsOpen)
+        {
+            await CloseAsync();
+            return;
+        }
+
+        await SelectCustomerAsync(customer);
+    }
+
     public void NotifyCustomerSelection(CustomerLineModel? customer)
     {
         _pendingCustomer = customer;
@@ -97,24 +133,7 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
     }
 
     [RelayCommand]
-    private async Task ToggleAsync(CustomerLineModel? customer)
-    {
-        if (IsOpen)
-        {
-            await CloseAsync();
-            return;
-        }
-
-        var target = customer ?? _pendingCustomer;
-        if (target is null || target.IsNew || target.Uid == Guid.Empty)
-        {
-            _messageService.ShowWarning("无法打开客户产品", "请先保存客户，再管理该客户的产品。将客户保存后即可打开抽屉。");
-            return;
-        }
-
-        IsOpen = true;
-        await LoadCustomerAsync(target);
-    }
+    private Task ToggleAsync(CustomerLineModel? customer) => ToggleForCustomerAsync(customer);
 
     [RelayCommand]
     private async Task CloseAsync()
@@ -143,7 +162,9 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
     private void AddItem()
     {
         if (ActiveCustomer is null) return;
-        SelectedLine = Products.AddNewItem(ActiveCustomer.Uid, ActiveCustomer.CustomerCode);
+        SelectedLine = Products.AddNewItem(
+            ActiveCustomer.Uid,
+            ActiveCustomer.CustomerCode);
         UpdateChangeState();
     }
 
@@ -283,18 +304,28 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
 
     private async Task SwitchCustomerAsync(CustomerLineModel? customer)
     {
-        if (ReferenceEquals(customer, ActiveCustomer)) return;
-        if (!await ConfirmDiscardAsync())
+        if (customer?.Uid != Guid.Empty && customer?.Uid == ActiveCustomer?.Uid)
+        {
+            return;
+        }
+
+        if (customer is null || customer.IsNew || customer.Uid == Guid.Empty)
+        {
+            if (!await ConfirmDiscardAsync())
+            {
+                SelectionRestoreRequested?.Invoke(this, ActiveCustomer);
+                return;
+            }
+
+            CloseCore();
+            return;
+        }
+
+        if (!await SelectCustomerAsync(customer))
         {
             SelectionRestoreRequested?.Invoke(this, ActiveCustomer);
             return;
         }
-        if (customer is null || customer.IsNew || customer.Uid == Guid.Empty)
-        {
-            CloseCore();
-            return;
-        }
-        await LoadCustomerAsync(customer);
     }
 
     private async Task LoadCustomerAsync(CustomerLineModel customer)

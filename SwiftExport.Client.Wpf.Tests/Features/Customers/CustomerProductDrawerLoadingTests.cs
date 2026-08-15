@@ -4,6 +4,7 @@ using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Customers.Requests;
 using SwiftExport.Contracts.DTOs.Customers.Responses;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Features.Customers.CustomerManagement.Models;
 using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Services.Api;

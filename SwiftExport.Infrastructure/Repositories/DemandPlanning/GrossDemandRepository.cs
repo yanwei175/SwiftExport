@@ -251,34 +251,179 @@ SELECT CASE WHEN EXISTS (
     WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[IsDeleted]=0
       AND (d.[LifecycleStatus]<>0 OR d.[DecompositionStatus]<>0))
  OR EXISTS (
-    SELECT 1 FROM [dbo].[NetDemand] nd WITH (UPDLOCK, ROWLOCK)
-    INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
-    WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[IsDeleted]=0
-      AND nd.[LifecycleStatus]=0 AND nd.[IsDeleted]=0)
+     SELECT 1 FROM [dbo].[NetDemand] nd WITH (UPDLOCK, ROWLOCK)
+     INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
+     WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[IsDeleted]=0
+       AND nd.[LifecycleStatus]=0 AND nd.[IsDeleted]=0)
  OR EXISTS (
-    SELECT 1
-    FROM [dbo].[DemandExecutionLink] link WITH (UPDLOCK, HOLDLOCK)
+     SELECT 1 FROM [dbo].[NetDemandAllocation] allocation WITH (UPDLOCK, ROWLOCK)
+     INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=allocation.[NetDemandId]
+     INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
+     WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[IsDeleted]=0
+       AND allocation.[LifecycleStatus]=0 AND allocation.[IsDeleted]=0)
+ OR EXISTS (
+     SELECT 1
+     FROM [dbo].[DemandExecutionLink] link WITH (UPDLOCK, HOLDLOCK)
     INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=link.[NetDemandId]
     INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
     WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid
       AND link.[LinkStatus]=0 AND link.[IsDeleted]=0)
  OR EXISTS (SELECT 1 FROM [dbo].[PackingListContributionLine] WHERE [SalesOrderLineId] IN @LineIds AND [IsDeleted]=0)
  OR EXISTS (
-    SELECT 1 FROM [dbo].[InboundDocumentLine] il
-    INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=il.[GrossDemandId]
-    WHERE d.[SourceLineId] IN @LineIds AND il.[IsDeleted]=0 AND d.[IsDeleted]=0)
-THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
+     SELECT 1 FROM [dbo].[InboundDocumentLine] il
+     LEFT JOIN [dbo].[DemandExecutionLink] link ON link.[Uid]=il.[DemandExecutionLinkId]
+     LEFT JOIN [dbo].[NetDemandAllocation] allocation ON allocation.[Uid]=COALESCE(il.[NetDemandAllocationId],link.[NetDemandAllocationId])
+     LEFT JOIN [dbo].[NetDemand] nd ON nd.[Uid]=COALESCE(link.[NetDemandId],allocation.[NetDemandId])
+     LEFT JOIN [dbo].[GrossDemand] d ON d.[Uid]=COALESCE(il.[GrossDemandId],nd.[GrossDemandId])
+     WHERE d.[SourceLineId] IN @LineIds AND il.[IsDeleted]=0)
+ OR EXISTS (
+     SELECT 1 FROM [dbo].[OutboundDocumentLine] ol
+     LEFT JOIN [dbo].[NetDemandAllocation] allocation ON allocation.[Uid]=ol.[NetDemandAllocationId]
+     LEFT JOIN [dbo].[NetDemand] nd ON nd.[Uid]=allocation.[NetDemandId]
+     LEFT JOIN [dbo].[GrossDemand] d ON d.[Uid]=COALESCE(ol.[GrossDemandId],nd.[GrossDemandId])
+     WHERE d.[SourceLineId] IN @LineIds AND ol.[IsDeleted]=0)
+ THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
         return await Connection.ExecuteScalarAsync<bool>(sql, new { SourceType = sourceType, SourceUid = sourceUid, LineIds = ids }, Transaction);
     }
 
-    public Task<int> SoftDeleteBySourceAsync(string sourceType, Guid sourceUid)
-        => Connection.ExecuteAsync(@"
-UPDATE [dbo].[GrossDemand]
-SET [IsDeleted]=1,[UpdatedDate]=@Now,[UpdatedBy]=@UserName,[Version]=[Version]+1
-WHERE [SourceType]=@SourceType AND [SourceUid]=@SourceUid
-  AND [LifecycleStatus]=@Active AND [IsDeleted]=0;",
-            new { SourceType = sourceType, SourceUid = sourceUid, Active = GrossDemandLifecycleStatusEnum.Active,
-                Now = DateTime.Now, UserName = _context.CurrentUser.UserName }, Transaction);
+    public async Task<IReadOnlyDictionary<Guid, int>> GetNetDemandHistoryCountsForUpdateAsync(
+        IEnumerable<Guid> grossDemandIds)
+    {
+        var ids = grossDemandIds.Distinct().ToArray();
+        if (ids.Length == 0) return new Dictionary<Guid, int>();
+
+        var rows = await Connection.QueryAsync<GrossDemandHistoryCountRow>(@"
+SELECT d.[Uid] AS [GrossDemandId],COUNT(nd.[Uid]) AS [HistoryCount]
+FROM [dbo].[GrossDemand] d WITH (UPDLOCK,HOLDLOCK)
+LEFT JOIN [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK) ON nd.[GrossDemandId]=d.[Uid]
+WHERE d.[Uid] IN @GrossDemandIds
+GROUP BY d.[Uid];",
+            new { GrossDemandIds = ids }, Transaction);
+        return rows.ToDictionary(row => row.GrossDemandId, row => row.HistoryCount);
+    }
+
+    public async Task<bool> HasInvalidSourceCancellationHistoryAsync(IEnumerable<Guid> grossDemandIds)
+    {
+        var ids = grossDemandIds.Distinct().ToArray();
+        if (ids.Length == 0) return false;
+
+        const string sql = @"
+SELECT CASE WHEN EXISTS (
+    SELECT 1
+    FROM [dbo].[GrossDemand] d WITH (UPDLOCK,HOLDLOCK)
+    WHERE d.[Uid] IN @GrossDemandIds
+      AND d.[DecompositionRevision] > 0
+      AND (
+          NOT EXISTS (
+              SELECT 1 FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
+              WHERE nd.[GrossDemandId]=d.[Uid])
+          OR (SELECT COUNT(DISTINCT nd.[DecompositionRevision])
+              FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
+              WHERE nd.[GrossDemandId]=d.[Uid]) <> d.[DecompositionRevision]
+          OR EXISTS (
+              SELECT 1 FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
+              WHERE nd.[GrossDemandId]=d.[Uid]
+                AND (nd.[IsDeleted]<>0
+                     OR nd.[LifecycleStatus] NOT IN (@NetDemandRolledBack,@NetDemandVoided)
+                     OR nd.[DecompositionRevision] < 1
+                     OR nd.[DecompositionRevision] > d.[DecompositionRevision]
+                     OR NOT EXISTS (
+                         SELECT 1 FROM [dbo].[NetDemandAllocation] allocation WITH (UPDLOCK,HOLDLOCK)
+                         WHERE allocation.[NetDemandId]=nd.[Uid]))
+          OR EXISTS (
+              SELECT 1
+              FROM [dbo].[NetDemandAllocation] allocation WITH (UPDLOCK,HOLDLOCK)
+              INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=allocation.[NetDemandId]
+              WHERE nd.[GrossDemandId]=d.[Uid]
+                AND (allocation.[IsDeleted]<>0
+                     OR allocation.[LifecycleStatus] NOT IN (@AllocationSuperseded,@AllocationCancelled)))
+      )
+) THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
+        return await Connection.ExecuteScalarAsync<bool>(
+            sql,
+            new
+            {
+                GrossDemandIds = ids,
+                NetDemandRolledBack = NetDemandLifecycleStatusEnum.RolledBack,
+                NetDemandVoided = NetDemandLifecycleStatusEnum.Voided,
+                AllocationSuperseded = NetDemandAllocationLifecycleStatusEnum.Superseded,
+                AllocationCancelled = NetDemandAllocationLifecycleStatusEnum.Cancelled
+            },
+            Transaction);
+    }
+
+    public Task<int> HardDeleteNeverDecomposedAsync(IEnumerable<Guid> grossDemandIds)
+    {
+        var ids = grossDemandIds.Distinct().ToArray();
+        if (ids.Length == 0) return Task.FromResult(0);
+        return Connection.ExecuteAsync(@"
+DELETE d
+FROM [dbo].[GrossDemand] d
+WHERE d.[Uid] IN @GrossDemandIds
+  AND d.[LifecycleStatus]=@Active
+  AND d.[DecompositionStatus]=@Pending
+  AND d.[DecompositionRevision]=0
+  AND d.[IsDeleted]=0
+  AND NOT EXISTS(SELECT 1 FROM [dbo].[NetDemand] nd WHERE nd.[GrossDemandId]=d.[Uid]);",
+            new
+            {
+                GrossDemandIds = ids,
+                Active = GrossDemandLifecycleStatusEnum.Active,
+                Pending = GrossDemandDecompositionStatusEnum.Pending
+            }, Transaction);
+    }
+
+    public Task<int> VoidRolledBackForSourceCancellationAsync(
+        IEnumerable<Guid> grossDemandIds,
+        string reason)
+    {
+        var ids = grossDemandIds.Distinct().ToArray();
+        if (ids.Length == 0) return Task.FromResult(0);
+        return Connection.ExecuteAsync(@"
+UPDATE d
+SET d.[LifecycleStatus]=@Voided,
+    d.[LifecycleChangedAt]=@Now,
+    d.[LifecycleChangedBy]=@UserName,
+    d.[LifecycleChangedReason]=@Reason,
+    d.[UpdatedDate]=@Now,
+    d.[UpdatedBy]=@UserName,
+    d.[Version]=d.[Version]+1
+FROM [dbo].[GrossDemand] d
+WHERE d.[Uid] IN @GrossDemandIds
+  AND d.[LifecycleStatus]=@Active
+  AND d.[DecompositionStatus]=@Pending
+  AND d.[DecompositionRevision]>0
+  AND d.[IsDeleted]=0
+  AND EXISTS(SELECT 1 FROM [dbo].[NetDemand] nd WHERE nd.[GrossDemandId]=d.[Uid])
+  AND NOT EXISTS(
+      SELECT 1 FROM [dbo].[NetDemand] nd
+      WHERE nd.[GrossDemandId]=d.[Uid]
+        AND (nd.[IsDeleted]<>0 OR nd.[LifecycleStatus] NOT IN (@NetDemandRolledBack,@NetDemandVoided)))
+  AND NOT EXISTS(
+      SELECT 1 FROM [dbo].[NetDemandAllocation] allocation
+      INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=allocation.[NetDemandId]
+      WHERE nd.[GrossDemandId]=d.[Uid]
+        AND (allocation.[IsDeleted]<>0 OR allocation.[LifecycleStatus] NOT IN (@AllocationSuperseded,@AllocationCancelled)))
+  AND NOT EXISTS(
+      SELECT 1 FROM [dbo].[DemandExecutionLink] link
+      INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=link.[NetDemandId]
+      WHERE nd.[GrossDemandId]=d.[Uid] AND link.[LinkStatus]=@LinkActive AND link.[IsDeleted]=0);",
+            new
+            {
+                GrossDemandIds = ids,
+                Reason = reason,
+                Now = DateTime.Now,
+                UserName = _context.CurrentUser.UserName,
+                Active = GrossDemandLifecycleStatusEnum.Active,
+                Pending = GrossDemandDecompositionStatusEnum.Pending,
+                Voided = GrossDemandLifecycleStatusEnum.Voided,
+                NetDemandRolledBack = NetDemandLifecycleStatusEnum.RolledBack,
+                NetDemandVoided = NetDemandLifecycleStatusEnum.Voided,
+                AllocationSuperseded = NetDemandAllocationLifecycleStatusEnum.Superseded,
+                AllocationCancelled = NetDemandAllocationLifecycleStatusEnum.Cancelled,
+                LinkActive = DemandExecutionLinkStatusEnum.Active
+            }, Transaction);
+    }
 
     public Task<int> VoidPendingBySourceAsync(string sourceType, Guid sourceUid, string reason)
         => Connection.ExecuteAsync(@"
@@ -296,6 +441,12 @@ WHERE [SourceType]=@SourceType AND [SourceUid]=@SourceUid AND [LifecycleStatus]=
         if (string.IsNullOrWhiteSpace(keyword)) return;
         where.Add("(d.[SourceNo] LIKE @Keyword OR d.[SkuSnapshot] LIKE @Keyword OR d.[CustomerSkuSnapshot] LIKE @Keyword OR d.[DescriptionSnapshot] LIKE @Keyword)");
         parameters.Add("Keyword", $"%{keyword.Trim()}%");
+    }
+
+    private sealed class GrossDemandHistoryCountRow
+    {
+        public Guid GrossDemandId { get; set; }
+        public int HistoryCount { get; set; }
     }
 
     private static void AddListFilter<T>(IEnumerable<T>? values, string column, string parameterName,

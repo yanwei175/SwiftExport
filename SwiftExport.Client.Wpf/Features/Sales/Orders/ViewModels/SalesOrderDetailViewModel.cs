@@ -6,6 +6,7 @@ using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.Sales.Orders.Models;
+using SwiftExportClient.Features.Sales.Orders.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
@@ -21,6 +22,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     private readonly IApiCallRunner _apiCallRunner;
     private readonly INavigationService _navigationService;
     private readonly IDialogService _dialogService;
+    private readonly ISalesOrderCancellationDialogService _cancellationDialogService;
     private readonly IMessageService _messageService;
     private CancellationTokenSource? _productLookupCancellation;
     private CancellationTokenSource? _customerLookupCancellation;
@@ -31,12 +33,14 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         IApiCallRunner apiCallRunner,
         INavigationService navigationService,
         IDialogService dialogService,
+        ISalesOrderCancellationDialogService cancellationDialogService,
         IMessageService messageService)
     {
         _api = api;
         _apiCallRunner = apiCallRunner;
         _navigationService = navigationService;
         _dialogService = dialogService;
+        _cancellationDialogService = cancellationDialogService;
         _messageService = messageService;
         Title = "销售订单-新建";
         Header.PropertyChanged += OnHeaderPropertyChanged;
@@ -289,18 +293,21 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanCancelConfirmation))]
     private async Task CancelConfirmationAsync()
     {
-        if (!await _dialogService.ConfirmAsync(
-                "取消确认",
-                "只有毛需求尚未拆解且没有下游执行记录时才能取消确认。是否继续？",
-                "取消确认"))
-        {
-            return;
-        }
+        var reason = await _cancellationDialogService.RequestReasonAsync(Header.OrderNo);
+        if (reason is null) return;
 
         await RunBusyAsync(async () =>
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.CancelConfirmationAsync(Header.Uid, CreateCommandRequest()),
+                () => _api.CancelConfirmationAsync(
+                    Header.Uid,
+                    new CancelSalesOrderConfirmationCommand
+                    {
+                        Uid = Header.Uid,
+                        Version = Header.Version,
+                        CommandId = Guid.NewGuid(),
+                        Reason = reason
+                    }),
                 "取消销售订单确认失败");
             if (!result.Success || result.Data is null)
             {
@@ -314,7 +321,9 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
             _loadingDocument = false;
             ApplyReadOnlyState();
             NotifyDocumentStateChanged();
-            _messageService.ShowSuccess("已取消确认", DocumentTitle);
+            _messageService.ShowSuccess(
+                "已取消确认",
+                $"{DocumentTitle}：删除 {result.Data.HardDeletedGrossDemandCount} 条，作废保留 {result.Data.VoidedGrossDemandCount} 条毛需求。");
         }, "正在取消确认...");
     }
 

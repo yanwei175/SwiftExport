@@ -3,8 +3,10 @@ using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExportClient.Features.Sales.Orders.Services;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.UI;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 
@@ -18,6 +20,7 @@ public sealed class SalesOrderManagerFilterTests
         var viewModel = new SalesOrderManagerViewModel(
             api,
             new DirectApiCallRunner(),
+            null!,
             null!,
             null!,
             null!);
@@ -56,6 +59,7 @@ public sealed class SalesOrderManagerFilterTests
             new DirectApiCallRunner(),
             null!,
             null!,
+            null!,
             null!);
         viewModel.CustomerCode = "MANUAL";
         viewModel.SelectedConfirmationStatuses.Add(viewModel.ConfirmationStatusOptions[0]);
@@ -72,9 +76,62 @@ public sealed class SalesOrderManagerFilterTests
         Assert.IsEmpty(api.LastSearchRequest.CustomerCodes);
     }
 
+    [TestMethod]
+    public async Task CancelConfirmation_WhenDialogIsClosed_ShouldNotCallApi()
+    {
+        var api = new RecordingWorkspaceApi();
+        var viewModel = CreateCancellationViewModel(api, new CancellationDialogStub(null));
+        viewModel.SelectedOrder = ConfirmedOrder();
+
+        await viewModel.CancelConfirmationCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(0, api.CancelCallCount);
+    }
+
+    [TestMethod]
+    public async Task CancelConfirmation_ShouldSendReasonAndFreshCommandId()
+    {
+        var api = new RecordingWorkspaceApi();
+        var viewModel = CreateCancellationViewModel(api, new CancellationDialogStub("客户要求改单"));
+        var order = ConfirmedOrder();
+        viewModel.SelectedOrder = order;
+
+        await viewModel.CancelConfirmationCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(1, api.CancelCallCount);
+        Assert.IsNotNull(api.LastCancelCommand);
+        Assert.AreEqual(order.Uid, api.LastCancelCommand.Uid);
+        Assert.AreEqual(order.Version, api.LastCancelCommand.Version);
+        Assert.AreEqual("客户要求改单", api.LastCancelCommand.Reason);
+        Assert.AreNotEqual(Guid.Empty, api.LastCancelCommand.CommandId);
+    }
+
+    private static SalesOrderManagerViewModel CreateCancellationViewModel(
+        RecordingWorkspaceApi api,
+        ISalesOrderCancellationDialogService cancellationDialog) =>
+        new(
+            api,
+            new DirectApiCallRunner(),
+            null!,
+            null!,
+            cancellationDialog,
+            new MessageServiceStub());
+
+    private static SalesOrderListItemDto ConfirmedOrder() =>
+        new()
+        {
+            Uid = Guid.NewGuid(),
+            Version = 7,
+            OrderNo = "SO-TEST",
+            DocumentStatus = SalesOrderDocumentStatusEnum.Open,
+            ConfirmationStatus = ConfirmationStatusEnum.已确认
+        };
+
     private sealed class RecordingWorkspaceApi : ISalesOrderWorkspaceApi
     {
         public SalesOrderSearchRequest? LastSearchRequest { get; private set; }
+        public CancelSalesOrderConfirmationCommand? LastCancelCommand { get; private set; }
+        public int CancelCallCount { get; private set; }
 
         public Task<ServiceResult<PagedResponseBase<SalesOrderListItemDto>>> SearchAsync(
             SalesOrderSearchRequest request,
@@ -97,12 +154,41 @@ public sealed class SalesOrderManagerFilterTests
         public Task<ServiceResult<PagedResponseBase<SalesOrderCustomerLookupDto>>> SearchCustomersAsync(SalesOrderCustomerSearchRequest request, CancellationToken cancellationToken = default) => NotSupported<PagedResponseBase<SalesOrderCustomerLookupDto>>();
         public Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request) => NotSupported<SaveSalesOrderResponse>();
         public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, SalesOrderCommandRequest request) => NotSupported<SalesOrderConfirmationResultDto>();
-        public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(Guid uid, SalesOrderCommandRequest request) => NotSupported<SalesOrderConfirmationResultDto>();
+        public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(
+            Guid uid,
+            CancelSalesOrderConfirmationCommand request)
+        {
+            CancelCallCount++;
+            LastCancelCommand = request;
+            return Task.FromResult(ServiceResult<SalesOrderConfirmationResultDto>.Ok(
+                new SalesOrderConfirmationResultDto
+                {
+                    Uid = uid,
+                    Version = request.Version + 1,
+                    ConfirmationStatus = ConfirmationStatusEnum.待确认
+                }));
+        }
         public Task<ServiceResult<SalesOrderDocumentDto>> CloseAsync(Guid uid, CloseSalesOrderRequest request) => NotSupported<SalesOrderDocumentDto>();
         public Task<ServiceResult<bool>> DeleteDraftAsync(Guid uid, SalesOrderCommandRequest request) => NotSupported<bool>();
 
         private static Task<ServiceResult<T>> NotSupported<T>() =>
             Task.FromException<ServiceResult<T>>(new NotSupportedException());
+    }
+
+    private sealed class CancellationDialogStub(string? reason) : ISalesOrderCancellationDialogService
+    {
+        public Task<string?> RequestReasonAsync(
+            string orderNo,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(reason);
+    }
+
+    private sealed class MessageServiceStub : IMessageService
+    {
+        public void ShowInfo(string title, string message) { }
+        public void ShowSuccess(string title, string message) { }
+        public void ShowWarning(string title, string message) { }
+        public void ShowError(string title, string message) { }
     }
 
     private sealed class DirectApiCallRunner : IApiCallRunner

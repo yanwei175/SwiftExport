@@ -37,6 +37,7 @@ public sealed partial class SupplierManagerViewModel : ViewModelBaseEx, IAsyncIn
         Title = "供应商管理";
         Suppliers.PropertyChanged += OnListPropertyChanged;
         SupplierProducts.SelectionRestoreRequested += (_, supplier) => RestoreSelection(supplier);
+        SupplierProducts.PropertyChanged += OnSupplierProductsPropertyChanged;
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(AddRowCommand);
@@ -44,11 +45,13 @@ public sealed partial class SupplierManagerViewModel : ViewModelBaseEx, IAsyncIn
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(RejectCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
+        RegisterBusyAwareCommand(ToggleSupplierProductsCommand);
     }
 
     public SupplierListModel Suppliers { get; } = new();
     public SupplierProductManagerViewModel SupplierProducts { get; }
     public bool HasChanges => Suppliers.HasChanges;
+    public bool CanChangeSelectionMode => !SupplierProducts.IsOpen;
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
 
@@ -56,6 +59,9 @@ public sealed partial class SupplierManagerViewModel : ViewModelBaseEx, IAsyncIn
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
     public partial SupplierLineModel? SelectedLine { get; set; }
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ToggleSupplierProductsCommand))]
+    public partial bool IsCellSelectionMode { get; set; }
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int PageIndex { get; set; } = 1;
@@ -81,6 +87,18 @@ public sealed partial class SupplierManagerViewModel : ViewModelBaseEx, IAsyncIn
         Suppliers.SelectedItem = value;
         if (!_restoringSelection) SupplierProducts.NotifySupplierSelection(value);
     }
+
+    partial void OnIsCellSelectionModeChanged(bool value)
+    {
+        if (value && SupplierProducts.IsOpen)
+        {
+            IsCellSelectionMode = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanToggleSupplierProducts))]
+    private Task ToggleSupplierProductsAsync() =>
+        SupplierProducts.ToggleForSupplierAsync(SelectedLine);
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task SearchAsync(string? query)
@@ -215,6 +233,21 @@ public sealed partial class SupplierManagerViewModel : ViewModelBaseEx, IAsyncIn
 
     private void OnListPropertyChanged(object? sender, PropertyChangedEventArgs e) => UpdateChangeState();
 
+    private void OnSupplierProductsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.PropertyName)
+            || e.PropertyName == nameof(SupplierProductManagerViewModel.IsOpen))
+        {
+            if (SupplierProducts.IsOpen && IsCellSelectionMode)
+            {
+                IsCellSelectionMode = false;
+            }
+
+            OnPropertyChanged(nameof(CanChangeSelectionMode));
+            ToggleSupplierProductsCommand.NotifyCanExecuteChanged();
+        }
+    }
+
     private void UpdateChangeState()
     {
         IsDirty = Suppliers.HasChanges;
@@ -225,6 +258,7 @@ public sealed partial class SupplierManagerViewModel : ViewModelBaseEx, IAsyncIn
     }
 
     private bool CanRun() => IsNotBusy;
+    private bool CanToggleSupplierProducts() => SupplierProducts.IsOpen || !IsCellSelectionMode;
     private bool CanWriteCommand() => IsNotBusy && CanWrite;
     private bool CanDelete() => IsNotBusy && CanWrite && (Suppliers.CheckedCount > 0 || SelectedLine is not null);
     private bool CanSave() => IsNotBusy && CanWrite && Suppliers.HasChanges;

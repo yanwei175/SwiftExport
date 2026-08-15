@@ -37,10 +37,8 @@ public class CustomerProduct : BaseEntity
     public string? CustomerBarcode1 { get; set; }           // 客户条码1
     /// <summary>客户条码2。</summary>
     public string? CustomerBarcode2 { get; set; }           // 客户条码2
-    /// <summary>客户那边的单位（如：Set/Pc）。</summary>
-    public string? CustomerSkuUnit { get; set; }            // 客户那边的单位（如：Set/Pc）
-    /// <summary>客户那边的单位（如：Set/Pc）。</summary>
-    public string? Note { get; set; }            // 客户那边的单位（如：Set/Pc）
+    /// <summary>客户产品关系备注。</summary>
+    public string? Note { get; set; }
 
     // ============================================================
     // 3. 商务与物流
@@ -49,8 +47,6 @@ public class CustomerProduct : BaseEntity
     public decimal? USDPrice { get; set; }                  // 美元约定价
     /// <summary>人民币约定价。</summary>
     public decimal? CNYPrice { get; set; }                  // 人民币约定价
-    /// <summary>币种。</summary>
-    public string? Currency { get; set; } = "USD";          // 币种
     /// <summary>生产提前期（天）。</summary>
     public int? LeadTimeDays { get; set; }                  // 生产提前期（天）
     /// <summary>最小起订量。</summary>

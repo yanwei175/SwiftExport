@@ -25,6 +25,10 @@ public class Product : BaseEntity
     /// <summary>该实体保存的物料角色类型。</summary>
     public string? MaterialType { get; set; }
     /// <summary>
+    /// 产品当前基础计量单位，保存 Unit 字典项的英文代码；历史交易使用各自的 UnitSnapshot。
+    /// </summary>
+    public string? Unit { get; set; }
+    /// <summary>
     /// 供应方式（仅表示采购/生产/外协，不再承担“是否有BOM”的语义）。
     /// </summary>
     public string SupplyType { get; set; } = default!;
@@ -55,12 +59,12 @@ public class Product : BaseEntity
     public decimal? USDPrice { get; set; }
 
     /// <summary>
-    /// 单件体积（CBM），用于采购/物流统计。
+    /// 每基础单位体积（CBM），用于采购/物流统计。
     /// </summary>
     public decimal? UnitCBM { get; set; }
 
     /// <summary>
-    /// 单件重量（KG），用于采购/物流统计。
+    /// 每基础单位重量（KG），用于采购/物流统计。
     /// </summary>
     public decimal? UnitWeight { get; set; }
 

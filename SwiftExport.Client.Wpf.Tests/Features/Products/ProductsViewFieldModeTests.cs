@@ -28,7 +28,7 @@ public sealed class ProductsViewFieldModeTests
         var alwaysVisibleKeys = new[]
         {
             "main-image", "product-sku", "link-sku", "description-zh", "features-zh", "finish",
-            "category-name", "material-type", "supply-type", "bom-no", "default-customer-code",
+            "category-name", "material-type", "product-unit", "supply-type", "bom-no", "default-customer-code",
             "default-customer-sku", "default-supplier-code", "default-supplier-sku", "cny-price",
             "usd-price", "note",
         };
@@ -55,6 +55,20 @@ public sealed class ProductsViewFieldModeTests
 
         Assert.IsFalse(document.Descendants().Any(element =>
             ((string?)element.Attribute("Command"))?.Contains("OpenCategoryManagerCommand", StringComparison.Ordinal) == true));
+    }
+
+    [TestMethod]
+    public void ProductUnitColumn_ShouldUseLocalDictionaryLookupAndStableFieldPath()
+    {
+        var column = FindColumn(LoadProductsView(), "product-unit");
+        Assert.AreEqual("Unit", column.Attributes().Single(attribute =>
+            attribute.Name.LocalName.EndsWith("FieldPath", StringComparison.Ordinal)).Value);
+
+        var lookup = column.Descendants().Single(element => element.Name.LocalName == "LookupTextBox");
+        Assert.AreEqual("Local", (string?)lookup.Attribute("SearchMode"));
+        StringAssert.Contains((string?)lookup.Attribute("ItemsSource") ?? string.Empty, "UnitOptions");
+        StringAssert.Contains((string?)lookup.Attribute("Text") ?? string.Empty, "Unit");
+        Assert.IsNull(lookup.Attribute("SearchCommand"));
     }
 
     [TestMethod]

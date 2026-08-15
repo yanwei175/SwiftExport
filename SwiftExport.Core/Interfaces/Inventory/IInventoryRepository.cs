@@ -1,6 +1,7 @@
 using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Inventory;
+using SwiftExport.Core.Entities.MasterData;
 
 namespace SwiftExport.Core.Interfaces.Inventory;
 
@@ -13,7 +14,7 @@ public interface IInventoryRepository
     Task<InventoryBalance?> LockBalanceAsync(Guid warehouseSiteId, Guid productId);
     Task<InventoryLedgerEntry?> FindLedgerByCommandItemAsync(Guid commandItemId);
     Task<InventoryLedgerEntry?> LockLedgerByCommandItemAsync(Guid commandItemId);
-    Task<bool> IsActiveProductAsync(Guid productId);
+    Task<Product?> GetActiveProductAsync(Guid productId);
     Task<int> InsertBalanceAsync(InventoryBalance balance);
     Task<int> UpdateBalanceAsync(InventoryBalance balance, int expectedVersion);
     Task<long> NextLedgerSequenceAsync();

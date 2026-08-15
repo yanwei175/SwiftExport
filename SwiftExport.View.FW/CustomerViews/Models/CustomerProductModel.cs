@@ -158,13 +158,6 @@ namespace SwiftExport.View.FW.CustomerViews.Models
             set => SetProperty(ref _barcode2Type, value);
         }
 
-        private string _customerSkuUnit;
-        public string CustomerSkuUnit
-        {
-            get => _customerSkuUnit;
-            set => SetProperty(ref _customerSkuUnit, value);
-        }
-
         // 价格相关（DTO 中为可空）
         private decimal? _usdPrice;
         /// <summary>
@@ -184,13 +177,6 @@ namespace SwiftExport.View.FW.CustomerViews.Models
         {
             get => _cnyPrice;
             set => SetProperty(ref _cnyPrice, value);
-        }
-
-        private string _currency;
-        public string Currency
-        {
-            get => _currency;
-            set => SetProperty(ref _currency, value);
         }
 
         // 业务要求

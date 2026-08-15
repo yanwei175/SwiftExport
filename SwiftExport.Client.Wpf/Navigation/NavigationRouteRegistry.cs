@@ -1,5 +1,6 @@
 using SwiftExportClient.Features.Home;
 using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
+using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 using SwiftExportClient.Features.Planning;
@@ -9,6 +10,7 @@ using SwiftExportClient.Features.Products.Placeholders.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
+using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 using SwiftExportClient.Features.Sales;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
@@ -31,7 +33,9 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new("product-colors", "产品颜色管理", "Workspace", typeof(ProductColorsViewModel)),
         new("product-bom", "BOM", "Workspace", typeof(ProductBomViewModel)),
         new("customers", "客户管理", "Workspace", typeof(CustomerManagerViewModel)),
+        new(CustomerProductWorkspaceViewModel.RouteKey, "客户产品管理", "Workspace", typeof(CustomerProductWorkspaceViewModel)),
         new("suppliers", "供应商管理", "Workspace", typeof(SupplierManagerViewModel)),
+        new(SupplierProductWorkspaceViewModel.RouteKey, "供应商产品管理", "Workspace", typeof(SupplierProductWorkspaceViewModel)),
         new("sales", "销售", "Workspace", typeof(SalesViewModel)),
         new(SalesOrderManagerViewModel.ManagerRouteKey, "销售订单管理", "Workspace", typeof(SalesOrderManagerViewModel)),
         new(SalesOrderManagerViewModel.DetailRouteKey, "销售订单", "Workspace", typeof(SalesOrderDetailViewModel)),
@@ -71,8 +75,28 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                     new("product-colors", "产品颜色管理", "Workspace", "Color24"),
                     new("product-bom", "BOM", "Workspace", "Branch24"),
                 ]),
-            new("customers", "客户管理", "Workspace", "People24"),
-            new("suppliers", "供应商管理", "Workspace", "PeopleTeam24"),
+            new(
+                "customers",
+                "客户",
+                "Workspace",
+                "People24",
+                IsExpanded: true,
+                Children:
+                [
+                    new("customers", "客户管理", "Workspace", "People24"),
+                    new(CustomerProductWorkspaceViewModel.RouteKey, "客户产品管理", "Workspace", "DocumentTable24"),
+                ]),
+            new(
+                "suppliers",
+                "供应商",
+                "Workspace",
+                "PeopleTeam24",
+                IsExpanded: true,
+                Children:
+                [
+                    new("suppliers", "供应商管理", "Workspace", "PeopleTeam24"),
+                    new(SupplierProductWorkspaceViewModel.RouteKey, "供应商产品管理", "Workspace", "DocumentTable24"),
+                ]),
             new(SalesOrderManagerViewModel.ManagerRouteKey, "销售订单", "Workspace", "ReceiptMoney24"),
             new(
                 "demand-planning",

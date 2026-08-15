@@ -187,6 +187,20 @@ public sealed class PurchaseDraftPreviewBuilderTests
     }
 
     [TestMethod]
+    public void Build_ProductUnitMustFlowIntoPurchaseLineSnapshot()
+    {
+        var candidate = CreateCandidate();
+        candidate.Unit = "BOX";
+
+        var result = _builder.Build(
+            CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, candidate));
+
+        Assert.AreEqual(
+            "BOX",
+            result.SourceGroups.Single().Documents.Single().Lines.Single().Unit);
+    }
+
+    [TestMethod]
     public void Build_OneClickSkipsProductionAndOutsourcingPlans()
     {
         var purchase = CreateCandidate();

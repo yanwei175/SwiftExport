@@ -3,6 +3,7 @@ using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Entities.Orders;
+using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.Shipping;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -137,10 +138,44 @@ public sealed class TargetDatabaseBaselineContractTests
         StringAssert.Contains(enrichment, "DECLARE @ExpectedTargetDatabaseName sysname=N'dv_next'");
         StringAssert.Contains(enrichment, "ProductId=p.Uid");
         StringAssert.Contains(enrichment, "p.MatchCount=1");
+        StringAssert.Contains(enrichment, "ALTER TABLE dbo.Product ADD Unit nvarchar(100) NULL");
+        StringAssert.Contains(enrichment, "ALTER TABLE dbo.CustomerProduct DROP COLUMN CustomerSkuUnit");
+        StringAssert.Contains(enrichment, "ALTER TABLE dbo.CustomerProduct DROP COLUMN Currency");
+
+        var postflight = Read("SwiftExport.Infrastructure", "Database", "FreshInstall", "070_迁移后只读检查.sql");
+        StringAssert.Contains(postflight, "Product.Unit 必须为 nullable nvarchar(100)");
+        StringAssert.Contains(postflight, "Product.Unit 不在启用的 Unit 字典中");
+        StringAssert.Contains(postflight, "CustomerProduct 不得保留 CustomerSkuUnit 或 Currency");
+
+        var additiveMigration = Read("SwiftExport.Infrastructure", "Migrations", "016_ProductUnit_AdditiveSchema.sql");
+        StringAssert.Contains(additiveMigration, "ALTER TABLE dbo.Product ADD Unit nvarchar(100) NULL");
+        Assert.IsFalse(additiveMigration.Contains("CustomerProduct", StringComparison.OrdinalIgnoreCase)
+                       && Regex.IsMatch(additiveMigration, @"\b(?:UPDATE|ALTER)\s+(?:dbo\.)?CustomerProduct\b", RegexOptions.IgnoreCase));
+
+        var retirementMigration = Read(
+            "SwiftExport.Infrastructure",
+            "Migrations",
+            "017_CustomerProduct_RemoveLegacyUnitCurrency.sql");
+        StringAssert.Contains(retirementMigration, "DROP COLUMN");
+        StringAssert.Contains(retirementMigration, "CustomerSkuUnit");
+        StringAssert.Contains(retirementMigration, "Currency");
+        Assert.IsFalse(
+            Regex.IsMatch(retirementMigration, @"\b(?:UPDATE|ALTER)\s+(?:dbo\.)?Product\b", RegexOptions.IgnoreCase),
+            "客户产品遗留字段退役不得修改 Product 或回填 Product.Unit。");
 
         var retiredReadme = Read("SwiftExport.Infrastructure", "Database", "Rebuild", "README.md");
         StringAssert.Contains(retiredReadme, "旧就地重建方案已停用");
         Assert.IsFalse(File.Exists(Path.Combine(Root(), "SwiftExport.Infrastructure", "Database", "Rebuild", "002_目标模型全量重建.sql")));
+    }
+
+    [TestMethod]
+    public void ProductUnit_MustRemainNullableCurrentMasterDataInsteadOfReplacingSnapshots()
+    {
+        var property = typeof(Product).GetProperty(nameof(Product.Unit));
+        Assert.IsNotNull(property);
+        Assert.AreEqual(typeof(string), property.PropertyType);
+        Assert.IsNotNull(typeof(InventoryBalance).GetProperty(nameof(InventoryBalance.UnitSnapshot)));
+        Assert.IsNotNull(typeof(InventoryLedgerEntry).GetProperty(nameof(InventoryLedgerEntry.UnitSnapshot)));
     }
 
     private static void AssertMissing<T>(params string[] names)

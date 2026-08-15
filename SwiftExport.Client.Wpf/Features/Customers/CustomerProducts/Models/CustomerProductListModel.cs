@@ -11,11 +11,12 @@ public sealed class CustomerProductListModel : BaseListModel<CustomerProductLine
 {
     public CustomerProductListModel() : base(_ => new CustomerProductLineModel()) { }
 
-    public CustomerProductLineModel AddNewItem(Guid customerId, string customerCode) => AddNew(new CustomerProductDto
+    public CustomerProductLineModel AddNewItem(
+        Guid customerId,
+        string customerCode) => AddNew(new CustomerProductDto
     {
         CustomerId = customerId,
         CustomerCode = customerCode,
-        Currency = "USD",
         IsActive = true,
     });
 

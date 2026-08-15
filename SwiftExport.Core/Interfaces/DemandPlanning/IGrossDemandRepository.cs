@@ -23,6 +23,9 @@ public interface IGrossDemandRepository
     Task<RepositoryWriteResult> UpdateManualAsync(GrossDemand demand, int expectedVersion);
     Task<RepositoryWriteResult> CloseManualAsync(Guid uid, int expectedVersion, string reason);
     Task<bool> HasSourceCancellationBlockerAsync(string sourceType, Guid sourceUid, IEnumerable<Guid> sourceLineIds);
-    Task<int> SoftDeleteBySourceAsync(string sourceType, Guid sourceUid);
+    Task<bool> HasInvalidSourceCancellationHistoryAsync(IEnumerable<Guid> grossDemandIds);
+    Task<IReadOnlyDictionary<Guid, int>> GetNetDemandHistoryCountsForUpdateAsync(IEnumerable<Guid> grossDemandIds);
+    Task<int> HardDeleteNeverDecomposedAsync(IEnumerable<Guid> grossDemandIds);
+    Task<int> VoidRolledBackForSourceCancellationAsync(IEnumerable<Guid> grossDemandIds, string reason);
     Task<int> VoidPendingBySourceAsync(string sourceType, Guid sourceUid, string reason);
 }

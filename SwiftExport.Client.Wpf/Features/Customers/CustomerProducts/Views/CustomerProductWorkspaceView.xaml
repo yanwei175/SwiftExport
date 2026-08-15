@@ -1,0 +1,83 @@
+<UserControl x:Class="SwiftExportClient.Features.Customers.CustomerProducts.Views.CustomerProductWorkspaceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:customerProductViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.Views"
+             x:Name="Root">
+    <UserControl.Resources>
+        <DataTemplate x:Key="CustomerLookupItemTemplate">
+            <StackPanel MinWidth="300">
+                <TextBlock FontWeight="SemiBold"
+                           Text="{Binding CustomerCode}" />
+                <TextBlock Margin="0,2,0,0"
+                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Text="{Binding CustomerName}"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="4" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="360" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock VerticalAlignment="Center"
+                       Text="当前客户" />
+            <controls:LookupTextBox Grid.Column="2"
+                                    Placeholder="输入客户代码或名称"
+                                    SearchMode="Remote"
+                                    MinimumSearchLength="1"
+                                    ClearSelectionOnEdit="False"
+                                    RequireItemMatch="True"
+                                    DisplayMemberPath="CustomerCode"
+                                    FilterMemberPaths="CustomerCode,CustomerName"
+                                    Text="{Binding CustomerSearchText, Mode=TwoWay}"
+                                    ItemsSource="{Binding CustomerCandidates}"
+                                    SelectedItem="{Binding SelectedCustomer, Mode=TwoWay}"
+                                    ItemTemplate="{StaticResource CustomerLookupItemTemplate}"
+                                    SearchCommand="{Binding SearchCustomersCommand}"
+                                    SelectionCommittedCommand="{Binding CommitCustomerCommand}"
+                                    SelectionClearedCommand="{Binding ClearCustomerCommand}"
+                                    IsBusy="{Binding IsCustomerLookupBusy}" />
+        </Grid>
+
+        <Grid Grid.Row="2">
+            <customerProductViews:CustomerProductManagerView
+                DataContext="{Binding Editor}"
+                IsEnabled="{Binding DataContext.Editor.IsOpen, ElementName=Root}" />
+
+            <Border Background="{DynamicResource SwiftExportBrush.Surface}">
+                <Border.Style>
+                    <Style TargetType="{x:Type Border}">
+                        <Setter Property="Visibility" Value="Visible" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Editor.IsOpen}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                    <TextBlock HorizontalAlignment="Center"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Text="请先选择客户" />
+                    <TextBlock Margin="0,6,0,0"
+                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                               Text="选择一个已保存客户后，才能管理该客户的产品。" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

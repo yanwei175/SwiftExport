@@ -24,6 +24,9 @@ public sealed class NetDemandWorkspaceSqlContractTests
         Assert.IsFalse(
             source.Contains("WITH Workspace AS", StringComparison.Ordinal),
             "SQL Server CTE 只能服务紧随其后的一条语句，不能同时供统计和分页查询复用。");
+        StringAssert.Contains(
+            source,
+            "COALESCE(NULLIF(LTRIM(RTRIM(p.[Unit])),N''),N'PCS') AS [Unit]");
     }
 
     private static string FindRepositoryRoot()

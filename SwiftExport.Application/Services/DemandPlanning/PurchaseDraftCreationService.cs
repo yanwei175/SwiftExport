@@ -515,6 +515,9 @@ public sealed class PurchaseDraftCreationService(
             var deliveryTargetValid = ValidateDeliveryTarget(
                 net, allocation, allocationByNet, allocations, suppliers);
             purchaseData.TryGetValue((net.ProductId, allocation.PurchaseSupplierId), out var data);
+            Product? product = null;
+            if (net.ProductId.HasValue)
+                products.TryGetValue(net.ProductId.Value, out product);
             candidates.Add(new PurchaseDraftPreviewCandidate
             {
                 CommandItemId = item?.CommandItemId ?? Guid.Empty,
@@ -538,12 +541,11 @@ public sealed class PurchaseDraftCreationService(
                 PlannedDeliveryDate = allocation.PlannedDeliveryDate,
                 ProductId = net.ProductId,
                 Sku = net.SkuSnapshot,
-                LinkSku = net.ProductId.HasValue && products.TryGetValue(net.ProductId.Value, out var product)
-                    ? product.LinkSku ?? gross.LinkSkuSnapshot ?? string.Empty
-                    : gross.LinkSkuSnapshot ?? string.Empty,
+                LinkSku = product?.LinkSku ?? gross.LinkSkuSnapshot ?? string.Empty,
                 CustomerSku = net.CustomerSkuSnapshot ?? string.Empty,
                 Description = net.DescriptionSnapshot ?? string.Empty,
                 MaterialType = net.MaterialTypeSnapshot ?? string.Empty,
+                Unit = EffectiveUnit(product?.Unit),
                 QuantityScale = 4,
                 PurchaseSupplierId = allocation.PurchaseSupplierId,
                 PurchaseSupplierIsActive = purchaseSupplierActive,
@@ -630,6 +632,7 @@ public sealed class PurchaseDraftCreationService(
             CustomerSku = row.CustomerSku,
             Description = row.Description,
             MaterialType = row.MaterialType,
+            Unit = EffectiveUnit(row.Unit),
             QuantityScale = 4,
             PurchaseSupplierId = row.PurchaseSupplierId,
             PurchaseSupplierIsActive = !row.PurchaseSupplierId.HasValue
@@ -649,6 +652,9 @@ public sealed class PurchaseDraftCreationService(
             UnitPrice = data?.UnitPrice,
             TaxPrice = data?.TaxPrice
         };
+
+    private static string EffectiveUnit(string? unit) =>
+        string.IsNullOrWhiteSpace(unit) ? "PCS" : unit.Trim();
 
     private static PurchaseDraftPreviewBuildTarget MapTarget(PurchaseDraftTargetSelectionDto target)
         => new()

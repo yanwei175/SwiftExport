@@ -7,6 +7,7 @@ using SwiftExport.Contracts.DTOs.Suppliers.Responses;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.Models;
+using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.Models;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 using SwiftExportClient.Mvvm;
@@ -107,7 +108,38 @@ public sealed class SupplierModelsAndContractsTests
         var registry = new NavigationRouteRegistry();
         Assert.IsTrue(registry.TryGetRoute("suppliers", out var route));
         Assert.AreEqual("供应商管理", route.Title);
-        Assert.IsFalse(registry.TryGetRoute("supplier-products", out _));
+        Assert.IsTrue(registry.TryGetRoute(SupplierProductWorkspaceViewModel.RouteKey, out var supplierProductRoute));
+        Assert.AreEqual(typeof(SupplierProductWorkspaceViewModel), supplierProductRoute.ViewModelType);
+
+        var supplierGroup = registry.MenuItems.Single(item => item.RouteKey == "suppliers");
+        Assert.AreEqual("供应商", supplierGroup.Title);
+        CollectionAssert.AreEqual(
+            new[] { "suppliers", SupplierProductWorkspaceViewModel.RouteKey },
+            supplierGroup.Children.Select(item => item.RouteKey).ToArray());
+    }
+
+    [TestMethod]
+    public void SupplierManager_ShouldMutuallyExcludeCellSelectionAndProductDrawer()
+    {
+        var supplierProducts = new SupplierProductManagerViewModel(null!, null!, null!, null!, null!);
+        var viewModel = new SupplierManagerViewModel(
+            null!,
+            null!,
+            null!,
+            null!,
+            supplierProducts);
+
+        Assert.IsFalse(viewModel.IsCellSelectionMode);
+        Assert.IsTrue(viewModel.ToggleSupplierProductsCommand.CanExecute(null));
+
+        viewModel.IsCellSelectionMode = true;
+        Assert.IsFalse(viewModel.ToggleSupplierProductsCommand.CanExecute(null));
+
+        viewModel.IsCellSelectionMode = false;
+        supplierProducts.IsOpen = true;
+        Assert.IsFalse(viewModel.CanChangeSelectionMode);
+        viewModel.IsCellSelectionMode = true;
+        Assert.IsFalse(viewModel.IsCellSelectionMode, "抽屉打开时不得进入格子模式。");
     }
 
     [TestMethod]

@@ -5,6 +5,8 @@
         xmlns:home="clr-namespace:SwiftExportClient.Features.Home"
         xmlns:customerViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerManagement.Views"
         xmlns:customerViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerManagement.ViewModels"
+        xmlns:customerProductViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.Views"
+        xmlns:customerProductViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.ViewModels"
         xmlns:grossDemandViews="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.Views"
         xmlns:grossDemandViewModels="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels"
         xmlns:netDemandViews="clr-namespace:SwiftExportClient.Features.DemandPlanning.NetDemand.Views"
@@ -36,6 +38,8 @@
         xmlns:productPlaceholderViewModels="clr-namespace:SwiftExportClient.Features.Products.Placeholders.ViewModels"
         xmlns:supplierViews="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierManagement.Views"
         xmlns:supplierViewModels="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels"
+        xmlns:supplierProductViews="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierProducts.Views"
+        xmlns:supplierProductViewModels="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels"
         xmlns:sales="clr-namespace:SwiftExportClient.Features.Sales"
         xmlns:salesOrderViews="clr-namespace:SwiftExportClient.Features.Sales.Orders.Views"
         xmlns:salesOrderViewModels="clr-namespace:SwiftExportClient.Features.Sales.Orders.ViewModels"
@@ -123,8 +127,14 @@
         <DataTemplate DataType="{x:Type customerViewModels:CustomerManagerViewModel}">
             <customerViews:CustomerManagerView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type customerProductViewModels:CustomerProductWorkspaceViewModel}">
+            <customerProductViews:CustomerProductWorkspaceView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type supplierViewModels:SupplierManagerViewModel}">
             <supplierViews:SupplierManagerView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type supplierProductViewModels:SupplierProductWorkspaceViewModel}">
+            <supplierProductViews:SupplierProductWorkspaceView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type sales:SalesViewModel}">
             <sales:SalesView />

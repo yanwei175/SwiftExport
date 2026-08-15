@@ -23,8 +23,8 @@ public sealed class CustomerProductRepository(RepositoryBaseContext context)
         pc.CategoryName, p.MaterialType, p.MainImage,
         cp.CustomerSku, cp.CustomerPdDescription, cp.CustomerPdSeries,
         cp.CustomerColorName, cp.CustomerPdFeatures,
-        cp.CustomerBarcode1, cp.CustomerBarcode2, cp.CustomerSkuUnit,
-        cp.USDPrice, cp.CNYPrice, cp.Currency,
+        cp.CustomerBarcode1, cp.CustomerBarcode2,
+        cp.USDPrice, cp.CNYPrice,
         cp.LeadTimeDays, cp.MOQ, cp.IsActive, cp.Note
         """;
 

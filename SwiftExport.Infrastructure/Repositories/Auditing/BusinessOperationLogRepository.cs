@@ -11,7 +11,7 @@ public sealed class BusinessOperationLogRepository(RepositoryBaseContext context
 {
     private DbSession Session => context.Session;
     public Task<BusinessOperationLog?> GetByCommandAsync(string module, string operationType, Guid commandId)
-        => Session.Connection.QuerySingleOrDefaultAsync<BusinessOperationLog>($"SELECT {Columns} FROM dbo.BusinessOperationLog b WHERE b.Module=@Module AND b.OperationType=@OperationType AND b.CommandId=@CommandId AND ISNULL(b.IsDeleted,0)=0;", new { Module = module, OperationType = operationType, CommandId = commandId }, Session.Transaction);
+        => Session.Connection.QuerySingleOrDefaultAsync<BusinessOperationLog>($"SELECT {Columns} FROM dbo.BusinessOperationLog b WITH(UPDLOCK,HOLDLOCK) WHERE b.Module=@Module AND b.OperationType=@OperationType AND b.CommandId=@CommandId AND ISNULL(b.IsDeleted,0)=0;", new { Module = module, OperationType = operationType, CommandId = commandId }, Session.Transaction);
 
     public async Task<int> InsertAsync(BusinessOperationLog log)
     {

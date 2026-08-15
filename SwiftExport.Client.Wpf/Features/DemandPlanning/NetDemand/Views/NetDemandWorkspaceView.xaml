@@ -97,9 +97,15 @@
                     </Expander>
                 </StackPanel>
 
-                <DataGrid Grid.Row="4" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
-                          Style="{StaticResource SwiftExportDataGrid}" AutoGenerateColumns="False" IsReadOnly="True"
-                          RowHeight="42" FontSize="12" SelectionMode="Single" SelectionUnit="FullRow"
+                <DataGrid Grid.Row="4" ItemsSource="{Binding Items}" 
+                          SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                          Style="{StaticResource SwiftExportDataGrid}" 
+                          AutoGenerateColumns="False" 
+                          IsReadOnly="True"
+                          RowHeight="{StaticResource DataGridRowHeightMedium}" 
+                          FontSize="{StaticResource SwiftExportDefaltFontSize}" 
+                          SelectionMode="Single" 
+                          SelectionUnit="FullRow"
                           EnableRowVirtualization="True" EnableColumnVirtualization="True"
                           gridCore:EnterpriseGrid.IsEnabled="True"
                           gridCore:GridVirtualization.IsEnabled="True"
@@ -118,34 +124,82 @@
                                 <DataTemplate><CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="图片" Width="56" CanUserSort="False"
+                        
+                        <DataGridTemplateColumn Header="图片" Width="60" CanUserSort="False"
                                                 gridColumns:GridColumn.Key="image"
                                                 gridColumns:GridColumn.CanExport="False"
                                                 gridColumns:GridColumn.CanFilter="False">
                             <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate><controls:CachedImage Width="38" Height="38" Margin="2" Style="{StaticResource SwiftExportCachedImage}" SourcePath="{Binding ImagePath}" DecodePixelWidth="80" Stretch="Uniform" /></DataTemplate>
+                                <DataTemplate>
+                                    <controls:CachedImage Width="56" Height="56" Margin="2" 
+                                                                    Style="{StaticResource SwiftExportCachedImage}" 
+                                                                    SourcePath="{Binding ImagePath}" 
+                                                                    DecodePixelWidth="80" 
+                                                                    Stretch="Uniform" />
+                                </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="状态" Width="118" Binding="{Binding PlanStatusText}" gridColumns:GridColumn.Key="plan-status" />
-                        <DataGridTextColumn Header="来源" Width="82" Binding="{Binding SourceTypeText}" gridColumns:GridColumn.Key="source-type" />
-                        <DataGridTextColumn Header="来源单号" Width="130" Binding="{Binding SourceNo}" gridColumns:GridColumn.Key="source-no" />
-                        <DataGridTextColumn Header="行" Width="44" Binding="{Binding SourceLineNumber}" gridColumns:GridColumn.Key="source-line" />
-                        <DataGridTextColumn Header="角色" Width="70" Binding="{Binding DemandRoleText}" gridColumns:GridColumn.Key="demand-role" />
-                        <DataGridTextColumn Header="SKU" Width="150" Binding="{Binding DisplaySku}" SortMemberPath="Sku" gridColumns:GridColumn.Key="sku" gridColumns:GridColumn.FieldPath="Sku" />
-                        <DataGridTextColumn Header="根 SKU" Width="120" Binding="{Binding RootSku}" gridColumns:GridColumn.Key="root-sku" />
-                        <DataGridTextColumn Header="客户型号" Width="120" Binding="{Binding CustomerSku}" gridColumns:GridColumn.Key="customer-sku" />
-                        <DataGridTextColumn Header="执行方式" Width="84" Binding="{Binding ExecutionTypeText}" gridColumns:GridColumn.Key="execution-type" />
-                        <DataGridTextColumn Header="采购供应商" Width="145" Binding="{Binding PurchaseSupplierName, TargetNullValue=待分配}" gridColumns:GridColumn.Key="purchase-supplier" />
-                        <DataGridTextColumn Header="送达供应商" Width="145" Binding="{Binding DeliveryTargetSupplierName, TargetNullValue=标准交付}" gridColumns:GridColumn.Key="delivery-supplier" />
-                        <DataGridTextColumn Header="原需求交期" Width="102" Binding="{Binding DemandRequiredDate, StringFormat=yyyy-MM-dd}" gridColumns:GridColumn.Key="demand-required-date" />
-                        <DataGridTextColumn Header="计划交期" Width="102" Binding="{Binding PlannedDeliveryDate, StringFormat=yyyy-MM-dd}" gridColumns:GridColumn.Key="planned-delivery-date" />
-                        <DataGridTextColumn Header="净需求" Width="88" Binding="{Binding NetQty, StringFormat=N4}" gridColumns:GridColumn.Key="net-qty" />
-                        <DataGridTextColumn Header="计划数量" Width="88" Binding="{Binding PlannedQty, StringFormat=N4}" gridColumns:GridColumn.Key="planned-qty" />
-                        <DataGridTextColumn Header="已转采购" Width="88" Binding="{Binding AllocatedQty, StringFormat=N4}" gridColumns:GridColumn.Key="allocated-qty" />
-                        <DataGridTextColumn Header="剩余可转" Width="88" Binding="{Binding RemainingQty, StringFormat=N4}" gridColumns:GridColumn.Key="remaining-qty" />
-                        <DataGridTextColumn Header="采购单" Width="160" Binding="{Binding PurchaseOrderNos}" gridColumns:GridColumn.Key="purchase-orders" />
-                        <DataGridTextColumn Header="描述" Width="200" Binding="{Binding Description}" gridColumns:GridColumn.Key="description" />
-                        <DataGridTextColumn Header="阻断/提示" Width="220" Binding="{Binding BlockerSummary}" gridColumns:GridColumn.Key="blocker-summary" />
+                        
+                        <DataGridTextColumn Header="状态" Width="118" Binding="{Binding PlanStatusText}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="plan-status" />
+                        <DataGridTextColumn Header="来源" Width="82" Binding="{Binding SourceTypeText}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="source-type" />
+                        <DataGridTextColumn Header="来源单号" Width="130" Binding="{Binding SourceNo}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="source-no" />
+                        <DataGridTextColumn Header="行" Width="44" Binding="{Binding SourceLineNumber}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="source-line" />
+                        <DataGridTextColumn Header="角色" Width="70" Binding="{Binding DemandRoleText}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="demand-role" />
+                        <DataGridTextColumn Header="SKU" Width="150" Binding="{Binding DisplaySku}" SortMemberPath="Sku" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="sku" gridColumns:GridColumn.FieldPath="Sku" />
+                        <DataGridTextColumn Header="根 SKU" Width="120" Binding="{Binding RootSku}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="root-sku" />
+                        <DataGridTextColumn Header="客户型号" Width="120" Binding="{Binding CustomerSku}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="customer-sku" />
+                        <DataGridTextColumn Header="执行方式" Width="84" Binding="{Binding ExecutionTypeText}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="execution-type" />
+                        <DataGridTextColumn Header="采购供应商" Width="145" Binding="{Binding PurchaseSupplierName, TargetNullValue=待分配}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="purchase-supplier" />
+                        <DataGridTextColumn Header="送达供应商" Width="145" Binding="{Binding DeliveryTargetSupplierName, TargetNullValue=标准交付}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="delivery-supplier" />
+                        <DataGridTextColumn Header="原需求交期" Width="102" Binding="{Binding DemandRequiredDate, StringFormat=yyyy-MM-dd}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="demand-required-date" />
+                        <DataGridTextColumn Header="计划交期" Width="102" Binding="{Binding PlannedDeliveryDate, StringFormat=yyyy-MM-dd}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="planned-delivery-date" />
+                        <DataGridTextColumn Header="净需求" Width="88" Binding="{Binding NetQty, StringFormat=N4}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="net-qty" />
+                        <DataGridTextColumn Header="计划数量" Width="88" Binding="{Binding PlannedQty, StringFormat=N4}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="planned-qty" />
+                        <DataGridTextColumn Header="已转采购" Width="88" Binding="{Binding AllocatedQty, StringFormat=N4}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="allocated-qty" />
+                        <DataGridTextColumn Header="剩余可转" Width="88" Binding="{Binding RemainingQty, StringFormat=N4}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="remaining-qty" />
+                        <DataGridTextColumn Header="采购单" Width="160" Binding="{Binding PurchaseOrderNos}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="purchase-orders" />
+                        <DataGridTextColumn Header="描述" Width="200" Binding="{Binding Description}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="description" />
+                        <DataGridTextColumn Header="阻断/提示" Width="220" Binding="{Binding BlockerSummary}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="blocker-summary" />
                     </DataGrid.Columns>
                 </DataGrid>
 

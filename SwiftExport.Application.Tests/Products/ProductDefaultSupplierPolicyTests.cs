@@ -80,6 +80,8 @@ public sealed class ProductDefaultSupplierPolicyTests
         CollectionAssert.Contains(insertProperties, nameof(Product.DefaultSupplierCode));
         CollectionAssert.Contains(updateProperties, nameof(Product.DefaultSupplierId));
         CollectionAssert.Contains(updateProperties, nameof(Product.DefaultSupplierCode));
+        CollectionAssert.Contains(insertProperties, nameof(Product.Unit));
+        CollectionAssert.Contains(updateProperties, nameof(Product.Unit));
         CollectionAssert.DoesNotContain(insertProperties, nameof(Product.DefaultSupplierSku));
         CollectionAssert.DoesNotContain(updateProperties, nameof(Product.DefaultSupplierSku));
     }

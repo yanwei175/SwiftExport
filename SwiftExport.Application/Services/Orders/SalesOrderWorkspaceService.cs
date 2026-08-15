@@ -7,13 +7,17 @@ using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.Auditing;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
+using SwiftExport.Core.Interfaces.Auditing;
+using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Infrastructure.Data;
+using System.Text.Json;
 
 namespace SwiftExport.Application.Services.Orders;
 
@@ -25,8 +29,13 @@ public sealed class SalesOrderWorkspaceService(
     ICustomerRepository customerRepository,
     ICustomerProductRepository customerProductRepository,
     IGrossDemandRepository grossDemandRepository,
-    IDocumentNoService documentNoService) : ISalesOrderWorkspaceService
+    IDocumentNoService documentNoService,
+    IBusinessOperationLogRepository operationLogs,
+    ICorrelationContext correlationContext,
+    ICurrentUser currentUser) : ISalesOrderWorkspaceService
 {
+    private const string Module = "SalesOrder";
+    private const string CancelConfirmationOperation = "CancelConfirmation";
     private readonly DbSession _session = context.Session;
     private readonly ILogger<SalesOrderWorkspaceService> _logger = context.LoggerFactory.CreateLogger<SalesOrderWorkspaceService>();
 
@@ -214,24 +223,40 @@ public sealed class SalesOrderWorkspaceService(
             };
         }, "确认销售订单失败", uid);
 
-    public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(Guid uid, SalesOrderCommandRequest request)
+    public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(
+        Guid uid,
+        CancelSalesOrderConfirmationCommand request)
         => ExecuteTransactionAsync(async () =>
         {
             ValidateCommandIdentity(uid, request.Uid);
+            var reason = request.Reason?.Trim();
+            if (request.CommandId == Guid.Empty)
+                throw new WorkspaceValidationException("取消确认命令标识不能为空。");
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new WorkspaceValidationException("取消确认原因不能为空。");
+            if (reason.Length > 1000)
+                throw new WorkspaceValidationException("取消确认原因不能超过 1000 个字符。");
+
+            // 固定锁序：销售订单头先于幂等日志和后续订单行/需求范围。
             var header = await headRepository.GetByIdAsync(uid, true)
                 ?? throw new WorkspaceValidationException("销售订单不存在或已删除。");
+            var prior = await operationLogs.GetByCommandAsync(Module, CancelConfirmationOperation, request.CommandId);
+            if (prior is not null)
+            {
+                if (prior.AggregateUid != uid || !string.Equals(prior.Reason, reason, StringComparison.Ordinal))
+                    throw new WorkspaceValidationException("COMMAND_REUSED：同一 CommandId 已用于其他销售订单或不同取消原因。");
+                if (header.ConfirmationStatus != ConfirmationStatusEnum.待确认)
+                    throw new WorkspaceValidationException("取消确认日志与销售订单当前状态不一致，请先修复数据。");
+                var replay = DeserializeCancellationResult(prior.ChangedFieldsJson);
+                replay.Uid = uid;
+                replay.ConfirmationStatus = ConfirmationStatusEnum.待确认;
+                return replay;
+            }
+
             if (header.DocumentStatus != SalesOrderDocumentStatusEnum.Open)
                 throw new WorkspaceValidationException("已关闭的销售订单不能取消确认。");
             if (header.ConfirmationStatus == ConfirmationStatusEnum.待确认)
-            {
-                return new SalesOrderConfirmationResultDto
-                {
-                    Uid = uid,
-                    Version = header.Version,
-                    ConfirmationStatus = ConfirmationStatusEnum.待确认,
-                    GrossDemandCount = 0
-                };
-            }
+                throw new WorkspaceValidationException("销售订单已经是待确认状态。");
             if (header.Version != request.Version)
                 throw new WorkspaceValidationException("销售订单已被其他用户修改，请刷新后重试。");
 
@@ -245,20 +270,46 @@ public sealed class SalesOrderWorkspaceService(
                     DocumentTypeStaticsEnum.SalesOrder,
                     uid,
                     lines.Select(line => line.Uid)))
-                throw new WorkspaceValidationException("销售订单已产生拆解、净需求、收货或出货记录，不能取消确认。");
+                throw new WorkspaceValidationException("销售订单仍有活动拆解、执行关系或正式履约事实，不能取消确认。");
 
-            var deletedDemandCount = await grossDemandRepository.SoftDeleteBySourceAsync(DocumentTypeStaticsEnum.SalesOrder, uid);
-            if (deletedDemandCount != demands.Count)
-                throw new WorkspaceValidationException("部分毛需求状态已变化，销售订单未取消确认。");
+            var historyCounts = await grossDemandRepository.GetNetDemandHistoryCountsForUpdateAsync(
+                demands.Select(demand => demand.Uid));
+            if (await grossDemandRepository.HasInvalidSourceCancellationHistoryAsync(
+                    demands.Select(demand => demand.Uid)))
+                throw new WorkspaceValidationException("毛需求修订、净需求或计划分配历史不完整，不能取消确认。");
+            SalesOrderCancellationPlan plan;
+            try
+            {
+                plan = SalesOrderCancellationPolicy.Build(demands, historyCounts);
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new WorkspaceValidationException(ex.Message);
+            }
+
+            var hardDeletedCount = await grossDemandRepository.HardDeleteNeverDecomposedAsync(
+                plan.HardDeleteGrossDemandIds);
+            if (hardDeletedCount != plan.HardDeleteGrossDemandIds.Count)
+                throw new WorkspaceValidationException("从未拆解的毛需求状态已变化，销售订单未取消确认。");
+            var voidedCount = await grossDemandRepository.VoidRolledBackForSourceCancellationAsync(
+                plan.VoidGrossDemandIds,
+                reason);
+            if (voidedCount != plan.VoidGrossDemandIds.Count)
+                throw new WorkspaceValidationException("已回退毛需求的历史状态已变化，销售订单未取消确认。");
+
             var statusResult = await headRepository.SetConfirmationStatusAsync(uid, request.Version, ConfirmationStatusEnum.待确认);
             EnsureWriteSucceeded(statusResult);
-            return new SalesOrderConfirmationResultDto
+            var result = new SalesOrderConfirmationResultDto
             {
                 Uid = uid,
                 Version = statusResult.NewVersion ?? request.Version + 1,
                 ConfirmationStatus = ConfirmationStatusEnum.待确认,
-                GrossDemandCount = 0
+                GrossDemandCount = 0,
+                HardDeletedGrossDemandCount = hardDeletedCount,
+                VoidedGrossDemandCount = voidedCount
             };
+            await WriteCancellationLogAsync(header, request.CommandId, reason, result);
+            return result;
         }, "取消销售订单确认失败", uid);
 
     public Task<ServiceResult<SalesOrderDocumentDto>> CloseAsync(Guid uid, CloseSalesOrderRequest request)
@@ -545,6 +596,71 @@ public sealed class SalesOrderWorkspaceService(
             throw new WorkspaceValidationException("路由 Uid 与请求体 Uid 不一致。");
     }
 
+    private async Task WriteCancellationLogAsync(
+        SalesOrderHeader header,
+        Guid commandId,
+        string reason,
+        SalesOrderConfirmationResultDto result)
+    {
+        var payload = JsonSerializer.Serialize(new CancellationLogPayload
+        {
+            Version = result.Version,
+            HardDeletedGrossDemandCount = result.HardDeletedGrossDemandCount,
+            VoidedGrossDemandCount = result.VoidedGrossDemandCount
+        });
+        var log = new BusinessOperationLog
+        {
+            Uid = GuidSequentialGenerator.NewGuid(),
+            CorrelationId = Normalize(correlationContext.CorrelationId, 64) ?? commandId.ToString("N"),
+            CommandId = commandId,
+            Module = Module,
+            AggregateType = "SalesOrder",
+            AggregateUid = header.Uid,
+            AggregateNoSnapshot = header.OrderNo,
+            OperationType = CancelConfirmationOperation,
+            OperationName = "销售订单取消确认",
+            Reason = reason,
+            Summary = $"取消确认完成：硬删除 {result.HardDeletedGrossDemandCount} 条毛需求，作废保留 {result.VoidedGrossDemandCount} 条毛需求。",
+            ChangedFieldsJson = payload,
+            UserUid = currentUser.UserId,
+            UserNameSnapshot = currentUser.UserName,
+            OccurredDate = DateTime.Now
+        };
+        if (await operationLogs.InsertAsync(log) != 1)
+            throw new WorkspaceValidationException("销售订单取消确认日志写入失败。");
+    }
+
+    private static SalesOrderConfirmationResultDto DeserializeCancellationResult(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            throw new WorkspaceValidationException("取消确认幂等日志缺少结果数据。");
+        CancellationLogPayload? payload;
+        try
+        {
+            payload = JsonSerializer.Deserialize<CancellationLogPayload>(json);
+        }
+        catch (JsonException)
+        {
+            throw new WorkspaceValidationException("取消确认幂等日志结果数据损坏。");
+        }
+        if (payload is null || payload.Version <= 0)
+            throw new WorkspaceValidationException("取消确认幂等日志结果数据无效。");
+        return new SalesOrderConfirmationResultDto
+        {
+            Version = payload.Version,
+            GrossDemandCount = 0,
+            HardDeletedGrossDemandCount = payload.HardDeletedGrossDemandCount,
+            VoidedGrossDemandCount = payload.VoidedGrossDemandCount
+        };
+    }
+
+    private static string? Normalize(string? value, int maxLength)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrEmpty(text)) return null;
+        return text.Length <= maxLength ? text : text[..maxLength];
+    }
+
     private static void EnsureWriteSucceeded(RepositoryWriteResult result)
     {
         if (!result.Success) throw new WorkspaceValidationException(result.Message ?? "数据库写入失败。");
@@ -626,6 +742,13 @@ public sealed class SalesOrderWorkspaceService(
     }
 
     private sealed class WorkspaceValidationException(string message) : Exception(message);
+
+    private sealed class CancellationLogPayload
+    {
+        public int Version { get; set; }
+        public int HardDeletedGrossDemandCount { get; set; }
+        public int VoidedGrossDemandCount { get; set; }
+    }
 
     private sealed record LineBuildResult(
         IReadOnlyList<SalesOrderLine> ActiveLines,

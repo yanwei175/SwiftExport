@@ -74,10 +74,10 @@ public sealed class SystemSettingsServiceValidationTests
     }
 
     [TestMethod]
-    public void DictCodes_OnlyExposeThreeGenericSystemDictionaries()
+    public void DictCodes_ExposeSupportedGenericSystemDictionaries()
     {
         CollectionAssert.AreEqual(
-            new[] { DictCodes.CustomerType, DictCodes.Incoterm, DictCodes.PaymentMethod },
+            new[] { DictCodes.CustomerType, DictCodes.Incoterm, DictCodes.PaymentMethod, DictCodes.Unit },
             DictCodes.DictCodeList);
 
         CollectionAssert.DoesNotContain(DictCodes.DictCodeList, DictCodes.Currency);

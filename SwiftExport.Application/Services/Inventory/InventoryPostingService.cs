@@ -36,6 +36,7 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
         }
         var lockedBalances = new Dictionary<(Guid WarehouseSiteId, Guid ProductId), InventoryBalance>();
         var lockedSites = new Dictionary<Guid, WarehouseSite>();
+        var lockedProducts = new Dictionary<Guid, SwiftExport.Core.Entities.MasterData.Product>();
 
         // 所有调用方使用相同的仓库、产品锁序，避免多仓批量过账互相等待。
         foreach (var key in orderedItems.Where(x => !preexisting.ContainsKey(x.CommandItemId)).Select(x => (x.WarehouseSiteId, x.ProductId)).Distinct())
@@ -49,17 +50,25 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
                 lockedSites.Add(key.WarehouseSiteId, site);
             }
 
-            if (!await inventory.IsActiveProductAsync(key.ProductId))
-                throw new InventoryPostingException("产品不存在或已停用。");
+            if (!lockedProducts.TryGetValue(key.ProductId, out var product))
+            {
+                product = await inventory.GetActiveProductAsync(key.ProductId)
+                    ?? throw new InventoryPostingException("产品不存在或已停用。");
+                lockedProducts.Add(key.ProductId, product);
+            }
 
             var balance = await inventory.LockBalanceAsync(key.WarehouseSiteId, key.ProductId);
             if (balance is null)
             {
+                var firstItem = orderedItems.First(x =>
+                    x.WarehouseSiteId == key.WarehouseSiteId && x.ProductId == key.ProductId);
                 balance = new InventoryBalance
                 {
                     Uid = GuidSequentialGenerator.NewGuid(),
                     WarehouseSiteId = key.WarehouseSiteId,
                     ProductId = key.ProductId,
+                    SkuSnapshot = EffectiveSnapshot(firstItem.SkuSnapshot, product.Sku, string.Empty),
+                    UnitSnapshot = EffectiveSnapshot(firstItem.UnitSnapshot, product.Unit, "PCS"),
                     OnHandQty = 0,
                     LastLedgerSequence = 0
                 };
@@ -86,8 +95,20 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
                 continue;
             }
             var site = lockedSites[item.WarehouseSiteId];
+            var product = lockedProducts[item.ProductId];
             var balance = lockedBalances[(item.WarehouseSiteId, item.ProductId)];
             var before = balance.OnHandQty;
+            var skuSnapshot = EffectiveSnapshot(item.SkuSnapshot, product.Sku, string.Empty);
+            var unitSnapshot = EffectiveSnapshot(item.UnitSnapshot, product.Unit, "PCS");
+            if (before != 0
+                && !string.IsNullOrWhiteSpace(balance.UnitSnapshot)
+                && !string.Equals(balance.UnitSnapshot.Trim(), unitSnapshot, StringComparison.OrdinalIgnoreCase))
+                throw new InventoryPostingException(
+                    $"产品 {skuSnapshot} 的库存余额单位为 {balance.UnitSnapshot}，不能按 {unitSnapshot} 继续过账。");
+            if (before == 0 || string.IsNullOrWhiteSpace(balance.SkuSnapshot))
+                balance.SkuSnapshot = skuSnapshot;
+            if (before == 0 || string.IsNullOrWhiteSpace(balance.UnitSnapshot))
+                balance.UnitSnapshot = unitSnapshot;
             var after = before + item.QuantityDelta;
             if (after < 0 && (!item.AllowNegativeStock || item.TransactionType != InventoryTransactionTypeEnum.NegativeStockExceptionOutbound || string.IsNullOrWhiteSpace(item.Reason)))
                 throw new InventoryPostingException("正常出库后库存不能为负；负库存异常必须使用专用类型并填写原因。");
@@ -99,7 +120,8 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
                 Uid = GuidSequentialGenerator.NewGuid(), Sequence = sequence, WarehouseSiteId = item.WarehouseSiteId, ProductId = item.ProductId,
                 TransactionType = item.TransactionType, QuantityDelta = item.QuantityDelta, BalanceAfter = after, SourceDocumentType = item.SourceDocumentType,
                 SourceDocumentId = item.SourceDocumentId, SourceLineId = item.SourceLineId, ReversalOfLedgerId = item.ReversalOfLedgerId, CommandId = commandId, CommandItemId = item.CommandItemId,
-                Reason = Normalize(item.Reason, 500), OccurredDate = item.OccurredDate == default ? DateTime.Now : item.OccurredDate, WarehouseCodeSnapshot = site.Code
+                Reason = Normalize(item.Reason, 500), OccurredDate = item.OccurredDate == default ? DateTime.Now : item.OccurredDate, WarehouseCodeSnapshot = site.Code,
+                SkuSnapshot = skuSnapshot, UnitSnapshot = unitSnapshot
             };
             if (await inventory.InsertLedgerAsync(ledger) != 1) throw new InventoryPostingException("库存流水写入失败。");
             results.Add(new InventoryPostingResultDto { CommandItemId = item.CommandItemId, LedgerId = ledger.Uid, BeforeQty = before, Delta = item.QuantityDelta, AfterQty = after });
@@ -118,10 +140,20 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
             && existing.SourceDocumentId == item.SourceDocumentId
             && existing.SourceLineId == item.SourceLineId
             && existing.ReversalOfLedgerId == item.ReversalOfLedgerId
+            && (string.IsNullOrWhiteSpace(item.SkuSnapshot)
+                || string.Equals(existing.SkuSnapshot?.Trim(), item.SkuSnapshot.Trim(), StringComparison.OrdinalIgnoreCase))
+            && (string.IsNullOrWhiteSpace(item.UnitSnapshot)
+                || string.Equals(existing.UnitSnapshot?.Trim(), item.UnitSnapshot.Trim(), StringComparison.OrdinalIgnoreCase))
             && string.Equals(Normalize(existing.Reason, 500), Normalize(item.Reason, 500), StringComparison.Ordinal)
             && (item.OccurredDate == default || existing.OccurredDate == item.OccurredDate);
 
     private static string? Normalize(string? text, int max) { var value = text?.Trim(); return string.IsNullOrEmpty(value) ? null : value[..Math.Min(value.Length, max)]; }
+
+    private static string EffectiveSnapshot(string? preferred, string? fallback, string defaultValue)
+    {
+        var value = string.IsNullOrWhiteSpace(preferred) ? fallback : preferred;
+        return string.IsNullOrWhiteSpace(value) ? defaultValue : value.Trim();
+    }
 }
 
 public sealed class InventoryPostingException(string message) : Exception(message);

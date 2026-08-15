@@ -14,6 +14,8 @@ public sealed class InventoryPostingItem
     public Guid CommandItemId { get; set; }
     public Guid WarehouseSiteId { get; set; }
     public Guid ProductId { get; set; }
+    public string? SkuSnapshot { get; set; }
+    public string? UnitSnapshot { get; set; }
     public decimal QuantityDelta { get; set; }
     public InventoryTransactionTypeEnum TransactionType { get; set; }
     public string SourceDocumentType { get; set; } = string.Empty;

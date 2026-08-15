@@ -44,7 +44,7 @@ public sealed class InboundSourceRepository(RepositoryBaseContext context) : IIn
     {
         var hint = lockRows ? "WITH(UPDLOCK,HOLDLOCK)" : string.Empty;
         var sql = type == InboundDocumentTypeEnum.CustomerSuppliedReceipt ? $"""
-            SELECT a.Uid AS SourceUid,a.Version AS SourceVersion,CAST(@SourceType AS int) AS SourceType,nd.ProductId,nd.SkuSnapshot AS Sku,COALESCE(p.DescriptionZh,p.DescriptionEn,nd.SkuSnapshot) AS Description,COALESCE(p.Unit,N'PCS') AS Unit,
+            SELECT a.Uid AS SourceUid,a.Version AS SourceVersion,CAST(@SourceType AS int) AS SourceType,nd.ProductId,nd.SkuSnapshot AS Sku,COALESCE(p.DescriptionZh,p.DescriptionEn,nd.SkuSnapshot) AS Description,COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),N'PCS') AS Unit,
                    a.PlannedQty AS EffectiveQty,CAST(0 AS decimal(18,4)) AS ReceivedQty,a.PlannedQty AS RemainingReceivableQty,w.Uid AS WarehouseSiteId,w.Name AS WarehouseName,w.SupplierId,w.SupplierNameSnapshot AS SupplierName,
                    CAST(NULL AS uniqueidentifier) AS DemandExecutionLinkId,a.Uid AS NetDemandAllocationId,CAST(NULL AS nvarchar(100)) AS PurchaseOrderNo,gd.SourceNo AS SalesOrderNo
             FROM dbo.NetDemandAllocation a {hint} INNER JOIN dbo.NetDemand nd ON nd.Uid=a.NetDemandId AND ISNULL(nd.IsDeleted,0)=0 INNER JOIN dbo.GrossDemand gd ON gd.Uid=nd.GrossDemandId AND ISNULL(gd.IsDeleted,0)=0
@@ -52,7 +52,7 @@ public sealed class InboundSourceRepository(RepositoryBaseContext context) : IIn
             INNER JOIN dbo.WarehouseSite w ON w.SupplierId=parent.PurchaseSupplierId AND w.SiteType=0 AND w.IsActive=1 AND ISNULL(w.IsDeleted,0)=0 LEFT JOIN dbo.Product p ON p.Uid=nd.ProductId AND ISNULL(p.IsDeleted,0)=0
             WHERE a.LifecycleStatus=0 AND a.DeliveryTargetAllocationId IS NOT NULL AND ISNULL(a.IsDeleted,0)=0;
             """ : $"""
-            SELECT l.Uid AS SourceUid,l.Version AS SourceVersion,CAST(@SourceType AS int) AS SourceType,pol.ProductId,pol.Sku,COALESCE(p.DescriptionZh,p.DescriptionEn,pol.Sku) AS Description,COALESCE(p.Unit,pol.UnitSnapshot,N'PCS') AS Unit,
+            SELECT l.Uid AS SourceUid,l.Version AS SourceVersion,CAST(@SourceType AS int) AS SourceType,pol.ProductId,pol.Sku,COALESCE(p.DescriptionZh,p.DescriptionEn,pol.Sku) AS Description,COALESCE(NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N''),NULLIF(LTRIM(RTRIM(p.Unit)),N''),N'PCS') AS Unit,
                    l.AllocatedQty-l.ReleasedQty AS EffectiveQty,CAST(0 AS decimal(18,4)) AS ReceivedQty,l.AllocatedQty-l.ReleasedQty AS RemainingReceivableQty,w.Uid AS WarehouseSiteId,w.Name AS WarehouseName,w.SupplierId,w.SupplierNameSnapshot AS SupplierName,
                    l.Uid AS DemandExecutionLinkId,l.NetDemandAllocationId,h.OrderNo AS PurchaseOrderNo,gd.SourceNo AS SalesOrderNo
             FROM dbo.DemandExecutionLink l {hint} INNER JOIN dbo.PurchaseOrderLine pol ON pol.Uid=l.TargetLineId AND ISNULL(pol.IsDeleted,0)=0 INNER JOIN dbo.PurchaseOrderHead h ON h.Uid=l.TargetHeadId AND h.ConfirmationStatus=1 AND ISNULL(h.IsDeleted,0)=0

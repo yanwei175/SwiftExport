@@ -27,10 +27,10 @@
             <RowDefinition Height="4" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="0.5*" />
-            <RowDefinition Height="5" />
-            <RowDefinition Height="*" />
             <RowDefinition Height="4" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="5" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0">
@@ -284,17 +284,28 @@ EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     gridColumns:GridColumn.Key="updated-date" />
             </DataGrid.Columns>
         </DataGrid>
+        
+        <Grid Grid.Row="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="{Binding PageStatus}" Style="{StaticResource CaptionTextBlock}" Margin="16,0" VerticalAlignment="Center" />
+            <controls:PageNavigator Grid.Column="2" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}" PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}" />
+        </Grid>
 
-        <GridSplitter Grid.Row="4" Height="5" HorizontalAlignment="Stretch" />
+        <GridSplitter Grid.Row="6" Height="5" HorizontalAlignment="Stretch" />
 
-        <DataGrid Grid.Row="5"
+        <DataGrid Grid.Row="7"
                   RowHeight="{StaticResource DataGridRowHeightMedium}"
                   FontSize="{StaticResource SwiftExportDefaltFontSize}"
                   ItemsSource="{Binding SelectedOrderLines}"
                   Style="{StaticResource SwiftExportDataGrid}"
                   HeadersVisibility="Column"
                   IsReadOnly="True"
-                  SelectionMode="Single"
+                  SelectionMode="Extended"
                   SelectionUnit="CellOrRowHeader"
                   AutoGenerateColumns="False"
                   gridCore:EnterpriseGrid.IsEnabled="True"
@@ -356,11 +367,6 @@ EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
             </DataGrid.Columns>
         </DataGrid>
 
-        <Grid Grid.Row="7">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-            <TextBlock Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1" Text="{Binding PageStatus}" Style="{StaticResource CaptionTextBlock}" Margin="16,0" VerticalAlignment="Center" />
-            <controls:PageNavigator Grid.Column="2" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}" PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}" />
-        </Grid>
+
     </Grid>
 </UserControl>

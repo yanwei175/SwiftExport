@@ -22,6 +22,7 @@ public sealed class ProductAndBomListModelTests
             CNYPrice = 12.34m,
             USDPrice = 1.75m,
             Sku = "P-1",
+            Unit = "PCS",
             DefaultSupplierId = defaultSupplierId,
             DefaultSupplierCode = "SUP-1",
         });
@@ -30,6 +31,7 @@ public sealed class ProductAndBomListModelTests
         Assert.IsTrue(productDto.IsDeleted);
         Assert.AreEqual(12.34m, productDto.CNYPrice);
         Assert.AreEqual(1.75m, productDto.USDPrice);
+        Assert.AreEqual("PCS", productDto.Unit);
         Assert.AreEqual(defaultSupplierId, productDto.DefaultSupplierId);
         Assert.AreEqual("SUP-1", productDto.DefaultSupplierCode);
 

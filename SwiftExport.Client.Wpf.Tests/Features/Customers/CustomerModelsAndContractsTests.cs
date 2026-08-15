@@ -5,6 +5,7 @@ using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Customers.Responses;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Features.Customers.CustomerManagement.Models;
 using SwiftExportClient.Features.Customers.CustomerProducts.Models;
 using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
@@ -60,6 +61,31 @@ public sealed class CustomerModelsAndContractsTests
     }
 
     [TestMethod]
+    public void CustomerProduct_ShouldNotExposeUnitOrCurrency()
+    {
+        var list = new CustomerProductListModel();
+
+        var line = list.AddNewItem(Guid.NewGuid(), "C001");
+
+        Assert.IsNull(typeof(CustomerProductDto).GetProperty("CustomerSkuUnit"));
+        Assert.IsNull(typeof(CustomerProductDto).GetProperty("Currency"));
+        Assert.IsNull(typeof(CustomerProductLineModel).GetProperty("CustomerSkuUnit"));
+        Assert.IsNull(typeof(CustomerProductLineModel).GetProperty("Currency"));
+        Assert.AreEqual(LineState.Added, line.State);
+    }
+
+    [TestMethod]
+    public void CustomerProductSelectionMode_ShouldDefaultToFullRow()
+    {
+        var viewModel = new CustomerProductManagerViewModel(
+            null!, null!, null!, null!, null!);
+
+        Assert.IsFalse(viewModel.IsCellSelectionMode);
+        viewModel.IsCellSelectionMode = true;
+        Assert.IsTrue(viewModel.IsCellSelectionMode);
+    }
+
+    [TestMethod]
     public void SaveResponse_ShouldUseClientKeyAndUpdateIdentityWithoutReload()
     {
         var list = new CustomerListModel();
@@ -103,13 +129,21 @@ public sealed class CustomerModelsAndContractsTests
         var registry = new NavigationRouteRegistry();
         Assert.IsTrue(registry.TryGetRoute("customers", out var customerRoute));
         Assert.AreEqual("客户管理", customerRoute.Title);
-        Assert.IsFalse(registry.TryGetRoute("customer-products", out _));
+        Assert.IsTrue(registry.TryGetRoute(CustomerProductWorkspaceViewModel.RouteKey, out var customerProductRoute));
+        Assert.AreEqual(typeof(CustomerProductWorkspaceViewModel), customerProductRoute.ViewModelType);
+
+        var customerGroup = registry.MenuItems.Single(item => item.RouteKey == "customers");
+        Assert.AreEqual("客户", customerGroup.Title);
+        CollectionAssert.AreEqual(
+            new[] { "customers", CustomerProductWorkspaceViewModel.RouteKey },
+            customerGroup.Children.Select(item => item.RouteKey).ToArray());
     }
 
     [TestMethod]
     public void ProductLookup_ShouldFillStandardFieldsWithoutOverwritingCustomerValues_AndClearExplicitly()
     {
-        var viewModel = new CustomerProductManagerViewModel(null!, null!, null!, null!, null!);
+        var viewModel = new CustomerProductManagerViewModel(
+            null!, null!, null!, null!, null!);
         var line = new CustomerProductLineModel
         {
             CustomerPdDescription = "客户自定义描述",

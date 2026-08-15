@@ -8,6 +8,7 @@ using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
@@ -18,7 +19,8 @@ public partial class ProductService(IProductRepository productRepository, Servic
     IProductCategoryRepository categoryRepository,
     IProductColorRepository colorRepository,
     ISupplierRepository supplierRepository,
-    IBomRepository bomRepository)
+    IBomRepository bomRepository,
+    ISysDictDataRepository dictDataRepository)
     : BaseService<Product, ProductDto>(productRepository, context), IProductService
 {
     private readonly ILogger<ProductService> _logger = context.LoggerFactory.CreateLogger<ProductService>();
@@ -42,6 +44,10 @@ public partial class ProductService(IProductRepository productRepository, Servic
 
         var referenceError = await ValidateMasterDataReferencesAsync(createItems.Select(item => item.Data));
         if (referenceError is not null) return referenceError;
+
+        var unitError = await ValidateAndNormalizeUnitsAsync(
+            createItems.Select(item => new ProductUnitValidationItem(item.Data, null, item.RowIndex)));
+        if (unitError is not null) return unitError;
 
         foreach (var item in createItems)
         {
@@ -76,6 +82,7 @@ public partial class ProductService(IProductRepository productRepository, Servic
         var missingIds = ids.Except(existingProductsById.Select(product => product.Uid)).ToArray();
         if (missingIds.Length > 0)
             return "修改失败：包含不存在或已删除的产品：" + string.Join(", ", missingIds);
+        var existingById = existingProductsById.ToDictionary(product => product.Uid);
 
         var existingProductsBySku = await productRepository.GetBySkuListAsync(
             updateItems.Select(item => item.Data.Sku));
@@ -91,6 +98,10 @@ public partial class ProductService(IProductRepository productRepository, Servic
 
         var referenceError = await ValidateMasterDataReferencesAsync(updateItems.Select(item => item.Data));
         if (referenceError is not null) return referenceError;
+
+        var unitError = await ValidateAndNormalizeUnitsAsync(updateItems.Select(item =>
+            new ProductUnitValidationItem(item.Data, existingById[item.Uid].Unit, item.RowIndex)));
+        if (unitError is not null) return unitError;
 
         foreach (var item in updateItems)
         {
@@ -485,6 +496,13 @@ public partial class ProductService(IProductRepository productRepository, Servic
         }
 
         return ProductDefaultSupplierPolicy.Normalize(items, suppliers);
+    }
+
+    private async Task<string?> ValidateAndNormalizeUnitsAsync(IEnumerable<ProductUnitValidationItem> source)
+    {
+        var items = source.ToArray();
+        var dictionaryItems = await dictDataRepository.GetByCodeAsync(DictCodes.Unit);
+        return ProductUnitPolicy.Normalize(items, dictionaryItems);
     }
 
     private static string? ValidateProduct(ProductDto? product, int? rowIndex, string operation)

@@ -96,6 +96,33 @@ public class CustomerProductServices(
             return ServiceResult<CustomerProductBatchSaveResponse>.Fail("没有需要保存的数据。");
         }
 
+        var writeDtos = batchReq.CreateItems
+            .Where(item => item.Data is not null)
+            .Select(item => item.Data)
+            .Concat(batchReq.UpdateItems
+                .Where(item => item.Data is not null)
+                .Select(item => item.Data))
+            .ToList();
+        var customerIds = writeDtos
+            .Select(dto => dto.CustomerId)
+            .Where(customerId => customerId != Guid.Empty)
+            .Distinct()
+            .ToArray();
+        if (customerIds.Length > 0)
+        {
+            var customers = await customerRepository.GetByIdListAsync(customerIds);
+            var customersById = customers.ToDictionary(customer => customer.Uid);
+            var missingCustomerIds = customerIds
+                .Where(customerId => !customersById.ContainsKey(customerId))
+                .ToArray();
+            if (missingCustomerIds.Length > 0)
+            {
+                return ServiceResult<CustomerProductBatchSaveResponse>.Fail(
+                    "保存失败：包含不存在或已删除的客户：" + string.Join(", ", missingCustomerIds));
+            }
+
+        }
+
         var validationError = await ValidateBatchSaveAsync(batchReq);
 
         if (!string.IsNullOrWhiteSpace(validationError))
