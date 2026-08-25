@@ -10,7 +10,9 @@
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             mc:Ignorable="d" d:Width="1600" d:Height="900">
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance viewModels:NetDemandWorkspaceViewModel}"
+             d:Width="1600" d:Height="900">
     <UserControl.Resources>
         <DataTemplate DataType="{x:Type viewModels:NetDemandPlanEditorViewModel}">
             <views:NetDemandPlanEditorView />
@@ -18,6 +20,7 @@
         <DataTemplate DataType="{x:Type viewModels:NetDemandTraceViewModel}">
             <views:NetDemandTraceView />
         </DataTemplate>
+        
         <Style x:Key="NetDemandToolbarButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinHeight" Value="32" />
             <Setter Property="Padding" Value="8,4" />
@@ -41,7 +44,7 @@
                             <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                         </TextBox.InputBindings>
                     </TextBox>
-                    <Button Grid.Column="2" Width="36" Style="{StaticResource AccentButton}"
+                    <Button Grid.Column="2" Width="40" Style="{StaticResource AccentButton}"
                             Command="{Binding SearchCommand}" ToolTip="查询">
                         <ui:SymbolIcon Symbol="Search24" />
                     </Button>
@@ -113,15 +116,21 @@
                           gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                           gridSelection:GridSelection.CurrentRow="{Binding SelectedItem, Mode=TwoWay}">
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Width="42" CanUserSort="False"
+                        <DataGridTemplateColumn Width="45" CanUserSort="False"
                                                 gridColumns:GridColumn.Key="selected"
                                                 gridColumns:GridColumn.CanExport="False"
                                                 gridColumns:GridColumn.CanFilter="False">
                             <DataGridTemplateColumn.HeaderTemplate>
-                                <DataTemplate><CheckBox IsThreeState="True" IsChecked="{Binding DataContext.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}" /></DataTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsThreeState="False" 
+                                              IsChecked="{Binding DataContext.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}" />
+                                </DataTemplate>
                             </DataGridTemplateColumn.HeaderTemplate>
                             <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate><CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
+                                <DataTemplate>
+                                    <CheckBox Margin="3,0,0,0"
+                                              IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                         

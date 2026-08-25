@@ -33,7 +33,7 @@
 
         <Border Grid.Column="0"
                 Padding="8"
-                Background="{DynamicResource SwiftExportBrush.SurfaceMuted}"
+                Background="Transparent"
                 BorderBrush="{DynamicResource SwiftExportBrush.Border}"
                 BorderThickness="{StaticResource SwiftExportBorderThickness}"
                 CornerRadius="{StaticResource SwiftExportControlCornerRadius}">
@@ -146,7 +146,7 @@
 
             <Border Padding="12"
                     IsEnabled="{Binding HasTypeEditor}"
-                    Background="{DynamicResource SwiftExportBrush.SurfaceMuted}"
+                    Background="Transparent"
                     BorderBrush="{DynamicResource SwiftExportBrush.Border}"
                     BorderThickness="{StaticResource SwiftExportBorderThickness}"
                     CornerRadius="{StaticResource SwiftExportControlCornerRadius}">

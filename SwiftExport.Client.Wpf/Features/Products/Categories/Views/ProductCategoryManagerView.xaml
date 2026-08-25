@@ -11,6 +11,7 @@
              mc:Ignorable="d"
              d:DesignWidth="1200"
              d:DesignHeight="800"
+             Background="{DynamicResource MicaControlBrush}"
              HorizontalContentAlignment="Stretch"
              VerticalContentAlignment="Stretch">
     <UserControl.Resources>
@@ -94,7 +95,7 @@
                     CommandParameter="{Binding CurrentCategory}"
                     MinWidth="96"
                     Margin="8,0,0,0" />
-            <ui:Button Content="删除" Appearance="Danger"
+            <ui:Button Content="删除"
                     Command="{Binding DeleteCommand}"
                     CommandParameter="{Binding CurrentCategory}"
                     MinWidth="96"
@@ -113,8 +114,8 @@
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
-                    Background="{DynamicResource SwiftExportBrush.Surface}"
-                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                    Background="Transparent"
+                    BorderBrush="{DynamicResource SubFillColorSecondaryBrush}"
                     BorderThickness="{StaticResource SwiftExportBorderThickness}"
                     CornerRadius="{StaticResource SwiftExportCornerRadius}"
                     Padding="{StaticResource CardPadding}">
@@ -171,7 +172,7 @@
             </Border>
 
             <Border Grid.Column="2"
-                    Background="{DynamicResource SwiftExportBrush.Surface}"
+                    Background="Transparent"
                     BorderBrush="{DynamicResource SwiftExportBrush.Border}"
                     BorderThickness="{StaticResource SwiftExportBorderThickness}"
                     CornerRadius="{StaticResource SwiftExportCornerRadius}"

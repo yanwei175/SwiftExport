@@ -122,20 +122,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\MateWpfThemes.FW\MateWpfThemes.FW.csproj">
-      <Project>{b3628874-4979-473d-b483-cedd4740f830}</Project>
-      <Name>MateWpfThemes.FW</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj">
-      <Project>{73faa5c6-c278-4c02-80d0-27a24a6b831a}</Project>
-      <Name>SwiftExport.Contracts</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\SwiftExport.View.FW\SwiftExport.View.FW.csproj">
-      <Project>{c1efb3ce-47eb-4f67-a289-d50a3c30ba10}</Project>
-      <Name>SwiftExport.View.FW</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces">
       <Version>10.0.3</Version>
     </PackageReference>

@@ -10,15 +10,25 @@
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             mc:Ignorable="d" d:Width="1600" d:Height="900">
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance viewModels:GrossDemandWorkspaceViewModel}"
+             d:Width="1600" d:Height="900">
     <UserControl.Resources>
+        
         <DataTemplate DataType="{x:Type viewModels:GrossDemandManualEditorViewModel}">
             <views:GrossDemandManualEditorView />
         </DataTemplate>
+        
         <DataTemplate DataType="{x:Type viewModels:GrossDemandTraceViewModel}">
             <views:GrossDemandTraceView />
         </DataTemplate>
+        
         <Style x:Key="GrossDemandToolbarButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Margin" Value="0,0,4,0" />
+        </Style>
+        <Style x:Key="GrossDemandToolbarToggleButton" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
             <Setter Property="MinHeight" Value="32" />
             <Setter Property="Padding" Value="8,4" />
             <Setter Property="Margin" Value="0,0,4,0" />
@@ -53,37 +63,83 @@
                         <Button Command="{Binding CloseSelectedManualCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="关闭手工" />
                         <Button Command="{Binding DecomposeSelectedCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="拆解" />
                         <Button Command="{Binding RollbackSelectedCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="安全回退" />
+
                         <Button Command="{Binding OpenSourceCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="来源追溯" />
-                        <Button Command="{Binding OpenTraceCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="拆解结果" />
+
+                        <ToggleButton Command="{Binding ToggleTraceCommand}"
+                                      IsChecked="{Binding IsTraceOpen, Mode=OneWay}"
+                                      Style="{StaticResource GrossDemandToolbarToggleButton}"
+                                      Content="拆解结果" />
+
                         <Button Command="{Binding RefreshCommand}" Style="{StaticResource GrossDemandToolbarButton}">
                             <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="ArrowClockwise24"/><TextBlock Margin="6,0,0,0" Text="刷新"/></StackPanel>
                         </Button>
+                        
                     </StackPanel>
                 </Grid>
 
                 <StackPanel Grid.Row="2">
-                    <Grid ColumnDefinitions="128,4,128,4,128,4,128,4,128,4,128,4,Auto,*">
-                        <controls:DropDownCheckBox Grid.Column="0" Placeholder="来源类型" DisplayMemberPath="DisplayText"
+                    <Grid ColumnDefinitions="Auto,4,128,4,128,4,128,4,128,4,128,4,128,4,Auto,4,*">
+                        <ToggleButton Content="多行条件"
+                                      IsChecked="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
+                                      MinHeight="34"
+                                      HorizontalAlignment="Left"/>
+                        <controls:DropDownCheckBox Grid.Column="2" Placeholder="来源类型" DisplayMemberPath="DisplayText"
                                                    ItemsSource="{Binding SourceTypeOptions}" SelectedItems="{Binding SelectedSourceTypes, Mode=OneWay}" />
-                        <controls:DropDownCheckBox Grid.Column="2" Placeholder="生命周期" DisplayMemberPath="DisplayText"
-                                                   ItemsSource="{Binding LifecycleStatusOptions}" SelectedItems="{Binding SelectedLifecycleStatuses, Mode=OneWay}" />
-                        <controls:DropDownCheckBox Grid.Column="4" Placeholder="拆解状态" DisplayMemberPath="DisplayText"
+                        <controls:DropDownCheckBox Grid.Column="4" Placeholder="生命周期" DisplayMemberPath="DisplayText"
+                                                   ItemsSource="{Binding LifecycleStatusOptions}"
+                                                   SelectedItems="{Binding SelectedLifecycleStatuses, Mode=OneWay}" />
+                        <controls:DropDownCheckBox Grid.Column="6" Placeholder="拆解状态" DisplayMemberPath="DisplayText"
                                                    ItemsSource="{Binding DecompositionStatusOptions}" SelectedItems="{Binding SelectedDecompositionStatuses, Mode=OneWay}" />
-                        <controls:DropDownCheckBox Grid.Column="6" Placeholder="执行进度" DisplayMemberPath="DisplayText"
-                                                   ItemsSource="{Binding ExecutionProgressOptions}" SelectedItems="{Binding SelectedExecutionProgresses, Mode=OneWay}" />
-                        <ComboBox Grid.Column="8" ItemsSource="{Binding StandardTypeOptions}" DisplayMemberPath="DisplayText"
+                        <controls:DropDownCheckBox Grid.Column="8" Placeholder="执行进度" DisplayMemberPath="DisplayText"
+                                                   ItemsSource="{Binding ExecutionProgressOptions}"
+                                                   SelectedItems="{Binding SelectedExecutionProgresses, Mode=OneWay}" />
+                        <ComboBox Grid.Column="10" ItemsSource="{Binding StandardTypeOptions}"
+                                  DisplayMemberPath="DisplayText"
                                   SelectedItem="{Binding SelectedStandardType}" />
-                        <DatePicker Grid.Column="10" ToolTip="需求交期从" SelectedDate="{Binding RequiredDateFrom}" />
-                        <DatePicker Grid.Column="12" ToolTip="需求交期到" SelectedDate="{Binding RequiredDateTo}" />
-                        <Button Grid.Column="14" Content="清空筛选" Command="{Binding ClearFiltersCommand}" />
+                        <DatePicker Grid.Column="12" 
+                                    ToolTip="需求交期从" 
+                                    SelectedDate="{Binding RequiredDateFrom}" />
+                        <DatePicker Grid.Column="14" 
+                                    ToolTip="需求交期到" 
+                                    SelectedDate="{Binding RequiredDateTo}" />
+                        <Button Grid.Column="16" 
+                                Content="清空筛选"
+                                Command="{Binding ClearFiltersCommand}" />
                     </Grid>
-                    <Expander Header="多行条件" IsExpanded="False" Margin="0,2,0,0">
-                        <Grid Margin="0,4" ColumnDefinitions="*,4,*,4,*">
-                            <controls:PopupTextBox Grid.Column="0" Placeholder="来源单号（支持多行）" Text="{Binding SourceNosText}" PopupHeight="220" />
-                            <controls:PopupTextBox Grid.Column="2" Placeholder="SKU（支持多行）" Text="{Binding SkusText}" PopupHeight="220" />
-                            <controls:PopupTextBox Grid.Column="4" Placeholder="客户型号（支持多行）" Text="{Binding CustomerSkusText}" PopupHeight="220" />
-                        </Grid>
-                    </Expander>
+                    <Popup IsOpen="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
+                           Placement="Bottom"
+                           PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType={x:Type StackPanel}}}"
+                           Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
+                           VerticalOffset="4"
+                           AllowsTransparency="True"
+                           PopupAnimation="Fade"
+                           StaysOpen="True">
+                        <Border Padding="6" 
+                                Background="{DynamicResource SwiftExportBrush.Surface}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                            <Grid ColumnDefinitions="*,4,*,4,*">
+                                <ui:TextBox Grid.Column="0"
+                                                       PlaceholderText="来源单号（支持多行）"
+                                                       Text="{Binding SourceNosText}"
+                                                       VerticalAlignment="Top"
+                                                       Height="220" />
+                                <ui:TextBox Grid.Column="2"
+                                                       PlaceholderText="SKU（支持多行）"
+                                                       Text="{Binding SkusText}"
+                                                       VerticalAlignment="Top"
+                                                       Height="220" />
+                                <ui:TextBox Grid.Column="4"
+                                            PlaceholderText="客户型号（支持多行）"
+                                            Text="{Binding CustomerSkusText}"
+                                            AcceptsReturn="True"
+                                            TextWrapping="Wrap"
+                                            VerticalAlignment="Top"
+                                            Height="220" />
+                            </Grid>
+                        </Border>
+                    </Popup>
                 </StackPanel>
 
                 <DataGrid Grid.Row="4" ItemsSource="{Binding Items}" 

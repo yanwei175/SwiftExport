@@ -3,13 +3,22 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:views="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.Views"
              mc:Ignorable="d" d:Width="720" d:Height="800">
     <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,2*,8,*">
-        <StackPanel>
-            <TextBlock Text="需求追溯" FontSize="16" FontWeight="SemiBold" />
-            <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}"
-                       Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
-        </StackPanel>
+        <Grid ColumnDefinitions="*,Auto">
+            <StackPanel>
+                <TextBlock Text="需求追溯" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}"
+                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+            </StackPanel>
+            <Button x:Name="CloseButton"
+                    Grid.Column="1"
+                    Content="关闭"
+                    Command="{Binding DataContext.CloseDrawerCommand, RelativeSource={RelativeSource AncestorType={x:Type views:GrossDemandWorkspaceView}}}"
+                    MinWidth="72"
+                    VerticalAlignment="Top" />
+        </Grid>
 
         <Grid Grid.Row="2" DataContext="{Binding GrossDemand}" ColumnDefinitions="Auto,12,*,12,Auto,12,*">
             <StackPanel>

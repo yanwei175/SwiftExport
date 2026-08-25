@@ -31,7 +31,10 @@ internal sealed class GridSelectionModule
         _isAttached = true;
         _dataGrid.SelectionChanged += OnSelectionChanged;
         _dataGrid.CurrentCellChanged += OnCurrentCellChanged;
-        _dataGrid.PreviewMouseLeftButtonDown += OnPreviewMouseLeftButtonDown;
+        _dataGrid.AddHandler(
+            UIElement.MouseLeftButtonDownEvent,
+            new MouseButtonEventHandler(OnMouseLeftButtonDown),
+            handledEventsToo: true);
         _dataGrid.ItemContainerGenerator.ItemsChanged += OnItemsChanged;
         ApplyInitialState();
     }
@@ -45,7 +48,9 @@ internal sealed class GridSelectionModule
 
         _dataGrid.SelectionChanged -= OnSelectionChanged;
         _dataGrid.CurrentCellChanged -= OnCurrentCellChanged;
-        _dataGrid.PreviewMouseLeftButtonDown -= OnPreviewMouseLeftButtonDown;
+        _dataGrid.RemoveHandler(
+            UIElement.MouseLeftButtonDownEvent,
+            new MouseButtonEventHandler(OnMouseLeftButtonDown));
         _dataGrid.ItemContainerGenerator.ItemsChanged -= OnItemsChanged;
         CancelPendingSynchronization();
         GridSelection.SetNativeCurrentCellStateFromView(_dataGrid, new DataGridCellInfo());
@@ -199,10 +204,13 @@ internal sealed class GridSelectionModule
         ScheduleSynchronization();
     }
 
-    private void OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.OriginalSource is DependencyObject source)
         {
+            // 必须等 DataGridCell 的原生鼠标类处理器完成后再执行后备同步。
+            // Preview 阶段预写 CurrentCell 会在同一次点击中提前聚焦已选 Cell，
+            // 使原生 DataGridCell 将普通跨 Cell 单击误判为编辑入口。
             SynchronizeCellClick(source);
         }
     }

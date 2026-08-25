@@ -2,7 +2,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Wpf.EnterpriseGrid.Core;
@@ -88,6 +90,35 @@ public sealed class GridRowHeaderTests
     }
 
     [TestMethod]
+    public void ShowRowNumber_ShouldPreserveHostDefinedRowHeaderPresentation()
+    {
+        StaTest.Run(() =>
+        {
+            var rows = new ObservableCollection<TestRow> { new("A") };
+            var rowHeaderStyle = new Style(typeof(DataGridRowHeader));
+            var rowHeaderTemplate = new DataTemplate();
+            var dataGrid = CreateGrid(rows);
+            dataGrid.RowHeaderStyle = rowHeaderStyle;
+            dataGrid.RowHeaderTemplate = rowHeaderTemplate;
+            dataGrid.RowHeaderWidth = 40;
+            using var host = Show(dataGrid);
+
+            AssertRowHeaderPresentation(dataGrid, rowHeaderStyle, rowHeaderTemplate, 40d);
+            AssertRealizedRowHeader(dataGrid, expectedContent: 1, rowHeaderTemplate);
+
+            GridRowHeader.SetShowRowNumber(dataGrid, false);
+            AssertRowHeaderPresentation(dataGrid, rowHeaderStyle, rowHeaderTemplate, 40d);
+            AssertRealizedRowHeader(dataGrid, expectedContent: null, rowHeaderTemplate);
+
+            GridRowHeader.SetShowRowNumber(dataGrid, true);
+            DrainDispatcher();
+            AssertRowHeaderPresentation(dataGrid, rowHeaderStyle, rowHeaderTemplate, 40d);
+            AssertRowNumbers(dataGrid);
+            AssertRealizedRowHeader(dataGrid, expectedContent: 1, rowHeaderTemplate);
+        });
+    }
+
+    [TestMethod]
     public void ShowRowNumber_VirtualizedRecycledRow_ShouldUseViewIndexWithoutBusinessRowIndex()
     {
         StaTest.Run(() =>
@@ -139,6 +170,50 @@ public sealed class GridRowHeaderTests
                 Assert.AreEqual(index + 1, row.Header);
             }
         }
+    }
+
+    private static void AssertRowHeaderPresentation(
+        DataGrid dataGrid,
+        Style expectedStyle,
+        DataTemplate expectedTemplate,
+        double expectedWidth)
+    {
+        Assert.AreSame(expectedStyle, dataGrid.RowHeaderStyle);
+        Assert.AreSame(expectedTemplate, dataGrid.RowHeaderTemplate);
+        Assert.AreEqual(expectedWidth, dataGrid.RowHeaderWidth);
+    }
+
+    private static void AssertRealizedRowHeader(
+        DataGrid dataGrid,
+        object? expectedContent,
+        DataTemplate expectedTemplate)
+    {
+        var row = dataGrid.ItemContainerGenerator.ContainerFromIndex(0) as DataGridRow;
+        Assert.IsNotNull(row);
+        var rowHeader = FindVisualChild<DataGridRowHeader>(row);
+        Assert.IsNotNull(rowHeader);
+        Assert.AreEqual(expectedContent, rowHeader.Content);
+        Assert.AreSame(expectedTemplate, rowHeader.ContentTemplate);
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent)
+        where T : DependencyObject
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, index);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            if (FindVisualChild<T>(child) is { } descendant)
+            {
+                return descendant;
+            }
+        }
+
+        return null;
     }
 
     private static IDisposable Show(DataGrid dataGrid, double height = 240)

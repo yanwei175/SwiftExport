@@ -15,8 +15,9 @@ description: SwiftExport WPF DataGrid 选择与当前单元格技能。用于任
 
 ## 鼠标同步
 
-- 在 `PreviewMouseLeftButtonDown` 阶段定位最近的 `DataGridRow/DataGridCell`。
-- 在 TextBox、CheckBox、Button、TemplateColumn 内容处理点击前，先同步行和当前单元格。
+- 不得在 `PreviewMouseLeftButtonDown` 阶段写入 `DataGrid.CurrentCell` 或主动聚焦目标 Cell；这会改变同一次原生鼠标路由的前置状态，使跨 Cell 单击被 `DataGridCell` 误判为编辑入口。
+- 原生列先由 `DataGridCell` 完成鼠标焦点、选择和 CurrentCell 更新，再通过 `CurrentCellChanged/SelectionChanged` 合并回写。
+- TextBox、CheckBox、Button、TemplateColumn 等子控件若需要点击后备同步，应在冒泡末端（包含已处理事件）或当前鼠标路由结束后执行，不得抢在 `DataGridCell.MouseLeftButtonDown` 类处理器之前。
 - 仅同步焦点/选择，不因单击调用 `BeginEdit`，也不阻止 Button 命令或控件自身事件。
 - 尊重 `SelectionMode`、`SelectionUnit` 和 Ctrl/Shift 多选语义；单选修复不得破坏扩展选择。
 

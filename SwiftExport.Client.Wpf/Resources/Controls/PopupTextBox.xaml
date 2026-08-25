@@ -44,7 +44,9 @@
                AllowsTransparency="True"
                StaysOpen="False"
                PlacementTarget="{Binding ElementName=EditorBorder}"
-               Placement="Bottom"
+               Placement="Relative"
+               HorizontalOffset="0"
+               VerticalOffset="0"
                IsOpen="{Binding IsPopupOpen, ElementName=Root, Mode=TwoWay}"
                PopupAnimation="Fade"
                Closed="EditorPopup_Closed"
@@ -55,9 +57,7 @@
                     Background="{DynamicResource SwiftExportBrush.Surface}"
                     BorderBrush="{DynamicResource SwiftExportBrush.Border}"
                     BorderThickness="{StaticResource SwiftExportBorderThickness}"
-                    CornerRadius="{StaticResource SwiftExportControlCornerRadius}"
-                    Margin="0,4,0,0"
-                    Padding="8">
+                    CornerRadius="{StaticResource SwiftExportControlCornerRadius}">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="12"
                                       ShadowDepth="2"
@@ -67,13 +67,16 @@
 
                 <TextBox x:Name="PopupEditorTextBox"
                          AcceptsReturn="True"
+                         Background="Transparent"
+                         BorderThickness="0"
                          IsReadOnly="{Binding IsReadOnly, ElementName=Root}"
                          MaxLength="{Binding MaxLength, ElementName=Root}"
-                         Padding="8"
+                         Padding="8,4"
                          Text="{Binding Text, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                          TextWrapping="Wrap"
                          VerticalScrollBarVisibility="Auto"
                          HorizontalScrollBarVisibility="Disabled"
+                         LostKeyboardFocus="PopupEditorTextBox_LostKeyboardFocus"
                          PreviewKeyDown="PopupEditorTextBox_PreviewKeyDown" />
             </Border>
         </Popup>

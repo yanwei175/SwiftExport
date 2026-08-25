@@ -8,6 +8,8 @@ namespace SwiftExportClient.Resources.Controls;
 public partial class PopupTextBox : UserControl
 {
     private bool _isOpeningFromCompactEditor;
+    private bool _isPopupOpenPending;
+    private bool _suppressNextFocusOpen;
 
     public PopupTextBox()
     {
@@ -175,7 +177,10 @@ public partial class PopupTextBox : UserControl
         if ((bool)e.NewValue)
         {
             control.UpdateResolvedPopupWidth();
-            control.FocusPopupEditor();
+        }
+        else
+        {
+            control._isPopupOpenPending = false;
         }
     }
 
@@ -187,6 +192,12 @@ public partial class PopupTextBox : UserControl
 
     private void CompactTextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
+        if (_suppressNextFocusOpen)
+        {
+            _suppressNextFocusOpen = false;
+            return;
+        }
+
         if (OpenOnFocus)
         {
             OpenPopup();
@@ -221,6 +232,7 @@ public partial class PopupTextBox : UserControl
 
     private void EditorPopup_Closed(object sender, EventArgs e)
     {
+        _isPopupOpenPending = false;
         _isOpeningFromCompactEditor = false;
         UpdateTextVisualState();
     }
@@ -229,18 +241,31 @@ public partial class PopupTextBox : UserControl
     {
         if (e.Key == Key.Escape)
         {
-            IsPopupOpen = false;
-            CompactTextBox.Focus();
+            ClosePopupAndRestoreCompactFocus();
             e.Handled = true;
             return;
         }
 
         if (e.Key == Key.Enter && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {
-            IsPopupOpen = false;
-            CompactTextBox.Focus();
+            ClosePopupAndRestoreCompactFocus();
             e.Handled = true;
         }
+    }
+
+    private void PopupEditorTextBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        Dispatcher.BeginInvoke(
+            new Action(() =>
+            {
+                if (IsPopupOpen &&
+                    !PopupEditorTextBox.IsKeyboardFocusWithin &&
+                    !CompactTextBox.IsKeyboardFocusWithin)
+                {
+                    IsPopupOpen = false;
+                }
+            }),
+            DispatcherPriority.Input);
     }
 
     private void OpenPopup()
@@ -250,7 +275,44 @@ public partial class PopupTextBox : UserControl
             return;
         }
 
-        IsPopupOpen = true;
+        if (IsPopupOpen)
+        {
+            FocusPopupEditor();
+            return;
+        }
+
+        if (_isPopupOpenPending)
+        {
+            return;
+        }
+
+        _isPopupOpenPending = true;
+        Dispatcher.BeginInvoke(
+            new Action(() =>
+            {
+                if (!_isPopupOpenPending)
+                {
+                    return;
+                }
+
+                _isPopupOpenPending = false;
+                if (!IsReadOnly)
+                {
+                    IsPopupOpen = true;
+                }
+            }),
+            DispatcherPriority.Input);
+    }
+
+    private void ClosePopupAndRestoreCompactFocus()
+    {
+        _isPopupOpenPending = false;
+        _suppressNextFocusOpen = true;
+        IsPopupOpen = false;
+        if (!CompactTextBox.Focus())
+        {
+            _suppressNextFocusOpen = false;
+        }
     }
 
     private void FocusPopupEditor()

@@ -20,7 +20,12 @@
     <Color x:Key="SwiftExportColor.DataGridSelectedBackground">#FFEAF2FF</Color>
     <Color x:Key="SwiftExportColor.DataGridCurrentRowBackground">#FFF4F8FF</Color>
     <Color x:Key="SwiftExportColor.DataGridGridLine">#FFE4E7EC</Color>
-
+    
+    <Color x:Key="MicaControlColor">#90FFFFFF</Color>
+    <Color x:Key="SubFillColorSecondarColor">#09000000</Color>
+    
+    <SolidColorBrush x:Key="SubFillColorSecondaryBrush" Color="#09000000"/>
+    <SolidColorBrush x:Key="MicaControlBrush" Color="#90FFFFFF"/>
 
     <SolidColorBrush x:Key="SwiftExportBrush.WindowBackground" Color="{StaticResource SwiftExportColor.WindowBackground}" />
     <SolidColorBrush x:Key="SwiftExportBrush.Surface" Color="{StaticResource SwiftExportColor.Surface}" />

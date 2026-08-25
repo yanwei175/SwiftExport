@@ -137,6 +137,105 @@ public sealed class GrossDemandWorkspaceViewModelTests
         StringAssert.Contains((string?)cancelButton.Attribute("Command") ?? string.Empty, "GrossDemandWorkspaceView");
     }
 
+    [TestMethod]
+    public async Task TraceToggle_ShouldOpenAndCloseTraceDrawer()
+    {
+        var item = CreateItem("SO-TRACE", canDecompose: false);
+        var api = new FakeGrossDemandApi
+        {
+            SearchResponse = CreatePage(item),
+            TraceResponse = new GrossDemandTraceDto
+            {
+                GrossDemand = new GrossDemandDetailDto { Uid = item.Uid }
+            }
+        };
+        using var viewModel = CreateViewModel(api);
+        await viewModel.InitializeAsync();
+
+        await viewModel.ToggleTraceCommand.ExecuteAsync(null);
+
+        Assert.IsTrue(viewModel.IsDrawerOpen);
+        Assert.IsTrue(viewModel.IsTraceOpen);
+        Assert.AreSame(viewModel.Trace, viewModel.ActiveDrawerContent);
+        Assert.AreEqual(1, api.TraceCallCount);
+
+        await viewModel.ToggleTraceCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(viewModel.IsDrawerOpen);
+        Assert.IsFalse(viewModel.IsTraceOpen);
+        Assert.IsNull(viewModel.ActiveDrawerContent);
+        Assert.AreEqual(1, api.TraceCallCount);
+    }
+
+    [TestMethod]
+    public void TraceViews_ShouldBindToggleAndCloseToWorkspaceCommands()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+        var workspace = XDocument.Load(Path.Combine(
+            repositoryRoot,
+            "SwiftExport.Client.Wpf",
+            "Features",
+            "DemandPlanning",
+            "GrossDemand",
+            "Views",
+            "GrossDemandWorkspaceView.xaml"));
+        var toggle = workspace.Descendants(presentation + "ToggleButton")
+            .Single(element => string.Equals(
+                (string?)element.Attribute("Content"),
+                "拆解结果",
+                StringComparison.Ordinal));
+        StringAssert.Contains((string?)toggle.Attribute("Command") ?? string.Empty, "ToggleTraceCommand");
+        StringAssert.Contains((string?)toggle.Attribute("IsChecked") ?? string.Empty, "IsTraceOpen");
+
+        var trace = XDocument.Load(Path.Combine(
+            repositoryRoot,
+            "SwiftExport.Client.Wpf",
+            "Features",
+            "DemandPlanning",
+            "GrossDemand",
+            "Views",
+            "GrossDemandTraceView.xaml"));
+        var close = trace.Descendants(presentation + "Button")
+            .Single(element => string.Equals(
+                (string?)element.Attribute(x + "Name"),
+                "CloseButton",
+                StringComparison.Ordinal));
+        Assert.AreEqual("关闭", (string?)close.Attribute("Content"));
+        StringAssert.Contains((string?)close.Attribute("Command") ?? string.Empty, "DataContext.CloseDrawerCommand");
+        StringAssert.Contains((string?)close.Attribute("Command") ?? string.Empty, "GrossDemandWorkspaceView");
+    }
+
+    [TestMethod]
+    public void MultiLineFilters_ShouldUseToggleControlledFullWidthPopup()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var workspace = XDocument.Load(Path.Combine(
+            repositoryRoot,
+            "SwiftExport.Client.Wpf",
+            "Features",
+            "DemandPlanning",
+            "GrossDemand",
+            "Views",
+            "GrossDemandWorkspaceView.xaml"));
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+
+        Assert.IsFalse(workspace.Descendants(presentation + "Expander")
+            .Any(element => string.Equals((string?)element.Attribute("Header"), "多行条件", StringComparison.Ordinal)));
+        var toggle = workspace.Descendants(presentation + "ToggleButton")
+            .Single(element => string.Equals((string?)element.Attribute("Content"), "多行条件", StringComparison.Ordinal));
+        StringAssert.Contains((string?)toggle.Attribute("IsChecked") ?? string.Empty, "IsMultiLineFilterOpen");
+
+        var popup = workspace.Descendants(presentation + "Popup").Single();
+        StringAssert.Contains((string?)popup.Attribute("IsOpen") ?? string.Empty, "IsMultiLineFilterOpen");
+        StringAssert.Contains((string?)popup.Attribute("PlacementTarget") ?? string.Empty, "StackPanel");
+        StringAssert.Contains((string?)popup.Attribute("Width") ?? string.Empty, "PlacementTarget.ActualWidth");
+        Assert.AreEqual("True", (string?)popup.Attribute("StaysOpen"));
+        Assert.AreEqual(3, popup.Descendants().Count(element => element.Name.LocalName == "PopupTextBox"));
+    }
+
     private static GrossDemandWorkspaceViewModel CreateViewModel(
         FakeGrossDemandApi api,
         IDialogService? dialogService = null)
@@ -204,7 +303,12 @@ public sealed class GrossDemandWorkspaceViewModelTests
     private sealed class FakeGrossDemandApi : IGrossDemandWorkspaceApi
     {
         public PagedResponseBase<GrossDemandListItemDto> SearchResponse { get; set; } = CreatePage();
+        public GrossDemandTraceDto TraceResponse { get; set; } = new()
+        {
+            GrossDemand = new GrossDemandDetailDto()
+        };
         public GrossDemandSearchRequest? LastSearchRequest { get; private set; }
+        public int TraceCallCount { get; private set; }
 
         public Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync(GrossDemandSearchRequest request, CancellationToken cancellationToken = default)
         {
@@ -213,7 +317,11 @@ public sealed class GrossDemandWorkspaceViewModelTests
         }
 
         public Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<GrossDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<GrossDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default)
+        {
+            TraceCallCount++;
+            return Task.FromResult(ServiceResult<GrossDemandTraceDto>.Ok(TraceResponse));
+        }
         public Task<ServiceResult<GrossDemandDecomposeResult>> DecomposeAsync(GrossDemandDecomposeCommand command) => throw new NotSupportedException();
         public Task<ServiceResult<GrossDemandRollbackResult>> RollbackAsync(GrossDemandRollbackCommand command) => throw new NotSupportedException();
         public Task<ServiceResult<GrossDemandDetailDto>> CreateManualAsync(CreateManualGrossDemandRequest request) => throw new NotSupportedException();

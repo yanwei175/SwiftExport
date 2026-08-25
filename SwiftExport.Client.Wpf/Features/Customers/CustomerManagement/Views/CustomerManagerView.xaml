@@ -44,17 +44,34 @@
                                     MinimumSearchLength="0"
                                     Text="{Binding Keyword, Mode=TwoWay}"
                                     QueryCommand="{Binding SearchCommand}" />
-            <Button Grid.Column="2" Width="36" Command="{Binding SearchCommand}"
-                    Style="{StaticResource AccentButton}" ToolTip="查询">
-                <ui:SymbolIcon Symbol="Search24" />
-            </Button>
+            <ui:Button Grid.Column="2" Width="36" Command="{Binding SearchCommand}"
+                       Appearance="Primary"
+                       Icon="{ui:SymbolIcon Symbol=Search24}"
+                       ToolTip="查询"/>
+
             <StackPanel Grid.Column="4" Orientation="Horizontal">
-                <Button Command="{Binding AddRowCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0">
-                    <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Add24" /><TextBlock Margin="6,0,0,0" Text="新增" /></StackPanel>
-                </Button>
-                <Button Command="{Binding SaveCommand}" Margin="0,0,4,0"><StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Save24" /><TextBlock Margin="6,0,0,0" Text="保存" /></StackPanel></Button>
+                <ui:Button Command="{Binding AddRowCommand}"
+                           Appearance="Primary"
+                            Style="{StaticResource AccentButton}" 
+                           Margin="0,0,4,0">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Symbol="Add24" />
+                        <TextBlock Margin="6,0,0,0" Text="新增" />
+                    </StackPanel>
+                </ui:Button>
+                <ui:Button Command="{Binding SaveCommand}" 
+                           Icon="{ui:SymbolIcon Symbol=Save24}"
+                           Content="保存"
+                            Margin="0,0,4,0"/>
+
                 <Button Command="{Binding DeleteSelectedCommand}" Margin="0,0,4,0"><StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Delete24" /><TextBlock Margin="6,0,0,0" Text="删除" /></StackPanel></Button>
-                <Button Command="{Binding RejectCommand}" Margin="0,0,4,0"><StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="ArrowReset24" /><TextBlock Margin="6,0,0,0" Text="放弃" /></StackPanel></Button>
+                <Button Command="{Binding RejectCommand}" 
+                        Margin="0,0,4,0">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Symbol="ArrowReset24" />
+                        <TextBlock Margin="6,0,0,0" Text="放弃" />
+                    </StackPanel>
+                </Button>
                 <Button Command="{Binding RefreshCommand}"><StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="ArrowClockwise24" /><TextBlock Margin="6,0,0,0" Text="刷新" /></StackPanel></Button>
             </StackPanel>
             <StackPanel Grid.Column="6" Orientation="Horizontal">

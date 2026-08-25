@@ -1,5 +1,3 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
@@ -13,6 +11,8 @@ using SwiftExportClient.Navigation;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 
@@ -64,6 +64,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         RegisterBusyAwareCommand(CloseSelectedManualCommand);
         RegisterBusyAwareCommand(OpenSourceCommand);
         RegisterBusyAwareCommand(OpenTraceCommand);
+        RegisterBusyAwareCommand(ToggleTraceCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
     }
 
@@ -108,15 +109,23 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     ];
 
     public ObservableCollection<GrossDemandFilterOption<string>> SelectedSourceTypes { get; } = [];
-    public ObservableCollection<GrossDemandFilterOption<GrossDemandLifecycleStatusEnum>> SelectedLifecycleStatuses { get; } = [];
+    public ObservableCollection<GrossDemandFilterOption<GrossDemandLifecycleStatusEnum>> SelectedLifecycleStatuses { get; } =
+        [
+        new(GrossDemandLifecycleStatusEnum.Active, "活动")
+
+        ];
     public ObservableCollection<GrossDemandFilterOption<GrossDemandDecompositionStatusEnum>> SelectedDecompositionStatuses { get; } = [];
-    public ObservableCollection<GrossDemandFilterOption<DemandExecutionProgressEnum>> SelectedExecutionProgresses { get; } = [];
+    public ObservableCollection<GrossDemandFilterOption<DemandExecutionProgressEnum>> SelectedExecutionProgresses { get; } =
+        [
+
+        ];
 
     public string DocumentTitle => "毛需求";
     public bool HasUnsavedChanges => ManualEditor.HasUnsavedChanges;
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
     public int CheckedCount => Items.Count(item => item.IsChecked);
+    public bool IsTraceOpen => IsDrawerOpen && ReferenceEquals(ActiveDrawerContent, Trace);
 
     [ObservableProperty]
     public partial string Keyword { get; set; } = string.Empty;
@@ -129,6 +138,9 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     [ObservableProperty]
     public partial string CustomerSkusText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool IsMultiLineFilterOpen { get; set; }
 
     [ObservableProperty]
     public partial DateTime? RequiredDateFrom { get; set; }
@@ -144,12 +156,17 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     [NotifyCanExecuteChangedFor(nameof(CloseSelectedManualCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenSourceCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenTraceCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleTraceCommand))]
     public partial GrossDemandRowModel? SelectedItem { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsTraceOpen))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleTraceCommand))]
     public partial object? ActiveDrawerContent { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsTraceOpen))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleTraceCommand))]
     public partial bool IsDrawerOpen { get; private set; }
 
     [ObservableProperty]
@@ -454,6 +471,18 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanToggleTrace))]
+    private async Task ToggleTraceAsync()
+    {
+        if (IsTraceOpen)
+        {
+            await CloseDrawerAsync();
+            return;
+        }
+
+        await OpenTraceAsync();
+    }
+
     [RelayCommand]
     private async Task CloseDrawerAsync()
     {
@@ -699,6 +728,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     private bool CanRun() => IsNotBusy;
     private bool CanUseSelected() => IsNotBusy && SelectedItem is not null;
+    private bool CanToggleTrace() => IsTraceOpen || CanUseSelected();
     private bool CanDecomposeSelected() => CanWrite && IsNotBusy && Items.Any(item => item.IsChecked) && Items.Where(item => item.IsChecked).All(item => item.CanDecompose);
     private bool CanRollbackSelected() => CanWrite && IsNotBusy && Items.Any(item => item.IsChecked) && Items.Where(item => item.IsChecked).All(item => item.CanRollback);
     private bool CanEditSelectedManual() => CanWrite && IsNotBusy && SelectedItem is { SourceType: "MD", LifecycleStatus: GrossDemandLifecycleStatusEnum.Active, DecompositionStatus: GrossDemandDecompositionStatusEnum.Pending };

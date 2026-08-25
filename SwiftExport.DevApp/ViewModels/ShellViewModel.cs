@@ -1,7 +1,3 @@
-using GalaSoft.MvvmLight.Command;
-using SwiftExport.View.FW.Http;
-using SwiftExport.View.FW.Mvvm;
-using SwiftExport.View.FW.Services;
 using System;
 
 namespace SwiftExport.DevApp.ViewModels
