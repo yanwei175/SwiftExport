@@ -17,5 +17,6 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
         public DateTime? RequiredDateFrom { get; set; }
         public DateTime? RequiredDateTo { get; set; }
         public bool? IsNonStandard { get; set; }
+        public Guid? SourceUid { get; set; }
     }
 }

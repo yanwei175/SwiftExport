@@ -39,8 +39,15 @@ public sealed class GrossDemandWorkspaceService(
         try
         {
             request ??= new GrossDemandSearchRequest();
-            request.PageIndex = Math.Max(1, request.PageIndex);
-            request.PageSize = Math.Clamp(request.PageSize, 1, 200);
+            if (request.SourceUid.HasValue)
+            {
+                request.PageIndex = 1;
+            }
+            else
+            {
+                request.PageIndex = Math.Max(1, request.PageIndex);
+                request.PageSize = Math.Clamp(request.PageSize, 1, 200);
+            }
             return ServiceResult<PagedResponseBase<GrossDemandListItemDto>>.Ok(
                 await grossDemandRepository.SearchWorkspaceAsync(request, cancellationToken));
         }
@@ -49,6 +56,24 @@ public sealed class GrossDemandWorkspaceService(
         {
             _logger.LogError(ex, "查询毛需求工作台失败。");
             return ServiceResult<PagedResponseBase<GrossDemandListItemDto>>.Fail("查询毛需求失败。");
+        }
+    }
+
+    public async Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync(
+        GrossDemandSearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            request ??= new GrossDemandSearchRequest();
+            var groups = await grossDemandRepository.SearchSourceGroupsAsync(request, cancellationToken);
+            return ServiceResult<List<GrossDemandSourceGroupDto>>.Ok([.. groups]);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "查询毛需求来源分组失败。");
+            return ServiceResult<List<GrossDemandSourceGroupDto>>.Fail("查询毛需求来源分组失败。");
         }
     }
 

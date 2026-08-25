@@ -20,42 +20,20 @@ public sealed class GrossDemandRepository(RepositoryBaseContext context) : IGros
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var pageIndex = Math.Max(1, request.PageIndex);
+        var sourceMode = request.SourceUid.HasValue;
+        var pageIndex = sourceMode ? 1 : Math.Max(1, request.PageIndex);
         var pageSize = Math.Clamp(request.PageSize, 1, 200);
-        var where = new List<string> { "d.[IsDeleted] = 0" };
-        var parameters = new DynamicParameters();
-
-        AddKeywordFilter(request.Keyword, where, parameters);
-        AddListFilter(request.SourceTypes, "d.[SourceType]", "SourceTypes", where, parameters);
-        AddListFilter(request.SourceNos, "d.[SourceNo]", "SourceNos", where, parameters);
-        AddListFilter(request.Skus, "d.[SkuSnapshot]", "Skus", where, parameters);
-        AddListFilter(request.CustomerSkus, "d.[CustomerSkuSnapshot]", "CustomerSkus", where, parameters);
-        AddListFilter(request.LifecycleStatuses, "d.[LifecycleStatus]", "LifecycleStatuses", where, parameters);
-        AddListFilter(request.DecompositionStatuses, "d.[DecompositionStatus]", "DecompositionStatuses", where, parameters);
-        if (request.ExecutionProgresses is { Count: > 0 })
+        var (where, parameters) = BuildWorkspaceFilters(request, includeSourceUid: true);
+        if (!sourceMode)
         {
-            where.Add($"({ExecutionProgressSql}) IN @ExecutionProgresses");
-            parameters.Add("ExecutionProgresses", request.ExecutionProgresses.Distinct().ToArray());
-        }
-        if (request.RequiredDateFrom.HasValue)
-        {
-            where.Add("d.[RequiredDate] >= @RequiredDateFrom");
-            parameters.Add("RequiredDateFrom", request.RequiredDateFrom.Value);
-        }
-        if (request.RequiredDateTo.HasValue)
-        {
-            where.Add("d.[RequiredDate] < DATEADD(day, 1, @RequiredDateTo)");
-            parameters.Add("RequiredDateTo", request.RequiredDateTo.Value.Date);
-        }
-        if (request.IsNonStandard.HasValue)
-        {
-            where.Add("d.[IsNonStandard] = @IsNonStandard");
-            parameters.Add("IsNonStandard", request.IsNonStandard.Value);
+            parameters.Add("Offset", (pageIndex - 1) * pageSize);
+            parameters.Add("PageSize", pageSize);
         }
 
-        parameters.Add("Offset", (pageIndex - 1) * pageSize);
-        parameters.Add("PageSize", pageSize);
         var whereSql = string.Join(" AND ", where);
+        var pagingSql = sourceMode
+            ? ";"
+            : "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
         var selectSql = $@"
 SELECT
     d.[Uid], d.[Version], d.[LifecycleStatus], d.[DecompositionStatus], d.[DecompositionRevision],
@@ -103,7 +81,7 @@ OUTER APPLY (
 ) la
 WHERE {whereSql}
 ORDER BY CASE WHEN d.[RequiredDate] IS NULL THEN 1 ELSE 0 END, d.[RequiredDate], d.[CreatedDate], d.[Uid]
-OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
+{pagingSql}";
         var countSql = $"SELECT COUNT(1) FROM [dbo].[GrossDemand] d WHERE {whereSql};";
 
         var items = await Connection.QueryAsync<GrossDemandListItemDto>(
@@ -112,8 +90,28 @@ OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
             new CommandDefinition(countSql, parameters, Transaction, cancellationToken: cancellationToken));
         return new PagedResponseBase<GrossDemandListItemDto>
         {
-            Items = [.. items], TotalCount = total, PageIndex = pageIndex, PageSize = pageSize
+            Items = [.. items],
+            TotalCount = total,
+            PageIndex = pageIndex,
+            PageSize = sourceMode ? Math.Max(1, total) : pageSize
         };
+    }
+
+    public async Task<IReadOnlyList<GrossDemandSourceGroupDto>> SearchSourceGroupsAsync(
+        GrossDemandSearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var (where, parameters) = BuildWorkspaceFilters(request, includeSourceUid: false);
+        var sql = $@"
+SELECT d.[SourceUid],MAX(d.[SourceType]) AS [SourceType],MAX(d.[SourceNo]) AS [SourceNo],COUNT(1) AS [DemandCount]
+FROM [dbo].[GrossDemand] d
+WHERE {string.Join(" AND ", where)}
+GROUP BY d.[SourceUid]
+ORDER BY MAX(d.[SourceType]),MAX(d.[SourceNo]),d.[SourceUid];";
+        var groups = await Connection.QueryAsync<GrossDemandSourceGroupDto>(
+            new CommandDefinition(sql, parameters, Transaction, cancellationToken: cancellationToken));
+        return [.. groups];
     }
 
     public Task<GrossDemandDetailDto?> GetWorkspaceDetailAsync(Guid uid, CancellationToken cancellationToken = default)
@@ -435,6 +433,48 @@ WHERE [SourceType]=@SourceType AND [SourceUid]=@SourceUid AND [LifecycleStatus]=
             new { SourceType = sourceType, SourceUid = sourceUid, Reason = reason, Now = DateTime.Now,
                 UserName = _context.CurrentUser.UserName, Voided = GrossDemandLifecycleStatusEnum.Voided,
                 Active = GrossDemandLifecycleStatusEnum.Active, Pending = GrossDemandDecompositionStatusEnum.Pending }, Transaction);
+
+    private static (List<string> Where, DynamicParameters Parameters) BuildWorkspaceFilters(
+        GrossDemandSearchRequest request,
+        bool includeSourceUid)
+    {
+        var where = new List<string> { "d.[IsDeleted] = 0" };
+        var parameters = new DynamicParameters();
+        AddKeywordFilter(request.Keyword, where, parameters);
+        AddListFilter(request.SourceTypes, "d.[SourceType]", "SourceTypes", where, parameters);
+        AddListFilter(request.SourceNos, "d.[SourceNo]", "SourceNos", where, parameters);
+        AddListFilter(request.Skus, "d.[SkuSnapshot]", "Skus", where, parameters);
+        AddListFilter(request.CustomerSkus, "d.[CustomerSkuSnapshot]", "CustomerSkus", where, parameters);
+        AddListFilter(request.LifecycleStatuses, "d.[LifecycleStatus]", "LifecycleStatuses", where, parameters);
+        AddListFilter(request.DecompositionStatuses, "d.[DecompositionStatus]", "DecompositionStatuses", where, parameters);
+        if (request.ExecutionProgresses is { Count: > 0 })
+        {
+            where.Add($"({ExecutionProgressSql}) IN @ExecutionProgresses");
+            parameters.Add("ExecutionProgresses", request.ExecutionProgresses.Distinct().ToArray());
+        }
+        if (request.RequiredDateFrom.HasValue)
+        {
+            where.Add("d.[RequiredDate] >= @RequiredDateFrom");
+            parameters.Add("RequiredDateFrom", request.RequiredDateFrom.Value);
+        }
+        if (request.RequiredDateTo.HasValue)
+        {
+            where.Add("d.[RequiredDate] < DATEADD(day, 1, @RequiredDateTo)");
+            parameters.Add("RequiredDateTo", request.RequiredDateTo.Value.Date);
+        }
+        if (request.IsNonStandard.HasValue)
+        {
+            where.Add("d.[IsNonStandard] = @IsNonStandard");
+            parameters.Add("IsNonStandard", request.IsNonStandard.Value);
+        }
+        if (includeSourceUid && request.SourceUid.HasValue)
+        {
+            where.Add("d.[SourceUid] = @SourceUid");
+            parameters.Add("SourceUid", request.SourceUid.Value);
+        }
+
+        return (where, parameters);
+    }
 
     private static void AddKeywordFilter(string? keyword, ICollection<string> where, DynamicParameters parameters)
     {

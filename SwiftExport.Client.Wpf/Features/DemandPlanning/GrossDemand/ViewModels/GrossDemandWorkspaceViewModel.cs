@@ -33,6 +33,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     private bool _initialized;
     private bool _syncingChecks;
     private bool _disposed;
+    private Guid? _appliedSourceUid;
 
     public GrossDemandWorkspaceViewModel(
         IGrossDemandWorkspaceApi api,
@@ -66,11 +67,15 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         RegisterBusyAwareCommand(OpenTraceCommand);
         RegisterBusyAwareCommand(ToggleTraceCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
+        RegisterBusyAwareCommand(SelectSourceGroupCommand);
+        SourceGroups.Add(GrossDemandSourceGroupModel.CreateAll(0));
+        SelectedSourceGroup = SourceGroups[0];
     }
 
     public GrossDemandManualEditorViewModel ManualEditor { get; }
     public GrossDemandTraceViewModel Trace { get; }
     public ObservableCollection<GrossDemandRowModel> Items { get; } = [];
+    public ObservableCollection<GrossDemandSourceGroupModel> SourceGroups { get; } = [];
 
     public IReadOnlyList<GrossDemandFilterOption<string>> SourceTypeOptions { get; } =
     [
@@ -122,10 +127,11 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     public string DocumentTitle => "毛需求";
     public bool HasUnsavedChanges => ManualEditor.HasUnsavedChanges;
-    public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
-    public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
+    public int TotalPages => IsSourceSelected || TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
+    public string PageStatus => IsSourceSelected ? $"当前来源共 {TotalCount} 条" : $"第 {PageIndex} / {TotalPages} 页";
     public int CheckedCount => Items.Count(item => item.IsChecked);
     public bool IsTraceOpen => IsDrawerOpen && ReferenceEquals(ActiveDrawerContent, Trace);
+    public bool IsSourceSelected => SelectedSourceGroup?.SourceUid.HasValue == true;
 
     [ObservableProperty]
     public partial string Keyword { get; set; } = string.Empty;
@@ -150,6 +156,13 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     [ObservableProperty]
     public partial GrossDemandFilterOption<bool?>? SelectedStandardType { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSourceSelected))]
+    [NotifyPropertyChangedFor(nameof(TotalPages))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    [NotifyCanExecuteChangedFor(nameof(PageChangeCommand))]
+    public partial GrossDemandSourceGroupModel? SelectedSourceGroup { get; set; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(EditSelectedManualCommand))]
@@ -198,7 +211,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
         _initialized = true;
         SelectedStandardType = StandardTypeOptions[0];
-        await LoadPageAsync();
+        await LoadPageAsync(refreshSourceGroups: true);
     }
 
     public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)
@@ -220,7 +233,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         }
 
         PageIndex = 1;
-        await LoadPageAsync();
+        await LoadPageAsync(refreshSourceGroups: true);
     }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
@@ -228,7 +241,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     {
         if (await ConfirmDiscardManualChangesAsync())
         {
-            await LoadPageAsync();
+            await LoadPageAsync(refreshSourceGroups: true);
         }
     }
 
@@ -251,8 +264,9 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         SelectedLifecycleStatuses.Clear();
         SelectedDecompositionStatuses.Clear();
         SelectedExecutionProgresses.Clear();
+        _appliedSourceUid = null;
         PageIndex = 1;
-        await LoadPageAsync();
+        await LoadPageAsync(refreshSourceGroups: true);
     }
 
     [RelayCommand(CanExecute = nameof(CanDecomposeSelected))]
@@ -284,7 +298,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             }
 
             ShowCommandSummary("毛需求拆解", result.Data.Items.Select(item => (item.Outcome, item.Message)));
-            await LoadPageAsync();
+            await LoadPageAsync(refreshSourceGroups: true);
         }, "正在拆解毛需求...");
     }
 
@@ -318,7 +332,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             }
 
             ShowCommandSummary("拆解回退", result.Data.Items.Select(item => (item.Outcome, item.Message)));
-            await LoadPageAsync();
+            await LoadPageAsync(refreshSourceGroups: true);
         }, "正在安全回退拆解...");
     }
 
@@ -413,7 +427,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             }
 
             _messageService.ShowSuccess("手工毛需求已关闭", selected.SourceNo);
-            await LoadPageAsync();
+            await LoadPageAsync(refreshSourceGroups: true);
         }, "正在关闭手工毛需求...");
     }
 
@@ -497,7 +511,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         IsDrawerOpen = false;
     }
 
-    [RelayCommand(CanExecute = nameof(CanRun))]
+    [RelayCommand(CanExecute = nameof(CanPageChange))]
     private async Task PageChangeAsync(PageChangeRequest? request)
     {
         if (request is null || !await ConfirmDiscardManualChangesAsync())
@@ -510,7 +524,33 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         await LoadPageAsync();
     }
 
-    private async Task LoadPageAsync()
+    [RelayCommand(CanExecute = nameof(CanSelectSourceGroup))]
+    private async Task SelectSourceGroupAsync(GrossDemandSourceGroupModel? group)
+    {
+        if (group is null)
+        {
+            RestoreAppliedSourceSelection();
+            return;
+        }
+
+        if (group.SourceUid == _appliedSourceUid)
+        {
+            return;
+        }
+
+        if (!await ConfirmDiscardManualChangesAsync())
+        {
+            RestoreAppliedSourceSelection();
+            return;
+        }
+
+        _appliedSourceUid = group.SourceUid;
+        SelectedSourceGroup = group;
+        PageIndex = 1;
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync(bool refreshSourceGroups = false)
     {
         _searchCancellation?.Cancel();
         _searchCancellation?.Dispose();
@@ -522,6 +562,11 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         {
             await RunBusyAsync(async () =>
             {
+                if (refreshSourceGroups && !await RefreshSourceGroupsAsync(cancellation.Token))
+                {
+                    return;
+                }
+
                 var result = await _apiCallRunner.RunAsync(
                     () => _api.SearchAsync(CreateSearchRequest(), cancellation.Token),
                     cancellation.Token,
@@ -547,13 +592,18 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
                 }
 
                 TotalCount = result.Data.TotalCount;
-                PageIndex = result.Data.PageIndex <= 0 ? PageIndex : result.Data.PageIndex;
-                PageSize = result.Data.PageSize <= 0 ? PageSize : result.Data.PageSize;
+                PageIndex = IsSourceSelected ? 1 : result.Data.PageIndex <= 0 ? PageIndex : result.Data.PageIndex;
+                if (!IsSourceSelected && result.Data.PageSize > 0)
+                {
+                    PageSize = result.Data.PageSize;
+                }
                 SelectedItem = selectedUid is null
                     ? Items.FirstOrDefault()
                     : Items.FirstOrDefault(item => item.Uid == selectedUid) ?? Items.FirstOrDefault();
                 ClearChecks();
-                ResultSummary = $"共 {TotalCount} 条毛需求，本页 {Items.Count} 条。";
+                ResultSummary = IsSourceSelected
+                    ? $"当前来源共 {TotalCount} 条毛需求，已全部加载。"
+                    : $"共 {TotalCount} 条毛需求，本页 {Items.Count} 条。";
             }, "正在查询毛需求...", skipIfBusy: false);
         }
         finally
@@ -582,7 +632,56 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         RequiredDateFrom = RequiredDateFrom,
         RequiredDateTo = RequiredDateTo,
         IsNonStandard = SelectedStandardType?.Value,
+        SourceUid = _appliedSourceUid,
     };
+
+    private async Task<bool> RefreshSourceGroupsAsync(CancellationToken cancellationToken)
+    {
+        var request = CreateSearchRequest();
+        request.SourceUid = null;
+        var result = await _apiCallRunner.RunAsync(
+            () => _api.SearchSourceGroupsAsync(request, cancellationToken),
+            cancellationToken,
+            "查询毛需求来源分组失败");
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        if (!result.Success || result.Data is null)
+        {
+            ResultSummary = result.Message;
+            return false;
+        }
+
+        var groups = result.Data.Select(GrossDemandSourceGroupModel.FromDto).ToArray();
+        SourceGroups.Clear();
+        SourceGroups.Add(GrossDemandSourceGroupModel.CreateAll(result.Data.Sum(item => item.DemandCount)));
+        foreach (var group in groups)
+        {
+            SourceGroups.Add(group);
+        }
+
+        var selected = _appliedSourceUid.HasValue
+            ? SourceGroups.FirstOrDefault(item => item.SourceUid == _appliedSourceUid)
+            : SourceGroups[0];
+        if (selected is null)
+        {
+            _appliedSourceUid = null;
+            PageIndex = 1;
+            selected = SourceGroups[0];
+        }
+
+        SelectedSourceGroup = selected;
+        PageChangeCommand.NotifyCanExecuteChanged();
+        return true;
+    }
+
+    private void RestoreAppliedSourceSelection()
+    {
+        SelectedSourceGroup = SourceGroups.FirstOrDefault(item => item.SourceUid == _appliedSourceUid)
+            ?? SourceGroups.FirstOrDefault();
+    }
 
     private static List<string> SplitLines(string value) => value
         .Split(['\r', '\n', ',', ';', '；', '，'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -723,10 +822,12 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     private async void OnManualSaved(object? sender, EventArgs e)
     {
-        await LoadPageAsync();
+        await LoadPageAsync(refreshSourceGroups: true);
     }
 
     private bool CanRun() => IsNotBusy;
+    private bool CanPageChange() => IsNotBusy && !IsSourceSelected;
+    private bool CanSelectSourceGroup(GrossDemandSourceGroupModel? group) => IsNotBusy && group is not null;
     private bool CanUseSelected() => IsNotBusy && SelectedItem is not null;
     private bool CanToggleTrace() => IsTraceOpen || CanUseSelected();
     private bool CanDecomposeSelected() => CanWrite && IsNotBusy && Items.Any(item => item.IsChecked) && Items.Where(item => item.IsChecked).All(item => item.CanDecompose);

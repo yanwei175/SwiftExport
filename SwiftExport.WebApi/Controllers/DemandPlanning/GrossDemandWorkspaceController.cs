@@ -15,6 +15,11 @@ public sealed class GrossDemandWorkspaceController(IGrossDemandWorkspaceService 
         [FromBody] GrossDemandSearchRequest request, CancellationToken cancellationToken)
         => service.SearchAsync(request, cancellationToken);
 
+    [HttpPost("source-groups/search")]
+    public Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync(
+        [FromBody] GrossDemandSearchRequest request, CancellationToken cancellationToken)
+        => service.SearchSourceGroupsAsync(request, cancellationToken);
+
     [HttpGet("{uid:guid}")]
     public Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync([FromRoute] Guid uid, CancellationToken cancellationToken)
         => service.GetDetailAsync(uid, cancellationToken);

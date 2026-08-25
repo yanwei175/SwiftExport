@@ -65,6 +65,77 @@ public sealed class GrossDemandWorkspaceViewModelTests
     }
 
     [TestMethod]
+    public async Task SelectingSourceGroup_ShouldLoadWholeSourceWithoutChangingNormalPageSize()
+    {
+        var sourceUid = Guid.NewGuid();
+        var items = Enumerable.Range(1, 250)
+            .Select(index => CreateItem($"SO-WHOLE-{index}", canDecompose: true))
+            .ToArray();
+        var api = new FakeGrossDemandApi
+        {
+            SourceGroupResponse =
+            [
+                new GrossDemandSourceGroupDto
+                {
+                    SourceUid = sourceUid,
+                    SourceType = "SO",
+                    SourceNo = "SO-WHOLE",
+                    DemandCount = items.Length,
+                }
+            ],
+        };
+        using var viewModel = CreateViewModel(api);
+        await viewModel.InitializeAsync();
+        api.SearchResponse = new PagedResponseBase<GrossDemandListItemDto>
+        {
+            Items = items.ToList(),
+            TotalCount = items.Length,
+            PageIndex = 1,
+            PageSize = items.Length,
+        };
+
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
+
+        Assert.IsTrue(viewModel.IsSourceSelected);
+        Assert.AreEqual(sourceUid, api.LastSearchRequest?.SourceUid);
+        Assert.AreEqual(250, viewModel.Items.Count);
+        Assert.AreEqual(20, viewModel.PageSize);
+        Assert.AreEqual(1, viewModel.TotalPages);
+        Assert.IsFalse(viewModel.PageChangeCommand.CanExecute(null));
+        StringAssert.Contains(viewModel.ResultSummary, "已全部加载");
+        Assert.AreEqual(1, api.SourceGroupCallCount);
+    }
+
+    [TestMethod]
+    public async Task Refresh_WhenSelectedSourceNoLongerExists_ShouldReturnToAll()
+    {
+        var sourceUid = Guid.NewGuid();
+        var api = new FakeGrossDemandApi
+        {
+            SourceGroupResponse =
+            [
+                new GrossDemandSourceGroupDto
+                {
+                    SourceUid = sourceUid,
+                    SourceType = "SO",
+                    SourceNo = "SO-REMOVED",
+                    DemandCount = 1,
+                }
+            ],
+        };
+        using var viewModel = CreateViewModel(api);
+        await viewModel.InitializeAsync();
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
+        api.SourceGroupResponse = [];
+
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(viewModel.IsSourceSelected);
+        Assert.IsNull(api.LastSearchRequest?.SourceUid);
+        Assert.AreEqual("全部", viewModel.SelectedSourceGroup?.DisplaySourceNo);
+    }
+
+    [TestMethod]
     public async Task CloseDrawer_WhenManualEditorIsClean_ShouldCloseWithoutConfirmation()
     {
         var dialog = new RecordingDialogService(confirmResult: false);
@@ -233,7 +304,34 @@ public sealed class GrossDemandWorkspaceViewModelTests
         StringAssert.Contains((string?)popup.Attribute("PlacementTarget") ?? string.Empty, "StackPanel");
         StringAssert.Contains((string?)popup.Attribute("Width") ?? string.Empty, "PlacementTarget.ActualWidth");
         Assert.AreEqual("True", (string?)popup.Attribute("StaysOpen"));
-        Assert.AreEqual(3, popup.Descendants().Count(element => element.Name.LocalName == "PopupTextBox"));
+        Assert.AreEqual(3, popup.Descendants().Count(element => element.Name.LocalName == "TextBox"));
+    }
+
+    [TestMethod]
+    public void SourceGroups_ShouldUseFullHeightListAndHidePagerInSourceMode()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var workspace = XDocument.Load(Path.Combine(
+            repositoryRoot,
+            "SwiftExport.Client.Wpf",
+            "Features",
+            "DemandPlanning",
+            "GrossDemand",
+            "Views",
+            "GrossDemandWorkspaceView.xaml"));
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+
+        var sourceList = workspace.Descendants(presentation + "ListBox").Single();
+        StringAssert.Contains((string?)sourceList.Attribute("ItemsSource") ?? string.Empty, "SourceGroups");
+        StringAssert.Contains((string?)sourceList.Attribute("SelectedItem") ?? string.Empty, "SelectedSourceGroup");
+        Assert.AreEqual("OnSourceGroupSelectionChanged", (string?)sourceList.Attribute("SelectionChanged"));
+
+        var outerGrid = sourceList.Ancestors(presentation + "Grid")
+            .Last(element => ((string?)element.Attribute("ColumnDefinitions"))?.Contains("180,8,*", StringComparison.Ordinal) == true);
+        Assert.IsNotNull(outerGrid);
+        var sourceModeTrigger = workspace.Descendants(presentation + "DataTrigger")
+            .Single(element => ((string?)element.Attribute("Binding"))?.Contains("IsSourceSelected", StringComparison.Ordinal) == true);
+        Assert.AreEqual("True", (string?)sourceModeTrigger.Attribute("Value"));
     }
 
     private static GrossDemandWorkspaceViewModel CreateViewModel(
@@ -303,17 +401,29 @@ public sealed class GrossDemandWorkspaceViewModelTests
     private sealed class FakeGrossDemandApi : IGrossDemandWorkspaceApi
     {
         public PagedResponseBase<GrossDemandListItemDto> SearchResponse { get; set; } = CreatePage();
+        public List<GrossDemandSourceGroupDto> SourceGroupResponse { get; set; } = [];
         public GrossDemandTraceDto TraceResponse { get; set; } = new()
         {
             GrossDemand = new GrossDemandDetailDto()
         };
         public GrossDemandSearchRequest? LastSearchRequest { get; private set; }
+        public GrossDemandSearchRequest? LastSourceGroupRequest { get; private set; }
+        public int SourceGroupCallCount { get; private set; }
         public int TraceCallCount { get; private set; }
 
         public Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync(GrossDemandSearchRequest request, CancellationToken cancellationToken = default)
         {
             LastSearchRequest = request;
             return Task.FromResult(ServiceResult<PagedResponseBase<GrossDemandListItemDto>>.Ok(SearchResponse));
+        }
+
+        public Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync(
+            GrossDemandSearchRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            LastSourceGroupRequest = request;
+            SourceGroupCallCount++;
+            return Task.FromResult(ServiceResult<List<GrossDemandSourceGroupDto>>.Ok(SourceGroupResponse));
         }
 
         public Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();

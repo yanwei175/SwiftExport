@@ -10,6 +10,9 @@ public interface IGrossDemandRepository
     Task<PagedResponseBase<GrossDemandListItemDto>> SearchWorkspaceAsync(
         GrossDemandSearchRequest request,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GrossDemandSourceGroupDto>> SearchSourceGroupsAsync(
+        GrossDemandSearchRequest request,
+        CancellationToken cancellationToken = default);
     Task<GrossDemandDetailDto?> GetWorkspaceDetailAsync(Guid uid, CancellationToken cancellationToken = default);
     Task<GrossDemand?> GetByIdForUpdateAsync(Guid uid);
     Task<IReadOnlyList<GrossDemand>> GetActiveBySourceForUpdateAsync(string sourceType, Guid sourceUid);
