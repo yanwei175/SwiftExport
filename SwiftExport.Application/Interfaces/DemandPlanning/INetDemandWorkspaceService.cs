@@ -3,10 +3,19 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Interfaces.DemandPlanning;
 
+/// <summary>
+/// 编排净需求工作台查询、计划调整、采购草稿及追溯能力。
+/// </summary>
 public interface INetDemandWorkspaceService
 {
     Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
         NetDemandSearchRequest request,
+        CancellationToken cancellationToken = default);
+    /// <summary>
+    /// 查询左侧来源导航使用的独立来源分组。
+    /// </summary>
+    Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
+        NetDemandSourceGroupSearchRequest request,
         CancellationToken cancellationToken = default);
     Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default);
     Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default);

@@ -13,6 +13,9 @@ using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Services.DemandPlanning;
 
+/// <summary>
+/// 负责编排净需求工作台查询、计划替代、追溯及采购草稿业务。
+/// </summary>
 public sealed class NetDemandWorkspaceService(
     ServiceBaseContext context,
     INetDemandRepository netDemandRepository,
@@ -80,6 +83,27 @@ public sealed class NetDemandWorkspaceService(
         {
             _logger.LogError(ex, "查询净需求工作台失败。");
             return ServiceResult<PagedResponseBase<NetDemandListItemDto>>.Fail("查询净需求失败。");
+        }
+    }
+
+    /// <summary>
+    /// 查询左侧来源导航分组；该请求仅接受来源导航自己的来源类型和计划状态筛选。
+    /// </summary>
+    public async Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
+        NetDemandSourceGroupSearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            request ??= new NetDemandSourceGroupSearchRequest();
+            var groups = await netDemandRepository.SearchSourceGroupsAsync(request, cancellationToken);
+            return ServiceResult<List<NetDemandSourceGroupDto>>.Ok([.. groups]);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "查询净需求来源分组失败。");
+            return ServiceResult<List<NetDemandSourceGroupDto>>.Fail("查询净需求来源分组失败。");
         }
     }
 

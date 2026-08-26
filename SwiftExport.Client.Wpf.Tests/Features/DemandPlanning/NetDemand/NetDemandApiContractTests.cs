@@ -13,6 +13,7 @@ public sealed class NetDemandApiContractTests
     public void NetDemandApi_ShouldExposeQueryAndPlanRoutes()
     {
         AssertRoute(nameof(INetDemandWorkspaceApi.SearchAsync), typeof(PostAttribute), "/search", 0);
+        AssertRoute(nameof(INetDemandWorkspaceApi.SearchSourceGroupsAsync), typeof(PostAttribute), "/source-groups", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.GetDetailAsync), typeof(GetAttribute), "/{uid}");
         AssertRoute(nameof(INetDemandWorkspaceApi.GetTraceAsync), typeof(GetAttribute), "/{uid}/trace");
         AssertRoute(nameof(INetDemandWorkspaceApi.ReplacePlanAsync), typeof(PostAttribute), "/plans/replace", 0);
@@ -30,6 +31,7 @@ public sealed class NetDemandApiContractTests
     public void ReadMethods_ShouldSupportCancellation_AndWritesShouldCarryConcurrency()
     {
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.SearchAsync));
+        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.SearchSourceGroupsAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetDetailAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetTraceAsync));
         Assert.IsFalse(typeof(INetDemandWorkspaceApi).GetMethod(nameof(INetDemandWorkspaceApi.ReplacePlanAsync))!

@@ -5,7 +5,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:views="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.Views"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             mc:Ignorable="d" d:Width="720" d:Height="800">
+             mc:Ignorable="d" 
+             d:Width="720" 
+             d:Height="800">
     <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,2*,8,*">
         <Grid ColumnDefinitions="*,Auto">
             <StackPanel>

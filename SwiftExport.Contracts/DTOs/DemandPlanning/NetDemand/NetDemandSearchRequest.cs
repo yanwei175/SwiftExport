@@ -10,6 +10,11 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
     /// </summary>
     public class NetDemandSearchRequest : PagedRequestBase
     {
+        /// <summary>
+        /// 来源导航选中的唯一来源标识；填写后服务端返回该来源的全部匹配净需求，不执行分页。
+        /// </summary>
+        public Guid? SourceUid { get; set; }
+
         public List<Guid> NetDemandIds { get; set; } = new List<Guid>();
         public List<Guid> GrossDemandIds { get; set; } = new List<Guid>();
         public List<Guid> SourceUids { get; set; } = new List<Guid>();

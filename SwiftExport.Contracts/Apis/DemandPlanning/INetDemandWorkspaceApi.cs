@@ -2,6 +2,7 @@ using Refit;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.Wrappers;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,6 +16,14 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
         [Post("/search")]
         Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
             [Body] NetDemandSearchRequest request,
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>
+        /// 查询净需求来源导航分组，筛选口径独立于工作台顶部查询条件。
+        /// </summary>
+        [Post("/source-groups")]
+        Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
+            [Body] NetDemandSourceGroupSearchRequest request,
             CancellationToken cancellationToken = default(CancellationToken));
 
         [Get("/{uid}")]

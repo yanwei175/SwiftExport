@@ -27,6 +27,10 @@ public sealed class NetDemandWorkspaceSqlContractTests
         StringAssert.Contains(
             source,
             "COALESCE(NULLIF(LTRIM(RTRIM(p.[Unit])),N''),N'PCS') AS [Unit]");
+        StringAssert.Contains(source, "!request.SourceUid.HasValue");
+        StringAssert.Contains(source, "gd.[SourceUid]=@SelectedSourceUid");
+        StringAssert.Contains(source, "SearchSourceGroupsAsync");
+        StringAssert.Contains(source, "PlanStatuses = request.PlanStatuses");
     }
 
     private static string FindRepositoryRoot()

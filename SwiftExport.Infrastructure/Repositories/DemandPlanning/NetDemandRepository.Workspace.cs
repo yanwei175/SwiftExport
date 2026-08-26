@@ -9,10 +9,32 @@ namespace SwiftExport.Infrastructure.Repositories.DemandPlanning;
 
 public sealed partial class NetDemandRepository
 {
+    /// <summary>
+    /// 查询净需求工作台；来源导航传入单一 SourceUid 时返回该来源的全部匹配记录。
+    /// </summary>
     public Task<PagedResponseBase<NetDemandListItemDto>> SearchWorkspaceAsync(
         NetDemandSearchRequest request,
         CancellationToken cancellationToken = default)
-        => QueryWorkspaceAsync(request ?? new NetDemandSearchRequest(), null, true, cancellationToken);
+    {
+        request ??= new NetDemandSearchRequest();
+        return QueryWorkspaceAsync(request, null, !request.SourceUid.HasValue, cancellationToken);
+    }
+
+    /// <summary>
+    /// 使用工作台的同一状态投影汇总来源单，避免来源计数与主表展示状态产生口径漂移。
+    /// </summary>
+    public async Task<IReadOnlyList<NetDemandSourceGroupDto>> SearchSourceGroupsAsync(
+        NetDemandSourceGroupSearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var workspace = await QueryWorkspaceCoreAsync(new NetDemandSearchRequest
+        {
+            SourceTypes = request.SourceTypes,
+            PlanStatuses = request.PlanStatuses
+        }, null, false, sourceGroupsOnly: true, cancellationToken: cancellationToken);
+        return workspace.SourceGroups;
+    }
 
     public async Task<NetDemandListItemDto?> GetWorkspaceItemAsync(
         Guid uid,
@@ -98,6 +120,22 @@ ORDER BY nd.[LineNumber],nd.[Uid];",
         bool paged,
         CancellationToken cancellationToken)
     {
+        var result = await QueryWorkspaceCoreAsync(
+            request,
+            rootNetDemandId,
+            paged,
+            sourceGroupsOnly: false,
+            cancellationToken: cancellationToken);
+        return result.Page!;
+    }
+
+    private async Task<WorkspaceQueryResult> QueryWorkspaceCoreAsync(
+        NetDemandSearchRequest request,
+        Guid? rootNetDemandId,
+        bool paged,
+        bool sourceGroupsOnly,
+        CancellationToken cancellationToken)
+    {
         var pageIndex = Math.Max(1, request.PageIndex);
         var pageSize = Math.Clamp(request.PageSize <= 0 ? 20 : request.PageSize, 1, 200);
         var parameters = new DynamicParameters(new
@@ -126,6 +164,11 @@ ORDER BY nd.[LineNumber],nd.[Uid];",
         }
         AddListFilter(request.NetDemandIds, "nd.[Uid]", "NetDemandIds", innerWhere, parameters);
         AddListFilter(request.GrossDemandIds, "nd.[GrossDemandId]", "GrossDemandIds", innerWhere, parameters);
+        if (request.SourceUid.HasValue)
+        {
+            innerWhere.Add("gd.[SourceUid]=@SelectedSourceUid");
+            parameters.Add("SelectedSourceUid", request.SourceUid.Value);
+        }
         AddListFilter(request.SourceUids, "gd.[SourceUid]", "SourceUids", innerWhere, parameters);
         AddListFilter(request.SourceTypes, "gd.[SourceType]", "SourceTypes", innerWhere, parameters);
         AddListFilter(request.SourceNos, "gd.[SourceNo]", "SourceNos", innerWhere, parameters);
@@ -276,6 +319,19 @@ SELECT
     WHERE {string.Join(" AND ", innerWhere)};
 ";
         var outerClause = outerWhere.Count == 0 ? string.Empty : "WHERE " + string.Join(" AND ", outerWhere);
+        if (sourceGroupsOnly)
+        {
+            var sourceGroupSql = workspaceSql + $@"
+SELECT w.[SourceUid],MAX(w.[SourceType]) AS [SourceType],MAX(w.[SourceNo]) AS [SourceNo],COUNT(1) AS [DemandCount]
+FROM #Workspace w {outerClause}
+GROUP BY w.[SourceUid]
+ORDER BY MAX(w.[SourceType]),MAX(w.[SourceNo]),w.[SourceUid];
+DROP TABLE #Workspace;";
+            var groups = await Connection.QueryAsync<NetDemandSourceGroupDto>(new CommandDefinition(
+                sourceGroupSql, parameters, Transaction, cancellationToken: cancellationToken));
+            return new WorkspaceQueryResult { SourceGroups = [.. groups] };
+        }
+
         var pageClause = paged
             ? "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY"
             : string.Empty;
@@ -289,13 +345,29 @@ DROP TABLE #Workspace;";
             sql, parameters, Transaction, cancellationToken: cancellationToken));
         var totalCount = await multi.ReadFirstAsync<int>();
         var items = (await multi.ReadAsync<NetDemandListItemDto>()).ToList();
-        return new PagedResponseBase<NetDemandListItemDto>
+        return new WorkspaceQueryResult
         {
-            Items = items,
-            TotalCount = totalCount,
-            PageIndex = paged ? pageIndex : 1,
-            PageSize = paged ? pageSize : Math.Max(1, totalCount)
+            Page = new PagedResponseBase<NetDemandListItemDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageIndex = paged ? pageIndex : 1,
+                PageSize = paged ? pageSize : Math.Max(1, totalCount)
+            }
         };
+    }
+
+    private sealed class WorkspaceQueryResult
+    {
+        /// <summary>
+        /// 普通工作台查询返回的分页或来源全量结果。
+        /// </summary>
+        public PagedResponseBase<NetDemandListItemDto>? Page { get; init; }
+
+        /// <summary>
+        /// 来源导航查询返回的数据库端分组结果。
+        /// </summary>
+        public IReadOnlyList<NetDemandSourceGroupDto> SourceGroups { get; init; } = [];
     }
 
     private static void AddDateRange(

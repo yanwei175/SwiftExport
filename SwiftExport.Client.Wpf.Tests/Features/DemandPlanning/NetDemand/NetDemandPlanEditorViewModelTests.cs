@@ -145,6 +145,7 @@ public sealed class NetDemandPlanEditorViewModelTests
         public Task<ServiceResult<NetDemandPlanCommandResult>> BatchAssignSupplierAsync(BatchAssignSupplierCommand command) =>
             Task.FromResult(ServiceResult<NetDemandPlanCommandResult>.Ok(BatchResult));
 
+        public Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(NetDemandSourceGroupSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(NetDemandSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();

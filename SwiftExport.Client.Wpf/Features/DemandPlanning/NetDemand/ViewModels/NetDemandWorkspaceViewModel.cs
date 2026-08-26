@@ -15,9 +15,13 @@ using SwiftExportClient.Navigation;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using System.Collections.Specialized;
 
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 
+/// <summary>
+/// 负责净需求工作台的分页查询、来源导航、计划编辑、采购草稿和追溯交互。
+/// </summary>
 public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     IAsyncInitializable,
     IDocumentTabViewModel,
@@ -33,11 +37,15 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     private readonly IMessageService _messageService;
     private readonly INetDemandDialogService _netDemandDialogService;
     private CancellationTokenSource? _searchCancellation;
+    private CancellationTokenSource? _sourceGroupCancellation;
+    private CancellationTokenSource? _sourceGroupFilterDebounceCancellation;
     private CancellationTokenSource? _detailCancellation;
     private long _supplierSearchVersion;
     private bool _initialized;
     private bool _syncingChecks;
+    private bool _syncingSourceFilters;
     private bool _disposed;
+    private Guid? _appliedSourceUid;
     private NetDemandWorkspaceOpenRequest? _openRequest;
 
     public NetDemandWorkspaceViewModel(
@@ -72,11 +80,21 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         RegisterBusyAwareCommand(TransferSelectedPurchaseCommand);
         RegisterBusyAwareCommand(TransferSourcePurchaseCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
+        RegisterBusyAwareCommand(SelectSourceGroupCommand);
+        RegisterBusyAwareCommand(ToggleSourcePanelCommand);
+        RegisterBusyAwareCommand(ClearSourceFiltersCommand);
+
+        SourceSourceTypes.CollectionChanged += OnSourceGroupFilterChanged;
+        SourcePlanStatuses.CollectionChanged += OnSourceGroupFilterChanged;
     }
 
     public NetDemandPlanEditorViewModel PlanEditor { get; }
     public NetDemandTraceViewModel Trace { get; }
     public ObservableCollection<NetDemandRowModel> Items { get; } = [];
+    /// <summary>
+    /// 左侧来源导航当前显示的来源单集合。
+    /// </summary>
+    public ObservableCollection<NetDemandSourceGroupModel> SourceGroups { get; } = [];
     public ObservableCollection<SupplierDto> SupplierCandidates { get; } = [];
 
     public IReadOnlyList<NetDemandFilterOption<string>> SourceTypeOptions { get; } =
@@ -123,12 +141,43 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     public ObservableCollection<NetDemandFilterOption<string>> SelectedSourceTypes { get; } = [];
     public ObservableCollection<NetDemandFilterOption<DemandExecutionTypeEnum>> SelectedExecutionTypes { get; } = [];
     public ObservableCollection<NetDemandFilterOption<NetDemandPlanStatusEnum>> SelectedPlanStatuses { get; } = [];
+    /// <summary>
+    /// 来源导航独立使用的来源类型筛选。
+    /// </summary>
+    public ObservableCollection<NetDemandFilterOption<string>> SourceSourceTypes { get; } = [];
+    /// <summary>
+    /// 来源导航独立使用的计划状态筛选。
+    /// </summary>
+    public ObservableCollection<NetDemandFilterOption<NetDemandPlanStatusEnum>> SourcePlanStatuses { get; } = [];
 
     public string DocumentTitle => "净需求";
     public bool HasUnsavedChanges => PlanEditor.HasUnsavedChanges;
-    public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
-    public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
+    public int TotalPages => IsSourceSelected || TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
+    public string PageStatus => IsSourceSelected ? $"当前来源共 {TotalCount} 条" : $"第 {PageIndex} / {TotalPages} 页";
     public int CheckedCount => Items.Count(item => item.IsChecked);
+    /// <summary>
+    /// 指示主表当前是否处于单一来源的全量加载模式。
+    /// </summary>
+    public bool IsSourceSelected => _appliedSourceUid.HasValue;
+
+    /// <summary>
+    /// 控制左侧来源导航是否显示。
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsSourcePanelOpen { get; private set; }
+
+    /// <summary>
+    /// 指示来源分组请求是否正在执行。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SelectSourceGroupCommand))]
+    public partial bool IsSourceGroupLoading { get; private set; }
+
+    /// <summary>
+    /// 显示来源单和匹配净需求数量的加载摘要。
+    /// </summary>
+    [ObservableProperty]
+    public partial string SourceGroupSummary { get; private set; } = "打开来源导航后加载。";
 
     [ObservableProperty]
     public partial string Keyword { get; set; } = string.Empty;
@@ -141,6 +190,12 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
 
     [ObservableProperty]
     public partial string CustomerSkusText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 控制更多条件 Popup 的打开状态。
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsMultiLineFilterOpen { get; set; }
 
     [ObservableProperty]
     public partial DateTime? DemandRequiredDateFrom { get; set; }
@@ -168,6 +223,16 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
 
     [ObservableProperty]
     public partial bool IsSupplierLookupBusy { get; private set; }
+
+    /// <summary>
+    /// 当前由左侧 ListBox 选中的来源单。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSourceSelected))]
+    [NotifyPropertyChangedFor(nameof(TotalPages))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
+    [NotifyCanExecuteChangedFor(nameof(PageChangeCommand))]
+    public partial NetDemandSourceGroupModel? SelectedSourceGroup { get; set; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ModifyPlanCommand))]
@@ -243,6 +308,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         }
 
         _openRequest = null;
+        ExitSourceMode();
         PageIndex = 1;
         await LoadPageAsync();
     }
@@ -252,7 +318,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     {
         if (await ConfirmDiscardPlanChangesAsync())
         {
-            await LoadPageAsync();
+            await RefreshWorkspaceAsync();
         }
     }
 
@@ -265,6 +331,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         }
 
         _openRequest = null;
+        ExitSourceMode();
         Keyword = string.Empty;
         SourceNosText = string.Empty;
         SkusText = string.Empty;
@@ -387,7 +454,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
             }
 
             ShowCommandSummary("应用默认供应商", result.Data.Items);
-            await LoadPageAsync();
+            await RefreshWorkspaceAsync();
         }, "正在应用产品默认供应商...");
     }
 
@@ -425,7 +492,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         });
         if (applied)
         {
-            await LoadPageAsync();
+            await RefreshWorkspaceAsync();
         }
     }
 
@@ -447,7 +514,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         });
         if (applied)
         {
-            await LoadPageAsync();
+            await RefreshWorkspaceAsync();
         }
     }
 
@@ -465,7 +532,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         IsDrawerOpen = false;
     }
 
-    [RelayCommand(CanExecute = nameof(CanRun))]
+    [RelayCommand(CanExecute = nameof(CanPageChange))]
     private async Task PageChangeAsync(PageChangeRequest? request)
     {
         if (request is null || !await ConfirmDiscardPlanChangesAsync())
@@ -478,6 +545,86 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         PageSize = request.NewSize;
         await LoadPageAsync();
     }
+
+    #region 来源导航与独立筛选
+
+    // 左栏只使用来源类型和计划状态，避免顶部复杂筛选悄然改变来源单列表口径。
+
+    [RelayCommand(CanExecute = nameof(CanSelectSourceGroup))]
+    private async Task SelectSourceGroupAsync(NetDemandSourceGroupModel? group)
+    {
+        if (group is null)
+        {
+            RestoreAppliedSourceSelection();
+            return;
+        }
+
+        if (group.SourceUid == _appliedSourceUid)
+        {
+            return;
+        }
+
+        if (!await ConfirmDiscardPlanChangesAsync())
+        {
+            RestoreAppliedSourceSelection();
+            return;
+        }
+
+        _appliedSourceUid = group.SourceUid;
+        SelectedSourceGroup = group;
+        NotifySourceModeChanged();
+        PageIndex = 1;
+        await LoadPageAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private async Task ToggleSourcePanelAsync()
+    {
+        if (IsSourcePanelOpen)
+        {
+            if (!await ConfirmDiscardPlanChangesAsync())
+            {
+                return;
+            }
+
+            CancelSourceGroupLoading();
+            IsSourcePanelOpen = false;
+            ExitSourceMode();
+            await LoadPageAsync();
+            return;
+        }
+
+        IsSourcePanelOpen = true;
+        await RefreshSourceNavigationAsync(reloadCurrentData: false);
+    }
+
+    [RelayCommand]
+    private async Task RefreshSourceGroupsAsync()
+    {
+        if (IsSourcePanelOpen)
+        {
+            await RefreshSourceNavigationAsync(reloadCurrentData: IsSourceSelected);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private async Task ClearSourceFiltersAsync()
+    {
+        _syncingSourceFilters = true;
+        try
+        {
+            SourceSourceTypes.Clear();
+            SourcePlanStatuses.Clear();
+        }
+        finally
+        {
+            _syncingSourceFilters = false;
+        }
+
+        await RefreshSourceNavigationAsync(reloadCurrentData: IsSourceSelected);
+    }
+
+    #endregion
 
     private async Task LoadPageAsync(CancellationToken externalCancellation = default)
     {
@@ -516,13 +663,18 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
                 }
 
                 TotalCount = result.Data.TotalCount;
-                PageIndex = result.Data.PageIndex <= 0 ? PageIndex : result.Data.PageIndex;
-                PageSize = result.Data.PageSize <= 0 ? PageSize : result.Data.PageSize;
+                PageIndex = IsSourceSelected ? 1 : result.Data.PageIndex <= 0 ? PageIndex : result.Data.PageIndex;
+                if (!IsSourceSelected && result.Data.PageSize > 0)
+                {
+                    PageSize = result.Data.PageSize;
+                }
                 SelectedItem = selectedUid is null
                     ? Items.FirstOrDefault()
                     : Items.FirstOrDefault(item => item.Uid == selectedUid) ?? Items.FirstOrDefault();
                 ClearChecks();
-                ResultSummary = $"共 {TotalCount} 条净需求计划，本页 {Items.Count} 条。";
+                ResultSummary = IsSourceSelected
+                    ? $"当前来源共 {TotalCount} 条净需求计划，已全部加载。"
+                    : $"共 {TotalCount} 条净需求计划，本页 {Items.Count} 条。";
             }, "正在查询净需求...", skipIfBusy: false);
         }
         finally
@@ -572,7 +724,13 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         }
     }
 
+    /// <summary>
+    /// 根据当前模式构建主分页查询或来源导航全量查询。
+    /// </summary>
     private NetDemandSearchRequest CreateSearchRequest()
+        => IsSourceSelected ? CreateSelectedSourceSearchRequest() : CreateMainSearchRequest();
+
+    private NetDemandSearchRequest CreateMainSearchRequest()
     {
         var request = new NetDemandSearchRequest
         {
@@ -614,6 +772,175 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         }
 
         return request;
+    }
+
+    private NetDemandSearchRequest CreateSelectedSourceSearchRequest()
+    {
+        var request = new NetDemandSearchRequest
+        {
+            SourceUid = _appliedSourceUid,
+            PageIndex = 1,
+            PageSize = PageSize,
+            PlanStatuses = SourcePlanStatuses.Select(item => item.Value).ToList(),
+        };
+        if (SelectedSourceGroup is not null)
+        {
+            request.SourceTypes.Add(SelectedSourceGroup.SourceType);
+        }
+
+        return request;
+    }
+
+    private NetDemandSourceGroupSearchRequest CreateSourceGroupSearchRequest() => new()
+    {
+        SourceTypes = SourceSourceTypes.Select(item => item.Value).ToList(),
+        PlanStatuses = SourcePlanStatuses.Select(item => item.Value).ToList(),
+    };
+
+    /// <summary>
+    /// 刷新来源列表，并在当前来源仍有效时选择性重载主表；较早请求会被取消。
+    /// </summary>
+    private async Task<bool> RefreshSourceNavigationAsync(bool reloadCurrentData)
+    {
+        CancelSourceGroupLoading();
+        var cancellation = new CancellationTokenSource();
+        _sourceGroupCancellation = cancellation;
+        IsSourceGroupLoading = true;
+        try
+        {
+            var result = await _apiCallRunner.RunAsync(
+                () => _api.SearchSourceGroupsAsync(CreateSourceGroupSearchRequest(), cancellation.Token),
+                cancellation.Token,
+                "查询净需求来源分组失败");
+            if (cancellation.IsCancellationRequested || !ReferenceEquals(_sourceGroupCancellation, cancellation))
+            {
+                return false;
+            }
+
+            if (!result.Success || result.Data is null)
+            {
+                SourceGroupSummary = result.Message;
+                return false;
+            }
+
+            var groups = result.Data.Select(NetDemandSourceGroupModel.FromDto).ToArray();
+            SourceGroups.Clear();
+            foreach (var group in groups)
+            {
+                SourceGroups.Add(group);
+            }
+
+            SourceGroupSummary = $"共 {SourceGroups.Count} 张来源单，{result.Data.Sum(item => item.DemandCount)} 条净需求。";
+            if (_appliedSourceUid.HasValue)
+            {
+                var selected = SourceGroups.FirstOrDefault(item => item.SourceUid == _appliedSourceUid.Value);
+                if (selected is null)
+                {
+                    ExitSourceMode();
+                }
+                else
+                {
+                    SelectedSourceGroup = selected;
+                }
+            }
+
+            if (reloadCurrentData)
+            {
+                await LoadPageAsync();
+            }
+
+            return true;
+        }
+        finally
+        {
+            if (ReferenceEquals(_sourceGroupCancellation, cancellation))
+            {
+                _sourceGroupCancellation = null;
+                IsSourceGroupLoading = false;
+            }
+
+            cancellation.Dispose();
+        }
+    }
+
+    private void RestoreAppliedSourceSelection()
+    {
+        SelectedSourceGroup = _appliedSourceUid.HasValue
+            ? SourceGroups.FirstOrDefault(item => item.SourceUid == _appliedSourceUid.Value)
+            : null;
+    }
+
+    /// <summary>
+    /// 对来源筛选变化做短防抖，避免多选控件连续变更触发重复请求。
+    /// </summary>
+    private async void OnSourceGroupFilterChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_syncingSourceFilters || !IsSourcePanelOpen)
+        {
+            return;
+        }
+
+        _sourceGroupFilterDebounceCancellation?.Cancel();
+        _sourceGroupFilterDebounceCancellation?.Dispose();
+        var cancellation = new CancellationTokenSource();
+        _sourceGroupFilterDebounceCancellation = cancellation;
+        try
+        {
+            await Task.Delay(250, cancellation.Token);
+            if (!cancellation.IsCancellationRequested)
+            {
+                await RefreshSourceGroupsCommand.ExecuteAsync(null);
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(_sourceGroupFilterDebounceCancellation, cancellation))
+            {
+                _sourceGroupFilterDebounceCancellation = null;
+            }
+
+            cancellation.Dispose();
+        }
+    }
+
+    private async Task RefreshWorkspaceAsync()
+    {
+        if (IsSourcePanelOpen && !await RefreshSourceNavigationAsync(reloadCurrentData: false))
+        {
+            return;
+        }
+
+        await LoadPageAsync();
+    }
+
+    private void ExitSourceMode()
+    {
+        _appliedSourceUid = null;
+        SelectedSourceGroup = null;
+        PageIndex = 1;
+        NotifySourceModeChanged();
+    }
+
+    private void NotifySourceModeChanged()
+    {
+        OnPropertyChanged(nameof(IsSourceSelected));
+        OnPropertyChanged(nameof(TotalPages));
+        OnPropertyChanged(nameof(PageStatus));
+        PageChangeCommand.NotifyCanExecuteChanged();
+    }
+
+    private void CancelSourceGroupLoading()
+    {
+        _sourceGroupFilterDebounceCancellation?.Cancel();
+        _sourceGroupFilterDebounceCancellation?.Dispose();
+        _sourceGroupFilterDebounceCancellation = null;
+        _sourceGroupCancellation?.Cancel();
+        _sourceGroupCancellation?.Dispose();
+        _sourceGroupCancellation = null;
+        IsSourceGroupLoading = false;
     }
 
     private static List<string> SplitLines(string value) => value
@@ -749,10 +1076,12 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         PlanEditor.Close(discardChanges: true);
         ActiveDrawerContent = null;
         IsDrawerOpen = false;
-        await LoadPageAsync();
+        await RefreshWorkspaceAsync();
     }
 
     private bool CanRun() => IsNotBusy;
+    private bool CanPageChange() => IsNotBusy && !IsSourceSelected;
+    private bool CanSelectSourceGroup(NetDemandSourceGroupModel? group) => IsNotBusy && !IsSourceGroupLoading && group is not null;
     private bool CanUseSelected() => IsNotBusy && SelectedItem is not null;
     private bool CanModifyPlan() => CanWrite && IsNotBusy && SelectedItem?.CanReplacePlan == true;
     private bool CanApplyDefaultSupplier() => CanWrite && IsNotBusy && SelectedItem?.CanApplyDefaultSupplier == true;
@@ -787,12 +1116,15 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         _disposed = true;
         _searchCancellation?.Cancel();
         _searchCancellation?.Dispose();
+        CancelSourceGroupLoading();
         _detailCancellation?.Cancel();
         _detailCancellation?.Dispose();
         Interlocked.Increment(ref _supplierSearchVersion);
         DetachRows();
         PlanEditor.PropertyChanged -= OnPlanEditorPropertyChanged;
         PlanEditor.Saved -= OnPlanSaved;
+        SourceSourceTypes.CollectionChanged -= OnSourceGroupFilterChanged;
+        SourcePlanStatuses.CollectionChanged -= OnSourceGroupFilterChanged;
         PlanEditor.Dispose();
         Trace.Dispose();
     }

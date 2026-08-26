@@ -6,6 +6,9 @@ using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.DemandPlanning;
 
+/// <summary>
+/// 暴露净需求工作台的查询、计划命令、采购草稿和追溯 HTTP 边界。
+/// </summary>
 [ApiController]
 [Route("api/demand-planning/net-demands")]
 public sealed class NetDemandWorkspaceController(INetDemandWorkspaceService service) : ControllerBase
@@ -15,6 +18,15 @@ public sealed class NetDemandWorkspaceController(INetDemandWorkspaceService serv
         [FromBody] NetDemandSearchRequest request,
         CancellationToken cancellationToken)
         => service.SearchAsync(request, cancellationToken);
+
+    /// <summary>
+    /// 查询净需求左侧来源导航分组。
+    /// </summary>
+    [HttpPost("source-groups")]
+    public Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
+        [FromBody] NetDemandSourceGroupSearchRequest request,
+        CancellationToken cancellationToken)
+        => service.SearchSourceGroupsAsync(request, cancellationToken);
 
     [HttpGet("{uid:guid}")]
     public Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(

@@ -6,6 +6,23 @@ namespace SwiftExport.Application.Tests.DemandPlanning;
 public sealed class NetDemandWorkspaceControllerContractTests
 {
     [TestMethod]
+    public void SourceGroups_MustExposeDedicatedReadOnlyRoute()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var controllerPath = Path.Combine(
+            repositoryRoot,
+            "SwiftExport.WebApi",
+            "Controllers",
+            "DemandPlanning",
+            "NetDemandWorkspaceController.cs");
+        var source = File.ReadAllText(controllerPath);
+
+        StringAssert.Contains(source, "[HttpPost(\"source-groups\")]");
+        StringAssert.Contains(source, "SearchSourceGroupsAsync");
+        StringAssert.Contains(source, "NetDemandSourceGroupSearchRequest");
+    }
+
+    [TestMethod]
     public void CreatePurchaseDrafts_MustRelyOnDatabaseIdempotency_NotMemoryDuplicateFilter()
     {
         var repositoryRoot = FindRepositoryRoot();
