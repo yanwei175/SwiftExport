@@ -17,7 +17,7 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
         Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync([Body] GrossDemandSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));
 
         [Post("/source-groups/search")]
-        Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync([Body] GrossDemandSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));
+        Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync([Body] GrossDemandSourceGroupSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));
 
         [Get("/{uid}")]
         Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken));

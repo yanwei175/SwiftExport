@@ -11,7 +11,7 @@ public interface IGrossDemandRepository
         GrossDemandSearchRequest request,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<GrossDemandSourceGroupDto>> SearchSourceGroupsAsync(
-        GrossDemandSearchRequest request,
+        GrossDemandSourceGroupSearchRequest request,
         CancellationToken cancellationToken = default);
     Task<GrossDemandDetailDto?> GetWorkspaceDetailAsync(Guid uid, CancellationToken cancellationToken = default);
     Task<GrossDemand?> GetByIdForUpdateAsync(Guid uid);

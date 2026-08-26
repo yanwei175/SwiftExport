@@ -14,11 +14,12 @@
                 <ResourceDictionary Source="Resources/Spacing.xaml" />
                 <ResourceDictionary Source="Resources/Button.xaml" />
                 <ResourceDictionary Source="Resources/DataGrid.xaml" />
+                <ResourceDictionary Source="Resources/ListBox.xaml" />
                 <ResourceDictionary Source="Resources/Image.xaml" />
                 <ResourceDictionary Source="Resources/TabControl.xaml" />
 
             </ResourceDictionary.MergedDictionaries>
-            
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>

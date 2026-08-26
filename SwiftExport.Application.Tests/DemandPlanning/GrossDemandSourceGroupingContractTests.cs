@@ -14,12 +14,15 @@ public sealed class GrossDemandSourceGroupingContractTests
             "DemandPlanning",
             "GrossDemandRepository.cs");
 
-        StringAssert.Contains(source, "BuildWorkspaceFilters(request, includeSourceUid: false)");
+        StringAssert.Contains(source, "GrossDemandSourceGroupSearchRequest request");
+        StringAssert.Contains(source, "SourceLifecycleStatuses");
+        StringAssert.Contains(source, "SourceDecompositionStatuses");
         StringAssert.Contains(source, "GROUP BY d.[SourceUid]");
         StringAssert.Contains(source, "var sourceMode = request.SourceUid.HasValue");
         StringAssert.Contains(source, "var pagingSql = sourceMode");
         StringAssert.Contains(source, "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;");
         StringAssert.Contains(source, "PageSize = sourceMode ? Math.Max(1, total) : pageSize");
+        Assert.IsFalse(source.Contains("10000", StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -39,7 +42,9 @@ public sealed class GrossDemandSourceGroupingContractTests
         StringAssert.Contains(api, "Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync");
         StringAssert.Contains(api, "[Post(\"/source-groups/search\")]");
         StringAssert.Contains(api, "Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync");
+        StringAssert.Contains(api, "GrossDemandSourceGroupSearchRequest request");
         StringAssert.Contains(controller, "[HttpPost(\"source-groups/search\")]");
+        StringAssert.Contains(controller, "GrossDemandSourceGroupSearchRequest request");
     }
 
     private static string Read(params string[] parts) =>

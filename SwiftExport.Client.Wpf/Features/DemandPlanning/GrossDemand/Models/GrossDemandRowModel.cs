@@ -59,12 +59,12 @@ public sealed partial class GrossDemandRowModel : ObservableObject
     };
     public string SourceTypeText => SourceType switch
     {
-        "SO" => "销售",
-        "MD" => "手工",
-        "CR" => "投诉",
+        "SO" => "销售单",
+        "MD" => "手工单",
+        "CR" => "投诉单",
         _ => SourceType,
     };
-    public string ItemTypeText => IsNonStandard ? "非标" : "标准";
+    public string ItemTypeText => IsNonStandard ? "非标件" : "标准件";
 
     [ObservableProperty]
     public partial bool IsChecked { get; set; }

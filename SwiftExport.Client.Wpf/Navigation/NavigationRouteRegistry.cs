@@ -37,7 +37,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new("suppliers", "供应商管理", "Workspace", typeof(SupplierManagerViewModel)),
         new(SupplierProductWorkspaceViewModel.RouteKey, "供应商产品管理", "Workspace", typeof(SupplierProductWorkspaceViewModel)),
         new("sales", "销售", "Workspace", typeof(SalesViewModel)),
-        new(SalesOrderManagerViewModel.ManagerRouteKey, "销售订单管理", "Workspace", typeof(SalesOrderManagerViewModel)),
+        new(SalesOrderManagerViewModel.RouteKey, "销售订单管理", "Workspace", typeof(SalesOrderManagerViewModel)),
         new(SalesOrderManagerViewModel.DetailRouteKey, "销售订单", "Workspace", typeof(SalesOrderDetailViewModel)),
         new(GrossDemandWorkspaceViewModel.RouteKey, "毛需求", "Workspace", typeof(GrossDemandWorkspaceViewModel)),
         new(NetDemandWorkspaceViewModel.RouteKey, "净需求", "Workspace", typeof(NetDemandWorkspaceViewModel)),
@@ -97,7 +97,16 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                     new("suppliers", "供应商管理", "Workspace", "PeopleTeam24"),
                     new(SupplierProductWorkspaceViewModel.RouteKey, "供应商产品管理", "Workspace", "DocumentTable24"),
                 ]),
-            new(SalesOrderManagerViewModel.ManagerRouteKey, "销售订单", "Workspace", "ReceiptMoney24"),
+            new(
+                "sales",
+                "销售",
+                "Workspace",
+                "ReceiptMoney24",
+                IsExpanded: true,
+                Children:
+                [
+                    new(SalesOrderManagerViewModel.RouteKey, "销售订单管理", "Workspace", "DocumentBulletList24"),
+                ]),
             new(
                 "demand-planning",
                 "需求计划",

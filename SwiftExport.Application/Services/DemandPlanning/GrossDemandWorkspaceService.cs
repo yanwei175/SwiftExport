@@ -60,12 +60,12 @@ public sealed class GrossDemandWorkspaceService(
     }
 
     public async Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync(
-        GrossDemandSearchRequest request,
+        GrossDemandSourceGroupSearchRequest request,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            request ??= new GrossDemandSearchRequest();
+            request ??= new GrossDemandSourceGroupSearchRequest();
             var groups = await grossDemandRepository.SearchSourceGroupsAsync(request, cancellationToken);
             return ServiceResult<List<GrossDemandSourceGroupDto>>.Ok([.. groups]);
         }

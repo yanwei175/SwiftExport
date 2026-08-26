@@ -23,7 +23,7 @@ public sealed class GrossDemandRepository(RepositoryBaseContext context) : IGros
         var sourceMode = request.SourceUid.HasValue;
         var pageIndex = sourceMode ? 1 : Math.Max(1, request.PageIndex);
         var pageSize = Math.Clamp(request.PageSize, 1, 200);
-        var (where, parameters) = BuildWorkspaceFilters(request, includeSourceUid: true);
+        var (where, parameters) = BuildWorkspaceFilters(request);
         if (!sourceMode)
         {
             parameters.Add("Offset", (pageIndex - 1) * pageSize);
@@ -98,11 +98,14 @@ ORDER BY CASE WHEN d.[RequiredDate] IS NULL THEN 1 ELSE 0 END, d.[RequiredDate],
     }
 
     public async Task<IReadOnlyList<GrossDemandSourceGroupDto>> SearchSourceGroupsAsync(
-        GrossDemandSearchRequest request,
+        GrossDemandSourceGroupSearchRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var (where, parameters) = BuildWorkspaceFilters(request, includeSourceUid: false);
+        var where = new List<string> { "d.[IsDeleted] = 0" };
+        var parameters = new DynamicParameters();
+        AddListFilter(request.LifecycleStatuses, "d.[LifecycleStatus]", "SourceLifecycleStatuses", where, parameters);
+        AddListFilter(request.DecompositionStatuses, "d.[DecompositionStatus]", "SourceDecompositionStatuses", where, parameters);
         var sql = $@"
 SELECT d.[SourceUid],MAX(d.[SourceType]) AS [SourceType],MAX(d.[SourceNo]) AS [SourceNo],COUNT(1) AS [DemandCount]
 FROM [dbo].[GrossDemand] d
@@ -435,8 +438,7 @@ WHERE [SourceType]=@SourceType AND [SourceUid]=@SourceUid AND [LifecycleStatus]=
                 Active = GrossDemandLifecycleStatusEnum.Active, Pending = GrossDemandDecompositionStatusEnum.Pending }, Transaction);
 
     private static (List<string> Where, DynamicParameters Parameters) BuildWorkspaceFilters(
-        GrossDemandSearchRequest request,
-        bool includeSourceUid)
+        GrossDemandSearchRequest request)
     {
         var where = new List<string> { "d.[IsDeleted] = 0" };
         var parameters = new DynamicParameters();
@@ -467,7 +469,7 @@ WHERE [SourceType]=@SourceType AND [SourceUid]=@SourceUid AND [LifecycleStatus]=
             where.Add("d.[IsNonStandard] = @IsNonStandard");
             parameters.Add("IsNonStandard", request.IsNonStandard.Value);
         }
-        if (includeSourceUid && request.SourceUid.HasValue)
+        if (request.SourceUid.HasValue)
         {
             where.Add("d.[SourceUid] = @SourceUid");
             parameters.Add("SourceUid", request.SourceUid.Value);

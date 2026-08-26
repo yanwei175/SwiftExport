@@ -16,7 +16,7 @@ namespace SwiftExportClient.Features.Sales.Orders.ViewModels;
 
 public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsyncInitializable
 {
-    public const string ManagerRouteKey = "sales-orders";
+    public const string RouteKey = "sales-orders";
     public const string DetailRouteKey = "sales-order-detail";
 
     private readonly ISalesOrderWorkspaceApi _api;

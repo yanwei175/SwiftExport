@@ -86,6 +86,7 @@ public sealed class GrossDemandWorkspaceViewModelTests
         };
         using var viewModel = CreateViewModel(api);
         await viewModel.InitializeAsync();
+        await viewModel.ToggleSourcePanelCommand.ExecuteAsync(null);
         api.SearchResponse = new PagedResponseBase<GrossDemandListItemDto>
         {
             Items = items.ToList(),
@@ -94,7 +95,7 @@ public sealed class GrossDemandWorkspaceViewModelTests
             PageSize = items.Length,
         };
 
-        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[0]);
 
         Assert.IsTrue(viewModel.IsSourceSelected);
         Assert.AreEqual(sourceUid, api.LastSearchRequest?.SourceUid);
@@ -104,10 +105,23 @@ public sealed class GrossDemandWorkspaceViewModelTests
         Assert.IsFalse(viewModel.PageChangeCommand.CanExecute(null));
         StringAssert.Contains(viewModel.ResultSummary, "已全部加载");
         Assert.AreEqual(1, api.SourceGroupCallCount);
+        CollectionAssert.AreEqual(
+            new[] { GrossDemandLifecycleStatusEnum.Active },
+            api.LastSourceGroupRequest?.LifecycleStatuses);
+        CollectionAssert.AreEqual(
+            new[] { GrossDemandDecompositionStatusEnum.Pending },
+            api.LastSourceGroupRequest?.DecompositionStatuses);
+        CollectionAssert.AreEqual(
+            new[] { GrossDemandLifecycleStatusEnum.Active },
+            api.LastSearchRequest?.LifecycleStatuses);
+        CollectionAssert.AreEqual(
+            new[] { GrossDemandDecompositionStatusEnum.Pending },
+            api.LastSearchRequest?.DecompositionStatuses);
+        Assert.IsTrue(string.IsNullOrWhiteSpace(api.LastSearchRequest?.Keyword));
     }
 
     [TestMethod]
-    public async Task Refresh_WhenSelectedSourceNoLongerExists_ShouldReturnToAll()
+    public async Task Refresh_WhenSelectedSourceNoLongerExists_ShouldRestoreMainSearch()
     {
         var sourceUid = Guid.NewGuid();
         var api = new FakeGrossDemandApi
@@ -125,14 +139,173 @@ public sealed class GrossDemandWorkspaceViewModelTests
         };
         using var viewModel = CreateViewModel(api);
         await viewModel.InitializeAsync();
-        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
+        await viewModel.ToggleSourcePanelCommand.ExecuteAsync(null);
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[0]);
         api.SourceGroupResponse = [];
 
         await viewModel.RefreshCommand.ExecuteAsync(null);
 
         Assert.IsFalse(viewModel.IsSourceSelected);
         Assert.IsNull(api.LastSearchRequest?.SourceUid);
-        Assert.AreEqual("全部", viewModel.SelectedSourceGroup?.DisplaySourceNo);
+        Assert.IsNull(viewModel.SelectedSourceGroup);
+        Assert.IsTrue(viewModel.IsSourcePanelOpen);
+    }
+
+    [TestMethod]
+    public async Task SourcePanel_ShouldUseIndependentDefaultsAndOpeningMustNotReloadGrid()
+    {
+        var initialItem = CreateItem("SO-INITIAL", canDecompose: true);
+        var api = new FakeGrossDemandApi
+        {
+            SearchResponse = CreatePage(initialItem),
+            SourceGroupResponse =
+            [
+                new GrossDemandSourceGroupDto
+                {
+                    SourceUid = initialItem.SourceUid,
+                    SourceType = "SO",
+                    SourceNo = initialItem.SourceNo,
+                    DemandCount = 1,
+                }
+            ],
+        };
+        using var viewModel = CreateViewModel(api);
+        await viewModel.InitializeAsync();
+
+        Assert.IsFalse(viewModel.IsSourcePanelOpen);
+        Assert.AreEqual(0, api.SourceGroupCallCount);
+        Assert.AreEqual(1, api.SearchCallCount);
+        CollectionAssert.AreEqual(
+            new[] { GrossDemandLifecycleStatusEnum.Active },
+            viewModel.SourceLifecycleStatuses.Select(item => item.Value).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { GrossDemandDecompositionStatusEnum.Pending },
+            viewModel.SourceDecompositionStatuses.Select(item => item.Value).ToArray());
+
+        await viewModel.ToggleSourcePanelCommand.ExecuteAsync(null);
+
+        Assert.IsTrue(viewModel.IsSourcePanelOpen);
+        Assert.AreEqual(1, api.SourceGroupCallCount);
+        Assert.AreEqual(1, api.SearchCallCount);
+        Assert.AreEqual(initialItem.Uid, viewModel.Items.Single().Uid);
+    }
+
+    [TestMethod]
+    public async Task ClosingSourcePanel_ShouldClearSelectionAndRestoreMainPagedSearch()
+    {
+        var sourceUid = Guid.NewGuid();
+        var api = new FakeGrossDemandApi
+        {
+            SourceGroupResponse =
+            [
+                new GrossDemandSourceGroupDto
+                {
+                    SourceUid = sourceUid,
+                    SourceType = "SO",
+                    SourceNo = "SO-CLOSE",
+                    DemandCount = 1,
+                }
+            ],
+        };
+        using var viewModel = CreateViewModel(api);
+        await viewModel.InitializeAsync();
+        await viewModel.ToggleSourcePanelCommand.ExecuteAsync(null);
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[0]);
+        var callsBeforeClosing = api.SearchCallCount;
+
+        await viewModel.ToggleSourcePanelCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(viewModel.IsSourcePanelOpen);
+        Assert.IsFalse(viewModel.IsSourceSelected);
+        Assert.IsNull(viewModel.SelectedSourceGroup);
+        Assert.IsNull(api.LastSearchRequest?.SourceUid);
+        Assert.AreEqual(callsBeforeClosing + 1, api.SearchCallCount);
+    }
+
+    [TestMethod]
+    public async Task ClearSourceFilters_WithoutSelection_ShouldOnlyRefreshSourceList()
+    {
+        var initialItem = CreateItem("SO-MAIN", canDecompose: true);
+        var api = new FakeGrossDemandApi { SearchResponse = CreatePage(initialItem) };
+        using var viewModel = CreateViewModel(api);
+        await viewModel.InitializeAsync();
+        await viewModel.ToggleSourcePanelCommand.ExecuteAsync(null);
+        var searchCallsBeforeClear = api.SearchCallCount;
+
+        await viewModel.ClearSourceFiltersCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(0, viewModel.SourceLifecycleStatuses.Count);
+        Assert.AreEqual(0, viewModel.SourceDecompositionStatuses.Count);
+        Assert.AreEqual(searchCallsBeforeClear, api.SearchCallCount);
+        Assert.AreEqual(initialItem.Uid, viewModel.Items.Single().Uid);
+        Assert.AreEqual(2, api.SourceGroupCallCount);
+        Assert.AreEqual(0, api.LastSourceGroupRequest?.LifecycleStatuses.Count);
+        Assert.AreEqual(0, api.LastSourceGroupRequest?.DecompositionStatuses.Count);
+    }
+
+    [TestMethod]
+    public async Task MainSearch_ShouldExitSourceModeButKeepPanelOpen()
+    {
+        var sourceUid = Guid.NewGuid();
+        var api = new FakeGrossDemandApi
+        {
+            SourceGroupResponse =
+            [
+                new GrossDemandSourceGroupDto
+                {
+                    SourceUid = sourceUid,
+                    SourceType = "SO",
+                    SourceNo = "SO-MAIN-SEARCH",
+                    DemandCount = 1,
+                }
+            ],
+        };
+        using var viewModel = CreateViewModel(api);
+        await viewModel.InitializeAsync();
+        await viewModel.ToggleSourcePanelCommand.ExecuteAsync(null);
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[0]);
+        viewModel.Keyword = "主区域条件";
+
+        await viewModel.SearchCommand.ExecuteAsync(null);
+
+        Assert.IsTrue(viewModel.IsSourcePanelOpen);
+        Assert.IsFalse(viewModel.IsSourceSelected);
+        Assert.IsNull(viewModel.SelectedSourceGroup);
+        Assert.IsNull(api.LastSearchRequest?.SourceUid);
+        Assert.AreEqual("主区域条件", api.LastSearchRequest?.Keyword);
+    }
+
+    [TestMethod]
+    public async Task ClosingSourcePanel_WhenDirtyDiscardRejected_ShouldKeepSourceMode()
+    {
+        var sourceUid = Guid.NewGuid();
+        var dialog = new RecordingDialogService(confirmResult: false);
+        var api = new FakeGrossDemandApi
+        {
+            SourceGroupResponse =
+            [
+                new GrossDemandSourceGroupDto
+                {
+                    SourceUid = sourceUid,
+                    SourceType = "SO",
+                    SourceNo = "SO-DIRTY",
+                    DemandCount = 1,
+                }
+            ],
+        };
+        using var viewModel = CreateViewModel(api, dialog);
+        await viewModel.InitializeAsync();
+        await viewModel.ToggleSourcePanelCommand.ExecuteAsync(null);
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[0]);
+        await viewModel.CreateManualCommand.ExecuteAsync(null);
+        viewModel.ManualEditor.Edit.Remark = "未保存";
+
+        await viewModel.ToggleSourcePanelCommand.ExecuteAsync(null);
+
+        Assert.IsTrue(viewModel.IsSourcePanelOpen);
+        Assert.IsTrue(viewModel.IsSourceSelected);
+        Assert.AreEqual(sourceUid, viewModel.SelectedSourceGroup?.SourceUid);
+        Assert.AreEqual(1, dialog.ConfirmCount);
     }
 
     [TestMethod]
@@ -326,13 +499,62 @@ public sealed class GrossDemandWorkspaceViewModelTests
         StringAssert.Contains((string?)sourceList.Attribute("SelectedItem") ?? string.Empty, "SelectedSourceGroup");
         Assert.AreEqual("OnSourceGroupSelectionChanged", (string?)sourceList.Attribute("SelectionChanged"));
 
-        var outerGrid = sourceList.Ancestors(presentation + "Grid")
-            .Last(element => ((string?)element.Attribute("ColumnDefinitions"))?.Contains("180,8,*", StringComparison.Ordinal) == true);
-        Assert.IsNotNull(outerGrid);
+        var sourcePanel = sourceList.Ancestors(presentation + "Border").First();
+        Assert.AreEqual("180", (string?)sourcePanel.Attribute("Width"));
+        StringAssert.Contains((string?)sourcePanel.Attribute("Visibility") ?? string.Empty, "IsSourcePanelOpen");
+        Assert.AreEqual("Left", (string?)sourcePanel.Attribute("DockPanel.Dock"));
+
+        var sourceToggle = workspace.Descendants(presentation + "ToggleButton")
+            .Single(element => string.Equals((string?)element.Attribute("Content"), "来源单号", StringComparison.Ordinal));
+        StringAssert.Contains((string?)sourceToggle.Attribute("Command") ?? string.Empty, "ToggleSourcePanelCommand");
+        StringAssert.Contains((string?)sourceToggle.Attribute("IsChecked") ?? string.Empty, "IsSourcePanelOpen");
+        var multilineToggle = workspace.Descendants(presentation + "ToggleButton")
+            .Single(element => string.Equals((string?)element.Attribute("Content"), "多行条件", StringComparison.Ordinal));
+        Assert.IsTrue(GetGridColumn(sourceToggle) < GetGridColumn(multilineToggle));
+
+        var sourceFilters = sourcePanel.Descendants().Where(element => element.Name.LocalName == "DropDownCheckBox").ToArray();
+        Assert.AreEqual(2, sourceFilters.Length);
+        Assert.IsTrue(sourceFilters.Any(element => ((string?)element.Attribute("SelectedItems"))?.Contains("SourceLifecycleStatuses", StringComparison.Ordinal) == true));
+        Assert.IsTrue(sourceFilters.Any(element => ((string?)element.Attribute("SelectedItems"))?.Contains("SourceDecompositionStatuses", StringComparison.Ordinal) == true));
+        Assert.IsTrue(sourcePanel.Descendants(presentation + "Button")
+            .Any(element => string.Equals((string?)element.Attribute("Content"), "清空筛选", StringComparison.Ordinal)));
+        Assert.IsFalse(sourcePanel.Descendants().Any(element => string.Equals((string?)element.Attribute("Content"), "全部", StringComparison.Ordinal)));
+
         var sourceModeTrigger = workspace.Descendants(presentation + "DataTrigger")
             .Single(element => ((string?)element.Attribute("Binding"))?.Contains("IsSourceSelected", StringComparison.Ordinal) == true);
         Assert.AreEqual("True", (string?)sourceModeTrigger.Attribute("Value"));
     }
+
+    [TestMethod]
+    public void WorkspaceViewModel_ShouldKeepRequestedChineseRegions()
+    {
+        var source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "SwiftExport.Client.Wpf",
+            "Features",
+            "DemandPlanning",
+            "GrossDemand",
+            "ViewModels",
+            "GrossDemandWorkspaceViewModel.cs"));
+
+        foreach (var region in new[]
+                 {
+                     "来源导航与独立筛选",
+                     "主区域筛选与分页",
+                     "毛需求业务命令",
+                     "抽屉与来源追溯",
+                     "查询加载与并发控制",
+                     "选择状态与辅助方法",
+                 })
+        {
+            StringAssert.Contains(source, $"#region {region}");
+        }
+    }
+
+    private static int GetGridColumn(XElement element) =>
+        int.TryParse((string?)element.Attribute("Grid.Column"), out var column)
+            ? column
+            : 0;
 
     private static GrossDemandWorkspaceViewModel CreateViewModel(
         FakeGrossDemandApi api,
@@ -407,18 +629,20 @@ public sealed class GrossDemandWorkspaceViewModelTests
             GrossDemand = new GrossDemandDetailDto()
         };
         public GrossDemandSearchRequest? LastSearchRequest { get; private set; }
-        public GrossDemandSearchRequest? LastSourceGroupRequest { get; private set; }
+        public GrossDemandSourceGroupSearchRequest? LastSourceGroupRequest { get; private set; }
+        public int SearchCallCount { get; private set; }
         public int SourceGroupCallCount { get; private set; }
         public int TraceCallCount { get; private set; }
 
         public Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync(GrossDemandSearchRequest request, CancellationToken cancellationToken = default)
         {
             LastSearchRequest = request;
+            SearchCallCount++;
             return Task.FromResult(ServiceResult<PagedResponseBase<GrossDemandListItemDto>>.Ok(SearchResponse));
         }
 
         public Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync(
-            GrossDemandSearchRequest request,
+            GrossDemandSourceGroupSearchRequest request,
             CancellationToken cancellationToken = default)
         {
             LastSourceGroupRequest = request;
