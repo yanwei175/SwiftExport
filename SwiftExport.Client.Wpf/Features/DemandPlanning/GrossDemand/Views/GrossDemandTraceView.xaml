@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:views="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.Views"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              mc:Ignorable="d" d:Width="720" d:Height="800">
     <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,2*,8,*">
         <Grid ColumnDefinitions="*,Auto">
@@ -46,23 +47,37 @@
                 <DataGridTemplateColumn Header="" Width="52">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Button Content="打开" Padding="4,1"
+                            <Button Content="&#xE8A7;"
+                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                    HorizontalAlignment="Center"
                                     Command="{Binding DataContext.OpenNetDemandCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                     CommandParameter="{Binding}" />
+
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="版本" Width="54" Binding="{Binding DecompositionRevision}" />
-                <DataGridTextColumn Header="行" Width="42" Binding="{Binding LineNumber}" />
-                <DataGridTextColumn Header="状态" Width="80" Binding="{Binding LifecycleStatus}" />
-                <DataGridTextColumn Header="SKU" Width="130" Binding="{Binding Sku}" />
-                <DataGridTextColumn Header="物料类型" Width="84" Binding="{Binding MaterialType}" />
-                <DataGridTextColumn Header="供货类型" Width="84" Binding="{Binding SupplyType}" />
-                <DataGridTextColumn Header="净数量" Width="84" Binding="{Binding NetQty, StringFormat=N4}" />
-                <DataGridTextColumn Header="计划供应商" Width="105" Binding="{Binding PreferredSupplierCode, TargetNullValue=未指定}" />
-                <DataGridTextColumn Header="送达目标" Width="120" Binding="{Binding DeliveryTargetSku, TargetNullValue=标准交付}" />
-                <DataGridTextColumn Header="执行进度" Width="95" Binding="{Binding ExecutionProgress}" />
-                <DataGridTextColumn Header="描述" Width="180" Binding="{Binding Description}" />
+                <DataGridTextColumn Header="版本" Width="54" Binding="{Binding DecompositionRevision}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"/>
+                <DataGridTextColumn Header="行" Width="42" Binding="{Binding LineNumber}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" />
+                <DataGridTextColumn Header="状态" Width="80" Binding="{Binding LifecycleStatus}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
+                <DataGridTextColumn Header="SKU" Width="130" Binding="{Binding Sku}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
+                <DataGridTextColumn Header="物料类型" Width="84" Binding="{Binding MaterialType}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
+                <DataGridTextColumn Header="供货类型" Width="84" Binding="{Binding SupplyType}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
+                <DataGridTextColumn Header="净数量" Width="84" Binding="{Binding NetQty, StringFormat=N4}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
+                <DataGridTextColumn Header="计划供应商" Width="105" Binding="{Binding PreferredSupplierCode, TargetNullValue=未指定}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
+                <DataGridTextColumn Header="送达目标" Width="120" Binding="{Binding DeliveryTargetSku, TargetNullValue=标准交付}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
+                <DataGridTextColumn Header="执行进度" Width="95" Binding="{Binding ExecutionProgress}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
+                <DataGridTextColumn Header="描述" Width="180" Binding="{Binding Description}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
             </DataGrid.Columns>
         </DataGrid>
 
@@ -70,13 +85,20 @@
                   Style="{StaticResource SwiftExportDataGrid}" IsReadOnly="True" AutoGenerateColumns="False"
                   RowHeight="32">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="目标类型" Width="80" Binding="{Binding TargetType}" />
-                <DataGridTextColumn Header="执行单号" Width="130" Binding="{Binding TargetNo}" />
-                <DataGridTextColumn Header="链接状态" Width="84" Binding="{Binding LinkStatus}" />
-                <DataGridTextColumn Header="分配数量" Width="84" Binding="{Binding AllocatedQty, StringFormat=N4}" />
-                <DataGridTextColumn Header="完成数量" Width="84" Binding="{Binding CompletedQty, StringFormat=N4}" />
-                <DataGridTextColumn Header="收货数量" Width="84" Binding="{Binding ReceivedQty, StringFormat=N4}" />
-                <DataGridTextColumn Header="备注" Width="*" Binding="{Binding Remark}" />
+                <DataGridTextColumn Header="目标类型" Width="80" Binding="{Binding TargetType}" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
+                <DataGridTextColumn Header="执行单号" Width="130" Binding="{Binding TargetNo}" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
+                <DataGridTextColumn Header="链接状态" Width="84" Binding="{Binding LinkStatus}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
+                <DataGridTextColumn Header="分配数量" Width="84" Binding="{Binding AllocatedQty, StringFormat=N4}" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"/>
+                <DataGridTextColumn Header="完成数量" Width="84" Binding="{Binding CompletedQty, StringFormat=N4}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
+                <DataGridTextColumn Header="收货数量" Width="84" Binding="{Binding ReceivedQty, StringFormat=N4}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
+                <DataGridTextColumn Header="备注" Width="*" Binding="{Binding Remark}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

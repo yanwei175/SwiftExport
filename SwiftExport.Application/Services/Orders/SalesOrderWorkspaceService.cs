@@ -8,8 +8,8 @@ using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auditing;
-using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.DemandPlanning;
+using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
@@ -21,6 +21,14 @@ using System.Text.Json;
 
 namespace SwiftExport.Application.Services.Orders;
 
+/// <summary>
+/// 销售订单工作区应用服务。
+/// </summary>
+/// <remarks>
+/// 负责销售订单管理页查询、详情编辑、确认、取消确认、关闭和草稿删除等业务编排。
+/// 所有写操作均通过 <see cref="ExecuteTransactionAsync{T}"/> 在同一数据库事务中完成；
+/// Repository 负责数据访问，本服务负责校验状态、控制调用顺序以及维护销售订单与毛需求之间的一致性。
+/// </remarks>
 public sealed class SalesOrderWorkspaceService(
     ServiceBaseContext context,
     ISalesOrderHeadRepository headRepository,
@@ -39,6 +47,9 @@ public sealed class SalesOrderWorkspaceService(
     private readonly DbSession _session = context.Session;
     private readonly ILogger<SalesOrderWorkspaceService> _logger = context.LoggerFactory.CreateLogger<SalesOrderWorkspaceService>();
 
+    /// <summary>
+    /// 按管理页筛选条件分页查询销售订单，不加载完整订单明细。
+    /// </summary>
     public Task<ServiceResult<PagedResponseBase<SalesOrderListItemDto>>> SearchAsync(
         SalesOrderSearchRequest request,
         CancellationToken cancellationToken = default)
@@ -47,6 +58,9 @@ public sealed class SalesOrderWorkspaceService(
             "查询销售订单失败",
             cancellationToken);
 
+    /// <summary>
+    /// 加载一个销售订单的完整编辑文档，供详情 Tab 初始化或保存后刷新。
+    /// </summary>
     public async Task<ServiceResult<SalesOrderDocumentDto>> GetDocumentAsync(Guid uid, CancellationToken cancellationToken = default)
     {
         if (uid == Guid.Empty) return ServiceResult<SalesOrderDocumentDto>.Fail("销售订单 Uid 不能为空。");
@@ -57,6 +71,9 @@ public sealed class SalesOrderWorkspaceService(
         }, "加载销售订单失败", cancellationToken);
     }
 
+    /// <summary>
+    /// 查询销售订单行可选择的产品，同时返回客户产品关系和价格快照所需信息。
+    /// </summary>
     public Task<ServiceResult<PagedResponseBase<SalesOrderProductLookupDto>>> SearchProductsAsync(
         SalesOrderProductSearchRequest request,
         CancellationToken cancellationToken = default)
@@ -65,6 +82,9 @@ public sealed class SalesOrderWorkspaceService(
             "查询销售产品失败",
             cancellationToken);
 
+    /// <summary>
+    /// 查询销售订单头可选择的客户，用于客户 Lookup。
+    /// </summary>
     public Task<ServiceResult<PagedResponseBase<SalesOrderCustomerLookupDto>>> SearchCustomersAsync(
         SalesOrderCustomerSearchRequest request,
         CancellationToken cancellationToken = default)
@@ -73,6 +93,9 @@ public sealed class SalesOrderWorkspaceService(
             "查询销售客户失败",
             cancellationToken);
 
+    /// <summary>
+    /// 获取客户代码建议列表，仅用于管理页 AutoSuggestBox 的输入提示。
+    /// </summary>
     public Task<ServiceResult<List<string>>> GetCustomerCodesAsync(
         CancellationToken cancellationToken = default)
         => ExecuteReadAsync(
@@ -80,9 +103,17 @@ public sealed class SalesOrderWorkspaceService(
             "加载客户代码失败",
             cancellationToken);
 
+    /// <summary>
+    /// 新建或更新未确认、未关闭的销售订单，并一次性保存订单头和全部行变更。
+    /// </summary>
+    /// <remarks>
+    /// 新建时申请正式订单号；更新时校验头、行 Version，并把旧行号暂存到安全区，
+    /// 以支持明细上下移动后重新编号。请求必须显式提交全部活动行以及待删除行。
+    /// </remarks>
     public Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request)
         => ExecuteTransactionAsync(async () =>
         {
+            // 第一阶段：识别新建/更新，并锁定更新订单以校验可编辑状态和乐观并发版本。
             ValidateSaveShape(request);
             var headerRequest = request.Header;
             var isCreate = headerRequest.Uid == Guid.Empty;
@@ -117,6 +148,7 @@ public sealed class SalesOrderWorkspaceService(
             var lineBuild = await BuildLinesAsync(request, header, existingLines, customer);
             ApplyHeaderChanges(header, headerRequest, customer, lineBuild.ActiveLines);
 
+            // 第二阶段：先写订单头。更新时将所有既有行号移至正数安全区，释放最终行号的唯一约束。
             if (isCreate)
             {
                 header.DocumentStatus = SalesOrderDocumentStatusEnum.Open;
@@ -140,6 +172,7 @@ public sealed class SalesOrderWorkspaceService(
                     throw new WorkspaceValidationException("销售订单明细已发生变化，请刷新后重试。");
             }
 
+            // 第三阶段：按删除、更新、新增顺序落库，最终恢复请求中的连续行号。
             EnsureAllWritesSucceeded(await lineRepository.DeleteWorkspaceLinesAsync(lineBuild.DeletedLines));
             EnsureAllWritesSucceeded(await lineRepository.UpdateWorkspaceLinesAsync(lineBuild.UpdatedLines));
             EnsureAllWritesSucceeded(await lineRepository.AddWorkspaceLinesAsync(lineBuild.AddedLines));
@@ -149,9 +182,18 @@ public sealed class SalesOrderWorkspaceService(
             return new SaveSalesOrderResponse { Document = document };
         }, "保存销售订单失败", request?.Header?.Uid);
 
+    /// <summary>
+    /// 确认销售订单，并为每条有效订单行生成一条毛需求。
+    /// </summary>
+    /// <remarks>
+    /// 确认是销售订单进入需求链路的唯一放行动作，不执行 BOM 拆解。
+    /// 方法允许对已经确认的订单进行幂等重试，但会拒绝重复、孤立或状态异常的毛需求数据。
+    /// 标准件和非标件都会生成毛需求；非标件不要求关联产品主数据。
+    /// </remarks>
     public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, SalesOrderCommandRequest request)
         => ExecuteTransactionAsync(async () =>
         {
+            // 锁定订单头并检查单据生命周期；首次确认还必须通过 Version 乐观并发校验。
             ValidateCommandIdentity(uid, request.Uid);
             var header = await headRepository.GetByIdAsync(uid, true)
                 ?? throw new WorkspaceValidationException("销售订单不存在或已删除。");
@@ -165,6 +207,7 @@ public sealed class SalesOrderWorkspaceService(
             var lines = await lineRepository.GetLinesByOrderIdAsync(uid, true);
             if (lines.Count == 0) throw new WorkspaceValidationException("销售订单没有有效明细，不能确认。");
 
+            // 锁定来源毛需求，先排除重复、孤立和“订单待确认但毛需求已存在”等不一致数据。
             var existingDemands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(
                 DocumentTypeStaticsEnum.SalesOrder,
                 uid);
@@ -178,6 +221,7 @@ public sealed class SalesOrderWorkspaceService(
 
             var demandByLineId = existingDemands.ToDictionary(item => item.SourceLineId);
             var addedDemands = new List<GrossDemand>();
+            // 只为缺失的订单行补建毛需求，已有且合法的数据用于确认重试，不重复插入。
             foreach (var line in lines)
             {
                 if (demandByLineId.TryGetValue(line.Uid, out var existingDemand))
@@ -206,6 +250,7 @@ public sealed class SalesOrderWorkspaceService(
             }
             EnsureAllWritesSucceeded(await grossDemandRepository.AddSourceDemandsAsync(addedDemands));
 
+            // 毛需求全部写入成功后再切换订单状态，保证确认状态与需求数据在事务内同步提交。
             var version = header.Version;
             if (!alreadyConfirmed)
             {
@@ -223,6 +268,14 @@ public sealed class SalesOrderWorkspaceService(
             };
         }, "确认销售订单失败", uid);
 
+    /// <summary>
+    /// 取消销售订单确认，并按毛需求历史决定物理删除或作废保留。
+    /// </summary>
+    /// <remarks>
+    /// 从未拆解的毛需求可以物理删除；曾拆解但已安全回退的毛需求必须作废保留历史。
+    /// 一旦存在活动拆解、净需求/分配历史缺口或正式下游执行事实，取消确认会被拒绝。
+    /// <see cref="CancelSalesOrderConfirmationCommand.CommandId"/> 用作幂等键，同一命令重试返回首次执行结果。
+    /// </remarks>
     public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(
         Guid uid,
         CancelSalesOrderConfirmationCommand request)
@@ -237,9 +290,10 @@ public sealed class SalesOrderWorkspaceService(
             if (reason.Length > 1000)
                 throw new WorkspaceValidationException("取消确认原因不能超过 1000 个字符。");
 
-            // 固定锁序：销售订单头先于幂等日志和后续订单行/需求范围。
+            // 第一阶段：固定锁序为订单头 -> 幂等日志 -> 订单行 -> 毛需求，降低并发死锁风险。
             var header = await headRepository.GetByIdAsync(uid, true)
                 ?? throw new WorkspaceValidationException("销售订单不存在或已删除。");
+            // 已成功执行过的 CommandId 直接重放日志结果，不再次修改订单或毛需求。
             var prior = await operationLogs.GetByCommandAsync(Module, CancelConfirmationOperation, request.CommandId);
             if (prior is not null)
             {
@@ -260,6 +314,7 @@ public sealed class SalesOrderWorkspaceService(
             if (header.Version != request.Version)
                 throw new WorkspaceValidationException("销售订单已被其他用户修改，请刷新后重试。");
 
+            // 第二阶段：锁定订单行和来源毛需求，验证一行一需求以及所有下游取消安全条件。
             var lines = await lineRepository.GetLinesByOrderIdAsync(uid, true);
             var demands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(
                 DocumentTypeStaticsEnum.SalesOrder,
@@ -272,6 +327,7 @@ public sealed class SalesOrderWorkspaceService(
                     lines.Select(line => line.Uid)))
                 throw new WorkspaceValidationException("销售订单仍有活动拆解、执行关系或正式履约事实，不能取消确认。");
 
+            // 第三阶段：检查历史完整性，并由领域策略划分“物理删除”和“作废保留”两组毛需求。
             var historyCounts = await grossDemandRepository.GetNetDemandHistoryCountsForUpdateAsync(
                 demands.Select(demand => demand.Uid));
             if (await grossDemandRepository.HasInvalidSourceCancellationHistoryAsync(
@@ -287,6 +343,7 @@ public sealed class SalesOrderWorkspaceService(
                 throw new WorkspaceValidationException(ex.Message);
             }
 
+            // 第四阶段：执行需求回退。影响行数不一致意味着并发状态已变化，必须回滚整个事务。
             var hardDeletedCount = await grossDemandRepository.HardDeleteNeverDecomposedAsync(
                 plan.HardDeleteGrossDemandIds);
             if (hardDeletedCount != plan.HardDeleteGrossDemandIds.Count)
@@ -297,6 +354,7 @@ public sealed class SalesOrderWorkspaceService(
             if (voidedCount != plan.VoidGrossDemandIds.Count)
                 throw new WorkspaceValidationException("已回退毛需求的历史状态已变化，销售订单未取消确认。");
 
+            // 最后恢复订单为待确认并写入幂等业务日志；日志与状态变更随同一事务提交。
             var statusResult = await headRepository.SetConfirmationStatusAsync(uid, request.Version, ConfirmationStatusEnum.待确认);
             EnsureWriteSucceeded(statusResult);
             var result = new SalesOrderConfirmationResultDto
@@ -312,6 +370,13 @@ public sealed class SalesOrderWorkspaceService(
             return result;
         }, "取消销售订单确认失败", uid);
 
+    /// <summary>
+    /// 关闭销售订单，使其退出后续编辑和确认流程。
+    /// </summary>
+    /// <remarks>
+    /// 若订单仍有未进入下游执行的活动毛需求，会先将其作废；存在拆解或下游执行时禁止直接关闭。
+    /// 关闭保留订单及明细历史，不等同于删除草稿。
+    /// </remarks>
     public Task<ServiceResult<SalesOrderDocumentDto>> CloseAsync(Guid uid, CloseSalesOrderRequest request)
         => ExecuteTransactionAsync(async () =>
         {
@@ -329,6 +394,7 @@ public sealed class SalesOrderWorkspaceService(
 
             var lines = await lineRepository.GetLinesByOrderIdAsync(uid, true);
             var demands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(DocumentTypeStaticsEnum.SalesOrder, uid);
+            // 关闭只能收回尚未进入下游的毛需求，不能绕过需求和履约链路的回退规则。
             if (demands.Count > 0)
             {
                 if (await grossDemandRepository.HasSourceCancellationBlockerAsync(
@@ -345,6 +411,13 @@ public sealed class SalesOrderWorkspaceService(
                 ?? throw new WorkspaceValidationException("销售订单已关闭，但重新加载失败。");
         }, "关闭销售订单失败", uid);
 
+    /// <summary>
+    /// 删除尚未确认且从未生成毛需求的销售订单草稿。
+    /// </summary>
+    /// <remarks>
+    /// 这是物理业务删除入口，仅适用于 Open + 待确认且没有来源毛需求的订单；
+    /// 已确认或需要保留历史的订单应使用取消确认、关闭等明确业务命令。
+    /// </remarks>
     public Task<ServiceResult<bool>> DeleteDraftAsync(Guid uid, SalesOrderCommandRequest request)
         => ExecuteTransactionAsync(async () =>
         {
@@ -365,6 +438,12 @@ public sealed class SalesOrderWorkspaceService(
             return true;
         }, "删除销售订单草稿失败", uid);
 
+    /// <summary>
+    /// 校验保存请求中的完整行集合，并拆分为新增、更新、删除三组实体。
+    /// </summary>
+    /// <remarks>
+    /// 同时校验行归属、行 Version、标准件/非标件不可原地切换，以及产品和客户产品引用的有效性。
+    /// </remarks>
     private async Task<LineBuildResult> BuildLinesAsync(
         SaveSalesOrderRequest request,
         SalesOrderHeader header,
@@ -439,6 +518,13 @@ public sealed class SalesOrderWorkspaceService(
         return new LineBuildResult(activeLines, addedLines, updatedLines, deletedLines);
     }
 
+    /// <summary>
+    /// 把单行编辑 DTO 应用到订单行实体，并计算金额、箱数、重量和体积小计。
+    /// </summary>
+    /// <remarks>
+    /// 标准件必须关联有效产品；非标件禁止关联产品，并按行 Uid 生成稳定的临时 SKU。
+    /// 描述、价格等字段在此保存为订单历史快照。
+    /// </remarks>
     private static void ApplyLineChanges(
         SalesOrderLine entity,
         SalesOrderEditLineDto dto,
@@ -511,6 +597,9 @@ public sealed class SalesOrderWorkspaceService(
         entity.SubNote = dto.SubNote?.Trim();
     }
 
+    /// <summary>
+    /// 把订单头编辑 DTO 应用到实体，并根据当前活动行重新计算订单汇总金额。
+    /// </summary>
     private static void ApplyHeaderChanges(
         SalesOrderHeader header,
         SalesOrderEditHeaderDto dto,
@@ -550,6 +639,12 @@ public sealed class SalesOrderWorkspaceService(
         header.ETD = dto.Etd;
     }
 
+    /// <summary>
+    /// 从销售订单头和订单行复制毛需求来源快照。
+    /// </summary>
+    /// <remarks>
+    /// 毛需求保存确认时的 SKU、描述、交期和非标标识，后续产品主数据变化不会改写该历史快照。
+    /// </remarks>
     private static void ApplyGrossDemandSnapshot(GrossDemand demand, SalesOrderHeader header, SalesOrderLine line)
     {
         demand.LifecycleStatus = GrossDemandLifecycleStatusEnum.Active;
@@ -576,12 +671,18 @@ public sealed class SalesOrderWorkspaceService(
         demand.IsNonStandard = line.IsNonStandard;
     }
 
+    /// <summary>
+    /// 校验保存请求最外层结构和必填主数据引用。
+    /// </summary>
     private static void ValidateSaveShape(SaveSalesOrderRequest request)
     {
         if (request?.Header is null) throw new WorkspaceValidationException("销售订单头不能为空。");
         if (request.Header.CustomerId == Guid.Empty) throw new WorkspaceValidationException("请选择客户。");
     }
 
+    /// <summary>
+    /// 确保订单仍处于 Open + 待确认，因而允许编辑或作为草稿删除。
+    /// </summary>
     private static void EnsureEditable(SalesOrderHeader header)
     {
         if (header.DocumentStatus != SalesOrderDocumentStatusEnum.Open)
@@ -590,12 +691,18 @@ public sealed class SalesOrderWorkspaceService(
             throw new WorkspaceValidationException("已确认的销售订单不能编辑或删除。");
     }
 
+    /// <summary>
+    /// 防止路由订单 Uid 与请求体 Uid 不一致而误操作其他单据。
+    /// </summary>
     private static void ValidateCommandIdentity(Guid routeUid, Guid bodyUid)
     {
         if (routeUid == Guid.Empty || bodyUid == Guid.Empty || routeUid != bodyUid)
             throw new WorkspaceValidationException("路由 Uid 与请求体 Uid 不一致。");
     }
 
+    /// <summary>
+    /// 写入取消确认审计及幂等日志，保存本次回退数量和返回版本。
+    /// </summary>
     private async Task WriteCancellationLogAsync(
         SalesOrderHeader header,
         Guid commandId,
@@ -630,6 +737,9 @@ public sealed class SalesOrderWorkspaceService(
             throw new WorkspaceValidationException("销售订单取消确认日志写入失败。");
     }
 
+    /// <summary>
+    /// 从既有取消确认日志恢复首次执行结果，用于安全响应同一 CommandId 的重试。
+    /// </summary>
     private static SalesOrderConfirmationResultDto DeserializeCancellationResult(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -654,6 +764,9 @@ public sealed class SalesOrderWorkspaceService(
         };
     }
 
+    /// <summary>
+    /// 清理日志文本并限制长度，避免超出审计字段容量。
+    /// </summary>
     private static string? Normalize(string? value, int maxLength)
     {
         var text = value?.Trim();
@@ -661,17 +774,26 @@ public sealed class SalesOrderWorkspaceService(
         return text.Length <= maxLength ? text : text[..maxLength];
     }
 
+    /// <summary>
+    /// 将 Repository 写入失败统一转换为可返回给调用端的业务校验异常。
+    /// </summary>
     private static void EnsureWriteSucceeded(RepositoryWriteResult result)
     {
         if (!result.Success) throw new WorkspaceValidationException(result.Message ?? "数据库写入失败。");
     }
 
+    /// <summary>
+    /// 校验批量 Repository 写入结果，发现第一条失败后终止当前事务。
+    /// </summary>
     private static void EnsureAllWritesSucceeded(IEnumerable<RepositoryWriteResult> results)
     {
         var failure = results.FirstOrDefault(result => !result.Success);
         if (failure is not null) EnsureWriteSucceeded(failure);
     }
 
+    /// <summary>
+    /// 执行只读查询并统一包装业务错误；调用方主动取消时继续向上传播取消异常。
+    /// </summary>
     private async Task<ServiceResult<T>> ExecuteReadAsync<T>(Func<Task<T>> action, string failureMessage, CancellationToken cancellationToken)
     {
         try
@@ -694,6 +816,13 @@ public sealed class SalesOrderWorkspaceService(
         }
     }
 
+    /// <summary>
+    /// 为一个完整业务命令创建事务，并统一处理提交、回滚、错误编号和资源释放。
+    /// </summary>
+    /// <remarks>
+    /// 传入的 action 及其调用的 Repository 共享当前 scoped <see cref="DbSession"/>，
+    /// 因此禁止在 Repository 内另开业务事务。业务校验返回具体消息，未知技术异常只暴露可追踪错误编号。
+    /// </remarks>
     private async Task<ServiceResult<T>> ExecuteTransactionAsync<T>(
         Func<Task<T>> action,
         string failureMessage,
@@ -733,6 +862,9 @@ public sealed class SalesOrderWorkspaceService(
         }
     }
 
+    /// <summary>
+    /// 优先从当前 TraceId 生成日志错误编号；无活动链路时使用随机 Guid。
+    /// </summary>
     private static string CreateErrorReference()
     {
         var traceId = System.Diagnostics.Activity.Current?.TraceId.ToString();
@@ -741,8 +873,14 @@ public sealed class SalesOrderWorkspaceService(
             : Guid.NewGuid().ToString("N")[..12].ToUpperInvariant();
     }
 
+    /// <summary>
+    /// 表示可安全返回给客户端的工作区业务校验错误。
+    /// </summary>
     private sealed class WorkspaceValidationException(string message) : Exception(message);
 
+    /// <summary>
+    /// 取消确认幂等日志中保存的最小结果载荷。
+    /// </summary>
     private sealed class CancellationLogPayload
     {
         public int Version { get; set; }
@@ -750,6 +888,9 @@ public sealed class SalesOrderWorkspaceService(
         public int VoidedGrossDemandCount { get; set; }
     }
 
+    /// <summary>
+    /// 保存流程完成校验后得到的订单行写入分组。
+    /// </summary>
     private sealed record LineBuildResult(
         IReadOnlyList<SalesOrderLine> ActiveLines,
         IReadOnlyList<SalesOrderLine> AddedLines,

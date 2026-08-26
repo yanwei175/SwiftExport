@@ -20,10 +20,41 @@
     <Color x:Key="SwiftExportColor.DataGridSelectedBackground">#FFEAF2FF</Color>
     <Color x:Key="SwiftExportColor.DataGridCurrentRowBackground">#FFF4F8FF</Color>
     <Color x:Key="SwiftExportColor.DataGridGridLine">#FFE4E7EC</Color>
-    
+
+
     <Color x:Key="MicaControlColor">#90FFFFFF</Color>
     <Color x:Key="SubFillColorSecondarColor">#09000000</Color>
-    
+
+
+    <!-- ========================= -->
+    <!-- Status Text Colors -->
+    <!-- ========================= -->
+
+    <Color x:Key="SwiftExportColor.ActiveText">#FF2563EB</Color>
+    <Color x:Key="SwiftExportColor.SuccessText">#FF15803D</Color>
+    <Color x:Key="SwiftExportColor.WarningText">#FFD97706</Color>
+    <Color x:Key="SwiftExportColor.DeletedText">#FFB91C1C</Color>
+    <Color x:Key="SwiftExportColor.ErrorText">#FFD92D20</Color>
+
+
+    <!-- ========================= -->
+    <!-- Status Text Brushes -->
+    <!-- ========================= -->
+
+    <SolidColorBrush    x:Key="SwiftExportBrush.ActiveText"    Color="{StaticResource SwiftExportColor.ActiveText}" />
+
+    <SolidColorBrush    x:Key="SwiftExportBrush.SuccessText"    Color="{StaticResource SwiftExportColor.SuccessText}" />
+
+    <SolidColorBrush    x:Key="SwiftExportBrush.WarningText"    Color="{StaticResource SwiftExportColor.WarningText}" />
+
+    <SolidColorBrush    x:Key="SwiftExportBrush.DeletedText"    Color="{StaticResource SwiftExportColor.DeletedText}" />
+
+    <SolidColorBrush    x:Key="SwiftExportBrush.ErrorText"    Color="{StaticResource SwiftExportColor.ErrorText}" />
+
+
+
+
+
     <SolidColorBrush x:Key="SubFillColorSecondaryBrush" Color="#09000000"/>
     <SolidColorBrush x:Key="MicaControlBrush" Color="#90FFFFFF"/>
 
@@ -47,4 +78,9 @@
     <SolidColorBrush x:Key="SwiftExportBrush.DataGridSelectedBackground" Color="{StaticResource SwiftExportColor.DataGridSelectedBackground}" />
     <SolidColorBrush x:Key="SwiftExportBrush.DataGridCurrentRowBackground" Color="{StaticResource SwiftExportColor.DataGridCurrentRowBackground}" />
     <SolidColorBrush x:Key="SwiftExportBrush.DataGridGridLine" Color="{StaticResource SwiftExportColor.DataGridGridLine}" />
+
+
+
+
+
 </ResourceDictionary>

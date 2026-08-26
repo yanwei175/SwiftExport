@@ -24,6 +24,24 @@ public sealed class SalesOrderCancellationSqlContractTests
     }
 
     [TestMethod]
+    public void HistoryValidationSql_MustKeepSiblingExistsAndBalancedParentheses()
+    {
+        var source = Read(
+            "SwiftExport.Infrastructure",
+            "Repositories",
+            "DemandPlanning",
+            "GrossDemandRepository.cs");
+        var sql = ExtractSql(source, "HasInvalidSourceCancellationHistoryAsync");
+        var compactSql = System.Text.RegularExpressions.Regex.Replace(sql, @"\s+", " ");
+
+        AssertParenthesesAreBalanced(sql);
+        StringAssert.Contains(
+            compactSql,
+            "WHERE allocation.[NetDemandId]=nd.[Uid])) ) OR EXISTS (",
+            "NetDemand 历史检查和 Allocation 历史检查必须是同级 OR EXISTS 条件。");
+    }
+
+    [TestMethod]
     public void CleanupMigration_MustDefaultToReadOnlyAndRejectBlockedBatch()
     {
         var script = Read(
@@ -43,6 +61,38 @@ public sealed class SalesOrderCancellationSqlContractTests
 
     private static string Read(params string[] parts) =>
         File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));
+
+    private static string ExtractSql(string source, string methodName)
+    {
+        var methodStart = source.IndexOf(methodName, StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, methodStart, $"找不到方法 {methodName}。");
+        var sqlStartMarker = "const string sql = @\"";
+        var sqlStart = source.IndexOf(sqlStartMarker, methodStart, StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, sqlStart, $"方法 {methodName} 中找不到 SQL 常量。");
+        sqlStart += sqlStartMarker.Length;
+        var sqlEnd = source.IndexOf("\";", sqlStart, StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, sqlEnd, $"方法 {methodName} 中的 SQL 常量没有结束标记。");
+        return source[sqlStart..sqlEnd];
+    }
+
+    private static void AssertParenthesesAreBalanced(string sql)
+    {
+        var depth = 0;
+        foreach (var character in sql)
+        {
+            if (character == '(')
+            {
+                depth++;
+            }
+            else if (character == ')')
+            {
+                depth--;
+                Assert.IsGreaterThanOrEqualTo(0, depth, "SQL 中出现了没有左括号与之对应的右括号。");
+            }
+        }
+
+        Assert.AreEqual(0, depth, "SQL 中存在未闭合的左括号。");
+    }
 
     private static string Root()
     {

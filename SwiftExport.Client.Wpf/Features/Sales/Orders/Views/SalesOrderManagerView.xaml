@@ -9,7 +9,9 @@
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:images="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:vm="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels"
              mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance vm:GrossDemandWorkspaceViewModel}"
              d:Width="1500"
              d:Height="900">
     <UserControl.Resources>
@@ -62,7 +64,9 @@
                 </Button>
                 <Button Command="{Binding OpenSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="打开" />
                 <Button Command="{Binding ConfirmSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="确认" />
+                
                 <Button Command="{Binding CancelConfirmationCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="取消确认" />
+                
                 <Button Command="{Binding CloseSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="关闭" />
                 <Button Command="{Binding DeleteDraftCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="删除草稿" />
                 <Button Command="{Binding RefreshCommand}" Style="{StaticResource SalesOrderToolbarButton}">

@@ -40,8 +40,9 @@
                               DrawerContent="{Binding ActiveDrawerContent}"
                               CloseCommand="{Binding CloseDrawerCommand}"
                               CloseOnEscape="True"
-                              DrawerWidth="620" MinDrawerWidth="440" MaxDrawerWidth="900"
+                              DrawerWidth="850" MinDrawerWidth="440" MaxDrawerWidth="900"
                               DisplayMode="Overlay" IsResizable="True">
+        
         <controls:RightDrawerHost.MainContent>
             <DockPanel Margin="12,8" LastChildFill="True">
                 <Border DockPanel.Dock="Left"
@@ -159,18 +160,25 @@
                                       IsChecked="{Binding IsSourcePanelOpen, Mode=OneWay}"
                                       MinHeight="34"
                                       HorizontalAlignment="Left" />
+                        
                         <ToggleButton Grid.Column="2"
                                       Content="更多条件"
                                       IsChecked="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
                                       MinHeight="34"
                                       HorizontalAlignment="Left"/>
-                        <controls:DropDownCheckBox Grid.Column="4" Placeholder="来源类型" DisplayMemberPath="DisplayText"
-                                                   ItemsSource="{Binding SourceTypeOptions}" SelectedItems="{Binding SelectedSourceTypes, Mode=OneWay}" />
-                        <controls:DropDownCheckBox Grid.Column="6" Placeholder="生命周期" DisplayMemberPath="DisplayText"
+                        
+                        <controls:DropDownCheckBox Grid.Column="4" Placeholder="来源" DisplayMemberPath="DisplayText"
+                                                   ItemsSource="{Binding SourceTypeOptions}" 
+                                                   SelectedItems="{Binding SelectedSourceTypes, Mode=OneWay}" />
+                        
+                        <controls:DropDownCheckBox Grid.Column="6" Placeholder="状态" DisplayMemberPath="DisplayText"
                                                    ItemsSource="{Binding LifecycleStatusOptions}"
                                                    SelectedItems="{Binding SelectedLifecycleStatuses, Mode=OneWay}" />
+                        
                         <controls:DropDownCheckBox Grid.Column="8" Placeholder="拆解状态" DisplayMemberPath="DisplayText"
-                                                   ItemsSource="{Binding DecompositionStatusOptions}" SelectedItems="{Binding SelectedDecompositionStatuses, Mode=OneWay}" />
+                                                   ItemsSource="{Binding DecompositionStatusOptions}" 
+                                                   SelectedItems="{Binding SelectedDecompositionStatuses, Mode=OneWay}" />
+                        
                         <controls:DropDownCheckBox Grid.Column="10" Placeholder="执行进度" DisplayMemberPath="DisplayText"
                                                    ItemsSource="{Binding ExecutionProgressOptions}"
                                                    SelectedItems="{Binding SelectedExecutionProgresses, Mode=OneWay}" />
@@ -261,23 +269,85 @@
                                             gridColumns:GridColumn.Key="source-type" />
                         <DataGridTextColumn Header="来源行" Width="38" Binding="{Binding SourceLineNumber}" 
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                        gridColumns:GridColumn.Key="source-line" />                        
-                        <DataGridTextColumn Header="状态" Width="48" Binding="{Binding LifecycleStatusText}"
-                                        ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                        gridColumns:GridColumn.Key="lifecycle" />
-                        <DataGridTextColumn Header="拆解" Width="58" Binding="{Binding DecompositionStatusText}" 
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            gridColumns:GridColumn.Key="decomposition" />
-                        <DataGridTextColumn Header="执行" Width="58" Binding="{Binding ExecutionProgressText}" 
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            gridColumns:GridColumn.Key="execution" />
+                                        gridColumns:GridColumn.Key="source-line" />
+                        
+                            <DataGridTextColumn Header="状态" Width="48" Binding="{Binding LifecycleStatusText}"
+                                        gridColumns:GridColumn.Key="lifecycle" >
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
+
+                                        <Style.Triggers>
+
+                                            <DataTrigger Binding="{Binding LifecycleStatusText}" Value="活动">
+                                                <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ActiveText}"/>
+                                            </DataTrigger>
+
+                                            <DataTrigger Binding="{Binding LifecycleStatusText}"  Value="警告">
+                                                <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.WarningText}"/>
+                                            </DataTrigger>
+
+                                            <DataTrigger Binding="{Binding LifecycleStatusText}" Value="已作废">
+                                                <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.DeletedText}"/>
+                                            </DataTrigger>
+                                            
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="拆解" Width="58" Binding="{Binding DecompositionStatusText}" 
+                                            gridColumns:GridColumn.Key="decomposition" >
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
+
+                                        <Style.Triggers>
+
+                                            <DataTrigger Binding="{Binding DecompositionStatusText}" Value="待拆解">
+                                                <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ActiveText}"/>
+                                            </DataTrigger>
+
+                                            <DataTrigger Binding="{Binding DecompositionStatusText}"  Value="已拆解">
+                                                <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.SuccessText}"/>
+                                            </DataTrigger>
+
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        
+                            <DataGridTextColumn Header="执行" Width="58" Binding="{Binding ExecutionProgressText}" 
+                                            gridColumns:GridColumn.Key="execution" >
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
+
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ExecutionProgressText}"  Value="已完成">
+                                                <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.SuccessText}"/>
+                                            </DataTrigger>
+
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        
                         <DataGridTextColumn Header="来源单号" Width="100" Binding="{Binding SourceNo}" 
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         gridColumns:GridColumn.Key="source-no" />
-                        
-                        <DataGridTextColumn Header="类型" Width="62" Binding="{Binding ItemTypeText}" 
-                                        ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                        gridColumns:GridColumn.Key="item-type" />
+
+                            <DataGridTextColumn Header="物料类型" Width="62" Binding="{Binding ItemTypeText}" 
+                                        gridColumns:GridColumn.Key="item-type" >
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
+
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ItemTypeText}"  Value="非标件">
+                                                <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ActiveText}"/>
+                                            </DataTrigger>
+
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                         
                         <DataGridTemplateColumn Header="图片" Width="60" CanUserSort="False" gridColumns:GridColumn.Key="image">
                             <DataGridTemplateColumn.CellTemplate>

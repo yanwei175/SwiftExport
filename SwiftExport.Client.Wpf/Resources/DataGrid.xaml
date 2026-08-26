@@ -415,7 +415,7 @@
         <Setter Property="SelectionUnit" Value="FullRow" />
         <Setter Property="AlternationCount" Value="2" />
         <Setter Property="AlternatingRowBackground" Value="{DynamicResource SwiftExportBrush.SurfaceMuted}" />
-        <Setter Property="ColumnHeaderStyle" Value="{StaticResource SwiftExportDataGridColumnHeader}" />
+        <!--<Setter Property="ColumnHeaderStyle" Value="{StaticResource SwiftExportDataGridColumnHeader}" />-->
         <Setter Property="RowStyle" Value="{StaticResource SwiftExportDataGridRow}" />
         <Setter Property="CellStyle" Value="{StaticResource SwiftExportDataGridCell}" />
     </Style>

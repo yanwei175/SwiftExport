@@ -331,6 +331,7 @@ SELECT CASE WHEN EXISTS (
                      OR NOT EXISTS (
                          SELECT 1 FROM [dbo].[NetDemandAllocation] allocation WITH (UPDLOCK,HOLDLOCK)
                          WHERE allocation.[NetDemandId]=nd.[Uid]))
+          )
           OR EXISTS (
               SELECT 1
               FROM [dbo].[NetDemandAllocation] allocation WITH (UPDLOCK,HOLDLOCK)
