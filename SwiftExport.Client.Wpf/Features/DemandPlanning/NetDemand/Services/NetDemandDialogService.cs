@@ -22,6 +22,8 @@ public sealed class NetDemandDialogService(
             Content = view,
             CloseButtonText = "关闭",
             DefaultButton = ContentDialogButton.Close,
+            DialogMaxWidth = 1980,
+            DialogWidth = 1980,
         };
         dialog.Closing += (_, args) =>
         {

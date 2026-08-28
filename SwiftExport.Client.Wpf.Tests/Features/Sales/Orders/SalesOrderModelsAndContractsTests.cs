@@ -110,7 +110,7 @@ public sealed class SalesOrderModelsAndContractsTests
             customerCodeMethod.GetCustomAttributes(typeof(GetAttribute), false).Cast<GetAttribute>().Single().Path);
 
         var registry = new NavigationRouteRegistry();
-        Assert.IsTrue(registry.TryGetRoute(SalesOrderManagerViewModel.ManagerRouteKey, out var manager));
+        Assert.IsTrue(registry.TryGetRoute(SalesOrderManagerViewModel.RouteKey, out var manager));
         Assert.AreEqual(typeof(SalesOrderManagerViewModel), manager.ViewModelType);
         Assert.IsTrue(registry.TryGetRoute(SalesOrderManagerViewModel.DetailRouteKey, out var detail));
         Assert.AreEqual(typeof(SalesOrderDetailViewModel), detail.ViewModelType);

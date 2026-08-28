@@ -5,6 +5,9 @@ using System.Collections.Generic;
 
 namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
 {
+    /// <summary>
+    /// 采购工作台分页查询条件；同一状态集合内按任一值匹配，不同筛选维度之间按 AND 组合。
+    /// </summary>
     public class PurchaseOrderSearchRequest : PagedRequestBase
     {
         public string OrderNo { get; set; }
@@ -12,9 +15,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public Guid? SupplierId { get; set; }
         public string SupplierKeyword { get; set; }
         public string Sku { get; set; }
-        public ConfirmationStatusEnum? ConfirmationStatus { get; set; }
-        public PurchaseOrderLifecycleStatusEnum? LifecycleStatus { get; set; }
-        public SupplierArrangementStatusEnum? ArrangementStatus { get; set; }
+        public List<ConfirmationStatusEnum> ConfirmationStatuses { get; set; } = new List<ConfirmationStatusEnum>();
+        public List<PurchaseOrderLifecycleStatusEnum> LifecycleStatuses { get; set; } = new List<PurchaseOrderLifecycleStatusEnum>();
+        public List<SupplierArrangementStatusEnum> ArrangementStatuses { get; set; } = new List<SupplierArrangementStatusEnum>();
         public DateTime? PlannedDeliveryDateFrom { get; set; }
         public DateTime? PlannedDeliveryDateTo { get; set; }
         public DateTime? ExpectedReadyDateFrom { get; set; }

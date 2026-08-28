@@ -20,7 +20,7 @@ instructions = """
 - 命令优先 [RelayCommand]。
 - 不在构造函数中 new RelayCommand / new AsyncRelayCommand。
 - 不新增普通手写 SetProperty 样板属性。
-- 不把旧 MVVMLight / VSTO / MateWpfThemes 规则带进新客户端。
+- 不从 Git 历史或归档分支把旧 MVVMLight / VSTO / MateWpfThemes 规则带进新客户端。
 
 写入范围：
 - SwiftExport.Client.Wpf/**

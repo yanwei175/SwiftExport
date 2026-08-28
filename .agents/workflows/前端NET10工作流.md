@@ -16,7 +16,7 @@
 8. 按 `Features/{业务域}/{功能单元}/Views|ViewModels|Models|Services|Components` 组织新增文件。
 9. ViewModel / Model 使用 `partial`、`[ObservableProperty]`、`[RelayCommand]`。
 10. 不在构造函数中手写 `new RelayCommand` / `new AsyncRelayCommand`。
-11. 不把旧 MVVMLight、VSTO、MateWpfThemes 规则带入新客户端。
+11. 不从 Git 历史或归档分支把旧 MVVMLight、VSTO、MateWpfThemes 规则带入新客户端。
 12. 优先运行 `dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj`。
 
 ## 边界

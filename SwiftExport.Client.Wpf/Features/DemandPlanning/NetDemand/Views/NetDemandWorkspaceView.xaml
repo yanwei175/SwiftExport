@@ -105,13 +105,14 @@
         <Grid RowDefinitions="Auto,4,Auto,4,*,4,Auto">
 
             <Grid Grid.Row="0" ColumnDefinitions="240,4,Auto,12,*">
-                <TextBox Grid.Column="0" MinHeight="32" VerticalContentAlignment="Center"
-                 ToolTip="来源单号、SKU、客户型号或描述"
-                 Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}">
-                    <TextBox.InputBindings>
+                <ui:TextBox Grid.Column="0" MinHeight="32" VerticalContentAlignment="Center"
+                            PlaceholderText="来源单号、SKU、客户型号或描述"
+                             ToolTip="来源单号、SKU、客户型号或描述"
+                             Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}">
+                    <ui:TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                    </TextBox.InputBindings>
-                </TextBox>
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
                 <Button Grid.Column="2" Width="40" Style="{StaticResource AccentButton}"
                 Command="{Binding SearchCommand}" ToolTip="查询">
                     <ui:SymbolIcon Symbol="Search24" />
@@ -142,21 +143,28 @@
                                   IsChecked="{Binding IsSourcePanelOpen, Mode=OneWay}"
                                   MinHeight="34"
                                   HorizontalAlignment="Left" />
-
                     <ToggleButton Grid.Column="2"
                                   Content="更多条件"
                                   IsChecked="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
                                   MinHeight="34"
                                   HorizontalAlignment="Left" />
 
-                    <controls:DropDownCheckBox Grid.Column="4" Placeholder="来源类型" DisplayMemberPath="DisplayText"
-                                       ItemsSource="{Binding SourceTypeOptions}" SelectedItems="{Binding SelectedSourceTypes, Mode=OneWay}" />
+                    <controls:DropDownCheckBox Grid.Column="4" 
+                                               Placeholder="来源类型" 
+                                               DisplayMemberPath="DisplayText"
+                                               ItemsSource="{Binding SourceTypeOptions}" 
+                                               SelectedItems="{Binding SelectedSourceTypes, Mode=OneWay}" />
+                    
                     <controls:DropDownCheckBox Grid.Column="6" Placeholder="执行方式" DisplayMemberPath="DisplayText"
                                        ItemsSource="{Binding ExecutionTypeOptions}" SelectedItems="{Binding SelectedExecutionTypes, Mode=OneWay}" />
                     <controls:DropDownCheckBox Grid.Column="8" Placeholder="计划状态" DisplayMemberPath="DisplayText"
                                        ItemsSource="{Binding PlanStatusOptions}" SelectedItems="{Binding SelectedPlanStatuses, Mode=OneWay}" />
-                    <ComboBox Grid.Column="10" ItemsSource="{Binding DemandRoleOptions}" DisplayMemberPath="DisplayText"
-                      SelectedItem="{Binding SelectedDemandRole}" />
+                    
+                    <ComboBox Grid.Column="10" 
+                              ItemsSource="{Binding DemandRoleOptions}" 
+                              DisplayMemberPath="DisplayText"
+                              SelectedItem="{Binding SelectedDemandRole}" />
+                    
                     <controls:LookupTextBox Grid.Column="12" Placeholder="采购供应商筛选"
                                     SearchMode="Remote" MinimumSearchLength="0"
                                     Text="{Binding SupplierKeyword, Mode=TwoWay}"
@@ -179,11 +187,28 @@
                        PopupAnimation="Fade"
                        StaysOpen="True">
                     <Border Padding="6"
-                                    Background="{DynamicResource SwiftExportBrush.Surface}"
-                                    BorderThickness="1"
-                                    CornerRadius="4">
+                            Background="{DynamicResource SwiftExportBrush.Surface}"
+                            BorderThickness="1"
+                            CornerRadius="4">
                         <StackPanel Margin="0,4">
-                            <Grid ColumnDefinitions="*,4,*,4,*">
+                            <Grid Margin="0,4,0,0" ColumnDefinitions="Auto,4,Auto,12,Auto,4,Auto,12,Auto,*">
+                                <DatePicker Grid.Column="0" ToolTip="原需求交期起"
+                                            controls:DatePickerAssist.PlaceholderText="需求交期起"
+                                            SelectedDate="{Binding DemandRequiredDateFrom}" />
+                                <DatePicker Grid.Column="2" ToolTip="原需求交期至"
+                                            controls:DatePickerAssist.PlaceholderText="需求交期至"
+                                            SelectedDate="{Binding DemandRequiredDateTo}" />
+                                <DatePicker Grid.Column="4" ToolTip="计划交期起"
+                                            controls:DatePickerAssist.PlaceholderText="计划交期起"
+                                            SelectedDate="{Binding PlannedDeliveryDateFrom}" />
+                                <DatePicker Grid.Column="6" ToolTip="计划交期至"
+                                            controls:DatePickerAssist.PlaceholderText="计划交期至"
+                                            SelectedDate="{Binding PlannedDeliveryDateTo}" />
+                                <ComboBox Grid.Column="8" ItemsSource="{Binding RemainingOptions}" DisplayMemberPath="DisplayText"
+                              SelectedItem="{Binding SelectedRemainingOption}" />
+                            </Grid>
+                            <Separator Height="4" Background="Transparent" BorderThickness="0"/>
+                            <Grid ColumnDefinitions="*,4,*,4,*,4,*,4,*,4,*,4,*">
                                 <ui:TextBox Grid.Column="0" PlaceholderText="来源单号（支持多行）"
                                             Text="{Binding SourceNosText}" AcceptsReturn="True" TextWrapping="Wrap"
                                             VerticalAlignment="Top" Height="220" />
@@ -194,14 +219,7 @@
                                             Text="{Binding CustomerSkusText}" AcceptsReturn="True" TextWrapping="Wrap"
                                             VerticalAlignment="Top" Height="220" />
                             </Grid>
-                            <Grid Margin="0,4,0,0" ColumnDefinitions="128,4,128,12,128,4,128,12,150,*">
-                                <DatePicker Grid.Column="0" ToolTip="原需求交期从" SelectedDate="{Binding DemandRequiredDateFrom}" />
-                                <DatePicker Grid.Column="2" ToolTip="原需求交期到" SelectedDate="{Binding DemandRequiredDateTo}" />
-                                <DatePicker Grid.Column="4" ToolTip="计划交期从" SelectedDate="{Binding PlannedDeliveryDateFrom}" />
-                                <DatePicker Grid.Column="6" ToolTip="计划交期到" SelectedDate="{Binding PlannedDeliveryDateTo}" />
-                                <ComboBox Grid.Column="8" ItemsSource="{Binding RemainingOptions}" DisplayMemberPath="DisplayText"
-                              SelectedItem="{Binding SelectedRemainingOption}" />
-                            </Grid>
+
                         </StackPanel>
                     </Border>
                 </Popup>
@@ -214,7 +232,7 @@
                               DrawerContent="{Binding ActiveDrawerContent}"
                               CloseCommand="{Binding CloseDrawerCommand}"
                               CloseOnEscape="True"
-                              DrawerWidth="640" MinDrawerWidth="480" MaxDrawerWidth="920"
+                              DrawerWidth="920" MinDrawerWidth="480" MaxDrawerWidth="1080"
                               DisplayMode="Overlay" IsResizable="True">
                 <controls:RightDrawerHost.MainContent>
                     <DataGrid ItemsSource="{Binding Items}"
@@ -226,7 +244,8 @@
                           FontSize="{StaticResource SwiftExportDefaltFontSize}"
                           SelectionMode="Single"
                           SelectionUnit="FullRow"
-                          EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                          EnableRowVirtualization="True" 
+                          EnableColumnVirtualization="True"
                           gridCore:EnterpriseGrid.IsEnabled="True"
                           gridCore:GridVirtualization.IsEnabled="True"
                           gridCore:GridRowHeader.ShowRowNumber="True"

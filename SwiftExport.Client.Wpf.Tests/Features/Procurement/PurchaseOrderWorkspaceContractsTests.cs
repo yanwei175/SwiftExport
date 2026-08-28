@@ -79,6 +79,7 @@ public sealed class PurchaseOrderWorkspaceContractsTests
         StringAssert.Contains(detail, "CbmTotalText");
     }
 
+    /// <summary>验证采购工作台保留主从表，并使用单一 SelectedItem 驱动采购头行联动。</summary>
     [TestMethod]
     public void Workspace_MustUseHeadLineMasterDetailWithoutOpeningDrawerOnSelection()
     {
@@ -88,10 +89,26 @@ public sealed class PurchaseOrderWorkspaceContractsTests
         StringAssert.Contains(view, "采购行明细");
         StringAssert.Contains(view, "ResizeDirection=\"Rows\"");
         StringAssert.Contains(view, "Command=\"{Binding OpenDrawerCommand}\"");
+        Assert.IsFalse(view.Contains("GridSelection.CurrentRow", StringComparison.Ordinal));
+        StringAssert.Contains(view, "Text=\"{Binding DetailStatusText}\"");
 
         var viewModel = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderWorkspaceViewModel.cs");
         Assert.IsFalse(viewModel.Contains("IsDrawerOpen = order is not null", StringComparison.Ordinal));
         StringAssert.Contains(viewModel, "private void OpenDrawer() => IsDrawerOpen = true;");
+    }
+
+    /// <summary>验证状态筛选、多行工具栏和取消确认抽屉入口使用已冻结的绑定契约。</summary>
+    [TestMethod]
+    public void Workspace_MustUseMultiSelectFiltersAndDrawerCancellationSubmit()
+    {
+        var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderWorkspaceView.xaml");
+        Assert.AreEqual(3, view.Split("<controls:DropDownCheckBox", StringSplitOptions.None).Length - 1);
+        StringAssert.Contains(view, "SelectedConfirmationStatuses,Mode=OneWay");
+        StringAssert.Contains(view, "SelectedLifecycleStatuses,Mode=OneWay");
+        StringAssert.Contains(view, "SelectedArrangementStatuses,Mode=OneWay");
+        StringAssert.Contains(view, "Command=\"{Binding PrepareCancelConfirmationCommand}\"");
+        StringAssert.Contains(view, "Content=\"提交取消确认\"");
+        StringAssert.Contains(view, "RowDefinitions=\"Auto,4,Auto,4,Auto\"");
     }
 
     [TestMethod]
@@ -102,7 +119,8 @@ public sealed class PurchaseOrderWorkspaceContractsTests
             StringAssert.Contains(detail, $"Header.{property},Mode=OneWay");
 
         var workspace = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderWorkspaceView.xaml");
-        StringAssert.Contains(workspace, "Content=\"关闭\" Command=\"{Binding CloseDrawerCommand}\"");
+        StringAssert.Contains(workspace, "Content=\"关闭\"");
+        StringAssert.Contains(workspace, "Command=\"{Binding CloseDrawerCommand}\"");
     }
 
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));

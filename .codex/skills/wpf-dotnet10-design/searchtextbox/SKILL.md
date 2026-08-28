@@ -31,7 +31,7 @@ description: SwiftExport .NET 10 WPF 搜索输入、搜索选择器、远程搜�
 
 ## 核心原则
 
-- 当前新前端不直接复用旧 `MateWpfThemes.FW` 的 `SearchableTextBox` 规则。
+- 当前前端不直接复用 Git 历史中旧 MateWpfThemes 的 `SearchableTextBox` 规则。
 - 搜索输入文本和已选中对象显示应分离，避免选中项回填输入框后触发重复搜索。
 - 简单关键词搜索优先使用普通 `TextBox` + 显式 Search 命令。
 - 有对象选择语义时，使用搜索选择器模型：`SearchText`、`SelectedItem`、`SelectedValue`、`ItemsSource`、`IsDropDownOpen`。
@@ -108,5 +108,5 @@ private bool CanSearchProducts()
 - 禁止让控件直接依赖 Refit API、Repository、Controller。
 - 禁止把已选对象显示值强行写回 `SearchText` 作为唯一状态。
 - 禁止把搜索、保存、过账等业务命令藏在属性 setter 中。
-- 禁止把旧 WPF/VSTO 或 MateWpfThemes 控件实现原样搬进 `SwiftExport.Client.Wpf`。
+- 禁止把 Git 历史中的旧 WPF/VSTO 或 MateWpfThemes 控件实现原样搬进 `SwiftExport.Client.Wpf`。
 - 禁止为了一个页面复制一份不可复用的复杂搜索控件。

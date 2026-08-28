@@ -148,12 +148,6 @@
 - `SwiftExport.Client.Wpf/**`
 - `SwiftExport.Contracts/**` 中前端依赖的 API、DTO、枚举、通用契约
 
-旧 WPF/VSTO 兼容维护任务写入范围：
-
-- `SwiftExport.View.FW/**`
-- `SwiftExport.VSTO/**`
-- `SwiftExport.Contracts/**` 中前端依赖的 API、DTO、枚举、通用契约
-
 前端任务禁止借机写入：
 
 - `SwiftExport.WebApi/**`

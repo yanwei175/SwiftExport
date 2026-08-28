@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Contracts.Apis.Procurement;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Entities.Procurement;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -38,6 +39,23 @@ public sealed class ProcurementWorkspaceContractTests
         StringAssert.Contains(source, "ORDER BY f.Sequence DESC,f.Uid DESC");
         StringAssert.Contains(source, "COALESCE(latest.ReadyQty,0)");
         Assert.IsFalse(source.Contains("l.ReadyQty AS LatestReadyQty", StringComparison.Ordinal));
+    }
+
+    /// <summary>验证采购状态筛选使用真正的多选集合，并把无反馈采购行归入未知安排状态。</summary>
+    [TestMethod]
+    public void SearchFilters_MustUseParameterizedMultiSelectSemantics()
+    {
+        var request = new PurchaseOrderSearchRequest();
+        Assert.HasCount(0, request.ConfirmationStatuses);
+        Assert.HasCount(0, request.LifecycleStatuses);
+        Assert.HasCount(0, request.ArrangementStatuses);
+
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderWorkspaceRepository.cs");
+        StringAssert.Contains(repository, "h.ConfirmationStatus IN @ConfirmationStatuses");
+        StringAssert.Contains(repository, "h.LifecycleStatus IN @LifecycleStatuses");
+        StringAssert.Contains(repository, "COALESCE(latestArrangement.ArrangementStatus,0) IN @ArrangementStatuses");
+        Assert.IsFalse(repository.Contains("h.ConfirmationStatus=@ConfirmationStatus", StringComparison.Ordinal));
+        Assert.IsFalse(repository.Contains("h.LifecycleStatus=@LifecycleStatus", StringComparison.Ordinal));
     }
 
     [TestMethod]

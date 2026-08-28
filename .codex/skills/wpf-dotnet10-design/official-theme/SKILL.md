@@ -10,7 +10,7 @@ description: SwiftExport.Client.Wpf 官方 WPF Fluent 主题、lepoco/WPF-UI 主
 - 默认使用微软官方 WPF Fluent 主题。
 - 当前项目同时使用 lepoco/WPF-UI 的 `ThemesDictionary` 和 `ControlsDictionary`。
 - WPF-UI 是可用的第三方 Fluent 控件库，详见 `../wpfui-controls/SKILL.md`。
-- 不用旧 MateWpfThemes 直接覆盖新客户端。
+- 不从 Git 历史或归档分支恢复 MateWpfThemes 来覆盖新客户端。
 - 不写隐式全局 Style 去替换官方默认控件。
 - 项目自定义只通过命名 Style、token、业务控件补充。
 
@@ -38,5 +38,5 @@ SwiftExport.Client.Wpf/Resources/
 
 - 禁止引入旧主题键作为新客户端基础规则。
 - 禁止隐式覆盖所有 `TextBox`、`Button`、`DataGrid`。
-- 禁止把 MateWpfThemes 的 ResourceDictionary 整块迁移进新客户端。
+- 禁止把归档的 MateWpfThemes ResourceDictionary 整块迁移进新客户端。
 - 禁止为了单页问题修改全局主题。

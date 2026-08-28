@@ -1,5 +1,3 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
@@ -15,7 +13,9 @@ using SwiftExportClient.Navigation;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 

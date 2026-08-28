@@ -1,8 +1,0 @@
-﻿<Window x:Class="SwiftExport.VSTO.MainWindow"
-                xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Title="MyWindow" Height="450" Width="800" WindowStartupLocation="CenterScreen">
-    <Grid>
-        <Button Content="Button" HorizontalAlignment="Left" Margin="134,70,0,0" VerticalAlignment="Top" Height="50" Width="132"/>
-    </Grid>
-</Window>

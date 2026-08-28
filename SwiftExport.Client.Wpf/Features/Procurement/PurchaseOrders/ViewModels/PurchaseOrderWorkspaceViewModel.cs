@@ -17,6 +17,9 @@ using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 
+/// <summary>
+/// 采购工作台页面模型，负责分页筛选、采购头行联动、右侧快捷操作及采购业务命令编排。
+/// </summary>
 public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, IAsyncInitializable
 {
     public const string RouteKey = "procurement-purchase-orders";
@@ -42,15 +45,33 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
         RegisterBusyAwareCommand(SaveDraftCommand); RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
         RegisterBusyAwareCommand(ReportProgressCommand); RegisterBusyAwareCommand(OpenTraceCommand); RegisterBusyAwareCommand(ExportCommand);
         RegisterBusyAwareCommand(GetFromNetDemandCommand); RegisterBusyAwareCommand(PageChangeCommand);
-        RegisterBusyAwareCommand(OpenDetailCommand);
+        RegisterBusyAwareCommand(OpenDetailCommand); RegisterBusyAwareCommand(PrepareCancelConfirmationCommand);
     }
 
     public ObservableCollection<PurchaseOrderListItemDto> Orders { get; } = [];
     public ObservableCollection<PurchaseOrderLineEditorModel> Lines { get; } = [];
     public ObservableCollection<BusinessOperationTraceItemDto> Operations { get; } = [];
-    public IReadOnlyList<ConfirmationStatusEnum?> ConfirmationOptions { get; } = [null, ConfirmationStatusEnum.待确认, ConfirmationStatusEnum.已确认];
-    public IReadOnlyList<PurchaseOrderLifecycleStatusEnum?> LifecycleOptions { get; } = [null, PurchaseOrderLifecycleStatusEnum.Active, PurchaseOrderLifecycleStatusEnum.Closed, PurchaseOrderLifecycleStatusEnum.Voided];
-    public IReadOnlyList<SupplierArrangementStatusEnum?> ArrangementOptions { get; } = [null, SupplierArrangementStatusEnum.Unknown, SupplierArrangementStatusEnum.NotArranged, SupplierArrangementStatusEnum.Arranged, SupplierArrangementStatusEnum.NotApplicable];
+    public IReadOnlyList<PurchaseOrderFilterOption<ConfirmationStatusEnum>> ConfirmationOptions { get; } =
+    [
+        new(ConfirmationStatusEnum.待确认, "待确认"),
+        new(ConfirmationStatusEnum.已确认, "已确认")
+    ];
+    public IReadOnlyList<PurchaseOrderFilterOption<PurchaseOrderLifecycleStatusEnum>> LifecycleOptions { get; } =
+    [
+        new(PurchaseOrderLifecycleStatusEnum.Active, "活动"),
+        new(PurchaseOrderLifecycleStatusEnum.Closed, "已关闭"),
+        new(PurchaseOrderLifecycleStatusEnum.Voided, "已作废")
+    ];
+    public IReadOnlyList<PurchaseOrderFilterOption<SupplierArrangementStatusEnum>> ArrangementOptions { get; } =
+    [
+        new(SupplierArrangementStatusEnum.Unknown, "未知"),
+        new(SupplierArrangementStatusEnum.NotArranged, "未安排"),
+        new(SupplierArrangementStatusEnum.Arranged, "已安排"),
+        new(SupplierArrangementStatusEnum.NotApplicable, "不适用")
+    ];
+    public ObservableCollection<PurchaseOrderFilterOption<ConfirmationStatusEnum>> SelectedConfirmationStatuses { get; } = [];
+    public ObservableCollection<PurchaseOrderFilterOption<PurchaseOrderLifecycleStatusEnum>> SelectedLifecycleStatuses { get; } = [];
+    public ObservableCollection<PurchaseOrderFilterOption<SupplierArrangementStatusEnum>> SelectedArrangementStatuses { get; } = [];
     public IReadOnlyList<SupplierArrangementStatusEnum> ReportArrangementOptions { get; } = [SupplierArrangementStatusEnum.Unknown, SupplierArrangementStatusEnum.NotArranged, SupplierArrangementStatusEnum.Arranged, SupplierArrangementStatusEnum.NotApplicable];
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
@@ -63,9 +84,6 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     [ObservableProperty] public partial string SourceNo { get; set; } = string.Empty;
     [ObservableProperty] public partial string SupplierKeyword { get; set; } = string.Empty;
     [ObservableProperty] public partial string Sku { get; set; } = string.Empty;
-    [ObservableProperty] public partial ConfirmationStatusEnum? ConfirmationStatus { get; set; }
-    [ObservableProperty] public partial PurchaseOrderLifecycleStatusEnum? LifecycleStatus { get; set; }
-    [ObservableProperty] public partial SupplierArrangementStatusEnum? ArrangementStatus { get; set; }
     [ObservableProperty] public partial DateTime? PlannedDeliveryDateFrom { get; set; }
     [ObservableProperty] public partial DateTime? PlannedDeliveryDateTo { get; set; }
     [ObservableProperty] public partial DateTime? ExpectedReadyDateFrom { get; set; }
@@ -73,6 +91,7 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(ArrangementSummary))]
     [NotifyCanExecuteChangedFor(nameof(SaveDraftCommand))] [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelConfirmationCommand))] [NotifyCanExecuteChangedFor(nameof(OpenTraceCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PrepareCancelConfirmationCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenDrawerCommand))]
@@ -91,10 +110,17 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(PageStatus))] public partial int PageIndex { get; set; } = 1;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(TotalPages))] [NotifyPropertyChangedFor(nameof(PageStatus))] public partial int PageSize { get; set; } = 20;
     [ObservableProperty] public partial string ResultSummary { get; set; } = "尚未加载采购单。";
+    [ObservableProperty] public partial string DetailStatusText { get; set; } = "请选择采购单查看明细。";
 
     public Task InitializeAsync() { if (_initialized) return Task.CompletedTask; _initialized = true; return LoadPageAsync(); }
 
-    partial void OnSelectedOrderChanged(PurchaseOrderListItemDto? value) { _ = LoadDetailAsync(value); }
+    partial void OnSelectedOrderChanged(PurchaseOrderListItemDto? value)
+    {
+        // 切换采购单时关闭旧抽屉并清除原因，防止把取消原因提交到另一张采购单。
+        IsDrawerOpen = false;
+        CancellationReason = string.Empty;
+        _ = LoadDetailAsync(value);
+    }
     partial void OnSelectedLineChanged(PurchaseOrderLineEditorModel? value)
     {
         if (value?.LatestProgress is { } latest)
@@ -106,11 +132,22 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     [RelayCommand(AllowConcurrentExecutions = true)] private async Task SearchAsync() { PageIndex = 1; await LoadPageAsync(); }
     [RelayCommand(AllowConcurrentExecutions = true)] private Task RefreshAsync() => LoadPageAsync();
     [RelayCommand] private async Task ClearFiltersAsync()
-    { Keyword = OrderNo = SourceNo = SupplierKeyword = Sku = string.Empty; ConfirmationStatus = null; LifecycleStatus = null; ArrangementStatus = null; PlannedDeliveryDateFrom = PlannedDeliveryDateTo = ExpectedReadyDateFrom = ExpectedReadyDateTo = null; PageIndex = 1; await LoadPageAsync(); }
+    {
+        Keyword = OrderNo = SourceNo = SupplierKeyword = Sku = string.Empty;
+        SelectedConfirmationStatuses.Clear(); SelectedLifecycleStatuses.Clear(); SelectedArrangementStatuses.Clear();
+        PlannedDeliveryDateFrom = PlannedDeliveryDateTo = ExpectedReadyDateFrom = ExpectedReadyDateTo = null;
+        PageIndex = 1; await LoadPageAsync();
+    }
     [RelayCommand] private Task CloseDrawerAsync() { IsDrawerOpen = false; return Task.CompletedTask; }
 
     [RelayCommand(CanExecute = nameof(CanUseSelected))]
     private void OpenDrawer() => IsDrawerOpen = true;
+
+    [RelayCommand(CanExecute = nameof(CanCancelConfirmation))]
+    private void PrepareCancelConfirmation()
+    {
+        IsDrawerOpen = true;
+    }
 
     [RelayCommand(CanExecute = nameof(CanSaveDraft))]
     private async Task SaveDraftAsync()
@@ -144,13 +181,13 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
     private async Task CancelConfirmationAsync()
     {
         var order = SelectedOrder; if (order is null) return;
-        if (string.IsNullOrWhiteSpace(CancellationReason)) { _messages.ShowWarning("需要取消原因", "请先在右侧抽屉填写取消确认原因。"); return; }
+        if (string.IsNullOrWhiteSpace(CancellationReason)) { IsDrawerOpen = true; _messages.ShowWarning("需要取消原因", "请先在右侧抽屉填写取消确认原因。"); return; }
         if (!await _dialogs.ConfirmAsync("取消采购确认", "系统将检查收货和库存事实；历史确认信息保留在业务日志。是否继续？", "取消确认")) return;
         await RunWriteAsync(async () =>
         {
             var result = await _runner.RunAsync(() => _api.CancelConfirmationAsync(order.Uid, new CancelPurchaseOrderConfirmationCommand { CommandId = Guid.NewGuid(), ExpectedVersion = order.Version, Reason = CancellationReason.Trim() }), "取消采购确认失败");
             if (!result.Success) { _messages.ShowError("取消确认失败", result.Message); return; }
-            _messages.ShowSuccess("已取消确认", order.OrderNo); CancellationReason = string.Empty; await ReloadCurrentAsync(order.Uid);
+            _messages.ShowSuccess("已取消确认", order.OrderNo); CancellationReason = string.Empty; IsDrawerOpen = false; await ReloadCurrentAsync(order.Uid);
         }, "正在取消采购确认...");
     }
 
@@ -228,22 +265,59 @@ public sealed partial class PurchaseOrderWorkspaceViewModel : ViewModelBaseEx, I
         if (ReferenceEquals(_searchCancellation, cts)) _searchCancellation = null; cts.Dispose();
     }
 
+    /// <summary>
+    /// 加载当前采购单明细。取消旧请求并只接受最新请求结果，避免快速切换单头时旧结果覆盖新选择。
+    /// </summary>
     private async Task LoadDetailAsync(PurchaseOrderListItemDto? order)
     {
-        _detailCancellation?.Cancel(); _detailCancellation?.Dispose(); var cts = new CancellationTokenSource(); _detailCancellation = cts;
-        Lines.Clear(); Operations.Clear(); if (order is null) { IsDrawerOpen = false; cts.Dispose(); return; }
-        var result = await _runner.RunAsync(() => _api.GetDetailAsync(order.Uid, cts.Token), cts.Token, "加载采购详情失败");
-        if (!cts.IsCancellationRequested && ReferenceEquals(_detailCancellation, cts) && ReferenceEquals(order, SelectedOrder) && result.Success && result.Data is not null)
+        _detailCancellation?.Cancel();
+        var cts = new CancellationTokenSource(); _detailCancellation = cts;
+        var orderId = order?.Uid;
+        SelectedLine = null; Lines.Clear(); Operations.Clear(); SaveDraftCommand.NotifyCanExecuteChanged();
+        if (!orderId.HasValue)
         {
-            Remark = result.Data.Remark ?? string.Empty; foreach (var line in result.Data.Lines) Lines.Add(PurchaseOrderLineEditorModel.FromDto(line));
-            foreach (var operation in result.Data.Operations) Operations.Add(operation); SelectedLine = Lines.FirstOrDefault();
+            DetailStatusText = "请选择采购单查看明细。";
+            cts.Dispose();
+            if (ReferenceEquals(_detailCancellation, cts)) _detailCancellation = null;
+            return;
+        }
+
+        DetailStatusText = "正在加载采购明细...";
+        try
+        {
+            var result = await _runner.RunAsync(() => _api.GetDetailAsync(orderId.Value, cts.Token), cts.Token, "加载采购详情失败");
+            if (cts.IsCancellationRequested || !ReferenceEquals(_detailCancellation, cts) || SelectedOrder?.Uid != orderId.Value) return;
+            if (!result.Success || result.Data is null)
+            {
+                DetailStatusText = string.IsNullOrWhiteSpace(result.Message) ? "采购明细加载失败。" : result.Message;
+                return;
+            }
+
+            Remark = result.Data.Remark ?? string.Empty;
+            foreach (var line in result.Data.Lines) Lines.Add(PurchaseOrderLineEditorModel.FromDto(line));
+            foreach (var operation in result.Data.Operations) Operations.Add(operation);
+            SelectedLine = Lines.FirstOrDefault();
+            DetailStatusText = Lines.Count == 0 ? "该采购单没有采购行。" : $"共 {Lines.Count} 条采购明细。";
             SaveDraftCommand.NotifyCanExecuteChanged();
         }
-        if (ReferenceEquals(_detailCancellation, cts)) _detailCancellation = null; cts.Dispose();
+        finally
+        {
+            if (ReferenceEquals(_detailCancellation, cts)) _detailCancellation = null;
+            cts.Dispose();
+        }
     }
 
     private async Task ReloadCurrentAsync(Guid uid) { await LoadPageAsync(); SelectedOrder = Orders.FirstOrDefault(x => x.Uid == uid) ?? SelectedOrder; }
-    private PurchaseOrderSearchRequest CreateRequest() => new() { Keyword = Keyword.Trim(), OrderNo = OrderNo.Trim(), SourceNo = SourceNo.Trim(), SupplierKeyword = SupplierKeyword.Trim(), Sku = Sku.Trim(), ConfirmationStatus = ConfirmationStatus, LifecycleStatus = LifecycleStatus, ArrangementStatus = ArrangementStatus, PlannedDeliveryDateFrom = PlannedDeliveryDateFrom, PlannedDeliveryDateTo = PlannedDeliveryDateTo, ExpectedReadyDateFrom = ExpectedReadyDateFrom, ExpectedReadyDateTo = ExpectedReadyDateTo, PageIndex = PageIndex, PageSize = PageSize };
+    private PurchaseOrderSearchRequest CreateRequest() => new()
+    {
+        Keyword = Keyword.Trim(), OrderNo = OrderNo.Trim(), SourceNo = SourceNo.Trim(), SupplierKeyword = SupplierKeyword.Trim(), Sku = Sku.Trim(),
+        ConfirmationStatuses = SelectedConfirmationStatuses.Select(x => x.Value).Distinct().ToList(),
+        LifecycleStatuses = SelectedLifecycleStatuses.Select(x => x.Value).Distinct().ToList(),
+        ArrangementStatuses = SelectedArrangementStatuses.Select(x => x.Value).Distinct().ToList(),
+        PlannedDeliveryDateFrom = PlannedDeliveryDateFrom, PlannedDeliveryDateTo = PlannedDeliveryDateTo,
+        ExpectedReadyDateFrom = ExpectedReadyDateFrom, ExpectedReadyDateTo = ExpectedReadyDateTo,
+        PageIndex = PageIndex, PageSize = PageSize
+    };
     private bool CanUseSelected() => IsNotBusy && SelectedOrder is not null;
     private bool CanSaveDraft() => CanWrite && IsNotBusy && SelectedOrder?.CanEditDraft == true && Lines.Count > 0;
     private bool CanConfirm() => CanWrite && IsNotBusy && SelectedOrder?.CanConfirm == true;

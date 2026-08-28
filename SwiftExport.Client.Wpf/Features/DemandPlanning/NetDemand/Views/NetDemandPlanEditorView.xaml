@@ -30,7 +30,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                     <TextBlock Text="SKU / 角色" Style="{StaticResource CaptionTextBlock}" />
-                    <TextBlock><Run Text="{Binding Sku}"/><Run Text=" / "/><Run Text="{Binding DemandRoleText}"/></TextBlock>
+                    <TextBlock><Run Text="{Binding Sku, Mode=OneWay}"/><Run Text=" / "/><Run Text="{Binding DemandRoleText, Mode=OneWay}"/></TextBlock>
                 </StackPanel>
             </Grid>
 
@@ -70,7 +70,7 @@
 
             <StackPanel Grid.Row="12" Style="{StaticResource SinglePlanField}">
                 <TextBlock Text="送达目标" Margin="0,0,0,4" />
-                <TextBox Text="{Binding DeliveryTargetSummary}" IsReadOnly="True" />
+                <TextBox Text="{Binding DeliveryTargetSummary, Mode=OneWay}" IsReadOnly="True" />
                 <TextBlock Text="客供件送达供应商由父件计划联动，客户端不能直接修改。"
                            Margin="0,4,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlock}" />
             </StackPanel>

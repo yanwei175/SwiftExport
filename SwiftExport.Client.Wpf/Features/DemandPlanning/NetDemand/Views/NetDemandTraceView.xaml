@@ -20,32 +20,94 @@
             <StackPanel Grid.Column="4"><TextBlock Text="净数量" Style="{StaticResource CaptionTextBlock}"/><TextBlock Text="{Binding NetQty, StringFormat=N4}"/></StackPanel>
             <StackPanel Grid.Column="6"><TextBlock Text="当前状态" Style="{StaticResource CaptionTextBlock}"/><TextBlock Text="{Binding PlanStatus}"/></StackPanel>
         </Grid>
-        <DataGrid Grid.Row="4" ItemsSource="{Binding AllocationHistory}" Style="{StaticResource SwiftExportDataGrid}"
+        <DataGrid Grid.Row="4" ItemsSource="{Binding AllocationHistory}" 
+                  Style="{StaticResource SwiftExportDataGrid}"
                   IsReadOnly="True" AutoGenerateColumns="False" RowHeight="34"
-                  gridCore:EnterpriseGrid.IsEnabled="True" gridCore:GridVirtualization.IsEnabled="True">
+                  gridCore:EnterpriseGrid.IsEnabled="True" 
+                  gridCore:GridRowHeader.ShowRowNumber="True"
+                  gridCore:GridVirtualization.IsEnabled="True">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="计划版本" Width="72" Binding="{Binding PlanRevision}" gridColumns:GridColumn.Key="plan-revision" />
-                <DataGridTextColumn Header="状态" Width="84" Binding="{Binding LifecycleStatus}" gridColumns:GridColumn.Key="lifecycle" />
-                <DataGridTextColumn Header="执行方式" Width="84" Binding="{Binding ExecutionType}" gridColumns:GridColumn.Key="execution-type" />
-                <DataGridTextColumn Header="计划数量" Width="90" Binding="{Binding PlannedQty, StringFormat=N4}" gridColumns:GridColumn.Key="planned-qty" />
-                <DataGridTextColumn Header="采购供应商" Width="140" Binding="{Binding PurchaseSupplierName}" gridColumns:GridColumn.Key="supplier" />
-                <DataGridTextColumn Header="送达供应商" Width="140" Binding="{Binding DeliveryTargetSupplierName}" gridColumns:GridColumn.Key="delivery-supplier" />
-                <DataGridTextColumn Header="计划交期" Width="100" Binding="{Binding PlannedDeliveryDate, StringFormat=yyyy-MM-dd}" gridColumns:GridColumn.Key="planned-date" />
-                <DataGridTextColumn Header="变更原因" Width="*" Binding="{Binding ChangeReason}" gridColumns:GridColumn.Key="change-reason" />
+                <DataGridTextColumn Header="版本" Width="52" 
+                                    Binding="{Binding PlanRevision}" 
+                                    gridColumns:GridColumn.Key="plan-revision"
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"/>
+                
+                <DataGridTextColumn Header="状态" Width="84" 
+                                    Binding="{Binding LifecycleStatus}" 
+                                    gridColumns:GridColumn.Key="lifecycle" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
+                
+                <DataGridTextColumn Header="执行方式" Width="84" 
+                                    Binding="{Binding ExecutionType}" 
+                                    gridColumns:GridColumn.Key="execution-type"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
+                
+                <DataGridTextColumn Header="计划数量" Width="90" 
+                                    Binding="{Binding PlannedQty, StringFormat=N1}" 
+                                    gridColumns:GridColumn.Key="planned-qty"
+                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"/>
+                
+                <DataGridTextColumn Header="采购供应商" Width="140" 
+                                    Binding="{Binding PurchaseSupplierName}" 
+                                    gridColumns:GridColumn.Key="supplier" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
+                
+                <DataGridTextColumn Header="送达供应商" Width="140"
+                                    Binding="{Binding DeliveryTargetSupplierName}" 
+                                    gridColumns:GridColumn.Key="delivery-supplier" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
+                
+                <DataGridTextColumn Header="计划交期" Width="100" 
+                                    Binding="{Binding PlannedDeliveryDate, StringFormat=yyyy-MM-dd}" 
+                                    gridColumns:GridColumn.Key="planned-date" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"/>
+                
+                <DataGridTextColumn Header="变更原因" Width="*" 
+                                    Binding="{Binding ChangeReason}"
+                                    gridColumns:GridColumn.Key="change-reason" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
             </DataGrid.Columns>
         </DataGrid>
         <DataGrid Grid.Row="6" ItemsSource="{Binding ExecutionLinks}" SelectedItem="{Binding SelectedExecutionLink}"
                   Style="{StaticResource SwiftExportDataGrid}"
                   IsReadOnly="True" AutoGenerateColumns="False" RowHeight="32"
+                  gridCore:GridRowHeader.ShowRowNumber="True"
                   gridCore:EnterpriseGrid.IsEnabled="True" gridCore:GridVirtualization.IsEnabled="True">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="目标类型" Width="80" Binding="{Binding TargetType}" gridColumns:GridColumn.Key="target-type" />
-                <DataGridTextColumn Header="采购单号" Width="130" Binding="{Binding TargetNo}" gridColumns:GridColumn.Key="target-no" />
-                <DataGridTextColumn Header="行" Width="50" Binding="{Binding TargetLineNumber}" gridColumns:GridColumn.Key="target-line" />
-                <DataGridTextColumn Header="链接状态" Width="84" Binding="{Binding LinkStatus}" gridColumns:GridColumn.Key="link-status" />
-                <DataGridTextColumn Header="分配数量" Width="90" Binding="{Binding AllocatedQty, StringFormat=N4}" gridColumns:GridColumn.Key="allocated-qty" />
-                <DataGridTextColumn Header="计划交期" Width="100" Binding="{Binding PlannedDeliveryDate, StringFormat=yyyy-MM-dd}" gridColumns:GridColumn.Key="planned-date" />
-                <DataGridTextColumn Header="备注" Width="*" Binding="{Binding Remark}" gridColumns:GridColumn.Key="remark" />
+                <DataGridTextColumn Header="行" Width="50" 
+                                    Binding="{Binding TargetLineNumber}" 
+                                    gridColumns:GridColumn.Key="target-line" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
+                
+                <DataGridTextColumn Header="目标类型" Width="80" 
+                                    Binding="{Binding TargetType}" 
+                                    gridColumns:GridColumn.Key="target-type" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
+                
+                <DataGridTextColumn Header="采购单号" Width="130" 
+                                    Binding="{Binding TargetNo}" 
+                                    gridColumns:GridColumn.Key="target-no" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>                
+                
+                <DataGridTextColumn Header="链接状态" Width="84" 
+                                    Binding="{Binding LinkStatus}" 
+                                    gridColumns:GridColumn.Key="link-status" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
+                
+                <DataGridTextColumn Header="分配数量" Width="90" 
+                                    Binding="{Binding AllocatedQty, StringFormat=N1}" 
+                                    gridColumns:GridColumn.Key="allocated-qty" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"/>
+                
+                <DataGridTextColumn Header="计划交期" Width="100" 
+                                    Binding="{Binding PlannedDeliveryDate, StringFormat=yyyy-MM-dd}" 
+                                    gridColumns:GridColumn.Key="planned-date" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"/>
+                
+                <DataGridTextColumn Header="备注" Width="*" 
+                                    Binding="{Binding Remark}" 
+                                    gridColumns:GridColumn.Key="remark" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

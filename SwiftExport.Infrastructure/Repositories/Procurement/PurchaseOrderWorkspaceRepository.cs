@@ -14,6 +14,9 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
 {
     private DbSession Session => context.Session;
 
+    /// <summary>
+    /// 按采购头、采购行及每行最新供应商反馈查询工作台；状态集合内部使用 IN，集合为空时不施加该维度条件。
+    /// </summary>
     public async Task<PagedResponseBase<PurchaseOrderListItemDto>> SearchAsync(PurchaseOrderSearchRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -27,14 +30,14 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
         AddLike(request.SupplierKeyword, "(h.SupplierCode LIKE @SupplierKeyword OR h.SupplierName LIKE @SupplierKeyword)", "SupplierKeyword", where, parameters);
         AddLike(request.Sku, "EXISTS(SELECT 1 FROM dbo.PurchaseOrderLine skuLine WHERE skuLine.PurchaseOrderId=h.Uid AND ISNULL(skuLine.IsDeleted,0)=0 AND skuLine.Sku LIKE @Sku)", "Sku", where, parameters);
         if (request.SupplierId.HasValue) { where.Add("h.SupplierId=@SupplierId"); parameters.Add("SupplierId", request.SupplierId.Value); }
-        if (request.ConfirmationStatus.HasValue) { where.Add("h.ConfirmationStatus=@ConfirmationStatus"); parameters.Add("ConfirmationStatus", request.ConfirmationStatus.Value); }
-        if (request.LifecycleStatus.HasValue) { where.Add("h.LifecycleStatus=@LifecycleStatus"); parameters.Add("LifecycleStatus", request.LifecycleStatus.Value); }
+        if (request.ConfirmationStatuses?.Count > 0) { where.Add("h.ConfirmationStatus IN @ConfirmationStatuses"); parameters.Add("ConfirmationStatuses", request.ConfirmationStatuses); }
+        if (request.LifecycleStatuses?.Count > 0) { where.Add("h.LifecycleStatus IN @LifecycleStatuses"); parameters.Add("LifecycleStatuses", request.LifecycleStatuses); }
         AddDateRange(request.PlannedDeliveryDateFrom, request.PlannedDeliveryDateTo, "lineFacts.EarliestPlannedDeliveryDate", "Planned", where, parameters);
         AddDateRange(request.ExpectedReadyDateFrom, request.ExpectedReadyDateTo, "lineFacts.LatestExpectedReadyDate", "Ready", where, parameters);
-        if (request.ArrangementStatus.HasValue)
+        if (request.ArrangementStatuses?.Count > 0)
         {
-            where.Add("EXISTS(SELECT 1 FROM dbo.PurchaseOrderLine arrangementLine OUTER APPLY (SELECT TOP(1) f.ArrangementStatus FROM dbo.SupplierProgressReport f WHERE f.PurchaseOrderLineId=arrangementLine.Uid AND ISNULL(f.IsDeleted,0)=0 ORDER BY f.Sequence DESC,f.Uid DESC) latestArrangement WHERE arrangementLine.PurchaseOrderId=h.Uid AND ISNULL(arrangementLine.IsDeleted,0)=0 AND latestArrangement.ArrangementStatus=@ArrangementStatus)");
-            parameters.Add("ArrangementStatus", request.ArrangementStatus.Value);
+            where.Add("EXISTS(SELECT 1 FROM dbo.PurchaseOrderLine arrangementLine OUTER APPLY (SELECT TOP(1) f.ArrangementStatus FROM dbo.SupplierProgressReport f WHERE f.PurchaseOrderLineId=arrangementLine.Uid AND ISNULL(f.IsDeleted,0)=0 ORDER BY f.Sequence DESC,f.Uid DESC) latestArrangement WHERE arrangementLine.PurchaseOrderId=h.Uid AND ISNULL(arrangementLine.IsDeleted,0)=0 AND COALESCE(latestArrangement.ArrangementStatus,0) IN @ArrangementStatuses)");
+            parameters.Add("ArrangementStatuses", request.ArrangementStatuses);
         }
 
         var whereSql = string.Join(" AND ", where);

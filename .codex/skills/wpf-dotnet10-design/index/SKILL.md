@@ -21,7 +21,7 @@ SwiftExport 当前 .NET 10 WPF 前端设计技能组入口。
 ## 总原则
 
 - 当前前端主线是 `SwiftExport.Client.Wpf`。
-- 不把旧 `SwiftExport.View.FW`、VSTO、MateWpfThemes 规则直接带进新客户端。
+- 不从 Git 历史或归档分支把旧 .NET Framework WPF、VSTO、MateWpfThemes 规则直接带进新客户端。
 - 页面优先使用原生 WPF + 官方 Fluent 主题 + lepoco/WPF-UI 控件 + SwiftExport 命名资源。
 - ViewModel / Model 必须遵守 CommunityToolkit 源生成器规则。
 - Enterprise Grid 框架禁止依赖 WPF-UI、HandyControl、MaterialDesignThemes 或任何商业 Grid；即使宿主应用引用 WPF-UI，Grid 项目也必须保持原生 WPF 依赖边界。
