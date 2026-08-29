@@ -1,5 +1,3 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
@@ -11,6 +9,8 @@ using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Sales.Orders.ViewModels;
 
@@ -79,7 +79,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     [ObservableProperty] public partial bool IsProductLookupBusy { get; set; }
     [ObservableProperty] public partial bool IsCustomerLookupBusy { get; set; }
     [ObservableProperty] public partial bool HasValidationError { get; set; }
-
+    [ObservableProperty] public partial bool IsCellSelectionMode { get; set; }
     public async Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
     {
         var request = parameter as SalesOrderDocumentOpenRequest;

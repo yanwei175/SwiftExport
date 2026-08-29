@@ -38,7 +38,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         Title = "采购单详情";
         Header.PropertyChanged += OnEditablePropertyChanged;
         RegisterBusyAwareCommand(SaveCommand); RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
-        RegisterBusyAwareCommand(ReportProgressCommand); RegisterBusyAwareCommand(OpenTraceCommand); RegisterBusyAwareCommand(ExportCommand);
+        RegisterBusyAwareCommand(OpenTraceCommand); RegisterBusyAwareCommand(ExportCommand);
         RegisterBusyAwareCommand(RefreshCommand); RegisterBusyAwareCommand(CloseDocumentCommand);
     }
 
@@ -49,16 +49,8 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     public bool HasUnsavedChanges => IsDirty;
     public bool IsDraftEditable => Header.CanEditDraft && IsNotBusy;
     public string ArrangementSummary => $"已安排 {Lines.Count(x => x.LatestProgress?.ArrangementStatus == SupplierArrangementStatusEnum.Arranged)}/{Lines.Count}";
-    public IReadOnlyList<SupplierArrangementStatusEnum> ArrangementOptions { get; } = [SupplierArrangementStatusEnum.Unknown, SupplierArrangementStatusEnum.NotArranged, SupplierArrangementStatusEnum.Arranged, SupplierArrangementStatusEnum.NotApplicable];
-
-    [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(ReportProgressCommand))] public partial PurchaseOrderLineEditorModel? SelectedLine { get; set; }
+    [ObservableProperty] public partial PurchaseOrderLineEditorModel? SelectedLine { get; set; }
     [ObservableProperty] public partial string CancellationReason { get; set; } = string.Empty;
-    [ObservableProperty] public partial SupplierArrangementStatusEnum ReportArrangementStatus { get; set; }
-    [ObservableProperty] public partial decimal ReportReadyQty { get; set; }
-    [ObservableProperty] public partial DateTime? ReportExpectedReadyDate { get; set; }
-    [ObservableProperty] public partial DateTime ReportedDate { get; set; } = DateTime.Today;
-    [ObservableProperty] public partial string ReportNote { get; set; } = string.Empty;
-    [ObservableProperty] public partial string CorrectionReason { get; set; } = string.Empty;
 
     public Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
     {
@@ -71,14 +63,6 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         if (IsBusy) return false;
         if (!HasUnsavedChanges) return true;
         return await _dialogs.ConfirmAsync("关闭采购详情", "当前采购草稿有未保存修改，确定放弃并关闭吗？", "放弃并关闭", "继续编辑", cancellationToken);
-    }
-
-    partial void OnSelectedLineChanged(PurchaseOrderLineEditorModel? value)
-    {
-        var latest = value?.LatestProgress;
-        ReportArrangementStatus = latest?.ArrangementStatus ?? SupplierArrangementStatusEnum.Unknown;
-        ReportReadyQty = latest?.ReadyQty ?? 0m; ReportExpectedReadyDate = latest?.ExpectedReadyDate; ReportedDate = DateTime.Today;
-        ReportNote = string.Empty; CorrectionReason = string.Empty;
     }
 
     [RelayCommand(CanExecute = nameof(CanSave))]
@@ -118,26 +102,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         }, "正在取消采购确认...");
     }
 
-    [RelayCommand(CanExecute = nameof(CanReportProgress))]
-    private async Task ReportProgressAsync()
-    {
-        var line = SelectedLine; if (line is null) return;
-        if (ReportReadyQty < line.LatestReadyQty && string.IsNullOrWhiteSpace(CorrectionReason)) { _messages.ShowWarning("需要纠错原因", "累计已备好数量下降时必须填写纠错原因。"); return; }
-        if (!await _dialogs.ConfirmAsync("登记供应商反馈", $"为第 {line.LineNumber} 行新增累计已备好 {ReportReadyQty:N4} 的不可覆盖记录。", "登记")) return;
-        await RunWriteAsync(async () =>
-        {
-            var result = await _runner.RunAsync(() => _api.ReportProgressAsync(Header.Uid, new SupplierProgressReportCommand
-            {
-                CommandId = Guid.NewGuid(), PurchaseOrderLineId = line.Uid, ExpectedPurchaseOrderVersion = Header.Version,
-                ExpectedLineVersion = line.Version, ArrangementStatus = ReportArrangementStatus, ReadyQty = ReportReadyQty,
-                ExpectedReadyDate = ReportExpectedReadyDate, SupplierReportedDate = ReportedDate, Note = ReportNote, CorrectionReason = CorrectionReason
-            }), "登记供应商反馈失败");
-            if (!result.Success) { _messages.ShowError("登记失败", result.Message); return; }
-            _messages.ShowSuccess("供应商反馈已登记", line.Sku); await LoadAsync(Header.Uid, CancellationToken.None);
-        }, "正在登记供应商反馈...");
-    }
-
-    [RelayCommand] private Task RefreshAsync() => LoadAsync(Header.Uid, CancellationToken.None);
+    [RelayCommand] private Task RefreshAsync() => LoadAsync(Header.Uid, CancellationToken.None, SelectedLine?.Uid);
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
     private async Task OpenTraceAsync()
@@ -156,25 +121,26 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
 
     [RelayCommand] private Task CloseDocumentAsync() => _navigation.CloseAsync(_navigation.OpenTabs.FirstOrDefault(x => ReferenceEquals(x.ContentViewModel, this)));
 
-    private async Task LoadAsync(Guid uid, CancellationToken cancellationToken)
+    private async Task LoadAsync(Guid uid, CancellationToken cancellationToken, Guid? preferredLineId = null)
     {
         if (uid == Guid.Empty) return;
         await RunBusyAsync(async () =>
         {
             var result = await _runner.RunAsync(() => _api.GetDetailAsync(uid, cancellationToken), cancellationToken, "加载采购详情失败");
             if (!result.Success || result.Data is null) { _messages.ShowError("加载采购详情失败", result.Message); return; }
-            Load(result.Data);
+            Load(result.Data, preferredLineId);
         }, "正在加载采购详情...");
     }
 
-    private void Load(PurchaseOrderDetailDto dto)
+    /// <summary>将后台详情回填到文档，并在刷新后优先恢复原采购行选择。</summary>
+    private void Load(PurchaseOrderDetailDto dto, Guid? preferredLineId)
     {
         _loading = true;
         foreach (var line in Lines) line.PropertyChanged -= OnEditablePropertyChanged;
         Lines.Clear(); Operations.Clear(); Header.Load(dto);
         foreach (var item in dto.Lines.Select(PurchaseOrderLineEditorModel.FromDto)) { item.PropertyChanged += OnEditablePropertyChanged; Lines.Add(item); }
         foreach (var operation in dto.Operations) Operations.Add(operation);
-        SelectedLine = Lines.FirstOrDefault(); _loading = false; IsDirty = false;
+        SelectedLine = Lines.FirstOrDefault(x => x.Uid == preferredLineId) ?? Lines.FirstOrDefault(); _loading = false; IsDirty = false;
         OnPropertyChanged(nameof(DocumentTitle)); OnPropertyChanged(nameof(HasUnsavedChanges)); OnPropertyChanged(nameof(IsDraftEditable)); OnPropertyChanged(nameof(ArrangementSummary));
         NotifyCommands();
     }
@@ -200,12 +166,11 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     private bool CanSave() => CanWrite && IsNotBusy && Header.CanEditDraft && IsDirty && Lines.Count > 0;
     private bool CanConfirm() => CanWrite && IsNotBusy && Header.CanConfirm && !IsDirty;
     private bool CanCancelConfirmation() => CanWrite && IsNotBusy && Header.CanCancelConfirmation && !IsDirty;
-    private bool CanReportProgress() => CanWrite && IsNotBusy && Header.CanReportProgress && SelectedLine is not null && !IsDirty;
     private bool CanUseDocument() => IsNotBusy && Header.Uid != Guid.Empty;
     private void NotifyCommands()
     {
         SaveCommand.NotifyCanExecuteChanged(); ConfirmCommand.NotifyCanExecuteChanged(); CancelConfirmationCommand.NotifyCanExecuteChanged();
-        ReportProgressCommand.NotifyCanExecuteChanged(); OpenTraceCommand.NotifyCanExecuteChanged(); ExportCommand.NotifyCanExecuteChanged();
+        OpenTraceCommand.NotifyCanExecuteChanged(); ExportCommand.NotifyCanExecuteChanged();
     }
 
     public void Dispose()

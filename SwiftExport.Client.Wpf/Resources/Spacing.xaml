@@ -9,7 +9,7 @@
     <sys:Double x:Key="Space32">32</sys:Double>
     <sys:Double x:Key="Space48">48</sys:Double>
 
-    <sys:Double x:Key="DataGridRowHeightSmall">40</sys:Double>
+    <sys:Double x:Key="DataGridRowHeightSmall">35</sys:Double>
     <sys:Double x:Key="DataGridRowHeightMedium">60</sys:Double>
     
     <Thickness x:Key="PagePadding">32</Thickness>

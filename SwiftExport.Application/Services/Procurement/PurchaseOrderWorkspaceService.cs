@@ -220,8 +220,8 @@ public sealed class PurchaseOrderWorkspaceService(
     {
         if (uid == Guid.Empty || command is null || command.CommandId == Guid.Empty || command.PurchaseOrderLineId == Guid.Empty || command.ExpectedPurchaseOrderVersion <= 0 || command.ExpectedLineVersion <= 0)
             return ServiceResult<ProcurementCommandResult>.Fail("采购单、采购行、命令标识和版本不能为空。");
-        if (!Enum.IsDefined(command.ArrangementStatus) || command.ReadyQty < 0 || command.SupplierReportedDate == default)
-            return ServiceResult<ProcurementCommandResult>.Fail("供应商安排状态、已备好数量或反馈日期无效。");
+        if (!Enum.IsDefined(command.ArrangementStatus) || command.ReadyQty < 0)
+            return ServiceResult<ProcurementCommandResult>.Fail("供应商安排状态或已备好数量无效。");
         return await ExecuteMutationAsync(uid, command.CommandId, "SupplierProgress.Reported", async () =>
         {
             var head = await RequireOperableHeadAsync(uid, command.ExpectedPurchaseOrderVersion, ConfirmationStatusEnum.已确认);
@@ -240,10 +240,9 @@ public sealed class PurchaseOrderWorkspaceService(
                 ArrangementStatus = command.ArrangementStatus,
                 ReadyQty = command.ReadyQty,
                 ExpectedReadyDate = command.ExpectedReadyDate,
-                SupplierReportedDate = command.SupplierReportedDate,
                 Note = Normalize(command.Note, 2000),
                 IsCorrection = correction,
-                CorrectionReason = correction ? Normalize(command.CorrectionReason, 500) : null,
+                CorrectionReason = correction ? Normalize(command.CorrectionReason, 2000) : null,
                 CommandId = command.CommandId
             };
             if (await progressReports.InsertAsync(report) != 1) throw new ProcurementException("供应商反馈保存失败。");

@@ -31,6 +31,24 @@ public sealed class ProcurementWorkspaceContractTests
             Enum.GetValues<SupplierArrangementStatusEnum>().Select(x => (int)x).ToArray());
     }
 
+    /// <summary>验证跟单写命令不再暴露客户端可控的跟进时间。</summary>
+    [TestMethod]
+    public void ProgressCommand_MustNotAcceptClientReportedDate()
+    {
+        Assert.IsNull(typeof(SupplierProgressReportCommand).GetProperty("SupplierReportedDate"));
+
+        var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrderWorkspaceService.cs");
+        Assert.IsFalse(service.Contains("command.SupplierReportedDate", StringComparison.Ordinal));
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "SupplierProgressReportRepository.cs");
+        StringAssert.Contains(repository, "report.SupplierReportedDate = report.CreatedDate");
+        StringAssert.Contains(repository, "context.AuditStamp.StampForInsert(report)");
+        var auditStamp = Read("SwiftExport.Infrastructure", "Services", "Auth", "AuditStampService.cs");
+        StringAssert.Contains(auditStamp, "var now = DateTime.Now");
+        StringAssert.Contains(auditStamp, "var user = _currentUser.UserName");
+        StringAssert.Contains(auditStamp, "entity.CreatedDate ??= now");
+        StringAssert.Contains(auditStamp, "entity.CreatedBy ??= user");
+    }
+
     [TestMethod]
     public void RepositorySql_MustUseStablePagingAndLatestSequence()
     {
@@ -88,6 +106,41 @@ public sealed class ProcurementWorkspaceContractTests
         var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrderWorkspaceService.cs");
         StringAssert.Contains(service, "command.ReadyQty < latest.ReadyQty");
         StringAssert.Contains(service, "累计已备好数量下降时必须填写纠错原因");
+        StringAssert.Contains(service, "Sequence = (latest?.Sequence ?? 0) + 1");
+        StringAssert.Contains(service, "command.ReadyQty > line.Quantity");
+        StringAssert.Contains(service, "command.ReadyQty < 0");
+    }
+
+    /// <summary>验证最新报告锁、采购聚合锁和数据库唯一性共同保护 Sequence 与 CommandId。</summary>
+    [TestMethod]
+    public void ProgressConcurrency_MustUseAggregateLocksAndUniqueIndexes()
+    {
+        var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrderWorkspaceService.cs");
+        StringAssert.Contains(service, "GetHeadForUpdateAsync");
+        StringAssert.Contains(service, "GetLinesForUpdateAsync");
+        StringAssert.Contains(service, "GetLatestForUpdateAsync");
+
+        var progressRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "SupplierProgressReportRepository.cs");
+        StringAssert.Contains(progressRepository, "WITH(UPDLOCK,HOLDLOCK)");
+        StringAssert.Contains(progressRepository, "ORDER BY f.Sequence DESC,f.Uid DESC");
+
+        var sql = Read("SwiftExport.Infrastructure", "Database", "FreshInstall", "030_初始化目标业务表.sql");
+        StringAssert.Contains(sql, "FK_SupplierProgressReport_Line");
+        StringAssert.Contains(sql, "CK_SupplierProgress_Status CHECK(ArrangementStatus IN(0,1,2,8))");
+        StringAssert.Contains(sql, "CK_SupplierProgress_Qty CHECK(ReadyQty>=0)");
+        StringAssert.Contains(sql, "CK_SupplierProgress_Sequence CHECK(Sequence>0)");
+        StringAssert.Contains(sql, "UX_SupplierProgress_Line_Sequence");
+        StringAssert.Contains(sql, "UX_SupplierProgress_Command");
+    }
+
+    /// <summary>验证跟单命令只允许活动且已确认的采购单，关闭和作废均被统一状态门禁阻断。</summary>
+    [TestMethod]
+    public void Progress_MustRequireActiveConfirmedPurchaseOrder()
+    {
+        var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrderWorkspaceService.cs");
+        StringAssert.Contains(service, "RequireOperableHeadAsync(uid, command.ExpectedPurchaseOrderVersion, ConfirmationStatusEnum.已确认)");
+        StringAssert.Contains(service, "head.LifecycleStatus != PurchaseOrderLifecycleStatusEnum.Active");
+        StringAssert.Contains(service, "head.ConfirmationStatus != expectedStatus");
     }
 
     [TestMethod]

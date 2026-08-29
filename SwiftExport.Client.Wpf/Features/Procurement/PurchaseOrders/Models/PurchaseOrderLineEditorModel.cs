@@ -3,6 +3,9 @@ using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
+/// <summary>
+/// 采购行编辑与跟单展示模型，保留采购业务字段的可编辑状态，并将最新供应商反馈投影为明确的只读文本。
+/// </summary>
 public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
 {
     public Guid Uid { get; init; }
@@ -20,14 +23,51 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
     public decimal RecQty { get; init; }
     public decimal? UnitAmount { get; init; }
     public decimal? TaxAmount { get; init; }
-    public string UnreceivedQtyText { get; init; } = "尚未接入";
+    /// <summary>依据后台返回的采购数量和已过账入库数量计算未收货数量，显示时不强制补齐无意义的小数位。</summary>
+    public string UnreceivedQtyText => $"{Math.Max(Quantity - RecQty, 0m):#,##0.####} / {Quantity:#,##0.####}";
     public decimal LinkedQty { get; init; }
     public string DeliverySupplierName { get; init; } = string.Empty;
     public IReadOnlyList<PurchaseOrderSourceContributionDto> Contributions { get; init; } = [];
     public IReadOnlyList<SupplierProgressReportDto> ProgressHistory { get; init; } = [];
-    public SupplierProgressReportDto? LatestProgress => ProgressHistory.FirstOrDefault();
+
+    /// <summary>按最高 Sequence 选择最新报告；即使调用方顺序异常也不以集合首项冒充最新反馈。</summary>
+    public SupplierProgressReportDto? LatestProgress => ProgressHistory.OrderByDescending(x => x.Sequence).FirstOrDefault();
+
+    /// <summary>是否已有任何供应商跟进反馈。</summary>
+    public bool HasProgress => LatestProgress is not null;
+
+    /// <summary>最新安排状态文本；无反馈时明确显示“尚未跟进”。</summary>
+    public string LatestArrangementText => LatestProgress is null
+        ? "尚未跟进"
+        : LatestProgress.ArrangementStatus switch
+        {
+            SwiftExport.Contracts.SysEnums.SupplierArrangementStatusEnum.NotArranged => "未安排",
+            SwiftExport.Contracts.SysEnums.SupplierArrangementStatusEnum.Arranged => "已安排",
+            SwiftExport.Contracts.SysEnums.SupplierArrangementStatusEnum.NotApplicable => "不适用",
+            _ => "未知"
+        };
+
     public decimal LatestReadyQty => LatestProgress?.ReadyQty ?? 0m;
+
+    /// <summary>最新累计已备好数量文本；无反馈时不伪造为业务零。</summary>
+    public string LatestReadyQtyText => LatestProgress is null ? "尚未跟进" : LatestProgress.ReadyQty.ToString("#,##0.####");
+
     public DateTime? LatestExpectedReadyDate => LatestProgress?.ExpectedReadyDate;
+
+    /// <summary>最新预计备妥日期文本。</summary>
+    public string LatestExpectedReadyDateText => LatestProgress is null
+        ? "尚未跟进"
+        : LatestProgress.ExpectedReadyDate?.ToString("yyyy-MM-dd") ?? "未提供";
+
+    /// <summary>后台生成的最近跟进时间文本。</summary>
+    public string LatestFollowUpDateText => LatestProgress is null
+        ? "尚未跟进"
+        : LatestProgress.SupplierReportedDate.ToString("yyyy-MM-dd HH:mm");
+
+    /// <summary>后台记录的最近跟单员文本。</summary>
+    public string LatestFollowUpUserText => LatestProgress is null
+        ? "尚未跟进"
+        : string.IsNullOrWhiteSpace(LatestProgress.CreatedBy) ? "未知" : LatestProgress.CreatedBy;
     public string SourceSummary => Contributions.Count == 0
         ? string.Empty
         : string.Join("、", Contributions.Select(x => $"{x.SourceNo}/{x.SourceLineNumber}"));
@@ -39,6 +79,7 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
     [ObservableProperty] public partial decimal? TaxPrice { get; set; }
     [ObservableProperty] public partial string SubNote { get; set; } = string.Empty;
 
+    /// <summary>从采购详情契约建立前端行模型，保留后台返回的 Sequence 降序反馈历史。</summary>
     public static PurchaseOrderLineEditorModel FromDto(PurchaseOrderLineDetailDto dto) => new()
     {
         Uid = dto.Uid,
@@ -56,7 +97,6 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
         RecQty = dto.RecQty,
         UnitAmount = dto.UnitAmount,
         TaxAmount = dto.TaxAmount,
-        UnreceivedQtyText = dto.UnreceivedQtyText ?? "尚未接入",
         LinkedQty = dto.LinkedQty,
         DeliverySupplierName = dto.DeliverySupplierName ?? string.Empty,
         PlannedDeliveryDate = dto.PlannedDeliveryDate,

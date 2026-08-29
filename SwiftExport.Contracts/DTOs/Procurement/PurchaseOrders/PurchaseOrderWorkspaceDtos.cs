@@ -24,7 +24,10 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public DateTime? ExpectedReadyDateTo { get; set; }
     }
 
-    /// <remarks>来源表：PurchaseOrderHead、Supplier、PurchaseOrderLine。</remarks>
+    /// <summary>
+    /// 采购工作台列表项，汇总采购单头、供应商、采购行以及当前业务状态，供分页列表和跟进列表展示。
+    /// </summary>
+    /// <remarks>来源表：PurchaseOrderHead、Supplier、PurchaseOrderLine、SupplierProgressReport。</remarks>
     public class PurchaseOrderListItemDto
     {
         public Guid Uid { get; set; }
@@ -60,6 +63,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public bool CanReportProgress { get; set; }
     }
 
+    /// <summary>
+    /// 采购单详情，只读返回采购头商业快照、状态汇总、采购行和业务操作轨迹。
+    /// </summary>
     /// <remarks>来源表：PurchaseOrderHead、Supplier、PurchaseOrderLine。</remarks>
     public class PurchaseOrderDetailDto
     {
@@ -97,6 +103,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public List<BusinessOperationTraceItemDto> Operations { get; set; } = new List<BusinessOperationTraceItemDto>();
     }
 
+    /// <summary>
+    /// 采购行详情，组合产品快照、采购数量、正式入库事实、需求来源和供应商反馈历史。
+    /// </summary>
     /// <remarks>来源表：PurchaseOrderLine、Product、SupplierProgressReport、DemandExecutionLink。</remarks>
     public class PurchaseOrderLineDetailDto
     {
@@ -132,6 +141,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public List<SupplierProgressReportDto> ProgressHistory { get; set; } = new List<SupplierProgressReportDto>();
     }
 
+    /// <summary>
+    /// 采购行的需求来源贡献，描述采购数量如何从净需求分配及执行链路追溯到原始需求。
+    /// </summary>
     /// <remarks>来源表：DemandExecutionLink、NetDemandAllocation、NetDemand、GrossDemand。</remarks>
     public class PurchaseOrderSourceContributionDto
     {
@@ -152,6 +164,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public DateTime? PlannedDeliveryDate { get; set; }
     }
 
+    /// <summary>
+    /// 采购单追溯结果，集中返回需求来源贡献和采购业务操作记录。
+    /// </summary>
     /// <remarks>来源表：PurchaseOrderHead、PurchaseOrderLine、DemandExecutionLink、InboundDocumentLine、SupplierProgressReport。</remarks>
     public class PurchaseOrderTraceDto
     {
@@ -161,6 +176,10 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public List<BusinessOperationTraceItemDto> Operations { get; set; } = new List<BusinessOperationTraceItemDto>();
     }
 
+    /// <summary>
+    /// 供应商进度报告，只读表示针对某一采购行按 Sequence 追加的一次供应商反馈。
+    /// ReadyQty 是截至本次反馈的累计已备好数量，不代表入库、发货或库存数量。
+    /// </summary>
     public class SupplierProgressReportDto
     {
         public Guid Uid { get; set; }
@@ -178,6 +197,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public string CreatedBy { get; set; }
     }
 
+    /// <summary>
+    /// 采购业务操作轨迹项，用于展示确认、取消确认和供应商跟进等已成功业务命令的审计信息。
+    /// </summary>
     /// <remarks>来源表：BusinessOperationLog。</remarks>
     public class BusinessOperationTraceItemDto
     {
@@ -193,6 +215,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public string CorrelationId { get; set; }
     }
 
+    /// <summary>
+    /// 更新未确认采购草稿的命令；通过预期版本执行乐观并发校验，并可携带采购行修改集合。
+    /// </summary>
     public class UpdatePurchaseOrderDraftCommand
     {
         public Guid CommandId { get; set; }
@@ -216,6 +241,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public List<UpdatePurchaseOrderDraftLineCommand> Lines { get; set; } = new List<UpdatePurchaseOrderDraftLineCommand>();
     }
 
+    /// <summary>
+    /// 采购草稿行更新命令，只允许修改草稿阶段开放的交期、供应商货号、描述、价格和备注字段。
+    /// </summary>
     public class UpdatePurchaseOrderDraftLineCommand
     {
         public Guid PurchaseOrderLineId { get; set; }
@@ -228,12 +256,18 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public string SubNote { get; set; }
     }
 
+    /// <summary>
+    /// 采购单确认命令；CommandId 用于幂等控制，ExpectedVersion 用于乐观并发校验。
+    /// </summary>
     public class ConfirmPurchaseOrderCommand
     {
         public Guid CommandId { get; set; }
         public int ExpectedVersion { get; set; }
     }
 
+    /// <summary>
+    /// 采购单取消确认命令；要求提供取消原因，并通过命令标识和预期版本保证幂等及并发安全。
+    /// </summary>
     public class CancelPurchaseOrderConfirmationCommand
     {
         public Guid CommandId { get; set; }
@@ -241,6 +275,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public string Reason { get; set; }
     }
 
+    /// <summary>
+    /// 追加供应商进度报告的命令。客户端只提交业务反馈，跟进时间和跟单员由后台根据服务器时间及当前用户生成。
+    /// </summary>
     public class SupplierProgressReportCommand
     {
         public Guid CommandId { get; set; }
@@ -250,11 +287,13 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public SupplierArrangementStatusEnum ArrangementStatus { get; set; }
         public decimal ReadyQty { get; set; }
         public DateTime? ExpectedReadyDate { get; set; }
-        public DateTime SupplierReportedDate { get; set; }
         public string Note { get; set; }
         public string CorrectionReason { get; set; }
     }
 
+    /// <summary>
+    /// 采购业务命令执行结果，返回执行结论、采购单最新版本与状态，以及可选的供应商报告标识。
+    /// </summary>
     public class ProcurementCommandResult
     {
         public ProcurementCommandOutcomeEnum Outcome { get; set; }

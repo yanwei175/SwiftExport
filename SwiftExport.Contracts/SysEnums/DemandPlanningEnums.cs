@@ -124,8 +124,11 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum PurchaseOrderLifecycleStatusEnum
     {
+        [System.ComponentModel.Description("活动")]
         Active = 0,
+        [System.ComponentModel.Description("已关闭")]
         Closed = 8,
+        [System.ComponentModel.Description("已作废")]
         Voided = 9
     }
 

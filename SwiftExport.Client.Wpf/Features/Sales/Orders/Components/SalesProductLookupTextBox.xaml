@@ -49,7 +49,6 @@
 
     <controls:LookupTextBox x:Name="LookupEditor"
                             Text="{Binding Text, ElementName=Root, Mode=TwoWay}"
-                            FontSize="10"
                             ItemsSource="{Binding ItemsSource, ElementName=Root}"
                             SelectedItem="{Binding SelectedProduct, ElementName=Root, Mode=TwoWay}"
                             SelectedValue="{Binding SelectedProductId, ElementName=Root, Mode=TwoWay}"

@@ -132,13 +132,14 @@
                         <DataGridTextColumn Header="联系人" Width="100" Binding="{Binding ContactPerson, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                         <DataGridTextColumn Header="电话" Width="120" Binding="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                         <DataGridTextColumn Header="地址" Width="220" Binding="{Binding Address, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
-                        <DataGridTemplateColumn Header="贸易条款" Width="110"
+                        
+                        <DataGridTemplateColumn Header="贸易条款" Width="90"
                                                 SortMemberPath="Incoterm"
                                                 gridColumns:GridColumn.Key="incoterm"
                                                 gridColumns:GridColumn.FieldPath="Incoterm">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="2,0"
+                                    <ComboBox Margin="8,0"
                                               ItemsSource="{Binding DataContext.IncotermOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -153,7 +154,7 @@
                                                 gridColumns:GridColumn.FieldPath="IncotermLocation">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="2,0"
+                                    <ComboBox Margin="8,0"
                                               ItemsSource="{Binding DataContext.IncotermLocationOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -168,7 +169,7 @@
                                                 gridColumns:GridColumn.FieldPath="IncotermSortRemark">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="2,0"
+                                    <ComboBox Margin="8,0"
                                               ItemsSource="{Binding DataContext.IncotermSortRemarkOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -185,7 +186,7 @@
                                                 gridColumns:GridColumn.FieldPath="PaymentMethod">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="2,0"
+                                    <ComboBox Margin="8,0"
                                               ItemsSource="{Binding DataContext.PaymentMethodOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -194,13 +195,14 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="币种" Width="90"
+                        
+                        <DataGridTemplateColumn Header="币种" Width="140"
                                                 SortMemberPath="Currency"
                                                 gridColumns:GridColumn.Key="currency"
                                                 gridColumns:GridColumn.FieldPath="Currency">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="2,0"
+                                    <ComboBox Margin="8,0"
                                               ItemsSource="{Binding DataContext.CurrencyOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -209,8 +211,17 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="承运方式" Width="100" Binding="{Binding ShippedBy, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
-                        <DataGridTextColumn Header="ETD备注" Width="160" Binding="{Binding EtdSortRemark, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
+                        
+                        <DataGridTextColumn Header="承运方式" Width="100" 
+                                            Binding="{Binding ShippedBy, UpdateSourceTrigger=PropertyChanged}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+                        
+                        <DataGridTextColumn Header="ETD备注" 
+                                            Width="160" 
+                                            Binding="{Binding EtdSortRemark, UpdateSourceTrigger=PropertyChanged}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" 
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
                     </DataGrid.Columns>
                 </DataGrid>
             </controls:RightDrawerHost.MainContent>

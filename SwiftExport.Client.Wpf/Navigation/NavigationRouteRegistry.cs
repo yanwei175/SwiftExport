@@ -42,6 +42,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(GrossDemandWorkspaceViewModel.RouteKey, "毛需求", "Workspace", typeof(GrossDemandWorkspaceViewModel)),
         new(NetDemandWorkspaceViewModel.RouteKey, "净需求", "Workspace", typeof(NetDemandWorkspaceViewModel)),
         new(PurchaseOrderWorkspaceViewModel.RouteKey, "采购工作台", "Workspace", typeof(PurchaseOrderWorkspaceViewModel)),
+        new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "采购订单跟进", "Workspace", typeof(PurchaseOrderProgressWorkspaceViewModel)),
         new(PurchaseOrderDetailViewModel.RouteKey, "采购单详情", "Workspace", typeof(PurchaseOrderDetailViewModel)),
         new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", typeof(WarehouseSitesViewModel)),
         new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", typeof(InventoryBalancesViewModel)),
@@ -127,6 +128,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 Children:
                 [
                     new(PurchaseOrderWorkspaceViewModel.RouteKey, "采购工作台", "Workspace", "DocumentBulletList24"),
+                    new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "采购订单跟进", "Workspace", "ClipboardTaskListLtr24"),
                 ]),
             new(
                 "inventory",

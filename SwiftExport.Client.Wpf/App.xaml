@@ -1,6 +1,7 @@
 <Application x:Class="SwiftExportClient.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:converters="clr-namespace:SwiftExportClient.Resources.Converters"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
         <ResourceDictionary>
@@ -19,6 +20,8 @@
                 <ResourceDictionary Source="Resources/TabControl.xaml" />
 
             </ResourceDictionary.MergedDictionaries>
+
+            <converters:EnumDescriptionConverter x:Key="EnumDescriptionConverter" />
 
         </ResourceDictionary>
     </Application.Resources>

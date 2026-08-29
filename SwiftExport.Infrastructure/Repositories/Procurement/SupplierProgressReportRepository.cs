@@ -34,6 +34,9 @@ public sealed class SupplierProgressReportRepository(RepositoryBaseContext conte
     public async Task<int> InsertAsync(SupplierProgressReport report)
     {
         context.AuditStamp.StampForInsert(report);
+        // SupplierReportedDate 是业务可见的跟进时间，必须与后台审计打戳的创建时间完全一致，不接受客户端时间。
+        report.SupplierReportedDate = report.CreatedDate
+            ?? throw new InvalidOperationException("供应商进度报告缺少后台创建时间。");
         return await Session.Connection.ExecuteAsync("""
             INSERT dbo.SupplierProgressReport(Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,
               PurchaseOrderLineId,Note,Sequence,ArrangementStatus,ReadyQty,ExpectedReadyDate,

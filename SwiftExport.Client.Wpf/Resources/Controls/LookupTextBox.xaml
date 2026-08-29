@@ -30,7 +30,7 @@
             <Setter Property="Background" Value="{DynamicResource TextControlBackground}" />
             <Setter Property="BorderBrush" Value="{DynamicResource TextControlElevationBorderBrush}" />
             <Setter Property="BorderThickness" Value="1,1,1,1" />
-            <Setter Property="FontSize" Value="{DynamicResource ControlContentThemeFontSize}" />
+            <Setter Property="FontSize" Value="{DynamicResource SwiftExport.LookUpTextBoxFontSize}" />
         </Style>
 
         <Style x:Key="LookupEditorBorderStyle" TargetType="Border">
@@ -80,7 +80,7 @@
                 <TextBlock x:Name="PlaceholderTextBlock"
                            Margin="14,0,0,0"
                            Padding="0,0"
-                           FontSize="{DynamicResource ControlContentThemeFontSize}"
+                           FontSize="{DynamicResource SwiftExport.LookUpTextBoxFontSize}"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
                            IsHitTestVisible="False"

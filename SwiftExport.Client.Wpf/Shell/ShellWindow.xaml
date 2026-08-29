@@ -153,6 +153,9 @@
         <DataTemplate DataType="{x:Type procurementViewModels:PurchaseOrderWorkspaceViewModel}">
             <procurementViews:PurchaseOrderWorkspaceView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type procurementViewModels:PurchaseOrderProgressWorkspaceViewModel}">
+            <procurementViews:PurchaseOrderProgressWorkspaceView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type procurementViewModels:PurchaseOrderDetailViewModel}">
             <procurementViews:PurchaseOrderDetailView />
         </DataTemplate>

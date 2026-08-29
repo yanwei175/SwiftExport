@@ -61,7 +61,7 @@
     </Style>
     <Style x:Key="SwiftExportDataGridWarpTextBlock"
            TargetType="{x:Type TextBlock}" BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
-        <Setter Property="TextWrapping" Value="WrapWithOverflow"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
     <Style x:Key="SwiftExportDataGridLongTextBlock"
            TargetType="{x:Type TextBlock}"
