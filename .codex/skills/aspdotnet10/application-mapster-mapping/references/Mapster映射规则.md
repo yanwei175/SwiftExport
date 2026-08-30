@@ -2,7 +2,7 @@
 
 ## 当前源码事实
 
-`MapsterConfig` 位于 `SwiftExport.Application/Mappings/MapsterConfig.cs`：
+Application 的 `MapsterConfig` 位于 `SwiftExport.Application/Mappings/MapsterConfig.cs`：
 
 ```csharp
 var config = new TypeAdapterConfig();
@@ -12,12 +12,16 @@ services.AddSingleton(config);
 
 当前 Application 可通过扫描当前程序集注册 Mapster 配置。
 
+WPF 前端的统一配置位于 `SwiftExport.Client.Wpf/Mappings/MapsterConfig.cs`，当前由 `MapsterInitializer` 通过模块初始化注册到 `TypeAdapterConfig.GlobalSettings`。
+
 ## 使用原则
 
 - Service 层可以使用 Mapster 在 Entity 与 Contracts DTO 之间转换。
 - 前端也可以使用 Mapster 在 Contracts DTO 与页面 Model、LineModel 之间转换。
 - 简单同名字段使用 `Adapt<T>()`。
 - 字段名不同、枚举转换、嵌套对象、集合明细、只读联表模型应写显式配置。
+- DTO 与前端模型之间的结构性字段复制默认使用 Mapster，不新增大段逐字段复制或只包装逐字段复制的 Mapping 类。
+- 业务计算、状态决策、跨来源组装或少量具有明确语义的赋值保留显式代码，避免映射配置隐藏业务规则。
 
 ## 配置位置
 

@@ -1,6 +1,6 @@
 ---
 name: aspdotnet10-contracts-dto-models
-description: SwiftExport Contracts DTO 技能。用于 SwiftExport.Contracts/DTOs、Auth DTO、BaseDto、SaveBill/Confirmation DTO、前后端交互模型、Dapper 只读 DTO、Mapster 映射、避免 Entity/UI 状态泄露到 DTO 的任务。
+description: SwiftExport Contracts DTO 技能。用于 SwiftExport.Contracts/DTOs、DTO 新建与复用决策、命名和文件组织、Auth DTO、BaseDto、前后端交互模型、Dapper 只读 DTO、Mapster 映射，以及避免 Entity/UI 状态泄露到 DTO 的任务。
 ---
 
 # Contracts DTO Models Skill
@@ -11,6 +11,7 @@ description: SwiftExport Contracts DTO 技能。用于 SwiftExport.Contracts/DTO
 - `SwiftExport.Contracts/DTOs/Base/BaseDto.cs`
 - `SwiftExport.Contracts/DTOs/Auth/**`
 - 目标 `SwiftExport.Contracts/DTOs/**`
+- 新增、复用、拆分或改名 DTO 时读 `references/DTO复用与文件组织门禁.md`
 - 涉及 Wrappers 时读 `../contracts-wrappers/SKILL.md`
 - 涉及 Mapster 时读 `../application-mapster-mapping/SKILL.md`
 
@@ -25,6 +26,10 @@ description: SwiftExport Contracts DTO 技能。用于 SwiftExport.Contracts/DTO
 ## 核心规则
 
 - DTO 放 `SwiftExport.Contracts/DTOs/<Module>`。
+- DTO 默认按 API 用例和契约语义独立设计，不按页面机械合并，也不因字段相似而复用。
+- 只有业务语义、字段口径、权限暴露和演进生命周期一致，并且存在真实多消费者或稳定平台语义时，才复用 DTO。
+- 新增 DTO 前必须搜索现有 Contracts、API 和调用方，并在实现计划中写明“复用现有 DTO”或“新建专用 DTO”的理由。
+- 默认一个公开顶级 DTO 一个文件，文件名与类型名一致；历史聚合文件只在任务触碰相关类型时小步治理。
 - DTO 使用普通 `class`，不要使用 `record`。
 - DTO 不继承 Entity，不返回 Entity。
 - 可持久化业务 DTO 通常继承或包含 `BaseDto` 语义：`Uid`、`Version`、审计字段。
@@ -35,3 +40,4 @@ description: SwiftExport Contracts DTO 技能。用于 SwiftExport.Contracts/DTO
 ## 详细参考
 
 - `references/DTO模型规则.md`
+- `references/DTO复用与文件组织门禁.md`

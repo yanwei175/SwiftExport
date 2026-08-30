@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              x:Name="Root"
+             FontSize="{DynamicResource SwiftExport.LookUpTextBoxFontSize}"
              MinHeight="30">
     <UserControl.Resources>
         <!--
@@ -13,24 +14,20 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <!-- 与紧凑 DataGrid 编辑器保持相同布局，但不依赖页面级命名资源。 -->
         <Style x:Key="LookupInputBaseStyle"
-               TargetType="{x:Type TextBox}"
-               BasedOn="{StaticResource {x:Type TextBoxBase}}">
-            <Setter Property="FontSize" Value="{StaticResource SwiftExportDefaltFontSize}"/>
+               TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBoxBase}}">
             <Setter Property="MinHeight" Value="0" />
-            <Setter Property="Padding" Value="2,0,0,0" />
+            <Setter Property="Padding" Value="8,0,0,0" />
             <Setter Property="Margin" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
         </Style>
-        <Style x:Key="LookupInputTextBoxStyle"
-               TargetType="{x:Type TextBox}" BasedOn="{StaticResource LookupInputBaseStyle}">
+        <Style x:Key="LookupInputTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource LookupInputBaseStyle}">
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Foreground" Value="{DynamicResource TextControlForeground}" />
             <Setter Property="CaretBrush" Value="{DynamicResource TextControlForeground}" />
             <Setter Property="Background" Value="{DynamicResource TextControlBackground}" />
             <Setter Property="BorderBrush" Value="{DynamicResource TextControlElevationBorderBrush}" />
             <Setter Property="BorderThickness" Value="1,1,1,1" />
-            <Setter Property="FontSize" Value="{DynamicResource SwiftExport.LookUpTextBoxFontSize}" />
         </Style>
 
         <Style x:Key="LookupEditorBorderStyle" TargetType="Border">
@@ -57,6 +54,7 @@
             <Grid>
                 <TextBox x:Name="InputTextBox"
                          Style="{StaticResource LookupInputTextBoxStyle}"
+                         FontSize="{Binding FontSize, ElementName=Root}"
                          VerticalContentAlignment="Center"
                          TextChanged="InputTextBox_TextChanged"
                          GotKeyboardFocus="InputTextBox_GotKeyboardFocus"
@@ -71,6 +69,7 @@
                     <TextBlock x:Name="DisplayTextBlock"
                            Margin="14,0,0,0"
                            Padding="0,0"
+                           FontSize="{Binding FontSize, ElementName=Root}"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            IsHitTestVisible="False" />
@@ -80,7 +79,7 @@
                 <TextBlock x:Name="PlaceholderTextBlock"
                            Margin="14,0,0,0"
                            Padding="0,0"
-                           FontSize="{DynamicResource SwiftExport.LookUpTextBoxFontSize}"
+                           FontSize="{Binding FontSize, ElementName=Root}"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
                            IsHitTestVisible="False"
@@ -141,10 +140,12 @@
                PopupAnimation="Fade">
             <Border MinWidth="{Binding ActualWidth, ElementName=EditorBorder}"
                     MaxHeight="260"
+                    Style="{StaticResource LookupEditorBorderStyle}"
                     Background="{DynamicResource SwiftExportBrush.Surface}"
                     BorderBrush="{DynamicResource SwiftExportBrush.Border}"
                     BorderThickness="{DynamicResource SwiftExportBorderThickness}"
-                    CornerRadius="{DynamicResource SwiftExportControlCornerRadius}"
+                    CornerRadius="4"
+                    Padding="6"
                     Margin="0,4,0,0">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="12"
@@ -156,8 +157,8 @@
                 <Grid>
                     <ListBox x:Name="ResultList"
                              BorderThickness="0"
-                              FontSize="{DynamicResource SwiftExportDefaltFontSize}"
-                             Background="White"
+                             FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                             Background="Transparent"
                              Focusable="False"
                              ScrollViewer.CanContentScroll="True"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -165,7 +166,7 @@
                              PreviewMouseLeftButtonUp="ResultList_PreviewMouseLeftButtonUp">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="{x:Type ListBoxItem}"
-                                   BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                   BasedOn="{StaticResource SwiftExportListBox}">
                                 <Setter Property="Focusable" Value="False" />
                                 <Setter Property="Padding" Value="12,8" />
                                 <Setter Property="Cursor" Value="Hand" />

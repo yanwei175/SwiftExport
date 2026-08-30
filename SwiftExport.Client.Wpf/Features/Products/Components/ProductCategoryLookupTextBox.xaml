@@ -4,6 +4,7 @@
              xmlns:components="clr-namespace:SwiftExportClient.Features.Products.Components"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              x:Name="Root"
+             FontSize="{DynamicResource SwiftExport.LookUpTextBoxFontSize}"
              MinHeight="30">
     <UserControl.Resources>
         <HierarchicalDataTemplate DataType="{x:Type components:ProductCategoryLookupNode}"
@@ -33,6 +34,7 @@
 
     <controls:LookupTextBox x:Name="LookupEditor"
                             Text="{Binding Text, ElementName=Root, Mode=TwoWay}"
+                            FontSize="{Binding FontSize, ElementName=Root}"
                             ItemsSource="{Binding ItemsSource, ElementName=Root}"
                             SelectedItem="{Binding SelectedCategory, ElementName=Root, Mode=TwoWay}"
                             SelectedValue="{Binding SelectedCategoryId, ElementName=Root, Mode=TwoWay}"

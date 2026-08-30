@@ -15,11 +15,16 @@ instructions = """
 强制规则：
 - 必须先读 .codex/skills/wpf-dotnet10-design/index/SKILL.md，并按任务选择页面、控件、样式或 MVVM 子 skill。
 - 涉及 ViewModel / Model / Command 时必须遵循 .codex/skills/wpf-dotnet10-design/communitytoolkit-mvvm/SKILL.md。
+- 涉及 Contracts DTO 与 ViewModel、EditModel、LineModel、TreeItemModel 之间的转换时，必须读取 .codex/skills/aspdotnet10/application-mapster-mapping/SKILL.md，并先检查 SwiftExport.Client.Wpf/Mappings/MapsterConfig.cs。
+- 前端任务需要新增或复用 Contracts DTO 时，必须读取 .codex/skills/aspdotnet10/contracts-dto-models/references/DTO复用与文件组织门禁.md；页面不是 DTO 聚合边界，不得在页面或 ViewModel 文件内声明一组传输 DTO。
 - ViewModel / Model 必须 partial。
 - 绑定属性优先 [ObservableProperty]。
 - 命令优先 [RelayCommand]。
 - 不在构造函数中 new RelayCommand / new AsyncRelayCommand。
 - 不新增普通手写 SetProperty 样板属性。
+- DTO 与前端模型之间的结构性字段复制默认使用 Mapster；字段名差异、空值归一化和枚举转换集中配置，不新增大段逐字段复制或仅包装逐字段复制的 Mapping 类。
+- 业务计算、状态决策、跨来源组装和少量具有明确语义的赋值可以显式编写，不得为了使用 Mapster 隐藏业务规则。
+- 页面专用 UI 状态使用前端 Model；只有满足强语义复用条件时才跨页面或跨接口复用 Contracts DTO。
 - 不从 Git 历史或归档分支把旧 MVVMLight / VSTO / MateWpfThemes 规则带进新客户端。
 
 写入范围：

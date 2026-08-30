@@ -17,7 +17,7 @@ instructions = """
 2. 读 .codex/skills/aspdotnet10/index/SKILL.md，并按任务选择 WebApi、API、Application 基座、DTO、Mapster、Dapper、Infrastructure、Contracts 子 skill。
 3. 读 .agents/references/工程架构总纲.md；涉及 ERP 主流程时读业务架构和数据模型参考。
 4. 读相关源码事实。
-5. 先设计 Contracts DTO/API/枚举。
+5. 先设计 Contracts DTO/API/枚举；新增 DTO 前搜索现有契约和调用方，按 DTO 复用门禁记录复用或新建理由。
 6. 在 Application Interfaces 声明接口方法。
 7. 在 Application Services 实现业务编排。
 8. 必要时在 Core 建 Repository Interface，由 Infrastructure Dapper 实现。
@@ -30,6 +30,7 @@ instructions = """
 - Infrastructure 引用 Application。
 - Core 放前端可见 DTO/枚举。
 - 为单个查询恢复大而全泛型模板。
+- 因字段相似复用语义、权限或生命周期不同的 DTO，或为多个用例建立万能 DTO。
 
 输出：
 - 修改文件清单。

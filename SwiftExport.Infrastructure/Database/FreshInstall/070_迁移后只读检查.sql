@@ -128,6 +128,28 @@ SELECT
     END Result,
     N'CustomerProduct 不得保留 CustomerSkuUnit 或 Currency' Problem;
 
+SELECT
+    CASE WHEN NOT EXISTS
+    (
+        SELECT 1 FROM dbo.SysDictType WHERE DictCode IN(N'ProductCategory',N'ProductColor')
+        UNION ALL
+        SELECT 1 FROM dbo.SysDictData WHERE DictCode IN(N'ProductCategory',N'ProductColor')
+    ) THEN N'PASS' ELSE N'BLOCKER' END Result,
+    N'ProductCategory/ProductColor 不得保留通用字典记录' Problem;
+
+SELECT
+    CASE WHEN NOT EXISTS
+    (
+        SELECT required.DictCode
+        FROM (VALUES(N'Incoterm'),(N'PaymentMethod'),(N'ShippedBy')) required(DictCode)
+        WHERE NOT EXISTS
+        (
+            SELECT 1 FROM dbo.SysDictType actual
+            WHERE actual.DictCode=required.DictCode AND actual.IsSystem=1 AND ISNULL(actual.IsDeleted,0)=0
+        )
+    ) THEN N'PASS' ELSE N'BLOCKER' END Result,
+    N'客户与销售订单系统字典类型必须存在并受保护' Problem;
+
 SELECT N'BLOCKER' Result,N'ProductDetails.ProductId 孤立' Problem,COUNT_BIG(*) ProblemCount
 FROM dbo.ProductDetails d
 LEFT JOIN dbo.Product p ON p.Uid=d.ProductId

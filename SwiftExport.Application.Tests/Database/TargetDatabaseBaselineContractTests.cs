@@ -163,6 +163,27 @@ public sealed class TargetDatabaseBaselineContractTests
             Regex.IsMatch(retirementMigration, @"\b(?:UPDATE|ALTER)\s+(?:dbo\.)?Product\b", RegexOptions.IgnoreCase),
             "客户产品遗留字段退役不得修改 Product 或回填 Product.Unit。");
 
+        var dictionaryMigration = Read(
+            "SwiftExport.Infrastructure",
+            "Migrations",
+            "019_SystemDictionary_Normalization.sql");
+        StringAssert.Contains(dictionaryMigration, "N'ShippedBy'");
+        StringAssert.Contains(dictionaryMigration, "N'PaymentMethod'");
+        StringAssert.Contains(dictionaryMigration, "N'Incoterm'");
+        StringAssert.Contains(dictionaryMigration, "DELETE FROM dbo.SysDictData");
+        StringAssert.Contains(dictionaryMigration, "N'ProductCategory', N'ProductColor'");
+        Assert.IsFalse(dictionaryMigration.Contains("dbo.SysDicCurrency", StringComparison.OrdinalIgnoreCase));
+
+        var freshDictionary = Read(
+            "SwiftExport.Infrastructure",
+            "Database",
+            "FreshInstall",
+            "055_规范化系统字典.sql");
+        StringAssert.Contains(freshDictionary, "DECLARE @AllowTargetDictionaryNormalization bit=1");
+        StringAssert.Contains(freshDictionary, "N'ShippedBy'");
+        StringAssert.Contains(postflight, "ProductCategory/ProductColor 不得保留通用字典记录");
+        StringAssert.Contains(postflight, "客户与销售订单系统字典类型必须存在并受保护");
+
         var retiredReadme = Read("SwiftExport.Infrastructure", "Database", "Rebuild", "README.md");
         StringAssert.Contains(retiredReadme, "旧就地重建方案已停用");
         Assert.IsFalse(File.Exists(Path.Combine(Root(), "SwiftExport.Infrastructure", "Database", "Rebuild", "002_目标模型全量重建.sql")));

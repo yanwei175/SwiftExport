@@ -11,6 +11,7 @@ description: SwiftExport.Client.Wpf 当前 .NET 10 WPF Feature 页面、ViewMode
 - `.agents/frontend.toml`
 - `.agents/workflows/前端NET10工作流.md`
 - `.codex/skills/wpf-dotnet10-design/communitytoolkit-mvvm/SKILL.md`
+- 页面涉及新增或复用 Contracts DTO 时，读 `.codex/skills/aspdotnet10/contracts-dto-models/SKILL.md` 及其 `references/DTO复用与文件组织门禁.md`
 - `.agents/references/工程架构总纲.md`
 - 目标 Feature 真实源码
 
@@ -35,6 +36,13 @@ SwiftExport.Client.Wpf/Features/{业务域}/{功能单元}/
 - `Models` 放 LineModel、TreeItemModel、EditModel、SearchModel、StateModel。
 - `Services` 放只服务当前功能单元的 Dialog Service、Loader、Adapter、Cache。
 - `Components` 只放有独立业务语义并值得复用的子 View / 子 ViewModel。
+
+## DTO 与页面模型边界
+
+- 页面不是 DTO 的设计或复用边界；DTO 按 API 用例和契约语义设计，一个页面可以消费多个专用 DTO。
+- 页面筛选、选中、展开、脏状态、验证提示等 UI 状态放 `SearchModel`、`EditModel`、`LineModel` 或 `StateModel`，不为页面方便塞入 Contracts DTO。
+- 不在 ViewModel、Model 或 code-behind 文件中顺带声明一组公开传输 DTO。
+- 跨页面或跨接口复用 DTO 必须满足 Contracts DTO 复用门禁；字段相似不能作为复用理由。
 
 ## 页面类型
 

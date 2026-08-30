@@ -25,6 +25,7 @@ public sealed class ProductCategoryManagerViewModelTests
         using var cache = new ReferenceDataCacheService(
             new ProductColorApiStub(),
             categoryApi,
+            DispatchProxy.Create<ISysDicCurrencyApi, NoCallApiProxy>(),
             DispatchProxy.Create<ISysDictTypeApi, NoCallApiProxy>(),
             DispatchProxy.Create<ISysDictDataApi, NoCallApiProxy>(),
             runner,

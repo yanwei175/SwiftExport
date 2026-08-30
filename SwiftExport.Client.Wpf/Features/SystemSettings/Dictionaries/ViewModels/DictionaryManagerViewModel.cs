@@ -713,7 +713,8 @@ public sealed partial class DictionaryManagerViewModel
     {
         DictCodes.CustomerType => "客户类型",
         DictCodes.Incoterm => "国际贸易术语",
-        DictCodes.PaymentMethod => "支付方式",
+        DictCodes.PaymentMethod => "付款方式",
+        DictCodes.ShippedBy => "运输方式",
         DictCodes.Unit => "计量单位",
         _ => code
     };

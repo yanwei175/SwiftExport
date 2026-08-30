@@ -10,6 +10,11 @@ namespace SwiftExportClient.Services.Caching;
 public interface IReferenceDataCacheService
 {
     /// <summary>
+    /// 获取全部启用币种的稳定只读缓存。币种来自独立的 SysDicCurrency 主数据。
+    /// </summary>
+    ReadOnlyObservableCollection<SysDicCurrencyDto> Currencies { get; }
+
+    /// <summary>
     /// 获取产品颜色只读缓存。集合可直接绑定控件；调用方不得修改其中的 DTO。
     /// </summary>
     ReadOnlyObservableCollection<ProductColorDto> ProductColors { get; }
@@ -59,6 +64,11 @@ public interface IReferenceDataCacheService
     /// 强制重新拉取产品分类缓存；失败时保留旧分类树。
     /// </summary>
     Task<CacheRefreshResult> RefreshProductCategoriesAsync();
+
+    /// <summary>
+    /// 强制刷新启用币种缓存；失败时保留旧币种快照。
+    /// </summary>
+    Task<CacheRefreshResult> RefreshCurrenciesAsync();
 
     /// <summary>
     /// 强制原子刷新字典类型和字典值；任一请求失败时保留旧字典快照。

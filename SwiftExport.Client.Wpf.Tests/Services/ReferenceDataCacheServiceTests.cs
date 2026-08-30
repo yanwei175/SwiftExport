@@ -42,7 +42,8 @@ public sealed class ReferenceDataCacheServiceTests
             TaskCreationOptions.RunContinuationsAsynchronously);
         var colorApi = new ProductColorApiStub(() => colorGate.Task);
         var categoryApi = new ProductCategoryApiStub(() => categoryGate.Task);
-        using var cache = CreateCache(colorApi, categoryApi);
+        var currencyApi = new CurrencyApiStub(() => SuccessCurrencies(Currency("USD")));
+        using var cache = CreateCache(colorApi, categoryApi, currencyApi: currencyApi);
 
         var first = cache.EnsureLoadedAsync();
         var second = cache.EnsureLoadedAsync();
@@ -56,6 +57,8 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.IsTrue(third.Success);
         Assert.AreEqual(1, colorApi.GetAllCallCount);
         Assert.AreEqual(1, categoryApi.GetAllCallCount);
+        Assert.AreEqual(1, currencyApi.GetEnabledCallCount);
+        Assert.AreEqual("USD", cache.Currencies.Single().CurrencyCode);
     }
 
     [TestMethod]
@@ -307,6 +310,7 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.AreEqual(0, cache.ProductColors.Count);
         Assert.AreEqual(0, cache.ProductCategoryTree.Count);
         Assert.AreEqual(0, cache.ProductCategories.Count);
+        Assert.AreEqual(0, cache.Currencies.Count);
         Assert.IsTrue((await cache.EnsureLoadedAsync()).Success);
         Assert.AreEqual(2, colorApi.GetAllCallCount);
         Assert.AreEqual(2, categoryApi.GetAllCallCount);
@@ -467,11 +471,13 @@ public sealed class ReferenceDataCacheServiceTests
         IProductColorApi colorApi,
         IProductCategoryApi categoryApi,
         ISessionService? session = null,
+        ISysDicCurrencyApi? currencyApi = null,
         ISysDictTypeApi? dictTypeApi = null,
         ISysDictDataApi? dictDataApi = null) =>
         new(
             colorApi,
             categoryApi,
+            currencyApi ?? new CurrencyApiStub(() => SuccessCurrencies()),
             dictTypeApi ?? new DictTypeApiStub(() => SuccessDictionaryTypes()),
             dictDataApi ?? new DictDataApiStub(() => SuccessDictionaryValues()),
             new DirectApiCallRunner(),
@@ -496,6 +502,15 @@ public sealed class ReferenceDataCacheServiceTests
         ParentId = parentId
     };
 
+    private static SysDicCurrencyDto Currency(string code) => new()
+    {
+        Uid = Guid.NewGuid(),
+        CurrencyCode = code,
+        CurrencyNameEn = code,
+        CurrencyNameZh = code,
+        IsEnabled = true,
+    };
+
     private static Task<ServiceResult<List<ProductColorDto>>> SuccessColors(params ProductColorDto[] colors) =>
         Task.FromResult(ServiceResult<List<ProductColorDto>>.Ok(colors.ToList()));
 
@@ -509,6 +524,54 @@ public sealed class ReferenceDataCacheServiceTests
     private static Task<ServiceResult<IReadOnlyList<SysDictDataDto>>> SuccessDictionaryValues(
         params SysDictDataDto[] values) =>
         Task.FromResult(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok(values));
+
+    private static Task<ServiceResult<IReadOnlyList<SysDicCurrencyDto>>> SuccessCurrencies(
+        params SysDicCurrencyDto[] currencies) =>
+        Task.FromResult(ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Ok(currencies));
+
+    private sealed class CurrencyApiStub(
+        Func<Task<ServiceResult<IReadOnlyList<SysDicCurrencyDto>>>> getEnabled) : ISysDicCurrencyApi
+    {
+        public int GetEnabledCallCount { get; private set; }
+        public Task<ServiceResult<IReadOnlyList<SysDicCurrencyDto>>> GetEnabledListAsync()
+        {
+            GetEnabledCallCount++;
+            return getEnabled();
+        }
+        public Task<ServiceResult<IReadOnlyList<SysDicCurrencyDto>>> GetAllAsync() => throw new NotSupportedException();
+        public Task<ServiceResult<PagedResponseBase<SysDicCurrencyDto>>> GetPagedAsync(SysDicCurrencySearchRequest request) => throw new NotSupportedException();
+        public Task<ServiceResult<SysDicCurrencyBatchSaveResponse>> BatchSaveAsync(SysDicCurrencyBatchSaveRequest request) => throw new NotSupportedException();
+        public Task<ServiceResult<SysDicCurrencyDto>> GetBaseCurrencyAsync() => throw new NotSupportedException();
+        public Task<ServiceResult<int>> SetNewBaseCurrency(SysDicCurrencyDto dto) => throw new NotSupportedException();
+        public Task<ServiceResult<SysDicCurrencyDetailDto>> GetDefaultBaseCurrency() => throw new NotSupportedException();
+        public Task<ServiceResult<SysDicCurrencyDto>> GetByIdAsync(Guid id) => throw new NotSupportedException();
+        public Task<ServiceResult<Guid>> CreateAsync(SysDicCurrencyDto request) => throw new NotSupportedException();
+        public Task<ServiceResult<Guid>> UpdateAsync(Guid id, SysDicCurrencyDto request) => throw new NotSupportedException();
+        public Task<ServiceResult<Guid>> DeleteAsync(Guid id) => throw new NotSupportedException();
+    }
+
+    [TestMethod]
+    public async Task RefreshCurrencies_ShouldKeepCollectionInstanceAndRetainSnapshotOnFailure()
+    {
+        var oldCurrency = Currency("USD");
+        var responses = new Queue<ServiceResult<IReadOnlyList<SysDicCurrencyDto>>>(
+        [
+            ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Ok([oldCurrency]),
+            ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Fail("币种接口失败"),
+        ]);
+        using var cache = CreateCache(
+            new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => SuccessCategories()),
+            currencyApi: new CurrencyApiStub(() => Task.FromResult(responses.Dequeue())));
+        var currencies = cache.Currencies;
+
+        Assert.IsTrue((await cache.RefreshCurrenciesAsync()).Success);
+        var failed = await cache.RefreshCurrenciesAsync();
+
+        Assert.IsFalse(failed.Success);
+        Assert.AreSame(currencies, cache.Currencies);
+        Assert.AreEqual(oldCurrency.Uid, cache.Currencies.Single().Uid);
+    }
 
     private sealed class ProductColorApiStub(
         Func<Task<ServiceResult<List<ProductColorDto>>>> getAll) : IProductColorApi

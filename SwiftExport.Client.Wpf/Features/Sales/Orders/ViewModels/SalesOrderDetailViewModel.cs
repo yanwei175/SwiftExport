@@ -2,13 +2,16 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.Sales.Orders.Models;
 using SwiftExportClient.Features.Sales.Orders.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
+using System.Collections.Specialized;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 
@@ -24,6 +27,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     private readonly IDialogService _dialogService;
     private readonly ISalesOrderCancellationDialogService _cancellationDialogService;
     private readonly IMessageService _messageService;
+    private readonly IReferenceDataCacheService _referenceDataCache;
     private CancellationTokenSource? _productLookupCancellation;
     private CancellationTokenSource? _customerLookupCancellation;
     private bool _loadingDocument;
@@ -34,7 +38,8 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         INavigationService navigationService,
         IDialogService dialogService,
         ISalesOrderCancellationDialogService cancellationDialogService,
-        IMessageService messageService)
+        IMessageService messageService,
+        IReferenceDataCacheService referenceDataCache)
     {
         _api = api;
         _apiCallRunner = apiCallRunner;
@@ -42,9 +47,17 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         _dialogService = dialogService;
         _cancellationDialogService = cancellationDialogService;
         _messageService = messageService;
+        _referenceDataCache = referenceDataCache;
         Title = "销售订单-新建";
         Header.PropertyChanged += OnHeaderPropertyChanged;
         Lines.ListStateChanged += OnLinesStateChanged;
+        CollectionChangedEventManager.AddHandler(
+            _referenceDataCache.DictionaryValues,
+            OnDictionaryValuesChanged);
+        CollectionChangedEventManager.AddHandler(
+            _referenceDataCache.Currencies,
+            OnCurrenciesChanged);
+        RefreshReferenceOptions();
 
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(ConfirmCommand);
@@ -80,8 +93,20 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     [ObservableProperty] public partial bool IsCustomerLookupBusy { get; set; }
     [ObservableProperty] public partial bool HasValidationError { get; set; }
     [ObservableProperty] public partial bool IsCellSelectionMode { get; set; }
+    [ObservableProperty] public partial IReadOnlyList<SysDicCurrencyDto> CurrencyOptions { get; set; } = [];
+    [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> PaymentMethodOptions { get; set; } = [];
+    [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> IncotermOptions { get; set; } = [];
+    [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> ShippedByOptions { get; set; } = [];
+
     public async Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
     {
+        var cacheResult = await _referenceDataCache.EnsureLoadedAsync();
+        RefreshReferenceOptions();
+        if (!cacheResult.Success)
+        {
+            _messageService.ShowError("加载销售订单基础资料失败", cacheResult.Message);
+        }
+
         var request = parameter as SalesOrderDocumentOpenRequest;
         if (request?.OrderId is not Guid orderId || orderId == Guid.Empty)
         {
@@ -108,6 +133,70 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
 
             LoadDocument(result.Data);
         }, "正在加载销售订单...");
+    }
+
+    private void OnDictionaryValuesChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        RefreshDictionaryOptions();
+
+    private void OnCurrenciesChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        RefreshCurrencyOptions();
+
+    private void RefreshReferenceOptions()
+    {
+        RefreshCurrencyOptions();
+        RefreshDictionaryOptions();
+    }
+
+    private void RefreshCurrencyOptions()
+    {
+        // 保留显式空选项，同时让实际币种始终来自独立主数据缓存。
+        var currencies = _referenceDataCache.Currencies;
+        var options = new SysDicCurrencyDto[currencies.Count + 1];
+        options[0] = new SysDicCurrencyDto
+        {
+            Uid = Guid.Empty,
+            CurrencyCode = string.Empty,
+            CurrencyNameZh = "（空）",
+            CurrencyNameEn = string.Empty,
+            CurrencySymbol = string.Empty,
+            IsEnabled = true,
+        };
+        for (var index = 0; index < currencies.Count; index++)
+        {
+            options[index + 1] = currencies[index];
+        }
+
+        CurrencyOptions = options;
+    }
+
+    private void RefreshDictionaryOptions()
+    {
+        PaymentMethodOptions = CreateDictionaryOptions(DictCodes.PaymentMethod);
+        IncotermOptions = CreateDictionaryOptions(DictCodes.Incoterm);
+        ShippedByOptions = CreateDictionaryOptions(DictCodes.ShippedBy);
+    }
+
+    private IReadOnlyList<SysDictDataDto> CreateDictionaryOptions(string dictCode)
+    {
+        // 页面选项是缓存快照的轻量包装，禁止修改缓存中的 DTO。
+        var values = _referenceDataCache.GetDictionaryValues(dictCode);
+        var options = new SysDictDataDto[values.Count + 1];
+        options[0] = new SysDictDataDto
+        {
+            Uid = Guid.Empty,
+            DictCode = dictCode,
+            DataNameEn = string.Empty,
+            DataNameZh = "（空）",
+            Remark = string.Empty,
+            CssClass = string.Empty,
+            IsEnabled = true,
+        };
+        for (var index = 0; index < values.Count; index++)
+        {
+            options[index + 1] = values[index];
+        }
+
+        return options;
     }
 
     public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)

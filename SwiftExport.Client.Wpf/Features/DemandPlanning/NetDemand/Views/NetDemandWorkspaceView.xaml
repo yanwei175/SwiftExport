@@ -255,7 +255,7 @@
                             <DataGridTemplateColumn Width="45" CanUserSort="False"
                                                 gridColumns:GridColumn.Key="selected"
                                                 gridColumns:GridColumn.CanExport="False"
-                                                gridColumns:GridColumn.CanFilter="False">
+                                                gridColumns:GridColumn.CanFilter="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                                 <DataGridTemplateColumn.HeaderTemplate>
                                     <DataTemplate>
                                         <CheckBox IsThreeState="False"

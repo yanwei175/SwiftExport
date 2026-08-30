@@ -50,6 +50,8 @@ Core 不负责前端需要的 DTO、Refit API 或枚举。
 - API/前端联表只读模型优先放 Contracts DTO。
 - Dapper 可直接映射 Contracts DTO。
 - 字段名要稳定，避免破坏 Refit 和 WPF 绑定。
+- DTO 以 API 用例和契约语义为边界；页面不是 DTO 聚合边界，字段相似也不是复用依据。
+- 新建或复用 DTO 前必须按 `../contracts-dto-models/references/DTO复用与文件组织门禁.md` 完成复用判断。
 
 ## Mapster 规则
 

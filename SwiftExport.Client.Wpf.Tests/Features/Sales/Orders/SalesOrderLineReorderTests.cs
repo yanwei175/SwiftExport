@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Features.Sales.Orders.Models;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Mvvm;
@@ -125,7 +126,7 @@ public sealed class SalesOrderLineReorderTests
     }
 
     private static SalesOrderDetailViewModel CreateViewModel() =>
-        new(null!, null!, null!, null!, null!, null!);
+        new(null!, null!, null!, null!, null!, null!, new ReferenceDataCacheServiceStub());
 
     private static void SetReadOnly(ViewModelBaseEx viewModel, bool value)
     {

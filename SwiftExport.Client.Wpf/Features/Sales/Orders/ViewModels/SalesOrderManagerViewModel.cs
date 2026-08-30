@@ -91,6 +91,13 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     [ObservableProperty] public partial DateTime? OrderDateTo { get; set; }
     [ObservableProperty] public partial DateTime? DeliveryDateFrom { get; set; }
     [ObservableProperty] public partial DateTime? DeliveryDateTo { get; set; }
+
+    /// <summary>
+    /// 获取或设置高级筛选 Popup 是否打开，仅控制筛选区域显隐，不改变当前筛选值。
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsAdvancedFilterOpen { get; set; }
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConfirmSelectedCommand))]

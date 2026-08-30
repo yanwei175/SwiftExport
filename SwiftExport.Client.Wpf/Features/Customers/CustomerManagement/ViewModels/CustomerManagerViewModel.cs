@@ -48,6 +48,9 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
         CollectionChangedEventManager.AddHandler(
             _referenceDataCache.DictionaryValues,
             OnDictionaryValuesChanged);
+        CollectionChangedEventManager.AddHandler(
+            _referenceDataCache.Currencies,
+            OnCurrenciesChanged);
         RefreshDictionaryOptions();
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
@@ -85,9 +88,10 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
     [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int TotalCount { get; set; }
     [ObservableProperty] public partial string ResultSummary { get; set; } = "尚未加载客户资料。";
-    [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> CurrencyOptions { get; set; } = [];
+    [ObservableProperty] public partial IReadOnlyList<SysDicCurrencyDto> CurrencyOptions { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> PaymentMethodOptions { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> IncotermOptions { get; set; } = [];
+    [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> ShippedByOptions { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> IncotermLocationOptions { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> IncotermSortRemarkOptions { get; set; } = [];
 
@@ -273,13 +277,40 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
     private void OnDictionaryValuesChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
         RefreshDictionaryOptions();
 
+    private void OnCurrenciesChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        RefreshCurrencyOptions();
+
     private void RefreshDictionaryOptions()
     {
-        CurrencyOptions = CreateDictionaryOptions(DictCodes.Currency);
+        RefreshCurrencyOptions();
         PaymentMethodOptions = CreateDictionaryOptions(DictCodes.PaymentMethod);
         IncotermOptions = CreateDictionaryOptions(DictCodes.Incoterm);
+        ShippedByOptions = CreateDictionaryOptions(DictCodes.ShippedBy);
         IncotermLocationOptions = CreateDictionaryOptions(DictCodes.IncotermLocation);
         IncotermSortRemarkOptions = CreateDictionaryOptions(DictCodes.IncotermSortRemark);
+    }
+
+    private void RefreshCurrencyOptions()
+    {
+        // 空选项只属于当前页面视图，不写回应用级缓存。
+        var currencies = _referenceDataCache.Currencies;
+        var options = new SysDicCurrencyDto[currencies.Count + 1];
+        options[0] = new SysDicCurrencyDto
+        {
+            Uid = Guid.Empty,
+            CurrencyCode = string.Empty,
+            CurrencyNameZh = "（空）",
+            CurrencyNameEn = string.Empty,
+            CurrencySymbol = string.Empty,
+            IsEnabled = true,
+        };
+
+        for (var index = 0; index < currencies.Count; index++)
+        {
+            options[index + 1] = currencies[index];
+        }
+
+        CurrencyOptions = options;
     }
 
     private IReadOnlyList<SysDictDataDto> CreateDictionaryOptions(string dictCode)

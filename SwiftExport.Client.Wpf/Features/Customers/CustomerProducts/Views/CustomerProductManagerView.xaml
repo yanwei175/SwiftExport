@@ -65,7 +65,7 @@
                   gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                   gridValidation:GridValidation.IsEnabled="True">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Width="43" CanUserSort="False">
+                <DataGridTemplateColumn Width="43" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                     <DataGridTemplateColumn.HeaderTemplate><DataTemplate><CheckBox HorizontalAlignment="Left" IsChecked="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
                     <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox Margin="4,0" HorizontalAlignment="Left" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
@@ -81,6 +81,7 @@
                     <DataGridTemplateColumn.CellEditingTemplate><DataTemplate>
                         <productComponents:ProductLookupTextBox
                             Text="{Binding Sku, Mode=OneWay}"
+                            FontSize="10"
                             ItemsSource="{Binding DataContext.ProductCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                             SelectedProduct="{Binding DataContext.SelectedCandidate, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
                             SearchCommand="{Binding DataContext.SearchProductsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"

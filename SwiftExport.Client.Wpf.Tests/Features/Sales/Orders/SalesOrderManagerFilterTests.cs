@@ -7,12 +7,46 @@ using SwiftExportClient.Features.Sales.Orders.Services;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using System.IO;
+using System.Xml.Linq;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 
 [TestClass]
 public sealed class SalesOrderManagerFilterTests
 {
+    /// <summary>
+    /// 验证销售订单高级筛选使用按钮控制的全宽 Popup，并完整保留原有筛选字段。
+    /// </summary>
+    [TestMethod]
+    public void AdvancedFilters_ShouldUseToggleControlledFullWidthPopup()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var managerView = XDocument.Load(Path.Combine(
+            repositoryRoot,
+            "SwiftExport.Client.Wpf",
+            "Features",
+            "Sales",
+            "Orders",
+            "Views",
+            "SalesOrderManagerView.xaml"));
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+
+        Assert.IsFalse(managerView.Descendants(presentation + "Expander")
+            .Any(element => string.Equals((string?)element.Attribute("Header"), "高级筛选", StringComparison.Ordinal)));
+        var toggle = managerView.Descendants(presentation + "ToggleButton")
+            .Single(element => string.Equals((string?)element.Attribute("Content"), "更多条件", StringComparison.Ordinal));
+        StringAssert.Contains((string?)toggle.Attribute("IsChecked") ?? string.Empty, "IsAdvancedFilterOpen");
+
+        var popup = managerView.Descendants(presentation + "Popup").Single();
+        StringAssert.Contains((string?)popup.Attribute("IsOpen") ?? string.Empty, "IsAdvancedFilterOpen");
+        StringAssert.Contains((string?)popup.Attribute("PlacementTarget") ?? string.Empty, "StackPanel");
+        StringAssert.Contains((string?)popup.Attribute("Width") ?? string.Empty, "PlacementTarget.ActualWidth");
+        Assert.AreEqual("True", (string?)popup.Attribute("StaysOpen"));
+        Assert.AreEqual(4, popup.Descendants().Count(element => element.Name.LocalName == "TextBox"));
+        Assert.AreEqual(2, popup.Descendants(presentation + "DatePicker").Count());
+    }
+
     [TestMethod]
     public async Task InitializeAndSearch_ShouldLoadCustomerCodesAndSendMultiStatusFilters()
     {
@@ -116,6 +150,26 @@ public sealed class SalesOrderManagerFilterTests
             null!,
             cancellationDialog,
             new MessageServiceStub());
+
+    /// <summary>
+    /// 从测试输出目录向上定位仓库根目录，用于读取销售订单页面 XAML 契约。
+    /// </summary>
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "SwiftExport-Frontend.slnx")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        Assert.Fail("无法定位 SwiftExport 仓库根目录。");
+        return string.Empty;
+    }
 
     private static SalesOrderListItemDto ConfirmedOrder() =>
         new()

@@ -12,6 +12,7 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     public ReferenceDataCacheServiceStub(IEnumerable<SysDictDataDto>? dictionaryValues = null)
     {
         _dictionaryValues = new ObservableCollection<SysDictDataDto>(dictionaryValues ?? []);
+        Currencies = new ReadOnlyObservableCollection<SysDicCurrencyDto>([]);
         ProductColors = new ReadOnlyObservableCollection<ProductColorDto>([]);
         ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>([]);
         ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>([]);
@@ -20,6 +21,7 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     }
 
     public ReadOnlyObservableCollection<ProductColorDto> ProductColors { get; }
+    public ReadOnlyObservableCollection<SysDicCurrencyDto> Currencies { get; }
     public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; }
     public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
     public ReadOnlyObservableCollection<SysDictTypeDto> DictionaryTypes { get; }
@@ -37,6 +39,7 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     public Task<CacheRefreshResult> RefreshAllAsync() => throw new NotSupportedException();
     public Task<CacheRefreshResult> RefreshProductColorsAsync() => throw new NotSupportedException();
     public Task<CacheRefreshResult> RefreshProductCategoriesAsync() => throw new NotSupportedException();
+    public Task<CacheRefreshResult> RefreshCurrenciesAsync() => throw new NotSupportedException();
     public Task<CacheRefreshResult> RefreshDictionariesAsync() => throw new NotSupportedException();
 
     public void Clear() => _dictionaryValues.Clear();

@@ -4,6 +4,7 @@
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:suppliers="clr-namespace:SwiftExport.Contracts.DTOs.Suppliers;assembly=SwiftExport.Contracts"
              x:Name="Root"
+             FontSize="{DynamicResource SwiftExport.LookUpTextBoxFontSize}"
              MinHeight="30">
     <UserControl.Resources>
         <DataTemplate x:Key="SupplierLookupItemTemplate"
@@ -28,7 +29,7 @@
 
     <controls:LookupTextBox x:Name="LookupEditor"
                             Text="{Binding Text, ElementName=Root, Mode=TwoWay}"
-                            FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                            FontSize="{Binding FontSize, ElementName=Root}"
                             ItemsSource="{Binding ItemsSource, ElementName=Root}"
                             SelectedItem="{Binding SelectedSupplier, ElementName=Root, Mode=TwoWay}"
                             SelectedValue="{Binding SelectedSupplierId, ElementName=Root, Mode=TwoWay}"

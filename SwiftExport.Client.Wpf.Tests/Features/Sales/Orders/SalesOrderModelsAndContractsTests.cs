@@ -7,12 +7,97 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Features.Sales.Orders.Models;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Navigation;
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Threading;
+using System.Xml.Linq;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 
 [TestClass]
 public sealed class SalesOrderModelsAndContractsTests
 {
+    [TestMethod]
+    public void DetailHeader_ShouldUseCachedDictionaryAndCurrencyComboBoxes()
+    {
+        var document = XDocument.Load(Path.Combine(
+            FindRepositoryRoot(),
+            "SwiftExport.Client.Wpf",
+            "Features",
+            "Sales",
+            "Orders",
+            "Views",
+            "SalesOrderDetailView.xaml"));
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        var expected = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Header.ShippedBy"] = "ShippedByOptions",
+            ["Header.Currency"] = "CurrencyOptions",
+            ["Header.PaymentMethod"] = "PaymentMethodOptions",
+            ["Header.Incoterm"] = "IncotermOptions",
+        };
+
+        foreach (var (bindingPath, optionsProperty) in expected)
+        {
+            var comboBox = document.Descendants(presentation + "ComboBox").Single(element =>
+                ((string?)element.Attribute("Text"))?.Contains(bindingPath, StringComparison.Ordinal) == true);
+            StringAssert.Contains((string?)comboBox.Attribute("ItemsSource"), optionsProperty);
+            StringAssert.Contains((string?)comboBox.Attribute("Text"), "Mode=TwoWay");
+            Assert.AreEqual("True", (string?)comboBox.Attribute("IsEditable"));
+            Assert.AreEqual("True", (string?)comboBox.Attribute("IsReadOnly"));
+        }
+    }
+
+    [TestMethod]
+    public void EditableReadOnlyComboBox_ShouldPreserveLegacyTextUntilUserSelectsOption()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var header = new SalesOrderHeaderEditModel { PaymentMethod = "LEGACY" };
+            var comboBox = new ComboBox
+            {
+                DataContext = header,
+                IsEditable = true,
+                IsReadOnly = true,
+                ItemsSource = new[]
+                {
+                    new SysDictDataDto { DataNameEn = "TT", DataNameZh = "电汇", IsEnabled = true },
+                    new SysDictDataDto { DataNameEn = "LC", DataNameZh = "信用证", IsEnabled = true },
+                },
+            };
+            TextSearch.SetTextPath(comboBox, nameof(SysDictDataDto.DataNameEn));
+            comboBox.SetBinding(
+                ComboBox.TextProperty,
+                new Binding(nameof(SalesOrderHeaderEditModel.PaymentMethod))
+                {
+                    Mode = BindingMode.TwoWay,
+                    UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+                });
+            var window = new Window { Content = comboBox, ShowInTaskbar = false, Width = 240, Height = 80 };
+
+            try
+            {
+                window.Show();
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                Assert.AreEqual("LEGACY", header.PaymentMethod);
+                Assert.AreEqual("LEGACY", comboBox.Text);
+
+                comboBox.SelectedItem = comboBox.Items[0];
+                await Dispatcher.Yield(DispatcherPriority.DataBind);
+
+                Assert.AreEqual("TT", header.PaymentMethod);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
     [TestMethod]
     public void NonStandardSku_ShouldBeStableUppercaseAndUseSharedPrefix()
     {
@@ -172,5 +257,22 @@ public sealed class SalesOrderModelsAndContractsTests
         Assert.AreEqual("3.5", line.UsdPriceText);
         Assert.IsTrue(line.ExpectedDeliveryDate == new DateTime(2026, 10, 2));
         Assert.IsNull(line.ValidateRow());
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "SwiftExport-Frontend.slnx")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        Assert.Fail("无法定位 SwiftExport 仓库根目录。");
+        return string.Empty;
     }
 }

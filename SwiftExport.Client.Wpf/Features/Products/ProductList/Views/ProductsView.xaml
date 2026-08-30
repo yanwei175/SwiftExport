@@ -207,7 +207,7 @@
                           gridValidation:GridValidation.IsEnabled="True">
                     <DataGrid.Columns>
 
-                        <DataGridTemplateColumn Width="43" CanUserSort="False">
+                            <DataGridTemplateColumn Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                             <DataGridTemplateColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <CheckBox
@@ -217,7 +217,7 @@
                             </DataGridTemplateColumn.HeaderTemplate>
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <CheckBox Margin="4,0" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    <CheckBox Margin="0,0" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                               HorizontalAlignment="Left" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -300,6 +300,7 @@
                                 <DataTemplate>
                                     <productComponents:ProductColorLookupTextBox
                                         Text="{Binding Finish, Mode=OneWay}"
+                                        FontSize="10"
                                         ItemsSource="{Binding DataContext.ReferenceDataCache.ProductColors, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                         SelectedColor="{Binding DataContext.EditColor, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWayToSource}"
                                         SelectionCommittedCommand="{Binding DataContext.CommitColorCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
@@ -324,6 +325,7 @@
                                 <DataTemplate>
                                     <productComponents:ProductCategoryFlatLookupTextBox
                                         Text="{Binding CategoryName, Mode=OneWay}"
+                                        FontSize="10"
                                         ItemsSource="{Binding DataContext.ReferenceDataCache.ProductCategories, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                         SelectedCategory="{Binding DataContext.EditCategory, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWayToSource}"
                                         SelectionCommittedCommand="{Binding DataContext.CommitCategoryCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
@@ -363,6 +365,7 @@
                                 <DataTemplate>
                                     <controls:LookupTextBox
                                         Text="{Binding Unit, Mode=OneWay}"
+                                        FontSize="10"
                                         ItemsSource="{Binding DataContext.UnitOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                         SelectedItem="{Binding DataContext.EditUnit, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWayToSource}"
                                         SelectionCommittedCommand="{Binding DataContext.CommitUnitCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
@@ -435,6 +438,7 @@
                                 <DataTemplate>
                                     <supplierComponents:SupplierLookupTextBox
                                         Text="{Binding DefaultSupplierCode, Mode=OneWay}"
+                                        FontSize="10"
                                         ItemsSource="{Binding DataContext.SupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                         SelectedSupplier="{Binding DataContext.EditSupplier, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
                                         SearchCommand="{Binding DataContext.SearchSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"

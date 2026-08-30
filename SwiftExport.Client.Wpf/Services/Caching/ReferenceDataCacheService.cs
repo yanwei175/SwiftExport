@@ -16,11 +16,13 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 {
     private readonly IProductColorApi _productColorApi;
     private readonly IProductCategoryApi _productCategoryApi;
+    private readonly ISysDicCurrencyApi _currencyApi;
     private readonly ISysDictTypeApi _dictTypeApi;
     private readonly ISysDictDataApi _dictDataApi;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly ISessionService _sessionService;
     private readonly CacheObservableCollection<ProductColorDto> _productColors = [];
+    private readonly CacheObservableCollection<SysDicCurrencyDto> _currencies = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategoryTree = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategories = [];
     private readonly CacheObservableCollection<SysDictTypeDto> _dictionaryTypes = [];
@@ -29,6 +31,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private readonly object _ensureSync = new();
     private Task<CacheRefreshResult>? _ensureTask;
     private volatile bool _colorsLoaded;
+    private volatile bool _currenciesLoaded;
     private volatile bool _categoriesLoaded;
     private volatile bool _dictionariesLoaded;
     private long _sessionGeneration;
@@ -37,6 +40,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     public ReferenceDataCacheService(
         IProductColorApi productColorApi,
         IProductCategoryApi productCategoryApi,
+        ISysDicCurrencyApi currencyApi,
         ISysDictTypeApi dictTypeApi,
         ISysDictDataApi dictDataApi,
         IApiCallRunner apiCallRunner,
@@ -44,17 +48,22 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     {
         _productColorApi = productColorApi;
         _productCategoryApi = productCategoryApi;
+        _currencyApi = currencyApi;
         _dictTypeApi = dictTypeApi;
         _dictDataApi = dictDataApi;
         _apiCallRunner = apiCallRunner;
         _sessionService = sessionService;
         ProductColors = new ReadOnlyObservableCollection<ProductColorDto>(_productColors);
+        Currencies = new ReadOnlyObservableCollection<SysDicCurrencyDto>(_currencies);
         ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategoryTree);
         ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategories);
         DictionaryTypes = new ReadOnlyObservableCollection<SysDictTypeDto>(_dictionaryTypes);
         DictionaryValues = new ReadOnlyObservableCollection<SysDictDataDto>(_dictionaryValues);
         _sessionService.SessionEnded += OnSessionEnded;
     }
+
+    /// <inheritdoc />
+    public ReadOnlyObservableCollection<SysDicCurrencyDto> Currencies { get; }
 
     /// <inheritdoc />
     public ReadOnlyObservableCollection<ProductColorDto> ProductColors { get; }
@@ -90,7 +99,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     {
         lock (_ensureSync)
         {
-            if (_colorsLoaded && _categoriesLoaded && _dictionariesLoaded)
+            if (_colorsLoaded && _categoriesLoaded && _currenciesLoaded && _dictionariesLoaded)
             {
                 return Task.FromResult(CacheRefreshResult.Ok("缓存已经加载。"));
             }
@@ -182,6 +191,42 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     }
 
     /// <inheritdoc />
+    public async Task<CacheRefreshResult> RefreshCurrenciesAsync()
+    {
+        await _refreshGate.WaitAsync();
+        try
+        {
+            var generation = Volatile.Read(ref _sessionGeneration);
+            var result = await LoadCurrenciesAsync();
+            if (!result.Success)
+            {
+                return CacheRefreshResult.Fail(result.Message);
+            }
+
+            var currencies = OrderCurrencies(result.Data ?? []).ToArray();
+            var applied = false;
+            await RunOnUiThreadAsync(() =>
+            {
+                if (generation != Volatile.Read(ref _sessionGeneration))
+                {
+                    return;
+                }
+
+                _currencies.ReplaceAll(currencies);
+                _currenciesLoaded = true;
+                applied = true;
+            });
+            return applied
+                ? CacheRefreshResult.Ok("币种缓存已更新。")
+                : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次币种缓存结果。");
+        }
+        finally
+        {
+            _refreshGate.Release();
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<CacheRefreshResult> RefreshDictionariesAsync()
     {
         await _refreshGate.WaitAsync();
@@ -236,6 +281,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         RunOnUiThread(() =>
         {
             _productColors.ReplaceAll([]);
+            _currencies.ReplaceAll([]);
             _productCategoryTree.ReplaceAll([]);
             _productCategories.ReplaceAll([]);
             _dictionaryTypes.ReplaceAll([]);
@@ -245,6 +291,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         lock (_ensureSync)
         {
             _colorsLoaded = false;
+            _currenciesLoaded = false;
             _categoriesLoaded = false;
             _dictionariesLoaded = false;
             _ensureTask = null;
@@ -286,28 +333,33 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var generation = Volatile.Read(ref _sessionGeneration);
             var colorsTask = LoadColorsAsync();
             var categoriesTask = LoadCategoriesAsync();
+            var currenciesTask = LoadCurrenciesAsync();
             var dictionaryTypesTask = LoadDictionaryTypesAsync();
             var dictionaryValuesTask = LoadDictionaryValuesAsync();
-            await Task.WhenAll(colorsTask, categoriesTask, dictionaryTypesTask, dictionaryValuesTask);
+            await Task.WhenAll(colorsTask, categoriesTask, currenciesTask, dictionaryTypesTask, dictionaryValuesTask);
 
             var colorsResult = await colorsTask;
             var categoriesResult = await categoriesTask;
+            var currenciesResult = await currenciesTask;
             var dictionaryTypesResult = await dictionaryTypesTask;
             var dictionaryValuesResult = await dictionaryValuesTask;
             if (!colorsResult.Success
                 || !categoriesResult.Success
+                || !currenciesResult.Success
                 || !dictionaryTypesResult.Success
                 || !dictionaryValuesResult.Success)
             {
                 return CacheRefreshResult.Fail(JoinFailureMessages(
                     colorsResult.Success ? null : colorsResult.Message,
                     categoriesResult.Success ? null : categoriesResult.Message,
+                    currenciesResult.Success ? null : currenciesResult.Message,
                     dictionaryTypesResult.Success ? null : dictionaryTypesResult.Message,
                     dictionaryValuesResult.Success ? null : dictionaryValuesResult.Message));
             }
 
             var categoryTree = BuildCategoryTree(categoriesResult.Data ?? []);
             var categories = FlattenCategoryTree(categoryTree).ToArray();
+            var currencies = OrderCurrencies(currenciesResult.Data ?? []).ToArray();
             var dictionaryTypes = OrderDictionaryTypes(dictionaryTypesResult.Data ?? []).ToArray();
             var dictionaryValues = OrderDictionaryValues(dictionaryValuesResult.Data ?? []).ToArray();
             var applied = false;
@@ -319,11 +371,13 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 }
 
                 _productColors.ReplaceAll(colorsResult.Data ?? []);
+                _currencies.ReplaceAll(currencies);
                 _productCategoryTree.ReplaceAll(categoryTree);
                 _productCategories.ReplaceAll(categories);
                 _dictionaryTypes.ReplaceAll(dictionaryTypes);
                 _dictionaryValues.ReplaceAll(dictionaryValues);
                 _colorsLoaded = true;
+                _currenciesLoaded = true;
                 _categoriesLoaded = true;
                 _dictionariesLoaded = true;
                 applied = true;
@@ -333,7 +387,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次缓存结果。");
             }
 
-            return CacheRefreshResult.Ok("产品颜色、产品分类和字典缓存已更新。");
+            return CacheRefreshResult.Ok("产品颜色、产品分类、币种和字典缓存已更新。");
         }
         finally
         {
@@ -347,6 +401,9 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private Task<SwiftExport.Contracts.Wrappers.ServiceResult<List<ProductCategoryDto>>> LoadCategoriesAsync() =>
         _apiCallRunner.RunAsync(() => _productCategoryApi.GetAllAsync(), "加载产品分类缓存失败");
 
+    private Task<SwiftExport.Contracts.Wrappers.ServiceResult<IReadOnlyList<SysDicCurrencyDto>>> LoadCurrenciesAsync() =>
+        _apiCallRunner.RunAsync(() => _currencyApi.GetEnabledListAsync(), "加载币种缓存失败");
+
     private Task<SwiftExport.Contracts.Wrappers.ServiceResult<IReadOnlyList<SysDictTypeDto>>> LoadDictionaryTypesAsync() =>
         _apiCallRunner.RunAsync(() => _dictTypeApi.GetAllAsync(), "加载字典类型缓存失败");
 
@@ -359,6 +416,13 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             .ThenBy(item => item.SortOrder)
             .ThenBy(item => item.DictName, StringComparer.CurrentCulture)
             .ThenBy(item => item.DictCode, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Uid);
+
+    private static IEnumerable<SysDicCurrencyDto> OrderCurrencies(IEnumerable<SysDicCurrencyDto> source) =>
+        source
+            .Where(item => item.IsEnabled)
+            .OrderByDescending(item => item.IsBase)
+            .ThenBy(item => item.CurrencyCode, StringComparer.OrdinalIgnoreCase)
             .ThenBy(item => item.Uid);
 
     private static IEnumerable<SysDictDataDto> OrderDictionaryValues(IEnumerable<SysDictDataDto> source) =>

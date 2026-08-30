@@ -19,6 +19,14 @@
                            Text="{Binding DataNameZh}" />
             </StackPanel>
         </DataTemplate>
+        <DataTemplate x:Key="CustomerCurrencyOptionTemplate">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding CurrencyCode}" />
+                <TextBlock Margin="6,0,0,0"
+                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Text="{Binding CurrencyNameZh}" />
+            </StackPanel>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Grid Margin="12,8">
@@ -112,7 +120,7 @@
                           gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                           gridValidation:GridValidation.IsEnabled="True">
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Width="43" CanUserSort="False">
+                        <DataGridTemplateColumn Width="43" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                             <DataGridTemplateColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <CheckBox HorizontalAlignment="Left"
@@ -139,7 +147,7 @@
                                                 gridColumns:GridColumn.FieldPath="Incoterm">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="8,0"
+                                    <ComboBox Margin="4,0"
                                               ItemsSource="{Binding DataContext.IncotermOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -148,6 +156,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
+                        
                         <DataGridTemplateColumn Header="条款地点" Width="140"
                                                 SortMemberPath="IncotermLocation"
                                                 gridColumns:GridColumn.Key="incoterm-location"
@@ -163,6 +172,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
+                        
                         <DataGridTemplateColumn Header="条款备注" Width="180"
                                                 SortMemberPath="IncotermSortRemark"
                                                 gridColumns:GridColumn.Key="incoterm-sort-remark"
@@ -178,15 +188,25 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="定金比例" Width="88" Binding="{Binding DepositRate, UpdateSourceTrigger=LostFocus, StringFormat=P0}" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
-                        <DataGridTextColumn Header="交期(天)" Width="78" Binding="{Binding LeadTimeDays, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
+                        
+                        <DataGridTextColumn Header="定金比例" 
+                                            Width="88" 
+                                            Binding="{Binding DepositRate, UpdateSourceTrigger=LostFocus, StringFormat=P0}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
+                        
+                        <DataGridTextColumn Header="交期(天)" Width="78" 
+                                            Binding="{Binding LeadTimeDays, UpdateSourceTrigger=PropertyChanged}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" 
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
+                        
                         <DataGridTemplateColumn Header="付款方式" Width="120"
                                                 SortMemberPath="PaymentMethod"
                                                 gridColumns:GridColumn.Key="payment-method"
                                                 gridColumns:GridColumn.FieldPath="PaymentMethod">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="8,0"
+                                    <ComboBox Margin="4,0"
                                               ItemsSource="{Binding DataContext.PaymentMethodOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -202,20 +222,32 @@
                                                 gridColumns:GridColumn.FieldPath="Currency">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="8,0"
+                                    <ComboBox Margin="4,0"
                                               ItemsSource="{Binding DataContext.CurrencyOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                              ItemTemplate="{StaticResource CustomerCurrencyOptionTemplate}"
+                                              SelectedValuePath="CurrencyCode"
+                                              SelectedValue="{Binding Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              TextSearch.TextPath="CurrencyCode" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="承运方式" Width="100"
+                                                SortMemberPath="ShippedBy"
+                                                gridColumns:GridColumn.Key="shipped-by"
+                                                gridColumns:GridColumn.FieldPath="ShippedBy">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox Margin="4,0"
+                                              ItemsSource="{Binding DataContext.ShippedByOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
-                                              SelectedValue="{Binding Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              IsEditable="False"
+                                              SelectedValue="{Binding ShippedBy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                               TextSearch.TextPath="DataNameEn" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        
-                        <DataGridTextColumn Header="承运方式" Width="100" 
-                                            Binding="{Binding ShippedBy, UpdateSourceTrigger=PropertyChanged}" 
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                         
                         <DataGridTextColumn Header="ETD备注" 
                                             Width="160" 

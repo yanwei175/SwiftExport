@@ -36,10 +36,11 @@ public sealed class CustomerDictionaryColumnsTests
                 new CustomerDto { Uid = Guid.NewGuid(), Currency = string.Empty },
                 new CustomerDto { Uid = Guid.NewGuid(), Currency = "LEGACY" },
             ]);
-            var emptyOption = DictionaryValue(DictCodes.Currency, string.Empty);
-            emptyOption.Uid = Guid.Empty;
-            emptyOption.DataNameZh = "（空）";
-            var options = new[] { emptyOption, DictionaryValue(DictCodes.Currency, "USD") };
+            var options = new[]
+            {
+                new SysDicCurrencyDto { Uid = Guid.Empty, CurrencyCode = string.Empty, CurrencyNameZh = "（空）", IsEnabled = true },
+                Currency("USD")
+            };
             var window = new Window { Width = 320, Height = 200, ShowInTaskbar = false };
 
             window.Content = CreateDictionaryGrid(list, options);
@@ -62,7 +63,7 @@ public sealed class CustomerDictionaryColumnsTests
             comboBox.SelectedValue = string.Empty;
             PumpDispatcher();
 
-            Assert.AreSame(emptyOption, comboBox.SelectedItem);
+            Assert.AreSame(options[0], comboBox.SelectedItem);
             Assert.AreEqual(string.Empty, list.Items[0].Currency);
             Assert.AreEqual(LineState.Modified, list.Items[0].State);
             window.Close();
@@ -77,13 +78,13 @@ public sealed class CustomerDictionaryColumnsTests
         {
             var cache = new ReferenceDataCacheStub(
             [
-                DictionaryValue(DictCodes.Currency, "USD"),
                 DictionaryValue(DictCodes.PaymentMethod, "TT"),
                 DictionaryValue(DictCodes.Incoterm, "FOB"),
+                DictionaryValue(DictCodes.ShippedBy, "SEA"),
                 DictionaryValue(DictCodes.IncotermLocation, "Shanghai"),
                 DictionaryValue(DictCodes.IncotermSortRemark, "FreightPrepaid"),
                 DictionaryValue(DictCodes.PaymentMethod, "Disabled", isEnabled: false),
-            ]);
+            ], [Currency("USD")]);
             var viewModel = new CustomerManagerViewModel(
                 null!,
                 null!,
@@ -92,14 +93,19 @@ public sealed class CustomerDictionaryColumnsTests
                 cache,
                 new CustomerProductManagerViewModel(null!, null!, null!, null!, null!));
 
-            AssertEmptyOption(viewModel.CurrencyOptions);
+            Assert.IsNotEmpty(viewModel.CurrencyOptions);
+            Assert.AreEqual(Guid.Empty, viewModel.CurrencyOptions[0].Uid);
+            Assert.AreEqual(string.Empty, viewModel.CurrencyOptions[0].CurrencyCode);
+            Assert.AreEqual("（空）", viewModel.CurrencyOptions[0].CurrencyNameZh);
             AssertEmptyOption(viewModel.PaymentMethodOptions);
             AssertEmptyOption(viewModel.IncotermOptions);
+            AssertEmptyOption(viewModel.ShippedByOptions);
             AssertEmptyOption(viewModel.IncotermLocationOptions);
             AssertEmptyOption(viewModel.IncotermSortRemarkOptions);
-            Assert.AreEqual("USD", viewModel.CurrencyOptions[1].DataNameEn);
+            Assert.AreEqual("USD", viewModel.CurrencyOptions[1].CurrencyCode);
             Assert.AreEqual("TT", viewModel.PaymentMethodOptions[1].DataNameEn);
             Assert.AreEqual("FOB", viewModel.IncotermOptions[1].DataNameEn);
+            Assert.AreEqual("SEA", viewModel.ShippedByOptions[1].DataNameEn);
             Assert.AreEqual("Shanghai", viewModel.IncotermLocationOptions[1].DataNameEn);
             Assert.AreEqual("FreightPrepaid", viewModel.IncotermSortRemarkOptions[1].DataNameEn);
 
@@ -131,6 +137,7 @@ public sealed class CustomerDictionaryColumnsTests
             ["IncotermSortRemark"] = "IncotermSortRemarkOptions",
             ["PaymentMethod"] = "PaymentMethodOptions",
             ["Currency"] = "CurrencyOptions",
+            ["ShippedBy"] = "ShippedByOptions",
         };
 
         Assert.IsFalse(document.Descendants(presentation + "DataGridComboBoxColumn").Any());
@@ -142,14 +149,22 @@ public sealed class CustomerDictionaryColumnsTests
                     && string.Equals(attribute.Value, fieldPath, StringComparison.Ordinal)));
             Assert.AreEqual(fieldPath, (string?)column.Attribute("SortMemberPath"));
 
-            var cellTemplate = column.Element(presentation + "DataGridTemplateColumn.CellTemplate");
-            Assert.IsNotNull(cellTemplate);
-            var comboBox = cellTemplate.Descendants(presentation + "ComboBox").SingleOrDefault();
+            var comboBox = column.Descendants(presentation + "ComboBox").SingleOrDefault();
             Assert.IsNotNull(comboBox);
-            Assert.AreEqual("DataNameEn", (string?)comboBox.Attribute("SelectedValuePath"));
+            Assert.AreEqual(
+                fieldPath == "Currency" ? "CurrencyCode" : "DataNameEn",
+                (string?)comboBox.Attribute("SelectedValuePath"));
             StringAssert.Contains((string?)comboBox.Attribute("ItemsSource"), optionsProperty);
             StringAssert.Contains((string?)comboBox.Attribute("SelectedValue"), fieldPath);
             StringAssert.Contains((string?)comboBox.Attribute("SelectedValue"), "Mode=TwoWay");
+
+            if (fieldPath is "Incoterm" or "PaymentMethod" or "Currency" or "ShippedBy")
+            {
+                var cellTemplate = column.Element(presentation + "DataGridTemplateColumn.CellTemplate");
+                Assert.IsNotNull(cellTemplate);
+                var textBlock = cellTemplate.Descendants(presentation + "TextBlock").Single();
+                StringAssert.Contains((string?)textBlock.Attribute("Text"), fieldPath);
+            }
         }
     }
 
@@ -208,7 +223,7 @@ public sealed class CustomerDictionaryColumnsTests
 
         var drawerToggle = document.Descendants()
             .Single(element => element.Name.LocalName == "ToggleSwitch"
-                && string.Equals((string?)element.Attribute("Content"), "管理客户产品", StringComparison.Ordinal));
+                && string.Equals((string?)element.Attribute("Content"), "快速管理客户产品", StringComparison.Ordinal));
         StringAssert.Contains((string?)drawerToggle.Attribute("Command"), "ToggleCustomerProductsCommand");
         Assert.IsNull(drawerToggle.Attribute("CommandParameter"));
     }
@@ -267,9 +282,18 @@ public sealed class CustomerDictionaryColumnsTests
         Assert.AreEqual("（空）", options[0].DataNameZh);
     }
 
+    private static SysDicCurrencyDto Currency(string code) => new()
+    {
+        Uid = Guid.NewGuid(),
+        CurrencyCode = code,
+        CurrencyNameEn = code,
+        CurrencyNameZh = code,
+        IsEnabled = true,
+    };
+
     private static DataGrid CreateDictionaryGrid(
         CustomerListModel list,
-        IReadOnlyList<SysDictDataDto> options)
+        IReadOnlyList<SysDicCurrencyDto> options)
     {
         var grid = new DataGrid
         {
@@ -279,7 +303,7 @@ public sealed class CustomerDictionaryColumnsTests
 #pragma warning disable CS0618
         var comboBox = new FrameworkElementFactory(typeof(ComboBox));
         comboBox.SetValue(ItemsControl.ItemsSourceProperty, options);
-        comboBox.SetValue(Selector.SelectedValuePathProperty, nameof(SysDictDataDto.DataNameEn));
+        comboBox.SetValue(Selector.SelectedValuePathProperty, nameof(SysDicCurrencyDto.CurrencyCode));
         comboBox.SetBinding(
             Selector.SelectedValueProperty,
             new Binding(nameof(CustomerLineModel.Currency))
@@ -342,11 +366,16 @@ public sealed class CustomerDictionaryColumnsTests
     private sealed class ReferenceDataCacheStub : IReferenceDataCacheService
     {
         private readonly ObservableCollection<SysDictDataDto> _dictionaryValues;
+        private readonly ObservableCollection<SysDicCurrencyDto> _currencies;
 
-        public ReferenceDataCacheStub(IEnumerable<SysDictDataDto> dictionaryValues)
+        public ReferenceDataCacheStub(
+            IEnumerable<SysDictDataDto> dictionaryValues,
+            IEnumerable<SysDicCurrencyDto>? currencies = null)
         {
             _dictionaryValues = new ObservableCollection<SysDictDataDto>(dictionaryValues);
+            _currencies = new ObservableCollection<SysDicCurrencyDto>(currencies ?? []);
             DictionaryValues = new ReadOnlyObservableCollection<SysDictDataDto>(_dictionaryValues);
+            Currencies = new ReadOnlyObservableCollection<SysDicCurrencyDto>(_currencies);
             ProductColors = new ReadOnlyObservableCollection<ProductColorDto>([]);
             ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>([]);
             ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>([]);
@@ -354,6 +383,7 @@ public sealed class CustomerDictionaryColumnsTests
         }
 
         public ReadOnlyObservableCollection<ProductColorDto> ProductColors { get; }
+        public ReadOnlyObservableCollection<SysDicCurrencyDto> Currencies { get; }
         public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; }
         public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
         public ReadOnlyObservableCollection<SysDictTypeDto> DictionaryTypes { get; }
@@ -371,7 +401,12 @@ public sealed class CustomerDictionaryColumnsTests
         public Task<CacheRefreshResult> RefreshAllAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshProductColorsAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshProductCategoriesAsync() => throw new NotSupportedException();
+        public Task<CacheRefreshResult> RefreshCurrenciesAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshDictionariesAsync() => throw new NotSupportedException();
-        public void Clear() => _dictionaryValues.Clear();
+        public void Clear()
+        {
+            _dictionaryValues.Clear();
+            _currencies.Clear();
+        }
     }
 }

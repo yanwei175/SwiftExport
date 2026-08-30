@@ -30,11 +30,12 @@
    - Common / 静态工具 / SaveItemResultFactory：`.codex/skills/aspdotnet10/contracts-common-helpers/SKILL.md`
 3. 读取 `.agents/references/工程架构总纲.md`；涉及单据、库存、需求链路时读取业务架构和数据模型参考。
 4. 读取相关 Controller、Application Interface/Service、Contracts API/DTO、Entity、Repository。
-5. 先设计或确认 Contracts DTO/API/枚举。
-6. 在 Application Interface 声明方法，在 Service 实现业务编排。
-7. 优先复用现有 Repository；必要时才新增 Core Interface 和 Infrastructure 实现。
-8. Controller 只做 HTTP 转发。
-9. 运行 `dotnet build .\SwiftExport-WebAPI.slnx`，或说明未运行原因。
+5. 先设计或确认 Contracts DTO/API/枚举；新增或复用 DTO 时读取 `.codex/skills/aspdotnet10/contracts-dto-models/references/DTO复用与文件组织门禁.md`，搜索现有契约及其调用方，记录复用或新建理由。
+6. DTO 默认按 API 用例独立设计；只有语义、字段口径、权限暴露、生命周期一致且已有真实多消费者时复用，不建立跨用例万能 DTO。
+7. 在 Application Interface 声明方法，在 Service 实现业务编排。
+8. 优先复用现有 Repository；必要时才新增 Core Interface 和 Infrastructure 实现。
+9. Controller 只做 HTTP 转发。
+10. 运行 `dotnet build .\SwiftExport-WebAPI.slnx`，或说明未运行原因。
 
 ## 边界
 

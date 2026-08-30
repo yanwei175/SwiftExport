@@ -7,6 +7,9 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
+using SwiftExportClient.Features.Products.Components;
+using SwiftExportClient.Features.Sales.Orders.Components;
+using SwiftExportClient.Features.Suppliers.Components;
 using SwiftExportClient.Resources.Controls;
 
 namespace SwiftExport.Client.Wpf.Tests.Controls;
@@ -14,6 +17,91 @@ namespace SwiftExport.Client.Wpf.Tests.Controls;
 [TestClass]
 public sealed class LookupTextBoxTests
 {
+    /// <summary>
+    /// 验证外部字号同时作用于查看态、编辑态和占位文本，但不改变候选列表字号。
+    /// </summary>
+    [TestMethod]
+    public void FontSize_ShouldApplyToInputDisplayAndPlaceholderOnly()
+    {
+        StaTest.RunAsync(() =>
+        {
+            var lookup = new LookupTextBox { FontSize = 17 };
+            var window = new Window
+            {
+                Width = 320,
+                Height = 120,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None,
+                Content = lookup,
+            };
+
+            try
+            {
+                window.Show();
+                lookup.UpdateLayout();
+
+                var input = (TextBox?)lookup.FindName("InputTextBox");
+                var display = (TextBlock?)lookup.FindName("DisplayTextBlock");
+                var placeholder = (TextBlock?)lookup.FindName("PlaceholderTextBlock");
+                var results = (ListBox?)lookup.FindName("ResultList");
+                Assert.IsNotNull(input);
+                Assert.IsNotNull(display);
+                Assert.IsNotNull(placeholder);
+                Assert.IsNotNull(results);
+                Assert.AreEqual(17d, input.FontSize);
+                Assert.AreEqual(17d, display.FontSize);
+                Assert.AreEqual(17d, placeholder.FontSize);
+                Assert.AreNotEqual(17d, results.FontSize, "候选列表应继续使用独立的默认字号。");
+            }
+            finally
+            {
+                window.Close();
+            }
+
+            return Task.CompletedTask;
+        });
+    }
+
+    /// <summary>
+    /// 验证所有业务包装控件都把标准 FontSize 依赖属性转发给内部 LookupTextBox。
+    /// </summary>
+    [TestMethod]
+    public void SpecializedLookups_ShouldForwardFontSizeToInnerEditor()
+    {
+        StaTest.RunAsync(() =>
+        {
+            UserControl[] lookups =
+            [
+                new SalesProductLookupTextBox(),
+                new ProductLookupTextBox(),
+                new ProductCategoryFlatLookupTextBox(),
+                new ProductCategoryLookupTextBox(),
+                new ProductColorLookupTextBox(),
+                new SupplierLookupTextBox(),
+            ];
+
+            foreach (var lookup in lookups)
+            {
+                lookup.FontSize = 9;
+                var editor = (LookupTextBox?)lookup.FindName("LookupEditor");
+                Assert.IsNotNull(editor, $"{lookup.GetType().Name} 必须包含内部 LookupEditor。");
+                Assert.AreEqual(9d, editor.FontSize, $"{lookup.GetType().Name} 必须转发外部 FontSize。");
+
+                var input = (TextBox?)editor.FindName("InputTextBox");
+                var display = (TextBlock?)editor.FindName("DisplayTextBlock");
+                var placeholder = (TextBlock?)editor.FindName("PlaceholderTextBlock");
+                Assert.IsNotNull(input);
+                Assert.IsNotNull(display);
+                Assert.IsNotNull(placeholder);
+                Assert.AreEqual(9d, input.FontSize);
+                Assert.AreEqual(9d, display.FontSize);
+                Assert.AreEqual(9d, placeholder.FontSize);
+            }
+
+            return Task.CompletedTask;
+        });
+    }
+
     [TestMethod]
     public void ClearButton_ShouldBeUniqueAndClearLookupStateWithoutSearching()
     {

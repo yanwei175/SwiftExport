@@ -203,7 +203,7 @@
                                             CanUserSort="False"
                                             gridColumns:GridColumn.Key="row-check"
                                             gridColumns:GridColumn.CanFilter="False"
-                                            gridColumns:GridColumn.CanExport="False">
+                                            gridColumns:GridColumn.CanExport="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                         <DataGridTemplateColumn.HeaderTemplate>
                             <DataTemplate>
                                 <CheckBox IsChecked="{Binding DataContext.Lines.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
