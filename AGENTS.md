@@ -1,6 +1,6 @@
 # SwiftExport ERP Codex Agent Rules
 
-本项目后续以 `AGENTS.md` + `.agents/**` + `.codex/skills/**` 作为 AI 开发入口，不再把 `wiki/**` 作为默认工作流来源。`wiki/**` 仅作为旧资料归档，除非用户明确要求读取。
+本项目后续以 `AGENTS.md` + `.agents/**` + `.codex/skills/**` 作为 AI 开发入口。旧 `wiki/**`、`raw/**` 和 `_codex_handoff/**` 已统一迁入 `弃用资料/**`，不作为默认工作流或事实来源，除非用户明确要求读取历史资料。
 
 ## 启动顺序
 
