@@ -56,7 +56,7 @@
 
             <StackPanel Grid.Row="8" Style="{StaticResource SinglePlanField}">
                 <TextBlock Text="计划交期" Margin="0,0,0,4" />
-                <DatePicker SelectedDate="{Binding PlannedDeliveryDate}" />
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding PlannedDeliveryDate}" />
             </StackPanel>
 
             <StackPanel Grid.Row="10">

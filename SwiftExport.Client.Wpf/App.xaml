@@ -6,14 +6,15 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.xaml" />
                 <ResourceDictionary Source="Resources/Tokens.xaml" />
                 <ui:ThemesDictionary Theme="Light" />
                 <ui:ControlsDictionary />
-                <!--<ResourceDictionary Source="pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.xaml" />-->
                 <ResourceDictionary Source="Resources/Colors.xaml" />
                 <ResourceDictionary Source="Resources/Typography.xaml" />
                 <ResourceDictionary Source="Resources/Spacing.xaml" />
                 <ResourceDictionary Source="Resources/Button.xaml" />
+                <ResourceDictionary Source="Resources/日期选择器.xaml" />
                 <ResourceDictionary Source="Resources/DataGrid.xaml" />
                 <ResourceDictionary Source="Resources/ListBox.xaml" />
                 <ResourceDictionary Source="Resources/Image.xaml" />

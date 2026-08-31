@@ -96,13 +96,13 @@
                                    OriginalItemsSource="{Binding CustomerCodeOptions}"
                                    Text="{Binding CustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-                <DatePicker Grid.Column="2" 
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="2"
                             ToolTipService.ToolTip="订单日期从"
                             ToolTipService.Placement="Bottom"
                             ToolTipService.InitialShowDelay="100"
                             SelectedDate="{Binding OrderDateFrom}"/>
 
-                <DatePicker Grid.Column="4" ToolTip="订单日期到"
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="4" ToolTip="订单日期到"
                             ToolTipService.Placement="Bottom"
                             ToolTipService.InitialShowDelay="100"
                             SelectedDate="{Binding OrderDateTo}" />
@@ -172,12 +172,12 @@
                                     controls:PopupTextBoxAssist.IsEnabled="True"
                                     Height="{StaticResource SwiftExportControlHeight}"
                                     Text="{Binding CustomerSkusText, UpdateSourceTrigger=PropertyChanged}" />
-                        <DatePicker Grid.Column="8"
+                        <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="8"
                                     ToolTip="交期从"
                                     ToolTipService.Placement="Bottom"
                                     ToolTipService.InitialShowDelay="100"
                                     SelectedDate="{Binding DeliveryDateFrom}" />
-                        <DatePicker Grid.Column="10"
+                        <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="10"
                                     ToolTip="交期到"
                                     ToolTipService.Placement="Bottom"
                                     ToolTipService.InitialShowDelay="100"

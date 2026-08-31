@@ -71,7 +71,7 @@
                   gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                   gridValidation:GridValidation.IsEnabled="True">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Width="43" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
+                <DataGridTemplateColumn Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                     <DataGridTemplateColumn.HeaderTemplate><DataTemplate><CheckBox HorizontalAlignment="Center" IsChecked="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
                     <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox  HorizontalAlignment="Center" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

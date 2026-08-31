@@ -49,13 +49,13 @@
                 <controls:DropDownCheckBox Grid.Column="4" Placeholder="安排状态" DisplayMemberPath="DisplayText"
                                            ItemsSource="{Binding ArrangementOptions}"
                                            SelectedItems="{Binding SelectedArrangementStatuses,Mode=OneWay}"/>
-                <DatePicker Grid.Column="6" SelectedDate="{Binding PlannedDeliveryDateFrom}"
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="6" SelectedDate="{Binding PlannedDeliveryDateFrom}"
                             controls:DatePickerAssist.PlaceholderText="计划交期起"/>
-                <DatePicker Grid.Column="8" SelectedDate="{Binding PlannedDeliveryDateTo}"
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="8" SelectedDate="{Binding PlannedDeliveryDateTo}"
                             controls:DatePickerAssist.PlaceholderText="计划交期至"/>
-                <DatePicker Grid.Column="10" SelectedDate="{Binding ExpectedReadyDateFrom}"
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="10" SelectedDate="{Binding ExpectedReadyDateFrom}"
                             controls:DatePickerAssist.PlaceholderText="预计备妥起"/>
-                <DatePicker Grid.Column="12" SelectedDate="{Binding ExpectedReadyDateTo}"
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="12" SelectedDate="{Binding ExpectedReadyDateTo}"
                             controls:DatePickerAssist.PlaceholderText="预计备妥至"/>
             </Grid>
         </Grid>

@@ -12,6 +12,13 @@ namespace SwiftExportClient.Resources.Controls;
 /// </summary>
 public static class DatePickerAssist
 {
+    /// <summary>创建独立的淡灰色占位文本，不改变日期输入颜色；高对比度模式采用系统灰色文字画刷。</summary>
+    private static TextBlock CreatePlaceholderTextBlock(string text = "") => new()
+    {
+        Text = text,
+        Foreground = SystemParameters.HighContrast ? SystemColors.GrayTextBrush : Brushes.DarkGray
+    };
+
     private static readonly DependencyProperty PlaceholderSessionProperty =
         DependencyProperty.RegisterAttached(
             "PlaceholderSession",
@@ -177,7 +184,8 @@ public static class DatePickerAssist
             }
 
             // SetCurrentValue 保留官方模板建立的值来源，避免替换整个 DatePickerTextBox 模板。
-            watermark.SetCurrentValue(ContentControl.ContentProperty, placeholderText);
+            // 水印使用独立 TextBlock，避免继承日期输入的黑色前景；移除占位文本时仍恢复原始 Content。
+            watermark.SetCurrentValue(ContentControl.ContentProperty, CreatePlaceholderTextBlock(placeholderText));
         }
 
         private void RestoreOriginalContent()
@@ -304,16 +312,14 @@ public static class DatePickerAssist
         {
             private readonly TextBlock _textBlock;
 
+            /// <summary>创建不参与命中测试的淡灰色占位层，保留原日期输入的前景色和交互。</summary>
             public PlaceholderAdorner(UIElement adornedElement)
                 : base(adornedElement)
             {
                 IsHitTestVisible = false;
-                _textBlock = new TextBlock
-                {
-                    Margin = new Thickness(10, 0, 0, 0),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Foreground = SystemColors.GrayTextBrush
-                };
+                _textBlock = CreatePlaceholderTextBlock();
+                _textBlock.Margin = new Thickness(10, 0, 0, 0);
+                _textBlock.VerticalAlignment = VerticalAlignment.Center;
                 AddVisualChild(_textBlock);
             }
 

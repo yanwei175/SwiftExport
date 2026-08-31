@@ -21,9 +21,9 @@
                 <TextBlock Grid.Column="6" Text="Invoice" VerticalAlignment="Center"/>
                 <TextBox Grid.Column="7" Text="{Binding InvoiceNo,UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnly}"/>
                 <TextBlock Grid.Row="2" Text="装箱日期" VerticalAlignment="Center"/>
-                <DatePicker Grid.Row="2" Grid.Column="1" SelectedDate="{Binding PackingDate}" IsEnabled="{Binding IsDraft}"/>
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Row="2" Grid.Column="1" SelectedDate="{Binding PackingDate}" IsEnabled="{Binding IsDraft}"/>
                 <TextBlock Grid.Row="2" Grid.Column="3" Text="发货日期" VerticalAlignment="Center"/>
-                <DatePicker Grid.Row="2" Grid.Column="4" SelectedDate="{Binding ShipmentDate}" IsEnabled="{Binding IsDraft}"/>
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Row="2" Grid.Column="4" SelectedDate="{Binding ShipmentDate}" IsEnabled="{Binding IsDraft}"/>
                 <StackPanel Grid.Row="2" Grid.Column="6" Grid.ColumnSpan="3" Orientation="Horizontal">
                     <TextBlock Text="柜号" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <TextBox Width="120" Text="{Binding ContainerNo,UpdateSourceTrigger=PropertyChanged}"/>

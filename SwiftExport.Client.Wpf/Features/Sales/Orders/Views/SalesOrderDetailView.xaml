@@ -20,7 +20,6 @@
 
         <Style x:Key="SalesOrderDetailToolbarButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinHeight" Value="32" />
-            <Setter Property="Padding" Value="8,4" />
             <Setter Property="Margin" Value="0,0,4,0" />
         </Style>
         <DataTemplate x:Key="SalesOrderCustomerLookupTemplate">
@@ -48,16 +47,20 @@
     </UserControl.Resources>
     <Grid Margin="12,8" RowDefinitions="Auto,4,*,4,Auto,4">
         <!--title-->
-        <Grid Grid.Row="0" RowDefinitions="Auto,4,Auto,4,Auto">
+        <Grid Grid.Row="0" >
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
                 <StackPanel Orientation="Horizontal">
                     <ui:Button Content="保存订单"
                                Icon="{ui:SymbolIcon Symbol=Save24}"
                                 Command="{Binding SaveCommand}" 
-                               Appearance="Primary" Margin="0,0,4,0" Padding="8,4"/>
+                               Appearance="Primary" Margin="0,0,4,0"/>
 
-                    <Button Command="{Binding ConfirmCommand}" Style="{StaticResource SalesOrderDetailToolbarButton}" Content="确认订单" />
-                    <Button Command="{Binding CancelConfirmationCommand}" Style="{StaticResource SalesOrderDetailToolbarButton}" Content="取消确认" />
+                    <ui:Button Margin="0,0,4,0" 
+                               Command="{Binding ConfirmCommand}" 
+                                Content="确认订单" />
+
+                    <ui:Button Margin="0,0,4,0" Command="{Binding CancelConfirmationCommand}"
+                            Content="取消确认" />
 
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -71,95 +74,10 @@
                     </Border>
 
                     <ui:Button Appearance="Primary" 
-                                   Command="{Binding CloseDocumentCommand}"  
-                                   Content="关闭页签" />
+                               Command="{Binding CloseDocumentCommand}"  
+                               Content="关闭页签" />
                 </StackPanel>
             </Grid>
-            <Grid Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="100" />
-                    <ColumnDefinition Width="180" />
-                    <ColumnDefinition Width="8" />
-                    <ColumnDefinition Width="90" />
-                    <ColumnDefinition Width="140" />
-                    <ColumnDefinition Width="8" />
-                    <ColumnDefinition Width="90" />
-                    <ColumnDefinition Width="140" />
-                    <ColumnDefinition Width="8" />
-                    <ColumnDefinition Width="90" />
-                    <ColumnDefinition Width="140" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <TextBlock Grid.Column="0" Text="客户" VerticalAlignment="Center" />
-                <controls:LookupTextBox Grid.Column="1"
-                                            Placeholder="客户代码或名称"
-                                            Text="{Binding Header.CustomerCode, Mode=OneWay}"
-                                            FontSize="14"
-                                            ItemsSource="{Binding CustomerCandidates}"
-                                            SelectedItem="{Binding SelectedCustomerCandidate, Mode=OneWayToSource}"
-                                            DisplayMemberPath="CustomerCode"
-                                            FilterMemberPaths="CustomerCode,CustomerName"
-                                            ItemTemplate="{StaticResource SalesOrderCustomerLookupTemplate}"
-                                            SearchMode="Remote"
-                                            SearchCommand="{Binding SearchCustomersCommand}"
-                                            SelectionCommittedCommand="{Binding CommitCustomerCommand}"
-                                            IsBusy="{Binding IsCustomerLookupBusy}" />
-
-                <TextBlock Grid.Column="3" Text="订单号" VerticalAlignment="Center" />
-                <ui:TextBox Grid.Column="4" Text="{Binding Header.OrderNo}" IsReadOnly="True" ToolTip="新订单保存时由服务端生成" />
-
-                <TextBlock Grid.Column="6" Text="订单日期" VerticalAlignment="Center" />
-                <DatePicker Grid.Column="7" SelectedDate="{Binding Header.OrderDate}" />
-
-                <TextBlock Grid.Row="0" Grid.Column="9" Text="订单交期" VerticalAlignment="Center" />
-                <DatePicker Grid.Row="0" Grid.Column="10" SelectedDate="{Binding Header.DeliveryDate}" />
-
-                <TextBlock Grid.Row="0" Grid.Column="12" Text="回复日期" VerticalAlignment="Center" />
-                <DatePicker Grid.Row="0" Grid.Column="14" SelectedDate="{Binding Header.ReplyDate}" />
-
-            </Grid>
-            <Expander Grid.Row="4">
-                <Grid>
-                    <TextBlock Grid.Row="2" Grid.Column="9" Text="运输方式" VerticalAlignment="Center" />
-                    <ComboBox Grid.Row="2" Grid.Column="10"
-                              ItemsSource="{Binding ShippedByOptions}"
-                              ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
-                              IsEditable="False" IsReadOnly="True"
-                              Text="{Binding Header.ShippedBy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              TextSearch.TextPath="DataNameEn" />
-
-                    <TextBlock Grid.Row="4" Grid.Column="0" Text="币种" VerticalAlignment="Center" />
-                    <ComboBox Grid.Row="4" Grid.Column="1"
-                              ItemsSource="{Binding CurrencyOptions}"
-                              ItemTemplate="{StaticResource SalesOrderCurrencyOptionTemplate}"
-                              IsEditable="False" IsReadOnly="True"
-                              Text="{Binding Header.Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              TextSearch.TextPath="CurrencyCode" />
-
-                    <TextBlock Grid.Row="4" Grid.Column="3" Text="汇率" VerticalAlignment="Center" />
-                    <TextBox Grid.Row="4" Grid.Column="4" Text="{Binding Header.ExchangeRate, UpdateSourceTrigger=LostFocus}" />
-
-                    <TextBlock Grid.Row="4" Grid.Column="6" Text="付款方式" VerticalAlignment="Center" />
-                    <ComboBox Grid.Row="4" Grid.Column="7"
-                              ItemsSource="{Binding PaymentMethodOptions}"
-                              ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
-                              IsEditable="False" IsReadOnly="True"
-                              Text="{Binding Header.PaymentMethod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              TextSearch.TextPath="DataNameEn" />
-
-                    <TextBlock Grid.Row="4" Grid.Column="9" Text="贸易术语" VerticalAlignment="Center" />
-                    <ComboBox Grid.Row="4" Grid.Column="10"
-                              ItemsSource="{Binding IncotermOptions}"
-                              ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
-                              IsEditable="False" IsReadOnly="True"
-                              Text="{Binding Header.Incoterm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              TextSearch.TextPath="DataNameEn" />
-                    <TextBox Grid.Row="6" Grid.Column="10" Grid.ColumnSpan="2" Text="{Binding Header.Remark, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" />
-                </Grid>
-            </Expander>
         </Grid>
         <!--内容-->
         <Grid Grid.Row="2">
@@ -176,6 +94,117 @@
             </Grid.RowDefinitions>
 
             <!--单头-->
+            <Border Grid.Row="0"
+                    Padding="8"
+                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    IsEnabled="{Binding IsEditable}">
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="0.8*"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="0.9*"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="0.9*"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="0.9*"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="0.8*"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="0.5*"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="0.8*"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="0.8*"/>
+                    </Grid.ColumnDefinitions>
+                    <!--<Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="4" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>-->
+                    <TextBlock Grid.Column="0" Text="客户代码:" VerticalAlignment="Center" />
+                    <controls:LookupTextBox Grid.Column="2"
+                                            Placeholder="客户代码或名称"
+                                            Text="{Binding Header.CustomerCode, Mode=OneWay}"
+                                            FontSize="14"
+                                            ItemsSource="{Binding CustomerCandidates}"
+                                            SelectedItem="{Binding SelectedCustomerCandidate, Mode=OneWayToSource}"
+                                            DisplayMemberPath="CustomerCode"
+                                            FilterMemberPaths="CustomerCode,CustomerName"
+                                            ItemTemplate="{StaticResource SalesOrderCustomerLookupTemplate}"
+                                            SearchMode="Remote"
+                                            SearchCommand="{Binding SearchCustomersCommand}"
+                                            SelectionCommittedCommand="{Binding CommitCustomerCommand}"
+                                            IsBusy="{Binding IsCustomerLookupBusy}" />
+
+                    <TextBlock Grid.Column="4" Text="订单号:" VerticalAlignment="Center" />
+                    <ui:TextBox Grid.Column="6" Text="{Binding Header.OrderNo}" IsReadOnly="True" ToolTip="新订单保存时由服务端生成" />
+
+                    <TextBlock Grid.Column="8" Text="订单日期:" VerticalAlignment="Center" />
+                    <DatePicker Grid.Column="10"  Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding Header.OrderDate}" />
+
+                    <TextBlock Grid.Row="0" Grid.Column="12" Text="订单交期:" VerticalAlignment="Center" />
+                    <DatePicker Grid.Row="0" Grid.Column="14" 
+                            controls:DatePickerAssist.PlaceholderText="订单交期"
+                            Style="{StaticResource SwiftExportDatePicker}"  SelectedDate="{Binding Header.DeliveryDate}" />
+
+                    <TextBlock Grid.Row="0" Grid.Column="16" Text="回复日期:" VerticalAlignment="Center" />
+                    <DatePicker Grid.Row="0" Grid.Column="18"   
+                            controls:DatePickerAssist.PlaceholderText="回复日期"
+                            Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding Header.ReplyDate}" />
+
+                    <TextBlock Grid.Row="0" Grid.Column="20" Text="币种:" VerticalAlignment="Center" />
+                    <ComboBox Grid.Row="0" Grid.Column="22"
+                             ItemsSource="{Binding CurrencyOptions}"
+                             ItemTemplate="{StaticResource SalesOrderCurrencyOptionTemplate}"
+                             IsEditable="False" IsReadOnly="True"
+                             Text="{Binding Header.Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             TextSearch.TextPath="CurrencyCode" />
+
+                    <TextBlock Grid.Row="0" Grid.Column="24" Text="汇率:" VerticalAlignment="Center" />
+                    <TextBox Grid.Row="0" Grid.Column="26" 
+                            Text="{Binding Header.ExchangeRate, UpdateSourceTrigger=LostFocus}" />
+
+                    <TextBlock Grid.Row="0" Grid.Column="28" Text="付款方式:" VerticalAlignment="Center" />
+                    <ComboBox Grid.Row="0" Grid.Column="30"
+                             ItemsSource="{Binding PaymentMethodOptions}"
+                             ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
+                             IsEditable="False" IsReadOnly="True"
+                             Text="{Binding Header.PaymentMethod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             TextSearch.TextPath="DataNameEn" />
+
+                    <TextBlock Grid.Row="0" Grid.Column="32" Text="贸易术语:" VerticalAlignment="Center" />
+                    <ComboBox Grid.Row="0" Grid.Column="34"
+                             ItemsSource="{Binding IncotermOptions}"
+                             ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
+                             IsEditable="False" IsReadOnly="True"
+                             Text="{Binding Header.Incoterm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             TextSearch.TextPath="DataNameEn" />
+
+                </Grid>
+            </Border>
+            
             <Border Grid.Row="2"
                     Padding="8"
                     BorderBrush="{DynamicResource SwiftExportBrush.Border}"
@@ -243,24 +272,26 @@
                                     Text="{Binding Header.InvoiceNo, UpdateSourceTrigger=PropertyChanged}" />
                         
                         <TextBlock Grid.Row="4" Grid.Column="4" Text="Date:" VerticalAlignment="Center" />
-                        <DatePicker Grid.Row="4" Grid.Column="6"/>
+                        <DatePicker Grid.Row="4" Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}"
+                                    controls:DatePickerAssist.PlaceholderText="发票日期"/>
                         
                         <TextBlock Grid.Row="4" Grid.Column="8" Text="UpdateDate:" VerticalAlignment="Center" />
-                        <DatePicker Grid.Row="4" Grid.Column="10"/>
+                    <DatePicker Grid.Row="4" Grid.Column="10" Style="{StaticResource SwiftExportDatePicker}" 
+                                controls:DatePickerAssist.PlaceholderText="发票更新日期"/>
                         
                         <TextBlock Grid.Row="6" Grid.Column="4" Text="ETD:" VerticalAlignment="Center" />
-                        <DatePicker Grid.Row="6" Grid.Column="6" 
+                        <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Row="6" Grid.Column="6"
                                     controls:DatePickerAssist.PlaceholderText="ETDDate"/>
                     
                         <TextBlock Grid.Row="6" Grid.Column="8" Text="ETA:" VerticalAlignment="Center" />
-                        <DatePicker Grid.Row="6" Grid.Column="10" Grid.ColumnSpan="6" 
+                        <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Row="6" Grid.Column="10" Grid.ColumnSpan="6"
                                     controls:DatePickerAssist.PlaceholderText="ETAMark"/>
 
                         <TextBlock Grid.Row="8" Grid.Column="4" Text="Shipped By:" VerticalAlignment="Center" />
                         <ComboBox Grid.Row="8" Grid.Column="6" Grid.ColumnSpan="6"
                                   ItemsSource="{Binding ShippedByOptions}"
                                   ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
-                                  IsEditable="True" 
+                                  IsEditable="False" 
                                   Text="{Binding Header.ShippedBy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                   TextSearch.TextPath="DataNameEn" />
 
@@ -310,10 +341,10 @@
                       gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                       gridValidation:GridValidation.IsEnabled="True">
                 <DataGrid.Columns>
-                    <DataGridTemplateColumn Header="图片" Width="60" CanUserSort="False">
+                    <DataGridTemplateColumn Header="图片" Width="60" CanUserSort="False" gridColumns:GridColumn.Key="image">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <controls:CachedImage Width="40" Height="40" Margin="0"
+                                <controls:CachedImage Width="56" Height="56" Margin="2"
                                                     Style="{StaticResource SwiftExportCachedImage}"
                                                     Stretch="Uniform"
                                                     SourcePath="{Binding MainImage}" 
@@ -451,7 +482,21 @@
             </DataGrid>
 
             <!--汇总-->
-            <Grid Grid.Row="8">
+            <DockPanel Grid.Row="8">
+                <Grid Height="60">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4"/>
+                        <ColumnDefinition Width="*" MinWidth="820"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock  Grid.Column="0" Text="备注:" VerticalAlignment="Top" />
+                    <ui:TextBox Grid.Column="2" 
+                                FontSize="10" 
+                                Text="{Binding Header.Remark, UpdateSourceTrigger=PropertyChanged}" 
+                                TextWrapping="Wrap" 
+                                AcceptsReturn="True" />
+                </Grid>
+                <Grid DockPanel.Dock="Right">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -468,7 +513,8 @@
                 <TextBlock Grid.Column="5" Text="CNY：" VerticalAlignment="Center" />
                 <TextBlock Grid.Column="5" Margin="42,0,0,0" Text="{Binding TotalCnyAmount, StringFormat=N2}" FontWeight="SemiBold" VerticalAlignment="Center" />
             </Grid>
-
+                
+            </DockPanel>
         </Grid>
         <!--状态-->
         <ui:InfoBar Grid.Row="4"

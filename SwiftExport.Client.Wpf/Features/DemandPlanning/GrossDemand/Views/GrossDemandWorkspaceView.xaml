@@ -186,10 +186,10 @@
                                       DisplayMemberPath="DisplayText"
                                       SelectedItem="{Binding SelectedStandardType}" />
 
-                    <DatePicker Grid.Column="14"
+                    <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="14"
                                         ToolTip="需求交期从"
                                         SelectedDate="{Binding RequiredDateFrom}" />
-                    <DatePicker Grid.Column="16"
+                    <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="16"
                                         ToolTip="需求交期到"
                                         SelectedDate="{Binding RequiredDateTo}" />
                     <Button Grid.Column="18"

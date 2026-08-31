@@ -4,8 +4,8 @@
         <Grid Grid.Row="2" ColumnDefinitions="240,8,180,8,130,8,130,8,Auto">
             <TextBox Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" ToolTip="SKU、仓库、来源单据"/>
             <ComboBox Grid.Column="2" ItemsSource="{Binding TransactionTypes}" SelectedItem="{Binding TransactionType}"/>
-            <DatePicker Grid.Column="4" SelectedDate="{Binding DateFrom}"/>
-            <DatePicker Grid.Column="6" SelectedDate="{Binding DateTo}"/>
+            <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="4" SelectedDate="{Binding DateFrom}"/>
+            <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="6" SelectedDate="{Binding DateTo}"/>
             <Button Grid.Column="8" Content="查询" Command="{Binding SearchCommand}"/>
         </Grid>
         <DataGrid Grid.Row="4" ItemsSource="{Binding Items}" AutoGenerateColumns="False" IsReadOnly="True" Style="{StaticResource SwiftExportDataGrid}">

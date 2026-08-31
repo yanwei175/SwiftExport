@@ -16,7 +16,7 @@
 8. 涉及 `SwiftExport.Contracts/**` 时必须读 `.codex/skills/aspdotnet10/contracts-refit-dto/SKILL.md` 和 `.codex/skills/aspdotnet10/contracts-netstandard20/SKILL.md`。
 9. 前端任务新增或复用 Contracts DTO 时，必须读 `.codex/skills/aspdotnet10/contracts-dto-models/references/DTO复用与文件组织门禁.md`，搜索现有契约、API 和调用方，并记录复用或新建理由。
 10. 涉及 Contracts DTO 与 ViewModel、EditModel、LineModel、TreeItemModel 转换时，必须读 `.codex/skills/aspdotnet10/application-mapster-mapping/SKILL.md`，并检查 `SwiftExport.Client.Wpf/Mappings/MapsterConfig.cs` 与目标 Feature 的 `Mappings` 配置。
-11. 读取 `.agents/references/工程架构总纲.md`；涉及业务页面时读取业务架构、数据模型和对应模块能力地图，采购必须读 `.agents/references/模块能力地图/采购模块能力地图.md`。
+11. 读取 `.agents/references/工程架构总纲.md`；涉及业务页面同时读业务架构、数据模型；按 `.agents/references/业务模块能力与页面契约治理规则.md` 的模块地图索引读取命中地图；跨采购—入库—库存交接须读三份地图，并检查当前事实与偏差 ID。
 12. 读取目标 Feature、View、ViewModel、Model、Service、Navigation、API 注册、API Runner、UI Service 和 XAML，对比能力地图和偏差账本。
 13. 列出页面依赖并判定直接 Refit 或 Feature Service；分别定义导航访问、页面操作、字段编辑权限；标明字段/跨字段/异步/服务端验证 owner；写明打开参数、Tab identity、重复打开/激活策略和 Dialog 返回协议。
 14. 为每个异步入口标注替代型查询、显式刷新/初始化、写命令或延迟 UI 工作；确认取消策略、Busy owner、页面存活检查、反馈 owner 和释放 owner。

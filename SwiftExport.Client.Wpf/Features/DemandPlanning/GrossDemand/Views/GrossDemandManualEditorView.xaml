@@ -93,7 +93,7 @@
                 <TextBox Grid.Row="16" Grid.Column="1" Text="{Binding DemandQty, UpdateSourceTrigger=LostFocus, ValidatesOnNotifyDataErrors=True}" />
 
                 <TextBlock Grid.Row="18" Text="需求交期" VerticalAlignment="Center" />
-                <DatePicker Grid.Row="18" Grid.Column="1" SelectedDate="{Binding RequiredDate}" />
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Row="18" Grid.Column="1" SelectedDate="{Binding RequiredDate}" />
 
                 <TextBlock Grid.Row="20" Text="图片" VerticalAlignment="Top" />
                 <StackPanel Grid.Row="20" Grid.Column="1">

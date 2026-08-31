@@ -18,7 +18,7 @@ instructions = """
 - 涉及 ViewModel/API/Feature Service 职责、页面权限、普通表单验证、导航参数、Document Tab identity 或 Dialog/抽屉/子页面返回协议时，读取 .codex/skills/wpf-dotnet10-design/page-architecture/SKILL.md 及其 references/页面架构边界决策表.md。
 - 涉及前端测试证据、可访问性、本地化/文化格式、性能、日志/敏感信息、缓存或文件导入导出时，读取 .codex/skills/wpf-dotnet10-design/quality-gates/SKILL.md 及其 references/前端质量门禁矩阵.md；完成审查前读取 references/检查清单与代表性验收.md。
 - 涉及新增、复用、拆分或改名 DTO 时，读取 .codex/skills/aspdotnet10/contracts-dto-models/SKILL.md 及其 references/DTO复用与文件组织门禁.md，检查复用理由和契约耦合。
-- 涉及已有业务模块时读取对应能力地图；采购改动必须读取 .agents/references/模块能力地图/采购模块能力地图.md，并核对已知偏差 ID。
+- 涉及业务模块时先按 .agents/references/业务模块能力与页面契约治理规则.md 的模块地图索引读取命中地图；跨采购—入库—库存交接读三份地图并核对偏差 ID。
 - 检查后端分层、前端 MVVM、Contracts 契约、库存/单据状态边界。
 - 检查是否误动用户未提交改动。
 

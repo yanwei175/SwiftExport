@@ -192,16 +192,16 @@
                             CornerRadius="4">
                         <StackPanel Margin="0,4">
                             <Grid Margin="0,4,0,0" ColumnDefinitions="Auto,4,Auto,12,Auto,4,Auto,12,Auto,*">
-                                <DatePicker Grid.Column="0" ToolTip="原需求交期起"
+                                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="0" ToolTip="原需求交期起"
                                             controls:DatePickerAssist.PlaceholderText="需求交期起"
                                             SelectedDate="{Binding DemandRequiredDateFrom}" />
-                                <DatePicker Grid.Column="2" ToolTip="原需求交期至"
+                                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="2" ToolTip="原需求交期至"
                                             controls:DatePickerAssist.PlaceholderText="需求交期至"
                                             SelectedDate="{Binding DemandRequiredDateTo}" />
-                                <DatePicker Grid.Column="4" ToolTip="计划交期起"
+                                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="4" ToolTip="计划交期起"
                                             controls:DatePickerAssist.PlaceholderText="计划交期起"
                                             SelectedDate="{Binding PlannedDeliveryDateFrom}" />
-                                <DatePicker Grid.Column="6" ToolTip="计划交期至"
+                                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="6" ToolTip="计划交期至"
                                             controls:DatePickerAssist.PlaceholderText="计划交期至"
                                             SelectedDate="{Binding PlannedDeliveryDateTo}" />
                                 <ComboBox Grid.Column="8" ItemsSource="{Binding RemainingOptions}" DisplayMemberPath="DisplayText"

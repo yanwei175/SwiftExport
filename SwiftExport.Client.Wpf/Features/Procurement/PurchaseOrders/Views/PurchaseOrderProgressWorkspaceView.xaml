@@ -58,16 +58,16 @@
 
             <Grid Grid.Row="2" ColumnDefinitions="125,8,125,16,125,8,125,*">
                 
-                <DatePicker SelectedDate="{Binding PlannedDeliveryDateFrom}" 
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding PlannedDeliveryDateFrom}"
                             controls:DatePickerAssist.PlaceholderText="计划交期起"/>
                 
-                <DatePicker Grid.Column="2" SelectedDate="{Binding PlannedDeliveryDateTo}" 
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="2" SelectedDate="{Binding PlannedDeliveryDateTo}"
                             controls:DatePickerAssist.PlaceholderText="计划交期至"/>
                 
-                <DatePicker Grid.Column="4" SelectedDate="{Binding ExpectedReadyDateFrom}" 
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="4" SelectedDate="{Binding ExpectedReadyDateFrom}"
                             controls:DatePickerAssist.PlaceholderText="预计备妥起"/>
                 
-                <DatePicker Grid.Column="6" SelectedDate="{Binding ExpectedReadyDateTo}" 
+                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="6" SelectedDate="{Binding ExpectedReadyDateTo}"
                             controls:DatePickerAssist.PlaceholderText="预计备妥至"/>
                 
                 <TextBlock Grid.Column="7" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="Gray"
@@ -141,7 +141,7 @@
                                 </ComboBox>
                                 
                                 <TextBox Grid.Column="2" Text="{Binding ReportReadyQty,UpdateSourceTrigger=PropertyChanged}" ToolTip="累计已备好数量"/>
-                                <DatePicker Grid.Column="4" SelectedDate="{Binding ReportExpectedReadyDate}" ToolTip="预计备妥日期"/>
+                                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="4" SelectedDate="{Binding ReportExpectedReadyDate}" ToolTip="预计备妥日期"/>
                             </Grid>
                             
                             <TextBlock Margin="0,6,0,0" Text="跟进时间和跟单员由服务器自动记录" Foreground="Gray"/>

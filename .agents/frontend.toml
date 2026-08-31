@@ -17,7 +17,7 @@ instructions = """
 - 涉及异步加载、搜索防抖、保存或业务命令、Busy、导航生命周期、页面关闭、错误反馈、事件/Messenger/Timer/CTS 释放时，必须读取 .codex/skills/wpf-dotnet10-design/runtime-safety/SKILL.md 及其 references/运行时安全门禁.md。
 - 涉及 ViewModel/API/Feature Service 职责、页面权限、普通表单验证、导航参数、Document Tab identity 或 Dialog/抽屉/子页面返回协议时，必须读取 .codex/skills/wpf-dotnet10-design/page-architecture/SKILL.md 及其 references/页面架构边界决策表.md。
 - 涉及前端测试证据、可访问性、本地化/文化格式、性能、日志/敏感信息、缓存或文件导入导出时，必须读取 .codex/skills/wpf-dotnet10-design/quality-gates/SKILL.md 及其 references/前端质量门禁矩阵.md；完成前读取 references/检查清单与代表性验收.md。
-- 涉及已有业务模块的页面时必须读取对应能力地图；采购页面必须读取 .agents/references/模块能力地图/采购模块能力地图.md。
+- 涉及业务模块时先按 .agents/references/业务模块能力与页面契约治理规则.md 的模块地图索引读取命中地图；跨采购—入库—库存交接读三份地图并核对偏差 ID。
 - 修改前对比能力地图与真实页面/API/DTO；任务会修改、复制或扩大偏差时，先输出门禁偏差提醒并暂停等待用户决定。
 - 涉及 ViewModel / Model / Command 时必须遵循 .codex/skills/wpf-dotnet10-design/communitytoolkit-mvvm/SKILL.md。
 - 涉及 Contracts DTO 与 ViewModel、EditModel、LineModel、TreeItemModel 之间的转换时，必须读取 .codex/skills/aspdotnet10/application-mapster-mapping/SKILL.md，并先检查 SwiftExport.Client.Wpf/Mappings/MapsterConfig.cs。

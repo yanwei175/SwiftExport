@@ -29,7 +29,7 @@
    - SysEnums / 共享枚举 / 状态枚举：`.codex/skills/aspdotnet10/contracts-shared-enums/SKILL.md`
    - Common / 静态工具 / SaveItemResultFactory：`.codex/skills/aspdotnet10/contracts-common-helpers/SKILL.md`
 3. 读取 `.agents/references/工程架构总纲.md`；涉及单据、库存、需求链路时读取业务架构和数据模型参考。
-4. 涉及已有业务模块时读取对应能力地图；采购任务必须读 `.agents/references/模块能力地图/采购模块能力地图.md`。
+4. 按 `.agents/references/业务模块能力与页面契约治理规则.md` 的模块地图索引读取命中地图；跨采购—入库—库存交接须读三份地图，并检查当前事实与偏差 ID。
 5. 读取相关 Controller、Application Interface/Service、Contracts API/DTO、Entity、Repository，对比能力地图和偏差账本。
 6. 当前任务会修改、复制或扩大偏差时，先输出门禁偏差提醒，说明规则、事实、影响、最小重构和兼容方案，然后暂停等待用户决定。
 7. 先设计或确认 Contracts DTO/API/枚举；新增或复用 DTO 时读取 `.codex/skills/aspdotnet10/contracts-dto-models/references/DTO复用与文件组织门禁.md`，搜索现有契约及其调用方，记录复用或新建理由。

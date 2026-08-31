@@ -92,7 +92,7 @@
                         <ui:TextBox Grid.Column="10" Grid.Row="0" PlaceholderText="确认/生命周期" Text="{Binding Header.ConfirmationStatus}" IsReadOnly="True" ToolTip="生命周期在采购单状态中组合展示"/>
 
                         <TextBlock Grid.Column="12" Grid.Row="0" Text="预计交期"/>
-                        <DatePicker Grid.Column="14" Grid.Row="0" controls:DatePickerAssist.PlaceholderText="预计交期" SelectedDate="{Binding Header.ExpectedDate,Mode=OneWay}" IsEnabled="False"/>
+                        <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="14" Grid.Row="0" controls:DatePickerAssist.PlaceholderText="预计交期" SelectedDate="{Binding Header.ExpectedDate,Mode=OneWay}" IsEnabled="False"/>
 
                         <TextBlock Grid.Column="16" Grid.Row="0" Text="确认信息"/>
                         <ui:TextBox Grid.Column="18" Grid.Row="0" PlaceholderText="确认信息" Text="{Binding Header.ConfirmedBy}" IsReadOnly="True"/>
@@ -177,9 +177,9 @@
                         <TextBlock Grid.Column="4" Grid.Row="4" Text="回复交期"/>
                         <TextBlock Grid.Column="4" Grid.Row="6" Text="跟单员"/>
 
-                        <DatePicker Grid.Column="6" Grid.Row="0" controls:DatePickerAssist.PlaceholderText="下单日期" SelectedDate="{Binding Header.OrderDate,Mode=OneWay}" IsEnabled="False"/>
+                        <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="6" Grid.Row="0" controls:DatePickerAssist.PlaceholderText="下单日期" SelectedDate="{Binding Header.OrderDate,Mode=OneWay}" IsEnabled="False"/>
                         <ui:TextBox Grid.Column="6" Grid.Row="2" PlaceholderText="期望交期"/>
-                        <DatePicker Grid.Column="6" Grid.Row="4" controls:DatePickerAssist.PlaceholderText="回复交期" SelectedDate="{Binding Header.ReplyDate,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanEditDraft}"/>
+                        <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="6" Grid.Row="4" controls:DatePickerAssist.PlaceholderText="回复交期" SelectedDate="{Binding Header.ReplyDate,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanEditDraft}"/>
                         <ui:TextBox Grid.Column="6" Grid.Row="6" PlaceholderText="跟单员" Text="{Binding Header.PurchasePerson,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanEditDraft}"/>
 
                         <TextBlock Grid.Column="8" Grid.Row="0" Text="供应商"/>

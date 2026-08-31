@@ -114,7 +114,7 @@
         <Setter Property="TextAlignment" Value="Center" />
     </Style>
 
-    <Style x:Key="SwiftExportDataGridDatePicker" TargetType="{x:Type DatePicker}" BasedOn="{StaticResource {x:Type DatePicker}}">
+    <Style x:Key="SwiftExportDataGridDatePicker" TargetType="{x:Type DatePicker}" BasedOn="{StaticResource SwiftExportDatePicker}">
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="Margin" Value="0" />
         <Setter Property="Padding" Value="0" />
