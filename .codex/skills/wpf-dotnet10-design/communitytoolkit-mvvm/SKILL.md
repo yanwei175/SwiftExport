@@ -17,6 +17,8 @@ description: SwiftExport 当前 .NET 10 WPF 客户端的 CommunityToolkit.Mvvm �
 - 新增同步或异步命令。
 - 重构手写 `SetProperty`、`ICommand`、`RelayCommand`、`AsyncRelayCommand`。
 - 修复 XAML Binding、Command、CanExecute、DataGrid 行状态。
+- 实现或修改异步加载、搜索防抖、写命令并发、Busy、导航/关闭或资源释放时，同时读取 `../runtime-safety/SKILL.md`。
+- 实现或修改页面服务边界、权限、普通表单验证、导航参数、Document Tab 或 Dialog 返回协议时，同时读取 `../page-architecture/SKILL.md`。
 
 ## 必读上下文
 
@@ -166,6 +168,7 @@ private bool CanDelete(ProductLineModel? line)
 - 生成命令名会自动追加 `Command`，异步方法名末尾的 `Async` 会被移除。
 - 需要取消时，可以使用带 `CancellationToken` 参数的异步命令方法。
 - 命令运行状态优先依赖生成命令的 `IsRunning` 或页面基类 `IsBusy`，不要自己增加重复状态字段。
+- `[RelayCommand]` 的并发选项不能替代运行时门禁：查询可允许新请求进入以取消旧请求，写命令默认禁止并发；具体策略遵循 `../runtime-safety/SKILL.md`。
 
 ## 属性规则
 
@@ -254,9 +257,10 @@ public sealed partial class ProductLineModel : BaseLineModel<ProductDto>
 ## 验证规则
 
 - 同步跨字段校验使用 `BaseLineModel<TDto>.ValidateRow()`，异步校验使用 `ValidateAsync()`；列表保存前按同步、异步顺序执行。
-- 表单模型需要 `INotifyDataErrorInfo` 时，可以使用 `ObservableValidator`。
+- 普通表单优先由 EditModel/LineModel 继承 `ObservableValidator` 或实现 `INotifyDataErrorInfo`；ViewModel 负责保存前触发整体验证、聚合摘要和首错反馈。
 - 使用 `ObservableValidator` 时，属性仍优先用生成器和 DataAnnotations，不回退到大量手写 setter。
-- 跨字段验证放到明确方法中，不塞进属性 setter 做业务流程。
+- 跨字段和异步验证放到明确方法中；setter/`OnXxxChanged` 只允许清理受影响的旧错误、通知派生状态或调度可取消验证，不执行保存、导航或其他业务流程。
+- 服务端结构化字段错误由页面模型按稳定字段键接纳；业务/状态失败保留在命令结果或页面摘要，不伪装成字段错误。失败不得清空输入和脏状态。
 
 ## DI / IoC 规则
 
@@ -265,6 +269,7 @@ public sealed partial class ProductLineModel : BaseLineModel<ProductDto>
 - View 不直接 new ViewModel；通过项目现有注册和 DataTemplate/Navigation 解析。
 - ViewModel 不直接 new Repository、Controller、Window。
 - ViewModel 只依赖 `IDialogService`、`IMessageService` 或 Feature 专用 Dialog Service，不引用 `Wpf.Ui.Controls.ContentDialog`、`SnackbarPresenter` 等具体类型。
+- Feature Service 可以依赖 Refit API、API Runner、映射器或其他无 UI 基础设施；不得依赖业务 ViewModel、View、Window、具体控件或消息/弹窗服务。
 - 当前 `WpfUiDialogService`/`WpfUiMessageService` 可以作为上述接口实现；WPF-UI 负责弹窗和消息外壳，不进入 MVVM 基类或业务模型。
 - 需要创建具体 View 的弹窗，优先由 Feature Dialog Service/Resolver 组装 View 与 ViewModel，再调用通用 `IDialogService`，避免业务 ViewModel new UserControl。
 

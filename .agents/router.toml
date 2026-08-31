@@ -28,6 +28,28 @@ triggers = [
 ]
 
 [[routes]]
+id = "business-module-design"
+agent = "planner"
+workflow = ".agents/workflows/业务模块设计治理工作流.md"
+references = [
+  ".agents/references/业务模块能力与页面契约治理规则.md",
+  ".agents/references/业务架构总纲.md",
+  ".agents/references/工程架构总纲.md",
+  ".agents/references/数据模型与状态规则.md",
+]
+triggers = [
+  "能力地图",
+  "业务能力地图",
+  "业务模块设计",
+  "模块边界",
+  "页面边界",
+  "页面规划",
+  "契约矩阵",
+  "采购模块规划",
+  "采购页面规划",
+]
+
+[[routes]]
 id = "planning"
 agent = "planner"
 workflow = ".agents/workflows/业务规划工作流.md"
@@ -157,6 +179,105 @@ triggers = [
   "Ctrl+D",
   "向下填充",
   "单元格撤销",
+]
+
+[[routes]]
+id = "wpf-quality-gates"
+agent = "frontend"
+workflow = ".agents/workflows/前端NET10工作流.md"
+skill_group = ".codex/skills/wpf-dotnet10-design/quality-gates/SKILL.md"
+references = [
+  ".agents/references/工程架构总纲.md",
+  ".agents/references/测试与验收总纲.md",
+]
+triggers = [
+  "前端测试",
+  "WPF测试",
+  "STA测试",
+  "契约测试",
+  "契约检查",
+  "可访问性",
+  "无障碍",
+  "屏幕阅读器",
+  "键盘可用性",
+  "高对比度",
+  "AutomationProperties",
+  "本地化",
+  "资源化",
+  "文化格式",
+  "时区格式",
+  "UI性能",
+  "性能优化",
+  "UI线程",
+  "前端日志",
+  "WPF日志",
+  "日志脱敏",
+  "敏感信息",
+  "前端缓存",
+  "缓存策略",
+  "缓存失效",
+  "文件导入",
+  "文件导出安全",
+  "CSV公式注入",
+  "Excel公式注入",
+  "测试豁免",
+  "质量门禁",
+]
+
+[[routes]]
+id = "wpf-page-architecture"
+agent = "frontend"
+workflow = ".agents/workflows/前端NET10工作流.md"
+skill_group = ".codex/skills/wpf-dotnet10-design/page-architecture/SKILL.md"
+references = [
+  ".agents/references/工程架构总纲.md",
+  ".agents/references/测试与验收总纲.md",
+]
+triggers = [
+  "页面架构",
+  "ViewModel职责",
+  "Feature Service",
+  "API依赖边界",
+  "页面权限",
+  "字段权限",
+  "表单验证",
+  "异步验证",
+  "服务端字段错误",
+  "导航参数",
+  "页面打开请求",
+  "Document Tab",
+  "文档页签",
+  "重复打开",
+  "Dialog返回",
+  "抽屉返回",
+  "子页面返回",
+]
+
+[[routes]]
+id = "wpf-runtime-safety"
+agent = "frontend"
+workflow = ".agents/workflows/前端NET10工作流.md"
+skill_group = ".codex/skills/wpf-dotnet10-design/runtime-safety/SKILL.md"
+references = [
+  ".agents/references/工程架构总纲.md",
+  ".agents/references/测试与验收总纲.md",
+]
+triggers = [
+  "异步加载",
+  "查询取消",
+  "过期结果",
+  "重复提交",
+  "Busy 状态",
+  "页面生命周期",
+  "页面离开",
+  "资源释放",
+  "未保存变更",
+  "CancellationToken",
+  "CancellationTokenSource",
+  "Messenger",
+  "Timer",
+  "并发冲突",
+  "错误分类",
 ]
 
 [[routes]]

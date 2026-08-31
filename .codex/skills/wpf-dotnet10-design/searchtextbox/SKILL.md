@@ -27,6 +27,7 @@ description: SwiftExport .NET 10 WPF 搜索输入、搜索选择器、远程搜�
 - `.codex/skills/wpf-dotnet10-design/index/SKILL.md`
 - `.codex/skills/wpf-dotnet10-design/communitytoolkit-mvvm/SKILL.md`
 - `.codex/skills/wpf-dotnet10-design/custom-controls/SKILL.md`
+- 涉及键盘、焦点、Automation、高对比度、搜索性能或测试证据时，读取 `.codex/skills/wpf-dotnet10-design/quality-gates/SKILL.md`
 - 目标页面、目标 ViewModel、目标控件源码
 
 ## 核心原则

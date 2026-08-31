@@ -15,6 +15,8 @@ description: SwiftExport.Client.Wpf 自定义控件设计规则。用于 PopupTe
 - Lookup / Selector。
 - 业务复用 UserControl。
 
+涉及键盘、焦点、Automation、高对比度、性能或测试证据时，同时读取 `../quality-gates/SKILL.md`。
+
 ## 控件设计原则
 
 - 控件 API 用依赖属性表达。

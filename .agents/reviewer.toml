@@ -13,7 +13,11 @@ instructions = """
 - 验收标准参考 .agents/references/测试与验收总纲.md。
 - 后端改动按 .codex/skills/aspdotnet10/index/SKILL.md 及其子 skill 审查。
 - 前端改动按 .codex/skills/wpf-dotnet10-design/index/SKILL.md 及其子 skill 审查。
+- 涉及异步加载、写命令、Busy、导航/关闭、错误反馈或事件/Messenger/Timer/CTS 时，读取 .codex/skills/wpf-dotnet10-design/runtime-safety/SKILL.md 及其 references/运行时安全门禁.md。
+- 涉及 ViewModel/API/Feature Service 职责、页面权限、普通表单验证、导航参数、Document Tab identity 或 Dialog/抽屉/子页面返回协议时，读取 .codex/skills/wpf-dotnet10-design/page-architecture/SKILL.md 及其 references/页面架构边界决策表.md。
+- 涉及前端测试证据、可访问性、本地化/文化格式、性能、日志/敏感信息、缓存或文件导入导出时，读取 .codex/skills/wpf-dotnet10-design/quality-gates/SKILL.md 及其 references/前端质量门禁矩阵.md；完成审查前读取 references/检查清单与代表性验收.md。
 - 涉及新增、复用、拆分或改名 DTO 时，读取 .codex/skills/aspdotnet10/contracts-dto-models/SKILL.md 及其 references/DTO复用与文件组织门禁.md，检查复用理由和契约耦合。
+- 涉及已有业务模块时读取对应能力地图；采购改动必须读取 .agents/references/模块能力地图/采购模块能力地图.md，并核对已知偏差 ID。
 - 检查后端分层、前端 MVVM、Contracts 契约、库存/单据状态边界。
 - 检查是否误动用户未提交改动。
 
@@ -22,9 +26,20 @@ instructions = """
 - Application 是否承担业务编排和事务。
 - Contracts DTO/API 是否与 Controller/Refit 一致。
 - DTO 是否按 API 用例设计，是否仅因字段相似被错误复用，是否出现页面级万能 DTO、聚合桶文件或无真实消费者的预先抽象。
+- 页面、API、DTO 和前端 Model 是否违反模块能力地图；改动若扩大已知偏差，必须列为阻断问题并要求用户确认重构范围。
 - .NET 10 WPF 是否使用 CommunityToolkit 源生成器。
 - 旧 WPF/VSTO 规则是否被误带进新客户端。
 - 业务命令是否隐藏在保存或属性 setter 里。
+- ViewModel 直接注入的 API 是否保持简单窄用例；多接口编排、结果归一化和跨调用协调是否进入无 UI 状态、无弹窗、无控件依赖的 Feature Service。
+- 导航访问、页面操作、字段编辑权限是否分层表达，是否硬编码角色名；隐藏/禁用是否符合规则，且是否误把前端判断当成授权依据。
+- 本地字段、跨字段、异步和服务端字段错误是否归属明确；保存是否阻断无效输入、反馈首错并在失败时保留编辑。
+- 打开参数、Document Tab identity、重复打开/激活策略和 Dialog 结果协议是否显式；业务 ViewModel 是否 new View/Window 或依赖 WPF-UI 具体控件。
+- 查询是否同时取消旧请求并阻止过期/离开页面后的回写；写命令是否有入口级并发保护和单一 Busy owner。
+- 导航进入、离开、重复进入和初始化失败是否闭环；事件、Messenger、Timer、CTS 与子对象是否对称释放。
+- HTTP、业务失败、字段验证、409、401/403、网络/超时和未知异常是否稳定分类，日志与用户反馈是否重复或缺失。
+- 搜索、刷新、分页、切换和关闭是否保护未保存变更，写命令执行中是否禁止误关闭。
+- 测试是否与风险匹配并验证行为；键盘/焦点/Automation/高对比度是否可用，文化格式与 UI 线程/虚拟化边界是否正确。
+- 日志是否泄密或重复，缓存是否声明隔离/失效，导入导出是否覆盖权限、公式注入、编码、大小、取消、路径和清理。
 - 是否缺少构建、测试或手工验收说明。
 
 输出格式：

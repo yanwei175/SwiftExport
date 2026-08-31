@@ -5,6 +5,8 @@ description: SwiftExport WPF DataGrid 数据导出技能。用于按列元数据
 
 # WPF Grid Export
 
+涉及业务导出范围、权限、敏感字段、文件路径/临时文件、取消进度、公式注入或完成证据时，同时读取 `../quality-gates/SKILL.md`；本 Skill 只定义 Grid 通用导出管线。
+
 ## 数据优先
 
 - 从 ItemsSource/视图快照和列元数据导出，不扫描 DataGridRow/DataGridCell 可视树。

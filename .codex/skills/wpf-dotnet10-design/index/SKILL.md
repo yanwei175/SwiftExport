@@ -17,6 +17,9 @@ SwiftExport 当前 .NET 10 WPF 前端设计技能组入口。
 - lepoco/WPF-UI 控件、FluentWindow、TitleBar、InfoBar、Snackbar、ContentDialog、SymbolIcon：读 `../wpfui-controls/SKILL.md`。
 - 自定义控件、PopupTextBox、SearchTextBox、控件 API：读 `../custom-controls/SKILL.md`。
 - 搜索文本框专项：读 `../searchtextbox/SKILL.md`。
+- ViewModel、Refit API、Feature Service、权限、普通表单验证、导航参数、Document Tab identity、Dialog/抽屉/子页面返回协议：读 `../page-architecture/SKILL.md`。
+- 页面异步加载、搜索防抖、写命令并发、Busy、导航生命周期、错误分类、资源释放和未保存变更：读 `../runtime-safety/SKILL.md`。
+- 前端测试证据、可访问性、本地化与文化格式、UI 性能、日志与敏感信息、缓存、文件导入导出安全：读 `../quality-gates/SKILL.md`。
 - 原生 DataGrid 企业级增强框架、当前行/单元格、编辑导航、列、验证、状态、筛选、导出：先读 `../wpf-enterprise-grid/SKILL.md`，再由其选择 Grid 子 Skill。
 
 ## 总原则

@@ -5,6 +5,8 @@ description: SwiftExport.Client.Wpf 官方 WPF Fluent 主题、lepoco/WPF-UI 主
 
 # WPF .NET 10 官方主题 Skill
 
+涉及高对比度、系统强调色、焦点/状态非颜色唯一表达或可访问性验收时，读取 `../quality-gates/SKILL.md`。
+
 ## 主题原则
 
 - 默认使用微软官方 WPF Fluent 主题。

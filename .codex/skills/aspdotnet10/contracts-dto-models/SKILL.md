@@ -12,6 +12,7 @@ description: SwiftExport Contracts DTO 技能。用于 SwiftExport.Contracts/DTO
 - `SwiftExport.Contracts/DTOs/Auth/**`
 - 目标 `SwiftExport.Contracts/DTOs/**`
 - 新增、复用、拆分或改名 DTO 时读 `references/DTO复用与文件组织门禁.md`
+- 目标业务模块已有能力地图时必须读取；采购任务读 `.agents/references/模块能力地图/采购模块能力地图.md`
 - 涉及 Wrappers 时读 `../contracts-wrappers/SKILL.md`
 - 涉及 Mapster 时读 `../application-mapster-mapping/SKILL.md`
 
@@ -27,6 +28,7 @@ description: SwiftExport Contracts DTO 技能。用于 SwiftExport.Contracts/DTO
 
 - DTO 放 `SwiftExport.Contracts/DTOs/<Module>`。
 - DTO 默认按 API 用例和契约语义独立设计，不按页面机械合并，也不因字段相似而复用。
+- DTO 必须符合目标模块能力地图中的 API/DTO 用例矩阵，不得跨越能力边界复用契约。
 - 只有业务语义、字段口径、权限暴露和演进生命周期一致，并且存在真实多消费者或稳定平台语义时，才复用 DTO。
 - 新增 DTO 前必须搜索现有 Contracts、API 和调用方，并在实现计划中写明“复用现有 DTO”或“新建专用 DTO”的理由。
 - 默认一个公开顶级 DTO 一个文件，文件名与类型名一致；历史聚合文件只在任务触碰相关类型时小步治理。
@@ -36,6 +38,7 @@ description: SwiftExport Contracts DTO 技能。用于 SwiftExport.Contracts/DTO
 - Auth DTO 放 `DTOs/Auth`，用于登录、当前用户、注册、重置密码。
 - DTO 字段名保持稳定，避免破坏 Refit、WPF Binding、Mapster 和 Dapper 映射。
 - DTO 不承载 UI 状态。
+- 若本次修改会触碰、复制或扩大能力地图记录的已知偏差，必须先输出“门禁偏差提醒”并暂停，等待用户选择重构或兼容方案；不得静默沿用或越界自动重构。
 
 ## 详细参考
 

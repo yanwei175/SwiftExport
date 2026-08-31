@@ -11,6 +11,7 @@ description: 原生 WPF DataGrid 企业级增强框架技能组入口。用于�
 - `.agents/wpf-enterprise-grid-architect.toml`
 - `.agents/workflows/WPF企业级DataGrid工作流.md`
 - `references/总体架构.md`
+- 涉及测试证据、键盘/焦点/Automation、高对比度、虚拟化性能或导出安全时，读取 `../quality-gates/SKILL.md`
 - 目标 DataGrid、资源字典、行模型和绑定的真实源码
 
 ## 子 Skill 路由
