@@ -118,17 +118,18 @@
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                     </TextBox.InputBindings>
                 </TextBox>
-                <Button Grid.Column="2" Width="36" Style="{StaticResource AccentButton}"
-                                Command="{Binding SearchCommand}" ToolTip="查询">
-                    <ui:SymbolIcon Symbol="Search24" />
-                </Button>
+                <ui:Button Grid.Column="2" Width="36" 
+                           Appearance="Primary"
+                           Icon="{ui:SymbolIcon Symbol=Search24}"
+                           Command="{Binding SearchCommand}" ToolTip="查询"/>
+
                 <StackPanel Grid.Column="4" Orientation="Horizontal">
-                    <Button Command="{Binding CreateManualCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0" Padding="8,4">
-                        <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon Symbol="Add24"/>
-                            <TextBlock Margin="6,0,0,0" Text="手工需求"/>
-                        </StackPanel>
-                    </Button>
+                    <ui:Button Content="手工需求"
+                               Icon="{ui:SymbolIcon Symbol=Add24}"
+                                Command="{Binding CreateManualCommand}" 
+                                Appearance="Primary" 
+                                Margin="0,0,4,0" Padding="8,4"/>
+
                     <Button Command="{Binding EditSelectedManualCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="编辑手工" />
                     <Button Command="{Binding CloseSelectedManualCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="关闭手工" />
                     <Button Command="{Binding DecomposeSelectedCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="拆解" />
@@ -267,7 +268,7 @@
                                     </DataGridTemplateColumn.HeaderTemplate>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <CheckBox Margin="3,0,0,0"
+                                            <CheckBox HorizontalAlignment="Center"
                                             IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>

@@ -21,7 +21,8 @@
             <TextBlock Grid.Column="4" Text="{Binding StatusText}" TextWrapping="Wrap" VerticalAlignment="Center"
                        Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
             <Button Grid.Column="5" Content="重新预览" Command="{Binding PreviewCommand}" Padding="12,5" />
-            <Button Grid.Column="7" Content="创建采购草稿" Command="{Binding CreateCommand}" Style="{StaticResource AccentButton}" Padding="12,5" />
+            <Button Grid.Column="7" Content="创建采购草稿" 
+                    Command="{Binding CreateCommand}" Padding="12,5" />
         </Grid>
 
         <Border Grid.Row="2" Padding="8" Background="{DynamicResource SwiftExportBrush.WarningSoft}"

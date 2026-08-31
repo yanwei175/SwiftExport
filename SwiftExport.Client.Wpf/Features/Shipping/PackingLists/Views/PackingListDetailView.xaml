@@ -1,32 +1,113 @@
 <UserControl x:Class="SwiftExportClient.Features.Shipping.PackingLists.Views.PackingListDetailView"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid">
- <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,2*,8,*,Auto">
-  <StackPanel Orientation="Horizontal">
-   <Button Content="保存草稿" Command="{Binding SaveCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0"/><Button Content="过账预览" Command="{Binding PreviewPostCommand}" Margin="0,0,4,0"/><Button Content="提交并过账" Command="{Binding PostCommand}" Margin="0,0,12,0"/>
-   <Button Content="反过账预览" Command="{Binding PreviewReverseCommand}" Margin="0,0,4,0"/><Button Content="整体反过账" Command="{Binding ReverseCommand}" Margin="0,0,12,0"/>
-   <Button Content="Trace" Command="{Binding TraceCommand}" Margin="0,0,4,0"/><Button Content="导出 XLSX" Command="{Binding ExportCommand}" Margin="0,0,4,0"/><Button Content="打印" Command="{Binding PrintCommand}"/>
-  </StackPanel>
-  <Border Grid.Row="2" Padding="12" BorderBrush="{DynamicResource SwiftExportBrush.Border}" BorderThickness="1" CornerRadius="4">
-   <Grid RowDefinitions="Auto,8,Auto" ColumnDefinitions="100,180,8,100,180,8,100,180,*">
-    <TextBlock Text="PackingList" VerticalAlignment="Center"/><TextBox Grid.Column="1" Text="{Binding PackingListNo,UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnly}"/>
-    <TextBlock Grid.Column="3" Text="客户" VerticalAlignment="Center"/><TextBox Grid.Column="4" Text="{Binding CustomerName}" IsReadOnly="True"/>
-    <TextBlock Grid.Column="6" Text="Invoice" VerticalAlignment="Center"/><TextBox Grid.Column="7" Text="{Binding InvoiceNo,UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnly}"/>
-    <TextBlock Grid.Row="2" Text="装箱日期" VerticalAlignment="Center"/><DatePicker Grid.Row="2" Grid.Column="1" SelectedDate="{Binding PackingDate}" IsEnabled="{Binding IsDraft}"/>
-    <TextBlock Grid.Row="2" Grid.Column="3" Text="发货日期" VerticalAlignment="Center"/><DatePicker Grid.Row="2" Grid.Column="4" SelectedDate="{Binding ShipmentDate}" IsEnabled="{Binding IsDraft}"/>
-    <StackPanel Grid.Row="2" Grid.Column="6" Grid.ColumnSpan="3" Orientation="Horizontal"><TextBlock Text="柜号" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBox Width="120" Text="{Binding ContainerNo,UpdateSourceTrigger=PropertyChanged}"/><TextBlock Text="封条" VerticalAlignment="Center" Margin="12,0,8,0"/><TextBox Width="120" Text="{Binding SealNo,UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
-   </Grid>
-  </Border>
-  <DataGrid Grid.Row="4" ItemsSource="{Binding Lines}" SelectedItem="{Binding SelectedLine}" AutoGenerateColumns="False" IsReadOnly="{Binding IsReadOnly}" Style="{StaticResource SwiftExportDataGrid}" RowDetailsVisibilityMode="VisibleWhenSelected" gridCore:EnterpriseGrid.IsEnabled="True" gridCore:GridVirtualization.IsEnabled="True">
-   <DataGrid.RowDetailsTemplate><DataTemplate><Border Margin="32,4,8,8" Padding="8" Background="{DynamicResource SwiftExportBrush.SurfaceMuted}"><TextBlock><Run Text="销售订单 "/><Run Text="{Binding SalesOrderNo}" FontWeight="SemiBold"/><Run Text=" / 行 "/><Run Text="{Binding SalesOrderLineNumber}"/><Run Text="  →  GrossDemand "/><Run Text="{Binding GrossDemandId}"/><Run Text="  →  NetDemand "/><Run Text="{Binding NetDemandId}"/><Run Text="  →  Allocation "/><Run Text="{Binding NetDemandAllocationId}"/><LineBreak/><Run Text="执行供应商："/><Run Text="{Binding SourceSupplierName}"/><Run Text="  虚拟仓："/><Run Text="{Binding WarehouseName}"/></TextBlock></Border></DataTemplate></DataGrid.RowDetailsTemplate>
-   <DataGrid.Columns><DataGridTextColumn Header="销售单" Binding="{Binding SalesOrderNo}" IsReadOnly="True" Width="130"/><DataGridTextColumn Header="SKU" Binding="{Binding Sku}" IsReadOnly="True" Width="130"/><DataGridTextColumn Header="客户型号" Binding="{Binding CustomerSku}" IsReadOnly="True" Width="130"/><DataGridTextColumn Header="描述" Binding="{Binding Description}" IsReadOnly="True" Width="*"/><DataGridTextColumn Header="数量" Binding="{Binding Quantity,UpdateSourceTrigger=PropertyChanged,StringFormat=N4}" Width="90"/><DataGridTextColumn Header="箱数" Binding="{Binding PackageCount,UpdateSourceTrigger=PropertyChanged,StringFormat=N4}" Width="80"/><DataGridTextColumn Header="净重" Binding="{Binding NetWeight,UpdateSourceTrigger=PropertyChanged,StringFormat=N4}" Width="80"/><DataGridTextColumn Header="毛重" Binding="{Binding GrossWeight,UpdateSourceTrigger=PropertyChanged,StringFormat=N4}" Width="80"/><DataGridTextColumn Header="体积" Binding="{Binding Volume,UpdateSourceTrigger=PropertyChanged,StringFormat=N4}" Width="80"/></DataGrid.Columns>
-  </DataGrid>
-  <Grid Grid.Row="6" ColumnDefinitions="2*,8,*">
-   <Grid RowDefinitions="Auto,4,*"><StackPanel Orientation="Horizontal"><TextBox Width="220" Text="{Binding SourceKeyword,UpdateSourceTrigger=PropertyChanged}" ToolTip="销售单、SKU 或供应商"/><Button Content="加载来源" Command="{Binding LoadSourcesCommand}" Margin="4,0"/><Button Content="加入所选来源" Command="{Binding AddSourceCommand}" Margin="0,0,4,0"/><Button Content="移除所选行" Command="{Binding RemoveLineCommand}"/></StackPanel>
-    <DataGrid Grid.Row="2" ItemsSource="{Binding Sources}" SelectedItem="{Binding SelectedSource}" AutoGenerateColumns="False" IsReadOnly="True" Style="{StaticResource SwiftExportDataGrid}" gridCore:EnterpriseGrid.IsEnabled="True"><DataGrid.Columns><DataGridTextColumn Header="销售单" Binding="{Binding SalesOrderNo}" Width="130"/><DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="120"/><DataGridTextColumn Header="可发货" Binding="{Binding ShippableRemainingQty,StringFormat=N4}" Width="90"/><DataGridTextColumn Header="供应商" Binding="{Binding SourceSupplierName}" Width="150"/></DataGrid.Columns></DataGrid>
-   </Grid>
-   <TabControl Grid.Column="2"><TabItem Header="产品汇总"><DataGrid ItemsSource="{Binding ProductSummary}" AutoGenerateColumns="False" IsReadOnly="True"><DataGrid.Columns><DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="120"/><DataGridTextColumn Header="数量" Binding="{Binding Quantity,StringFormat=N4}" Width="90"/><DataGridTextColumn Header="箱数" Binding="{Binding PackageCount,StringFormat=N4}" Width="80"/></DataGrid.Columns></DataGrid></TabItem><TabItem Header="预览"><ScrollViewer><StackPanel><ItemsControl ItemsSource="{Binding Preview.Blockers}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding Message}" Foreground="DarkRed" TextWrapping="Wrap"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl><ItemsControl ItemsSource="{Binding Preview.Warnings}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding Message}" Foreground="DarkOrange" TextWrapping="Wrap"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl><ItemsControl ItemsSource="{Binding Preview.InventoryEffects}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock><Run Text="{Binding WarehouseName}"/><Run Text=" · "/><Run Text="{Binding Sku}"/><Run Text="："/><Run Text="{Binding BalanceBefore}"/><Run Text=" → "/><Run Text="{Binding BalanceAfter}"/></TextBlock></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel></ScrollViewer></TabItem></TabControl>
-  </Grid>
-  <TextBlock Grid.Row="7" Text="{Binding ResultSummary}" Foreground="Gray"/>
- </Grid>
+    <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,2*,8,*,Auto">
+        <StackPanel Orientation="Horizontal">
+            <Button Content="保存草稿" Command="{Binding SaveCommand}"  Margin="0,0,4,0"/>
+            <Button Content="过账预览" Command="{Binding PreviewPostCommand}" Margin="0,0,4,0"/>
+            <Button Content="提交并过账" Command="{Binding PostCommand}" Margin="0,0,12,0"/>
+            <Button Content="反过账预览" Command="{Binding PreviewReverseCommand}" Margin="0,0,4,0"/>
+            <Button Content="整体反过账" Command="{Binding ReverseCommand}" Margin="0,0,12,0"/>
+            <Button Content="Trace" Command="{Binding TraceCommand}" Margin="0,0,4,0"/>
+            <Button Content="导出 XLSX" Command="{Binding ExportCommand}" Margin="0,0,4,0"/>
+            <Button Content="打印" Command="{Binding PrintCommand}"/>
+        </StackPanel>
+        <Border Grid.Row="2" Padding="12" BorderBrush="{DynamicResource SwiftExportBrush.Border}" BorderThickness="1" CornerRadius="4">
+            <Grid RowDefinitions="Auto,8,Auto" ColumnDefinitions="100,180,8,100,180,8,100,180,*">
+                <TextBlock Text="PackingList" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="1" Text="{Binding PackingListNo,UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnly}"/>
+                <TextBlock Grid.Column="3" Text="客户" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="4" Text="{Binding CustomerName}" IsReadOnly="True"/>
+                <TextBlock Grid.Column="6" Text="Invoice" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="7" Text="{Binding InvoiceNo,UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnly}"/>
+                <TextBlock Grid.Row="2" Text="装箱日期" VerticalAlignment="Center"/>
+                <DatePicker Grid.Row="2" Grid.Column="1" SelectedDate="{Binding PackingDate}" IsEnabled="{Binding IsDraft}"/>
+                <TextBlock Grid.Row="2" Grid.Column="3" Text="发货日期" VerticalAlignment="Center"/>
+                <DatePicker Grid.Row="2" Grid.Column="4" SelectedDate="{Binding ShipmentDate}" IsEnabled="{Binding IsDraft}"/>
+                <StackPanel Grid.Row="2" Grid.Column="6" Grid.ColumnSpan="3" Orientation="Horizontal">
+                    <TextBlock Text="柜号" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Width="120" Text="{Binding ContainerNo,UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="封条" VerticalAlignment="Center" Margin="12,0,8,0"/>
+                    <TextBox Width="120" Text="{Binding SealNo,UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        <DataGrid Grid.Row="4" ItemsSource="{Binding Lines}" SelectedItem="{Binding SelectedLine}" AutoGenerateColumns="False" IsReadOnly="{Binding IsReadOnly}" Style="{StaticResource SwiftExportDataGrid}" RowDetailsVisibilityMode="VisibleWhenSelected" gridCore:EnterpriseGrid.IsEnabled="True" gridCore:GridVirtualization.IsEnabled="True">
+            <DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                    <Border Margin="32,4,8,8" Padding="8" Background="{DynamicResource SwiftExportBrush.SurfaceMuted}">
+                        <TextBlock><Run Text="销售订单 "/><Run Text="{Binding SalesOrderNo}" FontWeight="SemiBold"/><Run Text=" / 行 "/><Run Text="{Binding SalesOrderLineNumber}"/><Run Text="  →  GrossDemand "/><Run Text="{Binding GrossDemandId}"/><Run Text="  →  NetDemand "/><Run Text="{Binding NetDemandId}"/><Run Text="  →  Allocation "/><Run Text="{Binding NetDemandAllocationId}"/><LineBreak/><Run Text="执行供应商："/><Run Text="{Binding SourceSupplierName}"/><Run Text="  虚拟仓："/><Run Text="{Binding WarehouseName}"/></TextBlock>
+                    </Border>
+                </DataTemplate>
+            </DataGrid.RowDetailsTemplate>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="销售单" Binding="{Binding SalesOrderNo}" IsReadOnly="True" Width="130"/>
+                <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" IsReadOnly="True" Width="130"/>
+                <DataGridTextColumn Header="客户型号" Binding="{Binding CustomerSku}" IsReadOnly="True" Width="130"/>
+                <DataGridTextColumn Header="描述" Binding="{Binding Description}" IsReadOnly="True" Width="*"/>
+                <DataGridTextColumn Header="数量" Binding="{Binding Quantity,UpdateSourceTrigger=PropertyChanged,StringFormat=N4}" Width="90"/>
+                <DataGridTextColumn Header="箱数" Binding="{Binding PackageCount,UpdateSourceTrigger=PropertyChanged,StringFormat=N4}" Width="80"/>
+                <DataGridTextColumn Header="净重" Binding="{Binding NetWeight,UpdateSourceTrigger=PropertyChanged,StringFormat=N4}" Width="80"/>
+                <DataGridTextColumn Header="毛重" Binding="{Binding GrossWeight,UpdateSourceTrigger=PropertyChanged,StringFormat=N4}" Width="80"/>
+                <DataGridTextColumn Header="体积" Binding="{Binding Volume,UpdateSourceTrigger=PropertyChanged,StringFormat=N4}" Width="80"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <Grid Grid.Row="6" ColumnDefinitions="2*,8,*">
+            <Grid RowDefinitions="Auto,4,*">
+                <StackPanel Orientation="Horizontal">
+                    <TextBox Width="220" Text="{Binding SourceKeyword,UpdateSourceTrigger=PropertyChanged}" ToolTip="销售单、SKU 或供应商"/>
+                    <Button Content="加载来源" Command="{Binding LoadSourcesCommand}" Margin="4,0"/>
+                    <Button Content="加入所选来源" Command="{Binding AddSourceCommand}" Margin="0,0,4,0"/>
+                    <Button Content="移除所选行" Command="{Binding RemoveLineCommand}"/>
+                </StackPanel>
+                <DataGrid Grid.Row="2" ItemsSource="{Binding Sources}" SelectedItem="{Binding SelectedSource}" AutoGenerateColumns="False" IsReadOnly="True" Style="{StaticResource SwiftExportDataGrid}" gridCore:EnterpriseGrid.IsEnabled="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="销售单" Binding="{Binding SalesOrderNo}" Width="130"/>
+                        <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="120"/>
+                        <DataGridTextColumn Header="可发货" Binding="{Binding ShippableRemainingQty,StringFormat=N4}" Width="90"/>
+                        <DataGridTextColumn Header="供应商" Binding="{Binding SourceSupplierName}" Width="150"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+            <TabControl Grid.Column="2">
+                <TabItem Header="产品汇总">
+                    <DataGrid ItemsSource="{Binding ProductSummary}" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="120"/>
+                            <DataGridTextColumn Header="数量" Binding="{Binding Quantity,StringFormat=N4}" Width="90"/>
+                            <DataGridTextColumn Header="箱数" Binding="{Binding PackageCount,StringFormat=N4}" Width="80"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+                <TabItem Header="预览">
+                    <ScrollViewer>
+                        <StackPanel>
+                            <ItemsControl ItemsSource="{Binding Preview.Blockers}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Message}" Foreground="DarkRed" TextWrapping="Wrap"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding Preview.Warnings}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Message}" Foreground="DarkOrange" TextWrapping="Wrap"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding Preview.InventoryEffects}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock><Run Text="{Binding WarehouseName}"/><Run Text=" · "/><Run Text="{Binding Sku}"/><Run Text="："/><Run Text="{Binding BalanceBefore}"/><Run Text=" → "/><Run Text="{Binding BalanceAfter}"/></TextBlock>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+        </Grid>
+        <TextBlock Grid.Row="7" Text="{Binding ResultSummary}" Foreground="Gray"/>
+    </Grid>
 </UserControl>

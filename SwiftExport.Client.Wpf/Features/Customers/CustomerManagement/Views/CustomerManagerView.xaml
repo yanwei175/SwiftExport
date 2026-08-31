@@ -59,14 +59,11 @@
 
             <StackPanel Grid.Column="4" Orientation="Horizontal">
                 <ui:Button Command="{Binding AddRowCommand}"
+                           Content="新增"
+                           Icon="{ui:SymbolIcon Symbol=Add24}"
                            Appearance="Primary"
-                            Style="{StaticResource AccentButton}" 
-                           Margin="0,0,4,0">
-                    <StackPanel Orientation="Horizontal">
-                        <ui:SymbolIcon Symbol="Add24" />
-                        <TextBlock Margin="6,0,0,0" Text="新增" />
-                    </StackPanel>
-                </ui:Button>
+                           Margin="0,0,4,0"/>
+
                 <ui:Button Command="{Binding SaveCommand}" 
                            Icon="{ui:SymbolIcon Symbol=Save24}"
                            Content="保存"
@@ -123,13 +120,13 @@
                         <DataGridTemplateColumn Width="43" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                             <DataGridTemplateColumn.HeaderTemplate>
                                 <DataTemplate>
-                                    <CheckBox HorizontalAlignment="Left"
+                                    <CheckBox HorizontalAlignment="Center"
                                               IsChecked="{Binding DataContext.Customers.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.HeaderTemplate>
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <CheckBox HorizontalAlignment="Left" Margin="4,0"
+                                    <CheckBox HorizontalAlignment="Center" Margin="4,0"
                                               IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>

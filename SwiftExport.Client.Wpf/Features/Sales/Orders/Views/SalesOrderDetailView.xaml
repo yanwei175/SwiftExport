@@ -51,12 +51,11 @@
         <Grid Grid.Row="0" RowDefinitions="Auto,4,Auto,4,Auto">
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
                 <StackPanel Orientation="Horizontal">
-                    <Button Command="{Binding SaveCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0" Padding="8,4">
-                        <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon Symbol="Save24" />
-                            <TextBlock Margin="6,0,0,0" Text="保存订单" />
-                        </StackPanel>
-                    </Button>
+                    <ui:Button Content="保存订单"
+                               Icon="{ui:SymbolIcon Symbol=Save24}"
+                                Command="{Binding SaveCommand}" 
+                               Appearance="Primary" Margin="0,0,4,0" Padding="8,4"/>
+
                     <Button Command="{Binding ConfirmCommand}" Style="{StaticResource SalesOrderDetailToolbarButton}" Content="确认订单" />
                     <Button Command="{Binding CancelConfirmationCommand}" Style="{StaticResource SalesOrderDetailToolbarButton}" Content="取消确认" />
 

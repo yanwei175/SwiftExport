@@ -4,6 +4,16 @@
 default_agent = "planner"
 
 [[routes]]
+id = "architecture-governance"
+agent = "architecture-governor"
+workflow = ".agents/workflows/架构治理工作流.md"
+references = [
+  ".agents/references/架构治理与路由判定规则.md",
+  ".agents/references/测试与验收总纲.md",
+]
+triggers = ["架构治理Agent", "Agent治理", "Agent路由", "职责冲突", "Skill触发", "工作流治理", "开发门禁", "治理规则", "规则一致性", "AGENTS.md", "router.toml"]
+
+[[routes]]
 id = "model-governance"
 agent = "planner"
 workflow = ".agents/workflows/数据模型治理工作流.md"
@@ -294,6 +304,8 @@ workflow = ".agents/workflows/代码审查工作流.md"
 triggers = ["review", "审查", "检查", "风险", "回归", "验收", "重构评估"]
 
 [policy]
+# 先按意图与目标对象判定；关键词及排列仅召回候选，不是首命中执行器。
+routing_rules = ".agents/references/架构治理与路由判定规则.md"
 single_primary_agent = true
 workflow_required = true
 skills_optional = true

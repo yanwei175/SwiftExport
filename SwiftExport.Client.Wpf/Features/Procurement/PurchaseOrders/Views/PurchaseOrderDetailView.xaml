@@ -19,7 +19,7 @@
         <!--title-->
         <DockPanel>
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                <Button Content="保存草稿" Command="{Binding SaveCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0"/>
+                <Button Content="保存草稿" Command="{Binding SaveCommand}" Margin="0,0,4,0"/>
                 <Button Content="确认" Command="{Binding ConfirmCommand}" Margin="0,0,4,0"/>
                 <Button Content="取消确认" Command="{Binding CancelConfirmationCommand}" Margin="0,0,4,0"/>
                 <Button Content="Trace" Command="{Binding OpenTraceCommand}" Margin="0,0,4,0"/>

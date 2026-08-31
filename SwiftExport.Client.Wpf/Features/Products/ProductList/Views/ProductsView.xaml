@@ -218,7 +218,7 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <CheckBox Margin="0,0" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              HorizontalAlignment="Left" />
+                                              HorizontalAlignment="Center" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -534,7 +534,8 @@
                       RowDefinitions="Auto,4,Auto,4,*">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Orientation="Horizontal">
-                            <Button Content="新增" Command="{Binding BomDrawer.AddItemCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0" />
+                            <Button Content="新增" Command="{Binding BomDrawer.AddItemCommand}" 
+                                    Margin="0,0,4,0" />
                             <Button Content="保存" Command="{Binding BomDrawer.SaveCommand}" Margin="0,0,4,0" />
                             <Button Content="删除" Command="{Binding BomDrawer.DeleteItemCommand}" Margin="0,0,4,0" />
                             <Button Content="放弃" Command="{Binding BomDrawer.RejectCommand}" Margin="0,0,4,0" />

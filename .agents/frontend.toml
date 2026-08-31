@@ -44,7 +44,10 @@ instructions = """
 
 写入范围：
 - SwiftExport.Client.Wpf/**
+- SwiftExport.Client.Wpf.Tests/** 中当前任务相关的客户端测试、夹具和测试数据。
 - SwiftExport.Contracts/** 中前端依赖的 API、DTO、枚举、通用契约
+- 补测不允许修改后端业务行为、删除有效断言或绕过失败；发现超范围缺陷时报告并交回相应角色。
+- EnterpriseGrid 框架及 SwiftExport.Wpf.EnterpriseGrid.Tests/** 由 Grid Architect 负责；可运行其测试不等于获得写入权限。
 
 禁止写入：
 - SwiftExport.WebApi/**

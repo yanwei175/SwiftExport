@@ -32,9 +32,15 @@
             </Grid.ColumnDefinitions>
             <controls:LookupTextBox Placeholder="客户料号、SKU、描述或系列" MinimumSearchLength="0"
                                     Text="{Binding Keyword, Mode=TwoWay}" QueryCommand="{Binding SearchCommand}" />
-            <Button Grid.Column="2" Width="36" Command="{Binding SearchCommand}" Style="{StaticResource AccentButton}" ToolTip="查询"><ui:SymbolIcon Symbol="Search24" /></Button>
+            <ui:Button Grid.Column="2" 
+                       Appearance="Primary"
+                       Icon="{ui:SymbolIcon Symbol=Search24}"
+                    Width="36" 
+                    Command="{Binding SearchCommand}" 
+                    ToolTip="查询"/>
+
             <StackPanel Grid.Column="4" Orientation="Horizontal">
-                <Button Command="{Binding AddItemCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0" Content="新增" />
+                <Button Command="{Binding AddItemCommand}"  Margin="0,0,4,0" Content="新增" />
                 <Button Command="{Binding SaveCommand}" Margin="0,0,4,0" Content="保存" />
                 <Button Command="{Binding DeleteSelectedCommand}" Margin="0,0,4,0" Content="删除" />
                 <Button Command="{Binding RejectCommand}" Margin="0,0,4,0" Content="放弃" />
@@ -66,8 +72,8 @@
                   gridValidation:GridValidation.IsEnabled="True">
             <DataGrid.Columns>
                 <DataGridTemplateColumn Width="43" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
-                    <DataGridTemplateColumn.HeaderTemplate><DataTemplate><CheckBox HorizontalAlignment="Left" IsChecked="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
-                    <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox Margin="4,0" HorizontalAlignment="Left" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.HeaderTemplate><DataTemplate><CheckBox HorizontalAlignment="Center" IsChecked="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
+                    <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox  HorizontalAlignment="Center" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTemplateColumn Header="图片" Width="60" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>

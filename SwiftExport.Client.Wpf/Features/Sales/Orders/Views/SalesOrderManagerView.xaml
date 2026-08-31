@@ -54,12 +54,12 @@
                 </TextBox.InputBindings>
             </TextBox>
             
-            <Button Grid.Column="2" Width="36" Style="{StaticResource AccentButton}"
+            <Button Grid.Column="2" Width="36" 
                     Command="{Binding SearchCommand}" ToolTip="查询">
                 <ui:SymbolIcon Symbol="Search24" />
             </Button>
             <StackPanel Grid.Column="4" Orientation="Horizontal">
-                <Button Command="{Binding OpenNewCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0" Padding="8,4">
+                <Button Command="{Binding OpenNewCommand}"  Margin="0,0,4,0" Padding="8,4">
                     <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Add24" /><TextBlock Margin="6,0,0,0" Text="新建" /></StackPanel>
                 </Button>
                 <Button Command="{Binding OpenSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="打开" />

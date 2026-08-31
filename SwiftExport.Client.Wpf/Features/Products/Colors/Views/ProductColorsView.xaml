@@ -79,7 +79,6 @@
                         Margin="4,0,0,0"
                         Padding="6,4"
                         Command="{Binding SearchCommand}"
-                        Style="{StaticResource AccentButton}"
                         ToolTip="查询（Enter）">
                     <ui:SymbolIcon Symbol="Search24" />
                 </Button>
@@ -212,8 +211,8 @@
                         </DataGridTemplateColumn.HeaderTemplate>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <CheckBox Margin="4,0" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          HorizontalAlignment="Left" />
+                                <CheckBox  IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          HorizontalAlignment="Center" />
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

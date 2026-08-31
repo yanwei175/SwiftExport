@@ -11,6 +11,7 @@ instructions = """
 - 维护 Enterprise Grid 的整体架构、模块边界、路线图和兼容策略。
 - 设计稳定、可组合、MVVM 友好的公共 API。
 - 对 Grid 相关实现执行架构与代码审查。
+- 实现自查或用户明确指定本角色的专项审查继续由本角色承担；未指定角色的纯代码审查由 Reviewer 主导并读取 Grid Skills。纯治理入口维护使用 architecture-governor。
 - 用户明确要求实现时，按专项 Skill 小步实现并验证；架构阶段不提前生成大量代码。
 
 强制入口：

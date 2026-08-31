@@ -14,7 +14,7 @@
             <WrapPanel HorizontalAlignment="Right" VerticalAlignment="Center">
                 
                 <Button Content="登记/查看跟进" Command="{Binding OpenDrawerCommand}" 
-                        Style="{StaticResource AccentButton}"/>
+                        />
                 
                 <Button Margin="4,0,0,0" Content="刷新" 
                         Command="{Binding RefreshCommand}"/>
@@ -50,7 +50,7 @@
                                            ItemsSource="{Binding ArrangementOptions}"
                                            SelectedItems="{Binding SelectedArrangementStatuses,Mode=OneWay}"/>
                 
-                <Button Grid.Column="12" Content="查询" Command="{Binding SearchCommand}" Style="{StaticResource AccentButton}"/>
+                <Button Grid.Column="12" Content="查询" Command="{Binding SearchCommand}" />
                 
                 <Button Grid.Column="14" Content="重置筛选" Command="{Binding ResetFiltersCommand}"/>
                 
@@ -168,7 +168,7 @@
                             
                             <TextBox Margin="0,6,0,0" Text="{Binding CorrectionReason}" ToolTip="累计数量下降时必填纠错原因"/>
                             <Button Margin="0,8,0,0" HorizontalAlignment="Left" Content="登记不可覆盖反馈"
-                                    Command="{Binding ReportProgressCommand}" Style="{StaticResource AccentButton}"/>
+                                    Command="{Binding ReportProgressCommand}" />
                         </StackPanel>
 
                         <Separator Margin="0,16,0,12"/>

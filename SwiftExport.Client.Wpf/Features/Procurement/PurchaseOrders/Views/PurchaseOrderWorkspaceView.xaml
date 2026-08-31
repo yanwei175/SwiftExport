@@ -18,7 +18,7 @@
             <DockPanel LastChildFill="True">
                 <TextBlock Text="采购工作台" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <WrapPanel HorizontalAlignment="Right">
-                    <Button Content="从净需求获取" Command="{Binding GetFromNetDemandCommand}" Style="{StaticResource AccentButton}" Margin="4,0,0,0"/>
+                    <Button Content="从净需求获取" Command="{Binding GetFromNetDemandCommand}"  Margin="4,0,0,0"/>
                     <Button Content="快速查看" Command="{Binding OpenDrawerCommand}" Margin="4,0,0,0"/>
                     <Button Content="查看详情" Command="{Binding OpenDetailCommand}" Margin="4,0,0,0"/>
                     <Button Content="确认" Command="{Binding ConfirmCommand}" Margin="4,0,0,0"/>
@@ -35,7 +35,7 @@
                 <ui:TextBox Grid.Column="4" Text="{Binding SourceNo}" PlaceholderText="来源单号"/>
                 <ui:TextBox Grid.Column="6" Text="{Binding SupplierKeyword}" PlaceholderText="供应商"/>
                 <ui:TextBox Grid.Column="8" Text="{Binding Sku}" PlaceholderText="SKU"/>
-                <Button Grid.Column="10" Content="查询" Command="{Binding SearchCommand}" Style="{StaticResource AccentButton}"/>
+                <Button Grid.Column="10" Content="查询" Command="{Binding SearchCommand}" />
                 <Button Grid.Column="12" Content="清空筛选" Command="{Binding ClearFiltersCommand}"/>
             </Grid>
 
@@ -98,7 +98,7 @@
                         <TextBox Margin="0,4,0,0" Text="{Binding CancellationReason,UpdateSourceTrigger=PropertyChanged}"/>
 
                         <Button Margin="0,6,0,0" HorizontalAlignment="Left" Content="提交取消确认"
-                                Command="{Binding CancelConfirmationCommand}" Style="{StaticResource AccentButton}"/>
+                                Command="{Binding CancelConfirmationCommand}" />
 
                         <TextBlock Margin="0,12,0,4" Text="所选采购行摘要"
                                    FontWeight="SemiBold" />

@@ -113,12 +113,12 @@
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                     </ui:TextBox.InputBindings>
                 </ui:TextBox>
-                <Button Grid.Column="2" Width="40" Style="{StaticResource AccentButton}"
+                <Button Grid.Column="2" Width="40" 
                 Command="{Binding SearchCommand}" ToolTip="查询">
                     <ui:SymbolIcon Symbol="Search24" />
                 </Button>
                 <StackPanel Grid.Column="4" Orientation="Horizontal">
-                    <Button Command="{Binding ModifyPlanCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0" Padding="8,4" Content="修改计划" />
+                    <Button Command="{Binding ModifyPlanCommand}" Margin="0,0,4,0" Padding="8,4" Content="修改计划" />
                     <Button Command="{Binding BatchAssignSupplierCommand}" Style="{StaticResource NetDemandToolbarButton}" Content="批量分配供应商" />
                     <Button Command="{Binding ApplyDefaultSupplierCommand}" Style="{StaticResource NetDemandToolbarButton}" Content="应用产品默认供应商" />
                     <Button Command="{Binding TransferSelectedPurchaseCommand}" Style="{StaticResource NetDemandToolbarButton}" Content="人工转采购" />
@@ -264,7 +264,7 @@
                                 </DataGridTemplateColumn.HeaderTemplate>
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <CheckBox Margin="3,0,0,0"
+                                        <CheckBox  HorizontalAlignment="Center"
                                               IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>

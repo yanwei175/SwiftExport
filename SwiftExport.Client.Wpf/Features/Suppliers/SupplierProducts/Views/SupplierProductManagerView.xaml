@@ -20,9 +20,9 @@
             <Grid.ColumnDefinitions><ColumnDefinition Width="240" /><ColumnDefinition Width="4" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
             <controls:LookupTextBox Placeholder="供应商料号、SKU、描述或规格" MinimumSearchLength="0"
                                     Text="{Binding Keyword, Mode=TwoWay}" QueryCommand="{Binding SearchCommand}" />
-            <Button Grid.Column="2" Width="36" Command="{Binding SearchCommand}" Style="{StaticResource AccentButton}" ToolTip="查询"><ui:SymbolIcon Symbol="Search24" /></Button>
+            <Button Grid.Column="2" Width="36" Command="{Binding SearchCommand}"  ToolTip="查询"><ui:SymbolIcon Symbol="Search24" /></Button>
             <StackPanel Grid.Column="4" Orientation="Horizontal">
-                <Button Command="{Binding AddItemCommand}" Style="{StaticResource AccentButton}" Margin="0,0,4,0" Content="新增" />
+                <Button Command="{Binding AddItemCommand}"  Margin="0,0,4,0" Content="新增" />
                 <Button Command="{Binding SaveCommand}" Margin="0,0,4,0" Content="保存" />
                 <Button Command="{Binding SetProductDefaultSupplierCommand}" Margin="0,0,4,0" Content="设为产品默认供应商"
                         ToolTip="只对已保存的供应商产品生效；既有净需求计划不会自动改变" />
@@ -56,7 +56,7 @@
             <DataGrid.Columns>
                 <DataGridTemplateColumn Width="43" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                     <DataGridTemplateColumn.HeaderTemplate><DataTemplate><CheckBox HorizontalAlignment="Left" IsChecked="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
-                    <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox Margin="4,0" HorizontalAlignment="Left" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox  HorizontalAlignment="Center" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTemplateColumn Header="图片" Width="56" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate><DataTemplate><controls:CachedImage Width="40" Height="40" Style="{StaticResource SwiftExportCachedImage}" DecodePixelWidth="96" SourcePath="{Binding MainImage}" Stretch="Uniform" /></DataTemplate></DataGridTemplateColumn.CellTemplate>

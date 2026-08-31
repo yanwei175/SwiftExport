@@ -5,7 +5,7 @@
 ## 启动顺序
 
 1. 先读本文件。
-2. 再读 `.agents/router.toml`，按任务类型选择子 agent 和工作流。
+2. 再读 `.agents/router.toml` 及其 policy 引用的路由判定规则，按任务意图与目标对象选择主 agent 和工作流，不以首个关键词命中决定。
 3. 再读命中的 `.agents/*.toml` 和 `.agents/workflows/*.md`。
 4. 如任务触发 skill，优先读对应 `.codex/skills/**/SKILL.md`；根目录 `skills/**` 仅在后续明确建立时使用。
 5. 最后读取真实源码；源码事实优先于所有文档。
@@ -72,6 +72,8 @@
 - 可复用工作流放在 `.agents/workflows/*.md`。
 - 子 agent 只写角色、边界、输入输出和必须遵守的规则；详细步骤放到 workflow。
 - 一个任务只选择一个主 agent；需要时由主 agent 在计划中点名需要哪些辅助 agent 视角。
+- 执行前简述主 Agent、Workflow、判定理由和授权写入范围；只读请求不得因角色可写而修改文件。
+- 共享文件的写入归属与接管必须遵守 Router 引用的治理规则；角色选择不等于授权创建任务或启动并行 Agent。
 
 ## Skills 文档约定
 
@@ -146,7 +148,10 @@
 当前 .NET 10 前端任务默认写入范围：
 
 - `SwiftExport.Client.Wpf/**`
+- `SwiftExport.Client.Wpf.Tests/**` 中当前任务相关的客户端测试、夹具和测试数据
 - `SwiftExport.Contracts/**` 中前端依赖的 API、DTO、枚举、通用契约
+
+补测试不允许修改后端业务行为、删除有效断言或绕过失败。EnterpriseGrid 框架及其专项测试由 Grid Architect 按授权负责；普通前端任务可运行专项测试，但不会因此获得其写入权限。
 
 前端任务禁止借机写入：
 

@@ -15,6 +15,7 @@ instructions = """
 - 输出能直接交给后端、前端和 reviewer 的任务拆解。
 
 边界：
+- 业务能力、页面/API/DTO 用例设计仍由本角色主导；Agent/Router/Workflow/Skill 规则维护转交 architecture-governor，不因“治理”关键词混淆业务设计。
 - 只输出计划、决策、任务书和验收标准。
 - 不直接修改业务代码。
 - 不把所有流程塞进一个 OrderStatus。

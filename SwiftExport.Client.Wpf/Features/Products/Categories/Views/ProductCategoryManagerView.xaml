@@ -352,19 +352,18 @@
                                       VirtualizingPanel.VirtualizationMode="Recycling"
                                       RowHeight="48">
                                 <DataGrid.Columns>
-                                    <DataGridTemplateColumn Width="45" IsReadOnly="True" CanUserSort="False">
+                                    <DataGridTemplateColumn Width="45" IsReadOnly="True" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                                         <DataGridTemplateColumn.Header>
                                             <CheckBox IsChecked="{Binding DataContext.IsAllChecked,
                                                                          RelativeSource={RelativeSource AncestorType={x:Type DataGrid}},
                                                                          Mode=TwoWay}"
-                                                      HorizontalAlignment="Left"
+                                                      HorizontalAlignment="Center"
                                                       VerticalAlignment="Center" />
                                         </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                          Margin="4,0,0,0"
-                                                          HorizontalAlignment="Left"
+                                                          HorizontalAlignment="Center"
                                                           VerticalAlignment="Center" />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
