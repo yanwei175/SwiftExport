@@ -13,6 +13,7 @@ namespace SwiftExport.Infrastructure.Repositories.Products;
 
 
 
+/// <summary>产品资料及专用查询仓储；普通资料保存不拥有业务启停资格。</summary>
 public partial class ProductRepository(RepositoryBaseContext context) : DapperRepository<Product>(context), IProductRepository
 {
     private static readonly string CustomerProductTable = EntityMetadataCache.GetTableName<CustomerProduct>();
@@ -28,8 +29,10 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
                            && !property.Equals(nameof(Product.DefaultCustomerCode), StringComparison.OrdinalIgnoreCase)
                            && !property.Equals(nameof(Product.DefaultCustomerSku), StringComparison.OrdinalIgnoreCase))];
 
+    /// <summary>普通资料更新保留专用命令管理的启停状态，避免旧 DTO 默认值意外恢复产品。</summary>
     protected override IReadOnlyList<string> UpdateProperties => [.. base.UpdateProperties
-        .Where(property => !property.Equals(nameof(Product.DefaultSupplierSku), StringComparison.OrdinalIgnoreCase)
+        .Where(property => !property.Equals(nameof(Product.IsActive), StringComparison.OrdinalIgnoreCase)
+                           && !property.Equals(nameof(Product.DefaultSupplierSku), StringComparison.OrdinalIgnoreCase)
                            && !property.Equals(nameof(Product.DefaultCustomerCode), StringComparison.OrdinalIgnoreCase)
                            && !property.Equals(nameof(Product.DefaultCustomerSku), StringComparison.OrdinalIgnoreCase))];
 

@@ -8,6 +8,9 @@ namespace SwiftExport.Core.Entities.MasterData;
 [Table("Product")]
 public class Product : BaseEntity
 {
+    /// <summary>是否允许新业务引用；停用保留历史身份，不等同软删除。</summary>
+    public bool IsActive { get; set; } = true;
+
     /// <summary>逻辑外键：直接存字符串 &quot;AT010011&quot;。</summary>
     public string? MasterSku { get; set; } // 逻辑外键：直接存字符串 "AT010011"
     /// <summary>该实体保存的公司产品编码。</summary>

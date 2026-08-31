@@ -11,8 +11,13 @@ using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Suppliers
 {
+    /// <summary>供应商资料仓储，保留专用执行资格命令维护的业务启停状态。</summary>
     public class SupplierRepository(RepositoryBaseContext context) : DapperRepository<Supplier>(context), ISupplierRepository
     {
+        /// <summary>普通资料更新不写业务启停状态，保留专用命令形成的供应商资格。</summary>
+        protected override IReadOnlyList<string> UpdateProperties => [.. base.UpdateProperties
+            .Where(property => !property.Equals(nameof(Supplier.IsActive), StringComparison.OrdinalIgnoreCase))];
+
         /// <summary>
         /// 按供应商编码查询单条供应商档案。
         /// </summary>

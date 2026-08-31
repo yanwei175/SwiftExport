@@ -10,8 +10,12 @@ using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Customers;
 
+/// <summary>客户资料仓储，普通保存与执行资格启停使用独立写入边界。</summary>
 public partial class CustomerRepository(RepositoryBaseContext context) : DapperRepository<Customer>(context), ICustomerRepository
 {
+    /// <summary>普通资料更新不写业务启停状态；只有执行资格命令可以修改此字段。</summary>
+    protected override IReadOnlyList<string> UpdateProperties => [.. base.UpdateProperties
+        .Where(property => !property.Equals(nameof(Customer.IsActive), StringComparison.OrdinalIgnoreCase))];
 
     public async Task<bool> ExistByCustomerCode(string customerCode)
     {

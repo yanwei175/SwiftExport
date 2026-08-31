@@ -281,11 +281,11 @@
                         
                         <TextBlock Grid.Row="6" Grid.Column="4" Text="ETD:" VerticalAlignment="Center" />
                         <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Row="6" Grid.Column="6"
-                                    controls:DatePickerAssist.PlaceholderText="ETDDate"/>
+                                    controls:DatePickerAssist.PlaceholderText="ETD"/>
                     
                         <TextBlock Grid.Row="6" Grid.Column="8" Text="ETA:" VerticalAlignment="Center" />
                         <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Row="6" Grid.Column="10" Grid.ColumnSpan="6"
-                                    controls:DatePickerAssist.PlaceholderText="ETAMark"/>
+                                    controls:DatePickerAssist.PlaceholderText="ETA"/>
 
                         <TextBlock Grid.Row="8" Grid.Column="4" Text="Shipped By:" VerticalAlignment="Center" />
                         <ComboBox Grid.Row="8" Grid.Column="6" Grid.ColumnSpan="6"

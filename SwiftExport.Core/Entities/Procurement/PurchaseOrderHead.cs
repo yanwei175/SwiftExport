@@ -11,6 +11,18 @@ namespace SwiftExport.Core.Entities.Procurement;
 [Table("PurchaseOrderHead")]
 public sealed class PurchaseOrderHead : BaseEntity
 {
+    /// <summary>执行链所有权：0 为既有需求采购链，1 为独立采购新链；创建后不可改变。</summary>
+    public int ExecutionModel { get; set; }
+    /// <summary>来源类别：0 为历史未分类，1 为需求，2 为手工；不以来源缺失推断类别。</summary>
+    public int OriginKind { get; set; }
+    /// <summary>采购货物的客户归属；历史未知记录保持空值。</summary>
+    public Guid? CustomerId { get; set; }
+    /// <summary>创建时的客户名称，不随主数据修改。</summary>
+    public string? CustomerNameSnapshot { get; set; }
+    /// <summary>本订单当前生效的确认依据批次。</summary>
+    public Guid? ActiveConfirmationId { get; set; }
+    /// <summary>本切片手工录入的包装商务要求，不读取当前客户默认覆盖历史。</summary>
+    public string? PackagingRequirements { get; set; }
     /// <summary>采购确认状态；草稿为待确认，正式下单后为已确认。</summary>
     public ConfirmationStatusEnum ConfirmationStatus { get; set; } = ConfirmationStatusEnum.待确认;
 
@@ -45,12 +57,12 @@ public sealed class PurchaseOrderHead : BaseEntity
     public string DemandSourceType { get; set; } = string.Empty;
 
     /// <summary>形成采购单的来源单据 Uid。</summary>
-    public Guid DemandSourceUid { get; set; }
+    public Guid? DemandSourceUid { get; set; }
 
     /// <summary>形成采购单的来源单号快照，可用于销售订单号检索。</summary>
     public string DemandSourceNo { get; set; } = string.Empty;
 
-    /// <summary>净需求转采购请求 Uid，是采购头创建幂等范围的一部分。</summary>
+    /// <summary>创建请求 Uid；旧链用于需求转换，新链对应独立创建命令。</summary>
     public Guid ExecutionRequestId { get; set; }
 
     /// <summary>业务员名称快照。</summary>

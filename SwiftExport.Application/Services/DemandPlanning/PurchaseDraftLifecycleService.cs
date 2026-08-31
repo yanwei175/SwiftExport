@@ -11,7 +11,7 @@ using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Services.DemandPlanning;
 
-/// <summary>净需求专项采购草稿的安全取消和减量编排。</summary>
+/// <summary>旧需求采购执行链草稿的安全取消和减量编排，不接管新采购订单。</summary>
 public sealed class PurchaseDraftLifecycleService(
     ServiceBaseContext context,
     IPurchaseOrderDraftRepository purchaseDraftRepository,
@@ -22,6 +22,7 @@ public sealed class PurchaseDraftLifecycleService(
     private readonly ILogger<PurchaseDraftLifecycleService> _logger =
         context.LoggerFactory.CreateLogger<PurchaseDraftLifecycleService>();
 
+    /// <summary>安全取消旧链需求采购草稿；已取消重放也先检查执行链归属。</summary>
     public async Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelAsync(
         Guid uid,
         CancelPurchaseDraftCommand command,
@@ -41,6 +42,9 @@ public sealed class PurchaseDraftLifecycleService(
             var head = await purchaseDraftRepository.GetLifecycleDraftAsync(uid, withUpdLock: true);
             if (head is null)
                 return RollbackFail<PurchaseDraftLifecycleResult>("采购草稿不存在，或属于缺少新来源字段的遗留采购单。");
+            // 已取消的重放在状态门禁之前返回，也必须先验证执行链所有权。
+            if (head.ExecutionModel != 0)
+                return RollbackFail<PurchaseDraftLifecycleResult>("该采购单不属于旧采购执行链。");
             if (head.LifecycleStatus == PurchaseOrderLifecycleStatusEnum.Voided)
             {
                 _session.Transaction.Commit();
@@ -230,8 +234,11 @@ public sealed class PurchaseDraftLifecycleService(
         return ServiceResult<T>.Fail(message);
     }
 
+    /// <summary>验证旧执行链草稿的所有权、版本和可变状态，覆盖减量预览与实际执行。</summary>
     private static void EnsureMutableDraft(PurchaseOrderHead head, int expectedVersion)
     {
+        if (head.ExecutionModel != 0)
+            throw new PurchaseDraftLifecycleException("EXECUTION_MODEL_MISMATCH", "该采购单不属于旧采购执行链。");
         if (head.Version != expectedVersion)
             throw new PurchaseDraftLifecycleException("CONCURRENCY_CONFLICT", "采购草稿版本已变化。");
         if (head.LifecycleStatus != PurchaseOrderLifecycleStatusEnum.Active

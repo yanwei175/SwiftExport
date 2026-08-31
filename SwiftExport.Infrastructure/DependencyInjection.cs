@@ -73,6 +73,12 @@ public static class DependencyInjection
         services.AddScoped<INetDemandPlanCommandRepository, NetDemandPlanCommandRepository>();
         services.AddScoped<IPurchaseOrderDraftRepository, PurchaseOrderDraftRepository>();
         services.AddScoped<IPurchaseOrderWorkspaceRepository, PurchaseOrderWorkspaceRepository>();
+        // 新链的事务持久化、管理投影与严格 BOM 读取使用同一请求 DbSession。
+        services.AddScoped<IProcurementOrderRepository, ProcurementOrderRepository>();
+        services.AddScoped<IProcurementOrderQueryRepository, ProcurementOrderQueryRepository>();
+        services.AddScoped<IProcurementConfirmationRepository, ProcurementConfirmationRepository>();
+        services.AddScoped<IBomExecutionRepository, BomExecutionRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.MasterData.IExecutionEligibilityRepository, SwiftExport.Infrastructure.Repositories.MasterData.ExecutionEligibilityRepository>();
         services.AddScoped<ISupplierProgressReportRepository, SupplierProgressReportRepository>();
         services.AddScoped<IBusinessOperationLogRepository, BusinessOperationLogRepository>();
         services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();

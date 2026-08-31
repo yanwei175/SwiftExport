@@ -7,6 +7,9 @@ namespace SwiftExport.Core.Entities.MasterData;
 [Table("Supplier")]
 public class Supplier : BaseEntity
 {
+    /// <summary>是否允许新业务引用；停用不连带停用仓库或取消历史订单。</summary>
+    public bool IsActive { get; set; } = true;
+
     /// <summary>该实体保存的供应商业务编码。</summary>
     public required string SupplierCode { get; set; }
     /// <summary>该实体保存的供应商名称。</summary>

@@ -56,6 +56,14 @@ public static class DependencyInjection
         services.AddScoped<PurchaseDraftLifecycleService>();
         services.AddScoped<INetDemandWorkspaceService, NetDemandWorkspaceService>();
         services.AddScoped<IPurchaseOrderWorkspaceService, PurchaseOrderWorkspaceService>();
+        // 独立采购按查询、命令和确认依据分别注册，不复用旧 Workspace。
+        services.AddScoped<SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderTransaction>();
+        services.AddScoped<SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementConfirmationBuilder>();
+        services.AddScoped<IProcurementConfirmationQueryService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementConfirmationQueryService>();
+        services.AddScoped<IProcurementOrderCommandService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderCommandService>();
+        services.AddScoped<IProcurementOrderQueryService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderQueryService>();
+        services.AddScoped<IBomExecutionReader, SwiftExport.Application.Services.Products.Execution.BomExecutionReader>();
+        services.AddScoped<SwiftExport.Application.Interfaces.MasterData.IExecutionEligibilityService, SwiftExport.Application.Services.MasterData.ExecutionEligibilityService>();
         services.AddScoped<IInventoryPostingService, InventoryPostingService>();
         services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IInboundWorkspaceService, InboundWorkspaceService>();

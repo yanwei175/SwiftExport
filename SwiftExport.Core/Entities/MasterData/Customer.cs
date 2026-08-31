@@ -7,6 +7,9 @@ namespace SwiftExport.Core.Entities.MasterData;
 [Table("Customer")]
 public class Customer : BaseEntity
 {
+    /// <summary>是否允许新业务引用；停用不取消已有业务承诺。</summary>
+    public bool IsActive { get; set; } = true;
+
     /// <summary>该实体保存的客户业务编码。</summary>
     public required string CustomerCode { get; set; }
     /// <summary>该实体保存的客户名称。</summary>

@@ -14,6 +14,7 @@ using System.Text.Json;
 
 namespace SwiftExport.Application.Services.Procurement;
 
+/// <summary>维护旧采购执行链的工作台能力；新执行链订单不得通过本服务读取或写入。</summary>
 public sealed class PurchaseOrderWorkspaceService(
     ServiceBaseContext context,
     IPurchaseOrderWorkspaceRepository purchaseOrders,
@@ -33,6 +34,7 @@ public sealed class PurchaseOrderWorkspaceService(
         catch (Exception ex) { _logger.LogError(ex, "查询采购工作台失败。"); return ServiceResult<PagedResponseBase<PurchaseOrderListItemDto>>.Fail("查询采购工作台失败。"); }
     }
 
+    /// <summary>读取旧采购单详情，保留既有宽契约但不接管新执行链订单。</summary>
     public async Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default)
     {
         if (uid == Guid.Empty) return ServiceResult<PurchaseOrderDetailDto>.Fail("采购单 Uid 不能为空。");
@@ -40,7 +42,7 @@ public sealed class PurchaseOrderWorkspaceService(
         {
             var summary = await purchaseOrders.GetHeadSummaryAsync(uid, cancellationToken);
             var head = await purchaseOrders.GetHeadAsync(uid, cancellationToken);
-            if (summary is null || head is null) return ServiceResult<PurchaseOrderDetailDto>.Fail("采购单不存在。");
+            if (summary is null || head is null || head.ExecutionModel != 0) return ServiceResult<PurchaseOrderDetailDto>.Fail("采购单不存在或不属于旧采购执行链。");
             var lines = (await purchaseOrders.GetLineDetailsAsync(uid, cancellationToken)).ToList();
             var contributions = await purchaseOrders.GetContributionsAsync(uid, cancellationToken);
             var progress = await progressReports.GetByPurchaseOrderAsync(uid, cancellationToken);
@@ -90,13 +92,14 @@ public sealed class PurchaseOrderWorkspaceService(
         catch (Exception ex) { _logger.LogError(ex, "加载采购单 {Uid} 详情失败。", uid); return ServiceResult<PurchaseOrderDetailDto>.Fail("加载采购单详情失败。"); }
     }
 
+    /// <summary>读取旧采购执行链的来源及操作记录，不暴露新链订单。</summary>
     public async Task<ServiceResult<PurchaseOrderTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default)
     {
         if (uid == Guid.Empty) return ServiceResult<PurchaseOrderTraceDto>.Fail("采购单 Uid 不能为空。");
         try
         {
             var head = await purchaseOrders.GetHeadAsync(uid, cancellationToken);
-            if (head is null) return ServiceResult<PurchaseOrderTraceDto>.Fail("采购单不存在。");
+            if (head is null || head.ExecutionModel != 0) return ServiceResult<PurchaseOrderTraceDto>.Fail("采购单不存在或不属于旧采购执行链。");
             return ServiceResult<PurchaseOrderTraceDto>.Ok(new PurchaseOrderTraceDto
             {
                 PurchaseOrderId = uid,
@@ -112,10 +115,17 @@ public sealed class PurchaseOrderWorkspaceService(
     public Task<ServiceResult<IReadOnlyList<SupplierProgressReportDto>>> GetProgressAsync(Guid uid, CancellationToken cancellationToken = default)
         => GetProgressCoreAsync(uid, cancellationToken);
 
+    /// <summary>先验证订单执行链归属，再读取报告，避免报告查询绕过头部隔离。</summary>
     private async Task<ServiceResult<IReadOnlyList<SupplierProgressReportDto>>> GetProgressCoreAsync(Guid uid, CancellationToken cancellationToken)
     {
         if (uid == Guid.Empty) return ServiceResult<IReadOnlyList<SupplierProgressReportDto>>.Fail("采购单 Uid 不能为空。");
-        try { return ServiceResult<IReadOnlyList<SupplierProgressReportDto>>.Ok(await progressReports.GetByPurchaseOrderAsync(uid, cancellationToken)); }
+        try
+        {
+            var head = await purchaseOrders.GetHeadAsync(uid, cancellationToken);
+            if (head is null || head.ExecutionModel != 0)
+                return ServiceResult<IReadOnlyList<SupplierProgressReportDto>>.Fail("采购单不存在或不属于旧采购执行链。");
+            return ServiceResult<IReadOnlyList<SupplierProgressReportDto>>.Ok(await progressReports.GetByPurchaseOrderAsync(uid, cancellationToken));
+        }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex) { _logger.LogError(ex, "加载采购单 {Uid} 供应商反馈失败。", uid); return ServiceResult<IReadOnlyList<SupplierProgressReportDto>>.Fail("加载供应商反馈失败。"); }
     }
@@ -254,6 +264,7 @@ public sealed class PurchaseOrderWorkspaceService(
         }, cancellationToken);
     }
 
+    /// <summary>在同一事务中执行旧链命令；历史命令重放同样受执行链所有权约束。</summary>
     private async Task<ServiceResult<ProcurementCommandResult>> ExecuteMutationAsync(Guid uid, Guid commandId, string operationType, Func<Task<ProcurementCommandResult>> action, CancellationToken cancellationToken)
     {
         if (_session.Transaction is not null) return ServiceResult<ProcurementCommandResult>.Fail("当前请求已存在未完成事务。");
@@ -265,6 +276,7 @@ public sealed class PurchaseOrderWorkspaceService(
             {
                 if (prior.AggregateUid != uid) throw new ProcurementException("同一 CommandId 已用于其他采购单。");
                 var current = await purchaseOrders.GetHeadForUpdateAsync(uid) ?? throw new ProcurementException("采购单不存在。");
+                if (current.ExecutionModel != 0) throw new ProcurementException("该采购单不属于旧采购执行链。");
                 var replay = Result(current, current.ConfirmationStatus, "命令已执行，本次返回原结果。");
                 replay.Outcome = ProcurementCommandOutcomeEnum.AlreadyApplied;
                 if (operationType == "SupplierProgress.Reported") replay.SupplierProgressReportId = (await progressReports.GetByCommandAsync(commandId))?.Uid;
@@ -282,13 +294,15 @@ public sealed class PurchaseOrderWorkspaceService(
         finally { _session.Transaction.Dispose(); _session.Transaction = null; }
     }
 
+    /// <summary>锁定旧链采购头并验证来源、状态和版本，不将新链订单交给旧命令。</summary>
     private async Task<PurchaseOrderHead> RequireOperableHeadAsync(Guid uid, int expectedVersion, ConfirmationStatusEnum expectedStatus)
     {
         var head = await purchaseOrders.GetHeadForUpdateAsync(uid) ?? throw new ProcurementException("采购单不存在。");
+        if (head.ExecutionModel != 0) throw new ProcurementException("该采购单不属于旧采购执行链。");
         if (head.Version != expectedVersion) throw new ProcurementException("采购单已被其他用户修改，请刷新后重试。");
         if (head.LifecycleStatus != PurchaseOrderLifecycleStatusEnum.Active || head.ConfirmationStatus != expectedStatus)
             throw new ProcurementException("采购单当前状态不允许执行此操作。");
-        if (head.SupplierId == Guid.Empty || string.IsNullOrWhiteSpace(head.DemandSourceType) || head.DemandSourceUid == Guid.Empty || string.IsNullOrWhiteSpace(head.DemandSourceNo) || head.ExecutionRequestId == Guid.Empty)
+        if (head.SupplierId == Guid.Empty || string.IsNullOrWhiteSpace(head.DemandSourceType) || head.DemandSourceUid is null || head.DemandSourceUid == Guid.Empty || string.IsNullOrWhiteSpace(head.DemandSourceNo) || head.ExecutionRequestId == Guid.Empty)
             throw new ProcurementException("遗留采购单缺少新链路所需关系，只允许查看。");
         return head;
     }
