@@ -4,6 +4,9 @@ using System.Text;
 
 namespace SwiftExport.Contracts.DTOs.Auth
 {
+    /// <summary>
+    /// 未接入的旧文档权限预留模型；当前无 API、服务或客户端调用方，本阶段不得作为权限来源扩大使用。
+    /// </summary>
     public class DocumentPermissionDto
     {
         // ====== 整单级操作权限（按钮权限） ======

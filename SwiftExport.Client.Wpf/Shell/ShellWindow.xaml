@@ -150,8 +150,8 @@
         <DataTemplate DataType="{x:Type netDemandViewModels:NetDemandWorkspaceViewModel}">
             <netDemandViews:NetDemandWorkspaceView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type procurementViewModels:PurchaseOrderWorkspaceViewModel}">
-            <procurementViews:PurchaseOrderWorkspaceView />
+        <DataTemplate DataType="{x:Type procurementViewModels:PurchaseOrderManagerViewModel}">
+            <procurementViews:PurchaseOrderManagerView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type procurementViewModels:PurchaseOrderProgressWorkspaceViewModel}">
             <procurementViews:PurchaseOrderProgressWorkspaceView />

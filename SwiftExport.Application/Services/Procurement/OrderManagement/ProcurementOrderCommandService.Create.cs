@@ -1,8 +1,10 @@
 using Mapster;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.Wrappers;
+
 using SwiftExport.Core.Entities.Procurement;
 namespace SwiftExport.Application.Services.Procurement.OrderManagement;
 
@@ -11,7 +13,7 @@ public sealed partial class ProcurementOrderCommandService
     /// <inheritdoc/>
     public Task<ServiceResult<ProcurementOrderCommandResult>> CreateAsync(CreateIndependentPurchaseOrderCommand command, CancellationToken ct = default)
     {
-        if (command is null) return Task.FromResult(ServiceResult<ProcurementOrderCommandResult>.Fail("创建命令不能为空。"));
+        if (command is null) return Task.FromResult(ServiceResult<ProcurementOrderCommandResult>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Validation, "创建命令不能为空。", "command"));
         return ExecuteAsync(Guid.Empty, command.CommandId, "Create", command, async () =>
         {
             if (command.OrderDate == default || command.Lines is null || command.Lines.Count is < 1 or > 500 || command.Lines.Any(x => x is null))
@@ -21,7 +23,7 @@ public sealed partial class ProcurementOrderCommandService
             var supplier = await confirmation.RequireSupplierAsync(command.SupplierId, ct);
             var head = new PurchaseOrderHead
             {
-                Uid = GuidSequentialGenerator.NewGuid(), ExecutionModel = 1, OriginKind = 2,
+                Uid = GuidSequentialGenerator.NewGuid(), OriginKind = 2,
                 CustomerId = customer.Uid, CustomerCode = customer.CustomerCode, CustomerNameSnapshot = customer.CustomerName,
                 SupplierId = supplier.Uid, SupplierCode = supplier.SupplierCode, SupplierName = supplier.SupplierName,
                 OrderDate = command.OrderDate, Currency = "CNY", ExecutionRequestId = command.CommandId,
@@ -66,9 +68,9 @@ public sealed partial class ProcurementOrderCommandService
     }
 
     /// <inheritdoc/>
-    public Task<ServiceResult<ProcurementOrderCommandResult>> SaveAsync(Guid uid, SaveProcurementOrderCommand command, CancellationToken ct = default)
+    public Task<ServiceResult<ProcurementOrderCommandResult>> SaveAsync(Guid uid, UpdatePurchaseOrderDraftCommand command, CancellationToken ct = default)
     {
-        if (command is null) return Task.FromResult(ServiceResult<ProcurementOrderCommandResult>.Fail("保存命令不能为空。"));
+        if (command is null) return Task.FromResult(ServiceResult<ProcurementOrderCommandResult>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Validation, "保存命令不能为空。", "command"));
         return ExecuteAsync(uid, command.CommandId, "Edit", command, async () =>
         {
             var head = await RequireHeadAsync(uid, ct);

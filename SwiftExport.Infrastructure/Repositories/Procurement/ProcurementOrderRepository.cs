@@ -1,4 +1,5 @@
 using Dapper;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Inventory;
@@ -20,7 +21,19 @@ public sealed class ProcurementOrderRepository(RepositoryBaseContext context) : 
             JOIN dbo.SysRoles r WITH(HOLDLOCK) ON r.Uid=ur.RoleId AND ISNULL(r.IsDeleted,0)=0
             WHERE u.Uid=@actorUid AND u.IsActive=1 AND ISNULL(u.IsDeleted,0)=0
               AND r.RoleName IN(N'Admin',@role);
-            """, new { actorUid, role = "Procurement.Order." + operation }, ct)) > 0;
+            """, new { actorUid, role = ResolvePermissionKey(operation) }, ct)) > 0;
+    /// <summary>把既有采购操作名映射到集中式权限键；未知操作保持无权限而不扩大授权。</summary>
+    private static string ResolvePermissionKey(string operation)
+    {
+        return operation switch
+        {
+            "Read" => PermissionKeys.ProcurementOrderRead,
+            "Create" => PermissionKeys.ProcurementOrderCreate,
+            "Edit" => PermissionKeys.ProcurementOrderEdit,
+            "Confirm" => PermissionKeys.ProcurementOrderConfirm,
+            _ => string.Empty
+        };
+    }
     /// <inheritdoc/>
     public Task<ProcurementCommandReceipt?> GetReceiptAsync(Guid commandId, CancellationToken ct)
         => context.Session.Connection.QuerySingleOrDefaultAsync<ProcurementCommandReceipt>(Command(
@@ -28,12 +41,12 @@ public sealed class ProcurementOrderRepository(RepositoryBaseContext context) : 
     /// <inheritdoc/>
     public Task<PurchaseOrderHead?> GetHeadAsync(Guid uid, CancellationToken ct)
         => context.Session.Connection.QuerySingleOrDefaultAsync<PurchaseOrderHead>(Command(
-            "SELECT * FROM dbo.PurchaseOrderHead WITH(UPDLOCK,HOLDLOCK) WHERE Uid=@uid AND ExecutionModel=1 AND IsDeleted=0;", new { uid }, ct));
+            "SELECT * FROM dbo.PurchaseOrderHead WITH(UPDLOCK,HOLDLOCK) WHERE Uid=@uid AND IsDeleted=0;", new { uid }, ct));
     /// <inheritdoc/>
     public async Task<List<PurchaseOrderLine>> GetLinesAsync(Guid uid, CancellationToken ct)
         => (await context.Session.Connection.QueryAsync<PurchaseOrderLine>(Command("""
             SELECT l.*,l.QTY AS Quantity FROM dbo.PurchaseOrderLine l WITH(UPDLOCK,HOLDLOCK)
-            JOIN dbo.PurchaseOrderHead h WITH(HOLDLOCK) ON h.Uid=l.PurchaseOrderId AND h.ExecutionModel=1 AND h.IsDeleted=0
+            JOIN dbo.PurchaseOrderHead h WITH(HOLDLOCK) ON h.Uid=l.PurchaseOrderId AND h.IsDeleted=0
             WHERE l.PurchaseOrderId=@uid AND l.IsDeleted=0 ORDER BY l.LineNumber,l.Uid;
             """, new { uid }, ct))).ToList();
     /// <inheritdoc/>
@@ -68,12 +81,12 @@ public sealed class ProcurementOrderRepository(RepositoryBaseContext context) : 
         context.AuditStamp.StampForInsert(head);
         await context.Session.Connection.ExecuteAsync(Command("""
             INSERT dbo.PurchaseOrderHead
-            (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,ExecutionModel,OriginKind,
+            (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,OriginKind,
              CustomerId,CustomerCode,CustomerNameSnapshot,SupplierId,SupplierCode,SupplierName,OrderNo,Currency,
              OrderDate,ExpectedDate,Remark,PackagingRequirements,ExecutionRequestId,DemandSourceType,DemandSourceUid,DemandSourceNo,
              ConfirmationStatus,LifecycleStatus)
             VALUES
-            (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@ExecutionModel,@OriginKind,
+            (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@OriginKind,
              @CustomerId,@CustomerCode,@CustomerNameSnapshot,@SupplierId,@SupplierCode,@SupplierName,@OrderNo,@Currency,
              @OrderDate,@ExpectedDate,@Remark,@PackagingRequirements,@ExecutionRequestId,NULL,NULL,NULL,@ConfirmationStatus,@LifecycleStatus);
             """, head, ct));
@@ -103,8 +116,8 @@ public sealed class ProcurementOrderRepository(RepositoryBaseContext context) : 
         if (await context.Session.Connection.ExecuteAsync(Command("""
             UPDATE dbo.PurchaseOrderHead SET Remark=@Remark,PackagingRequirements=@PackagingRequirements,
               ExpectedDate=@ExpectedDate,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
-            WHERE Uid=@Uid AND Version=@Version AND ExecutionModel=1 AND ConfirmationStatus=0 AND LifecycleStatus=0 AND IsDeleted=0;
-            """, head, ct)) != 1) throw new InvalidOperationException("采购头并发冲突。");
+            WHERE Uid=@Uid AND Version=@Version AND ConfirmationStatus=0 AND LifecycleStatus=0 AND IsDeleted=0;
+            """, head, ct)) != 1) throw new ProcurementConcurrencyException("采购头并发冲突。");
         foreach (var line in lines)
         {
             context.AuditStamp.StampForUpdate(line);
@@ -114,8 +127,8 @@ public sealed class ProcurementOrderRepository(RepositoryBaseContext context) : 
                   PlannedDeliveryDate=@PlannedDeliveryDate,Version=l.Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
                 FROM dbo.PurchaseOrderLine l JOIN dbo.PurchaseOrderHead h ON h.Uid=l.PurchaseOrderId
                 WHERE l.Uid=@Uid AND l.PurchaseOrderId=@PurchaseOrderId AND l.Version=@Version AND l.IsDeleted=0
-                  AND h.ExecutionModel=1 AND h.IsDeleted=0 AND h.ConfirmationStatus=0 AND h.LifecycleStatus=0;
-                """, line, ct)) != 1) throw new InvalidOperationException("采购行并发冲突。");
+                  AND h.IsDeleted=0 AND h.ConfirmationStatus=0 AND h.LifecycleStatus=0;
+                """, line, ct)) != 1) throw new ProcurementConcurrencyException("采购行并发冲突。");
         }
     }
     /// <inheritdoc/>
@@ -155,9 +168,35 @@ public sealed class ProcurementOrderRepository(RepositoryBaseContext context) : 
         if (await context.Session.Connection.ExecuteAsync(Command("""
             UPDATE dbo.PurchaseOrderHead SET ConfirmationStatus=1,ActiveConfirmationId=@ActiveConfirmationId,
               ConfirmedDate=@ConfirmedDate,ConfirmedBy=@ConfirmedBy,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
-            WHERE Uid=@Uid AND Version=@Version AND ExecutionModel=1 AND OriginKind=2
+            WHERE Uid=@Uid AND Version=@Version
               AND ConfirmationStatus=0 AND LifecycleStatus=0 AND IsDeleted=0;
-            """, head, ct)) != 1) throw new InvalidOperationException("采购确认并发冲突。");
+            """, head, ct)) != 1) throw new ProcurementConcurrencyException("采购确认并发冲突。");
+    }
+    /// <inheritdoc/>
+    public async Task<bool> HasDownstreamFactsAsync(Guid uid, CancellationToken ct)
+        => await context.Session.Connection.ExecuteScalarAsync<bool>(Command("""
+            SELECT CAST(CASE WHEN EXISTS(
+                SELECT 1 FROM dbo.InboundDocumentLine i WITH(UPDLOCK,HOLDLOCK)
+                JOIN dbo.PurchaseOrderLine l WITH(HOLDLOCK) ON l.Uid=i.SourceUid
+                WHERE l.PurchaseOrderId=@uid AND ISNULL(l.IsDeleted,0)=0
+                  AND ISNULL(i.IsDeleted,0)=0 AND i.SourceType=10)
+             OR EXISTS(
+                SELECT 1 FROM dbo.InventoryLedgerEntry e WITH(UPDLOCK,HOLDLOCK)
+                JOIN dbo.InboundDocumentLine i WITH(HOLDLOCK) ON i.Uid=e.SourceLineId
+                JOIN dbo.PurchaseOrderLine l WITH(HOLDLOCK) ON l.Uid=i.SourceUid
+                WHERE l.PurchaseOrderId=@uid AND ISNULL(l.IsDeleted,0)=0 AND i.SourceType=10)
+             THEN 1 ELSE 0 END AS bit);
+            """, new { uid }, ct));
+    /// <inheritdoc/>
+    public async Task CancelConfirmationAsync(PurchaseOrderHead head, CancellationToken ct)
+    {
+        context.AuditStamp.StampForUpdate(head);
+        if (await context.Session.Connection.ExecuteAsync(Command("""
+            UPDATE dbo.PurchaseOrderHead SET ConfirmationStatus=0,ActiveConfirmationId=NULL,
+              ConfirmedDate=NULL,ConfirmedBy=NULL,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
+            WHERE Uid=@Uid AND Version=@Version
+              AND ConfirmationStatus=1 AND LifecycleStatus=0 AND IsDeleted=0;
+            """, head, ct)) != 1) throw new ProcurementConcurrencyException("采购取消确认并发冲突。");
     }
     /// <inheritdoc/>
     public async Task InsertReceiptAsync(ProcurementCommandReceipt receipt, CancellationToken ct)

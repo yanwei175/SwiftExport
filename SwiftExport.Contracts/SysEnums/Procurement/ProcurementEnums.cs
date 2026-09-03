@@ -1,5 +1,18 @@
 namespace SwiftExport.Contracts.SysEnums
 {
+    /// <summary>
+    /// 采购单据自身的生命周期；草稿由 Active + 待确认共同表达。
+    /// </summary>
+    public enum PurchaseOrderLifecycleStatusEnum
+    {
+        [System.ComponentModel.Description("活动")]
+        Active = 0,
+        [System.ComponentModel.Description("已关闭")]
+        Closed = 8,
+        [System.ComponentModel.Description("已作废")]
+        Voided = 9
+    }
+
     /// <summary>供应商对采购行的生产安排状态。</summary>
     public enum SupplierArrangementStatusEnum
     {

@@ -1,6 +1,8 @@
 using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.Wrappers;
+
 using SwiftExport.Core.Interfaces.Procurement;
 namespace SwiftExport.Application.Services.Procurement.OrderManagement;
 
@@ -20,7 +22,7 @@ public sealed class ProcurementOrderQueryService(ProcurementOrderTransaction tra
             return await queries.SearchAsync(request, ct);
         }, ct);
     /// <inheritdoc/>
-    public Task<ServiceResult<ProcurementOrderDetailDto>> GetDetailAsync(Guid uid, CancellationToken ct = default)
+    public Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailAsync(Guid uid, CancellationToken ct = default)
         => transaction.ExecuteAsync("Read", async () => await queries.GetDetailAsync(uid, ct)
             ?? throw new InvalidOperationException("独立采购单不存在。"), ct);
     /// <inheritdoc/>

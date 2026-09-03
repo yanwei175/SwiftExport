@@ -3,6 +3,8 @@ using System.Runtime.CompilerServices;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Suppliers;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExportClient.Features.Customers.CustomerManagement.Models;
 using SwiftExportClient.Features.Customers.CustomerProducts.Models;
 using SwiftExportClient.Features.Products.Bom.Models;
@@ -11,6 +13,7 @@ using SwiftExportClient.Features.Products.Colors.Models;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.Models;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.Models;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
 namespace SwiftExportClient.Mappings;
 
@@ -93,6 +96,27 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted);
 
         config.NewConfig<SupplierProductLineModel, SupplierProductDto>()
+            .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted);
+
+        config.NewConfig<PurchaseOrderManagerListItemDto, PurchaseOrderManagementRowModel>()
+            .Map(dest => dest.LatestReadyQty, src => src.ReadyQty)
+            .Map(dest => dest.ReceiptProgress, src => src.ReceiptProgress.ToString("P0"));
+
+        config.NewConfig<PurchaseOrderManagerLineDto, PurchaseOrderManagementLineModel>()
+            .Map(dest => dest.LatestReadyQtyText, src => src.ReadyQty.ToString("N1"))
+            .Map(dest => dest.ExpectedCompletionDateText, src => src.ExpectedCompletionDate.HasValue ? src.ExpectedCompletionDate.Value.ToString("yyyy-MM-dd") : string.Empty)
+            .Map(dest => dest.LatestFollowUpDateText, src => src.LatestFollowUpDate.HasValue ? src.LatestFollowUpDate.Value.ToString("yyyy-MM-dd HH:mm") : string.Empty)
+            .Map(dest => dest.LatestFollowUpUserText, src => src.FollowUpUserName ?? string.Empty)
+            .Map(dest => dest.SourceSummary, src => string.IsNullOrEmpty(src.SourceNo)
+                ? src.SourceType ?? string.Empty
+                : string.Concat(src.SourceType, " · ", src.SourceNo,
+                    src.SourceLineNumber.HasValue ? string.Concat(" / ", src.SourceLineNumber.Value.ToString()) : string.Empty));
+
+        config.NewConfig<PurchaseOrderLineDetailDto, PurchaseOrderLineEditModel>()
+            .IgnoreNullValues(true)
+            .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted);
+
+        config.NewConfig<PurchaseOrderLineEditModel, PurchaseOrderLineDetailDto>()
             .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted);
     }
 }

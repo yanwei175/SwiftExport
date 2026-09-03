@@ -6,6 +6,7 @@ using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.Wrappers;
+
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
@@ -22,15 +23,20 @@ public sealed partial class ProcurementOrderCommandService(
     /// <summary>命令键先锁定再读取订单；身份和请求不一致不允许复用回执。</summary>
     private Task<ServiceResult<ProcurementOrderCommandResult>> ExecuteAsync<T>(
         Guid uid, Guid commandId, string operation, T command, Func<Task<ProcurementOrderCommandResult>> action, CancellationToken ct)
-        => transaction.ExecuteAsync(operation, async () =>
+        => ExecuteAsync(uid, commandId, operation, operation, command, action, ct);
+
+    /// <summary>允许多个业务命令共享同一权限能力，同时保持各自独立的幂等回执操作名。</summary>
+    private Task<ServiceResult<ProcurementOrderCommandResult>> ExecuteAsync<T>(
+        Guid uid, Guid commandId, string permissionOperation, string receiptOperation, T command, Func<Task<ProcurementOrderCommandResult>> action, CancellationToken ct)
+        => transaction.ExecuteAsync(permissionOperation, async () =>
         {
-            if (commandId == Guid.Empty) throw new InvalidOperationException("命令标识不能为空。");
-            var fingerprint = ProcurementOrderPolicy.Fingerprint(new { uid, operation, command });
+            if (commandId == Guid.Empty) throw ProcurementOperationException.Validation("命令标识不能为空。", "CommandId");
+            var fingerprint = ProcurementOrderPolicy.Fingerprint(new { uid, operation = receiptOperation, command });
             var receipt = await repository.GetReceiptAsync(commandId, ct);
             if (receipt is not null)
             {
-                if (receipt.ActorUid != user.UserId || receipt.Operation != operation || receipt.RequestFingerprint != fingerprint)
-                    throw new InvalidOperationException("命令标识已用于不同用户、操作或请求内容。");
+                if (receipt.ActorUid != user.UserId || receipt.Operation != receiptOperation || receipt.RequestFingerprint != fingerprint)
+                    throw new ProcurementOperationException(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.CommandConflict, "命令标识已用于不同用户、操作或请求内容。", "CommandId");
                 return JsonSerializer.Deserialize<ProcurementOrderCommandResult>(receipt.ResultJson)
                     ?? throw new InvalidOperationException("原始命令回执损坏。");
             }
@@ -40,14 +46,17 @@ public sealed partial class ProcurementOrderCommandService(
                 Uid = GuidSequentialGenerator.NewGuid(), CommandId = commandId,
                 CorrelationId = commandId.ToString("N"), Module = "Procurement.OrderManagement",
                 AggregateType = "PurchaseOrder", AggregateUid = result.PurchaseOrderId, AggregateNoSnapshot = result.OrderNo,
-                OperationType = operation, OperationName = "独立采购" + operation, Summary = "独立采购命令成功；详情见原始回执及确认依据。",
+                OperationType = receiptOperation, OperationName = "独立采购" + receiptOperation, Summary = "独立采购命令成功；详情见原始回执及确认依据。",
                 UserUid = user.UserId, UserNameSnapshot = user.UserName, OccurredDate = DateTime.Now,
-                ChangedFieldsJson = JsonSerializer.Serialize(result)
+                // 取消原因属于业务审计事实；仅该命令把窄请求与结果一并保存，其他命令保持原结果形状。
+                ChangedFieldsJson = receiptOperation == "CancelConfirmation"
+                    ? JsonSerializer.Serialize(new { result, command })
+                    : JsonSerializer.Serialize(result)
             }) != 1) throw new InvalidOperationException("采购业务日志写入失败。");
             await repository.InsertReceiptAsync(new ProcurementCommandReceipt
             {
                 Uid = GuidSequentialGenerator.NewGuid(), CommandId = commandId, ActorUid = user.UserId!.Value,
-                PurchaseOrderId = result.PurchaseOrderId, Operation = operation,
+                PurchaseOrderId = result.PurchaseOrderId, Operation = receiptOperation,
                 RequestFingerprint = fingerprint, ResultJson = JsonSerializer.Serialize(result)
             }, ct);
             return result;

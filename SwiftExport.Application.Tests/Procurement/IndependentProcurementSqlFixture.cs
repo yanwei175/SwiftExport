@@ -7,6 +7,7 @@ using SwiftExport.Application;
 using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Application.Services.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
@@ -103,7 +104,7 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
 
     public Task<ServiceResult<ProcurementOrderCommandResult>> CreateAsync(CreateIndependentPurchaseOrderCommand? command = null)
         => InScopeAsync(p => p.GetRequiredService<IProcurementOrderCommandService>().CreateAsync(command ?? CreateCommand()));
-    public Task<ServiceResult<ProcurementOrderCommandResult>> SaveAsync(Guid uid, SaveProcurementOrderCommand command)
+    public Task<ServiceResult<ProcurementOrderCommandResult>> SaveAsync(Guid uid, UpdatePurchaseOrderDraftCommand command)
         => InScopeAsync(p => p.GetRequiredService<IProcurementOrderCommandService>().SaveAsync(uid, command));
     public Task<ServiceResult<ProcurementOrderCommandResult>> ConfirmAsync(Guid uid, ConfirmProcurementOrderCommand command)
         => InScopeAsync(p => p.GetRequiredService<IProcurementOrderCommandService>().ConfirmAsync(uid, command));

@@ -10,6 +10,7 @@ using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.Apis.Inventory;
+using SwiftExport.Contracts.Apis.MasterData;
 using SwiftExport.Contracts.Apis.Shipping;
 using SwiftExportClient.Services.Api;
 
@@ -85,6 +86,9 @@ public static class ApiRegistrationExtensions
         services.AddControllerApi<IGrossDemandWorkspaceApi>("demand-planning/gross-demands");
         services.AddControllerApi<INetDemandWorkspaceApi>("demand-planning/net-demands");
         services.AddControllerApi<IPurchaseOrderWorkspaceApi>("procurement/purchase-orders");
+        services.AddControllerApi<IProcurementOrderApi>("procurement/orders");
+        services.AddControllerApi<IPurchaseOrderManagerApi>("procurement/order-manager");
+        services.AddControllerApi<IProcurementMasterDataQueryApi>("master-data/procurement-lookups");
     }
 
     private static void AddInventoryApis(this IServiceCollection services)

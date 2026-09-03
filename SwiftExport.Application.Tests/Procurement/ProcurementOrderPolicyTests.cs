@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Services.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Core.Entities.Procurement;
 
 namespace SwiftExport.Application.Tests.Procurement;
@@ -22,24 +23,24 @@ public sealed class ProcurementOrderPolicyTests
     [TestMethod]
     public void AmountRejectsInvalidPrecisionAndOverflow()
     {
-        Assert.ThrowsExactly<InvalidOperationException>(() => ProcurementOrderPolicy.Amount(0m, 1m));
-        Assert.ThrowsExactly<InvalidOperationException>(() => ProcurementOrderPolicy.Amount(1.00001m, 1m));
-        Assert.ThrowsExactly<InvalidOperationException>(() => ProcurementOrderPolicy.Amount(1m, 0.0000001m));
-        Assert.ThrowsExactly<InvalidOperationException>(() => ProcurementOrderPolicy.Amount(99999999999999.9999m, 999999999999.999999m));
-        Assert.ThrowsExactly<InvalidOperationException>(() => ProcurementOrderPolicy.Amount(1m, -1m));
+        Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.Amount(0m, 1m));
+        Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.Amount(1.00001m, 1m));
+        Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.Amount(1m, 0.0000001m));
+        Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.Amount(99999999999999.9999m, 999999999999.999999m));
+        Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.Amount(1m, -1m));
     }
 
     /// <summary>新保存协议物理上没有客户、供应商、数量、产品或收货目标字段。</summary>
     [TestMethod]
     public void SaveContractCannotExpressIdentityOrQuantityChanges()
     {
-        var header = typeof(SaveProcurementOrderCommand).GetProperties().Select(x => x.Name).ToArray();
-        var line = typeof(SaveProcurementOrderLineCommand).GetProperties().Select(x => x.Name).ToArray();
-        foreach (var name in new[] { "CustomerId", "SupplierId", "ExecutionModel", "OriginKind" })
+        var header = typeof(UpdatePurchaseOrderDraftCommand).GetProperties().Select(x => x.Name).ToArray();
+        var line = typeof(UpdatePurchaseOrderDraftLineCommand).GetProperties().Select(x => x.Name).ToArray();
+        foreach (var name in new[] { "CustomerId", "SupplierId", "OriginKind" })
             Assert.DoesNotContain(name, header);
         foreach (var name in new[] { "Quantity", "ProductId", "UnitSnapshot", "WarehouseSiteId", "UnlinkedQty", "AllocationId" })
             Assert.DoesNotContain(name, line);
-        Assert.IsFalse(typeof(ProcurementOrderDetailDto).GetProperties().Any(x =>
+        Assert.IsFalse(typeof(PurchaseOrderDetailDto).GetProperties().Any(x =>
             x.Name is "Head" or "Operations" or "ProgressHistory" or "Contributions"));
     }
 
@@ -47,11 +48,11 @@ public sealed class ProcurementOrderPolicyTests
     [TestMethod]
     public void CommercialPatchPreservesFixedIdentity()
     {
-        var head = new PurchaseOrderHead { Uid = Guid.NewGuid(), ExecutionModel = 1, OriginKind = 2, CustomerId = Guid.NewGuid(), SupplierId = Guid.NewGuid() };
+        var head = new PurchaseOrderHead { Uid = Guid.NewGuid(), OriginKind = 2, CustomerId = Guid.NewGuid(), SupplierId = Guid.NewGuid() };
         var line = new PurchaseOrderLine { Uid = Guid.NewGuid(), ProductId = Guid.NewGuid(), Quantity = 12m,
             UnlinkedQty = 12m, UnitSnapshot = "PCS", DeliveryWarehouseSiteId = Guid.NewGuid() };
         var identity = (head.CustomerId, head.SupplierId, line.ProductId, line.Quantity, line.UnitSnapshot, line.DeliveryWarehouseSiteId);
-        ProcurementOrderPolicy.ApplySave(head, [line], new SaveProcurementOrderCommand
+        ProcurementOrderPolicy.ApplySave(head, [line], new UpdatePurchaseOrderDraftCommand
         {
             ExpectedVersion = 1, Lines = [new() { PurchaseOrderLineId = line.Uid, ExpectedVersion = 1, TaxPrice = 3m, SupplierSku = "  S-1  " }]
         });
@@ -64,7 +65,7 @@ public sealed class ProcurementOrderPolicyTests
     [TestMethod]
     public void TextOverflowIsRejectedInsteadOfTruncated()
     {
-        Assert.ThrowsExactly<InvalidOperationException>(() => ProcurementOrderPolicy.Text("1234", 3, "内容"));
+        Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.Text("1234", 3, "内容"));
         Assert.IsNull(ProcurementOrderPolicy.Text("  ", 3, "内容"));
     }
 }

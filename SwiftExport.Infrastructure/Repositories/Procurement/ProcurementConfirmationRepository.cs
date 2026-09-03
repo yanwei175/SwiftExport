@@ -10,7 +10,7 @@ public sealed class ProcurementConfirmationRepository(RepositoryBaseContext cont
     public async Task<List<PurchaseConfirmationLine>> GetLinesAsync(Guid orderId, Guid confirmationId, CancellationToken ct)
         => (await context.Session.Connection.QueryAsync<PurchaseConfirmationLine>(new CommandDefinition("""
             SELECT s.* FROM dbo.PurchaseConfirmationLine s
-            JOIN dbo.PurchaseOrderHead h ON h.Uid=s.PurchaseOrderId AND h.ExecutionModel=1 AND h.IsDeleted=0
+            JOIN dbo.PurchaseOrderHead h ON h.Uid=s.PurchaseOrderId AND h.IsDeleted=0
             WHERE s.PurchaseOrderId=@orderId AND s.ConfirmationId=@confirmationId ORDER BY s.PurchaseOrderLineId;
             """, new { orderId, confirmationId }, context.Session.Transaction, cancellationToken: ct))).ToList();
     /// <inheritdoc/>
@@ -18,7 +18,7 @@ public sealed class ProcurementConfirmationRepository(RepositoryBaseContext cont
         => (await context.Session.Connection.QueryAsync<PurchaseConfirmationNode>(new CommandDefinition("""
             SELECT n.* FROM dbo.PurchaseConfirmationNode n
             JOIN dbo.PurchaseConfirmationLine s ON s.Uid=n.ConfirmationLineId
-            JOIN dbo.PurchaseOrderHead h ON h.Uid=s.PurchaseOrderId AND h.ExecutionModel=1 AND h.IsDeleted=0
+            JOIN dbo.PurchaseOrderHead h ON h.Uid=s.PurchaseOrderId AND h.IsDeleted=0
             WHERE s.PurchaseOrderId=@orderId AND s.ConfirmationId=@confirmationId ORDER BY n.ConfirmationLineId,n.Path;
             """, new { orderId, confirmationId }, context.Session.Transaction, cancellationToken: ct))).ToList();
 }

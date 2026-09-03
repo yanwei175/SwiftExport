@@ -11,8 +11,6 @@ namespace SwiftExport.Core.Entities.Procurement;
 [Table("PurchaseOrderHead")]
 public sealed class PurchaseOrderHead : BaseEntity
 {
-    /// <summary>执行链所有权：0 为既有需求采购链，1 为独立采购新链；创建后不可改变。</summary>
-    public int ExecutionModel { get; set; }
     /// <summary>来源类别：0 为历史未分类，1 为需求，2 为手工；不以来源缺失推断类别。</summary>
     public int OriginKind { get; set; }
     /// <summary>采购货物的客户归属；历史未知记录保持空值。</summary>

@@ -32,7 +32,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
         var sql = $"""
             SELECT {HeadColumns}
             FROM dbo.PurchaseOrderHead h WITH (UPDLOCK,HOLDLOCK)
-            WHERE h.ExecutionModel=0 AND h.ExecutionRequestId=@ExecutionRequestId
+            WHERE h.ExecutionRequestId=@ExecutionRequestId
               AND h.DemandSourceType=@SourceType
               AND h.DemandSourceUid=@SourceUid
               AND h.SupplierId=@SupplierId
@@ -63,7 +63,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
             SELECT h.Uid AS PurchaseOrderId,h.Version,h.OrderNo,
                    h.DemandSourceType AS SourceType,h.DemandSourceUid AS SourceUid,h.SupplierId
             FROM dbo.PurchaseOrderHead h
-            WHERE h.ExecutionModel=0 AND h.DemandSourceType=@SourceType
+            WHERE h.DemandSourceType=@SourceType
               AND h.DemandSourceUid=@SourceUid
               AND h.SupplierId IN @SupplierIds
               AND h.LifecycleStatus=@ActiveLifecycle
@@ -94,7 +94,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
         var sql = $"""
             SELECT {HeadColumns}
             FROM dbo.PurchaseOrderHead h WITH (UPDLOCK,HOLDLOCK)
-            WHERE h.ExecutionModel=0 AND h.Uid=@Uid AND h.Version=@ExpectedVersion
+            WHERE h.Uid=@Uid AND h.Version=@ExpectedVersion
               AND h.LifecycleStatus=@ActiveLifecycle
               AND h.ConfirmationStatus=@PendingConfirmation
               AND h.DemandSourceType<>N''
@@ -122,7 +122,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
         var ids = uids.Where(x => x != Guid.Empty).Distinct().ToArray();
         if (ids.Length == 0) return [];
         var rows = await Session.Connection.QueryAsync<PurchaseOrderHead>(new CommandDefinition(
-            $"SELECT {HeadColumns} FROM dbo.PurchaseOrderHead h WHERE h.ExecutionModel=0 AND h.Uid IN @Ids AND h.IsDeleted=0 ORDER BY h.DemandSourceType,h.DemandSourceUid,h.SupplierId,h.Uid;",
+            $"SELECT {HeadColumns} FROM dbo.PurchaseOrderHead h WHERE h.Uid IN @Ids AND h.IsDeleted=0 ORDER BY h.DemandSourceType,h.DemandSourceUid,h.SupplierId,h.Uid;",
             new { Ids = ids },
             Session.Transaction,
             cancellationToken: cancellationToken));
@@ -134,7 +134,6 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
     {
         ArgumentNullException.ThrowIfNull(head);
         if (head.Uid == Guid.Empty) throw new ArgumentException("采购草稿必须由 Application 预生成 Uid。", nameof(head));
-        if (head.ExecutionModel != 0) throw new ArgumentException("旧采购仓储不能创建新执行链订单。", nameof(head));
         context.AuditStamp.StampForInsert(head);
         head.IsDeleted = false;
         if (head.Version <= 0) head.Version = 1;
@@ -142,14 +141,14 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
         const string sql = """
             INSERT INTO dbo.PurchaseOrderHead
             (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,
-             ExecutionModel,ConfirmationStatus,LifecycleStatus,OrderNo,BoNo,CustomerPoNo,CustomerCode,Currency,
+             ConfirmationStatus,LifecycleStatus,OrderNo,BoNo,CustomerPoNo,CustomerCode,Currency,
              SupplierId,SupplierCode,SupplierName,DemandSourceType,DemandSourceUid,DemandSourceNo,
              ExecutionRequestId,SoPerson,PoPerson,InletrHoseType,AeratorType,PalletType,BoxType,
              LabelType,IMType,CartonType,LogoType,ReviewedBy,PoFolder,ZheKouBeiZhu,Remark,
              OrderDate,ExpectedDate,ReplyDate,ConfirmedDate,ConfirmedBy)
             VALUES
             (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
-             0,@ConfirmationStatus,@LifecycleStatus,@OrderNo,@BoNo,@CustomerPoNo,@CustomerCode,@Currency,
+             @ConfirmationStatus,@LifecycleStatus,@OrderNo,@BoNo,@CustomerPoNo,@CustomerCode,@Currency,
              @SupplierId,@SupplierCode,@SupplierName,@DemandSourceType,@DemandSourceUid,@DemandSourceNo,
              @ExecutionRequestId,@SoPerson,@PoPerson,@InletrHoseType,@AeratorType,@PalletType,@BoxType,
              @LabelType,@IMType,@CartonType,@LogoType,@ReviewedBy,@PoFolder,@ZheKouBeiZhu,@Remark,
@@ -166,7 +165,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
             SELECT COALESCE(MAX(LineNumber),0)
             FROM dbo.PurchaseOrderLine WITH (UPDLOCK,HOLDLOCK)
             WHERE PurchaseOrderId=@PurchaseOrderId AND IsDeleted=0
-              AND EXISTS(SELECT 1 FROM dbo.PurchaseOrderHead owner WHERE owner.Uid=@PurchaseOrderId AND owner.ExecutionModel=0 AND owner.IsDeleted=0);
+              AND EXISTS(SELECT 1 FROM dbo.PurchaseOrderHead owner WHERE owner.Uid=@PurchaseOrderId AND owner.IsDeleted=0);
             """, new { PurchaseOrderId = purchaseOrderId }, transaction: Session.Transaction);
     }
 
@@ -188,8 +187,8 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
 
         const string sql = """
             IF NOT EXISTS(SELECT 1 FROM dbo.PurchaseOrderHead owner WITH (UPDLOCK,HOLDLOCK)
-                          WHERE owner.Uid=@PurchaseOrderId AND owner.ExecutionModel=0 AND owner.IsDeleted=0)
-                THROW 51000,N'旧采购仓储不能向新执行链订单追加采购行。',1;
+                          WHERE owner.Uid=@PurchaseOrderId AND owner.IsDeleted=0)
+                THROW 51000,N'采购单不存在或已删除，不能追加采购行。',1;
             INSERT INTO dbo.PurchaseOrderLine
             (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,
              PurchaseOrderId,LineNumber,OrderNo,ProductId,Sku,CustomerSku,LinkSku,SupplierSku,
@@ -219,7 +218,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
         var sql = $"""
             SELECT {HeadColumns}
             FROM dbo.PurchaseOrderHead h {lockHint}
-            WHERE h.ExecutionModel=0 AND h.Uid=@Uid AND h.IsDeleted=0
+            WHERE h.Uid=@Uid AND h.IsDeleted=0
               AND h.ExecutionRequestId<>@EmptyUid
               AND h.DemandSourceType<>N''
               AND h.DemandSourceUid<>@EmptyUid
@@ -235,7 +234,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
         if (uid == Guid.Empty) throw new ArgumentException("采购头 Uid 不能为空。", nameof(uid));
         var predicate = withUpdLock ? SafeFactsPredicateWithLocks : SafeFactsPredicate;
         var headLock = withUpdLock ? "WITH (UPDLOCK,HOLDLOCK)" : "WITH (NOLOCK)";
-        var sql = $"SELECT CAST(CASE WHEN {predicate} THEN 0 ELSE 1 END AS bit) FROM dbo.PurchaseOrderHead h {headLock} WHERE h.ExecutionModel=0 AND h.Uid=@Uid AND h.IsDeleted=0;";
+        var sql = $"SELECT CAST(CASE WHEN {predicate} THEN 0 ELSE 1 END AS bit) FROM dbo.PurchaseOrderHead h {headLock} WHERE h.Uid=@Uid AND h.IsDeleted=0;";
         return Session.Connection.ExecuteScalarAsync<bool>(sql, new { Uid = uid }, transaction: Session.Transaction);
     }
 
@@ -248,7 +247,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
                    PurchaseOrderId,LineNumber,QTY AS Quantity,UnitPrice,TaxPrice
             FROM dbo.PurchaseOrderLine WITH (UPDLOCK,HOLDLOCK)
             WHERE PurchaseOrderId=@PurchaseOrderId AND IsDeleted=0
-              AND EXISTS(SELECT 1 FROM dbo.PurchaseOrderHead owner WHERE owner.Uid=@PurchaseOrderId AND owner.ExecutionModel=0 AND owner.IsDeleted=0)
+              AND EXISTS(SELECT 1 FROM dbo.PurchaseOrderHead owner WHERE owner.Uid=@PurchaseOrderId AND owner.IsDeleted=0)
             ORDER BY LineNumber,Uid;
             """, new { PurchaseOrderId = purchaseOrderId }, transaction: Session.Transaction);
         return [.. rows];
@@ -263,7 +262,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
                             WHEN NULLIF(Remark,N'') IS NULL THEN @Reason
                             ELSE CONCAT(Remark,N'；',@Reason) END,
                 Version=Version+1
-            WHERE Uid=@Uid AND ExecutionModel=0 AND Version=@ExpectedVersion AND LifecycleStatus=@Active
+            WHERE Uid=@Uid AND Version=@ExpectedVersion AND LifecycleStatus=@Active
               AND ConfirmationStatus=@Pending AND ExecutionRequestId<>@EmptyUid
               AND DemandSourceType<>N'' AND DemandSourceUid<>@EmptyUid
               AND SupplierId<>@EmptyUid AND IsDeleted=0;
@@ -296,7 +295,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
                              ELSE CONCAT(SubNote,N'；',@Reason) END,
                 UpdatedDate=@Now,UpdatedBy=@UserName,Version=Version+1
             WHERE Uid=@Uid AND IsDeleted=0
-              AND EXISTS(SELECT 1 FROM dbo.PurchaseOrderHead owner WHERE owner.Uid=dbo.PurchaseOrderLine.PurchaseOrderId AND owner.ExecutionModel=0 AND owner.IsDeleted=0);
+              AND EXISTS(SELECT 1 FROM dbo.PurchaseOrderHead owner WHERE owner.Uid=dbo.PurchaseOrderLine.PurchaseOrderId AND owner.IsDeleted=0);
             """;
         foreach (var item in quantities)
         {
@@ -331,7 +330,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
                 FROM dbo.PurchaseOrderLine l WITH (UPDLOCK,HOLDLOCK)
                 WHERE l.PurchaseOrderId=h.Uid AND l.IsDeleted=0 AND l.QTY>0
             ) facts
-            WHERE h.ExecutionModel=0 AND h.Uid=@Uid AND h.Version=@ExpectedVersion AND h.LifecycleStatus=@Active
+            WHERE h.Uid=@Uid AND h.Version=@ExpectedVersion AND h.LifecycleStatus=@Active
               AND h.ConfirmationStatus=@Pending AND h.IsDeleted=0 {safeFacts};
             """;
         return Session.Connection.ExecuteAsync(sql, new
@@ -352,7 +351,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
     }
 
     private const string HeadColumns = """
-        h.Uid,h.ExecutionModel,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,
+        h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,
         h.ConfirmationStatus,h.LifecycleStatus,h.OrderNo,h.BoNo,h.CustomerPoNo,h.CustomerCode,h.Currency,
         h.SupplierId,h.SupplierCode,h.SupplierName,h.DemandSourceType,h.DemandSourceUid,h.DemandSourceNo,
         h.ExecutionRequestId,h.SoPerson,h.PoPerson,h.InletrHoseType,h.AeratorType,h.PalletType,h.BoxType,

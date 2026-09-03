@@ -120,43 +120,6 @@ namespace SwiftExport.Contracts.SysEnums
     }
 
     /// <summary>
-    /// 采购单据自身的生命周期；草稿由 Active + 待确认共同表达。
-    /// </summary>
-    public enum PurchaseOrderLifecycleStatusEnum
-    {
-        [System.ComponentModel.Description("活动")]
-        Active = 0,
-        [System.ComponentModel.Description("已关闭")]
-        Closed = 8,
-        [System.ComponentModel.Description("已作废")]
-        Voided = 9
-    }
-
-    /// <summary>
-    /// 转采购草稿入口。三个入口只影响选量规则，不改变采购分组和追溯规则。
-    /// </summary>
-    public enum PurchaseDraftEntryModeEnum
-    {
-        ManualSelection = 0,
-        SourceOneClick = 1,
-        PurchaseWorkspace = 2
-    }
-
-    /// <summary>采购草稿预览行的组织方式。</summary>
-    public enum PurchaseDraftLineModeEnum
-    {
-        KeepSourceLines = 0,
-        MergeCompatibleLines = 1
-    }
-
-    /// <summary>采购草稿写入目标。来源一键入口只允许 CreateNew。</summary>
-    public enum PurchaseDraftTargetModeEnum
-    {
-        CreateNew = 0,
-        AppendExisting = 1
-    }
-
-    /// <summary>
     /// 毛需求批量命令的逐项结果。
     /// </summary>
     public enum GrossDemandCommandOutcomeEnum

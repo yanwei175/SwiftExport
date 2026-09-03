@@ -21,8 +21,6 @@ IF COL_LENGTH(N'dbo.Customer',N'IsActive') IS NULL
 IF COL_LENGTH(N'dbo.Supplier',N'IsActive') IS NULL
     ALTER TABLE dbo.Supplier ADD IsActive bit NOT NULL CONSTRAINT DF_Supplier_ExecutionActive DEFAULT(1) WITH VALUES;
 
-IF COL_LENGTH(N'dbo.PurchaseOrderHead',N'ExecutionModel') IS NULL ALTER TABLE dbo.PurchaseOrderHead ADD ExecutionModel int NOT NULL CONSTRAINT DF_PO_ExecutionModel DEFAULT(0) WITH VALUES;
-
 IF COL_LENGTH(N'dbo.PurchaseOrderHead',N'OriginKind') IS NULL ALTER TABLE dbo.PurchaseOrderHead ADD OriginKind int NOT NULL CONSTRAINT DF_PO_OriginKind DEFAULT(0) WITH VALUES;
 
 IF COL_LENGTH(N'dbo.PurchaseOrderHead',N'CustomerId') IS NULL ALTER TABLE dbo.PurchaseOrderHead ADD CustomerId uniqueidentifier NULL;
@@ -100,35 +98,34 @@ BEGIN
     CREATE INDEX IX_PurchaseConfirmationNode_Product ON dbo.PurchaseConfirmationNode(ComponentProductId);
 END;
 
-IF OBJECT_ID(N'dbo.CK_PO_NewExecutionIdentity',N'C') IS NULL
-EXEC(N'ALTER TABLE dbo.PurchaseOrderHead WITH CHECK ADD CONSTRAINT CK_PO_NewExecutionIdentity CHECK(
-    ExecutionModel IN(0,1) AND OriginKind IN(0,1,2) AND
-    (ExecutionModel=0 OR (OriginKind=2 AND CustomerId IS NOT NULL AND CustomerId<>''00000000-0000-0000-0000-000000000000''
+IF OBJECT_ID(N'dbo.CK_PO_OriginIdentity',N'C') IS NULL
+EXEC(N'ALTER TABLE dbo.PurchaseOrderHead WITH CHECK ADD CONSTRAINT CK_PO_OriginIdentity CHECK(
+    OriginKind IN(0,1,2) AND
+    (OriginKind<>2 OR (CustomerId IS NOT NULL AND CustomerId<>''00000000-0000-0000-0000-000000000000''
         AND SupplierId<>''00000000-0000-0000-0000-000000000000'' AND Currency=N''CNY''
         AND DemandSourceType IS NULL AND DemandSourceUid IS NULL AND DemandSourceNo IS NULL
         AND ((ConfirmationStatus=0 AND ActiveConfirmationId IS NULL) OR (ConfirmationStatus=1 AND ActiveConfirmationId IS NOT NULL)))));');
 
-EXEC(N'CREATE OR ALTER TRIGGER dbo.TR_PurchaseOrder_ExecutionIdentity ON dbo.PurchaseOrderHead AFTER UPDATE AS
+EXEC(N'CREATE OR ALTER TRIGGER dbo.TR_PurchaseOrder_FixedIdentity ON dbo.PurchaseOrderHead AFTER UPDATE AS
 BEGIN
     SET NOCOUNT ON;
-    -- 新旧链所有权以及新链固定商业身份永远不通过更新转换。
-    IF EXISTS(SELECT 1 FROM inserted i JOIN deleted d ON d.Uid=i.Uid WHERE i.ExecutionModel<>d.ExecutionModel
-        OR (d.ExecutionModel=1 AND EXISTS(
+    -- 手工采购的固定商业身份永远不通过更新转换。
+    IF EXISTS(SELECT 1 FROM inserted i JOIN deleted d ON d.Uid=i.Uid WHERE d.OriginKind=2 AND EXISTS(
             SELECT i.OriginKind,i.CustomerId,i.SupplierId,i.OrderNo,i.OrderDate,i.Currency,i.CustomerCode,i.CustomerNameSnapshot,i.SupplierCode,i.SupplierName,i.ExecutionRequestId
-            EXCEPT SELECT d.OriginKind,d.CustomerId,d.SupplierId,d.OrderNo,d.OrderDate,d.Currency,d.CustomerCode,d.CustomerNameSnapshot,d.SupplierCode,d.SupplierName,d.ExecutionRequestId)))
-        THROW 52002,N''执行链所有权和独立采购固定身份不可更新。'',1;
+            EXCEPT SELECT d.OriginKind,d.CustomerId,d.SupplierId,d.OrderNo,d.OrderDate,d.Currency,d.CustomerCode,d.CustomerNameSnapshot,d.SupplierCode,d.SupplierName,d.ExecutionRequestId))
+        THROW 52002,N''手工采购固定身份不可更新。'',1;
 END;');
 
 EXEC(N'CREATE OR ALTER TRIGGER dbo.TR_PurchaseOrderLine_IndependentIdentity ON dbo.PurchaseOrderLine AFTER INSERT,UPDATE AS
 BEGIN
     SET NOCOUNT ON;
-    IF EXISTS(SELECT 1 FROM inserted i JOIN dbo.PurchaseOrderHead h ON h.Uid=i.PurchaseOrderId WHERE h.ExecutionModel=1 AND
+    IF EXISTS(SELECT 1 FROM inserted i JOIN dbo.PurchaseOrderHead h ON h.Uid=i.PurchaseOrderId WHERE h.OriginKind=2 AND
        (i.ProductId IS NULL OR i.UnlinkedQty IS NULL OR i.UnlinkedQty<>i.QTY OR i.DeliveryWarehouseSiteId IS NULL OR i.DeliveryTargetSupplierId IS NULL
         OR NULLIF(LTRIM(RTRIM(i.UnitSnapshot)),N'''') IS NULL OR i.DeliveryTargetAllocationId IS NOT NULL
         OR i.SourceType IS NOT NULL OR i.SourceNo IS NOT NULL OR i.SourceUid IS NOT NULL OR i.SourceLineId IS NOT NULL))
         THROW 52003,N''独立采购行需要产品单位、未关联数量和明确收货目标，不接受需求来源。'',1;
     IF EXISTS(SELECT 1 FROM inserted i JOIN deleted d ON d.Uid=i.Uid JOIN dbo.PurchaseOrderHead h ON h.Uid=d.PurchaseOrderId
-       WHERE h.ExecutionModel=1 AND EXISTS(
+       WHERE h.OriginKind=2 AND EXISTS(
            SELECT i.PurchaseOrderId,i.LineNumber,i.ProductId,i.Sku,i.QTY,i.UnlinkedQty,i.UnitSnapshot,i.DeliveryWarehouseSiteId,
                i.DeliveryTargetSupplierId,i.DeliveryWarehouseCodeSnapshot,i.DeliveryWarehouseNameSnapshot,i.DeliverySupplierCodeSnapshot,i.DeliverySupplierNameSnapshot
            EXCEPT SELECT d.PurchaseOrderId,d.LineNumber,d.ProductId,d.Sku,d.QTY,d.UnlinkedQty,d.UnitSnapshot,d.DeliveryWarehouseSiteId,
@@ -139,7 +136,7 @@ END;');
 EXEC(N'CREATE OR ALTER TRIGGER dbo.TR_DemandExecutionLink_IndependentOwnership ON dbo.DemandExecutionLink AFTER INSERT,UPDATE AS
 BEGIN
     SET NOCOUNT ON;
-    IF EXISTS(SELECT 1 FROM inserted i JOIN dbo.PurchaseOrderHead h ON h.Uid=i.TargetHeadId WHERE h.ExecutionModel=1)
+    IF EXISTS(SELECT 1 FROM inserted i JOIN dbo.PurchaseOrderHead h ON h.Uid=i.TargetHeadId WHERE h.OriginKind=2)
         THROW 52005,N''本切片独立采购不接受需求贡献。'',1;
 END;');
 

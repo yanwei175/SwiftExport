@@ -58,7 +58,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<NetDemandPlanEditorViewModel>();
         services.AddTransient<NetDemandTraceViewModel>();
         services.AddTransient<PurchaseDraftPreviewViewModel>();
-        services.AddTransient<PurchaseOrderWorkspaceViewModel>();
+        services.AddTransient<PurchaseOrderManagerViewModel>();
         services.AddTransient<PurchaseOrderProgressWorkspaceViewModel>();
         services.AddTransient<PurchaseOrderDetailViewModel>();
         services.AddTransient<NetDemandPurchasePickerViewModel>();

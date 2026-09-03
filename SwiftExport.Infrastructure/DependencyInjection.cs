@@ -25,8 +25,10 @@ using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Infrastructure;
 
+/// <summary>注册数据会话、仓储与基础设施服务，保持请求级依赖共享。</summary>
 public static class DependencyInjection
 {
+    /// <summary>注册 Infrastructure 实现；当前用户由宿主提供，不在这里创建连接配置。</summary>
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
         services.AddLogging();
@@ -76,13 +78,16 @@ public static class DependencyInjection
         // 新链的事务持久化、管理投影与严格 BOM 读取使用同一请求 DbSession。
         services.AddScoped<IProcurementOrderRepository, ProcurementOrderRepository>();
         services.AddScoped<IProcurementOrderQueryRepository, ProcurementOrderQueryRepository>();
+        services.AddScoped<IPurchaseOrderManagerQueryRepository, PurchaseOrderManagerQueryRepository>();
         services.AddScoped<IProcurementConfirmationRepository, ProcurementConfirmationRepository>();
         services.AddScoped<IBomExecutionRepository, BomExecutionRepository>();
         services.AddScoped<SwiftExport.Core.Interfaces.MasterData.IExecutionEligibilityRepository, SwiftExport.Infrastructure.Repositories.MasterData.ExecutionEligibilityRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.MasterData.IProcurementMasterDataQueryRepository, SwiftExport.Infrastructure.Repositories.MasterData.ProcurementMasterDataQueryRepository>();
         services.AddScoped<ISupplierProgressReportRepository, SupplierProgressReportRepository>();
         services.AddScoped<IBusinessOperationLogRepository, BusinessOperationLogRepository>();
         services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();
         services.AddScoped<IWarehouseSiteRepository, WarehouseSiteRepository>();
+        services.AddScoped<IWarehouseCandidateRepository, WarehouseCandidateRepository>();
         services.AddScoped<IInventoryRepository, InventoryRepository>();
         services.AddScoped<IInboundDocumentRepository, InboundDocumentRepository>();
         services.AddScoped<IInboundSourceRepository, InboundSourceRepository>();

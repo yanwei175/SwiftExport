@@ -3,6 +3,7 @@ using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure.Data;
 using System.Collections.Generic;
@@ -60,7 +61,7 @@ public class AuthController(
     // GET /api/auth/me
     // ──────────────────────────────────────────────────────
 
-    /// <summary>获取当前登录用户信息（含角色列表，需携带 JWT）</summary>
+    /// <summary>获取当前登录用户信息、业务角色和稳定权限键（需携带 JWT）。</summary>
     [HttpGet("me")]
     [Authorize]  // 强制解析 Bearer Token
     public async Task<IActionResult> Me()
@@ -74,13 +75,14 @@ public class AuthController(
                      ?? User.FindFirstValue("unique_name");
 
         // 查询用户角色列表
-        var roles = new List<string>();
+        var assignedNames = new List<string>();
         if (Guid.TryParse(userUidStr, out var userUid))
         {
             var userRoles = await _userRoleRepo.GetByUserIdAsync(userUid);
-            roles = userRoles
+            assignedNames = userRoles
                 .Where(r => !string.IsNullOrEmpty(r.RoleName))
                 .Select(r => r.RoleName!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
 
@@ -89,12 +91,17 @@ public class AuthController(
             ? await _userRepo.GetByIdAsync(parsedUid)
             : null;
 
-        return Ok(new
+        // 当前库把权限键存放在角色表中；API 投影时分离两种语义，避免客户端继续把角色名当权限键。
+        var permissions = PermissionKeys.ExtractPermissions(assignedNames);
+        var roles = PermissionKeys.ExtractRoles(assignedNames);
+
+        return Ok(new MeDto
         {
             UserId   = userUidStr,
             UserName = userName,
             NickName = user?.NickName ?? userName,
-            Roles    = roles
+            Roles    = roles,
+            Permissions = permissions
         });
     }
 

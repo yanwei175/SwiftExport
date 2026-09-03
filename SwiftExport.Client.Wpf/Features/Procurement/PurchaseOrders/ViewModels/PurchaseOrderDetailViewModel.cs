@@ -1,12 +1,19 @@
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using SwiftExport.Contracts.Apis.Inventory;
+using SwiftExport.Contracts.Apis.MasterData;
 using SwiftExport.Contracts.Apis.Procurement;
-using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
+using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
-using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
@@ -14,168 +21,270 @@ using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 
-public sealed class PurchaseOrderDocumentOpenRequest
-{
-    public Guid PurchaseOrderId { get; set; }
-}
-
-/// <summary>采购单完整详情文档；字段覆盖旧采购管理与详情页面，但只调用新采购工作台 API。</summary>
+/// <summary>采购详情文档；统一处理手工创建、草稿商务编辑、确认绑定及确认状态命令。</summary>
 public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDocumentTabViewModel, IDocumentTabInitializable, IDisposable
 {
     public const string RouteKey = "procurement-purchase-order-detail";
-    private readonly IPurchaseOrderWorkspaceApi _api;
-    private readonly IApiCallRunner _runner;
+    private readonly IProcurementOrderApi _api;
+    private readonly IProcurementMasterDataQueryApi _masterData;
+    private readonly IWarehouseSiteApi _warehouses;
     private readonly IDialogService _dialogs;
     private readonly IMessageService _messages;
-    private readonly IPurchaseOrderTraceExportService _exportService;
     private readonly INavigationService _navigation;
+    private readonly ICurrentUserService _currentUser;
+    private Guid _saveCommandId, _confirmCommandId, _cancelCommandId, _createCommandId;
     private bool _loading;
+    private CancellationTokenSource? _loadCts;
+    private long _loadSequence;
 
-    public PurchaseOrderDetailViewModel(IPurchaseOrderWorkspaceApi api, IApiCallRunner runner, IDialogService dialogs,
-        IMessageService messages, IPurchaseOrderTraceExportService exportService, INavigationService navigation)
+    public PurchaseOrderDetailViewModel(IProcurementOrderApi api, IProcurementMasterDataQueryApi masterData,
+        IWarehouseSiteApi warehouses, IDialogService dialogs, IMessageService messages,
+        INavigationService navigation, ICurrentUserService currentUser)
     {
-        _api = api; _runner = runner; _dialogs = dialogs; _messages = messages; _exportService = exportService; _navigation = navigation;
-        Title = "采购单详情";
-        Header.PropertyChanged += OnEditablePropertyChanged;
-        RegisterBusyAwareCommand(SaveCommand); RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
-        RegisterBusyAwareCommand(OpenTraceCommand); RegisterBusyAwareCommand(ExportCommand);
+        _api = api; _masterData = masterData; _warehouses = warehouses; _dialogs = dialogs;
+        _messages = messages; _navigation = navigation; _currentUser = currentUser;
+        Title = "采购订单详情";
+        Lines.ListStateChanged += OnLinesStateChanged;
+        Header.PropertyChanged += OnHeaderPropertyChanged;
+        RegisterBusyAwareCommand(CreateCommand); RegisterBusyAwareCommand(SaveCommand);
+        RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
         RegisterBusyAwareCommand(RefreshCommand); RegisterBusyAwareCommand(CloseDocumentCommand);
     }
 
     public PurchaseOrderHeaderEditorModel Header { get; } = new();
-    public ObservableCollection<PurchaseOrderLineEditorModel> Lines { get; } = [];
-    public ObservableCollection<BusinessOperationTraceItemDto> Operations { get; } = [];
-    public string DocumentTitle => string.IsNullOrWhiteSpace(Header.OrderNo) ? "采购单详情" : Header.OrderNo;
-    public bool HasUnsavedChanges => IsDirty;
-    public bool IsDraftEditable => Header.CanEditDraft && IsNotBusy;
-    public string ArrangementSummary => $"已安排 {Lines.Count(x => x.LatestProgress?.ArrangementStatus == SupplierArrangementStatusEnum.Arranged)}/{Lines.Count}";
-    [ObservableProperty] public partial PurchaseOrderLineEditorModel? SelectedLine { get; set; }
-    [ObservableProperty] public partial string CancellationReason { get; set; } = string.Empty;
+    public PurchaseOrderLineListModel Lines { get; } = new();
+    public List<ProcurementConfirmationBindingModel> ConfirmationBindings { get; } = [];
+    public List<ProcurementCustomerCandidateDto> CustomerCandidates { get; } = [];
+    public List<ProcurementSupplierCandidateDto> SupplierCandidates { get; } = [];
+    public List<ProcurementProductCandidateDto> ProductCandidates { get; } = [];
+    public List<WarehouseCandidateDto> WarehouseCandidates { get; } = [];
+    public string DocumentTitle => IsCreateMode ? "新建采购" : string.IsNullOrWhiteSpace(OrderNo) ? "采购订单详情" : OrderNo;
+    public bool HasUnsavedChanges => HeaderHasChanges || Lines.HasChanges;
+    public bool HasReadPermission => _currentUser.HasPermission(PermissionKeys.ProcurementOrderRead);
+    public bool HasCreatePermission => _currentUser.HasPermission(PermissionKeys.ProcurementOrderCreate);
+    public bool CanEdit => !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderEdit) && Header.CanEditDraft;
+    public bool CanConfirm => !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm) && Header.CanConfirm;
+    public bool CanCancel => !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm) && Header.CanCancelConfirmation;
 
-    public Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
+    [ObservableProperty] public partial bool IsCreateMode { get; set; }
+    [ObservableProperty] public partial bool HeaderHasChanges { get; set; }
+    [ObservableProperty] public partial bool HasConfirmationBindings { get; set; }
+    [ObservableProperty] public partial Guid PurchaseOrderId { get; set; }
+    [ObservableProperty] public partial string OrderNo { get; set; } = string.Empty;
+    [ObservableProperty] public partial int Version { get; set; }
+    [ObservableProperty] public partial ConfirmationStatusEnum ConfirmationStatus { get; set; }
+    [ObservableProperty] public partial PurchaseOrderLifecycleStatusEnum LifecycleStatus { get; set; }
+    [ObservableProperty] public partial ProcurementCustomerCandidateDto? SelectedCustomer { get; set; }
+    [ObservableProperty] public partial ProcurementSupplierCandidateDto? SelectedSupplier { get; set; }
+    [ObservableProperty] public partial DateTime OrderDate { get; set; } = DateTime.Today;
+    [ObservableProperty] public partial string CancellationReason { get; set; } = string.Empty;
+    [ObservableProperty] public partial string StatusText { get; set; } = "正在初始化采购详情...";
+    [ObservableProperty] public partial int SelectedDetailTabIndex { get; set; }
+
+    /// <summary>根据文档参数进入创建或新链详情，不再在详情页切换旧链。</summary>
+    public async Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
     {
         var request = parameter as PurchaseOrderDocumentOpenRequest;
-        return request?.PurchaseOrderId is Guid uid && uid != Guid.Empty ? LoadAsync(uid, cancellationToken) : Task.CompletedTask;
+        if (request is null || request.PurchaseOrderId == Guid.Empty)
+        {
+            if (!HasCreatePermission) { StatusText = "当前账号没有创建采购订单的权限。"; return; }
+            await LoadCandidatesAsync(cancellationToken); InitializeCreate(); return;
+        }
+        if (!HasReadPermission) { StatusText = "当前账号没有读取采购订单的权限。"; return; }
+        await LoadWarehouseCandidatesAsync(cancellationToken);
+        await LoadAsync(request.PurchaseOrderId, cancellationToken);
     }
 
     public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)
+        => !IsBusy && (!HasUnsavedChanges || await _dialogs.ConfirmAsync("关闭采购详情", "存在未保存修改，确定放弃吗？", "放弃并关闭", "继续编辑", cancellationToken));
+
+    [RelayCommand] private void AddLine()
     {
-        if (IsBusy) return false;
-        if (!HasUnsavedChanges) return true;
-        return await _dialogs.ConfirmAsync("关闭采购详情", "当前采购草稿有未保存修改，确定放弃并关闭吗？", "放弃并关闭", "继续编辑", cancellationToken);
+        if (!IsCreateMode) return;
+        Lines.AddNew(new PurchaseOrderLineDetailDto { Uid = Guid.NewGuid(), LineNumber = Lines.Items.Count + 1, Quantity = 1m });
+        NotifyState();
     }
 
-    [RelayCommand(CanExecute = nameof(CanSave))]
+    [RelayCommand] private void RemoveLine(PurchaseOrderLineEditModel? line)
+    {
+        if (!IsCreateMode || line is null || !line.IsNew) return;
+        Lines.Remove(line); NotifyState();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCreateCommand))]
+    private async Task CreateAsync()
+    {
+        var error = await Lines.ValidateAllAsync();
+        if (SelectedCustomer is null || SelectedSupplier is null || Lines.Items.Count == 0 || error is not null)
+        { _messages.ShowWarning("创建信息不完整", error ?? "请选择客户、实际供应商并至少新增一条采购行。"); return; }
+        _createCommandId = _createCommandId == Guid.Empty ? Guid.NewGuid() : _createCommandId;
+        var result = await _api.CreateAsync(new CreateIndependentPurchaseOrderCommand
+        {
+            CommandId = _createCommandId, CustomerId = SelectedCustomer.Uid, SupplierId = SelectedSupplier.Uid,
+            OrderDate = OrderDate, Remark = Header.Remark, PackagingRequirements = Header.PackagingRequirements,
+            Lines = Lines.Items.Select(x => new CreateIndependentPurchaseOrderLineCommand
+            {
+                ProductId = x.Product!.Uid, WarehouseSiteId = x.Warehouse!.Uid, Quantity = x.Quantity,
+                UnitPrice = x.UnitPrice, TaxPrice = x.TaxPrice, PlannedDeliveryDate = x.PlannedDeliveryDate,
+                SupplierSku = x.SupplierSku, DescriptionZh = x.DescriptionZh, SubNote = x.SubNote
+            }).ToList()
+        });
+        if (!Handle(result.ToClientResult(), "创建采购失败")) return;
+        _createCommandId = Guid.Empty; IsCreateMode = false;
+        _navigation.UpdateDocumentKey(this, $"purchase-order:new:{result.Data!.PurchaseOrderId:N}");
+        await LoadAsync(result.Data.PurchaseOrderId, CancellationToken.None);
+        _messages.ShowSuccess("采购已创建", result.Data.OrderNo);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSaveCommand))]
     private async Task SaveAsync()
     {
-        if (!await _dialogs.ConfirmAsync("保存采购草稿", "保存商业、包装、交期、供应商 SKU、描述、价格和备注；不会修改数量、供应商或需求来源。", "保存")) return;
-        await RunWriteAsync(async () =>
+        var error = await Lines.ValidateAllAsync();
+        if (error is not null) { _messages.ShowWarning("采购行校验失败", error); return; }
+        _saveCommandId = _saveCommandId == Guid.Empty ? Guid.NewGuid() : _saveCommandId;
+        var result = await _api.SaveAsync(PurchaseOrderId, new UpdatePurchaseOrderDraftCommand
         {
-            var result = await _runner.RunAsync(() => _api.UpdateDraftAsync(Header.Uid, CreateUpdateCommand()), "保存采购草稿失败");
-            if (!result.Success) { _messages.ShowError("保存失败", result.Message); return; }
-            _messages.ShowSuccess("采购草稿已保存", Header.OrderNo); await LoadAsync(Header.Uid, CancellationToken.None);
-        }, "正在保存采购草稿...");
+            CommandId = _saveCommandId, ExpectedVersion = Version, Remark = Header.Remark,
+            PackagingRequirements = Header.PackagingRequirements, DiscountRemark = Header.DiscountRemark,
+            Lines = Lines.Items.Select(x => new UpdatePurchaseOrderDraftLineCommand
+            {
+                PurchaseOrderLineId = x.Uid, ExpectedVersion = x.Version, UnitPrice = x.UnitPrice, TaxPrice = x.TaxPrice,
+                PlannedDeliveryDate = x.PlannedDeliveryDate, SupplierSku = x.SupplierSku,
+                DescriptionZh = x.DescriptionZh, SubNote = x.SubNote
+            }).ToList()
+        });
+        if (!Handle(result.ToClientResult(), "保存采购失败")) return;
+        _saveCommandId = Guid.Empty; await LoadAsync(PurchaseOrderId, CancellationToken.None);
+        _messages.ShowSuccess("采购已保存", OrderNo);
     }
 
-    [RelayCommand(CanExecute = nameof(CanConfirm))]
+    [RelayCommand(CanExecute = nameof(CanConfirmCommand))]
     private async Task ConfirmAsync()
     {
-        if (!await _dialogs.ConfirmAsync("确认采购单", "确认前将校验供应商、含税价格、需求 Link 和客供件送达关系。", "确认")) return;
-        await RunWriteAsync(async () =>
+        if (HasUnsavedChanges) { _messages.ShowWarning("请先保存", "确认前必须保存当前商务修改。"); return; }
+        var context = await _api.GetConfirmationContextAsync(PurchaseOrderId);
+        if (!Handle(context.ToClientResult(), "读取确认依据失败")) return;
+        ConfirmationBindings.Clear();
+        foreach (var line in context.Data!.Lines)
+            foreach (var node in line.Bom.Nodes.Where(x => x.IsCustomerSupplied))
+                ConfirmationBindings.Add(new ProcurementConfirmationBindingModel { PurchaseOrderLineId = line.PurchaseOrderLineId, Path = node.Path, ComponentSku = node.ComponentSkuSnapshot });
+        HasConfirmationBindings = ConfirmationBindings.Count > 0; OnPropertyChanged(nameof(ConfirmationBindings));
+        if (ConfirmationBindings.Any(x => x.Warehouse is null))
+        { SelectedDetailTabIndex = 1; _messages.ShowWarning("需要消耗仓绑定", "请为每条客供件 BOM 路径选择消耗仓库，然后再次确认。"); return; }
+        if (!await _dialogs.ConfirmAsync("确认采购订单", $"订单 {OrderNo} 共 {Lines.Items.Count} 行，将冻结当前 BOM/消耗快照。是否继续？", "确认")) return;
+        _confirmCommandId = _confirmCommandId == Guid.Empty ? Guid.NewGuid() : _confirmCommandId;
+        var result = await _api.ConfirmAsync(PurchaseOrderId, new ConfirmProcurementOrderCommand
         {
-            var result = await _runner.RunAsync(() => _api.ConfirmAsync(Header.Uid, new ConfirmPurchaseOrderCommand { CommandId = Guid.NewGuid(), ExpectedVersion = Header.Version }), "确认采购单失败");
-            if (!result.Success) { _messages.ShowError("确认失败", result.Message); return; }
-            _messages.ShowSuccess("采购单已确认", Header.OrderNo); await LoadAsync(Header.Uid, CancellationToken.None);
-        }, "正在确认采购单...");
+            CommandId = _confirmCommandId, ExpectedVersion = context.Data.Version, ContextFingerprint = context.Data.Fingerprint,
+            ConsumptionBindings = ConfirmationBindings.Select(x => new ProcurementConsumptionBinding
+            { PurchaseOrderLineId = x.PurchaseOrderLineId, Path = x.Path, WarehouseSiteId = x.Warehouse!.Uid }).ToList()
+        });
+        if (!Handle(result.ToClientResult(), "确认采购失败")) return;
+        _confirmCommandId = Guid.Empty; await LoadAsync(PurchaseOrderId, CancellationToken.None);
+        _messages.ShowSuccess("采购已确认", OrderNo);
     }
 
-    [RelayCommand(CanExecute = nameof(CanCancelConfirmation))]
+    [RelayCommand(CanExecute = nameof(CanCancelCommand))]
     private async Task CancelConfirmationAsync()
     {
-        if (string.IsNullOrWhiteSpace(CancellationReason)) { _messages.ShowWarning("需要原因", "请填写取消确认原因。"); return; }
-        if (!await _dialogs.ConfirmAsync("取消采购确认", "系统会检查收货和库存事实。是否继续？", "取消确认")) return;
-        await RunWriteAsync(async () =>
-        {
-            var result = await _runner.RunAsync(() => _api.CancelConfirmationAsync(Header.Uid, new CancelPurchaseOrderConfirmationCommand { CommandId = Guid.NewGuid(), ExpectedVersion = Header.Version, Reason = CancellationReason.Trim() }), "取消采购确认失败");
-            if (!result.Success) { _messages.ShowError("取消确认失败", result.Message); return; }
-            CancellationReason = string.Empty; _messages.ShowSuccess("已取消确认", Header.OrderNo); await LoadAsync(Header.Uid, CancellationToken.None);
-        }, "正在取消采购确认...");
+        if (string.IsNullOrWhiteSpace(CancellationReason)) { _messages.ShowWarning("需要原因", "取消确认原因必填。"); return; }
+        if (!await _dialogs.ConfirmAsync("取消采购确认", "服务端将检查入库等下游事实。", "取消确认")) return;
+        _cancelCommandId = _cancelCommandId == Guid.Empty ? Guid.NewGuid() : _cancelCommandId;
+        var result = await _api.CancelConfirmationAsync(PurchaseOrderId, new CancelProcurementOrderConfirmationCommand
+        { CommandId = _cancelCommandId, ExpectedVersion = Version, Reason = CancellationReason.Trim() });
+        if (!Handle(result.ToClientResult(), "取消确认失败")) return;
+        _cancelCommandId = Guid.Empty; CancellationReason = string.Empty;
+        await LoadAsync(PurchaseOrderId, CancellationToken.None); _messages.ShowSuccess("已取消确认", OrderNo);
     }
 
-    [RelayCommand] private Task RefreshAsync() => LoadAsync(Header.Uid, CancellationToken.None, SelectedLine?.Uid);
-
-    [RelayCommand(CanExecute = nameof(CanUseDocument))]
-    private async Task OpenTraceAsync()
-    {
-        var result = await _runner.RunAsync(() => _api.GetTraceAsync(Header.Uid), "加载采购追溯失败");
-        if (result.Success && result.Data is not null) await _dialogs.ShowContentAsync($"采购追溯 · {Header.OrderNo}", new Views.PurchaseOrderTraceView { DataContext = result.Data });
-    }
-
-    [RelayCommand(CanExecute = nameof(CanUseDocument))]
-    private async Task ExportAsync()
-    {
-        var result = await _runner.RunAsync(() => _api.GetTraceAsync(Header.Uid), "加载采购追溯失败");
-        if (!result.Success || result.Data is null) { _messages.ShowError("导出失败", result.Message); return; }
-        var path = await _exportService.ExportAsync(result.Data); if (path is not null) _messages.ShowSuccess("导出完成", path);
-    }
-
+    [RelayCommand] private Task RefreshAsync() => PurchaseOrderId == Guid.Empty ? Task.CompletedTask : LoadAsync(PurchaseOrderId, CancellationToken.None);
     [RelayCommand] private Task CloseDocumentAsync() => _navigation.CloseAsync(_navigation.OpenTabs.FirstOrDefault(x => ReferenceEquals(x.ContentViewModel, this)));
 
-    private async Task LoadAsync(Guid uid, CancellationToken cancellationToken, Guid? preferredLineId = null)
+    private void InitializeCreate()
     {
-        if (uid == Guid.Empty) return;
-        await RunBusyAsync(async () =>
+        IsCreateMode = true; OrderDate = DateTime.Today; Header.LoadCreate(); Lines.Clear(); AddLine();
+        HeaderHasChanges = false; StatusText = "请选择客户、实际供应商并维护采购行。"; NotifyState();
+    }
+
+    private async Task LoadCandidatesAsync(CancellationToken ct)
+    {
+        await LoadWarehouseCandidatesAsync(ct);
+        var page = new PagedRequestBase { PageIndex = 1, PageSize = 100 };
+        var customers = await _masterData.SearchCustomersAsync(page, ct);
+        var suppliers = await _masterData.SearchSuppliersAsync(page, ct);
+        var products = await _masterData.SearchProductsAsync(page, ct);
+        if (customers.Success && customers.Data is not null) CustomerCandidates.AddRange(customers.Data.Items);
+        if (suppliers.Success && suppliers.Data is not null) SupplierCandidates.AddRange(suppliers.Data.Items);
+        if (products.Success && products.Data is not null) ProductCandidates.AddRange(products.Data.Items);
+    }
+
+    private async Task LoadWarehouseCandidatesAsync(CancellationToken ct)
+    {
+        WarehouseCandidates.Clear();
+        var result = await _warehouses.SearchCandidatesAsync(new PagedRequestBase { PageIndex = 1, PageSize = 100 }, ct);
+        if (result.Success && result.Data is not null) WarehouseCandidates.AddRange(result.Data.Items);
+    }
+
+    private async Task LoadAsync(Guid uid, CancellationToken ct)
+    {
+        var requestId = Interlocked.Increment(ref _loadSequence);
+        var currentCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var previousCts = Interlocked.Exchange(ref _loadCts, currentCts);
+        previousCts?.Cancel();
+        previousCts?.Dispose();
+        ServiceResult<PurchaseOrderDetailDto> result;
+        try
         {
-            var result = await _runner.RunAsync(() => _api.GetDetailAsync(uid, cancellationToken), cancellationToken, "加载采购详情失败");
-            if (!result.Success || result.Data is null) { _messages.ShowError("加载采购详情失败", result.Message); return; }
-            Load(result.Data, preferredLineId);
-        }, "正在加载采购详情...");
-    }
-
-    /// <summary>将后台详情回填到文档，并在刷新后优先恢复原采购行选择。</summary>
-    private void Load(PurchaseOrderDetailDto dto, Guid? preferredLineId)
-    {
+            result = await _api.GetDetailAsync(uid, currentCts.Token);
+        }
+        catch (OperationCanceledException) when (currentCts.IsCancellationRequested)
+        {
+            return;
+        }
+        if (requestId != Volatile.Read(ref _loadSequence) || currentCts.IsCancellationRequested) return;
+        if (!Handle(result.ToClientResult(), "加载采购详情失败")) return;
         _loading = true;
-        foreach (var line in Lines) line.PropertyChanged -= OnEditablePropertyChanged;
-        Lines.Clear(); Operations.Clear(); Header.Load(dto);
-        foreach (var item in dto.Lines.Select(PurchaseOrderLineEditorModel.FromDto)) { item.PropertyChanged += OnEditablePropertyChanged; Lines.Add(item); }
-        foreach (var operation in dto.Operations) Operations.Add(operation);
-        SelectedLine = Lines.FirstOrDefault(x => x.Uid == preferredLineId) ?? Lines.FirstOrDefault(); _loading = false; IsDirty = false;
-        OnPropertyChanged(nameof(DocumentTitle)); OnPropertyChanged(nameof(HasUnsavedChanges)); OnPropertyChanged(nameof(IsDraftEditable)); OnPropertyChanged(nameof(ArrangementSummary));
-        NotifyCommands();
+        var dto = result.Data!; PurchaseOrderId = dto.PurchaseOrderId; OrderNo = dto.OrderNo ?? string.Empty;
+        Version = dto.Version; ConfirmationStatus = dto.ConfirmationStatus; LifecycleStatus = dto.LifecycleStatus;
+        Header.LoadNew(dto); Lines.LoadFromDtos(dto.Lines); ConfirmationBindings.Clear(); HasConfirmationBindings = false;
+        SelectedDetailTabIndex = 0; HeaderHasChanges = false; _loading = false;
+        StatusText = $"已加载 {Lines.Items.Count} 条采购行。"; NotifyState();
     }
 
-    private UpdatePurchaseOrderDraftCommand CreateUpdateCommand() => new()
+    private bool Handle<T>(ClientServiceResult<T> result, string title)
     {
-        CommandId = Guid.NewGuid(), ExpectedVersion = Header.Version, UpdateLegacyHeaderFields = true, BoNo = Header.BoNo, CustomerPoNo = Header.CustomerPoNo,
-        SalesPerson = Header.SalesPerson, PurchasePerson = Header.PurchasePerson, ReplyDate = Header.ReplyDate,
-        InletHoseType = Header.InletHoseType, AeratorType = Header.AeratorType, PalletType = Header.PalletType, BoxType = Header.BoxType,
-        LabelType = Header.LabelType, InstructionManualType = Header.InstructionManualType, CartonType = Header.CartonType,
-        LogoType = Header.LogoType, DiscountRemark = Header.DiscountRemark, Remark = Header.Remark,
-        Lines = Lines.Select(x => new UpdatePurchaseOrderDraftLineCommand { PurchaseOrderLineId = x.Uid, ExpectedVersion = x.Version,
-            PlannedDeliveryDate = x.PlannedDeliveryDate, SupplierSku = x.SupplierSku, DescriptionZh = x.DescriptionZh,
-            UnitPrice = x.UnitPrice, TaxPrice = x.TaxPrice, SubNote = x.SubNote }).ToList()
-    };
-
-    private void OnEditablePropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (_loading || !Header.CanEditDraft) return;
-        IsDirty = true; OnPropertyChanged(nameof(HasUnsavedChanges)); NotifyCommands();
+        if (result.Success && result.Data is not null) return true;
+        StatusText = result.Message;
+        if (result.ErrorCode == SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.VersionConflict)
+            _messages.ShowWarning("版本冲突", StatusText + " 本地修改已保留，请决定是否刷新。");
+        else if (result.ErrorCode == ProcurementErrorCodes.BomBasisChanged)
+        { ConfirmationBindings.Clear(); HasConfirmationBindings = false; _messages.ShowWarning("确认依据已变化", StatusText); }
+        else _messages.ShowError(title, StatusText);
+        return false;
     }
 
-    private bool CanSave() => CanWrite && IsNotBusy && Header.CanEditDraft && IsDirty && Lines.Count > 0;
-    private bool CanConfirm() => CanWrite && IsNotBusy && Header.CanConfirm && !IsDirty;
-    private bool CanCancelConfirmation() => CanWrite && IsNotBusy && Header.CanCancelConfirmation && !IsDirty;
-    private bool CanUseDocument() => IsNotBusy && Header.Uid != Guid.Empty;
-    private void NotifyCommands()
+    private void OnHeaderPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    { if (!_loading && (IsCreateMode || CanEdit)) { HeaderHasChanges = true; NotifyState(); } }
+    private void OnLinesStateChanged(object? sender, ListStateChangedEventArgs<PurchaseOrderLineEditModel> e) => NotifyState();
+    private bool CanCreateCommand() => HasCreatePermission && IsCreateMode && IsNotBusy && HasUnsavedChanges;
+    private bool CanSaveCommand() => CanWrite && IsNotBusy && CanEdit && HasUnsavedChanges && Lines.Items.Count > 0;
+    private bool CanConfirmCommand() => CanWrite && IsNotBusy && CanConfirm && !HasUnsavedChanges;
+    private bool CanCancelCommand() => CanWrite && IsNotBusy && CanCancel && !HasUnsavedChanges;
+    partial void OnIsCreateModeChanged(bool value) => NotifyState();
+    partial void OnHeaderHasChangesChanged(bool value) => NotifyState();
+    private void NotifyState()
     {
-        SaveCommand.NotifyCanExecuteChanged(); ConfirmCommand.NotifyCanExecuteChanged(); CancelConfirmationCommand.NotifyCanExecuteChanged();
-        OpenTraceCommand.NotifyCanExecuteChanged(); ExportCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(DocumentTitle)); OnPropertyChanged(nameof(HasUnsavedChanges));
+        OnPropertyChanged(nameof(CanEdit)); OnPropertyChanged(nameof(CanConfirm)); OnPropertyChanged(nameof(CanCancel));
+        CreateCommand.NotifyCanExecuteChanged(); SaveCommand.NotifyCanExecuteChanged();
+        ConfirmCommand.NotifyCanExecuteChanged(); CancelConfirmationCommand.NotifyCanExecuteChanged();
     }
-
     public void Dispose()
     {
-        Header.PropertyChanged -= OnEditablePropertyChanged;
-        foreach (var line in Lines) line.PropertyChanged -= OnEditablePropertyChanged;
+        Header.PropertyChanged -= OnHeaderPropertyChanged;
+        Lines.ListStateChanged -= OnLinesStateChanged;
+        var cts = Interlocked.Exchange(ref _loadCts, null);
+        cts?.Cancel();
+        cts?.Dispose();
     }
 }

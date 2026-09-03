@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
+using NewPurchaseOrderLineDto = SwiftExport.Contracts.DTOs.Procurement.OrderManagement.ProcurementOrderLineDto;
+using NewProgressSummaryDto = SwiftExport.Contracts.DTOs.Procurement.OrderManagement.ProcurementOrderProgressSummaryDto;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
@@ -19,6 +21,12 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
     public string MaterialType { get; init; } = string.Empty;
     public string SupplyType { get; init; } = string.Empty;
     public string MainImage { get; init; } = string.Empty;
+    public string UnitSnapshot { get; init; } = string.Empty;
+    public string WarehouseName { get; init; } = string.Empty;
+    public string SourceType { get; init; } = string.Empty;
+    public string SourceNo { get; init; } = string.Empty;
+    public int? SourceLineNumber { get; init; }
+    public NewProgressSummaryDto? NewProgressSummary { get; init; }
     public decimal Quantity { get; init; }
     public decimal RecQty { get; init; }
     public decimal? UnitAmount { get; init; }
@@ -37,8 +45,9 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
     public bool HasProgress => LatestProgress is not null;
 
     /// <summary>最新安排状态文本；无反馈时明确显示“尚未跟进”。</summary>
-    public string LatestArrangementText => LatestProgress is null
-        ? "尚未跟进"
+    public string LatestArrangementText => NewProgressSummary is not null
+        ? NewProgressSummary.ArrangementStatus.ToString()
+        : LatestProgress is null ? "尚未跟进"
         : LatestProgress.ArrangementStatus switch
         {
             SwiftExport.Contracts.SysEnums.SupplierArrangementStatusEnum.NotArranged => "未安排",
@@ -50,26 +59,32 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
     public decimal LatestReadyQty => LatestProgress?.ReadyQty ?? 0m;
 
     /// <summary>最新累计已备好数量文本；无反馈时不伪造为业务零。</summary>
-    public string LatestReadyQtyText => LatestProgress is null ? "尚未跟进" : LatestProgress.ReadyQty.ToString("#,##0.####");
+    public string LatestReadyQtyText => NewProgressSummary is not null ? NewProgressSummary.ReadyQty.ToString("#,##0.####") : LatestProgress is null ? "尚未跟进" : LatestProgress.ReadyQty.ToString("#,##0.####");
 
     public DateTime? LatestExpectedReadyDate => LatestProgress?.ExpectedReadyDate;
 
     /// <summary>最新预计备妥日期文本。</summary>
-    public string LatestExpectedReadyDateText => LatestProgress is null
+    public string LatestExpectedReadyDateText => NewProgressSummary is not null
+        ? NewProgressSummary.ExpectedReadyDate?.ToString("yyyy-MM-dd") ?? "未提供"
+        : LatestProgress is null
         ? "尚未跟进"
         : LatestProgress.ExpectedReadyDate?.ToString("yyyy-MM-dd") ?? "未提供";
 
     /// <summary>后台生成的最近跟进时间文本。</summary>
-    public string LatestFollowUpDateText => LatestProgress is null
+    public string LatestFollowUpDateText => NewProgressSummary is not null
+        ? NewProgressSummary.ReportedDate.ToString("yyyy-MM-dd HH:mm")
+        : LatestProgress is null
         ? "尚未跟进"
         : LatestProgress.SupplierReportedDate.ToString("yyyy-MM-dd HH:mm");
 
     /// <summary>后台记录的最近跟单员文本。</summary>
-    public string LatestFollowUpUserText => LatestProgress is null
+    public string LatestFollowUpUserText => NewProgressSummary is not null
+        ? string.IsNullOrWhiteSpace(NewProgressSummary.ReportedBy) ? "未知" : NewProgressSummary.ReportedBy
+        : LatestProgress is null
         ? "尚未跟进"
         : string.IsNullOrWhiteSpace(LatestProgress.CreatedBy) ? "未知" : LatestProgress.CreatedBy;
     public string SourceSummary => Contributions.Count == 0
-        ? string.Empty
+        ? string.IsNullOrWhiteSpace(SourceNo) ? string.Empty : $"{SourceNo}/{SourceLineNumber}"
         : string.Join("、", Contributions.Select(x => $"{x.SourceNo}/{x.SourceLineNumber}"));
 
     [ObservableProperty] public partial DateTime? PlannedDeliveryDate { get; set; }
@@ -107,5 +122,21 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
         SubNote = dto.SubNote ?? string.Empty,
         Contributions = dto.Contributions,
         ProgressHistory = dto.ProgressHistory,
+    };
+
+    /// <summary>将新链采购行映射到完整页面行模型；来源、进度、图片和包装属性保持空集合或空值。</summary>
+    public static PurchaseOrderLineEditorModel FromNewDto(NewPurchaseOrderLineDto dto) => new()
+    {
+        Uid = dto.PurchaseOrderLineId, Version = dto.Version, LineNumber = dto.LineNumber, Sku = dto.Sku ?? string.Empty,
+        CustomerSku = dto.CustomerSku ?? string.Empty, LinkSku = dto.LinkSku ?? string.Empty,
+        FinishZh = dto.FinishZh ?? string.Empty, FeaturesZh = dto.FeaturesZh ?? string.Empty,
+        MaterialType = dto.MaterialType ?? string.Empty, SupplyType = dto.SupplyType ?? string.Empty,
+        UnitSnapshot = dto.UnitSnapshot ?? string.Empty, WarehouseName = dto.WarehouseName ?? string.Empty,
+        SourceType = dto.SourceType ?? string.Empty, SourceNo = dto.SourceNo ?? string.Empty, SourceLineNumber = dto.SourceLineNumber,
+        Quantity = dto.Quantity, UnitAmount = dto.UnitAmount, TaxAmount = dto.TaxAmount,
+        DeliverySupplierName = dto.DeliverySupplierName ?? string.Empty, PlannedDeliveryDate = dto.PlannedDeliveryDate,
+        SupplierSku = dto.SupplierSku ?? string.Empty, DescriptionZh = dto.DescriptionZh ?? string.Empty,
+        UnitPrice = dto.UnitPrice, TaxPrice = dto.TaxPrice, SubNote = dto.SubNote ?? string.Empty,
+        NewProgressSummary = dto.LatestProgress, Contributions = [], ProgressHistory = []
     };
 }

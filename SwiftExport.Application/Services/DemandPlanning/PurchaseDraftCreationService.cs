@@ -321,9 +321,6 @@ public sealed class PurchaseDraftCreationService(
 
         var heads = await purchaseDraftRepository.GetPurchaseDraftsByIdsAsync(
             links.Select(x => x.TargetHeadId), cancellationToken);
-        // 回执重建不能凭需求 Link 接管其他执行链，即使关系被错误填入也应拒绝。
-        if (heads.Any(x => x.ExecutionModel != 0))
-            throw new PurchaseDraftException("EXECUTION_MODEL_MISMATCH", "旧需求采购入口不能读取新采购执行链回执。");
         if (heads.Count != links.Select(x => x.TargetHeadId).Distinct().Count()) return null;
         return new CreatePurchaseDraftSourceResult
         {
@@ -714,14 +711,13 @@ public sealed class PurchaseDraftCreationService(
         return source.Targets.ToDictionary(x => x.SupplierId);
     }
 
-    /// <summary>验证追加目标仍属于旧需求采购链且来源、供应商和安全状态一致。</summary>
+    /// <summary>验证追加目标的来源、供应商和安全状态一致。</summary>
     private static void ValidateAppendHead(
         PurchaseOrderHead head,
         CreatePurchaseDraftSourceCommand source,
         PurchaseDraftPreviewDocumentDto document)
     {
-        if (head.ExecutionModel != 0
-            || head.SupplierId != document.SupplierId
+        if (head.SupplierId != document.SupplierId
             || head.DemandSourceUid != source.SourceUid
             || !string.Equals(head.DemandSourceType, source.SourceType, StringComparison.OrdinalIgnoreCase)
             || head.LifecycleStatus != PurchaseOrderLifecycleStatusEnum.Active

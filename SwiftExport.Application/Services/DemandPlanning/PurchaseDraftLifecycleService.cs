@@ -42,9 +42,7 @@ public sealed class PurchaseDraftLifecycleService(
             var head = await purchaseDraftRepository.GetLifecycleDraftAsync(uid, withUpdLock: true);
             if (head is null)
                 return RollbackFail<PurchaseDraftLifecycleResult>("采购草稿不存在，或属于缺少新来源字段的遗留采购单。");
-            // 已取消的重放在状态门禁之前返回，也必须先验证执行链所有权。
-            if (head.ExecutionModel != 0)
-                return RollbackFail<PurchaseDraftLifecycleResult>("该采购单不属于旧采购执行链。");
+            // 已取消的重放在状态门禁之前返回。
             if (head.LifecycleStatus == PurchaseOrderLifecycleStatusEnum.Voided)
             {
                 _session.Transaction.Commit();
@@ -234,11 +232,9 @@ public sealed class PurchaseDraftLifecycleService(
         return ServiceResult<T>.Fail(message);
     }
 
-    /// <summary>验证旧执行链草稿的所有权、版本和可变状态，覆盖减量预览与实际执行。</summary>
+    /// <summary>验证采购草稿版本和可变状态，覆盖减量预览与实际执行。</summary>
     private static void EnsureMutableDraft(PurchaseOrderHead head, int expectedVersion)
     {
-        if (head.ExecutionModel != 0)
-            throw new PurchaseDraftLifecycleException("EXECUTION_MODEL_MISMATCH", "该采购单不属于旧采购执行链。");
         if (head.Version != expectedVersion)
             throw new PurchaseDraftLifecycleException("CONCURRENCY_CONFLICT", "采购草稿版本已变化。");
         if (head.LifecycleStatus != PurchaseOrderLifecycleStatusEnum.Active

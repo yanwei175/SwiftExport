@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.Procurement;
@@ -17,7 +18,7 @@ public static class ProcurementOrderPolicy
     {
         var limit = scale == 6 ? 999999999999.999999m : 99999999999999.9999m;
         if (value < 0 || (positive && value == 0) || value > limit || decimal.Round(value, scale) != value)
-            throw new InvalidOperationException(name + "超出允许范围或精度。");
+            throw ProcurementOperationException.Validation(name + "超出允许范围或精度。", name);
     }
     /// <summary>按数量和价格计算四位金额；先检查输入，明确允许零价。</summary>
     public static decimal? Amount(decimal quantity, decimal? price)
@@ -31,20 +32,20 @@ public static class ProcurementOrderPolicy
             Number(amount, 4, "采购金额");
             return amount;
         }
-        catch (OverflowException) { throw new InvalidOperationException("采购金额溢出。"); }
+        catch (OverflowException) { throw ProcurementOperationException.Validation("采购金额溢出。", "Lines[].UnitPrice"); }
     }
     /// <summary>校验文本长度，空白归空，不截断用户输入。</summary>
     public static string? Text(string? value, int maximum, string field)
     {
         var text = value?.Trim();
-        if (text?.Length > maximum) throw new InvalidOperationException(field + "超过长度限制。");
+        if (text?.Length > maximum) throw ProcurementOperationException.Validation(field + "超过长度限制。", field);
         return string.IsNullOrEmpty(text) ? null : text;
     }
-    /// <summary>只有独立新链活动草稿可以商务保存和首次确认。</summary>
+    /// <summary>只有活动草稿可以商务保存和首次确认；来源类别不改变采购状态规则。</summary>
     public static void RequireDraft(PurchaseOrderHead head, int version)
     {
-        if (head.ExecutionModel != 1 || head.OriginKind != 2) throw new InvalidOperationException("订单不属于手工独立采购链。");
-        if (version <= 0 || head.Version != version) throw new InvalidOperationException("采购版本冲突，请刷新。");
+        if (version <= 0 || head.Version != version)
+            throw new ProcurementOperationException(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.VersionConflict, "采购版本冲突，请刷新。", "ExpectedVersion");
         if (head.ConfirmationStatus != ConfirmationStatusEnum.待确认 || head.LifecycleStatus != PurchaseOrderLifecycleStatusEnum.Active)
             throw new InvalidOperationException("只有活动且未确认订单允许此操作。");
     }
@@ -57,7 +58,7 @@ public static class ProcurementOrderPolicy
             throw new InvalidOperationException("产品不存在、停用或不具备标准采购资格。");
     }
     /// <summary>保存白名单精确作用于原有行集合，拒绝增删行、重复行和版本冲突。</summary>
-    public static void ApplySave(PurchaseOrderHead head, List<PurchaseOrderLine> lines, SaveProcurementOrderCommand command)
+    public static void ApplySave(PurchaseOrderHead head, List<PurchaseOrderLine> lines, UpdatePurchaseOrderDraftCommand command)
     {
         RequireDraft(head, command.ExpectedVersion);
         if (command.Lines is null || lines.Count == 0 || command.Lines.Count != lines.Count
@@ -67,7 +68,8 @@ public static class ProcurementOrderPolicy
         {
             var line = lines.SingleOrDefault(x => x.Uid == item.PurchaseOrderLineId)
                 ?? throw new InvalidOperationException("采购行不属于本订单。");
-            if (item.ExpectedVersion <= 0 || item.ExpectedVersion != line.Version) throw new InvalidOperationException("采购行版本冲突。");
+            if (item.ExpectedVersion <= 0 || item.ExpectedVersion != line.Version)
+                throw new ProcurementOperationException(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.VersionConflict, "采购行版本冲突。", "Lines[].ExpectedVersion");
             // 商务补丁显式白名单，绝不映射数量、产品、单位或收货目标。
             line.UnitAmount = Amount(line.Quantity, item.UnitPrice);
             line.TaxAmount = Amount(line.Quantity, item.TaxPrice);
@@ -79,6 +81,7 @@ public static class ProcurementOrderPolicy
         }
         head.Remark = Text(command.Remark, 2000, "采购备注");
         head.PackagingRequirements = Text(command.PackagingRequirements, 2000, "包装要求");
+        head.ZheKouBeiZhu = Text(command.DiscountRemark, 2000, "折扣备注");
         head.ExpectedDate = lines.Min(x => x.PlannedDeliveryDate);
     }
 }

@@ -3,6 +3,7 @@ using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
+
 using SwiftExport.Core.Entities.Procurement;
 namespace SwiftExport.Application.Services.Procurement.OrderManagement;
 
@@ -11,7 +12,7 @@ public sealed partial class ProcurementOrderCommandService
     /// <inheritdoc/>
     public Task<ServiceResult<ProcurementOrderCommandResult>> ConfirmAsync(Guid uid, ConfirmProcurementOrderCommand command, CancellationToken ct = default)
     {
-        if (command is null) return Task.FromResult(ServiceResult<ProcurementOrderCommandResult>.Fail("确认命令不能为空。"));
+        if (command is null) return Task.FromResult(ServiceResult<ProcurementOrderCommandResult>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Validation, "确认命令不能为空。", "command"));
         return ExecuteAsync(uid, command.CommandId, "Confirm", command, async () =>
         {
             var head = await RequireHeadAsync(uid, ct);
@@ -25,7 +26,8 @@ public sealed partial class ProcurementOrderCommandService
                     throw new InvalidOperationException("采购金额与数量单价不一致。");
             }
             var basis = await confirmation.BuildAsync(head, lines, ct);
-            if (basis.Fingerprint != command.ContextFingerprint) throw new InvalidOperationException("确认依据已改变，请重新读取 BOM 上下文。");
+            if (basis.Fingerprint != command.ContextFingerprint)
+                throw new ProcurementOperationException(ProcurementErrorCodes.BomBasisChanged, "确认依据已改变，请重新读取 BOM 上下文。", "ContextFingerprint");
             var bindings = command.ConsumptionBindings;
             if (bindings is null || bindings.Any(x => x is null || string.IsNullOrWhiteSpace(x.Path))
                 || bindings.Select(x => (x.PurchaseOrderLineId, x.Path)).Distinct().Count() != bindings.Count)

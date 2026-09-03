@@ -6,7 +6,8 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.xaml" />
+                <!--2026/09/02日,取消合并微软的PresentationFramework.Fluent,因为合并它与WPF-UI有些冲突,-->
+                <!--<ResourceDictionary Source="pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.xaml" />-->
                 <ResourceDictionary Source="Resources/Tokens.xaml" />
                 <ui:ThemesDictionary Theme="Light" />
                 <ui:ControlsDictionary />

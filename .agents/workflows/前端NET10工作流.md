@@ -16,14 +16,14 @@
 8. 涉及 `SwiftExport.Contracts/**` 时必须读 `.codex/skills/aspdotnet10/contracts-refit-dto/SKILL.md` 和 `.codex/skills/aspdotnet10/contracts-netstandard20/SKILL.md`。
 9. 前端任务新增或复用 Contracts DTO 时，必须读 `.codex/skills/aspdotnet10/contracts-dto-models/references/DTO复用与文件组织门禁.md`，搜索现有契约、API 和调用方，并记录复用或新建理由。
 10. 涉及 Contracts DTO 与 ViewModel、EditModel、LineModel、TreeItemModel 转换时，必须读 `.codex/skills/aspdotnet10/application-mapster-mapping/SKILL.md`，并检查 `SwiftExport.Client.Wpf/Mappings/MapsterConfig.cs` 与目标 Feature 的 `Mappings` 配置。
-11. 读取 `.agents/references/工程架构总纲.md`；涉及业务页面同时读业务架构、数据模型；按 `.agents/references/业务模块能力与页面契约治理规则.md` 的模块地图索引读取命中地图；跨采购—入库—库存交接须读三份地图，并检查当前事实与偏差 ID。
+11. 读取 `.agents/references/工程架构总纲.md`；涉及业务页面同时读业务架构、数据模型和 `.agents/references/WPF ERP页面纵向切片开发教程.md`；按 `.agents/references/业务模块能力与页面契约治理规则.md` 的模块地图索引读取命中地图；跨采购—入库—库存交接须读三份地图，并检查当前事实与偏差 ID。
 12. 读取目标 Feature、View、ViewModel、Model、Service、Navigation、API 注册、API Runner、UI Service 和 XAML，对比能力地图和偏差账本。
 13. 列出页面依赖并判定直接 Refit 或 Feature Service；分别定义导航访问、页面操作、字段编辑权限；标明字段/跨字段/异步/服务端验证 owner；写明打开参数、Tab identity、重复打开/激活策略和 Dialog 返回协议。
 14. 为每个异步入口标注替代型查询、显式刷新/初始化、写命令或延迟 UI 工作；确认取消策略、Busy owner、页面存活检查、反馈 owner 和释放 owner。
 15. 当前任务会修改、复制或扩大偏差时，先输出门禁偏差提醒，说明规则、事实、影响、最小重构和兼容方案，然后暂停等待用户决定。
 16. 按 `Features/{业务域}/{功能单元}/Views|ViewModels|Models|Services|Components` 组织新增文件。
 17. ViewModel / Model 使用 `partial`、`[ObservableProperty]`、`[RelayCommand]`。
-18. 页面专用 UI 状态放前端 Model；DTO 按 API 用例设计，只有满足强语义复用条件时才跨页面或跨接口复用。
+18. 页面专用 UI 状态放前端 Model；DTO 按 API 用例设计，只有满足强语义复用条件时才跨页面或跨接口复用。“窄”指职责单一，不以字段少为目标；拆分现有 DTO 前先建立字段处置矩阵，未迁移调用方仍需字段不得删除。
 19. DTO 与前端模型的结构性字段复制默认使用 Mapster；复杂字段差异集中配置，不新增大段逐字段转换或只包装逐字段复制的 Mapping 类。业务计算、状态决策和跨来源组装保留显式代码。
 20. 查询同时具备取消旧请求与提交前身份/存活验证；写命令入口拒绝并发，同一用户操作只有一个最外层 Busy owner。
 21. 导航初始化与重复激活必须幂等；离开/释放时对称清理事件、Messenger、Timer、CTS 和子对象；搜索、刷新、分页、切换和关闭前检查未保存变更。

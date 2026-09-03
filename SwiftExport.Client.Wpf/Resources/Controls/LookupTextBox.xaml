@@ -14,7 +14,7 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <!-- 与紧凑 DataGrid 编辑器保持相同布局，但不依赖页面级命名资源。 -->
         <Style x:Key="LookupInputBaseStyle"
-               TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBoxBase}}">
+               TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="MinHeight" Value="0" />
             <Setter Property="Padding" Value="8,0,0,0" />
             <Setter Property="Margin" Value="0" />

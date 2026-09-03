@@ -105,7 +105,11 @@ try
             options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Include;
         });
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
+    builder.Services.AddSwaggerGen(options =>
+    {
+        // 详情新旧链允许保留同名 DTO；Swagger 使用完整类型名隔离组件定义，避免短名称 SchemaId 冲突。
+        options.CustomSchemaIds(type => type.FullName?.Replace('+', '.') ?? type.Name);
+    });
     builder.Services.AddRouting(options => options.LowercaseUrls = true);
     var app = builder.Build();
 

@@ -1,0 +1,112 @@
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Refit;
+using SwiftExport.Application.Services.Procurement.OrderManagement;
+using SwiftExport.Contracts.Apis.Procurement;
+using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
+using SwiftExport.Contracts.Wrappers;
+
+namespace SwiftExport.Application.Tests.Procurement;
+
+/// <summary>锁定新采购统一结果和稳定错误分类，防止客户端退回解析消息文本。</summary>
+[TestClass]
+public sealed class ProcurementCapabilityAndErrorContractTests
+{
+    /// <summary>采购 API 全部使用通用服务结果，且不再暴露全局能力快照端点。</summary>
+    [TestMethod]
+    public void Procurement_api_uses_only_common_service_results()
+    {
+        var methods = typeof(IProcurementOrderApi).GetMethods();
+
+        Assert.IsGreaterThan(0, methods.Length);
+        foreach (var method in methods)
+        {
+            Assert.IsTrue(method.ReturnType.IsGenericType, method.Name);
+            Assert.AreEqual(typeof(Task<>), method.ReturnType.GetGenericTypeDefinition(), method.Name);
+            var resultType = method.ReturnType.GetGenericArguments()[0];
+            Assert.IsTrue(resultType.IsGenericType, method.Name);
+            Assert.AreEqual(typeof(ServiceResult<>), resultType.GetGenericTypeDefinition(), method.Name);
+        }
+
+        Assert.IsFalse(methods.Any(x => x.Name.Contains("Capabilities", StringComparison.Ordinal)));
+    }
+
+    /// <summary>通用结果同时保留展示消息和机器可判定错误。</summary>
+    [TestMethod]
+    public void Service_result_exposes_machine_code_and_field()
+    {
+        var result = ServiceResult<object>.Fail(
+            ServiceErrorCodes.VersionConflict, "版本冲突。", "ExpectedVersion");
+
+        Assert.IsFalse(result.Success);
+        Assert.IsNull(result.Data);
+        Assert.AreEqual("版本冲突。", result.Message);
+        Assert.AreEqual(ServiceErrorCodes.VersionConflict, result.Error.Code);
+        Assert.AreEqual("ExpectedVersion", result.Error.Field);
+    }
+
+    /// <summary>BOM 指纹变化和字段校验通过类型化异常保留稳定分类。</summary>
+    [TestMethod]
+    public void Typed_failures_do_not_require_message_parsing()
+    {
+        var validation = ProcurementOperationException.Validation("命令标识不能为空。", "CommandId");
+        var changed = new ProcurementOperationException(
+            ProcurementErrorCodes.BomBasisChanged, "确认依据已改变。", "ContextFingerprint");
+
+        Assert.AreEqual(ServiceErrorCodes.Validation, validation.Code);
+        Assert.AreEqual("CommandId", validation.Field);
+        Assert.AreEqual(ProcurementErrorCodes.BomBasisChanged, changed.Code);
+        Assert.AreEqual("ContextFingerprint", changed.Field);
+    }
+
+    /// <summary>取消确认是新链专用显式命令，只接受幂等标识、预期版本和原因。</summary>
+    [TestMethod]
+    public void Cancel_confirmation_contract_is_narrow_and_has_own_route()
+    {
+        var method = typeof(IProcurementOrderApi).GetMethod(nameof(IProcurementOrderApi.CancelConfirmationAsync));
+        var route = method!.GetCustomAttributes(typeof(PostAttribute), false).Cast<PostAttribute>().Single();
+        Assert.AreEqual("/{uid}/cancel-confirmation", route.Path);
+        CollectionAssert.AreEquivalent(new[] { "CommandId", "ExpectedVersion", "Reason" },
+            typeof(CancelProcurementOrderConfirmationCommand).GetProperties().Select(x => x.Name).ToArray());
+    }
+
+    /// <summary>新链详情恢复真实采购头行字段，但跟进只返回最新摘要，不携带历史或库存流水。</summary>
+    [TestMethod]
+    public void Detail_contract_covers_entity_fields_without_absorbing_other_capabilities()
+    {
+        var head = typeof(ProcurementOrderDetailDto).GetProperties().Select(x => x.Name).ToArray();
+        foreach (var name in new[] { "OriginKind", "BoNo", "CustomerPoNo", "DemandSourceNo", "SalesPerson",
+                     "PurchasePerson", "InletHoseType", "AeratorType", "PalletType", "BoxType", "LabelType",
+                     "InstructionManualType", "CartonType", "LogoType", "ReviewedBy", "PurchaseOrderFolder",
+                     "DiscountRemark", "ExpectedDate", "ReplyDate", "ConfirmedDate", "ConfirmedBy", "CreatedDate", "UpdatedDate" })
+            Assert.Contains(name, head);
+        var line = typeof(ProcurementOrderLineDto).GetProperties().Select(x => x.Name).ToArray();
+        foreach (var name in new[] { "CustomerSku", "LinkSku", "FinishZh", "FeaturesZh", "MaterialType", "SupplyType",
+                     "DeliveryTargetAllocationId", "SourceType", "SourceNo", "SourceUid", "SourceLineId", "SourceLineNumber", "LatestProgress" })
+            Assert.Contains(name, line);
+        foreach (var forbidden in new[] { "ProgressHistory", "InventoryLedger", "InboundLines", "Operations", "Trace" })
+            Assert.DoesNotContain(forbidden, line.Concat(head).ToArray());
+    }
+
+    /// <summary>查询 SQL 必须直接选择采购实体字段，并只聚合最新跟进摘要。</summary>
+    [TestMethod]
+    public void Detail_sql_has_real_sources_for_restored_fields()
+    {
+        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Procurement", "ProcurementOrderQueryRepository.cs"));
+        foreach (var token in new[] { "h.BoNo", "h.CustomerPoNo", "h.SoPerson AS SalesPerson", "h.InletrHoseType AS InletHoseType",
+                     "l.CustomerSku", "l.LinkSku", "l.FinishZh", "l.FeaturesZh", "l.MaterialType", "l.SupplyType",
+                     "l.SourceUid", "l.SourceLineId", "SupplierProgressReport", "TOP(1)", "ORDER BY f.Sequence DESC" })
+            StringAssert.Contains(source, token);
+    }
+
+    private static string Root()
+    {
+        foreach (var start in new[] { Environment.CurrentDirectory, AppContext.BaseDirectory })
+            for (var directory = new DirectoryInfo(start); directory is not null; directory = directory.Parent)
+                if (File.Exists(Path.Combine(directory.FullName, "AGENTS.md"))) return directory.FullName;
+        Assert.Fail("无法定位仓库根目录。"); return string.Empty;
+    }
+}
+
+
+

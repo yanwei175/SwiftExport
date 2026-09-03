@@ -19,8 +19,10 @@ using SwiftExport.Application.Services.Systems;
 using SwiftExport.Application.Services.SystemServices;
 namespace SwiftExport.Application;
 
+/// <summary>注册 Application 服务及其请求级依赖，不创建业务会话之外的实例。</summary>
 public static class DependencyInjection
 {
+    /// <summary>将业务接口与实现注册到容器；服务与仓储共享请求级数据库会话。</summary>
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         // 1. Mapster 对象映射配置（必须最先注册）
@@ -62,10 +64,13 @@ public static class DependencyInjection
         services.AddScoped<IProcurementConfirmationQueryService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementConfirmationQueryService>();
         services.AddScoped<IProcurementOrderCommandService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderCommandService>();
         services.AddScoped<IProcurementOrderQueryService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderQueryService>();
+        services.AddScoped<IPurchaseOrderManagerQueryService, SwiftExport.Application.Services.Procurement.OrderManagement.PurchaseOrderManagerQueryService>();
         services.AddScoped<IBomExecutionReader, SwiftExport.Application.Services.Products.Execution.BomExecutionReader>();
         services.AddScoped<SwiftExport.Application.Interfaces.MasterData.IExecutionEligibilityService, SwiftExport.Application.Services.MasterData.ExecutionEligibilityService>();
+        services.AddScoped<SwiftExport.Application.Interfaces.MasterData.IProcurementMasterDataQueryService, SwiftExport.Application.Services.MasterData.ProcurementMasterDataQueryService>();
         services.AddScoped<IInventoryPostingService, InventoryPostingService>();
         services.AddScoped<IInventoryService, InventoryService>();
+        services.AddScoped<IWarehouseCandidateQueryService, WarehouseCandidateQueryService>();
         services.AddScoped<IInboundWorkspaceService, InboundWorkspaceService>();
         services.AddScoped<IInboundPostingPort, InboundPostingPort>();
         services.AddScoped<IOutboundPostingPort, OutboundPostingPort>();

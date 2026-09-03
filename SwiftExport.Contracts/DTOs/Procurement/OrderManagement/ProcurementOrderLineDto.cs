@@ -13,6 +13,12 @@ namespace SwiftExport.Contracts.DTOs.Procurement.OrderManagement
         public int Version { get; set; }
         public Guid ProductId { get; set; }
         public string Sku { get; set; }
+        public string CustomerSku { get; set; }
+        public string LinkSku { get; set; }
+        public string FinishZh { get; set; }
+        public string FeaturesZh { get; set; }
+        public string MaterialType { get; set; }
+        public string SupplyType { get; set; }
         public string UnitSnapshot { get; set; }
         public decimal Quantity { get; set; }
         public decimal UnlinkedQty { get; set; }
@@ -22,6 +28,12 @@ namespace SwiftExport.Contracts.DTOs.Procurement.OrderManagement
         public Guid DeliverySupplierId { get; set; }
         public string DeliverySupplierCode { get; set; }
         public string DeliverySupplierName { get; set; }
+        public Guid? DeliveryTargetAllocationId { get; set; }
+        public string SourceType { get; set; }
+        public string SourceNo { get; set; }
+        public Guid? SourceUid { get; set; }
+        public Guid? SourceLineId { get; set; }
+        public int? SourceLineNumber { get; set; }
         public decimal? UnitPrice { get; set; }
         public decimal? TaxPrice { get; set; }
         public decimal? UnitAmount { get; set; }
@@ -30,5 +42,10 @@ namespace SwiftExport.Contracts.DTOs.Procurement.OrderManagement
         public string SupplierSku { get; set; }
         public string DescriptionZh { get; set; }
         public string SubNote { get; set; }
+        public ProcurementOrderProgressSummaryDto LatestProgress { get; set; }
+        public DateTime? CreatedDate { get; set; }
+        public string CreatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
+        public string UpdatedBy { get; set; }
     }
 }

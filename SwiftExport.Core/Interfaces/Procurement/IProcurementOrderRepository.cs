@@ -29,6 +29,10 @@ public interface IProcurementOrderRepository
     Task SaveAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines, CancellationToken ct);
     /// <summary>固化所有行依据和节点后确认订单；任何写入失败均抛异常回滚。</summary>
     Task ConfirmAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseConfirmationLine> snapshots, IReadOnlyList<PurchaseConfirmationNode> nodes, CancellationToken ct);
+    /// <summary>锁定并检查采购行是否已有入库或库存下游事实。</summary>
+    Task<bool> HasDownstreamFactsAsync(Guid uid, CancellationToken ct);
+    /// <summary>恢复待确认并解除活动确认引用；不删除任何确认快照。</summary>
+    Task CancelConfirmationAsync(PurchaseOrderHead head, CancellationToken ct);
     /// <summary>保存命令原始结果；命令键唯一。</summary>
     Task InsertReceiptAsync(ProcurementCommandReceipt receipt, CancellationToken ct);
 }

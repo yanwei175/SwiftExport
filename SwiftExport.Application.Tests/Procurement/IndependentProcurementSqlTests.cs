@@ -7,6 +7,7 @@ using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Application.Services.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.MasterData.ExecutionEligibility;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Infrastructure.Data;
@@ -407,7 +408,6 @@ public sealed class IndependentProcurementSqlTests
         await legacy.InitializeAsync(includeLegacyOrder: true);
         for (var pass = 0; pass < 2; pass++)
         {
-            Assert.AreEqual(0, await legacy.ScalarAsync<int>("SELECT ExecutionModel FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid = legacy.LegacyOrderId }));
             Assert.AreEqual(7, await legacy.ScalarAsync<int>("SELECT Version FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid = legacy.LegacyOrderId }));
             Assert.AreEqual("迁移前原始备注", await legacy.ScalarAsync<string>("SELECT Remark FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid = legacy.LegacyOrderId }));
             Assert.AreEqual("OLD-DEMAND-001", await legacy.ScalarAsync<string>("SELECT DemandSourceNo FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid = legacy.LegacyOrderId }));
@@ -468,10 +468,10 @@ public sealed class IndependentProcurementSqlTests
         });
     }
 
-    private static SaveProcurementOrderCommand SaveCommand(ProcurementOrderCommandResult order) => new()
+    private static UpdatePurchaseOrderDraftCommand SaveCommand(ProcurementOrderCommandResult order) => new()
     {
         CommandId = Guid.NewGuid(), ExpectedVersion = order.Version, Remark = "商务修改",
-        Lines = order.Lines.Select(l => new SaveProcurementOrderLineCommand
+        Lines = order.Lines.Select(l => new UpdatePurchaseOrderDraftLineCommand
         {
             PurchaseOrderLineId = l.PurchaseOrderLineId, ExpectedVersion = l.Version, TaxPrice = 3m,
             SupplierSku = "SUPPLIER-UPDATED", PlannedDeliveryDate = new DateTime(2026, 9, 10)

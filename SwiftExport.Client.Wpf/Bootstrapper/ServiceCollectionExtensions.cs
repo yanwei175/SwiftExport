@@ -42,6 +42,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<INetDemandTraceExportService, NetDemandTraceExportService>();
         services.AddTransient<INetDemandDialogService, NetDemandDialogService>();
         services.AddTransient<IProcurementDialogService, ProcurementDialogService>();
+        services.AddTransient<IPurchaseOrderCancellationDialogService, PurchaseOrderCancellationDialogService>();
         services.AddTransient<ISalesOrderCancellationDialogService, SalesOrderCancellationDialogService>();
         services.AddTransient<IPurchaseOrderTraceExportService, PurchaseOrderTraceExportService>();
         services.AddTransient<IPackingListDocumentOutputService, PackingListDocumentOutputService>();
