@@ -28,7 +28,7 @@ public sealed class ProcurementMasterDataQueryController(
     /// <summary>转发标准采购产品新增候选查询；成功返回统一分页包装，取消令牌透传。</summary>
     [HttpPost("products/candidates/search")]
     public Task<ActionResult<ServiceResult<PagedResponseBase<ProcurementProductCandidateDto>>>> SearchProductsAsync(
-        [FromBody] PagedRequestBase request, CancellationToken cancellationToken = default)
+        [FromBody] ProcurementProductSearchRequest request, CancellationToken cancellationToken = default)
         => ExecuteAsync(() => service.SearchProductsAsync(request, cancellationToken), cancellationToken);
 
     /// <summary>转发客户历史筛选项查询；成功返回统一分页包装，取消令牌透传。</summary>

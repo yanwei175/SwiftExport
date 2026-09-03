@@ -66,6 +66,8 @@ public static class ProcurementOrderPolicy
             throw new InvalidOperationException("必须提交全部原有采购行，不能增加或删除。");
         foreach (var item in command.Lines)
         {
+            if (!item.UnitPrice.HasValue)
+                throw ProcurementOperationException.Validation("未税单价不能为空；无报价时请明确输入0。", "Lines[].UnitPrice");
             var line = lines.SingleOrDefault(x => x.Uid == item.PurchaseOrderLineId)
                 ?? throw new InvalidOperationException("采购行不属于本订单。");
             if (item.ExpectedVersion <= 0 || item.ExpectedVersion != line.Version)

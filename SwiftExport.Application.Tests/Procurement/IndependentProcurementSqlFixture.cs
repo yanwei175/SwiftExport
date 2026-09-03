@@ -123,7 +123,7 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
     {
         CommandId = Guid.NewGuid(), CustomerId = CustomerId, SupplierId = SupplierId,
         OrderDate = new DateTime(2026, 8, 31), PackagingRequirements = "客户包装要求",
-        Lines = [new() { ProductId = ProductId, Quantity = 10m, TaxPrice = 2.5m, WarehouseSiteId = ReceiptSiteId }]
+        Lines = [new() { ProductId = ProductId, Quantity = 10m, UnitPrice = 2m, TaxPrice = 2.5m, WarehouseSiteId = ReceiptSiteId }]
     };
 
     public async Task AddBomAsync() => await ExecuteAsync("""
@@ -215,12 +215,14 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
 
     // 只补 FreshInstall 未创建的外部主数据与认证表，字段采用实际仓储读取的真实名称。
     private const string MasterSchema = """
-        CREATE TABLE dbo.Product(Uid uniqueidentifier NOT NULL PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),CreatedDate datetime2 NULL,CreatedBy nvarchar(100) NULL,UpdatedDate datetime2 NULL,UpdatedBy nvarchar(100) NULL,
-          Sku nvarchar(200) NOT NULL,DescriptionZh nvarchar(300) NULL,Unit nvarchar(100) NULL,MaterialType nvarchar(100) NULL,SupplyType nvarchar(100) NULL,BomNo nvarchar(100) NULL,BomVersion int NOT NULL DEFAULT(0));
+        CREATE TABLE dbo.ProductColor(Uid uniqueidentifier NOT NULL PRIMARY KEY,ColorNameZh nvarchar(300) NULL,IsDeleted bit NOT NULL DEFAULT(0));
+        CREATE TABLE dbo.Product(Uid uniqueidentifier NOT NULL PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),IsActive bit NOT NULL DEFAULT(1),CreatedDate datetime2 NULL,CreatedBy nvarchar(100) NULL,UpdatedDate datetime2 NULL,UpdatedBy nvarchar(100) NULL,
+          Sku nvarchar(200) NOT NULL,DescriptionZh nvarchar(300) NULL,DescriptionEn nvarchar(300) NULL,MainImage nvarchar(1000) NULL,LinkSku nvarchar(200) NULL,FeaturesZh nvarchar(300) NULL,ColorId uniqueidentifier NULL,Unit nvarchar(100) NULL,MaterialType nvarchar(100) NULL,SupplyType nvarchar(100) NULL,BomNo nvarchar(100) NULL,BomVersion int NOT NULL DEFAULT(0));
+        CREATE TABLE dbo.CustomerProduct(Uid uniqueidentifier NOT NULL PRIMARY KEY,CustomerId uniqueidentifier NOT NULL,SkuId uniqueidentifier NULL,CustomerSku nvarchar(200) NULL,IsActive bit NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0));
         CREATE TABLE dbo.Customer(Uid uniqueidentifier NOT NULL PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),CreatedDate datetime2 NULL,CreatedBy nvarchar(100) NULL,UpdatedDate datetime2 NULL,UpdatedBy nvarchar(100) NULL,
-          CustomerCode nvarchar(100) NOT NULL,CustomerName nvarchar(300) NULL);
+          CustomerCode nvarchar(100) NOT NULL,CustomerName nvarchar(300) NULL,IsActive bit NOT NULL DEFAULT(1));
         CREATE TABLE dbo.Supplier(Uid uniqueidentifier NOT NULL PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),CreatedDate datetime2 NULL,CreatedBy nvarchar(100) NULL,UpdatedDate datetime2 NULL,UpdatedBy nvarchar(100) NULL,
-          SupplierCode nvarchar(100) NOT NULL,SupplierName nvarchar(300) NOT NULL);
+          SupplierCode nvarchar(100) NOT NULL,SupplierName nvarchar(300) NOT NULL,IsActive bit NOT NULL DEFAULT(1));
         CREATE TABLE dbo.SysDictData(Uid uniqueidentifier NOT NULL PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),DictCode nvarchar(100) NOT NULL,DataNameEn nvarchar(100) NULL,IsEnabled bit NOT NULL);
         CREATE TABLE dbo.SysUser(Uid uniqueidentifier NOT NULL PRIMARY KEY,UserName nvarchar(100) NOT NULL,IsActive bit NOT NULL,IsDeleted bit NOT NULL DEFAULT(0));
         CREATE TABLE dbo.SysRoles(Uid uniqueidentifier NOT NULL PRIMARY KEY,RoleName nvarchar(100) NOT NULL,IsDeleted bit NOT NULL DEFAULT(0));

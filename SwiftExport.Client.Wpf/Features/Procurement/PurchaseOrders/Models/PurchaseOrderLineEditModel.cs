@@ -3,6 +3,7 @@ using Mapster;
 using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Mvvm;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
@@ -22,7 +23,9 @@ public sealed partial class PurchaseOrderLineEditModel : BaseLineModel<PurchaseO
     [ObservableProperty] public partial string DescriptionZh { get; set; } = string.Empty;
     [ObservableProperty] public partial string FinishZh { get; set; } = string.Empty;
     [ObservableProperty] public partial string FeaturesZh { get; set; } = string.Empty;
-    [ObservableProperty] public partial string MaterialType { get; set; } = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RequiresDeliverySupplier))]
+    public partial string MaterialType { get; set; } = string.Empty;
     [ObservableProperty] public partial string SupplyType { get; set; } = string.Empty;
     [ObservableProperty] public partial string UnitSnapshot { get; set; } = string.Empty;
     [ObservableProperty] public partial decimal Quantity { get; set; }
@@ -34,7 +37,8 @@ public sealed partial class PurchaseOrderLineEditModel : BaseLineModel<PurchaseO
     [ObservableProperty] public partial Guid WarehouseSiteId { get; set; }
     [ObservableProperty] public partial string WarehouseCode { get; set; } = string.Empty;
     [ObservableProperty] public partial string WarehouseName { get; set; } = string.Empty;
-    [ObservableProperty] public partial Guid DeliverySupplierId { get; set; }
+    [ObservableProperty] public partial ProcurementSupplierCandidateDto? DeliverySupplier { get; set; }
+    [ObservableProperty] public partial Guid? DeliverySupplierId { get; set; }
     [ObservableProperty] public partial string DeliverySupplierCode { get; set; } = string.Empty;
     [ObservableProperty] public partial string DeliverySupplierName { get; set; } = string.Empty;
     [ObservableProperty] public partial string SourceType { get; set; } = string.Empty;
@@ -47,6 +51,8 @@ public sealed partial class PurchaseOrderLineEditModel : BaseLineModel<PurchaseO
     public string SourceSummary => string.IsNullOrWhiteSpace(SourceNo)
         ? SourceType
         : $"{SourceNo}{(SourceLineNumber.HasValue ? $"/{SourceLineNumber}" : string.Empty)}";
+    /// <summary>仅客供件需要独立送达供应商；该目标与正式收货仓库互不推导。</summary>
+    public bool RequiresDeliverySupplier => MaterialType == MaterialTypesEnum.客供件;
 
     protected override bool IsTrackingIgnoredProperty(string? propertyName)
         => base.IsTrackingIgnoredProperty(propertyName)
@@ -67,17 +73,46 @@ public sealed partial class PurchaseOrderLineEditModel : BaseLineModel<PurchaseO
         if (Quantity <= 0) return "数量必须大于零。";
         if (string.IsNullOrWhiteSpace(IsNew ? Product?.Unit : UnitSnapshot)) return "必须有产品单位。";
         if ((IsNew && Warehouse is null) || (!IsNew && WarehouseSiteId == Guid.Empty)) return "必须选择合法收货目标。";
+        if (RequiresDeliverySupplier && (!DeliverySupplierId.HasValue || DeliverySupplierId == Guid.Empty)) return "客供件必须选择送达供应商。";
+        if (!UnitPrice.HasValue) return "未税单价不能为空；无报价时请明确输入 0。";
         if (UnitPrice < 0) return "未税单价不能为负数。";
         return null;
     }
 
     partial void OnProductChanged(ProcurementProductCandidateDto? value)
     {
-        if (!IsNew || value is null) return;
+        if (!IsNew) return;
+        if (value is null) { ClearProductFields(); return; }
+        ApplyProductFields(value);
+    }
+
+    /// <summary>将采购产品候选完整应用到新增行；已保存行的产品身份不可通过普通草稿编辑改变。</summary>
+    public void ApplyProduct(ProcurementProductCandidateDto product)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+        if (!IsNew) return;
+        if (ReferenceEquals(Product, product)) ApplyProductFields(product);
+        else Product = product;
+    }
+
+    /// <summary>集中回填候选中的当前主数据和供应商关系值，最终订单快照仍由后端重新读取。</summary>
+    private void ApplyProductFields(ProcurementProductCandidateDto value)
+    {
         ProductId = value.Uid;
+        MainImage = value.MainImage;
         Sku = value.Sku;
+        CustomerSku = value.CustomerSku;
+        LinkSku = value.LinkSku;
+        SupplierSku = value.SupplierSku;
         DescriptionZh = value.DescriptionZh;
+        FinishZh = value.FinishZh;
+        FeaturesZh = value.FeaturesZh;
+        MaterialType = value.MaterialType;
+        SupplyType = value.SupplyType;
         UnitSnapshot = value.Unit;
+        UnitPrice = value.UnitPrice;
+        TaxPrice = value.TaxPrice;
+        if (!RequiresDeliverySupplier) ClearDeliverySupplier();
     }
 
     partial void OnWarehouseChanged(WarehouseCandidateDto? value)
@@ -86,5 +121,36 @@ public sealed partial class PurchaseOrderLineEditModel : BaseLineModel<PurchaseO
         WarehouseSiteId = value.Uid;
         WarehouseCode = value.Code ?? string.Empty;
         WarehouseName = value.Name ?? string.Empty;
+    }
+
+    partial void OnDeliverySupplierChanged(ProcurementSupplierCandidateDto? value)
+    {
+        if (!IsNew) return;
+        DeliverySupplierId = value?.Uid;
+        DeliverySupplierCode = value?.SupplierCode ?? string.Empty;
+        DeliverySupplierName = value?.SupplierName ?? string.Empty;
+    }
+
+    /// <summary>清除创建行产品及其关系快照；客户或供应商主体改变时必须重新选择。</summary>
+    public void ClearProductSelection()
+    {
+        if (!IsNew) return;
+        Product = null;
+        ClearProductFields();
+    }
+
+    private void ClearProductFields()
+    {
+        ProductId = Guid.Empty; MainImage = Sku = CustomerSku = LinkSku = SupplierSku = DescriptionZh = string.Empty;
+        FinishZh = FeaturesZh = MaterialType = SupplyType = UnitSnapshot = string.Empty;
+        ClearDeliverySupplier();
+    }
+
+    /// <summary>清除创建行客供件送达目标；非客供件不得保留先前选择。</summary>
+    public void ClearDeliverySupplier()
+    {
+        if (!IsNew) return;
+        DeliverySupplier = null; DeliverySupplierId = null;
+        DeliverySupplierCode = DeliverySupplierName = string.Empty;
     }
 }

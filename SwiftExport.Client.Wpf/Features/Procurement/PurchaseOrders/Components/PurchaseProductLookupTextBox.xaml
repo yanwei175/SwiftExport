@@ -1,0 +1,78 @@
+<local:PurchaseLookupTextBoxBase x:Class="SwiftExportClient.Features.Procurement.PurchaseOrders.Components.PurchaseProductLookupTextBox"
+                                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                                 xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+                                 xmlns:local="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.Components"
+                                 xmlns:procurement="clr-namespace:SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;assembly=SwiftExport.Contracts"
+                                 x:Name="Root"
+                                 FontSize="{DynamicResource SwiftExport.LookUpTextBoxFontSize}"
+                                 MinHeight="30">
+    <local:PurchaseLookupTextBoxBase.Resources>
+        <DataTemplate x:Key="PurchaseProductLookupItemTemplate"
+                      DataType="{x:Type procurement:ProcurementProductCandidateDto}">
+            <Grid MinWidth="440" Margin="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="48" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <controls:CachedImage Grid.RowSpan="2"
+                                      Width="48"
+                                      Height="48"
+                                      SourcePath="{Binding MainImage}"
+                                      DecodePixelWidth="96"
+                                      Stretch="Uniform"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBlock Text="{Binding Sku}"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock Margin="12,0,0,0"
+                               Text="{Binding CustomerSku}"
+                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock Margin="12,0,0,0"
+                               Text="{Binding SupplierSku}"
+                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <TextBlock Grid.Row="1"
+                           Grid.Column="2"
+                           Margin="0,2,0,0"
+                           Text="{Binding DescriptionZh}"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+            </Grid>
+        </DataTemplate>
+    </local:PurchaseLookupTextBoxBase.Resources>
+
+    <controls:LookupTextBox x:Name="LookupEditor"
+                            Text="{Binding Text, ElementName=Root, Mode=TwoWay}"
+                            FontSize="{Binding FontSize, ElementName=Root}"
+                            ItemsSource="{Binding ItemsSource, ElementName=Root}"
+                            SelectedItem="{Binding SelectedProduct, ElementName=Root, Mode=TwoWay}"
+                            SelectedValue="{Binding SelectedProductId, ElementName=Root, Mode=TwoWay}"
+                            SearchCommand="{Binding SearchCommand, ElementName=Root}"
+                            SelectionCommittedCommand="{Binding SelectionCommittedCommand, ElementName=Root}"
+                            SelectionCommittedCommandParameter="{Binding SelectionCommittedCommandParameter, ElementName=Root}"
+                            SelectionClearedCommand="{Binding SelectionClearedCommand, ElementName=Root}"
+                            SelectionClearedCommandParameter="{Binding SelectionClearedCommandParameter, ElementName=Root}"
+                            IsBusy="{Binding IsBusy, ElementName=Root}"
+                            SearchDelay="{Binding SearchDelay, ElementName=Root}"
+                            MinimumSearchLength="{Binding MinimumSearchLength, ElementName=Root}"
+                            Placeholder="{Binding Placeholder, ElementName=Root}"
+                            SearchMode="Remote"
+                            DisplayMemberPath="Sku"
+                            FilterMemberPaths="Sku,CustomerSku,SupplierSku,DescriptionZh,DescriptionEn,LinkSku"
+                            SelectedValuePath="Uid"
+                            RequireItemMatch="True"
+                            ClearSelectionOnEdit="False"
+                            ItemTemplate="{StaticResource PurchaseProductLookupItemTemplate}" />
+</local:PurchaseLookupTextBoxBase>

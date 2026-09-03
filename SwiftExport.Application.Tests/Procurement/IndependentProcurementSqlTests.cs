@@ -92,7 +92,7 @@ public sealed class IndependentProcurementSqlTests
         var uid = created.Data.PurchaseOrderId;
         Assert.AreEqual(Db.SupplierId, await Db.ScalarAsync<Guid>("SELECT SupplierId FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid }));
         Assert.AreEqual(Db.CustomerId, await Db.ScalarAsync<Guid>("SELECT CustomerId FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid }));
-        Assert.AreEqual(Db.ReceiptSupplierId, await Db.ScalarAsync<Guid>("SELECT DeliveryTargetSupplierId FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid", new { uid }));
+        Assert.IsNull(await Db.ScalarAsync<Guid?>("SELECT DeliveryTargetSupplierId FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid", new { uid }));
         Assert.AreEqual("PCS", await Db.ScalarAsync<string>("SELECT UnitSnapshot FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid", new { uid }));
         Assert.AreEqual(10m, await Db.ScalarAsync<decimal>("SELECT UnlinkedQty FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid", new { uid }));
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderHead WHERE Uid=@uid AND (DemandSourceUid IS NOT NULL OR DemandSourceType IS NOT NULL OR DemandSourceNo IS NOT NULL)", new { uid }));
@@ -103,6 +103,24 @@ public sealed class IndependentProcurementSqlTests
         Assert.IsTrue(confirmed.Success, confirmed.Message);
         Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine WHERE PurchaseOrderId=@uid AND HasBom=0", new { uid }));
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT (SELECT COUNT(*) FROM dbo.GrossDemand)+(SELECT COUNT(*) FROM dbo.NetDemand)+(SELECT COUNT(*) FROM dbo.NetDemandAllocation)+(SELECT COUNT(*) FROM dbo.DemandExecutionLink)+(SELECT COUNT(*) FROM dbo.InventoryLedgerEntry)"));
+    }
+
+    /// <summary>客供件必须显式提交送达供应商，服务端保存所选身份快照而不从收货仓推导。</summary>
+    [TestMethod]
+    public async Task CustomerSuppliedLineRequiresExplicitDeliverySupplier()
+    {
+        await Db.ExecuteAsync("UPDATE dbo.Product SET MaterialType=N'客供件' WHERE Uid=@uid", new { uid = Db.ProductId });
+        var missing = await Db.CreateAsync();
+        Assert.IsFalse(missing.Success);
+        StringAssert.Contains(missing.Message, "送达供应商");
+
+        var command = Db.CreateCommand();
+        command.Lines[0].DeliverySupplierId = Db.SupplierId;
+        var created = await Db.CreateAsync(command);
+        Assert.IsTrue(created.Success, created.Message);
+        var uid = created.Data.PurchaseOrderId;
+        Assert.AreEqual(Db.SupplierId, await Db.ScalarAsync<Guid>("SELECT DeliveryTargetSupplierId FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid", new { uid }));
+        Assert.AreEqual("TEST-ACTUAL", await Db.ScalarAsync<string>("SELECT DeliverySupplierCodeSnapshot FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid", new { uid }));
     }
 
     /// <summary>商务保存改变价格不改变身份，拒绝过期版本及替换行，并重放原始创建回执。</summary>

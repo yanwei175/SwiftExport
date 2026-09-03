@@ -52,9 +52,9 @@ public sealed class ProcurementMasterDataSqlTests
         Assert.AreEqual(suppliers.Items[0].Uid, historicalSuppliers.Items.Single(x => x.SupplierCode == "S-active").Uid);
     }
 
-    /// <summary>标准采购三类物料可选；停用、删除、虚拟、非标、生产、空编码和无单位产品均排除。</summary>
+    /// <summary>采购供货的有效产品均可选；物料类型、编码前缀和单位不在候选 SQL 中承担最终资格校验。</summary>
     [TestMethod]
-    public async Task ProductsRequireStandardPurchaseIdentityAndCanonicalUnit()
+    public async Task ProductsOnlyRequireActivePurchaseIdentity()
     {
         var good = await Db.AddProductAsync("P-good");
         await Db.AddProductAsync("P-part", material: "零件");
@@ -68,15 +68,44 @@ public sealed class ProcurementMasterDataSqlTests
         await Db.AddProductAsync("P-no-unit", unit: null);
         await Db.AddProductAsync("\t\u3000");
         var result = await Db.QueryAsync(s => s.SearchProductsAsync(new()));
-        Assert.AreEqual(3, result.TotalCount);
+        Assert.AreEqual(6, result.TotalCount);
         Assert.IsTrue(result.Items.Any(x => x.Uid == good));
-        Assert.IsTrue(result.Items.All(x => x.Unit == "EA"));
+        Assert.IsTrue(result.Items.Any(x => x.Sku == "P-virtual"));
+        Assert.IsTrue(result.Items.Any(x => x.Sku == "非标件001"));
+        Assert.AreEqual(string.Empty, result.Items.Single(x => x.Sku == "P-no-unit").Unit);
+        Assert.AreEqual(" ea ", result.Items.Single(x => x.Uid == good).Unit);
+        Assert.IsFalse(result.Items.Any(x => x.Sku is "P-produced" or "P-outsourced" or "P-stopped" or "P-deleted"));
         Assert.IsTrue(result.Items.All(x => x.DescriptionZh == "产品描述"));
     }
 
-    /// <summary>无效、停用或重复的单位不得随意选择；删除字典项不参与唯一性计数。</summary>
+    /// <summary>产品候选按当前客户和实际供应商读取有效关系，主体产品不存在关系时仍可选择。</summary>
     [TestMethod]
-    public async Task UnitLookupRejectsDuplicatesDisabledMissingAndWhitespace()
+    public async Task ProductSearchReturnsContextualCustomerAndSupplierCodes()
+    {
+        var customerId = Guid.NewGuid(); var supplierId = Guid.NewGuid();
+        var related = await Db.AddProductAsync("P-related"); var unrelated = await Db.AddProductAsync("P-unrelated");
+        await Db.ExecuteAsync("""
+            INSERT dbo.CustomerProduct VALUES(NEWID(),@customerId,@related,N'CUST-001',1,0);
+            INSERT dbo.SupplierProduct VALUES(NEWID(),@supplierId,@related,N'SUP-001',12.5,14.1,0);
+            """, new { customerId, supplierId, related });
+
+        var result = await Db.QueryAsync(service => service.SearchProductsAsync(new()
+        { CustomerId = customerId, SupplierId = supplierId }));
+
+        var item = result.Items.Single(x => x.Uid == related);
+        Assert.AreEqual("CUST-001", item.CustomerSku);
+        Assert.AreEqual("SUP-001", item.SupplierSku);
+        Assert.AreEqual("/images/main.png", item.MainImage);
+        Assert.AreEqual(string.Empty, result.Items.Single(x => x.Uid == unrelated).CustomerSku);
+        Assert.AreEqual(12.5m, item.UnitPrice);
+        var withoutSupplier = await Db.QueryAsync(service => service.SearchProductsAsync(new() { CustomerId = customerId }));
+        Assert.IsNull(withoutSupplier.Items.Single(x => x.Uid == related).UnitPrice);
+        Assert.AreEqual("DEFAULT-SKU", withoutSupplier.Items.Single(x => x.Uid == related).SupplierSku);
+    }
+
+    /// <summary>单位字典缺失、停用或重复不影响候选；产品当前单位值原样返回供用户识别。</summary>
+    [TestMethod]
+    public async Task UnitDictionaryDoesNotFilterProductCandidates()
     {
         await Db.ExecuteAsync("""
             INSERT dbo.SysDictData VALUES
@@ -90,54 +119,22 @@ public sealed class ProcurementMasterDataSqlTests
         await Db.AddProductAsync("P-unknown", unit: "UNKNOWN");
         await Db.AddProductAsync("P-whitespace", unit: "\t");
         var result = await Db.QueryAsync(s => s.SearchProductsAsync(new()));
-        Assert.AreEqual("P-ok", result.Items.Single().Sku);
-        Assert.AreEqual("EA", result.Items[0].Unit);
+        Assert.AreEqual(5, result.TotalCount);
+        Assert.AreEqual("KG", result.Items.Single(x => x.Sku == "P-duplicate").Unit);
+        Assert.AreEqual("BOX", result.Items.Single(x => x.Sku == "P-disabled").Unit);
+        Assert.AreEqual("UNKNOWN", result.Items.Single(x => x.Sku == "P-unknown").Unit);
+        Assert.AreEqual("\t", result.Items.Single(x => x.Sku == "P-whitespace").Unit);
     }
 
-    /// <summary>创建和读取角色不可互相越权，Admin 可访问两种查询；失败后可再次使用服务。</summary>
+    /// <summary>五个只读候选路由仅依赖当前登录身份，测试库无需用户、角色或成员关系表。</summary>
     [TestMethod]
-    public async Task CreationAndHistoryUseDifferentRealRoles()
+    public async Task AllQueriesWorkWithoutDatabaseRoleTables()
     {
-        await Db.ExecuteAsync("UPDATE dbo.SysRoles SET RoleName=N'Procurement.Order.Read';");
-        await Db.QueryAsync(s => s.SearchCustomerHistoryFiltersAsync(new()));
-        await Db.QueryAsync(s => s.SearchSupplierHistoryFiltersAsync(new()));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Db.QueryAsync(s => s.SearchCustomersAsync(new())));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Db.QueryAsync(s => s.SearchSuppliersAsync(new())));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Db.QueryAsync(s => s.SearchProductsAsync(new())));
-        await Db.ExecuteAsync("UPDATE dbo.SysRoles SET RoleName=N'Procurement.Order.Create';");
         await Db.QueryAsync(s => s.SearchCustomersAsync(new()));
         await Db.QueryAsync(s => s.SearchSuppliersAsync(new()));
         await Db.QueryAsync(s => s.SearchProductsAsync(new()));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Db.QueryAsync(s => s.SearchCustomerHistoryFiltersAsync(new())));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Db.QueryAsync(s => s.SearchSupplierHistoryFiltersAsync(new())));
-        await Db.ExecuteAsync("UPDATE dbo.SysRoles SET RoleName=N'Admin';");
-        await Db.QueryAsync(s => s.SearchProductsAsync(new()));
         await Db.QueryAsync(s => s.SearchCustomerHistoryFiltersAsync(new()));
-    }
-
-    /// <summary>停用账号、删除账号/关联/角色均失去查询权限；恢复资料后下一请求重新授权。</summary>
-    [TestMethod]
-    public async Task RevokedUserRoleAndMembershipCannotRead()
-    {
-        foreach (var mutation in new[]
-        {
-            "UPDATE dbo.SysUser SET IsActive=0;",
-            "UPDATE dbo.SysUser SET IsDeleted=1;",
-            "UPDATE dbo.SysUser_Roles SET IsDeleted=1;",
-            "UPDATE dbo.SysRoles SET IsDeleted=1;",
-            "UPDATE dbo.SysRoles SET RoleName=N'Unrelated';"
-        })
-        {
-            await Db.ExecuteAsync(mutation);
-            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Db.QueryAsync(s => s.SearchCustomersAsync(new())));
-            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Db.QueryAsync(s => s.SearchCustomerHistoryFiltersAsync(new())));
-            await Db.ExecuteAsync("""
-                UPDATE dbo.SysUser SET IsActive=1,IsDeleted=0;
-                UPDATE dbo.SysUser_Roles SET IsDeleted=0;
-                UPDATE dbo.SysRoles SET IsDeleted=0,RoleName=N'Admin';
-                """);
-        }
-        await Db.QueryAsync(s => s.SearchCustomersAsync(new()));
+        await Db.QueryAsync(s => s.SearchSupplierHistoryFiltersAsync(new()));
     }
 
     /// <summary>特殊字符按字面匹配，重复编码用 Uid 稳定排序；无结果和超末页均返回正确计数。</summary>

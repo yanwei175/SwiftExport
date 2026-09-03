@@ -11,6 +11,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.OrderManagement
         public Guid ProductId { get; set; }
         public decimal Quantity { get; set; }
         public Guid WarehouseSiteId { get; set; }
+        /// <summary>客供件实际送达供应商；普通物料保持为空。</summary>
+        public Guid? DeliverySupplierId { get; set; }
         public decimal? UnitPrice { get; set; }
         public decimal? TaxPrice { get; set; }
         public DateTime? PlannedDeliveryDate { get; set; }

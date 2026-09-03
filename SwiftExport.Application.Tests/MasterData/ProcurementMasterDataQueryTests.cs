@@ -44,7 +44,8 @@ public sealed class ProcurementMasterDataQueryTests
         {
             await Assert.ThrowsAsync<ArgumentException>(() => service.SearchCustomersAsync(request));
             await Assert.ThrowsAsync<ArgumentException>(() => service.SearchSuppliersAsync(request));
-            await Assert.ThrowsAsync<ArgumentException>(() => service.SearchProductsAsync(request));
+            await Assert.ThrowsAsync<ArgumentException>(() => service.SearchProductsAsync(request is null ? null! : new ProcurementProductSearchRequest
+            { Keyword = request.Keyword, PageIndex = request.PageIndex, PageSize = request.PageSize }));
             await Assert.ThrowsAsync<ArgumentException>(() => service.SearchCustomerHistoryFiltersAsync(request));
             await Assert.ThrowsAsync<ArgumentException>(() => service.SearchSupplierHistoryFiltersAsync(request));
         }
@@ -74,7 +75,9 @@ public sealed class ProcurementMasterDataQueryTests
         var request = new PagedRequestBase { Keyword = "阀门", PageIndex = 2, PageSize = 5 };
         Assert.IsTrue((await api.SearchCustomersAsync(request)).Success);
         Assert.IsTrue((await api.SearchSuppliersAsync(request)).Success);
-        Assert.IsTrue((await api.SearchProductsAsync(request)).Success);
+        var customerId = Guid.NewGuid(); var supplierId = Guid.NewGuid();
+        Assert.IsTrue((await api.SearchProductsAsync(new ProcurementProductSearchRequest
+        { Keyword = request.Keyword, PageIndex = request.PageIndex, PageSize = request.PageSize, CustomerId = customerId, SupplierId = supplierId })).Success);
         Assert.IsTrue((await api.SearchCustomerHistoryFiltersAsync(request)).Success);
         Assert.IsTrue((await api.SearchSupplierHistoryFiltersAsync(request)).Success);
         CollectionAssert.AreEqual(new[] {
@@ -85,14 +88,21 @@ public sealed class ProcurementMasterDataQueryTests
             "/suppliers/history-filter/search"
         }, handler.Paths.ToArray());
         Assert.AreEqual(5, handler.Bodies.Count);
-        foreach (var body in handler.Bodies)
+        for (var index = 0; index < handler.Bodies.Count; index++)
         {
-            using var json = JsonDocument.Parse(body);
+            using var json = JsonDocument.Parse(handler.Bodies[index]);
             var properties = json.RootElement.EnumerateObject().ToDictionary(p => p.Name, p => p.Value);
-            CollectionAssert.AreEquivalent(new[] { "keyword", "pageIndex", "pageSize" }, properties.Keys.ToArray());
+            CollectionAssert.AreEquivalent(index == 2
+                ? new[] { "keyword", "pageIndex", "pageSize", "customerId", "supplierId" }
+                : new[] { "keyword", "pageIndex", "pageSize" }, properties.Keys.ToArray());
             Assert.AreEqual("阀门", properties["keyword"].GetString());
             Assert.AreEqual(2, properties["pageIndex"].GetInt32());
             Assert.AreEqual(5, properties["pageSize"].GetInt32());
+            if (index == 2)
+            {
+                Assert.AreEqual(customerId, properties["customerId"].GetGuid());
+                Assert.AreEqual(supplierId, properties["supplierId"].GetGuid());
+            }
         }
     }
 
@@ -118,7 +128,7 @@ public sealed class ProcurementMasterDataQueryTests
             typeof(ProcurementCustomerCandidateDto).GetProperties().Select(p => p.Name).ToArray());
         CollectionAssert.AreEquivalent(new[] { "Uid", "SupplierCode", "SupplierName" },
             typeof(ProcurementSupplierCandidateDto).GetProperties().Select(p => p.Name).ToArray());
-        CollectionAssert.AreEquivalent(new[] { "Uid", "Sku", "DescriptionZh", "DescriptionEn", "Unit" },
+        CollectionAssert.AreEquivalent(new[] { "Uid", "Sku", "DescriptionZh", "DescriptionEn", "Unit", "MainImage", "CustomerSku", "LinkSku", "SupplierSku", "FinishZh", "FeaturesZh", "MaterialType", "SupplyType", "UnitPrice", "TaxPrice" },
             typeof(ProcurementProductCandidateDto).GetProperties().Select(p => p.Name).ToArray());
         CollectionAssert.AreEquivalent(new[] { "Uid", "CustomerCode", "CustomerName", "IsActive" },
             typeof(ProcurementCustomerFilterDto).GetProperties().Select(p => p.Name).ToArray());
@@ -156,12 +166,11 @@ public sealed class ProcurementMasterDataQueryTests
     /// <summary>任何进入数据库端口的操作立即失败，以证明早期守卫有效。</summary>
     private sealed class UnreachableRepository : IProcurementMasterDataQueryRepository
     {
-        public Task<bool> HasPermissionAsync(Guid userId, string role, CancellationToken ct) => throw new AssertFailedException("不应访问仓储。");
         public Task<PagedResponseBase<ProcurementCustomerCandidateDto>> SearchCustomersAsync(PagedRequestBase request, CancellationToken ct)
             => throw new AssertFailedException("不应访问仓储。");
         public Task<PagedResponseBase<ProcurementSupplierCandidateDto>> SearchSuppliersAsync(PagedRequestBase request, CancellationToken ct)
             => throw new AssertFailedException("不应访问仓储。");
-        public Task<PagedResponseBase<ProcurementProductCandidateDto>> SearchProductsAsync(PagedRequestBase request, CancellationToken ct)
+        public Task<PagedResponseBase<ProcurementProductCandidateDto>> SearchProductsAsync(ProcurementProductSearchRequest request, CancellationToken ct)
             => throw new AssertFailedException("不应访问仓储。");
         public Task<PagedResponseBase<ProcurementCustomerFilterDto>> SearchCustomerHistoryFiltersAsync(PagedRequestBase request, CancellationToken ct)
             => throw new AssertFailedException("不应访问仓储。");

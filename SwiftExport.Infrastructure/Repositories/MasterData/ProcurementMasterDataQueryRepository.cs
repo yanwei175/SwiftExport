@@ -7,7 +7,7 @@ using SwiftExport.Infrastructure.Contexts;
 
 namespace SwiftExport.Infrastructure.Repositories.MasterData;
 
-/// <summary>独立采购选择器的只读 SQL；身份来自主数据 Uid，不读取联系方式、价格、默认供应商或产品目录关系。</summary>
+/// <summary>独立采购选择器的只读 SQL；产品始终以主数据为主体，供应商关系仅在明确选择供应商时补充型号和价格。</summary>
 public sealed class ProcurementMasterDataQueryRepository(RepositoryBaseContext context) : IProcurementMasterDataQueryRepository
 {
     // 与 .NET 空白判断一致，避免仅含制表符或全角空格的编码进入新增候选。
@@ -25,18 +25,6 @@ public sealed class ProcurementMasterDataQueryRepository(RepositoryBaseContext c
           AND (@Keyword IS NULL OR m.SupplierCode LIKE @Keyword ESCAPE N'~' OR m.SupplierName LIKE @Keyword ESCAPE N'~')
         """;
 
-    /// <summary>重验真实账号、角色和关联；锁保持至查询事务结束，不信任客户端角色或仅登录标志。</summary>
-    public async Task<bool> HasPermissionAsync(Guid userId, string requiredRole, CancellationToken cancellationToken)
-        => await context.Session.Connection.ExecuteScalarAsync<bool>(Command("""
-            SELECT CAST(CASE WHEN EXISTS(
-                SELECT 1 FROM dbo.SysUser u WITH(HOLDLOCK)
-                JOIN dbo.SysUser_Roles ur WITH(HOLDLOCK) ON ur.UserId=u.Uid AND ISNULL(ur.IsDeleted,0)=0
-                JOIN dbo.SysRoles r WITH(HOLDLOCK) ON r.Uid=ur.RoleId AND ISNULL(r.IsDeleted,0)=0
-                WHERE u.Uid=@UserId AND u.IsActive=1 AND ISNULL(u.IsDeleted,0)=0
-                  AND r.RoleName IN(N'Admin',@RequiredRole)
-            ) THEN 1 ELSE 0 END AS bit);
-            """, new { UserId = userId, RequiredRole = requiredRole }, cancellationToken));
-
     /// <summary>新增客户候选仅包含启用且编码合法的客户；名称未配置时允许空显示，与采购最终校验保持一致。</summary>
     public Task<PagedResponseBase<ProcurementCustomerCandidateDto>> SearchCustomersAsync(
         PagedRequestBase request, CancellationToken cancellationToken)
@@ -51,28 +39,54 @@ public sealed class ProcurementMasterDataQueryRepository(RepositoryBaseContext c
             SupplierFilter + " AND m.IsActive=1 AND NULLIF(TRIM(@Whitespace FROM m.SupplierCode),N'') IS NOT NULL AND NULLIF(TRIM(@Whitespace FROM m.SupplierName),N'') IS NOT NULL",
             "m.SupplierCode,m.Uid", request, cancellationToken);
 
-    /// <summary>仅返回启用的标准采购成品、零件或客供件；单位必须命中唯一启用字典项，重复字典不放大分页行数。</summary>
+    /// <summary>返回启用且身份完整的采购供货产品；单位和物料类型原样展示，最终资格由创建命令校验。</summary>
     public Task<PagedResponseBase<ProcurementProductCandidateDto>> SearchProductsAsync(
-        PagedRequestBase request, CancellationToken cancellationToken)
-        => ReadPageAsync<ProcurementProductCandidateDto>("""
-            p.Uid AS Uid,p.Sku AS Sku,COALESCE(p.DescriptionZh,N'') AS DescriptionZh,
-            COALESCE(p.DescriptionEn,N'') AS DescriptionEn,u.Unit AS Unit
-            """, """
+        ProcurementProductSearchRequest request, CancellationToken cancellationToken)
+    {
+        const string commonColumns = """
+            p.Uid AS Uid,p.Sku AS Sku,COALESCE(p.MainImage,N'') AS MainImage,
+            COALESCE(cp.CustomerSku,N'') AS CustomerSku,COALESCE(p.LinkSku,N'') AS LinkSku,
+            {0} AS SupplierSku,COALESCE(p.DescriptionZh,N'') AS DescriptionZh,
+            COALESCE(p.DescriptionEn,N'') AS DescriptionEn,COALESCE(color.ColorNameZh,N'') AS FinishZh,
+            COALESCE(p.FeaturesZh,N'') AS FeaturesZh,COALESCE(p.MaterialType,N'') AS MaterialType,
+            COALESCE(p.SupplyType,N'') AS SupplyType,COALESCE(p.Unit,N'') AS Unit,{1} AS UnitPrice,{2} AS TaxPrice
+            """;
+        const string commonFrom = """
             FROM dbo.Product p
-            CROSS APPLY (
-                SELECT MIN(LTRIM(RTRIM(d.DataNameEn))) AS Unit
-                FROM dbo.SysDictData d
-                WHERE d.DictCode=N'Unit' AND d.IsEnabled=1 AND ISNULL(d.IsDeleted,0)=0
-                  AND UPPER(LTRIM(RTRIM(d.DataNameEn)))=UPPER(TRIM(@Whitespace FROM p.Unit))
-                HAVING COUNT(*)=1 AND NULLIF(TRIM(@Whitespace FROM MIN(LTRIM(RTRIM(d.DataNameEn)))),N'') IS NOT NULL
-            ) u
+            LEFT JOIN dbo.ProductColor color ON color.Uid=p.ColorId AND ISNULL(color.IsDeleted,0)=0
+            OUTER APPLY (
+                SELECT TOP(1) relation.CustomerSku
+                FROM dbo.CustomerProduct relation
+                WHERE @CustomerId IS NOT NULL AND relation.CustomerId=@CustomerId AND relation.SkuId=p.Uid
+                  AND relation.IsActive=1 AND ISNULL(relation.IsDeleted,0)=0
+                ORDER BY relation.Uid
+            ) cp
+            {0}
             WHERE ISNULL(p.IsDeleted,0)=0 AND p.IsActive=1 AND p.Uid<>@EmptyUid
               AND NULLIF(TRIM(@Whitespace FROM p.Sku),N'') IS NOT NULL
-              AND LEFT(p.Sku,LEN(@NonStandardPrefix))<>@NonStandardPrefix
-              AND p.SupplyType=@PurchaseSupply AND p.MaterialType IN @AllowedMaterialTypes
+              AND p.SupplyType=@PurchaseSupply
               AND (@Keyword IS NULL OR p.Sku LIKE @Keyword ESCAPE N'~'
-                   OR p.DescriptionZh LIKE @Keyword ESCAPE N'~' OR p.DescriptionEn LIKE @Keyword ESCAPE N'~')
-            """, "p.Sku,p.Uid", request, cancellationToken);
+                   OR p.DescriptionZh LIKE @Keyword ESCAPE N'~' OR p.DescriptionEn LIKE @Keyword ESCAPE N'~'
+                   OR cp.CustomerSku LIKE @Keyword ESCAPE N'~' OR {1} LIKE @Keyword ESCAPE N'~')
+            """;
+
+        if (!request.SupplierId.HasValue)
+            return ReadPageAsync<ProcurementProductCandidateDto>(
+                string.Format(commonColumns, "COALESCE(p.DefaultSupplierSku,N'')", "CAST(NULL AS decimal(18,6))", "CAST(NULL AS decimal(18,6))"),
+                string.Format(commonFrom, string.Empty, "COALESCE(p.DefaultSupplierSku,N'')"), "p.Sku,p.Uid", request, cancellationToken);
+
+        const string supplierApply = """
+            OUTER APPLY (
+                SELECT TOP(1) relation.SupplierSku,relation.UnitPrice,relation.TaxPrice
+                FROM dbo.SupplierProduct relation
+                WHERE relation.SupplierId=@SupplierId AND relation.SkuId=p.Uid AND ISNULL(relation.IsDeleted,0)=0
+                ORDER BY relation.Uid
+            ) sp
+            """;
+        return ReadPageAsync<ProcurementProductCandidateDto>(
+            string.Format(commonColumns, "COALESCE(sp.SupplierSku,N'')", "sp.UnitPrice", "sp.TaxPrice"),
+            string.Format(commonFrom, supplierApply, "sp.SupplierSku"), "p.Sku,p.Uid", request, cancellationToken);
+    }
 
     /// <summary>历史客户筛选保留停用对象，返回当前显示资料；不回写采购快照，也不宣称软删除对象可用于新增。</summary>
     public Task<PagedResponseBase<ProcurementCustomerFilterDto>> SearchCustomerHistoryFiltersAsync(
@@ -98,9 +112,10 @@ public sealed class ProcurementMasterDataQueryRepository(RepositoryBaseContext c
             new
             {
                 Keyword = keyword, Whitespace, EmptyUid = Guid.Empty,
+                CustomerId = (request as ProcurementProductSearchRequest)?.CustomerId,
+                SupplierId = (request as ProcurementProductSearchRequest)?.SupplierId,
                 Skip = (long)(request.PageIndex - 1) * request.PageSize, Take = request.PageSize,
-                NonStandardPrefix = DocumentTypeStaticsEnum.NonStandardPart, PurchaseSupply = SupplyTypeEnums.采购,
-                AllowedMaterialTypes = new[] { MaterialTypesEnum.成品, MaterialTypesEnum.零件, MaterialTypesEnum.客供件 }
+                PurchaseSupply = SupplyTypeEnums.采购
             }, cancellationToken));
         var count = await grid.ReadSingleAsync<int>();
         var items = (await grid.ReadAsync<T>()).ToList();

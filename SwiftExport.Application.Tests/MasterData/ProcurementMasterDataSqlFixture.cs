@@ -14,7 +14,6 @@ internal sealed class ProcurementMasterDataSqlFixture : IAsyncDisposable
     private ServiceProvider? provider;
     private bool created;
     public Guid UserId { get; } = Guid.NewGuid();
-    public Guid RoleId { get; } = Guid.NewGuid();
 
     /// <summary>仅允许本机 LocalDB 集成认证；不连接既有业务库。</summary>
     private static string ConnectionString(string database) => new SqlConnectionStringBuilder
@@ -36,17 +35,15 @@ internal sealed class ProcurementMasterDataSqlFixture : IAsyncDisposable
         await ExecuteAsync("""
             CREATE TABLE dbo.Customer(Uid uniqueidentifier PRIMARY KEY,CustomerCode nvarchar(100),CustomerName nvarchar(300),IsActive bit NOT NULL,IsDeleted bit);
             CREATE TABLE dbo.Supplier(Uid uniqueidentifier PRIMARY KEY,SupplierCode nvarchar(100),SupplierName nvarchar(300),IsActive bit NOT NULL,IsDeleted bit);
+            CREATE TABLE dbo.ProductColor(Uid uniqueidentifier PRIMARY KEY,ColorNameZh nvarchar(300),IsDeleted bit);
             CREATE TABLE dbo.Product(Uid uniqueidentifier PRIMARY KEY,Sku nvarchar(200),DescriptionZh nvarchar(300),DescriptionEn nvarchar(300),
+              MainImage nvarchar(1000),LinkSku nvarchar(200),FeaturesZh nvarchar(300),ColorId uniqueidentifier,DefaultSupplierSku nvarchar(200),
               Unit nvarchar(100),SupplyType nvarchar(100),MaterialType nvarchar(100),IsActive bit NOT NULL,IsDeleted bit);
+            CREATE TABLE dbo.CustomerProduct(Uid uniqueidentifier PRIMARY KEY,CustomerId uniqueidentifier,SkuId uniqueidentifier,CustomerSku nvarchar(200),IsActive bit,IsDeleted bit);
+            CREATE TABLE dbo.SupplierProduct(Uid uniqueidentifier PRIMARY KEY,SupplierId uniqueidentifier,SkuId uniqueidentifier,SupplierSku nvarchar(200),UnitPrice decimal(18,6),TaxPrice decimal(18,6),IsDeleted bit);
             CREATE TABLE dbo.SysDictData(Uid uniqueidentifier PRIMARY KEY,DictCode nvarchar(100),DataNameEn nvarchar(100),IsEnabled bit,IsDeleted bit);
-            CREATE TABLE dbo.SysUser(Uid uniqueidentifier PRIMARY KEY,IsActive bit NOT NULL,IsDeleted bit);
-            CREATE TABLE dbo.SysRoles(Uid uniqueidentifier PRIMARY KEY,RoleName nvarchar(100),IsDeleted bit);
-            CREATE TABLE dbo.SysUser_Roles(Uid uniqueidentifier PRIMARY KEY,UserId uniqueidentifier,RoleId uniqueidentifier,IsDeleted bit);
-            INSERT dbo.SysUser VALUES(@UserId,1,0);
-            INSERT dbo.SysRoles VALUES(@RoleId,N'Admin',0);
-            INSERT dbo.SysUser_Roles VALUES(NEWID(),@UserId,@RoleId,0);
             INSERT dbo.SysDictData VALUES(NEWID(),N'Unit',N'EA',1,0);
-            """, new { UserId, RoleId });
+            """);
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -80,7 +77,8 @@ internal sealed class ProcurementMasterDataSqlFixture : IAsyncDisposable
     {
         var uid = Guid.NewGuid();
         await ExecuteAsync("""
-            INSERT dbo.Product VALUES(@uid,@sku,N'产品描述',N'Product description',@unit,@supply,@material,@active,@deleted);
+            INSERT dbo.Product(Uid,Sku,DescriptionZh,DescriptionEn,MainImage,LinkSku,FeaturesZh,ColorId,DefaultSupplierSku,Unit,SupplyType,MaterialType,IsActive,IsDeleted)
+            VALUES(@uid,@sku,N'产品描述',N'Product description',N'/images/main.png',N'LINK-1',N'配置',NULL,N'DEFAULT-SKU',@unit,@supply,@material,@active,@deleted);
             """, new { uid, sku, unit, supply, material, active, deleted });
         return uid;
     }
@@ -108,7 +106,7 @@ internal sealed class ProcurementMasterDataSqlFixture : IAsyncDisposable
             throw new InvalidOperationException("拒绝操作非本实例测试库。");
     }
 
-    /// <summary>仅提供测试账号身份，不通过客户端角色绕过真实数据库授权。</summary>
+    /// <summary>仅提供已认证测试身份；候选查询不依赖数据库用户或角色表。</summary>
     private sealed class FixtureUser(Guid uid) : ICurrentUser
     {
         public string UserName => "主数据候选测试";

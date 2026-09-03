@@ -1,6 +1,7 @@
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums.Inventory;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Entities.MasterData;
@@ -55,9 +56,14 @@ public sealed class ProcurementConfirmationBuilder(IProcurementOrderRepository r
             var unit = await repository.GetUnitAsync(product!.Unit?.Trim() ?? "", ct);
             if (string.IsNullOrWhiteSpace(unit) || unit != line.UnitSnapshot)
                 throw new InvalidOperationException("基础单位失效或已改变，不能确认历史单位不一致的采购行。");
-            var target = await RequireWarehouseAsync(line.DeliveryWarehouseSiteId.Value, ct);
-            if (target.Supplier.Uid != line.DeliveryTargetSupplierId)
-                throw new InvalidOperationException("收货仓库供应商归属已经改变。");
+            _ = await RequireWarehouseAsync(line.DeliveryWarehouseSiteId.Value, ct);
+            // 送达供应商是客供件自身的独立目标，不再由收货仓库的供应商归属推导。
+            if (line.MaterialType == MaterialTypesEnum.客供件)
+            {
+                if (!line.DeliveryTargetSupplierId.HasValue)
+                    throw new InvalidOperationException("客供件缺少送达供应商，不能确认。");
+                _ = await RequireSupplierAsync(line.DeliveryTargetSupplierId.Value, ct);
+            }
             result.Lines.Add(new ProcurementLineConfirmationContextDto
             {
                 PurchaseOrderLineId = line.Uid, LineVersion = line.Version,
