@@ -186,7 +186,10 @@
                             </ui:TextBox.Style>
                         </ui:TextBox>
 
-                        <ComboBox Grid.Column="2" Grid.Row="0" ItemsSource="{Binding CustomerCandidates}" SelectedItem="{Binding SelectedCustomer}" DisplayMemberPath="CustomerName">
+                        <ComboBox Grid.Column="2" Grid.Row="0" 
+                                  ItemsSource="{Binding CustomerCandidates}" 
+                                  SelectedItem="{Binding SelectedCustomer}" 
+                                  DisplayMemberPath="CustomerName">
                             <ComboBox.Style>
                                 <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -238,7 +241,7 @@
                         <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="6" Grid.Row="4" controls:DatePickerAssist.PlaceholderText="回复交期" SelectedDate="{Binding Header.ReplyDate}" IsEnabled="False"/>
                         <ui:TextBox Grid.Column="6" Grid.Row="6" PlaceholderText="跟单员" Text="{Binding Header.PurchasePerson}" IsReadOnly="True"/>
 
-                        <TextBlock Grid.Column="8" Grid.Row="0" Text="实际供应商"/>
+                        <TextBlock Grid.Column="8" Grid.Row="0" Text="供应商"/>
                         <TextBlock Grid.Column="8" Grid.Row="2" Text="进水管"/>
                         <TextBlock Grid.Column="8" Grid.Row="4" Text="起泡器"/>
                         <TextBlock Grid.Column="8" Grid.Row="6" Text="托盘"/>
@@ -323,7 +326,7 @@
                                   SelectedItem="{Binding Lines.SelectedItem}"
                                   AutoGenerateColumns="False"
                                   RowHeight="{StaticResource DataGridRowHeightMedium}"
-                                  gridCore:GridRowHeader.ShowRowNumber="True"
+                                  HeadersVisibility="Column"
                                   gridCore:EnterpriseGrid.IsEnabled="True"
                                   gridCore:GridVirtualization.IsEnabled="True"
                                   gridSelection:GridSelection.CurrentRow="{Binding Lines.SelectedItem,Mode=TwoWay}">
@@ -338,7 +341,12 @@
                                     </Style>
                                 </DataGrid.Style>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="行号" Binding="{Binding LineNumber}" Width="55" IsReadOnly="True"/>
+                                    <DataGridTextColumn 
+                                        ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                        Header="行号" 
+                                        Binding="{Binding LineNumber}" 
+                                        Width="55" 
+                                        IsReadOnly="True"/>
 
                                     <DataGridTemplateColumn Header="图片" Width="64">
                                         <DataGridTemplateColumn.CellTemplate>
