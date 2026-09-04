@@ -34,6 +34,7 @@ public static class DependencyInjection
 
 
         services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<IProductMasterService, ProductMasterService>();
         services.AddScoped<IBomService, BomService>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<ICustomerPoConfigService, CustomerPoConfigService>();

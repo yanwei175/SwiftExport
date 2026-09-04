@@ -181,7 +181,7 @@ HAVING COUNT_BIG(*)>0;
 
 DECLARE @TargetTables TABLE(TableName sysname NOT NULL PRIMARY KEY);
 INSERT @TargetTables(TableName) VALUES
- (N'SupplierProduct'),(N'ProductMaster'),(N'ProductPackage'),(N'Bom'),(N'SysDicCurrencyExchange'),
+ (N'SupplierProduct'),(N'ProductMaster'),(N'ProductNeutral'),(N'ProductPackage'),(N'Bom'),(N'SysDicCurrencyExchange'),
  (N'DocumentSequence'),(N'SalesOrderHeader'),(N'SalesOrderLine'),(N'GrossDemand'),(N'NetDemand'),
  (N'NetDemandAllocation'),(N'NetDemandPlanCommandLog'),(N'DemandExecutionLink'),(N'PurchaseOrderHead'),
  (N'PurchaseOrderLine'),(N'SupplierProgressReport'),(N'WarehouseSite'),(N'InventoryBalance'),

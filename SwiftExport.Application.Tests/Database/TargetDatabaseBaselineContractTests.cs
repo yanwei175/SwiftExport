@@ -18,6 +18,8 @@ public sealed class TargetDatabaseBaselineContractTests
     {
         [typeof(GrossDemand)] = "GrossDemand",
         [typeof(NetDemand)] = "NetDemand",
+        [typeof(ProductMaster)] = "ProductMaster",
+        [typeof(ProductNeutral)] = "ProductNeutral",
         [typeof(SupplierProgressReport)] = "SupplierProgressReport",
         [typeof(WarehouseSite)] = "WarehouseSite",
         [typeof(InventoryBalance)] = "InventoryBalance",
@@ -86,7 +88,7 @@ public sealed class TargetDatabaseBaselineContractTests
         StringAssert.Contains(script, "BEGIN TRAN;");
         StringAssert.Contains(script, "BEGIN CATCH");
         StringAssert.Contains(script, "IF @@TRANCOUNT<>0");
-        foreach (var table in new[] { "SupplierProduct", "ProductMaster", "ProductPackage", "Bom", "SysDicCurrencyExchange", "DocumentSequence", "SalesOrderHeader", "SalesOrderLine", "GrossDemand", "NetDemand", "NetDemandAllocation", "NetDemandPlanCommandLog", "DemandExecutionLink", "PurchaseOrderHead", "PurchaseOrderLine", "SupplierProgressReport", "WarehouseSite", "InventoryBalance", "InventoryLedgerEntry", "InboundDocument", "InboundDocumentLine", "OutboundDocument", "OutboundDocumentLine", "PackingListDocument", "PackingListContributionLine", "BusinessOperationLog" })
+        foreach (var table in new[] { "SupplierProduct", "ProductMaster", "ProductNeutral", "ProductPackage", "Bom", "SysDicCurrencyExchange", "DocumentSequence", "SalesOrderHeader", "SalesOrderLine", "GrossDemand", "NetDemand", "NetDemandAllocation", "NetDemandPlanCommandLog", "DemandExecutionLink", "PurchaseOrderHead", "PurchaseOrderLine", "SupplierProgressReport", "WarehouseSite", "InventoryBalance", "InventoryLedgerEntry", "InboundDocument", "InboundDocumentLine", "OutboundDocument", "OutboundDocumentLine", "PackingListDocument", "PackingListContributionLine", "BusinessOperationLog" })
             StringAssert.Contains(script, $"CREATE TABLE dbo.{table}", table);
         foreach (var exception in new[] { "CustomerProduct", "CustomerPoConfig", "Customer", "Product", "ProductCategory", "ProductColor", "ProductDetails", "Supplier", "SysDicCurrency", "SysDictData", "SysDictType", "SysRoles", "SysUser", "SysUser_Roles", "SysViewRoute" })
             Assert.IsFalse(Regex.IsMatch(script, $@"DROP\s+TABLE(?:\s+IF\s+EXISTS)?\s+dbo\.{Regex.Escape(exception)}\b", RegexOptions.IgnoreCase), exception);

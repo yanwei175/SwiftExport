@@ -17,7 +17,7 @@ public sealed class NetDemandLegacyDependencyGuardTests
         "SwiftExport.Core/Interfaces/DemandPlanning",
         "SwiftExport.Infrastructure/Repositories/DemandPlanning",
         "SwiftExport.WebApi/Controllers/DemandPlanning",
-        "SwiftExport.Client.Wpf/Features/DemandPlanning"
+        "SwiftExport.Client.Wpf/FeaturesEn/DemandPlanning"
     ];
 
     private static readonly (string Name, Regex Pattern)[] ForbiddenDependencies =

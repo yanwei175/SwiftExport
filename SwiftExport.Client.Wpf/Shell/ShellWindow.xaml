@@ -114,6 +114,12 @@
         <DataTemplate DataType="{x:Type productListViewModels:ProductsViewModel}">
             <productListViews:ProductsView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type productListViewModels:ProductMasterManagerViewModel}">
+            <productListViews:ProductMasterManagerView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type productListViewModels:ProductMasterDetailViewModel}">
+            <productListViews:ProductMasterDetailView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type productCategoryViewModels:ProductCategoryManagerViewModel}">
             <productCategoryViews:ProductCategoryManagerView />
         </DataTemplate>

@@ -28,10 +28,10 @@ public partial class ProductRepository
                 ? @" AND (cp.Sku LIKE @Keyword ESCAPE '~'
                          OR cp.CustomerSku LIKE @Keyword ESCAPE '~'
                          OR cp.LinkSku LIKE @Keyword ESCAPE '~'
-                         OR p.DescriptionEn LIKE @Keyword ESCAPE '~')"
+                         OR p.DefaultDescriptionEn LIKE @Keyword ESCAPE '~')"
                 : @" AND (p.Sku LIKE @Keyword ESCAPE '~'
                          OR p.LinkSku LIKE @Keyword ESCAPE '~'
-                         OR p.DescriptionEn LIKE @Keyword ESCAPE '~')";
+                         OR p.DefaultDescriptionEn LIKE @Keyword ESCAPE '~')";
         }
 
         string fromSql;
@@ -50,7 +50,7 @@ public partial class ProductRepository
                 ISNULL(cp.CustomerSku, '') AS CustomerSku,
                 ISNULL(p.Sku, '') AS Sku,
                 ISNULL(cp.LinkSku, p.LinkSku) AS LinkSku,
-                ISNULL(p.DescriptionEn, '') AS DescriptionEn,
+                ISNULL(p.DefaultDescriptionEn, '') AS DefaultDescriptionEn,
                 ISNULL(pc.ColorNameEn, '') AS ColorNameEn,
                 ISNULL(p.FeaturesEn, '') AS FeaturesEn,
                 ISNULL(p.MainImage, '') AS MainImage,
@@ -69,7 +69,7 @@ public partial class ProductRepository
                 CAST(N'' AS nvarchar(200)) AS CustomerSku,
                 ISNULL(p.Sku, '') AS Sku,
                 ISNULL(p.LinkSku, '') AS LinkSku,
-                ISNULL(p.DescriptionEn, '') AS DescriptionEn,
+                ISNULL(p.DefaultDescriptionEn, '') AS DefaultDescriptionEn,
                 ISNULL(pc.ColorNameEn, '') AS ColorNameEn,
                 ISNULL(p.FeaturesEn, '') AS FeaturesEn,
                 ISNULL(p.MainImage, '') AS MainImage,

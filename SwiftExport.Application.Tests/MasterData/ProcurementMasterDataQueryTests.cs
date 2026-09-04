@@ -128,7 +128,7 @@ public sealed class ProcurementMasterDataQueryTests
             typeof(ProcurementCustomerCandidateDto).GetProperties().Select(p => p.Name).ToArray());
         CollectionAssert.AreEquivalent(new[] { "Uid", "SupplierCode", "SupplierName" },
             typeof(ProcurementSupplierCandidateDto).GetProperties().Select(p => p.Name).ToArray());
-        CollectionAssert.AreEquivalent(new[] { "Uid", "Sku", "DescriptionZh", "DescriptionEn", "Unit", "MainImage", "CustomerSku", "LinkSku", "SupplierSku", "FinishZh", "FeaturesZh", "MaterialType", "SupplyType", "UnitPrice", "TaxPrice" },
+        CollectionAssert.AreEquivalent(new[] { "Uid", "Sku", "DescriptionZh", "DefaultDescriptionEn", "Unit", "MainImage", "CustomerSku", "LinkSku", "SupplierSku", "FinishZh", "FeaturesZh", "MaterialType", "SupplyType", "UnitPrice", "TaxPrice" },
             typeof(ProcurementProductCandidateDto).GetProperties().Select(p => p.Name).ToArray());
         CollectionAssert.AreEquivalent(new[] { "Uid", "CustomerCode", "CustomerName", "IsActive" },
             typeof(ProcurementCustomerFilterDto).GetProperties().Select(p => p.Name).ToArray());

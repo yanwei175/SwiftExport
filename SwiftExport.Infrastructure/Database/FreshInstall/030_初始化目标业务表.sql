@@ -31,10 +31,22 @@ CREATE INDEX IX_SupplierProduct_Product ON dbo.SupplierProduct(SkuId) WHERE IsDe
 CREATE TABLE dbo.ProductMaster
 (
  Uid uniqueidentifier NOT NULL,Version int NOT NULL CONSTRAINT DF_ProductMaster_Version DEFAULT(1),IsDeleted bit NOT NULL CONSTRAINT DF_ProductMaster_IsDeleted DEFAULT(0),CreatedDate datetime2(7) NULL,CreatedBy nvarchar(100) NULL,UpdatedDate datetime2(7) NULL,UpdatedBy nvarchar(100) NULL,
- MasterSku nvarchar(200) NOT NULL,Description nvarchar(300) NULL,Features nvarchar(300) NULL,ProductClass nvarchar(100) NULL,ProductType nvarchar(100) NULL,ProductTag nvarchar(100) NULL,
- CONSTRAINT PK_ProductMaster PRIMARY KEY(Uid),CONSTRAINT CK_ProductMaster_Version CHECK(Version>0)
+ MasterSku nvarchar(200) NOT NULL,DefaultDescriptionEn nvarchar(300) NULL,DefaultDescriptionZh nvarchar(300) NULL,DefaultFeaturesEn nvarchar(500) NULL,DefaultFeaturesZh nvarchar(500) NULL,DefaultPcsPerPackage int NOT NULL CONSTRAINT DF_ProductMaster_Pcs DEFAULT(1),DefaultNetWeight decimal(18,4) NULL,DefaultGrossWeight decimal(18,4) NULL,DefaultCbm decimal(18,6) NULL,ProductType nvarchar(100) NULL,ProductTag nvarchar(100) NULL,CategoryId uniqueidentifier NOT NULL,DefaultSupplierId uniqueidentifier NOT NULL,
+ CONSTRAINT PK_ProductMaster PRIMARY KEY(Uid),CONSTRAINT CK_ProductMaster_Version CHECK(Version>0),CONSTRAINT CK_ProductMaster_Pcs CHECK(DefaultPcsPerPackage>0),CONSTRAINT CK_ProductMaster_Measures CHECK((DefaultNetWeight IS NULL OR DefaultNetWeight>=0) AND (DefaultGrossWeight IS NULL OR DefaultGrossWeight>=0) AND (DefaultCbm IS NULL OR DefaultCbm>=0))
 );
 CREATE UNIQUE INDEX UX_ProductMaster_MasterSku ON dbo.ProductMaster(MasterSku) WHERE IsDeleted=0;
+CREATE INDEX IX_ProductMaster_Category ON dbo.ProductMaster(CategoryId) WHERE IsDeleted=0;
+CREATE INDEX IX_ProductMaster_DefaultSupplier ON dbo.ProductMaster(DefaultSupplierId) WHERE IsDeleted=0;
+
+CREATE TABLE dbo.ProductNeutral
+(
+ Uid uniqueidentifier NOT NULL,Version int NOT NULL CONSTRAINT DF_ProductNeutral_Version DEFAULT(1),IsDeleted bit NOT NULL CONSTRAINT DF_ProductNeutral_IsDeleted DEFAULT(0),CreatedDate datetime2(7) NULL,CreatedBy nvarchar(100) NULL,UpdatedDate datetime2(7) NULL,UpdatedBy nvarchar(100) NULL,
+ ProductCode nvarchar(200) NOT NULL,ProductMasterId uniqueidentifier NOT NULL,ColorId uniqueidentifier NOT NULL,DefaultSalesPriceUsd decimal(18,6) NULL,DefaultExchangeRate decimal(18,8) NULL,ProfitMargin decimal(18,6) NULL,DefaultPurchasePriceCny decimal(18,6) NULL,ImagePath nvarchar(1000) NULL,
+ CONSTRAINT PK_ProductNeutral PRIMARY KEY(Uid),CONSTRAINT CK_ProductNeutral_Version CHECK(Version>0),CONSTRAINT CK_ProductNeutral_Prices CHECK((DefaultSalesPriceUsd IS NULL OR DefaultSalesPriceUsd>=0) AND (DefaultPurchasePriceCny IS NULL OR DefaultPurchasePriceCny>=0)),CONSTRAINT CK_ProductNeutral_ExchangeRate CHECK(DefaultExchangeRate IS NULL OR DefaultExchangeRate>0)
+);
+CREATE UNIQUE INDEX UX_ProductNeutral_ProductCode ON dbo.ProductNeutral(ProductCode) WHERE IsDeleted=0;
+CREATE INDEX IX_ProductNeutral_ProductMaster ON dbo.ProductNeutral(ProductMasterId) WHERE IsDeleted=0;
+CREATE INDEX IX_ProductNeutral_Color ON dbo.ProductNeutral(ColorId) WHERE IsDeleted=0;
 
 CREATE TABLE dbo.ProductPackage
 (

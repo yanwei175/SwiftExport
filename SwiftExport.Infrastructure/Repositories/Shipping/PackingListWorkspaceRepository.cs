@@ -29,7 +29,7 @@ public sealed class PackingListWorkspaceRepository(RepositoryBaseContext context
             """, p, context.Session.Transaction);
         var rows = await context.Session.Connection.QueryAsync<PackingListSourceDto>(new CommandDefinition($"""
             SELECT a.Uid AS NetDemandAllocationId,a.Version AS SourceVersion,n.GrossDemandId,n.Uid AS NetDemandId,n.ProductId,
-                   n.SkuSnapshot AS Sku,g.CustomerSkuSnapshot AS CustomerSku,n.DescriptionSnapshot AS Description,COALESCE(NULLIF(LTRIM(RTRIM(pr.Unit)),N''),N'PCS') AS Unit,
+                   n.SkuSnapshot AS Sku,g.CustomerSkuSnapshot AS CustomerSku,n.DescriptionSnapshot AS DefaultDescriptionEn,COALESCE(NULLIF(LTRIM(RTRIM(pr.Unit)),N''),N'PCS') AS Unit,
                    so.CustomerId,c.CustomerCode,c.CustomerName,a.PlannedQty,COALESCE(sh.ShippedNetQty,0) AS ShippedNetQty,
                    a.PlannedQty-COALESCE(sh.ShippedNetQty,0) AS ShippableRemainingQty,COALESCE(rc.SourceInboundNetQty,0) AS SourceInboundNetQty,
                    COALESCE(progress.ReadyQty,0) AS ReadyQty,so.Uid AS SalesOrderId,g.SourceLineId AS SalesOrderLineId,so.OrderNo AS SalesOrderNo,g.SourceLineNumber AS SalesOrderLineNumber,

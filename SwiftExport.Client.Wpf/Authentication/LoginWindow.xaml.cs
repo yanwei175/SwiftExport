@@ -1,9 +1,10 @@
 using System.Windows;
 using System.Windows.Input;
+using Wpf.Ui.Controls;
 
 namespace SwiftExportClient.Authentication;
 
-public partial class LoginWindow : Window
+public partial class LoginWindow : FluentWindow
 {
     private readonly LoginViewModel _viewModel;
 

@@ -16,11 +16,11 @@ public sealed class InventoryRepository(RepositoryBaseContext context) : IInvent
     {
         var index = Math.Max(1, request.PageIndex); var size = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 200);
         var p = new DynamicParameters(new { request.SupplierId, request.WarehouseSiteId, request.NonZeroOnly, Keyword = string.IsNullOrWhiteSpace(request.Keyword) ? null : $"%{request.Keyword.Trim()}%", Offset = (index - 1) * size, PageSize = size });
-        const string where = "WHERE ISNULL(i.IsDeleted,0)=0 AND (@SupplierId IS NULL OR w.SupplierId=@SupplierId) AND (@WarehouseSiteId IS NULL OR i.WarehouseSiteId=@WarehouseSiteId) AND (@NonZeroOnly IS NULL OR @NonZeroOnly=0 OR i.OnHandQty<>0) AND (@Keyword IS NULL OR i.SkuSnapshot LIKE @Keyword OR p.Sku LIKE @Keyword OR p.DescriptionZh LIKE @Keyword OR p.DescriptionEn LIKE @Keyword OR w.Code LIKE @Keyword)";
+        const string where = "WHERE ISNULL(i.IsDeleted,0)=0 AND (@SupplierId IS NULL OR w.SupplierId=@SupplierId) AND (@WarehouseSiteId IS NULL OR i.WarehouseSiteId=@WarehouseSiteId) AND (@NonZeroOnly IS NULL OR @NonZeroOnly=0 OR i.OnHandQty<>0) AND (@Keyword IS NULL OR i.SkuSnapshot LIKE @Keyword OR p.Sku LIKE @Keyword OR p.DescriptionZh LIKE @Keyword OR p.DefaultDescriptionEn LIKE @Keyword OR w.Code LIKE @Keyword)";
         var total = await _context.Session.Connection.ExecuteScalarAsync<int>($"SELECT COUNT(1) FROM dbo.InventoryBalance i JOIN dbo.WarehouseSite w ON w.Uid=i.WarehouseSiteId LEFT JOIN dbo.Product p ON p.Uid=i.ProductId AND ISNULL(p.IsDeleted,0)=0 {where};", p, _context.Session.Transaction);
         var sql = $"""
             SELECT i.Uid,i.Version,i.WarehouseSiteId,w.Code AS WarehouseCode,w.Name AS WarehouseName,i.ProductId,
-                   COALESCE(p.Sku,i.SkuSnapshot) AS Sku,COALESCE(p.DescriptionZh,p.DescriptionEn,i.SkuSnapshot) AS ProductName,i.UnitSnapshot AS Unit,
+                   COALESCE(p.Sku,i.SkuSnapshot) AS Sku,COALESCE(p.DescriptionZh,p.DefaultDescriptionEn,i.SkuSnapshot) AS ProductName,i.UnitSnapshot AS Unit,
                    i.OnHandQty,i.OnHandQty AS AvailableQty,i.UpdatedDate
             FROM dbo.InventoryBalance i JOIN dbo.WarehouseSite w ON w.Uid=i.WarehouseSiteId LEFT JOIN dbo.Product p ON p.Uid=i.ProductId AND ISNULL(p.IsDeleted,0)=0
             {where} ORDER BY w.Code,COALESCE(p.Sku,i.SkuSnapshot),i.Uid OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;

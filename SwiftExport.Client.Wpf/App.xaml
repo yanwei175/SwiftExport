@@ -17,12 +17,13 @@
                 <ResourceDictionary Source="Resources/Button.xaml" />
                 <ResourceDictionary Source="Resources/日期选择器.xaml" />
                 <ResourceDictionary Source="Resources/DataGrid.xaml" />
-                <ResourceDictionary Source="Resources/ListBox.xaml" />
                 <ResourceDictionary Source="Resources/Image.xaml" />
                 <ResourceDictionary Source="Resources/TabControl.xaml" />
+                <ResourceDictionary Source="Resources/ListBox.xaml" />
 
             </ResourceDictionary.MergedDictionaries>
             <converters:EnumDescriptionConverter x:Key="EnumDescriptionConverter" />
+            <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
 
         </ResourceDictionary>
     </Application.Resources>

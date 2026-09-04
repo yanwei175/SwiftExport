@@ -51,6 +51,8 @@ public static class DependencyInjection
 
         services.AddScoped(typeof(IRepository<>), typeof(DapperRepository<>));
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IProductMasterRepository, ProductMasterRepository>();
+        services.AddScoped<IProductNeutralRepository, ProductNeutralRepository>();
         services.AddScoped<IBomRepository, BomRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<ICustomerPoConfigRepository, CustomerPoConfigRepository>();

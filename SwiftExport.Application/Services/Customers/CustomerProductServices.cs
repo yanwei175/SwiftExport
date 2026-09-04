@@ -23,7 +23,7 @@ public class CustomerProductServices(
     ServiceBaseContext context)
     : BaseService<CustomerProduct, CustomerProductDto>(repository, context), ICustomerProductService
 {
-    /// <summary>按 ID 联表查询单条（含 CustomerCode / DescriptionEn / CategoryName 等）</summary>
+    /// <summary>按 ID 联表查询单条（含 CustomerCode / DefaultDescriptionEn / CategoryName 等）</summary>
     public override async Task<ServiceResult<CustomerProductDto>> GetByIdAsync(Guid id)
     {
         var dto = await repository.GetDtoByIdAsync(id);

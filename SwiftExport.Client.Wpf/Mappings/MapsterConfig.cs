@@ -1,6 +1,7 @@
 using Mapster;
 using System.Runtime.CompilerServices;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
@@ -43,6 +44,71 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted)
             .Map(dest => dest.CNYPrice, src => src.CnyPrice)
             .Map(dest => dest.USDPrice, src => src.UsdPrice);
+
+        config.NewConfig<ProductMasterListItemDto, ProductMasterLineModel>()
+            .IgnoreNullValues(true)
+            .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
+            .Map(dest => dest.MasterSku, src => src.Data.MasterSku)
+            .Map(dest => dest.DefaultDescriptionEn, src => src.Data.DefaultDescriptionEn)
+            .Map(dest => dest.DefaultDescriptionZh, src => src.Data.DefaultDescriptionZh)
+            .Map(dest => dest.DefaultFeaturesEn, src => src.Data.DefaultFeaturesEn)
+            .Map(dest => dest.DefaultFeaturesZh, src => src.Data.DefaultFeaturesZh)
+            .Map(dest => dest.DefaultPcsPerPackage, src => src.Data.DefaultPcsPerPackage)
+            .Map(dest => dest.DefaultNetWeight, src => src.Data.DefaultNetWeight)
+            .Map(dest => dest.DefaultGrossWeight, src => src.Data.DefaultGrossWeight)
+            .Map(dest => dest.DefaultCbm, src => src.Data.DefaultCbm)
+            .Map(dest => dest.ProductType, src => src.Data.ProductType)
+            .Map(dest => dest.ProductTag, src => src.Data.ProductTag)
+            .Map(dest => dest.CategoryId, src => src.Data.CategoryId)
+            .Map(dest => dest.DefaultSupplierId, src => src.Data.DefaultSupplierId)
+            .Map(dest => dest.MainImagePath, src => src.MainImagePath ?? string.Empty)
+            .Map(dest => dest.DefaultSalesPriceUsd, src => src.DefaultSalesPriceUsd)
+            .Map(dest => dest.DefaultPurchasePriceCny, src => src.DefaultPurchasePriceCny);
+
+        config.NewConfig<ProductMasterLineModel, ProductMasterWriteDto>();
+        config.NewConfig<ProductMasterLineModel, ProductMasterListItemDto>()
+            .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted)
+            .Map(dest => dest.Data, src => src);
+
+        config.NewConfig<ProductMasterDetailDto, ProductMasterEditModel>()
+            .IgnoreNullValues(true)
+            .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
+            .Map(dest => dest.MasterSku, src => src.Master.MasterSku)
+            .Map(dest => dest.DefaultDescriptionEn, src => src.Master.DefaultDescriptionEn)
+            .Map(dest => dest.DefaultDescriptionZh, src => src.Master.DefaultDescriptionZh)
+            .Map(dest => dest.DefaultFeaturesEn, src => src.Master.DefaultFeaturesEn)
+            .Map(dest => dest.DefaultFeaturesZh, src => src.Master.DefaultFeaturesZh)
+            .Map(dest => dest.DefaultPcsPerPackage, src => src.Master.DefaultPcsPerPackage)
+            .Map(dest => dest.DefaultNetWeight, src => src.Master.DefaultNetWeight)
+            .Map(dest => dest.DefaultGrossWeight, src => src.Master.DefaultGrossWeight)
+            .Map(dest => dest.DefaultCbm, src => src.Master.DefaultCbm)
+            .Map(dest => dest.ProductType, src => src.Master.ProductType)
+            .Map(dest => dest.ProductTag, src => src.Master.ProductTag)
+            .Map(dest => dest.CategoryId, src => src.Master.CategoryId)
+            .Map(dest => dest.DefaultSupplierId, src => src.Master.DefaultSupplierId);
+
+        config.NewConfig<ProductMasterEditModel, ProductMasterWriteDto>();
+        config.NewConfig<ProductMasterEditModel, ProductMasterDetailDto>()
+            .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted)
+            .Map(dest => dest.Master, src => src)
+            .Ignore(dest => dest.Neutrals);
+
+        config.NewConfig<ProductNeutralDto, ProductNeutralLineModel>()
+            .IgnoreNullValues(true)
+            .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
+            .Map(dest => dest.ProductCode, src => src.Data.ProductCode)
+            .Map(dest => dest.ColorId, src => src.Data.ColorId)
+            .Map(dest => dest.DefaultSalesPriceUsd, src => src.Data.DefaultSalesPriceUsd)
+            .Map(dest => dest.DefaultExchangeRate, src => src.Data.DefaultExchangeRate)
+            .Map(dest => dest.ProfitMargin, src => src.Data.ProfitMargin)
+            .Map(dest => dest.DefaultPurchasePriceCny, src => src.Data.DefaultPurchasePriceCny)
+            .Map(dest => dest.ImagePath, src => src.Data.ImagePath)
+            .Map(dest => dest.IsMainImage, src => src.Data.IsMainImage);
+
+        config.NewConfig<ProductNeutralLineModel, ProductNeutralWriteDto>();
+        config.NewConfig<ProductNeutralLineModel, ProductNeutralDto>()
+            .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted)
+            .Map(dest => dest.Data, src => src);
 
         config.NewConfig<ProductColorDto, ProductColorLineModel>()
             .IgnoreNullValues(true)

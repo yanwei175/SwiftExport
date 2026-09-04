@@ -29,7 +29,7 @@
                            TextWrapping="Wrap" />
             </StackPanel>
         </DataTemplate>
-        <Style x:Key="ProductsToolbarButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type ButtonBase}}">
+        <Style x:Key="ProductsToolbarButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinHeight" Value="32" />
             <Setter Property="MinWidth" Value="68" />
             <Setter Property="Padding" Value="8,4" />
@@ -322,6 +322,7 @@
                                                Style="{StaticResource SwiftExportDataGridTextBlock}" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
+                            
                             <DataGridTemplateColumn.CellEditingTemplate>
                                 <DataTemplate>
                                     <productComponents:ProductCategoryFlatLookupTextBox
@@ -335,6 +336,7 @@
                                         SelectionClearedCommandParameter="{Binding}" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellEditingTemplate>
+                            
                         </DataGridTemplateColumn>
                         
                         <DataGridTemplateColumn Header="物料类型" 

@@ -62,6 +62,8 @@ public static class ApiRegistrationExtensions
     private static void AddProductApis(this IServiceCollection services)
     {
         services.AddControllerApi<IProductApi>("Product");
+        services.AddControllerApi<IProductMasterApi>("ProductMaster");
+        services.AddControllerApi<IProductNeutralApi>("ProductNeutral");
         services.AddControllerApi<IProductColorApi>("ProductColor");
         services.AddControllerApi<IProductCategoryApi>("ProductCategory");
         services.AddControllerApi<IBomApi>("Bom");
