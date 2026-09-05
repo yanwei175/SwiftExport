@@ -1,290 +1,109 @@
-using BCrypt.Net;
-using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
+using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Contracts.DTOs.Auth;
-using SwiftExport.Core.Interfaces.Auth;
-using SwiftExport.Infrastructure.Data;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
-using System.Security.Claims;
-using System;
-using System.Text;
+using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.WebApi.Filters;
+using SwiftExport.WebApi.Services.Auth;
 
 namespace SwiftExport.WebApi.Controllers.Auth;
 
-/// <summary>
-/// 认证接口：登录获取 JWT、查询当前用户（含角色）、管理员注册新用户。
-/// </summary>
+/// <summary>公开登录、当前身份及受保护的账号、密码和模块权限管理 HTTP 边界。</summary>
 [ApiController]
 [Route("api/auth")]
-public class AuthController(
-    ISysUserRepository userRepo,
-    ISysUserRoleRepository userRoleRepo,
-    ICurrentUser currentUser,
-    DbSession dbSession,
-    IConfiguration config) : ControllerBase
+public sealed class AuthController(
+    IAuthService authService,
+    IUserPermissionService userPermissionService,
+    IAuthTokenFactory tokenFactory) : ControllerBase
 {
-    private readonly ISysUserRepository _userRepo = userRepo;
-    private readonly ISysUserRoleRepository _userRoleRepo = userRoleRepo;
-    private readonly ICurrentUser _currentUser = currentUser;
-    private readonly DbSession _dbSession = dbSession;
-    private readonly IConfiguration _config = config;
-
-    // ──────────────────────────────────────────────────────
-    // POST /api/auth/login
-    // ──────────────────────────────────────────────────────
-
-    /// <summary>用户名+密码登录，返回 JWT access_token</summary>
+    /// <summary>验证用户名和密码并签发带凭据版本的 JWT。</summary>
     [HttpPost("login")]
     [AllowAnonymous]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
-            return BadRequest(new { message = "用户名和密码不能为空" });
-
-        var user = await _userRepo.GetByUserNameAsync(request.UserName);
-        if (user == null)
-            return Unauthorized(new { message = "用户名或密码错误" });
-
-        // 验证 BCrypt 哈希密码
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            return Unauthorized(new { message = "用户名或密码错误" });
-
-        var token = GenerateJwt(user.Uid, user.UserName);
-        return Ok(new { access_token = token });
+        var result = await authService.AuthenticateAsync(request, cancellationToken);
+        return result.Success ? Ok(tokenFactory.Create(result.Data)) : ToActionResult(result);
     }
 
-    // ──────────────────────────────────────────────────────
-    // GET /api/auth/me
-    // ──────────────────────────────────────────────────────
-
-    /// <summary>获取当前登录用户信息、业务角色和稳定权限键（需携带 JWT）。</summary>
+    /// <summary>返回当前活动用户、角色和稳定权限键。</summary>
     [HttpGet("me")]
-    [Authorize]  // 强制解析 Bearer Token
-    public async Task<IActionResult> Me()
+    [Authorize]
+    public async Task<IActionResult> Me(CancellationToken cancellationToken)
     {
-        if (User?.Identity?.IsAuthenticated != true)
-            return Unauthorized(new { message = "未登录" });
-
-        var userUidStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                     ?? User.FindFirstValue("sub");
-        var userName  = User.FindFirstValue(ClaimTypes.Name)
-                     ?? User.FindFirstValue("unique_name");
-
-        // 查询用户角色列表
-        var assignedNames = new List<string>();
-        if (Guid.TryParse(userUidStr, out var userUid))
-        {
-            var userRoles = await _userRoleRepo.GetByUserIdAsync(userUid);
-            assignedNames = userRoles
-                .Where(r => !string.IsNullOrEmpty(r.RoleName))
-                .Select(r => r.RoleName!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-
-        // 查询昵称
-        var user = Guid.TryParse(userUidStr, out var parsedUid)
-            ? await _userRepo.GetByIdAsync(parsedUid)
-            : null;
-
-        // 当前库把权限键存放在角色表中；API 投影时分离两种语义，避免客户端继续把角色名当权限键。
-        var permissions = PermissionKeys.ExtractPermissions(assignedNames);
-        var roles = PermissionKeys.ExtractRoles(assignedNames);
-
-        return Ok(new MeDto
-        {
-            UserId   = userUidStr,
-            UserName = userName,
-            NickName = user?.NickName ?? userName,
-            Roles    = roles,
-            Permissions = permissions
-        });
+        var result = await authService.GetCurrentUserAsync(cancellationToken);
+        return result.Success ? Ok(result.Data) : ToActionResult(result);
     }
 
-    // ──────────────────────────────────────────────────────
-    // POST /api/auth/register  （仅管理员）
-    // ──────────────────────────────────────────────────────
-
-    /// <summary>
-    /// 注册新用户。
-    /// 规则：当前登录用户必须拥有 Admin 角色，否则返回 403。
-    /// </summary>
+    /// <summary>仅由当前有效 Admin 创建无角色的新用户。</summary>
     [HttpPost("register")]
     [Authorize]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    [PreventDuplicateRequest]
+    public async Task<IActionResult> Register([FromBody] RegisterRequestDto request, CancellationToken cancellationToken)
     {
-        // ① 必须已登录
-        if (!_currentUser.IsAuthenticated)
-            return Unauthorized(new { message = "请先登录" });
-
-        // ② 查角色：必须拥有 Admin 角色才能注册新用户
-        if (_currentUser.UserId == null)
-            return StatusCode(403, new { message = "无法识别当前用户身份" });
-
-        var hasAdmin = await _userRoleRepo.UserHasRoleAsync(_currentUser.UserId.Value, "Admin");
-        if (!hasAdmin)
-            return StatusCode(403, new { message = "仅拥有 Admin 角色的账号可注册新用户" });
-
-        // ③ 基础校验
-        if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
-            return BadRequest(new { message = "用户名和密码不能为空" });
-
-        if (request.Password != request.ConfirmPassword)
-            return BadRequest(new { message = "两次密码不一致" });
-
-        if (request.Password.Length < 6)
-            return BadRequest(new { message = "密码长度不能少于6位" });
-
-        // ④ 用户名重复检查
-        var existing = await _userRepo.GetByUserNameAsync(request.UserName);
-        if (existing != null)
-            return BadRequest(new { message = $"用户名 {request.UserName} 已存在" });
-
-        // ⑤ 哈希密码并插入
-        var hash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-        const string sql = """
-            INSERT INTO [SysUser] ([UserName],[NickName],[PasswordHash],[Email],[PhoneNumber],[IsActive],[IsDeleted],[CreatedDate],[CreatedBy])
-            OUTPUT INSERTED.Uid
-            VALUES (@UserName,@NickName,@PasswordHash,@Email,@PhoneNumber,1,0,@CreatedDate,@CreatedBy)
-            """;
-
-        var newUid = await _dbSession.Connection.ExecuteScalarAsync<Guid>(sql, new
-        {
-            request.UserName,
-            NickName = string.IsNullOrWhiteSpace(request.NickName) ? request.UserName : request.NickName,
-            PasswordHash = hash,
-            request.Email,
-            request.PhoneNumber,
-            CreatedDate = DateTime.Now,
-            CreatedBy = _currentUser.UserName
-        });
-
-        return Ok(new { Success = true, Data = newUid, Message = $"用户 {request.UserName} 注册成功" });
+        var result = await authService.RegisterAsync(request, cancellationToken);
+        return result.Success ? Ok(result) : ToActionResult(result);
     }
 
-    // ──────────────────────────────────────────────────────
-    // POST /api/auth/reset-password  （匿名）
-    // ──────────────────────────────────────────────────────
-
-    /// <summary>
-    /// 忘记密码场景重置用户密码。
-    /// 业务规则：VerificationCode 需匹配任一 Admin 账号密码。
-    /// </summary>
-    [HttpPost("reset-password")]
-    [AllowAnonymous]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    /// <summary>当前用户验证旧密码后修改本人密码。</summary>
+    [HttpPost("change-password")]
+    [Authorize]
+    [PreventDuplicateRequest]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request, CancellationToken cancellationToken)
     {
-        // ① 基础校验
-        if (string.IsNullOrWhiteSpace(request.UserName)
-            || string.IsNullOrWhiteSpace(request.NewPassword)
-            || string.IsNullOrWhiteSpace(request.VerificationCode))
-        {
-            return BadRequest(new { message = "用户名、新密码、校验码不能为空" });
-        }
-
-        if (request.NewPassword.Length < 6)
-            return BadRequest(new { message = "新密码长度不能少于6位" });
-
-        // ② 查询目标用户
-        var targetUser = await _userRepo.GetByUserNameAsync(request.UserName);
-        if (targetUser == null)
-            return NotFound(new { message = "目标用户不存在" });
-
-        //// ③ 使用管理员密码作为校验码（匹配任一 Admin 账号密码哈希即通过）
-        //const string adminPwdSql = """
-        //    SELECT su.PasswordHash
-        //    FROM [SysUser] su WITH(NOLOCK)
-        //    INNER JOIN [SysUser_Roles] ur WITH(NOLOCK) ON ur.UserId = su.Uid
-        //    WHERE ur.RoleName = 'Admin'
-        //      AND (ur.IsDeleted = 0 OR ur.IsDeleted IS NULL)
-        //      AND su.IsActive = 1
-        //      AND (su.IsDeleted = 0 OR su.IsDeleted IS NULL)
-        //      AND su.PasswordHash IS NOT NULL
-        //      AND su.PasswordHash <> ''
-        //    """;
-
-        //var adminPasswordHashes = (await _dbSession.Connection.QueryAsync<string>(adminPwdSql)).ToList();
-        //if (adminPasswordHashes.Count == 0)
-        //    return StatusCode(500, new { message = "系统中未配置管理员账号，无法校验重置请求" });
-
-        //var verified = adminPasswordHashes.Any(hash => BCrypt.Net.BCrypt.Verify(request.VerificationCode, hash));
-        //if (!verified)
-        //    return Unauthorized(new { message = "校验码错误" });
-
-        // ④ 更新目标用户密码哈希
-        var newHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-        const string updateSql = """
-            UPDATE [SysUser]
-            SET PasswordHash = @PasswordHash,
-                UpdatedDate = GETDATE(),
-                UpdatedBy = @UpdatedBy
-            WHERE Uid = @Uid
-            """;
-
-        var rows = await _dbSession.Connection.ExecuteAsync(updateSql, new
-        {
-            PasswordHash = newHash,
-            UpdatedBy = "ResetPasswordApi",
-            Uid = targetUser.Uid
-        });
-
-        if (rows <= 0)
-            return StatusCode(500, new { message = "密码重置失败，请稍后重试" });
-
-        return Ok(new { Success = true, Message = "密码重置成功" });
+        var result = await authService.ChangeOwnPasswordAsync(request, cancellationToken);
+        return result.Success ? Ok(result) : ToActionResult(result);
     }
 
-    // ──────────────────────────────────────────────────────
-    // 私有：生成 JWT
-    // ──────────────────────────────────────────────────────
-
-    private string GenerateJwt(Guid userUid, string userName)
+    /// <summary>仅由当前有效 Admin 重置非 Admin 用户密码。</summary>
+    [HttpPost("admin/reset-password")]
+    [Authorize]
+    [PreventDuplicateRequest]
+    public async Task<IActionResult> ResetUserPassword([FromBody] AdminResetPasswordRequestDto request, CancellationToken cancellationToken)
     {
-        var jwtKey = _config["Auth:JwtKey"]
-            ?? throw new InvalidOperationException("Auth:JwtKey 未配置，请检查 appsettings.json");
-        var issuer = _config["Auth:JwtIssuer"] ?? "SwiftExport";
-        var audience = _config["Auth:JwtAudience"] ?? "SwiftExport";
+        var result = await authService.ResetUserPasswordAsync(request, cancellationToken);
+        return result.Success ? Ok(result) : ToActionResult(result);
+    }
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+    /// <summary>仅由当前有效 Admin 获取权限维护目标的最小用户列表。</summary>
+    [HttpGet("admin/users")]
+    [Authorize]
+    public async Task<IActionResult> GetUsers(CancellationToken cancellationToken)
+    {
+        var result = await userPermissionService.GetUsersAsync(cancellationToken);
+        return result.Success ? Ok(result) : ToActionResult(result);
+    }
 
-        var claims = new[]
+    /// <summary>仅由当前有效 Admin 读取目标用户的直接模块集合。</summary>
+    [HttpGet("admin/users/{userId:guid}/modules")]
+    [Authorize]
+    public async Task<IActionResult> GetUserModules(Guid userId, CancellationToken cancellationToken)
+    {
+        var result = await userPermissionService.GetUserModulesAsync(userId, cancellationToken);
+        return result.Success ? Ok(result) : ToActionResult(result);
+    }
+
+    /// <summary>仅由当前有效 Admin 原子替换普通用户的完整模块集合。</summary>
+    [HttpPut("admin/users/{userId:guid}/modules")]
+    [Authorize]
+    [PreventDuplicateRequest]
+    public async Task<IActionResult> SaveUserModules(
+        Guid userId,
+        [FromBody] SaveUserModulePermissionsRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var result = await userPermissionService.SaveUserModulesAsync(userId, request, cancellationToken);
+        return result.Success ? Ok(result) : ToActionResult(result);
+    }
+
+    private IActionResult ToActionResult<T>(ServiceResult<T> result)
+    {
+        return result.Error?.Code switch
         {
-            new Claim(JwtRegisteredClaimNames.Sub, userUid.ToString()),
-            new Claim(JwtRegisteredClaimNames.UniqueName, userName),
-            new Claim(ClaimTypes.NameIdentifier, userUid.ToString()),
-            new Claim(ClaimTypes.Name, userName),
+            ServiceErrorCodes.Unauthenticated => Unauthorized(result),
+            ServiceErrorCodes.Forbidden => StatusCode(StatusCodes.Status403Forbidden, result),
+            ServiceErrorCodes.VersionConflict => Conflict(result),
+            _ => BadRequest(result)
         };
-
-        var token = new JwtSecurityToken(
-            issuer: issuer,
-            audience: audience,
-            claims: claims,
-            expires: DateTime.UtcNow.AddHours(12),
-            signingCredentials: creds);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
-
-/// <summary>登录请求体</summary>
-public record LoginRequest(string UserName, string Password);
-
-/// <summary>注册请求体</summary>
-public record RegisterRequest(
-    string UserName,
-    string Password,
-    string ConfirmPassword,
-    string NickName,
-    string Email,
-    string PhoneNumber);
-
-/// <summary>重置密码请求体</summary>
-public record ResetPasswordRequest(
-    string UserName,
-    string NewPassword,
-    string VerificationCode);

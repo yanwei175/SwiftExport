@@ -1,7 +1,9 @@
 using System.Data;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
+using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Procurement;
@@ -9,7 +11,10 @@ using SwiftExport.Core.Entities.Procurement;
 namespace SwiftExport.Application.Services.Procurement.OrderManagement;
 
 /// <summary>新采购用例的事务与服务端权限边界；授权先于命令重放，失败不提交部分事实。</summary>
-public sealed class ProcurementOrderTransaction(ServiceBaseContext context, IProcurementOrderRepository repository, ICurrentUser user)
+public sealed class ProcurementOrderTransaction(
+    ServiceBaseContext context,
+    IUserPermissionService permissions,
+    ICurrentUser user)
 {
     /// <summary>在独立可串行化事务中执行一个用例，保持资格、BOM 和写入一致。</summary>
     public async Task<ServiceResult<T>> ExecuteAsync<T>(string operation, Func<Task<T>> action, CancellationToken ct)
@@ -22,7 +27,7 @@ public sealed class ProcurementOrderTransaction(ServiceBaseContext context, IPro
         context.Session.Transaction = transaction;
         try
         {
-            if (!await repository.HasPermissionAsync(user.UserId.Value, operation, ct))
+            if (!await permissions.HasPermissionAsync(user.UserId.Value, ResolvePermissionKey(operation), ct))
                 throw new ProcurementOperationException(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Forbidden, "没有当前采购操作权限。");
             var result = await action();
             ct.ThrowIfCancellationRequested();
@@ -63,4 +68,14 @@ public sealed class ProcurementOrderTransaction(ServiceBaseContext context, IPro
             }
         }
     }
+
+    /// <summary>把既有采购操作名映射为稳定细权限键；未知操作保持拒绝。</summary>
+    private static string ResolvePermissionKey(string operation) => operation switch
+    {
+        "Read" => PermissionKeys.ProcurementOrderRead,
+        "Create" => PermissionKeys.ProcurementOrderCreate,
+        "Edit" => PermissionKeys.ProcurementOrderEdit,
+        "Confirm" => PermissionKeys.ProcurementOrderConfirm,
+        _ => string.Empty
+    };
 }

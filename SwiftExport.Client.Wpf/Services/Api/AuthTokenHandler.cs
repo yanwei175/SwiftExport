@@ -33,7 +33,6 @@ public sealed class AuthTokenHandler(
     {
         var path = uri?.AbsolutePath ?? string.Empty;
         return path.EndsWith("/api/auth/login", StringComparison.OrdinalIgnoreCase)
-               || path.EndsWith("/api/auth/reset-password", StringComparison.OrdinalIgnoreCase)
                || path.EndsWith("/api/client-version", StringComparison.OrdinalIgnoreCase);
     }
 }

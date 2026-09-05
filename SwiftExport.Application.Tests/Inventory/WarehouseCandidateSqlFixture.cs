@@ -40,6 +40,9 @@ internal sealed class WarehouseCandidateSqlFixture : IAsyncDisposable
             CREATE TABLE dbo.SysUser(Uid uniqueidentifier PRIMARY KEY,IsActive bit NOT NULL,IsDeleted bit);
             CREATE TABLE dbo.SysRoles(Uid uniqueidentifier PRIMARY KEY,RoleName nvarchar(100),IsDeleted bit);
             CREATE TABLE dbo.SysUser_Roles(Uid uniqueidentifier PRIMARY KEY,UserId uniqueidentifier,RoleId uniqueidentifier,IsDeleted bit);
+            CREATE TABLE dbo.SysUser_ModulePermissions(Uid uniqueidentifier PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),
+              CreatedDate datetime2 NULL,CreatedBy nvarchar(256) NULL,UpdatedDate datetime2 NULL,UpdatedBy nvarchar(256) NULL,
+              UserId uniqueidentifier NOT NULL,PermissionKey nvarchar(128) NOT NULL);
             INSERT dbo.SysUser VALUES(@UserId,1,0);
             INSERT dbo.SysRoles VALUES(@RoleId,N'Procurement.Order.Create',0);
             INSERT dbo.SysUser_Roles VALUES(NEWID(),@UserId,@RoleId,0);

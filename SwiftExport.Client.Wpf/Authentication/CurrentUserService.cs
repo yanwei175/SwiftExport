@@ -5,6 +5,9 @@ namespace SwiftExportClient.Authentication;
 /// <summary>保存当前会话用户，并以 /api/auth/me 的 Permissions 作为客户端权限体验来源。</summary>
 public sealed class CurrentUserService : ICurrentUserService
 {
+    /// <inheritdoc/>
+    public event EventHandler? CurrentUserChanged;
+
     public bool IsAuthenticated => CurrentUser is not null;
 
     public MeDto? CurrentUser { get; private set; }
@@ -40,11 +43,19 @@ public sealed class CurrentUserService : ICurrentUserService
 
     public void SetCurrentUser(MeDto user)
     {
+        ArgumentNullException.ThrowIfNull(user);
         CurrentUser = user;
+        CurrentUserChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void Clear()
     {
+        if (CurrentUser is null)
+        {
+            return;
+        }
+
         CurrentUser = null;
+        CurrentUserChanged?.Invoke(this, EventArgs.Empty);
     }
 }

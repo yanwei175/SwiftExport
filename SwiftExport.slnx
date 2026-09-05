@@ -8,6 +8,9 @@
     <Project Path="SwiftExport.Client.Wpf.Tests/SwiftExport.Client.Wpf.Tests.csproj" />
     <Project Path="SwiftExport.Wpf.EnterpriseGrid.Tests/SwiftExport.Wpf.EnterpriseGrid.Tests.csproj" />
   </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="_tools/AdminPasswordRecovery/AdminPasswordRecovery.csproj" />
+  </Folder>
   <Folder Name="/WebApi/">
     <Project Path="SwiftExport.Application/SwiftExport.Application.csproj" />
     <Project Path="SwiftExport.Core/SwiftExport.Core.csproj" />

@@ -19,7 +19,8 @@ using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
 using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 using SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
 using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
-using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
+using SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels;
+using SwiftExport.Contracts.DTOs.Auth;
 
 namespace SwiftExportClient.Navigation;
 
@@ -27,34 +28,34 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
 {
     private readonly IReadOnlyList<NavigationRoute> _routes =
     [
-        new("home", "首页", "Workspace", typeof(HomeViewModel), CanClose: false),
-        new("products", "产品", "Workspace", typeof(ProductsViewModel)),
-        new(ProductMasterManagerViewModel.RouteKey, "主产品管理", "Workspace", typeof(ProductMasterManagerViewModel)),
-        new(ProductMasterDetailViewModel.RouteKey, "主型号详情", "Workspace", typeof(ProductMasterDetailViewModel)),
-        new("product-category-manager", "产品分类管理", "Workspace", typeof(ProductCategoryManagerViewModel)),
-        new("product-colors", "产品颜色管理", "Workspace", typeof(ProductColorsViewModel)),
-        new("product-bom", "BOM", "Workspace", typeof(ProductBomViewModel)),
-        new("customers", "客户管理", "Workspace", typeof(CustomerManagerViewModel)),
-        new(CustomerProductWorkspaceViewModel.RouteKey, "客户产品管理", "Workspace", typeof(CustomerProductWorkspaceViewModel)),
-        new("suppliers", "供应商管理", "Workspace", typeof(SupplierManagerViewModel)),
-        new(SupplierProductWorkspaceViewModel.RouteKey, "供应商产品管理", "Workspace", typeof(SupplierProductWorkspaceViewModel)),
-        new("sales", "销售", "Workspace", typeof(SalesViewModel)),
-        new(SalesOrderManagerViewModel.RouteKey, "销售订单管理", "Workspace", typeof(SalesOrderManagerViewModel)),
-        new(SalesOrderManagerViewModel.DetailRouteKey, "销售订单", "Workspace", typeof(SalesOrderDetailViewModel)),
-        new(GrossDemandWorkspaceViewModel.RouteKey, "毛需求", "Workspace", typeof(GrossDemandWorkspaceViewModel)),
-        new(NetDemandWorkspaceViewModel.RouteKey, "净需求", "Workspace", typeof(NetDemandWorkspaceViewModel)),
-        new(PurchaseOrderManagerViewModel.RouteKey, "采购订单管理", "Workspace", typeof(PurchaseOrderManagerViewModel)),
-        new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "采购订单跟进", "Workspace", typeof(PurchaseOrderProgressWorkspaceViewModel)),
-        new(PurchaseOrderDetailViewModel.RouteKey, "采购单详情", "Workspace", typeof(PurchaseOrderDetailViewModel)),
-        new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", typeof(WarehouseSitesViewModel)),
-        new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", typeof(InventoryBalancesViewModel)),
-        new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", typeof(InventoryLedgerViewModel)),
-        new(InboundWorkspaceViewModel.RouteKey, "入库工作台", "Workspace", typeof(InboundWorkspaceViewModel)),
-        new(OutboundWorkspaceViewModel.RouteKey, "出库工作台", "Workspace", typeof(OutboundWorkspaceViewModel)),
-        new(PackingListWorkspaceViewModel.RouteKey, "PackingList 工作台", "Workspace", typeof(PackingListWorkspaceViewModel)),
-        new(PackingListDetailViewModel.RouteKey, "PackingList 详情", "Workspace", typeof(PackingListDetailViewModel)),
-        new("planning", "计划", "Workspace", typeof(PlanningViewModel)),
-        new(DictionaryManagerViewModel.RouteKey, "字典管理", "Workspace", typeof(DictionaryManagerViewModel)),
+        new("home", "首页", "Workspace", typeof(HomeViewModel), NavigationModuleKeys.Home, RequiredPermission: null, CanClose: false),
+        new("products", "产品", "Workspace", typeof(ProductsViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
+        new(ProductMasterManagerViewModel.RouteKey, "主产品管理", "Workspace", typeof(ProductMasterManagerViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
+        new(ProductMasterDetailViewModel.RouteKey, "主型号详情", "Workspace", typeof(ProductMasterDetailViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
+        new("product-category-manager", "产品分类管理", "Workspace", typeof(ProductCategoryManagerViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
+        new("product-colors", "产品颜色管理", "Workspace", typeof(ProductColorsViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
+        new("product-bom", "BOM", "Workspace", typeof(ProductBomViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
+        new("customers", "客户管理", "Workspace", typeof(CustomerManagerViewModel), NavigationModuleKeys.Customers, PermissionKeys.ModuleCustomersAccess),
+        new(CustomerProductWorkspaceViewModel.RouteKey, "客户产品管理", "Workspace", typeof(CustomerProductWorkspaceViewModel), NavigationModuleKeys.Customers, PermissionKeys.ModuleCustomersAccess),
+        new("suppliers", "供应商管理", "Workspace", typeof(SupplierManagerViewModel), NavigationModuleKeys.Suppliers, PermissionKeys.ModuleSuppliersAccess),
+        new(SupplierProductWorkspaceViewModel.RouteKey, "供应商产品管理", "Workspace", typeof(SupplierProductWorkspaceViewModel), NavigationModuleKeys.Suppliers, PermissionKeys.ModuleSuppliersAccess),
+        new("sales", "销售", "Workspace", typeof(SalesViewModel), NavigationModuleKeys.Sales, PermissionKeys.ModuleSalesAccess),
+        new(SalesOrderManagerViewModel.RouteKey, "销售订单管理", "Workspace", typeof(SalesOrderManagerViewModel), NavigationModuleKeys.Sales, PermissionKeys.ModuleSalesAccess),
+        new(SalesOrderManagerViewModel.DetailRouteKey, "销售订单", "Workspace", typeof(SalesOrderDetailViewModel), NavigationModuleKeys.Sales, PermissionKeys.ModuleSalesAccess),
+        new(GrossDemandWorkspaceViewModel.RouteKey, "毛需求", "Workspace", typeof(GrossDemandWorkspaceViewModel), NavigationModuleKeys.DemandPlanning, PermissionKeys.ModuleDemandPlanningAccess),
+        new(NetDemandWorkspaceViewModel.RouteKey, "净需求", "Workspace", typeof(NetDemandWorkspaceViewModel), NavigationModuleKeys.DemandPlanning, PermissionKeys.ModuleDemandPlanningAccess),
+        new(PurchaseOrderManagerViewModel.RouteKey, "采购订单管理", "Workspace", typeof(PurchaseOrderManagerViewModel), NavigationModuleKeys.Procurement, PermissionKeys.ModuleProcurementAccess),
+        new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "采购订单跟进", "Workspace", typeof(PurchaseOrderProgressWorkspaceViewModel), NavigationModuleKeys.Procurement, PermissionKeys.ModuleProcurementAccess),
+        new(PurchaseOrderDetailViewModel.RouteKey, "采购单详情", "Workspace", typeof(PurchaseOrderDetailViewModel), NavigationModuleKeys.Procurement, PermissionKeys.ModuleProcurementAccess),
+        new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", typeof(WarehouseSitesViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
+        new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", typeof(InventoryBalancesViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
+        new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", typeof(InventoryLedgerViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
+        new(InboundWorkspaceViewModel.RouteKey, "入库工作台", "Workspace", typeof(InboundWorkspaceViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
+        new(OutboundWorkspaceViewModel.RouteKey, "出库工作台", "Workspace", typeof(OutboundWorkspaceViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
+        new(PackingListWorkspaceViewModel.RouteKey, "PackingList 工作台", "Workspace", typeof(PackingListWorkspaceViewModel), NavigationModuleKeys.Shipping, PermissionKeys.ModuleShippingAccess),
+        new(PackingListDetailViewModel.RouteKey, "PackingList 详情", "Workspace", typeof(PackingListDetailViewModel), NavigationModuleKeys.Shipping, PermissionKeys.ModuleShippingAccess),
+        new("planning", "计划", "Workspace", typeof(PlanningViewModel), NavigationModuleKeys.DemandPlanning, PermissionKeys.ModuleDemandPlanningAccess),
+        new(SettingsCenterViewModel.RouteKey, "设置", "Workspace", typeof(SettingsCenterViewModel), NavigationModuleKeys.SettingsCenter, RequiredPermission: null),
     ];
 
     private readonly Dictionary<string, NavigationRoute> _routeMap;
@@ -156,16 +157,6 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 Children:
                 [
                     new(PackingListWorkspaceViewModel.RouteKey, "PackingList 工作台", "Workspace", "DocumentTable24"),
-                ]),
-            new(
-                "system-settings",
-                "系统设置",
-                "Workspace",
-                "Settings24",
-                IsExpanded: true,
-                Children:
-                [
-                    new(DictionaryManagerViewModel.RouteKey, "字典管理", "Workspace", "DocumentBulletList24"),
                 ]),
         ];
     }

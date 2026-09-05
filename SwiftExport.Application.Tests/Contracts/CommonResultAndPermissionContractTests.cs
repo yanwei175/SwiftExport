@@ -112,7 +112,7 @@ public sealed class CommonResultAndPermissionContractTests
         var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Application", "Services",
             "Procurement", "OrderManagement", "ProcurementOrderTransaction.cs"));
 
-        StringAssert.Contains(source, "repository.HasPermissionAsync(user.UserId.Value, operation, ct)");
+        StringAssert.Contains(source, "permissions.HasPermissionAsync(user.UserId.Value, ResolvePermissionKey(operation), ct)");
         Assert.IsFalse(source.Contains("MeDto", StringComparison.Ordinal));
     }
 

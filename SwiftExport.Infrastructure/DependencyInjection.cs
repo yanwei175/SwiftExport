@@ -43,6 +43,8 @@ public static class DependencyInjection
         // Infrastructure 层只依赖接口，不依赖具体实现，保持分层干净
         services.AddScoped<IAuditStampService, AuditStampService>();
         services.AddScoped<ISysUserRepository, SysUserRepository>();
+        services.AddScoped<IAuthRepository, AuthRepository>();
+        services.AddScoped<IUserPermissionRepository, UserPermissionRepository>();
         // 角色主表仓储
         services.AddScoped<ISysRoleRepository, SysRoleRepository>();
         // 用户-角色关联仓储

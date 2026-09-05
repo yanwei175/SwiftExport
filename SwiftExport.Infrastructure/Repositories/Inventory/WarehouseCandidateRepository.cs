@@ -13,18 +13,6 @@ public sealed class WarehouseCandidateRepository(RepositoryBaseContext context) 
     // 与采购最终校验的 IsNullOrWhiteSpace 对齐，不把纯空白编码/名称当合法身份资料。
     private const string Whitespace = "\u0009\u000A\u000B\u000C\u000D\u0020\u0085\u00A0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u2028\u2029\u202F\u205F\u3000";
 
-    /// <summary>重验真实有效账号和角色关联；只读角色不允许新增选择，不修改全局授权框架。</summary>
-    public Task<bool> HasPermissionAsync(Guid userId, CancellationToken cancellationToken)
-        => context.Session.Connection.ExecuteScalarAsync<bool>(Command("""
-            SELECT CAST(CASE WHEN EXISTS(
-                SELECT 1 FROM dbo.SysUser u WITH(HOLDLOCK)
-                JOIN dbo.SysUser_Roles ur WITH(HOLDLOCK) ON ur.UserId=u.Uid AND ISNULL(ur.IsDeleted,0)=0
-                JOIN dbo.SysRoles r WITH(HOLDLOCK) ON r.Uid=ur.RoleId AND ISNULL(r.IsDeleted,0)=0
-                WHERE u.Uid=@UserId AND u.IsActive=1 AND ISNULL(u.IsDeleted,0)=0
-                  AND r.RoleName IN(N'Admin',N'Procurement.Order.Create',N'Procurement.Order.Confirm')
-            ) THEN 1 ELSE 0 END AS bit);
-            """, new { UserId = userId }, cancellationToken));
-
     /// <summary>仓库多对一关联真实供应商，仅返回双方启用且资料完整的虚拟仓；不存在归属时不以快照补资格。</summary>
     public async Task<PagedResponseBase<WarehouseCandidateDto>> SearchAsync(
         PagedRequestBase request, CancellationToken cancellationToken)

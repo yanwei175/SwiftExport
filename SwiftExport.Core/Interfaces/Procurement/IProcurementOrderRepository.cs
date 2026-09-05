@@ -6,8 +6,6 @@ namespace SwiftExport.Core.Interfaces.Procurement;
 /// <summary>独立采购的事务持久化端口；不读取需求贡献或接管旧订单。</summary>
 public interface IProcurementOrderRepository
 {
-    /// <summary>按当前有效用户和角色校验操作权限，事务内持续锁定授权依据。</summary>
-    Task<bool> HasPermissionAsync(Guid actorUid, string operation, CancellationToken ct);
     /// <summary>锁定命令键，读取原始回执；缺失时保护键范围。</summary>
     Task<ProcurementCommandReceipt?> GetReceiptAsync(Guid commandId, CancellationToken ct);
     /// <summary>读取新链头并锁定；旧订单返回空。</summary>

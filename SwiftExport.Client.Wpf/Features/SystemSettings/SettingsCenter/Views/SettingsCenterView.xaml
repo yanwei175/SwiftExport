@@ -1,0 +1,76 @@
+<UserControl x:Class="SwiftExportClient.Features.SystemSettings.SettingsCenter.Views.SettingsCenterView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             AutomationProperties.Name="设置中心">
+    
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <Style x:Key="SettingsActionButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="MinHeight" Value="52" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="Padding" Value="16,8" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="24" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="12" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="12" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="设置" Style="{StaticResource TitleTextBlock}"/>
+
+            <TextBlock Grid.Row="2"
+                       Text="管理个人凭据和系统配置。"
+                       Style="{StaticResource BodyTextBlock}"/>
+
+            <TextBlock Grid.Row="4" Text="个人设置" Style="{StaticResource SubtitleTextBlock}"/>
+            
+            <ui:Button Grid.Row="6" Content="修改我的密码"
+                           Icon="{ui:SymbolIcon Symbol=Key24}"
+                           Command="{Binding ChangePasswordCommand}"
+                           AutomationProperties.Name="修改我的密码"/>
+
+            <StackPanel Grid.Row="10" Width="560" HorizontalAlignment="Left">
+                <StackPanel Margin="0,16,0,0"
+                            Visibility="{Binding CanManageSettings, Converter={StaticResource BooleanToVisibilityConverter}}">
+
+                    <TextBlock Text="管理设置" 
+                               Style="{StaticResource SubtitleTextBlock}" />
+
+                    <ui:Button Content="创建用户"
+                               Icon="{ui:SymbolIcon Symbol=PersonAdd24}"
+                               Command="{Binding RegisterUserCommand}"
+                               AutomationProperties.Name="创建用户"/>
+
+                    <ui:Button Content="重置用户密码"
+                               Icon="{ui:SymbolIcon Symbol=KeyReset24}"
+                               Command="{Binding ResetPasswordCommand}"
+                               AutomationProperties.Name="重置用户密码"/>
+
+                    <ui:Button Content="模块权限"
+                               Icon="{ui:SymbolIcon Symbol=ShieldKeyhole24}"
+                               Command="{Binding ManageUserModulesCommand}"
+                               AutomationProperties.Name="模块权限"/>
+
+                    <ui:Button Content="字典管理"
+                               Command="{Binding ManageDictionariesCommand}"
+                               Icon="{ui:SymbolIcon Symbol=BookDatabase24}"
+                               AutomationProperties.Name="字典管理"/>
+
+                </StackPanel>
+                
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

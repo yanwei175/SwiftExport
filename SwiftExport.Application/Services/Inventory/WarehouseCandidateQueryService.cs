@@ -1,7 +1,9 @@
 using System.Data;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Inventory;
+using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
@@ -10,7 +12,10 @@ namespace SwiftExport.Application.Services.Inventory;
 
 /// <summary>采购仓库候选查询；权限与分页在同一只读事务内，不形成采购承诺或库存预占。</summary>
 public sealed class WarehouseCandidateQueryService(
-    ServiceBaseContext context, IWarehouseCandidateRepository repository, ICurrentUser user) : IWarehouseCandidateQueryService
+    ServiceBaseContext context,
+    IWarehouseCandidateRepository repository,
+    IUserPermissionService permissions,
+    ICurrentUser user) : IWarehouseCandidateQueryService
 {
     /// <summary>校验身份及分页，重验权限后查询；取消或失败释放事务，不修改调用方请求。</summary>
     public async Task<PagedResponseBase<WarehouseCandidateDto>> SearchAsync(
@@ -33,7 +38,10 @@ public sealed class WarehouseCandidateQueryService(
         try
         {
             // 创建选择收货仓，确认选择消耗仓；查询权限不赋予任何采购写权限。
-            if (!await repository.HasPermissionAsync(userId, cancellationToken))
+            var projection = await permissions.GetProjectionAsync(userId, cancellationToken);
+            if (projection is null
+                || (!projection.Permissions.Contains(PermissionKeys.ProcurementOrderCreate, StringComparer.Ordinal)
+                    && !projection.Permissions.Contains(PermissionKeys.ProcurementOrderConfirm, StringComparer.Ordinal)))
                 throw new UnauthorizedAccessException("没有仓库候选查询权限。");
             var result = await repository.SearchAsync(normalized, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();

@@ -338,6 +338,21 @@ public sealed class IndependentProcurementSqlTests
         Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT Version FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid }));
     }
 
+    /// <summary>普通用户仅获采购一级模块时，通过统一投影获得既有采购读写兼容能力。</summary>
+    [TestMethod]
+    public async Task ProcurementModuleAloneExpandsToExistingOperationPermissions()
+    {
+        await Db.ExecuteAsync("""
+            UPDATE dbo.SysUser_Roles SET IsDeleted=1 WHERE UserId=@ActorId;
+            INSERT dbo.SysUser_ModulePermissions(Uid,UserId,PermissionKey)
+            VALUES(NEWID(),@ActorId,N'Module.Procurement.Access');
+            """, new { Db.ActorId });
+        var created = await Db.CreateAsync();
+        Assert.IsTrue(created.Success, created.Message);
+        var context = await Db.ContextAsync(created.Data.PurchaseOrderId);
+        Assert.IsTrue(context.Success, context.Message);
+    }
+
     /// <summary>启停保留版本与日志原子性，并以当前有效角色而不是用户名快照授权。</summary>
     [TestMethod]
     public async Task EligibilityChecksRoleVersionAndRollsBackLogFailures()

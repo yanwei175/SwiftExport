@@ -1,5 +1,4 @@
 using Dapper;
-using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.MasterData;
@@ -14,27 +13,6 @@ public sealed class ProcurementOrderRepository(RepositoryBaseContext context) : 
     private CommandDefinition Command(string sql, object? args, CancellationToken ct)
         => new(sql, args, context.Session.Transaction ?? throw new InvalidOperationException("采购持久化需要事务。"), cancellationToken: ct);
 
-    /// <inheritdoc/>
-    public async Task<bool> HasPermissionAsync(Guid actorUid, string operation, CancellationToken ct)
-        => await context.Session.Connection.ExecuteScalarAsync<int>(Command("""
-            SELECT COUNT(*) FROM dbo.SysUser u WITH(HOLDLOCK)
-            JOIN dbo.SysUser_Roles ur WITH(HOLDLOCK) ON ur.UserId=u.Uid AND ISNULL(ur.IsDeleted,0)=0
-            JOIN dbo.SysRoles r WITH(HOLDLOCK) ON r.Uid=ur.RoleId AND ISNULL(r.IsDeleted,0)=0
-            WHERE u.Uid=@actorUid AND u.IsActive=1 AND ISNULL(u.IsDeleted,0)=0
-              AND r.RoleName IN(N'Admin',@role);
-            """, new { actorUid, role = ResolvePermissionKey(operation) }, ct)) > 0;
-    /// <summary>把既有采购操作名映射到集中式权限键；未知操作保持无权限而不扩大授权。</summary>
-    private static string ResolvePermissionKey(string operation)
-    {
-        return operation switch
-        {
-            "Read" => PermissionKeys.ProcurementOrderRead,
-            "Create" => PermissionKeys.ProcurementOrderCreate,
-            "Edit" => PermissionKeys.ProcurementOrderEdit,
-            "Confirm" => PermissionKeys.ProcurementOrderConfirm,
-            _ => string.Empty
-        };
-    }
     /// <inheritdoc/>
     public Task<ProcurementCommandReceipt?> GetReceiptAsync(Guid commandId, CancellationToken ct)
         => context.Session.Connection.QuerySingleOrDefaultAsync<ProcurementCommandReceipt>(Command(

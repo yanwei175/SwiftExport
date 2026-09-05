@@ -20,6 +20,7 @@ public partial class ShellWindow : FluentWindow
         _viewModel = viewModel;
         InitializeComponent();
         DataContext = viewModel;
+        Closed += OnClosed;
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -27,6 +28,13 @@ public partial class ShellWindow : FluentWindow
         _contentDialogService.SetDialogHost(RootContentDialogHost);
         _snackbarService.SetSnackbarPresenter(RootSnackbarPresenter);
         await _viewModel.InitializeAsync();
+    }
+
+    /// <summary>窗口关闭时释放 ViewModel 的会话、导航和状态消息订阅。</summary>
+    private void OnClosed(object? sender, EventArgs e)
+    {
+        Closed -= OnClosed;
+        _viewModel.Dispose();
     }
 
 }

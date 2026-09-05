@@ -1,5 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.ComponentModel;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
@@ -24,6 +26,8 @@ public sealed class NavigationServiceTests
         Assert.AreEqual(typeof(ProductCategoryManagerViewModel), route.ViewModelType);
         Assert.AreEqual("产品分类管理", route.Title);
         Assert.IsTrue(route.CanClose);
+        Assert.AreEqual(NavigationModuleKeys.Products, route.ModuleKey);
+        Assert.AreEqual(PermissionKeys.ModuleProductsAccess, route.RequiredPermission);
     }
 
     [TestMethod]
@@ -64,8 +68,8 @@ public sealed class NavigationServiceTests
     {
         var provider = new TestServiceProvider();
         var registry = new TestRouteRegistry(
-            new NavigationRoute(CategoryRouteKey, "产品分类管理", "Workspace", typeof(TestPageViewModel)));
-        var navigation = new NavigationService(provider, registry, new TestStatusMessageService());
+            new NavigationRoute(CategoryRouteKey, "产品分类管理", "Workspace", typeof(TestPageViewModel), "test", null));
+        var navigation = CreateNavigation(provider, registry);
 
         await navigation.OpenAsync(CategoryRouteKey);
         var firstTab = navigation.SelectedTab;
@@ -93,8 +97,8 @@ public sealed class NavigationServiceTests
     {
         var provider = new TestServiceProvider();
         var registry = new TestRouteRegistry(
-            new NavigationRoute("document", "文档", "Workspace", typeof(TestDocumentViewModel)));
-        var navigation = new NavigationService(provider, registry, new TestStatusMessageService());
+            new NavigationRoute("document", "文档", "Workspace", typeof(TestDocumentViewModel), "test", null));
+        var navigation = CreateNavigation(provider, registry);
         var parameter = new object();
 
         await navigation.OpenDocumentAsync("document", "sales-order:1", parameter);
@@ -124,8 +128,8 @@ public sealed class NavigationServiceTests
     {
         var provider = new TestServiceProvider();
         var registry = new TestRouteRegistry(
-            new NavigationRoute("document", "文档", "Workspace", typeof(TestDocumentViewModel)));
-        var navigation = new NavigationService(provider, registry, new TestStatusMessageService());
+            new NavigationRoute("document", "文档", "Workspace", typeof(TestDocumentViewModel), "test", null));
+        var navigation = CreateNavigation(provider, registry);
 
         await navigation.OpenDocumentAsync("document", "sales-order:existing");
         var existing = navigation.SelectedTab!;
@@ -143,12 +147,30 @@ public sealed class NavigationServiceTests
     {
         var viewModel = new DisposablePageViewModel();
         var tab = new NavigationTabItem(
-            new NavigationRoute("disposable", "可释放页面", "Workspace", typeof(DisposablePageViewModel)),
+            new NavigationRoute("disposable", "可释放页面", "Workspace", typeof(DisposablePageViewModel), "test", null),
             viewModel);
 
         tab.Dispose();
 
         Assert.IsTrue(viewModel.IsDisposed);
+    }
+
+    private static NavigationService CreateNavigation(
+        TestServiceProvider provider,
+        INavigationRouteRegistry registry)
+    {
+        var currentUser = new CurrentUserService();
+        currentUser.SetCurrentUser(new MeDto
+        {
+            UserId = Guid.NewGuid().ToString(),
+            UserName = "test-user"
+        });
+        return new NavigationService(
+            provider,
+            registry,
+            new NavigationAccessService(registry, currentUser),
+            currentUser,
+            new TestStatusMessageService());
     }
 
     private sealed class TestServiceProvider : IServiceProvider

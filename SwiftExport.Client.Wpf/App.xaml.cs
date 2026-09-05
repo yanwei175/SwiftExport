@@ -69,7 +69,8 @@ public partial class App : Application
 
         var loginWindow = _host.Services.GetRequiredService<LoginWindow>();
         MainWindow = loginWindow;
-        return loginWindow.ShowDialog() == true;
+        loginWindow.ShowDialog();
+        return loginWindow.IsLoginSuccessful;
     }
 
     private void ShowShellWindow()

@@ -16,6 +16,9 @@ public class SysUser : BaseEntity
     /// <summary>BCrypt 哈希后的密码，禁止明文存储</summary>
     public string PasswordHash { get; set; } = default!;
 
+    /// <summary>凭据版本；密码改变时递增，用于使此前签发的 JWT 失效。</summary>
+    public int CredentialVersion { get; set; } = 1;
+
     /// <summary>邮箱</summary>
     public string? Email { get; set; }
 

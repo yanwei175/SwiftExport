@@ -8,18 +8,24 @@ using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Windows;
 
 namespace SwiftExportClient.Shell;
 
-public sealed partial class ShellViewModel : ViewModelBaseEx
+/// <summary>协调 Shell 页签、按权限过滤的导航菜单及固定状态消息。</summary>
+public sealed partial class ShellViewModel : ViewModelBaseEx, IDisposable
 {
     private const string HomeRouteKey = "home";
+    private const string SettingsRouteKey = "settings-center";
     private static readonly TimeSpan TransientStatusDuration = TimeSpan.FromSeconds(5);
     private readonly INavigationService _navigationService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ISessionService _sessionService;
     private readonly IStatusMessageService _statusMessageService;
     private readonly IReadOnlyList<ShellNavigationItem> _allMenuItems;
+    private readonly ShellNavigationMenuFilter _menuFilter;
     private bool _isInitialized;
+    private bool _isDisposed;
     private CancellationTokenSource? _statusResetCancellation;
 
     public ShellViewModel(
@@ -27,13 +33,16 @@ public sealed partial class ShellViewModel : ViewModelBaseEx
         IOptions<ApiOptions> apiOptions,
         ICurrentUserService currentUserService,
         INavigationRouteRegistry routeRegistry,
+        INavigationAccessService navigationAccessService,
         INavigationService navigationService,
         ISessionService sessionService,
         IStatusMessageService statusMessageService)
     {
         _navigationService = navigationService;
+        _currentUserService = currentUserService;
         _sessionService = sessionService;
         _statusMessageService = statusMessageService;
+        _menuFilter = new ShellNavigationMenuFilter(navigationAccessService);
         _allMenuItems = routeRegistry.MenuItems
             .Select(item => new ShellNavigationItem(item))
             .ToArray();
@@ -42,15 +51,21 @@ public sealed partial class ShellViewModel : ViewModelBaseEx
         var api = apiOptions.Value;
 
         Title = client.ApplicationName;
-        StatusMessage = $"v{client.Version} · {currentUserService.DisplayName} · {api.BaseUrl}";
-        FilteredMenuItems = _allMenuItems;
+        ClientVersion = client.Version;
+        ApiBaseUrl = api.BaseUrl;
+        FilteredMenuItems = _menuFilter.Filter(_allMenuItems, MenuSearchText);
         OpenTabs = navigationService.OpenTabs;
 
         navigationService.PropertyChanged += OnNavigationPropertyChanged;
+        currentUserService.CurrentUserChanged += OnCurrentUserChanged;
         statusMessageService.MessageChanged += OnStatusMessageChanged;
     }
 
-    public string StatusMessage { get; }
+    private string ClientVersion { get; }
+
+    private string ApiBaseUrl { get; }
+
+    public string StatusMessage => $"v{ClientVersion} · {_currentUserService.DisplayName} · {ApiBaseUrl}";
 
     [ObservableProperty]
     public partial IReadOnlyList<ShellNavigationItem> FilteredMenuItems { get; private set; } = [];
@@ -133,10 +148,7 @@ public sealed partial class ShellViewModel : ViewModelBaseEx
     }
 
     [RelayCommand]
-    private void OpenSettings()
-    {
-        _statusMessageService.Show("设置", "设置页面将在后续阶段接入。", UiMessageSeverity.Info);
-    }
+    private Task OpenSettingsAsync() => _navigationService.OpenAsync(SettingsRouteKey);
 
     [RelayCommand]
     private void DismissStatusMessage()
@@ -167,42 +179,12 @@ public sealed partial class ShellViewModel : ViewModelBaseEx
 
     private void ApplyMenuFilter()
     {
-        var query = MenuSearchText.Trim();
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            FilteredMenuItems = _allMenuItems;
-            return;
-        }
-
-        FilteredMenuItems = _allMenuItems
-            .Select(item => FilterMenuItem(item, query))
-            .Where(item => item is not null)
-            .Cast<ShellNavigationItem>()
-            .ToArray();
+        FilteredMenuItems = _menuFilter.Filter(_allMenuItems, MenuSearchText);
     }
 
     partial void OnMenuSearchTextChanged(string value)
     {
         ApplyMenuFilter();
-    }
-
-    private static ShellNavigationItem? FilterMenuItem(ShellNavigationItem item, string query)
-    {
-        var selfMatches = item.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
-        var matchingChildren = item.Children
-            .Select(child => FilterMenuItem(child, query))
-            .Where(child => child is not null)
-            .Cast<ShellNavigationItem>()
-            .ToArray();
-
-        if (selfMatches)
-        {
-            return item.CloneForFilter(item.Children, forceExpanded: true);
-        }
-
-        return matchingChildren.Length == 0
-            ? null
-            : item.CloneForFilter(matchingChildren, forceExpanded: true);
     }
 
     private void OnStatusMessageChanged(object? sender, StatusMessageChangedEventArgs e)
@@ -249,5 +231,40 @@ public sealed partial class ShellViewModel : ViewModelBaseEx
         _statusResetCancellation = null;
         cancellation?.Cancel();
         cancellation?.Dispose();
+    }
+
+    /// <summary>身份快照变化时刷新用户显示和菜单；页签清理由 NavigationService 统一完成。</summary>
+    private void OnCurrentUserChanged(object? sender, EventArgs e)
+    {
+        void Refresh()
+        {
+            OnPropertyChanged(nameof(StatusMessage));
+            ApplyMenuFilter();
+            RaiseSelectedTabStateChanged();
+        }
+
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is not null && !dispatcher.CheckAccess())
+        {
+            dispatcher.Invoke(Refresh);
+            return;
+        }
+
+        Refresh();
+    }
+
+    /// <summary>取消计时任务并解除 Shell 生命周期内建立的事件订阅。</summary>
+    public void Dispose()
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        _isDisposed = true;
+        CancelStatusReset();
+        _navigationService.PropertyChanged -= OnNavigationPropertyChanged;
+        _currentUserService.CurrentUserChanged -= OnCurrentUserChanged;
+        _statusMessageService.MessageChanged -= OnStatusMessageChanged;
     }
 }

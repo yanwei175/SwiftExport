@@ -65,4 +65,17 @@ public sealed class WarehouseCandidateSqlTests
         await Db.ExecuteAsync("UPDATE dbo.SysUser_Roles SET IsDeleted=1 WHERE UserId=@UserId;", new { Db.UserId });
         await Assert.ThrowsExactlyAsync<UnauthorizedAccessException>(() => Db.QueryAsync(s => s.SearchAsync(new())));
     }
+
+    /// <summary>只有新采购模块关系且没有历史细权限角色时，兼容投影仍允许采购仓库候选。</summary>
+    [TestMethod]
+    public async Task ProcurementModuleProjectionAllowsCandidateQuery()
+    {
+        await Db.ExecuteAsync("""
+            UPDATE dbo.SysUser_Roles SET IsDeleted=1 WHERE UserId=@UserId;
+            INSERT dbo.SysUser_ModulePermissions(Uid,UserId,PermissionKey)
+            VALUES(NEWID(),@UserId,N'Module.Procurement.Access');
+            """, new { Db.UserId });
+        var result = await Db.QueryAsync(service => service.SearchAsync(new()));
+        Assert.AreEqual(0, result.TotalCount);
+    }
 }

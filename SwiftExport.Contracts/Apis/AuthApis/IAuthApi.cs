@@ -2,11 +2,12 @@ using Refit;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.Wrappers;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace SwiftExport.Contracts.Apis.AuthApis
 {
     /// <summary>
-    /// 认证相关 Refit 接口：登录、查询当前用户、注册。
+    /// 认证相关 Refit 接口：登录、当前用户、账号密码及模块权限管理。
     /// </summary>
     public interface IAuthApi
     {
@@ -29,13 +30,34 @@ namespace SwiftExport.Contracts.Apis.AuthApis
         /// 需要管理员 Bearer Token。
         /// </summary>
         [Post("/api/auth/register")]
-        Task<ServiceResult<int>> RegisterAsync([Body] RegisterRequestDto request);
+        Task<ServiceResult<System.Guid>> RegisterAsync([Body] RegisterRequestDto request);
 
         /// <summary>
-        /// POST /api/auth/reset-password
-        /// 匿名重置密码，校验码需为任一管理员账号密码。
+        /// POST /api/auth/change-password
+        /// 当前用户验证旧密码后修改自己的密码。
         /// </summary>
-        [Post("/api/auth/reset-password")]
-        Task<ResetPasswordResultDto> ResetPasswordAsync([Body] ResetPasswordRequestDto request);
+        [Post("/api/auth/change-password")]
+        Task<ServiceResult<bool>> ChangePasswordAsync([Body] ChangePasswordRequestDto request);
+
+        /// <summary>
+        /// POST /api/auth/admin/reset-password
+        /// 仅管理员可重置非管理员用户密码。
+        /// </summary>
+        [Post("/api/auth/admin/reset-password")]
+        Task<ServiceResult<bool>> ResetUserPasswordAsync([Body] AdminResetPasswordRequestDto request);
+
+        /// <summary>返回管理员可维护的最小用户列表。</summary>
+        [Get("/api/auth/admin/users")]
+        Task<ServiceResult<List<UserSummaryDto>>> GetUsersAsync();
+
+        /// <summary>读取目标用户当前直接分配的一级模块。</summary>
+        [Get("/api/auth/admin/users/{userId}/modules")]
+        Task<ServiceResult<UserModulePermissionsDto>> GetUserModulesAsync(System.Guid userId);
+
+        /// <summary>原子替换目标普通用户的完整一级模块集合。</summary>
+        [Put("/api/auth/admin/users/{userId}/modules")]
+        Task<ServiceResult<UserModulePermissionsDto>> SaveUserModulesAsync(
+            System.Guid userId,
+            [Body] SaveUserModulePermissionsRequestDto request);
     }
 }

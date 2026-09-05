@@ -8,9 +8,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Application.Contexts;
+using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Models.Auth;
 using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auth;
@@ -29,8 +32,8 @@ public sealed class WarehouseCandidateQueryTests
     {
         foreach (var user in new[] { new TestUser(false, Guid.NewGuid()), new TestUser(true, null), new TestUser(true, Guid.Empty) })
             await Assert.ThrowsExactlyAsync<UnauthorizedAccessException>(() =>
-                new WarehouseCandidateQueryService(null!, new RepositoryStub(), user).SearchAsync(new()));
-        var service = new WarehouseCandidateQueryService(null!, new RepositoryStub(), new TestUser(true, Guid.NewGuid()));
+                new WarehouseCandidateQueryService(null!, new RepositoryStub(), null!, user).SearchAsync(new()));
+        var service = new WarehouseCandidateQueryService(null!, new RepositoryStub(), null!, new TestUser(true, Guid.NewGuid()));
         foreach (var request in new[] { null!, new PagedRequestBase { PageIndex = 0 }, new PagedRequestBase { PageSize = 101 },
                      new PagedRequestBase { PageIndex = int.MaxValue, PageSize = 100 }, new PagedRequestBase { Keyword = new string('仓', 101) } })
             await Assert.ThrowsExactlyAsync<ArgumentException>(() => service.SearchAsync(request));
@@ -43,20 +46,22 @@ public sealed class WarehouseCandidateQueryTests
     [TestMethod]
     public async Task QueryOwnsTransactionAndSeparatesPermissionFromDataRead()
     {
-        var repository = new RepositoryStub { Allowed = true };
+        var repository = new RepositoryStub();
         var session = Session(new ConnectionStub());
         var service = new WarehouseCandidateQueryService(
-            new ServiceBaseContext(session, NullLoggerFactory.Instance), repository, new TestUser(true, Guid.NewGuid()));
+            new ServiceBaseContext(session, NullLoggerFactory.Instance), repository,
+            new PermissionServiceStub(true), new TestUser(true, Guid.NewGuid()));
         var result = await service.SearchAsync(new() { Keyword = " 仓库 ", PageIndex = 2, PageSize = 5 });
         Assert.AreEqual("仓库", repository.Request!.Keyword);
         Assert.AreEqual(1, result.TotalCount);
         Assert.IsNull(session.Transaction);
         Assert.AreEqual(1, ((ConnectionStub)session.Connection).Transaction.Commits);
 
-        repository = new RepositoryStub { Allowed = false };
+        repository = new RepositoryStub();
         session = Session(new ConnectionStub());
         service = new WarehouseCandidateQueryService(
-            new ServiceBaseContext(session, NullLoggerFactory.Instance), repository, new TestUser(true, Guid.NewGuid()));
+            new ServiceBaseContext(session, NullLoggerFactory.Instance), repository,
+            new PermissionServiceStub(false), new TestUser(true, Guid.NewGuid()));
         await Assert.ThrowsExactlyAsync<UnauthorizedAccessException>(() => service.SearchAsync(new()));
         Assert.IsNull(repository.Request);
         Assert.IsNull(session.Transaction);
@@ -108,9 +113,7 @@ public sealed class WarehouseCandidateQueryTests
     /// <summary>记录服务传给仓储的规范化请求，返回确定候选。</summary>
     private sealed class RepositoryStub : IWarehouseCandidateRepository
     {
-        public bool Allowed { get; set; }
         public PagedRequestBase? Request { get; private set; }
-        public Task<bool> HasPermissionAsync(Guid userId, CancellationToken cancellationToken) => Task.FromResult(Allowed);
         public Task<PagedResponseBase<WarehouseCandidateDto>> SearchAsync(PagedRequestBase request, CancellationToken cancellationToken)
         {
             Request = request;
@@ -120,6 +123,20 @@ public sealed class WarehouseCandidateQueryTests
                 TotalCount = 1, PageIndex = request.PageIndex, PageSize = request.PageSize
             });
         }
+    }
+
+    /// <summary>返回是否具有采购创建权限的统一投影替身。</summary>
+    private sealed class PermissionServiceStub(bool allowed) : IUserPermissionService
+    {
+        public Task<UserPermissionProjection?> GetProjectionAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<UserPermissionProjection?>(new UserPermissionProjection
+            {
+                Permissions = allowed ? [PermissionKeys.ProcurementOrderCreate] : []
+            });
+        public Task<bool> HasPermissionAsync(Guid userId, string permissionKey, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<List<UserSummaryDto>>> GetUsersAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<UserModulePermissionsDto>> GetUserModulesAsync(Guid userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<UserModulePermissionsDto>> SaveUserModulesAsync(Guid userId, SaveUserModulePermissionsRequestDto request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     /// <summary>仅记录事务提交；服务释放事务时不访问数据库。</summary>

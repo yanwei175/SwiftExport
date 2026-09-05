@@ -6,6 +6,7 @@ using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Shipping;
+using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Mappings;
 using SwiftExport.Application.Services.Customers;
 using SwiftExport.Application.Services.DemandPlanning;
@@ -17,6 +18,7 @@ using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Application.Services.Suppliers;
 using SwiftExport.Application.Services.Systems;
 using SwiftExport.Application.Services.SystemServices;
+using SwiftExport.Application.Services.Auth;
 namespace SwiftExport.Application;
 
 /// <summary>注册 Application 服务及其请求级依赖，不创建业务会话之外的实例。</summary>
@@ -31,6 +33,9 @@ public static class DependencyInjection
         services.AddLogging();
 
         services.AddScoped<ServiceBaseContext>();
+        services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IUserPermissionService, UserPermissionService>();
 
 
         services.AddScoped<IProductService, ProductService>();

@@ -1,0 +1,191 @@
+using Microsoft.Extensions.DependencyInjection;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExportClient.Authentication;
+using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Dictionaries.Views;
+using SwiftExportClient.Features.SystemSettings.Passwords.Views;
+using SwiftExportClient.Features.SystemSettings.UserPermissions.ViewModels;
+using SwiftExportClient.Features.SystemSettings.UserPermissions.Views;
+using SwiftExportClient.Features.SystemSettings.UserRegistration.Views;
+using System.Windows;
+using Wpf.Ui;
+
+namespace SwiftExportClient.Services.UI;
+
+/// <summary>解析设置窗口、设置 Shell Owner、阻止重复实例，并在会话结束时关闭全部窗口。</summary>
+public sealed class SettingsWindowService : ISettingsWindowService, IDisposable
+{
+    private const string ChangePasswordKey = "change-password";
+    private const string RegisterUserKey = "register-user";
+    private const string ResetPasswordKey = "reset-password";
+    private const string UserModulesKey = "user-modules";
+    private const string DictionariesKey = "dictionaries";
+
+    private readonly IServiceProvider _serviceProvider;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly ISessionService _sessionService;
+    private readonly IMessageService _messageService;
+    private readonly Dictionary<string, Window> _openWindows = new(StringComparer.Ordinal);
+    private bool _isDisposed;
+
+    /// <summary>创建设置窗口编排服务，并订阅会话结束以清理旧会话窗口。</summary>
+    public SettingsWindowService(
+        IServiceProvider serviceProvider,
+        ICurrentUserService currentUserService,
+        ISessionService sessionService,
+        IMessageService messageService)
+    {
+        _serviceProvider = serviceProvider;
+        _currentUserService = currentUserService;
+        _sessionService = sessionService;
+        _messageService = messageService;
+        _sessionService.SessionEnded += OnSessionEnded;
+    }
+
+    /// <inheritdoc />
+    public void ShowChangePassword()
+    {
+        if (!_currentUserService.IsAuthenticated)
+        {
+            _messageService.ShowWarning("设置", "请先登录后再修改密码。");
+            return;
+        }
+
+        ShowModal(ChangePasswordKey, () => _serviceProvider.GetRequiredService<ChangePasswordWindow>());
+    }
+
+    /// <inheritdoc />
+    public void ShowUserRegistration()
+        => ShowManagementWindow(RegisterUserKey, () => _serviceProvider.GetRequiredService<UserRegistrationWindow>());
+
+    /// <inheritdoc />
+    public void ShowResetPassword()
+        => ShowManagementWindow(ResetPasswordKey, () => _serviceProvider.GetRequiredService<ResetPasswordWindow>());
+
+    /// <inheritdoc />
+    public void ShowUserModules()
+        => ShowManagementWindow(UserModulesKey, CreateUserModulesWindow);
+
+    /// <inheritdoc />
+    public void ShowDictionaries()
+        => ShowManagementWindow(DictionariesKey, CreateDictionaryWindow);
+
+    private void ShowManagementWindow(string key, Func<Window> factory)
+    {
+        if (!_currentUserService.HasPermission(PermissionKeys.SystemSettingsManage))
+        {
+            _messageService.ShowWarning("设置", "当前账号没有系统设置管理权限。");
+            return;
+        }
+
+        ShowModal(key, factory);
+    }
+
+    private void ShowModal(string key, Func<Window> factory)
+    {
+        if (_openWindows.TryGetValue(key, out var existing))
+        {
+            if (existing.WindowState == WindowState.Minimized)
+            {
+                existing.WindowState = WindowState.Normal;
+            }
+
+            existing.Activate();
+            return;
+        }
+
+        var owner = Application.Current?.MainWindow;
+        if (owner is null)
+        {
+            _messageService.ShowError("设置", "当前找不到可用的 Shell 窗口。");
+            return;
+        }
+
+        var window = factory();
+        window.Owner = owner;
+        _openWindows.Add(key, window);
+        void RemoveWindow(object? sender, EventArgs args)
+        {
+            window.Closed -= RemoveWindow;
+            _openWindows.Remove(key);
+        }
+
+        window.Closed += RemoveWindow;
+        try
+        {
+            window.ShowDialog();
+        }
+        finally
+        {
+            window.Closed -= RemoveWindow;
+            _openWindows.Remove(key);
+        }
+    }
+
+    private Window CreateUserModulesWindow()
+    {
+        IContentDialogService contentDialogs = new ContentDialogService();
+        var localDialogService = new WpfUiDialogService(contentDialogs);
+        var viewModel = ActivatorUtilities.CreateInstance<UserModulePermissionsViewModel>(
+            _serviceProvider,
+            localDialogService);
+        return new UserModulePermissionsWindow(viewModel, contentDialogs);
+    }
+
+    private Window CreateDictionaryWindow()
+    {
+        IContentDialogService contentDialogs = new ContentDialogService();
+        var localDialogService = new WpfUiDialogService(contentDialogs);
+        var localMessageService = new WindowMessageService();
+        var viewModel = ActivatorUtilities.CreateInstance<DictionaryManagerViewModel>(
+            _serviceProvider,
+            localDialogService,
+            localMessageService);
+        return new DictionaryManagerWindow(
+            viewModel,
+            contentDialogs,
+            localMessageService);
+    }
+
+    private void OnSessionEnded(object? sender, SessionEndedEventArgs e)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is not null && !dispatcher.CheckAccess())
+        {
+            dispatcher.Invoke(CloseAllWindows);
+            return;
+        }
+
+        CloseAllWindows();
+    }
+
+    private void CloseAllWindows()
+    {
+        foreach (var window in _openWindows.Values.ToArray())
+        {
+            if (window is IManagedSettingsWindow managedWindow)
+            {
+                managedWindow.ForceClose();
+            }
+            else
+            {
+                window.Close();
+            }
+        }
+
+        _openWindows.Clear();
+    }
+
+    /// <summary>解除会话订阅，并关闭仍属于当前会话的所有设置窗口。</summary>
+    public void Dispose()
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        _isDisposed = true;
+        _sessionService.SessionEnded -= OnSessionEnded;
+        CloseAllWindows();
+    }
+}

@@ -227,5 +227,6 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
         CREATE TABLE dbo.SysUser(Uid uniqueidentifier NOT NULL PRIMARY KEY,UserName nvarchar(100) NOT NULL,IsActive bit NOT NULL,IsDeleted bit NOT NULL DEFAULT(0));
         CREATE TABLE dbo.SysRoles(Uid uniqueidentifier NOT NULL PRIMARY KEY,RoleName nvarchar(100) NOT NULL,IsDeleted bit NOT NULL DEFAULT(0));
         CREATE TABLE dbo.SysUser_Roles(Uid uniqueidentifier NOT NULL PRIMARY KEY,UserId uniqueidentifier NOT NULL,RoleId uniqueidentifier NOT NULL,IsDeleted bit NOT NULL DEFAULT(0));
+        CREATE TABLE dbo.SysUser_ModulePermissions(Uid uniqueidentifier NOT NULL PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),CreatedDate datetime2 NULL,CreatedBy nvarchar(256) NULL,UpdatedDate datetime2 NULL,UpdatedBy nvarchar(256) NULL,UserId uniqueidentifier NOT NULL,PermissionKey nvarchar(128) NOT NULL);
         """;
 }

@@ -7,6 +7,7 @@ using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Infrastructure;
 using SwiftExport.WebApi.Middlewares;
 using SwiftExport.WebApi.Services;
+using SwiftExport.WebApi.Services.Auth;
 using System.Text;
 
 
@@ -80,6 +81,18 @@ try
                 ValidAudience = builder.Configuration["Auth:JwtAudience"],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
             };
+            options.Events = new JwtBearerEvents
+            {
+                OnTokenValidated = async context =>
+                {
+                    var validator = context.HttpContext.RequestServices
+                        .GetRequiredService<CredentialVersionTokenValidator>();
+                    if (!await validator.ValidateAsync(context.Principal!, context.HttpContext.RequestAborted))
+                    {
+                        context.Fail("账号凭据已变化，请重新登录。");
+                    }
+                }
+            };
         });
 
     // HttpContextAccessor 是 ICurrentUser 的依赖，必须注册
@@ -87,6 +100,8 @@ try
     // 注册 ICurrentUser（Scoped，每次请求从 HttpContext 读取）
     builder.Services.AddScoped<ICurrentUser, CurrentUser>();
     builder.Services.AddScoped<ICorrelationContext, HttpCorrelationContext>();
+    builder.Services.AddSingleton<IAuthTokenFactory, AuthTokenFactory>();
+    builder.Services.AddScoped<CredentialVersionTokenValidator>();
 
     // ══════════════════════════════════════════════════════
     // 4. 注册 Web API 核心服务

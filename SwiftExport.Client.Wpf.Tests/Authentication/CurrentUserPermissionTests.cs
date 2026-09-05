@@ -41,4 +41,31 @@ public sealed class CurrentUserPermissionTests
         Assert.AreEqual(0, service.Permissions.Count);
         Assert.IsFalse(service.HasPermission(PermissionKeys.ProcurementOrderConfirm));
     }
+
+    /// <summary>登录恢复和用户替换均发布快照变更，供 Shell 与导航清除上一用户状态。</summary>
+    [TestMethod]
+    public void User_snapshot_changes_raise_notifications()
+    {
+        var service = new CurrentUserService();
+        var changeCount = 0;
+        service.CurrentUserChanged += (_, _) => changeCount++;
+
+        service.SetCurrentUser(new MeDto
+        {
+            UserId = Guid.NewGuid().ToString(),
+            UserName = "first",
+            Permissions = new List<string> { PermissionKeys.ModuleProductsAccess }
+        });
+        service.SetCurrentUser(new MeDto
+        {
+            UserId = Guid.NewGuid().ToString(),
+            UserName = "second",
+            Permissions = new List<string> { PermissionKeys.ModuleSalesAccess }
+        });
+        service.Clear();
+        service.Clear();
+
+        Assert.AreEqual(3, changeCount);
+        Assert.IsFalse(service.IsAuthenticated);
+    }
 }

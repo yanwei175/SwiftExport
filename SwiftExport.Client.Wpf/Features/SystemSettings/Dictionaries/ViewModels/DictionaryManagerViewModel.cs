@@ -16,11 +16,10 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
 
+/// <summary>管理字典类型和值的编辑状态，并为页签或独立窗口提供统一的加载、保存和关闭门禁。</summary>
 public sealed partial class DictionaryManagerViewModel
-    : ViewModelBaseEx, IAsyncInitializable, IDocumentTabViewModel
+    : ViewModelBaseEx, IAsyncInitializable, IDocumentTabViewModel, IDisposable
 {
-    public const string RouteKey = "system-dictionaries";
-
     private readonly ISysDictTypeApi _dictTypeApi;
     private readonly ISysDictDataApi _dictDataApi;
     private readonly IApiCallRunner _apiCallRunner;
@@ -28,6 +27,10 @@ public sealed partial class DictionaryManagerViewModel
     private readonly IDialogService _dialogService;
     private readonly IReferenceDataCacheService _referenceDataCache;
     private bool _isInitialized;
+    private bool _isDisposed;
+    private long _queryVersion;
+    private readonly CancellationTokenSource _lifetimeCancellation = new();
+    private CancellationTokenSource? _queryCancellation;
     private string? _selectionBeforeNew;
 
     public DictionaryManagerViewModel(
@@ -62,8 +65,10 @@ public sealed partial class DictionaryManagerViewModel
         RegisterBusyAwareCommand(RefreshCommand);
     }
 
+    /// <summary>获取可选择的字典类型集合。</summary>
     public ObservableCollection<DictionaryTypeItemModel> Dictionaries { get; } = [];
 
+    /// <summary>获取当前字典的可编辑值列表。</summary>
     public BaseListModel<DictionaryDataLineModel, SysDictDataDto> Lines { get; }
 
     [ObservableProperty]
@@ -103,9 +108,14 @@ public sealed partial class DictionaryManagerViewModel
 
     public bool IsEmpty => CanEditValues && !IsBusy && Lines.Items.Count == 0;
 
+    /// <summary>指示字典写入是否正在执行；执行期间独立窗口不能关闭。</summary>
+    [ObservableProperty]
+    public partial bool IsWriting { get; private set; }
+
+    /// <summary>首次显示时加载字典类型和默认字典值；重复调用不会重复加载。</summary>
     public async Task InitializeAsync()
     {
-        if (_isInitialized)
+        if (_isInitialized || _isDisposed)
         {
             return;
         }
@@ -114,6 +124,7 @@ public sealed partial class DictionaryManagerViewModel
         await RunBusyAsync(() => LoadDictionaryTypesAsync(), "正在加载字典...");
     }
 
+    /// <summary>检查是否可以关闭宿主；存在未保存变更时向用户确认放弃。</summary>
     public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)
     {
         if (!HasUnsavedChanges)
@@ -186,7 +197,7 @@ public sealed partial class DictionaryManagerViewModel
             return;
         }
 
-        await RunWriteAsync(async () =>
+        await RunDictionaryWriteAsync(async () =>
         {
             var validationError = editor.ValidateRow();
             if (!string.IsNullOrWhiteSpace(validationError))
@@ -274,7 +285,7 @@ public sealed partial class DictionaryManagerViewModel
             return;
         }
 
-        await RunWriteAsync(async () =>
+        await RunDictionaryWriteAsync(async () =>
         {
             var request = new SysDictTypeBatchSaveRequest
             {
@@ -379,7 +390,7 @@ public sealed partial class DictionaryManagerViewModel
     [RelayCommand(CanExecute = nameof(CanSaveValues))]
     private async Task SaveAsync()
     {
-        await RunWriteAsync(async () =>
+        await RunDictionaryWriteAsync(async () =>
         {
             var dictionary = SelectedDictionary;
             if (dictionary is null || !CanEditValues)
@@ -474,9 +485,16 @@ public sealed partial class DictionaryManagerViewModel
 
     private async Task LoadDictionaryTypesAsync(string? preferredCode = null)
     {
+        var (version, cancellationToken) = BeginQuery();
         var result = await _apiCallRunner.RunAsync(
-            () => _dictTypeApi.GetAllAsync(),
+            () => _dictTypeApi.GetAllAsync().WaitAsync(cancellationToken),
+            cancellationToken,
             "加载字典类型失败");
+        if (!CanAcceptQuery(version, cancellationToken))
+        {
+            return;
+        }
+
         if (!result.Success)
         {
             SetValidationFeedback(result.Message);
@@ -546,9 +564,16 @@ public sealed partial class DictionaryManagerViewModel
 
     private async Task LoadDictionaryDataAsync(DictionaryTypeItemModel item)
     {
+        var (version, cancellationToken) = BeginQuery();
         var result = await _apiCallRunner.RunAsync(
-            () => _dictDataApi.GetByCodeAsync(item.Code),
+            () => _dictDataApi.GetByCodeAsync(item.Code).WaitAsync(cancellationToken),
+            cancellationToken,
             "加载字典值失败");
+        if (!CanAcceptQuery(version, cancellationToken))
+        {
+            return;
+        }
+
         if (!result.Success)
         {
             Lines.Clear();
@@ -708,6 +733,62 @@ public sealed partial class DictionaryManagerViewModel
     private bool CanRejectValueChanges() => IsNotBusy && Lines.HasChanges;
 
     private bool CanRefresh() => IsNotBusy;
+
+    private async Task RunDictionaryWriteAsync(Func<Task> action, string busyMessage)
+    {
+        if (IsWriting)
+        {
+            return;
+        }
+
+        IsWriting = true;
+        try
+        {
+            await RunWriteAsync(action, busyMessage);
+        }
+        finally
+        {
+            IsWriting = false;
+        }
+    }
+
+    private (long Version, CancellationToken Token) BeginQuery()
+    {
+        var version = Interlocked.Increment(ref _queryVersion);
+        var next = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCancellation.Token);
+        var previous = Interlocked.Exchange(ref _queryCancellation, next);
+        previous?.Cancel();
+        previous?.Dispose();
+        return (version, next.Token);
+    }
+
+    private bool CanAcceptQuery(long version, CancellationToken token)
+    {
+        return !_isDisposed
+            && !token.IsCancellationRequested
+            && version == Volatile.Read(ref _queryVersion);
+    }
+
+    /// <summary>取消字典读取并解除模型订阅，防止关闭后迟到结果回写窗口或新会话。</summary>
+    public void Dispose()
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        _isDisposed = true;
+        _lifetimeCancellation.Cancel();
+        _queryCancellation?.Cancel();
+        _queryCancellation?.Dispose();
+        _queryCancellation = null;
+        _lifetimeCancellation.Dispose();
+        Lines.PropertyChanged -= OnLinesPropertyChanged;
+        if (TypeEditor is not null)
+        {
+            TypeEditor.PropertyChanged -= OnTypeEditorPropertyChanged;
+        }
+    }
 
     private static string GetFallbackName(string code) => code switch
     {

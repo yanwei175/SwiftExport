@@ -49,6 +49,7 @@
                 <ui:Button x:Name="CancelButton"
                         HorizontalAlignment="Stretch"
                         Content="取消"
+                        IsEnabled="{Binding IsNotBusy}"
                         Margin="0,10,0,0" />
 
                 <TextBlock Text="{Binding StatusMessage}"

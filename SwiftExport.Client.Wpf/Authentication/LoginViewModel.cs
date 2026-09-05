@@ -1,56 +1,44 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExportClient.Mvvm;
 
 namespace SwiftExportClient.Authentication;
 
-public sealed class LoginViewModel : ViewModelBaseEx
+/// <summary>验证登录输入并通过认证服务建立当前客户端会话。</summary>
+public sealed partial class LoginViewModel : ViewModelBaseEx
 {
     private readonly IAuthService _authService;
-    private string _userName = string.Empty;
-    private string _statusMessage = "请输入账号密码。";
-    private bool _isError;
 
+    /// <summary>创建登录页面状态，并注册 Busy 感知的登录命令。</summary>
     public LoginViewModel(IAuthService authService)
     {
         _authService = authService;
         Title = "SwiftExport Login";
-        LoginCommand = new AsyncRelayCommand<string?>(LoginAsync, CanLogin);
         RegisterBusyAwareCommand(LoginCommand);
     }
 
+    /// <summary>认证和当前用户加载全部成功后触发。</summary>
     public event EventHandler? LoginSucceeded;
 
-    public string UserName
-    {
-        get => _userName;
-        set
-        {
-            if (SetProperty(ref _userName, value))
-            {
-                LoginCommand.NotifyCanExecuteChanged();
-            }
-        }
-    }
+    /// <summary>获取或设置待登录用户名。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
+    public partial string UserName { get; set; } = string.Empty;
 
-    public string StatusMessage
-    {
-        get => _statusMessage;
-        private set => SetProperty(ref _statusMessage, value);
-    }
+    /// <summary>获取当前登录提示或错误文本。</summary>
+    [ObservableProperty]
+    public partial string StatusMessage { get; private set; } = "请输入账号密码。";
 
-    public bool IsError
-    {
-        get => _isError;
-        private set => SetProperty(ref _isError, value);
-    }
-
-    public IAsyncRelayCommand<string?> LoginCommand { get; }
+    /// <summary>指示当前状态文本是否为错误。</summary>
+    [ObservableProperty]
+    public partial bool IsError { get; private set; }
 
     private bool CanLogin(string? password)
     {
         return !IsBusy && !string.IsNullOrWhiteSpace(UserName);
     }
 
+    [RelayCommand(CanExecute = nameof(CanLogin))]
     private async Task LoginAsync(string? password)
     {
         if (string.IsNullOrWhiteSpace(UserName))

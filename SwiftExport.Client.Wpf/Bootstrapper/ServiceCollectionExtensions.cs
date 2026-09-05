@@ -31,6 +31,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISessionService, SessionService>();
         services.AddSingleton<IAuthService, AuthService>();
         services.AddSingleton<INavigationRouteRegistry, NavigationRouteRegistry>();
+        services.AddSingleton<INavigationAccessService, NavigationAccessService>();
         services.AddSingleton<Navigation.INavigationService, Navigation.NavigationService>();
         services.AddSingleton<IApiCallRunner, ApiCallRunner>();
         services.AddSingleton<ISnackbarService, SnackbarService>();
@@ -38,6 +39,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IStatusMessageService, StatusMessageService>();
         services.AddSingleton<IMessageService, WpfUiMessageService>();
         services.AddSingleton<IDialogService, WpfUiDialogService>();
+        services.AddSingleton<ISettingsWindowService, SettingsWindowService>();
         services.AddSingleton<IClientVersionService, ClientVersionService>();
         services.AddSingleton<IImageCacheService, ImageCacheService>();
         services.AddSingleton<IReferenceDataCacheService, ReferenceDataCacheService>();
