@@ -1,11 +1,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Options;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
+using SwiftExportClient.Bootstrapper;
 using SwiftExportClient.Features.Products.ProductList.Models;
+using SwiftExportClient.Features.Products.ProductList.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Resources.Controls;
@@ -28,7 +31,9 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     private readonly IReferenceDataCacheService _cache;
     private readonly IMessageService _messages;
     private readonly IDialogService _dialogs;
+    private readonly IProductMasterSyncDialogService _syncDialog;
     private readonly INavigationService _navigation;
+    private readonly IOptions<ProductOptions> _productOptions;
     private CancellationTokenSource? _queryCts;
     private long _querySequence;
     private long _supplierSequence;
@@ -44,7 +49,8 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         IMessageService messages,
         IDialogService dialogs,
         INavigationService navigation,
-        IProductNeutralApi neutralApi)
+        IProductNeutralApi neutralApi, IOptions<ProductOptions> productOptions,
+        IProductMasterSyncDialogService syncDialog)
     {
         _api = api;
         _neutralApi = neutralApi;
@@ -53,7 +59,9 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         _cache = cache;
         _messages = messages;
         _dialogs = dialogs;
+        _syncDialog = syncDialog;
         _navigation = navigation;
+        _productOptions = productOptions;
         Title = "主产品管理";
         Masters.ListStateChanged += OnListStateChanged;
         Neutrals.ListStateChanged += OnNeutralListStateChanged;
@@ -205,6 +213,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         UpdateChangeState();
     }
 
+    /// <summary>验证后采集本批次同步授权，确认才提交；取消和失败均保留编辑。</summary>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
@@ -220,6 +229,13 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
             }
             var request = Masters.CreateSaveRequest();
             if (!request.HasChanges) return;
+            if (request.CreateItems.Count > 0 || request.UpdateItems.Count > 0)
+            {
+                var selection = await _syncDialog.ConfirmSaveAsync();
+                if (!selection.Confirmed || _disposed) return;
+                request.UpdateProductDescriptions = selection.UpdateProductDescriptions;
+                request.UpdateProductDefaultSupplier = selection.UpdateProductDefaultSupplier;
+            }
             var result = await _runner.RunAsync(() => _api.BatchSaveAsync(request), "保存主型号失败");
             if (!result.Success || result.Data is null)
             {

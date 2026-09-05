@@ -9,6 +9,7 @@ using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExportClient.Features.Products.ProductList.Models;
+using SwiftExportClient.Features.Products.ProductList.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
@@ -30,6 +31,7 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
     private readonly IReferenceDataCacheService _cache;
     private readonly IMessageService _messages;
     private readonly IDialogService _dialogs;
+    private readonly IProductMasterSyncDialogService _syncDialog;
     private readonly INavigationService _navigation;
     private CancellationTokenSource? _loadCts;
     private long _loadSequence;
@@ -44,7 +46,8 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         IReferenceDataCacheService cache,
         IMessageService messages,
         IDialogService dialogs,
-        INavigationService navigation)
+        INavigationService navigation,
+        IProductMasterSyncDialogService syncDialog)
     {
         _api = api;
         _supplierApi = supplierApi;
@@ -52,6 +55,7 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         _cache = cache;
         _messages = messages;
         _dialogs = dialogs;
+        _syncDialog = syncDialog;
         _navigation = navigation;
         Title = "主型号详情";
         Header.PropertyChanged += OnHeaderPropertyChanged;
@@ -140,6 +144,7 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         NotifyDocumentState();
     }
 
+    /// <summary>验证聚合并采集同步授权，确认后原子保存，取消及失败不接纳基线。</summary>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
@@ -161,6 +166,10 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
                 Master = Header.ToWriteDto()
             };
             Neutrals.ApplyChanges(request);
+            var selection = await _syncDialog.ConfirmSaveAsync();
+            if (!selection.Confirmed || _disposed) return;
+            request.UpdateProductDescriptions = selection.UpdateProductDescriptions;
+            request.UpdateProductDefaultSupplier = selection.UpdateProductDefaultSupplier;
             var result = await _runner.RunAsync(() => _api.SaveDetailAsync(request), "保存主型号详情失败");
             if (!result.Success || result.Data?.Detail is null)
             {
@@ -186,10 +195,12 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         await LoadAsync(Header.Uid, CancellationToken.None);
     }
 
+    /// <summary>撤销头部及明细，并同步 Lookup 选择，避免控件失焦后恢复已撤销的供应商。</summary>
     [RelayCommand]
     private void RejectDetailChanges()
     {
         Header.RejectChanges();
+        SyncSelectedSupplier();
         SelectedCategory = _cache.ProductCategories.FirstOrDefault(item => item.Uid == Header.CategoryId);
         Neutrals.RejectChanges();
         SelectedNeutral = Neutrals.Items.FirstOrDefault();
@@ -251,12 +262,30 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         SelectedCategory = null;
     }
 
+    /// <summary>仅在确认候选时同步供应商标识和名称，不将搜索文本写入头部。</summary>
     [RelayCommand]
     private void CommitSupplier()
     {
         if (SelectedSupplier is null) return;
         Header.DefaultSupplierId = SelectedSupplier.Uid;
         Header.DefaultSupplierName = SelectedSupplier.SupplierName ?? string.Empty;
+    }
+
+    /// <summary>显式清空可选供应商，同时清除头部字段和控件选择。</summary>
+    [RelayCommand]
+    private void ClearSupplier()
+    {
+        Header.DefaultSupplierId = Guid.Empty;
+        Header.DefaultSupplierName = string.Empty;
+        SelectedSupplier = null;
+    }
+
+    /// <summary>根据已加载或撤销后的头部重建显示选择，不触发提交或重新接纳编辑基线。</summary>
+    private void SyncSelectedSupplier()
+    {
+        SelectedSupplier = Header.DefaultSupplierId == Guid.Empty
+            ? null
+            : new SupplierDto { Uid = Header.DefaultSupplierId, SupplierName = Header.DefaultSupplierName };
     }
 
     [RelayCommand]
@@ -312,9 +341,7 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         Neutrals.LoadFromDtos(detail.Neutrals ?? []);
         SelectedNeutral = Neutrals.Items.FirstOrDefault();
         SelectedCategory = _cache.ProductCategories.FirstOrDefault(item => item.Uid == Header.CategoryId);
-        SelectedSupplier = Header.DefaultSupplierId == Guid.Empty
-            ? null
-            : new SupplierDto { Uid = Header.DefaultSupplierId, SupplierName = Header.DefaultSupplierName };
+        SyncSelectedSupplier();
         StatusText = $"已加载 {Neutrals.Items.Count} 条中性产品。";
         AcceptChanges();
         NotifyDocumentState();

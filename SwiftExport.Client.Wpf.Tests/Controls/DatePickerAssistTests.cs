@@ -49,7 +49,7 @@ public sealed class DatePickerAssistTests
     });
 
     /// <summary>在同一 STA Application 上解析跨字典资源，每次测试后清空资源以免污染其他控件测试。</summary>
-    private static void RunWithApplication(Func<Task> action)
+    internal static void RunWithApplication(Func<Task> action)
     {
         ApplicationDispatcher.Value.InvokeAsync(async () =>
         {

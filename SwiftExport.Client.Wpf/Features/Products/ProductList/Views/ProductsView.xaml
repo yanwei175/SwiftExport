@@ -440,16 +440,16 @@
                             <DataGridTemplateColumn.CellEditingTemplate>
                                 <DataTemplate>
                                     <supplierComponents:SupplierLookupTextBox
-                                        Text="{Binding DefaultSupplierCode, Mode=OneWay}"
-                                        FontSize="10"
-                                        ItemsSource="{Binding DataContext.SupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                        SelectedSupplier="{Binding DataContext.EditSupplier, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
-                                        SearchCommand="{Binding DataContext.SearchSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                        SelectionCommittedCommand="{Binding DataContext.CommitSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                        SelectionCommittedCommandParameter="{Binding}"
-                                        SelectionClearedCommand="{Binding DataContext.ClearSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                        SelectionClearedCommandParameter="{Binding}"
-                                        IsBusy="{Binding DataContext.IsSupplierLookupBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                                                        Text="{Binding DefaultSupplierCode, Mode=OneWay}"
+                                                        FontSize="10"
+                                                        ItemsSource="{Binding DataContext.SupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        SelectedSupplier="{Binding DataContext.EditSupplier, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
+                                                        SearchCommand="{Binding DataContext.SearchSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        SelectionCommittedCommand="{Binding DataContext.CommitSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        SelectionCommittedCommandParameter="{Binding}"
+                                                        SelectionClearedCommand="{Binding DataContext.ClearSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        SelectionClearedCommandParameter="{Binding}"
+                                                        IsBusy="{Binding DataContext.IsSupplierLookupBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellEditingTemplate>
                         </DataGridTemplateColumn>

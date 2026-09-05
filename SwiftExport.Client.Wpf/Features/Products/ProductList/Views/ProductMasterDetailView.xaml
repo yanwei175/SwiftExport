@@ -26,22 +26,31 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-                <TextBlock Text="{Binding DocumentTitle}" Style="{StaticResource SubtitleTextBlock}" Margin="0,0,0,12"/>
-                <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+        <Grid HorizontalAlignment="Stretch">
+            <StackPanel  DockPanel.Dock="Left" Orientation="Horizontal" 
+                         VerticalAlignment="Center">
                 <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveCommand}"  Margin="0,0,4,0" />
                 <ui:Button Content="放弃" Command="{Binding RejectDetailChangesCommand}"  Margin="0,0,4,0" />
                 <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,4,0" />
-                <ui:Button Content="关闭" Command="{Binding CloseDocumentCommand}" />
             </StackPanel>
+
+            <StackPanel Panel.ZIndex="999" HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Vertical">
+                <TextBlock Text="{Binding DocumentTitle}" 
+                           TextAlignment="Center"
+                           Style="{StaticResource SubtitleTextBlock}" 
+                           Foreground="{DynamicResource SwiftExportBrush.AccentHover}"
+                           Margin="0,0,0,12"/>
+                <TextBlock Text="{Binding StatusText}" 
+                           TextAlignment="Center"
+                           Style="{StaticResource SecondaryTextBlock}" />
+            </StackPanel>
+
+            <StackPanel HorizontalAlignment="Right">
+                <ui:Button Content="关闭页签" 
+                           Appearance="Primary" 
+                           Command="{Binding CloseDocumentCommand}" />
+            </StackPanel>
+
         </Grid>
 
         <Border Grid.Row="2" 
@@ -113,15 +122,17 @@
                     <TextBlock Grid.Column="0" Grid.Row="2" Text="默认供应商:" VerticalAlignment="Center" />
                     <controls:LookupTextBox Grid.Column="2" Grid.Row="2" FontSize="14"
                                             Text="{Binding Header.DefaultSupplierName, Mode=OneWay}"
-                                            RequireItemMatch="True"
                                             SearchMode="Remote" 
                                             ItemsSource="{Binding SupplierCandidates}"
                                             IsBusy="{Binding IsSupplierLookupBusy}" 
                                             SearchCommand="{Binding SearchSuppliersCommand}"
                                             SelectedItem="{Binding SelectedSupplier, Mode=TwoWay}"
                                             DisplayMemberPath="SupplierName" 
-                                            FilterMemberPaths="SupplierCode,SupplierName"
-                                            SelectionCommittedCommand="{Binding CommitSupplierCommand}" />
+                                            FilterMemberPaths="SupplierName"
+                                            SelectionCommittedCommand="{Binding CommitSupplierCommand}" 
+                                            SelectionClearedCommand="{Binding ClearSupplierCommand}"
+                                            ClearSelectionOnEdit="False"
+                                            RequireItemMatch="True"/>
  
                     <TextBlock Grid.Column="4" Grid.Row="2" Text="英文描述:" VerticalAlignment="Center" />
                     <ui:TextBox Grid.Column="6" Grid.Row="2" Grid.ColumnSpan="5"

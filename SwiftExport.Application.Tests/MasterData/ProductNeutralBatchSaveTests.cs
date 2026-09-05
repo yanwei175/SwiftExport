@@ -119,6 +119,7 @@ public sealed class ProductNeutralBatchSaveTests
                 Proxy<IProductColorRepository>((method, _) => method == "GetByIdListAsync"
                     ? Task.FromResult<IReadOnlyList<ProductColor>>(ColorExists ? [new ProductColor { Uid = ColorId }] : [])
                     : throw new AssertFailedException(method)),
+                Proxy<IProductRepository>((_, _) => throw new AssertFailedException("独立明细不能同步物料。")),
                 new ServiceBaseContext(Session, NullLoggerFactory.Instance));
         }
 

@@ -12,7 +12,12 @@ public sealed partial class ProductMasterLineModel : BaseLineModel<ProductMaster
     public string ClientKey { get; } = Guid.NewGuid().ToString("N");
 
     /// <summary>获取或设置主型号编码。</summary>
-    [ObservableProperty] public partial string MasterSku { get; set; } = string.Empty;
+    private string _masterSku = string.Empty;
+    public string MasterSku
+    {
+        get => _masterSku;
+        set => SetProperty(ref _masterSku, value?.Trim().ToUpperInvariant() ?? string.Empty);
+    }
     /// <summary>获取或设置默认英文描述。</summary>
     [ObservableProperty] public partial string DefaultDescriptionEn { get; set; } = string.Empty;
     /// <summary>获取或设置默认中文描述。</summary>

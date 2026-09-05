@@ -11,7 +11,12 @@ public sealed partial class ProductNeutralLineModel : BaseLineModel<ProductNeutr
     /// <summary>获取或设置所属主型号标识。</summary>
     [ObservableProperty] public partial Guid ProductMasterId { get; set; }
     /// <summary>获取或设置中性产品编码。</summary>
-    [ObservableProperty] public partial string ProductCode { get; set; } = string.Empty;
+    private string _productCode = string.Empty;
+    public string ProductCode
+    {
+        get => _productCode;
+        set => SetProperty(ref _productCode, value?.Trim().ToUpperInvariant() ?? string.Empty);
+    }
     /// <summary>获取或设置颜色标识。</summary>
     [ObservableProperty] public partial Guid ColorId { get; set; }
     /// <summary>获取或设置颜色显示名称。</summary>

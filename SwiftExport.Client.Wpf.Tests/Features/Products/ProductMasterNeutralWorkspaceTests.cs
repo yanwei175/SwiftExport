@@ -210,7 +210,7 @@ public sealed class ProductMasterNeutralWorkspaceTests
 
     private static ProductMasterManagerViewModel CreateVm(ApiStub api, DialogStub? dialogs = null)
     {
-        var vm = new ProductMasterManagerViewModel(api, null!, new Runner(), null!, new Messages(), dialogs ?? new DialogStub(), null!, api)
+        var vm = new ProductMasterManagerViewModel(api, null!, new Runner(), null!, new Messages(), dialogs ?? new DialogStub(), null!, api, Microsoft.Extensions.Options.Options.Create(new SwiftExportClient.Bootstrapper.ProductOptions()), new ProductMasterSyncDialogStub())
         { IsCardView = false };
         vm.Masters.LoadFromDtos([
             new ProductMasterListItemDto { Uid = Guid.NewGuid(), Version = 1, Data = new ProductMasterWriteDto { MasterSku = "A" } },

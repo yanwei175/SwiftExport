@@ -6,6 +6,7 @@ using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Mvvm;
 using System.ComponentModel;
+using System.IO;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
@@ -262,6 +263,20 @@ public sealed partial class ProductMasterManagerViewModel
     private void SetMainImage(ProductNeutralLineModel? line)
     {
         if (CanEditNeutrals && line is not null) Neutrals.SetMainImage(line);
+    }
+
+    /// <summary>从配置文件读取图片父文件夹,与产品代码组合生成完整图片路径。</summary>
+    [RelayCommand]
+    private void ReBuildImagePath(ProductNeutralLineModel? line)
+    {
+        if (!CanEditNeutrals || line is null) return;
+
+        if (string.IsNullOrWhiteSpace(line.ProductCode)) return;
+
+        string imgFolder = _productOptions.Value.BaseImageFolder;
+        if (imgFolder == null) return;
+        string fileName = Path.ChangeExtension(line.ProductCode, ".jpg");
+        line.ImagePath = Path.Combine(imgFolder, fileName);
     }
 
     private bool CanAddNeutral() => CanEditNeutrals;

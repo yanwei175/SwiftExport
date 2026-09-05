@@ -1,16 +1,17 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExportClient.Authentication;
-using SwiftExportClient.Navigation;
-using SwiftExportClient.Services.Api;
-using SwiftExportClient.Services.UI;
-using SwiftExportClient.Services.Images;
-using SwiftExportClient.Services.Caching;
-using SwiftExportClient.Updates;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
-using SwiftExportClient.Features.Shipping.PackingLists.Services;
 using SwiftExportClient.Features.Sales.Orders.Services;
+using SwiftExportClient.Features.Products.ProductList.Services;
+using SwiftExportClient.Features.Shipping.PackingLists.Services;
+using SwiftExportClient.Navigation;
+using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Caching;
+using SwiftExportClient.Services.Images;
+using SwiftExportClient.Services.UI;
+using SwiftExportClient.Updates;
 using Wpf.Ui;
 
 namespace SwiftExportClient.Bootstrapper;
@@ -23,6 +24,7 @@ public static class ServiceCollectionExtensions
     {
         services.Configure<ApiOptions>(configuration.GetSection(ApiOptions.SectionName));
         services.Configure<ClientOptions>(configuration.GetSection(ClientOptions.SectionName));
+        services.Configure<ProductOptions>(configuration.GetSection(ProductOptions.SectionName));
         services.Configure<ImageCacheOptions>(configuration.GetSection(ImageCacheOptions.SectionName));
         services.AddSingleton<ITokenStore, LocalTokenStore>();
         services.AddSingleton<ICurrentUserService, CurrentUserService>();
@@ -44,6 +46,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IProcurementDialogService, ProcurementDialogService>();
         services.AddTransient<IPurchaseOrderCancellationDialogService, PurchaseOrderCancellationDialogService>();
         services.AddTransient<ISalesOrderCancellationDialogService, SalesOrderCancellationDialogService>();
+        services.AddTransient<IProductMasterSyncDialogService, ProductMasterSyncDialogService>();
         services.AddTransient<IPurchaseOrderTraceExportService, PurchaseOrderTraceExportService>();
         services.AddTransient<IPackingListDocumentOutputService, PackingListDocumentOutputService>();
         services.AddTransient<AuthTokenHandler>();

@@ -11,6 +11,8 @@ public class Product : BaseEntity
     /// <summary>是否允许新业务引用；停用保留历史身份，不等同软删除。</summary>
     public bool IsActive { get; set; } = true;
 
+    /// <summary>所属主型号标识；使用逻辑外键，由聚合保存上下文赋值。</summary>
+    public Guid? ProductMasterId { get; set; }
     /// <summary>逻辑外键：直接存字符串 &quot;AT010011&quot;。</summary>
     public string? MasterSku { get; set; } // 逻辑外键：直接存字符串 "AT010011"
     /// <summary>该实体保存的公司产品编码。</summary>
