@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Services.Orders;
+using SwiftExport.Application.Services.DemandPlanning;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Entities.DemandPlanning;
 
@@ -13,7 +14,7 @@ public sealed class SalesOrderCancellationPolicyTests
     {
         var demand = CreateDemand(0);
 
-        var plan = SalesOrderCancellationPolicy.Build(
+        var plan = SourceDemandCancellationPolicy.Build(
             [demand],
             new Dictionary<Guid, int> { [demand.Uid] = 0 });
 
@@ -26,7 +27,7 @@ public sealed class SalesOrderCancellationPolicyTests
     {
         var demand = CreateDemand(2);
 
-        var plan = SalesOrderCancellationPolicy.Build(
+        var plan = SourceDemandCancellationPolicy.Build(
             [demand],
             new Dictionary<Guid, int> { [demand.Uid] = 3 });
 
@@ -40,7 +41,7 @@ public sealed class SalesOrderCancellationPolicyTests
         var neverDecomposed = CreateDemand(0);
         var rolledBack = CreateDemand(1);
 
-        var plan = SalesOrderCancellationPolicy.Build(
+        var plan = SourceDemandCancellationPolicy.Build(
             [neverDecomposed, rolledBack],
             new Dictionary<Guid, int>
             {
@@ -60,7 +61,7 @@ public sealed class SalesOrderCancellationPolicyTests
         var demand = CreateDemand(revision);
 
         Assert.ThrowsExactly<InvalidOperationException>(() =>
-            SalesOrderCancellationPolicy.Build(
+            SourceDemandCancellationPolicy.Build(
                 [demand],
                 new Dictionary<Guid, int> { [demand.Uid] = historyCount }));
     }
@@ -72,7 +73,7 @@ public sealed class SalesOrderCancellationPolicyTests
         demand.DecompositionStatus = GrossDemandDecompositionStatusEnum.Decomposed;
 
         Assert.ThrowsExactly<InvalidOperationException>(() =>
-            SalesOrderCancellationPolicy.Build(
+            SourceDemandCancellationPolicy.Build(
                 [demand],
                 new Dictionary<Guid, int> { [demand.Uid] = 1 }));
     }

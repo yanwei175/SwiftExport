@@ -17,6 +17,7 @@ public interface IGrossDemandRepository
     Task<GrossDemand?> GetByIdForUpdateAsync(Guid uid);
     Task<IReadOnlyList<GrossDemand>> GetActiveBySourceForUpdateAsync(string sourceType, Guid sourceUid);
     Task<IReadOnlyList<RepositoryWriteResult>> AddSourceDemandsAsync(IEnumerable<GrossDemand> demands);
+    Task<RepositoryWriteResult> UpdateSourceDemandAsync(GrossDemand demand, int expectedVersion);
     Task<RepositoryWriteResult> UpdateDecompositionStateAsync(
         Guid uid,
         int expectedVersion,

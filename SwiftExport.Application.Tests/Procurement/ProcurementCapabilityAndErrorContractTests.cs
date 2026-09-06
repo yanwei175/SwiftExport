@@ -4,6 +4,7 @@ using SwiftExport.Application.Services.Procurement.OrderManagement;
 using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Tests.Procurement;
@@ -70,32 +71,36 @@ public sealed class ProcurementCapabilityAndErrorContractTests
             typeof(CancelProcurementOrderConfirmationCommand).GetProperties().Select(x => x.Name).ToArray());
     }
 
-    /// <summary>新链详情恢复真实采购头行字段，但跟进只返回最新摘要，不携带历史或库存流水。</summary>
+    /// <summary>新链详情恢复真实采购头行字段，不把跟进、追溯或库存能力并入详情契约。</summary>
     [TestMethod]
     public void Detail_contract_covers_entity_fields_without_absorbing_other_capabilities()
     {
-        var head = typeof(ProcurementOrderDetailDto).GetProperties().Select(x => x.Name).ToArray();
-        foreach (var name in new[] { "OriginKind", "BoNo", "CustomerPoNo", "DemandSourceNo", "SalesPerson",
+        var method = typeof(IProcurementOrderApi).GetMethod(nameof(IProcurementOrderApi.GetDetailAsync));
+        var serviceResultType = method!.ReturnType.GetGenericArguments().Single();
+        Assert.AreEqual(typeof(PurchaseOrderDetailDto), serviceResultType.GetGenericArguments().Single());
+
+        var head = typeof(PurchaseOrderDetailDto).GetProperties().Select(x => x.Name).ToArray();
+        foreach (var name in new[] { "BoNo", "CustomerPoNo", "DemandSourceNo", "SalesPerson",
                      "PurchasePerson", "InletHoseType", "AeratorType", "PalletType", "BoxType", "LabelType",
                      "InstructionManualType", "CartonType", "LogoType", "ReviewedBy", "PurchaseOrderFolder",
                      "DiscountRemark", "ExpectedDate", "ReplyDate", "ConfirmedDate", "ConfirmedBy", "CreatedDate", "UpdatedDate" })
             Assert.Contains(name, head);
-        var line = typeof(ProcurementOrderLineDto).GetProperties().Select(x => x.Name).ToArray();
+        var line = typeof(PurchaseOrderLineDetailDto).GetProperties().Select(x => x.Name).ToArray();
         foreach (var name in new[] { "CustomerSku", "LinkSku", "FinishZh", "FeaturesZh", "MaterialType", "SupplyType",
-                     "DeliveryTargetAllocationId", "SourceType", "SourceNo", "SourceUid", "SourceLineId", "SourceLineNumber", "LatestProgress" })
+                     "SourceType", "SourceNo", "SourceUid", "SourceLineId", "SourceLineNumber" })
             Assert.Contains(name, line);
-        foreach (var forbidden in new[] { "ProgressHistory", "InventoryLedger", "InboundLines", "Operations", "Trace" })
+        foreach (var forbidden in new[] { "LatestProgress", "ProgressHistory", "InventoryLedger", "InboundLines", "Operations", "Trace" })
             Assert.DoesNotContain(forbidden, line.Concat(head).ToArray());
     }
 
-    /// <summary>查询 SQL 必须直接选择采购实体字段，并只聚合最新跟进摘要。</summary>
+    /// <summary>查询 SQL 必须直接选择详情契约所需的真实采购头行字段。</summary>
     [TestMethod]
     public void Detail_sql_has_real_sources_for_restored_fields()
     {
         var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Procurement", "ProcurementOrderQueryRepository.cs"));
         foreach (var token in new[] { "h.BoNo", "h.CustomerPoNo", "h.SoPerson AS SalesPerson", "h.InletrHoseType AS InletHoseType",
                      "l.CustomerSku", "l.LinkSku", "l.FinishZh", "l.FeaturesZh", "l.MaterialType", "l.SupplyType",
-                     "l.SourceUid", "l.SourceLineId", "SupplierProgressReport", "TOP(1)", "ORDER BY f.Sequence DESC" })
+                     "l.SourceUid", "l.SourceLineId" })
             StringAssert.Contains(source, token);
     }
 

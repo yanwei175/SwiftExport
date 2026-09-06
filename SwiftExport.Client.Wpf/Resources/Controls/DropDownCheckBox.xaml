@@ -8,7 +8,7 @@
         <Button x:Name="DropDownButton"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Stretch"
-                Height="{StaticResource SwiftExportControlHeight}"
+                Height="{DynamicResource SwiftExportControlHeight}"
                 Padding="8,4"
                 Click="DropDownButton_Click"
                 PreviewMouseLeftButtonDown="DropDownButton_PreviewMouseLeftButtonDown">

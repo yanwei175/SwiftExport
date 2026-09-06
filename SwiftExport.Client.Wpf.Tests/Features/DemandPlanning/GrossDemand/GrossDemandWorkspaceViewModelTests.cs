@@ -452,6 +452,9 @@ public sealed class GrossDemandWorkspaceViewModelTests
         StringAssert.Contains((string?)close.Attribute("Command") ?? string.Empty, "GrossDemandWorkspaceView");
     }
 
+    /// <summary>
+    /// 验证多行筛选通过“更多条件”按钮控制全宽弹出层，不回退为折叠面板。
+    /// </summary>
     [TestMethod]
     public void MultiLineFilters_ShouldUseToggleControlledFullWidthPopup()
     {
@@ -467,9 +470,11 @@ public sealed class GrossDemandWorkspaceViewModelTests
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
         Assert.IsFalse(workspace.Descendants(presentation + "Expander")
-            .Any(element => string.Equals((string?)element.Attribute("Header"), "多行条件", StringComparison.Ordinal)));
+            .Any(element => (string?)element.Attribute("Header") is "多行条件" or "更多条件"));
         var toggle = workspace.Descendants(presentation + "ToggleButton")
-            .Single(element => string.Equals((string?)element.Attribute("Content"), "多行条件", StringComparison.Ordinal));
+            .Single(element => ((string?)element.Attribute("IsChecked"))
+                ?.Contains("IsMultiLineFilterOpen", StringComparison.Ordinal) == true);
+        Assert.AreEqual("更多条件", (string?)toggle.Attribute("Content"));
         StringAssert.Contains((string?)toggle.Attribute("IsChecked") ?? string.Empty, "IsMultiLineFilterOpen");
 
         var popup = workspace.Descendants(presentation + "Popup").Single();
@@ -480,6 +485,9 @@ public sealed class GrossDemandWorkspaceViewModelTests
         Assert.AreEqual(3, popup.Descendants().Count(element => element.Name.LocalName == "TextBox"));
     }
 
+    /// <summary>
+    /// 验证来源分组区使用独立筛选和整高列表，并在来源模式下隐藏分页区域。
+    /// </summary>
     [TestMethod]
     public void SourceGroups_ShouldUseFullHeightListAndHidePagerInSourceMode()
     {
@@ -505,11 +513,15 @@ public sealed class GrossDemandWorkspaceViewModelTests
         Assert.AreEqual("Left", (string?)sourcePanel.Attribute("DockPanel.Dock"));
 
         var sourceToggle = workspace.Descendants(presentation + "ToggleButton")
-            .Single(element => string.Equals((string?)element.Attribute("Content"), "来源单号", StringComparison.Ordinal));
+            .Single(element => ((string?)element.Attribute("Command"))
+                ?.Contains("ToggleSourcePanelCommand", StringComparison.Ordinal) == true);
+        Assert.AreEqual("来源单号分组", (string?)sourceToggle.Attribute("Content"));
         StringAssert.Contains((string?)sourceToggle.Attribute("Command") ?? string.Empty, "ToggleSourcePanelCommand");
         StringAssert.Contains((string?)sourceToggle.Attribute("IsChecked") ?? string.Empty, "IsSourcePanelOpen");
         var multilineToggle = workspace.Descendants(presentation + "ToggleButton")
-            .Single(element => string.Equals((string?)element.Attribute("Content"), "多行条件", StringComparison.Ordinal));
+            .Single(element => ((string?)element.Attribute("IsChecked"))
+                ?.Contains("IsMultiLineFilterOpen", StringComparison.Ordinal) == true);
+        Assert.AreEqual("更多条件", (string?)multilineToggle.Attribute("Content"));
         Assert.IsTrue(GetGridColumn(sourceToggle) < GetGridColumn(multilineToggle));
 
         var sourceFilters = sourcePanel.Descendants().Where(element => element.Name.LocalName == "DropDownCheckBox").ToArray();

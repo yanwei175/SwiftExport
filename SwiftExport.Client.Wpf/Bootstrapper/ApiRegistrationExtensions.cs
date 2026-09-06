@@ -85,6 +85,8 @@ public static class ApiRegistrationExtensions
     private static void AddOrderApis(this IServiceCollection services)
     {
         services.AddControllerApi<ISalesOrderWorkspaceApi>("sales-orders/workspace");
+        services.AddControllerApi<ISalesFulfillmentManagerApi>("sales-fulfillment/manager");
+        services.AddControllerApi<ISalesFulfillmentDetailApi>("sales-fulfillment/detail");
         services.AddControllerApi<IGrossDemandWorkspaceApi>("demand-planning/gross-demands");
         services.AddControllerApi<INetDemandWorkspaceApi>("demand-planning/net-demands");
         services.AddControllerApi<IPurchaseOrderWorkspaceApi>("procurement/purchase-orders");

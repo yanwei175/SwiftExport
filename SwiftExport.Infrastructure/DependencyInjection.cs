@@ -90,6 +90,8 @@ public static class DependencyInjection
         services.AddScoped<ISupplierProgressReportRepository, SupplierProgressReportRepository>();
         services.AddScoped<IBusinessOperationLogRepository, BusinessOperationLogRepository>();
         services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.Orders.ISalesFulfillmentManagerRepository, SalesFulfillmentManagerRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.Orders.ISalesFulfillmentDetailRepository, SalesFulfillmentDetailRepository>();
         services.AddScoped<IWarehouseSiteRepository, WarehouseSiteRepository>();
         services.AddScoped<IWarehouseCandidateRepository, WarehouseCandidateRepository>();
         services.AddScoped<IInventoryRepository, InventoryRepository>();

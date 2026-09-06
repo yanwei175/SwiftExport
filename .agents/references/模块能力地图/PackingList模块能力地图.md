@@ -2,6 +2,16 @@
 
 本地图是后续实现与重构的目标，不表示已实现。核对日期：2026-08-31。业务权威见 [业务架构总纲](../业务架构总纲.md) 第 12—14 节；同时读取 [入库](入库模块能力地图.md)、[库存](库存模块能力地图.md)、[出库](出库模块能力地图.md) 地图。涉及采购来源再读 [采购](采购模块能力地图.md)，涉及需求履约再读 [需求计划](需求计划模块能力地图.md)。
 
+## 2026-09-06 当前修订
+
+统一口径以业务总纲第 24.7 节为准：来源需求（原毛需求/GrossDemand）幂等汇聚销售、品质售后，是 PL 必需的选源与交付额度入口；物料需求（原净需求/NetDemand）及 Allocation 不作发货前提。销售只定义销售事实，正式客户出库通过来源需求追溯原始来源。旧“需求可选”仅指物料计划，不允许绕过来源需求。先执行[来源需求汇聚与交付治理](../领域治理/00A-来源需求汇聚与交付治理.md)，售后订单池归属单独证明，不伪造销售单。
+
+以[业务总纲第 24 节](../业务架构总纲.md#24-订单级客供件池与领域解耦2026-09-06)为当前目标，不代表源码已实现。
+
+PL 正常确认编排必要非客供件入库、客户出库、客供件消耗。来源需求交付与采购执行分配分别关联，物料需求/Allocation 不必经，来源需求必须关联。各父件用量按确认组成计算，再按订单池汇总并保留来源；先阻断展示影响、用户明确确认、绑定预览版本、提交重验。普通确认不等于负库存放行。现存已耗料库存不重复耗用，未知不猜测。一采购单一销售单；PL 同客户多销售单仍逐行隔离池。PL-001/003/005 继续治理。
+
+实施步骤与提示词见[本领域治理方案](../领域治理/04-PackingList与出库治理.md)。
+
 ## 1. 使命与边界
 
 为出货、跟单人员提供计划出货、装柜草稿、实际出货确认及可追溯纠错。计划出货是工作台，不另建独立计划出货单；PackingList 是装柜与提交编排权威。
@@ -26,7 +36,7 @@
 
 销售来源须同时读取 [销售地图](销售模块能力地图.md)。销售的当前生效要求与来源版本是交付额度权威：行级终止/关闭立即停止对应新交付，减量后按新额度重验，不能等待采购处置完成才生效；未影响的行继续。销售增加量或替代新行须确认后才产生新额度，变更草稿无额度。恢复不重置历史交付，也不自动恢复已终止的独立行。
 
-PL 草稿不预占销售额度；既有草稿在销售变更后提示来源已变化，正式提交与销售变更并发时锁定/校验同一来源状态、版本及净额，旧预览不能超交付。销售处置待完成不作为通用出货门槛，当前来源已关闭/终止则必须阻断。非标未关联产品可以进入待完善计划，正式库存动作前须有受控产品身份及单位证明。已确认换客户另建订单，换品新增关联销售行，不原位替换旧 PL 来源。
+PL 草稿不预占来源需求交付额度；既有草稿在销售变更后提示来源已变化，正式提交与销售变更并发时锁定/校验同一来源状态、版本及净额，旧预览不能超交付。销售处置待完成不作为通用出货门槛，当前来源已关闭/终止则必须阻断。非标未关联产品可以进入待完善计划，正式库存动作前须有受控产品身份及单位证明。已确认换客户另建订单，换品新增关联销售行，不原位替换旧 PL 来源。
 
 销售 InvoiceNo 与 PackingList 展示的 InvoiceNo 是同一自定义形式发票号，不另定义“出货发票号”。售后有自己的单号，客户提供的编号对应其 InvoiceNo。贡献以来源头行 Uid 标识，不以 InvoiceNo 当主键。
 
@@ -105,7 +115,7 @@ PL 草稿不预占销售额度；既有草稿在销售变更后提示来源已�
 
 | ID | 源码证据与现状 | 最小治理方向 |
 |---|---|---|
-| PL-001 | SwiftExport.Infrastructure/Repositories/Shipping/PackingListWorkspaceRepository.cs 的 SearchSourcesAsync/GetSourceForUpdateAsync 从活动 Allocation/NetDemand/GrossDemand 与 SO 选源，并要求供应商/仓；SwiftExport.Application/Services/Shipping/PackingListWorkspaceService.cs 复核这些来源 | 以销售/售后交付凭证解耦计划选源；无采购/分配可计划；正式出货校验仍保留 |
+| PL-001 | SwiftExport.Infrastructure/Repositories/Shipping/PackingListWorkspaceRepository.cs 的 SearchSourcesAsync/GetSourceForUpdateAsync 从活动 Allocation/NetDemand/GrossDemand 与 SO 选源，并要求供应商/仓；SwiftExport.Application/Services/Shipping/PackingListWorkspaceService.cs 复核这些来源 | 以汇聚销售/品质售后的来源需求解耦物料计划选源；无采购/分配可计划；正式出货校验仍保留 |
 | PL-002 | SwiftExport.Core/Entities/Shipping/PackingListDocument.cs 与 SwiftExport.Contracts/DTOs/Shipping/PackingLists/PackingListDtos.cs 头部为单个 InvoiceNo，贡献以需求/Allocation 和销售字段组织 | 支持多来源 InvoiceNo 与售后编号；保留来源快照，不强改旧头值代表全部来源 |
 | PL-003 | SwiftExport.Application/Services/Shipping/PackingListPreviewBuilder.cs 按 SourceInboundNetQty-ShippedNetQty 求来源库存；SwiftExport.Application/Services/Inventory/PackingListPostingPorts.cs 自动入库以 PackingList 贡献生成 | 与 INB-008/INV-006 共用整改，不重复开源库存修复；先客户归属，再采购行容量及人工/自动收货统一净额，并验证多贡献并发 |
 | PL-004 | SwiftExport.Application/Services/Shipping/PackingListWorkspaceService.cs 有草稿 Update/Post/Reverse，无已过账修订/真实退回补发命令；现有 Version 是并发版本 | 独立业务修订与纠错流程，保留原事实和有效版，真实错发走售后交接 |

@@ -13,6 +13,7 @@ using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 using SwiftExportClient.Features.Sales;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
+using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Inventory.Balances.ViewModels;
 using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
@@ -42,6 +43,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new("sales", "销售", "Workspace", typeof(SalesViewModel), NavigationModuleKeys.Sales, PermissionKeys.ModuleSalesAccess),
         new(SalesOrderManagerViewModel.RouteKey, "销售订单管理", "Workspace", typeof(SalesOrderManagerViewModel), NavigationModuleKeys.Sales, PermissionKeys.ModuleSalesAccess),
         new(SalesOrderManagerViewModel.DetailRouteKey, "销售订单", "Workspace", typeof(SalesOrderDetailViewModel), NavigationModuleKeys.Sales, PermissionKeys.ModuleSalesAccess),
+        new(SalesFulfillmentManagerViewModel.RouteKey, "销售履约查询", "Manager", typeof(SalesFulfillmentManagerViewModel), NavigationModuleKeys.Sales, PermissionKeys.ModuleSalesAccess),
+        new(SalesFulfillmentDetailViewModel.RouteKey, "销售履约详情", "Detail", typeof(SalesFulfillmentDetailViewModel), NavigationModuleKeys.Sales, PermissionKeys.ModuleSalesAccess),
         new(GrossDemandWorkspaceViewModel.RouteKey, "毛需求", "Workspace", typeof(GrossDemandWorkspaceViewModel), NavigationModuleKeys.DemandPlanning, PermissionKeys.ModuleDemandPlanningAccess),
         new(NetDemandWorkspaceViewModel.RouteKey, "净需求", "Workspace", typeof(NetDemandWorkspaceViewModel), NavigationModuleKeys.DemandPlanning, PermissionKeys.ModuleDemandPlanningAccess),
         new(PurchaseOrderManagerViewModel.RouteKey, "采购订单管理", "Workspace", typeof(PurchaseOrderManagerViewModel), NavigationModuleKeys.Procurement, PermissionKeys.ModuleProcurementAccess),
@@ -111,6 +114,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 Children:
                 [
                     new(SalesOrderManagerViewModel.RouteKey, "销售订单管理", "Workspace", "DocumentBulletList24"),
+                    new(SalesFulfillmentManagerViewModel.RouteKey, "销售履约查询", "Manager", "DataTrending24"),
                 ]),
             new(
                 "demand-planning",

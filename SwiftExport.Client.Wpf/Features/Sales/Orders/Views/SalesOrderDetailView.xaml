@@ -178,7 +178,6 @@
                     <ComboBox Grid.Row="0" Grid.Column="22"
                              ItemsSource="{Binding CurrencyOptions}"
                              ItemTemplate="{StaticResource SalesOrderCurrencyOptionTemplate}"
-                             IsEditable="False" IsReadOnly="True"
                              Text="{Binding Header.Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              TextSearch.TextPath="CurrencyCode" />
 
@@ -190,7 +189,6 @@
                     <ComboBox Grid.Row="0" Grid.Column="30"
                              ItemsSource="{Binding PaymentMethodOptions}"
                              ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
-                             IsEditable="False" IsReadOnly="True"
                              Text="{Binding Header.PaymentMethod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              TextSearch.TextPath="DataNameEn" />
 
@@ -198,7 +196,6 @@
                     <ComboBox Grid.Row="0" Grid.Column="34"
                              ItemsSource="{Binding IncotermOptions}"
                              ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
-                             IsEditable="False" IsReadOnly="True"
                              Text="{Binding Header.Incoterm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              TextSearch.TextPath="DataNameEn" />
 
@@ -291,7 +288,6 @@
                         <ComboBox Grid.Row="8" Grid.Column="6" Grid.ColumnSpan="6"
                                   ItemsSource="{Binding ShippedByOptions}"
                                   ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
-                                  IsEditable="False" 
                                   Text="{Binding Header.ShippedBy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                   TextSearch.TextPath="DataNameEn" />
 

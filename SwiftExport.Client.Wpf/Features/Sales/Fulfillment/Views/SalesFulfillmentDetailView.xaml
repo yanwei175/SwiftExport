@@ -1,0 +1,90 @@
+<UserControl x:Class="SwiftExportClient.Features.Sales.Fulfillment.Views.SalesFulfillmentDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="12,8" RowDefinitions="Auto,8,3*,8,2*,8,2*">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Left">
+                <TextBlock Text="{Binding Detail.OrderNo,TargetNullValue=销售履约详情}" FontSize="16" FontWeight="SemiBold"/>
+                <WrapPanel>
+                    <TextBlock Text="客户：" Foreground="Gray"/>
+                    <TextBlock Text="{Binding Detail.CustomerName}" Margin="0,0,16,0"/>
+                    <TextBlock Text="销售版本：" Foreground="Gray"/>
+                    <TextBlock Text="{Binding Detail.SalesOrderVersion}" Margin="0,0,16,0"/>
+                    <TextBlock Text="来源版本：" Foreground="Gray"/>
+                    <TextBlock Text="{Binding Detail.LatestSourceVersion,TargetNullValue=未知}"/>
+                </WrapPanel>
+            </StackPanel>
+            <WrapPanel HorizontalAlignment="Right">
+                <Button Content="销售订单详情" Command="{Binding OpenSalesOrderCommand}"/>
+                <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="4,0,0,0"/>
+            </WrapPanel>
+        </DockPanel>
+
+        <Grid Grid.Row="2" RowDefinitions="Auto,4,*">
+            <DockPanel>
+                <TextBlock Text="销售行与来源履约" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding StatusText}" HorizontalAlignment="Right" Foreground="Gray"/>
+            </DockPanel>
+            <DataGrid Grid.Row="2" ItemsSource="{Binding Lines}" SelectedItem="{Binding SelectedLine}"
+                      AutoGenerateColumns="False" IsReadOnly="True" Style="{StaticResource SwiftExportDataGrid}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="#" Binding="{Binding LineNumber}" Width="45"/>
+                    <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="130"/>
+                    <DataGridTextColumn Header="客户型号" Binding="{Binding CustomerSku}" Width="130"/>
+                    <DataGridTextColumn Header="描述" Binding="{Binding Description}" Width="*"/>
+                    <DataGridTextColumn Header="需求量" Binding="{Binding DemandQty,StringFormat=N2}" Width="90"/>
+                    <DataGridTextColumn Header="交期" Binding="{Binding RequiredDate,StringFormat=yyyy-MM-dd}" Width="105"/>
+                    <DataGridTextColumn Header="来源版本" Binding="{Binding SourceVersion,TargetNullValue=未知}" Width="85"/>
+                    <DataGridTextColumn Header="正式已发" Binding="{Binding ShippedQty,StringFormat=N2,TargetNullValue=未知}" Width="95"/>
+                    <DataGridTextColumn Header="未发" Binding="{Binding UnshippedQty,StringFormat=N2,TargetNullValue=未知}" Width="90"/>
+                    <DataGridTextColumn Header="异常" Binding="{Binding AnomalyMessage}" Width="220"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+
+        <Grid Grid.Row="4" RowDefinitions="Auto,4,*">
+            <TextBlock Text="选中销售行的采购组件（组件数量不计为销售成品已采购量）" FontWeight="SemiBold"/>
+            <DataGrid Grid.Row="2" ItemsSource="{Binding SelectedLinePurchases}" AutoGenerateColumns="False"
+                      IsReadOnly="True" Style="{StaticResource SwiftExportDataGrid}">
+                <DataGrid.InputBindings>
+                    <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding OpenPurchaseOrderCommand}" CommandParameter="{Binding SelectedItem,RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                </DataGrid.InputBindings>
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="操作" Width="70">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate><Button Content="详情" Command="{Binding DataContext.OpenPurchaseOrderCommand,RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/></DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="采购单" Binding="{Binding PurchaseOrderNo}" Width="130"/>
+                    <DataGridTextColumn Header="#" Binding="{Binding PurchaseOrderLineNumber}" Width="45"/>
+                    <DataGridTextColumn Header="组件 SKU" Binding="{Binding Sku}" Width="130"/>
+                    <DataGridTextColumn Header="供应商" Binding="{Binding SupplierName}" Width="160"/>
+                    <DataGridTextColumn Header="确认状态" Binding="{Binding ConfirmationStatus,Converter={StaticResource EnumDescriptionConverter}}" Width="90"/>
+                    <DataGridTextColumn Header="关联数量" Binding="{Binding AllocatedQty,StringFormat=N2}" Width="90"/>
+                    <DataGridTextColumn Header="已收货" Binding="{Binding ReceivedQty,StringFormat=N2}" Width="90"/>
+                    <DataGridTextColumn Header="最新备好" Binding="{Binding LatestReadyQty,StringFormat=N2,TargetNullValue=未知}" Width="90"/>
+                    <DataGridTextColumn Header="预计完成" Binding="{Binding ExpectedReadyDate,StringFormat=yyyy-MM-dd}" Width="105"/>
+                    <DataGridTextColumn Header="最近跟进" Binding="{Binding LatestFollowUpDate,StringFormat=yyyy-MM-dd HH:mm}" Width="130"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+
+        <Grid Grid.Row="6" RowDefinitions="Auto,4,*">
+            <TextBlock Text="仅订单级采购关联（无来源行 Link）" FontWeight="SemiBold"/>
+            <DataGrid Grid.Row="2" ItemsSource="{Binding OrderPurchases}" AutoGenerateColumns="False"
+                      IsReadOnly="True" Style="{StaticResource SwiftExportDataGrid}">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="操作" Width="70">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate><Button Content="详情" Command="{Binding DataContext.OpenPurchaseOrderCommand,RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/></DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="采购单" Binding="{Binding PurchaseOrderNo}" Width="150"/>
+                    <DataGridTextColumn Header="供应商代码" Binding="{Binding SupplierCode}" Width="120"/>
+                    <DataGridTextColumn Header="供应商" Binding="{Binding SupplierName}" Width="200"/>
+                    <DataGridTextColumn Header="确认状态" Binding="{Binding ConfirmationStatus,Converter={StaticResource EnumDescriptionConverter}}" Width="100"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+    </Grid>
+</UserControl>

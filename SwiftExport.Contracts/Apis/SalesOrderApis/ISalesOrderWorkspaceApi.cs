@@ -32,7 +32,7 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync([Body] SaveSalesOrderRequest request);
 
         [Post("/{uid}/confirm")]
-        Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, [Body] SalesOrderCommandRequest request);
+        Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, [Body] ConfirmSalesOrderCommand request);
 
         [Post("/{uid}/cancel-confirmation")]
         Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(Guid uid, [Body] CancelSalesOrderConfirmationCommand request);

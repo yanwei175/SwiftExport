@@ -8,6 +8,9 @@ namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.GrossDemand;
 [TestClass]
 public sealed class GrossDemandRowModelTests
 {
+    /// <summary>
+    /// 验证 DTO 映射保留只读事实、统一来源文案，并将选择状态限制在客户端模型内。
+    /// </summary>
     [TestMethod]
     public void FromDto_ShouldCopyReadOnlyFactsAndKeepSelectionClientSide()
     {
@@ -30,7 +33,7 @@ public sealed class GrossDemandRowModelTests
 
         Assert.AreEqual(uid, row.Uid);
         Assert.AreEqual(4, row.Version);
-        Assert.AreEqual("销售", row.SourceTypeText);
+        Assert.AreEqual("销售单", row.SourceTypeText);
         Assert.AreEqual("待拆解", row.DecompositionStatusText);
         Assert.IsTrue(row.CanDecompose);
         Assert.IsFalse(row.IsChecked);

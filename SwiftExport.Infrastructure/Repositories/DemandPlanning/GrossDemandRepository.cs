@@ -136,7 +136,7 @@ WHERE d.[Uid] = @Uid AND d.[IsDeleted] = 0;";
 
     public Task<GrossDemand?> GetByIdForUpdateAsync(Guid uid)
         => Connection.QuerySingleOrDefaultAsync<GrossDemand>(GrossDemandSelect + @"
-FROM [dbo].[GrossDemand] d WITH (UPDLOCK, ROWLOCK)
+FROM [dbo].[GrossDemand] d WITH (UPDLOCK, HOLDLOCK)
 WHERE d.[Uid] = @Uid AND d.[IsDeleted] = 0;", new { Uid = uid }, Transaction);
 
     public async Task<IReadOnlyList<GrossDemand>> GetActiveBySourceForUpdateAsync(string sourceType, Guid sourceUid)
@@ -166,15 +166,15 @@ ORDER BY d.[SourceLineNumber], d.[Uid];", new
 INSERT INTO [dbo].[GrossDemand]
 ([Uid],[Version],[IsDeleted],[CreatedDate],[CreatedBy],[UpdatedDate],[UpdatedBy],
  [LifecycleStatus],[DecompositionStatus],[DecompositionRevision],
- [SourceType],[SourceUid],[SourceNo],[SourceLineId],[SourceLineNumber],[ProductId],[IsNonStandard],
- [SkuSnapshot],[LinkSkuSnapshot],[CustomerSkuSnapshot],[DescriptionSnapshot],[ColorSnapshot],[SpecificationSnapshot],[ImagePathSnapshot],
+ [SourceType],[SourceUid],[SourceNo],[SourceLineId],[SourceLineNumber],[SourceVersion],[CustomerId],[ProductId],[IsNonStandard],
+ [SkuSnapshot],[LinkSkuSnapshot],[CustomerSkuSnapshot],[DescriptionSnapshot],[ColorSnapshot],[SpecificationSnapshot],[ImagePathSnapshot],[UnitSnapshot],
  [DemandQty],[RequiredDate],[Remark],[DecomposedAt],[DecomposedBy],
  [LifecycleChangedAt],[LifecycleChangedBy],[LifecycleChangedReason])
 VALUES
 (@Uid,@Version,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
  @LifecycleStatus,@DecompositionStatus,@DecompositionRevision,
- @SourceType,@SourceUid,@SourceNo,@SourceLineId,@SourceLineNumber,@ProductId,@IsNonStandard,
- @SkuSnapshot,@LinkSkuSnapshot,@CustomerSkuSnapshot,@DescriptionSnapshot,@ColorSnapshot,@SpecificationSnapshot,@ImagePathSnapshot,
+ @SourceType,@SourceUid,@SourceNo,@SourceLineId,@SourceLineNumber,@SourceVersion,@CustomerId,@ProductId,@IsNonStandard,
+ @SkuSnapshot,@LinkSkuSnapshot,@CustomerSkuSnapshot,@DescriptionSnapshot,@ColorSnapshot,@SpecificationSnapshot,@ImagePathSnapshot,@UnitSnapshot,
  @DemandQty,@RequiredDate,@Remark,@DecomposedAt,@DecomposedBy,
  @LifecycleChangedAt,@LifecycleChangedBy,@LifecycleChangedReason);";
             var rows = await Connection.ExecuteAsync(sql, demand, Transaction);
@@ -183,6 +183,34 @@ VALUES
                 : RepositoryWriteResult.Fail(demand.Uid, null, "INSERT_FAILED", "新增毛需求失败。"));
         }
         return results;
+    }
+
+    /// <summary>按实体 Version 更新同一来源行的当前需求事实，不改变生命周期和拆解历史。</summary>
+    public async Task<RepositoryWriteResult> UpdateSourceDemandAsync(GrossDemand demand, int expectedVersion)
+    {
+        const string sql = @"
+UPDATE dbo.GrossDemand
+SET SourceNo=@SourceNo,SourceLineNumber=@SourceLineNumber,SourceVersion=@SourceVersion,CustomerId=@CustomerId,
+    ProductId=@ProductId,IsNonStandard=@IsNonStandard,SkuSnapshot=@SkuSnapshot,LinkSkuSnapshot=@LinkSkuSnapshot,
+    CustomerSkuSnapshot=@CustomerSkuSnapshot,DescriptionSnapshot=@DescriptionSnapshot,ColorSnapshot=@ColorSnapshot,
+    SpecificationSnapshot=@SpecificationSnapshot,ImagePathSnapshot=@ImagePathSnapshot,UnitSnapshot=@UnitSnapshot,
+    DemandQty=@DemandQty,RequiredDate=@RequiredDate,Remark=@Remark,
+    UpdatedDate=@Now,UpdatedBy=@UserName,Version=Version+1
+OUTPUT INSERTED.Version
+WHERE Uid=@Uid AND Version=@ExpectedVersion AND LifecycleStatus=@Active AND IsDeleted=0;";
+        var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>(sql, new
+        {
+            demand.Uid, demand.SourceNo, demand.SourceLineNumber, demand.SourceVersion, demand.CustomerId,
+            demand.ProductId, demand.IsNonStandard, demand.SkuSnapshot, demand.LinkSkuSnapshot,
+            demand.CustomerSkuSnapshot, demand.DescriptionSnapshot, demand.ColorSnapshot,
+            demand.SpecificationSnapshot, demand.ImagePathSnapshot, demand.UnitSnapshot,
+            demand.DemandQty, demand.RequiredDate, demand.Remark, ExpectedVersion = expectedVersion,
+            Active = GrossDemandLifecycleStatusEnum.Active, Now = DateTime.Now,
+            UserName = _context.CurrentUser.UserName
+        }, Transaction);
+        return newVersion.HasValue
+            ? RepositoryWriteResult.Ok(demand.Uid, expectedVersion, newVersion, "来源需求已更新。")
+            : RepositoryWriteResult.Fail(demand.Uid, expectedVersion, "CONCURRENCY_CONFLICT", "来源需求状态或版本已变化。");
     }
 
     public async Task<RepositoryWriteResult> UpdateDecompositionStateAsync(
@@ -504,10 +532,10 @@ WHERE [SourceType]=@SourceType AND [SourceUid]=@SourceUid AND [LifecycleStatus]=
     private const string GrossDemandSelect = @"
 SELECT d.[Uid],d.[Version],d.[IsDeleted],d.[CreatedDate],d.[CreatedBy],d.[UpdatedDate],d.[UpdatedBy],
        d.[LifecycleStatus],d.[DecompositionStatus],d.[DecompositionRevision],
-       d.[SourceType],d.[SourceUid],d.[SourceNo],d.[SourceLineId],d.[SourceLineNumber],
+       d.[SourceType],d.[SourceUid],d.[SourceNo],d.[SourceLineId],d.[SourceLineNumber],d.[SourceVersion],d.[CustomerId],
        d.[ProductId],d.[IsNonStandard],d.[SkuSnapshot],d.[LinkSkuSnapshot],d.[CustomerSkuSnapshot],
        d.[DescriptionSnapshot],d.[ColorSnapshot],d.[SpecificationSnapshot],
-       d.[ImagePathSnapshot],d.[DemandQty],d.[RequiredDate],d.[Remark],d.[DecomposedAt],d.[DecomposedBy],d.[LifecycleChangedAt],
+       d.[ImagePathSnapshot],d.[UnitSnapshot],d.[DemandQty],d.[RequiredDate],d.[Remark],d.[DecomposedAt],d.[DecomposedBy],d.[LifecycleChangedAt],
        d.[LifecycleChangedBy],d.[LifecycleChangedReason] ";
 
     private const string ExecutionProgressSql = @"

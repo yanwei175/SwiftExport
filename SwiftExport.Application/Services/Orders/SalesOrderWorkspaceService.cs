@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
+using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
@@ -8,14 +9,12 @@ using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auditing;
-using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
-using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Infrastructure.Data;
 using System.Text.Json;
 
@@ -36,7 +35,7 @@ public sealed class SalesOrderWorkspaceService(
     IProductRepository productRepository,
     ICustomerRepository customerRepository,
     ICustomerProductRepository customerProductRepository,
-    IGrossDemandRepository grossDemandRepository,
+    ISourceDemandReceptionService sourceDemandReceptionService,
     IDocumentNoService documentNoService,
     IBusinessOperationLogRepository operationLogs,
     ICorrelationContext correlationContext,
@@ -190,11 +189,13 @@ public sealed class SalesOrderWorkspaceService(
     /// 方法允许对已经确认的订单进行幂等重试，但会拒绝重复、孤立或状态异常的毛需求数据。
     /// 标准件和非标件都会生成毛需求；非标件不要求关联产品主数据。
     /// </remarks>
-    public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, SalesOrderCommandRequest request)
+    public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, ConfirmSalesOrderCommand request)
         => ExecuteTransactionAsync(async () =>
         {
             // 锁定订单头并检查单据生命周期；首次确认还必须通过 Version 乐观并发校验。
             ValidateCommandIdentity(uid, request.Uid);
+            if (request.CommandId == Guid.Empty)
+                throw new WorkspaceValidationException("确认命令标识不能为空。");
             var header = await headRepository.GetByIdAsync(uid, true)
                 ?? throw new WorkspaceValidationException("销售订单不存在或已删除。");
             if (header.DocumentStatus != SalesOrderDocumentStatusEnum.Open)
@@ -207,50 +208,7 @@ public sealed class SalesOrderWorkspaceService(
             var lines = await lineRepository.GetLinesByOrderIdAsync(uid, true);
             if (lines.Count == 0) throw new WorkspaceValidationException("销售订单没有有效明细，不能确认。");
 
-            // 锁定来源毛需求，先排除重复、孤立和“订单待确认但毛需求已存在”等不一致数据。
-            var existingDemands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(
-                DocumentTypeStaticsEnum.SalesOrder,
-                uid);
-            var duplicateDemand = existingDemands.GroupBy(item => item.SourceLineId).FirstOrDefault(group => group.Count() > 1);
-            if (duplicateDemand is not null)
-                throw new WorkspaceValidationException($"订单行 {duplicateDemand.Key} 存在重复活动毛需求，请先执行数据清理脚本。");
-
-            var lineIds = lines.Select(line => line.Uid).ToHashSet();
-            if (existingDemands.Any(demand => !lineIds.Contains(demand.SourceLineId)))
-                throw new WorkspaceValidationException("销售订单存在无法对应当前明细的活动毛需求，请先清理历史数据。");
-
-            var demandByLineId = existingDemands.ToDictionary(item => item.SourceLineId);
-            var addedDemands = new List<GrossDemand>();
-            // 只为缺失的订单行补建毛需求，已有且合法的数据用于确认重试，不重复插入。
-            foreach (var line in lines)
-            {
-                if (demandByLineId.TryGetValue(line.Uid, out var existingDemand))
-                {
-                    if (!alreadyConfirmed && (existingDemand.LifecycleStatus != GrossDemandLifecycleStatusEnum.Active
-                        || existingDemand.DecompositionStatus != GrossDemandDecompositionStatusEnum.Pending))
-                        throw new WorkspaceValidationException($"订单行 {line.LineNumber} 已产生下游执行，不能重新确认。");
-                    if (!alreadyConfirmed)
-                        throw new WorkspaceValidationException($"订单行 {line.LineNumber} 已存在活动毛需求，但订单仍为待确认，请先修复状态数据。");
-                    continue;
-                }
-
-                var demand = new GrossDemand
-                {
-                    SourceType = DocumentTypeStaticsEnum.SalesOrder,
-                    SourceUid = header.Uid,
-                    SourceNo = header.OrderNo,
-                    SourceLineId = line.Uid,
-                    SourceLineNumber = line.LineNumber,
-                    SkuSnapshot = line.Sku,
-                    DemandQty = line.Qty,
-                    IsNonStandard = line.IsNonStandard
-                };
-                ApplyGrossDemandSnapshot(demand, header, line);
-                addedDemands.Add(demand);
-            }
-            EnsureAllWritesSucceeded(await grossDemandRepository.AddSourceDemandsAsync(addedDemands));
-
-            // 毛需求全部写入成功后再切换订单状态，保证确认状态与需求数据在事务内同步提交。
+            // 先取得确认后的销售事实版本，再由需求领域按该版本幂等接收全部销售行。
             var version = header.Version;
             if (!alreadyConfirmed)
             {
@@ -259,12 +217,25 @@ public sealed class SalesOrderWorkspaceService(
                 version = statusResult.NewVersion ?? request.Version + 1;
             }
 
+            var productIds = lines.Where(line => line.ProductId.HasValue).Select(line => line.ProductId!.Value).Distinct().ToArray();
+            var products = (await productRepository.GetByIdListAsync(productIds, true)).ToDictionary(product => product.Uid);
+            SourceDemandReceptionResult reception;
+            try
+            {
+                reception = await sourceDemandReceptionService.ReceiveAsync(
+                    CreateSourceDemandCommand(header, lines, products, version, request.CommandId));
+            }
+            catch (SourceDemandReceptionException ex)
+            {
+                throw new WorkspaceValidationException($"{ex.Code}：{ex.Message}");
+            }
+
             return new SalesOrderConfirmationResultDto
             {
                 Uid = uid,
                 Version = version,
                 ConfirmationStatus = ConfirmationStatusEnum.已确认,
-                GrossDemandCount = lines.Count
+                GrossDemandCount = reception.TotalCount
             };
         }, "确认销售订单失败", uid);
 
@@ -316,43 +287,16 @@ public sealed class SalesOrderWorkspaceService(
 
             // 第二阶段：锁定订单行和来源毛需求，验证一行一需求以及所有下游取消安全条件。
             var lines = await lineRepository.GetLinesByOrderIdAsync(uid, true);
-            var demands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(
-                DocumentTypeStaticsEnum.SalesOrder,
-                uid);
-            if (demands.Count != lines.Count || demands.GroupBy(item => item.SourceLineId).Any(group => group.Count() != 1))
-                throw new WorkspaceValidationException("销售订单毛需求数量与订单行不一致，请先修复历史数据。");
-            if (await grossDemandRepository.HasSourceCancellationBlockerAsync(
-                    DocumentTypeStaticsEnum.SalesOrder,
-                    uid,
-                    lines.Select(line => line.Uid)))
-                throw new WorkspaceValidationException("销售订单仍有活动拆解、执行关系或正式履约事实，不能取消确认。");
-
-            // 第三阶段：检查历史完整性，并由领域策略划分“物理删除”和“作废保留”两组毛需求。
-            var historyCounts = await grossDemandRepository.GetNetDemandHistoryCountsForUpdateAsync(
-                demands.Select(demand => demand.Uid));
-            if (await grossDemandRepository.HasInvalidSourceCancellationHistoryAsync(
-                    demands.Select(demand => demand.Uid)))
-                throw new WorkspaceValidationException("毛需求修订、净需求或计划分配历史不完整，不能取消确认。");
-            SalesOrderCancellationPlan plan;
+            SourceDemandExitResult exitResult;
             try
             {
-                plan = SalesOrderCancellationPolicy.Build(demands, historyCounts);
+                exitResult = await sourceDemandReceptionService.CancelConfirmationAsync(
+                    DocumentTypeStaticsEnum.SalesOrder, uid, lines.Select(line => line.Uid).ToArray(), reason);
             }
-            catch (InvalidOperationException ex)
+            catch (SourceDemandReceptionException ex)
             {
-                throw new WorkspaceValidationException(ex.Message);
+                throw new WorkspaceValidationException($"{ex.Code}：{ex.Message}");
             }
-
-            // 第四阶段：执行需求回退。影响行数不一致意味着并发状态已变化，必须回滚整个事务。
-            var hardDeletedCount = await grossDemandRepository.HardDeleteNeverDecomposedAsync(
-                plan.HardDeleteGrossDemandIds);
-            if (hardDeletedCount != plan.HardDeleteGrossDemandIds.Count)
-                throw new WorkspaceValidationException("从未拆解的毛需求状态已变化，销售订单未取消确认。");
-            var voidedCount = await grossDemandRepository.VoidRolledBackForSourceCancellationAsync(
-                plan.VoidGrossDemandIds,
-                reason);
-            if (voidedCount != plan.VoidGrossDemandIds.Count)
-                throw new WorkspaceValidationException("已回退毛需求的历史状态已变化，销售订单未取消确认。");
 
             // 最后恢复订单为待确认并写入幂等业务日志；日志与状态变更随同一事务提交。
             var statusResult = await headRepository.SetConfirmationStatusAsync(uid, request.Version, ConfirmationStatusEnum.待确认);
@@ -363,8 +307,8 @@ public sealed class SalesOrderWorkspaceService(
                 Version = statusResult.NewVersion ?? request.Version + 1,
                 ConfirmationStatus = ConfirmationStatusEnum.待确认,
                 GrossDemandCount = 0,
-                HardDeletedGrossDemandCount = hardDeletedCount,
-                VoidedGrossDemandCount = voidedCount
+                HardDeletedGrossDemandCount = exitResult.HardDeletedCount,
+                VoidedGrossDemandCount = exitResult.VoidedCount
             };
             await WriteCancellationLogAsync(header, request.CommandId, reason, result);
             return result;
@@ -393,17 +337,14 @@ public sealed class SalesOrderWorkspaceService(
                 throw new WorkspaceValidationException("销售订单已被其他用户修改，请刷新后重试。");
 
             var lines = await lineRepository.GetLinesByOrderIdAsync(uid, true);
-            var demands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(DocumentTypeStaticsEnum.SalesOrder, uid);
-            // 关闭只能收回尚未进入下游的毛需求，不能绕过需求和履约链路的回退规则。
-            if (demands.Count > 0)
+            try
             {
-                if (await grossDemandRepository.HasSourceCancellationBlockerAsync(
-                    DocumentTypeStaticsEnum.SalesOrder, uid, lines.Select(line => line.Uid)))
-                    throw new WorkspaceValidationException("销售订单毛需求已拆解或产生下游执行，不能直接关闭。");
-                var voided = await grossDemandRepository.VoidPendingBySourceAsync(
-                    DocumentTypeStaticsEnum.SalesOrder, uid, reason);
-                if (voided != demands.Count)
-                    throw new WorkspaceValidationException("部分毛需求状态已变化，销售订单未关闭。");
+                await sourceDemandReceptionService.ClosePendingAsync(
+                    DocumentTypeStaticsEnum.SalesOrder, uid, lines.Select(line => line.Uid).ToArray(), reason);
+            }
+            catch (SourceDemandReceptionException ex)
+            {
+                throw new WorkspaceValidationException($"{ex.Code}：{ex.Message}");
             }
 
             EnsureWriteSucceeded(await headRepository.CloseWorkspaceAsync(uid, request.Version, reason));
@@ -427,10 +368,7 @@ public sealed class SalesOrderWorkspaceService(
             EnsureEditable(header);
             if (header.Version != request.Version)
                 throw new WorkspaceValidationException("销售订单已被其他用户修改，请刷新后重试。");
-            var demands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(
-                DocumentTypeStaticsEnum.SalesOrder,
-                uid);
-            if (demands.Count > 0)
+            if (await sourceDemandReceptionService.HasActiveAsync(DocumentTypeStaticsEnum.SalesOrder, uid))
                 throw new WorkspaceValidationException("销售订单已经生成毛需求，不能作为草稿删除。");
 
             EnsureWriteSucceeded(await headRepository.DeleteDraftAsync(uid, request.Version));
@@ -639,36 +577,46 @@ public sealed class SalesOrderWorkspaceService(
         header.ETD = dto.Etd;
     }
 
-    /// <summary>
-    /// 从销售订单头和订单行复制毛需求来源快照。
-    /// </summary>
-    /// <remarks>
-    /// 毛需求保存确认时的 SKU、描述、交期和非标标识，后续产品主数据变化不会改写该历史快照。
-    /// </remarks>
-    private static void ApplyGrossDemandSnapshot(GrossDemand demand, SalesOrderHeader header, SalesOrderLine line)
+    /// <summary>将确认后的销售头行事实转换为需求领域接收命令，不在销售域构造毛需求实体。</summary>
+    private static SourceDemandReceptionCommand CreateSourceDemandCommand(
+        SalesOrderHeader header,
+        IReadOnlyList<SalesOrderLine> lines,
+        IReadOnlyDictionary<Guid, Product> products,
+        int sourceVersion,
+        Guid commandId)
     {
-        demand.LifecycleStatus = GrossDemandLifecycleStatusEnum.Active;
-        demand.DecompositionStatus = GrossDemandDecompositionStatusEnum.Pending;
-        demand.DecompositionRevision = 0;
-        demand.SourceType = DocumentTypeStaticsEnum.SalesOrder;
-        demand.SourceUid = header.Uid;
-        demand.SourceNo = header.OrderNo;
-        demand.SourceLineId = line.Uid;
-        demand.SourceLineNumber = line.LineNumber;
-        demand.ProductId = line.ProductId;
-        demand.CustomerSkuSnapshot = line.CustomerSku;
-        demand.SkuSnapshot = line.Sku;
-        demand.LinkSkuSnapshot = line.LinkSku;
-        demand.DescriptionSnapshot = line.DescriptionEn;
-        demand.ColorSnapshot = line.ColorNameEn;
-        demand.SpecificationSnapshot = line.FeaturesEn;
-        demand.ImagePathSnapshot = line.MainImage;
-        demand.DemandQty = line.Qty;
-        demand.RequiredDate = line.ExpectedDeliveryDate ?? header.DeliveryDate;
-        demand.Remark = line.SubNote;
-        demand.DecomposedAt = null;
-        demand.DecomposedBy = null;
-        demand.IsNonStandard = line.IsNonStandard;
+        return new SourceDemandReceptionCommand
+        {
+            CommandId = commandId,
+            SourceType = DocumentTypeStaticsEnum.SalesOrder,
+            SourceUid = header.Uid,
+            SourceNo = header.OrderNo,
+            SourceVersion = sourceVersion,
+            CustomerId = header.CustomerId ?? Guid.Empty,
+            RejectUnsubmittedActiveLines = true,
+            Items = lines.Select(line =>
+            {
+                products.TryGetValue(line.ProductId ?? Guid.Empty, out var product);
+                return new SourceDemandReceptionItem
+                {
+                    SourceLineId = line.Uid,
+                    SourceLineNumber = line.LineNumber,
+                    ProductId = line.ProductId,
+                    IsNonStandard = line.IsNonStandard,
+                    SkuSnapshot = line.Sku,
+                    LinkSkuSnapshot = line.LinkSku,
+                    CustomerSkuSnapshot = line.CustomerSku,
+                    DescriptionSnapshot = line.DescriptionEn,
+                    ColorSnapshot = line.ColorNameEn,
+                    SpecificationSnapshot = line.FeaturesEn,
+                    ImagePathSnapshot = line.MainImage,
+                    UnitSnapshot = product?.Unit,
+                    DemandQty = line.Qty,
+                    RequiredDate = line.ExpectedDeliveryDate ?? header.DeliveryDate,
+                    Remark = line.SubNote
+                };
+            }).ToArray()
+        };
     }
 
     /// <summary>

@@ -6,6 +6,10 @@
              FontSize="{DynamicResource SwiftExport.LookUpTextBoxFontSize}"
              MinHeight="30">
     <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../ListBox.xaml" />
+            </ResourceDictionary.MergedDictionaries>
         <!--
             LookupTextBox 由外层统一提供边框和清除按钮。
             内部输入框只保留 WPF TextBox 必需的 PART_ContentHost，避免 Fluent
@@ -41,7 +45,7 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-
+        </ResourceDictionary>
     </UserControl.Resources>
 
     <Grid>
@@ -166,7 +170,7 @@
                              PreviewMouseLeftButtonUp="ResultList_PreviewMouseLeftButtonUp">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="{x:Type ListBoxItem}"
-                                   BasedOn="{StaticResource SwiftExportListBox}">
+                                   BasedOn="{StaticResource SwiftExportListBoxItemStyle}">
                                 <Setter Property="Focusable" Value="False" />
                                 <Setter Property="Padding" Value="12,8" />
                                 <Setter Property="Cursor" Value="Hand" />

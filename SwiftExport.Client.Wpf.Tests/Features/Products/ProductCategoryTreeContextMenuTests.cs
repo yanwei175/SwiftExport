@@ -38,14 +38,18 @@ public sealed class ProductCategoryTreeContextMenuTests
             (string?)treeView.Attribute("PreviewMouseRightButtonDown"));
     }
 
+    /// <summary>
+    /// 验证分类命令区位于主内容上方，并兼容 WPF-UI 按钮的命名空间。
+    /// </summary>
     [TestMethod]
     public void Xaml_ShouldPlaceCategoryCommandsAboveMainContent()
     {
         var document = XDocument.Load(GetViewPath());
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
-        var saveButton = document.Descendants(presentation + "Button")
-            .Single(element => (string?)element.Attribute("Content") == "保存");
+        var saveButton = document.Descendants()
+            .Single(element => element.Name.LocalName == "Button"
+                && (string?)element.Attribute("Content") == "保存");
         var commandPanel = saveButton.Ancestors(presentation + "StackPanel").First();
         var mainContent = document.Descendants(presentation + "TreeView").Single()
             .Ancestors(presentation + "Grid")

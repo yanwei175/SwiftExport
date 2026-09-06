@@ -207,7 +207,7 @@ public sealed class SalesOrderManagerFilterTests
         public Task<ServiceResult<PagedResponseBase<SalesOrderProductLookupDto>>> SearchProductsAsync(SalesOrderProductSearchRequest request, CancellationToken cancellationToken = default) => NotSupported<PagedResponseBase<SalesOrderProductLookupDto>>();
         public Task<ServiceResult<PagedResponseBase<SalesOrderCustomerLookupDto>>> SearchCustomersAsync(SalesOrderCustomerSearchRequest request, CancellationToken cancellationToken = default) => NotSupported<PagedResponseBase<SalesOrderCustomerLookupDto>>();
         public Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request) => NotSupported<SaveSalesOrderResponse>();
-        public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, SalesOrderCommandRequest request) => NotSupported<SalesOrderConfirmationResultDto>();
+        public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, ConfirmSalesOrderCommand request) => NotSupported<SalesOrderConfirmationResultDto>();
         public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(
             Guid uid,
             CancelSalesOrderConfirmationCommand request)

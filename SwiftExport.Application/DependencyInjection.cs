@@ -52,7 +52,10 @@ public static class DependencyInjection
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
         services.AddScoped<ISalesOrderWorkspaceService, SalesOrderWorkspaceService>();
+        services.AddScoped<ISalesFulfillmentManagerService, SalesFulfillmentManagerService>();
+        services.AddScoped<ISalesFulfillmentDetailService, SalesFulfillmentDetailService>();
         services.AddScoped<IGrossDemandWorkspaceService, GrossDemandWorkspaceService>();
+        services.AddScoped<ISourceDemandReceptionService, SourceDemandReceptionService>();
         services.AddScoped<GrossDemandDecompositionPlanner>();
         services.AddScoped<NetDemandInitialAllocationPlanner>();
         services.AddScoped<NetDemandPlanReplacementPlanner>();

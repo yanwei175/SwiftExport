@@ -51,7 +51,7 @@ public sealed class SalesOrderWorkspaceController(ISalesOrderWorkspaceService se
     [PreventDuplicateRequest]
     public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(
         [FromRoute] Guid uid,
-        [FromBody] SalesOrderCommandRequest request)
+        [FromBody] ConfirmSalesOrderCommand request)
         => service.ConfirmAsync(uid, request);
 
     [HttpPost("{uid:guid}/cancel-confirmation")]

@@ -9,6 +9,8 @@ using SwiftExportClient.Features.SystemSettings.Passwords.ViewModels;
 using SwiftExportClient.Features.SystemSettings.Passwords.Views;
 using SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels;
 using SwiftExportClient.Features.SystemSettings.SettingsCenter.Views;
+using SwiftExportClient.Features.SystemSettings.UserPermissions.ViewModels;
+using SwiftExportClient.Features.SystemSettings.UserPermissions.Views;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
 using System.Reflection;
@@ -18,6 +20,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Wpf.Ui;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.SystemSettings;
 
@@ -141,6 +144,54 @@ public sealed class SettingsWindowInteractionTests
         });
     }
 
+    /// <summary>验证模块权限窗口的普通关闭不会在 Closing 回调内递归调用 Close。</summary>
+    [TestMethod]
+    public void UserModulePermissionsWindow_ShouldCloseWithoutClosingReentrancy()
+    {
+        DatePickerAssistTests.RunWithApplication(() =>
+        {
+            ApplicationResourceLoader.Load();
+            var api = CreateAuthApiWithEmptyUserList();
+            var dialog = new UserModulePermissionsWindow(
+                new UserModulePermissionsViewModel(
+                    api,
+                    new PassThroughApiCallRunner(),
+                    new AcceptDialogService()),
+                new ContentDialogService());
+            var owner = new global::Wpf.Ui.Controls.FluentWindow
+            {
+                Width = 640,
+                Height = 480,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None
+            };
+
+            try
+            {
+                owner.Show();
+                dialog.Owner = owner;
+                dialog.Dispatcher.BeginInvoke(
+                    DispatcherPriority.ApplicationIdle,
+                    new Action(dialog.Close));
+
+                dialog.ShowDialog();
+
+                Assert.IsFalse(dialog.IsVisible);
+            }
+            finally
+            {
+                if (dialog.IsVisible)
+                {
+                    dialog.ForceClose();
+                }
+
+                owner.Close();
+            }
+
+            return Task.CompletedTask;
+        });
+    }
+
     private static IEnumerable<T> FindVisualDescendants<T>(DependencyObject root) where T : DependencyObject
     {
         for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
@@ -171,6 +222,19 @@ public sealed class SettingsWindowInteractionTests
         return proxy;
     }
 
+    private static IAuthApi CreateAuthApiWithEmptyUserList()
+    {
+        var proxy = DispatchProxy.Create<IAuthApi, DictionaryManagerLifecycleTests.DelegateDispatchProxy>();
+        ((DictionaryManagerLifecycleTests.DelegateDispatchProxy)(object)proxy).Handler =
+            (method, _) => method.Name switch
+            {
+                nameof(IAuthApi.GetUsersAsync) => Task.FromResult(
+                    ServiceResult<List<UserSummaryDto>>.Ok([])),
+                _ => throw new NotSupportedException(method.Name)
+            };
+        return proxy;
+    }
+
     private sealed class FakeSettingsWindowService : ISettingsWindowService
     {
         public void ShowChangePassword() { }
@@ -190,6 +254,55 @@ public sealed class SettingsWindowInteractionTests
 
         public Task<ServiceResult<T>> RunValueAsync<T>(Func<Task<T>> action, string successMessage = "成功", string failureMessage = "请求失败")
             => throw new NotSupportedException();
+    }
+
+    private sealed class PassThroughApiCallRunner : IApiCallRunner
+    {
+        public Task<ServiceResult<T>> RunAsync<T>(
+            Func<Task<ServiceResult<T>>> action,
+            string failureMessage = "请求失败") => action();
+
+        public async Task<ServiceResult<T>> RunAsync<T>(
+            Func<Task<ServiceResult<T>>> action,
+            CancellationToken cancellationToken,
+            string failureMessage = "请求失败")
+        {
+            try
+            {
+                return await action();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return ServiceResult<T>.Fail(string.Empty);
+            }
+        }
+
+        public async Task<ServiceResult<T>> RunValueAsync<T>(
+            Func<Task<T>> action,
+            string successMessage = "成功",
+            string failureMessage = "请求失败")
+            => ServiceResult<T>.Ok(await action(), successMessage);
+    }
+
+    private sealed class AcceptDialogService : IDialogService
+    {
+        public Task ShowContentAsync(
+            string title,
+            object content,
+            string closeButtonText = "关闭",
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<bool> ConfirmAsync(
+            string title,
+            string message,
+            string primaryButtonText = "确定",
+            string closeButtonText = "取消",
+            CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+        public Task ShowErrorAsync(
+            string title,
+            string message,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class FakeSessionService : ISessionService

@@ -113,8 +113,9 @@
                           gridCore:GridVirtualization.IsEnabled="True">
                     <DataGrid.Columns>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
-                                            Header=" " 
+                                            Header="行" 
                                             Binding="{Binding LineNumber}" Width="32"/>
+                        
                         <DataGridTemplateColumn Header="图片" Width="64" CanUserSort="False" gridColumns:GridColumn.Key="image">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>

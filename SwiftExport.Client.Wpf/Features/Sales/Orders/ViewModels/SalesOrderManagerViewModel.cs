@@ -6,6 +6,8 @@ using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.Sales.Orders.Models;
 using SwiftExportClient.Features.Sales.Orders.Services;
+using SwiftExportClient.Features.Sales.Fulfillment.Models;
+using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Resources.Controls;
@@ -49,6 +51,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         RegisterBusyAwareCommand(ClearFiltersCommand);
         RegisterBusyAwareCommand(OpenNewCommand);
         RegisterBusyAwareCommand(OpenSelectedCommand);
+        RegisterBusyAwareCommand(OpenFulfillmentDetailCommand);
         RegisterBusyAwareCommand(ConfirmSelectedCommand);
         RegisterBusyAwareCommand(CancelConfirmationCommand);
         RegisterBusyAwareCommand(CloseSelectedCommand);
@@ -100,6 +103,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenFulfillmentDetailCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConfirmSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelConfirmationCommand))]
     [NotifyCanExecuteChangedFor(nameof(CloseSelectedCommand))]
@@ -192,6 +196,19 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
             new SalesOrderDocumentOpenRequest(SelectedOrder.Uid));
     }
 
+    /// <summary>从销售管理页按稳定文档键打开只读履约 Detail，重复打开时激活已有页签。</summary>
+    [RelayCommand(CanExecute = nameof(CanUseSelected))]
+    private Task OpenFulfillmentDetailAsync()
+    {
+        var order = SelectedOrder;
+        return order is null
+            ? Task.CompletedTask
+            : _navigationService.OpenDocumentAsync(
+                SalesFulfillmentDetailViewModel.RouteKey,
+                $"sales-fulfillment-detail:{order.Uid:N}",
+                new SalesFulfillmentDetailOpenRequest(order.Uid));
+    }
+
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task LoadSelectedLinesAsync()
     {
@@ -260,7 +277,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         await RunWriteAsync(async () =>
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.ConfirmAsync(order.Uid, CreateCommandRequest(order)),
+                () => _api.ConfirmAsync(order.Uid, CreateConfirmCommand(order)),
                 "确认销售订单失败");
             if (!result.Success || result.Data is null)
             {
@@ -460,6 +477,12 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     private static SalesOrderCommandRequest CreateCommandRequest(SalesOrderListItemDto order)
     {
         return new SalesOrderCommandRequest { Uid = order.Uid, Version = order.Version };
+    }
+
+    /// <summary>为一次销售确认生成非空幂等命令标识；网络层重试复用同一请求对象。</summary>
+    private static ConfirmSalesOrderCommand CreateConfirmCommand(SalesOrderListItemDto order)
+    {
+        return new ConfirmSalesOrderCommand { Uid = order.Uid, Version = order.Version, CommandId = Guid.NewGuid() };
     }
 
     private static CancelSalesOrderConfirmationCommand CreateCancelConfirmationCommand(

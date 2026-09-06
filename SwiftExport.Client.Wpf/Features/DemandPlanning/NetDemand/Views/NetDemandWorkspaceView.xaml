@@ -71,7 +71,7 @@
                          ScrollViewer.VerticalScrollBarVisibility="Auto"
                          VirtualizingPanel.IsVirtualizing="True"
                          VirtualizingPanel.VirtualizationMode="Recycling"
-                         ItemContainerStyle="{StaticResource SwiftExportListBox}">
+                         ItemContainerStyle="{StaticResource SwiftExportListBoxItemStyle}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Grid ColumnDefinitions="*,Auto">

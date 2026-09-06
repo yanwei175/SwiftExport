@@ -12,13 +12,13 @@ namespace SwiftExport.Client.Wpf.Tests.Navigation;
 [TestClass]
 public sealed class NavigationAuthorizationTests
 {
-    /// <summary>28 条现有列表、详情和隐藏路由全部显式归属到阶段一确定的访问权限。</summary>
+    /// <summary>全部列表、Manager、Detail 和隐藏路由均显式归属到确定的访问权限。</summary>
     [TestMethod]
     public void RouteRegistry_ShouldClassifyEveryRegisteredRoute()
     {
         var registry = new NavigationRouteRegistry();
 
-        Assert.AreEqual(28, registry.Routes.Count);
+        Assert.AreEqual(30, registry.Routes.Count);
         foreach (var route in registry.Routes)
         {
             Assert.IsFalse(string.IsNullOrWhiteSpace(route.ModuleKey), route.Key);
@@ -131,7 +131,7 @@ public sealed class NavigationAuthorizationTests
         CollectionAssert.AreEquivalent(
             new[] { NavigationModuleKeys.Home, NavigationModuleKeys.Sales },
             visible.Select(item => item.RouteKey).ToArray());
-        Assert.AreEqual(1, visible.Single(item => item.RouteKey == NavigationModuleKeys.Sales).Children.Count);
+        Assert.AreEqual(2, visible.Single(item => item.RouteKey == NavigationModuleKeys.Sales).Children.Count);
         Assert.AreEqual(0, matchingUnauthorizedParent.Count);
     }
 

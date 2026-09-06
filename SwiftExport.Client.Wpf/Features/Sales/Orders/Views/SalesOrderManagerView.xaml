@@ -63,6 +63,7 @@
                     <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Add24" /><TextBlock Margin="6,0,0,0" Text="新建" /></StackPanel>
                 </Button>
                 <Button Command="{Binding OpenSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="打开" />
+                <Button Command="{Binding OpenFulfillmentDetailCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="履约详情" />
                 <Button Command="{Binding ConfirmSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="确认" />
                 
                 <Button Command="{Binding CancelConfirmationCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="取消确认" />
@@ -170,7 +171,7 @@
                                     PlaceholderText="多行客户型号"
                                     ClearButtonEnabled="False"
                                     controls:PopupTextBoxAssist.IsEnabled="True"
-                                    Height="{StaticResource SwiftExportControlHeight}"
+                                    Height="{DynamicResource SwiftExportControlHeight}"
                                     Text="{Binding CustomerSkusText, UpdateSourceTrigger=PropertyChanged}" />
                         <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="8"
                                     ToolTip="交期从"

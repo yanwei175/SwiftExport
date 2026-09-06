@@ -43,6 +43,8 @@
         xmlns:sales="clr-namespace:SwiftExportClient.Features.Sales"
         xmlns:salesOrderViews="clr-namespace:SwiftExportClient.Features.Sales.Orders.Views"
         xmlns:salesOrderViewModels="clr-namespace:SwiftExportClient.Features.Sales.Orders.ViewModels"
+        xmlns:salesFulfillmentViews="clr-namespace:SwiftExportClient.Features.Sales.Fulfillment.Views"
+        xmlns:salesFulfillmentViewModels="clr-namespace:SwiftExportClient.Features.Sales.Fulfillment.ViewModels"
         xmlns:settingsViews="clr-namespace:SwiftExportClient.Features.SystemSettings.SettingsCenter.Views"
         xmlns:settingsViewModels="clr-namespace:SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels"
         xmlns:uiServices="clr-namespace:SwiftExportClient.Services.UI"
@@ -149,6 +151,12 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type salesOrderViewModels:SalesOrderDetailViewModel}">
             <salesOrderViews:SalesOrderDetailView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type salesFulfillmentViewModels:SalesFulfillmentManagerViewModel}">
+            <salesFulfillmentViews:SalesFulfillmentManagerView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type salesFulfillmentViewModels:SalesFulfillmentDetailViewModel}">
+            <salesFulfillmentViews:SalesFulfillmentDetailView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type grossDemandViewModels:GrossDemandWorkspaceViewModel}">
             <grossDemandViews:GrossDemandWorkspaceView />

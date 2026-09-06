@@ -360,7 +360,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         await RunWriteAsync(async () =>
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.ConfirmAsync(Header.Uid, CreateCommandRequest()),
+                () => _api.ConfirmAsync(Header.Uid, CreateConfirmCommand()),
                 "确认销售订单失败");
             if (!result.Success || result.Data is null)
             {
@@ -613,9 +613,10 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         NotifyDocumentStateChanged();
     }
 
-    private SalesOrderCommandRequest CreateCommandRequest()
+    /// <summary>为当前详情的一次确认生成非空幂等命令标识。</summary>
+    private ConfirmSalesOrderCommand CreateConfirmCommand()
     {
-        return new SalesOrderCommandRequest { Uid = Header.Uid, Version = Header.Version };
+        return new ConfirmSalesOrderCommand { Uid = Header.Uid, Version = Header.Version, CommandId = Guid.NewGuid() };
     }
 
     private void ApplyReadOnlyState()

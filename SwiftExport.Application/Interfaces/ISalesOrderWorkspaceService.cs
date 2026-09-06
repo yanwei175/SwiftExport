@@ -11,7 +11,7 @@ public interface ISalesOrderWorkspaceService
     Task<ServiceResult<PagedResponseBase<SalesOrderProductLookupDto>>> SearchProductsAsync(SalesOrderProductSearchRequest request, CancellationToken cancellationToken = default);
     Task<ServiceResult<PagedResponseBase<SalesOrderCustomerLookupDto>>> SearchCustomersAsync(SalesOrderCustomerSearchRequest request, CancellationToken cancellationToken = default);
     Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request);
-    Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, SalesOrderCommandRequest request);
+    Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, ConfirmSalesOrderCommand request);
     Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(Guid uid, CancelSalesOrderConfirmationCommand request);
     Task<ServiceResult<SalesOrderDocumentDto>> CloseAsync(Guid uid, CloseSalesOrderRequest request);
     Task<ServiceResult<bool>> DeleteDraftAsync(Guid uid, SalesOrderCommandRequest request);

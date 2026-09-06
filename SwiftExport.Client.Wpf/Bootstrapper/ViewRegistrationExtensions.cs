@@ -16,6 +16,7 @@ using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 using SwiftExportClient.Features.Sales;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
+using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Inventory.Balances.ViewModels;
 using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
@@ -57,6 +58,8 @@ public static class ViewRegistrationExtensions
         services.AddTransient<SalesViewModel>();
         services.AddTransient<SalesOrderManagerViewModel>();
         services.AddTransient<SalesOrderDetailViewModel>();
+        services.AddTransient<SalesFulfillmentManagerViewModel>();
+        services.AddTransient<SalesFulfillmentDetailViewModel>();
         services.AddTransient<GrossDemandWorkspaceViewModel>();
         services.AddTransient<GrossDemandManualEditorViewModel>();
         services.AddTransient<GrossDemandTraceViewModel>();

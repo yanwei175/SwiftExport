@@ -15,21 +15,27 @@
                 <TextBlock Margin="0,4,0,16" Text="新用户默认没有模块权限，创建后请在模块权限中分配。" TextWrapping="Wrap" />
                 <TextBlock Text="用户名" />
                 <ui:TextBox x:Name="UserNameBox" Text="{Binding UserName, UpdateSourceTrigger=PropertyChanged}"
+                            PlaceholderText="请输入用户名"
                             Margin="0,4,0,12" AutomationProperties.Name="用户名" />
                 <TextBlock Text="昵称" />
                 <ui:TextBox Text="{Binding NickName, UpdateSourceTrigger=PropertyChanged}"
+                            PlaceholderText="请输入用户昵称"
                             Margin="0,4,0,12" AutomationProperties.Name="昵称" />
                 <TextBlock Text="邮箱" />
                 <ui:TextBox Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"
+                            PlaceholderText="请输入邮箱"
                             Margin="0,4,0,12" AutomationProperties.Name="邮箱" />
                 <TextBlock Text="电话号码" />
                 <ui:TextBox Text="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}"
+                            PlaceholderText="非必填项"
                             Margin="0,4,0,12" AutomationProperties.Name="电话号码" />
                 <TextBlock Text="初始密码" />
                 <ui:PasswordBox x:Name="PasswordBox" Margin="0,4,0,12"
+                                PlaceholderText="请输入初始密码"
                                 AutomationProperties.Name="初始密码" />
                 <TextBlock Text="确认密码" />
                 <ui:PasswordBox x:Name="ConfirmPasswordBox" Margin="0,4,0,12"
+                                PlaceholderText="请再次输入密码"
                                 AutomationProperties.Name="确认密码" />
                 <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
                            AutomationProperties.LiveSetting="Polite" />

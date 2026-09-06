@@ -67,7 +67,8 @@ public sealed class DictionaryManagerLifecycleTests
                     closeButtonVisible = titleBar.ShowClose;
                     contentStartsBelowTitleBar = dictionaryView.TranslatePoint(new Point(), window).Y
                         >= titleBar.TranslatePoint(new Point(0, titleBar.ActualHeight), window).Y;
-                    window.ForceClose();
+                    // 真实关闭入口必须先取消当前 Closing，再排队完成第二次关闭，避免窗口关闭重入。
+                    window.Close();
                 }));
 
                 window.ShowDialog();

@@ -73,8 +73,8 @@ public partial class UserModulePermissionsWindow : FluentWindow, IManagedSetting
             if (await _viewModel.CanCloseAsync(CancellationToken.None))
             {
                 _allowClose = true;
-                _viewModel.Dispose();
-                Close();
+                // CanCloseAsync 可能同步完成；必须等当前 Closing 回调返回后再发起第二次关闭。
+                _ = Dispatcher.BeginInvoke(new Action(Close));
             }
         }
         finally
