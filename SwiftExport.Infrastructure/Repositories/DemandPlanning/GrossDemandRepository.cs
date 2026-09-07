@@ -1,6 +1,8 @@
 using Dapper;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Interfaces.DemandPlanning;
@@ -9,11 +11,103 @@ using System.Data;
 
 namespace SwiftExport.Infrastructure.Repositories.DemandPlanning;
 
+/// <summary>持久化来源需求，并提供来源身份、版本、交付额度及历史安全检查。</summary>
 public sealed class GrossDemandRepository(RepositoryBaseContext context) : IGrossDemandRepository
 {
     private readonly RepositoryBaseContext _context = context;
     private IDbConnection Connection => _context.Session.Connection;
     private IDbTransaction? Transaction => _context.Session.Transaction;
+
+    /// <summary>按来源需求粒度查询可交付余额；正式已发只取直接锚定 GrossDemandId 的有效客户出库。</summary>
+    public async Task<PagedResponseBase<SourceDemandDeliveryItemDto>> SearchDeliverableAsync(
+        SourceDemandDeliverySearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var page = Math.Max(request.PageIndex, 1);
+        var size = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 200);
+        var parameters = new
+        {
+            SourceType = NormalizeFilter(request.SourceType),
+            request.CustomerId,
+            Keyword = Like(request.Keyword),
+            SourceNo = Like(request.SourceNo),
+            Sku = Like(request.Sku),
+            SalesOrder = DocumentTypeStaticsEnum.SalesOrder,
+            Complaint = DocumentTypeStaticsEnum.ComplaintReplenishment,
+            Active = GrossDemandLifecycleStatusEnum.Active,
+            Offset = (page - 1) * size,
+            PageSize = size
+        };
+        const string where = @"
+WHERE d.IsDeleted=0 AND d.LifecycleStatus=@Active
+  AND d.SourceType IN (@SalesOrder,@Complaint)
+  AND (@SourceType IS NULL OR d.SourceType=@SourceType)
+  AND (@CustomerId IS NULL OR d.CustomerId=@CustomerId)
+  AND (@Keyword IS NULL OR d.SourceNo LIKE @Keyword OR d.SkuSnapshot LIKE @Keyword OR d.CustomerSkuSnapshot LIKE @Keyword)
+  AND (@SourceNo IS NULL OR d.SourceNo LIKE @SourceNo)
+  AND (@Sku IS NULL OR d.SkuSnapshot LIKE @Sku)
+  AND d.DemandQty-COALESCE(sh.DeliveredQty,0)>0";
+        var total = await Connection.ExecuteScalarAsync<int>(
+            $"SELECT COUNT(1) FROM dbo.GrossDemand d {DeliveryShipmentApply} {where};",
+            parameters,
+            Transaction);
+        var items = await Connection.QueryAsync<SourceDemandDeliveryItemDto>(new CommandDefinition($@"
+{DeliverySelect}
+FROM dbo.GrossDemand d
+LEFT JOIN dbo.Customer c ON c.Uid=d.CustomerId AND c.IsDeleted=0
+LEFT JOIN dbo.Product p ON p.Uid=d.ProductId AND p.IsDeleted=0
+{DeliveryShipmentApply}
+{where}
+ORDER BY d.RequiredDate,d.SourceNo,d.SourceLineNumber,d.Uid
+OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;", parameters, Transaction, cancellationToken: cancellationToken));
+        return new PagedResponseBase<SourceDemandDeliveryItemDto>
+        {
+            Items = items.ToList(), TotalCount = total, PageIndex = page, PageSize = size
+        };
+    }
+
+    /// <summary>读取来源需求交付上下文；查询不加业务锁，仅用于展示。</summary>
+    public Task<SourceDemandDeliveryItemDto?> GetDeliveryContextAsync(Guid grossDemandId, CancellationToken cancellationToken = default)
+        => Connection.QuerySingleOrDefaultAsync<SourceDemandDeliveryItemDto>(new CommandDefinition($@"
+{DeliverySelect}
+FROM dbo.GrossDemand d
+LEFT JOIN dbo.Customer c ON c.Uid=d.CustomerId AND c.IsDeleted=0
+LEFT JOIN dbo.Product p ON p.Uid=d.ProductId AND p.IsDeleted=0
+{DeliveryShipmentApply}
+WHERE d.Uid=@GrossDemandId AND d.IsDeleted=0;", new
+        {
+            GrossDemandId = grossDemandId,
+            SalesOrder = DocumentTypeStaticsEnum.SalesOrder,
+            Complaint = DocumentTypeStaticsEnum.ComplaintReplenishment
+        }, Transaction, cancellationToken: cancellationToken));
+
+    /// <summary>以 Guid 排序锁定来源需求，保证来源终止、版本更新和多个 PL 提交串行复核同一额度。</summary>
+    public async Task<IReadOnlyList<SourceDemandDeliveryItemDto>> GetDeliveryContextsForUpdateAsync(
+        IEnumerable<Guid> grossDemandIds,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = grossDemandIds.Distinct().OrderBy(id => id).ToArray();
+        if (ids.Length == 0) return [];
+        var rows = new List<SourceDemandDeliveryItemDto>();
+        foreach (var id in ids)
+        {
+            var row = await Connection.QuerySingleOrDefaultAsync<SourceDemandDeliveryItemDto>(new CommandDefinition($@"
+{DeliverySelect}
+FROM dbo.GrossDemand d WITH(UPDLOCK,HOLDLOCK)
+LEFT JOIN dbo.Customer c ON c.Uid=d.CustomerId AND c.IsDeleted=0
+LEFT JOIN dbo.Product p ON p.Uid=d.ProductId AND p.IsDeleted=0
+{DeliveryShipmentApply}
+WHERE d.Uid=@GrossDemandId AND d.IsDeleted=0;", new
+            {
+                GrossDemandId = id,
+                SalesOrder = DocumentTypeStaticsEnum.SalesOrder,
+                Complaint = DocumentTypeStaticsEnum.ComplaintReplenishment
+            }, Transaction, cancellationToken: cancellationToken));
+            if (row is not null) rows.Add(row);
+        }
+        return rows;
+    }
 
     public async Task<PagedResponseBase<GrossDemandListItemDto>> SearchWorkspaceAsync(
         GrossDemandSearchRequest request,
@@ -513,6 +607,41 @@ WHERE [SourceType]=@SourceType AND [SourceUid]=@SourceUid AND [LifecycleStatus]=
         where.Add("(d.[SourceNo] LIKE @Keyword OR d.[SkuSnapshot] LIKE @Keyword OR d.[CustomerSkuSnapshot] LIKE @Keyword OR d.[DescriptionSnapshot] LIKE @Keyword)");
         parameters.Add("Keyword", $"%{keyword.Trim()}%");
     }
+
+    private static string? NormalizeFilter(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToUpperInvariant();
+
+    private static string? Like(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : $"%{value.Trim()}%";
+
+    private const string DeliveryShipmentApply = @"
+OUTER APPLY(
+    SELECT SUM(ol.Quantity) AS DeliveredQty
+    FROM dbo.OutboundDocumentLine ol
+    INNER JOIN dbo.OutboundDocument oh ON oh.Uid=ol.OutboundDocumentId
+    WHERE ol.GrossDemandId=d.Uid AND oh.DocumentType=20 AND oh.PostingStatus=1
+      AND ol.IsDeleted=0 AND oh.IsDeleted=0
+) sh";
+
+    private const string DeliverySelect = @"
+SELECT d.Uid AS GrossDemandId,d.Version AS DemandVersion,d.SourceType,d.SourceUid,d.SourceNo,
+       d.SourceLineId,d.SourceLineNumber,d.SourceVersion,d.CustomerId,
+       c.CustomerCode,c.CustomerName,d.ProductId,d.SkuSnapshot AS Sku,
+       d.CustomerSkuSnapshot AS CustomerSku,d.DescriptionSnapshot AS Description,d.UnitSnapshot AS Unit,
+       d.DemandQty,COALESCE(sh.DeliveredQty,0) AS DeliveredQty,
+       d.DemandQty-COALESCE(sh.DeliveredQty,0) AS RemainingQty,d.RequiredDate,
+       CAST(CASE WHEN d.LifecycleStatus=0 AND d.IsDeleted=0 THEN 1 ELSE 0 END AS bit) AS IsActive,
+       CASE WHEN d.SourceType=@SalesOrder THEN d.SourceUid ELSE NULL END AS OrderPoolSalesOrderId,
+       CAST(CASE WHEN d.SourceType=@SalesOrder AND d.SourceVersion IS NOT NULL AND d.CustomerId IS NOT NULL
+                      AND p.Uid IS NOT NULL AND NULLIF(LTRIM(RTRIM(d.UnitSnapshot)),N'') IS NOT NULL
+                 THEN 1 ELSE 0 END AS bit) AS IsInventoryActionAllowed,
+       CASE WHEN d.SourceType=@Complaint THEN N'ORDER_POOL_OWNERSHIP_REQUIRED'
+            WHEN d.SourceType<>@SalesOrder THEN N'SOURCE_TYPE_NOT_DELIVERABLE'
+            WHEN d.SourceVersion IS NULL THEN N'SOURCE_VERSION_MISSING'
+            WHEN d.CustomerId IS NULL THEN N'CUSTOMER_MISSING'
+            WHEN p.Uid IS NULL THEN N'PRODUCT_IDENTITY_REQUIRED'
+            WHEN NULLIF(LTRIM(RTRIM(d.UnitSnapshot)),N'') IS NULL THEN N'UNIT_REQUIRED'
+            ELSE NULL END AS InventoryBlockerCode";
 
     private sealed class GrossDemandHistoryCountRow
     {

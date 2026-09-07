@@ -22,7 +22,8 @@ public interface IPackingListDocumentRepository
 public interface IPackingListPlanningRepository
 {
     Task<PagedResponseBase<PackingListSourceDto>> SearchSourcesAsync(PackingListSourceSearchRequest request, CancellationToken cancellationToken = default);
-    Task<PackingListSourceDto?> GetSourceForUpdateAsync(Guid allocationId);
+    /// <summary>以来源需求为主键加载 PL 草稿快照；仓库可由调用方显式选择，Allocation 仅作可选追溯。</summary>
+    Task<PackingListSourceDto?> GetSourceForUpdateAsync(Guid grossDemandId, Guid? warehouseSiteId);
     Task<PackingListPlanningSnapshot?> LoadSnapshotAsync(Guid uid, bool forUpdate, CancellationToken cancellationToken = default);
 }
 

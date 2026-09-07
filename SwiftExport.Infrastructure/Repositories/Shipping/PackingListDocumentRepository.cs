@@ -6,6 +6,7 @@ using SwiftExport.Infrastructure.Contexts;
 
 namespace SwiftExport.Infrastructure.Repositories.Shipping;
 
+/// <summary>持久化 PL 头和来源需求贡献，保存可选计划追溯及来源版本快照。</summary>
 public sealed class PackingListDocumentRepository(RepositoryBaseContext context) : IPackingListDocumentRepository
 {
     private const string HeadColumns = "Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,PackingListNo,CustomerId,CustomerCodeSnapshot,CustomerNameSnapshot,PackingDate,ShipmentDate,Etd,Eta,InvoiceNo,ContainerNo,SealNo,ShippingMark,DeliveryAddressSnapshot,LifecycleStatus,PostingStatus,PostedDate,PostedBy,ReversedDate,ReversedBy,ReverseReason,CreateCommandId,CreateRequestFingerprint,PostCommandId,PostPreviewToken,ReverseCommandId,ReversePreviewToken";
@@ -81,12 +82,12 @@ public sealed class PackingListDocumentRepository(RepositoryBaseContext context)
 
     private Task<int> InsertLinesAsync(IReadOnlyList<PackingListContributionLine> lines) => context.Session.Connection.ExecuteAsync("""
         INSERT dbo.PackingListContributionLine(Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,PackingListDocumentId,LineNumber,ProductId,SkuSnapshot,CustomerSkuSnapshot,
-          DescriptionSnapshot,UnitSnapshot,Quantity,PackageCount,NetWeight,GrossWeight,Volume,Marks,Note,GrossDemandId,NetDemandId,NetDemandAllocationId,DemandExecutionLinkId,
+          DescriptionSnapshot,UnitSnapshot,Quantity,PackageCount,NetWeight,GrossWeight,Volume,Marks,Note,GrossDemandId,NetDemandId,NetDemandAllocationId,SourceDemandVersionSnapshot,SourceVersionSnapshot,DemandExecutionLinkId,
           SalesOrderId,SalesOrderLineId,SalesOrderNoSnapshot,SalesOrderLineNumberSnapshot,SourceSupplierId,SourceSupplierNameSnapshot,WarehouseSiteId,WarehouseCodeSnapshot,WarehouseNameSnapshot,
           SnapshotRequiredDate,SupplyType,CommandItemId)
         VALUES(@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@PackingListDocumentId,@LineNumber,@ProductId,@SkuSnapshot,
           @CustomerSkuSnapshot,@DescriptionSnapshot,@UnitSnapshot,@Quantity,@PackageCount,@NetWeight,@GrossWeight,@Volume,@Marks,@Note,@GrossDemandId,@NetDemandId,
-          @NetDemandAllocationId,@DemandExecutionLinkId,@SalesOrderId,@SalesOrderLineId,@SalesOrderNoSnapshot,@SalesOrderLineNumberSnapshot,@SourceSupplierId,
+          @NetDemandAllocationId,@SourceDemandVersionSnapshot,@SourceVersionSnapshot,@DemandExecutionLinkId,@SalesOrderId,@SalesOrderLineId,@SalesOrderNoSnapshot,@SalesOrderLineNumberSnapshot,@SourceSupplierId,
           @SourceSupplierNameSnapshot,@WarehouseSiteId,@WarehouseCodeSnapshot,@WarehouseNameSnapshot,@SnapshotRequiredDate,@SupplyType,@CommandItemId);
         """, lines, context.Session.Transaction);
 }

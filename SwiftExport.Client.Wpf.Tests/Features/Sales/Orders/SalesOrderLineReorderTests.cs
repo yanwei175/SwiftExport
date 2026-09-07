@@ -1,6 +1,6 @@
 using System.Reflection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Features.Sales.Orders.Models;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
@@ -116,7 +116,7 @@ public sealed class SalesOrderLineReorderTests
     private static SalesOrderLineListModel CreateLoadedList(params string[] skus)
     {
         var list = new SalesOrderLineListModel();
-        list.LoadFromDtos(skus.Select((sku, index) => new SalesOrderDocumentLineDto
+        list.LoadFromDtos(skus.Select((sku, index) => new SalesOrderDetailLineDto
         {
             Uid = Guid.NewGuid(),
             LineNumber = index + 1,

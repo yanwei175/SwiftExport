@@ -1,6 +1,6 @@
 ﻿using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 namespace SwiftExport.Core.Interfaces;

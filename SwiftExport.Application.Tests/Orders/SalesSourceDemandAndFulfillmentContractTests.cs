@@ -1,5 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using System.IO;
 
 namespace SwiftExport.Application.Tests.Orders;
@@ -19,7 +19,7 @@ public sealed class SalesSourceDemandAndFulfillmentContractTests
     [TestMethod]
     public void SalesConfirmationUsesPostConfirmVersionProductUnitAndReceptionBoundary()
     {
-        var service = Read("SwiftExport.Application", "Services", "Orders", "SalesOrderWorkspaceService.cs");
+        var service = Read("SwiftExport.Application", "Services", "Orders", "SalesOrderDetailService.cs");
         var statusWrite = service.IndexOf("SetConfirmationStatusAsync", StringComparison.Ordinal);
         var reception = service.IndexOf("sourceDemandReceptionService.ReceiveAsync", StringComparison.Ordinal);
 

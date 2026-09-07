@@ -40,6 +40,7 @@ public static class DependencyInjection
 
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IProductMasterService, ProductMasterService>();
+        services.AddScoped<IProductNeutralManagerService, ProductNeutralManagerService>();
         services.AddScoped<IBomService, BomService>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<ICustomerPoConfigService, CustomerPoConfigService>();
@@ -51,11 +52,13 @@ public static class DependencyInjection
         services.AddScoped<IProductCategoryService, ProductCategoryService>();
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
-        services.AddScoped<ISalesOrderWorkspaceService, SalesOrderWorkspaceService>();
+        services.AddScoped<ISalesOrderManagerService, SalesOrderManagerService>();
+        services.AddScoped<ISalesOrderDetailService, SalesOrderDetailService>();
         services.AddScoped<ISalesFulfillmentManagerService, SalesFulfillmentManagerService>();
         services.AddScoped<ISalesFulfillmentDetailService, SalesFulfillmentDetailService>();
         services.AddScoped<IGrossDemandWorkspaceService, GrossDemandWorkspaceService>();
         services.AddScoped<ISourceDemandReceptionService, SourceDemandReceptionService>();
+        services.AddScoped<ISourceDemandDeliveryService, SourceDemandDeliveryService>();
         services.AddScoped<GrossDemandDecompositionPlanner>();
         services.AddScoped<NetDemandInitialAllocationPlanner>();
         services.AddScoped<NetDemandPlanReplacementPlanner>();

@@ -81,6 +81,21 @@ public sealed class PackingListWorkspaceContractTests
         StringAssert.Contains(repository, "DemandExecutionLink");
     }
 
+    [TestMethod]
+    public void PlanningSourcesAreAnchoredByGrossDemandAndAllocationIsOptionalTrace()
+    {
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingListWorkspaceRepository.cs");
+        var service = Read("SwiftExport.Application", "Services", "Shipping", "PackingListWorkspaceService.cs");
+        var entity = Read("SwiftExport.Core", "Entities", "Shipping", "PackingListContributionLine.cs");
+        StringAssert.Contains(repository, "FROM dbo.GrossDemand g");
+        StringAssert.Contains(repository, "g.SourceType IN('SO','CR')");
+        StringAssert.Contains(repository, "l.GrossDemandId=g.Uid");
+        StringAssert.Contains(service, "sourceDelivery.VerifyForUpdateAsync");
+        StringAssert.Contains(service, "GrossDemandId = x.GrossDemandId");
+        StringAssert.Contains(entity, "public Guid? NetDemandId");
+        StringAssert.Contains(entity, "public Guid? NetDemandAllocationId");
+    }
+
     private static string Post(System.Reflection.MethodInfo method) => method.GetCustomAttributes(typeof(PostAttribute), false).Cast<PostAttribute>().Single().Path;
     private static string Get(System.Reflection.MethodInfo method) => method.GetCustomAttributes(typeof(GetAttribute), false).Cast<GetAttribute>().Single().Path;
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));

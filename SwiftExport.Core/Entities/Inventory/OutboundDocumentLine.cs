@@ -24,7 +24,8 @@ public sealed class OutboundDocumentLine : BaseEntity
     /// <summary>关联的装箱单来源贡献行唯一标识。</summary>
     public Guid PackingListContributionId { get; set; }
     /// <summary>关联的净需求执行计划唯一标识。</summary>
-    public Guid NetDemandAllocationId { get; set; }
+    /// <summary>可选的计划分配追溯标识；正式客户出库以 GrossDemandId 为交付锚点。</summary>
+    public Guid? NetDemandAllocationId { get; set; }
     /// <summary>关联的毛需求唯一标识。</summary>
     public Guid? GrossDemandId { get; set; }
     /// <summary>单据或业务事实形成时冻结的销售订单号历史快照，不随主数据更新。</summary>

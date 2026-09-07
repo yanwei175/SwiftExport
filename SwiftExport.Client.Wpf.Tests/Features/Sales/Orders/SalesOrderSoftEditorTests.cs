@@ -3,7 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Features.Sales.Orders.Models;
 
@@ -18,7 +18,7 @@ public sealed class SalesOrderSoftEditorTests
         StaTest.RunAsync(() =>
         {
             var line = new SalesOrderLineModel();
-            line.Load(new SalesOrderDocumentLineDto
+            line.Load(new SalesOrderDetailLineDto
             {
                 Uid = Guid.NewGuid(),
                 ProductId = Guid.NewGuid(),

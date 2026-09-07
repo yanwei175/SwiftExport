@@ -67,7 +67,15 @@ public sealed partial class PackingListWorkspaceViewModel : ViewModelBaseEx, IAs
             var result = await _runner.RunAsync(() => _api.CreateDraftAsync(new CreatePackingListDraftCommand
             {
                 CommandId = Guid.NewGuid(), Header = new PackingListHeaderCommand { CustomerId = source.CustomerId, PackingDate = DateTime.Today, ShipmentDate = DateTime.Today },
-                Lines = [new PackingListContributionCommand { NetDemandAllocationId = source.NetDemandAllocationId, ExpectedSourceVersion = source.SourceVersion, ExpectedRemainingQty = source.ShippableRemainingQty, Quantity = source.ShippableRemainingQty }]
+                Lines = [new PackingListContributionCommand
+                {
+                    GrossDemandId = source.GrossDemandId,
+                    WarehouseSiteId = source.WarehouseSiteId == Guid.Empty ? null : source.WarehouseSiteId,
+                    ExpectedDemandVersion = source.DemandVersion,
+                    ExpectedSourceVersion = source.SourceVersion,
+                    ExpectedRemainingQty = source.ShippableRemainingQty,
+                    Quantity = source.ShippableRemainingQty
+                }]
             }), "创建 PackingList 草稿失败");
             if (result.Success && result.Data is not null && result.Data.PackingListId != Guid.Empty)
                 await _navigation.OpenDocumentAsync(PackingListDetailViewModel.RouteKey, $"packing-list:{result.Data.PackingListId:N}", result.Data.PackingListId);

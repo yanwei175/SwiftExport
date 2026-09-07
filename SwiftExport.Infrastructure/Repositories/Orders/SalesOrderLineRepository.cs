@@ -1,6 +1,6 @@
 using Dapper;
 using SwiftExport.Contracts.Common;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
@@ -9,6 +9,9 @@ using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Orders;
 
+/// <summary>
+/// 使用 Dapper 持久化销售订单行，并维护批量保存时的行号与版本约束。
+/// </summary>
 public class SalesOrderLineRepository(RepositoryBaseContext context)
     : DapperRepository<SalesOrderLine>(context), ISalesOrderLineRepository
 {
@@ -59,21 +62,24 @@ public class SalesOrderLineRepository(RepositoryBaseContext context)
             WHERE SalesOrderId = @OrderId AND IsDeleted = 0;",
             new { OrderId = orderId, FinalLineCount = finalLineCount }, transaction: Transaction);
 
-    public async Task<IReadOnlyList<RepositoryWriteResult>> AddWorkspaceLinesAsync(IEnumerable<SalesOrderLine> lines)
+    /// <summary>批量新增销售订单行并返回每行写入结果。</summary>
+    public async Task<IReadOnlyList<RepositoryWriteResult>> AddLinesAsync(IEnumerable<SalesOrderLine> lines)
     {
         var results = new List<RepositoryWriteResult>();
         foreach (var line in lines) results.Add(await AddAsync(line));
         return results;
     }
 
-    public async Task<IReadOnlyList<RepositoryWriteResult>> UpdateWorkspaceLinesAsync(IEnumerable<SalesOrderLine> lines)
+    /// <summary>批量更新销售订单行并返回每行乐观并发结果。</summary>
+    public async Task<IReadOnlyList<RepositoryWriteResult>> UpdateLinesAsync(IEnumerable<SalesOrderLine> lines)
     {
         var results = new List<RepositoryWriteResult>();
         foreach (var line in lines) results.Add(await UpdateAsync(line));
         return results;
     }
 
-    public async Task<IReadOnlyList<RepositoryWriteResult>> DeleteWorkspaceLinesAsync(IEnumerable<SalesOrderDeletedLineDto> lines)
+    /// <summary>按请求中的行身份和版本批量软删除销售订单行。</summary>
+    public async Task<IReadOnlyList<RepositoryWriteResult>> DeleteLinesAsync(IEnumerable<SalesOrderDeletedLineDto> lines)
     {
         var results = new List<RepositoryWriteResult>();
         foreach (var line in lines)

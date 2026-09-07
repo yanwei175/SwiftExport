@@ -37,10 +37,14 @@ public sealed class PackingListContributionLine : BaseEntity
     public string? Note { get; set; }
     /// <summary>关联的毛需求唯一标识。</summary>
     public Guid GrossDemandId { get; set; }
-    /// <summary>关联的净需求唯一标识。</summary>
-    public Guid NetDemandId { get; set; }
-    /// <summary>关联的净需求执行计划唯一标识。</summary>
-    public Guid NetDemandAllocationId { get; set; }
+    /// <summary>可选的物料需求追溯标识；客户交付不以物料拆解为前提。</summary>
+    public Guid? NetDemandId { get; set; }
+    /// <summary>可选的 Allocation 追溯标识；客户交付不以计划分配为前提。</summary>
+    public Guid? NetDemandAllocationId { get; set; }
+    /// <summary>建立草稿时看到的来源需求并发版本，用于提交时检测预览过期。</summary>
+    public int SourceDemandVersionSnapshot { get; set; }
+    /// <summary>建立草稿时看到的上游来源事实版本。</summary>
+    public int? SourceVersionSnapshot { get; set; }
     /// <summary>关联的需求执行追溯关系唯一标识。</summary>
     public Guid? DemandExecutionLinkId { get; set; }
     /// <summary>关联的销售订单头唯一标识。</summary>
@@ -52,7 +56,7 @@ public sealed class PackingListContributionLine : BaseEntity
     /// <summary>单据或业务事实形成时冻结的销售订单行号历史快照，不随主数据更新。</summary>
     public int? SalesOrderLineNumberSnapshot { get; set; }
     /// <summary>关联的来源供应商唯一标识。</summary>
-    public Guid SourceSupplierId { get; set; }
+    public Guid? SourceSupplierId { get; set; }
     /// <summary>单据或业务事实形成时冻结的来源供应商名称历史快照，不随主数据更新。</summary>
     public string? SourceSupplierNameSnapshot { get; set; }
     /// <summary>关联的仓库站点唯一标识。</summary>

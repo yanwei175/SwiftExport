@@ -1,6 +1,6 @@
 ﻿using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Customers.Requests;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 

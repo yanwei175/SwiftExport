@@ -79,7 +79,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         await RunBusyAsync(async () =>
         {
             var result = await _runner.RunAsync(() => _api.SearchSourcesAsync(new PackingListSourceSearchRequest { CustomerId = CustomerId, Keyword = SourceKeyword, PageIndex = 1, PageSize = 100 }, token), "查询来源失败");
-            if (token.IsCancellationRequested) return; Sources.Clear(); if (result.Success && result.Data is not null) foreach (var item in result.Data.Items.Where(x => Lines.All(y => y.NetDemandAllocationId != x.NetDemandAllocationId))) Sources.Add(item);
+            if (token.IsCancellationRequested) return; Sources.Clear(); if (result.Success && result.Data is not null) foreach (var item in result.Data.Items.Where(x => Lines.All(y => y.GrossDemandId != x.GrossDemandId))) Sources.Add(item);
             ResultSummary = result.Success && result.Data is not null ? $"可加入来源 {result.Data.TotalCount} 条。" : result.Message;
         }, "正在加载可发货来源...", false);
     }
@@ -87,7 +87,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     [RelayCommand(CanExecute = nameof(CanAddSource))]
     private void AddSource()
     {
-        if (SelectedSource is null || SelectedSource.CustomerId != CustomerId || Lines.Any(x => x.NetDemandAllocationId == SelectedSource.NetDemandAllocationId)) return;
+        if (SelectedSource is null || SelectedSource.CustomerId != CustomerId || Lines.Any(x => x.GrossDemandId == SelectedSource.GrossDemandId)) return;
         AddLine(PackingListLineModel.FromSource(SelectedSource)); Sources.Remove(SelectedSource); SelectedSource = null; MarkChanged(); NotifyLineCommands();
     }
 

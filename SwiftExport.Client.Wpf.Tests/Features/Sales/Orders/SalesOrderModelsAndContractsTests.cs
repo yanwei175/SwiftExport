@@ -2,7 +2,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.Common;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
+using SwiftExport.Contracts.DTOs.SalesOrders.Manager;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Features.Sales.Orders.Models;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
@@ -177,18 +178,18 @@ public sealed class SalesOrderModelsAndContractsTests
     }
 
     [TestMethod]
-    public void WorkspaceContracts_ShouldNotExposeOldSalesOrderOrApprovalStatus()
+    public void ManagerAndDetailContracts_ShouldNotExposeOldSalesOrderOrApprovalStatus()
     {
         Assert.IsNull(typeof(SalesOrderEditHeaderDto).GetProperty("OrderStatus"));
         Assert.IsNull(typeof(SalesOrderEditHeaderDto).GetProperty("ApprovalStatus"));
-        Assert.IsNull(typeof(SalesOrderListItemDto).GetProperty("OrderStatus"));
+        Assert.IsNull(typeof(SalesOrderManagerListItemDto).GetProperty("OrderStatus"));
         Assert.IsNull(typeof(SalesOrderEditLineDto).GetProperty("CreatedDate"));
         Assert.IsNull(typeof(SalesOrderEditLineDto).GetProperty("UpdatedBy"));
         Assert.IsNull(typeof(SalesOrderEditLineDto).GetProperty("IsDeleted"));
-        Assert.IsNotNull(typeof(ISalesOrderWorkspaceApi).GetMethod(nameof(ISalesOrderWorkspaceApi.ConfirmAsync)));
-        Assert.IsNull(typeof(SalesOrderSearchRequest).GetProperty("CustomerCode"));
-        Assert.AreEqual(typeof(List<string>), typeof(SalesOrderSearchRequest).GetProperty(nameof(SalesOrderSearchRequest.CustomerCodes))!.PropertyType);
-        var customerCodeMethod = typeof(ISalesOrderWorkspaceApi).GetMethod(nameof(ISalesOrderWorkspaceApi.GetCustomerCodesAsync));
+        Assert.IsNotNull(typeof(ISalesOrderDetailApi).GetMethod(nameof(ISalesOrderDetailApi.ConfirmAsync)));
+        Assert.IsNull(typeof(SalesOrderManagerSearchRequest).GetProperty("CustomerCode"));
+        Assert.AreEqual(typeof(List<string>), typeof(SalesOrderManagerSearchRequest).GetProperty(nameof(SalesOrderManagerSearchRequest.CustomerCodes))!.PropertyType);
+        var customerCodeMethod = typeof(ISalesOrderManagerApi).GetMethod(nameof(ISalesOrderManagerApi.GetCustomerCodesAsync));
         Assert.IsNotNull(customerCodeMethod);
         Assert.AreEqual(
             "/customer-codes",
@@ -205,7 +206,7 @@ public sealed class SalesOrderModelsAndContractsTests
     public void NumericSoftEditorText_ShouldPreserveInvalidInputAndLastValidStrongValue()
     {
         var line = new SalesOrderLineModel();
-        line.Load(new SalesOrderDocumentLineDto
+        line.Load(new SalesOrderDetailLineDto
         {
             Uid = Guid.NewGuid(),
             Qty = 12.5m,
@@ -238,7 +239,7 @@ public sealed class SalesOrderModelsAndContractsTests
     public void SoftEditorText_RejectChangesShouldRestoreCanonicalBaseline()
     {
         var line = new SalesOrderLineModel();
-        line.Load(new SalesOrderDocumentLineDto
+        line.Load(new SalesOrderDetailLineDto
         {
             Uid = Guid.NewGuid(),
             Qty = 2m,

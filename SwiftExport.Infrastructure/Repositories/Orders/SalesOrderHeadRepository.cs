@@ -1,5 +1,6 @@
 using Dapper;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
+using SwiftExport.Contracts.DTOs.SalesOrders.Manager;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
@@ -11,11 +12,15 @@ using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Orders;
 
+/// <summary>
+/// 使用 Dapper 持久化销售订单头，并提供 Manager 列表与 Detail 聚合查询。
+/// </summary>
 public class SalesOrderHeadRepository(RepositoryBaseContext context)
     : DapperRepository<SalesOrderHeader>(context), ISalesOrderHeadRepository
 {
-    public async Task<PagedResponseBase<SalesOrderListItemDto>> SearchWorkspaceAsync(
-        SalesOrderSearchRequest request,
+    /// <summary>按 Manager 筛选条件分页查询销售订单摘要。</summary>
+    public async Task<PagedResponseBase<SalesOrderManagerListItemDto>> SearchManagerAsync(
+        SalesOrderManagerSearchRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -179,8 +184,8 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
             cancellationToken: cancellationToken);
         using var multi = await Connection.QueryMultipleAsync(command);
         var totalCount = await multi.ReadFirstAsync<int>();
-        var items = (await multi.ReadAsync<SalesOrderListItemDto>()).ToList();
-        return new PagedResponseBase<SalesOrderListItemDto>
+        var items = (await multi.ReadAsync<SalesOrderManagerListItemDto>()).ToList();
+        return new PagedResponseBase<SalesOrderManagerListItemDto>
         {
             Items = items,
             TotalCount = totalCount,
@@ -189,7 +194,8 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
         };
     }
 
-    public async Task<SalesOrderDocumentDto?> GetWorkspaceDocumentAsync(
+    /// <summary>读取销售订单头、有效行和正式发货摘要组成的 Detail。</summary>
+    public async Task<SalesOrderDetailDto?> GetDetailAsync(
         Guid uid,
         CancellationToken cancellationToken = default)
     {
@@ -235,10 +241,10 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
         var header = await multi.ReadSingleOrDefaultAsync<SalesOrderHeader>();
         if (header is null) return null;
 
-        return new SalesOrderDocumentDto
+        return new SalesOrderDetailDto
         {
             Header = MapHeader(header),
-            Lines = (await multi.ReadAsync<SalesOrderDocumentLineDto>()).ToList(),
+            Lines = (await multi.ReadAsync<SalesOrderDetailLineDto>()).ToList(),
             CloseReason = header.CloseReason ?? string.Empty,
             ClosedDate = header.ClosedDate,
             ClosedBy = header.ClosedBy ?? string.Empty
@@ -248,7 +254,8 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
     public Task<RepositoryWriteResult> SetConfirmationStatusAsync(Guid uid, int version, ConfirmationStatusEnum status)
         => UpdateStatusAsync(uid, version, "ConfirmationStatus = @Status", new { Status = status });
 
-    public async Task<RepositoryWriteResult> CloseWorkspaceAsync(Guid uid, int version, string reason)
+    /// <summary>按乐观并发版本关闭销售订单并保存关闭原因。</summary>
+    public async Task<RepositoryWriteResult> CloseAsync(Guid uid, int version, string reason)
     {
         var now = DateTime.Now;
         var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>(@"

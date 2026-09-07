@@ -1,10 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Mapster;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExportClient.Features.Sales.Orders.Models;
 
+/// <summary>承载销售订单 Detail 头部的可编辑状态和业务快照。</summary>
 public sealed partial class SalesOrderHeaderEditModel : ObservableObject
 {
     [ObservableProperty] public partial Guid Uid { get; set; }

@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.Sales.Orders.Models;
@@ -17,11 +17,14 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Sales.Orders.ViewModels;
 
+/// <summary>
+/// 销售订单 Detail 页面模型，负责详情编辑、Lookup 和生命周期命令。
+/// </summary>
 public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     IDocumentTabViewModel,
     IDocumentTabInitializable
 {
-    private readonly ISalesOrderWorkspaceApi _api;
+    private readonly ISalesOrderDetailApi _detailApi;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly INavigationService _navigationService;
     private readonly IDialogService _dialogService;
@@ -32,8 +35,9 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     private CancellationTokenSource? _customerLookupCancellation;
     private bool _loadingDocument;
 
+    /// <summary>注入 Detail API 以及页面导航、对话框和消息依赖。</summary>
     public SalesOrderDetailViewModel(
-        ISalesOrderWorkspaceApi api,
+        ISalesOrderDetailApi api,
         IApiCallRunner apiCallRunner,
         INavigationService navigationService,
         IDialogService dialogService,
@@ -41,7 +45,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         IMessageService messageService,
         IReferenceDataCacheService referenceDataCache)
     {
-        _api = api;
+        _detailApi = api;
         _apiCallRunner = apiCallRunner;
         _navigationService = navigationService;
         _dialogService = dialogService;
@@ -117,7 +121,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         await RunBusyAsync(async () =>
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.GetDocumentAsync(orderId, cancellationToken),
+                () => _detailApi.GetAsync(orderId, cancellationToken),
                 cancellationToken,
                 "加载销售订单失败");
             if (cancellationToken.IsCancellationRequested)
@@ -332,7 +336,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
             }
 
             var result = await _apiCallRunner.RunAsync(
-                () => _api.SaveAsync(Lines.CreateSaveRequest(Header)),
+                () => _detailApi.SaveAsync(Lines.CreateSaveRequest(Header)),
                 "保存销售订单失败");
             if (!result.Success || result.Data?.Document is null)
             {
@@ -360,7 +364,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         await RunWriteAsync(async () =>
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.ConfirmAsync(Header.Uid, CreateConfirmCommand()),
+                () => _detailApi.ConfirmAsync(Header.Uid, CreateConfirmCommand()),
                 "确认销售订单失败");
             if (!result.Success || result.Data is null)
             {
@@ -388,7 +392,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         await RunBusyAsync(async () =>
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.CancelConfirmationAsync(
+                () => _detailApi.CancelConfirmationAsync(
                     Header.Uid,
                     new CancelSalesOrderConfirmationCommand
                     {
@@ -443,7 +447,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         try
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.SearchProductsAsync(new SalesOrderProductSearchRequest
+                () => _detailApi.SearchProductsAsync(new SalesOrderProductSearchRequest
                 {
                     Keyword = keyword.Trim(),
                     CustomerId = Header.CustomerId == Guid.Empty ? null : Header.CustomerId,
@@ -524,7 +528,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         try
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.SearchCustomersAsync(new SalesOrderCustomerSearchRequest
+                () => _detailApi.SearchCustomersAsync(new SalesOrderCustomerSearchRequest
                 {
                     Keyword = keyword.Trim(),
                     PageIndex = 1,
@@ -599,7 +603,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         NotifyDocumentStateChanged();
     }
 
-    private void LoadDocument(SalesOrderDocumentDto document)
+    private void LoadDocument(SalesOrderDetailDto document)
     {
         _loadingDocument = true;
         Header.Load(document.Header);

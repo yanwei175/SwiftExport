@@ -138,11 +138,13 @@ public sealed class PackingListPreviewBuilderTests
                 new PackingListPlanningLineSnapshot
                 {
                     CustomerId = customerId, IsSourceActive = true, IsProductActive = true, IsWarehouseActive = true,
-                    SourceVersion = 1, PlannedQty = planned, ShippedNetQty = shipped, SourceInboundNetQty = inbound, ReadyQty = planned,
+                    DemandVersion = 1, SourceVersion = 1, HasOrderPoolOwnership = true,
+                    PlannedQty = planned, ShippedNetQty = shipped, SourceInboundNetQty = inbound, ReadyQty = planned,
                     BalanceQty = balance, BalanceVersion = 1,
                     Line = new PackingListContributionLine
                     {
                         Uid = Guid.NewGuid(), Version = 1, NetDemandAllocationId = Guid.NewGuid(), ProductId = Guid.NewGuid(), WarehouseSiteId = Guid.NewGuid(),
+                        SourceDemandVersionSnapshot = 1, SourceVersionSnapshot = 1,
                         SkuSnapshot = "SKU-1", Quantity = packing
                     }
                 }

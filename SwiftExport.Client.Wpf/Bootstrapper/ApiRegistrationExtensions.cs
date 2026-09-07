@@ -64,6 +64,7 @@ public static class ApiRegistrationExtensions
         services.AddControllerApi<IProductApi>("Product");
         services.AddControllerApi<IProductMasterApi>("ProductMaster");
         services.AddControllerApi<IProductNeutralApi>("ProductNeutral");
+        services.AddControllerApi<IProductNeutralManagerApi>("ProductNeutralManager");
         services.AddControllerApi<IProductColorApi>("ProductColor");
         services.AddControllerApi<IProductCategoryApi>("ProductCategory");
         services.AddControllerApi<IBomApi>("Bom");
@@ -84,7 +85,8 @@ public static class ApiRegistrationExtensions
 
     private static void AddOrderApis(this IServiceCollection services)
     {
-        services.AddControllerApi<ISalesOrderWorkspaceApi>("sales-orders/workspace");
+        services.AddControllerApi<ISalesOrderManagerApi>("sales-orders/manager");
+        services.AddControllerApi<ISalesOrderDetailApi>("sales-orders/detail");
         services.AddControllerApi<ISalesFulfillmentManagerApi>("sales-fulfillment/manager");
         services.AddControllerApi<ISalesFulfillmentDetailApi>("sales-fulfillment/detail");
         services.AddControllerApi<IGrossDemandWorkspaceApi>("demand-planning/gross-demands");

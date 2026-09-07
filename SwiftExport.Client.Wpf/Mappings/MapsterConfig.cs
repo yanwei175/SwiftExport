@@ -2,6 +2,7 @@ using Mapster;
 using System.Runtime.CompilerServices;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters;
+using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
@@ -107,6 +108,24 @@ public sealed class MapsterConfig : IRegister
 
         config.NewConfig<ProductNeutralLineModel, ProductNeutralWriteDto>();
         config.NewConfig<ProductNeutralLineModel, ProductNeutralDto>()
+            .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted)
+            .Map(dest => dest.Data, src => src);
+
+        config.NewConfig<ProductNeutralManagerListItemDto, ProductNeutralManagerLineModel>()
+            .IgnoreNullValues(true)
+            .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
+            .Map(dest => dest.ProductMasterId, src => src.Data.ProductMasterId)
+            .Map(dest => dest.ProductCode, src => src.Data.ProductCode)
+            .Map(dest => dest.ColorId, src => src.Data.ColorId)
+            .Map(dest => dest.DefaultSalesPriceUsd, src => src.Data.DefaultSalesPriceUsd)
+            .Map(dest => dest.DefaultExchangeRate, src => src.Data.DefaultExchangeRate)
+            .Map(dest => dest.ProfitMargin, src => src.Data.ProfitMargin)
+            .Map(dest => dest.DefaultPurchasePriceCny, src => src.Data.DefaultPurchasePriceCny)
+            .Map(dest => dest.ImagePath, src => src.Data.ImagePath)
+            .Map(dest => dest.IsMainImage, src => src.Data.IsMainImage);
+
+        config.NewConfig<ProductNeutralManagerLineModel, ProductNeutralManagerWriteDto>();
+        config.NewConfig<ProductNeutralManagerLineModel, ProductNeutralManagerListItemDto>()
             .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted)
             .Map(dest => dest.Data, src => src);
 

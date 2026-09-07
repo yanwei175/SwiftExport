@@ -1,12 +1,13 @@
 using Mapster;
 using SwiftExport.Contracts.Common;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExportClient.Mvvm;
 
 namespace SwiftExportClient.Features.Sales.Orders.Models;
 
+/// <summary>管理销售订单 Detail 行的新增、删除、排序和保存变更集。</summary>
 public sealed class SalesOrderLineListModel
-    : BaseListModel<SalesOrderLineModel, SalesOrderDocumentLineDto>
+    : BaseListModel<SalesOrderLineModel, SalesOrderDetailLineDto>
 {
     public SalesOrderLineListModel()
         : base(CreateLine)
@@ -45,11 +46,11 @@ public sealed class SalesOrderLineListModel
         };
     }
 
-    private static SalesOrderLineModel CreateLine(SalesOrderDocumentLineDto dto) => new();
+    private static SalesOrderLineModel CreateLine(SalesOrderDetailLineDto dto) => new();
 
-    private SalesOrderDocumentLineDto CreateNewDto(bool isNonStandard, DateTime? expectedDeliveryDate)
+    private SalesOrderDetailLineDto CreateNewDto(bool isNonStandard, DateTime? expectedDeliveryDate)
     {
-        return new SalesOrderDocumentLineDto
+        return new SalesOrderDetailLineDto
         {
             Uid = GuidSequentialGenerator.NewGuid(),
             LineNumber = AllLines.Count + 1,

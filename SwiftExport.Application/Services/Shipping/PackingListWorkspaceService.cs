@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Inventory;
+using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Contracts.Common;
@@ -24,11 +25,15 @@ using System.Text;
 
 namespace SwiftExport.Application.Services.Shipping;
 
+/// <summary>编排 PL 草稿、来源额度复核、预览及原子过账；不把物料计划当作交付准入。</summary>
+/// <summary>编排 PL 草稿、来源额度复核、预览及原子过账；不把物料计划当作交付准入。</summary>
+/// <summary>编排 PL 草稿、来源额度复核、预览及原子过账；不把物料计划当作交付准入。</summary>
 public sealed class PackingListWorkspaceService(
     ServiceBaseContext context,
     IPackingListDocumentRepository documents,
     IPackingListPlanningRepository planning,
     IPackingListQueryRepository queries,
+    ISourceDemandDeliveryService sourceDelivery,
     PackingListPreviewBuilder previewBuilder,
     IInboundPostingPort inboundPort,
     IOutboundPostingPort outboundPort,
@@ -131,6 +136,7 @@ public sealed class PackingListWorkspaceService(
             }
             var snapshot = await planning.LoadSnapshotAsync(uid, true, cancellationToken) ?? throw new PackingListBusinessException("NOT_FOUND", "PackingList 不存在。");
             RequireDraft(snapshot.Document, command.ExpectedVersion);
+            await VerifySourceDeliveryAsync(snapshot, true, cancellationToken);
             var preview = previewBuilder.Build(snapshot);
             if (!string.Equals(preview.PreviewToken, command.PreviewToken, StringComparison.OrdinalIgnoreCase))
                 throw new PackingListBusinessException("PREVIEW_STALE", "预览已失效，请重新预览。", PackingListCommandStatusEnum.VersionConflict);
@@ -233,13 +239,22 @@ public sealed class PackingListWorkspaceService(
         PackingListHeaderCommand header, IReadOnlyList<PackingListContributionCommand> commands, PackingListDocument? current, Guid createCommandId,
         IReadOnlyList<PackingListContributionLine>? oldLines = null)
     {
-        if (commands.Select(x => x.NetDemandAllocationId).Distinct().Count() != commands.Count)
-            throw new PackingListBusinessException("DUPLICATE_ALLOCATION", "同一 PackingList 中 Allocation 不能重复。");
+        if (commands.Any(x => x.GrossDemandId == Guid.Empty)
+            || commands.Select(x => x.GrossDemandId).Distinct().Count() != commands.Count)
+            throw new PackingListBusinessException("DUPLICATE_SOURCE_DEMAND", "同一 PackingList 中来源需求不能为空或重复。");
+        await sourceDelivery.VerifyForUpdateAsync(commands.Select(x => new SourceDemandDeliveryClaim
+        {
+            GrossDemandId = x.GrossDemandId,
+            ExpectedDemandVersion = x.ExpectedDemandVersion,
+            ExpectedSourceVersion = x.ExpectedSourceVersion,
+            Quantity = x.Quantity
+        }).ToList(), false);
         var sources = new List<PackingListSourceDto>();
         foreach (var command in commands)
         {
-            var source = await planning.GetSourceForUpdateAsync(command.NetDemandAllocationId) ?? throw new PackingListBusinessException("SOURCE_INACTIVE", "PackingList 来源不存在或已失效。");
-            if (source.SourceVersion != command.ExpectedSourceVersion || command.Quantity <= 0 || command.Quantity > command.ExpectedRemainingQty || command.Quantity > source.ShippableRemainingQty)
+            var source = await planning.GetSourceForUpdateAsync(command.GrossDemandId, command.WarehouseSiteId) ?? throw new PackingListBusinessException("SOURCE_INACTIVE", "PackingList 来源不存在或已失效。");
+            if (source.DemandVersion != command.ExpectedDemandVersion || source.SourceVersion != command.ExpectedSourceVersion
+                || command.Quantity <= 0 || command.Quantity > command.ExpectedRemainingQty || command.Quantity > source.ShippableRemainingQty)
                 throw new PackingListBusinessException("SOURCE_CHANGED", $"{source.Sku} 的可发货剩余量已变化。");
             if (source.CustomerId != header.CustomerId) throw new PackingListBusinessException("CUSTOMER_MISMATCH", "PackingList 只能包含同一最终客户的来源。");
             sources.Add(source);
@@ -270,7 +285,8 @@ public sealed class PackingListWorkspaceService(
                 ProductId = source.ProductId, SkuSnapshot = source.Sku, CustomerSkuSnapshot = source.CustomerSku, DescriptionSnapshot = source.Description, UnitSnapshot = source.Unit,
                 Quantity = command.Quantity, PackageCount = command.PackageCount, NetWeight = command.NetWeight, GrossWeight = command.GrossWeight, Volume = command.Volume,
                 Marks = Normalize(command.Marks, 500), Note = Normalize(command.Note, 1000), GrossDemandId = source.GrossDemandId, NetDemandId = source.NetDemandId,
-                NetDemandAllocationId = source.NetDemandAllocationId, DemandExecutionLinkId = source.DemandExecutionLinkId, SalesOrderId = source.SalesOrderId,
+                NetDemandAllocationId = source.NetDemandAllocationId, SourceDemandVersionSnapshot = source.DemandVersion, SourceVersionSnapshot = source.SourceVersion,
+                DemandExecutionLinkId = source.DemandExecutionLinkId, SalesOrderId = source.SalesOrderId,
                 SalesOrderLineId = source.SalesOrderLineId, SalesOrderNoSnapshot = source.SalesOrderNo, SalesOrderLineNumberSnapshot = source.SalesOrderLineNumber,
                 SourceSupplierId = source.SourceSupplierId, SourceSupplierNameSnapshot = source.SourceSupplierName, WarehouseSiteId = source.WarehouseSiteId,
                 WarehouseCodeSnapshot = source.WarehouseCode, WarehouseNameSnapshot = source.WarehouseName, SnapshotRequiredDate = source.RequiredDate, SupplyType = source.SupplyType,
@@ -337,6 +353,19 @@ public sealed class PackingListWorkspaceService(
         return result;
     }
 
+    /// <summary>在 PL 最外层事务内按来源需求锁序复核版本和合计额度，正式提交同时校验订单池归属。</summary>
+    private Task<IReadOnlyDictionary<Guid, SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery.SourceDemandDeliveryItemDto>> VerifySourceDeliveryAsync(
+        PackingListPlanningSnapshot snapshot,
+        bool requireInventoryEligibility,
+        CancellationToken cancellationToken)
+        => sourceDelivery.VerifyForUpdateAsync(snapshot.Lines.Select(item => new SourceDemandDeliveryClaim
+        {
+            GrossDemandId = item.Line.GrossDemandId,
+            ExpectedDemandVersion = item.Line.SourceDemandVersionSnapshot,
+            ExpectedSourceVersion = item.Line.SourceVersionSnapshot,
+            Quantity = item.Line.Quantity
+        }).ToList(), requireInventoryEligibility, cancellationToken);
+
     private async Task<List<PackingListGeneratedDocumentDto>> GeneratedDocumentsAsync(Guid uid)
     {
         var result = new List<PackingListGeneratedDocumentDto>();
@@ -377,6 +406,7 @@ public sealed class PackingListWorkspaceService(
         try { var result = await action(); cancellationToken.ThrowIfCancellationRequested(); _session.Transaction.Commit(); return ServiceResult<PackingListCommandResultDto>.Ok(result); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { _session.Transaction.Rollback(); throw; }
         catch (PackingListBusinessException ex) { _session.Transaction.Rollback(); return Blocked(ex.Code, ex.Message, ex.Status); }
+        catch (SourceDemandDeliveryException ex) { _session.Transaction.Rollback(); return Blocked(ex.Code, ex.Message); }
         catch (InventoryPostingException ex) { _session.Transaction.Rollback(); return Blocked("POSTING_BLOCKED", ex.Message); }
         catch (Exception ex) { _session.Transaction.Rollback(); _logger.LogError(ex, "PackingList 命令执行失败。"); return Blocked("UNEXPECTED_ERROR", "PackingList 命令执行失败。"); }
         finally { _session.Transaction.Dispose(); _session.Transaction = null; }
@@ -419,7 +449,7 @@ public sealed class PackingListWorkspaceService(
             Normalize(h.InvoiceNo,100) ?? string.Empty, Normalize(h.ContainerNo,100) ?? string.Empty, Normalize(h.SealNo,100) ?? string.Empty,
             Normalize(h.ShippingMark,1000) ?? string.Empty, Normalize(h.DeliveryAddressSnapshot,1000) ?? string.Empty
         };
-        values.AddRange(command.Lines.OrderBy(x => x.NetDemandAllocationId).Select(x => $"{x.NetDemandAllocationId:N}:{x.ExpectedSourceVersion}:{x.ExpectedRemainingQty.ToString("0.####",CultureInfo.InvariantCulture)}:{x.Quantity.ToString("0.####",CultureInfo.InvariantCulture)}:{x.PackageCount?.ToString("0.####",CultureInfo.InvariantCulture)}:{x.NetWeight?.ToString("0.####",CultureInfo.InvariantCulture)}:{x.GrossWeight?.ToString("0.####",CultureInfo.InvariantCulture)}:{x.Volume?.ToString("0.####",CultureInfo.InvariantCulture)}:{Normalize(x.Marks,500)}:{Normalize(x.Note,1000)}"));
+        values.AddRange(command.Lines.OrderBy(x => x.GrossDemandId).Select(x => $"{x.GrossDemandId:N}:{x.WarehouseSiteId}:{x.ExpectedDemandVersion}:{x.ExpectedSourceVersion}:{x.ExpectedRemainingQty.ToString("0.####",CultureInfo.InvariantCulture)}:{x.Quantity.ToString("0.####",CultureInfo.InvariantCulture)}:{x.PackageCount?.ToString("0.####",CultureInfo.InvariantCulture)}:{x.NetWeight?.ToString("0.####",CultureInfo.InvariantCulture)}:{x.GrossWeight?.ToString("0.####",CultureInfo.InvariantCulture)}:{x.Volume?.ToString("0.####",CultureInfo.InvariantCulture)}:{Normalize(x.Marks,500)}:{Normalize(x.Note,1000)}"));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("|", values))));
     }
     private static string? Normalize(string? value, int max) { var text = value?.Trim(); return string.IsNullOrEmpty(text) ? null : text[..Math.Min(text.Length, max)]; }

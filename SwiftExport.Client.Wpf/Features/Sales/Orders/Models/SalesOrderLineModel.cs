@@ -1,14 +1,15 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Mapster;
 using SwiftExport.Contracts.Common;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExportClient.Mvvm;
 using System.ComponentModel;
 using System.Globalization;
 
 namespace SwiftExportClient.Features.Sales.Orders.Models;
 
-public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocumentLineDto>, IDataErrorInfo
+/// <summary>承载销售订单 Detail 单行的编辑状态、软输入和行级校验。</summary>
+public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDetailLineDto>, IDataErrorInfo
 {
     private bool _synchronizingEditorText;
 
@@ -61,13 +62,13 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDocume
         _ => string.Empty,
     };
 
-    protected override void LoadFromDto(SalesOrderDocumentLineDto dto)
+    protected override void LoadFromDto(SalesOrderDetailLineDto dto)
     {
         dto.Adapt(this);
         SynchronizeEditorTexts();
     }
 
-    public override SalesOrderDocumentLineDto ToDto() => this.Adapt<SalesOrderDocumentLineDto>();
+    public override SalesOrderDetailLineDto ToDto() => this.Adapt<SalesOrderDetailLineDto>();
 
     public SalesOrderEditLineDto ToEditDto()
     {

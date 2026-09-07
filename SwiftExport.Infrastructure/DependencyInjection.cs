@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IProductMasterRepository, ProductMasterRepository>();
         services.AddScoped<IProductNeutralRepository, ProductNeutralRepository>();
+        services.AddScoped<IProductNeutralManagerRepository, ProductNeutralManagerRepository>();
         services.AddScoped<IBomRepository, BomRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<ICustomerPoConfigRepository, CustomerPoConfigRepository>();

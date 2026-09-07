@@ -4,6 +4,7 @@ using System.Text.Json;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.Auditing;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Interfaces.Auditing;
@@ -29,6 +30,8 @@ public sealed class SourceDemandReceptionService(
     {
         EnsureTransaction();
         Validate(command);
+        command.SourceType = command.SourceType.Trim().ToUpperInvariant();
+        command.SourceNo = command.SourceNo.Trim();
         var fingerprint = CreateFingerprint(command);
         var prior = await operationLogs.GetByCommandAsync(Module, ReceiveOperation, command.CommandId);
         if (prior is not null)
@@ -218,6 +221,9 @@ public sealed class SourceDemandReceptionService(
             throw new SourceDemandReceptionException("INVALID_COMMAND", "来源需求命令身份、客户或版本无效。");
         if (string.IsNullOrWhiteSpace(command.SourceType) || string.IsNullOrWhiteSpace(command.SourceNo) || command.Items.Count == 0)
             throw new SourceDemandReceptionException("INVALID_COMMAND", "来源类型、来源单号和需求行不能为空。");
+        var sourceType = command.SourceType.Trim().ToUpperInvariant();
+        if (sourceType is not (DocumentTypeStaticsEnum.SalesOrder or DocumentTypeStaticsEnum.ComplaintReplenishment))
+            throw new SourceDemandReceptionException("SOURCE_TYPE_NOT_SUPPORTED", "接收协议仅接受销售或投诉补货认可的实物需求。");
         if (command.Items.Any(item => item.SourceLineId == Guid.Empty || item.DemandQty <= 0 || string.IsNullOrWhiteSpace(item.SkuSnapshot)))
             throw new SourceDemandReceptionException("INVALID_COMMAND", "来源需求行身份、SKU 或数量无效。");
         if (command.Items.GroupBy(item => item.SourceLineId).Any(group => group.Count() > 1))

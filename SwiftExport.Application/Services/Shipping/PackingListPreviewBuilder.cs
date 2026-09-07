@@ -53,6 +53,10 @@ public sealed class PackingListPreviewBuilder
                 AddBlocker(result, "CUSTOMER_MISMATCH", $"{line.SkuSnapshot} 的最终客户与单据客户不一致。");
             if (!fact.IsSourceActive)
                 AddBlocker(result, "SOURCE_INACTIVE", $"{line.SkuSnapshot} 的需求来源已失效。");
+            if (fact.DemandVersion != line.SourceDemandVersionSnapshot || fact.SourceVersion != line.SourceVersionSnapshot)
+                AddBlocker(result, "SOURCE_CHANGED", $"{line.SkuSnapshot} 的来源版本已变化，请重新选择来源。");
+            if (!fact.HasOrderPoolOwnership)
+                AddBlocker(result, "ORDER_POOL_OWNERSHIP_REQUIRED", $"{line.SkuSnapshot} 缺少可证明的销售订单池归属，不能执行库存动作。");
             if (!fact.IsProductActive)
                 AddBlocker(result, "PRODUCT_INACTIVE", $"{line.SkuSnapshot} 产品不存在或已停用。");
             if (!fact.IsWarehouseActive || line.WarehouseSiteId == Guid.Empty)
@@ -63,6 +67,8 @@ public sealed class PackingListPreviewBuilder
                 AddWarning(result, EarlyShipment, $"{line.SkuSnapshot} 早于需求交期发货。", true);
             if (line.Quantity > fact.ReadyQty)
                 AddWarning(result, ReadyQtyShortfall, $"{line.SkuSnapshot} 超过采购已备好数量。", true);
+            if (!line.NetDemandAllocationId.HasValue && autoInbound > 0)
+                AddBlocker(result, "PURCHASE_EXECUTION_REQUIRED", $"{line.SkuSnapshot} 缺少可证明的采购执行依据，不能自动补入库。");
 
             AddEffect(result, line.WarehouseSiteId, line.WarehouseNameSnapshot, line.ProductId, line.SkuSnapshot,
                 fact.BalanceQty, autoInbound, line.Quantity, 0m);
@@ -141,8 +147,8 @@ public sealed class PackingListPreviewBuilder
         foreach (var fact in snapshot.Lines.OrderBy(x => x.Line.Uid))
         {
             values.Add(string.Join(":",
-                fact.Line.Uid.ToString("N"), fact.Line.Version, fact.Line.NetDemandAllocationId.ToString("N"),
-                DecimalText(fact.Line.Quantity), fact.SourceVersion, DecimalText(fact.PlannedQty),
+                fact.Line.Uid.ToString("N"), fact.Line.Version, fact.Line.NetDemandAllocationId?.ToString("N") ?? string.Empty,
+                DecimalText(fact.Line.Quantity), fact.DemandVersion, fact.SourceVersion, DecimalText(fact.PlannedQty),
                 fact.CustomerId.ToString("N"), fact.IsSourceActive, fact.IsProductActive, fact.IsWarehouseActive,
                 DecimalText(fact.ShippedNetQty), DecimalText(fact.SourceInboundNetQty), DecimalText(fact.ReadyQty),
                 fact.Line.WarehouseSiteId.ToString("N"), fact.BalanceVersion, DecimalText(fact.BalanceQty)));

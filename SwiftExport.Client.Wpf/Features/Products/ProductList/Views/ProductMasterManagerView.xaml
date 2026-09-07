@@ -435,10 +435,11 @@
                                                        Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
                                                        TextTrimming="CharacterEllipsis"
                                                        ToolTip="{Binding DefaultSupplierName}" />
-                                            <ui:Button Grid.Column="1" Appearance="Primary"
+                                            <ui:Button Grid.Column="1" 
+                                                       Appearance="Primary"
                                                        Icon="{ui:SymbolIcon Symbol=Search24}"
-                                                    Command="{Binding DataContext.OpenDetailCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                                    CommandParameter="{Binding}" />
+                                                       Command="{Binding DataContext.OpenDetailCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                       CommandParameter="{Binding}" />
                                         </Grid>
                                     </StackPanel>
                                 </Grid>

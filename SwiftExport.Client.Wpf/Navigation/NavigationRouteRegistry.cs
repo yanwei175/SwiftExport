@@ -1,27 +1,27 @@
-using SwiftExportClient.Features.Home;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
 using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
+using SwiftExportClient.Features.Home;
+using SwiftExportClient.Features.Inventory.Balances.ViewModels;
+using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
+using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
+using SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
+using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Planning;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.Placeholders.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
-using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
+using SwiftExportClient.Features.Sales;
+using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
+using SwiftExportClient.Features.Sales.Orders.ViewModels;
+using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
-using SwiftExportClient.Features.Sales;
-using SwiftExportClient.Features.Sales.Orders.ViewModels;
-using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
-using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
-using SwiftExportClient.Features.Inventory.Balances.ViewModels;
-using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
-using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
-using SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
-using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
 using SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels;
-using SwiftExport.Contracts.DTOs.Auth;
 
 namespace SwiftExportClient.Navigation;
 
@@ -32,6 +32,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new("home", "首页", "Workspace", typeof(HomeViewModel), NavigationModuleKeys.Home, RequiredPermission: null, CanClose: false),
         new("products", "产品", "Workspace", typeof(ProductsViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
         new(ProductMasterManagerViewModel.RouteKey, "主产品管理", "Workspace", typeof(ProductMasterManagerViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
+        new(ProductNeutralManagerViewModel.RouteKey, "中性产品管理", "Workspace", typeof(ProductNeutralManagerViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
         new(ProductMasterDetailViewModel.RouteKey, "主型号详情", "Workspace", typeof(ProductMasterDetailViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
         new("product-category-manager", "产品分类管理", "Workspace", typeof(ProductCategoryManagerViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
         new("product-colors", "产品颜色管理", "Workspace", typeof(ProductColorsViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
@@ -77,8 +78,9 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 IsExpanded: true,
                 Children:
                 [
-                    new("products", "产品资料", "Workspace", "Cube24"),
                     new(ProductMasterManagerViewModel.RouteKey, "主产品管理", "Workspace", "DocumentTable24"),
+                    new(ProductNeutralManagerViewModel.RouteKey, "中性产品管理", "Workspace", "DocumentTable24"),
+                    new("products", "产品资料", "Workspace", "Cube24"),
                     new("product-category-manager", "产品分类管理", "Workspace", "Folder24"),
                     new("product-colors", "产品颜色管理", "Workspace", "Color24"),
                     new("product-bom", "BOM", "Workspace", "Branch24"),

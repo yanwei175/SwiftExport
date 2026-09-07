@@ -91,16 +91,17 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public string Marks { get; set; }
         public string Note { get; set; }
         public Guid GrossDemandId { get; set; }
-        public Guid NetDemandId { get; set; }
-        public Guid NetDemandAllocationId { get; set; }
-        public int SourceVersion { get; set; }
+        public Guid? NetDemandId { get; set; }
+        public Guid? NetDemandAllocationId { get; set; }
+        public int DemandVersion { get; set; }
+        public int? SourceVersion { get; set; }
         public decimal ShippableRemainingQty { get; set; }
         public Guid? DemandExecutionLinkId { get; set; }
         public Guid? SalesOrderId { get; set; }
         public Guid? SalesOrderLineId { get; set; }
         public string SalesOrderNo { get; set; }
         public int? SalesOrderLineNumber { get; set; }
-        public Guid SourceSupplierId { get; set; }
+        public Guid? SourceSupplierId { get; set; }
         public string SourceSupplierName { get; set; }
         public Guid WarehouseSiteId { get; set; }
         public string WarehouseCode { get; set; }
@@ -121,6 +122,9 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
     /// <remarks>来源表：NetDemandAllocation、NetDemand、GrossDemand、Product、InventoryBalance、WarehouseSite。</remarks>
     public class PackingListSourceDto : PackingListContributionDto
     {
+        public string SourceType { get; set; }
+        public Guid SourceUid { get; set; }
+        public Guid SourceLineId { get; set; }
         public Guid CustomerId { get; set; }
         public string CustomerCode { get; set; }
         public string CustomerName { get; set; }
@@ -161,8 +165,10 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
     {
         public Guid? Uid { get; set; }
         public int? ExpectedVersion { get; set; }
-        public Guid NetDemandAllocationId { get; set; }
-        public int ExpectedSourceVersion { get; set; }
+        public Guid GrossDemandId { get; set; }
+        public Guid? WarehouseSiteId { get; set; }
+        public int ExpectedDemandVersion { get; set; }
+        public int? ExpectedSourceVersion { get; set; }
         public decimal ExpectedRemainingQty { get; set; }
         public decimal Quantity { get; set; }
         public decimal? PackageCount { get; set; }
@@ -220,7 +226,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
     public class PackingListPreviewLineDto
     {
         public Guid ContributionId { get; set; }
-        public Guid NetDemandAllocationId { get; set; }
+        public Guid? NetDemandAllocationId { get; set; }
         public string Sku { get; set; }
         public decimal PackingQty { get; set; }
         public decimal ShippableRemainingQty { get; set; }

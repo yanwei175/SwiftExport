@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
+using SwiftExport.Contracts.DTOs.SalesOrders.Manager;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Sales.Orders.Services;
@@ -50,9 +51,10 @@ public sealed class SalesOrderManagerFilterTests
     [TestMethod]
     public async Task InitializeAndSearch_ShouldLoadCustomerCodesAndSendMultiStatusFilters()
     {
-        var api = new RecordingWorkspaceApi();
+        var api = new RecordingManagerApi();
         var viewModel = new SalesOrderManagerViewModel(
             api,
+            new RecordingDetailApi(),
             new DirectApiCallRunner(),
             null!,
             null!,
@@ -87,9 +89,10 @@ public sealed class SalesOrderManagerFilterTests
     [TestMethod]
     public async Task ClearFilters_ShouldClearAllSelectedCollectionsAndCustomerCode()
     {
-        var api = new RecordingWorkspaceApi();
+        var api = new RecordingManagerApi();
         var viewModel = new SalesOrderManagerViewModel(
             api,
+            new RecordingDetailApi(),
             new DirectApiCallRunner(),
             null!,
             null!,
@@ -113,7 +116,7 @@ public sealed class SalesOrderManagerFilterTests
     [TestMethod]
     public async Task CancelConfirmation_WhenDialogIsClosed_ShouldNotCallApi()
     {
-        var api = new RecordingWorkspaceApi();
+        var api = new RecordingDetailApi();
         var viewModel = CreateCancellationViewModel(api, new CancellationDialogStub(null));
         viewModel.SelectedOrder = ConfirmedOrder();
 
@@ -125,7 +128,7 @@ public sealed class SalesOrderManagerFilterTests
     [TestMethod]
     public async Task CancelConfirmation_ShouldSendReasonAndFreshCommandId()
     {
-        var api = new RecordingWorkspaceApi();
+        var api = new RecordingDetailApi();
         var viewModel = CreateCancellationViewModel(api, new CancellationDialogStub("客户要求改单"));
         var order = ConfirmedOrder();
         viewModel.SelectedOrder = order;
@@ -141,9 +144,10 @@ public sealed class SalesOrderManagerFilterTests
     }
 
     private static SalesOrderManagerViewModel CreateCancellationViewModel(
-        RecordingWorkspaceApi api,
+        RecordingDetailApi api,
         ISalesOrderCancellationDialogService cancellationDialog) =>
         new(
+            new RecordingManagerApi(),
             api,
             new DirectApiCallRunner(),
             null!,
@@ -171,7 +175,7 @@ public sealed class SalesOrderManagerFilterTests
         return string.Empty;
     }
 
-    private static SalesOrderListItemDto ConfirmedOrder() =>
+    private static SalesOrderManagerListItemDto ConfirmedOrder() =>
         new()
         {
             Uid = Guid.NewGuid(),
@@ -181,19 +185,18 @@ public sealed class SalesOrderManagerFilterTests
             ConfirmationStatus = ConfirmationStatusEnum.已确认
         };
 
-    private sealed class RecordingWorkspaceApi : ISalesOrderWorkspaceApi
+    /// <summary>记录 Manager 查询请求，验证列表页只通过 Manager API 加载筛选和分页数据。</summary>
+    private sealed class RecordingManagerApi : ISalesOrderManagerApi
     {
-        public SalesOrderSearchRequest? LastSearchRequest { get; private set; }
-        public CancelSalesOrderConfirmationCommand? LastCancelCommand { get; private set; }
-        public int CancelCallCount { get; private set; }
+        public SalesOrderManagerSearchRequest? LastSearchRequest { get; private set; }
 
-        public Task<ServiceResult<PagedResponseBase<SalesOrderListItemDto>>> SearchAsync(
-            SalesOrderSearchRequest request,
+        public Task<ServiceResult<PagedResponseBase<SalesOrderManagerListItemDto>>> SearchAsync(
+            SalesOrderManagerSearchRequest request,
             CancellationToken cancellationToken = default)
         {
             LastSearchRequest = request;
-            return Task.FromResult(ServiceResult<PagedResponseBase<SalesOrderListItemDto>>.Ok(
-                new PagedResponseBase<SalesOrderListItemDto>
+            return Task.FromResult(ServiceResult<PagedResponseBase<SalesOrderManagerListItemDto>>.Ok(
+                new PagedResponseBase<SalesOrderManagerListItemDto>
                 {
                     PageIndex = request.PageIndex,
                     PageSize = request.PageSize,
@@ -202,8 +205,15 @@ public sealed class SalesOrderManagerFilterTests
 
         public Task<ServiceResult<List<string>>> GetCustomerCodesAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(ServiceResult<List<string>>.Ok(["C001", "C002"]));
+    }
 
-        public Task<ServiceResult<SalesOrderDocumentDto>> GetDocumentAsync(Guid uid, CancellationToken cancellationToken = default) => NotSupported<SalesOrderDocumentDto>();
+    /// <summary>记录 Detail 快捷命令，验证 Manager 页复用 Detail API 的权威命令入口。</summary>
+    private sealed class RecordingDetailApi : ISalesOrderDetailApi
+    {
+        public CancelSalesOrderConfirmationCommand? LastCancelCommand { get; private set; }
+        public int CancelCallCount { get; private set; }
+
+        public Task<ServiceResult<SalesOrderDetailDto>> GetAsync(Guid uid, CancellationToken cancellationToken = default) => NotSupported<SalesOrderDetailDto>();
         public Task<ServiceResult<PagedResponseBase<SalesOrderProductLookupDto>>> SearchProductsAsync(SalesOrderProductSearchRequest request, CancellationToken cancellationToken = default) => NotSupported<PagedResponseBase<SalesOrderProductLookupDto>>();
         public Task<ServiceResult<PagedResponseBase<SalesOrderCustomerLookupDto>>> SearchCustomersAsync(SalesOrderCustomerSearchRequest request, CancellationToken cancellationToken = default) => NotSupported<PagedResponseBase<SalesOrderCustomerLookupDto>>();
         public Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request) => NotSupported<SaveSalesOrderResponse>();
@@ -222,7 +232,7 @@ public sealed class SalesOrderManagerFilterTests
                     ConfirmationStatus = ConfirmationStatusEnum.待确认
                 }));
         }
-        public Task<ServiceResult<SalesOrderDocumentDto>> CloseAsync(Guid uid, CloseSalesOrderRequest request) => NotSupported<SalesOrderDocumentDto>();
+        public Task<ServiceResult<SalesOrderDetailDto>> CloseAsync(Guid uid, CloseSalesOrderRequest request) => NotSupported<SalesOrderDetailDto>();
         public Task<ServiceResult<bool>> DeleteDraftAsync(Guid uid, SalesOrderCommandRequest request) => NotSupported<bool>();
 
         private static Task<ServiceResult<T>> NotSupported<T>() =>

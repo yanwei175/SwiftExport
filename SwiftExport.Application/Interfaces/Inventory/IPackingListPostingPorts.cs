@@ -24,7 +24,8 @@ public sealed class PackingListPostingPortLine
 {
     public Guid CommandItemId { get; set; }
     public Guid ContributionId { get; set; }
-    public Guid NetDemandAllocationId { get; set; }
+    /// <summary>可选的计划分配追溯标识，不作为客户交付准入条件。</summary>
+    public Guid? NetDemandAllocationId { get; set; }
     public Guid? GrossDemandId { get; set; }
     public Guid WarehouseSiteId { get; set; }
     public string? WarehouseCode { get; set; }

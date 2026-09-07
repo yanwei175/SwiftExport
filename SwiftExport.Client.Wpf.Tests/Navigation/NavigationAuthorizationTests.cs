@@ -18,7 +18,7 @@ public sealed class NavigationAuthorizationTests
     {
         var registry = new NavigationRouteRegistry();
 
-        Assert.AreEqual(30, registry.Routes.Count);
+        Assert.AreEqual(31, registry.Routes.Count);
         foreach (var route in registry.Routes)
         {
             Assert.IsFalse(string.IsNullOrWhiteSpace(route.ModuleKey), route.Key);

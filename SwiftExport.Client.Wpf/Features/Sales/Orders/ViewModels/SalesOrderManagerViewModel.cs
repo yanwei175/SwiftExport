@@ -2,7 +2,8 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
-using SwiftExport.Contracts.DTOs.SalesOrders.Workspace;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
+using SwiftExport.Contracts.DTOs.SalesOrders.Manager;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.Sales.Orders.Models;
 using SwiftExportClient.Features.Sales.Orders.Services;
@@ -16,12 +17,16 @@ using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.Sales.Orders.ViewModels;
 
+/// <summary>
+/// 销售订单 Manager 页面模型，负责列表筛选、选中预览和复用 Detail API 的快捷命令。
+/// </summary>
 public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsyncInitializable
 {
     public const string RouteKey = "sales-orders";
     public const string DetailRouteKey = "sales-order-detail";
 
-    private readonly ISalesOrderWorkspaceApi _api;
+    private readonly ISalesOrderManagerApi _managerApi;
+    private readonly ISalesOrderDetailApi _detailApi;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly INavigationService _navigationService;
     private readonly IDialogService _dialogService;
@@ -30,15 +35,18 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     private CancellationTokenSource? _lineLoadCancellation;
     private bool _initialized;
 
+    /// <summary>注入 Manager 查询、Detail 命令及页面导航和反馈依赖。</summary>
     public SalesOrderManagerViewModel(
-        ISalesOrderWorkspaceApi api,
+        ISalesOrderManagerApi managerApi,
+        ISalesOrderDetailApi detailApi,
         IApiCallRunner apiCallRunner,
         INavigationService navigationService,
         IDialogService dialogService,
         ISalesOrderCancellationDialogService cancellationDialogService,
         IMessageService messageService)
     {
-        _api = api;
+        _managerApi = managerApi;
+        _detailApi = detailApi;
         _apiCallRunner = apiCallRunner;
         _navigationService = navigationService;
         _dialogService = dialogService;
@@ -59,8 +67,8 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         RegisterBusyAwareCommand(PageChangeCommand);
     }
 
-    public ObservableCollection<SalesOrderListItemDto> Orders { get; } = [];
-    public ObservableCollection<SalesOrderDocumentLineDto> SelectedOrderLines { get; } = [];
+    public ObservableCollection<SalesOrderManagerListItemDto> Orders { get; } = [];
+    public ObservableCollection<SalesOrderDetailLineDto> SelectedOrderLines { get; } = [];
     public ObservableCollection<string> CustomerCodeOptions { get; } = [];
     public IReadOnlyList<SalesOrderFilterOption<SalesOrderDocumentStatusEnum>> DocumentStatusOptions { get; } =
     [
@@ -108,7 +116,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     [NotifyCanExecuteChangedFor(nameof(CancelConfirmationCommand))]
     [NotifyCanExecuteChangedFor(nameof(CloseSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteDraftCommand))]
-    public partial SalesOrderListItemDto? SelectedOrder { get; set; }
+    public partial SalesOrderManagerListItemDto? SelectedOrder { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TotalPages))]
@@ -232,7 +240,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         try
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.GetDocumentAsync(selected.Uid, cancellationToken),
+                () => _detailApi.GetAsync(selected.Uid, cancellationToken),
                 cancellationToken,
                 "加载销售订单明细失败");
             if (cancellationToken.IsCancellationRequested || !ReferenceEquals(selected, SelectedOrder))
@@ -277,7 +285,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         await RunWriteAsync(async () =>
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.ConfirmAsync(order.Uid, CreateConfirmCommand(order)),
+                () => _detailApi.ConfirmAsync(order.Uid, CreateConfirmCommand(order)),
                 "确认销售订单失败");
             if (!result.Success || result.Data is null)
             {
@@ -304,7 +312,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         await RunWriteAsync(async () =>
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.CancelConfirmationAsync(order.Uid, CreateCancelConfirmationCommand(order, reason)),
+                () => _detailApi.CancelConfirmationAsync(order.Uid, CreateCancelConfirmationCommand(order, reason)),
                 "取消销售订单确认失败");
             if (!result.Success || result.Data is null)
             {
@@ -334,7 +342,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         await RunWriteAsync(async () =>
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.CloseAsync(order.Uid, new CloseSalesOrderRequest
+                () => _detailApi.CloseAsync(order.Uid, new CloseSalesOrderRequest
                 {
                     Uid = order.Uid,
                     Version = order.Version,
@@ -367,7 +375,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         await RunWriteAsync(async () =>
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.DeleteDraftAsync(order.Uid, CreateCommandRequest(order)),
+                () => _detailApi.DeleteDraftAsync(order.Uid, CreateCommandRequest(order)),
                 "删除销售订单草稿失败");
             if (!result.Success)
             {
@@ -401,7 +409,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
             _lineLoadCancellation = null;
             SelectedOrderLines.Clear();
             var result = await _apiCallRunner.RunAsync(
-                () => _api.SearchAsync(CreateSearchRequest()),
+                () => _managerApi.SearchAsync(CreateSearchRequest()),
                 "查询销售订单失败");
             if (!result.Success || result.Data is null)
             {
@@ -428,7 +436,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     private async Task LoadCustomerCodesAsync()
     {
         var result = await _apiCallRunner.RunAsync(
-            () => _api.GetCustomerCodesAsync(),
+            () => _managerApi.GetCustomerCodesAsync(),
             "加载客户代码建议失败");
         if (!result.Success || result.Data is null)
         {
@@ -442,9 +450,9 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         }
     }
 
-    private SalesOrderSearchRequest CreateSearchRequest()
+    private SalesOrderManagerSearchRequest CreateSearchRequest()
     {
-        var request = new SalesOrderSearchRequest
+        var request = new SalesOrderManagerSearchRequest
         {
             Keyword = Keyword.Trim(),
             OrderNo = OrderNo.Trim(),
@@ -474,19 +482,19 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
             .ToList();
     }
 
-    private static SalesOrderCommandRequest CreateCommandRequest(SalesOrderListItemDto order)
+    private static SalesOrderCommandRequest CreateCommandRequest(SalesOrderManagerListItemDto order)
     {
         return new SalesOrderCommandRequest { Uid = order.Uid, Version = order.Version };
     }
 
     /// <summary>为一次销售确认生成非空幂等命令标识；网络层重试复用同一请求对象。</summary>
-    private static ConfirmSalesOrderCommand CreateConfirmCommand(SalesOrderListItemDto order)
+    private static ConfirmSalesOrderCommand CreateConfirmCommand(SalesOrderManagerListItemDto order)
     {
         return new ConfirmSalesOrderCommand { Uid = order.Uid, Version = order.Version, CommandId = Guid.NewGuid() };
     }
 
     private static CancelSalesOrderConfirmationCommand CreateCancelConfirmationCommand(
-        SalesOrderListItemDto order,
+        SalesOrderManagerListItemDto order,
         string reason)
     {
         return new CancelSalesOrderConfirmationCommand

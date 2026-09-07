@@ -43,6 +43,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<HomeViewModel>();
         services.AddTransient<ProductsViewModel>();
         services.AddTransient<ProductMasterManagerViewModel>();
+        services.AddTransient<ProductNeutralManagerViewModel>();
         services.AddTransient<ProductMasterDetailViewModel>();
         services.AddTransient<BomDrawerViewModel>();
         services.AddTransient<ProductColorsViewModel>();

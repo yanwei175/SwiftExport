@@ -1,8 +1,11 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.DemandPlanning;
+using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Services.DemandPlanning;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auditing;
 using SwiftExport.Core.Entities.DemandPlanning;
@@ -13,6 +16,7 @@ using SwiftExport.Infrastructure.Data;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Logging;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
@@ -80,12 +84,12 @@ public sealed class SourceDemandReceptionServiceTests
     public async Task SourceTypesAreIsolatedByFullSourceIdentity()
     {
         using var fixture = new ReceptionFixture();
-        await fixture.Service.ReceiveAsync(fixture.Command("SO", 1));
-        await fixture.Service.ReceiveAsync(fixture.Command("ComplaintReplenishment", 1));
+        await fixture.Service.ReceiveAsync(fixture.Command(DocumentTypeStaticsEnum.SalesOrder, 1));
+        await fixture.Service.ReceiveAsync(fixture.Command(DocumentTypeStaticsEnum.ComplaintReplenishment, 1));
 
         Assert.AreEqual(2, fixture.Repository.Demands.Count);
         CollectionAssert.AreEquivalent(
-            new[] { "SO", "ComplaintReplenishment" },
+            new[] { DocumentTypeStaticsEnum.SalesOrder, DocumentTypeStaticsEnum.ComplaintReplenishment },
             fixture.Repository.Demands.Select(item => item.SourceType).ToArray());
     }
 
@@ -103,6 +107,62 @@ public sealed class SourceDemandReceptionServiceTests
         Assert.AreEqual("UNSUBMITTED_ACTIVE_SOURCE", error.Code);
     }
 
+    [TestMethod]
+    public async Task DeliveryVerificationAggregatesClaimsAndRejectsStaleOrTerminatedSource()
+    {
+        using var fixture = new ReceptionFixture();
+        await fixture.Service.ReceiveAsync(fixture.Command(DocumentTypeStaticsEnum.SalesOrder, 1));
+        var demand = fixture.Repository.Demands.Single();
+        demand.DemandQty = 10m;
+        fixture.Repository.DeliveredQty[demand.Uid] = 2m;
+        var claim = new SourceDemandDeliveryClaim
+        {
+            GrossDemandId = demand.Uid, ExpectedDemandVersion = demand.Version,
+            ExpectedSourceVersion = demand.SourceVersion, Quantity = 1m
+        };
+
+        var verified = await fixture.DeliveryService.VerifyForUpdateAsync([claim, new SourceDemandDeliveryClaim
+        {
+            GrossDemandId = demand.Uid, ExpectedDemandVersion = demand.Version,
+            ExpectedSourceVersion = demand.SourceVersion, Quantity = 7m
+        }], true);
+        Assert.AreEqual(8m, verified[demand.Uid].RemainingQty);
+
+        var exceeded = await Assert.ThrowsAsync<SourceDemandDeliveryException>(() => fixture.DeliveryService.VerifyForUpdateAsync([claim, new SourceDemandDeliveryClaim
+        {
+            GrossDemandId = demand.Uid, ExpectedDemandVersion = demand.Version,
+            ExpectedSourceVersion = demand.SourceVersion, Quantity = 8m
+        }], true));
+        Assert.AreEqual("DELIVERY_QUOTA_EXCEEDED", exceeded.Code);
+
+        demand.Version++;
+        Assert.AreEqual("SOURCE_CHANGED", (await Assert.ThrowsAsync<SourceDemandDeliveryException>(
+            () => fixture.DeliveryService.VerifyForUpdateAsync([claim], true))).Code);
+        demand.LifecycleStatus = GrossDemandLifecycleStatusEnum.Closed;
+        Assert.AreEqual("SOURCE_INACTIVE", (await Assert.ThrowsAsync<SourceDemandDeliveryException>(
+            () => fixture.DeliveryService.VerifyForUpdateAsync([claim], true))).Code);
+    }
+
+    [TestMethod]
+    public async Task ComplaintDeliveryHasIndependentQuotaButBlocksInventoryWithoutOrderPoolOwnership()
+    {
+        using var fixture = new ReceptionFixture();
+        await fixture.Service.ReceiveAsync(fixture.Command(DocumentTypeStaticsEnum.SalesOrder, 1));
+        await fixture.Service.ReceiveAsync(fixture.Command(DocumentTypeStaticsEnum.ComplaintReplenishment, 1));
+        var complaint = fixture.Repository.Demands.Single(item => item.SourceType == DocumentTypeStaticsEnum.ComplaintReplenishment);
+        var claim = new SourceDemandDeliveryClaim
+        {
+            GrossDemandId = complaint.Uid, ExpectedDemandVersion = complaint.Version,
+            ExpectedSourceVersion = complaint.SourceVersion, Quantity = 1m
+        };
+
+        await fixture.DeliveryService.VerifyForUpdateAsync([claim], false);
+        var blocked = await Assert.ThrowsAsync<SourceDemandDeliveryException>(
+            () => fixture.DeliveryService.VerifyForUpdateAsync([claim], true));
+        Assert.AreEqual("ORDER_POOL_OWNERSHIP_REQUIRED", blocked.Code);
+        Assert.AreEqual(2, fixture.Repository.Demands.Count);
+    }
+
     /// <summary>组合内存仓储与显式事务会话，使测试只验证协议而不依赖数据库。</summary>
     private sealed class ReceptionFixture : IDisposable
     {
@@ -113,6 +173,7 @@ public sealed class SourceDemandReceptionServiceTests
             Session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             Session.Transaction = _connection.BeginTransaction();
             Service = new SourceDemandReceptionService(Session, Repository, Logs, new Correlation(), new User());
+            DeliveryService = new SourceDemandDeliveryService(new ServiceBaseContext(Session, LoggerFactory.Create(_ => { })), Repository);
         }
 
         public Guid SourceUid { get; } = Guid.NewGuid();
@@ -123,6 +184,7 @@ public sealed class SourceDemandReceptionServiceTests
         public FakeOperationLogs Logs { get; } = new();
         public DbSession Session { get; }
         public SourceDemandReceptionService Service { get; }
+        public SourceDemandDeliveryService DeliveryService { get; }
 
         public SourceDemandReceptionCommand Command(string sourceType, int sourceVersion) => new()
         {
@@ -143,7 +205,27 @@ public sealed class SourceDemandReceptionServiceTests
     private sealed class FakeGrossDemandRepository : IGrossDemandRepository
     {
         public List<GrossDemand> Demands { get; } = [];
+        public Dictionary<Guid, decimal> DeliveredQty { get; } = [];
         public bool HasBlocker { get; set; }
+        public Task<PagedResponseBase<SourceDemandDeliveryItemDto>> SearchDeliverableAsync(SourceDemandDeliverySearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<SourceDemandDeliveryItemDto?> GetDeliveryContextAsync(Guid grossDemandId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<SourceDemandDeliveryItemDto>> GetDeliveryContextsForUpdateAsync(IEnumerable<Guid> grossDemandIds, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<SourceDemandDeliveryItemDto>>(Demands.Where(item => grossDemandIds.Contains(item.Uid)).Select(ToDelivery).ToList());
+        private SourceDemandDeliveryItemDto ToDelivery(GrossDemand demand)
+        {
+            var delivered = DeliveredQty.GetValueOrDefault(demand.Uid);
+            return new SourceDemandDeliveryItemDto
+            {
+                GrossDemandId = demand.Uid, DemandVersion = demand.Version, SourceType = demand.SourceType,
+                SourceUid = demand.SourceUid, SourceLineId = demand.SourceLineId, SourceVersion = demand.SourceVersion,
+                CustomerId = demand.CustomerId, ProductId = demand.ProductId, Unit = demand.UnitSnapshot,
+                DemandQty = demand.DemandQty, DeliveredQty = delivered, RemainingQty = demand.DemandQty - delivered,
+                IsActive = demand.LifecycleStatus == GrossDemandLifecycleStatusEnum.Active && !demand.IsDeleted,
+                OrderPoolSalesOrderId = demand.SourceType == DocumentTypeStaticsEnum.SalesOrder ? demand.SourceUid : null,
+                IsInventoryActionAllowed = demand.SourceType == DocumentTypeStaticsEnum.SalesOrder,
+                InventoryBlockerCode = demand.SourceType == DocumentTypeStaticsEnum.ComplaintReplenishment ? "ORDER_POOL_OWNERSHIP_REQUIRED" : null
+            };
+        }
         public Task<IReadOnlyList<GrossDemand>> GetActiveBySourceForUpdateAsync(string sourceType, Guid sourceUid)
             => Task.FromResult<IReadOnlyList<GrossDemand>>(Demands.Where(item => item.SourceType == sourceType && item.SourceUid == sourceUid && !item.IsDeleted && item.LifecycleStatus == GrossDemandLifecycleStatusEnum.Active).ToList());
         public Task<IReadOnlyList<RepositoryWriteResult>> AddSourceDemandsAsync(IEnumerable<GrossDemand> demands)

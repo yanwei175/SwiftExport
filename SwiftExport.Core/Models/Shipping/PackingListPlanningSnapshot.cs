@@ -15,7 +15,12 @@ public sealed class PackingListPlanningLineSnapshot
     public bool IsSourceActive { get; set; }
     public bool IsProductActive { get; set; }
     public bool IsWarehouseActive { get; set; }
-    public int SourceVersion { get; set; }
+    /// <summary>来源需求当前并发版本。</summary>
+    public int DemandVersion { get; set; }
+    /// <summary>上游来源单据的当前事实版本。</summary>
+    public int? SourceVersion { get; set; }
+    /// <summary>来源需求是否具有可证明的订单池归属；缺失时正式库存动作必须阻断。</summary>
+    public bool HasOrderPoolOwnership { get; set; }
     public decimal PlannedQty { get; set; }
     public decimal ShippedNetQty { get; set; }
     public decimal SourceInboundNetQty { get; set; }
