@@ -96,7 +96,7 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
                       AND (keywordLine.Sku LIKE @Keyword ESCAPE '~'
                         OR keywordLine.CustomerSku LIKE @Keyword ESCAPE '~'
                         OR keywordLine.LinkSku LIKE @Keyword ESCAPE '~'
-                        OR keywordLine.DefaultDescriptionEn LIKE @Keyword ESCAPE '~')))");
+                        OR keywordLine.DescriptionEn LIKE @Keyword ESCAPE '~')))");
         }
 
         if (request.FulfillmentStatuses?.Count > 0)
@@ -200,7 +200,7 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
             SELECT
                 l.Uid, l.Version, l.CreatedDate, l.CreatedBy, l.UpdatedDate, l.UpdatedBy,
                 l.LineNumber, l.IsNonStandard, l.ProductId, l.CustomerProductId,
-                l.Sku, l.LinkSku, l.CustomerSku, l.DefaultDescriptionEn, l.ColorNameEn, l.FeaturesEn,
+                l.Sku, l.LinkSku, l.CustomerSku, l.DescriptionEn, l.ColorNameEn, l.FeaturesEn,
                 l.Qty, l.CnyPrice, l.UsdPrice, l.PcsOfCarton, l.NwOfCarton, l.GwOfCarton,
                 l.CbmOfCarton, l.ExpectedDeliveryDate, l.SubNote, l.MainImage,
                 shipped.ShippedQty,
