@@ -95,6 +95,8 @@ public static class DependencyInjection
         // 视图路由配置服务
         services.AddScoped<ISysViewRouteService, SysViewRouteService>();
 
+        services.AddScoped<SwiftExport.Application.Interfaces.QualityControl.IAfterSalesService, SwiftExport.Application.Services.QualityControl.AfterSalesService>();
+        services.AddScoped<SwiftExport.Application.Interfaces.DemandPlanning.ISourceDemandClosureService, SwiftExport.Application.Services.DemandPlanning.SourceDemandClosureService>();
         return services;
     }
 }

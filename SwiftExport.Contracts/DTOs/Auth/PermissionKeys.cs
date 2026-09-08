@@ -25,6 +25,8 @@ namespace SwiftExport.Contracts.DTOs.Auth
         public const string ModuleInventoryAccess = "Module.Inventory.Access";
         /// <summary>出货模块访问权限。</summary>
         public const string ModuleShippingAccess = "Module.Shipping.Access";
+        /// <summary>品质与售后模块访问权限。</summary>
+        public const string ModuleQualityControlAccess = "Module.QualityControl.Access";
         /// <summary>仅由服务端为 Admin 生成的设置管理能力。</summary>
         public const string SystemSettingsManage = "System.Settings.Manage";
 
@@ -42,7 +44,8 @@ namespace SwiftExport.Contracts.DTOs.Auth
             ModuleDemandPlanningAccess,
             ModuleProcurementAccess,
             ModuleInventoryAccess,
-            ModuleShippingAccess
+            ModuleShippingAccess,
+            ModuleQualityControlAccess
         };
 
         private static readonly string[] ProcurementOperationValues =

@@ -34,7 +34,35 @@ namespace SwiftExport.Client.VSTO.Hosting.Windows
             }
             catch { windows.Remove(key); window?.Close(); scope?.Dispose(); throw; }
         }
-        /// <summary>关闭自有窗口，由 Closed 完成会话释放。</summary>
+        /// <summary>在所属 Excel 窗口上显示模态对话框；返回确认结果，Scope 由调用方 finally 释放。</summary>
+        public bool? ShowDialog(string key, IntPtr owner, Func<Window> factory)
+        {
+            Window existing;
+            if (windows.TryGetValue(key, out existing))
+            {
+                existing.Activate();
+                return null;
+            }
+
+            Window window = null;
+            try
+            {
+                window = factory();
+                if (owner != IntPtr.Zero) new WindowInteropHelper(window).Owner = owner;
+                window.ShowInTaskbar = false;
+                windows.Add(key, window);
+                // 模态窗口使用 WPF 自有输入循环，不注册非模态键盘互操作。
+                return window.ShowDialog();
+            }
+            finally
+            {
+                windows.Remove(key);
+                // 显示失败或以 Hide 结束时也关闭窗口，正常关闭后无需重复操作。
+                if (window != null && window.IsLoaded) window.Close();
+            }
+        }
+
+        /// <summary>关闭自有窗口；非模态 Scope 由 Closed 释放，模态 Scope 由调用方 finally 释放。</summary>
         public void Dispose() { foreach (var window in new List<Window>(windows.Values)) window.Close(); windows.Clear(); }
     }
 }

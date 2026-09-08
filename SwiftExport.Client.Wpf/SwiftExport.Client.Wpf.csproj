@@ -34,6 +34,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Features\QualityControl\AfterSales\ViewModels\" />
+    <Folder Include="Features\QualityControl\AfterSales\Models\" />
     <Folder Include="Resources\AttachedProperties\" />
   </ItemGroup>
 

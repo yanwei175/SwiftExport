@@ -105,6 +105,8 @@ public static class DependencyInjection
         services.AddScoped<IPackingListPlanningRepository>(provider => provider.GetRequiredService<PackingListWorkspaceRepository>());
         services.AddScoped<IPackingListQueryRepository>(provider => provider.GetRequiredService<PackingListWorkspaceRepository>());
 
+        services.AddScoped<SwiftExport.Core.Interfaces.QualityControl.IAfterSalesRepository, SwiftExport.Infrastructure.Repositories.QualityControl.AfterSalesRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.DemandPlanning.ISourceDemandClosureRepository, SwiftExport.Infrastructure.Repositories.DemandPlanning.SourceDemandClosureRepository>();
         return services;
     }
 }

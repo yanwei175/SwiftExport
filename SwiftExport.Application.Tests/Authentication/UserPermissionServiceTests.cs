@@ -17,7 +17,7 @@ namespace SwiftExport.Application.Tests.Authentication;
 [TestClass]
 public sealed class UserPermissionServiceTests
 {
-    /// <summary>可分配目录严格等于阶段一确认的八个一级模块，不包含管理能力。</summary>
+    /// <summary>可分配目录严格等于包含品质模块的九个一级模块，不包含管理能力。</summary>
     [TestMethod]
     public void ModuleCatalogContainsOnlyStableAssignableKeys()
     {
@@ -30,7 +30,8 @@ public sealed class UserPermissionServiceTests
             PermissionKeys.ModuleDemandPlanningAccess,
             PermissionKeys.ModuleProcurementAccess,
             PermissionKeys.ModuleInventoryAccess,
-            PermissionKeys.ModuleShippingAccess
+            PermissionKeys.ModuleShippingAccess,
+            PermissionKeys.ModuleQualityControlAccess
         }, PermissionKeys.Modules.ToArray());
         CollectionAssert.DoesNotContain(PermissionKeys.Modules.ToList(), PermissionKeys.SystemSettingsManage);
     }

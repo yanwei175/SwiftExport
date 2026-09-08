@@ -126,8 +126,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 IsExpanded: true,
                 Children:
                 [
-                    new(GrossDemandWorkspaceViewModel.RouteKey, "毛需求", "Workspace", "DataTrending24"),
-                    new(NetDemandWorkspaceViewModel.RouteKey, "净需求", "Workspace", "ClipboardTaskListLtr24"),
+                    new(GrossDemandWorkspaceViewModel.RouteKey, "来源需求", "Workspace", "DataTrending24"),
+                    new(NetDemandWorkspaceViewModel.RouteKey, "物料需求", "Workspace", "ClipboardTaskListLtr24"),
                 ]),
             new(
                 "procurement",

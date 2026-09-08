@@ -222,9 +222,10 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Assets\" />
-    <Folder Include="Bootstrapper\" />
-    <Folder Include="Features\" />
-    <Folder Include="Ioc\" />
+    <Folder Include="Excel\Reading\" />
+    <Folder Include="Excel\Writing\" />
+    <Folder Include="Features\DataImport\" />
+    <Folder Include="Features\DocumentGeneration\" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
@@ -250,12 +251,43 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
     <PackageReference Include="WPF-UI" Version="4.3.0" />
     <PackageReference Include="Refit" Version="10.0.1" ExcludeAssets="analyzers" />
-    <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj"><Name>SwiftExport.Contracts</Name></ProjectReference>
-    <Compile Include="Authentication\**\*.cs;Api\**\*.cs;Bootstrapper\**\*.cs;Ioc\**\*.cs;Hosting\**\*.cs;Mvvm\**\*.cs;Excel\**\*.cs;Diagnostics\**\*.cs;UI\**\*.cs" />
-    <Page Include="Authentication\LoginWindow.xaml;Resources\*.xaml"><Generator>MSBuild:Compile</Generator></Page>
-    <Content Include="vsto.config.xml"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content>
+    <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj">
+      <Name>SwiftExport.Contracts</Name>
+    </ProjectReference>
+    <Compile Include="Authentication\AuthService.cs" />
+    <Compile Include="Authentication\CurrentUserService.cs" />
+    <Compile Include="Authentication\IAuthGateway.cs" />
+    <Compile Include="Authentication\ITokenStore.cs" />
+    <Compile Include="Authentication\LoginCoordinator.cs" />
+    <Compile Include="Authentication\LoginViewModel.cs" />
+    <Compile Include="Authentication\LoginWindow.xaml.cs" />
+    <Compile Include="Authentication\ProtectedTokenStore.cs" />
+    <Compile Include="Authentication\SessionService.cs" />
+    <Compile Include="Api\ApiCallRunner.cs" />
+    <Compile Include="Api\ApiClientRegistration.cs" />
+    <Compile Include="Api\AuthTokenHandler.cs" />
+    <Compile Include="Bootstrapper\AddInBootstrapper.cs" />
+    <Compile Include="Bootstrapper\ApiOptions.cs" />
+    <Compile Include="Ioc\ServiceRegistration.cs" />
+    <Compile Include="Hosting\TaskPanes\TaskPaneHostControl.cs" />
+    <Compile Include="Hosting\TaskPanes\TaskPaneManager.cs" />
+    <Compile Include="Hosting\Threading\ExcelDispatcher.cs" />
+    <Compile Include="Hosting\Threading\IUiDispatcher.cs" />
+    <Compile Include="Hosting\Threading\WpfUiDispatcher.cs" />
+    <Compile Include="Hosting\Windows\WindowManager.cs" />
+    <Compile Include="Hosting\WpfRuntimeHost.cs" />
+    <Compile Include="Mvvm\ViewModelBase.cs" />
+    <Compile Include="Mvvm\ViewModelBaseEx.cs" />
+    <Compile Include="Excel\Context\ExcelContextService.cs" />
+    <Compile Include="Diagnostics\AddInLog.cs" />
+    <Compile Include="UI\Themes\ThemeService.cs" />
+    <Page Include="Authentication\LoginWindow.xaml;Resources\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Content Include="vsto.config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <None Include="docs\**\*.md;AGENTS.md" />
-    <Folder Include="Excel\Reading\;Excel\Writing\;Features\DocumentGeneration\;Features\DataImport\;UI\Themes\" />
   </ItemGroup>
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

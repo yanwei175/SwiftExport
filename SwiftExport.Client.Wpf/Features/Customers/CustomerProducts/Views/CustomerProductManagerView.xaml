@@ -82,7 +82,7 @@
                 </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="标准 SKU" Width="150" SortMemberPath="Sku">
+                <DataGridTemplateColumn Header="物料编码" Width="150" SortMemberPath="Sku">
                     <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Sku}" Style="{StaticResource SwiftExportDataGridTextBlock}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
                     <DataGridTemplateColumn.CellEditingTemplate><DataTemplate>
                         <productComponents:ProductLookupTextBox
@@ -99,7 +99,7 @@
                     </DataTemplate></DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTextColumn Header="客户料号" Width="140" Binding="{Binding CustomerSku, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+                <DataGridTextColumn Header="客户型号" Width="140" Binding="{Binding CustomerSku, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                 <DataGridTextColumn Header="客户描述" Width="180" Binding="{Binding CustomerPdDescription, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
                 <DataGridTextColumn Header="客户系列" Width="110" Binding="{Binding CustomerPdSeries, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                 <DataGridTextColumn Header="客户颜色" Width="100" Binding="{Binding CustomerColorName, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />

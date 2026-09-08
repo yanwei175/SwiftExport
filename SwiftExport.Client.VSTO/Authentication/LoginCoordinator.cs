@@ -4,7 +4,7 @@ using System;
 
 namespace SwiftExport.Client.VSTO.Authentication
 {
-    /// <summary>合并所有 Excel 窗口的登录入口，窗口关闭时释放页面 Scope。</summary>
+    /// <summary>合并 Excel 登录入口，以模态窗口完成认证并在返回后释放页面 Scope。</summary>
     public sealed class LoginCoordinator
     {
         private readonly IServiceProvider provider;
@@ -19,31 +19,26 @@ namespace SwiftExport.Client.VSTO.Authentication
             this.windows = windows;
         }
 
-        /// <summary>在 Excel STA 打开或激活登录窗。</summary>
+        /// <summary>在 Excel STA 显示模态登录窗，取消或异常均释放 Scope 并复位入口状态。</summary>
         public void Show(IntPtr owner)
         {
             if (IsOpen) return;
             var scope = provider.CreateScope();
             IsOpen = true;
-            Changed?.Invoke(this, EventArgs.Empty);
             try
             {
-                windows.Show("login", owner, () =>
-                {
-                    var window = scope.ServiceProvider.GetRequiredService<LoginWindow>();
-                    window.Closed += (sender, args) =>
-                    {
-                        IsOpen = false;
-                        Changed?.Invoke(this, EventArgs.Empty);
-                    };
-                    return window;
-                }, scope);
-            }
-            catch
-            {
-                IsOpen = false;
                 Changed?.Invoke(this, EventArgs.Empty);
-                throw;
+                windows.ShowDialog("login", owner,
+                    () => scope.ServiceProvider.GetRequiredService<LoginWindow>());
+            }
+            finally
+            {
+                try { scope.Dispose(); }
+                finally
+                {
+                    IsOpen = false;
+                    Changed?.Invoke(this, EventArgs.Empty);
+                }
             }
         }
     }
