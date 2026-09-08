@@ -37,7 +37,7 @@ public sealed class ProductCategoryManagerViewModelTests
             new DialogServiceStub(),
             cache,
             new ProductCategoryAssignmentViewModel(
-                DispatchProxy.Create<IProductApi, NoCallProductApiProxy>(),
+                DispatchProxy.Create<IProductMasterApi, NoCallProductApiProxy>(),
                 runner,
                 new MessageServiceStub(),
                 new DialogServiceStub()));

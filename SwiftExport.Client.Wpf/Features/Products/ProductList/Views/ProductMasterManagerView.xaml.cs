@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Threading;
-using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 
 namespace SwiftExportClient.Features.Products.ProductList.Views;
@@ -84,11 +83,4 @@ public partial class ProductMasterManagerView : UserControl
         && NeutralGrid.CommitEdit(DataGridEditingUnit.Row, true)
         && MasterGrid.CommitEdit(DataGridEditingUnit.Cell, true)
         && MasterGrid.CommitEdit(DataGridEditingUnit.Row, true);
-
-    private async void OnCategorySelectedItemChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<object> e)
-    {
-        if (DataContext is ProductMasterManagerViewModel viewModel
-            && e.NewValue is ProductMasterCategoryFilterNode node)
-            await viewModel.SelectCategoryAsync(node);
-    }
 }

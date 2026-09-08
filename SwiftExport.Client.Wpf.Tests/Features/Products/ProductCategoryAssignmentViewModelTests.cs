@@ -1,8 +1,8 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.ProductApis;
-using SwiftExport.Contracts.DTOs.Products;
-using SwiftExport.Contracts.DTOs.Products.Requests;
-using SwiftExport.Contracts.DTOs.Products.Responses;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Products.Categories.Models;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
@@ -16,21 +16,22 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 public sealed class ProductCategoryAssignmentViewModelTests
 {
     [TestMethod]
-    public async Task ProductQuery_ShouldBeLazyAndOnlyRunWhilePanelIsOpen()
+    public async Task ProductMasterQuery_ShouldBeLazyAndOnlyRunWhilePanelIsOpen()
     {
-        var api = DispatchProxy.Create<IProductApi, ProductApiProxy>();
-        var proxy = (ProductApiProxy)(object)api;
+        var api = DispatchProxy.Create<IProductMasterApi, ProductMasterApiProxy>();
+        var proxy = (ProductMasterApiProxy)(object)api;
         proxy.PageResult = CreatePage();
         var viewModel = CreateViewModel(api);
         var category = Category("分类一");
 
         viewModel.SetHostState(category, hasCategoryChanges: false, canWrite: true);
-        Assert.AreEqual(0, proxy.PageCallCount, "普通选择分类不应请求产品。");
+        Assert.AreEqual(0, proxy.PageCallCount, "普通选择分类不应请求主型号。");
 
         await viewModel.OpenAssignmentPanelCommand.ExecuteAsync(null);
         Assert.AreEqual(1, proxy.PageCallCount);
         Assert.IsTrue(viewModel.IsAssignmentPanelOpen);
         Assert.AreEqual(1, viewModel.Lines.Count);
+        Assert.AreEqual(category.Uid, proxy.LastPageRequest?.ExcludeCategoryId);
 
         viewModel.Keyword = "SKU-001";
         await viewModel.SearchCommand.ExecuteAsync(null);
@@ -39,18 +40,18 @@ public sealed class ProductCategoryAssignmentViewModelTests
 
         viewModel.CloseAssignmentPanelCommand.Execute(null);
         await viewModel.ChangeTargetAsync(Category("分类二"), hasCategoryChanges: false, canWrite: true);
-        Assert.AreEqual(2, proxy.PageCallCount, "面板关闭后切换分类不应请求产品。");
-        Assert.AreEqual(0, viewModel.Lines.Count, "关闭面板后应释放产品行。");
+        Assert.AreEqual(2, proxy.PageCallCount, "面板关闭后切换分类不应请求主型号。");
+        Assert.AreEqual(0, viewModel.Lines.Count, "关闭面板后应释放主型号行。");
     }
 
     [TestMethod]
     public async Task AssignSelected_ShouldSendCurrentPageIdsAndVersions()
     {
-        var api = DispatchProxy.Create<IProductApi, ProductApiProxy>();
-        var proxy = (ProductApiProxy)(object)api;
+        var api = DispatchProxy.Create<IProductMasterApi, ProductMasterApiProxy>();
+        var proxy = (ProductMasterApiProxy)(object)api;
         proxy.PageResult = CreatePage();
-        proxy.AssignResult = ServiceResult<AssignProductsToCategoryResult>.Ok(
-            new AssignProductsToCategoryResult { UpdatedCount = 1 });
+        proxy.AssignResult = ServiceResult<AssignProductMastersToCategoryResult>.Ok(
+            new AssignProductMastersToCategoryResult { UpdatedCount = 1 });
         var viewModel = CreateViewModel(api);
         var category = Category("目标分类");
         viewModel.SetHostState(category, hasCategoryChanges: false, canWrite: true);
@@ -62,15 +63,15 @@ public sealed class ProductCategoryAssignmentViewModelTests
 
         Assert.IsNotNull(proxy.AssignRequest);
         Assert.AreEqual(category.Uid, proxy.AssignRequest.TargetCategoryId);
-        Assert.AreEqual(viewModel.Lines[0].Uid, proxy.AssignRequest.Items.Single().ProductId);
+        Assert.AreEqual(viewModel.Lines[0].Uid, proxy.AssignRequest.Items.Single().ProductMasterId);
         Assert.AreEqual(7, proxy.AssignRequest.Items.Single().ExpectedVersion);
     }
 
     [TestMethod]
     public async Task UnsavedCategoryChanges_ShouldDisableAssignmentButStillAllowReading()
     {
-        var api = DispatchProxy.Create<IProductApi, ProductApiProxy>();
-        var proxy = (ProductApiProxy)(object)api;
+        var api = DispatchProxy.Create<IProductMasterApi, ProductMasterApiProxy>();
+        var proxy = (ProductMasterApiProxy)(object)api;
         proxy.PageResult = CreatePage();
         var viewModel = CreateViewModel(api);
         var category = Category("待修改分类");
@@ -82,7 +83,7 @@ public sealed class ProductCategoryAssignmentViewModelTests
         Assert.IsFalse(viewModel.AssignSelectedCommand.CanExecute(null));
     }
 
-    private static ProductCategoryAssignmentViewModel CreateViewModel(IProductApi api) => new(
+    private static ProductCategoryAssignmentViewModel CreateViewModel(IProductMasterApi api) => new(
         api,
         new DirectApiCallRunner(),
         new MessageServiceStub(),
@@ -96,51 +97,55 @@ public sealed class ProductCategoryAssignmentViewModelTests
         State = ProductCategoryNodeState.Unchanged
     };
 
-    private static ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>> CreatePage() =>
-        ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>>.Ok(
-            new PagedResponseBase<ProductCategoryAssignmentRowDto>
+    private static ServiceResult<PagedResponseBase<ProductMasterListItemDto>> CreatePage() =>
+        ServiceResult<PagedResponseBase<ProductMasterListItemDto>>.Ok(
+            new PagedResponseBase<ProductMasterListItemDto>
             {
                 PageIndex = 1,
                 PageSize = 50,
                 TotalCount = 1,
                 Items =
                 [
-                    new ProductCategoryAssignmentRowDto
+                    new ProductMasterListItemDto
                     {
                         Uid = Guid.NewGuid(),
                         Version = 7,
-                        Sku = "SKU-001",
-                        OriginalCategoryName = "原分类"
+                        CategoryName = "原分类",
+                        Data = new ProductMasterWriteDto
+                        {
+                            MasterSku = "MASTER-001",
+                            DefaultDescriptionZh = "主型号描述"
+                        }
                     }
                 ]
             });
 
-    private class ProductApiProxy : DispatchProxy
+    private class ProductMasterApiProxy : DispatchProxy
     {
         public int PageCallCount { get; private set; }
-        public ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>> PageResult { get; set; } =
-            ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>>.Ok(new PagedResponseBase<ProductCategoryAssignmentRowDto>());
-        public ServiceResult<AssignProductsToCategoryResult> AssignResult { get; set; } =
-            ServiceResult<AssignProductsToCategoryResult>.Ok(new AssignProductsToCategoryResult());
-        public AssignProductsToCategoryRequest? AssignRequest { get; private set; }
-        public ProductCategoryAssignmentSearchRequest? LastPageRequest { get; private set; }
+        public ServiceResult<PagedResponseBase<ProductMasterListItemDto>> PageResult { get; set; } =
+            ServiceResult<PagedResponseBase<ProductMasterListItemDto>>.Ok(new PagedResponseBase<ProductMasterListItemDto>());
+        public ServiceResult<AssignProductMastersToCategoryResult> AssignResult { get; set; } =
+            ServiceResult<AssignProductMastersToCategoryResult>.Ok(new AssignProductMastersToCategoryResult());
+        public AssignProductMastersToCategoryRequest? AssignRequest { get; private set; }
+        public ProductMasterSearchRequest? LastPageRequest { get; private set; }
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            if (targetMethod?.Name == nameof(IProductApi.GetCategoryAssignmentPageAsync))
+            if (targetMethod?.Name == nameof(IProductMasterApi.GetPagedAsync))
             {
                 PageCallCount++;
-                LastPageRequest = (ProductCategoryAssignmentSearchRequest)args![0]!;
+                LastPageRequest = (ProductMasterSearchRequest)args![0]!;
                 return Task.FromResult(PageResult);
             }
 
-            if (targetMethod?.Name == nameof(IProductApi.AssignCategoryAsync))
+            if (targetMethod?.Name == nameof(IProductMasterApi.AssignCategoryAsync))
             {
-                AssignRequest = (AssignProductsToCategoryRequest)args![0]!;
+                AssignRequest = (AssignProductMastersToCategoryRequest)args![0]!;
                 return Task.FromResult(AssignResult);
             }
 
-            throw new AssertFailedException($"未配置产品 API：{targetMethod?.Name}");
+            throw new AssertFailedException($"未配置主型号 API：{targetMethod?.Name}");
         }
     }
 

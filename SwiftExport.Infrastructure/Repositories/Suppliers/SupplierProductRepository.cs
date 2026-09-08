@@ -19,7 +19,9 @@ public sealed class SupplierProductRepository(RepositoryBaseContext context)
         sp.SupplierId, s.SupplierCode, s.SupplierName,
         sp.SkuId, p.Sku AS ProductSku, p.LinkSku,
         p.DescriptionEn, p.DescriptionZh, p.FeaturesZh,
-        pc.CategoryName, p.MaterialType, p.MainImage,
+        CASE WHEN pm.Uid IS NULL OR pm.CategoryId IS NULL OR pm.CategoryId='00000000-0000-0000-0000-000000000000'
+             THEN N'未分类' ELSE COALESCE(pc.CategoryName, N'分类已失效') END AS CategoryName,
+        p.MaterialType, p.MainImage,
         sp.SupplierSku, sp.SupplierSkuDescriptionZh, sp.SupplierSkuFeaturesZh,
         sp.UnitPrice, sp.TaxPrice, s.Currency, s.TaxRate,
         CASE WHEN p.DefaultSupplierId = sp.SupplierId THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsProductDefaultSupplier
@@ -31,8 +33,10 @@ public sealed class SupplierProductRepository(RepositoryBaseContext context)
             ON s.Uid = sp.SupplierId AND ISNULL(s.IsDeleted, 0) = 0
         INNER JOIN dbo.Product p WITH (NOLOCK)
             ON p.Uid = sp.SkuId AND ISNULL(p.IsDeleted, 0) = 0
+        LEFT JOIN dbo.ProductMaster pm WITH (NOLOCK)
+            ON pm.Uid = p.ProductMasterId AND ISNULL(pm.IsDeleted, 0) = 0
         LEFT JOIN dbo.ProductCategory pc WITH (NOLOCK)
-            ON pc.Uid = p.CategoryId AND ISNULL(pc.IsDeleted, 0) = 0
+            ON pc.Uid = pm.CategoryId AND ISNULL(pc.IsDeleted, 0) = 0
         """;
 
     public async Task<SupplierProductDto?> GetDtoByIdAsync(Guid uid)

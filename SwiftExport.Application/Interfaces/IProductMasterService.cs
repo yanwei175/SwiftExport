@@ -14,6 +14,9 @@ public interface IProductMasterService
     /// <summary>分页查询主型号。</summary>
     Task<ServiceResult<PagedResponseBase<ProductMasterListItemDto>>> GetPagedAsync(ProductMasterSearchRequest request, CancellationToken cancellationToken = default);
 
+    /// <summary>批量设置主型号分类；任一项失败时整批回滚。</summary>
+    Task<ServiceResult<AssignProductMastersToCategoryResult>> AssignCategoryAsync(AssignProductMastersToCategoryRequest request, CancellationToken cancellationToken = default);
+
     /// <summary>读取主型号及其中性产品明细。</summary>
     Task<ServiceResult<ProductMasterDetailDto>> GetDetailAsync(Guid productMasterId, CancellationToken cancellationToken = default);
 

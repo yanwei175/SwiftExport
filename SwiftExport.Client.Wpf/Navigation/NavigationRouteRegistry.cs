@@ -78,11 +78,11 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 IsExpanded: true,
                 Children:
                 [
-                    new(ProductMasterManagerViewModel.RouteKey, "主产品管理", "Workspace", "DocumentTable24"),
-                    new(ProductNeutralManagerViewModel.RouteKey, "中性产品管理", "Workspace", "DocumentTable24"),
-                    new("products", "产品资料", "Workspace", "Cube24"),
-                    new("product-category-manager", "产品分类管理", "Workspace", "Folder24"),
-                    new("product-colors", "产品颜色管理", "Workspace", "Color24"),
+                    new(ProductMasterManagerViewModel.RouteKey, "主产品", "Workspace", "DocumentTable24"),
+                    new(ProductNeutralManagerViewModel.RouteKey, "中性产品", "Workspace", "DocumentTable24"),
+                    new("products", "物料", "Workspace", "Cube24"),
+                    new("product-category-manager", "产品分类", "Workspace", "Folder24"),
+                    new("product-colors", "产品颜色", "Workspace", "Color24"),
                     new("product-bom", "BOM", "Workspace", "Branch24"),
                 ]),
             new(
@@ -93,7 +93,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 IsExpanded: true,
                 Children:
                 [
-                    new("customers", "客户管理", "Workspace", "People24"),
+                    new("customers", "客户", "Workspace", "People24"),
                     new(CustomerProductWorkspaceViewModel.RouteKey, "客户产品管理", "Workspace", "DocumentTable24"),
                 ]),
             new(
@@ -104,8 +104,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 IsExpanded: true,
                 Children:
                 [
-                    new("suppliers", "供应商管理", "Workspace", "PeopleTeam24"),
-                    new(SupplierProductWorkspaceViewModel.RouteKey, "供应商产品管理", "Workspace", "DocumentTable24"),
+                    new("suppliers", "供应商清单", "Workspace", "PeopleTeam24"),
+                    new(SupplierProductWorkspaceViewModel.RouteKey, "供应商产品", "Workspace", "DocumentTable24"),
                 ]),
             new(
                 "sales",

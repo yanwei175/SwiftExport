@@ -1,83 +1,51 @@
-﻿using System;
-using System.Collections.Generic;
+using SwiftExport.Client.VSTO.Bootstrapper;
+using System;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
 using Office = Microsoft.Office.Core;
-
-// TODO:   按照以下步骤启用功能区(XML)项:
-
-// 1. 将以下代码块复制到 ThisAddin、ThisWorkbook 或 ThisDocument 类中。
-
-//  protected override Microsoft.Office.Core.IRibbonExtensibility CreateRibbonExtensibilityObject()
-//  {
-//      return new SwiftExportRibbon();
-//  }
-
-// 2. 在此类的“功能区回调”区域中创建回调方法，以处理用户
-//    操作(如单击某个按钮)。注意: 如果已经从功能区设计器中导出此功能区，
-//    则将事件处理程序中的代码移动到回调方法并修改该代码以用于
-//    功能区扩展性(RibbonX)编程模型。
-
-// 3. 向功能区 XML 文件中的控制标记分配特性，以标识代码中的相应回调方法。  
-
-// 有关详细信息，请参见 Visual Studio Tools for Office 帮助中的功能区 XML 文档。
-
-
 namespace SwiftExport.Client.VSTO
 {
+    /// <summary>Office Ribbon XML 回调，只读内存状态，不在 getter 请求服务器。</summary>
     [ComVisible(true)]
-    public class SwiftExportRibbon : Office.IRibbonExtensibility
+    public sealed class SwiftExportRibbon : Office.IRibbonExtensibility, IDisposable
     {
         private Office.IRibbonUI ribbon;
-
-        public SwiftExportRibbon()
+        private AddInBootstrapper host;
+        /// <summary>允许 Ribbon 先于 Startup 创建，随后绑定宿主。</summary>
+        public void Attach(AddInBootstrapper value)
         {
+            if (host != null) host.Changed -= Host_Changed;
+            host = value; host.Changed += Host_Changed; Refresh();
         }
-
-        #region IRibbonExtensibility 成员
-
+        /// <summary>仅返回嵌入 XML。</summary>
         public string GetCustomUI(string ribbonID)
         {
-            return GetResourceText("SwiftExport.Client.VSTO.SwiftExportRibbon.xml");
+            using (var stream = typeof(SwiftExportRibbon).Assembly.GetManifestResourceStream("SwiftExport.Client.VSTO.SwiftExportRibbon.xml"))
+            using (var reader = new StreamReader(stream ?? throw new InvalidOperationException("Ribbon XML 资源缺失。"))) return reader.ReadToEnd();
         }
-
-        #endregion
-
-        #region 功能区回调
-        //在此处创建回叫方法。有关添加回叫方法的详细信息，请访问 https://go.microsoft.com/fwlink/?LinkID=271226
-
-        public void Ribbon_Load(Office.IRibbonUI ribbonUI)
+        /// <summary>保存 Office 的刷新入口。</summary>
+        public void Ribbon_Load(Office.IRibbonUI value) { ribbon = value; Refresh(); }
+        /// <summary>返回当前身份文本。</summary>
+        public string GetStatus(Office.IRibbonControl control) { return host?.Status ?? "正在初始化"; }
+        /// <summary>未登录时显示登录按钮。</summary>
+        public bool GetLoginVisible(Office.IRibbonControl control) { return host?.IsAuthenticated != true; }
+        /// <summary>已登录时显示账号操作。</summary>
+        public bool GetAccountVisible(Office.IRibbonControl control) { return host?.IsAuthenticated == true; }
+        /// <summary>恢复期间禁止账号操作。</summary>
+        public bool GetAccountEnabled(Office.IRibbonControl control) { return host?.IsReady == true && !host.IsRestoring && !host.IsLoginOpen; }
+        /// <summary>打开或激活登录窗口。</summary>
+        public void OnLogin(Office.IRibbonControl control) { host?.Login(control); }
+        /// <summary>退出插件登录。</summary>
+        public void OnLogout(Office.IRibbonControl control) { host?.Logout(); }
+        private void Host_Changed(object sender, EventArgs args) { Refresh(); }
+        // Office 缓存动态属性，状态变化后必须主动失效。
+        private void Refresh()
         {
-            this.ribbon = ribbonUI;
+            if (ribbon == null) return;
+            try { foreach (var id in new[] { "accountStatus", "login", "switchAccount", "logout" }) ribbon.InvalidateControl(id); }
+            catch (COMException) { ribbon = null; }
         }
-
-        #endregion
-
-        #region 帮助器
-
-        private static string GetResourceText(string resourceName)
-        {
-            Assembly asm = Assembly.GetExecutingAssembly();
-            string[] resourceNames = asm.GetManifestResourceNames();
-            for (int i = 0; i < resourceNames.Length; ++i)
-            {
-                if (string.Compare(resourceName, resourceNames[i], StringComparison.OrdinalIgnoreCase) == 0)
-                {
-                    using (StreamReader resourceReader = new StreamReader(asm.GetManifestResourceStream(resourceNames[i])))
-                    {
-                        if (resourceReader != null)
-                        {
-                            return resourceReader.ReadToEnd();
-                        }
-                    }
-                }
-            }
-            return null;
-        }
-
-        #endregion
+        /// <summary>断开宿主事件与 Ribbon 引用。</summary>
+        public void Dispose() { if (host != null) host.Changed -= Host_Changed; host = null; ribbon = null; }
     }
 }

@@ -1,4 +1,4 @@
-﻿<Project ToolsVersion="18.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="18.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <!--
     This section defines project-level properties.
@@ -220,10 +220,43 @@
   <ItemGroup>
     <EmbeddedResource Include="SwiftExportRibbon.xml" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Assets\" />
+    <Folder Include="Bootstrapper\" />
+    <Folder Include="Features\" />
+    <Folder Include="Ioc\" />
+  </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
   </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>7.3</LangVersion>
+    <!-- 仅本机开发证书；正式发布必须替换，私钥不进入仓库。 -->
+    <SignManifests>true</SignManifests>
+    <ManifestCertificateThumbprint>2FCDE339DD2F33481C1CDEF2CCD907A7E9F8A30F</ManifestCertificateThumbprint>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Security" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" ExcludeAssets="analyzers" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
+    <PackageReference Include="Refit" Version="10.0.1" ExcludeAssets="analyzers" />
+    <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj"><Name>SwiftExport.Contracts</Name></ProjectReference>
+    <Compile Include="Authentication\**\*.cs;Api\**\*.cs;Bootstrapper\**\*.cs;Ioc\**\*.cs;Hosting\**\*.cs;Mvvm\**\*.cs;Excel\**\*.cs;Diagnostics\**\*.cs;UI\**\*.cs" />
+    <Page Include="Authentication\LoginWindow.xaml;Resources\*.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Content Include="vsto.config.xml"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content>
+    <None Include="docs\**\*.md;AGENTS.md" />
+    <Folder Include="Excel\Reading\;Excel\Writing\;Features\DocumentGeneration\;Features\DataImport\;UI\Themes\" />
+  </ItemGroup>
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Include additional build rules for an Office application add-in. -->

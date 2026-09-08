@@ -12,10 +12,11 @@ using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Mvvm;
+using System.IO;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
-/// <summary>验证中性产品管理专用契约、编辑模型、主图互斥和客户端注册。</summary>
+/// <summary>验证中性产品管理专用契约、编辑模型、颜色多选和客户端注册。</summary>
 [TestClass]
 public sealed class ProductNeutralManagerModelsAndContractsTests
 {
@@ -95,28 +96,31 @@ public sealed class ProductNeutralManagerModelsAndContractsTests
         Assert.IsNull(line.ValidateRow());
     }
 
-    /// <summary>当前页只取消同一主型号的其他主图，不影响不同主型号。</summary>
+    /// <summary>查询契约应支持多个颜色，Manager 写入契约不再暴露默认主图设置。</summary>
     [TestMethod]
-    public void SetMainImage_ShouldBeExclusiveWithinSameMaster()
+    public void Contracts_ShouldSupportMultipleColorsWithoutMainImageEditing()
     {
-        var firstMaster = Guid.NewGuid();
-        var secondMaster = Guid.NewGuid();
-        var list = new ProductNeutralManagerListModel();
-        var first = list.AddNewNeutral();
-        var replacement = list.AddNewNeutral();
-        var unrelated = list.AddNewNeutral();
-        first.ProductMasterId = firstMaster;
-        replacement.ProductMasterId = firstMaster;
-        unrelated.ProductMasterId = secondMaster;
-        first.IsMainImage = true;
-        replacement.IsMainImage = true;
-        unrelated.IsMainImage = true;
+        var colors = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        var request = new ProductNeutralManagerSearchRequest { ColorIds = colors.ToList() };
 
-        list.SetMainImage(replacement);
+        CollectionAssert.AreEqual(colors, request.ColorIds);
+        Assert.IsNull(typeof(ProductNeutralManagerWriteDto).GetProperty("IsMainImage"));
+    }
 
-        Assert.IsFalse(first.IsMainImage);
-        Assert.IsTrue(replacement.IsMainImage);
-        Assert.IsTrue(unrelated.IsMainImage);
+    /// <summary>页面应把颜色多选放在分类树之前，并且不再公开默认主图编辑入口。</summary>
+    [TestMethod]
+    public void View_ShouldUseLeftMultiColorFilterWithoutMainImageColumn()
+    {
+        var view = Read("SwiftExport.Client.Wpf", "Features", "Products", "ProductList", "Views", "ProductNeutralManagerView.xaml");
+        var colorFilter = view.IndexOf("<productComponents:ProductColorFilterList", StringComparison.Ordinal);
+        var categoryTree = view.IndexOf("<productComponents:ProductCategoryFilterTreeView", StringComparison.Ordinal);
+
+        Assert.IsGreaterThanOrEqualTo(0, colorFilter);
+        Assert.IsGreaterThan(colorFilter, categoryTree);
+        StringAssert.Contains(view, "Selection=\"{Binding ColorFilter, Mode=TwoWay}\"");
+        Assert.IsFalse(view.Contains("<controls:DropDownCheckBox", StringComparison.Ordinal));
+        Assert.IsFalse(view.Contains("默认主图", StringComparison.Ordinal));
+        Assert.IsFalse(view.Contains("SetMainImageCommand", StringComparison.Ordinal));
     }
 
     /// <summary>保存结果应回填新增行身份与版本，并接纳全部变更。</summary>
@@ -168,5 +172,17 @@ public sealed class ProductNeutralManagerModelsAndContractsTests
         var method = typeof(IProductNeutralManagerApi).GetMethod(methodName)!;
         var post = method.GetCustomAttributes(typeof(PostAttribute), false).Cast<PostAttribute>().Single();
         Assert.AreEqual(path, post.Path);
+    }
+
+    private static string Read(params string[] parts) =>
+        File.ReadAllText(Path.Combine(new[] { RepositoryRoot() }.Concat(parts).ToArray()));
+
+    private static string RepositoryRoot()
+    {
+        foreach (var start in new[] { Environment.CurrentDirectory, AppContext.BaseDirectory })
+            for (var directory = new DirectoryInfo(start); directory is not null; directory = directory.Parent)
+                if (File.Exists(Path.Combine(directory.FullName, "AGENTS.md"))) return directory.FullName;
+        Assert.Fail("无法定位仓库根目录。");
+        return string.Empty;
     }
 }

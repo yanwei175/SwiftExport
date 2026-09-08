@@ -42,9 +42,6 @@ public sealed partial class ProductNeutralManagerLineModel : BaseLineModel<Produ
     [ObservableProperty] public partial decimal? DefaultPurchasePriceCny { get; set; }
     /// <summary>获取或设置图片路径。</summary>
     [ObservableProperty] public partial string ImagePath { get; set; } = string.Empty;
-    /// <summary>获取或设置是否为所属主型号默认主图。</summary>
-    [ObservableProperty] public partial bool IsMainImage { get; set; }
-
     partial void OnDefaultPurchasePriceCnyChanged(decimal? value) => RecalculateSalesPrice();
     partial void OnProfitMarginChanged(decimal? value) => RecalculateSalesPrice();
     partial void OnDefaultExchangeRateChanged(decimal? value) => RecalculateSalesPrice();

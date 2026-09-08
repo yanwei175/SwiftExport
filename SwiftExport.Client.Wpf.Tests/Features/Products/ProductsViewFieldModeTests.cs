@@ -64,11 +64,12 @@ public sealed class ProductsViewFieldModeTests
         Assert.AreEqual("Unit", column.Attributes().Single(attribute =>
             attribute.Name.LocalName.EndsWith("FieldPath", StringComparison.Ordinal)).Value);
 
-        var lookup = column.Descendants().Single(element => element.Name.LocalName == "LookupTextBox");
-        Assert.AreEqual("Local", (string?)lookup.Attribute("SearchMode"));
-        StringAssert.Contains((string?)lookup.Attribute("ItemsSource") ?? string.Empty, "UnitOptions");
-        StringAssert.Contains((string?)lookup.Attribute("Text") ?? string.Empty, "Unit");
-        Assert.IsNull(lookup.Attribute("SearchCommand"));
+        var comboBox = column.Descendants(Presentation + "ComboBox").Single();
+        StringAssert.Contains((string?)comboBox.Attribute("ItemsSource") ?? string.Empty, "UnitOptions");
+        Assert.AreEqual("DataNameEn", (string?)comboBox.Attribute("SelectedValuePath"));
+        StringAssert.Contains((string?)comboBox.Attribute("SelectedValue") ?? string.Empty, "Unit");
+        StringAssert.Contains((string?)comboBox.Attribute("SelectedValue") ?? string.Empty, "Mode=TwoWay");
+        Assert.IsFalse(column.Elements().Any(element => element.Name.LocalName == "DataGridTemplateColumn.CellEditingTemplate"));
     }
 
     [TestMethod]
@@ -84,7 +85,7 @@ public sealed class ProductsViewFieldModeTests
     }
 
     [TestMethod]
-    public void ColorAndCategoryLookups_ShouldUseReferenceCacheAndEditingTemplates()
+    public void ColorLookupAndReadonlyCategory_ShouldUseExpectedTemplates()
     {
         var document = LoadProductsView();
         var colorLookups = document.Descendants()
@@ -107,13 +108,6 @@ public sealed class ProductsViewFieldModeTests
         StringAssert.Contains((string?)categoryTreeLookup.Attribute("ItemsSource") ?? string.Empty,
             "ReferenceDataCache.ProductCategoryTree");
 
-        var categoryEditor = document.Descendants()
-            .Single(element => element.Name.LocalName == "ProductCategoryFlatLookupTextBox");
-        StringAssert.Contains((string?)categoryEditor.Attribute("ItemsSource") ?? string.Empty,
-            "ReferenceDataCache.ProductCategories");
-        StringAssert.Contains((string?)categoryEditor.Attribute("SelectedCategory") ?? string.Empty,
-            "Mode=OneWayToSource");
-
         var colorColumn = FindColumn(document, "finish");
         var categoryColumn = FindColumn(document, "category-name");
         Assert.AreEqual("DataGridTemplateColumn", colorColumn.Name.LocalName);
@@ -122,6 +116,9 @@ public sealed class ProductsViewFieldModeTests
             attribute.Name.LocalName.EndsWith("FieldPath", StringComparison.Ordinal)));
         Assert.IsFalse(categoryColumn.Attributes().Any(attribute =>
             attribute.Name.LocalName.EndsWith("FieldPath", StringComparison.Ordinal)));
+        Assert.AreEqual("CategoryName", (string?)categoryColumn.Attribute("SortMemberPath"));
+        Assert.AreEqual("CategoryName", (string?)categoryColumn.Descendants(Presentation + "TextBlock").Single().Attribute("Text")?.Value.Trim('{', '}').Split(',')[0].Replace("Binding ", string.Empty));
+        Assert.IsFalse(categoryColumn.Elements().Any(element => element.Name.LocalName == "DataGridTemplateColumn.CellEditingTemplate"));
     }
 
     [TestMethod]

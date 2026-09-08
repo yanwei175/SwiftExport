@@ -1,13 +1,11 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load">
-  <ribbon>
-    <tabs>
-      <tab idMso="TabAddIns">
-        <group id="MyGroup"
-               label="My Group">
-        </group>
-      </tab>
-    </tabs>
-  </ribbon>
+ <ribbon><tabs><tab id="swiftExportTab" label="SwiftExport">
+  <group id="accountGroup" label="账号">
+   <labelControl id="accountStatus" getLabel="GetStatus"/>
+   <button id="login" label="登录" onAction="OnLogin" getVisible="GetLoginVisible" getEnabled="GetAccountEnabled"/>
+   <button id="switchAccount" label="切换登录" onAction="OnLogin" getVisible="GetAccountVisible" getEnabled="GetAccountEnabled" screentip="新账号验证成功后才替换原账号"/>
+   <button id="logout" label="退出登录" onAction="OnLogout" getVisible="GetAccountVisible" getEnabled="GetAccountEnabled"/>
+  </group>
+ </tab></tabs></ribbon>
 </customUI>
-

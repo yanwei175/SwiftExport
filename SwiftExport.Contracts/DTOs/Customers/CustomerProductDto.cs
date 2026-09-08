@@ -5,7 +5,7 @@ using System.Text;
 
 namespace SwiftExport.Contracts.DTOs.Customers
 {
-    /// <remarks>来源表：CustomerProduct、Customer、Product、ProductCategory。</remarks>
+    /// <remarks>来源表：CustomerProduct、Customer、Product、ProductMaster、ProductCategory。</remarks>
     public class CustomerProductDto : BaseDto
     {
 
@@ -18,7 +18,7 @@ namespace SwiftExport.Contracts.DTOs.Customers
         public string LinkSku { get; set; }
         /// <remarks>来源：优先 Product.DescriptionEn，为空时使用 CustomerProduct.DescriptionEn。</remarks>
         public string Description { get; set; }
-        /// <remarks>来源：ProductCategory.CategoryName；经 Product.CategoryId 关联。</remarks>
+        /// <remarks>来源：ProductCategory.CategoryName；经 Product.ProductMasterId 和 ProductMaster.CategoryId 关联。</remarks>
         public string CategoryName { get; set; }
         /// <remarks>来源：Product.MaterialType。</remarks>
         public string MaterialType { get; set; }

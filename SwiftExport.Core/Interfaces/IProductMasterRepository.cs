@@ -16,4 +16,11 @@ public interface IProductMasterRepository : IRepository<ProductMaster>
 
     /// <summary>读取指定编码当前占用者，用于事务内唯一性校验。</summary>
     Task<IReadOnlyList<ProductMaster>> GetByMasterSkusAsync(IEnumerable<string> masterSkus, bool withUpdLock = false, CancellationToken cancellationToken = default);
+
+    /// <summary>按主型号标识和预期版本更新分类，只触碰分类、审计字段和版本。</summary>
+    Task<RepositoryWriteResult> AssignCategoryAsync(
+        Guid productMasterId,
+        int expectedVersion,
+        Guid targetCategoryId,
+        CancellationToken cancellationToken = default);
 }

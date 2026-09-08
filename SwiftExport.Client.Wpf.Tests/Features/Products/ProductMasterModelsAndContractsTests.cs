@@ -27,6 +27,7 @@ public sealed class ProductMasterModelsAndContractsTests
         AssertRoute(nameof(IProductMasterApi.GetDetailAsync), "/{productMasterId}", typeof(GetAttribute));
         AssertRoute(nameof(IProductMasterApi.BatchSaveAsync), "/batch-save", typeof(PostAttribute));
         AssertRoute(nameof(IProductMasterApi.SaveDetailAsync), "/save-detail", typeof(PostAttribute));
+        AssertRoute(nameof(IProductMasterApi.AssignCategoryAsync), "/assign-category", typeof(PostAttribute));
         foreach (var method in typeof(IProductMasterApi).GetMethods())
             Assert.AreEqual(typeof(CancellationToken), method.GetParameters().Last().ParameterType, method.Name);
     }

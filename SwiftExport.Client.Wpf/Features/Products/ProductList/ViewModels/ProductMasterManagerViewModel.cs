@@ -7,6 +7,7 @@ using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExportClient.Bootstrapper;
+using SwiftExportClient.Features.Products.Components;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.ProductList.Services;
 using SwiftExportClient.Mvvm;
@@ -37,6 +38,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     private CancellationTokenSource? _queryCts;
     private long _querySequence;
     private long _supplierSequence;
+    private ProductCategoryFilterSelection _appliedCategoryFilter = ProductCategoryFilterSelection.AllCategories;
     private bool _initialized;
     private bool _disposed;
 
@@ -88,17 +90,15 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
 
     /// <summary>获取或设置搜索关键词。</summary>
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
-    /// <summary>获取分类筛选树。</summary>
-    [ObservableProperty] public partial IReadOnlyList<ProductMasterCategoryFilterNode> CategoryFilters { get; set; } = [];
-    /// <summary>获取或设置当前分类筛选节点。</summary>
-    [ObservableProperty] public partial ProductMasterCategoryFilterNode? SelectedCategoryFilter { get; set; }
+    /// <summary>获取或设置共享分类筛选组件发布的选择快照。</summary>
+    [ObservableProperty] public partial ProductCategoryFilterSelection CategoryFilter { get; set; } = ProductCategoryFilterSelection.AllCategories;
     /// <summary>获取或设置当前主型号行。</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
     public partial ProductMasterLineModel? SelectedMaster { get; set; }
     /// <summary>获取或设置是否显示只读卡片视图。</summary>
-    [ObservableProperty] public partial bool IsCardView { get; set; } = true;
+    [ObservableProperty] public partial bool IsCardView { get; set; } = false;
     /// <summary>获取或设置是否显示英文描述与英文配置列。</summary>
     [ObservableProperty] public partial bool IsEnglishFieldsVisible { get; set; } = false;
     /// <summary>获取或设置 DataGrid 是否使用格子选择模式。</summary>
@@ -123,18 +123,29 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         _initialized = true;
         var cacheResult = await _cache.EnsureLoadedAsync();
         if (!cacheResult.Success) _messages.ShowError("加载基础资料失败", cacheResult.Message);
-        BuildCategoryFilters();
         await LoadPageAsync();
     }
 
-    /// <summary>从 TreeView 接纳分类选择；有未保存数据时先确认。</summary>
-    public async Task SelectCategoryAsync(ProductMasterCategoryFilterNode? node)
+    /// <summary>应用共享分类筛选快照；取消丢弃或查询失败时恢复最后一次成功应用的选择。</summary>
+    [RelayCommand]
+    private async Task ApplyCategoryFilterAsync(ProductCategoryFilterSelection? selection)
     {
-        if (ReferenceEquals(node, SelectedCategoryFilter)) return;
-        if (!await EnsureCanDiscardChangesAsync()) return;
-        SelectedCategoryFilter = node;
+        var requestedFilter = selection ?? ProductCategoryFilterSelection.AllCategories;
+        if (AreCategoryFiltersEquivalent(requestedFilter, _appliedCategoryFilter))
+        {
+            CategoryFilter = _appliedCategoryFilter;
+            return;
+        }
+
+        if (!await EnsureCanDiscardChangesAsync())
+        {
+            CategoryFilter = _appliedCategoryFilter;
+            return;
+        }
+
+        CategoryFilter = requestedFilter;
         PageIndex = 1;
-        await LoadPageAsync();
+        if (!await LoadPageAsync()) CategoryFilter = _appliedCategoryFilter;
     }
 
     /// <summary>关闭页面前检查未保存变更。</summary>
@@ -334,7 +345,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     /// <summary>获取或设置 DataGrid 供应商编辑器当前选择。</summary>
     [ObservableProperty] public partial SupplierDto? EditSupplier { get; set; }
 
-    private async Task LoadPageAsync() => await LoadPageCoreAsync();
+    private Task<bool> LoadPageAsync() => LoadPageCoreAsync();
 
     private async Task<bool> LoadPageCoreAsync()
     {
@@ -347,10 +358,14 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         IsQuerying = true;
         try
         {
+            var requestedCategoryFilter = CategoryFilter;
             var request = new ProductMasterSearchRequest
             {
                 Keyword = string.IsNullOrWhiteSpace(Keyword) ? null : Keyword.Trim(),
-                CategoryIds = GetCategoryIds(SelectedCategoryFilter?.Source).ToList(),
+                CategoryIds = requestedCategoryFilter.IsAll
+                    ? []
+                    : requestedCategoryFilter.CategoryIds.Where(id => id != Guid.Empty).Distinct().ToList(),
+                IncludeUncategorized = !requestedCategoryFilter.IsAll && requestedCategoryFilter.IncludeUncategorized,
                 PageIndex = PageIndex,
                 PageSize = PageSize
             };
@@ -370,6 +385,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
             PageIndex = page?.PageIndex > 0 ? page.PageIndex : PageIndex;
             PageSize = page?.PageSize > 0 ? page.PageSize : PageSize;
             ResultSummary = $"共 {TotalCount} 个主型号，本页 {Masters.Items.Count} 个。";
+            _appliedCategoryFilter = requestedCategoryFilter;
             AcceptChanges();
             UpdateChangeState();
             if (!IsCardView) await LoadNeutralsCoreAsync();
@@ -381,21 +397,13 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         }
     }
 
-    private void BuildCategoryFilters()
-    {
-        CategoryFilters = [new ProductMasterCategoryFilterNode("全部分类")];
-        var all = CategoryFilters[0];
-        CategoryFilters = [all, .. _cache.ProductCategoryTree.Select(node => new ProductMasterCategoryFilterNode(node.CategoryName, node))];
-        SelectedCategoryFilter = all;
-    }
-
-    private static IEnumerable<Guid> GetCategoryIds(ProductCategoryCacheNode? node)
-    {
-        if (node is null) yield break;
-        yield return node.Uid;
-        foreach (var child in node.Children)
-            foreach (var uid in GetCategoryIds(child)) yield return uid;
-    }
+    /// <summary>按筛选语义比较快照，避免只因分类标识集合实例不同而重复查询。</summary>
+    private static bool AreCategoryFiltersEquivalent(
+        ProductCategoryFilterSelection left,
+        ProductCategoryFilterSelection right) =>
+        left.IsAll == right.IsAll
+        && left.IncludeUncategorized == right.IncludeUncategorized
+        && left.CategoryIds.SequenceEqual(right.CategoryIds);
 
     /// <summary>全页替换或关闭前统一检查两表，保存中禁止关闭，确认取消时不改变上下文。</summary>
     private async Task<bool> EnsureCanDiscardChangesAsync()

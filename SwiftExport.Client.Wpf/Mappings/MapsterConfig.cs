@@ -12,6 +12,7 @@ using SwiftExportClient.Features.Customers.CustomerProducts.Models;
 using SwiftExportClient.Features.Products.Bom.Models;
 using SwiftExportClient.Features.Products.Categories.Models;
 using SwiftExportClient.Features.Products.Colors.Models;
+using SwiftExportClient.Features.Products.Components.Models;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.Models;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.Models;
@@ -23,6 +24,9 @@ public sealed class MapsterConfig : IRegister
 {
     public void Register(TypeAdapterConfig config)
     {
+        config.NewConfig<ProductColorDto, ProductColorFilterOption>()
+            .Ignore(dest => dest.IsChecked);
+
         config.NewConfig<ProductCategoryDto, ProductCategoryTreeItemModel>()
             .IgnoreNullValues(true)
             .Map(dest => dest.CategoryName, src => src.CategoryName ?? string.Empty)
@@ -65,6 +69,14 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.MainImagePath, src => src.MainImagePath ?? string.Empty)
             .Map(dest => dest.DefaultSalesPriceUsd, src => src.DefaultSalesPriceUsd)
             .Map(dest => dest.DefaultPurchasePriceCny, src => src.DefaultPurchasePriceCny);
+
+        config.NewConfig<ProductMasterListItemDto, ProductCategoryAssignmentLineModel>()
+            .Map(dest => dest.MainImagePath, src => src.MainImagePath)
+            .Map(dest => dest.MasterSku, src => src.Data.MasterSku)
+            .Map(dest => dest.DefaultDescriptionZh, src => src.Data.DefaultDescriptionZh)
+            .Map(dest => dest.OriginalCategoryId, src => src.Data.CategoryId)
+            .Map(dest => dest.OriginalCategoryName, src => string.IsNullOrWhiteSpace(src.CategoryName) ? "未分类" : src.CategoryName)
+            .Ignore(dest => dest.IsChecked);
 
         config.NewConfig<ProductMasterLineModel, ProductMasterWriteDto>();
         config.NewConfig<ProductMasterLineModel, ProductMasterListItemDto>()
@@ -121,8 +133,7 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.DefaultExchangeRate, src => src.Data.DefaultExchangeRate)
             .Map(dest => dest.ProfitMargin, src => src.Data.ProfitMargin)
             .Map(dest => dest.DefaultPurchasePriceCny, src => src.Data.DefaultPurchasePriceCny)
-            .Map(dest => dest.ImagePath, src => src.Data.ImagePath)
-            .Map(dest => dest.IsMainImage, src => src.Data.IsMainImage);
+            .Map(dest => dest.ImagePath, src => src.Data.ImagePath);
 
         config.NewConfig<ProductNeutralManagerLineModel, ProductNeutralManagerWriteDto>();
         config.NewConfig<ProductNeutralManagerLineModel, ProductNeutralManagerListItemDto>()

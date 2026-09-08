@@ -20,7 +20,12 @@ public sealed class ProductMasterRepository(RepositoryBaseContext context)
         request ??= new ProductMasterSearchRequest();
         var pageIndex = request.PageIndex > 0 ? request.PageIndex : 1;
         var pageSize = request.PageSize > 0 ? request.PageSize : 50;
-        var parameters = new DynamicParameters(new { Offset = (pageIndex - 1) * pageSize, Limit = pageSize });
+        var parameters = new DynamicParameters(new
+        {
+            Offset = (pageIndex - 1) * pageSize,
+            Limit = pageSize,
+            EmptyGuid = Guid.Empty
+        });
         var where = new StringBuilder("WHERE pm.IsDeleted = 0");
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))
@@ -38,15 +43,34 @@ public sealed class ProductMasterRepository(RepositoryBaseContext context)
         }
 
         var categoryIds = request.CategoryIds?.Where(id => id != Guid.Empty).Distinct().ToArray() ?? [];
-        if (categoryIds.Length > 0)
+        // 未分类可与真实分类并选；空标识只表示未分类，不能进入 IN 参数集合。
+        if (request.IncludeUncategorized && categoryIds.Length > 0)
+        {
+            parameters.Add("CategoryIds", categoryIds);
+            where.Append(" AND (pm.CategoryId IN @CategoryIds OR pm.CategoryId=@EmptyGuid OR pm.CategoryId IS NULL)");
+        }
+        else if (request.IncludeUncategorized)
+        {
+            where.Append(" AND (pm.CategoryId=@EmptyGuid OR pm.CategoryId IS NULL)");
+        }
+        else if (categoryIds.Length > 0)
         {
             parameters.Add("CategoryIds", categoryIds);
             where.Append(" AND pm.CategoryId IN @CategoryIds");
         }
 
+        if (request.ExcludeCategoryId != Guid.Empty)
+        {
+            parameters.Add("ExcludeCategoryId", request.ExcludeCategoryId);
+            where.Append(" AND (pm.CategoryId IS NULL OR pm.CategoryId<>@ExcludeCategoryId)");
+        }
+
         var sql = $@"
 SELECT COUNT(1) FROM dbo.ProductMaster pm WITH(NOLOCK) {where};
-SELECT pm.*, pc.CategoryName, s.SupplierName AS DefaultSupplierName,
+SELECT pm.*,
+       CASE WHEN pm.CategoryId IS NULL OR pm.CategoryId=@EmptyGuid
+            THEN N'未分类' ELSE COALESCE(pc.CategoryName, N'分类已失效') END AS CategoryName,
+       s.SupplierName AS DefaultSupplierName,
        mainImage.ImagePath AS MainImagePath,
        mainImage.DefaultSalesPriceUsd,
        mainImage.DefaultPurchasePriceCny
@@ -81,13 +105,16 @@ OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
     public async Task<ProductMasterDetailDto?> GetDetailHeaderAsync(Guid productMasterId, bool withUpdLock = false, CancellationToken cancellationToken = default)
     {
         var sql = $@"
-SELECT pm.*, pc.CategoryName, s.SupplierName AS DefaultSupplierName
+SELECT pm.*,
+       CASE WHEN pm.CategoryId IS NULL OR pm.CategoryId=@EmptyGuid
+            THEN N'未分类' ELSE COALESCE(pc.CategoryName, N'分类已失效') END AS CategoryName,
+       s.SupplierName AS DefaultSupplierName
 FROM dbo.ProductMaster pm {GetLockHint(withUpdLock)}
 LEFT JOIN dbo.ProductCategory pc WITH(NOLOCK) ON pc.Uid=pm.CategoryId AND pc.IsDeleted=0
 LEFT JOIN dbo.Supplier s WITH(NOLOCK) ON s.Uid=pm.DefaultSupplierId AND s.IsDeleted=0
 WHERE pm.Uid=@ProductMasterId AND pm.IsDeleted=0;";
         var row = await Connection.QuerySingleOrDefaultAsync<ProductMasterProjection>(
-            new CommandDefinition(sql, new { ProductMasterId = productMasterId }, Transaction, cancellationToken: cancellationToken));
+            new CommandDefinition(sql, new { ProductMasterId = productMasterId, EmptyGuid = Guid.Empty }, Transaction, cancellationToken: cancellationToken));
         return row is null ? null : ToDetail(row);
     }
 
@@ -99,6 +126,49 @@ WHERE pm.Uid=@ProductMasterId AND pm.IsDeleted=0;";
         var sql = $"SELECT * FROM dbo.ProductMaster {GetLockHint(withUpdLock)} WHERE MasterSku IN @Values AND IsDeleted=0;";
         var rows = await Connection.QueryAsync<ProductMaster>(new CommandDefinition(sql, new { Values = values }, Transaction, cancellationToken: cancellationToken));
         return rows.ToList();
+    }
+
+    /// <summary>按主型号标识和预期版本更新分类，并返回新的并发版本。</summary>
+    public async Task<RepositoryWriteResult> AssignCategoryAsync(
+        Guid productMasterId,
+        int expectedVersion,
+        Guid targetCategoryId,
+        CancellationToken cancellationToken = default)
+    {
+        var stamp = new ProductMaster();
+        AuditStamp.StampForUpdate(stamp);
+        const string sql = """
+UPDATE dbo.ProductMaster
+SET CategoryId=@TargetCategoryId,
+    UpdatedDate=@UpdatedDate,
+    UpdatedBy=@UpdatedBy,
+    Version=Version+1
+OUTPUT INSERTED.Version
+WHERE Uid=@ProductMasterId
+  AND Version=@ExpectedVersion
+  AND (CategoryId IS NULL OR CategoryId<>@TargetCategoryId)
+  AND IsDeleted=0;
+""";
+        var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>(new CommandDefinition(
+            sql,
+            new
+            {
+                ProductMasterId = productMasterId,
+                ExpectedVersion = expectedVersion,
+                TargetCategoryId = targetCategoryId,
+                stamp.UpdatedDate,
+                stamp.UpdatedBy
+            },
+            Transaction,
+            cancellationToken: cancellationToken));
+
+        return newVersion.HasValue
+            ? RepositoryWriteResult.Ok(productMasterId, expectedVersion, newVersion.Value, "主型号归类成功。")
+            : RepositoryWriteResult.Fail(
+                productMasterId,
+                expectedVersion,
+                "CONCURRENCY_CONFLICT",
+                "主型号已被其他用户修改、删除或已归入目标分类，请刷新后重试。");
     }
 
     private static ProductMasterListItemDto ToListItem(ProductMasterProjection row) => new()

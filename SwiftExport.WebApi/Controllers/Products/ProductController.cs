@@ -24,19 +24,6 @@ public class ProductController(IProductService service) : BaseController<Product
     [PreventDuplicateRequest(WindowSeconds = 5)]
     public async Task<ServiceResult<ProductBatchSaveResponse>> BatchSave([FromBody] ProductBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
-    [HttpPost("category-assignment/page")]
-    public async Task<ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>>> GetCategoryAssignmentPage(
-        [FromBody] ProductCategoryAssignmentSearchRequest request,
-        CancellationToken cancellationToken) =>
-        await service.GetCategoryAssignmentPageAsync(request, cancellationToken);
-
-    [HttpPost("assign-category")]
-    [PreventDuplicateRequest(WindowSeconds = 5)]
-    public async Task<ServiceResult<AssignProductsToCategoryResult>> AssignCategory(
-        [FromBody] AssignProductsToCategoryRequest request,
-        CancellationToken cancellationToken) =>
-        await service.AssignCategoryAsync(request, cancellationToken);
-
     // ================= 查询类 (GET) =================
 
     // 1. 获取全部 (标准 RESTful 应该直接叫 api/product，靠 GET 区分)

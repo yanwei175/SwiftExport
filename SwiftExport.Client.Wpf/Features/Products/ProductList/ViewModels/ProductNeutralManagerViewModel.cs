@@ -1,9 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Options;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
 using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Requests;
+using SwiftExportClient.Bootstrapper;
+using SwiftExportClient.Features.Products.Components;
 using SwiftExportClient.Features.Products.Components.Models;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Mvvm;
@@ -14,6 +17,7 @@ using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
@@ -30,11 +34,13 @@ public sealed partial class ProductNeutralManagerViewModel
     private readonly IReferenceDataCacheService _cache;
     private readonly IMessageService _messages;
     private readonly IDialogService _dialogs;
+    private readonly IOptions<ProductOptions> _productOptions;
     private CancellationTokenSource? _queryCts;
     private CancellationTokenSource? _masterLookupCts;
     private long _querySequence;
     private long _masterLookupSequence;
-    private ProductColorDto? _appliedFilterColor;
+    private ProductCategoryFilterSelection _appliedCategoryFilter = ProductCategoryFilterSelection.AllCategories;
+    private ProductColorFilterSelection _appliedColorFilter = ProductColorFilterSelection.AllColors;
     private bool _initialized;
     private bool _disposed;
 
@@ -45,7 +51,8 @@ public sealed partial class ProductNeutralManagerViewModel
         IApiCallRunner runner,
         IReferenceDataCacheService cache,
         IMessageService messages,
-        IDialogService dialogs)
+        IDialogService dialogs,
+        IOptions<ProductOptions> productOptions)
     {
         _api = api;
         _productMasterApi = productMasterApi;
@@ -53,12 +60,15 @@ public sealed partial class ProductNeutralManagerViewModel
         _cache = cache;
         _messages = messages;
         _dialogs = dialogs;
+        _productOptions = productOptions;
         Title = "中性产品管理";
         Lines.ListStateChanged += OnListStateChanged;
         PropertyChanged += OnManagerPropertyChanged;
         RegisterBusyAwareCommand(AddRowCommand);
         RegisterBusyAwareCommand(DeleteSelectedCommand);
         RegisterBusyAwareCommand(SaveCommand);
+        RegisterBusyAwareCommand(ReBuildImagePathCommand);
+        RegisterBusyAwareCommand(ReBuildCheckedImagePathsCommand);
     }
 
     /// <summary>由宿主视图提交原生 DataGrid 编辑事务。</summary>
@@ -82,14 +92,10 @@ public sealed partial class ProductNeutralManagerViewModel
 
     /// <summary>获取或设置搜索关键词。</summary>
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
-    /// <summary>获取分类筛选树。</summary>
-    [ObservableProperty] public partial IReadOnlyList<ProductNeutralManagerCategoryFilterNode> CategoryFilters { get; set; } = [];
-    /// <summary>获取或设置当前已应用分类节点。</summary>
-    [ObservableProperty] public partial ProductNeutralManagerCategoryFilterNode? SelectedCategoryFilter { get; set; }
-    /// <summary>获取或设置颜色筛选输入文本。</summary>
-    [ObservableProperty] public partial string FilterColorText { get; set; } = string.Empty;
-    /// <summary>获取或设置颜色筛选候选。</summary>
-    [ObservableProperty] public partial ProductColorDto? FilterColor { get; set; }
+    /// <summary>获取或设置共享分类筛选组件发布的选择快照。</summary>
+    [ObservableProperty] public partial ProductCategoryFilterSelection CategoryFilter { get; set; } = ProductCategoryFilterSelection.AllCategories;
+    /// <summary>获取或设置颜色筛选组件发布的选择快照；空集合表示全部颜色。</summary>
+    [ObservableProperty] public partial ProductColorFilterSelection ColorFilter { get; set; } = ProductColorFilterSelection.AllColors;
     /// <summary>获取或设置当前中性产品行。</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
@@ -125,18 +131,29 @@ public sealed partial class ProductNeutralManagerViewModel
         _initialized = true;
         var cacheResult = await _cache.EnsureLoadedAsync();
         if (!cacheResult.Success) _messages.ShowError("加载基础资料失败", cacheResult.Message);
-        BuildCategoryFilters();
         await LoadPageAsync();
     }
 
-    /// <summary>从 TreeView 接纳分类筛选；未保存修改未确认时恢复原节点。</summary>
-    public async Task SelectCategoryAsync(ProductNeutralManagerCategoryFilterNode? node)
+    /// <summary>应用共享分类筛选快照；取消丢弃或查询失败时恢复最后一次成功应用的选择。</summary>
+    [RelayCommand]
+    private async Task ApplyCategoryFilterAsync(ProductCategoryFilterSelection? selection)
     {
-        if (node is null || ReferenceEquals(node, SelectedCategoryFilter)) return;
-        if (!await EnsureCanDiscardChangesAsync()) return;
-        SelectedCategoryFilter = node;
+        var requestedFilter = selection ?? ProductCategoryFilterSelection.AllCategories;
+        if (AreCategoryFiltersEquivalent(requestedFilter, _appliedCategoryFilter))
+        {
+            CategoryFilter = _appliedCategoryFilter;
+            return;
+        }
+
+        if (!await EnsureCanDiscardChangesAsync())
+        {
+            CategoryFilter = _appliedCategoryFilter;
+            return;
+        }
+
+        CategoryFilter = requestedFilter;
         PageIndex = 1;
-        await LoadPageAsync();
+        if (await LoadPageCoreAsync() == PageLoadOutcome.Failed) CategoryFilter = _appliedCategoryFilter;
     }
 
     /// <summary>关闭文档前检查原生编辑提交和未保存变更。</summary>
@@ -145,49 +162,25 @@ public sealed partial class ProductNeutralManagerViewModel
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task SearchAsync()
     {
-        if (!await EnsureCanDiscardChangesAsync()) return;
-        _appliedFilterColor = FilterColor;
+        if (!await EnsureCanDiscardChangesAsync())
+        {
+            ColorFilter = _appliedColorFilter;
+            return;
+        }
+        var previousFilter = _appliedColorFilter;
+        _appliedColorFilter = ColorFilter;
         PageIndex = 1;
-        await LoadPageAsync();
+        if (await LoadPageCoreAsync() == PageLoadOutcome.Failed)
+        {
+            _appliedColorFilter = previousFilter;
+            ColorFilter = previousFilter;
+        }
     }
 
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task RefreshAsync()
     {
         if (!await EnsureCanDiscardChangesAsync()) return;
-        await LoadPageAsync();
-    }
-
-    /// <summary>颜色候选确认后立即应用筛选；取消丢弃时恢复上一次已应用颜色。</summary>
-    [RelayCommand]
-    private async Task ApplyColorFilterAsync()
-    {
-        if (!await EnsureCanDiscardChangesAsync())
-        {
-            FilterColor = _appliedFilterColor;
-            FilterColorText = _appliedFilterColor?.ColorNameZh ?? string.Empty;
-            return;
-        }
-        _appliedFilterColor = FilterColor;
-        PageIndex = 1;
-        await LoadPageAsync();
-    }
-
-    /// <summary>清空颜色选择并切回全部颜色。</summary>
-    [RelayCommand]
-    private async Task ClearColorFilterAsync()
-    {
-        var previous = _appliedFilterColor;
-        if (!await EnsureCanDiscardChangesAsync())
-        {
-            FilterColor = previous;
-            FilterColorText = previous?.ColorNameZh ?? string.Empty;
-            return;
-        }
-        FilterColor = null;
-        FilterColorText = string.Empty;
-        _appliedFilterColor = null;
-        PageIndex = 1;
         await LoadPageAsync();
     }
 
@@ -249,7 +242,7 @@ public sealed partial class ProductNeutralManagerViewModel
             Lines.ApplySaveResponse(result.Data);
             UpdateChangeState();
             _messages.ShowSuccess("中性产品已保存", $"已提交 {result.Data.SuccessCount} 条变更。");
-            if (!await LoadPageCoreAsync())
+            if (await LoadPageCoreAsync() == PageLoadOutcome.Failed)
                 _messages.ShowWarning("保存成功", "数据已保存，但列表刷新失败。请稍后手动刷新。");
         }, "正在保存中性产品...");
     }
@@ -301,7 +294,7 @@ public sealed partial class ProductNeutralManagerViewModel
         }
     }
 
-    /// <summary>确认主型号候选后回填稳定标识和实时显示字段，并重算当前页主图互斥。</summary>
+    /// <summary>确认主型号候选后回填稳定标识和实时显示字段。</summary>
     [RelayCommand]
     private void CommitProductMaster(ProductNeutralManagerLineModel? line)
     {
@@ -311,7 +304,6 @@ public sealed partial class ProductNeutralManagerViewModel
         line.ProductMasterDescriptionZh = EditProductMaster.DefaultDescriptionZh ?? string.Empty;
         line.CategoryId = EditProductMaster.CategoryId;
         line.CategoryName = EditProductMaster.CategoryName ?? string.Empty;
-        Lines.SetMainImage(line);
         EditProductMaster = null;
     }
 
@@ -348,17 +340,59 @@ public sealed partial class ProductNeutralManagerViewModel
         EditColor = null;
     }
 
-    /// <summary>将当前勾选行设为主图，并同步取消当前页同主型号其他行。</summary>
-    [RelayCommand]
-    private void SetMainImage(ProductNeutralManagerLineModel? line)
+    /// <summary>按配置的图片根目录与产品编码重建当前行图片路径，变更由页面保存命令统一提交。</summary>
+    [RelayCommand(CanExecute = nameof(CanReBuildImagePath))]
+    private void ReBuildImagePath(ProductNeutralManagerLineModel? line)
     {
-        if (line is not null) Lines.SetMainImage(line);
+        if (!CanReBuildImagePath(line)) return;
+        ApplyImagePath(line!);
     }
 
-    private Task LoadPageAsync() => LoadPageCoreAsync();
+    /// <summary>确认后批量重建所有勾选行的图片路径；缺少产品编码的行保持原值并计入跳过数量。</summary>
+    [RelayCommand(CanExecute = nameof(CanReBuildCheckedImagePaths))]
+    private async Task ReBuildCheckedImagePathsAsync()
+    {
+        if (!CanReBuildCheckedImagePaths() || !TryCommitPendingEdits()) return;
+
+        var checkedLines = Lines.CheckedItems.ToArray();
+        IsSelectionPrompt = true;
+        try
+        {
+            var confirmed = await _dialogs.ConfirmAsync(
+                "批量重建图片路径",
+                $"确定重建已勾选的 {checkedLines.Length} 条中性产品图片路径吗？重建后需要保存才会生效。",
+                "重建");
+            if (!confirmed || _disposed) return;
+        }
+        finally
+        {
+            IsSelectionPrompt = false;
+        }
+
+        var rebuiltCount = 0;
+        foreach (var line in checkedLines)
+        {
+            if (string.IsNullOrWhiteSpace(line.ProductCode)) continue;
+            ApplyImagePath(line);
+            rebuiltCount++;
+        }
+
+        var skippedCount = checkedLines.Length - rebuiltCount;
+        var skippedMessage = skippedCount == 0 ? string.Empty : $"，另有 {skippedCount} 条因产品编码为空已跳过";
+        _messages.ShowSuccess("图片路径已重建", $"已重建 {rebuiltCount} 条中性产品图片路径{skippedMessage}，请保存变更。");
+    }
+
+    /// <summary>使用与主型号页一致的命名规则生成 JPG 图片完整路径。</summary>
+    private void ApplyImagePath(ProductNeutralManagerLineModel line)
+    {
+        var fileName = Path.ChangeExtension(line.ProductCode, ".jpg");
+        line.ImagePath = Path.Combine(_productOptions.Value.BaseImageFolder, fileName);
+    }
+
+    private Task<PageLoadOutcome> LoadPageAsync() => LoadPageCoreAsync();
 
     /// <summary>执行 latest-request-wins 分页查询，仅最新且页面仍存活的结果可以替换集合。</summary>
-    private async Task<bool> LoadPageCoreAsync()
+    private async Task<PageLoadOutcome> LoadPageCoreAsync()
     {
         var selectedId = SelectedLine?.Uid;
         var sequence = Interlocked.Increment(ref _querySequence);
@@ -369,23 +403,26 @@ public sealed partial class ProductNeutralManagerViewModel
         IsQuerying = true;
         try
         {
-            var selectedCategory = SelectedCategoryFilter;
+            var requestedCategoryFilter = CategoryFilter;
             var request = new ProductNeutralManagerSearchRequest
             {
                 Keyword = string.IsNullOrWhiteSpace(Keyword) ? null : Keyword.Trim(),
-                CategoryIds = GetCategoryIds(selectedCategory?.Source).ToList(),
-                IncludeUncategorized = selectedCategory?.IsUncategorized == true,
-                ColorId = _appliedFilterColor?.Uid,
+                CategoryIds = requestedCategoryFilter.IsAll
+                    ? []
+                    : requestedCategoryFilter.CategoryIds.Where(id => id != Guid.Empty).Distinct().ToList(),
+                IncludeUncategorized = !requestedCategoryFilter.IsAll && requestedCategoryFilter.IncludeUncategorized,
+                ColorIds = _appliedColorFilter.ColorIds.ToList(),
                 PageIndex = PageIndex,
                 PageSize = PageSize
             };
             var result = await _runner.RunAsync(() => _api.GetPagedAsync(request, currentCts.Token), currentCts.Token, "加载中性产品失败");
-            if (_disposed || currentCts.IsCancellationRequested || sequence != Volatile.Read(ref _querySequence)) return false;
+            if (_disposed || currentCts.IsCancellationRequested || sequence != Volatile.Read(ref _querySequence))
+                return PageLoadOutcome.Superseded;
             if (!result.Success)
             {
                 ResultSummary = "中性产品加载失败。";
                 if (!string.IsNullOrWhiteSpace(result.Message)) _messages.ShowError("加载中性产品失败", result.Message);
-                return false;
+                return PageLoadOutcome.Failed;
             }
             var page = result.Data;
             Lines.LoadFromDtos(page?.Items ?? []);
@@ -394,9 +431,10 @@ public sealed partial class ProductNeutralManagerViewModel
             PageIndex = page?.PageIndex > 0 ? page.PageIndex : PageIndex;
             PageSize = page?.PageSize > 0 ? page.PageSize : PageSize;
             ResultSummary = $"共 {TotalCount} 条中性产品，本页 {Lines.Items.Count} 条。";
+            _appliedCategoryFilter = requestedCategoryFilter;
             AcceptChanges();
             UpdateChangeState();
-            return true;
+            return PageLoadOutcome.Success;
         }
         finally
         {
@@ -404,21 +442,13 @@ public sealed partial class ProductNeutralManagerViewModel
         }
     }
 
-    private void BuildCategoryFilters()
-    {
-        var all = ProductNeutralManagerCategoryFilterNode.All();
-        CategoryFilters = [all, ProductNeutralManagerCategoryFilterNode.Uncategorized(),
-            .. _cache.ProductCategoryTree.Select(ProductNeutralManagerCategoryFilterNode.FromCategory)];
-        SelectedCategoryFilter = all;
-    }
-
-    private static IEnumerable<Guid> GetCategoryIds(ProductCategoryCacheNode? node)
-    {
-        if (node is null) yield break;
-        yield return node.Uid;
-        foreach (var child in node.Children)
-            foreach (var uid in GetCategoryIds(child)) yield return uid;
-    }
+    /// <summary>按筛选语义比较快照，避免只因分类标识集合实例不同而重复查询。</summary>
+    private static bool AreCategoryFiltersEquivalent(
+        ProductCategoryFilterSelection left,
+        ProductCategoryFilterSelection right) =>
+        left.IsAll == right.IsAll
+        && left.IncludeUncategorized == right.IncludeUncategorized
+        && left.CategoryIds.SequenceEqual(right.CategoryIds);
 
     private async Task<bool> EnsureCanDiscardChangesAsync()
     {
@@ -445,6 +475,8 @@ public sealed partial class ProductNeutralManagerViewModel
             AddRowCommand.NotifyCanExecuteChanged();
             DeleteSelectedCommand.NotifyCanExecuteChanged();
             SaveCommand.NotifyCanExecuteChanged();
+            ReBuildImagePathCommand.NotifyCanExecuteChanged();
+            ReBuildCheckedImagePathsCommand.NotifyCanExecuteChanged();
         }
     }
 
@@ -454,11 +486,24 @@ public sealed partial class ProductNeutralManagerViewModel
         OnPropertyChanged(nameof(HasUnsavedChanges));
         SaveCommand.NotifyCanExecuteChanged();
         DeleteSelectedCommand.NotifyCanExecuteChanged();
+        ReBuildImagePathCommand.NotifyCanExecuteChanged();
+        ReBuildCheckedImagePathsCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanAddRow() => IsInteractionEnabled && CanWrite;
     private bool CanDeleteSelected() => IsInteractionEnabled && CanWrite && (Lines.CheckedCount > 0 || SelectedLine is not null);
     private bool CanSave() => IsInteractionEnabled && CanWrite && Lines.HasChanges;
+    private bool CanReBuildImagePath(ProductNeutralManagerLineModel? line) =>
+        IsInteractionEnabled
+        && CanWrite
+        && line is not null
+        && !string.IsNullOrWhiteSpace(line.ProductCode)
+        && !string.IsNullOrWhiteSpace(_productOptions.Value.BaseImageFolder);
+    private bool CanReBuildCheckedImagePaths() =>
+        IsInteractionEnabled
+        && CanWrite
+        && Lines.CheckedItems.Any(line => !string.IsNullOrWhiteSpace(line.ProductCode))
+        && !string.IsNullOrWhiteSpace(_productOptions.Value.BaseImageFolder);
 
     /// <summary>取消分页和主型号搜索请求并解除集合及页面状态订阅。</summary>
     public void Dispose()
@@ -477,5 +522,13 @@ public sealed partial class ProductNeutralManagerViewModel
         var cts = Interlocked.Exchange(ref source, null);
         cts?.Cancel();
         cts?.Dispose();
+    }
+
+    /// <summary>区分分页查询成功、真实失败和被更新请求替代，避免旧请求回滚新筛选。</summary>
+    private enum PageLoadOutcome
+    {
+        Success,
+        Failed,
+        Superseded,
     }
 }

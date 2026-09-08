@@ -22,9 +22,9 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <resourceProxies:BindingProxy x:Key="ProductsViewModelProxy" Data="{Binding}" />
         <DataTemplate x:Key="ProductUnitOptionTemplate">
-            <StackPanel Margin="2">
+            <StackPanel Margin="0,0" Orientation="Horizontal">
                 <TextBlock Text="{Binding DataNameEn}" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding DataNameZh}"
+                <TextBlock Text="{Binding DataNameZh}" Margin="4,0"
                            Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
                            TextWrapping="Wrap" />
             </StackPanel>
@@ -245,23 +245,22 @@
                             </DataGridTemplateColumn.CellEditingTemplate>
                         </DataGridTemplateColumn>
                         
-                        <DataGridTextColumn Header="SKU" Width="130" Binding="{Binding Sku, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                            gridColumns:GridColumn.Key="product-sku" />
-
-                        <DataGridTextColumn Header="关联SKU" Width="120"
-                                            Binding="{Binding LinkSku, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                            gridColumns:GridColumn.Key="link-sku" />
-
-                        <DataGridTextColumn Header="主SKU" Width="120" Binding="{Binding MasterSku, UpdateSourceTrigger=PropertyChanged}"
-                                            Visibility="{Binding Data.IsComplexFieldMode, Source={StaticResource ProductsViewModelProxy}, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            <DataGridTextColumn Header="主产品型号" Width="110" Binding="{Binding MasterSku, UpdateSourceTrigger=PropertyChanged}"
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             gridColumns:GridColumn.Key="master-sku" />
                         
+                            <DataGridTextColumn Header="产品型号" Width="120"
+                                            Binding="{Binding LinkSku, UpdateSourceTrigger=PropertyChanged}"
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                            gridColumns:GridColumn.Key="link-sku" />
+                        
+                            <DataGridTextColumn Header="物料编号" Width="130" Binding="{Binding Sku, UpdateSourceTrigger=PropertyChanged}"
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                            gridColumns:GridColumn.Key="product-sku" />
+
                         <DataGridTextColumn Header="英文描述" Width="180" Binding="{Binding DescriptionEn, UpdateSourceTrigger=PropertyChanged}"
                                             Visibility="{Binding Data.IsComplexFieldMode, Source={StaticResource ProductsViewModelProxy}, Converter={StaticResource BooleanToVisibilityConverter}}"
                                             ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" 
@@ -312,9 +311,8 @@
                             </DataGridTemplateColumn.CellEditingTemplate>
                         </DataGridTemplateColumn>
                         
-                        <DataGridTemplateColumn Header="分类" Width="150"
+                        <DataGridTemplateColumn Header="分类" Width="110"
                                                 SortMemberPath="CategoryName"
-                                                gridColumns:GridColumn.FillDownFieldPaths="CategoryId,CategoryName"
                                                 gridColumns:GridColumn.Key="category-name">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -322,21 +320,6 @@
                                                Style="{StaticResource SwiftExportDataGridTextBlock}" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
-                            
-                            <DataGridTemplateColumn.CellEditingTemplate>
-                                <DataTemplate>
-                                    <productComponents:ProductCategoryFlatLookupTextBox
-                                        Text="{Binding CategoryName, Mode=OneWay}"
-                                        FontSize="10"
-                                        ItemsSource="{Binding DataContext.ReferenceDataCache.ProductCategories, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                        SelectedCategory="{Binding DataContext.EditCategory, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWayToSource}"
-                                        SelectionCommittedCommand="{Binding DataContext.CommitCategoryCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                        SelectionCommittedCommandParameter="{Binding}"
-                                        SelectionClearedCommand="{Binding DataContext.ClearCategoryCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                        SelectionClearedCommandParameter="{Binding}" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
-                            
                         </DataGridTemplateColumn>
                         
                         <DataGridTemplateColumn Header="物料类型" 
@@ -346,7 +329,7 @@
                                                 SortMemberPath="MaterialType">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="6"
+                                        <ComboBox Margin="6" FontSize="12"
                                         ItemsSource="{x:Static staticEnums:MaterialTypesEnum.MaterialTypes}"
                                         SelectedValue="{Binding MaterialType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                 </DataTemplate>
@@ -354,45 +337,28 @@
                         </DataGridTemplateColumn>
 
                         <DataGridTemplateColumn Header="基础单位"
-                                                Width="90"
+                                                Width="110"
                                                 SortMemberPath="Unit"
                                                 gridColumns:GridColumn.Key="product-unit"
                                                 gridColumns:GridColumn.FieldPath="Unit">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Unit}"
-                                               Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                                    <ComboBox Margin="6" FontSize="12"
+                                              ItemsSource="{Binding DataContext.UnitOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                              ItemTemplate="{StaticResource ProductUnitOptionTemplate}"
+                                              SelectedValuePath="DataNameEn"
+                                              SelectedValue="{Binding Unit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
-                            <DataGridTemplateColumn.CellEditingTemplate>
-                                <DataTemplate>
-                                    <controls:LookupTextBox
-                                        Text="{Binding Unit, Mode=OneWay}"
-                                        FontSize="10"
-                                        ItemsSource="{Binding DataContext.UnitOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                        SelectedItem="{Binding DataContext.EditUnit, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWayToSource}"
-                                        SelectionCommittedCommand="{Binding DataContext.CommitUnitCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                        SelectionCommittedCommandParameter="{Binding}"
-                                        SelectionClearedCommand="{Binding DataContext.ClearUnitCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                        SelectionClearedCommandParameter="{Binding}"
-                                        SearchMode="Local"
-                                        MinimumSearchLength="0"
-                                        DisplayMemberPath="DataNameEn"
-                                        FilterMemberPaths="DataNameEn,DataNameZh,Remark"
-                                        RequireItemMatch="True"
-                                        ClearSelectionOnEdit="False"
-                                        ItemTemplate="{StaticResource ProductUnitOptionTemplate}" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="供货类型" Width="100" 
+                        <DataGridTemplateColumn Header="供货类型" Width="90" 
                                                 gridColumns:GridColumn.Key="supply-type"
                                                 gridColumns:GridColumn.FieldPath="SupplyType"
                                                 SortMemberPath="SupplyType">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="6"
+                                        <ComboBox Margin="6" FontSize="12"
                                         ItemsSource="{x:Static staticEnums:SupplyTypeEnums.SupplyTypes}"
                                         SelectedValue="{Binding SupplyType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                         />
@@ -539,7 +505,9 @@
                         <StackPanel Orientation="Horizontal">
                             <Button Content="新增" Command="{Binding BomDrawer.AddItemCommand}" 
                                     Margin="0,0,4,0" />
-                            <Button Content="保存" Command="{Binding BomDrawer.SaveCommand}" Margin="0,0,4,0" />
+                            <ui:Button Content="保存" 
+                                       Appearance="Primary"
+                                       Command="{Binding BomDrawer.SaveCommand}" Margin="0,0,4,0" />
                             <Button Content="删除" Command="{Binding BomDrawer.DeleteItemCommand}" Margin="0,0,4,0" />
                             <Button Content="放弃" Command="{Binding BomDrawer.RejectCommand}" Margin="0,0,4,0" />
                             <Button Content="刷新" Command="{Binding BomDrawer.RefreshCommand}" />

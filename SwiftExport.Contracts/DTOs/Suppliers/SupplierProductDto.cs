@@ -6,7 +6,7 @@ namespace SwiftExport.Contracts.DTOs.Suppliers
     /// <summary>
     /// 供应商产品传输模型。SupplierId/SkuId 是权威关系，编码字段用于人工查阅和冗余追溯。
     /// </summary>
-    /// <remarks>来源表：SupplierProduct、Supplier、Product、ProductCategory。</remarks>
+    /// <remarks>来源表：SupplierProduct、Supplier、Product、ProductMaster、ProductCategory。</remarks>
     public class SupplierProductDto : BaseDto
     {
         public Guid SupplierId { get; set; }
@@ -26,7 +26,7 @@ namespace SwiftExport.Contracts.DTOs.Suppliers
         public string DescriptionZh { get; set; } = string.Empty;
         /// <remarks>来源：Product.FeaturesZh。</remarks>
         public string FeaturesZh { get; set; } = string.Empty;
-        /// <remarks>来源：ProductCategory.CategoryName；经 Product.CategoryId 关联。</remarks>
+        /// <remarks>来源：ProductCategory.CategoryName；经 Product.ProductMasterId 和 ProductMaster.CategoryId 关联。</remarks>
         public string CategoryName { get; set; } = string.Empty;
         /// <remarks>来源：Product.MaterialType。</remarks>
         public string MaterialType { get; set; } = string.Empty;

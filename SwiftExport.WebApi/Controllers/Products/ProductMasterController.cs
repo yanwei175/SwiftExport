@@ -19,6 +19,13 @@ public sealed class ProductMasterController(IProductMasterService service) : Con
         [FromBody] ProductMasterSearchRequest request,
         CancellationToken cancellationToken) => service.GetPagedAsync(request, cancellationToken);
 
+    /// <summary>批量设置主型号分类并防止短时间重复提交。</summary>
+    [HttpPost("assign-category")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<AssignProductMastersToCategoryResult>> AssignCategoryAsync(
+        [FromBody] AssignProductMastersToCategoryRequest request,
+        CancellationToken cancellationToken) => service.AssignCategoryAsync(request, cancellationToken);
+
     /// <summary>读取主型号及全部有效中性产品。</summary>
     [HttpGet("{productMasterId:guid}")]
     public Task<ServiceResult<ProductMasterDetailDto>> GetDetailAsync(

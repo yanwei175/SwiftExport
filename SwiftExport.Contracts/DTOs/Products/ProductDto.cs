@@ -35,10 +35,12 @@ namespace SwiftExport.Contracts.DTOs.Products
         public decimal? GwOfCarton { get; set; }
         public decimal? CbmOfCarton { get; set; }
 
-        // 聚合信息 (由后端 SQL Join 查好填进来，UI 直接显示)
+        // 聚合信息（只读投影；分类经 ProductMaster 联表，保存时后端忽略 CategoryId）
+        /// <summary>主型号当前分类标识；空 Guid 表示未分类。</summary>
         public Guid CategoryId { get; set; }
         public Guid ColorId { get; set; }
 
+        /// <summary>主型号当前分类名称；未设置时返回“未分类”。</summary>
         public string CategoryName { get; set; }
         public string SupplierName { get; set; }
 

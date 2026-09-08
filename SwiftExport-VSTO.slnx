@@ -1,3 +1,5 @@
 <Solution>
   <Project Path="SwiftExport.Client.VSTO/SwiftExport.Client.VSTO.csproj" Id="e94bd9a8-7177-44e3-aa97-ac1997bac9b5" />
+  <Project Path="SwiftExport.Contracts/SwiftExport.Contracts.csproj" />
+  <Project Path="SwiftExport.Client.VSTO.Tests/SwiftExport.Client.VSTO.Tests.csproj" />
 </Solution>

@@ -66,7 +66,7 @@ public sealed class ProductCategoryTreeContextMenuTests
         var document = XDocument.Load(GetViewPath());
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
-        var openButton = document.Descendants(presentation + "Button")
+        var openButton = document.Descendants()
             .Single(element => (string?)element.Attribute("Content") == "快速归类");
         Assert.AreEqual("{Binding Assignment.OpenAssignmentPanelCommand}", (string?)openButton.Attribute("Command"));
 
@@ -74,6 +74,16 @@ public sealed class ProductCategoryTreeContextMenuTests
         Assert.AreEqual("True", (string?)dataGrid.Attribute("IsReadOnly"));
         Assert.AreEqual("True", (string?)dataGrid.Attribute("EnableRowVirtualization"));
         Assert.AreEqual("Recycling", (string?)dataGrid.Attribute("VirtualizingPanel.VirtualizationMode"));
+        CollectionAssert.AreEqual(
+            new[] { "图片", "主型号", "中文描述", "当前分类" },
+            dataGrid.Descendants()
+                .Where(element => element.Name.LocalName.EndsWith("Column", StringComparison.Ordinal))
+                .Select(element => (string?)element.Attribute("Header"))
+                .Where(header => header is not null)
+                .Cast<string>()
+                .ToArray());
+        StringAssert.Contains(dataGrid.ToString(), "MainImagePath");
+        StringAssert.Contains(dataGrid.ToString(), "MasterSku");
     }
 
     [TestMethod]

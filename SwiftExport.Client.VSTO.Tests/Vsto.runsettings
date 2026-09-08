@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+ <!-- net48 需要测试程序集自己的绑定重定向，不使用测试平台进程的配置。 -->
+ <RunConfiguration><DisableAppDomain>false</DisableAppDomain></RunConfiguration>
+</RunSettings>

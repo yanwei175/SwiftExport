@@ -29,9 +29,10 @@
         <ComboBox x:Name="CboPageSize"
                   ItemsSource="{Binding PageSizeOptions, ElementName=Root, Mode=OneWay}"
                   SelectionChanged="CboPageSize_SelectionChanged"
-                  Width="72"
+                  HorizontalContentAlignment="Left"
+                  VerticalContentAlignment="Center"
+                  MinWidth="70"
                   MinHeight="{DynamicResource SwiftExportControlHeight}"
-                  Padding="8,4"
                   Margin="8,0" />
         <TextBlock Text="条"
                    Style="{StaticResource SecondaryTextBlock}"

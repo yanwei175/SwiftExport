@@ -31,6 +31,74 @@ public sealed class ProductMasterService(
     public async Task<ServiceResult<PagedResponseBase<ProductMasterListItemDto>>> GetPagedAsync(ProductMasterSearchRequest request, CancellationToken cancellationToken = default) =>
         ServiceResult<PagedResponseBase<ProductMasterListItemDto>>.Ok(await masterRepository.GetPagedAsync(request ?? new ProductMasterSearchRequest(), cancellationToken));
 
+    /// <summary>在单一事务中批量更新主型号分类；任一无效或并发项都会回滚整个批次。</summary>
+    public async Task<ServiceResult<AssignProductMastersToCategoryResult>> AssignCategoryAsync(
+        AssignProductMastersToCategoryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request is null || request.TargetCategoryId == Guid.Empty)
+            return ServiceResult<AssignProductMastersToCategoryResult>.Fail(ServiceErrorCodes.Validation, "请选择有效的目标分类。");
+
+        request.Items ??= [];
+        if (request.Items.Count == 0)
+            return ServiceResult<AssignProductMastersToCategoryResult>.Fail(ServiceErrorCodes.Validation, "请选择需要归类的主型号。");
+        if (request.Items.Count > 200)
+            return ServiceResult<AssignProductMastersToCategoryResult>.Fail(ServiceErrorCodes.Validation, "单次最多归类 200 个主型号。");
+        if (request.Items.Any(item => item is null || item.ProductMasterId == Guid.Empty || item.ExpectedVersion <= 0))
+            return ServiceResult<AssignProductMastersToCategoryResult>.Fail(ServiceErrorCodes.Validation, "归类主型号标识或版本无效。");
+
+        var duplicateId = request.Items
+            .GroupBy(item => item.ProductMasterId)
+            .FirstOrDefault(group => group.Count() > 1)
+            ?.Key;
+        if (duplicateId.HasValue)
+            return ServiceResult<AssignProductMastersToCategoryResult>.Fail(ServiceErrorCodes.Validation, $"主型号 {duplicateId.Value} 在本次请求中重复。");
+
+        return await ExecuteTransactionAsync(async () =>
+        {
+            var categories = await categoryRepository.GetByIdListAsync([request.TargetCategoryId], true);
+            if (categories.Count != 1)
+                throw new ProductMasterWriteException(ServiceErrorCodes.Validation, "目标分类不存在或已失效。");
+
+            var ids = request.Items.Select(item => item.ProductMasterId).ToArray();
+            var masters = await masterRepository.GetByIdListAsync(ids, true);
+            if (masters.Count != ids.Length)
+                throw new ProductMasterWriteException(ServiceErrorCodes.BusinessBlocked, "部分主型号不存在或已被删除，请刷新后重试。");
+
+            var masterMap = masters.ToDictionary(master => master.Uid);
+            foreach (var item in request.Items)
+            {
+                var master = masterMap[item.ProductMasterId];
+                if (master.Version != item.ExpectedVersion)
+                    throw new ProductMasterWriteException(ServiceErrorCodes.VersionConflict, $"主型号 {master.MasterSku} 已被其他用户修改，请刷新后重试。");
+                if (master.CategoryId == request.TargetCategoryId)
+                    throw new ProductMasterWriteException(ServiceErrorCodes.BusinessBlocked, $"主型号 {master.MasterSku} 已属于目标分类，请刷新后重试。");
+            }
+
+            var response = new AssignProductMastersToCategoryResult { TargetCategoryId = request.TargetCategoryId };
+            foreach (var item in request.Items)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = await masterRepository.AssignCategoryAsync(
+                    item.ProductMasterId,
+                    item.ExpectedVersion,
+                    request.TargetCategoryId,
+                    cancellationToken);
+                EnsureWrite(result, "主型号归类失败。");
+                response.Items.Add(new AssignedProductMasterVersionResult
+                {
+                    ProductMasterId = item.ProductMasterId,
+                    OldVersion = item.ExpectedVersion,
+                    NewVersion = result.NewVersion
+                        ?? throw new ProductMasterWriteException(ServiceErrorCodes.Unexpected, "主型号归类成功但未返回新版本号。")
+                });
+            }
+
+            response.UpdatedCount = response.Items.Count;
+            return ServiceResult<AssignProductMastersToCategoryResult>.Ok(response, $"已将 {response.UpdatedCount} 个主型号归入目标分类。");
+        }, "批量归类主型号", cancellationToken);
+    }
+
     /// <summary>读取完整聚合，不返回已软删除记录。</summary>
     public async Task<ServiceResult<ProductMasterDetailDto>> GetDetailAsync(Guid productMasterId, CancellationToken cancellationToken = default)
     {

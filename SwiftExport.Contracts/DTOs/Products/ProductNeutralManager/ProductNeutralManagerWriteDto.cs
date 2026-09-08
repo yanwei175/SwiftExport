@@ -21,7 +21,5 @@ namespace SwiftExport.Contracts.DTOs.Products.ProductNeutralManager
         public decimal? DefaultPurchasePriceCny { get; set; }
         /// <summary>获取或设置图片路径。</summary>
         public string ImagePath { get; set; }
-        /// <summary>获取或设置是否作为所属主型号的默认主图。</summary>
-        public bool IsMainImage { get; set; }
     }
 }

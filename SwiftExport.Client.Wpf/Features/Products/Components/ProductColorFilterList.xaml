@@ -1,0 +1,58 @@
+<UserControl x:Class="SwiftExportClient.Features.Products.Components.ProductColorFilterList"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root"
+             MinWidth="120"
+             MinHeight="80">
+    <ListBox x:Name="ColorList"
+             ItemsSource="{Binding Options, ElementName=Root}"
+             SelectionMode="Multiple"
+             BorderThickness="0"
+             Background="Transparent"
+             ScrollViewer.CanContentScroll="True"
+             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+             ScrollViewer.VerticalScrollBarVisibility="Auto"
+             VirtualizingPanel.IsVirtualizing="True"
+             VirtualizingPanel.VirtualizationMode="Recycling"
+             SelectionChanged="ColorList_SelectionChanged"
+             AutomationProperties.Name="产品颜色多选筛选">
+        <ListBox.ItemContainerStyle>
+            <Style TargetType="{x:Type ListBoxItem}"
+                   BasedOn="{StaticResource SwiftExportListBoxItemStyle}">
+                <Setter Property="Padding" Value="6,4" />
+                <Setter Property="IsSelected" Value="{Binding IsChecked, Mode=TwoWay}" />
+            </Style>
+        </ListBox.ItemContainerStyle>
+        <ListBox.ItemTemplate>
+            <DataTemplate>
+                <Grid MinHeight="26" Background="Transparent"
+                      AutomationProperties.Name="{Binding DisplayName}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <CheckBox Margin="0,0,0,0"
+                              VerticalAlignment="Center"
+                              Focusable="False"
+                              IsHitTestVisible="False"
+                              IsChecked="{Binding IsChecked, Mode=OneWay}" >
+                        <CheckBox.LayoutTransform>
+                            <ScaleTransform ScaleX="0.8" ScaleY="0.8" />
+                        </CheckBox.LayoutTransform>
+                    </CheckBox>
+                    <TextBlock Grid.Column="1"
+                               VerticalAlignment="Center"
+                               Text="{Binding DisplayName}"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="2"
+                               Margin="8,0,8,0"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                               Text="{Binding ColorCode}"
+                               TextTrimming="CharacterEllipsis" />
+                </Grid>
+            </DataTemplate>
+        </ListBox.ItemTemplate>
+    </ListBox>
+</UserControl>

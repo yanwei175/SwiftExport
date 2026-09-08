@@ -10,7 +10,7 @@ using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Products;
 
-/// <summary>使用 Dapper 实现跨主型号中性产品分页、唯一性读取和默认主图替换。</summary>
+/// <summary>使用 Dapper 实现跨主型号中性产品分页和唯一性读取。</summary>
 public sealed class ProductNeutralManagerRepository(RepositoryBaseContext context)
     : DapperRepository<ProductNeutral>(context), IProductNeutralManagerRepository
 {
@@ -41,7 +41,13 @@ public sealed class ProductNeutralManagerRepository(RepositoryBaseContext contex
         }
 
         var categoryIds = request.CategoryIds?.Where(id => id != Guid.Empty).Distinct().ToArray() ?? [];
-        if (request.IncludeUncategorized)
+        // 中性产品沿用所属主型号分类；未分类与真实分类组合时必须放在同一 OR 分组中。
+        if (request.IncludeUncategorized && categoryIds.Length > 0)
+        {
+            parameters.Add("CategoryIds", categoryIds);
+            where.Append(" AND (pm.CategoryId IN @CategoryIds OR pm.CategoryId=@EmptyGuid OR pm.CategoryId IS NULL)");
+        }
+        else if (request.IncludeUncategorized)
         {
             where.Append(" AND (pm.CategoryId=@EmptyGuid OR pm.CategoryId IS NULL)");
         }
@@ -51,10 +57,11 @@ public sealed class ProductNeutralManagerRepository(RepositoryBaseContext contex
             where.Append(" AND pm.CategoryId IN @CategoryIds");
         }
 
-        if (request.ColorId.HasValue && request.ColorId.Value != Guid.Empty)
+        var colorIds = request.ColorIds?.Where(id => id != Guid.Empty).Distinct().ToArray() ?? [];
+        if (colorIds.Length > 0)
         {
-            parameters.Add("ColorId", request.ColorId.Value);
-            where.Append(" AND pn.ColorId=@ColorId");
+            parameters.Add("ColorIds", colorIds);
+            where.Append(" AND pn.ColorId IN @ColorIds");
         }
 
         var sql = $@"
@@ -102,32 +109,6 @@ OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
         return rows.ToList();
     }
 
-    /// <summary>自动替换默认主图；排除提交行以避免隐式版本递增破坏同批次更新。</summary>
-    public async Task<int> ClearMainImagesAsync(
-        Guid productMasterId,
-        IReadOnlyCollection<Guid> excludedIds,
-        CancellationToken cancellationToken = default)
-    {
-        var exclusions = excludedIds.Where(id => id != Guid.Empty).Distinct().ToArray();
-        var exclusionSql = exclusions.Length == 0 ? string.Empty : " AND Uid NOT IN @ExcludedIds";
-        var sql = $@"
-UPDATE dbo.ProductNeutral
-SET IsMainImage=0,
-    Version=Version+1,
-    UpdatedDate=@UpdatedDate,
-    UpdatedBy=@UpdatedBy
-WHERE ProductMasterId=@ProductMasterId
-  AND IsDeleted=0
-  AND IsMainImage=1{exclusionSql};";
-        return await Connection.ExecuteAsync(new CommandDefinition(sql, new
-        {
-            ProductMasterId = productMasterId,
-            ExcludedIds = exclusions,
-            UpdatedDate = DateTime.Now,
-            UpdatedBy = CurrentUser.UserName
-        }, Transaction, cancellationToken: cancellationToken));
-    }
-
     private static ProductNeutralManagerListItemDto ToListItem(ProductNeutralManagerProjection row) => new()
     {
         Uid = row.Uid,
@@ -151,8 +132,7 @@ WHERE ProductMasterId=@ProductMasterId
             DefaultExchangeRate = row.DefaultExchangeRate,
             ProfitMargin = row.ProfitMargin,
             DefaultPurchasePriceCny = row.DefaultPurchasePriceCny,
-            ImagePath = row.ImagePath,
-            IsMainImage = row.IsMainImage
+            ImagePath = row.ImagePath
         }
     };
 

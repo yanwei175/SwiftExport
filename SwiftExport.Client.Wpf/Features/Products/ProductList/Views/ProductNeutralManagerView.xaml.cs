@@ -1,11 +1,10 @@
 using System.Windows;
 using System.Windows.Controls;
-using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 
 namespace SwiftExportClient.Features.Products.ProductList.Views;
 
-/// <summary>中性产品管理视图，桥接原生编辑提交和分类 TreeView 选择。</summary>
+/// <summary>中性产品管理视图，桥接原生 DataGrid 编辑提交。</summary>
 public partial class ProductNeutralManagerView : UserControl
 {
     private ProductNeutralManagerViewModel? _viewModel;
@@ -40,11 +39,4 @@ public partial class ProductNeutralManagerView : UserControl
     private bool CommitEdits() =>
         NeutralGrid.CommitEdit(DataGridEditingUnit.Cell, true)
         && NeutralGrid.CommitEdit(DataGridEditingUnit.Row, true);
-
-    private async void OnCategorySelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
-    {
-        if (DataContext is ProductNeutralManagerViewModel viewModel
-            && e.NewValue is ProductNeutralManagerCategoryFilterNode node)
-            await viewModel.SelectCategoryAsync(node);
-    }
 }

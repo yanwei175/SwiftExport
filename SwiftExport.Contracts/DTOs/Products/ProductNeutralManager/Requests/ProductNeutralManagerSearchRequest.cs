@@ -11,7 +11,7 @@ namespace SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Requests
         public List<Guid> CategoryIds { get; set; } = new List<Guid>();
         /// <summary>获取或设置是否仅查询未设置分类的主型号所属中性产品。</summary>
         public bool IncludeUncategorized { get; set; }
-        /// <summary>获取或设置颜色筛选；空值表示全部颜色。</summary>
-        public Guid? ColorId { get; set; }
+        /// <summary>获取或设置允许命中的颜色标识；空集合表示全部颜色。</summary>
+        public List<Guid> ColorIds { get; set; } = new List<Guid>();
     }
 }

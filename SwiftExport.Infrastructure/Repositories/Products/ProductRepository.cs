@@ -20,6 +20,7 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
     private static readonly string CustomerTable = EntityMetadataCache.GetTableName<Customer>();
     private static readonly string ProductColorTable = EntityMetadataCache.GetTableName<ProductColor>();
     private static readonly string ProductCategoryTable = EntityMetadataCache.GetTableName<ProductCategory>();
+    private static readonly string ProductMasterTable = EntityMetadataCache.GetTableName<ProductMaster>();
     private static readonly string ProductPackageTable = EntityMetadataCache.GetTableName<ProductPackage>();
     private static readonly string SupplierTable = EntityMetadataCache.GetTableName<Supplier>();
 
@@ -29,9 +30,10 @@ public partial class ProductRepository(RepositoryBaseContext context) : DapperRe
                            && !property.Equals(nameof(Product.DefaultCustomerCode), StringComparison.OrdinalIgnoreCase)
                            && !property.Equals(nameof(Product.DefaultCustomerSku), StringComparison.OrdinalIgnoreCase))];
 
-    /// <summary>普通资料更新保留专用命令管理的启停状态，避免旧 DTO 默认值意外恢复产品。</summary>
+    /// <summary>普通资料更新跳过由专用命令或主型号维护的字段，避免旧 DTO 默认值覆盖权威数据。</summary>
     protected override IReadOnlyList<string> UpdateProperties => [.. base.UpdateProperties
         .Where(property => !property.Equals(nameof(Product.IsActive), StringComparison.OrdinalIgnoreCase)
+                           && !property.Equals("CategoryId", StringComparison.OrdinalIgnoreCase)
                            && !property.Equals(nameof(Product.DefaultSupplierSku), StringComparison.OrdinalIgnoreCase)
                            && !property.Equals(nameof(Product.DefaultCustomerCode), StringComparison.OrdinalIgnoreCase)
                            && !property.Equals(nameof(Product.DefaultCustomerSku), StringComparison.OrdinalIgnoreCase))];
@@ -75,6 +77,48 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
     {
         var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE [Sku] = @Sku AND IsDeleted = 0";
         return await Connection.QueryFirstOrDefaultAsync<Product>(sql, new { Sku = sku }, transaction: Transaction);
+    }
+
+    /// <summary>按 SKU 返回产品资料，并从所属主型号实时投影分类。</summary>
+    public async Task<ProductDto?> GetDtoBySkuAsync(string sku)
+    {
+        var sql = $@"
+SELECT TOP (1)
+    p.{nameof(Product.Uid)}, p.{nameof(Product.Version)}, p.{nameof(Product.IsDeleted)},
+    p.{nameof(Product.CreatedDate)}, p.{nameof(Product.CreatedBy)}, p.{nameof(Product.UpdatedDate)}, p.{nameof(Product.UpdatedBy)},
+    p.{nameof(Product.MasterSku)}, p.{nameof(Product.Sku)}, p.{nameof(Product.DescriptionEn)}, p.{nameof(Product.DescriptionZh)},
+    p.{nameof(Product.FeaturesEn)}, p.{nameof(Product.FeaturesZh)}, p.{nameof(Product.MaterialType)}, p.{nameof(Product.Unit)},
+    p.{nameof(Product.SupplyType)}, p.{nameof(Product.BomVersion)}, p.{nameof(Product.BomNo)}, p.{nameof(Product.Note)},
+    p.{nameof(Product.LinkSku)}, p.{nameof(Product.CNYPrice)}, p.{nameof(Product.USDPrice)}, p.{nameof(Product.ColorId)},
+    p.{nameof(Product.DefaultCustomerCode)}, p.{nameof(Product.DefaultCustomerSku)}, p.{nameof(Product.DefaultSupplierId)},
+    p.{nameof(Product.DefaultSupplierCode)}, p.{nameof(Product.DefaultSupplierSku)}, p.{nameof(Product.MainImage)},
+    COALESCE(pm.{nameof(ProductMaster.CategoryId)}, @EmptyGuid) AS {nameof(ProductDto.CategoryId)},
+    CASE WHEN pm.{nameof(ProductMaster.Uid)} IS NULL
+           OR pm.{nameof(ProductMaster.CategoryId)} IS NULL
+           OR pm.{nameof(ProductMaster.CategoryId)}=@EmptyGuid THEN N'未分类'
+         ELSE COALESCE(pat.{nameof(ProductCategory.CategoryName)}, N'分类已失效') END AS {nameof(ProductDto.CategoryName)},
+    defaultSupplier.{nameof(Supplier.SupplierName)} AS {nameof(ProductDto.SupplierName)},
+    pc.{nameof(ProductColor.ColorNameZh)} AS {nameof(ProductDto.Finish)}
+FROM [{TableName}] p WITH(NOLOCK)
+LEFT JOIN [{ProductMasterTable}] pm WITH(NOLOCK)
+    ON pm.{nameof(ProductMaster.Uid)}=p.{nameof(Product.ProductMasterId)}
+   AND (pm.{nameof(ProductMaster.IsDeleted)}=0 OR pm.{nameof(ProductMaster.IsDeleted)} IS NULL)
+LEFT JOIN [{ProductCategoryTable}] pat WITH(NOLOCK)
+    ON pat.{nameof(ProductCategory.Uid)}=pm.{nameof(ProductMaster.CategoryId)}
+   AND (pat.{nameof(ProductCategory.IsDeleted)}=0 OR pat.{nameof(ProductCategory.IsDeleted)} IS NULL)
+LEFT JOIN [{SupplierTable}] defaultSupplier WITH(NOLOCK)
+    ON defaultSupplier.{nameof(Supplier.Uid)}=p.{nameof(Product.DefaultSupplierId)}
+   AND (defaultSupplier.{nameof(Supplier.IsDeleted)}=0 OR defaultSupplier.{nameof(Supplier.IsDeleted)} IS NULL)
+LEFT JOIN [{ProductColorTable}] pc WITH(NOLOCK)
+    ON pc.{nameof(ProductColor.Uid)}=p.{nameof(Product.ColorId)}
+   AND (pc.{nameof(ProductColor.IsDeleted)}=0 OR pc.{nameof(ProductColor.IsDeleted)} IS NULL)
+WHERE p.{nameof(Product.Sku)}=@Sku
+  AND (p.{nameof(Product.IsDeleted)}=0 OR p.{nameof(Product.IsDeleted)} IS NULL)
+ORDER BY p.{nameof(Product.Uid)};";
+        return await Connection.QueryFirstOrDefaultAsync<ProductDto>(
+            sql,
+            new { Sku = sku, EmptyGuid = Guid.Empty },
+            transaction: Transaction);
     }
 
     public Task<Product?> GetByBomNoAsync(string bomNo)
@@ -131,7 +175,8 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
             request.ExcludeProductId,
             ExactKeyword = keyword,
             PrefixKeyword = $"{keyword}%",
-            ContainsKeyword = $"%{keyword}%"
+            ContainsKeyword = $"%{keyword}%",
+            EmptyGuid = Guid.Empty
         };
 
         var sql = $@"
@@ -141,7 +186,12 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
                 p.{nameof(Product.DescriptionEn)} AS {nameof(ProductLookupDto.DescriptionEn)},
                 p.{nameof(Product.DescriptionZh)} AS {nameof(ProductLookupDto.DescriptionZh)},
                 p.{nameof(Product.LinkSku)} AS {nameof(ProductLookupDto.LinkSku)},
-                pat.{nameof(ProductCategory.CategoryName)} AS {nameof(ProductLookupDto.CategoryName)},
+                CASE
+                    WHEN pm.{nameof(ProductMaster.Uid)} IS NULL
+                      OR pm.{nameof(ProductMaster.CategoryId)} IS NULL
+                      OR pm.{nameof(ProductMaster.CategoryId)} = @EmptyGuid THEN N'未分类'
+                    ELSE COALESCE(pat.{nameof(ProductCategory.CategoryName)}, N'分类已失效')
+                END AS {nameof(ProductLookupDto.CategoryName)},
                 p.{nameof(Product.MainImage)} AS {nameof(ProductLookupDto.MainImage)},
                 pc.{nameof(ProductColor.ColorNameZh)} AS {nameof(ProductLookupDto.Finish)},
                 p.{nameof(Product.FeaturesEn)} AS {nameof(ProductLookupDto.FeaturesEn)},
@@ -150,8 +200,11 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
                 p.{nameof(Product.USDPrice)} AS {nameof(ProductLookupDto.USDPrice)},
                 p.{nameof(Product.CNYPrice)} AS {nameof(ProductLookupDto.CNYPrice)}
             FROM [{TableName}] p WITH(NOLOCK)
+            LEFT JOIN [{ProductMasterTable}] pm WITH(NOLOCK)
+                ON pm.{nameof(ProductMaster.Uid)} = p.{nameof(Product.ProductMasterId)}
+               AND (pm.{nameof(ProductMaster.IsDeleted)} = 0 OR pm.{nameof(ProductMaster.IsDeleted)} IS NULL)
             LEFT JOIN [{ProductCategoryTable}] pat WITH(NOLOCK)
-                ON pat.{nameof(ProductCategory.Uid)} = p.{nameof(Product.CategoryId)}
+                ON pat.{nameof(ProductCategory.Uid)} = pm.{nameof(ProductMaster.CategoryId)}
                AND (pat.{nameof(ProductCategory.IsDeleted)} = 0 OR pat.{nameof(ProductCategory.IsDeleted)} IS NULL)
             LEFT JOIN [{ProductColorTable}] pc WITH(NOLOCK)
                 ON pc.{nameof(ProductColor.Uid)} = p.{nameof(Product.ColorId)}
@@ -218,6 +271,7 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
         var parameters = new DynamicParameters();
         parameters.Add("@Offset", (pageIndex - 1) * pageSize);
         parameters.Add("@Limit", pageSize);
+        parameters.Add("@EmptyGuid", Guid.Empty);
 
         var whereSb = new StringBuilder();
         whereSb.AppendLine($@"WHERE (p.{nameof(Product.IsDeleted)} = 0 OR p.{nameof(Product.IsDeleted)} IS NULL)");
@@ -299,7 +353,7 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
         // =========================================================
         if (request.CategoryId != Guid.Empty)
         {
-            whereSb.AppendLine($@"AND p.{nameof(Product.CategoryId)} = @CategoryId");
+            whereSb.AppendLine($@"AND pm.{nameof(ProductMaster.CategoryId)} = @CategoryId");
             parameters.Add("@CategoryId", request.CategoryId);
         }
 
@@ -313,7 +367,7 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
 
         if (categoryIds.Count > 0)
         {
-            whereSb.AppendLine($@"AND p.{nameof(Product.CategoryId)} IN @CategoryIds");
+            whereSb.AppendLine($@"AND pm.{nameof(ProductMaster.CategoryId)} IN @CategoryIds");
             parameters.Add("@CategoryIds", categoryIds);
         }
 
@@ -392,8 +446,12 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
                                 ON p.{nameof(Product.ColorId)} = pc.{nameof(ProductColor.Uid)}
                                AND (pc.{nameof(ProductColor.IsDeleted)} = 0 OR pc.{nameof(ProductColor.IsDeleted)} IS NULL)
 
+                            LEFT JOIN [{ProductMasterTable}] pm WITH(NOLOCK)
+                                ON p.{nameof(Product.ProductMasterId)} = pm.{nameof(ProductMaster.Uid)}
+                               AND (pm.{nameof(ProductMaster.IsDeleted)} = 0 OR pm.{nameof(ProductMaster.IsDeleted)} IS NULL)
+
                             LEFT JOIN [{ProductCategoryTable}] pat WITH(NOLOCK)
-                                ON p.{nameof(Product.CategoryId)} = pat.{nameof(ProductCategory.Uid)}
+                                ON pm.{nameof(ProductMaster.CategoryId)} = pat.{nameof(ProductCategory.Uid)}
                                AND (pat.{nameof(ProductCategory.IsDeleted)} = 0 OR pat.{nameof(ProductCategory.IsDeleted)} IS NULL)
 
                             LEFT JOIN [{SupplierTable}] defaultSupplier WITH(NOLOCK)
@@ -423,9 +481,42 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
                     {whereClause};
 
                     SELECT
-                        p.*,
-
-                        pat.{nameof(ProductCategory.CategoryName)},
+                        p.{nameof(Product.Uid)},
+                        p.{nameof(Product.Version)},
+                        p.{nameof(Product.IsDeleted)},
+                        p.{nameof(Product.CreatedDate)},
+                        p.{nameof(Product.CreatedBy)},
+                        p.{nameof(Product.UpdatedDate)},
+                        p.{nameof(Product.UpdatedBy)},
+                        p.{nameof(Product.MasterSku)},
+                        p.{nameof(Product.Sku)},
+                        p.{nameof(Product.DescriptionEn)},
+                        p.{nameof(Product.DescriptionZh)},
+                        p.{nameof(Product.FeaturesEn)},
+                        p.{nameof(Product.FeaturesZh)},
+                        p.{nameof(Product.MaterialType)},
+                        p.{nameof(Product.Unit)},
+                        p.{nameof(Product.SupplyType)},
+                        p.{nameof(Product.BomVersion)},
+                        p.{nameof(Product.BomNo)},
+                        p.{nameof(Product.Note)},
+                        p.{nameof(Product.LinkSku)},
+                        p.{nameof(Product.CNYPrice)},
+                        p.{nameof(Product.USDPrice)},
+                        p.{nameof(Product.ColorId)},
+                        p.{nameof(Product.DefaultCustomerCode)},
+                        p.{nameof(Product.DefaultCustomerSku)},
+                        p.{nameof(Product.DefaultSupplierId)},
+                        p.{nameof(Product.DefaultSupplierCode)},
+                        p.{nameof(Product.DefaultSupplierSku)},
+                        p.{nameof(Product.MainImage)},
+                        COALESCE(pm.{nameof(ProductMaster.CategoryId)}, @EmptyGuid) AS {nameof(ProductDto.CategoryId)},
+                        CASE
+                            WHEN pm.{nameof(ProductMaster.Uid)} IS NULL
+                              OR pm.{nameof(ProductMaster.CategoryId)} IS NULL
+                              OR pm.{nameof(ProductMaster.CategoryId)} = @EmptyGuid THEN N'未分类'
+                            ELSE COALESCE(pat.{nameof(ProductCategory.CategoryName)}, N'分类已失效')
+                        END AS {nameof(ProductDto.CategoryName)},
                         pat.{nameof(ProductCategory.FakeName)},
 
                         defaultSupplier.{nameof(Supplier.SupplierName)} AS {nameof(ProductDto.SupplierName)},
@@ -467,140 +558,5 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
             Items = items.ToList()
         };
     }
-
-    public async Task<PagedResponseBase<ProductCategoryAssignmentRowDto>> GetCategoryAssignmentPageAsync(
-        ProductCategoryAssignmentSearchRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        var pageIndex = Math.Max(1, request.PageIndex);
-        var pageSize = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 200);
-        var parameters = new DynamicParameters();
-        parameters.Add("@TargetCategoryId", request.TargetCategoryId);
-        parameters.Add("@ExcludeTargetCategory", request.ExcludeTargetCategory);
-        parameters.Add("@EmptyGuid", Guid.Empty);
-        parameters.Add("@Offset", (pageIndex - 1) * pageSize);
-        parameters.Add("@Limit", pageSize);
-
-        var where = new StringBuilder($@"
-WHERE (p.{nameof(Product.IsDeleted)} = 0 OR p.{nameof(Product.IsDeleted)} IS NULL)
-  AND (
-       @ExcludeTargetCategory = 0
-    OR p.{nameof(Product.CategoryId)} IS NULL
-    OR p.{nameof(Product.CategoryId)} <> @TargetCategoryId
-  )");
-
-        if (!string.IsNullOrWhiteSpace(request.Keyword))
-        {
-            where.Append($@"
-  AND (
-       p.{nameof(Product.Sku)} LIKE @Keyword ESCAPE '~'
-    OR p.{nameof(Product.LinkSku)} LIKE @Keyword ESCAPE '~'
-    OR p.{nameof(Product.DescriptionZh)} LIKE @Keyword ESCAPE '~'
-  )");
-            parameters.Add("@Keyword", SqlLikePattern.Build(request.Keyword));
-        }
-
-        var from = $@"
-FROM [{TableName}] p WITH(NOLOCK)
-LEFT JOIN [{ProductCategoryTable}] pat WITH(NOLOCK)
-    ON pat.{nameof(ProductCategory.Uid)} = p.{nameof(Product.CategoryId)}
-   AND (pat.{nameof(ProductCategory.IsDeleted)} = 0 OR pat.{nameof(ProductCategory.IsDeleted)} IS NULL)";
-
-        var sql = $@"
-SELECT COUNT(1)
-{from}
-{where};
-
-SELECT
-    p.{nameof(Product.Uid)} AS {nameof(ProductCategoryAssignmentRowDto.Uid)},
-    p.{nameof(Product.Version)} AS {nameof(ProductCategoryAssignmentRowDto.Version)},
-    p.{nameof(Product.MainImage)} AS {nameof(ProductCategoryAssignmentRowDto.MainImage)},
-    p.{nameof(Product.Sku)} AS {nameof(ProductCategoryAssignmentRowDto.Sku)},
-    p.{nameof(Product.LinkSku)} AS {nameof(ProductCategoryAssignmentRowDto.LinkSku)},
-    p.{nameof(Product.DescriptionZh)} AS {nameof(ProductCategoryAssignmentRowDto.DescriptionZh)},
-    COALESCE(p.{nameof(Product.CategoryId)}, @EmptyGuid) AS {nameof(ProductCategoryAssignmentRowDto.OriginalCategoryId)},
-    CASE
-        WHEN p.{nameof(Product.CategoryId)} IS NULL
-          OR p.{nameof(Product.CategoryId)} = @EmptyGuid THEN N'未分类'
-        ELSE COALESCE(pat.{nameof(ProductCategory.CategoryName)}, N'分类已失效')
-    END AS {nameof(ProductCategoryAssignmentRowDto.OriginalCategoryName)}
-{from}
-{where}
-ORDER BY p.{nameof(Product.Sku)} ASC, p.{nameof(Product.Uid)} ASC
-OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;";
-
-        var command = new CommandDefinition(
-            sql,
-            parameters,
-            transaction: Transaction,
-            cancellationToken: cancellationToken);
-        using var multi = await Connection.QueryMultipleAsync(command);
-        var totalCount = await multi.ReadFirstAsync<int>();
-        var items = await multi.ReadAsync<ProductCategoryAssignmentRowDto>();
-        var itemList = items.ToList();
-
-        Logger.LogDebug(
-            "产品快速归类查询：TargetCategoryId={TargetCategoryId}, ExcludeTargetCategory={ExcludeTargetCategory}, Keyword={Keyword}, PageIndex={PageIndex}, PageSize={PageSize}, TotalCount={TotalCount}, PageItemCount={PageItemCount}",
-            request.TargetCategoryId,
-            request.ExcludeTargetCategory,
-            request.Keyword,
-            pageIndex,
-            pageSize,
-            totalCount,
-            itemList.Count);
-
-        return new PagedResponseBase<ProductCategoryAssignmentRowDto>
-        {
-            Items = itemList,
-            TotalCount = totalCount,
-            PageIndex = pageIndex,
-            PageSize = pageSize
-        };
-    }
-
-    public async Task<RepositoryWriteResult> AssignCategoryAsync(
-        Guid productId,
-        int expectedVersion,
-        Guid targetCategoryId,
-        CancellationToken cancellationToken = default)
-    {
-        const string sql = @"
-UPDATE [dbo].[Product]
-SET [CategoryId] = @TargetCategoryId,
-    [UpdatedDate] = @Now,
-    [UpdatedBy] = @UserName,
-    [Version] = [Version] + 1
-OUTPUT INSERTED.[Version]
-WHERE [Uid] = @ProductId
-  AND [Version] = @ExpectedVersion
-  AND ([CategoryId] IS NULL OR [CategoryId] <> @TargetCategoryId)
-  AND ([IsDeleted] = 0 OR [IsDeleted] IS NULL);";
-
-        var command = new CommandDefinition(
-            sql,
-            new
-            {
-                ProductId = productId,
-                ExpectedVersion = expectedVersion,
-                TargetCategoryId = targetCategoryId,
-                Now = DateTime.Now,
-                UserName = CurrentUser.UserName
-            },
-            transaction: Transaction,
-            cancellationToken: cancellationToken);
-        var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>(command);
-
-        return newVersion.HasValue
-            ? RepositoryWriteResult.Ok(productId, expectedVersion, newVersion.Value, "产品归类成功。")
-            : RepositoryWriteResult.Fail(
-                productId,
-                expectedVersion,
-                "CONCURRENCY_CONFLICT",
-                "产品已被其他用户修改、删除或已归入目标分类，请刷新后重试。");
-    }
-
-
 
 }

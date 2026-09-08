@@ -7,7 +7,7 @@ using SwiftExportClient.Mvvm;
 
 namespace SwiftExportClient.Features.Products.ProductList.Models;
 
-/// <summary>中性产品管理页集合，负责跨主型号变更集、当前页主图互斥和保存结果接纳。</summary>
+/// <summary>中性产品管理页集合，负责跨主型号变更集和保存结果接纳。</summary>
 public sealed class ProductNeutralManagerListModel
     : BaseListModel<ProductNeutralManagerLineModel, ProductNeutralManagerListItemDto>
 {
@@ -16,17 +16,6 @@ public sealed class ProductNeutralManagerListModel
 
     /// <summary>新增一条尚未选择主型号和颜色的中性产品。</summary>
     public ProductNeutralManagerLineModel AddNewNeutral() => AddNew(new ProductNeutralManagerListItemDto());
-
-    /// <summary>在当前页内保证同一主型号只有一条默认主图；页外记录由服务端事务处理。</summary>
-    public void SetMainImage(ProductNeutralManagerLineModel line)
-    {
-        if (!Items.Contains(line) || !line.IsMainImage || line.ProductMasterId == Guid.Empty) return;
-        using var _ = SuppressListEvents();
-        foreach (var other in Items.Where(item => !ReferenceEquals(item, line)
-                                                   && item.ProductMasterId == line.ProductMasterId
-                                                   && item.IsMainImage))
-            other.IsMainImage = false;
-    }
 
     /// <summary>按照当前行状态构造 Manager 专用批量保存请求。</summary>
     public ProductNeutralManagerBatchSaveRequest CreateSaveRequest() => new()

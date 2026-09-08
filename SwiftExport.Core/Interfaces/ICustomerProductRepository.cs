@@ -22,7 +22,7 @@ public interface ICustomerProductRepository : IRepository<CustomerProduct>
     /// 直接返回 CustomerProductDto，无需中间读模型。
     /// criteria 字段说明：
     ///   - 普通字段（CustomerId / CustomerSku / Sku 等）→ 映射到 cp.字段
-    ///   - CategoryId → 映射到 p.CategoryId
+    ///   - CategoryName → 经 Product.ProductMasterId 和 ProductMaster.CategoryId 联表取得
     /// </summary>
     Task<PagedResponseBase<CustomerProductDto>> GetPagedAsync(CustomerProductSearchRequest request);
 

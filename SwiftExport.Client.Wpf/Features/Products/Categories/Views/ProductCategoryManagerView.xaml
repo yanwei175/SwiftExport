@@ -10,10 +10,7 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              mc:Ignorable="d"
              d:DesignWidth="1200"
-             d:DesignHeight="800"
-             Background="{DynamicResource MicaControlBrush}"
-             HorizontalContentAlignment="Stretch"
-             VerticalContentAlignment="Stretch">
+             d:DesignHeight="800">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         
@@ -214,7 +211,7 @@
                                 Padding="12,4"
                                 VerticalAlignment="Top">
                             <ui:Button.ToolTip>
-                                <TextBlock Text="打开后才会加载待归类产品" />
+                                <TextBlock Text="打开后才会加载待归类主型号" />
                             </ui:Button.ToolTip>
                         </ui:Button>
                     </Grid>
@@ -290,7 +287,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="快速归类到：" Style="{StaticResource BodyTextBlock}" FontWeight="SemiBold" />
+                                    <TextBlock Text="主型号快速归类到：" Style="{StaticResource BodyTextBlock}" FontWeight="SemiBold" />
                                     <TextBlock Text="{Binding TargetCategoryName}"
                                                Style="{StaticResource BodyTextBlock}"
                                                FontWeight="SemiBold"
@@ -311,7 +308,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <ui:TextBox Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="输入 SKU、LinkSKU 或中文描述">
+                                         PlaceholderText="输入主型号、描述或中性产品编码">
                                     <ui:TextBox.InputBindings>
                                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                                     </ui:TextBox.InputBindings>
@@ -334,7 +331,7 @@
                                            Margin="4,0,0,0"
                                            Padding="12,4"   
                                            Command="{Binding AssignSelectedCommand}">
-                                    <TextBlock Text="{Binding CheckedCount, StringFormat=归类 {0} 条}"/>
+                                    <TextBlock Text="{Binding CheckedCount, StringFormat=归类 {0} 个主型号}"/>
                                 </ui:Button>
                                 
                                 <TextBlock Grid.Column="4"
@@ -382,15 +379,14 @@
                                                                            Height="40"
                                                                            Style="{StaticResource SwiftExportCachedImage}"
                                                                            DecodePixelWidth="96"
-                                                                           SourcePath="{Binding MainImage}"
+                                                                           SourcePath="{Binding MainImagePath}"
                                                                            Stretch="Uniform" />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="SKU" Width="180" Binding="{Binding Sku}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"/>
-                                    <DataGridTextColumn Header="LinkSKU" Width="180" Binding="{Binding LinkSku}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"/>
-                                    <DataGridTextColumn Header="中文描述" Width="*" Binding="{Binding DescriptionZh}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}"/>
-                                    <DataGridTextColumn Header="原始分类" Width="160" Binding="{Binding OriginalCategoryName}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"/>
+                                    <DataGridTextColumn Header="主型号" Width="200" Binding="{Binding MasterSku}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"/>
+                                    <DataGridTextColumn Header="中文描述" Width="*" Binding="{Binding DefaultDescriptionZh}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}"/>
+                                    <DataGridTextColumn Header="当前分类" Width="220" Binding="{Binding OriginalCategoryName}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"/>
                                 </DataGrid.Columns>
                             </DataGrid>
 

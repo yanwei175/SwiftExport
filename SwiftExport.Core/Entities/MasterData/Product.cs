@@ -83,7 +83,8 @@ public class Product : BaseEntity
     public string? DefaultSupplierCode { get; set; }
     /// <summary>旧模型保留的默认供应商产品编码兼容字段；目标模型以 SupplierProduct 关系为准。</summary>
     public string? DefaultSupplierSku { get; set; }
-    /// <summary>关联的产品分类唯一标识。</summary>
+    /// <summary>旧模型保留的产品分类兼容字段；分类权威来源已迁移到 ProductMaster.CategoryId。</summary>
+    [Obsolete("Product.CategoryId 已废弃，请通过 Product.ProductMasterId 关联 ProductMaster.CategoryId 获取分类。")]
     public Guid CategoryId { get; set; }
 
 

@@ -97,15 +97,11 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     [ObservableProperty]
     public partial ProductCategoryCacheNode? FilterCategory { get; set; }
     [ObservableProperty]
-    public partial ProductCategoryCacheNode? EditCategory { get; set; }
-    [ObservableProperty]
     public partial ProductColorDto? EditColor { get; set; }
     [ObservableProperty]
     public partial CustomerDto? EditCustomer { get; set; }
     [ObservableProperty]
     public partial SupplierDto? EditSupplier { get; set; }
-    [ObservableProperty]
-    public partial SysDictDataDto? EditUnit { get; set; }
     [ObservableProperty]
     public partial bool IsCustomerLookupBusy { get; set; }
     [ObservableProperty]
@@ -298,23 +294,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     }
 
     [RelayCommand]
-    private void CommitCategory(ProductLineModel? line)
-    {
-        if (line is null || EditCategory is null) return;
-        line.CategoryId = EditCategory.Uid; line.CategoryName = EditCategory.CategoryName ?? string.Empty;
-        EditCategory = null;
-    }
-
-    [RelayCommand]
-    private void ClearCategory(ProductLineModel? line)
-    {
-        if (line is null) return;
-        line.CategoryId = Guid.Empty;
-        line.CategoryName = string.Empty;
-        EditCategory = null;
-    }
-
-    [RelayCommand]
     private void CommitColor(ProductLineModel? line)
     {
         if (line is null || EditColor is null) return;
@@ -329,22 +308,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         line.ColorId = Guid.Empty;
         line.Finish = string.Empty;
         EditColor = null;
-    }
-
-    [RelayCommand]
-    private void CommitUnit(ProductLineModel? line)
-    {
-        if (line is null || EditUnit is null) return;
-        line.Unit = EditUnit.DataNameEn?.Trim() ?? string.Empty;
-        EditUnit = null;
-    }
-
-    [RelayCommand]
-    private void ClearUnit(ProductLineModel? line)
-    {
-        if (line is null) return;
-        line.Unit = string.Empty;
-        EditUnit = null;
     }
 
     [RelayCommand]

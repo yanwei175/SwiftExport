@@ -304,8 +304,8 @@
             <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,4,0,4">
                 <ui:Button Margin="0,0,4,0" Appearance="Primary" 
                            Command="{Binding AddStandardLineCommand}"  Content="添加产品" />
-                <ui:Button Margin="0,0,4,0" Appearance="Primary" Command="{Binding AddNonStandardLineCommand}"  Content="添加非标件" />
-                <ui:Button Margin="0,0,4,0" Appearance="Danger" Command="{Binding DeleteSelectedLineCommand}"  Content="删除行" />
+                <ui:Button Margin="0,0,4,0"  Command="{Binding AddNonStandardLineCommand}"  Content="添加非标件" />
+                <ui:Button Margin="0,0,4,0"  Command="{Binding DeleteSelectedLineCommand}"  Content="删除行" />
                 <ui:Button Margin="0,0,4,0" Command="{x:Static ApplicationCommands.Undo}" CommandTarget="{Binding ElementName=OrderLinesGrid}" Content="撤销" ToolTip="Ctrl+Z" />
                 <ui:ToggleSwitch Margin="12,0,0,0"
                                  VerticalAlignment="Center"

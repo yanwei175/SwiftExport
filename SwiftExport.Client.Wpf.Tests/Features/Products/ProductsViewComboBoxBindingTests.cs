@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Mvvm;
@@ -85,6 +86,52 @@ public sealed class ProductsViewComboBoxBindingTests
         });
     }
 
+    [TestMethod]
+    public void UnitComboBox_ShouldPreserveEmptyAndLegacyValuesAndWriteUserSelection()
+    {
+        StaTest.RunAsync(() =>
+        {
+            var options = new[]
+            {
+                new SysDictDataDto { DataNameEn = "PCS", DataNameZh = "个" },
+                new SysDictDataDto { DataNameEn = "SET", DataNameZh = "套" },
+            };
+            var list = new ProductListModel();
+            list.LoadFromDtos(
+            [
+                new ProductDto { Uid = Guid.NewGuid(), Unit = string.Empty },
+                new ProductDto { Uid = Guid.NewGuid(), Unit = "LEGACY" },
+            ]);
+            var window = new Window { Width = 360, Height = 180, ShowInTaskbar = false };
+            var grid = CreateUnitGrid(list, options);
+            window.Content = grid;
+            window.Show();
+            PumpDispatcher();
+
+            window.Content = new Border();
+            PumpDispatcher();
+            grid = CreateUnitGrid(list, options);
+            window.Content = grid;
+            PumpDispatcher();
+
+            Assert.AreEqual(string.Empty, list.Items[0].Unit);
+            Assert.AreEqual("LEGACY", list.Items[1].Unit);
+            Assert.IsTrue(list.Items.All(line => line.State == LineState.Unchanged));
+
+            var row = (DataGridRow)grid.ItemContainerGenerator.ContainerFromIndex(0);
+            var editor = FindVisualChild<ComboBox>(GetCell(grid, row, 0));
+            Assert.IsNotNull(editor);
+            editor.SelectedValue = "SET";
+            PumpDispatcher();
+
+            Assert.AreEqual("SET", list.Items[0].Unit);
+            Assert.AreEqual(LineState.Modified, list.Items[0].State);
+            Assert.AreEqual("LEGACY", list.Items[1].Unit);
+            window.Close();
+            return Task.CompletedTask;
+        });
+    }
+
     private static DataGrid CreateGrid(ProductListModel list, bool includeSupplyType = true)
     {
         var grid = new DataGrid
@@ -109,14 +156,31 @@ public sealed class ProductsViewComboBoxBindingTests
         return grid;
     }
 
+    private static DataGrid CreateUnitGrid(ProductListModel list, IEnumerable<SysDictDataDto> options)
+    {
+        var grid = new DataGrid
+        {
+            AutoGenerateColumns = false,
+            ItemsSource = list.Items,
+            SelectionUnit = DataGridSelectionUnit.Cell,
+        };
+        grid.Columns.Add(CreateTemplateColumn("基础单位", options, nameof(ProductLineModel.Unit), nameof(SysDictDataDto.DataNameEn)));
+        return grid;
+    }
+
     private static DataGridTemplateColumn CreateTemplateColumn(
         string header,
-        IEnumerable<string> itemsSource,
-        string propertyName)
+        System.Collections.IEnumerable itemsSource,
+        string propertyName,
+        string? selectedValuePath = null)
     {
 #pragma warning disable CS0618
         var factory = new FrameworkElementFactory(typeof(ComboBox));
         factory.SetValue(ItemsControl.ItemsSourceProperty, itemsSource);
+        if (!string.IsNullOrWhiteSpace(selectedValuePath))
+        {
+            factory.SetValue(Selector.SelectedValuePathProperty, selectedValuePath);
+        }
         factory.SetBinding(
             System.Windows.Controls.Primitives.Selector.SelectedValueProperty,
             new Binding(propertyName)

@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.ProductApis;
-using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
 using SwiftExportClient.Features.Products.Categories.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Resources.Controls;
@@ -12,10 +12,11 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Products.Categories.ViewModels;
 
+/// <summary>管理分类页的主型号快速归类查询、勾选和批量命令。</summary>
 public sealed partial class ProductCategoryAssignmentViewModel : ViewModelBaseEx
 {
     private const int DefaultPageSize = 50;
-    private readonly IProductApi _productApi;
+    private readonly IProductMasterApi _productMasterApi;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
@@ -23,17 +24,17 @@ public sealed partial class ProductCategoryAssignmentViewModel : ViewModelBaseEx
     private long _loadGeneration;
 
     public ProductCategoryAssignmentViewModel(
-        IProductApi productApi,
+        IProductMasterApi productMasterApi,
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
         IDialogService dialogService)
     {
-        _productApi = productApi;
+        _productMasterApi = productMasterApi;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _dialogService = dialogService;
 
-        Title = "产品快速归类";
+        Title = "主型号快速归类";
         RegisterBusyAwareCommand(OpenAssignmentPanelCommand);
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
@@ -73,7 +74,7 @@ public sealed partial class ProductCategoryAssignmentViewModel : ViewModelBaseEx
     public partial int TotalCount { get; set; }
 
     [ObservableProperty]
-    public partial string StatusMessage { get; private set; } = "打开后才会加载产品。";
+    public partial string StatusMessage { get; private set; } = "打开后才会加载主型号。";
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AssignSelectedCommand))]
@@ -127,20 +128,20 @@ public sealed partial class ProductCategoryAssignmentViewModel : ViewModelBaseEx
             StatusMessage = category is null
                 ? "请选择一个分类。"
                 : category.State == ProductCategoryNodeState.Added
-                    ? "请先保存新增分类，再进行产品归类。"
+                    ? "请先保存新增分类，再进行主型号归类。"
                     : "目标分类已切换。";
         }
         else if (IsAssignmentPanelOpen && hasCategoryChanges)
         {
-            StatusMessage = "请先保存分类结构，再执行产品归类。";
+            StatusMessage = "请先保存分类结构，再执行主型号归类。";
         }
         else if (IsAssignmentPanelOpen && !canWrite)
         {
-            StatusMessage = "当前页面为只读状态，不能执行产品归类。";
+            StatusMessage = "当前页面为只读状态，不能执行主型号归类。";
         }
         else if (IsAssignmentPanelOpen && Lines.Count > 0)
         {
-            StatusMessage = $"共 {TotalCount} 个待归类产品，本页 {Lines.Count} 个。";
+            StatusMessage = $"共 {TotalCount} 个待归类主型号，本页 {Lines.Count} 个。";
         }
 
         OpenAssignmentPanelCommand.NotifyCanExecuteChanged();
@@ -175,7 +176,7 @@ public sealed partial class ProductCategoryAssignmentViewModel : ViewModelBaseEx
         ClearLines();
         TotalCount = 0;
         PageIndex = 1;
-        StatusMessage = "快速归类已关闭，产品数据已释放。";
+        StatusMessage = "快速归类已关闭，主型号数据已释放。";
     }
 
     [RelayCommand(CanExecute = nameof(CanRunQuery))]
@@ -212,8 +213,8 @@ public sealed partial class ProductCategoryAssignmentViewModel : ViewModelBaseEx
         }
 
         var confirmed = await _dialogService.ConfirmAsync(
-            "批量归类产品",
-            $"将 {checkedLines.Length} 个产品归入“{target.CategoryName}”，是否继续？",
+            "批量归类主型号",
+            $"将 {checkedLines.Length} 个主型号归入“{target.CategoryName}”，是否继续？",
             "确认归类");
         if (!confirmed)
         {
@@ -222,29 +223,29 @@ public sealed partial class ProductCategoryAssignmentViewModel : ViewModelBaseEx
 
         await RunWriteAsync(async () =>
         {
-            var request = new AssignProductsToCategoryRequest
+            var request = new AssignProductMastersToCategoryRequest
             {
                 TargetCategoryId = target.Uid,
-                Items = checkedLines.Select(line => new AssignProductToCategoryItem
+                Items = checkedLines.Select(line => new AssignProductMasterToCategoryItem
                 {
-                    ProductId = line.Uid,
+                    ProductMasterId = line.Uid,
                     ExpectedVersion = line.Version
                 }).ToList()
             };
 
             var result = await _apiCallRunner.RunAsync(
-                () => _productApi.AssignCategoryAsync(request),
-                "产品归类失败");
+                () => _productMasterApi.AssignCategoryAsync(request),
+                "主型号归类失败");
             if (!result.Success)
             {
                 ValidationSummary = result.Message;
                 StatusMessage = result.Message;
-                _messageService.ShowError("产品归类失败", result.Message);
+                _messageService.ShowError("主型号归类失败", result.Message);
                 return;
             }
 
             var updatedCount = result.Data?.UpdatedCount ?? 0;
-            _messageService.ShowSuccess("产品归类完成", $"已归类 {updatedCount} 个产品。");
+            _messageService.ShowSuccess("主型号归类完成", $"已归类 {updatedCount} 个主型号。");
             ValidationSummary = null;
             await LoadPageAsync();
 
@@ -253,7 +254,7 @@ public sealed partial class ProductCategoryAssignmentViewModel : ViewModelBaseEx
                 PageIndex = TotalPages;
                 await LoadPageAsync();
             }
-        }, "正在批量归类产品...");
+        }, "正在批量归类主型号...");
     }
 
     private async Task LoadPageAsync()
@@ -272,18 +273,17 @@ public sealed partial class ProductCategoryAssignmentViewModel : ViewModelBaseEx
 
         await RunBusyAsync(async () =>
         {
-            var request = new ProductCategoryAssignmentSearchRequest
+            var request = new ProductMasterSearchRequest
             {
-                TargetCategoryId = targetId,
-                ExcludeTargetCategory = true,
+                ExcludeCategoryId = targetId,
                 Keyword = string.IsNullOrWhiteSpace(Keyword) ? null : Keyword.Trim(),
                 PageIndex = PageIndex,
                 PageSize = PageSize
             };
             var result = await _apiCallRunner.RunAsync(
-                () => _productApi.GetCategoryAssignmentPageAsync(request, cts.Token),
+                () => _productMasterApi.GetPagedAsync(request, cts.Token),
                 cts.Token,
-                "加载待归类产品失败");
+                "加载待归类主型号失败");
 
             if (cts.IsCancellationRequested
                 || generation != Volatile.Read(ref _loadGeneration)
@@ -297,7 +297,7 @@ public sealed partial class ProductCategoryAssignmentViewModel : ViewModelBaseEx
             {
                 ValidationSummary = result.Message;
                 StatusMessage = string.IsNullOrWhiteSpace(result.Message)
-                    ? "产品查询已取消。"
+                    ? "主型号查询已取消。"
                     : result.Message;
                 return;
             }
@@ -306,9 +306,9 @@ public sealed partial class ProductCategoryAssignmentViewModel : ViewModelBaseEx
             TotalCount = result.Data?.TotalCount ?? 0;
             PageIndex = result.Data?.PageIndex > 0 ? result.Data.PageIndex : PageIndex;
             PageSize = result.Data?.PageSize > 0 ? result.Data.PageSize : PageSize;
-            StatusMessage = $"共 {TotalCount} 个待归类产品，本页 {Lines.Count} 个。";
+            StatusMessage = $"共 {TotalCount} 个待归类主型号，本页 {Lines.Count} 个。";
             ValidationSummary = null;
-        }, "正在加载待归类产品...", skipIfBusy: false);
+        }, "正在加载待归类主型号...", skipIfBusy: false);
     }
 
     private void ReplaceLines(IEnumerable<ProductCategoryAssignmentLineModel> lines)

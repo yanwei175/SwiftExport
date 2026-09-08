@@ -18,6 +18,12 @@ namespace SwiftExport.Contracts.Apis.ProductApis
             [Body] ProductMasterSearchRequest request,
             CancellationToken cancellationToken = default(CancellationToken));
 
+        /// <summary>批量设置主型号分类。</summary>
+        [Post("/assign-category")]
+        Task<ServiceResult<AssignProductMastersToCategoryResult>> AssignCategoryAsync(
+            [Body] AssignProductMastersToCategoryRequest request,
+            CancellationToken cancellationToken = default(CancellationToken));
+
         /// <summary>读取一个主型号及其中性产品明细。</summary>
         [Get("/{productMasterId}")]
         Task<ServiceResult<ProductMasterDetailDto>> GetDetailAsync(

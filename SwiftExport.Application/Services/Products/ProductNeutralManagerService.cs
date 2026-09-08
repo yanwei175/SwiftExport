@@ -13,7 +13,7 @@ using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Services.Products;
 
-/// <summary>编排跨主型号中性产品分页、引用校验、主图替换、乐观并发和批量事务。</summary>
+/// <summary>编排跨主型号中性产品分页、引用校验、乐观并发和批量事务。</summary>
 public sealed class ProductNeutralManagerService(
     IProductNeutralManagerRepository repository,
     IProductMasterRepository masterRepository,
@@ -41,16 +41,7 @@ public sealed class ProductNeutralManagerService(
         return await ExecuteTransactionAsync(async () =>
         {
             Normalize(request);
-            await ValidateAsync(request, cancellationToken);
-            var submittedIds = request.UpdateItems.Select(item => item.Uid)
-                .Concat(request.DeleteItems.Select(item => item.Uid))
-                .Where(id => id != Guid.Empty).Distinct().ToArray();
-
-            // 只对本批次明确提交的主图候选执行自动替换；未触碰的主型号保持原状。
-            var winners = ProductNeutralManagerMainImagePolicy.GetWinnerMasterIds(
-                request.CreateItems.Select(item => item.Data).Concat(request.UpdateItems.Select(item => item.Data)));
-            foreach (var productMasterId in winners)
-                await repository.ClearMainImagesAsync(productMasterId, submittedIds, cancellationToken);
+            var existing = await ValidateAsync(request, cancellationToken);
 
             var response = new ProductNeutralManagerBatchSaveResponse { TotalCount = request.TotalCount };
             foreach (var item in request.CreateItems)
@@ -63,7 +54,8 @@ public sealed class ProductNeutralManagerService(
             foreach (var item in request.UpdateItems)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var entity = ToEntity(item.Data);
+                // Manager 不暴露默认主图编辑，更新时必须保留数据库中的当前标记。
+                var entity = ToEntity(item.Data, existing[item.Uid].IsMainImage);
                 entity.Uid = item.Uid;
                 entity.Version = item.Version;
                 var result = await repository.UpdateAsync(entity);
@@ -82,8 +74,8 @@ public sealed class ProductNeutralManagerService(
         }, cancellationToken);
     }
 
-    /// <summary>校验引用、编码、并发版本和批次最终主图候选，所有读取均位于写事务内。</summary>
-    private async Task ValidateAsync(
+    /// <summary>校验引用、编码和并发版本，并返回已加锁实体供更新时保留非 Manager 字段。</summary>
+    private async Task<IReadOnlyDictionary<Guid, ProductNeutral>> ValidateAsync(
         ProductNeutralManagerBatchSaveRequest request,
         CancellationToken cancellationToken)
     {
@@ -112,9 +104,6 @@ public sealed class ProductNeutralManagerService(
         if (normalizedCodes.Distinct(StringComparer.OrdinalIgnoreCase).Count() != normalizedCodes.Length)
             throw new ProductNeutralManagerWriteException(ServiceErrorCodes.Validation, "本次提交存在重复中性产品编码。");
 
-        if (ProductNeutralManagerMainImagePolicy.HasMultipleWinners(writes.Select(item => item.Data)))
-            throw new ProductNeutralManagerWriteException(ServiceErrorCodes.Validation, "同一个主型号在本次提交中只能指定一个默认主图。");
-
         var targetIds = updates.Concat(deletes).Distinct().ToArray();
         var existing = (await repository.GetByIdListAsync(targetIds, true)).ToDictionary(item => item.Uid);
         if (existing.Count != targetIds.Length)
@@ -142,7 +131,7 @@ public sealed class ProductNeutralManagerService(
             if (owners.Any(owner => string.Equals(owner.ProductCode, write.Data.ProductCode, StringComparison.OrdinalIgnoreCase)
                                     && owner.Uid != write.Id))
                 throw new ProductNeutralManagerWriteException(ServiceErrorCodes.Validation, $"中性产品编码 {write.Data.ProductCode} 已被其他记录使用。");
-
+        return existing;
     }
 
     private static string? Validate(ProductNeutralManagerWriteDto data)
@@ -155,7 +144,7 @@ public sealed class ProductNeutralManagerService(
         return null;
     }
 
-    private static ProductNeutral ToEntity(ProductNeutralManagerWriteDto data) => new()
+    private static ProductNeutral ToEntity(ProductNeutralManagerWriteDto data, bool isMainImage = false) => new()
     {
         ProductMasterId = data.ProductMasterId,
         ProductCode = data.ProductCode.Trim(),
@@ -165,7 +154,7 @@ public sealed class ProductNeutralManagerService(
         ProfitMargin = data.ProfitMargin,
         DefaultPurchasePriceCny = data.DefaultPurchasePriceCny,
         ImagePath = NormalizeText(data.ImagePath),
-        IsMainImage = data.IsMainImage
+        IsMainImage = isMainImage
     };
 
     private static void Normalize(ProductNeutralManagerBatchSaveRequest request)

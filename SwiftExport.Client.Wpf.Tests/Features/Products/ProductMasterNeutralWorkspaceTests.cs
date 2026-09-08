@@ -245,6 +245,8 @@ public sealed class ProductMasterNeutralWorkspaceTests
             => Save(productMasterId, request);
         public Task<ServiceResult<PagedResponseBase<ProductMasterListItemDto>>> GetPagedAsync(ProductMasterSearchRequest request, CancellationToken cancellationToken = default)
         { PageCount++; return Task.FromResult(ServiceResult<PagedResponseBase<ProductMasterListItemDto>>.Ok(new())); }
+        public Task<ServiceResult<AssignProductMastersToCategoryResult>> AssignCategoryAsync(AssignProductMastersToCategoryRequest request, CancellationToken cancellationToken = default)
+            => throw new AssertFailedException("中性产品工作区不应执行主型号归类。");
         public Task<ServiceResult<ProductMasterBatchSaveResponse>> BatchSaveAsync(ProductMasterBatchSaveRequest request, CancellationToken cancellationToken = default)
             => Task.FromResult(ServiceResult<ProductMasterBatchSaveResponse>.Ok(new ProductMasterBatchSaveResponse()));
         public Task<ServiceResult<SaveProductMasterDetailResponse>> SaveDetailAsync(SaveProductMasterDetailRequest request, CancellationToken cancellationToken = default)

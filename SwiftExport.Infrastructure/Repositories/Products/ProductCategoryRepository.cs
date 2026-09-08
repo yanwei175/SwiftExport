@@ -13,7 +13,7 @@ public class ProductCategoryRepository(RepositoryBaseContext context)
     : DapperRepository<ProductCategory>(context), IProductCategoryRepository
 {
     private static readonly string ProductCategoryTable = EntityMetadataCache.GetTableName<ProductCategory>();
-    private static readonly string ProductTable = EntityMetadataCache.GetTableName<Product>();
+    private static readonly string ProductMasterTable = EntityMetadataCache.GetTableName<ProductMaster>();
 
     public async Task<IReadOnlyList<ProductCategory>> GetSubById(Guid parentId)
     {
@@ -63,7 +63,7 @@ WHERE [IsDeleted] = 0 OR [IsDeleted] IS NULL;";
 
         var sql = $@"
 SELECT DISTINCT [CategoryId]
-FROM [{ProductTable}] WITH (UPDLOCK, ROWLOCK)
+FROM [{ProductMasterTable}] WITH (UPDLOCK, ROWLOCK)
 WHERE [CategoryId] IN @CategoryIds
   AND ([IsDeleted] = 0 OR [IsDeleted] IS NULL);";
 

@@ -17,13 +17,5 @@ public partial interface IProductService : IBaseService<Product, ProductDto>
 
     Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync(ProductSearchRequest search);
 
-    Task<ServiceResult<PagedResponseBase<ProductCategoryAssignmentRowDto>>> GetCategoryAssignmentPageAsync(
-        ProductCategoryAssignmentSearchRequest request,
-        CancellationToken cancellationToken = default);
-
-    Task<ServiceResult<AssignProductsToCategoryResult>> AssignCategoryAsync(
-        AssignProductsToCategoryRequest request,
-        CancellationToken cancellationToken = default);
-
     Task<ServiceResult<List<ProductLookupDto>>> SearchLookupAsync(ProductLookupRequest request);
 }
