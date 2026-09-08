@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
+using SwiftExportClient.Features.QualityControl.AfterSales.Services;
 using SwiftExportClient.Features.Sales.Orders.Services;
 using SwiftExportClient.Features.Products.ProductList.Services;
 using SwiftExportClient.Features.Shipping.PackingLists.Services;
@@ -47,6 +48,8 @@ public static class ServiceCollectionExtensions
         services.AddTransient<INetDemandDialogService, NetDemandDialogService>();
         services.AddTransient<IProcurementDialogService, ProcurementDialogService>();
         services.AddTransient<IPurchaseOrderCancellationDialogService, PurchaseOrderCancellationDialogService>();
+        services.AddTransient<IAfterSalesFeatureService, AfterSalesFeatureService>();
+        services.AddTransient<IAfterSalesReasonDialogService, AfterSalesReasonDialogService>();
         services.AddTransient<ISalesOrderCancellationDialogService, SalesOrderCancellationDialogService>();
         services.AddTransient<IProductMasterSyncDialogService, ProductMasterSyncDialogService>();
         services.AddTransient<IPurchaseOrderTraceExportService, PurchaseOrderTraceExportService>();

@@ -11,6 +11,7 @@ using SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Planning;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
+using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.Placeholders.ViewModels;
@@ -51,6 +52,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(PurchaseOrderManagerViewModel.RouteKey, "采购订单管理", "Workspace", typeof(PurchaseOrderManagerViewModel), NavigationModuleKeys.Procurement, PermissionKeys.ModuleProcurementAccess),
         new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "采购订单跟进", "Workspace", typeof(PurchaseOrderProgressWorkspaceViewModel), NavigationModuleKeys.Procurement, PermissionKeys.ModuleProcurementAccess),
         new(PurchaseOrderDetailViewModel.RouteKey, "采购单详情", "Workspace", typeof(PurchaseOrderDetailViewModel), NavigationModuleKeys.Procurement, PermissionKeys.ModuleProcurementAccess),
+        new(AfterSalesManagerViewModel.RouteKey, "售后服务管理", "Manager", typeof(AfterSalesManagerViewModel), NavigationModuleKeys.QualityControl, PermissionKeys.ModuleQualityControlAccess),
+        new(AfterSalesDetailViewModel.RouteKey, "售后服务单", "Detail", typeof(AfterSalesDetailViewModel), NavigationModuleKeys.QualityControl, PermissionKeys.ModuleQualityControlAccess),
         new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", typeof(WarehouseSitesViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
         new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", typeof(InventoryBalancesViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
         new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", typeof(InventoryLedgerViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
@@ -139,6 +142,16 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 [
                     new(PurchaseOrderManagerViewModel.RouteKey, "采购订单管理", "Workspace", "DocumentBulletList24"),
                     new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "采购订单跟进", "Workspace", "ClipboardTaskListLtr24"),
+                ]),
+            new(
+                NavigationModuleKeys.QualityControl,
+                "品质管理",
+                "Workspace",
+                "ShieldCheckmark24",
+                IsExpanded: true,
+                Children:
+                [
+                    new(AfterSalesManagerViewModel.RouteKey, "售后服务管理", "Manager", "ClipboardTaskListLtr24"),
                 ]),
             new(
                 "inventory",

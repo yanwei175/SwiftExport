@@ -7,6 +7,7 @@ using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
+using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
 using SwiftExportClient.Features.Customers.CustomerManagement.Models;
 using SwiftExportClient.Features.Customers.CustomerProducts.Models;
 using SwiftExportClient.Features.Products.Bom.Models;
@@ -17,6 +18,7 @@ using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.Models;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
+using SwiftExportClient.Features.QualityControl.AfterSales.Models;
 
 namespace SwiftExportClient.Mappings;
 
@@ -214,6 +216,16 @@ public sealed class MapsterConfig : IRegister
 
         config.NewConfig<PurchaseOrderLineEditModel, PurchaseOrderLineDetailDto>()
             .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted);
+
+        config.NewConfig<AfterSalesListItemDto, AfterSalesManagerRowModel>()
+            .Map(dest => dest.CustomerDisplay, src => string.Concat(src.CustomerCodeSnapshot, " · ", src.CustomerNameSnapshot))
+            .Map(dest => dest.DocumentStatusText, src => src.DocumentStatus == SwiftExport.Contracts.SysEnums.DocumentStatusEnum.Closed ? "已结案" : src.DocumentStatus == SwiftExport.Contracts.SysEnums.DocumentStatusEnum.Voided ? "已作废" : "开放")
+            .Map(dest => dest.ConfirmationStatusText, src => src.ConfirmationStatus == SwiftExport.Contracts.SysEnums.ConfirmationStatusEnum.已确认 ? "已确认" : "待确认")
+            .Map(dest => dest.AmountText, src => string.Concat("¥", src.KnownAmountCny.ToString("N2"), src.HasUndeterminedAmount ? " + 待定" : string.Empty));
+        config.NewConfig<AfterSalesHeaderDto, AfterSalesHeaderEditModel>();
+        config.NewConfig<AfterSalesHeaderEditModel, AfterSalesEditHeaderDto>();
+        config.NewConfig<AfterSalesLineDto, AfterSalesLineModel>();
+        config.NewConfig<AfterSalesLineModel, AfterSalesEditLineDto>();
     }
 }
 

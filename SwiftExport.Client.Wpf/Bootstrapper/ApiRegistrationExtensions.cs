@@ -6,6 +6,7 @@ using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.Procurement;
+using SwiftExport.Contracts.Apis.QualityControl;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
@@ -44,6 +45,7 @@ public static class ApiRegistrationExtensions
         services.AddCustomerApis();
         services.AddOrderApis();
         services.AddInventoryApis();
+        services.AddQualityControlApis();
 
         return services;
     }
@@ -104,6 +106,18 @@ public static class ApiRegistrationExtensions
         services.AddControllerApi<IInboundWorkspaceApi>("inventory/inbounds");
         services.AddControllerApi<IOutboundWorkspaceApi>("inventory/outbounds");
         services.AddControllerApi<IPackingListWorkspaceApi>("shipping/packing-lists");
+    }
+
+    /// <summary>注册品质管理 API；售后契约使用站点根路径上的绝对路由。</summary>
+    private static void AddQualityControlApis(this IServiceCollection services)
+    {
+        services.AddRefitClient<IAfterSalesApi>()
+            .ConfigureHttpClient((provider, client) =>
+            {
+                client.BaseAddress = BuildSiteRoot(provider);
+                client.Timeout = DefaultTimeout;
+            })
+            .AddHttpMessageHandler<AuthTokenHandler>();
     }
 
     private static IHttpClientBuilder AddControllerApi<TApi>(

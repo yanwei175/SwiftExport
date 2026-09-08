@@ -17,6 +17,8 @@ public static class NavigationModuleKeys
     public const string DemandPlanning = "demand-planning";
     /// <summary>采购模块。</summary>
     public const string Procurement = "procurement";
+    /// <summary>品质管理模块。</summary>
+    public const string QualityControl = "quality-control";
     /// <summary>库存模块。</summary>
     public const string Inventory = "inventory";
     /// <summary>出货模块。</summary>

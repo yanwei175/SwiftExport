@@ -12,6 +12,7 @@ using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.Placeholders.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
+using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 using SwiftExportClient.Features.Sales;
@@ -71,6 +72,8 @@ public static class ViewRegistrationExtensions
         services.AddTransient<PurchaseOrderManagerViewModel>();
         services.AddTransient<PurchaseOrderProgressWorkspaceViewModel>();
         services.AddTransient<PurchaseOrderDetailViewModel>();
+        services.AddTransient<AfterSalesManagerViewModel>();
+        services.AddTransient<AfterSalesDetailViewModel>();
         services.AddTransient<NetDemandPurchasePickerViewModel>();
         services.AddTransient<PlanningViewModel>();
         services.AddTransient<WarehouseSitesViewModel>();

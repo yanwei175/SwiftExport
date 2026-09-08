@@ -1,26 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
-namespace SwiftExportClient.Features.QualityControl.AfterSales.Views
+namespace SwiftExportClient.Features.QualityControl.AfterSales.Views;
+
+/// <summary>售后服务单详情视图，展示投诉事实、实际补件及业务命令入口。</summary>
+public partial class AfterSalesDetailView : UserControl
 {
-    /// <summary>
-    /// AfterSalesDetailView.xaml 的交互逻辑
-    /// </summary>
-    public partial class AfterSalesDetailView : UserControl
+    /// <summary>初始化售后详情视图。</summary>
+    public AfterSalesDetailView()
     {
-        public AfterSalesDetailView()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

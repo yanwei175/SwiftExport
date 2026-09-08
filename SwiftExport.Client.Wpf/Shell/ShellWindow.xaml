@@ -34,6 +34,8 @@
         xmlns:productListViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductList.ViewModels"
         xmlns:procurementViews="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.Views"
         xmlns:procurementViewModels="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels"
+        xmlns:afterSalesViews="clr-namespace:SwiftExportClient.Features.QualityControl.AfterSales.Views"
+        xmlns:afterSalesViewModels="clr-namespace:SwiftExportClient.Features.QualityControl.AfterSales.ViewModels"
         xmlns:productPlaceholderViews="clr-namespace:SwiftExportClient.Features.Products.Placeholders.Views"
         xmlns:productPlaceholderViewModels="clr-namespace:SwiftExportClient.Features.Products.Placeholders.ViewModels"
         xmlns:supplierViews="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierManagement.Views"
@@ -175,6 +177,12 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type procurementViewModels:PurchaseOrderDetailViewModel}">
             <procurementViews:PurchaseOrderDetailView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type afterSalesViewModels:AfterSalesManagerViewModel}">
+            <afterSalesViews:AfterSalesManagerView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type afterSalesViewModels:AfterSalesDetailViewModel}">
+            <afterSalesViews:AfterSalesDetailView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type inventoryWarehouseViewModels:WarehouseSitesViewModel}">
             <inventoryWarehouseViews:WarehouseSitesView />
