@@ -97,36 +97,41 @@
         
         <Grid RowDefinitions="Auto,4,Auto,4,*,4,Auto">
             <Grid Grid.Row="0" ColumnDefinitions="240,4,Auto,12,*">
-                <TextBox Grid.Column="0" MinHeight="32" VerticalContentAlignment="Center"
-                                 ToolTip="来源单号、SKU、客户型号或描述"
-                                 Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}">
-                    <TextBox.InputBindings>
+                <ui:TextBox Grid.Column="0" MinHeight="32" VerticalContentAlignment="Center"
+                            PlaceholderText="来源单号、SKU、客户型号或描述"
+                            Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}">
+                    <ui:TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                    </TextBox.InputBindings>
-                </TextBox>
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
                 <ui:Button Grid.Column="2" Width="36" 
                            Appearance="Primary"
                            Icon="{ui:SymbolIcon Symbol=Search24}"
                            Command="{Binding SearchCommand}" ToolTip="查询"/>
 
                 <StackPanel Grid.Column="4" Orientation="Horizontal">
-                    <ui:Button Content="手工需求"
-                               Icon="{ui:SymbolIcon Symbol=Add24}"
-                                Command="{Binding CreateManualCommand}" 
-                                Appearance="Primary" 
-                                Margin="0,0,4,0" Padding="8,4"/>
+                    <ui:Button Content="新增独立需求"
+                               Command="{Binding CreateManualCommand}" 
+                               Appearance="Primary" 
+                               Margin="0,0,8,0"/>
 
-                    <Button Command="{Binding EditSelectedManualCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="编辑手工" />
-                    <Button Command="{Binding CloseSelectedManualCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="关闭手工" />
+                    <Button Command="{Binding EditSelectedManualCommand}" 
+                            Style="{StaticResource GrossDemandToolbarButton}" 
+                            Content="编辑独立需求" Margin="0,0,8,0" />
+                    <Button Command="{Binding CloseSelectedManualCommand}" 
+                            Style="{StaticResource GrossDemandToolbarButton}" 
+                            Content="关闭独立需求" Margin="0,0,8,0"/>
 
-                    <Button Command="{Binding OpenSourceCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="来源单据" />
+                    <Button Command="{Binding OpenSourceCommand}" 
+                            Style="{StaticResource GrossDemandToolbarButton}" 
+                            Content="来源单据" Margin="0,0,8,0"/>
 
-                    <Button Command="{Binding RefreshCommand}" Style="{StaticResource GrossDemandToolbarButton}">
-                        <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon Symbol="ArrowClockwise24"/>
-                            <TextBlock Margin="6,0,0,0" Text="刷新"/>
-                        </StackPanel>
-                    </Button>
+                    <Button Command="{Binding RefreshCommand}" 
+                            Content="刷新"
+                            MinWidth="70"
+                            Style="{StaticResource GrossDemandToolbarButton}"
+                            Margin="0,0,8,0"/>
+
 
                 </StackPanel>
             </Grid>
@@ -153,17 +158,22 @@
                                                        ItemsSource="{Binding LifecycleStatusOptions}"
                                                        SelectedItems="{Binding SelectedLifecycleStatuses, Mode=OneWay}" />
 
-                    <ComboBox Grid.Column="12" ItemsSource="{Binding StandardTypeOptions}"
-                                      DisplayMemberPath="DisplayText"
-                                      SelectedItem="{Binding SelectedStandardType}" />
+                    <ComboBox Grid.Column="8" 
+                              ItemsSource="{Binding StandardTypeOptions}"
+                              DisplayMemberPath="DisplayText"
+                              SelectedItem="{Binding SelectedStandardType}" />
 
-                    <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="14"
-                                        ToolTip="需求交期从"
-                                        SelectedDate="{Binding RequiredDateFrom}" />
-                    <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="16"
-                                        ToolTip="需求交期到"
-                                        SelectedDate="{Binding RequiredDateTo}" />
-                    <Button Grid.Column="18"
+                    <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="10"
+                                Background="White"
+                                controls:DatePickerAssist.PlaceholderText="需求交期起"
+                                SelectedDate="{Binding RequiredDateFrom}" />
+                    
+                    <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="12"
+                                Background="White"
+                                controls:DatePickerAssist.PlaceholderText="需求交期至"
+                                SelectedDate="{Binding RequiredDateTo}" />
+                    
+                    <Button Grid.Column="14"
                                     Content="清空筛选"
                                     Command="{Binding ClearFiltersCommand}" />
                 </Grid>
@@ -245,10 +255,10 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridTextColumn Header="来源" Width="48" Binding="{Binding SourceTypeText}" 
+                                <DataGridTextColumn Header="来源" Width="70" Binding="{Binding SourceTypeText}" 
                                                 ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                                 gridColumns:GridColumn.Key="source-type" />
-                                <DataGridTextColumn Header="来源行" Width="38" Binding="{Binding SourceLineNumber}" 
+                                <DataGridTextColumn Header="来源行" Width="60" Binding="{Binding SourceLineNumber}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             gridColumns:GridColumn.Key="source-line" />
 
@@ -280,16 +290,16 @@
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             gridColumns:GridColumn.Key="source-no" />
 
-                                <DataGridTextColumn Header="物料类型" Width="62" Binding="{Binding ItemTypeText}" 
+                                <DataGridTextColumn Header="物料类型" Width="72" 
+                                                    Binding="{Binding ItemTypeText}" 
                                             gridColumns:GridColumn.Key="item-type" >
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
-
+                                        <Style TargetType="TextBlock" 
+                                               BasedOn="{StaticResource SwiftExportDataGridDateTextBlock}">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding ItemTypeText}"  Value="非标件">
                                                     <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ActiveText}"/>
                                                 </DataTrigger>
-
                                             </Style.Triggers>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>

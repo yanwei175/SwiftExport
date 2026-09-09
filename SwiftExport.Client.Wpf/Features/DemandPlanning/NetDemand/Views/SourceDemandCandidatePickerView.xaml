@@ -11,22 +11,53 @@
                     <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                 </ui:TextBox.InputBindings>
             </ui:TextBox>
-            <Button Grid.Column="2" Command="{Binding SearchCommand}" Content="查询" Padding="12,4" />
+            
+            <Button Grid.Column="2" 
+                    Command="{Binding SearchCommand}" 
+                    Content="查询"/>
         </Grid>
-        <DataGrid Grid.Row="2" ItemsSource="{Binding Items}" AutoGenerateColumns="False" IsReadOnly="True"
-                  CanUserAddRows="False" SelectionMode="Extended">
+        
+        <DataGrid Grid.Row="2" 
+                  ItemsSource="{Binding Items}" 
+                  AutoGenerateColumns="False" 
+                  IsReadOnly="True"
+                  CanUserAddRows="False" 
+                  SelectionMode="Extended">
             <DataGrid.Columns>
-                <DataGridCheckBoxColumn Header="选择" Width="52" Binding="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="False" />
-                <DataGridTextColumn Header="来源类型" Width="90" Binding="{Binding Demand.SourceType}" />
-                <DataGridTextColumn Header="来源单号" Width="150" Binding="{Binding Demand.SourceNo}" />
-                <DataGridTextColumn Header="行号" Width="60" Binding="{Binding Demand.SourceLineNumber}" />
-                <DataGridTextColumn Header="SKU" Width="150" Binding="{Binding Demand.Sku}" />
-                <DataGridTextColumn Header="客户型号" Width="150" Binding="{Binding Demand.CustomerSku}" />
-                <DataGridTextColumn Header="描述" Width="*" Binding="{Binding Demand.Description}" />
-                <DataGridTextColumn Header="数量" Width="90" Binding="{Binding Demand.DemandQty}" />
-                <DataGridTextColumn Header="交期" Width="110" Binding="{Binding Demand.RequiredDate, StringFormat=yyyy-MM-dd}" />
+                
+                <DataGridCheckBoxColumn Header="选择" 
+                                        Width="52" 
+                                        Binding="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                        IsReadOnly="False" />
+
+
+                <DataGridTextColumn Header="来源类型" Width="90" 
+                                    Binding="{Binding Demand.SourceType}" />
+
+                <DataGridTextColumn Header="来源单号" Width="150" 
+                                    Binding="{Binding Demand.SourceNo}" />
+
+                <DataGridTextColumn Header="行号" Width="60" 
+                                    Binding="{Binding Demand.SourceLineNumber}" />
+
+                <DataGridTextColumn Header="SKU" Width="150" 
+                                    Binding="{Binding Demand.Sku}" />
+
+                <DataGridTextColumn Header="客户型号" Width="150" 
+                                    Binding="{Binding Demand.CustomerSku}" />
+
+                <DataGridTextColumn Header="描述" Width="*" 
+                                    Binding="{Binding Demand.Description}" />
+
+                <DataGridTextColumn Header="数量" Width="90" 
+                                    Binding="{Binding Demand.DemandQty}" />
+
+                <DataGridTextColumn Header="交期" Width="110" 
+                                    Binding="{Binding Demand.RequiredDate, StringFormat=yyyy-MM-dd}" />
             </DataGrid.Columns>
         </DataGrid>
-        <TextBlock Grid.Row="4" Text="{Binding StatusText}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+        <TextBlock Grid.Row="4" 
+                   Text="{Binding StatusText}" 
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
     </Grid>
 </UserControl>
