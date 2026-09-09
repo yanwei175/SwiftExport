@@ -18,6 +18,7 @@ namespace SwiftExport.Application.Services.DemandPlanning;
 public sealed class SourceDemandReceptionService(
     DbSession session,
     IGrossDemandRepository grossDemandRepository,
+    IMaterialDemandEstablishmentService materialDemandEstablishment,
     IBusinessOperationLogRepository operationLogs,
     ICorrelationContext correlationContext,
     ICurrentUser currentUser) : ISourceDemandReceptionService
@@ -80,10 +81,11 @@ public sealed class SourceDemandReceptionService(
             var requiresDisposition = demand.SourceVersion.HasValue
                 ? !contentMatches
                 : !LegacyBusinessContentMatches(demand, command, item);
-            if (requiresDisposition && await grossDemandRepository.HasSourceCancellationBlockerAsync(
+            if (requiresDisposition && await materialDemandEstablishment.HasSourceExitBlockerAsync(
                     command.SourceType, command.SourceUid, [item.SourceLineId]))
                 throw new SourceDemandReceptionException("SOURCE_CHANGE_REQUIRES_DISPOSITION", "来源需求已有下游事实，必须先完成影响处置。");
 
+            // 来源只更新自身事实；物料建立状态由 NetDemand 历史联表判断，不再回写兼容字段。
             Apply(command, item, demand);
             EnsureWrite(await grossDemandRepository.UpdateSourceDemandAsync(demand, demand.Version));
             result.UpdatedCount++;
@@ -101,9 +103,9 @@ public sealed class SourceDemandReceptionService(
         var demands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(sourceType, sourceUid);
         if (demands.Count != sourceLineIds.Count || demands.GroupBy(item => item.SourceLineId).Any(group => group.Count() != 1))
             throw new SourceDemandReceptionException("SOURCE_DEMAND_MISMATCH", "来源需求数量与来源明细不一致。");
-        if (await grossDemandRepository.HasSourceCancellationBlockerAsync(sourceType, sourceUid, sourceLineIds))
+        if (await materialDemandEstablishment.HasSourceExitBlockerAsync(sourceType, sourceUid, sourceLineIds))
             throw new SourceDemandReceptionException("SOURCE_EXIT_BLOCKED", "来源需求仍有活动拆解、执行关系或正式履约事实。");
-        if (await grossDemandRepository.HasInvalidSourceCancellationHistoryAsync(demands.Select(item => item.Uid)))
+        if (await materialDemandEstablishment.HasInvalidExitHistoryAsync(demands.Select(item => item.Uid)))
             throw new SourceDemandReceptionException("SOURCE_HISTORY_INVALID", "来源需求历史不完整，不能退出确认。");
 
         SourceDemandCancellationPlan plan;
@@ -111,7 +113,7 @@ public sealed class SourceDemandReceptionService(
         {
             plan = SourceDemandCancellationPolicy.Build(
                 demands,
-                await grossDemandRepository.GetNetDemandHistoryCountsForUpdateAsync(demands.Select(item => item.Uid)));
+                await materialDemandEstablishment.GetHistoryCountsForUpdateAsync(demands.Select(item => item.Uid)));
         }
         catch (InvalidOperationException ex)
         {
@@ -131,7 +133,7 @@ public sealed class SourceDemandReceptionService(
         EnsureTransaction();
         var demands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(sourceType, sourceUid);
         if (demands.Count == 0) return 0;
-        if (await grossDemandRepository.HasSourceCancellationBlockerAsync(sourceType, sourceUid, sourceLineIds))
+        if (await materialDemandEstablishment.HasSourceExitBlockerAsync(sourceType, sourceUid, sourceLineIds))
             throw new SourceDemandReceptionException("SOURCE_EXIT_BLOCKED", "来源需求已拆解或产生下游执行，不能直接关闭。");
         var affected = await grossDemandRepository.VoidPendingBySourceAsync(sourceType, sourceUid, reason);
         if (affected != demands.Count)
@@ -153,10 +155,13 @@ public sealed class SourceDemandReceptionService(
         return demand;
     }
 
-    private static void Apply(SourceDemandReceptionCommand command, SourceDemandReceptionItem item, GrossDemand demand)
+    /// <summary>应用来源事实快照；物料建立状态和修订历史不再写回来源需求。</summary>
+    private static void Apply(
+        SourceDemandReceptionCommand command,
+        SourceDemandReceptionItem item,
+        GrossDemand demand)
     {
         demand.LifecycleStatus = GrossDemandLifecycleStatusEnum.Active;
-        demand.DecompositionStatus = GrossDemandDecompositionStatusEnum.Pending;
         demand.SourceType = command.SourceType.Trim();
         demand.SourceUid = command.SourceUid;
         demand.SourceNo = command.SourceNo.Trim();
@@ -177,6 +182,7 @@ public sealed class SourceDemandReceptionService(
         demand.DemandQty = item.DemandQty;
         demand.RequiredDate = item.RequiredDate;
         demand.Remark = Normalize(item.Remark);
+        demand.DemandBasisFingerprint = SourceDemandBasisFingerprintFactory.Create(demand);
     }
 
     private static bool ContentMatches(GrossDemand demand, SourceDemandReceptionCommand command, SourceDemandReceptionItem item)

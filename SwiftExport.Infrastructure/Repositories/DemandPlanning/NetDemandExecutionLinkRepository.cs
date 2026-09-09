@@ -51,7 +51,7 @@ ORDER BY l.[CreatedDate],l.[Uid];",
             context.Session.Transaction);
         return [.. rows];
     }
-    public async Task<IReadOnlyList<GrossDemandRollbackBlockerDto>> GetActiveRollbackBlockersAsync(
+    public async Task<IReadOnlyList<MaterialDemandRollbackBlockerDto>> GetActiveRollbackBlockersAsync(
         IEnumerable<Guid> netDemandIds)
     {
         var ids = netDemandIds.Distinct().ToArray();
@@ -62,7 +62,7 @@ SELECT l.[NetDemandId],l.[TargetType],l.[TargetNo],l.[TargetLineId],l.[LinkStatu
 FROM [dbo].[DemandExecutionLink] l WITH (UPDLOCK, HOLDLOCK)
 WHERE l.[NetDemandId] IN @Ids AND l.[LinkStatus]=@Active AND l.[IsDeleted]=0
 ORDER BY l.[TargetType],l.[TargetNo],l.[TargetLineId];";
-        var rows = await context.Session.Connection.QueryAsync<GrossDemandRollbackBlockerDto>(
+        var rows = await context.Session.Connection.QueryAsync<MaterialDemandRollbackBlockerDto>(
             sql, new { Ids = ids, Active = DemandExecutionLinkStatusEnum.Active }, context.Session.Transaction);
         return [.. rows];
     }

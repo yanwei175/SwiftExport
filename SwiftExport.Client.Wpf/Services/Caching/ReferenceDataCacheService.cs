@@ -1,9 +1,16 @@
 using System.Collections.ObjectModel;
 using System.Windows;
+using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.ProductApis;
+using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
+using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.Customers.Requests;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Suppliers;
+using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Services.Api;
 
@@ -14,6 +21,9 @@ namespace SwiftExportClient.Services.Caching;
 /// </summary>
 public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDisposable
 {
+    private const int MasterDataPageSize = 200;
+    private readonly ICustomerApi _customerApi;
+    private readonly ISupplierApi _supplierApi;
     private readonly IProductColorApi _productColorApi;
     private readonly IProductCategoryApi _productCategoryApi;
     private readonly ISysDicCurrencyApi _currencyApi;
@@ -22,6 +32,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private readonly IApiCallRunner _apiCallRunner;
     private readonly ISessionService _sessionService;
     private readonly CacheObservableCollection<ProductColorDto> _productColors = [];
+    private readonly CacheObservableCollection<CustomerDto> _customers = [];
+    private readonly CacheObservableCollection<SupplierDto> _suppliers = [];
     private readonly CacheObservableCollection<SysDicCurrencyDto> _currencies = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategoryTree = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategories = [];
@@ -31,6 +43,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private readonly object _ensureSync = new();
     private Task<CacheRefreshResult>? _ensureTask;
     private volatile bool _colorsLoaded;
+    private volatile bool _customersLoaded;
+    private volatile bool _suppliersLoaded;
     private volatile bool _currenciesLoaded;
     private volatile bool _categoriesLoaded;
     private volatile bool _dictionariesLoaded;
@@ -38,6 +52,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private bool _disposed;
 
     public ReferenceDataCacheService(
+        ICustomerApi customerApi,
+        ISupplierApi supplierApi,
         IProductColorApi productColorApi,
         IProductCategoryApi productCategoryApi,
         ISysDicCurrencyApi currencyApi,
@@ -46,6 +62,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         IApiCallRunner apiCallRunner,
         ISessionService sessionService)
     {
+        _customerApi = customerApi;
+        _supplierApi = supplierApi;
         _productColorApi = productColorApi;
         _productCategoryApi = productCategoryApi;
         _currencyApi = currencyApi;
@@ -54,6 +72,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         _apiCallRunner = apiCallRunner;
         _sessionService = sessionService;
         ProductColors = new ReadOnlyObservableCollection<ProductColorDto>(_productColors);
+        Customers = new ReadOnlyObservableCollection<CustomerDto>(_customers);
+        Suppliers = new ReadOnlyObservableCollection<SupplierDto>(_suppliers);
         Currencies = new ReadOnlyObservableCollection<SysDicCurrencyDto>(_currencies);
         ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategoryTree);
         ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategories);
@@ -67,6 +87,12 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
     /// <inheritdoc />
     public ReadOnlyObservableCollection<ProductColorDto> ProductColors { get; }
+
+    /// <inheritdoc />
+    public ReadOnlyObservableCollection<CustomerDto> Customers { get; }
+
+    /// <inheritdoc />
+    public ReadOnlyObservableCollection<SupplierDto> Suppliers { get; }
 
     /// <inheritdoc />
     public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; }
@@ -99,7 +125,12 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     {
         lock (_ensureSync)
         {
-            if (_colorsLoaded && _categoriesLoaded && _currenciesLoaded && _dictionariesLoaded)
+            if (_colorsLoaded
+                && _customersLoaded
+                && _suppliersLoaded
+                && _categoriesLoaded
+                && _currenciesLoaded
+                && _dictionariesLoaded)
             {
                 return Task.FromResult(CacheRefreshResult.Ok("缓存已经加载。"));
             }
@@ -142,6 +173,78 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             }
 
             return CacheRefreshResult.Ok("产品颜色缓存已更新。");
+        }
+        finally
+        {
+            _refreshGate.Release();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<CacheRefreshResult> RefreshCustomersAsync()
+    {
+        await _refreshGate.WaitAsync();
+        try
+        {
+            var generation = Volatile.Read(ref _sessionGeneration);
+            var result = await LoadCustomersAsync();
+            if (!result.Success)
+            {
+                return CacheRefreshResult.Fail(result.Message);
+            }
+
+            var customers = OrderCustomers(result.Data ?? []).ToArray();
+            var applied = false;
+            await RunOnUiThreadAsync(() =>
+            {
+                if (generation != Volatile.Read(ref _sessionGeneration))
+                {
+                    return;
+                }
+
+                _customers.ReplaceAll(customers);
+                _customersLoaded = true;
+                applied = true;
+            });
+            return applied
+                ? CacheRefreshResult.Ok("客户缓存已更新。")
+                : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次客户缓存结果。");
+        }
+        finally
+        {
+            _refreshGate.Release();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<CacheRefreshResult> RefreshSuppliersAsync()
+    {
+        await _refreshGate.WaitAsync();
+        try
+        {
+            var generation = Volatile.Read(ref _sessionGeneration);
+            var result = await LoadSuppliersAsync();
+            if (!result.Success)
+            {
+                return CacheRefreshResult.Fail(result.Message);
+            }
+
+            var suppliers = OrderSuppliers(result.Data ?? []).ToArray();
+            var applied = false;
+            await RunOnUiThreadAsync(() =>
+            {
+                if (generation != Volatile.Read(ref _sessionGeneration))
+                {
+                    return;
+                }
+
+                _suppliers.ReplaceAll(suppliers);
+                _suppliersLoaded = true;
+                applied = true;
+            });
+            return applied
+                ? CacheRefreshResult.Ok("供应商缓存已更新。")
+                : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次供应商缓存结果。");
         }
         finally
         {
@@ -281,6 +384,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         RunOnUiThread(() =>
         {
             _productColors.ReplaceAll([]);
+            _customers.ReplaceAll([]);
+            _suppliers.ReplaceAll([]);
             _currencies.ReplaceAll([]);
             _productCategoryTree.ReplaceAll([]);
             _productCategories.ReplaceAll([]);
@@ -291,6 +396,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         lock (_ensureSync)
         {
             _colorsLoaded = false;
+            _customersLoaded = false;
+            _suppliersLoaded = false;
             _currenciesLoaded = false;
             _categoriesLoaded = false;
             _dictionariesLoaded = false;
@@ -332,18 +439,31 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         {
             var generation = Volatile.Read(ref _sessionGeneration);
             var colorsTask = LoadColorsAsync();
+            var customersTask = LoadCustomersAsync();
+            var suppliersTask = LoadSuppliersAsync();
             var categoriesTask = LoadCategoriesAsync();
             var currenciesTask = LoadCurrenciesAsync();
             var dictionaryTypesTask = LoadDictionaryTypesAsync();
             var dictionaryValuesTask = LoadDictionaryValuesAsync();
-            await Task.WhenAll(colorsTask, categoriesTask, currenciesTask, dictionaryTypesTask, dictionaryValuesTask);
+            await Task.WhenAll(
+                colorsTask,
+                customersTask,
+                suppliersTask,
+                categoriesTask,
+                currenciesTask,
+                dictionaryTypesTask,
+                dictionaryValuesTask);
 
             var colorsResult = await colorsTask;
+            var customersResult = await customersTask;
+            var suppliersResult = await suppliersTask;
             var categoriesResult = await categoriesTask;
             var currenciesResult = await currenciesTask;
             var dictionaryTypesResult = await dictionaryTypesTask;
             var dictionaryValuesResult = await dictionaryValuesTask;
             if (!colorsResult.Success
+                || !customersResult.Success
+                || !suppliersResult.Success
                 || !categoriesResult.Success
                 || !currenciesResult.Success
                 || !dictionaryTypesResult.Success
@@ -351,6 +471,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             {
                 return CacheRefreshResult.Fail(JoinFailureMessages(
                     colorsResult.Success ? null : colorsResult.Message,
+                    customersResult.Success ? null : customersResult.Message,
+                    suppliersResult.Success ? null : suppliersResult.Message,
                     categoriesResult.Success ? null : categoriesResult.Message,
                     currenciesResult.Success ? null : currenciesResult.Message,
                     dictionaryTypesResult.Success ? null : dictionaryTypesResult.Message,
@@ -359,6 +481,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
             var categoryTree = BuildCategoryTree(categoriesResult.Data ?? []);
             var categories = FlattenCategoryTree(categoryTree).ToArray();
+            var customers = OrderCustomers(customersResult.Data ?? []).ToArray();
+            var suppliers = OrderSuppliers(suppliersResult.Data ?? []).ToArray();
             var currencies = OrderCurrencies(currenciesResult.Data ?? []).ToArray();
             var dictionaryTypes = OrderDictionaryTypes(dictionaryTypesResult.Data ?? []).ToArray();
             var dictionaryValues = OrderDictionaryValues(dictionaryValuesResult.Data ?? []).ToArray();
@@ -371,12 +495,16 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 }
 
                 _productColors.ReplaceAll(colorsResult.Data ?? []);
+                _customers.ReplaceAll(customers);
+                _suppliers.ReplaceAll(suppliers);
                 _currencies.ReplaceAll(currencies);
                 _productCategoryTree.ReplaceAll(categoryTree);
                 _productCategories.ReplaceAll(categories);
                 _dictionaryTypes.ReplaceAll(dictionaryTypes);
                 _dictionaryValues.ReplaceAll(dictionaryValues);
                 _colorsLoaded = true;
+                _customersLoaded = true;
+                _suppliersLoaded = true;
                 _currenciesLoaded = true;
                 _categoriesLoaded = true;
                 _dictionariesLoaded = true;
@@ -387,7 +515,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次缓存结果。");
             }
 
-            return CacheRefreshResult.Ok("产品颜色、产品分类、币种和字典缓存已更新。");
+            return CacheRefreshResult.Ok("产品颜色、客户、供应商、产品分类、币种和字典缓存已更新。");
         }
         finally
         {
@@ -397,6 +525,30 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
     private Task<SwiftExport.Contracts.Wrappers.ServiceResult<List<ProductColorDto>>> LoadColorsAsync() =>
         _apiCallRunner.RunAsync(() => _productColorApi.GetAllAsync(), "加载产品颜色缓存失败");
+
+    /// <summary>
+    /// 逐页读取当前用户可见的全部客户，所有分页成功后才返回完整快照。
+    /// </summary>
+    private Task<ServiceResult<IReadOnlyList<CustomerDto>>> LoadCustomersAsync() =>
+        LoadAllPagesAsync(
+            (pageIndex, pageSize) => _customerApi.GetPagedAsync(new CustomerSearchRequest
+            {
+                PageIndex = pageIndex,
+                PageSize = pageSize,
+            }),
+            "加载客户缓存失败");
+
+    /// <summary>
+    /// 逐页读取当前用户可见的全部供应商，所有分页成功后才返回完整快照。
+    /// </summary>
+    private Task<ServiceResult<IReadOnlyList<SupplierDto>>> LoadSuppliersAsync() =>
+        LoadAllPagesAsync(
+            (pageIndex, pageSize) => _supplierApi.GetPagedAsync(new SupplierSearchRequest
+            {
+                PageIndex = pageIndex,
+                PageSize = pageSize,
+            }),
+            "加载供应商缓存失败");
 
     private Task<SwiftExport.Contracts.Wrappers.ServiceResult<List<ProductCategoryDto>>> LoadCategoriesAsync() =>
         _apiCallRunner.RunAsync(() => _productCategoryApi.GetAllAsync(), "加载产品分类缓存失败");
@@ -409,6 +561,58 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
     private Task<SwiftExport.Contracts.Wrappers.ServiceResult<IReadOnlyList<SysDictDataDto>>> LoadDictionaryValuesAsync() =>
         _apiCallRunner.RunAsync(() => _dictDataApi.GetAllAsync(), "加载字典值缓存失败");
+
+    /// <summary>
+    /// 按分页契约组装完整快照；服务端提前返回空页时按失败处理，避免发布残缺缓存。
+    /// </summary>
+    private async Task<ServiceResult<IReadOnlyList<T>>> LoadAllPagesAsync<T>(
+        Func<int, int, Task<ServiceResult<PagedResponseBase<T>>>> loadPage,
+        string failureMessage)
+    {
+        var items = new List<T>();
+        var pageIndex = 1;
+        while (true)
+        {
+            var result = await _apiCallRunner.RunAsync(
+                () => loadPage(pageIndex, MasterDataPageSize),
+                failureMessage);
+            if (!result.Success)
+            {
+                return ServiceResult<IReadOnlyList<T>>.Fail(result.Message);
+            }
+
+            var page = result.Data;
+            if (page is null)
+            {
+                return ServiceResult<IReadOnlyList<T>>.Fail($"{failureMessage}：服务端未返回分页数据。");
+            }
+
+            items.AddRange(page.Items ?? []);
+            if (items.Count >= page.TotalCount)
+            {
+                return ServiceResult<IReadOnlyList<T>>.Ok(items);
+            }
+
+            if (page.Items is null || page.Items.Count == 0)
+            {
+                return ServiceResult<IReadOnlyList<T>>.Fail($"{failureMessage}：分页结果提前结束，已保留旧缓存。");
+            }
+
+            pageIndex++;
+        }
+    }
+
+    private static IEnumerable<CustomerDto> OrderCustomers(IEnumerable<CustomerDto> source) =>
+        source
+            .OrderBy(item => item.CustomerCode, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.CustomerName, StringComparer.CurrentCulture)
+            .ThenBy(item => item.Uid);
+
+    private static IEnumerable<SupplierDto> OrderSuppliers(IEnumerable<SupplierDto> source) =>
+        source
+            .OrderBy(item => item.SupplierCode, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.SupplierName, StringComparer.CurrentCulture)
+            .ThenBy(item => item.Uid);
 
     private static IEnumerable<SysDictTypeDto> OrderDictionaryTypes(IEnumerable<SysDictTypeDto> source) =>
         source

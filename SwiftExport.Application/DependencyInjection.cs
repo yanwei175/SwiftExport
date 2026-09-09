@@ -57,7 +57,9 @@ public static class DependencyInjection
         services.AddScoped<ISalesFulfillmentManagerService, SalesFulfillmentManagerService>();
         services.AddScoped<ISalesFulfillmentDetailService, SalesFulfillmentDetailService>();
         services.AddScoped<IGrossDemandWorkspaceService, GrossDemandWorkspaceService>();
+        services.AddScoped<IMaterialDemandEstablishmentService, MaterialDemandEstablishmentService>();
         services.AddScoped<ISourceDemandReceptionService, SourceDemandReceptionService>();
+        services.AddScoped<ISourceDeliveryService, SourceDeliveryService>();
         services.AddScoped<ISourceDemandDeliveryService, SourceDemandDeliveryService>();
         services.AddScoped<GrossDemandDecompositionPlanner>();
         services.AddScoped<NetDemandInitialAllocationPlanner>();
@@ -96,7 +98,6 @@ public static class DependencyInjection
         services.AddScoped<ISysViewRouteService, SysViewRouteService>();
 
         services.AddScoped<SwiftExport.Application.Interfaces.QualityControl.IAfterSalesService, SwiftExport.Application.Services.QualityControl.AfterSalesService>();
-        services.AddScoped<SwiftExport.Application.Interfaces.DemandPlanning.ISourceDemandClosureService, SwiftExport.Application.Services.DemandPlanning.SourceDemandClosureService>();
         return services;
     }
 }

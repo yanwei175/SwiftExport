@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExportClient.Services.Caching;
 
@@ -13,6 +15,8 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     {
         _dictionaryValues = new ObservableCollection<SysDictDataDto>(dictionaryValues ?? []);
         Currencies = new ReadOnlyObservableCollection<SysDicCurrencyDto>([]);
+        Customers = new ReadOnlyObservableCollection<CustomerDto>([]);
+        Suppliers = new ReadOnlyObservableCollection<SupplierDto>([]);
         ProductColors = new ReadOnlyObservableCollection<ProductColorDto>([]);
         ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>([]);
         ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>([]);
@@ -21,6 +25,8 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     }
 
     public ReadOnlyObservableCollection<ProductColorDto> ProductColors { get; }
+    public ReadOnlyObservableCollection<CustomerDto> Customers { get; }
+    public ReadOnlyObservableCollection<SupplierDto> Suppliers { get; }
     public ReadOnlyObservableCollection<SysDicCurrencyDto> Currencies { get; }
     public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; }
     public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
@@ -38,6 +44,8 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     public Task<CacheRefreshResult> EnsureLoadedAsync() => throw new NotSupportedException();
     public Task<CacheRefreshResult> RefreshAllAsync() => throw new NotSupportedException();
     public Task<CacheRefreshResult> RefreshProductColorsAsync() => throw new NotSupportedException();
+    public Task<CacheRefreshResult> RefreshCustomersAsync() => throw new NotSupportedException();
+    public Task<CacheRefreshResult> RefreshSuppliersAsync() => throw new NotSupportedException();
     public Task<CacheRefreshResult> RefreshProductCategoriesAsync() => throw new NotSupportedException();
     public Task<CacheRefreshResult> RefreshCurrenciesAsync() => throw new NotSupportedException();
     public Task<CacheRefreshResult> RefreshDictionariesAsync() => throw new NotSupportedException();

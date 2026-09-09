@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 
 namespace SwiftExportClient.Services.Caching;
@@ -18,6 +20,16 @@ public interface IReferenceDataCacheService
     /// 获取产品颜色只读缓存。集合可直接绑定控件；调用方不得修改其中的 DTO。
     /// </summary>
     ReadOnlyObservableCollection<ProductColorDto> ProductColors { get; }
+
+    /// <summary>
+    /// 获取当前登录会话可见的客户只读缓存。集合可直接绑定本地搜索控件。
+    /// </summary>
+    ReadOnlyObservableCollection<CustomerDto> Customers { get; }
+
+    /// <summary>
+    /// 获取当前登录会话可见的供应商只读缓存。集合可直接绑定本地搜索控件。
+    /// </summary>
+    ReadOnlyObservableCollection<SupplierDto> Suppliers { get; }
 
     /// <summary>
     /// 获取产品分类只读树，可直接绑定 TreeView.ItemsSource。
@@ -59,6 +71,16 @@ public interface IReferenceDataCacheService
     /// 强制重新拉取产品颜色缓存；失败时保留旧颜色缓存。
     /// </summary>
     Task<CacheRefreshResult> RefreshProductColorsAsync();
+
+    /// <summary>
+    /// 强制重新拉取完整客户缓存；任一分页请求失败时保留旧客户缓存。
+    /// </summary>
+    Task<CacheRefreshResult> RefreshCustomersAsync();
+
+    /// <summary>
+    /// 强制重新拉取完整供应商缓存；任一分页请求失败时保留旧供应商缓存。
+    /// </summary>
+    Task<CacheRefreshResult> RefreshSuppliersAsync();
 
     /// <summary>
     /// 强制重新拉取产品分类缓存；失败时保留旧分类树。

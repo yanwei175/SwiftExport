@@ -241,7 +241,6 @@
 
             <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
                 <ui:NavigationView Grid.Column="0"
-                                   MenuItemsSource="{Binding FilteredMenuItems, Converter={StaticResource ShellNavigationItemsConverter}}"
                                    IsPaneOpen="{Binding IsNavigationPaneExpanded, Mode=TwoWay}"
                                    IsPaneToggleVisible="True"
                                    IsPaneVisible="True"
@@ -254,6 +253,12 @@
                                    HeaderVisibility="Collapsed"
                                    AlwaysShowHeader="False"
                                    Background="Transparent">
+                    <ui:NavigationView.MenuItemsSource>
+                        <MultiBinding Converter="{StaticResource ShellNavigationItemsConverter}">
+                            <Binding Path="FilteredMenuItems" />
+                            <Binding />
+                        </MultiBinding>
+                    </ui:NavigationView.MenuItemsSource>
                     <ui:NavigationView.Style>
                         <Style TargetType="{x:Type ui:NavigationView}" BasedOn="{StaticResource {x:Type ui:NavigationView}}">
                             <Setter Property="BorderThickness" Value="0"/>

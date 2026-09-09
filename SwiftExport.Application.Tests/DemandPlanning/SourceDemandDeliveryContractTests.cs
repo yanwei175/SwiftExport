@@ -23,16 +23,18 @@ public sealed class SourceDemandDeliveryContractTests
     }
 
     [TestMethod]
-    public void RepositoryUsesGrossDemandAndPostedFinalOutboundWithoutPlanningPrerequisite()
+    public void ShippingRepositoryOwnsPostedFinalOutboundWithoutPlanningPrerequisite()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
-        StringAssert.Contains(repository, "ol.GrossDemandId=d.Uid");
-        StringAssert.Contains(repository, "oh.DocumentType=20 AND oh.PostingStatus=1");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "SourceDeliveryRepository.cs");
+        var formula = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "SourceDeliverySql.cs");
+        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
+        var packingRepository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingListWorkspaceRepository.cs");
+        StringAssert.Contains(formula, "line.GrossDemandId=g.Uid");
+        StringAssert.Contains(formula, "document.DocumentType=20 AND document.PostingStatus=1");
         StringAssert.Contains(repository, "WITH(UPDLOCK,HOLDLOCK)");
-        var shipmentStart = repository.IndexOf("private const string DeliveryShipmentApply", StringComparison.Ordinal);
-        var shipmentEnd = repository.IndexOf("private const string DeliverySelect", shipmentStart + 1, StringComparison.Ordinal);
-        Assert.IsTrue(shipmentStart >= 0 && shipmentEnd > shipmentStart);
-        Assert.IsFalse(repository[shipmentStart..shipmentEnd].Contains("NetDemandAllocation", StringComparison.Ordinal));
+        Assert.IsFalse(formula.Contains("NetDemandAllocation", StringComparison.Ordinal));
+        Assert.IsFalse(sourceRepository.Contains("OutboundDocument", StringComparison.Ordinal));
+        StringAssert.Contains(packingRepository, "SourceDeliverySql.FinalOutboundApply");
     }
 
     [TestMethod]
@@ -53,16 +55,31 @@ public sealed class SourceDemandDeliveryContractTests
     [TestMethod]
     public void TerminationAndPackingListSubmissionShareGrossDemandUpdateLock()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
+        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
+        var deliveryRepository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "SourceDeliveryRepository.cs");
         var reception = Read("SwiftExport.Application", "Services", "DemandPlanning", "SourceDemandReceptionService.cs");
         var packingList = Read("SwiftExport.Application", "Services", "Shipping", "PackingListWorkspaceService.cs");
-        StringAssert.Contains(repository, "GetActiveBySourceForUpdateAsync");
-        StringAssert.Contains(repository, "WITH (UPDLOCK, ROWLOCK)");
-        StringAssert.Contains(repository, "FROM dbo.GrossDemand d WITH(UPDLOCK,HOLDLOCK)");
+        StringAssert.Contains(sourceRepository, "GetActiveBySourceForUpdateAsync");
+        StringAssert.Contains(sourceRepository, "WITH (UPDLOCK, ROWLOCK)");
+        StringAssert.Contains(deliveryRepository, "FROM dbo.GrossDemand g WITH(UPDLOCK,HOLDLOCK)");
         StringAssert.Contains(reception, "ClosePendingAsync");
         StringAssert.Contains(packingList, "VerifySourceDeliveryAsync(snapshot, true");
         Assert.IsTrue(packingList.IndexOf("VerifySourceDeliveryAsync(snapshot, true", StringComparison.Ordinal)
                       < packingList.IndexOf("outboundPort.PostAsync", StringComparison.Ordinal));
+    }
+
+    /// <summary>旧来源 API 只能转发查询，PL 和售后必须直接依赖 Shipping 交付边界。</summary>
+    [TestMethod]
+    public void LegacySourceApiIsOneWayReadAdapter()
+    {
+        var adapter = Read("SwiftExport.Application", "Services", "DemandPlanning", "SourceDemandDeliveryService.cs");
+        var sourceInterface = Read("SwiftExport.Application", "Interfaces", "DemandPlanning", "ISourceDemandDeliveryService.cs");
+        var packingList = Read("SwiftExport.Application", "Services", "Shipping", "PackingListWorkspaceService.cs");
+        var afterSales = Read("SwiftExport.Application", "Services", "QualityControl", "AfterSalesService.cs");
+        StringAssert.Contains(adapter, "ISourceDeliveryService delivery");
+        Assert.IsFalse(sourceInterface.Contains("VerifyForUpdateAsync", StringComparison.Ordinal));
+        StringAssert.Contains(packingList, "ISourceDeliveryService sourceDelivery");
+        StringAssert.Contains(afterSales, "ISourceDeliveryService delivery");
     }
 
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));

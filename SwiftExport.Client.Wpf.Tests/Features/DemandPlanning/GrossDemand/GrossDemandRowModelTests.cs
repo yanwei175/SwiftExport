@@ -20,13 +20,10 @@ public sealed class GrossDemandRowModelTests
             Uid = uid,
             Version = 4,
             LifecycleStatus = GrossDemandLifecycleStatusEnum.Active,
-            DecompositionStatus = GrossDemandDecompositionStatusEnum.Pending,
             SourceType = "SO",
             SourceNo = "SO-1001",
             Sku = "A-100",
             DemandQty = 12m,
-            ExecutionProgress = DemandExecutionProgressEnum.NotStarted,
-            CanDecompose = true,
         };
 
         var row = GrossDemandRowModel.FromDto(dto);
@@ -34,8 +31,6 @@ public sealed class GrossDemandRowModelTests
         Assert.AreEqual(uid, row.Uid);
         Assert.AreEqual(4, row.Version);
         Assert.AreEqual("销售单", row.SourceTypeText);
-        Assert.AreEqual("待拆解", row.DecompositionStatusText);
-        Assert.IsTrue(row.CanDecompose);
         Assert.IsFalse(row.IsChecked);
 
         row.IsChecked = true;

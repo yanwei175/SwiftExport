@@ -13,12 +13,11 @@ internal static class SourceDemandCancellationPolicy
         var voidIds = new List<Guid>();
         foreach (var demand in demands)
         {
-            if (demand.LifecycleStatus != GrossDemandLifecycleStatusEnum.Active || demand.DecompositionStatus != GrossDemandDecompositionStatusEnum.Pending)
+            if (demand.LifecycleStatus != GrossDemandLifecycleStatusEnum.Active)
                 throw new InvalidOperationException("毛需求当前状态不允许退出来源确认。");
             var historyCount = historyCounts.TryGetValue(demand.Uid, out var count) ? count : 0;
-            if (demand.DecompositionRevision == 0 && historyCount == 0) hardDeleteIds.Add(demand.Uid);
-            else if (demand.DecompositionRevision > 0 && historyCount > 0) voidIds.Add(demand.Uid);
-            else throw new InvalidOperationException("毛需求拆解修订号与净需求历史不一致，不能退出来源确认。");
+            if (historyCount == 0) hardDeleteIds.Add(demand.Uid);
+            else voidIds.Add(demand.Uid);
         }
         return new SourceDemandCancellationPlan(hardDeleteIds, voidIds);
     }

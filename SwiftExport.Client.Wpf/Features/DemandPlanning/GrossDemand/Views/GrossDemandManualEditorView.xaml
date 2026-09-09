@@ -13,7 +13,7 @@
         <Grid ColumnDefinitions="*,Auto">
             <StackPanel>
                 <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" />
-                <TextBlock Text="只有活动且待拆解的手工需求可以编辑。"
+                <TextBlock Text="只有活动且尚无有效物料需求的手工来源需求可以编辑。"
                            Style="{StaticResource CaptionTextBlock}"
                            Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
             </StackPanel>

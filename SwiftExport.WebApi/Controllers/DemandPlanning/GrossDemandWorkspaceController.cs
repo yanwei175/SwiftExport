@@ -24,20 +24,6 @@ public sealed class GrossDemandWorkspaceController(IGrossDemandWorkspaceService 
     public Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync([FromRoute] Guid uid, CancellationToken cancellationToken)
         => service.GetDetailAsync(uid, cancellationToken);
 
-    [HttpGet("{uid:guid}/trace")]
-    public Task<ServiceResult<GrossDemandTraceDto>> GetTraceAsync([FromRoute] Guid uid, CancellationToken cancellationToken)
-        => service.GetTraceAsync(uid, cancellationToken);
-
-    [HttpPost("decompose")]
-    [PreventDuplicateRequest]
-    public Task<ServiceResult<GrossDemandDecomposeResult>> DecomposeAsync([FromBody] GrossDemandDecomposeCommand command)
-        => service.DecomposeAsync(command);
-
-    [HttpPost("rollback-decomposition")]
-    [PreventDuplicateRequest]
-    public Task<ServiceResult<GrossDemandRollbackResult>> RollbackAsync([FromBody] GrossDemandRollbackCommand command)
-        => service.RollbackAsync(command);
-
     [HttpPost("manual")]
     [PreventDuplicateRequest]
     public Task<ServiceResult<GrossDemandDetailDto>> CreateManualAsync([FromBody] CreateManualGrossDemandRequest request)

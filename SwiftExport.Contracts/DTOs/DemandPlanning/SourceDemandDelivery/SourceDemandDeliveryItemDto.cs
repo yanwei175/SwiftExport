@@ -1,4 +1,5 @@
 using System;
+using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery
 {
@@ -24,6 +25,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery
         public decimal DemandQty { get; set; }
         public decimal DeliveredQty { get; set; }
         public decimal RemainingQty { get; set; }
+        public GrossDemandLifecycleStatusEnum LifecycleStatus { get; set; }
         public bool IsActive { get; set; }
         public DateTime? RequiredDate { get; set; }
         public Guid? OrderPoolSalesOrderId { get; set; }

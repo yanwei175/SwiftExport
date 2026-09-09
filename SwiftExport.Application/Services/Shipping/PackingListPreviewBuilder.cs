@@ -55,8 +55,6 @@ public sealed class PackingListPreviewBuilder
                 AddBlocker(result, "SOURCE_INACTIVE", $"{line.SkuSnapshot} 的需求来源已失效。");
             if (fact.DemandVersion != line.SourceDemandVersionSnapshot || fact.SourceVersion != line.SourceVersionSnapshot)
                 AddBlocker(result, "SOURCE_CHANGED", $"{line.SkuSnapshot} 的来源版本已变化，请重新选择来源。");
-            if (!fact.HasOrderPoolOwnership)
-                AddBlocker(result, "ORDER_POOL_OWNERSHIP_REQUIRED", $"{line.SkuSnapshot} 缺少可证明的销售订单池归属，不能执行库存动作。");
             if (!fact.IsProductActive)
                 AddBlocker(result, "PRODUCT_INACTIVE", $"{line.SkuSnapshot} 产品不存在或已停用。");
             if (!fact.IsWarehouseActive || line.WarehouseSiteId == Guid.Empty)
@@ -81,6 +79,9 @@ public sealed class PackingListPreviewBuilder
                     : Round4(supplied.PlannedQty * Math.Min(fact.ShippedNetQty + line.Quantity, fact.PlannedQty) / supplied.ParentPlannedQty);
                 var consumption = Math.Max(target - supplied.HistoricalConsumptionQty, 0m);
                 previewLine.CustomerSuppliedConsumptionQty += consumption;
+                // 普通最终客户出库不要求订单池；只有本次真实扣用客供件时才复核池归属。
+                if (consumption > 0 && !fact.HasOrderPoolOwnership)
+                    AddBlocker(result, "ORDER_POOL_OWNERSHIP_REQUIRED", $"{line.SkuSnapshot} 本次需要消耗客供件，但缺少可证明的销售订单池归属。");
                 AddEffect(result, line.WarehouseSiteId, line.WarehouseNameSnapshot, supplied.ProductId, supplied.Sku,
                     supplied.BalanceQty, 0m, 0m, consumption);
             }

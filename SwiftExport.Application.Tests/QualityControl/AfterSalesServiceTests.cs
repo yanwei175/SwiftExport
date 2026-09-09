@@ -9,6 +9,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.DemandPlanning;
+using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Services.QualityControl;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
@@ -152,11 +153,13 @@ public sealed class AfterSalesServiceTests
             var logs=Port<IBusinessOperationLogRepository>((n,a)=>n switch {
                 "GetByCommandAsync"=>Task.FromResult(Logs.SingleOrDefault(x=>x.CommandId==(Guid)a[2]!)),
                 "InsertAsync"=>AppendLog((BusinessOperationLog)a[0]!),_=>throw new NotSupportedException(n)});
-            var closure=Port<ISourceDemandClosureService>((_,_)=>FailClosure?throw new SourceDemandClosureException("SOURCE_NOT_COMPLETED","尚未完成"):Task.CompletedTask);
+            var delivery=Port<ISourceDeliveryService>((name,_)=>name=="VerifyClosureAsync"
+                ? FailClosure?throw new SourceDeliveryException("SOURCE_NOT_COMPLETED","尚未完成"):Task.CompletedTask
+                : throw new NotSupportedException(name));
             var numbering=Port<IDocumentNoService>((_,_)=>{NumberCalls++;return Task.FromResult(ServiceResult<DocumentNoResponse>.Ok(new(){DocumentNo="CR2026090001"}));});
             var permission=Port<IUserPermissionService>((_,_)=>Task.FromResult(Allowed));
             var user=Port<ICurrentUser>((n,_)=>n switch {"get_UserId"=>(Guid?)actor,"get_UserName"=>"tester","get_IsAuthenticated"=>true,_=>throw new NotSupportedException(n)});
-            Service=new(new(session,NullLoggerFactory.Instance),repo,reception,closure,numbering,logs,permission,user);
+            Service=new(new(session,NullLoggerFactory.Instance),repo,reception,delivery,numbering,logs,permission,user);
         }
         public SaveAfterSalesCommand Command()=>new(){CommandId=Guid.NewGuid(),Uid=Guid.NewGuid(),Header=new(){CustomerId=customer,AcceptedDate=new(2026,9,8)},AddedLines=[Line(2)]};
         public AfterSalesEditLineDto Line(decimal? q)=>new(){Uid=Guid.NewGuid(),IssueDescription="成品故障",IssueSkuSnapshot="成品001",Quantity=q,IsNonStandard=true,DescriptionSnapshot="补发螺丝",ResponsibleSupplierId=Guid.NewGuid(),ServiceAmountCny=0,UnitSnapshot=""};
@@ -194,4 +197,3 @@ public sealed class AfterSalesServiceTests
         public void Dispose(){if(!ended)Rollback();}
     }
 }
-

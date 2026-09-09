@@ -16,13 +16,36 @@ public sealed class GrossDemandSourceGroupingContractTests
 
         StringAssert.Contains(source, "GrossDemandSourceGroupSearchRequest request");
         StringAssert.Contains(source, "SourceLifecycleStatuses");
-        StringAssert.Contains(source, "SourceDecompositionStatuses");
+        Assert.IsFalse(source.Contains("SourceDecompositionStatuses", StringComparison.Ordinal));
         StringAssert.Contains(source, "GROUP BY d.[SourceUid]");
         StringAssert.Contains(source, "var sourceMode = request.SourceUid.HasValue");
         StringAssert.Contains(source, "var pagingSql = sourceMode");
         StringAssert.Contains(source, "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;");
         StringAssert.Contains(source, "PageSize = sourceMode ? Math.Max(1, total) : pageSize");
         Assert.IsFalse(source.Contains("10000", StringComparison.Ordinal));
+    }
+
+    /// <summary>验证来源需求列表不再投影物料数量、采购收货或执行进度。</summary>
+    [TestMethod]
+    public void RepositoryMainQuery_MustNotCalculateDownstreamProgress()
+    {
+        var source = Read(
+            "SwiftExport.Infrastructure",
+            "Repositories",
+            "DemandPlanning",
+            "GrossDemandRepository.cs");
+        var start = source.IndexOf("var selectSql = $@\"", StringComparison.Ordinal);
+        var end = source.IndexOf("var countSql =", start, StringComparison.Ordinal);
+        Assert.IsTrue(start >= 0 && end > start, "无法定位来源需求主列表 SQL。");
+        var query = source[start..end];
+
+        Assert.IsFalse(query.Contains("ExecutionProgress", StringComparison.Ordinal));
+        Assert.IsFalse(query.Contains("ActiveNetDemandCount", StringComparison.Ordinal));
+        Assert.IsFalse(query.Contains("CustomerSuppliedNetDemandCount", StringComparison.Ordinal));
+        Assert.IsFalse(query.Contains("InboundDocument", StringComparison.Ordinal));
+        StringAssert.Contains(query, "d.[SourceVersion], d.[CustomerId]");
+        StringAssert.Contains(query, "d.[UnitSnapshot] AS [Unit]");
+        StringAssert.Contains(query, "d.[DescriptionSnapshot] AS [Description]");
     }
 
     [TestMethod]

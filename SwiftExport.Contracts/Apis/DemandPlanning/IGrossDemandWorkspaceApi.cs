@@ -22,15 +22,6 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
         [Get("/{uid}")]
         Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken));
 
-        [Get("/{uid}/trace")]
-        Task<ServiceResult<GrossDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken));
-
-        [Post("/decompose")]
-        Task<ServiceResult<GrossDemandDecomposeResult>> DecomposeAsync([Body] GrossDemandDecomposeCommand command);
-
-        [Post("/rollback-decomposition")]
-        Task<ServiceResult<GrossDemandRollbackResult>> RollbackAsync([Body] GrossDemandRollbackCommand command);
-
         [Post("/manual")]
         Task<ServiceResult<GrossDemandDetailDto>> CreateManualAsync([Body] CreateManualGrossDemandRequest request);
 

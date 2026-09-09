@@ -9,8 +9,6 @@ using SwiftExport.Infrastructure.Contexts;
 namespace SwiftExport.Infrastructure.Repositories.Shipping;
 
 /// <summary>提供 PL 来源需求计划投影、提交事实快照和单据只读查询。</summary>
-/// <summary>提供 PL 来源需求计划投影、提交事实快照和单据只读查询。</summary>
-/// <summary>提供 PL 来源需求计划投影、提交事实快照和单据只读查询。</summary>
 public sealed class PackingListWorkspaceRepository(RepositoryBaseContext context) : IPackingListPlanningRepository, IPackingListQueryRepository
 {
     public async Task<PagedResponseBase<PackingListSourceDto>> SearchSourcesAsync(PackingListSourceSearchRequest request, CancellationToken cancellationToken = default)
@@ -24,15 +22,15 @@ public sealed class PackingListWorkspaceRepository(RepositoryBaseContext context
             FROM dbo.GrossDemand g
             LEFT JOIN dbo.Product pr ON pr.Uid=g.ProductId
             OUTER APPLY({PlanningExecutionApply}) planHint
-            OUTER APPLY(SELECT SUM(l.Quantity) AS ShippedNetQty FROM dbo.OutboundDocumentLine l JOIN dbo.OutboundDocument h ON h.Uid=l.OutboundDocumentId WHERE l.GrossDemandId=g.Uid AND h.DocumentType=20 AND h.PostingStatus=1 AND ISNULL(l.IsDeleted,0)=0 AND ISNULL(h.IsDeleted,0)=0) sh
-            {where} AND g.DemandQty-COALESCE(sh.ShippedNetQty,0)>0;
+            {SourceDeliverySql.FinalOutboundApply}
+            {where} AND g.DemandQty-COALESCE(delivery.DeliveredQty,0)>0;
             """, p, context.Session.Transaction);
         var rows = await context.Session.Connection.QueryAsync<PackingListSourceDto>(new CommandDefinition($"""
             SELECT g.Uid AS GrossDemandId,g.Version AS DemandVersion,g.SourceType,g.SourceUid,g.SourceLineId,g.SourceVersion,
                    planHint.NetDemandAllocationId,planHint.NetDemandId,g.ProductId,g.SkuSnapshot AS Sku,g.CustomerSkuSnapshot AS CustomerSku,g.DescriptionSnapshot AS Description,
                    COALESCE(NULLIF(LTRIM(RTRIM(g.UnitSnapshot)),N''),NULLIF(LTRIM(RTRIM(pr.Unit)),N'')) AS Unit,
-                   g.CustomerId,c.CustomerCode,c.CustomerName,g.DemandQty AS PlannedQty,COALESCE(sh.ShippedNetQty,0) AS ShippedNetQty,
-                   g.DemandQty-COALESCE(sh.ShippedNetQty,0) AS ShippableRemainingQty,COALESCE(rc.SourceInboundNetQty,0) AS SourceInboundNetQty,
+                   g.CustomerId,c.CustomerCode,c.CustomerName,g.DemandQty AS PlannedQty,COALESCE(delivery.DeliveredQty,0) AS ShippedNetQty,
+                   g.DemandQty-COALESCE(delivery.DeliveredQty,0) AS ShippableRemainingQty,COALESCE(rc.SourceInboundNetQty,0) AS SourceInboundNetQty,
                    COALESCE(progress.ReadyQty,0) AS ReadyQty,CASE WHEN g.SourceType='SO' THEN g.SourceUid ELSE NULL END AS SalesOrderId,
                    CASE WHEN g.SourceType='SO' THEN g.SourceLineId ELSE NULL END AS SalesOrderLineId,g.SourceNo AS SalesOrderNo,g.SourceLineNumber AS SalesOrderLineNumber,
                    planHint.PurchaseSupplierId AS SourceSupplierId,planHint.SupplierNameSnapshot AS SourceSupplierName,planHint.WarehouseSiteId,planHint.WarehouseCode,planHint.WarehouseName,
@@ -40,22 +38,22 @@ public sealed class PackingListWorkspaceRepository(RepositoryBaseContext context
             FROM dbo.GrossDemand g
             LEFT JOIN dbo.Customer c ON c.Uid=g.CustomerId LEFT JOIN dbo.Product pr ON pr.Uid=g.ProductId
             OUTER APPLY({PlanningExecutionApply}) planHint
-            OUTER APPLY(SELECT SUM(l.Quantity) AS ShippedNetQty FROM dbo.OutboundDocumentLine l JOIN dbo.OutboundDocument h ON h.Uid=l.OutboundDocumentId WHERE l.GrossDemandId=g.Uid AND h.DocumentType=20 AND h.PostingStatus=1 AND ISNULL(l.IsDeleted,0)=0 AND ISNULL(h.IsDeleted,0)=0) sh
+            {SourceDeliverySql.FinalOutboundApply}
             OUTER APPLY(SELECT SUM(l.Quantity) AS SourceInboundNetQty FROM dbo.InboundDocumentLine l JOIN dbo.InboundDocument h ON h.Uid=l.InboundDocumentId WHERE l.NetDemandAllocationId=planHint.NetDemandAllocationId AND h.PostingStatus=1 AND ISNULL(l.IsDeleted,0)=0 AND ISNULL(h.IsDeleted,0)=0) rc
             OUTER APPLY(SELECT SUM(latest.ReadyQty) AS ReadyQty FROM dbo.DemandExecutionLink link OUTER APPLY(SELECT TOP(1) report.ReadyQty FROM dbo.SupplierProgressReport report WHERE report.PurchaseOrderLineId=link.TargetLineId AND ISNULL(report.IsDeleted,0)=0 ORDER BY report.Sequence DESC,report.Uid DESC) latest WHERE link.NetDemandAllocationId=planHint.NetDemandAllocationId AND link.LinkStatus=0 AND ISNULL(link.IsDeleted,0)=0) progress
-            {where} AND g.DemandQty-COALESCE(sh.ShippedNetQty,0)>0
+            {where} AND g.DemandQty-COALESCE(delivery.DeliveredQty,0)>0
             ORDER BY g.RequiredDate,g.SourceNo,g.SourceLineNumber,g.Uid OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
             """, p, context.Session.Transaction, cancellationToken: cancellationToken));
         return new PagedResponseBase<PackingListSourceDto> { Items = rows.ToList(), TotalCount = total, PageIndex = page, PageSize = size };
     }
 
     public Task<PackingListSourceDto?> GetSourceForUpdateAsync(Guid grossDemandId, Guid? warehouseSiteId)
-        => context.Session.Connection.QuerySingleOrDefaultAsync<PackingListSourceDto>("""
+        => context.Session.Connection.QuerySingleOrDefaultAsync<PackingListSourceDto>($"""
             SELECT g.Uid AS GrossDemandId,g.Version AS DemandVersion,g.SourceType,g.SourceUid,g.SourceLineId,g.SourceVersion,
                    planHint.NetDemandAllocationId,planHint.NetDemandId,g.ProductId,g.SkuSnapshot AS Sku,g.CustomerSkuSnapshot AS CustomerSku,g.DescriptionSnapshot AS Description,
                    COALESCE(NULLIF(LTRIM(RTRIM(g.UnitSnapshot)),N''),NULLIF(LTRIM(RTRIM(pr.Unit)),N'')) AS Unit,
-                   g.CustomerId,c.CustomerCode,c.CustomerName,g.DemandQty AS PlannedQty,COALESCE(sh.ShippedNetQty,0) AS ShippedNetQty,
-                   g.DemandQty-COALESCE(sh.ShippedNetQty,0) AS ShippableRemainingQty,COALESCE(rc.SourceInboundNetQty,0) AS SourceInboundNetQty,
+                   g.CustomerId,c.CustomerCode,c.CustomerName,g.DemandQty AS PlannedQty,COALESCE(delivery.DeliveredQty,0) AS ShippedNetQty,
+                   g.DemandQty-COALESCE(delivery.DeliveredQty,0) AS ShippableRemainingQty,COALESCE(rc.SourceInboundNetQty,0) AS SourceInboundNetQty,
                    COALESCE(progress.ReadyQty,0) AS ReadyQty,CASE WHEN g.SourceType='SO' THEN g.SourceUid ELSE NULL END AS SalesOrderId,
                    CASE WHEN g.SourceType='SO' THEN g.SourceLineId ELSE NULL END AS SalesOrderLineId,g.SourceNo AS SalesOrderNo,g.SourceLineNumber AS SalesOrderLineNumber,
                    planHint.PurchaseSupplierId AS SourceSupplierId,planHint.SupplierNameSnapshot AS SourceSupplierName,w.Uid AS WarehouseSiteId,w.Code AS WarehouseCode,w.Name AS WarehouseName,
@@ -77,7 +75,7 @@ public sealed class PackingListWorkspaceRepository(RepositoryBaseContext context
                 WHERE candidate.CandidateCount=1
             ) planHint
             LEFT JOIN dbo.WarehouseSite w WITH(UPDLOCK,HOLDLOCK) ON w.Uid=COALESCE(@WarehouseSiteId,(SELECT TOP(1) ws.Uid FROM dbo.WarehouseSite ws WHERE ws.SupplierId=planHint.PurchaseSupplierId AND ws.IsDeleted=0 AND ws.IsActive=1 ORDER BY ws.Uid))
-            OUTER APPLY(SELECT SUM(l.Quantity) AS ShippedNetQty FROM dbo.OutboundDocumentLine l JOIN dbo.OutboundDocument h ON h.Uid=l.OutboundDocumentId WHERE l.GrossDemandId=g.Uid AND h.DocumentType=20 AND h.PostingStatus=1 AND l.IsDeleted=0 AND h.IsDeleted=0) sh
+            {SourceDeliverySql.FinalOutboundApply}
             OUTER APPLY(SELECT SUM(l.Quantity) AS SourceInboundNetQty FROM dbo.InboundDocumentLine l JOIN dbo.InboundDocument h ON h.Uid=l.InboundDocumentId WHERE l.NetDemandAllocationId=planHint.NetDemandAllocationId AND h.PostingStatus=1 AND l.IsDeleted=0 AND h.IsDeleted=0) rc
             OUTER APPLY(SELECT SUM(latest.ReadyQty) AS ReadyQty FROM dbo.DemandExecutionLink link OUTER APPLY(SELECT TOP(1) report.ReadyQty FROM dbo.SupplierProgressReport report WHERE report.PurchaseOrderLineId=link.TargetLineId AND report.IsDeleted=0 ORDER BY report.Sequence DESC,report.Uid DESC) latest WHERE link.NetDemandAllocationId=planHint.NetDemandAllocationId AND link.LinkStatus=0 AND link.IsDeleted=0) progress
             WHERE g.Uid=@GrossDemandId AND g.LifecycleStatus=0 AND g.SourceType IN('SO','CR') AND g.IsDeleted=0
@@ -111,12 +109,12 @@ public sealed class PackingListWorkspaceRepository(RepositoryBaseContext context
                        CAST(CASE WHEN g.SourceType='SO' THEN 1 ELSE 0 END AS bit) AS HasOrderPoolOwnership,
                        CAST(CASE WHEN p.Uid IS NOT NULL AND ISNULL(p.IsDeleted,0)=0 THEN 1 ELSE 0 END AS bit) AS IsProductActive,
                        CAST(CASE WHEN w.Uid IS NOT NULL AND ISNULL(w.IsActive,0)=1 THEN 1 ELSE 0 END AS bit) AS IsWarehouseActive,
-                       COALESCE(sh.Qty,0) AS ShippedNetQty,COALESCE(rc.Qty,0) AS SourceInboundNetQty,COALESCE(progress.ReadyQty,0) AS ReadyQty,
+                       COALESCE(delivery.DeliveredQty,0) AS ShippedNetQty,COALESCE(rc.Qty,0) AS SourceInboundNetQty,COALESCE(progress.ReadyQty,0) AS ReadyQty,
                        COALESCE(i.OnHandQty,0) AS BalanceQty,COALESCE(i.Version,0) AS BalanceVersion
-                FROM dbo.GrossDemand g{hint}
+                FROM dbo.GrossDemand g
                 LEFT JOIN dbo.Product p ON p.Uid=@ProductId LEFT JOIN dbo.WarehouseSite w{hint} ON w.Uid=@WarehouseSiteId
                 LEFT JOIN dbo.InventoryBalance i{hint} ON i.WarehouseSiteId=@WarehouseSiteId AND i.ProductId=@ProductId AND ISNULL(i.IsDeleted,0)=0
-                OUTER APPLY(SELECT SUM(l.Quantity) Qty FROM dbo.OutboundDocumentLine l JOIN dbo.OutboundDocument h ON h.Uid=l.OutboundDocumentId WHERE l.GrossDemandId=g.Uid AND h.DocumentType=20 AND h.PostingStatus=1 AND ISNULL(l.IsDeleted,0)=0 AND ISNULL(h.IsDeleted,0)=0) sh
+                {SourceDeliverySql.FinalOutboundApply}
                 OUTER APPLY(SELECT SUM(l.Quantity) Qty FROM dbo.InboundDocumentLine l JOIN dbo.InboundDocument h ON h.Uid=l.InboundDocumentId WHERE l.NetDemandAllocationId=@AllocationId AND h.PostingStatus=1 AND ISNULL(l.IsDeleted,0)=0 AND ISNULL(h.IsDeleted,0)=0) rc
                 OUTER APPLY(SELECT SUM(latest.ReadyQty) ReadyQty FROM dbo.DemandExecutionLink link OUTER APPLY(SELECT TOP(1) report.ReadyQty FROM dbo.SupplierProgressReport report WHERE report.PurchaseOrderLineId=link.TargetLineId AND ISNULL(report.IsDeleted,0)=0 ORDER BY report.Sequence DESC,report.Uid DESC) latest WHERE link.NetDemandAllocationId=@AllocationId AND link.LinkStatus=0 AND ISNULL(link.IsDeleted,0)=0) progress
                 WHERE g.Uid=@GrossDemandId;
@@ -163,17 +161,17 @@ public sealed class PackingListWorkspaceRepository(RepositoryBaseContext context
 
     public async Task<PackingListDetailDto?> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default)
     {
-        using var multi = await context.Session.Connection.QueryMultipleAsync(new CommandDefinition("""
+        using var multi = await context.Session.Connection.QueryMultipleAsync(new CommandDefinition($"""
             SELECT Uid,Version,PackingListNo,CustomerId,CustomerCodeSnapshot AS CustomerCode,CustomerNameSnapshot AS CustomerName,InvoiceNo,ContainerNo,SealNo,ShippingMark,
                    DeliveryAddressSnapshot,PackingDate,ShipmentDate,Etd,Eta,LifecycleStatus,PostingStatus,PostedDate,PostedBy,ReversedDate,ReversedBy,ReverseReason,
                    CAST(0 AS bit) AS IsLegacyReadOnly,CAST(NULL AS nvarchar(500)) AS ReadOnlyReason
             FROM dbo.PackingListDocument WHERE Uid=@Uid AND ISNULL(IsDeleted,0)=0;
             SELECT l.Uid,l.Version,l.LineNumber,l.ProductId,l.SkuSnapshot AS Sku,l.CustomerSkuSnapshot AS CustomerSku,l.DescriptionSnapshot AS Description,l.UnitSnapshot AS Unit,l.Quantity,l.PackageCount,l.NetWeight,l.GrossWeight,l.Volume,
-                   l.Marks,l.Note,l.GrossDemandId,l.NetDemandId,l.NetDemandAllocationId,g.Version AS DemandVersion,g.SourceVersion,g.DemandQty-COALESCE(sh.Qty,0) AS ShippableRemainingQty,l.DemandExecutionLinkId,l.SalesOrderId,l.SalesOrderLineId,l.SalesOrderNoSnapshot AS SalesOrderNo,
+                   l.Marks,l.Note,l.GrossDemandId,l.NetDemandId,l.NetDemandAllocationId,g.Version AS DemandVersion,g.SourceVersion,g.DemandQty-COALESCE(delivery.DeliveredQty,0) AS ShippableRemainingQty,l.DemandExecutionLinkId,l.SalesOrderId,l.SalesOrderLineId,l.SalesOrderNoSnapshot AS SalesOrderNo,
                    SalesOrderLineNumberSnapshot AS SalesOrderLineNumber,SourceSupplierId,SourceSupplierNameSnapshot AS SourceSupplierName,WarehouseSiteId,WarehouseCodeSnapshot AS WarehouseCode,
                    WarehouseNameSnapshot AS WarehouseName,SnapshotRequiredDate AS RequiredDate,SupplyType,CommandItemId
             FROM dbo.PackingListContributionLine l LEFT JOIN dbo.GrossDemand g ON g.Uid=l.GrossDemandId
-            OUTER APPLY(SELECT SUM(ol.Quantity) Qty FROM dbo.OutboundDocumentLine ol JOIN dbo.OutboundDocument oh ON oh.Uid=ol.OutboundDocumentId WHERE ol.GrossDemandId=l.GrossDemandId AND oh.DocumentType=20 AND oh.PostingStatus=1 AND ISNULL(ol.IsDeleted,0)=0 AND ISNULL(oh.IsDeleted,0)=0) sh
+            {SourceDeliverySql.FinalOutboundApply}
             WHERE l.PackingListDocumentId=@Uid AND ISNULL(l.IsDeleted,0)=0 ORDER BY l.LineNumber;
             """, new { Uid = uid }, context.Session.Transaction, cancellationToken: cancellationToken));
         var header = await multi.ReadSingleOrDefaultAsync<PackingListHeaderDto>();

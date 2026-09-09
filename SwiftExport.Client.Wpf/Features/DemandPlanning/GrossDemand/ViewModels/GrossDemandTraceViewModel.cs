@@ -14,7 +14,7 @@ namespace SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 
 public sealed partial class GrossDemandTraceViewModel : ViewModelBaseEx, IDisposable
 {
-    private readonly IGrossDemandWorkspaceApi _api;
+    private readonly INetDemandWorkspaceApi _api;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private readonly INavigationService _navigationService;
@@ -22,7 +22,7 @@ public sealed partial class GrossDemandTraceViewModel : ViewModelBaseEx, IDispos
     private bool _disposed;
 
     public GrossDemandTraceViewModel(
-        IGrossDemandWorkspaceApi api,
+        INetDemandWorkspaceApi api,
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
         INavigationService navigationService)
@@ -57,7 +57,7 @@ public sealed partial class GrossDemandTraceViewModel : ViewModelBaseEx, IDispos
         try
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.GetTraceAsync(uid, cancellation.Token),
+                () => _api.GetSourceDemandTraceAsync(uid, cancellation.Token),
                 cancellation.Token,
                 "加载需求追溯失败");
             if (cancellation.IsCancellationRequested || !ReferenceEquals(_loadCancellation, cancellation))

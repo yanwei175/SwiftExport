@@ -73,6 +73,8 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(ClearFiltersCommand);
+        RegisterBusyAwareCommand(EstablishFromSourcesCommand);
+        RegisterBusyAwareCommand(RollbackSourceEstablishmentCommand);
         RegisterBusyAwareCommand(ModifyPlanCommand);
         RegisterBusyAwareCommand(BatchAssignSupplierCommand);
         RegisterBusyAwareCommand(ApplyDefaultSupplierCommand);
@@ -399,6 +401,70 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         PlanEditor.OpenSingle(detail, IsReadOnly);
         ActiveDrawerContent = PlanEditor;
         IsDrawerOpen = true;
+    }
+
+    /// <summary>打开来源需求候选，并以客户端预览版本提交物料领域的幂等建立命令。</summary>
+    [RelayCommand(CanExecute = nameof(CanWriteCommand))]
+    private async Task EstablishFromSourcesAsync()
+    {
+        if (!await ConfirmDiscardPlanChangesAsync()) return;
+        var selected = await _netDemandDialogService.ShowSourceDemandCandidatesAsync();
+        if (selected.Count == 0) return;
+        await RunBusyAsync(async () =>
+        {
+            var result = await _apiCallRunner.RunAsync(
+                () => _api.EstablishFromSourcesAsync(new EstablishMaterialDemandsCommand
+                {
+                    CommandId = Guid.NewGuid(),
+                    Items = selected.Select(item => new EstablishMaterialDemandItem
+                    {
+                        GrossDemandId = item.GrossDemandId,
+                        SourceDemandVersion = item.SourceDemandVersion,
+                        SourceVersion = item.SourceVersion
+                    }).ToList()
+                }),
+                "从来源需求建立物料需求失败");
+            if (!result.Success || result.Data is null)
+            {
+                _messageService.ShowError("建立失败", result.Message);
+                return;
+            }
+            _messageService.ShowSuccess("建立完成",
+                $"新建来源 {result.Data.CreatedSourceCount} 条、物料需求 {result.Data.CreatedMaterialDemandCount} 条；已存在 {result.Data.AlreadyEstablishedCount} 条。");
+            await RefreshWorkspaceAsync();
+        }, "正在建立物料需求...");
+    }
+
+    /// <summary>按当前勾选行归并来源与修订后执行安全回退，活动执行关系由服务端阻断。</summary>
+    [RelayCommand(CanExecute = nameof(CanRollbackSourceEstablishment))]
+    private async Task RollbackSourceEstablishmentAsync()
+    {
+        var items = Items.Where(item => item.IsChecked)
+            .GroupBy(item => item.GrossDemandId)
+            .Select(group => new RollbackMaterialDemandItem
+            {
+                GrossDemandId = group.Key,
+                DecompositionRevision = group.Select(item => item.DecompositionRevision).Distinct().Single()
+            }).ToList();
+        if (!await _dialogService.ConfirmAsync(
+                "回退来源物料需求", $"将回退 {items.Count} 条来源需求的当前物料修订，是否继续？", "安全回退")) return;
+        await RunBusyAsync(async () =>
+        {
+            var result = await _apiCallRunner.RunAsync(
+                () => _api.RollbackSourceEstablishmentAsync(new RollbackMaterialDemandsCommand
+                {
+                    CommandId = Guid.NewGuid(), Reason = "用户从物料需求工作台安全回退", Items = items
+                }),
+                "回退来源物料需求失败");
+            if (!result.Success || result.Data is null)
+            {
+                _messageService.ShowError("回退失败", result.Message);
+                return;
+            }
+            _messageService.ShowSuccess("回退完成",
+                $"已回退 {result.Data.RolledBackSourceCount} 条，已处于回退状态 {result.Data.AlreadyRolledBackCount} 条。");
+            await RefreshWorkspaceAsync();
+        }, "正在回退物料需求...");
     }
 
     [RelayCommand(CanExecute = nameof(CanBatchAssignSupplier))]
@@ -1061,6 +1127,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         OnPropertyChanged(nameof(CheckedCount));
         BatchAssignSupplierCommand.NotifyCanExecuteChanged();
         TransferSelectedPurchaseCommand.NotifyCanExecuteChanged();
+        RollbackSourceEstablishmentCommand.NotifyCanExecuteChanged();
     }
 
     private void OnPlanEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -1080,6 +1147,12 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     }
 
     private bool CanRun() => IsNotBusy;
+    private bool CanWriteCommand() => CanWrite && IsNotBusy;
+    private bool CanRollbackSourceEstablishment() => CanWrite && IsNotBusy
+        && Items.Any(item => item.IsChecked)
+        && Items.Where(item => item.IsChecked)
+            .GroupBy(item => item.GrossDemandId)
+            .All(group => group.Select(item => item.DecompositionRevision).Distinct().Count() == 1);
     private bool CanPageChange() => IsNotBusy && !IsSourceSelected;
     private bool CanSelectSourceGroup(NetDemandSourceGroupModel? group) => IsNotBusy && !IsSourceGroupLoading && group is not null;
     private bool CanUseSelected() => IsNotBusy && SelectedItem is not null;

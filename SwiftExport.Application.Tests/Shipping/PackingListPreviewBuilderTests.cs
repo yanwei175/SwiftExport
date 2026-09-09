@@ -79,6 +79,25 @@ public sealed class PackingListPreviewBuilderTests
         Assert.AreEqual(0.3333m, result.Lines[0].CustomerSuppliedConsumptionQty);
     }
 
+    /// <summary>缺销售订单池只在本次实际扣用客供件时阻断，普通售后补发不得被误伤。</summary>
+    [TestMethod]
+    public void Build_OrderPoolGateOnlyAppliesToActualCustomerSuppliedConsumption()
+    {
+        var ordinary = Snapshot(planned: 3, packing: 1, shipped: 0, inbound: 1, balance: 1);
+        ordinary.Lines[0].HasOrderPoolOwnership = false;
+        Assert.IsFalse(_builder.Build(ordinary).Blockers.Any(item => item.Code == "ORDER_POOL_OWNERSHIP_REQUIRED"));
+
+        ordinary.Lines[0].CustomerSuppliedItems =
+        [
+            new PackingListCustomerSuppliedSnapshot
+            {
+                AllocationId = Guid.NewGuid(), ProductId = Guid.NewGuid(), Sku = "CS-1",
+                PlannedQty = 1, ParentPlannedQty = 3, HistoricalConsumptionQty = 0, BalanceQty = 1
+            }
+        ];
+        Assert.IsTrue(_builder.Build(ordinary).Blockers.Any(item => item.Code == "ORDER_POOL_OWNERSHIP_REQUIRED"));
+    }
+
     [TestMethod]
     public void Build_LastShipmentAbsorbsCustomerSuppliedTailDifference()
     {

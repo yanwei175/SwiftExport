@@ -4,22 +4,21 @@ using System;
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
 {
     /// <summary>
-    /// 毛需求详情及来源快照。
+    /// 来源需求本体详情及接收时业务快照。
     /// </summary>
-    /// <remarks>来源表：GrossDemand、Product、SalesOrderHeader、SalesOrderLine。</remarks>
+    /// <remarks>来源表：GrossDemand；不装入物料需求、执行关系、采购或收货集合。</remarks>
     public class GrossDemandDetailDto
     {
         public Guid Uid { get; set; }
         public int Version { get; set; }
         public GrossDemandLifecycleStatusEnum LifecycleStatus { get; set; }
-        public GrossDemandDecompositionStatusEnum DecompositionStatus { get; set; }
-        public int DecompositionRevision { get; set; }
-
         public string SourceType { get; set; }
         public Guid SourceUid { get; set; }
         public string SourceNo { get; set; }
         public Guid SourceLineId { get; set; }
         public int? SourceLineNumber { get; set; }
+        public int? SourceVersion { get; set; }
+        public Guid? CustomerId { get; set; }
 
         public Guid? ProductId { get; set; }
         public bool IsNonStandard { get; set; }
@@ -30,13 +29,12 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
         public string Color { get; set; }
         public string Specification { get; set; }
         public string ImagePath { get; set; }
+        public string Unit { get; set; }
 
         public decimal DemandQty { get; set; }
         public DateTime? RequiredDate { get; set; }
         public string Remark { get; set; }
 
-        public DateTime? DecomposedAt { get; set; }
-        public string DecomposedBy { get; set; }
         public DateTime? LifecycleChangedAt { get; set; }
         public string LifecycleChangedBy { get; set; }
         public string LifecycleChangedReason { get; set; }

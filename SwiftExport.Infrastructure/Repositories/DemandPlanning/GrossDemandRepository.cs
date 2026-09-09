@@ -1,8 +1,6 @@
 using Dapper;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
-using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
 using SwiftExport.Contracts.SysEnums;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Interfaces.DemandPlanning;
@@ -11,103 +9,12 @@ using System.Data;
 
 namespace SwiftExport.Infrastructure.Repositories.DemandPlanning;
 
-/// <summary>持久化来源需求，并提供来源身份、版本、交付额度及历史安全检查。</summary>
+/// <summary>持久化来源需求本体，并提供来源身份、版本和生命周期操作。</summary>
 public sealed class GrossDemandRepository(RepositoryBaseContext context) : IGrossDemandRepository
 {
     private readonly RepositoryBaseContext _context = context;
     private IDbConnection Connection => _context.Session.Connection;
     private IDbTransaction? Transaction => _context.Session.Transaction;
-
-    /// <summary>按来源需求粒度查询可交付余额；正式已发只取直接锚定 GrossDemandId 的有效客户出库。</summary>
-    public async Task<PagedResponseBase<SourceDemandDeliveryItemDto>> SearchDeliverableAsync(
-        SourceDemandDeliverySearchRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        var page = Math.Max(request.PageIndex, 1);
-        var size = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 200);
-        var parameters = new
-        {
-            SourceType = NormalizeFilter(request.SourceType),
-            request.CustomerId,
-            Keyword = Like(request.Keyword),
-            SourceNo = Like(request.SourceNo),
-            Sku = Like(request.Sku),
-            SalesOrder = DocumentTypeStaticsEnum.SalesOrder,
-            Complaint = DocumentTypeStaticsEnum.ComplaintReplenishment,
-            Active = GrossDemandLifecycleStatusEnum.Active,
-            Offset = (page - 1) * size,
-            PageSize = size
-        };
-        const string where = @"
-WHERE d.IsDeleted=0 AND d.LifecycleStatus=@Active
-  AND d.SourceType IN (@SalesOrder,@Complaint)
-  AND (@SourceType IS NULL OR d.SourceType=@SourceType)
-  AND (@CustomerId IS NULL OR d.CustomerId=@CustomerId)
-  AND (@Keyword IS NULL OR d.SourceNo LIKE @Keyword OR d.SkuSnapshot LIKE @Keyword OR d.CustomerSkuSnapshot LIKE @Keyword)
-  AND (@SourceNo IS NULL OR d.SourceNo LIKE @SourceNo)
-  AND (@Sku IS NULL OR d.SkuSnapshot LIKE @Sku)
-  AND d.DemandQty-COALESCE(sh.DeliveredQty,0)>0";
-        var total = await Connection.ExecuteScalarAsync<int>(
-            $"SELECT COUNT(1) FROM dbo.GrossDemand d {DeliveryShipmentApply} {where};",
-            parameters,
-            Transaction);
-        var items = await Connection.QueryAsync<SourceDemandDeliveryItemDto>(new CommandDefinition($@"
-{DeliverySelect}
-FROM dbo.GrossDemand d
-LEFT JOIN dbo.Customer c ON c.Uid=d.CustomerId AND c.IsDeleted=0
-LEFT JOIN dbo.Product p ON p.Uid=d.ProductId AND p.IsDeleted=0
-{DeliveryShipmentApply}
-{where}
-ORDER BY d.RequiredDate,d.SourceNo,d.SourceLineNumber,d.Uid
-OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;", parameters, Transaction, cancellationToken: cancellationToken));
-        return new PagedResponseBase<SourceDemandDeliveryItemDto>
-        {
-            Items = items.ToList(), TotalCount = total, PageIndex = page, PageSize = size
-        };
-    }
-
-    /// <summary>读取来源需求交付上下文；查询不加业务锁，仅用于展示。</summary>
-    public Task<SourceDemandDeliveryItemDto?> GetDeliveryContextAsync(Guid grossDemandId, CancellationToken cancellationToken = default)
-        => Connection.QuerySingleOrDefaultAsync<SourceDemandDeliveryItemDto>(new CommandDefinition($@"
-{DeliverySelect}
-FROM dbo.GrossDemand d
-LEFT JOIN dbo.Customer c ON c.Uid=d.CustomerId AND c.IsDeleted=0
-LEFT JOIN dbo.Product p ON p.Uid=d.ProductId AND p.IsDeleted=0
-{DeliveryShipmentApply}
-WHERE d.Uid=@GrossDemandId AND d.IsDeleted=0;", new
-        {
-            GrossDemandId = grossDemandId,
-            SalesOrder = DocumentTypeStaticsEnum.SalesOrder,
-            Complaint = DocumentTypeStaticsEnum.ComplaintReplenishment
-        }, Transaction, cancellationToken: cancellationToken));
-
-    /// <summary>以 Guid 排序锁定来源需求，保证来源终止、版本更新和多个 PL 提交串行复核同一额度。</summary>
-    public async Task<IReadOnlyList<SourceDemandDeliveryItemDto>> GetDeliveryContextsForUpdateAsync(
-        IEnumerable<Guid> grossDemandIds,
-        CancellationToken cancellationToken = default)
-    {
-        var ids = grossDemandIds.Distinct().OrderBy(id => id).ToArray();
-        if (ids.Length == 0) return [];
-        var rows = new List<SourceDemandDeliveryItemDto>();
-        foreach (var id in ids)
-        {
-            var row = await Connection.QuerySingleOrDefaultAsync<SourceDemandDeliveryItemDto>(new CommandDefinition($@"
-{DeliverySelect}
-FROM dbo.GrossDemand d WITH(UPDLOCK,HOLDLOCK)
-LEFT JOIN dbo.Customer c ON c.Uid=d.CustomerId AND c.IsDeleted=0
-LEFT JOIN dbo.Product p ON p.Uid=d.ProductId AND p.IsDeleted=0
-{DeliveryShipmentApply}
-WHERE d.Uid=@GrossDemandId AND d.IsDeleted=0;", new
-            {
-                GrossDemandId = id,
-                SalesOrder = DocumentTypeStaticsEnum.SalesOrder,
-                Complaint = DocumentTypeStaticsEnum.ComplaintReplenishment
-            }, Transaction, cancellationToken: cancellationToken));
-            if (row is not null) rows.Add(row);
-        }
-        return rows;
-    }
 
     public async Task<PagedResponseBase<GrossDemandListItemDto>> SearchWorkspaceAsync(
         GrossDemandSearchRequest request,
@@ -130,49 +37,14 @@ WHERE d.Uid=@GrossDemandId AND d.IsDeleted=0;", new
             : "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
         var selectSql = $@"
 SELECT
-    d.[Uid], d.[Version], d.[LifecycleStatus], d.[DecompositionStatus], d.[DecompositionRevision],
-    d.[SourceType], d.[SourceUid], d.[SourceNo], d.[SourceLineId], d.[SourceLineNumber],
+    d.[Uid], d.[Version], d.[LifecycleStatus],
+    d.[SourceType], d.[SourceUid], d.[SourceNo], d.[SourceLineId], d.[SourceLineNumber], d.[SourceVersion], d.[CustomerId],
     d.[ProductId], d.[IsNonStandard], d.[SkuSnapshot] AS [Sku], d.[LinkSkuSnapshot] AS [LinkSku],
-    d.[CustomerSkuSnapshot] AS [CustomerSku], d.[DescriptionSnapshot] AS [DefaultDescriptionEn], d.[ColorSnapshot] AS [Color],
-    d.[SpecificationSnapshot] AS [Specification], d.[ImagePathSnapshot] AS [ImagePath],
+    d.[CustomerSkuSnapshot] AS [CustomerSku], d.[DescriptionSnapshot] AS [Description], d.[ColorSnapshot] AS [Color],
+    d.[SpecificationSnapshot] AS [Specification], d.[ImagePathSnapshot] AS [ImagePath], d.[UnitSnapshot] AS [Unit],
     d.[DemandQty], d.[RequiredDate], d.[Remark],
-    ISNULL(na.[ActiveCount], 0) AS [ActiveNetDemandCount],
-    ISNULL(na.[CustomerSuppliedCount], 0) AS [CustomerSuppliedNetDemandCount],
-    CASE
-      WHEN ISNULL(na.[ActiveCount], 0) = 0 THEN 0
-      WHEN ISNULL(la.[ReceivedQty], 0) >= d.[DemandQty] THEN 4
-      WHEN ISNULL(la.[ReceivedQty], 0) > 0 THEN 3
-      WHEN ISNULL(la.[AllocatedQty], 0) >= d.[DemandQty] THEN 2
-      WHEN ISNULL(la.[AllocatedQty], 0) > 0 THEN 1
-      ELSE 0
-    END AS [ExecutionProgress],
-    CASE WHEN d.[LifecycleStatus] = 0 AND d.[DecompositionStatus] = 0 AND ISNULL(na.[ActiveCount],0)=0 THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS [CanDecompose],
-    CASE WHEN d.[LifecycleStatus] = 0 AND d.[DecompositionStatus] = 1 AND ISNULL(na.[ActiveCount],0)>0 AND ISNULL(la.[ActiveLinkCount], 0) = 0 THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS [CanRollback],
-    CASE WHEN ISNULL(la.[ActiveLinkCount], 0) > 0 THEN N'已有下游执行单，请先取消或反向处理' ELSE NULL END AS [RollbackBlockerSummary],
-    d.[DecomposedAt], d.[DecomposedBy],
     d.[CreatedDate], d.[CreatedBy], d.[UpdatedDate], d.[UpdatedBy]
 FROM [dbo].[GrossDemand] d
-OUTER APPLY (
-    SELECT COUNT(1) AS [ActiveCount],
-           SUM(CASE WHEN nd.[MaterialTypeSnapshot] = N'客供件' THEN 1 ELSE 0 END) AS [CustomerSuppliedCount]
-    FROM [dbo].[NetDemand] nd
-    WHERE nd.[GrossDemandId] = d.[Uid] AND nd.[LifecycleStatus] = 0 AND nd.[IsDeleted] = 0
-) na
-OUTER APPLY (
-    SELECT COUNT(1) AS [ActiveLinkCount], SUM(l.[AllocatedQty]-l.[ReleasedQty]) AS [AllocatedQty],
-           SUM(ISNULL(receipts.[ReceivedQty],0)) AS [ReceivedQty]
-    FROM [dbo].[DemandExecutionLink] l
-    INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid] = l.[NetDemandId]
-    OUTER APPLY (
-        SELECT SUM(il.[Quantity]) AS [ReceivedQty]
-        FROM [dbo].[InboundDocumentLine] il
-        INNER JOIN [dbo].[InboundDocument] ih ON ih.[Uid]=il.[InboundDocumentId]
-        WHERE il.[DemandExecutionLinkId]=l.[Uid] AND ih.[PostingStatus]=1
-          AND il.[IsDeleted]=0 AND ih.[IsDeleted]=0
-    ) receipts
-    WHERE nd.[GrossDemandId] = d.[Uid] AND nd.[LifecycleStatus] = 0 AND nd.[IsDeleted] = 0
-      AND l.[LinkStatus] = 0 AND l.[IsDeleted] = 0
-) la
 WHERE {whereSql}
 ORDER BY CASE WHEN d.[RequiredDate] IS NULL THEN 1 ELSE 0 END, d.[RequiredDate], d.[CreatedDate], d.[Uid]
 {pagingSql}";
@@ -199,7 +71,6 @@ ORDER BY CASE WHEN d.[RequiredDate] IS NULL THEN 1 ELSE 0 END, d.[RequiredDate],
         var where = new List<string> { "d.[IsDeleted] = 0" };
         var parameters = new DynamicParameters();
         AddListFilter(request.LifecycleStatuses, "d.[LifecycleStatus]", "SourceLifecycleStatuses", where, parameters);
-        AddListFilter(request.DecompositionStatuses, "d.[DecompositionStatus]", "SourceDecompositionStatuses", where, parameters);
         var sql = $@"
 SELECT d.[SourceUid],MAX(d.[SourceType]) AS [SourceType],MAX(d.[SourceNo]) AS [SourceNo],COUNT(1) AS [DemandCount]
 FROM [dbo].[GrossDemand] d
@@ -214,12 +85,12 @@ ORDER BY MAX(d.[SourceType]),MAX(d.[SourceNo]),d.[SourceUid];";
     public Task<GrossDemandDetailDto?> GetWorkspaceDetailAsync(Guid uid, CancellationToken cancellationToken = default)
     {
         const string sql = @"
-SELECT d.[Uid], d.[Version], d.[LifecycleStatus], d.[DecompositionStatus], d.[DecompositionRevision],
-       d.[SourceType], d.[SourceUid], d.[SourceNo], d.[SourceLineId], d.[SourceLineNumber],
+SELECT d.[Uid], d.[Version], d.[LifecycleStatus],
+       d.[SourceType], d.[SourceUid], d.[SourceNo], d.[SourceLineId], d.[SourceLineNumber], d.[SourceVersion], d.[CustomerId],
        d.[ProductId], d.[IsNonStandard], d.[SkuSnapshot] AS [Sku], d.[LinkSkuSnapshot] AS [LinkSku],
-       d.[CustomerSkuSnapshot] AS [CustomerSku], d.[DescriptionSnapshot] AS [DefaultDescriptionEn], d.[ColorSnapshot] AS [Color],
-       d.[SpecificationSnapshot] AS [Specification], d.[ImagePathSnapshot] AS [ImagePath],
-       d.[DemandQty], d.[RequiredDate], d.[Remark],d.[DecomposedAt], d.[DecomposedBy],
+       d.[CustomerSkuSnapshot] AS [CustomerSku], d.[DescriptionSnapshot] AS [Description], d.[ColorSnapshot] AS [Color],
+       d.[SpecificationSnapshot] AS [Specification], d.[ImagePathSnapshot] AS [ImagePath], d.[UnitSnapshot] AS [Unit],
+       d.[DemandQty], d.[RequiredDate], d.[Remark],
        d.[LifecycleChangedAt], d.[LifecycleChangedBy], d.[LifecycleChangedReason],
        d.[CreatedDate], d.[CreatedBy], d.[UpdatedDate], d.[UpdatedBy]
 FROM [dbo].[GrossDemand] d
@@ -260,14 +131,14 @@ ORDER BY d.[SourceLineNumber], d.[Uid];", new
 INSERT INTO [dbo].[GrossDemand]
 ([Uid],[Version],[IsDeleted],[CreatedDate],[CreatedBy],[UpdatedDate],[UpdatedBy],
  [LifecycleStatus],[DecompositionStatus],[DecompositionRevision],
- [SourceType],[SourceUid],[SourceNo],[SourceLineId],[SourceLineNumber],[SourceVersion],[CustomerId],[ProductId],[IsNonStandard],
+ [SourceType],[SourceUid],[SourceNo],[SourceLineId],[SourceLineNumber],[SourceVersion],[DemandBasisFingerprint],[CustomerId],[ProductId],[IsNonStandard],
  [SkuSnapshot],[LinkSkuSnapshot],[CustomerSkuSnapshot],[DescriptionSnapshot],[ColorSnapshot],[SpecificationSnapshot],[ImagePathSnapshot],[UnitSnapshot],
  [DemandQty],[RequiredDate],[Remark],[DecomposedAt],[DecomposedBy],
  [LifecycleChangedAt],[LifecycleChangedBy],[LifecycleChangedReason])
 VALUES
 (@Uid,@Version,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
  @LifecycleStatus,@DecompositionStatus,@DecompositionRevision,
- @SourceType,@SourceUid,@SourceNo,@SourceLineId,@SourceLineNumber,@SourceVersion,@CustomerId,@ProductId,@IsNonStandard,
+ @SourceType,@SourceUid,@SourceNo,@SourceLineId,@SourceLineNumber,@SourceVersion,@DemandBasisFingerprint,@CustomerId,@ProductId,@IsNonStandard,
  @SkuSnapshot,@LinkSkuSnapshot,@CustomerSkuSnapshot,@DescriptionSnapshot,@ColorSnapshot,@SpecificationSnapshot,@ImagePathSnapshot,@UnitSnapshot,
  @DemandQty,@RequiredDate,@Remark,@DecomposedAt,@DecomposedBy,
  @LifecycleChangedAt,@LifecycleChangedBy,@LifecycleChangedReason);";
@@ -284,7 +155,7 @@ VALUES
     {
         const string sql = @"
 UPDATE dbo.GrossDemand
-SET SourceNo=@SourceNo,SourceLineNumber=@SourceLineNumber,SourceVersion=@SourceVersion,CustomerId=@CustomerId,
+SET SourceNo=@SourceNo,SourceLineNumber=@SourceLineNumber,SourceVersion=@SourceVersion,DemandBasisFingerprint=@DemandBasisFingerprint,CustomerId=@CustomerId,
     ProductId=@ProductId,IsNonStandard=@IsNonStandard,SkuSnapshot=@SkuSnapshot,LinkSkuSnapshot=@LinkSkuSnapshot,
     CustomerSkuSnapshot=@CustomerSkuSnapshot,DescriptionSnapshot=@DescriptionSnapshot,ColorSnapshot=@ColorSnapshot,
     SpecificationSnapshot=@SpecificationSnapshot,ImagePathSnapshot=@ImagePathSnapshot,UnitSnapshot=@UnitSnapshot,
@@ -294,7 +165,7 @@ OUTPUT INSERTED.Version
 WHERE Uid=@Uid AND Version=@ExpectedVersion AND LifecycleStatus=@Active AND IsDeleted=0;";
         var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>(sql, new
         {
-            demand.Uid, demand.SourceNo, demand.SourceLineNumber, demand.SourceVersion, demand.CustomerId,
+            demand.Uid, demand.SourceNo, demand.SourceLineNumber, demand.SourceVersion, demand.DemandBasisFingerprint, demand.CustomerId,
             demand.ProductId, demand.IsNonStandard, demand.SkuSnapshot, demand.LinkSkuSnapshot,
             demand.CustomerSkuSnapshot, demand.DescriptionSnapshot, demand.ColorSnapshot,
             demand.SpecificationSnapshot, demand.ImagePathSnapshot, demand.UnitSnapshot,
@@ -307,25 +178,6 @@ WHERE Uid=@Uid AND Version=@ExpectedVersion AND LifecycleStatus=@Active AND IsDe
             : RepositoryWriteResult.Fail(demand.Uid, expectedVersion, "CONCURRENCY_CONFLICT", "来源需求状态或版本已变化。");
     }
 
-    public async Task<RepositoryWriteResult> UpdateDecompositionStateAsync(
-        Guid uid, int expectedVersion, GrossDemandDecompositionStatusEnum status,
-        int decompositionRevision, DateTime? decomposedAt)
-    {
-        var now = DateTime.Now;
-        var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>(@"
-UPDATE [dbo].[GrossDemand]
-SET [DecompositionStatus] = @Status, [DecompositionRevision] = @Revision,
-    [DecomposedAt] = @DecomposedAt, [DecomposedBy] = CASE WHEN @DecomposedAt IS NULL THEN NULL ELSE @UserName END,
-    [UpdatedDate] = @Now, [UpdatedBy] = @UserName, [Version] = [Version] + 1
-OUTPUT INSERTED.[Version]
-WHERE [Uid] = @Uid AND [Version] = @ExpectedVersion AND [IsDeleted] = 0;",
-            new { Uid = uid, ExpectedVersion = expectedVersion, Status = status, Revision = decompositionRevision,
-                DecomposedAt = decomposedAt, Now = now, UserName = _context.CurrentUser.UserName }, Transaction);
-        return newVersion.HasValue
-            ? RepositoryWriteResult.Ok(uid, expectedVersion, newVersion, "状态更新成功。")
-            : RepositoryWriteResult.Fail(uid, expectedVersion, "CONCURRENCY_CONFLICT", "毛需求已被其他用户修改，请刷新后重试。");
-    }
-
     public async Task<RepositoryWriteResult> UpdateManualAsync(GrossDemand demand, int expectedVersion)
     {
         var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>(@"
@@ -333,14 +185,14 @@ UPDATE [dbo].[GrossDemand]
 SET [ProductId]=@ProductId,[IsNonStandard]=@IsNonStandard,[SkuSnapshot]=@SkuSnapshot,
     [LinkSkuSnapshot]=@LinkSkuSnapshot,[CustomerSkuSnapshot]=@CustomerSkuSnapshot,[DescriptionSnapshot]=@DescriptionSnapshot,
     [ColorSnapshot]=@ColorSnapshot,[SpecificationSnapshot]=@SpecificationSnapshot,[ImagePathSnapshot]=@ImagePathSnapshot,
-    [DemandQty]=@DemandQty,[RequiredDate]=@RequiredDate,[Remark]=@Remark,
+    [DemandBasisFingerprint]=@DemandBasisFingerprint,[DemandQty]=@DemandQty,[RequiredDate]=@RequiredDate,[Remark]=@Remark,
     [UpdatedDate]=@Now,[UpdatedBy]=@UserName,[Version]=[Version]+1
 OUTPUT INSERTED.[Version]
 WHERE [Uid]=@Uid AND [Version]=@ExpectedVersion AND [SourceType]='MD'
-  AND [LifecycleStatus]=0 AND [DecompositionStatus]=0 AND [IsDeleted]=0;",
+  AND [LifecycleStatus]=0 AND [IsDeleted]=0;",
             new { demand.Uid, demand.ProductId, demand.IsNonStandard, demand.SkuSnapshot, demand.LinkSkuSnapshot,
                 demand.CustomerSkuSnapshot, demand.DescriptionSnapshot, demand.ColorSnapshot, demand.SpecificationSnapshot,
-                demand.ImagePathSnapshot, demand.DemandQty, demand.RequiredDate, demand.Remark, ExpectedVersion = expectedVersion,
+                demand.ImagePathSnapshot, demand.DemandBasisFingerprint, demand.DemandQty, demand.RequiredDate, demand.Remark, ExpectedVersion = expectedVersion,
                 Now = DateTime.Now, UserName = _context.CurrentUser.UserName }, Transaction);
         return newVersion.HasValue
             ? RepositoryWriteResult.Ok(demand.Uid, expectedVersion, newVersion, "手工毛需求更新成功。")
@@ -355,125 +207,13 @@ SET [LifecycleStatus]=@Closed,[LifecycleChangedAt]=@Now,[LifecycleChangedBy]=@Us
     [LifecycleChangedReason]=@Reason,[UpdatedDate]=@Now,[UpdatedBy]=@UserName,[Version]=[Version]+1
 OUTPUT INSERTED.[Version]
 WHERE [Uid]=@Uid AND [Version]=@ExpectedVersion AND [SourceType]='MD'
-  AND [LifecycleStatus]=@Active AND [DecompositionStatus]=@Pending AND [IsDeleted]=0;",
+  AND [LifecycleStatus]=@Active AND [IsDeleted]=0;",
             new { Uid = uid, ExpectedVersion = expectedVersion, Reason = reason, Now = DateTime.Now,
                 UserName = _context.CurrentUser.UserName, Closed = GrossDemandLifecycleStatusEnum.Closed,
-                Active = GrossDemandLifecycleStatusEnum.Active, Pending = GrossDemandDecompositionStatusEnum.Pending }, Transaction);
+                Active = GrossDemandLifecycleStatusEnum.Active }, Transaction);
         return newVersion.HasValue
             ? RepositoryWriteResult.Ok(uid, expectedVersion, newVersion, "手工毛需求已关闭。")
             : RepositoryWriteResult.Fail(uid, expectedVersion, "CONCURRENCY_CONFLICT", "手工毛需求状态或版本已变化，请刷新后重试。");
-    }
-
-    public async Task<bool> HasSourceCancellationBlockerAsync(string sourceType, Guid sourceUid, IEnumerable<Guid> sourceLineIds)
-    {
-        var ids = sourceLineIds.Distinct().ToArray();
-        if (ids.Length == 0) return false;
-        const string sql = @"
-SELECT CASE WHEN EXISTS (
-    SELECT 1 FROM [dbo].[GrossDemand] d WITH (UPDLOCK, ROWLOCK)
-    WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[IsDeleted]=0
-      AND (d.[LifecycleStatus]<>0 OR d.[DecompositionStatus]<>0))
- OR EXISTS (
-     SELECT 1 FROM [dbo].[NetDemand] nd WITH (UPDLOCK, ROWLOCK)
-     INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
-     WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[IsDeleted]=0
-       AND nd.[LifecycleStatus]=0 AND nd.[IsDeleted]=0)
- OR EXISTS (
-     SELECT 1 FROM [dbo].[NetDemandAllocation] allocation WITH (UPDLOCK, ROWLOCK)
-     INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=allocation.[NetDemandId]
-     INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
-     WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[IsDeleted]=0
-       AND allocation.[LifecycleStatus]=0 AND allocation.[IsDeleted]=0)
- OR EXISTS (
-     SELECT 1
-     FROM [dbo].[DemandExecutionLink] link WITH (UPDLOCK, HOLDLOCK)
-    INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=link.[NetDemandId]
-    INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
-    WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid
-      AND link.[LinkStatus]=0 AND link.[IsDeleted]=0)
- OR EXISTS (SELECT 1 FROM [dbo].[PackingListContributionLine] WHERE [SalesOrderLineId] IN @LineIds AND [IsDeleted]=0)
- OR EXISTS (
-     SELECT 1 FROM [dbo].[InboundDocumentLine] il
-     LEFT JOIN [dbo].[DemandExecutionLink] link ON link.[Uid]=il.[DemandExecutionLinkId]
-     LEFT JOIN [dbo].[NetDemandAllocation] allocation ON allocation.[Uid]=COALESCE(il.[NetDemandAllocationId],link.[NetDemandAllocationId])
-     LEFT JOIN [dbo].[NetDemand] nd ON nd.[Uid]=COALESCE(link.[NetDemandId],allocation.[NetDemandId])
-     LEFT JOIN [dbo].[GrossDemand] d ON d.[Uid]=COALESCE(il.[GrossDemandId],nd.[GrossDemandId])
-     WHERE d.[SourceLineId] IN @LineIds AND il.[IsDeleted]=0)
- OR EXISTS (
-     SELECT 1 FROM [dbo].[OutboundDocumentLine] ol
-     LEFT JOIN [dbo].[NetDemandAllocation] allocation ON allocation.[Uid]=ol.[NetDemandAllocationId]
-     LEFT JOIN [dbo].[NetDemand] nd ON nd.[Uid]=allocation.[NetDemandId]
-     LEFT JOIN [dbo].[GrossDemand] d ON d.[Uid]=COALESCE(ol.[GrossDemandId],nd.[GrossDemandId])
-     WHERE d.[SourceLineId] IN @LineIds AND ol.[IsDeleted]=0)
- THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
-        return await Connection.ExecuteScalarAsync<bool>(sql, new { SourceType = sourceType, SourceUid = sourceUid, LineIds = ids }, Transaction);
-    }
-
-    public async Task<IReadOnlyDictionary<Guid, int>> GetNetDemandHistoryCountsForUpdateAsync(
-        IEnumerable<Guid> grossDemandIds)
-    {
-        var ids = grossDemandIds.Distinct().ToArray();
-        if (ids.Length == 0) return new Dictionary<Guid, int>();
-
-        var rows = await Connection.QueryAsync<GrossDemandHistoryCountRow>(@"
-SELECT d.[Uid] AS [GrossDemandId],COUNT(nd.[Uid]) AS [HistoryCount]
-FROM [dbo].[GrossDemand] d WITH (UPDLOCK,HOLDLOCK)
-LEFT JOIN [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK) ON nd.[GrossDemandId]=d.[Uid]
-WHERE d.[Uid] IN @GrossDemandIds
-GROUP BY d.[Uid];",
-            new { GrossDemandIds = ids }, Transaction);
-        return rows.ToDictionary(row => row.GrossDemandId, row => row.HistoryCount);
-    }
-
-    public async Task<bool> HasInvalidSourceCancellationHistoryAsync(IEnumerable<Guid> grossDemandIds)
-    {
-        var ids = grossDemandIds.Distinct().ToArray();
-        if (ids.Length == 0) return false;
-
-        const string sql = @"
-SELECT CASE WHEN EXISTS (
-    SELECT 1
-    FROM [dbo].[GrossDemand] d WITH (UPDLOCK,HOLDLOCK)
-    WHERE d.[Uid] IN @GrossDemandIds
-      AND d.[DecompositionRevision] > 0
-      AND (
-          NOT EXISTS (
-              SELECT 1 FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
-              WHERE nd.[GrossDemandId]=d.[Uid])
-          OR (SELECT COUNT(DISTINCT nd.[DecompositionRevision])
-              FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
-              WHERE nd.[GrossDemandId]=d.[Uid]) <> d.[DecompositionRevision]
-          OR EXISTS (
-              SELECT 1 FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
-              WHERE nd.[GrossDemandId]=d.[Uid]
-                AND (nd.[IsDeleted]<>0
-                     OR nd.[LifecycleStatus] NOT IN (@NetDemandRolledBack,@NetDemandVoided)
-                     OR nd.[DecompositionRevision] < 1
-                     OR nd.[DecompositionRevision] > d.[DecompositionRevision]
-                     OR NOT EXISTS (
-                         SELECT 1 FROM [dbo].[NetDemandAllocation] allocation WITH (UPDLOCK,HOLDLOCK)
-                         WHERE allocation.[NetDemandId]=nd.[Uid]))
-          )
-          OR EXISTS (
-              SELECT 1
-              FROM [dbo].[NetDemandAllocation] allocation WITH (UPDLOCK,HOLDLOCK)
-              INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=allocation.[NetDemandId]
-              WHERE nd.[GrossDemandId]=d.[Uid]
-                AND (allocation.[IsDeleted]<>0
-                     OR allocation.[LifecycleStatus] NOT IN (@AllocationSuperseded,@AllocationCancelled)))
-      )
-) THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
-        return await Connection.ExecuteScalarAsync<bool>(
-            sql,
-            new
-            {
-                GrossDemandIds = ids,
-                NetDemandRolledBack = NetDemandLifecycleStatusEnum.RolledBack,
-                NetDemandVoided = NetDemandLifecycleStatusEnum.Voided,
-                AllocationSuperseded = NetDemandAllocationLifecycleStatusEnum.Superseded,
-                AllocationCancelled = NetDemandAllocationLifecycleStatusEnum.Cancelled
-            },
-            Transaction);
     }
 
     public Task<int> HardDeleteNeverDecomposedAsync(IEnumerable<Guid> grossDemandIds)
@@ -485,15 +225,11 @@ DELETE d
 FROM [dbo].[GrossDemand] d
 WHERE d.[Uid] IN @GrossDemandIds
   AND d.[LifecycleStatus]=@Active
-  AND d.[DecompositionStatus]=@Pending
-  AND d.[DecompositionRevision]=0
-  AND d.[IsDeleted]=0
-  AND NOT EXISTS(SELECT 1 FROM [dbo].[NetDemand] nd WHERE nd.[GrossDemandId]=d.[Uid]);",
+  AND d.[IsDeleted]=0;",
             new
             {
                 GrossDemandIds = ids,
-                Active = GrossDemandLifecycleStatusEnum.Active,
-                Pending = GrossDemandDecompositionStatusEnum.Pending
+                Active = GrossDemandLifecycleStatusEnum.Active
             }, Transaction);
     }
 
@@ -515,23 +251,7 @@ SET d.[LifecycleStatus]=@Voided,
 FROM [dbo].[GrossDemand] d
 WHERE d.[Uid] IN @GrossDemandIds
   AND d.[LifecycleStatus]=@Active
-  AND d.[DecompositionStatus]=@Pending
-  AND d.[DecompositionRevision]>0
-  AND d.[IsDeleted]=0
-  AND EXISTS(SELECT 1 FROM [dbo].[NetDemand] nd WHERE nd.[GrossDemandId]=d.[Uid])
-  AND NOT EXISTS(
-      SELECT 1 FROM [dbo].[NetDemand] nd
-      WHERE nd.[GrossDemandId]=d.[Uid]
-        AND (nd.[IsDeleted]<>0 OR nd.[LifecycleStatus] NOT IN (@NetDemandRolledBack,@NetDemandVoided)))
-  AND NOT EXISTS(
-      SELECT 1 FROM [dbo].[NetDemandAllocation] allocation
-      INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=allocation.[NetDemandId]
-      WHERE nd.[GrossDemandId]=d.[Uid]
-        AND (allocation.[IsDeleted]<>0 OR allocation.[LifecycleStatus] NOT IN (@AllocationSuperseded,@AllocationCancelled)))
-  AND NOT EXISTS(
-      SELECT 1 FROM [dbo].[DemandExecutionLink] link
-      INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=link.[NetDemandId]
-      WHERE nd.[GrossDemandId]=d.[Uid] AND link.[LinkStatus]=@LinkActive AND link.[IsDeleted]=0);",
+  AND d.[IsDeleted]=0;",
             new
             {
                 GrossDemandIds = ids,
@@ -539,13 +259,7 @@ WHERE d.[Uid] IN @GrossDemandIds
                 Now = DateTime.Now,
                 UserName = _context.CurrentUser.UserName,
                 Active = GrossDemandLifecycleStatusEnum.Active,
-                Pending = GrossDemandDecompositionStatusEnum.Pending,
-                Voided = GrossDemandLifecycleStatusEnum.Voided,
-                NetDemandRolledBack = NetDemandLifecycleStatusEnum.RolledBack,
-                NetDemandVoided = NetDemandLifecycleStatusEnum.Voided,
-                AllocationSuperseded = NetDemandAllocationLifecycleStatusEnum.Superseded,
-                AllocationCancelled = NetDemandAllocationLifecycleStatusEnum.Cancelled,
-                LinkActive = DemandExecutionLinkStatusEnum.Active
+                Voided = GrossDemandLifecycleStatusEnum.Voided
             }, Transaction);
     }
 
@@ -555,10 +269,10 @@ UPDATE [dbo].[GrossDemand]
 SET [LifecycleStatus]=@Voided,[LifecycleChangedAt]=@Now,[LifecycleChangedBy]=@UserName,
     [LifecycleChangedReason]=@Reason,[UpdatedDate]=@Now,[UpdatedBy]=@UserName,[Version]=[Version]+1
 WHERE [SourceType]=@SourceType AND [SourceUid]=@SourceUid AND [LifecycleStatus]=@Active
-  AND [DecompositionStatus]=@Pending AND [IsDeleted]=0;",
+  AND [IsDeleted]=0;",
             new { SourceType = sourceType, SourceUid = sourceUid, Reason = reason, Now = DateTime.Now,
                 UserName = _context.CurrentUser.UserName, Voided = GrossDemandLifecycleStatusEnum.Voided,
-                Active = GrossDemandLifecycleStatusEnum.Active, Pending = GrossDemandDecompositionStatusEnum.Pending }, Transaction);
+                Active = GrossDemandLifecycleStatusEnum.Active }, Transaction);
 
     private static (List<string> Where, DynamicParameters Parameters) BuildWorkspaceFilters(
         GrossDemandSearchRequest request)
@@ -571,12 +285,6 @@ WHERE [SourceType]=@SourceType AND [SourceUid]=@SourceUid AND [LifecycleStatus]=
         AddListFilter(request.Skus, "d.[SkuSnapshot]", "Skus", where, parameters);
         AddListFilter(request.CustomerSkus, "d.[CustomerSkuSnapshot]", "CustomerSkus", where, parameters);
         AddListFilter(request.LifecycleStatuses, "d.[LifecycleStatus]", "LifecycleStatuses", where, parameters);
-        AddListFilter(request.DecompositionStatuses, "d.[DecompositionStatus]", "DecompositionStatuses", where, parameters);
-        if (request.ExecutionProgresses is { Count: > 0 })
-        {
-            where.Add($"({ExecutionProgressSql}) IN @ExecutionProgresses");
-            parameters.Add("ExecutionProgresses", request.ExecutionProgresses.Distinct().ToArray());
-        }
         if (request.RequiredDateFrom.HasValue)
         {
             where.Add("d.[RequiredDate] >= @RequiredDateFrom");
@@ -608,47 +316,6 @@ WHERE [SourceType]=@SourceType AND [SourceUid]=@SourceUid AND [LifecycleStatus]=
         parameters.Add("Keyword", $"%{keyword.Trim()}%");
     }
 
-    private static string? NormalizeFilter(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToUpperInvariant();
-
-    private static string? Like(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : $"%{value.Trim()}%";
-
-    private const string DeliveryShipmentApply = @"
-OUTER APPLY(
-    SELECT SUM(ol.Quantity) AS DeliveredQty
-    FROM dbo.OutboundDocumentLine ol
-    INNER JOIN dbo.OutboundDocument oh ON oh.Uid=ol.OutboundDocumentId
-    WHERE ol.GrossDemandId=d.Uid AND oh.DocumentType=20 AND oh.PostingStatus=1
-      AND ol.IsDeleted=0 AND oh.IsDeleted=0
-) sh";
-
-    private const string DeliverySelect = @"
-SELECT d.Uid AS GrossDemandId,d.Version AS DemandVersion,d.SourceType,d.SourceUid,d.SourceNo,
-       d.SourceLineId,d.SourceLineNumber,d.SourceVersion,d.CustomerId,
-       c.CustomerCode,c.CustomerName,d.ProductId,d.SkuSnapshot AS Sku,
-       d.CustomerSkuSnapshot AS CustomerSku,d.DescriptionSnapshot AS Description,d.UnitSnapshot AS Unit,
-       d.DemandQty,COALESCE(sh.DeliveredQty,0) AS DeliveredQty,
-       d.DemandQty-COALESCE(sh.DeliveredQty,0) AS RemainingQty,d.RequiredDate,
-       CAST(CASE WHEN d.LifecycleStatus=0 AND d.IsDeleted=0 THEN 1 ELSE 0 END AS bit) AS IsActive,
-       CASE WHEN d.SourceType=@SalesOrder THEN d.SourceUid ELSE NULL END AS OrderPoolSalesOrderId,
-       CAST(CASE WHEN d.SourceType=@SalesOrder AND d.SourceVersion IS NOT NULL AND d.CustomerId IS NOT NULL
-                      AND p.Uid IS NOT NULL AND NULLIF(LTRIM(RTRIM(d.UnitSnapshot)),N'') IS NOT NULL
-                 THEN 1 ELSE 0 END AS bit) AS IsInventoryActionAllowed,
-       CASE WHEN d.SourceType=@Complaint THEN N'ORDER_POOL_OWNERSHIP_REQUIRED'
-            WHEN d.SourceType<>@SalesOrder THEN N'SOURCE_TYPE_NOT_DELIVERABLE'
-            WHEN d.SourceVersion IS NULL THEN N'SOURCE_VERSION_MISSING'
-            WHEN d.CustomerId IS NULL THEN N'CUSTOMER_MISSING'
-            WHEN p.Uid IS NULL THEN N'PRODUCT_IDENTITY_REQUIRED'
-            WHEN NULLIF(LTRIM(RTRIM(d.UnitSnapshot)),N'') IS NULL THEN N'UNIT_REQUIRED'
-            ELSE NULL END AS InventoryBlockerCode";
-
-    private sealed class GrossDemandHistoryCountRow
-    {
-        public Guid GrossDemandId { get; set; }
-        public int HistoryCount { get; set; }
-    }
-
     private static void AddListFilter<T>(IEnumerable<T>? values, string column, string parameterName,
         ICollection<string> where, DynamicParameters parameters)
     {
@@ -660,19 +327,11 @@ SELECT d.Uid AS GrossDemandId,d.Version AS DemandVersion,d.SourceType,d.SourceUi
 
     private const string GrossDemandSelect = @"
 SELECT d.[Uid],d.[Version],d.[IsDeleted],d.[CreatedDate],d.[CreatedBy],d.[UpdatedDate],d.[UpdatedBy],
-       d.[LifecycleStatus],d.[DecompositionStatus],d.[DecompositionRevision],
-       d.[SourceType],d.[SourceUid],d.[SourceNo],d.[SourceLineId],d.[SourceLineNumber],d.[SourceVersion],d.[CustomerId],
+       d.[LifecycleStatus],
+       d.[SourceType],d.[SourceUid],d.[SourceNo],d.[SourceLineId],d.[SourceLineNumber],d.[SourceVersion],d.[DemandBasisFingerprint],d.[CustomerId],
        d.[ProductId],d.[IsNonStandard],d.[SkuSnapshot],d.[LinkSkuSnapshot],d.[CustomerSkuSnapshot],
        d.[DescriptionSnapshot],d.[ColorSnapshot],d.[SpecificationSnapshot],
-       d.[ImagePathSnapshot],d.[UnitSnapshot],d.[DemandQty],d.[RequiredDate],d.[Remark],d.[DecomposedAt],d.[DecomposedBy],d.[LifecycleChangedAt],
+       d.[ImagePathSnapshot],d.[UnitSnapshot],d.[DemandQty],d.[RequiredDate],d.[Remark],d.[LifecycleChangedAt],
        d.[LifecycleChangedBy],d.[LifecycleChangedReason] ";
 
-    private const string ExecutionProgressSql = @"
-CASE
- WHEN NOT EXISTS (SELECT 1 FROM [dbo].[NetDemand] epn WHERE epn.[GrossDemandId]=d.[Uid] AND epn.[LifecycleStatus]=0 AND epn.[IsDeleted]=0) THEN 0
- WHEN ISNULL((SELECT SUM(il.[Quantity]) FROM [dbo].[InboundDocumentLine] il INNER JOIN [dbo].[InboundDocument] ih ON ih.[Uid]=il.[InboundDocumentId] INNER JOIN [dbo].[DemandExecutionLink] epl ON epl.[Uid]=il.[DemandExecutionLinkId] INNER JOIN [dbo].[NetDemand] epn ON epn.[Uid]=epl.[NetDemandId] WHERE epn.[GrossDemandId]=d.[Uid] AND ih.[PostingStatus]=1 AND epn.[LifecycleStatus]=0 AND epn.[IsDeleted]=0 AND epl.[LinkStatus]=0 AND epl.[IsDeleted]=0 AND il.[IsDeleted]=0 AND ih.[IsDeleted]=0),0)>=d.[DemandQty] THEN 4
- WHEN ISNULL((SELECT SUM(il.[Quantity]) FROM [dbo].[InboundDocumentLine] il INNER JOIN [dbo].[InboundDocument] ih ON ih.[Uid]=il.[InboundDocumentId] INNER JOIN [dbo].[DemandExecutionLink] epl ON epl.[Uid]=il.[DemandExecutionLinkId] INNER JOIN [dbo].[NetDemand] epn ON epn.[Uid]=epl.[NetDemandId] WHERE epn.[GrossDemandId]=d.[Uid] AND ih.[PostingStatus]=1 AND epn.[LifecycleStatus]=0 AND epn.[IsDeleted]=0 AND epl.[LinkStatus]=0 AND epl.[IsDeleted]=0 AND il.[IsDeleted]=0 AND ih.[IsDeleted]=0),0)>0 THEN 3
- WHEN ISNULL((SELECT SUM(epl.[AllocatedQty]-epl.[ReleasedQty]) FROM [dbo].[DemandExecutionLink] epl INNER JOIN [dbo].[NetDemand] epn ON epn.[Uid]=epl.[NetDemandId] WHERE epn.[GrossDemandId]=d.[Uid] AND epn.[LifecycleStatus]=0 AND epn.[IsDeleted]=0 AND epl.[LinkStatus]=0 AND epl.[IsDeleted]=0),0)>=d.[DemandQty] THEN 2
- WHEN ISNULL((SELECT SUM(epl.[AllocatedQty]-epl.[ReleasedQty]) FROM [dbo].[DemandExecutionLink] epl INNER JOIN [dbo].[NetDemand] epn ON epn.[Uid]=epl.[NetDemandId] WHERE epn.[GrossDemandId]=d.[Uid] AND epn.[LifecycleStatus]=0 AND epn.[IsDeleted]=0 AND epl.[LinkStatus]=0 AND epl.[IsDeleted]=0),0)>0 THEN 1
- ELSE 0 END";
 }

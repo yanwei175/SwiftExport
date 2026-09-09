@@ -11,11 +11,11 @@ using SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Planning;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
-using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.Placeholders.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
+using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.Sales;
 using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
@@ -78,7 +78,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 "产品",
                 "Workspace",
                 "Box24",
-                IsExpanded: true,
+                IsExpanded: false,
                 Children:
                 [
                     new(ProductMasterManagerViewModel.RouteKey, "主产品", "Workspace", "DocumentTable24"),
@@ -93,7 +93,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 "客户",
                 "Workspace",
                 "People24",
-                IsExpanded: true,
+                IsExpanded: false,
                 Children:
                 [
                     new("customers", "客户", "Workspace", "People24"),
@@ -104,7 +104,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 "供应商",
                 "Workspace",
                 "PeopleTeam24",
-                IsExpanded: true,
+                IsExpanded: false,
                 Children:
                 [
                     new("suppliers", "供应商清单", "Workspace", "PeopleTeam24"),
@@ -115,7 +115,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 "销售",
                 "Workspace",
                 "ReceiptMoney24",
-                IsExpanded: true,
+                IsExpanded: false,
                 Children:
                 [
                     new(SalesOrderManagerViewModel.RouteKey, "销售订单管理", "Workspace", "DocumentBulletList24"),
@@ -126,7 +126,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 "需求计划",
                 "Workspace",
                 "CalendarLtr24",
-                IsExpanded: true,
+                IsExpanded: false,
                 Children:
                 [
                     new(GrossDemandWorkspaceViewModel.RouteKey, "来源需求", "Workspace", "DataTrending24"),
@@ -137,7 +137,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 "采购",
                 "Workspace",
                 "Cart24",
-                IsExpanded: true,
+                IsExpanded: false,
                 Children:
                 [
                     new(PurchaseOrderManagerViewModel.RouteKey, "采购订单管理", "Workspace", "DocumentBulletList24"),
@@ -148,7 +148,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 "品质管理",
                 "Workspace",
                 "ShieldCheckmark24",
-                IsExpanded: true,
+                IsExpanded: false,
                 Children:
                 [
                     new(AfterSalesManagerViewModel.RouteKey, "售后服务管理", "Manager", "ClipboardTaskListLtr24"),
@@ -158,7 +158,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 "库存",
                 "Workspace",
                 "Database24",
-                IsExpanded: true,
+                IsExpanded: false,
                 Children:
                 [
                     new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", "BuildingRetail24"),
@@ -172,7 +172,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 "出货",
                 "Workspace",
                 "VehicleTruckBag24",
-                IsExpanded: true,
+                IsExpanded: false,
                 Children:
                 [
                     new(PackingListWorkspaceViewModel.RouteKey, "PackingList 工作台", "Workspace", "DocumentTable24"),

@@ -1,0 +1,43 @@
+<controls:CachedAutoSuggestBoxBase x:Class="SwiftExportClient.Features.Products.Components.ProductColorAutoSuggestBox"
+                                      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                                      xmlns:automation="clr-namespace:System.Windows.Automation;assembly=PresentationCore"
+                                      xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+                                      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                                      x:Name="Root"
+                                      FontSize="{DynamicResource SwiftExport.LookUpTextBoxFontSize}"
+                                      MinHeight="30">
+    <controls:CommittedAutoSuggestBox x:Name="SuggestEditor"
+                                      automation:AutomationProperties.Name="{Binding PlaceholderText, ElementName=Root}"
+                                      ClearButtonEnabled="{Binding ClearButtonEnabled, ElementName=Root}"
+                                      FontSize="{Binding FontSize, ElementName=Root}"
+                                      IsSuggestionListOpen="{Binding IsSuggestionListOpen, ElementName=Root, Mode=TwoWay}"
+                                      MaxSuggestionListHeight="{Binding MaxSuggestionListHeight, ElementName=Root}"
+                                      PlaceholderText="{Binding PlaceholderText, ElementName=Root}"
+                                      Style="{DynamicResource {x:Type ui:AutoSuggestBox}}"
+                                      UpdateTextOnSelect="False">
+        <controls:CommittedAutoSuggestBox.ItemTemplate>
+            <DataTemplate>
+                <Grid MinWidth="280">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock FontWeight="SemiBold"
+                               Text="{Binding ColorNameZh}"
+                               TextTrimming="CharacterEllipsis" />
+                    <StackPanel Grid.Row="1" Margin="0,2,0,0" Orientation="Horizontal">
+                        <TextBlock Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                                   Text="{Binding ColorCodeUnique}" />
+                        <TextBlock Margin="8,0,0,0"
+                                   Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                                   Text="{Binding ColorCode}" />
+                        <TextBlock Margin="8,0,0,0"
+                                   Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                                   Text="{Binding ColorNameEn}" />
+                    </StackPanel>
+                </Grid>
+            </DataTemplate>
+        </controls:CommittedAutoSuggestBox.ItemTemplate>
+    </controls:CommittedAutoSuggestBox>
+</controls:CachedAutoSuggestBoxBase>

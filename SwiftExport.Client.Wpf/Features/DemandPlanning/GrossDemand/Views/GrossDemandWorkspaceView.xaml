@@ -19,16 +19,7 @@
             <views:GrossDemandManualEditorView />
         </DataTemplate>
         
-        <DataTemplate DataType="{x:Type viewModels:GrossDemandTraceViewModel}">
-            <views:GrossDemandTraceView />
-        </DataTemplate>
-        
         <Style x:Key="GrossDemandToolbarButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="MinHeight" Value="32" />
-            <Setter Property="Padding" Value="8,4" />
-            <Setter Property="Margin" Value="0,0,4,0" />
-        </Style>
-        <Style x:Key="GrossDemandToolbarToggleButton" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
             <Setter Property="MinHeight" Value="32" />
             <Setter Property="Padding" Value="8,4" />
             <Setter Property="Margin" Value="0,0,4,0" />
@@ -56,11 +47,6 @@
                                                        DisplayMemberPath="DisplayText"
                                                        ItemsSource="{Binding LifecycleStatusOptions}"
                                                        SelectedItems="{Binding SourceLifecycleStatuses, Mode=OneWay}" />
-                    <controls:DropDownCheckBox Grid.Column="1"
-                                                       Placeholder="拆解"
-                                                       DisplayMemberPath="DisplayText"
-                                                       ItemsSource="{Binding DecompositionStatusOptions}"
-                                                       SelectedItems="{Binding SourceDecompositionStatuses, Mode=OneWay}" />
                 </Grid>
 
                 <Button Grid.Row="6"
@@ -132,15 +118,8 @@
 
                     <Button Command="{Binding EditSelectedManualCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="编辑手工" />
                     <Button Command="{Binding CloseSelectedManualCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="关闭手工" />
-                    <Button Command="{Binding DecomposeSelectedCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="拆解" />
-                    <Button Command="{Binding RollbackSelectedCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="安全回退" />
 
-                    <Button Command="{Binding OpenSourceCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="来源追溯" />
-
-                    <ToggleButton Command="{Binding ToggleTraceCommand}"
-                                          IsChecked="{Binding IsTraceOpen, Mode=OneWay}"
-                                          Style="{StaticResource GrossDemandToolbarToggleButton}"
-                                          Content="拆解结果" />
+                    <Button Command="{Binding OpenSourceCommand}" Style="{StaticResource GrossDemandToolbarButton}" Content="来源单据" />
 
                     <Button Command="{Binding RefreshCommand}" Style="{StaticResource GrossDemandToolbarButton}">
                         <StackPanel Orientation="Horizontal">
@@ -173,14 +152,6 @@
                     <controls:DropDownCheckBox Grid.Column="6" Placeholder="状态" DisplayMemberPath="DisplayText"
                                                        ItemsSource="{Binding LifecycleStatusOptions}"
                                                        SelectedItems="{Binding SelectedLifecycleStatuses, Mode=OneWay}" />
-
-                    <controls:DropDownCheckBox Grid.Column="8" Placeholder="拆解状态" DisplayMemberPath="DisplayText"
-                                                       ItemsSource="{Binding DecompositionStatusOptions}" 
-                                                       SelectedItems="{Binding SelectedDecompositionStatuses, Mode=OneWay}" />
-
-                    <controls:DropDownCheckBox Grid.Column="10" Placeholder="执行进度" DisplayMemberPath="DisplayText"
-                                                       ItemsSource="{Binding ExecutionProgressOptions}"
-                                                       SelectedItems="{Binding SelectedExecutionProgresses, Mode=OneWay}" />
 
                     <ComboBox Grid.Column="12" ItemsSource="{Binding StandardTypeOptions}"
                                       DisplayMemberPath="DisplayText"
@@ -305,41 +276,6 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="拆解" Width="58" Binding="{Binding DecompositionStatusText}" 
-                                                gridColumns:GridColumn.Key="decomposition" >
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
-
-                                            <Style.Triggers>
-
-                                                <DataTrigger Binding="{Binding DecompositionStatusText}" Value="待拆解">
-                                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ActiveText}"/>
-                                                </DataTrigger>
-
-                                                <DataTrigger Binding="{Binding DecompositionStatusText}"  Value="已拆解">
-                                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.SuccessText}"/>
-                                                </DataTrigger>
-
-                                            </Style.Triggers>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <DataGridTextColumn Header="执行" Width="58" Binding="{Binding ExecutionProgressText}" 
-                                                gridColumns:GridColumn.Key="execution" >
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
-
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding ExecutionProgressText}"  Value="已完成">
-                                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.SuccessText}"/>
-                                                </DataTrigger>
-
-                                            </Style.Triggers>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
                                 <DataGridTextColumn Header="来源单号" Width="100" Binding="{Binding SourceNo}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             gridColumns:GridColumn.Key="source-no" />
@@ -403,30 +339,9 @@
                                                 ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                                 gridColumns:GridColumn.Key="specification" />
 
-                                <DataGridTextColumn Header="净需求" Width="58" Binding="{Binding ActiveNetDemandCount}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                                gridColumns:GridColumn.Key="net-count" />
-
-                                <DataGridTextColumn Header="客供件" Width="58" Binding="{Binding CustomerSuppliedNetDemandCount}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                                gridColumns:GridColumn.Key="customer-supplied-count" />
-
-                                <DataGridTextColumn Header="版本" Width="55" Binding="{Binding DecompositionRevision}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                                gridColumns:GridColumn.Key="revision" />
-
-                                <DataGridTextColumn Header="阻断原因" Width="180" Binding="{Binding RollbackBlockerSummary}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                gridColumns:GridColumn.Key="rollback-blocker" />
                                 <DataGridTextColumn Header="备注" Width="180" Binding="{Binding Remark}" 
                                                 ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                                 gridColumns:GridColumn.Key="remark" />
-                                <DataGridTextColumn Header="拆解人" Width="88" Binding="{Binding DecomposedBy}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                gridColumns:GridColumn.Key="decomposed-by" />
-                                <DataGridTextColumn Header="拆解时间" Width="132" Binding="{Binding DecomposedAt, StringFormat=yyyy-MM-dd HH:mm}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"
-                                                gridColumns:GridColumn.Key="decomposed-at" />
                                 <DataGridTextColumn Header="创建人" Width="88" Binding="{Binding CreatedBy}" 
                                                 ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                                 gridColumns:GridColumn.Key="created-by" />

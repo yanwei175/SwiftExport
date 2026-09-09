@@ -8,6 +8,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.DemandPlanning;
+using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Interfaces.QualityControl;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -29,7 +30,7 @@ public sealed class AfterSalesService(
     ServiceBaseContext context,
     IAfterSalesRepository repository,
     ISourceDemandReceptionService reception,
-    ISourceDemandClosureService closure,
+    ISourceDeliveryService delivery,
     IDocumentNoService numbering,
     IBusinessOperationLogRepository logs,
     IUserPermissionService permissions,
@@ -210,7 +211,7 @@ public sealed class AfterSalesService(
             var positive=lines.Where(x=>x.Quantity>0).ToList();
             if(positive.Count>0 && head.ConfirmationStatus!=ConfirmationStatusEnum.已确认) Fail("BUSINESS_BLOCKED","存在尚未确认的实物要求。");
             if(positive.Count>0)
-                await closure.VerifyAsync("CR",uid,positive.ToDictionary(x=>x.Uid,x=>x.Quantity!.Value),cancellationToken);
+                await delivery.VerifyClosureAsync("CR",uid,positive.ToDictionary(x=>x.Uid,x=>x.Quantity!.Value),cancellationToken);
             head.DocumentStatus=DocumentStatusEnum.Closed; head.Conclusion=command.Reason;
         },cancellationToken);
 
@@ -282,7 +283,7 @@ public sealed class AfterSalesService(
         }
         catch(AfterSalesException ex) {tx.Rollback();return ServiceResult<AfterSalesCommandResult>.Fail(ex.Code,ex.Message,ex.Field);}
         catch(SourceDemandReceptionException ex) {tx.Rollback();return ServiceResult<AfterSalesCommandResult>.Fail(ex.Code,ex.Message);}
-        catch(SourceDemandClosureException ex) {tx.Rollback();return ServiceResult<AfterSalesCommandResult>.Fail(ex.Code,ex.Message);}
+        catch(SourceDeliveryException ex) {tx.Rollback();return ServiceResult<AfterSalesCommandResult>.Fail(ex.Code,ex.Message);}
         catch(OperationCanceledException) {tx.Rollback();throw;}
         catch(Exception ex)
         {

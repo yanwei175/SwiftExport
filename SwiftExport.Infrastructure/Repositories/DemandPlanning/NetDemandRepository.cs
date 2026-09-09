@@ -1,5 +1,6 @@
 using Dapper;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.DemandPlanning;
@@ -23,6 +24,168 @@ WHERE nd.[GrossDemandId]=@GrossDemandId AND nd.[LifecycleStatus]=@Active AND nd.
 ORDER BY nd.[DecompositionRevision],nd.[LineNumber],nd.[Uid];",
             new { GrossDemandId = grossDemandId, Active = NetDemandLifecycleStatusEnum.Active }, Transaction);
         return [.. rows];
+    }
+
+    /// <summary>
+    /// 在物料领域按来源需求事实联表计算候选；不读取或回写来源表上的兼容拆解状态。
+    /// </summary>
+    public async Task<PagedResponseBase<SourceDemandCandidateDto>> SearchSourceDemandCandidatesAsync(
+        SourceDemandCandidateSearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        request ??= new SourceDemandCandidateSearchRequest();
+        var pageIndex = Math.Max(1, request.PageIndex);
+        var pageSize = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 200);
+        var keyword = string.IsNullOrWhiteSpace(request.Keyword) ? null : $"%{request.Keyword.Trim()}%";
+        const string facts = @"
+FROM [dbo].[GrossDemand] d
+OUTER APPLY (
+    SELECT COUNT(1) AS [ActiveCount], MIN(nd.[SourceDemandVersionSnapshot]) AS [MinDemandVersion],
+           MAX(nd.[SourceDemandVersionSnapshot]) AS [MaxDemandVersion],
+           MIN(nd.[SourceVersionSnapshot]) AS [MinSourceVersion], MAX(nd.[SourceVersionSnapshot]) AS [MaxSourceVersion],
+           MIN(nd.[SourceDemandBasisFingerprintSnapshot]) AS [MinBasis], MAX(nd.[SourceDemandBasisFingerprintSnapshot]) AS [MaxBasis]
+    FROM [dbo].[NetDemand] nd
+    WHERE nd.[GrossDemandId]=d.[Uid] AND nd.[LifecycleStatus]=0 AND nd.[IsDeleted]=0
+) activeFacts
+OUTER APPLY (
+    SELECT ISNULL(MAX(nd.[DecompositionRevision]),0) AS [LatestRevision]
+    FROM [dbo].[NetDemand] nd
+    WHERE nd.[GrossDemandId]=d.[Uid]
+) historyFacts
+WHERE d.[LifecycleStatus]=0 AND d.[IsDeleted]=0
+  AND (@Keyword IS NULL OR d.[SourceNo] LIKE @Keyword OR d.[SkuSnapshot] LIKE @Keyword
+       OR d.[CustomerSkuSnapshot] LIKE @Keyword OR d.[DescriptionSnapshot] LIKE @Keyword)
+  AND (@IncludeUnavailable=1 OR ISNULL(activeFacts.[ActiveCount],0)=0)";
+        var selectSql = @"
+SELECT d.[Uid] AS [GrossDemandId],d.[Version] AS [SourceDemandVersion],d.[SourceVersion],
+       d.[SourceType],d.[SourceUid],d.[SourceNo],d.[SourceLineId],d.[SourceLineNumber],
+       d.[SkuSnapshot] AS [Sku],d.[CustomerSkuSnapshot] AS [CustomerSku],
+       d.[DescriptionSnapshot] AS [Description],d.[DemandQty],d.[RequiredDate],
+       historyFacts.[LatestRevision] AS [LatestDecompositionRevision],
+       ISNULL(activeFacts.[ActiveCount],0) AS [ActiveMaterialDemandCount],
+       CASE
+         WHEN ISNULL(activeFacts.[ActiveCount],0)=0 AND historyFacts.[LatestRevision]=0 THEN N'UNESTABLISHED'
+         WHEN ISNULL(activeFacts.[ActiveCount],0)=0 THEN N'ROLLED_BACK'
+         WHEN d.[DemandBasisFingerprint] IS NOT NULL
+          AND activeFacts.[MinBasis]=d.[DemandBasisFingerprint] AND activeFacts.[MaxBasis]=d.[DemandBasisFingerprint] THEN N'ESTABLISHED'
+         ELSE N'SOURCE_CHANGED'
+       END AS [EstablishmentState],
+       CASE WHEN ISNULL(activeFacts.[ActiveCount],0)=0 THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS [CanEstablish],
+       CASE WHEN ISNULL(activeFacts.[ActiveCount],0)>0 AND (
+          d.[DemandBasisFingerprint] IS NULL OR activeFacts.[MinBasis] IS NULL
+          OR activeFacts.[MinBasis]<>d.[DemandBasisFingerprint] OR activeFacts.[MaxBasis]<>d.[DemandBasisFingerprint])
+         THEN N'SOURCE_CHANGE_REQUIRES_DISPOSITION'
+         WHEN ISNULL(activeFacts.[ActiveCount],0)>0 THEN N'ALREADY_ESTABLISHED' ELSE NULL END AS [BlockerCode],
+       CASE WHEN ISNULL(activeFacts.[ActiveCount],0)>0 AND (
+          d.[DemandBasisFingerprint] IS NULL OR activeFacts.[MinBasis] IS NULL
+          OR activeFacts.[MinBasis]<>d.[DemandBasisFingerprint] OR activeFacts.[MaxBasis]<>d.[DemandBasisFingerprint])
+         THEN N'来源事实已变化，必须先处置当前物料需求。'
+         WHEN ISNULL(activeFacts.[ActiveCount],0)>0 THEN N'已存在有效物料需求。' ELSE NULL END AS [BlockerMessage] " + facts + @"
+ORDER BY CASE WHEN d.[RequiredDate] IS NULL THEN 1 ELSE 0 END,d.[RequiredDate],d.[SourceNo],d.[SourceLineNumber],d.[Uid]
+OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
+        var countSql = "SELECT COUNT(1) " + facts + ";";
+        var parameters = new
+        {
+            Keyword = keyword,
+            IncludeUnavailable = request.IncludeUnavailable,
+            Offset = (pageIndex - 1) * pageSize,
+            PageSize = pageSize
+        };
+        var items = await Connection.QueryAsync<SourceDemandCandidateDto>(new CommandDefinition(
+            selectSql, parameters, Transaction, cancellationToken: cancellationToken));
+        var total = await Connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            countSql, parameters, Transaction, cancellationToken: cancellationToken));
+        return new PagedResponseBase<SourceDemandCandidateDto>
+        {
+            Items = [.. items], TotalCount = total, PageIndex = pageIndex, PageSize = pageSize
+        };
+    }
+
+    /// <summary>锁定该来源的全部物料历史，保证并发建立只取得一个新修订号。</summary>
+    public async Task<int> GetNextDecompositionRevisionForUpdateAsync(Guid grossDemandId)
+    {
+        var latest = await Connection.ExecuteScalarAsync<int>(@"
+SELECT ISNULL(MAX([DecompositionRevision]),0)
+FROM [dbo].[NetDemand] WITH (UPDLOCK,HOLDLOCK)
+WHERE [GrossDemandId]=@GrossDemandId;",
+            new { GrossDemandId = grossDemandId }, Transaction);
+        return latest + 1;
+    }
+
+    /// <summary>按来源身份锁定物料和执行事实；正式收发事实同样阻断来源退出。</summary>
+    public Task<bool> HasSourceExitBlockerAsync(string sourceType, Guid sourceUid, IEnumerable<Guid> sourceLineIds)
+    {
+        var ids = sourceLineIds.Distinct().ToArray();
+        if (ids.Length == 0) return Task.FromResult(false);
+        const string sql = @"
+SELECT CASE WHEN EXISTS (
+     SELECT 1 FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
+     INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
+     WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[IsDeleted]=0
+       AND nd.[LifecycleStatus]=0 AND nd.[IsDeleted]=0)
+ OR EXISTS (
+     SELECT 1 FROM [dbo].[DemandExecutionLink] link WITH (UPDLOCK,HOLDLOCK)
+     INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=link.[NetDemandId]
+     INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
+     WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid
+       AND link.[LinkStatus]=0 AND link.[IsDeleted]=0)
+ OR EXISTS (SELECT 1 FROM [dbo].[PackingListContributionLine] WHERE [SalesOrderLineId] IN @LineIds AND [IsDeleted]=0)
+ OR EXISTS (
+     SELECT 1 FROM [dbo].[InboundDocumentLine] il
+     LEFT JOIN [dbo].[DemandExecutionLink] link ON link.[Uid]=il.[DemandExecutionLinkId]
+     LEFT JOIN [dbo].[NetDemandAllocation] allocation ON allocation.[Uid]=COALESCE(il.[NetDemandAllocationId],link.[NetDemandAllocationId])
+     LEFT JOIN [dbo].[NetDemand] nd ON nd.[Uid]=COALESCE(link.[NetDemandId],allocation.[NetDemandId])
+     LEFT JOIN [dbo].[GrossDemand] d ON d.[Uid]=COALESCE(il.[GrossDemandId],nd.[GrossDemandId])
+     WHERE d.[SourceLineId] IN @LineIds AND il.[IsDeleted]=0)
+ OR EXISTS (
+     SELECT 1 FROM [dbo].[OutboundDocumentLine] ol
+     LEFT JOIN [dbo].[NetDemandAllocation] allocation ON allocation.[Uid]=ol.[NetDemandAllocationId]
+     LEFT JOIN [dbo].[NetDemand] nd ON nd.[Uid]=allocation.[NetDemandId]
+     LEFT JOIN [dbo].[GrossDemand] d ON d.[Uid]=COALESCE(ol.[GrossDemandId],nd.[GrossDemandId])
+     WHERE d.[SourceLineId] IN @LineIds AND ol.[IsDeleted]=0)
+ THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
+        return Connection.ExecuteScalarAsync<bool>(sql, new { SourceType = sourceType, SourceUid = sourceUid, LineIds = ids }, Transaction);
+    }
+
+    /// <summary>锁定并统计物料历史，修订事实只由 NetDemand 历史决定。</summary>
+    public async Task<IReadOnlyDictionary<Guid, int>> GetHistoryCountsForUpdateAsync(IEnumerable<Guid> grossDemandIds)
+    {
+        var ids = grossDemandIds.Distinct().ToArray();
+        if (ids.Length == 0) return new Dictionary<Guid, int>();
+        var rows = await Connection.QueryAsync<HistoryCountRow>(@"
+SELECT ids.[GrossDemandId],COUNT(nd.[Uid]) AS [HistoryCount]
+FROM (SELECT [Uid] AS [GrossDemandId] FROM [dbo].[GrossDemand] WITH (UPDLOCK,HOLDLOCK) WHERE [Uid] IN @Ids) ids
+LEFT JOIN [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK) ON nd.[GrossDemandId]=ids.[GrossDemandId]
+GROUP BY ids.[GrossDemandId];", new { Ids = ids }, Transaction);
+        return rows.ToDictionary(row => row.GrossDemandId, row => row.HistoryCount);
+    }
+
+    /// <summary>不读取来源兼容修订号，仅以物料行和计划历史判断退出前历史是否完整。</summary>
+    public Task<bool> HasInvalidExitHistoryAsync(IEnumerable<Guid> grossDemandIds)
+    {
+        var ids = grossDemandIds.Distinct().ToArray();
+        if (ids.Length == 0) return Task.FromResult(false);
+        const string sql = @"
+SELECT CASE WHEN EXISTS (
+    SELECT 1 FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
+    WHERE nd.[GrossDemandId] IN @Ids
+      AND (nd.[IsDeleted]<>0 OR nd.[LifecycleStatus] NOT IN (@RolledBack,@Voided)
+           OR nd.[DecompositionRevision]<1
+           OR NOT EXISTS (SELECT 1 FROM [dbo].[NetDemandAllocation] a WITH (UPDLOCK,HOLDLOCK) WHERE a.[NetDemandId]=nd.[Uid]))
+) OR EXISTS (
+    SELECT 1 FROM [dbo].[NetDemandAllocation] a WITH (UPDLOCK,HOLDLOCK)
+    INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=a.[NetDemandId]
+    WHERE nd.[GrossDemandId] IN @Ids
+      AND (a.[IsDeleted]<>0 OR a.[LifecycleStatus] NOT IN (@Superseded,@Cancelled))
+) THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
+        return Connection.ExecuteScalarAsync<bool>(sql, new
+        {
+            Ids = ids,
+            RolledBack = NetDemandLifecycleStatusEnum.RolledBack,
+            Voided = NetDemandLifecycleStatusEnum.Voided,
+            Superseded = NetDemandAllocationLifecycleStatusEnum.Superseded,
+            Cancelled = NetDemandAllocationLifecycleStatusEnum.Cancelled
+        }, Transaction);
     }
 
     public async Task<IReadOnlyList<NetDemandTraceItemDto>> GetByGrossDemandForTraceAsync(
@@ -84,7 +247,7 @@ ORDER BY nd.[DecompositionRevision],nd.[LineNumber],nd.[Uid];";
             const string sql = @"
 INSERT INTO [dbo].[NetDemand]
 ([Uid],[Version],[IsDeleted],[CreatedDate],[CreatedBy],[UpdatedDate],[UpdatedBy],
- [GrossDemandId],[DecompositionRevision],[LineNumber],[LifecycleStatus],
+ [GrossDemandId],[SourceDemandVersionSnapshot],[SourceVersionSnapshot],[SourceDemandBasisFingerprintSnapshot],[DecompositionRevision],[LineNumber],[LifecycleStatus],
  [ParentNetDemandId],[RootNetDemandId],[DeliveryTargetNetDemandId],[DeliveryMode],
  [ProductId],[BomLineId],[BomVersion],[BomPath],[MaterialTypeSnapshot],
  [SupplyTypeSnapshot],[SkuSnapshot],[ParentSkuSnapshot],[CustomerSkuSnapshot],
@@ -92,7 +255,7 @@ INSERT INTO [dbo].[NetDemand]
  [GrossQty],[NetQty],[RequiredDate],[Remark],[RolledBackAt],[RolledBackBy],[RolledBackReason])
 VALUES
 (@Uid,@Version,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
- @GrossDemandId,@DecompositionRevision,@LineNumber,@LifecycleStatus,
+ @GrossDemandId,@SourceDemandVersionSnapshot,@SourceVersionSnapshot,@SourceDemandBasisFingerprintSnapshot,@DecompositionRevision,@LineNumber,@LifecycleStatus,
  @ParentNetDemandId,@RootNetDemandId,@DeliveryTargetNetDemandId,@DeliveryMode,
  @ProductId,@BomLineId,@BomVersion,@BomPath,@MaterialTypeSnapshot,
  @SupplyTypeSnapshot,@SkuSnapshot,@ParentSkuSnapshot,@CustomerSkuSnapshot,
@@ -101,7 +264,8 @@ VALUES
             var rows = await Connection.ExecuteAsync(sql, new
             {
                 demand.Uid, demand.Version, demand.CreatedDate, demand.CreatedBy, demand.UpdatedDate, demand.UpdatedBy,
-                demand.GrossDemandId, demand.DecompositionRevision, demand.LineNumber, demand.LifecycleStatus,
+                demand.GrossDemandId, demand.SourceDemandVersionSnapshot, demand.SourceVersionSnapshot, demand.SourceDemandBasisFingerprintSnapshot,
+                demand.DecompositionRevision, demand.LineNumber, demand.LifecycleStatus,
                 demand.ParentNetDemandId, demand.RootNetDemandId, demand.DeliveryTargetNetDemandId, demand.DeliveryMode,
                 demand.ProductId, demand.BomLineId, demand.BomVersion, demand.BomPath, demand.MaterialTypeSnapshot,
                 demand.SupplyTypeSnapshot, demand.SkuSnapshot, demand.ParentSkuSnapshot, demand.CustomerSkuSnapshot,
@@ -129,11 +293,18 @@ WHERE [GrossDemandId]=@GrossDemandId AND [DecompositionRevision]=@Revision
 
     private const string NetDemandSelect = @"
 SELECT nd.[Uid],nd.[Version],nd.[IsDeleted],nd.[CreatedDate],nd.[CreatedBy],nd.[UpdatedDate],nd.[UpdatedBy],
-       nd.[GrossDemandId],nd.[DecompositionRevision],nd.[LineNumber],nd.[LifecycleStatus],
+       nd.[GrossDemandId],nd.[SourceDemandVersionSnapshot],nd.[SourceVersionSnapshot],nd.[SourceDemandBasisFingerprintSnapshot],
+       nd.[DecompositionRevision],nd.[LineNumber],nd.[LifecycleStatus],
        nd.[ParentNetDemandId],nd.[RootNetDemandId],nd.[DeliveryTargetNetDemandId],nd.[DeliveryMode],
        nd.[ProductId],nd.[BomLineId],nd.[BomVersion],nd.[BomPath],nd.[MaterialTypeSnapshot],
        nd.[SupplyTypeSnapshot],nd.[SkuSnapshot],nd.[ParentSkuSnapshot],nd.[CustomerSkuSnapshot],
        nd.[DescriptionSnapshot],nd.[ColorSnapshot],nd.[SpecificationSnapshot],
        nd.[GrossQty],nd.[NetQty],nd.[RequiredDate],nd.[Remark],
        nd.[RolledBackAt],nd.[RolledBackBy],nd.[RolledBackReason] ";
+
+    private sealed class HistoryCountRow
+    {
+        public Guid GrossDemandId { get; set; }
+        public int HistoryCount { get; set; }
+    }
 }

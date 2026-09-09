@@ -127,6 +127,7 @@ public sealed class SupplierModelsAndContractsTests
             null!,
             null!,
             null!,
+            null!,
             supplierProducts);
 
         Assert.IsFalse(viewModel.IsCellSelectionMode);

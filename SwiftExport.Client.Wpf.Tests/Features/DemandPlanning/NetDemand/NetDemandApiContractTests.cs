@@ -14,6 +14,10 @@ public sealed class NetDemandApiContractTests
     {
         AssertRoute(nameof(INetDemandWorkspaceApi.SearchAsync), typeof(PostAttribute), "/search", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.SearchSourceGroupsAsync), typeof(PostAttribute), "/source-groups", 0);
+        AssertRoute(nameof(INetDemandWorkspaceApi.SearchSourceDemandCandidatesAsync), typeof(PostAttribute), "/source-demands/candidates/search", 0);
+        AssertRoute(nameof(INetDemandWorkspaceApi.EstablishFromSourcesAsync), typeof(PostAttribute), "/source-demands/establish", 0);
+        AssertRoute(nameof(INetDemandWorkspaceApi.RollbackSourceEstablishmentAsync), typeof(PostAttribute), "/source-demands/rollback", 0);
+        AssertRoute(nameof(INetDemandWorkspaceApi.GetSourceDemandTraceAsync), typeof(GetAttribute), "/source-demands/{grossDemandId}/trace");
         AssertRoute(nameof(INetDemandWorkspaceApi.GetDetailAsync), typeof(GetAttribute), "/{uid}");
         AssertRoute(nameof(INetDemandWorkspaceApi.GetTraceAsync), typeof(GetAttribute), "/{uid}/trace");
         AssertRoute(nameof(INetDemandWorkspaceApi.ReplacePlanAsync), typeof(PostAttribute), "/plans/replace", 0);
@@ -32,6 +36,10 @@ public sealed class NetDemandApiContractTests
     {
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.SearchAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.SearchSourceGroupsAsync));
+        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.SearchSourceDemandCandidatesAsync));
+        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.EstablishFromSourcesAsync));
+        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.RollbackSourceEstablishmentAsync));
+        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetSourceDemandTraceAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetDetailAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetTraceAsync));
         Assert.IsFalse(typeof(INetDemandWorkspaceApi).GetMethod(nameof(INetDemandWorkspaceApi.ReplacePlanAsync))!

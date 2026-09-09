@@ -1,5 +1,6 @@
 using Refit;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.Wrappers;
 using System;
 using System.Collections.Generic;
@@ -13,6 +14,24 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
     /// </summary>
     public interface INetDemandWorkspaceApi
     {
+        /// <summary>查询可建立物料需求的来源需求候选。</summary>
+        [Post("/source-demands/candidates/search")]
+        Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
+            [Body] SourceDemandCandidateSearchRequest request,
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>从来源需求建立物料需求。</summary>
+        [Post("/source-demands/establish")]
+        Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishFromSourcesAsync(
+            [Body] EstablishMaterialDemandsCommand command,
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>回退来源对应的活动物料需求修订。</summary>
+        [Post("/source-demands/rollback")]
+        Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
+            [Body] RollbackMaterialDemandsCommand command,
+            CancellationToken cancellationToken = default(CancellationToken));
+
         [Post("/search")]
         Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
             [Body] NetDemandSearchRequest request,
@@ -34,6 +53,11 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
         [Get("/{uid}/trace")]
         Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(
             Guid uid,
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        [Get("/source-demands/{grossDemandId}/trace")]
+        Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(
+            Guid grossDemandId,
             CancellationToken cancellationToken = default(CancellationToken));
 
         [Post("/plans/replace")]

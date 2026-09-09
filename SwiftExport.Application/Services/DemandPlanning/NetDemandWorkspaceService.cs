@@ -3,6 +3,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.DemandPlanning;
@@ -18,6 +19,7 @@ namespace SwiftExport.Application.Services.DemandPlanning;
 /// </summary>
 public sealed class NetDemandWorkspaceService(
     ServiceBaseContext context,
+    IGrossDemandRepository grossDemandRepository,
     INetDemandRepository netDemandRepository,
     INetDemandAllocationRepository allocationRepository,
     INetDemandPlanCommandRepository commandRepository,
@@ -26,11 +28,30 @@ public sealed class NetDemandWorkspaceService(
     ISupplierRepository supplierRepository,
     NetDemandPlanReplacementPlanner replacementPlanner,
     NetDemandPlanCommandIdempotencyPolicy idempotencyPolicy,
+    IMaterialDemandEstablishmentService establishmentService,
     PurchaseDraftCreationService purchaseDrafts,
     PurchaseDraftLifecycleService purchaseDraftLifecycle) : INetDemandWorkspaceService
 {
     private readonly DbSession _session = context.Session;
     private readonly ILogger<NetDemandWorkspaceService> _logger = context.LoggerFactory.CreateLogger<NetDemandWorkspaceService>();
+
+    /// <summary>查询来源需求建立候选，候选状态由物料领域联表计算。</summary>
+    public Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
+        SourceDemandCandidateSearchRequest request,
+        CancellationToken cancellationToken = default)
+        => establishmentService.SearchCandidatesAsync(request, cancellationToken);
+
+    /// <summary>从来源需求建立物料需求，不回写来源本体的兼容拆解字段。</summary>
+    public Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishFromSourcesAsync(
+        EstablishMaterialDemandsCommand command,
+        CancellationToken cancellationToken = default)
+        => establishmentService.EstablishAsync(command, cancellationToken);
+
+    /// <summary>回退来源物料需求修订并保留完整历史。</summary>
+    public Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
+        RollbackMaterialDemandsCommand command,
+        CancellationToken cancellationToken = default)
+        => establishmentService.RollbackAsync(command, cancellationToken);
 
     public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewPurchaseDraftsAsync(
         PurchaseDraftPreviewRequest request,
@@ -164,6 +185,31 @@ public sealed class NetDemandWorkspaceService(
         {
             _logger.LogError(ex, "加载净需求 {Uid} 追溯失败。", uid);
             return ServiceResult<NetDemandTraceDto>.Fail("加载净需求追溯失败。");
+        }
+    }
+
+    /// <summary>在物料领域组合来源本体、物料历史和执行关系，不把追溯职责放回来源本体。</summary>
+    public async Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(
+        Guid grossDemandId,
+        CancellationToken cancellationToken = default)
+    {
+        if (grossDemandId == Guid.Empty) return ServiceResult<GrossDemandTraceDto>.Fail("来源需求 Uid 不能为空。");
+        try
+        {
+            var detail = await grossDemandRepository.GetWorkspaceDetailAsync(grossDemandId, cancellationToken);
+            if (detail is null) return ServiceResult<GrossDemandTraceDto>.Fail("未找到来源需求。");
+            var demands = await netDemandRepository.GetByGrossDemandForTraceAsync(grossDemandId, cancellationToken);
+            var links = await executionLinkRepository.GetTraceByNetDemandIdsAsync(demands.Select(item => item.Uid), cancellationToken);
+            return ServiceResult<GrossDemandTraceDto>.Ok(new GrossDemandTraceDto
+            {
+                GrossDemand = detail, NetDemands = [.. demands], ExecutionLinks = [.. links]
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "加载来源需求 {GrossDemandId} 的物料追溯失败。", grossDemandId);
+            return ServiceResult<GrossDemandTraceDto>.Fail("加载来源物料追溯失败。");
         }
     }
 

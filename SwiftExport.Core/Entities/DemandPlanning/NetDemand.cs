@@ -12,6 +12,12 @@ public sealed class NetDemand : BaseEntity
 {
     /// <summary>所属毛需求 Uid。</summary>
     public Guid GrossDemandId { get; set; }
+    /// <summary>建立本批物料需求时采用的来源需求技术版本；历史数据无法确认时为空。</summary>
+    public int? SourceDemandVersionSnapshot { get; set; }
+    /// <summary>建立本批物料需求时采用的上游单据事实版本；手工来源或历史数据可以为空。</summary>
+    public int? SourceVersionSnapshot { get; set; }
+    /// <summary>建立本批物料需求时采用的来源实物内容指纹；用于区分技术版本推进与真实需求变化。</summary>
+    public string? SourceDemandBasisFingerprintSnapshot { get; set; }
     /// <summary>生成本行的毛需求拆解修订号。</summary>
     public int DecompositionRevision { get; set; }
     /// <summary>同一毛需求、同一拆解版本内的稳定行号。</summary>

@@ -15,7 +15,7 @@ public interface INetDemandExecutionLinkRepository
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByAllocationIdsForUpdateAsync(
         IEnumerable<Guid> allocationIds);
-    Task<IReadOnlyList<GrossDemandRollbackBlockerDto>> GetActiveRollbackBlockersAsync(
+    Task<IReadOnlyList<MaterialDemandRollbackBlockerDto>> GetActiveRollbackBlockersAsync(
         IEnumerable<Guid> netDemandIds);
     Task<IReadOnlyList<DemandExecutionTraceItemDto>> GetTraceByNetDemandIdsAsync(
         IEnumerable<Guid> netDemandIds,

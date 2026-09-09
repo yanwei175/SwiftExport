@@ -10,14 +10,22 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Refit;
+using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.ProductApis;
+using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
+using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.Customers.Responses;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
+using SwiftExport.Contracts.DTOs.Suppliers;
+using SwiftExport.Contracts.DTOs.Suppliers.Requests;
+using SwiftExport.Contracts.DTOs.Suppliers.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Bootstrapper;
@@ -122,6 +130,73 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.AreSame(collection, cache.ProductColors);
         Assert.AreEqual(2, resetCount);
         Assert.AreEqual("NEW", cache.ProductColors.Single().ColorCode);
+    }
+
+    [TestMethod]
+    public async Task RefreshCustomersAndSuppliers_ShouldLoadEveryPageAndKeepCollectionInstances()
+    {
+        var firstCustomer = Customer("C002");
+        var secondCustomer = Customer("C001");
+        var firstSupplier = Supplier("S002");
+        var secondSupplier = Supplier("S001");
+        var customerApi = new CustomerApiStub(request => Task.FromResult(Page<CustomerDto>(
+            request,
+            request.PageIndex == 1 ? [firstCustomer] : [secondCustomer],
+            2)));
+        var supplierApi = new SupplierApiStub(request => Task.FromResult(Page<SupplierDto>(
+            request,
+            request.PageIndex == 1 ? [firstSupplier] : [secondSupplier],
+            2)));
+        using var cache = CreateCache(
+            new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => SuccessCategories()),
+            customerApi: customerApi,
+            supplierApi: supplierApi);
+        var customers = cache.Customers;
+        var suppliers = cache.Suppliers;
+
+        var customerResult = await cache.RefreshCustomersAsync();
+        var supplierResult = await cache.RefreshSuppliersAsync();
+
+        Assert.IsTrue(customerResult.Success);
+        Assert.IsTrue(supplierResult.Success);
+        Assert.AreSame(customers, cache.Customers);
+        Assert.AreSame(suppliers, cache.Suppliers);
+        CollectionAssert.AreEqual(new[] { "C001", "C002" }, cache.Customers.Select(item => item.CustomerCode).ToArray());
+        CollectionAssert.AreEqual(new[] { "S001", "S002" }, cache.Suppliers.Select(item => item.SupplierCode).ToArray());
+        CollectionAssert.AreEqual(new[] { 1, 2 }, customerApi.RequestedPages.ToArray());
+        CollectionAssert.AreEqual(new[] { 1, 2 }, supplierApi.RequestedPages.ToArray());
+        Assert.IsTrue(customerApi.RequestedPageSizes.All(size => size == 200));
+        Assert.IsTrue(supplierApi.RequestedPageSizes.All(size => size == 200));
+    }
+
+    [TestMethod]
+    public async Task RefreshCustomers_WhenLaterPageFails_ShouldRetainPreviousCompleteSnapshot()
+    {
+        var oldCustomer = Customer("OLD");
+        var useFailureSequence = false;
+        var customerApi = new CustomerApiStub(request =>
+        {
+            if (!useFailureSequence)
+            {
+                return Task.FromResult(Page(request, [oldCustomer], 1));
+            }
+
+            return Task.FromResult(request.PageIndex == 1
+                ? Page(request, [Customer("NEW")], 2)
+                : ServiceResult<PagedResponseBase<CustomerDto>>.Fail("客户第二页失败"));
+        });
+        using var cache = CreateCache(
+            new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => SuccessCategories()),
+            customerApi: customerApi);
+
+        Assert.IsTrue((await cache.RefreshCustomersAsync()).Success);
+        useFailureSequence = true;
+        var failed = await cache.RefreshCustomersAsync();
+
+        Assert.IsFalse(failed.Success);
+        Assert.AreEqual(oldCustomer.Uid, cache.Customers.Single().Uid);
     }
 
     [TestMethod]
@@ -308,6 +383,8 @@ public sealed class ReferenceDataCacheServiceTests
         session.EndSession(SessionEndReason.Logout);
 
         Assert.AreEqual(0, cache.ProductColors.Count);
+        Assert.AreEqual(0, cache.Customers.Count);
+        Assert.AreEqual(0, cache.Suppliers.Count);
         Assert.AreEqual(0, cache.ProductCategoryTree.Count);
         Assert.AreEqual(0, cache.ProductCategories.Count);
         Assert.AreEqual(0, cache.Currencies.Count);
@@ -337,6 +414,8 @@ public sealed class ReferenceDataCacheServiceTests
 
         Assert.IsFalse(result.Success);
         Assert.AreEqual(0, cache.ProductColors.Count);
+        Assert.AreEqual(0, cache.Customers.Count);
+        Assert.AreEqual(0, cache.Suppliers.Count);
         Assert.AreEqual(0, cache.ProductCategoryTree.Count);
         Assert.AreEqual(0, cache.ProductCategories.Count);
     }
@@ -473,8 +552,12 @@ public sealed class ReferenceDataCacheServiceTests
         ISessionService? session = null,
         ISysDicCurrencyApi? currencyApi = null,
         ISysDictTypeApi? dictTypeApi = null,
-        ISysDictDataApi? dictDataApi = null) =>
+        ISysDictDataApi? dictDataApi = null,
+        ICustomerApi? customerApi = null,
+        ISupplierApi? supplierApi = null) =>
         new(
+            customerApi ?? new CustomerApiStub(request => Task.FromResult(Page<CustomerDto>(request, [], 0))),
+            supplierApi ?? new SupplierApiStub(request => Task.FromResult(Page<SupplierDto>(request, [], 0))),
             colorApi,
             categoryApi,
             currencyApi ?? new CurrencyApiStub(() => SuccessCurrencies()),
@@ -491,6 +574,32 @@ public sealed class ReferenceDataCacheServiceTests
         ColorNameEn = code,
         ColorNameZh = code
     };
+
+    private static CustomerDto Customer(string code) => new()
+    {
+        Uid = Guid.NewGuid(),
+        CustomerCode = code,
+        CustomerName = code,
+    };
+
+    private static SupplierDto Supplier(string code) => new()
+    {
+        Uid = Guid.NewGuid(),
+        SupplierCode = code,
+        SupplierName = code,
+    };
+
+    private static ServiceResult<PagedResponseBase<T>> Page<T>(
+        PagedRequestBase request,
+        IEnumerable<T> items,
+        int totalCount) =>
+        ServiceResult<PagedResponseBase<T>>.Ok(new PagedResponseBase<T>
+        {
+            Items = items.ToList(),
+            TotalCount = totalCount,
+            PageIndex = request.PageIndex,
+            PageSize = request.PageSize,
+        });
 
     private static ProductCategoryDto Category(string code, int sortNo, Guid? parentId = null) => new()
     {
@@ -571,6 +680,46 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.IsFalse(failed.Success);
         Assert.AreSame(currencies, cache.Currencies);
         Assert.AreEqual(oldCurrency.Uid, cache.Currencies.Single().Uid);
+    }
+
+    private sealed class CustomerApiStub(
+        Func<CustomerSearchRequest, Task<ServiceResult<PagedResponseBase<CustomerDto>>>> getPage) : ICustomerApi
+    {
+        public List<int> RequestedPages { get; } = [];
+        public List<int> RequestedPageSizes { get; } = [];
+
+        public Task<ServiceResult<PagedResponseBase<CustomerDto>>> GetPagedAsync(CustomerSearchRequest request)
+        {
+            RequestedPages.Add(request.PageIndex);
+            RequestedPageSizes.Add(request.PageSize);
+            return getPage(request);
+        }
+
+        public Task<ServiceResult<CustomerBatchSaveResponse>> BatchSaveAsync(CustomerBatchSaveRequest request) => throw new NotSupportedException();
+        public Task<ServiceResult<CustomerDto>> GetByIdAsync(Guid id) => throw new NotSupportedException();
+        public Task<ServiceResult<Guid>> CreateAsync(CustomerDto request) => throw new NotSupportedException();
+        public Task<ServiceResult<Guid>> UpdateAsync(Guid id, CustomerDto request) => throw new NotSupportedException();
+        public Task<ServiceResult<Guid>> DeleteAsync(Guid id) => throw new NotSupportedException();
+    }
+
+    private sealed class SupplierApiStub(
+        Func<SupplierSearchRequest, Task<ServiceResult<PagedResponseBase<SupplierDto>>>> getPage) : ISupplierApi
+    {
+        public List<int> RequestedPages { get; } = [];
+        public List<int> RequestedPageSizes { get; } = [];
+
+        public Task<ServiceResult<PagedResponseBase<SupplierDto>>> GetPagedAsync(SupplierSearchRequest request)
+        {
+            RequestedPages.Add(request.PageIndex);
+            RequestedPageSizes.Add(request.PageSize);
+            return getPage(request);
+        }
+
+        public Task<ServiceResult<SupplierBatchSaveResponse>> BatchSaveAsync(SupplierBatchSaveRequest request) => throw new NotSupportedException();
+        public Task<ServiceResult<SupplierDto>> GetByIdAsync(Guid id) => throw new NotSupportedException();
+        public Task<ServiceResult<Guid>> CreateAsync(SupplierDto request) => throw new NotSupportedException();
+        public Task<ServiceResult<Guid>> UpdateAsync(Guid id, SupplierDto request) => throw new NotSupportedException();
+        public Task<ServiceResult<Guid>> DeleteAsync(Guid id) => throw new NotSupportedException();
     }
 
     private sealed class ProductColorApiStub(

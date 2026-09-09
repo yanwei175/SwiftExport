@@ -17,6 +17,7 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 
+/// <summary>管理来源需求本体查询、来源导航及当前兼容的手工需求与拆解命令。</summary>
 public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     IAsyncInitializable,
     IDocumentTabViewModel,
@@ -45,8 +46,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         INavigationService navigationService,
         IDialogService dialogService,
         IMessageService messageService,
-        GrossDemandManualEditorViewModel manualEditor,
-        GrossDemandTraceViewModel trace)
+        GrossDemandManualEditorViewModel manualEditor)
     {
         _api = api;
         _apiCallRunner = apiCallRunner;
@@ -54,7 +54,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         _dialogService = dialogService;
         _messageService = messageService;
         ManualEditor = manualEditor;
-        Trace = trace;
         Title = "毛需求";
         ManualEditor.PropertyChanged += OnManualEditorPropertyChanged;
         ManualEditor.Saved += OnManualSaved;
@@ -62,27 +61,20 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(ClearFiltersCommand);
-        RegisterBusyAwareCommand(DecomposeSelectedCommand);
-        RegisterBusyAwareCommand(RollbackSelectedCommand);
         RegisterBusyAwareCommand(CreateManualCommand);
         RegisterBusyAwareCommand(EditSelectedManualCommand);
         RegisterBusyAwareCommand(CloseSelectedManualCommand);
         RegisterBusyAwareCommand(OpenSourceCommand);
-        RegisterBusyAwareCommand(OpenTraceCommand);
-        RegisterBusyAwareCommand(ToggleTraceCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
         RegisterBusyAwareCommand(SelectSourceGroupCommand);
         RegisterBusyAwareCommand(ToggleSourcePanelCommand);
         RegisterBusyAwareCommand(ClearSourceFiltersCommand);
 
         SourceLifecycleStatuses.Add(LifecycleStatusOptions[0]);
-        SourceDecompositionStatuses.Add(DecompositionStatusOptions[0]);
         SourceLifecycleStatuses.CollectionChanged += OnSourceGroupFilterChanged;
-        SourceDecompositionStatuses.CollectionChanged += OnSourceGroupFilterChanged;
     }
 
     public GrossDemandManualEditorViewModel ManualEditor { get; }
-    public GrossDemandTraceViewModel Trace { get; }
     public ObservableCollection<GrossDemandRowModel> Items { get; } = [];
     public ObservableCollection<GrossDemandSourceGroupModel> SourceGroups { get; } = [];
 
@@ -100,21 +92,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         new(GrossDemandLifecycleStatusEnum.Voided, "已作废"),
     ];
 
-    public IReadOnlyList<GrossDemandFilterOption<GrossDemandDecompositionStatusEnum>> DecompositionStatusOptions { get; } =
-    [
-        new(GrossDemandDecompositionStatusEnum.Pending, "待拆解"),
-        new(GrossDemandDecompositionStatusEnum.Decomposed, "已拆解"),
-    ];
-
-    public IReadOnlyList<GrossDemandFilterOption<DemandExecutionProgressEnum>> ExecutionProgressOptions { get; } =
-    [
-        new(DemandExecutionProgressEnum.NotStarted, "未开始"),
-        new(DemandExecutionProgressEnum.PartiallyAllocated, "部分分配"),
-        new(DemandExecutionProgressEnum.FullyAllocated, "全部分配"),
-        new(DemandExecutionProgressEnum.PartiallyCompleted, "部分完成"),
-        new(DemandExecutionProgressEnum.Completed, "已完成"),
-    ];
-
     public IReadOnlyList<GrossDemandFilterOption<bool?>> StandardTypeOptions { get; } =
     [
         new(null, "全部类型"),
@@ -128,21 +105,13 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         new(GrossDemandLifecycleStatusEnum.Active, "活动")
 
         ];
-    public ObservableCollection<GrossDemandFilterOption<GrossDemandDecompositionStatusEnum>> SelectedDecompositionStatuses { get; } = [];
-    public ObservableCollection<GrossDemandFilterOption<DemandExecutionProgressEnum>> SelectedExecutionProgresses { get; } =
-        [
-
-        ];
-
     public ObservableCollection<GrossDemandFilterOption<GrossDemandLifecycleStatusEnum>> SourceLifecycleStatuses { get; } = [];
-    public ObservableCollection<GrossDemandFilterOption<GrossDemandDecompositionStatusEnum>> SourceDecompositionStatuses { get; } = [];
 
     public string DocumentTitle => "毛需求";
     public bool HasUnsavedChanges => ManualEditor.HasUnsavedChanges;
     public int TotalPages => IsSourceSelected || TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => IsSourceSelected ? $"当前来源共 {TotalCount} 条" : $"第 {PageIndex} / {TotalPages} 页";
     public int CheckedCount => Items.Count(item => item.IsChecked);
-    public bool IsTraceOpen => IsDrawerOpen && ReferenceEquals(ActiveDrawerContent, Trace);
     public bool IsSourceSelected => _appliedSourceUid.HasValue;
 
     [ObservableProperty]
@@ -190,18 +159,12 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     [NotifyCanExecuteChangedFor(nameof(EditSelectedManualCommand))]
     [NotifyCanExecuteChangedFor(nameof(CloseSelectedManualCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenSourceCommand))]
-    [NotifyCanExecuteChangedFor(nameof(OpenTraceCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ToggleTraceCommand))]
     public partial GrossDemandRowModel? SelectedItem { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsTraceOpen))]
-    [NotifyCanExecuteChangedFor(nameof(ToggleTraceCommand))]
     public partial object? ActiveDrawerContent { get; private set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsTraceOpen))]
-    [NotifyCanExecuteChangedFor(nameof(ToggleTraceCommand))]
     public partial bool IsDrawerOpen { get; private set; }
 
     [ObservableProperty]
@@ -288,8 +251,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         SelectedStandardType = StandardTypeOptions[0];
         SelectedSourceTypes.Clear();
         SelectedLifecycleStatuses.Clear();
-        SelectedDecompositionStatuses.Clear();
-        SelectedExecutionProgresses.Clear();
         ExitSourceMode();
         PageIndex = 1;
         await LoadPageAsync();
@@ -299,75 +260,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     #region 毛需求业务命令
 
-    // 拆解、回退和手工需求写操作统一在成功后协调来源导航与主表数据。
-
-    [RelayCommand(CanExecute = nameof(CanDecomposeSelected))]
-    private async Task DecomposeSelectedAsync()
-    {
-        var selected = Items.Where(item => item.IsChecked).ToArray();
-        if (selected.Length == 0
-            || !await ConfirmDiscardManualChangesAsync()
-            || !await _dialogService.ConfirmAsync(
-                "拆解毛需求",
-                $"将按当前产品和 BOM 规则拆解 {selected.Length} 条毛需求。是否继续？",
-                "拆解"))
-        {
-            return;
-        }
-
-        await RunWriteAsync(async () =>
-        {
-            var result = await _apiCallRunner.RunAsync(
-                () => _api.DecomposeAsync(new GrossDemandDecomposeCommand
-                {
-                    Items = CreateCommandItems(selected),
-                }),
-                "拆解毛需求失败");
-            if (!result.Success || result.Data is null)
-            {
-                _messageService.ShowError("拆解失败", result.Message);
-                return;
-            }
-
-            ShowCommandSummary("毛需求拆解", result.Data.Items.Select(item => (item.Outcome, item.Message)));
-            await ReloadAfterWriteAsync();
-        }, "正在拆解毛需求...");
-    }
-
-    [RelayCommand(CanExecute = nameof(CanRollbackSelected))]
-    private async Task RollbackSelectedAsync()
-    {
-        var selected = Items.Where(item => item.IsChecked).ToArray();
-        if (selected.Length == 0
-            || !await ConfirmDiscardManualChangesAsync()
-            || !await _dialogService.ConfirmAsync(
-                "安全回退拆解",
-                $"将回退 {selected.Length} 条毛需求的当前拆解版本。存在活动下游执行单时服务端会阻断。是否继续？",
-                "安全回退"))
-        {
-            return;
-        }
-
-        await RunWriteAsync(async () =>
-        {
-            var result = await _apiCallRunner.RunAsync(
-                () => _api.RollbackAsync(new GrossDemandRollbackCommand
-                {
-                    Items = CreateCommandItems(selected),
-                    Reason = "用户从毛需求工作台安全回退拆解",
-                }),
-                "回退毛需求拆解失败");
-            if (!result.Success || result.Data is null)
-            {
-                _messageService.ShowError("回退失败", result.Message);
-                return;
-            }
-
-            ShowCommandSummary("拆解回退", result.Data.Items.Select(item => (item.Outcome, item.Message)));
-            await ReloadAfterWriteAsync();
-        }, "正在安全回退拆解...");
-    }
-
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task CreateManualAsync()
     {
@@ -376,7 +268,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             return;
         }
 
-        Trace.Clear();
         ManualEditor.OpenCreate();
         ActiveDrawerContent = ManualEditor;
         IsDrawerOpen = true;
@@ -412,7 +303,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
                 return;
             }
 
-            Trace.Clear();
             ManualEditor.OpenEdit(result.Data);
             ActiveDrawerContent = ManualEditor;
             IsDrawerOpen = true;
@@ -495,44 +385,13 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             }
             else
             {
-                await OpenTraceAsync();
+                _messageService.ShowInfo("来源导航", "该手工来源当前不可编辑，请在来源需求列表查看保留的来源快照。");
             }
 
             return;
         }
 
-        _messageService.ShowInfo("来源追溯", "投诉补货来源页面尚未接入，请在需求追溯中查看来源快照。马上为你打开追溯。 ");
-        await OpenTraceAsync();
-    }
-
-    [RelayCommand(CanExecute = nameof(CanUseSelected))]
-    private async Task OpenTraceAsync()
-    {
-        var selected = SelectedItem;
-        if (selected is null || !await ConfirmDiscardManualChangesAsync())
-        {
-            return;
-        }
-
-        ManualEditor.Close(discardChanges: true);
-        ActiveDrawerContent = Trace;
-        IsDrawerOpen = true;
-        if (!await Trace.LoadAsync(selected.Uid))
-        {
-            _messageService.ShowWarning("需求追溯", Trace.StatusText);
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanToggleTrace))]
-    private async Task ToggleTraceAsync()
-    {
-        if (IsTraceOpen)
-        {
-            await CloseDrawerAsync();
-            return;
-        }
-
-        await OpenTraceAsync();
+        _messageService.ShowInfo("来源导航", "该来源类型尚未接入独立单据页面，请在来源需求列表查看保留的来源快照。");
     }
 
     [RelayCommand]
@@ -544,7 +403,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         }
 
         ManualEditor.Close(discardChanges: true);
-        Trace.Clear();
         ActiveDrawerContent = null;
         IsDrawerOpen = false;
     }
@@ -631,7 +489,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         try
         {
             SourceLifecycleStatuses.Clear();
-            SourceDecompositionStatuses.Clear();
         }
         finally
         {
@@ -722,8 +579,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         Skus = SplitLines(SkusText),
         CustomerSkus = SplitLines(CustomerSkusText),
         LifecycleStatuses = SelectedLifecycleStatuses.Select(item => item.Value).ToList(),
-        DecompositionStatuses = SelectedDecompositionStatuses.Select(item => item.Value).ToList(),
-        ExecutionProgresses = SelectedExecutionProgresses.Select(item => item.Value).ToList(),
         RequiredDateFrom = RequiredDateFrom,
         RequiredDateTo = RequiredDateTo,
         IsNonStandard = SelectedStandardType?.Value,
@@ -734,14 +589,12 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         PageIndex = 1,
         PageSize = PageSize,
         LifecycleStatuses = SourceLifecycleStatuses.Select(item => item.Value).ToList(),
-        DecompositionStatuses = SourceDecompositionStatuses.Select(item => item.Value).ToList(),
         SourceUid = _appliedSourceUid,
     };
 
     private GrossDemandSourceGroupSearchRequest CreateSourceGroupSearchRequest() => new()
     {
         LifecycleStatuses = SourceLifecycleStatuses.Select(item => item.Value).ToList(),
-        DecompositionStatuses = SourceDecompositionStatuses.Select(item => item.Value).ToList(),
     };
 
     private async Task<bool> RefreshSourceNavigationAsync(bool reloadCurrentData)
@@ -889,43 +742,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .ToList();
 
-    private List<GrossDemandCommandItem> CreateCommandItems(IReadOnlyList<GrossDemandRowModel> selected)
-    {
-        return selected.Select(item => new GrossDemandCommandItem
-        {
-            Uid = item.Uid,
-            Version = item.Version,
-            ExpectedDecompositionRevision = item.DecompositionRevision,
-            ClientKey = item.Uid.ToString("N"),
-            RowIndex = Items.IndexOf(item),
-        }).ToList();
-    }
-
-    private void ShowCommandSummary(
-        string title,
-        IEnumerable<(GrossDemandCommandOutcomeEnum Outcome, string Message)> results)
-    {
-        var values = results.ToArray();
-        var succeeded = values.Count(item => item.Outcome == GrossDemandCommandOutcomeEnum.Succeeded);
-        var alreadyApplied = values.Count(item => item.Outcome == GrossDemandCommandOutcomeEnum.AlreadyApplied);
-        var failed = values.Length - succeeded - alreadyApplied;
-        var summary = $"成功 {succeeded}，已应用 {alreadyApplied}，失败 {failed}。";
-        var firstFailure = values.FirstOrDefault(item => item.Outcome == GrossDemandCommandOutcomeEnum.Failed).Message;
-        if (!string.IsNullOrWhiteSpace(firstFailure))
-        {
-            summary += $" 首个失败：{firstFailure}";
-        }
-
-        if (failed > 0)
-        {
-            _messageService.ShowWarning(title, summary);
-        }
-        else
-        {
-            _messageService.ShowSuccess(title, summary);
-        }
-    }
-
     private async Task<bool> ConfirmDiscardManualChangesAsync(CancellationToken cancellationToken = default)
     {
         if (!ManualEditor.HasUnsavedChanges)
@@ -1009,8 +825,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     private void UpdateSelectionCommands()
     {
         OnPropertyChanged(nameof(CheckedCount));
-        DecomposeSelectedCommand.NotifyCanExecuteChanged();
-        RollbackSelectedCommand.NotifyCanExecuteChanged();
     }
 
     private void OnManualEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -1030,10 +844,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     private bool CanPageChange() => IsNotBusy && !IsSourceSelected;
     private bool CanSelectSourceGroup(GrossDemandSourceGroupModel? group) => IsNotBusy && !IsSourceGroupLoading && group is not null;
     private bool CanUseSelected() => IsNotBusy && SelectedItem is not null;
-    private bool CanToggleTrace() => IsTraceOpen || CanUseSelected();
-    private bool CanDecomposeSelected() => CanWrite && IsNotBusy && Items.Any(item => item.IsChecked) && Items.Where(item => item.IsChecked).All(item => item.CanDecompose);
-    private bool CanRollbackSelected() => CanWrite && IsNotBusy && Items.Any(item => item.IsChecked) && Items.Where(item => item.IsChecked).All(item => item.CanRollback);
-    private bool CanEditSelectedManual() => CanWrite && IsNotBusy && SelectedItem is { SourceType: "MD", LifecycleStatus: GrossDemandLifecycleStatusEnum.Active, DecompositionStatus: GrossDemandDecompositionStatusEnum.Pending };
+    private bool CanEditSelectedManual() => CanWrite && IsNotBusy && SelectedItem is { SourceType: "MD", LifecycleStatus: GrossDemandLifecycleStatusEnum.Active };
     private bool CanCloseSelectedManual() => CanEditSelectedManual();
 
     #endregion
@@ -1063,8 +874,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         ManualEditor.PropertyChanged -= OnManualEditorPropertyChanged;
         ManualEditor.Saved -= OnManualSaved;
         SourceLifecycleStatuses.CollectionChanged -= OnSourceGroupFilterChanged;
-        SourceDecompositionStatuses.CollectionChanged -= OnSourceGroupFilterChanged;
         ManualEditor.Dispose();
-        Trace.Dispose();
     }
 }

@@ -33,11 +33,9 @@ public sealed class GrossDemandWorkspaceViewModelTests
 
         viewModel.Items[0].IsChecked = true;
         Assert.IsNull(viewModel.IsAllChecked);
-        Assert.IsTrue(viewModel.DecomposeSelectedCommand.CanExecute(null));
 
         viewModel.Items[1].IsChecked = true;
         Assert.AreEqual(true, viewModel.IsAllChecked);
-        Assert.IsFalse(viewModel.DecomposeSelectedCommand.CanExecute(null));
 
         viewModel.IsAllChecked = false;
         Assert.IsTrue(viewModel.Items.All(item => !item.IsChecked));
@@ -109,14 +107,8 @@ public sealed class GrossDemandWorkspaceViewModelTests
             new[] { GrossDemandLifecycleStatusEnum.Active },
             api.LastSourceGroupRequest?.LifecycleStatuses);
         CollectionAssert.AreEqual(
-            new[] { GrossDemandDecompositionStatusEnum.Pending },
-            api.LastSourceGroupRequest?.DecompositionStatuses);
-        CollectionAssert.AreEqual(
             new[] { GrossDemandLifecycleStatusEnum.Active },
             api.LastSearchRequest?.LifecycleStatuses);
-        CollectionAssert.AreEqual(
-            new[] { GrossDemandDecompositionStatusEnum.Pending },
-            api.LastSearchRequest?.DecompositionStatuses);
         Assert.IsTrue(string.IsNullOrWhiteSpace(api.LastSearchRequest?.Keyword));
     }
 
@@ -178,9 +170,6 @@ public sealed class GrossDemandWorkspaceViewModelTests
         CollectionAssert.AreEqual(
             new[] { GrossDemandLifecycleStatusEnum.Active },
             viewModel.SourceLifecycleStatuses.Select(item => item.Value).ToArray());
-        CollectionAssert.AreEqual(
-            new[] { GrossDemandDecompositionStatusEnum.Pending },
-            viewModel.SourceDecompositionStatuses.Select(item => item.Value).ToArray());
 
         await viewModel.ToggleSourcePanelCommand.ExecuteAsync(null);
 
@@ -235,12 +224,10 @@ public sealed class GrossDemandWorkspaceViewModelTests
         await viewModel.ClearSourceFiltersCommand.ExecuteAsync(null);
 
         Assert.AreEqual(0, viewModel.SourceLifecycleStatuses.Count);
-        Assert.AreEqual(0, viewModel.SourceDecompositionStatuses.Count);
         Assert.AreEqual(searchCallsBeforeClear, api.SearchCallCount);
         Assert.AreEqual(initialItem.Uid, viewModel.Items.Single().Uid);
         Assert.AreEqual(2, api.SourceGroupCallCount);
         Assert.AreEqual(0, api.LastSourceGroupRequest?.LifecycleStatuses.Count);
-        Assert.AreEqual(0, api.LastSourceGroupRequest?.DecompositionStatuses.Count);
     }
 
     [TestMethod]
@@ -382,41 +369,10 @@ public sealed class GrossDemandWorkspaceViewModelTests
     }
 
     [TestMethod]
-    public async Task TraceToggle_ShouldOpenAndCloseTraceDrawer()
-    {
-        var item = CreateItem("SO-TRACE", canDecompose: false);
-        var api = new FakeGrossDemandApi
-        {
-            SearchResponse = CreatePage(item),
-            TraceResponse = new GrossDemandTraceDto
-            {
-                GrossDemand = new GrossDemandDetailDto { Uid = item.Uid }
-            }
-        };
-        using var viewModel = CreateViewModel(api);
-        await viewModel.InitializeAsync();
-
-        await viewModel.ToggleTraceCommand.ExecuteAsync(null);
-
-        Assert.IsTrue(viewModel.IsDrawerOpen);
-        Assert.IsTrue(viewModel.IsTraceOpen);
-        Assert.AreSame(viewModel.Trace, viewModel.ActiveDrawerContent);
-        Assert.AreEqual(1, api.TraceCallCount);
-
-        await viewModel.ToggleTraceCommand.ExecuteAsync(null);
-
-        Assert.IsFalse(viewModel.IsDrawerOpen);
-        Assert.IsFalse(viewModel.IsTraceOpen);
-        Assert.IsNull(viewModel.ActiveDrawerContent);
-        Assert.AreEqual(1, api.TraceCallCount);
-    }
-
-    [TestMethod]
-    public void TraceViews_ShouldBindToggleAndCloseToWorkspaceCommands()
+    public void Workspace_ShouldNotLoadDownstreamTraceFeature()
     {
         var repositoryRoot = FindRepositoryRoot();
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
-        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
 
         var workspace = XDocument.Load(Path.Combine(
             repositoryRoot,
@@ -426,30 +382,12 @@ public sealed class GrossDemandWorkspaceViewModelTests
             "GrossDemand",
             "Views",
             "GrossDemandWorkspaceView.xaml"));
-        var toggle = workspace.Descendants(presentation + "ToggleButton")
-            .Single(element => string.Equals(
-                (string?)element.Attribute("Content"),
-                "拆解结果",
-                StringComparison.Ordinal));
-        StringAssert.Contains((string?)toggle.Attribute("Command") ?? string.Empty, "ToggleTraceCommand");
-        StringAssert.Contains((string?)toggle.Attribute("IsChecked") ?? string.Empty, "IsTraceOpen");
-
-        var trace = XDocument.Load(Path.Combine(
-            repositoryRoot,
-            "SwiftExport.Client.Wpf",
-            "Features",
-            "DemandPlanning",
-            "GrossDemand",
-            "Views",
-            "GrossDemandTraceView.xaml"));
-        var close = trace.Descendants(presentation + "Button")
-            .Single(element => string.Equals(
-                (string?)element.Attribute(x + "Name"),
-                "CloseButton",
-                StringComparison.Ordinal));
-        Assert.AreEqual("关闭", (string?)close.Attribute("Content"));
-        StringAssert.Contains((string?)close.Attribute("Command") ?? string.Empty, "DataContext.CloseDrawerCommand");
-        StringAssert.Contains((string?)close.Attribute("Command") ?? string.Empty, "GrossDemandWorkspaceView");
+        Assert.IsFalse(workspace.Descendants(presentation + "ToggleButton")
+            .Any(element => string.Equals((string?)element.Attribute("Content"), "拆解结果", StringComparison.Ordinal)));
+        Assert.IsFalse(workspace.Descendants()
+            .Any(element => ((string?)element.Attribute("DataType"))?.Contains("GrossDemandTraceViewModel", StringComparison.Ordinal) == true));
+        Assert.IsFalse(workspace.Descendants()
+            .Any(element => ((string?)element.Attribute("Placeholder"))?.Contains("执行进度", StringComparison.Ordinal) == true));
     }
 
     /// <summary>
@@ -525,9 +463,9 @@ public sealed class GrossDemandWorkspaceViewModelTests
         Assert.IsTrue(GetGridColumn(sourceToggle) < GetGridColumn(multilineToggle));
 
         var sourceFilters = sourcePanel.Descendants().Where(element => element.Name.LocalName == "DropDownCheckBox").ToArray();
-        Assert.AreEqual(2, sourceFilters.Length);
+        Assert.AreEqual(1, sourceFilters.Length);
         Assert.IsTrue(sourceFilters.Any(element => ((string?)element.Attribute("SelectedItems"))?.Contains("SourceLifecycleStatuses", StringComparison.Ordinal) == true));
-        Assert.IsTrue(sourceFilters.Any(element => ((string?)element.Attribute("SelectedItems"))?.Contains("SourceDecompositionStatuses", StringComparison.Ordinal) == true));
+        Assert.IsFalse(sourceFilters.Any(element => ((string?)element.Attribute("SelectedItems"))?.Contains("SourceDecompositionStatuses", StringComparison.Ordinal) == true));
         Assert.IsTrue(sourcePanel.Descendants(presentation + "Button")
             .Any(element => string.Equals((string?)element.Attribute("Content"), "清空筛选", StringComparison.Ordinal)));
         Assert.IsFalse(sourcePanel.Descendants().Any(element => string.Equals((string?)element.Attribute("Content"), "全部", StringComparison.Ordinal)));
@@ -580,15 +518,13 @@ public sealed class GrossDemandWorkspaceViewModelTests
             runner,
             messages);
         var navigation = DispatchProxy.Create<INavigationService, NoCallProxy>();
-        var trace = new GrossDemandTraceViewModel(api, runner, messages, navigation);
         return new GrossDemandWorkspaceViewModel(
             api,
             runner,
             navigation,
             dialogService ?? new RecordingDialogService(confirmResult: true),
             messages,
-            manual,
-            trace);
+            manual);
     }
 
     private static string FindRepositoryRoot()
@@ -613,7 +549,6 @@ public sealed class GrossDemandWorkspaceViewModelTests
         Uid = Guid.NewGuid(),
         Version = 1,
         LifecycleStatus = GrossDemandLifecycleStatusEnum.Active,
-        DecompositionStatus = GrossDemandDecompositionStatusEnum.Pending,
         SourceType = "SO",
         SourceNo = sourceNo,
         SourceUid = Guid.NewGuid(),
@@ -621,7 +556,6 @@ public sealed class GrossDemandWorkspaceViewModelTests
         Sku = sourceNo,
         Description = sourceNo,
         DemandQty = 1m,
-        CanDecompose = canDecompose,
     };
 
     private static PagedResponseBase<GrossDemandListItemDto> CreatePage(params GrossDemandListItemDto[] items) => new()
@@ -668,8 +602,6 @@ public sealed class GrossDemandWorkspaceViewModelTests
             TraceCallCount++;
             return Task.FromResult(ServiceResult<GrossDemandTraceDto>.Ok(TraceResponse));
         }
-        public Task<ServiceResult<GrossDemandDecomposeResult>> DecomposeAsync(GrossDemandDecomposeCommand command) => throw new NotSupportedException();
-        public Task<ServiceResult<GrossDemandRollbackResult>> RollbackAsync(GrossDemandRollbackCommand command) => throw new NotSupportedException();
         public Task<ServiceResult<GrossDemandDetailDto>> CreateManualAsync(CreateManualGrossDemandRequest request) => throw new NotSupportedException();
         public Task<ServiceResult<GrossDemandDetailDto>> UpdateManualAsync(Guid uid, UpdateManualGrossDemandRequest request) => throw new NotSupportedException();
         public Task<ServiceResult<GrossDemandDetailDto>> CloseManualAsync(Guid uid, CloseGrossDemandCommand command) => throw new NotSupportedException();

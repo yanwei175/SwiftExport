@@ -4,18 +4,19 @@ using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExportClient.Features.DemandPlanning.GrossDemand.Models;
 
+/// <summary>承载来源需求本体快照、兼容拆解状态与页面选择状态。</summary>
 public sealed partial class GrossDemandRowModel : ObservableObject
 {
     public Guid Uid { get; private set; }
     public int Version { get; private set; }
     public GrossDemandLifecycleStatusEnum LifecycleStatus { get; private set; }
-    public GrossDemandDecompositionStatusEnum DecompositionStatus { get; private set; }
-    public int DecompositionRevision { get; private set; }
     public string SourceType { get; private set; } = string.Empty;
     public Guid SourceUid { get; private set; }
     public string SourceNo { get; private set; } = string.Empty;
     public Guid SourceLineId { get; private set; }
     public int? SourceLineNumber { get; private set; }
+    public int? SourceVersion { get; private set; }
+    public Guid? CustomerId { get; private set; }
     public Guid? ProductId { get; private set; }
     public bool IsNonStandard { get; private set; }
     public string Sku { get; private set; } = string.Empty;
@@ -25,17 +26,10 @@ public sealed partial class GrossDemandRowModel : ObservableObject
     public string Color { get; private set; } = string.Empty;
     public string Specification { get; private set; } = string.Empty;
     public string ImagePath { get; private set; } = string.Empty;
+    public string Unit { get; private set; } = string.Empty;
     public decimal DemandQty { get; private set; }
     public DateTime? RequiredDate { get; private set; }
     public string Remark { get; private set; } = string.Empty;
-    public int ActiveNetDemandCount { get; private set; }
-    public int CustomerSuppliedNetDemandCount { get; private set; }
-    public DemandExecutionProgressEnum ExecutionProgress { get; private set; }
-    public bool CanDecompose { get; private set; }
-    public bool CanRollback { get; private set; }
-    public string RollbackBlockerSummary { get; private set; } = string.Empty;
-    public DateTime? DecomposedAt { get; private set; }
-    public string DecomposedBy { get; private set; } = string.Empty;
     public DateTime? CreatedDate { get; private set; }
     public string CreatedBy { get; private set; } = string.Empty;
     public DateTime? UpdatedDate { get; private set; }
@@ -46,16 +40,6 @@ public sealed partial class GrossDemandRowModel : ObservableObject
         GrossDemandLifecycleStatusEnum.Closed => "已关闭",
         GrossDemandLifecycleStatusEnum.Voided => "已作废",
         _ => LifecycleStatus.ToString(),
-    };
-    public string DecompositionStatusText => DecompositionStatus == GrossDemandDecompositionStatusEnum.Decomposed ? "已拆解" : "待拆解";
-    public string ExecutionProgressText => ExecutionProgress switch
-    {
-        DemandExecutionProgressEnum.NotStarted => "未开始",
-        DemandExecutionProgressEnum.PartiallyAllocated => "部分分配",
-        DemandExecutionProgressEnum.FullyAllocated => "全部分配",
-        DemandExecutionProgressEnum.PartiallyCompleted => "部分完成",
-        DemandExecutionProgressEnum.Completed => "已完成",
-        _ => ExecutionProgress.ToString(),
     };
     public string SourceTypeText => SourceType switch
     {
@@ -76,13 +60,13 @@ public sealed partial class GrossDemandRowModel : ObservableObject
             Uid = dto.Uid,
             Version = dto.Version,
             LifecycleStatus = dto.LifecycleStatus,
-            DecompositionStatus = dto.DecompositionStatus,
-            DecompositionRevision = dto.DecompositionRevision,
             SourceType = dto.SourceType ?? string.Empty,
             SourceUid = dto.SourceUid,
             SourceNo = dto.SourceNo ?? string.Empty,
             SourceLineId = dto.SourceLineId,
             SourceLineNumber = dto.SourceLineNumber,
+            SourceVersion = dto.SourceVersion,
+            CustomerId = dto.CustomerId,
             ProductId = dto.ProductId,
             IsNonStandard = dto.IsNonStandard,
             Sku = dto.Sku ?? string.Empty,
@@ -92,17 +76,10 @@ public sealed partial class GrossDemandRowModel : ObservableObject
             Color = dto.Color ?? string.Empty,
             Specification = dto.Specification ?? string.Empty,
             ImagePath = dto.ImagePath ?? string.Empty,
+            Unit = dto.Unit ?? string.Empty,
             DemandQty = dto.DemandQty,
             RequiredDate = dto.RequiredDate,
             Remark = dto.Remark ?? string.Empty,
-            ActiveNetDemandCount = dto.ActiveNetDemandCount,
-            CustomerSuppliedNetDemandCount = dto.CustomerSuppliedNetDemandCount,
-            ExecutionProgress = dto.ExecutionProgress,
-            CanDecompose = dto.CanDecompose,
-            CanRollback = dto.CanRollback,
-            RollbackBlockerSummary = dto.RollbackBlockerSummary ?? string.Empty,
-            DecomposedAt = dto.DecomposedAt,
-            DecomposedBy = dto.DecomposedBy ?? string.Empty,
             CreatedDate = dto.CreatedDate,
             CreatedBy = dto.CreatedBy ?? string.Empty,
             UpdatedDate = dto.UpdatedDate,

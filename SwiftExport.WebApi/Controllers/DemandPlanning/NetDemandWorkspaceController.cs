@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.WebApi.Filters;
 
@@ -13,6 +14,27 @@ namespace SwiftExport.WebApi.Controllers.DemandPlanning;
 [Route("api/demand-planning/net-demands")]
 public sealed class NetDemandWorkspaceController(INetDemandWorkspaceService service) : ControllerBase
 {
+    /// <summary>查询由物料领域计算的来源需求建立候选。</summary>
+    [HttpPost("source-demands/candidates/search")]
+    public Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
+        [FromBody] SourceDemandCandidateSearchRequest request,
+        CancellationToken cancellationToken)
+        => service.SearchSourceDemandCandidatesAsync(request, cancellationToken);
+
+    /// <summary>从来源需求原子建立物料需求。</summary>
+    [HttpPost("source-demands/establish")]
+    public Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishFromSourcesAsync(
+        [FromBody] EstablishMaterialDemandsCommand command,
+        CancellationToken cancellationToken)
+        => service.EstablishFromSourcesAsync(command, cancellationToken);
+
+    /// <summary>安全回退来源对应的活动物料需求修订。</summary>
+    [HttpPost("source-demands/rollback")]
+    public Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
+        [FromBody] RollbackMaterialDemandsCommand command,
+        CancellationToken cancellationToken)
+        => service.RollbackSourceEstablishmentAsync(command, cancellationToken);
+
     [HttpPost("search")]
     public Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
         [FromBody] NetDemandSearchRequest request,
@@ -39,6 +61,13 @@ public sealed class NetDemandWorkspaceController(INetDemandWorkspaceService serv
         Guid uid,
         CancellationToken cancellationToken)
         => service.GetTraceAsync(uid, cancellationToken);
+
+    /// <summary>查询来源需求对应的物料及执行追溯。</summary>
+    [HttpGet("source-demands/{grossDemandId:guid}/trace")]
+    public Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(
+        Guid grossDemandId,
+        CancellationToken cancellationToken)
+        => service.GetSourceDemandTraceAsync(grossDemandId, cancellationToken);
 
     [HttpPost("plans/replace")]
     [PreventDuplicateRequest(WindowSeconds = 5)]

@@ -8,8 +8,28 @@ namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 
 public sealed class NetDemandDialogService(
     PurchaseDraftPreviewViewModel previewViewModel,
+    SourceDemandCandidatePickerViewModel sourceDemandPicker,
     IContentDialogService contentDialogService) : INetDemandDialogService
 {
+    /// <summary>展示物料领域候选并只把用户显式勾选的来源需求带回工作台。</summary>
+    public async Task<IReadOnlyList<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.SourceDemandCandidateDto>> ShowSourceDemandCandidatesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await sourceDemandPicker.OpenAsync(cancellationToken);
+        var dialog = new ContentDialog
+        {
+            Title = "从来源需求建立物料需求",
+            Content = new SourceDemandCandidatePickerView { DataContext = sourceDemandPicker },
+            PrimaryButtonText = "建立物料需求",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+            DialogWidth = 1100,
+            DialogMaxWidth = 1100
+        };
+        var result = await contentDialogService.ShowAsync(dialog, cancellationToken);
+        return result == ContentDialogResult.Primary ? sourceDemandPicker.SelectedRows : [];
+    }
+
     public async Task<bool> ShowPurchaseDraftPreviewAsync(
         PurchaseDraftPreviewOpenRequest request,
         CancellationToken cancellationToken = default)

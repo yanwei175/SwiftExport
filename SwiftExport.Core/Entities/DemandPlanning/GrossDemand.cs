@@ -12,9 +12,11 @@ public sealed class GrossDemand : BaseEntity
 {
     /// <summary>毛需求生命周期；关闭后不能继续拆解。</summary>
     public GrossDemandLifecycleStatusEnum LifecycleStatus { get; set; } = GrossDemandLifecycleStatusEnum.Active;
-    /// <summary>当前是否已经成功拆解为净需求。</summary>
+    /// <summary>弃用候选：旧链拆解状态，兼容保留；新物料选源应查询物料侧有效拆解记录，禁止新增依赖。消费者及历史保护迁移完成前不得删列。</summary>
+    [Obsolete("来源需求不再保存物料建立状态；请通过 NetDemand.GrossDemandId 查询物料事实。")]
     public GrossDemandDecompositionStatusEnum DecompositionStatus { get; set; } = GrossDemandDecompositionStatusEnum.Pending;
-    /// <summary>拆解修订号；每次成功拆解递增，用于识别同一毛需求的拆解版本。</summary>
+    /// <summary>弃用候选：旧链拆解修订号，兼容保留；权威修订将归物料领域，历史映射及消费者迁移完成前不得删列。</summary>
+    [Obsolete("拆解修订号由 NetDemand.DecompositionRevision 权威保存。")]
     public int DecompositionRevision { get; set; }
 
     /// <summary>来源单据类型，例如销售订单、手工需求或投诉补货。</summary>
@@ -29,6 +31,8 @@ public sealed class GrossDemand : BaseEntity
     public int? SourceLineNumber { get; set; }
     /// <summary>来源单据头在本需求被接收时的事实版本，用于拒绝旧版本覆盖。</summary>
     public int? SourceVersion { get; set; }
+    /// <summary>来源需求实物内容的稳定指纹；历史数据无法确认时为空。</summary>
+    public string? DemandBasisFingerprint { get; set; }
     /// <summary>来源需求对应的交付客户；手工需求及历史数据可以为空。</summary>
     public Guid? CustomerId { get; set; }
 
@@ -60,9 +64,11 @@ public sealed class GrossDemand : BaseEntity
     /// <summary>来源需求备注快照。</summary>
     public string? Remark { get; set; }
 
-    /// <summary>最近一次成功拆解时间。</summary>
+    /// <summary>弃用候选：旧链最近拆解时间，兼容保留；审计归物料拆解记录，历史迁移完成前不得删列或新增依赖。</summary>
+    [Obsolete("物料建立审计应读取 NetDemand 历史。")]
     public DateTime? DecomposedAt { get; set; }
-    /// <summary>最近一次成功拆解操作人。</summary>
+    /// <summary>弃用候选：旧链最近拆解操作人，兼容保留；审计归物料拆解记录，历史迁移完成前不得删列或新增依赖。</summary>
+    [Obsolete("物料建立审计应读取 NetDemand 历史。")]
     public string? DecomposedBy { get; set; }
     /// <summary>最近一次生命周期变更时间。</summary>
     public DateTime? LifecycleChangedAt { get; set; }

@@ -85,11 +85,13 @@ public sealed class PackingListWorkspaceContractTests
     public void PlanningSourcesAreAnchoredByGrossDemandAndAllocationIsOptionalTrace()
     {
         var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingListWorkspaceRepository.cs");
+        var deliveryFormula = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "SourceDeliverySql.cs");
         var service = Read("SwiftExport.Application", "Services", "Shipping", "PackingListWorkspaceService.cs");
         var entity = Read("SwiftExport.Core", "Entities", "Shipping", "PackingListContributionLine.cs");
         StringAssert.Contains(repository, "FROM dbo.GrossDemand g");
         StringAssert.Contains(repository, "g.SourceType IN('SO','CR')");
-        StringAssert.Contains(repository, "l.GrossDemandId=g.Uid");
+        StringAssert.Contains(repository, "SourceDeliverySql.FinalOutboundApply");
+        StringAssert.Contains(deliveryFormula, "line.GrossDemandId=g.Uid");
         StringAssert.Contains(service, "sourceDelivery.VerifyForUpdateAsync");
         StringAssert.Contains(service, "GrossDemandId = x.GrossDemandId");
         StringAssert.Contains(entity, "public Guid? NetDemandId");

@@ -8,6 +8,7 @@ using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
@@ -19,6 +20,7 @@ public sealed partial class SupplierManagerViewModel : ViewModelBaseEx, IAsyncIn
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
+    private readonly IReferenceDataCacheService _referenceDataCache;
     private bool _initialized;
     private bool _restoringSelection;
 
@@ -27,12 +29,14 @@ public sealed partial class SupplierManagerViewModel : ViewModelBaseEx, IAsyncIn
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
         IDialogService dialogService,
+        IReferenceDataCacheService referenceDataCache,
         SupplierProductManagerViewModel supplierProducts)
     {
         _supplierApi = supplierApi;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _dialogService = dialogService;
+        _referenceDataCache = referenceDataCache;
         SupplierProducts = supplierProducts;
         Title = "供应商管理";
         Suppliers.PropertyChanged += OnListPropertyChanged;
@@ -160,6 +164,11 @@ public sealed partial class SupplierManagerViewModel : ViewModelBaseEx, IAsyncIn
             SelectedLine = Suppliers.Items.FirstOrDefault(line => ReferenceEquals(line, SelectedLine)) ?? Suppliers.Items.FirstOrDefault();
             UpdateChangeState();
             _messageService.ShowSuccess("供应商资料已保存", $"已提交 {result.Data.SuccessCount} 条变更。");
+            var cacheResult = await _referenceDataCache.RefreshSuppliersAsync();
+            if (!cacheResult.Success)
+            {
+                _messageService.ShowWarning("供应商资料已保存，但缓存刷新失败", cacheResult.Message);
+            }
         }, "正在保存供应商资料...");
     }
 

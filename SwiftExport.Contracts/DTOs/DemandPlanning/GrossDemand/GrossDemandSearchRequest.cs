@@ -5,6 +5,9 @@ using System.Collections.Generic;
 
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
 {
+    /// <summary>
+    /// 来源需求管理查询条件，仅筛选来源本体及生命周期。
+    /// </summary>
     public class GrossDemandSearchRequest : PagedRequestBase
     {
         public List<string> SourceTypes { get; set; } = new List<string>();
@@ -12,8 +15,6 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
         public List<string> Skus { get; set; } = new List<string>();
         public List<string> CustomerSkus { get; set; } = new List<string>();
         public List<GrossDemandLifecycleStatusEnum> LifecycleStatuses { get; set; } = new List<GrossDemandLifecycleStatusEnum>();
-        public List<GrossDemandDecompositionStatusEnum> DecompositionStatuses { get; set; } = new List<GrossDemandDecompositionStatusEnum>();
-        public List<DemandExecutionProgressEnum> ExecutionProgresses { get; set; } = new List<DemandExecutionProgressEnum>();
         public DateTime? RequiredDateFrom { get; set; }
         public DateTime? RequiredDateTo { get; set; }
         public bool? IsNonStandard { get; set; }

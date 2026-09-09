@@ -186,6 +186,11 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
             SelectedLine = Customers.Items.FirstOrDefault(line => ReferenceEquals(line, SelectedLine)) ?? Customers.Items.FirstOrDefault();
             UpdateChangeState();
             _messageService.ShowSuccess("客户资料已保存", $"已提交 {result.Data.SuccessCount} 条变更。");
+            var cacheResult = await _referenceDataCache.RefreshCustomersAsync();
+            if (!cacheResult.Success)
+            {
+                _messageService.ShowWarning("客户资料已保存，但缓存刷新失败", cacheResult.Message);
+            }
         }, "正在保存客户资料...");
     }
 

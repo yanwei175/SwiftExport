@@ -2,6 +2,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Services.DemandPlanning;
+using SwiftExport.Application.Interfaces.Shipping;
+using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
 using SwiftExport.Contracts.SysEnums;
@@ -12,6 +14,7 @@ using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.DemandPlanning;
+using SwiftExport.Core.Interfaces.Shipping;
 using SwiftExport.Infrastructure.Data;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
@@ -66,6 +69,22 @@ public sealed class SourceDemandReceptionServiceTests
             (await Assert.ThrowsAsync<SourceDemandReceptionException>(() => fixture.Service.ReceiveAsync(fixture.Command("SO", 1)))).Code);
     }
 
+    /// <summary>验证来源头仅推进技术版本时，实物依据指纹保持稳定。</summary>
+    [TestMethod]
+    public async Task NewerVersionWithSameContentPreservesDecompositionFacts()
+    {
+        using var fixture = new ReceptionFixture();
+        await fixture.Service.ReceiveAsync(fixture.Command("SO", 1));
+        var demand = fixture.Repository.Demands.Single();
+        var basisFingerprint = demand.DemandBasisFingerprint;
+        var result = await fixture.Service.ReceiveAsync(fixture.Command("SO", 2));
+
+        Assert.AreEqual(1, result.UpdatedCount);
+        Assert.AreEqual(2, demand.SourceVersion);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(basisFingerprint));
+        Assert.AreEqual(basisFingerprint, demand.DemandBasisFingerprint, "同内容来源版本推进不得改变实物依据指纹。");
+    }
+
     [TestMethod]
     public async Task NewVersionWithDownstreamFactsRequiresDisposition()
     {
@@ -115,20 +134,20 @@ public sealed class SourceDemandReceptionServiceTests
         var demand = fixture.Repository.Demands.Single();
         demand.DemandQty = 10m;
         fixture.Repository.DeliveredQty[demand.Uid] = 2m;
-        var claim = new SourceDemandDeliveryClaim
+        var claim = new SourceDeliveryClaim
         {
             GrossDemandId = demand.Uid, ExpectedDemandVersion = demand.Version,
             ExpectedSourceVersion = demand.SourceVersion, Quantity = 1m
         };
 
-        var verified = await fixture.DeliveryService.VerifyForUpdateAsync([claim, new SourceDemandDeliveryClaim
+        var verified = await fixture.DeliveryService.VerifyForUpdateAsync([claim, new SourceDeliveryClaim
         {
             GrossDemandId = demand.Uid, ExpectedDemandVersion = demand.Version,
             ExpectedSourceVersion = demand.SourceVersion, Quantity = 7m
         }], true);
         Assert.AreEqual(8m, verified[demand.Uid].RemainingQty);
 
-        var exceeded = await Assert.ThrowsAsync<SourceDemandDeliveryException>(() => fixture.DeliveryService.VerifyForUpdateAsync([claim, new SourceDemandDeliveryClaim
+        var exceeded = await Assert.ThrowsAsync<SourceDeliveryException>(() => fixture.DeliveryService.VerifyForUpdateAsync([claim, new SourceDeliveryClaim
         {
             GrossDemandId = demand.Uid, ExpectedDemandVersion = demand.Version,
             ExpectedSourceVersion = demand.SourceVersion, Quantity = 8m
@@ -136,28 +155,29 @@ public sealed class SourceDemandReceptionServiceTests
         Assert.AreEqual("DELIVERY_QUOTA_EXCEEDED", exceeded.Code);
 
         demand.Version++;
-        Assert.AreEqual("SOURCE_CHANGED", (await Assert.ThrowsAsync<SourceDemandDeliveryException>(
+        Assert.AreEqual("SOURCE_CHANGED", (await Assert.ThrowsAsync<SourceDeliveryException>(
             () => fixture.DeliveryService.VerifyForUpdateAsync([claim], true))).Code);
         demand.LifecycleStatus = GrossDemandLifecycleStatusEnum.Closed;
-        Assert.AreEqual("SOURCE_INACTIVE", (await Assert.ThrowsAsync<SourceDemandDeliveryException>(
+        Assert.AreEqual("SOURCE_INACTIVE", (await Assert.ThrowsAsync<SourceDeliveryException>(
             () => fixture.DeliveryService.VerifyForUpdateAsync([claim], true))).Code);
     }
 
     [TestMethod]
-    public async Task ComplaintDeliveryHasIndependentQuotaButBlocksInventoryWithoutOrderPoolOwnership()
+    public async Task ComplaintDeliveryOnlyRequiresOrderPoolWhenCustomerSuppliedItemsAreConsumed()
     {
         using var fixture = new ReceptionFixture();
         await fixture.Service.ReceiveAsync(fixture.Command(DocumentTypeStaticsEnum.SalesOrder, 1));
         await fixture.Service.ReceiveAsync(fixture.Command(DocumentTypeStaticsEnum.ComplaintReplenishment, 1));
         var complaint = fixture.Repository.Demands.Single(item => item.SourceType == DocumentTypeStaticsEnum.ComplaintReplenishment);
-        var claim = new SourceDemandDeliveryClaim
+        var claim = new SourceDeliveryClaim
         {
             GrossDemandId = complaint.Uid, ExpectedDemandVersion = complaint.Version,
             ExpectedSourceVersion = complaint.SourceVersion, Quantity = 1m
         };
 
-        await fixture.DeliveryService.VerifyForUpdateAsync([claim], false);
-        var blocked = await Assert.ThrowsAsync<SourceDemandDeliveryException>(
+        await fixture.DeliveryService.VerifyForUpdateAsync([claim], true);
+        claim.RequiresOrderPoolOwnership = true;
+        var blocked = await Assert.ThrowsAsync<SourceDeliveryException>(
             () => fixture.DeliveryService.VerifyForUpdateAsync([claim], true));
         Assert.AreEqual("ORDER_POOL_OWNERSHIP_REQUIRED", blocked.Code);
         Assert.AreEqual(2, fixture.Repository.Demands.Count);
@@ -172,8 +192,9 @@ public sealed class SourceDemandReceptionServiceTests
             // DbSession 的正式构造会打开 SQL 连接；此处只需要非空事务标记来隔离验证协议逻辑。
             Session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             Session.Transaction = _connection.BeginTransaction();
-            Service = new SourceDemandReceptionService(Session, Repository, Logs, new Correlation(), new User());
-            DeliveryService = new SourceDemandDeliveryService(new ServiceBaseContext(Session, LoggerFactory.Create(_ => { })), Repository);
+            MaterialEstablishment = new FakeMaterialDemandEstablishmentService(Repository);
+            Service = new SourceDemandReceptionService(Session, Repository, MaterialEstablishment, Logs, new Correlation(), new User());
+            DeliveryService = new SourceDeliveryService(new ServiceBaseContext(Session, LoggerFactory.Create(_ => { })), Repository);
         }
 
         public Guid SourceUid { get; } = Guid.NewGuid();
@@ -182,9 +203,10 @@ public sealed class SourceDemandReceptionServiceTests
         public Guid ProductId { get; } = Guid.NewGuid();
         public FakeGrossDemandRepository Repository { get; } = new();
         public FakeOperationLogs Logs { get; } = new();
+        public FakeMaterialDemandEstablishmentService MaterialEstablishment { get; }
         public DbSession Session { get; }
         public SourceDemandReceptionService Service { get; }
-        public SourceDemandDeliveryService DeliveryService { get; }
+        public SourceDeliveryService DeliveryService { get; }
 
         public SourceDemandReceptionCommand Command(string sourceType, int sourceVersion) => new()
         {
@@ -201,16 +223,30 @@ public sealed class SourceDemandReceptionServiceTests
         public void Dispose() => Session.Dispose();
     }
 
+    /// <summary>模拟来源本体通过物料应用边界执行的退出与变更影响校验。</summary>
+    private sealed class FakeMaterialDemandEstablishmentService(FakeGrossDemandRepository repository) : IMaterialDemandEstablishmentService
+    {
+        public Task<bool> HasActiveAsync(Guid grossDemandId) => Task.FromResult(repository.HasBlocker);
+        public Task<bool> HasSourceExitBlockerAsync(string sourceType, Guid sourceUid, IReadOnlyCollection<Guid> sourceLineIds) => Task.FromResult(repository.HasBlocker);
+        public Task<IReadOnlyDictionary<Guid, int>> GetHistoryCountsForUpdateAsync(IEnumerable<Guid> grossDemandIds) => Task.FromResult<IReadOnlyDictionary<Guid, int>>(grossDemandIds.ToDictionary(id => id, _ => 0));
+        public Task<bool> HasInvalidExitHistoryAsync(IEnumerable<Guid> grossDemandIds) => Task.FromResult(false);
+        public Task<ServiceResult<PagedResponseBase<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.SourceDemandCandidateDto>>> SearchCandidatesAsync(SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.SourceDemandCandidateSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.EstablishMaterialDemandsResult>> EstablishAsync(SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.EstablishMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.RollbackMaterialDemandsResult>> RollbackAsync(SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.RollbackMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
     /// <summary>仅实现接收协议使用的仓储成员，其余成员禁止测试误调用。</summary>
-    private sealed class FakeGrossDemandRepository : IGrossDemandRepository
+    private sealed class FakeGrossDemandRepository : IGrossDemandRepository, ISourceDeliveryRepository
     {
         public List<GrossDemand> Demands { get; } = [];
         public Dictionary<Guid, decimal> DeliveredQty { get; } = [];
         public bool HasBlocker { get; set; }
-        public Task<PagedResponseBase<SourceDemandDeliveryItemDto>> SearchDeliverableAsync(SourceDemandDeliverySearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<SourceDemandDeliveryItemDto?> GetDeliveryContextAsync(Guid grossDemandId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<IReadOnlyList<SourceDemandDeliveryItemDto>> GetDeliveryContextsForUpdateAsync(IEnumerable<Guid> grossDemandIds, CancellationToken cancellationToken = default)
+        public Task<PagedResponseBase<SourceDemandDeliveryItemDto>> SearchAsync(SourceDemandDeliverySearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<SourceDemandDeliveryItemDto?> GetAsync(Guid grossDemandId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<SourceDemandDeliveryItemDto>> GetForUpdateAsync(IEnumerable<Guid> grossDemandIds, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<SourceDemandDeliveryItemDto>>(Demands.Where(item => grossDemandIds.Contains(item.Uid)).Select(ToDelivery).ToList());
+        public Task<IReadOnlyList<SourceDemandDeliveryItemDto>> GetSourceForClosureForUpdateAsync(string sourceType, Guid sourceUid, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<SourceDemandDeliveryItemDto>>(Demands.Where(item => item.SourceType == sourceType && item.SourceUid == sourceUid).Select(ToDelivery).ToList());
         private SourceDemandDeliveryItemDto ToDelivery(GrossDemand demand)
         {
             var delivered = DeliveredQty.GetValueOrDefault(demand.Uid);
@@ -220,10 +256,12 @@ public sealed class SourceDemandReceptionServiceTests
                 SourceUid = demand.SourceUid, SourceLineId = demand.SourceLineId, SourceVersion = demand.SourceVersion,
                 CustomerId = demand.CustomerId, ProductId = demand.ProductId, Unit = demand.UnitSnapshot,
                 DemandQty = demand.DemandQty, DeliveredQty = delivered, RemainingQty = demand.DemandQty - delivered,
+                LifecycleStatus = demand.LifecycleStatus,
                 IsActive = demand.LifecycleStatus == GrossDemandLifecycleStatusEnum.Active && !demand.IsDeleted,
                 OrderPoolSalesOrderId = demand.SourceType == DocumentTypeStaticsEnum.SalesOrder ? demand.SourceUid : null,
-                IsInventoryActionAllowed = demand.SourceType == DocumentTypeStaticsEnum.SalesOrder,
-                InventoryBlockerCode = demand.SourceType == DocumentTypeStaticsEnum.ComplaintReplenishment ? "ORDER_POOL_OWNERSHIP_REQUIRED" : null
+                IsInventoryActionAllowed = demand.SourceVersion.HasValue && demand.CustomerId.HasValue
+                    && demand.ProductId.HasValue && !string.IsNullOrWhiteSpace(demand.UnitSnapshot),
+                InventoryBlockerCode = null
             };
         }
         public Task<IReadOnlyList<GrossDemand>> GetActiveBySourceForUpdateAsync(string sourceType, Guid sourceUid)
@@ -239,16 +277,12 @@ public sealed class SourceDemandReceptionServiceTests
             demand.Version = expectedVersion + 1;
             return Task.FromResult(RepositoryWriteResult.Ok(demand.Uid, expectedVersion, demand.Version));
         }
-        public Task<bool> HasSourceCancellationBlockerAsync(string sourceType, Guid sourceUid, IEnumerable<Guid> sourceLineIds) => Task.FromResult(HasBlocker);
         public Task<PagedResponseBase<GrossDemandListItemDto>> SearchWorkspaceAsync(GrossDemandSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<GrossDemandSourceGroupDto>> SearchSourceGroupsAsync(GrossDemandSourceGroupSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<GrossDemandDetailDto?> GetWorkspaceDetailAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<GrossDemand?> GetByIdForUpdateAsync(Guid uid) => throw new NotSupportedException();
-        public Task<RepositoryWriteResult> UpdateDecompositionStateAsync(Guid uid, int expectedVersion, GrossDemandDecompositionStatusEnum status, int decompositionRevision, DateTime? decomposedAt) => throw new NotSupportedException();
         public Task<RepositoryWriteResult> UpdateManualAsync(GrossDemand demand, int expectedVersion) => throw new NotSupportedException();
         public Task<RepositoryWriteResult> CloseManualAsync(Guid uid, int expectedVersion, string reason) => throw new NotSupportedException();
-        public Task<bool> HasInvalidSourceCancellationHistoryAsync(IEnumerable<Guid> grossDemandIds) => throw new NotSupportedException();
-        public Task<IReadOnlyDictionary<Guid, int>> GetNetDemandHistoryCountsForUpdateAsync(IEnumerable<Guid> grossDemandIds) => throw new NotSupportedException();
         public Task<int> HardDeleteNeverDecomposedAsync(IEnumerable<Guid> grossDemandIds) => throw new NotSupportedException();
         public Task<int> VoidRolledBackForSourceCancellationAsync(IEnumerable<Guid> grossDemandIds, string reason) => throw new NotSupportedException();
         public Task<int> VoidPendingBySourceAsync(string sourceType, Guid sourceUid, string reason) => throw new NotSupportedException();

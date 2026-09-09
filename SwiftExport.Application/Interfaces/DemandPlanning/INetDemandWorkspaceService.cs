@@ -1,4 +1,5 @@
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Interfaces.DemandPlanning;
@@ -8,6 +9,18 @@ namespace SwiftExport.Application.Interfaces.DemandPlanning;
 /// </summary>
 public interface INetDemandWorkspaceService
 {
+    /// <summary>查询尚可从来源需求建立物料需求的候选。</summary>
+    Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
+        SourceDemandCandidateSearchRequest request,
+        CancellationToken cancellationToken = default);
+    /// <summary>从来源需求原子建立物料需求。</summary>
+    Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishFromSourcesAsync(
+        EstablishMaterialDemandsCommand command,
+        CancellationToken cancellationToken = default);
+    /// <summary>安全回退来源对应的活动物料需求修订。</summary>
+    Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
+        RollbackMaterialDemandsCommand command,
+        CancellationToken cancellationToken = default);
     Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
         NetDemandSearchRequest request,
         CancellationToken cancellationToken = default);
@@ -19,6 +32,8 @@ public interface INetDemandWorkspaceService
         CancellationToken cancellationToken = default);
     Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default);
     Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default);
+    /// <summary>由物料领域读取一条来源需求的物料及执行追溯。</summary>
+    Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(Guid grossDemandId, CancellationToken cancellationToken = default);
     Task<ServiceResult<NetDemandPlanCommandResult>> ReplacePlanAsync(ReplaceNetDemandPlanCommand command);
     Task<ServiceResult<NetDemandPlanCommandResult>> ApplyDefaultSupplierAsync(ApplyProductDefaultSupplierCommand command);
     Task<ServiceResult<NetDemandPlanCommandResult>> BatchAssignSupplierAsync(BatchAssignSupplierCommand command);

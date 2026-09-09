@@ -14,9 +14,6 @@ public sealed class GrossDemandApiContractTests
     {
         AssertRoute(nameof(IGrossDemandWorkspaceApi.SearchAsync), typeof(PostAttribute), "/search", 0);
         AssertRoute(nameof(IGrossDemandWorkspaceApi.GetDetailAsync), typeof(GetAttribute), "/{uid}");
-        AssertRoute(nameof(IGrossDemandWorkspaceApi.GetTraceAsync), typeof(GetAttribute), "/{uid}/trace");
-        AssertRoute(nameof(IGrossDemandWorkspaceApi.DecomposeAsync), typeof(PostAttribute), "/decompose", 0);
-        AssertRoute(nameof(IGrossDemandWorkspaceApi.RollbackAsync), typeof(PostAttribute), "/rollback-decomposition", 0);
         AssertRoute(nameof(IGrossDemandWorkspaceApi.CreateManualAsync), typeof(PostAttribute), "/manual", 0);
         AssertRoute(nameof(IGrossDemandWorkspaceApi.UpdateManualAsync), typeof(PutAttribute), "/manual/{uid}", 1);
         AssertRoute(nameof(IGrossDemandWorkspaceApi.CloseManualAsync), typeof(PostAttribute), "/manual/{uid}/close", 1);
@@ -27,25 +24,18 @@ public sealed class GrossDemandApiContractTests
     {
         AssertHasCancellationToken(nameof(IGrossDemandWorkspaceApi.SearchAsync));
         AssertHasCancellationToken(nameof(IGrossDemandWorkspaceApi.GetDetailAsync));
-        AssertHasCancellationToken(nameof(IGrossDemandWorkspaceApi.GetTraceAsync));
-
-        AssertHasNoCancellationToken(nameof(IGrossDemandWorkspaceApi.DecomposeAsync));
-        AssertHasNoCancellationToken(nameof(IGrossDemandWorkspaceApi.RollbackAsync));
         AssertHasNoCancellationToken(nameof(IGrossDemandWorkspaceApi.CreateManualAsync));
         AssertHasNoCancellationToken(nameof(IGrossDemandWorkspaceApi.UpdateManualAsync));
         AssertHasNoCancellationToken(nameof(IGrossDemandWorkspaceApi.CloseManualAsync));
     }
 
     [TestMethod]
-    public void CommandItem_ShouldCarryConcurrencyAndClientCorrelationFields()
+    public void SourceApi_ShouldNotExposeMaterialEstablishmentCommands()
     {
-        var properties = typeof(GrossDemandCommandItem).GetProperties().Select(property => property.Name).ToArray();
-
-        CollectionAssert.Contains(properties, nameof(GrossDemandCommandItem.Uid));
-        CollectionAssert.Contains(properties, nameof(GrossDemandCommandItem.Version));
-        CollectionAssert.Contains(properties, nameof(GrossDemandCommandItem.ExpectedDecompositionRevision));
-        CollectionAssert.Contains(properties, nameof(GrossDemandCommandItem.ClientKey));
-        CollectionAssert.Contains(properties, nameof(GrossDemandCommandItem.RowIndex));
+        var methods = typeof(IGrossDemandWorkspaceApi).GetMethods().Select(method => method.Name).ToArray();
+        CollectionAssert.DoesNotContain(methods, "DecomposeAsync");
+        CollectionAssert.DoesNotContain(methods, "RollbackAsync");
+        CollectionAssert.DoesNotContain(methods, "GetTraceAsync");
     }
 
     [TestMethod]
@@ -56,6 +46,11 @@ public sealed class GrossDemandApiContractTests
         CollectionAssert.DoesNotContain(properties, "IsChecked");
         CollectionAssert.DoesNotContain(properties, "IsSelected");
         CollectionAssert.DoesNotContain(properties, "IsDirty");
+        CollectionAssert.DoesNotContain(properties, "ExecutionProgress");
+        CollectionAssert.DoesNotContain(properties, "ActiveNetDemandCount");
+        CollectionAssert.DoesNotContain(properties, "CustomerSuppliedNetDemandCount");
+        CollectionAssert.DoesNotContain(properties, "DecompositionStatus");
+        CollectionAssert.DoesNotContain(properties, "CanDecompose");
     }
 
     [TestMethod]
