@@ -79,9 +79,10 @@ public sealed partial class SourceDemandCandidatePickerViewModel(
     }
 
     /// <summary>切换来源单时取消上一单查询，并只接纳当前请求的完整结果。</summary>
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private Task SelectSourceGroupAsync(SourceDemandCandidateGroupModel? group)
-        => group is null || (ReferenceEquals(SelectedSourceGroup, group) && IsDetailLoaded)
+        => group is null || IsWriting || (ReferenceEquals(SelectedSourceGroup, group)
+            && (IsDetailLoaded || _detailCancellation is not null))
             ? Task.CompletedTask
             : SelectSourceGroupCoreAsync(group);
 
@@ -207,13 +208,15 @@ public sealed partial class SourceDemandCandidatePickerViewModel(
     {
         ThrowIfDisposed();
         var cancellation = ReplaceCancellation(ref _detailCancellation, externalCancellation);
-        SelectedSourceGroup = group;
         IsDetailLoaded = false;
         ClearItems();
         StatusText = $"正在加载 {group.DisplaySourceNo}...";
         IsBusy = true;
         try
         {
+            // 属性通知会同步触发列表选择事件；先准备请求状态，再发布选择并检查是否被替代。
+            SelectedSourceGroup = group;
+            if (!CanAccept(_detailCancellation, cancellation)) return;
             var result = await apiCallRunner.RunAsync(
                 () => api.GetSourceDemandCandidatesBySourceAsync(
                     group.SourceType, group.SourceUid, cancellation.Token),
@@ -277,15 +280,16 @@ public sealed partial class SourceDemandCandidatePickerViewModel(
         EstablishSelectedCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>置换查询取消源，使新查询可以替代旧查询。</summary>
+    /// <summary>先交接请求所有权再取消旧查询；取消源由所属请求的 finally 释放。</summary>
     private static CancellationTokenSource ReplaceCancellation(
         ref CancellationTokenSource? target,
         CancellationToken externalCancellation)
     {
-        target?.Cancel();
-        target?.Dispose();
+        var previous = target;
         target = CancellationTokenSource.CreateLinkedTokenSource(externalCancellation);
-        return target;
+        var current = target;
+        previous?.Cancel();
+        return current;
     }
 
     /// <summary>确认请求仍属于当前页面实例及当前查询入口。</summary>
@@ -303,14 +307,15 @@ public sealed partial class SourceDemandCandidatePickerViewModel(
         request.Dispose();
     }
 
+    /// <summary>先移除请求所有权再取消，防止取消回调重入；在途请求自行释放资源。</summary>
     private void CancelPendingRequests()
     {
-        _groupCancellation?.Cancel();
-        _groupCancellation?.Dispose();
+        var groups = _groupCancellation;
+        var details = _detailCancellation;
         _groupCancellation = null;
-        _detailCancellation?.Cancel();
-        _detailCancellation?.Dispose();
         _detailCancellation = null;
+        groups?.Cancel();
+        details?.Cancel();
     }
 
     private void ThrowIfDisposed()

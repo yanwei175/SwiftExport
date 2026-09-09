@@ -101,6 +101,13 @@ public sealed class SourceDemandCandidatePickerViewModelTests
         };
         using var viewModel = new SourceDemandCandidatePickerViewModel(api, new DirectApiCallRunner());
         await viewModel.OpenAsync();
+        var selectionCallbacks = new List<Task>();
+        // 模拟 WPF 绑定在属性通知中同步回送 SelectionChanged，而非等待查询完成。
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(viewModel.SelectedSourceGroup))
+                selectionCallbacks.Add(viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SelectedSourceGroup));
+        };
 
         viewModel.Items[0].IsChecked = true;
         await viewModel.EstablishSelectedCommand.ExecuteAsync(null);
@@ -117,6 +124,35 @@ public sealed class SourceDemandCandidatePickerViewModelTests
         Assert.AreEqual(0, viewModel.Items.Count);
         Assert.IsNull(viewModel.SelectedSourceGroup);
         Assert.IsTrue(viewModel.HasEstablished);
+        await Task.WhenAll(selectionCallbacks);
+    }
+
+    /// <summary>第二次打开时仍有绑定监听者，同步选择回送不得重复查询或释放当前取消源。</summary>
+    [TestMethod]
+    public async Task Reopen_WithSynchronousSelectionCallback_ShouldLoadOnce()
+    {
+        var sourceUid = Guid.NewGuid();
+        var (api, proxy) = CreateApi();
+        proxy.Groups = [CreateGroup("SO-REOPEN", sourceUid, 1)];
+        proxy.DetailHandler = (_, uid, _) => Task.FromResult(
+            ServiceResult<List<SourceDemandCandidateDto>>.Ok([CreateCandidate(uid, "SO-REOPEN", 1)]));
+        using var viewModel = new SourceDemandCandidatePickerViewModel(api, new DirectApiCallRunner());
+        await viewModel.OpenAsync();
+        var callbacks = new List<Task>();
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(viewModel.SelectedSourceGroup))
+                callbacks.Add(viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SelectedSourceGroup));
+        };
+        viewModel.Close();
+
+        await viewModel.OpenAsync();
+        await Task.WhenAll(callbacks);
+
+        Assert.AreEqual(2, proxy.DetailCalls.Count, "每次打开只能加载一次明细。");
+        Assert.AreEqual(1, viewModel.Items.Count);
+        Assert.IsTrue(viewModel.IsDetailLoaded);
+        Assert.IsFalse(viewModel.IsBusy);
     }
 
     private static (INetDemandWorkspaceApi Api, CandidateApiProxy Proxy) CreateApi()

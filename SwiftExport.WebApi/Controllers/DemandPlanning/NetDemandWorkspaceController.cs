@@ -14,6 +14,20 @@ namespace SwiftExport.WebApi.Controllers.DemandPlanning;
 [Route("api/demand-planning/net-demands")]
 public sealed class NetDemandWorkspaceController(INetDemandServices service, INetDemandWorkspaceService legacyService) : ControllerBase
 {
+    /// <summary>查询不依赖计划分配表的物料需求工作台列表。</summary>
+    [HttpPost("material-search")]
+    public Task<ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>> SearchMaterialWorkspaceAsync(
+        [FromBody] MaterialDemandWorkspaceSearchRequest request,
+        CancellationToken cancellationToken)
+        => service.SearchMaterialWorkspaceAsync(request, cancellationToken);
+
+    /// <summary>查询仅按来源事实汇总的物料需求来源导航。</summary>
+    [HttpPost("material-source-groups")]
+    public Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchMaterialSourceGroupsAsync(
+        [FromBody] MaterialDemandSourceGroupSearchRequest request,
+        CancellationToken cancellationToken)
+        => service.SearchMaterialSourceGroupsAsync(request, cancellationToken);
+
     /// <summary>查询由物料领域计算的来源需求建立候选。</summary>
     [HttpPost("source-demands/candidates/search")]
     public Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
@@ -49,7 +63,7 @@ public sealed class NetDemandWorkspaceController(INetDemandServices service, INe
         CancellationToken cancellationToken)
         => service.RollbackSourceEstablishmentAsync(command, cancellationToken);
 
-    /// <summary>查询物料需求列表，沿用现有筛选和数量口径。</summary>
+    /// <summary>兼容旧计划与采购消费者的列表查询。</summary>
     [HttpPost("search")]
     public Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
         [FromBody] NetDemandSearchRequest request,

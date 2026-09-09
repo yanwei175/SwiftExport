@@ -1,8 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.DemandPlanning;
-using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
-using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
@@ -21,25 +19,20 @@ namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.NetDemand;
 public sealed class NetDemandWorkspaceSourceNavigationTests
 {
     [TestMethod]
-    public async Task SelectingSource_ShouldUseIndependentFiltersAndKeepNormalPageSize()
+    public async Task SelectingSource_ShouldUseSourceFactFilterAndKeepNormalPageSize()
     {
         var sourceUid = Guid.NewGuid();
         var api = new RecordingNetDemandApi(sourceUid);
         using var viewModel = CreateViewModel(api);
         await viewModel.InitializeAsync();
         viewModel.Keyword = "顶部条件不应进入来源模式";
-        viewModel.SelectedExecutionTypes.Add(viewModel.ExecutionTypeOptions[0]);
         viewModel.SourceSourceTypes.Add(viewModel.SourceTypeOptions[0]);
-        viewModel.SourcePlanStatuses.Add(viewModel.PlanStatusOptions[2]);
 
         await viewModel.ToggleSourcePanelCommand.ExecuteAsync(null);
 
         Assert.IsTrue(viewModel.IsSourcePanelOpen);
         Assert.AreEqual(1, api.SourceGroupRequests.Count);
         CollectionAssert.AreEqual(new[] { "SO" }, api.SourceGroupRequests[0].SourceTypes);
-        CollectionAssert.AreEqual(
-            new[] { NetDemandPlanStatusEnum.ReadyForPurchase },
-            api.SourceGroupRequests[0].PlanStatuses);
 
         var changedProperties = new List<string?>();
         viewModel.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
@@ -48,11 +41,7 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
         var sourceRequest = api.SearchRequests.Last();
         Assert.AreEqual(sourceUid, sourceRequest.SourceUid);
         CollectionAssert.AreEqual(new[] { "SO" }, sourceRequest.SourceTypes);
-        CollectionAssert.AreEqual(
-            new[] { NetDemandPlanStatusEnum.ReadyForPurchase },
-            sourceRequest.PlanStatuses);
         Assert.IsTrue(string.IsNullOrWhiteSpace(sourceRequest.Keyword));
-        Assert.AreEqual(0, sourceRequest.ExecutionTypes.Count);
         Assert.IsTrue(viewModel.IsSourceSelected);
         Assert.AreEqual(20, viewModel.PageSize);
         Assert.AreEqual(1, viewModel.TotalPages);
@@ -81,6 +70,21 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
     }
 
     [TestMethod]
+    public async Task SafeRollback_ShouldKeepSourceRevisionCommandAvailable()
+    {
+        var api = new RecordingNetDemandApi(Guid.NewGuid());
+        using var viewModel = CreateViewModel(api);
+        await viewModel.InitializeAsync();
+        viewModel.Items.Single().IsChecked = true;
+        var grossDemandId = viewModel.Items.Single().GrossDemandId;
+
+        await viewModel.RollbackSourceEstablishmentCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(1, api.RollbackCommands.Count);
+        Assert.AreEqual(grossDemandId, api.RollbackCommands[0].Items.Single().GrossDemandId);
+    }
+
+    [TestMethod]
     public void WorkspaceView_ShouldExposeSourceListAndFullWidthMultilinePopup()
     {
         var workspace = XDocument.Load(Path.Combine(
@@ -99,7 +103,7 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
         Assert.AreEqual("OnSourceGroupSelectionChanged", (string?)sourceList.Attribute("SelectionChanged"));
 
         var sourcePanel = sourceList.Ancestors(presentation + "Border").First();
-        Assert.AreEqual(2, sourcePanel.Descendants().Count(element => element.Name.LocalName == "DropDownCheckBox"));
+        Assert.AreEqual(1, sourcePanel.Descendants().Count(element => element.Name.LocalName == "DropDownCheckBox"));
         StringAssert.Contains((string?)sourcePanel.Attribute("Visibility") ?? string.Empty, "IsSourcePanelOpen");
 
         var popup = workspace.Descendants(presentation + "Popup").Single();
@@ -109,7 +113,18 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
         Assert.AreEqual(3, textBoxes.Length);
         Assert.IsTrue(textBoxes.All(element => string.Equals((string?)element.Attribute("AcceptsReturn"), "True", StringComparison.Ordinal)));
         Assert.IsTrue(textBoxes.All(element => string.Equals((string?)element.Attribute("TextWrapping"), "Wrap", StringComparison.Ordinal)));
-        Assert.AreEqual(4, popup.Descendants(presentation + "DatePicker").Count());
+        Assert.AreEqual(2, popup.Descendants(presentation + "DatePicker").Count());
+
+        var buttonTexts = workspace.Descendants(presentation + "Button")
+            .Select(element => (string?)element.Attribute("Content"))
+            .Where(text => text is not null)
+            .ToArray();
+        CollectionAssert.DoesNotContain(buttonTexts, "修改计划");
+        CollectionAssert.DoesNotContain(buttonTexts, "批量分配供应商");
+        CollectionAssert.DoesNotContain(buttonTexts, "应用产品默认供应商");
+        CollectionAssert.DoesNotContain(buttonTexts, "人工转采购");
+        CollectionAssert.DoesNotContain(buttonTexts, "来源一键转采购");
+        CollectionAssert.DoesNotContain(buttonTexts, "计划追溯");
 
         var pagerTrigger = workspace.Descendants(presentation + "DataTrigger")
             .Single(element => ((string?)element.Attribute("Binding"))?.Contains("IsSourceSelected", StringComparison.Ordinal) == true);
@@ -121,23 +136,12 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
         var runner = new DirectApiCallRunner();
         var messages = new MessageServiceStub();
         var dialogs = new DialogServiceStub();
-        var supplierApi = DispatchProxy.Create<ISupplierApi, NoCallProxy>();
-        var planEditor = new NetDemandPlanEditorViewModel(api, supplierApi, runner, messages);
-        var trace = new NetDemandTraceViewModel(
-            api,
-            runner,
-            DispatchProxy.Create<INetDemandTraceExportService, NoCallProxy>(),
-            messages,
-            dialogs);
         return new NetDemandWorkspaceViewModel(
             api,
-            supplierApi,
             runner,
             dialogs,
             messages,
-            DispatchProxy.Create<INetDemandDialogService, NoCallProxy>(),
-            planEditor,
-            trace);
+            DispatchProxy.Create<INetDemandDialogService, NoCallProxy>());
     }
 
     private static string FindRepositoryRoot()
@@ -154,13 +158,14 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
         return string.Empty;
     }
 
-    private sealed class RecordingNetDemandApi(Guid sourceUid) : INetDemandWorkspaceApi
+    private sealed class RecordingNetDemandApi(Guid sourceUid) : IMaterialDemandWorkspaceApi
     {
-        public List<NetDemandSearchRequest> SearchRequests { get; } = [];
-        public List<NetDemandSourceGroupSearchRequest> SourceGroupRequests { get; } = [];
+        public List<MaterialDemandWorkspaceSearchRequest> SearchRequests { get; } = [];
+        public List<MaterialDemandSourceGroupSearchRequest> SourceGroupRequests { get; } = [];
+        public List<RollbackMaterialDemandsCommand> RollbackCommands { get; } = [];
 
-        public Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
-            NetDemandSearchRequest request,
+        public Task<ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>> SearchAsync(
+            MaterialDemandWorkspaceSearchRequest request,
             CancellationToken cancellationToken = default)
         {
             SearchRequests.Add(request);
@@ -168,7 +173,7 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
             var items = sourceMode
                 ? new[] { CreateItem(sourceUid, 1), CreateItem(sourceUid, 2) }
                 : new[] { CreateItem(sourceUid, 1) };
-            return Task.FromResult(ServiceResult<PagedResponseBase<NetDemandListItemDto>>.Ok(new PagedResponseBase<NetDemandListItemDto>
+            return Task.FromResult(ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>.Ok(new PagedResponseBase<MaterialDemandWorkspaceItemDto>
             {
                 Items = items.ToList(),
                 TotalCount = items.Length,
@@ -178,7 +183,7 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
         }
 
         public Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
-            NetDemandSourceGroupSearchRequest request,
+            MaterialDemandSourceGroupSearchRequest request,
             CancellationToken cancellationToken = default)
         {
             SourceGroupRequests.Add(request);
@@ -194,25 +199,18 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
             ]));
         }
 
-        public Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(SourceDemandCandidateSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<List<SourceDemandCandidateDto>>> GetSourceDemandCandidatesBySourceAsync(string sourceType, Guid sourceUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishFromSourcesAsync(EstablishMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(RollbackMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.GrossDemandTraceDto>> GetSourceDemandTraceAsync(Guid grossDemandId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<NetDemandPlanCommandResult>> ReplacePlanAsync(ReplaceNetDemandPlanCommand command) => throw new NotSupportedException();
-        public Task<ServiceResult<NetDemandPlanCommandResult>> ApplyDefaultSupplierAsync(ApplyProductDefaultSupplierCommand command) => throw new NotSupportedException();
-        public Task<ServiceResult<NetDemandPlanCommandResult>> BatchAssignSupplierAsync(BatchAssignSupplierCommand command) => throw new NotSupportedException();
-        public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewPurchaseDraftsAsync(PurchaseDraftPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<CreatePurchaseDraftsResult>> CreatePurchaseDraftsAsync(CreatePurchaseDraftsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelPurchaseDraftAsync(Guid uid, CancelPurchaseDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewPurchaseDraftReleaseAsync(Guid uid, PurchaseDraftReleasePreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleasePurchaseDraftAsync(Guid uid, ReleasePurchaseDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(string sourceType, Guid sourceUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
+            RollbackMaterialDemandsCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            RollbackCommands.Add(command);
+            return Task.FromResult(ServiceResult<RollbackMaterialDemandsResult>.Ok(new RollbackMaterialDemandsResult
+            {
+                RolledBackSourceCount = command.Items.Count,
+            }));
+        }
 
-        private static NetDemandListItemDto CreateItem(Guid sourceUid, int lineNumber) => new()
+        private static MaterialDemandWorkspaceItemDto CreateItem(Guid sourceUid, int lineNumber) => new()
         {
             Uid = Guid.NewGuid(),
             Version = 1,
@@ -223,13 +221,8 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
             SourceNo = "SO-1001",
             RootNetDemandId = Guid.NewGuid(),
             Sku = $"SKU-{lineNumber}",
-            AllocationId = Guid.NewGuid(),
-            AllocationVersion = 1,
-            ExecutionType = DemandExecutionTypeEnum.Purchase,
-            PlanStatus = NetDemandPlanStatusEnum.ReadyForPurchase,
             NetQty = 1m,
-            PlannedQty = 1m,
-            RemainingQty = 1m,
+            AssociatedPurchaseQty = 1m,
         };
     }
 

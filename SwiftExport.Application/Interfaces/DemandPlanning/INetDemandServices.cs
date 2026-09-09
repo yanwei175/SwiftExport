@@ -9,6 +9,14 @@ namespace SwiftExport.Application.Interfaces.DemandPlanning;
 /// </summary>
 public interface INetDemandServices
 {
+    /// <summary>查询不依赖计划分配表的物料需求工作台列表。</summary>
+    Task<ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>> SearchMaterialWorkspaceAsync(
+        MaterialDemandWorkspaceSearchRequest request,
+        CancellationToken cancellationToken = default);
+    /// <summary>查询仅按来源事实汇总的工作台来源导航。</summary>
+    Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchMaterialSourceGroupsAsync(
+        MaterialDemandSourceGroupSearchRequest request,
+        CancellationToken cancellationToken = default);
     /// <summary>查询尚可从来源需求建立物料需求的候选。</summary>
     Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
         SourceDemandCandidateSearchRequest request,
@@ -29,7 +37,7 @@ public interface INetDemandServices
     Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
         RollbackMaterialDemandsCommand command,
         CancellationToken cancellationToken = default);
-    /// <summary>查询物料需求列表，沿用现有筛选和数量口径。</summary>
+    /// <summary>兼容旧计划与采购消费者的列表查询。</summary>
     Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
         NetDemandSearchRequest request,
         CancellationToken cancellationToken = default);

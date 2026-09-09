@@ -10,6 +10,14 @@ namespace SwiftExport.Core.Interfaces.DemandPlanning;
 /// </summary>
 public interface INetDemandRepository
 {
+    /// <summary>查询不依赖计划分配表的物料需求工作台列表。</summary>
+    Task<PagedResponseBase<MaterialDemandWorkspaceItemDto>> SearchMaterialWorkspaceAsync(
+        MaterialDemandWorkspaceSearchRequest request,
+        CancellationToken cancellationToken = default);
+    /// <summary>按来源事实汇总物料需求工作台左侧导航。</summary>
+    Task<IReadOnlyList<NetDemandSourceGroupDto>> SearchMaterialSourceGroupsAsync(
+        MaterialDemandSourceGroupSearchRequest request,
+        CancellationToken cancellationToken = default);
     Task<PagedResponseBase<NetDemandListItemDto>> SearchWorkspaceAsync(
         NetDemandSearchRequest request,
         CancellationToken cancellationToken = default);

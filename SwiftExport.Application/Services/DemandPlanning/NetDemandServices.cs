@@ -9,8 +9,8 @@ using SwiftExport.Core.Interfaces.DemandPlanning;
 
 namespace SwiftExport.Application.Services.DemandPlanning;
 
-/// <summary>物料需求的新服务入口，负责来源建立交接及物料查询，供后续页面能力演进。</summary>
-/// <remarks>当前查询仍兼容 Allocation 和旧追溯 DTO，本次迁移不改变业务行为。</remarks>
+/// <summary>物料需求服务入口，负责来源建立交接及物料查询。</summary>
+/// <remarks>工作台新查询不依赖 Allocation；详情、追溯与旧查询仍为未迁移消费者保留兼容。</remarks>
 public sealed class NetDemandServices(
     ServiceBaseContext context,
     IGrossDemandRepository grossDemandRepository,
@@ -20,6 +20,46 @@ public sealed class NetDemandServices(
     IMaterialDemandEstablishmentService establishmentService) : INetDemandServices
 {
     private readonly ILogger<NetDemandServices> _logger = context.LoggerFactory.CreateLogger<NetDemandServices>();
+
+    /// <summary>查询物料需求工作台的物料事实和有效采购关联汇总。</summary>
+    public async Task<ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>> SearchMaterialWorkspaceAsync(
+        MaterialDemandWorkspaceSearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            request ??= new MaterialDemandWorkspaceSearchRequest();
+            request.PageIndex = Math.Max(1, request.PageIndex);
+            request.PageSize = Math.Clamp(request.PageSize, 1, 200);
+            return ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>.Ok(
+                await netDemandRepository.SearchMaterialWorkspaceAsync(request, cancellationToken));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "查询物料需求工作台失败。");
+            return ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>.Fail("查询物料需求失败。");
+        }
+    }
+
+    /// <summary>查询不含计划状态的物料需求来源导航。</summary>
+    public async Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchMaterialSourceGroupsAsync(
+        MaterialDemandSourceGroupSearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            request ??= new MaterialDemandSourceGroupSearchRequest();
+            var groups = await netDemandRepository.SearchMaterialSourceGroupsAsync(request, cancellationToken);
+            return ServiceResult<List<NetDemandSourceGroupDto>>.Ok([.. groups]);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "查询物料需求来源导航失败。");
+            return ServiceResult<List<NetDemandSourceGroupDto>>.Fail("查询物料需求来源导航失败。");
+        }
+    }
 
     /// <summary>查询可建立物料需求的来源候选，返回分页结果。</summary>
     public Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
@@ -78,7 +118,7 @@ public sealed class NetDemandServices(
         CancellationToken cancellationToken = default)
         => establishmentService.RollbackAsync(command, cancellationToken);
 
-    /// <summary>查询物料需求列表，沿用现有筛选和数量口径。</summary>
+    /// <summary>兼容旧计划与采购消费者的列表查询。</summary>
     public async Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
         NetDemandSearchRequest request,
         CancellationToken cancellationToken = default)
