@@ -9,9 +9,25 @@ namespace SwiftExport.Application.Interfaces.DemandPlanning;
 /// </summary>
 public interface INetDemandServices
 {
+    /// <summary>查询不依赖计划分配表的物料需求工作台列表。</summary>
+    Task<ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>> SearchMaterialWorkspaceAsync(
+        MaterialDemandWorkspaceSearchRequest request,
+        CancellationToken cancellationToken = default);
+    /// <summary>查询仅按来源事实汇总的工作台来源导航。</summary>
+    Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchMaterialSourceGroupsAsync(
+        MaterialDemandSourceGroupSearchRequest request,
+        CancellationToken cancellationToken = default);
     /// <summary>查询尚可从来源需求建立物料需求的候选。</summary>
     Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
         SourceDemandCandidateSearchRequest request,
+        CancellationToken cancellationToken = default);
+    /// <summary>查询全部仍包含待建立来源行的来源单分组。</summary>
+    Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(
+        CancellationToken cancellationToken = default);
+    /// <summary>按稳定来源身份完整查询一张来源单的全部待建立行。</summary>
+    Task<ServiceResult<List<SourceDemandCandidateDto>>> GetSourceDemandCandidatesBySourceAsync(
+        string sourceType,
+        Guid sourceUid,
         CancellationToken cancellationToken = default);
     /// <summary>从来源需求原子建立物料需求。</summary>
     Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishFromSourcesAsync(
@@ -21,7 +37,7 @@ public interface INetDemandServices
     Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
         RollbackMaterialDemandsCommand command,
         CancellationToken cancellationToken = default);
-    /// <summary>查询物料需求列表，沿用现有筛选和数量口径。</summary>
+    /// <summary>兼容旧计划与采购消费者的列表查询。</summary>
     Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
         NetDemandSearchRequest request,
         CancellationToken cancellationToken = default);

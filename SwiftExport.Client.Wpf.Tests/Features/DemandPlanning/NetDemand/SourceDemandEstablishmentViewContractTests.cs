@@ -16,8 +16,17 @@ public sealed class SourceDemandEstablishmentViewContractTests
 
         StringAssert.Contains(netView, "EstablishFromSourcesCommand");
         StringAssert.Contains(netView, "RollbackSourceEstablishmentCommand");
+        StringAssert.Contains(picker, "SourceGroups");
+        StringAssert.Contains(picker, "SelectedSourceGroup");
+        StringAssert.Contains(picker, "DataGridTemplateColumn");
         StringAssert.Contains(picker, "Demand.SourceNo");
         StringAssert.Contains(picker, "Demand.SourceLineNumber");
+        StringAssert.Contains(picker, "Demand.LinkSku");
+        StringAssert.Contains(picker, "Demand.ImagePath");
+        StringAssert.Contains(picker, "EstablishSelectedCommand");
+        Assert.IsFalse(picker.Contains("DataGridCheckBoxColumn", StringComparison.Ordinal));
+        Assert.IsFalse(picker.Contains("Keyword", StringComparison.Ordinal));
+        Assert.IsFalse(picker.Contains("SearchCommand", StringComparison.Ordinal));
         Assert.IsFalse(sourceView.Contains("DecomposeSelectedCommand", StringComparison.Ordinal));
         Assert.IsFalse(sourceView.Contains("RollbackSelectedCommand", StringComparison.Ordinal));
     }

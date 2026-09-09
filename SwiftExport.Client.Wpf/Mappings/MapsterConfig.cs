@@ -8,6 +8,7 @@ using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
+using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExportClient.Features.Customers.CustomerManagement.Models;
 using SwiftExportClient.Features.Customers.CustomerProducts.Models;
 using SwiftExportClient.Features.Products.Bom.Models;
@@ -19,6 +20,7 @@ using SwiftExportClient.Features.Suppliers.SupplierManagement.Models;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Features.QualityControl.AfterSales.Models;
+using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 
 namespace SwiftExportClient.Mappings;
 
@@ -26,6 +28,27 @@ public sealed class MapsterConfig : IRegister
 {
     public void Register(TypeAdapterConfig config)
     {
+        config.NewConfig<SourceDemandCandidateGroupDto, SourceDemandCandidateGroupModel>()
+            .Map(dest => dest.SourceType, src => src.SourceType ?? string.Empty)
+            .Map(dest => dest.SourceNo, src => src.SourceNo ?? string.Empty);
+
+        config.NewConfig<MaterialDemandWorkspaceItemDto, MaterialDemandWorkspaceRowModel>()
+            .Ignore(dest => dest.IsChecked)
+            .Map(dest => dest.SourceType, src => src.SourceType ?? string.Empty)
+            .Map(dest => dest.SourceNo, src => src.SourceNo ?? string.Empty)
+            .Map(dest => dest.RootSku, src => src.RootSku ?? string.Empty)
+            .Map(dest => dest.Sku, src => src.Sku ?? string.Empty)
+            .Map(dest => dest.LinkSku, src => src.LinkSku ?? string.Empty)
+            .Map(dest => dest.CustomerSku, src => src.CustomerSku ?? string.Empty)
+            .Map(dest => dest.Description, src => src.Description ?? string.Empty)
+            .Map(dest => dest.Color, src => src.Color ?? string.Empty)
+            .Map(dest => dest.Specification, src => src.Specification ?? string.Empty)
+            .Map(dest => dest.ImagePath, src => src.ImagePath ?? string.Empty)
+            .Map(dest => dest.MaterialType, src => src.MaterialType ?? string.Empty)
+            .Map(dest => dest.Unit, src => src.Unit ?? string.Empty)
+            .Map(dest => dest.SupplyType, src => src.SupplyType ?? string.Empty)
+            .Map(dest => dest.PurchaseOrderNos, src => src.PurchaseOrderNos ?? string.Empty);
+
         config.NewConfig<ProductColorDto, ProductColorFilterOption>()
             .Ignore(dest => dest.IsChecked);
 

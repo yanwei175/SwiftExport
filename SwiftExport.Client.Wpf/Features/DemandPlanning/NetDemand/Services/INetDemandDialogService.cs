@@ -5,8 +5,8 @@ namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 
 public interface INetDemandDialogService
 {
-    /// <summary>打开来源需求候选列表并返回用户勾选的纯业务 DTO。</summary>
-    Task<IReadOnlyList<SourceDemandCandidateDto>> ShowSourceDemandCandidatesAsync(
+    /// <summary>打开来源需求选择器，并返回本次对话框是否已成功建立过物料需求。</summary>
+    Task<bool> ShowSourceDemandCandidatesAsync(
         CancellationToken cancellationToken = default);
     Task<bool> ShowPurchaseDraftPreviewAsync(
         PurchaseDraftPreviewOpenRequest request,

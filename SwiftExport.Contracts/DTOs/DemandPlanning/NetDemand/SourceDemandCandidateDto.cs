@@ -14,8 +14,12 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public Guid SourceLineId { get; set; }
         public int SourceLineNumber { get; set; }
         public string Sku { get; set; }
+        /// <summary>来源需求建立时保存的关联 SKU 快照。</summary>
+        public string LinkSku { get; set; }
         public string CustomerSku { get; set; }
         public string Description { get; set; }
+        /// <summary>来源需求建立时保存的产品图片路径快照。</summary>
+        public string ImagePath { get; set; }
         public decimal DemandQty { get; set; }
         public DateTime? RequiredDate { get; set; }
         public int LatestDecompositionRevision { get; set; }

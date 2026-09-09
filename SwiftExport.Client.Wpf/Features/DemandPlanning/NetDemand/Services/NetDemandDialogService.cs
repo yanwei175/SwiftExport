@@ -11,8 +11,8 @@ public sealed class NetDemandDialogService(
     SourceDemandCandidatePickerViewModel sourceDemandPicker,
     IContentDialogService contentDialogService) : INetDemandDialogService
 {
-    /// <summary>展示物料领域候选并只把用户显式勾选的来源需求带回工作台。</summary>
-    public async Task<IReadOnlyList<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.SourceDemandCandidateDto>> ShowSourceDemandCandidatesAsync(
+    /// <summary>展示物料领域候选，建立成功后在对话框内刷新来源单与当前明细。</summary>
+    public async Task<bool> ShowSourceDemandCandidatesAsync(
         CancellationToken cancellationToken = default)
     {
         await sourceDemandPicker.OpenAsync(cancellationToken);
@@ -20,14 +20,28 @@ public sealed class NetDemandDialogService(
         {
             Title = "从来源需求建立物料需求",
             Content = new SourceDemandCandidatePickerView { DataContext = sourceDemandPicker },
-            PrimaryButtonText = "建立物料需求",
-            CloseButtonText = "取消",
-            DefaultButton = ContentDialogButton.Primary,
-            DialogWidth = 1100,
-            DialogMaxWidth = 1100
+            CloseButtonText = "关闭",
+            DefaultButton = ContentDialogButton.Close,
+            DialogWidth = 1400,
+            DialogMaxWidth = 1600
         };
-        var result = await contentDialogService.ShowAsync(dialog, cancellationToken);
-        return result == ContentDialogResult.Primary ? sourceDemandPicker.SelectedRows : [];
+        dialog.Closing += (_, args) =>
+        {
+            // 写命令已经进入服务端后不允许关闭并丢失结果接纳与刷新。
+            if (sourceDemandPicker.IsWriting)
+            {
+                args.Cancel = true;
+            }
+        };
+        try
+        {
+            await contentDialogService.ShowAsync(dialog, cancellationToken);
+            return sourceDemandPicker.HasEstablished;
+        }
+        finally
+        {
+            sourceDemandPicker.Close();
+        }
     }
 
     public async Task<bool> ShowPurchaseDraftPreviewAsync(

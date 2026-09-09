@@ -10,6 +10,14 @@ namespace SwiftExport.Core.Interfaces.DemandPlanning;
 /// </summary>
 public interface INetDemandRepository
 {
+    /// <summary>查询不依赖计划分配表的物料需求工作台列表。</summary>
+    Task<PagedResponseBase<MaterialDemandWorkspaceItemDto>> SearchMaterialWorkspaceAsync(
+        MaterialDemandWorkspaceSearchRequest request,
+        CancellationToken cancellationToken = default);
+    /// <summary>按来源事实汇总物料需求工作台左侧导航。</summary>
+    Task<IReadOnlyList<NetDemandSourceGroupDto>> SearchMaterialSourceGroupsAsync(
+        MaterialDemandSourceGroupSearchRequest request,
+        CancellationToken cancellationToken = default);
     Task<PagedResponseBase<NetDemandListItemDto>> SearchWorkspaceAsync(
         NetDemandSearchRequest request,
         CancellationToken cancellationToken = default);
@@ -32,6 +40,14 @@ public interface INetDemandRepository
     /// <summary>由物料领域查询来源需求建立候选，状态通过活动物料事实和历史联表计算。</summary>
     Task<PagedResponseBase<SourceDemandCandidateDto>> SearchSourceDemandCandidatesAsync(
         SourceDemandCandidateSearchRequest request,
+        CancellationToken cancellationToken = default);
+    /// <summary>查询全部仍包含可建立来源行的来源单分组。</summary>
+    Task<IReadOnlyList<SourceDemandCandidateGroupDto>> GetSourceDemandCandidateGroupsAsync(
+        CancellationToken cancellationToken = default);
+    /// <summary>按来源类型和来源 Uid 完整查询一张来源单的全部可建立行。</summary>
+    Task<IReadOnlyList<SourceDemandCandidateDto>> GetSourceDemandCandidatesBySourceAsync(
+        string sourceType,
+        Guid sourceUid,
         CancellationToken cancellationToken = default);
     /// <summary>锁定来源对应的物料历史并取得下一修订号。</summary>
     Task<int> GetNextDecompositionRevisionForUpdateAsync(Guid grossDemandId);

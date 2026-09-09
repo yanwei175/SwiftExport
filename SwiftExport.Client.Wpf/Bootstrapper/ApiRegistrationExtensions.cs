@@ -93,6 +93,7 @@ public static class ApiRegistrationExtensions
         services.AddControllerApi<ISalesFulfillmentDetailApi>("sales-fulfillment/detail");
         services.AddControllerApi<IGrossDemandWorkspaceApi>("demand-planning/gross-demands");
         services.AddControllerApi<INetDemandWorkspaceApi>("demand-planning/net-demands");
+        services.AddControllerApi<IMaterialDemandWorkspaceApi>("demand-planning/net-demands");
         services.AddControllerApi<IPurchaseOrderWorkspaceApi>("procurement/purchase-orders");
         services.AddControllerApi<IProcurementOrderApi>("procurement/orders");
         services.AddControllerApi<IPurchaseOrderManagerApi>("procurement/order-manager");

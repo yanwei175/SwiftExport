@@ -20,6 +20,18 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
             [Body] SourceDemandCandidateSearchRequest request,
             CancellationToken cancellationToken = default(CancellationToken));
 
+        /// <summary>查询全部仍包含待建立行的来源单分组。</summary>
+        [Get("/source-demands/candidate-groups")]
+        Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>按稳定来源身份完整查询该单全部待建立来源行。</summary>
+        [Get("/source-demands/candidates/{sourceType}/{sourceUid}")]
+        Task<ServiceResult<List<SourceDemandCandidateDto>>> GetSourceDemandCandidatesBySourceAsync(
+            string sourceType,
+            Guid sourceUid,
+            CancellationToken cancellationToken = default(CancellationToken));
+
         /// <summary>从来源需求建立物料需求。</summary>
         [Post("/source-demands/establish")]
         Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishFromSourcesAsync(
