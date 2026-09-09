@@ -14,12 +14,16 @@ public sealed class NetDemandApiContractTests
     {
         AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchAsync), typeof(PostAttribute), "/material-search", 0);
         AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchSourceGroupsAsync), typeof(PostAttribute), "/material-source-groups", 0);
+        AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.UpdateSuggestedPurchaseSupplierAsync), typeof(PostAttribute), "/suggested-purchase-supplier", 0);
         AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.RollbackSourceEstablishmentAsync), typeof(PostAttribute), "/source-demands/rollback", 0);
         AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchAsync));
         AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchSourceGroupsAsync));
+        AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.UpdateSuggestedPurchaseSupplierAsync));
 
         var itemProperties = typeof(MaterialDemandWorkspaceItemDto).GetProperties().Select(property => property.Name).ToArray();
         CollectionAssert.Contains(itemProperties, nameof(MaterialDemandWorkspaceItemDto.AssociatedPurchaseQty));
+        CollectionAssert.Contains(itemProperties, nameof(MaterialDemandWorkspaceItemDto.SuggestedPurchaseSupplierId));
+        CollectionAssert.Contains(itemProperties, nameof(MaterialDemandWorkspaceItemDto.SuggestedDeliverySupplierId));
         CollectionAssert.DoesNotContain(itemProperties, "AllocationId");
         CollectionAssert.DoesNotContain(itemProperties, "PlannedQty");
         CollectionAssert.DoesNotContain(itemProperties, "RemainingQty");
@@ -29,6 +33,15 @@ public sealed class NetDemandApiContractTests
         CollectionAssert.DoesNotContain(requestProperties, "PlanStatuses");
         CollectionAssert.DoesNotContain(requestProperties, "HasRemainingQty");
         CollectionAssert.DoesNotContain(requestProperties, "PurchaseSupplierIds");
+
+        var updateProperties = typeof(UpdateSuggestedPurchaseSupplierCommand).GetProperties()
+            .Select(property => property.Name).ToArray();
+        CollectionAssert.AreEquivalent(new[]
+        {
+            nameof(UpdateSuggestedPurchaseSupplierCommand.NetDemandId),
+            nameof(UpdateSuggestedPurchaseSupplierCommand.Version),
+            nameof(UpdateSuggestedPurchaseSupplierCommand.SuggestedPurchaseSupplierId)
+        }, updateProperties);
     }
 
     [TestMethod]

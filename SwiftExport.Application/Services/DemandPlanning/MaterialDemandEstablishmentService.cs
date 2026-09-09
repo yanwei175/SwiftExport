@@ -20,13 +20,12 @@ using SwiftExport.Infrastructure.Data;
 namespace SwiftExport.Application.Services.DemandPlanning;
 
 /// <summary>
-/// 负责在物料领域内把来源需求原子建立为净需求及初始分配，并以物料历史决定修订和回退。
+/// 负责在物料领域内把来源需求原子建立为物料需求事实，并以物料历史和有效执行关系决定修订及回退。
 /// </summary>
 public sealed class MaterialDemandEstablishmentService(
     ServiceBaseContext context,
     IGrossDemandRepository grossDemandRepository,
     INetDemandRepository netDemandRepository,
-    INetDemandAllocationRepository allocationRepository,
     INetDemandExecutionLinkRepository executionLinkRepository,
     IProductRepository productRepository,
     ISupplierRepository supplierRepository,
@@ -35,7 +34,7 @@ public sealed class MaterialDemandEstablishmentService(
     ICorrelationContext correlationContext,
     ICurrentUser currentUser,
     GrossDemandDecompositionPlanner planner,
-    NetDemandInitialAllocationPlanner allocationPlanner) : IMaterialDemandEstablishmentService
+    MaterialDemandSuggestedSupplierInitializer suggestedSupplierInitializer) : IMaterialDemandEstablishmentService
 {
     private const string Module = "MaterialDemand";
     private const string EstablishOperation = "EstablishFromSource";
@@ -96,10 +95,8 @@ public sealed class MaterialDemandEstablishmentService(
                 EnsureSourceVersion(demand, item.SourceDemandVersion, item.SourceVersion);
                 var currentBasis = demand.DemandBasisFingerprint ?? SourceDemandBasisFingerprintFactory.Create(demand);
                 var active = await netDemandRepository.GetActiveByGrossDemandForUpdateAsync(demand.Uid);
-                var activeAllocations = await allocationRepository.GetActiveByGrossDemandForUpdateAsync(demand.Uid);
                 if (active.Count > 0)
                 {
-                    ValidateActiveAllocations(active, activeAllocations);
                     if (active.All(row => string.Equals(
                             row.SourceDemandBasisFingerprintSnapshot, currentBasis, StringComparison.Ordinal)))
                     {
@@ -110,8 +107,6 @@ public sealed class MaterialDemandEstablishmentService(
                         "SOURCE_CHANGE_REQUIRES_DISPOSITION",
                         $"来源需求 {demand.SourceNo} 第 {demand.SourceLineNumber} 行已变化，必须先处置当前物料需求。");
                 }
-                if (activeAllocations.Count > 0)
-                    throw new MaterialDemandException("CORRUPTED_STATE", "来源需求没有活动物料行，但仍存在活动计划分配。");
 
                 var nextRevision = await netDemandRepository.GetNextDecompositionRevisionForUpdateAsync(demand.Uid);
                 var decomposition = await BuildPlanAsync(demand, nextRevision);
@@ -126,12 +121,9 @@ public sealed class MaterialDemandEstablishmentService(
                     .Select(product => product.DefaultSupplierId!.Value).Distinct().ToArray();
                 var suppliers = (await supplierRepository.GetByIdListAsync(supplierIds, withUpdLock: true))
                     .ToDictionary(supplier => supplier.Uid);
-                var initial = allocationPlanner.Build(decomposition.NetDemands, allProducts, suppliers);
-                if (!initial.IsValid)
-                    throw new MaterialDemandException(initial.ErrorCode!, initial.ErrorMessage!);
+                suggestedSupplierInitializer.Apply(decomposition.NetDemands, allProducts, suppliers);
 
                 EnsureWrites(await netDemandRepository.AddDecompositionAsync(decomposition.NetDemands));
-                EnsureWrites(await allocationRepository.AddInitialAsync(initial.Allocations));
                 result.CreatedSourceCount++;
                 result.CreatedMaterialDemandCount += decomposition.NetDemands.Count;
             }
@@ -168,22 +160,16 @@ public sealed class MaterialDemandEstablishmentService(
                 var item = pair.First;
                 var demand = pair.Second;
                 var active = await netDemandRepository.GetActiveByGrossDemandForUpdateAsync(demand.Uid);
-                var allocations = await allocationRepository.GetActiveByGrossDemandForUpdateAsync(demand.Uid);
                 if (active.Count == 0)
                 {
-                    if (allocations.Count > 0)
-                        throw new MaterialDemandException("CORRUPTED_STATE", "来源需求没有活动物料行，但仍存在活动计划分配。");
                     result.AlreadyRolledBackCount++;
                     continue;
                 }
                 if (active.Any(row => row.DecompositionRevision != item.DecompositionRevision))
                     throw new MaterialDemandException("REVISION_CONFLICT", "活动物料需求修订已变化，请刷新后重试。");
-                ValidateActiveAllocations(active, allocations);
                 var blockers = await executionLinkRepository.GetActiveRollbackBlockersAsync(active.Select(row => row.Uid));
                 if (blockers.Count > 0)
                     throw new MaterialDemandException("DOWNSTREAM_EXECUTION_EXISTS", "物料需求已有活动执行单，不能回退。");
-                if (await allocationRepository.CancelRevisionAsync(demand.Uid, item.DecompositionRevision, "Rollback", command.Reason.Trim()) != allocations.Count)
-                    throw new MaterialDemandException("CONCURRENCY_CONFLICT", "计划分配已变化，回退未执行。");
                 if (await netDemandRepository.RollbackRevisionAsync(demand.Uid, item.DecompositionRevision, command.Reason.Trim()) != active.Count)
                     throw new MaterialDemandException("CONCURRENCY_CONFLICT", "物料需求已变化，回退未执行。");
                 result.RolledBackSourceCount++;
@@ -263,16 +249,6 @@ public sealed class MaterialDemandEstablishmentService(
             throw new MaterialDemandException("INVALID_SOURCE_LIFECYCLE", "只有活动来源需求可以建立物料需求。");
         if (demand.Version != expectedDemandVersion || demand.SourceVersion != expectedSourceVersion)
             throw new MaterialDemandException("SOURCE_CHANGED", "来源需求版本已变化，请刷新候选后重试。");
-    }
-
-    private static void ValidateActiveAllocations(
-        IReadOnlyList<NetDemand> demands,
-        IReadOnlyList<NetDemandAllocation> allocations)
-    {
-        if (allocations.Count != demands.Count
-            || allocations.GroupBy(item => item.NetDemandId).Any(group => group.Count() != 1)
-            || demands.Any(demand => allocations.All(item => item.NetDemandId != demand.Uid)))
-            throw new MaterialDemandException("CORRUPTED_STATE", "活动物料需求与初始计划分配不完整。");
     }
 
     private static void EnsureWrites(IReadOnlyList<RepositoryWriteResult> writes)

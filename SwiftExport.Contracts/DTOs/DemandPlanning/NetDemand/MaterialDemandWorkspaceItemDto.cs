@@ -8,7 +8,8 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
     /// </summary>
     /// <remarks>
     /// 来源表为 NetDemand、GrossDemand、Product、DemandExecutionLink、PurchaseOrderHead 和 PurchaseOrderLine。
-    /// 本契约不得读取 NetDemandAllocation；计划建议、供应商和送达目标待责任领域确认后通过独立只读查询补回。
+    /// 本契约不得读取 NetDemandAllocation；推荐采购供应商来自 NetDemand，建议送达供应商由同树目标物料派生。
+    /// 两者都不是采购域保存的实际采购方或送达方。
     /// </remarks>
     public class MaterialDemandWorkspaceItemDto
     {
@@ -62,6 +63,20 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public string Unit { get; set; }
         /// <summary>拆解时的供货方式快照。</summary>
         public string SupplyType { get; set; }
+        /// <summary>物料需求保存的推荐采购供应商 Uid；仅为建议。</summary>
+        public Guid? SuggestedPurchaseSupplierId { get; set; }
+        /// <summary>推荐采购供应商当前编码。</summary>
+        public string SuggestedPurchaseSupplierCode { get; set; }
+        /// <summary>推荐采购供应商当前名称。</summary>
+        public string SuggestedPurchaseSupplierName { get; set; }
+        /// <summary>客供件按同一有效拆解树的送达目标派生出的建议送达供应商 Uid。</summary>
+        public Guid? SuggestedDeliverySupplierId { get; set; }
+        /// <summary>建议送达供应商当前编码；标准交付或未确定时为空。</summary>
+        public string SuggestedDeliverySupplierCode { get; set; }
+        /// <summary>建议送达供应商当前名称；标准交付或未确定时为空。</summary>
+        public string SuggestedDeliverySupplierName { get; set; }
+        /// <summary>客供件无法派生建议送达供应商时的轻量提示；标准交付为空。</summary>
+        public string SuggestedDeliverySupplierHint { get; set; }
         /// <summary>BOM 展开后的原始需求数量。</summary>
         public decimal GrossQty { get; set; }
         /// <summary>当前净需求数量；现阶段未自动抵扣库存和在途。</summary>

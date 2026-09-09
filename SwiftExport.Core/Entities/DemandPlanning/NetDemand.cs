@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.DemandPlanning;
 
 /// <summary>
-/// 毛需求一次拆解版本中的计划执行行。
+/// 毛需求一次拆解版本中的物料需求事实行。
 /// </summary>
 [Table("NetDemand")]
 public sealed class NetDemand : BaseEntity
@@ -36,6 +36,8 @@ public sealed class NetDemand : BaseEntity
 
     /// <summary>关联产品 Uid；非标净需求可以为空。</summary>
     public Guid? ProductId { get; set; }
+    /// <summary>物料需求建议采用的采购供应商 Uid；仅供采购决策参考，不代表实际采购方或送达方。</summary>
+    public Guid? SuggestedPurchaseSupplierId { get; set; }
     /// <summary>生成本净需求的 BOM 行 Uid；根行和非标行为空。</summary>
     public Guid? BomLineId { get; set; }
     /// <summary>拆解时采用的 BOM 版本快照。</summary>

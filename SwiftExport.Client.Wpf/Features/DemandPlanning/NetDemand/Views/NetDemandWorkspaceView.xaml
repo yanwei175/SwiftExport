@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:procurementComponents="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.Components"
              xmlns:viewModels="clr-namespace:SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels"
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
@@ -107,6 +108,14 @@
                 <StackPanel Grid.Column="4" Orientation="Horizontal">
                     <Button Command="{Binding EstablishFromSourcesCommand}" Margin="0,0,4,0" Padding="8,4" Content="从来源需求建立" />
                     <Button Command="{Binding RollbackSourceEstablishmentCommand}" Style="{StaticResource NetDemandToolbarButton}" Content="安全回退" />
+                    <Button Command="{Binding SaveSuggestedSuppliersCommand}"
+                            Style="{StaticResource NetDemandToolbarButton}"
+                            Content="保存推荐供应商"
+                            AutomationProperties.Name="保存推荐采购供应商修改" />
+                    <Button Command="{Binding CancelSuggestedSupplierChangesCommand}"
+                            Style="{StaticResource NetDemandToolbarButton}"
+                            Content="取消修改"
+                            AutomationProperties.Name="还原未保存的推荐采购供应商修改" />
                     <Button Command="{Binding RefreshCommand}" Style="{StaticResource NetDemandToolbarButton}">
                         <StackPanel Orientation="Horizontal">
                             <ui:SymbolIcon Symbol="ArrowClockwise24"/>
@@ -266,6 +275,32 @@
                             <DataGridTextColumn Header="供货方式" Width="84" Binding="{Binding SupplyType}"
                                              ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                              gridColumns:GridColumn.Key="supply-type" />
+                            <DataGridTemplateColumn Header="推荐采购供应商" Width="190"
+                                                    SortMemberPath="SuggestedPurchaseSupplierCode"
+                                                    gridColumns:GridColumn.Key="suggested-purchase-supplier">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <procurementComponents:PurchaseSupplierLookupTextBox
+                                            Text="{Binding SuggestedPurchaseSupplierDisplay, Mode=OneWay}"
+                                            ItemsSource="{Binding DataContext.SuggestedSupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            SelectedSupplier="{Binding DataContext.PendingSuggestedSupplier, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
+                                            SearchCommand="{Binding DataContext.SearchSuggestedSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            SelectionCommittedCommand="{Binding DataContext.CommitSuggestedSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            SelectionCommittedCommandParameter="{Binding}"
+                                            SelectionClearedCommand="{Binding DataContext.ClearSuggestedSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            SelectionClearedCommandParameter="{Binding}"
+                                            IsBusy="{Binding DataContext.IsSuggestedSupplierSearchBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            IsEnabled="{Binding DataContext.CanWrite, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            Placeholder="搜索推荐采购供应商"
+                                            AutomationProperties.Name="推荐采购供应商" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="建议送达供应商" Width="180"
+                                                Binding="{Binding SuggestedDeliverySupplierDisplay, TargetNullValue=未确定}"
+                                                ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                                IsReadOnly="True"
+                                                gridColumns:GridColumn.Key="suggested-delivery-supplier" />
                             <DataGridTextColumn Header="原需求交期" Width="102" Binding="{Binding DemandRequiredDate, StringFormat=yyyy-MM-dd}"
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             gridColumns:GridColumn.Key="demand-required-date" />

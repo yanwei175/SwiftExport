@@ -217,7 +217,7 @@ GROUP BY ids.[GrossDemandId];", new { Ids = ids }, Transaction);
         return rows.ToDictionary(row => row.GrossDemandId, row => row.HistoryCount);
     }
 
-    /// <summary>不读取来源兼容修订号，仅以物料行和计划历史判断退出前历史是否完整。</summary>
+    /// <summary>不读取来源兼容修订号或旧计划分配，仅以物料历史判断退出前是否完整安全回退。</summary>
     public Task<bool> HasInvalidExitHistoryAsync(IEnumerable<Guid> grossDemandIds)
     {
         var ids = grossDemandIds.Distinct().ToArray();
@@ -227,21 +227,13 @@ SELECT CASE WHEN EXISTS (
     SELECT 1 FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
     WHERE nd.[GrossDemandId] IN @Ids
       AND (nd.[IsDeleted]<>0 OR nd.[LifecycleStatus] NOT IN (@RolledBack,@Voided)
-           OR nd.[DecompositionRevision]<1
-           OR NOT EXISTS (SELECT 1 FROM [dbo].[NetDemandAllocation] a WITH (UPDLOCK,HOLDLOCK) WHERE a.[NetDemandId]=nd.[Uid]))
-) OR EXISTS (
-    SELECT 1 FROM [dbo].[NetDemandAllocation] a WITH (UPDLOCK,HOLDLOCK)
-    INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=a.[NetDemandId]
-    WHERE nd.[GrossDemandId] IN @Ids
-      AND (a.[IsDeleted]<>0 OR a.[LifecycleStatus] NOT IN (@Superseded,@Cancelled))
+           OR nd.[DecompositionRevision]<1)
 ) THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
         return Connection.ExecuteScalarAsync<bool>(sql, new
         {
             Ids = ids,
             RolledBack = NetDemandLifecycleStatusEnum.RolledBack,
-            Voided = NetDemandLifecycleStatusEnum.Voided,
-            Superseded = NetDemandAllocationLifecycleStatusEnum.Superseded,
-            Cancelled = NetDemandAllocationLifecycleStatusEnum.Cancelled
+            Voided = NetDemandLifecycleStatusEnum.Voided
         }, Transaction);
     }
 
@@ -306,7 +298,7 @@ INSERT INTO [dbo].[NetDemand]
 ([Uid],[Version],[IsDeleted],[CreatedDate],[CreatedBy],[UpdatedDate],[UpdatedBy],
  [GrossDemandId],[SourceDemandVersionSnapshot],[SourceVersionSnapshot],[SourceDemandBasisFingerprintSnapshot],[DecompositionRevision],[LineNumber],[LifecycleStatus],
  [ParentNetDemandId],[RootNetDemandId],[DeliveryTargetNetDemandId],[DeliveryMode],
- [ProductId],[BomLineId],[BomVersion],[BomPath],[MaterialTypeSnapshot],
+ [ProductId],[SuggestedPurchaseSupplierId],[BomLineId],[BomVersion],[BomPath],[MaterialTypeSnapshot],
  [SupplyTypeSnapshot],[SkuSnapshot],[ParentSkuSnapshot],[CustomerSkuSnapshot],
  [DescriptionSnapshot],[ColorSnapshot],[SpecificationSnapshot],
  [GrossQty],[NetQty],[RequiredDate],[Remark],[RolledBackAt],[RolledBackBy],[RolledBackReason])
@@ -314,7 +306,7 @@ VALUES
 (@Uid,@Version,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
  @GrossDemandId,@SourceDemandVersionSnapshot,@SourceVersionSnapshot,@SourceDemandBasisFingerprintSnapshot,@DecompositionRevision,@LineNumber,@LifecycleStatus,
  @ParentNetDemandId,@RootNetDemandId,@DeliveryTargetNetDemandId,@DeliveryMode,
- @ProductId,@BomLineId,@BomVersion,@BomPath,@MaterialTypeSnapshot,
+ @ProductId,@SuggestedPurchaseSupplierId,@BomLineId,@BomVersion,@BomPath,@MaterialTypeSnapshot,
  @SupplyTypeSnapshot,@SkuSnapshot,@ParentSkuSnapshot,@CustomerSkuSnapshot,
  @DescriptionSnapshot,@ColorSnapshot,@SpecificationSnapshot,
  @GrossQty,@NetQty,@RequiredDate,@Remark,@RolledBackAt,@RolledBackBy,@RolledBackReason);";
@@ -324,7 +316,7 @@ VALUES
                 demand.GrossDemandId, demand.SourceDemandVersionSnapshot, demand.SourceVersionSnapshot, demand.SourceDemandBasisFingerprintSnapshot,
                 demand.DecompositionRevision, demand.LineNumber, demand.LifecycleStatus,
                 demand.ParentNetDemandId, demand.RootNetDemandId, demand.DeliveryTargetNetDemandId, demand.DeliveryMode,
-                demand.ProductId, demand.BomLineId, demand.BomVersion, demand.BomPath, demand.MaterialTypeSnapshot,
+                demand.ProductId, demand.SuggestedPurchaseSupplierId, demand.BomLineId, demand.BomVersion, demand.BomPath, demand.MaterialTypeSnapshot,
                 demand.SupplyTypeSnapshot, demand.SkuSnapshot, demand.ParentSkuSnapshot, demand.CustomerSkuSnapshot,
                 demand.DescriptionSnapshot, demand.ColorSnapshot, demand.SpecificationSnapshot,
                 demand.GrossQty, demand.NetQty, demand.RequiredDate, demand.Remark,
@@ -336,6 +328,27 @@ VALUES
         }
         return results;
     }
+
+    /// <summary>只更新活动物料需求的推荐采购供应商，并以 Version 防止覆盖并发修改。</summary>
+    public Task<int> UpdateSuggestedPurchaseSupplierAsync(
+        Guid netDemandId,
+        int expectedVersion,
+        Guid? suggestedPurchaseSupplierId)
+        => Connection.ExecuteAsync(@"
+UPDATE [dbo].[NetDemand]
+SET [SuggestedPurchaseSupplierId]=@SuggestedPurchaseSupplierId,
+    [UpdatedDate]=@Now,[UpdatedBy]=@UserName,[Version]=[Version]+1
+WHERE [Uid]=@NetDemandId AND [Version]=@ExpectedVersion
+  AND [LifecycleStatus]=@Active AND [IsDeleted]=0;",
+            new
+            {
+                NetDemandId = netDemandId,
+                ExpectedVersion = expectedVersion,
+                SuggestedPurchaseSupplierId = suggestedPurchaseSupplierId,
+                Now = DateTime.Now,
+                UserName = _context.CurrentUser.UserName,
+                Active = NetDemandLifecycleStatusEnum.Active
+            }, Transaction);
 
     public Task<int> RollbackRevisionAsync(Guid grossDemandId, int revision, string reason)
         => Connection.ExecuteAsync(@"
@@ -353,7 +366,7 @@ SELECT nd.[Uid],nd.[Version],nd.[IsDeleted],nd.[CreatedDate],nd.[CreatedBy],nd.[
        nd.[GrossDemandId],nd.[SourceDemandVersionSnapshot],nd.[SourceVersionSnapshot],nd.[SourceDemandBasisFingerprintSnapshot],
        nd.[DecompositionRevision],nd.[LineNumber],nd.[LifecycleStatus],
        nd.[ParentNetDemandId],nd.[RootNetDemandId],nd.[DeliveryTargetNetDemandId],nd.[DeliveryMode],
-       nd.[ProductId],nd.[BomLineId],nd.[BomVersion],nd.[BomPath],nd.[MaterialTypeSnapshot],
+       nd.[ProductId],nd.[SuggestedPurchaseSupplierId],nd.[BomLineId],nd.[BomVersion],nd.[BomPath],nd.[MaterialTypeSnapshot],
        nd.[SupplyTypeSnapshot],nd.[SkuSnapshot],nd.[ParentSkuSnapshot],nd.[CustomerSkuSnapshot],
        nd.[DescriptionSnapshot],nd.[ColorSnapshot],nd.[SpecificationSnapshot],
        nd.[GrossQty],nd.[NetQty],nd.[RequiredDate],nd.[Remark],

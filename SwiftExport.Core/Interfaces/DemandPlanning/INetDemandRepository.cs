@@ -61,5 +61,10 @@ public interface INetDemandRepository
         Guid grossDemandId,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RepositoryWriteResult>> AddDecompositionAsync(IEnumerable<NetDemand> demands);
+    /// <summary>以乐观并发方式局部更新活动物料需求的推荐采购供应商。</summary>
+    Task<int> UpdateSuggestedPurchaseSupplierAsync(
+        Guid netDemandId,
+        int expectedVersion,
+        Guid? suggestedPurchaseSupplierId);
     Task<int> RollbackRevisionAsync(Guid grossDemandId, int revision, string reason);
 }

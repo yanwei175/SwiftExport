@@ -1,17 +1,22 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Mapster;
+using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 
-/// <summary>表示物料需求工作台的一条只读物料事实及客户端选择状态。</summary>
+/// <summary>表示物料需求工作台的一条物料事实，并仅跟踪推荐采购供应商的客户端编辑状态。</summary>
 public sealed partial class MaterialDemandWorkspaceRowModel : ObservableObject
 {
+    private Guid? _originalSuggestedPurchaseSupplierId;
+    private string _originalSuggestedPurchaseSupplierCode = string.Empty;
+    private string _originalSuggestedPurchaseSupplierName = string.Empty;
+
     /// <summary>物料需求 Uid。</summary>
     public Guid Uid { get; init; }
     /// <summary>物料需求并发版本。</summary>
-    public int Version { get; init; }
+    public int Version { get; set; }
     /// <summary>物料需求生命周期。</summary>
     public NetDemandLifecycleStatusEnum LifecycleStatus { get; init; }
     /// <summary>所属来源需求 Uid。</summary>
@@ -58,6 +63,30 @@ public sealed partial class MaterialDemandWorkspaceRowModel : ObservableObject
     public string Unit { get; init; } = string.Empty;
     /// <summary>拆解时供货方式快照。</summary>
     public string SupplyType { get; init; } = string.Empty;
+    /// <summary>可编辑的推荐采购供应商 Uid；仅为建议，不会修改既有采购单。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSuggestionDirty))]
+    [NotifyPropertyChangedFor(nameof(SuggestedPurchaseSupplierDisplay))]
+    public partial Guid? SuggestedPurchaseSupplierId { get; set; }
+
+    /// <summary>可编辑推荐采购供应商的当前编码。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SuggestedPurchaseSupplierDisplay))]
+    public partial string SuggestedPurchaseSupplierCode { get; set; } = string.Empty;
+
+    /// <summary>可编辑推荐采购供应商的当前名称。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SuggestedPurchaseSupplierDisplay))]
+    public partial string SuggestedPurchaseSupplierName { get; set; } = string.Empty;
+
+    /// <summary>客供件沿父件建议派生的只读送达供应商 Uid。</summary>
+    public Guid? SuggestedDeliverySupplierId { get; init; }
+    /// <summary>建议送达供应商编码；不代表采购域最终送达方。</summary>
+    public string SuggestedDeliverySupplierCode { get; init; } = string.Empty;
+    /// <summary>建议送达供应商名称；不代表采购域最终送达方。</summary>
+    public string SuggestedDeliverySupplierName { get; init; } = string.Empty;
+    /// <summary>无法派生客供件建议送达供应商时的轻量提示。</summary>
+    public string SuggestedDeliverySupplierHint { get; init; } = string.Empty;
     /// <summary>原始需求数量。</summary>
     public decimal GrossQty { get; init; }
     /// <summary>当前净需求数量。</summary>
@@ -68,6 +97,19 @@ public sealed partial class MaterialDemandWorkspaceRowModel : ObservableObject
     public decimal AssociatedPurchaseQty { get; init; }
     /// <summary>有效采购 Link 对应的采购单号。</summary>
     public string PurchaseOrderNos { get; init; } = string.Empty;
+
+    /// <summary>推荐采购供应商是否有尚未保存的本地修改。</summary>
+    public bool IsSuggestionDirty => SuggestedPurchaseSupplierId != _originalSuggestedPurchaseSupplierId;
+
+    /// <summary>推荐采购供应商的显示文本。</summary>
+    public string SuggestedPurchaseSupplierDisplay => string.IsNullOrWhiteSpace(SuggestedPurchaseSupplierCode)
+        ? "未设置"
+        : $"{SuggestedPurchaseSupplierCode} · {SuggestedPurchaseSupplierName}".TrimEnd(' ', '·');
+
+    /// <summary>建议送达供应商的只读显示文本。</summary>
+    public string SuggestedDeliverySupplierDisplay => !string.IsNullOrWhiteSpace(SuggestedDeliverySupplierCode)
+        ? $"{SuggestedDeliverySupplierCode} · {SuggestedDeliverySupplierName}".TrimEnd(' ', '·')
+        : IsCustomerSupplied ? SuggestedDeliverySupplierHint : string.Empty;
 
     /// <summary>物料生命周期显示文本。</summary>
     public string LifecycleStatusText => LifecycleStatus switch
@@ -99,5 +141,51 @@ public sealed partial class MaterialDemandWorkspaceRowModel : ObservableObject
 
     /// <summary>把专用只读 DTO 转换为包含客户端选择状态的行模型。</summary>
     public static MaterialDemandWorkspaceRowModel FromDto(MaterialDemandWorkspaceItemDto dto)
-        => dto.Adapt<MaterialDemandWorkspaceRowModel>();
+    {
+        var model = dto.Adapt<MaterialDemandWorkspaceRowModel>();
+        model._originalSuggestedPurchaseSupplierId = model.SuggestedPurchaseSupplierId;
+        model._originalSuggestedPurchaseSupplierCode = model.SuggestedPurchaseSupplierCode;
+        model._originalSuggestedPurchaseSupplierName = model.SuggestedPurchaseSupplierName;
+        return model;
+    }
+
+    /// <summary>接纳 Lookup 中明确选择的供应商并保留本地脏状态。</summary>
+    public void ApplySuggestedSupplier(ProcurementSupplierCandidateDto supplier)
+    {
+        ArgumentNullException.ThrowIfNull(supplier);
+        SuggestedPurchaseSupplierId = supplier.Uid;
+        SuggestedPurchaseSupplierCode = supplier.SupplierCode;
+        SuggestedPurchaseSupplierName = supplier.SupplierName;
+    }
+
+    /// <summary>显式清空推荐采购供应商；查询刷新前不会从产品默认值重新回填。</summary>
+    public void ClearSuggestedSupplier()
+    {
+        SuggestedPurchaseSupplierId = null;
+        SuggestedPurchaseSupplierCode = string.Empty;
+        SuggestedPurchaseSupplierName = string.Empty;
+    }
+
+    /// <summary>接纳服务端成功结果并推进并发版本及原值快照。</summary>
+    public void AcceptSuggestedSupplierUpdate(UpdateSuggestedPurchaseSupplierResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        Version = result.Version;
+        SuggestedPurchaseSupplierId = result.SuggestedPurchaseSupplierId;
+        SuggestedPurchaseSupplierCode = result.SuggestedPurchaseSupplierCode ?? string.Empty;
+        SuggestedPurchaseSupplierName = result.SuggestedPurchaseSupplierName ?? string.Empty;
+        _originalSuggestedPurchaseSupplierId = SuggestedPurchaseSupplierId;
+        _originalSuggestedPurchaseSupplierCode = SuggestedPurchaseSupplierCode;
+        _originalSuggestedPurchaseSupplierName = SuggestedPurchaseSupplierName;
+        OnPropertyChanged(nameof(IsSuggestionDirty));
+    }
+
+    /// <summary>撤销本地建议编辑并恢复最后一次服务端接纳值。</summary>
+    public void RejectSuggestedSupplierChanges()
+    {
+        SuggestedPurchaseSupplierId = _originalSuggestedPurchaseSupplierId;
+        SuggestedPurchaseSupplierCode = _originalSuggestedPurchaseSupplierCode;
+        SuggestedPurchaseSupplierName = _originalSuggestedPurchaseSupplierName;
+        OnPropertyChanged(nameof(IsSuggestionDirty));
+    }
 }

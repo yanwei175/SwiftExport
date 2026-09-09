@@ -34,6 +34,11 @@ public sealed class MapsterConfig : IRegister
 
         config.NewConfig<MaterialDemandWorkspaceItemDto, MaterialDemandWorkspaceRowModel>()
             .Ignore(dest => dest.IsChecked)
+            .Map(dest => dest.SuggestedPurchaseSupplierCode, src => src.SuggestedPurchaseSupplierCode ?? string.Empty)
+            .Map(dest => dest.SuggestedPurchaseSupplierName, src => src.SuggestedPurchaseSupplierName ?? string.Empty)
+            .Map(dest => dest.SuggestedDeliverySupplierCode, src => src.SuggestedDeliverySupplierCode ?? string.Empty)
+            .Map(dest => dest.SuggestedDeliverySupplierName, src => src.SuggestedDeliverySupplierName ?? string.Empty)
+            .Map(dest => dest.SuggestedDeliverySupplierHint, src => src.SuggestedDeliverySupplierHint ?? string.Empty)
             .Map(dest => dest.SourceType, src => src.SourceType ?? string.Empty)
             .Map(dest => dest.SourceNo, src => src.SourceNo ?? string.Empty)
             .Map(dest => dest.RootSku, src => src.RootSku ?? string.Empty)

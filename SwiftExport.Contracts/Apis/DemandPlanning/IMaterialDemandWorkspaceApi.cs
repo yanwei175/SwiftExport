@@ -20,6 +20,12 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
             [Body] MaterialDemandSourceGroupSearchRequest request,
             CancellationToken cancellationToken = default(CancellationToken));
 
+        /// <summary>局部更新一条活动物料需求的推荐采购供应商；不更新既有采购单。</summary>
+        [Post("/suggested-purchase-supplier")]
+        Task<ServiceResult<UpdateSuggestedPurchaseSupplierResult>> UpdateSuggestedPurchaseSupplierAsync(
+            [Body] UpdateSuggestedPurchaseSupplierCommand command,
+            CancellationToken cancellationToken = default(CancellationToken));
+
         [Post("/source-demands/rollback")]
         Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
             [Body] RollbackMaterialDemandsCommand command,

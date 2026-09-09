@@ -1,7 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
+using SwiftExport.Contracts.Apis.MasterData;
+using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 using SwiftExportClient.Mvvm;
@@ -27,6 +30,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     public const string RouteKey = "net-demands";
 
     private readonly IMaterialDemandWorkspaceApi _api;
+    private readonly IProcurementMasterDataQueryApi _masterDataApi;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IDialogService _dialogService;
     private readonly IMessageService _messageService;
@@ -34,6 +38,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     private CancellationTokenSource? _searchCancellation;
     private CancellationTokenSource? _sourceGroupCancellation;
     private CancellationTokenSource? _sourceGroupFilterDebounceCancellation;
+    private CancellationTokenSource? _supplierSearchCancellation;
     private bool _initialized;
     private bool _syncingChecks;
     private bool _syncingSourceFilters;
@@ -43,12 +48,14 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
 
     public NetDemandWorkspaceViewModel(
         IMaterialDemandWorkspaceApi api,
+        IProcurementMasterDataQueryApi masterDataApi,
         IApiCallRunner apiCallRunner,
         IDialogService dialogService,
         IMessageService messageService,
         INetDemandDialogService netDemandDialogService)
     {
         _api = api;
+        _masterDataApi = masterDataApi;
         _apiCallRunner = apiCallRunner;
         _dialogService = dialogService;
         _messageService = messageService;
@@ -64,11 +71,15 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         RegisterBusyAwareCommand(SelectSourceGroupCommand);
         RegisterBusyAwareCommand(ToggleSourcePanelCommand);
         RegisterBusyAwareCommand(ClearSourceFiltersCommand);
+        RegisterBusyAwareCommand(SaveSuggestedSuppliersCommand);
+        RegisterBusyAwareCommand(CancelSuggestedSupplierChangesCommand);
 
         SourceSourceTypes.CollectionChanged += OnSourceGroupFilterChanged;
     }
 
     public ObservableCollection<MaterialDemandWorkspaceRowModel> Items { get; } = [];
+    /// <summary>推荐采购供应商远程 Lookup 当前候选。</summary>
+    public ObservableCollection<ProcurementSupplierCandidateDto> SuggestedSupplierCandidates { get; } = [];
     /// <summary>
     /// 左侧来源导航当前显示的来源单集合。
     /// </summary>
@@ -94,7 +105,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     /// </summary>
     public ObservableCollection<NetDemandFilterOption<string>> SourceSourceTypes { get; } = [];
     public string DocumentTitle => "物料需求";
-    public bool HasUnsavedChanges => false;
+    public bool HasUnsavedChanges => Items.Any(item => item.IsSuggestionDirty);
     public int TotalPages => IsSourceSelected || TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => IsSourceSelected ? $"当前来源共 {TotalCount} 条" : $"第 {PageIndex} / {TotalPages} 页";
     public int CheckedCount => Items.Count(item => item.IsChecked);
@@ -182,6 +193,14 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     [ObservableProperty]
     public partial string ResultSummary { get; set; } = "尚未加载净需求。";
 
+    /// <summary>DataGrid Lookup 当前提交的供应商候选，由明确的提交命令应用到目标行。</summary>
+    [ObservableProperty]
+    public partial ProcurementSupplierCandidateDto? PendingSuggestedSupplier { get; set; }
+
+    /// <summary>推荐供应商远程搜索是否正在执行。</summary>
+    [ObservableProperty]
+    public partial bool IsSuggestedSupplierSearchBusy { get; private set; }
+
     public async Task InitializeAsync()
     {
         if (_initialized)
@@ -207,11 +226,27 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         await LoadPageAsync(cancellationToken);
     }
 
-    public Task<bool> CanCloseAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+    /// <summary>写命令执行中拒绝关闭；存在建议编辑时由用户明确决定是否放弃。</summary>
+    public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)
+    {
+        if (IsBusy)
+        {
+            return false;
+        }
+
+        return !HasUnsavedChanges || await _dialogService.ConfirmAsync(
+            "放弃推荐供应商修改",
+            "当前有尚未保存的推荐采购供应商修改，关闭页面将放弃这些修改。",
+            "放弃修改");
+    }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task SearchAsync(string? query)
     {
+        if (!await EnsureCanDiscardSuggestionChangesAsync("查询将重新加载当前页面。"))
+        {
+            return;
+        }
         if (query is not null)
         {
             Keyword = query;
@@ -226,12 +261,20 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RefreshAsync()
     {
+        if (!await EnsureCanDiscardSuggestionChangesAsync("刷新将放弃未保存的推荐供应商修改。"))
+        {
+            return;
+        }
         await RefreshWorkspaceAsync();
     }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task ClearFiltersAsync()
     {
+        if (!await EnsureCanDiscardSuggestionChangesAsync("清空筛选将重新加载页面。"))
+        {
+            return;
+        }
         _openRequest = null;
         ExitSourceMode();
         Keyword = string.Empty;
@@ -289,10 +332,149 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         }, "正在回退物料需求...");
     }
 
+    /// <summary>以 latest-request-wins 搜索有效供应商候选，旧请求不得覆盖新候选。</summary>
+    [RelayCommand]
+    private async Task SearchSuggestedSuppliersAsync(string? keyword)
+    {
+        var previous = _supplierSearchCancellation;
+        var cancellation = new CancellationTokenSource();
+        _supplierSearchCancellation = cancellation;
+        try
+        {
+            previous?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // 旧请求可能刚在其 finally 中完成释放；取消只用于加速，不影响请求身份门禁。
+        }
+
+        IsSuggestedSupplierSearchBusy = true;
+        try
+        {
+            var result = await _apiCallRunner.RunAsync(
+                () => _masterDataApi.SearchSuppliersAsync(new PagedRequestBase
+                {
+                    Keyword = keyword?.Trim() ?? string.Empty,
+                    PageIndex = 1,
+                    PageSize = 30
+                }, cancellation.Token),
+                cancellation.Token,
+                "搜索供应商失败");
+            if (cancellation.IsCancellationRequested
+                || _disposed
+                || !ReferenceEquals(_supplierSearchCancellation, cancellation))
+            {
+                return;
+            }
+
+            SuggestedSupplierCandidates.Clear();
+            if (result.Success && result.Data is not null)
+            {
+                foreach (var supplier in result.Data.Items)
+                {
+                    SuggestedSupplierCandidates.Add(supplier);
+                }
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_supplierSearchCancellation, cancellation))
+            {
+                _supplierSearchCancellation = null;
+                IsSuggestedSupplierSearchBusy = false;
+            }
+
+            cancellation.Dispose();
+        }
+    }
+
+    /// <summary>把 Lookup 明确提交的候选应用到目标物料行，不触发网络写入。</summary>
+    [RelayCommand]
+    private void CommitSuggestedSupplier(MaterialDemandWorkspaceRowModel? row)
+    {
+        if (row is null || PendingSuggestedSupplier is null)
+        {
+            return;
+        }
+
+        row.ApplySuggestedSupplier(PendingSuggestedSupplier);
+        PendingSuggestedSupplier = null;
+        UpdateSuggestionCommands();
+    }
+
+    /// <summary>显式清空目标行的推荐采购供应商。</summary>
+    [RelayCommand]
+    private void ClearSuggestedSupplier(MaterialDemandWorkspaceRowModel? row)
+    {
+        row?.ClearSuggestedSupplier();
+        PendingSuggestedSupplier = null;
+        UpdateSuggestionCommands();
+    }
+
+    /// <summary>逐行保存全部本地建议修改；失败行及尚未提交行保持脏状态。</summary>
+    [RelayCommand(CanExecute = nameof(CanSaveSuggestedSuppliers))]
+    private async Task SaveSuggestedSuppliersAsync()
+    {
+        var dirtyRows = Items.Where(item => item.IsSuggestionDirty).ToArray();
+        var allSaved = false;
+        await RunBusyAsync(async () =>
+        {
+            foreach (var row in dirtyRows)
+            {
+                var result = await _apiCallRunner.RunAsync(
+                    () => _api.UpdateSuggestedPurchaseSupplierAsync(new UpdateSuggestedPurchaseSupplierCommand
+                    {
+                        NetDemandId = row.Uid,
+                        Version = row.Version,
+                        SuggestedPurchaseSupplierId = row.SuggestedPurchaseSupplierId
+                    }),
+                    "保存推荐采购供应商失败");
+                if (!result.Success || result.Data is null)
+                {
+                    ResultSummary = result.Message;
+                    _messageService.ShowError("推荐采购供应商未全部保存", result.Message);
+                    UpdateSuggestionCommands();
+                    return;
+                }
+
+                row.AcceptSuggestedSupplierUpdate(result.Data);
+            }
+
+            allSaved = true;
+        }, "正在保存推荐采购供应商...");
+
+        if (!allSaved)
+        {
+            return;
+        }
+
+        _messageService.ShowSuccess("推荐采购供应商已保存",
+            $"已保存 {dirtyRows.Length} 条建议；既有采购单及其实际送达方未被修改。");
+        await LoadPageAsync();
+    }
+
+    /// <summary>撤销当前页全部未保存的推荐采购供应商修改。</summary>
+    [RelayCommand(CanExecute = nameof(CanCancelSuggestedSupplierChanges))]
+    private void CancelSuggestedSupplierChanges()
+    {
+        foreach (var row in Items.Where(item => item.IsSuggestionDirty))
+        {
+            row.RejectSuggestedSupplierChanges();
+        }
+
+        ResultSummary = "已还原未保存的推荐采购供应商修改。";
+        UpdateSuggestionCommands();
+    }
+
     [RelayCommand(CanExecute = nameof(CanPageChange))]
     private async Task PageChangeAsync(PageChangeRequest? request)
     {
         if (request is null)
+        {
+            return;
+        }
+
+        if (!await EnsureCanDiscardSuggestionChangesAsync("翻页将放弃未保存的推荐供应商修改。"))
         {
             return;
         }
@@ -321,6 +503,12 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
             return;
         }
 
+        if (!await EnsureCanDiscardSuggestionChangesAsync("切换来源将放弃未保存的推荐供应商修改。"))
+        {
+            RestoreAppliedSourceSelection();
+            return;
+        }
+
         _appliedSourceUid = group.SourceUid;
         SelectedSourceGroup = group;
         NotifySourceModeChanged();
@@ -331,6 +519,10 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task ToggleSourcePanelAsync()
     {
+        if (!await EnsureCanDiscardSuggestionChangesAsync("切换来源导航将重新加载页面。"))
+        {
+            return;
+        }
         if (IsSourcePanelOpen)
         {
             CancelSourceGroupLoading();
@@ -347,10 +539,17 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     [RelayCommand]
     private async Task RefreshSourceGroupsAsync()
     {
-        if (IsSourcePanelOpen)
+        if (!IsSourcePanelOpen)
         {
-            await RefreshSourceNavigationAsync(reloadCurrentData: IsSourceSelected);
+            return;
         }
+
+        if (!await EnsureCanDiscardSuggestionChangesAsync("刷新来源导航将重新加载当前来源。"))
+        {
+            return;
+        }
+
+        await RefreshSourceNavigationAsync(reloadCurrentData: IsSourceSelected);
     }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
@@ -613,6 +812,20 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         await LoadPageAsync();
     }
 
+    /// <summary>在会丢弃当前页数据的动作前统一取得用户确认。</summary>
+    private async Task<bool> EnsureCanDiscardSuggestionChangesAsync(string action)
+    {
+        if (!HasUnsavedChanges)
+        {
+            return true;
+        }
+
+        return await _dialogService.ConfirmAsync(
+            "放弃推荐供应商修改",
+            $"{action} 当前未保存修改将丢失，是否继续？",
+            "继续");
+    }
+
     private void ExitSourceMode()
     {
         _appliedSourceUid = null;
@@ -674,6 +887,11 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
 
     private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MaterialDemandWorkspaceRowModel.IsSuggestionDirty))
+        {
+            UpdateSuggestionCommands();
+        }
+
         if (e.PropertyName != nameof(MaterialDemandWorkspaceRowModel.IsChecked) || _syncingChecks)
         {
             return;
@@ -716,6 +934,8 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
 
     private bool CanRun() => IsNotBusy;
     private bool CanWriteCommand() => CanWrite && IsNotBusy;
+    private bool CanSaveSuggestedSuppliers() => CanWrite && IsNotBusy && HasUnsavedChanges;
+    private bool CanCancelSuggestedSupplierChanges() => IsNotBusy && HasUnsavedChanges;
     private bool CanRollbackSourceEstablishment() => CanWrite && IsNotBusy
         && Items.Any(item => item.IsChecked)
         && Items.Where(item => item.IsChecked)
@@ -723,6 +943,13 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
             .All(group => group.Select(item => item.DecompositionRevision).Distinct().Count() == 1);
     private bool CanPageChange() => IsNotBusy && !IsSourceSelected;
     private bool CanSelectSourceGroup(NetDemandSourceGroupModel? group) => IsNotBusy && !IsSourceGroupLoading && group is not null;
+
+    private void UpdateSuggestionCommands()
+    {
+        OnPropertyChanged(nameof(HasUnsavedChanges));
+        SaveSuggestedSuppliersCommand.NotifyCanExecuteChanged();
+        CancelSuggestedSupplierChangesCommand.NotifyCanExecuteChanged();
+    }
 
     private void DetachRows()
     {
@@ -742,6 +969,14 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         _disposed = true;
         _searchCancellation?.Cancel();
         _searchCancellation?.Dispose();
+        try
+        {
+            _supplierSearchCancellation?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // 搜索请求拥有其 CTS；释放与页面关闭竞态时保持 Dispose 幂等。
+        }
         CancelSourceGroupLoading();
         DetachRows();
         SourceSourceTypes.CollectionChanged -= OnSourceGroupFilterChanged;

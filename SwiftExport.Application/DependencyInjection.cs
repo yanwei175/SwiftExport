@@ -62,6 +62,7 @@ public static class DependencyInjection
         services.AddScoped<ISourceDeliveryService, SourceDeliveryService>();
         services.AddScoped<ISourceDemandDeliveryService, SourceDemandDeliveryService>();
         services.AddScoped<GrossDemandDecompositionPlanner>();
+        services.AddScoped<MaterialDemandSuggestedSupplierInitializer>();
         services.AddScoped<NetDemandInitialAllocationPlanner>();
         services.AddScoped<NetDemandPlanReplacementPlanner>();
         services.AddScoped<NetDemandPlanCommandIdempotencyPolicy>();

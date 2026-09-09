@@ -28,6 +28,14 @@ public sealed class NetDemandWorkspaceController(INetDemandServices service, INe
         CancellationToken cancellationToken)
         => service.SearchMaterialSourceGroupsAsync(request, cancellationToken);
 
+    /// <summary>局部保存物料需求推荐采购供应商；不修改已有采购与送达事实。</summary>
+    [HttpPost("suggested-purchase-supplier")]
+    [PreventDuplicateRequest(WindowSeconds = 3)]
+    public Task<ServiceResult<UpdateSuggestedPurchaseSupplierResult>> UpdateSuggestedPurchaseSupplierAsync(
+        [FromBody] UpdateSuggestedPurchaseSupplierCommand command,
+        CancellationToken cancellationToken)
+        => service.UpdateSuggestedPurchaseSupplierAsync(command, cancellationToken);
+
     /// <summary>查询由物料领域计算的来源需求建立候选。</summary>
     [HttpPost("source-demands/candidates/search")]
     public Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(

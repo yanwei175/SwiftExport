@@ -11,8 +11,8 @@ public sealed partial class NetDemandRepository
     /// 查询物料需求工作台，只读取物料、来源、产品与有效采购关联事实。
     /// </summary>
     /// <remarks>
-    /// 本查询刻意不读取 NetDemandAllocation。未来计划建议、供应商、计划交期或送达目标确认归属后，
-    /// 应通过对应责任领域的独立只读投影补回，不能重新把分配表职责塞入本工作台。
+    /// 本查询刻意不读取 NetDemandAllocation。推荐采购方读取物料自身字段；客供件建议送达方仅沿同一有效拆解树目标派生，
+    /// 不能替代采购域保存的实际采购方和送达方。
     /// </remarks>
     public async Task<PagedResponseBase<MaterialDemandWorkspaceItemDto>> SearchMaterialWorkspaceAsync(
         MaterialDemandWorkspaceSearchRequest request,
@@ -43,6 +43,16 @@ SELECT
     nd.[ColorSnapshot] AS [Color],nd.[SpecificationSnapshot] AS [Specification],
     COALESCE(gd.[ImagePathSnapshot],p.[MainImage]) AS [ImagePath],nd.[MaterialTypeSnapshot] AS [MaterialType],
     COALESCE(NULLIF(LTRIM(RTRIM(p.[Unit])),N''),N'PCS') AS [Unit],nd.[SupplyTypeSnapshot] AS [SupplyType],
+    nd.[SuggestedPurchaseSupplierId],suggestedSupplier.[SupplierCode] AS [SuggestedPurchaseSupplierCode],
+    suggestedSupplier.[SupplierName] AS [SuggestedPurchaseSupplierName],
+    CASE WHEN nd.[DeliveryMode]=1 THEN deliveryTarget.[SuggestedPurchaseSupplierId] END AS [SuggestedDeliverySupplierId],
+    CASE WHEN nd.[DeliveryMode]=1 THEN deliverySupplier.[SupplierCode] END AS [SuggestedDeliverySupplierCode],
+    CASE WHEN nd.[DeliveryMode]=1 THEN deliverySupplier.[SupplierName] END AS [SuggestedDeliverySupplierName],
+    CASE WHEN nd.[DeliveryMode]<>1 THEN NULL
+         WHEN deliveryTarget.[Uid] IS NULL THEN N'送达目标关系无效'
+         WHEN deliveryTarget.[SuggestedPurchaseSupplierId] IS NULL THEN N'父件尚未设置推荐采购供应商'
+         WHEN deliverySupplier.[Uid] IS NULL THEN N'父件推荐采购供应商已失效'
+         ELSE NULL END AS [SuggestedDeliverySupplierHint],
     nd.[GrossQty],nd.[NetQty],nd.[RequiredDate] AS [DemandRequiredDate],
     COALESCE(purchaseFacts.[AssociatedPurchaseQty],0) AS [AssociatedPurchaseQty],
     purchaseNumbers.[PurchaseOrderNos]
@@ -51,6 +61,17 @@ FROM [dbo].[NetDemand] nd
 INNER JOIN [dbo].[GrossDemand] gd ON gd.[Uid]=nd.[GrossDemandId]
 LEFT JOIN [dbo].[NetDemand] root ON root.[Uid]=nd.[RootNetDemandId]
 LEFT JOIN [dbo].[Product] p ON p.[Uid]=nd.[ProductId] AND ISNULL(p.[IsDeleted],0)=0
+LEFT JOIN [dbo].[Supplier] suggestedSupplier
+  ON suggestedSupplier.[Uid]=nd.[SuggestedPurchaseSupplierId] AND ISNULL(suggestedSupplier.[IsDeleted],0)=0
+LEFT JOIN [dbo].[NetDemand] deliveryTarget
+  ON deliveryTarget.[Uid]=nd.[DeliveryTargetNetDemandId]
+ AND deliveryTarget.[Uid]=nd.[ParentNetDemandId]
+ AND deliveryTarget.[GrossDemandId]=nd.[GrossDemandId]
+ AND deliveryTarget.[RootNetDemandId]=nd.[RootNetDemandId]
+ AND deliveryTarget.[DecompositionRevision]=nd.[DecompositionRevision]
+ AND deliveryTarget.[LifecycleStatus]=0 AND deliveryTarget.[IsDeleted]=0
+LEFT JOIN [dbo].[Supplier] deliverySupplier
+  ON deliverySupplier.[Uid]=deliveryTarget.[SuggestedPurchaseSupplierId] AND ISNULL(deliverySupplier.[IsDeleted],0)=0
 OUTER APPLY
 (
     SELECT SUM(link.[AllocatedQty]-link.[ReleasedQty]) AS [AssociatedPurchaseQty]
@@ -84,7 +105,15 @@ OUTER APPLY
 WHERE {string.Join(" AND ", where)};
 
 SELECT COUNT(1) FROM #MaterialWorkspace;
-SELECT * FROM #MaterialWorkspace
+SELECT [Uid],[Version],[LifecycleStatus],[GrossDemandId],[DecompositionRevision],[LineNumber],
+       [SourceType],[SourceUid],[SourceNo],[SourceLineNumber],[RootNetDemandId],[RootSku],
+       [IsCustomerSupplied],[ProductId],[IsNonStandard],[Sku],[LinkSku],[CustomerSku],[Description],
+       [Color],[Specification],[ImagePath],[MaterialType],[Unit],[SupplyType],
+       [SuggestedPurchaseSupplierId],[SuggestedPurchaseSupplierCode],[SuggestedPurchaseSupplierName],
+       [SuggestedDeliverySupplierId],[SuggestedDeliverySupplierCode],[SuggestedDeliverySupplierName],
+       [SuggestedDeliverySupplierHint],[GrossQty],[NetQty],[DemandRequiredDate],
+       [AssociatedPurchaseQty],[PurchaseOrderNos]
+FROM #MaterialWorkspace
 ORDER BY [SourceNo],[SourceLineNumber],[LineNumber],[Uid]
 {pageClause};
 DROP TABLE #MaterialWorkspace;";

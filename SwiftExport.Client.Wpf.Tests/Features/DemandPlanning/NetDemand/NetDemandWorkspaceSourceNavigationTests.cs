@@ -1,6 +1,8 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.DemandPlanning;
+using SwiftExport.Contracts.Apis.MasterData;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
@@ -85,6 +87,32 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
     }
 
     [TestMethod]
+    public async Task SaveSuggestedSupplier_ShouldSendOnlyNetDemandSuggestionAndVersion()
+    {
+        var api = new RecordingNetDemandApi(Guid.NewGuid());
+        using var viewModel = CreateViewModel(api);
+        await viewModel.InitializeAsync();
+        var row = viewModel.Items.Single();
+        var supplierId = Guid.NewGuid();
+
+        row.ApplySuggestedSupplier(new ProcurementSupplierCandidateDto
+        {
+            Uid = supplierId,
+            SupplierCode = "SUP-001",
+            SupplierName = "测试供应商"
+        });
+
+        Assert.IsTrue(viewModel.HasUnsavedChanges);
+        await viewModel.SaveSuggestedSuppliersCommand.ExecuteAsync(null);
+
+        var command = api.SuggestedSupplierCommands.Single();
+        Assert.AreEqual(row.Uid, command.NetDemandId);
+        Assert.AreEqual(1, command.Version);
+        Assert.AreEqual(supplierId, command.SuggestedPurchaseSupplierId);
+        Assert.AreEqual(2, api.SearchRequests.Count, "保存成功后应重载工作台，以重新派生客供件建议送达方。");
+    }
+
+    [TestMethod]
     public void WorkspaceView_ShouldExposeSourceListAndFullWidthMultilinePopup()
     {
         var workspace = XDocument.Load(Path.Combine(
@@ -138,6 +166,7 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
         var dialogs = new DialogServiceStub();
         return new NetDemandWorkspaceViewModel(
             api,
+            DispatchProxy.Create<IProcurementMasterDataQueryApi, NoCallProxy>(),
             runner,
             dialogs,
             messages,
@@ -163,6 +192,7 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
         public List<MaterialDemandWorkspaceSearchRequest> SearchRequests { get; } = [];
         public List<MaterialDemandSourceGroupSearchRequest> SourceGroupRequests { get; } = [];
         public List<RollbackMaterialDemandsCommand> RollbackCommands { get; } = [];
+        public List<UpdateSuggestedPurchaseSupplierCommand> SuggestedSupplierCommands { get; } = [];
 
         public Task<ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>> SearchAsync(
             MaterialDemandWorkspaceSearchRequest request,
@@ -197,6 +227,21 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
                     DemandCount = 2,
                 },
             ]));
+        }
+
+        public Task<ServiceResult<UpdateSuggestedPurchaseSupplierResult>> UpdateSuggestedPurchaseSupplierAsync(
+            UpdateSuggestedPurchaseSupplierCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            SuggestedSupplierCommands.Add(command);
+            return Task.FromResult(ServiceResult<UpdateSuggestedPurchaseSupplierResult>.Ok(new UpdateSuggestedPurchaseSupplierResult
+            {
+                NetDemandId = command.NetDemandId,
+                Version = command.Version + 1,
+                SuggestedPurchaseSupplierId = command.SuggestedPurchaseSupplierId,
+                SuggestedPurchaseSupplierCode = "SUP-001",
+                SuggestedPurchaseSupplierName = "测试供应商"
+            }));
         }
 
         public Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
