@@ -1,7 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Mapster;
 using SwiftExport.Contracts.Common;
+using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
+using SwiftExport.Contracts.DTOs.Suppliers;
 
 namespace SwiftExportClient.Features.QualityControl.AfterSales.Models;
 
@@ -21,11 +23,15 @@ public sealed partial class AfterSalesLineModel : ObservableObject
     [ObservableProperty] public partial int LineNumber { get; set; }
     [ObservableProperty] public partial Guid? OriginalSalesOrderLineId { get; set; }
     [ObservableProperty] public partial Guid? ResponsibleSupplierId { get; set; }
+    /// <summary>获取或设置当前通过缓存选择的责任供应商。</summary>
+    [ObservableProperty] public partial SupplierDto? SelectedResponsibleSupplier { get; set; }
     [ObservableProperty] public partial Guid? IssueProductId { get; set; }
     [ObservableProperty] public partial string IssueSkuSnapshot { get; set; } = string.Empty;
     [ObservableProperty] public partial string IssueCustomerSkuSnapshot { get; set; } = string.Empty;
     [ObservableProperty] public partial string IssueLinkSkuSnapshot { get; set; } = string.Empty;
     [ObservableProperty] public partial Guid? IssueColorId { get; set; }
+    /// <summary>获取或设置当前通过缓存选择的问题颜色。</summary>
+    [ObservableProperty] public partial ProductColorDto? SelectedIssueColor { get; set; }
     [ObservableProperty] public partial string IssueColorSnapshot { get; set; } = string.Empty;
     [ObservableProperty] public partial string IssueProductDescription { get; set; } = string.Empty;
     [ObservableProperty] public partial string IssueDescription { get; set; } = string.Empty;
@@ -71,6 +77,30 @@ public sealed partial class AfterSalesLineModel : ObservableObject
 
     /// <summary>生成服务端售后行写入契约。</summary>
     public AfterSalesEditLineDto ToDto() => this.Adapt<AfterSalesEditLineDto>();
+
+    /// <summary>同步缓存 DTO 选择而不改变当前行的业务字段或脏状态。</summary>
+    public void SynchronizeLookupSelections(ProductColorDto? color, SupplierDto? supplier)
+    {
+        var wasLoading = _loading;
+        var wasDirty = IsDirty;
+        _loading = true;
+        SelectedIssueColor = color;
+        SelectedResponsibleSupplier = supplier;
+        _loading = wasLoading;
+        IsDirty = wasDirty;
+    }
+
+    partial void OnSelectedIssueColorChanged(ProductColorDto? value)
+    {
+        if (_loading) return;
+        IssueColorId = value?.Uid;
+        IssueColorSnapshot = value?.ColorNameZh ?? string.Empty;
+    }
+
+    partial void OnSelectedResponsibleSupplierChanged(SupplierDto? value)
+    {
+        if (!_loading) ResponsibleSupplierId = value?.Uid;
+    }
 
     /// <summary>返回当前行的本地校验信息；正数量确认校验由详情页另行提升。</summary>
     public string? Validate(bool forConfirmation)

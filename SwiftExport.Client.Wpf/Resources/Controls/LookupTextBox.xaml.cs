@@ -25,6 +25,7 @@ public partial class LookupTextBox : UserControl
     private bool _isInternalChanging;
     private bool _isSelectionDisplayMode;
     private bool _hasUserInputIntent;
+    private bool _dropDownWasOpenOnButtonPress;
     private INotifyCollectionChanged? _itemsCollectionChangedSource;
     private ILookupResultHost? _customResultHost;
 
@@ -214,6 +215,44 @@ public partial class LookupTextBox : UserControl
     {
         get => (bool)GetValue(ClearSelectionOnEditProperty);
         set => SetValue(ClearSelectionOnEditProperty, value);
+    }
+
+    /// <summary>标识是否显示用于显式展开或收起候选的按钮；默认关闭以保持旧调用方外观。</summary>
+    public static readonly DependencyProperty ShowDropDownButtonProperty = DependencyProperty.Register(
+        nameof(ShowDropDownButton), typeof(bool), typeof(LookupTextBox), new PropertyMetadata(false));
+
+    /// <summary>获取或设置是否显示候选展开按钮。</summary>
+    public bool ShowDropDownButton
+    {
+        get => (bool)GetValue(ShowDropDownButtonProperty);
+        set => SetValue(ShowDropDownButtonProperty, value);
+    }
+
+    /// <summary>标识候选列表是否跟随编辑器 FontSize；默认关闭以保持旧调用方字号。</summary>
+    public static readonly DependencyProperty MatchSuggestionFontSizeProperty = DependencyProperty.Register(
+        nameof(MatchSuggestionFontSize), typeof(bool), typeof(LookupTextBox),
+        new PropertyMetadata(false, OnMatchSuggestionFontSizeChanged));
+
+    /// <summary>获取或设置候选文字是否使用编辑器 FontSize。</summary>
+    public bool MatchSuggestionFontSize
+    {
+        get => (bool)GetValue(MatchSuggestionFontSizeProperty);
+        set => SetValue(MatchSuggestionFontSizeProperty, value);
+    }
+
+    private static void OnMatchSuggestionFontSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var control = (LookupTextBox)d;
+        if ((bool)e.NewValue)
+        {
+            BindingOperations.SetBinding(
+                control.ResultList,
+                Control.FontSizeProperty,
+                new Binding(nameof(FontSize)) { Source = control });
+            return;
+        }
+
+        control.ResultList.SetResourceReference(Control.FontSizeProperty, "SwiftExportDefaltFontSize");
     }
 
     public static readonly DependencyProperty SelectedItemProperty =
@@ -639,6 +678,35 @@ public partial class LookupTextBox : UserControl
         {
             SelectionClearedCommand.Execute(SelectionClearedCommandParameter);
         }
+    }
+
+    private void BtnDropDown_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        // Popup.StaysOpen=false 可能在 Click 前先关闭弹层，按下时保存状态才能可靠实现切换。
+        _dropDownWasOpenOnButtonPress = IsDropDownOpen;
+    }
+
+    private void DropdownPopup_Closed(object? sender, EventArgs e)
+    {
+        // Popup 可能先于按钮的 PreviewMouseDown 处理外部点击；此时用鼠标状态阻止随后 Click 重新打开。
+        if (Mouse.LeftButton == MouseButtonState.Pressed && BtnDropDown.IsMouseOver)
+        {
+            _dropDownWasOpenOnButtonPress = true;
+        }
+    }
+
+    private void BtnDropDown_Click(object sender, RoutedEventArgs e)
+    {
+        if (_dropDownWasOpenOnButtonPress || IsDropDownOpen)
+        {
+            IsDropDownOpen = false;
+        }
+        else
+        {
+            OpenDropDownFromUserIntent(selectFirstItem: false);
+        }
+
+        _dropDownWasOpenOnButtonPress = false;
     }
 
     private void InputTextBox_PreviewKeyDown(object sender, KeyEventArgs e)

@@ -18,6 +18,7 @@
     <sys:Double x:Key="SwiftExportControlHeight">34</sys:Double>
     <sys:Double x:Key="SwiftExportDefaltFontSize">12</sys:Double>
     <sys:Double x:Key="SwiftExport.LookUpTextBoxFontSize">12</sys:Double>
+    <sys:Double x:Key="SwiftExport.LookUpTextBoxFontSizeInTitle">14</sys:Double>
     
 
 

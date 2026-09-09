@@ -3,7 +3,9 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Contracts.Apis.QualityControl;
 using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.QualityControl.AfterSales.Models;
 using SwiftExportClient.Features.QualityControl.AfterSales.Services;
@@ -78,6 +80,47 @@ public sealed class AfterSalesModelsAndContractsTests
         Assert.AreEqual("CUSTOMER-FINISHED", dto.IssueCustomerSkuSnapshot);
         Assert.AreEqual("CUSTOMER-PART", dto.CustomerSkuSnapshot);
         Assert.AreEqual("Pcs", dto.UnitSnapshot);
+    }
+
+    /// <summary>缓存候选回显不制造脏状态，用户选择和清空仍同步原有标识及颜色快照。</summary>
+    [TestMethod]
+    public void CachedLookupSelection_ShouldPreserveLineFactsAndSynchronizeUserChanges()
+    {
+        var originalColorId = Guid.NewGuid();
+        var originalSupplierId = Guid.NewGuid();
+        var line = new AfterSalesLineModel();
+        line.Load(new AfterSalesLineDto
+        {
+            Uid = Guid.NewGuid(),
+            Version = 2,
+            IssueColorId = originalColorId,
+            IssueColorSnapshot = "原颜色",
+            ResponsibleSupplierId = originalSupplierId,
+        });
+        var originalColor = new ProductColorDto { Uid = originalColorId, ColorNameZh = "原颜色" };
+        var originalSupplier = new SupplierDto { Uid = originalSupplierId, SupplierCode = "S001" };
+
+        line.SynchronizeLookupSelections(originalColor, originalSupplier);
+
+        Assert.AreSame(originalColor, line.SelectedIssueColor);
+        Assert.AreSame(originalSupplier, line.SelectedResponsibleSupplier);
+        Assert.IsFalse(line.IsDirty);
+
+        var replacementColor = new ProductColorDto { Uid = Guid.NewGuid(), ColorNameZh = "新颜色" };
+        var replacementSupplier = new SupplierDto { Uid = Guid.NewGuid(), SupplierCode = "S002" };
+        line.SelectedIssueColor = replacementColor;
+        line.SelectedResponsibleSupplier = replacementSupplier;
+
+        Assert.AreEqual(replacementColor.Uid, line.IssueColorId);
+        Assert.AreEqual("新颜色", line.IssueColorSnapshot);
+        Assert.AreEqual(replacementSupplier.Uid, line.ResponsibleSupplierId);
+        Assert.IsTrue(line.IsDirty);
+
+        line.SelectedIssueColor = null;
+        line.SelectedResponsibleSupplier = null;
+        Assert.IsNull(line.IssueColorId);
+        Assert.AreEqual(string.Empty, line.IssueColorSnapshot);
+        Assert.IsNull(line.ResponsibleSupplierId);
     }
 
     /// <summary>列表金额保留“已知金额”和“仍有待定”两种事实。</summary>

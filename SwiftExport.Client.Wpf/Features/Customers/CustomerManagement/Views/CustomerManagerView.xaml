@@ -131,12 +131,35 @@
                             </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="客户代码" Width="110" Binding="{Binding CustomerCode, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
-                        <DataGridTextColumn Header="客户名称" Width="180" Binding="{Binding CustomerName, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
-                        <DataGridTextColumn Header="单据关联号" Width="120" Binding="{Binding DocRelateNo, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
-                        <DataGridTextColumn Header="联系人" Width="100" Binding="{Binding ContactPerson, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
-                        <DataGridTextColumn Header="电话" Width="120" Binding="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
-                        <DataGridTextColumn Header="地址" Width="220" Binding="{Binding Address, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
+                        <DataGridTextColumn Header="客户代码" Width="110" 
+                                            Binding="{Binding CustomerCode, UpdateSourceTrigger=PropertyChanged}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+                        
+                        <DataGridTextColumn Header="客户名称" Width="180" 
+                                            Binding="{Binding CustomerName, UpdateSourceTrigger=PropertyChanged}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+                        
+                        <DataGridTextColumn Header="单据关联号" Width="120" 
+                                            Binding="{Binding DocRelateNo, UpdateSourceTrigger=PropertyChanged}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+                        
+                        <DataGridTextColumn Header="联系人" Width="100" 
+                                            Binding="{Binding ContactPerson, UpdateSourceTrigger=PropertyChanged}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+                        
+                        <DataGridTextColumn Header="电话" Width="120" 
+                                            Binding="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+                        
+                        <DataGridTextColumn Header="地址" Width="220" 
+                                            Binding="{Binding Address, UpdateSourceTrigger=PropertyChanged}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
                         
                         <DataGridTemplateColumn Header="贸易条款" Width="90"
                                                 SortMemberPath="Incoterm"

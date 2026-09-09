@@ -6,7 +6,10 @@ using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.QualityControl;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
@@ -15,6 +18,7 @@ using SwiftExportClient.Features.QualityControl.AfterSales.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
@@ -31,6 +35,7 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     private readonly IAfterSalesReasonDialogService _reasonDialog;
     private readonly IMessageService _messages;
     private readonly ICurrentUserService _currentUser;
+    private readonly IReferenceDataCacheService _referenceDataCache;
     private readonly List<AfterSalesLineModel> _deletedLines = [];
     private readonly Dictionary<string, (string Fingerprint, Guid CommandId)> _pendingCommands = [];
     private CancellationTokenSource? _loadCancellation;
@@ -38,13 +43,14 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     private bool _loading;
     private bool _disposed;
 
-    /// <summary>创建售后详情文档并接入业务命令、对话框、导航和权限服务。</summary>
+    /// <summary>创建售后详情文档并接入业务命令、对话框、导航、权限及基础资料缓存。</summary>
     public AfterSalesDetailViewModel(IAfterSalesApi api, IAfterSalesFeatureService feature, IApiCallRunner runner,
         INavigationService navigation, IDialogService dialogs, IAfterSalesReasonDialogService reasonDialog,
-        IMessageService messages, ICurrentUserService currentUser)
+        IMessageService messages, ICurrentUserService currentUser, IReferenceDataCacheService referenceDataCache)
     {
         _api = api; _feature = feature; _runner = runner; _navigation = navigation; _dialogs = dialogs;
         _reasonDialog = reasonDialog; _messages = messages; _currentUser = currentUser;
+        _referenceDataCache = referenceDataCache;
         Title = "售后服务单-新建";
         Header.PropertyChanged += OnEditChanged;
         Lines.CollectionChanged += (_, _) => UpdateDirtyState();
@@ -57,12 +63,15 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
 
     public AfterSalesHeaderEditModel Header { get; } = new();
     public ObservableCollection<AfterSalesLineModel> Lines { get; } = [];
-    public ObservableCollection<AfterSalesLookupDto> Customers { get; } = [];
+    /// <summary>获取供客户选择控件使用的完整客户缓存。</summary>
+    public ReadOnlyObservableCollection<CustomerDto> Customers => _referenceDataCache.Customers;
     public ObservableCollection<AfterSalesLookupDto> Owners { get; } = [];
-    public ObservableCollection<AfterSalesLookupDto> Suppliers { get; } = [];
+    /// <summary>获取供责任方选择控件使用的完整供应商缓存。</summary>
+    public ReadOnlyObservableCollection<SupplierDto> Suppliers => _referenceDataCache.Suppliers;
     public ObservableCollection<AfterSalesLookupDto> Products { get; } = [];
     public ObservableCollection<AfterSalesLookupDto> SalesOrderLines { get; } = [];
-    public ObservableCollection<AfterSalesLookupDto> Colors { get; } = [];
+    /// <summary>获取供问题颜色选择控件使用的完整颜色缓存。</summary>
+    public ReadOnlyObservableCollection<ProductColorDto> Colors => _referenceDataCache.ProductColors;
     public ObservableCollection<AfterSalesLookupDto> QualityCategories { get; } = [];
     public string DocumentTitle => string.IsNullOrWhiteSpace(Header.AfterSalesNo) ? "售后服务单-新建" : Header.AfterSalesNo;
     public bool HasUnsavedChanges => IsDirty;
@@ -74,6 +83,8 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     public bool CanEditFacts => Capabilities.CanEditFacts && HasAccess;
 
     [ObservableProperty][NotifyCanExecuteChangedFor(nameof(DeleteLineCommand))] public partial AfterSalesLineModel? SelectedLine { get; set; }
+    /// <summary>获取或设置售后单头当前选中的完整客户。</summary>
+    [ObservableProperty] public partial CustomerDto? SelectedCustomer { get; set; }
     [ObservableProperty] public partial AfterSalesCapabilitiesDto Capabilities { get; set; } = new();
     [ObservableProperty][NotifyPropertyChangedFor(nameof(DocumentStatusText))] public partial DocumentStatusEnum DocumentStatus { get; set; }
     [ObservableProperty][NotifyPropertyChangedFor(nameof(ConfirmationStatusText))] public partial ConfirmationStatusEnum ConfirmationStatus { get; set; }
@@ -82,6 +93,14 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     partial void OnCapabilitiesChanged(AfterSalesCapabilitiesDto value)
     {
         OnPropertyChanged(nameof(CanEditFacts)); OnPropertyChanged(nameof(CanEditSupplement)); NotifyCommands();
+    }
+
+    partial void OnSelectedCustomerChanged(CustomerDto? value)
+    {
+        if (_loading) return;
+        Header.CustomerId = value?.Uid ?? Guid.Empty;
+        Header.CustomerCodeSnapshot = value?.CustomerCode ?? string.Empty;
+        Header.CustomerNameSnapshot = value?.CustomerName ?? string.Empty;
     }
 
     /// <inheritdoc/>
@@ -301,6 +320,7 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         foreach (var dto in detail.Lines) { var line = new AfterSalesLineModel(); line.Load(dto); Attach(line); Lines.Add(line); }
         SelectedLine = Lines.FirstOrDefault(); DocumentStatus = detail.Header.DocumentStatus;
         ConfirmationStatus = detail.Header.ConfirmationStatus; Capabilities = detail.Capabilities;
+        SynchronizeCachedSelections();
         Title = DocumentTitle; IsReadOnly = !HasAccess; _loading = false;
         IsDirty = false; OnPropertyChanged(nameof(DocumentTitle)); OnPropertyChanged(nameof(HasUnsavedChanges)); NotifyCommands();
         _navigation.UpdateDocumentKey(this, $"after-sales:{Header.Uid:N}");
@@ -336,17 +356,46 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     private async Task LoadLookupsAsync(CancellationToken token)
     {
         if (_disposed) return;
-        var kinds = new[] { "customers", "owners", "suppliers", "products", "sales-order-lines", "colors", "quality-categories" };
+        _ = await _referenceDataCache.EnsureLoadedAsync();
+        if (token.IsCancellationRequested || _disposed) return;
+        SynchronizeCachedSelections();
+
+        var kinds = new[] { "owners", "products", "sales-order-lines", "quality-categories" };
         foreach (var kind in kinds)
         {
             var result = await _runner.RunAsync(() => _api.LookupAsync(kind, new AfterSalesLookupRequest
             { CustomerId = Header.CustomerId == Guid.Empty ? null : Header.CustomerId, PageIndex = 1, PageSize = 200 }, token), token, "加载售后候选失败");
             if (token.IsCancellationRequested || _disposed) return;
-            var target = kind switch { "customers" => Customers, "owners" => Owners, "suppliers" => Suppliers,
-                "products" => Products, "sales-order-lines" => SalesOrderLines, "colors" => Colors, _ => QualityCategories };
+            var target = kind switch { "owners" => Owners, "products" => Products,
+                "sales-order-lines" => SalesOrderLines, _ => QualityCategories };
             if (!result.Success || result.Data is null) continue;
             target.Clear();
             foreach (var item in result.Data.Items) target.Add(item);
+        }
+    }
+
+    private void SynchronizeCachedSelections()
+    {
+        SelectedCustomer = Header.CustomerId == Guid.Empty
+            ? null
+            : Customers.FirstOrDefault(item => item.Uid == Header.CustomerId)
+              ?? new CustomerDto
+              {
+                  Uid = Header.CustomerId,
+                  CustomerCode = Header.CustomerCodeSnapshot,
+                  CustomerName = Header.CustomerNameSnapshot,
+              };
+
+        foreach (var line in Lines)
+        {
+            var color = line.IssueColorId.HasValue
+                ? Colors.FirstOrDefault(item => item.Uid == line.IssueColorId.Value)
+                  ?? new ProductColorDto { Uid = line.IssueColorId.Value, ColorNameZh = line.IssueColorSnapshot }
+                : null;
+            var supplier = line.ResponsibleSupplierId.HasValue
+                ? Suppliers.FirstOrDefault(item => item.Uid == line.ResponsibleSupplierId.Value)
+                : null;
+            line.SynchronizeLookupSelections(color, supplier);
         }
     }
 

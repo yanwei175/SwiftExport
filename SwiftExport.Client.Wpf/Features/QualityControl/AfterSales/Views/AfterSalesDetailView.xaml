@@ -4,6 +4,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:customerComponents="clr-namespace:SwiftExportClient.Features.Customers.Components"
+             xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
+             xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
              mc:Ignorable="d" 
              d:DesignHeight="850" d:DesignWidth="1500">
     <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,*,8,Auto">
@@ -40,13 +43,9 @@
                 <TextBlock Grid.Column="2" Text="客户" 
                            VerticalAlignment="Center" Margin="0,0,8,0"/>
 
-                <ComboBox Grid.Column="3" Margin="0,0,12,0" 
-                          ItemsSource="{Binding Customers}" 
-                          SelectedValue="{Binding Header.CustomerId}" 
-                          SelectedValuePath="Uid" 
-                          DisplayMemberPath="Name" 
-                          IsEditable="True" 
-                          IsTextSearchEnabled="True" 
+                <customerComponents:CustomerAutoSuggestComboBox Grid.Column="3" Margin="0,0,12,0"
+                          ItemsSource="{Binding Customers}"
+                          SelectedCustomer="{Binding SelectedCustomer,Mode=TwoWay}"
                           IsEnabled="{Binding CanEditFacts}" 
                           AutomationProperties.Name="售后客户"/>
 
@@ -221,14 +220,13 @@
                         <TextBlock Grid.Column="2" Text="问题颜色" 
                                    VerticalAlignment="Center" Margin="0,0,8,0"/>
 
-                        <ComboBox Grid.Column="3" Margin="0,0,12,0" 
+                        <productComponents:ProductColorAutoSuggestComboBox Grid.Column="3" Margin="0,0,12,0"
                                   ItemsSource="{Binding DataContext.Colors,
                                     RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                                  SelectedValue="{Binding IssueColorId}" 
-                                  SelectedValuePath="Uid" 
-                                  DisplayMemberPath="Name" 
+                                  SelectedColor="{Binding SelectedIssueColor,Mode=TwoWay}"
                                   IsEnabled="{Binding DataContext.CanEditFacts,
-                                    RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                    RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                  AutomationProperties.Name="问题颜色"/>
 
                         <TextBlock Grid.Column="4" Text="原销售行" 
                                    VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -301,15 +299,13 @@
                         <TextBlock Grid.Row="4" Grid.Column="0" Text="责任供应商" 
                                    VerticalAlignment="Center" Margin="0,0,8,0"/>
 
-                        <ComboBox Grid.Row="4" Grid.Column="1" Margin="0,0,12,0" 
+                        <supplierComponents:SupplierAutoSuggestComboBox Grid.Row="4" Grid.Column="1" Margin="0,0,12,0"
                                   ItemsSource="{Binding DataContext.Suppliers,
-                            RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                                  SelectedValue="{Binding ResponsibleSupplierId}" 
-                                  SelectedValuePath="Uid" 
-                                  DisplayMemberPath="Name" 
-                                  IsEditable="True" IsTextSearchEnabled="True" 
+                                    RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                  SelectedSupplier="{Binding SelectedResponsibleSupplier,Mode=TwoWay}"
                                   IsEnabled="{Binding DataContext.CanEditFacts,
-                            RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                    RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                  AutomationProperties.Name="责任供应商"/>
 
                         <TextBlock Grid.Row="4" Grid.Column="2" Text="补发数量" 
                                    VerticalAlignment="Center" Margin="0,0,8,0"/>

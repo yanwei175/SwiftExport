@@ -4,7 +4,9 @@ using CommunityToolkit.Mvvm.Input;
 using Mapster;
 using SwiftExport.Contracts.Apis.QualityControl;
 using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.QualityControl.AfterSales.Models;
@@ -12,6 +14,7 @@ using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Caching;
 
 namespace SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 
@@ -23,14 +26,17 @@ public sealed partial class AfterSalesManagerViewModel : ViewModelBaseEx, IAsync
     private readonly IApiCallRunner _runner;
     private readonly INavigationService _navigation;
     private readonly ICurrentUserService _currentUser;
+    private readonly IReferenceDataCacheService _referenceDataCache;
     private CancellationTokenSource? _queryCancellation;
     private bool _initialized;
     private bool _disposed;
 
-    /// <summary>创建售后管理页并接入 API、导航和当前用户权限。</summary>
-    public AfterSalesManagerViewModel(IAfterSalesApi api, IApiCallRunner runner, INavigationService navigation, ICurrentUserService currentUser)
+    /// <summary>创建售后管理页并接入 API、导航、权限及基础资料缓存。</summary>
+    public AfterSalesManagerViewModel(IAfterSalesApi api, IApiCallRunner runner, INavigationService navigation,
+        ICurrentUserService currentUser, IReferenceDataCacheService referenceDataCache)
     {
         _api = api; _runner = runner; _navigation = navigation; _currentUser = currentUser;
+        _referenceDataCache = referenceDataCache;
         Title = "售后服务管理";
         RegisterBusyAwareCommand(SearchCommand); RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(CreateCommand); RegisterBusyAwareCommand(OpenDetailCommand);
@@ -38,8 +44,11 @@ public sealed partial class AfterSalesManagerViewModel : ViewModelBaseEx, IAsync
     }
 
     public ObservableCollection<AfterSalesManagerRowModel> Orders { get; } = [];
-    public ObservableCollection<AfterSalesLookupDto> CustomerOptions { get; } = [];
-    public ObservableCollection<AfterSalesLookupDto> SupplierOptions { get; } = [];
+    /// <summary>获取供管理页本地筛选的客户缓存。</summary>
+    public ReadOnlyObservableCollection<CustomerDto> CustomerOptions => _referenceDataCache.Customers;
+
+    /// <summary>获取供管理页本地筛选的供应商缓存。</summary>
+    public ReadOnlyObservableCollection<SupplierDto> SupplierOptions => _referenceDataCache.Suppliers;
     public IReadOnlyList<AfterSalesFilterOption<DocumentStatusEnum?>> DocumentStatusOptions { get; } =
     [
         new(null, "全部生命周期"), new(DocumentStatusEnum.Open, "开放"),
@@ -55,8 +64,11 @@ public sealed partial class AfterSalesManagerViewModel : ViewModelBaseEx, IAsync
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
 
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
-    [ObservableProperty] public partial AfterSalesLookupDto? SelectedCustomer { get; set; }
-    [ObservableProperty] public partial AfterSalesLookupDto? SelectedSupplier { get; set; }
+    /// <summary>获取或设置当前客户筛选对象；空值表示全部客户。</summary>
+    [ObservableProperty] public partial CustomerDto? SelectedCustomer { get; set; }
+
+    /// <summary>获取或设置当前责任供应商筛选对象；空值表示全部供应商。</summary>
+    [ObservableProperty] public partial SupplierDto? SelectedSupplier { get; set; }
     [ObservableProperty] public partial AfterSalesFilterOption<DocumentStatusEnum?>? SelectedDocumentStatus { get; set; }
     [ObservableProperty] public partial AfterSalesFilterOption<ConfirmationStatusEnum?>? SelectedConfirmationStatus { get; set; }
     [ObservableProperty] public partial DateTime? DateFrom { get; set; }
@@ -75,7 +87,7 @@ public sealed partial class AfterSalesManagerViewModel : ViewModelBaseEx, IAsync
         SelectedDocumentStatus = DocumentStatusOptions[0];
         SelectedConfirmationStatus = ConfirmationOptions[0];
         if (!HasAccess) { ResultSummary = "当前账号没有品质管理权限。"; return; }
-        await LoadLookupsAsync();
+        _ = await _referenceDataCache.EnsureLoadedAsync();
         await LoadPageAsync();
     }
 
@@ -128,15 +140,6 @@ public sealed partial class AfterSalesManagerViewModel : ViewModelBaseEx, IAsync
         }, "正在查询售后服务单...", false);
         if (ReferenceEquals(_queryCancellation, cts)) _queryCancellation = null;
         cts.Dispose();
-    }
-
-    // 管理筛选候选只加载窄身份和显示名，不缓存用户或完整主数据。
-    private async Task LoadLookupsAsync()
-    {
-        var customers = await _runner.RunAsync(() => _api.LookupAsync("customers", new AfterSalesLookupRequest { PageIndex = 1, PageSize = 200 }), "加载客户候选失败");
-        var suppliers = await _runner.RunAsync(() => _api.LookupAsync("suppliers", new AfterSalesLookupRequest { PageIndex = 1, PageSize = 200 }), "加载责任方候选失败");
-        if (customers.Success && customers.Data is not null) foreach (var item in customers.Data.Items) CustomerOptions.Add(item);
-        if (suppliers.Success && suppliers.Data is not null) foreach (var item in suppliers.Data.Items) SupplierOptions.Add(item);
     }
 
     /// <summary>取消尚未完成的列表请求并阻止页面释放后回写。</summary>
