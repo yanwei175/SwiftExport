@@ -1,0 +1,40 @@
+using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
+using SwiftExport.Contracts.Wrappers;
+
+namespace SwiftExport.Application.Interfaces.DemandPlanning;
+
+/// <summary>
+/// 定义物料建立、回退、查询及追溯入口，不承接旧计划命令和采购写操作。
+/// </summary>
+public interface INetDemandServices
+{
+    /// <summary>查询尚可从来源需求建立物料需求的候选。</summary>
+    Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
+        SourceDemandCandidateSearchRequest request,
+        CancellationToken cancellationToken = default);
+    /// <summary>从来源需求原子建立物料需求。</summary>
+    Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishFromSourcesAsync(
+        EstablishMaterialDemandsCommand command,
+        CancellationToken cancellationToken = default);
+    /// <summary>安全回退来源对应的活动物料需求修订。</summary>
+    Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
+        RollbackMaterialDemandsCommand command,
+        CancellationToken cancellationToken = default);
+    /// <summary>查询物料需求列表，沿用现有筛选和数量口径。</summary>
+    Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
+        NetDemandSearchRequest request,
+        CancellationToken cancellationToken = default);
+    /// <summary>
+    /// 查询左侧来源导航使用的独立来源分组。
+    /// </summary>
+    Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
+        NetDemandSourceGroupSearchRequest request,
+        CancellationToken cancellationToken = default);
+    /// <summary>读取物料详情；活动计划兼容字段随后续页面治理。</summary>
+    Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default);
+    /// <summary>读取物料历史与执行关联，保持原追溯查询语义。</summary>
+    Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default);
+    /// <summary>由物料领域读取一条来源需求的物料及执行追溯。</summary>
+    Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(Guid grossDemandId, CancellationToken cancellationToken = default);
+}

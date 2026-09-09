@@ -5,5 +5,4 @@
   <Project Path="SwiftExport.Core/SwiftExport.Core.csproj" Id="6e5ec76f-9246-4853-9938-a255b044e3b7" />
   <Project Path="SwiftExport.Infrastructure/SwiftExport.Infrastructure.csproj" Id="3dfd2bd1-ccf0-47c1-8815-5399df23aafe" />
   <Project Path="SwiftExport.WebApi/SwiftExport.WebApi.csproj" Id="55b0efb5-cd3b-4fa7-b226-610da55cb9ec" />
-  <Project Path="_tools/AdminPasswordRecovery/AdminPasswordRecovery.csproj" />
 </Solution>
