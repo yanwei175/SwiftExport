@@ -33,6 +33,14 @@ public interface INetDemandRepository
     Task<PagedResponseBase<SourceDemandCandidateDto>> SearchSourceDemandCandidatesAsync(
         SourceDemandCandidateSearchRequest request,
         CancellationToken cancellationToken = default);
+    /// <summary>查询全部仍包含可建立来源行的来源单分组。</summary>
+    Task<IReadOnlyList<SourceDemandCandidateGroupDto>> GetSourceDemandCandidateGroupsAsync(
+        CancellationToken cancellationToken = default);
+    /// <summary>按来源类型和来源 Uid 完整查询一张来源单的全部可建立行。</summary>
+    Task<IReadOnlyList<SourceDemandCandidateDto>> GetSourceDemandCandidatesBySourceAsync(
+        string sourceType,
+        Guid sourceUid,
+        CancellationToken cancellationToken = default);
     /// <summary>锁定来源对应的物料历史并取得下一修订号。</summary>
     Task<int> GetNextDecompositionRevisionForUpdateAsync(Guid grossDemandId);
     /// <summary>锁定并检查来源需求是否仍有活动物料、执行或正式收发事实。</summary>

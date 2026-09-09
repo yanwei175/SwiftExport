@@ -15,11 +15,11 @@ using SwiftExport.Infrastructure.Data;
 namespace SwiftExport.Application.Services.DemandPlanning;
 
 /// <summary>
-/// 负责编排净需求工作台查询、计划替代、追溯及采购草稿业务。
+/// 兼容旧混合接口；物料查询转发新服务，计划及采购命令等待调用方迁移后退出。
 /// </summary>
 public sealed class NetDemandWorkspaceService(
     ServiceBaseContext context,
-    IGrossDemandRepository grossDemandRepository,
+    INetDemandServices materialDemands,
     INetDemandRepository netDemandRepository,
     INetDemandAllocationRepository allocationRepository,
     INetDemandPlanCommandRepository commandRepository,
@@ -28,191 +28,95 @@ public sealed class NetDemandWorkspaceService(
     ISupplierRepository supplierRepository,
     NetDemandPlanReplacementPlanner replacementPlanner,
     NetDemandPlanCommandIdempotencyPolicy idempotencyPolicy,
-    IMaterialDemandEstablishmentService establishmentService,
     PurchaseDraftCreationService purchaseDrafts,
     PurchaseDraftLifecycleService purchaseDraftLifecycle) : INetDemandWorkspaceService
 {
     private readonly DbSession _session = context.Session;
     private readonly ILogger<NetDemandWorkspaceService> _logger = context.LoggerFactory.CreateLogger<NetDemandWorkspaceService>();
 
-    /// <summary>查询来源需求建立候选，候选状态由物料领域联表计算。</summary>
+    /// <summary>兼容旧入口，已迁移至 INetDemandServices.SearchSourceDemandCandidatesAsync。</summary>
     public Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
         SourceDemandCandidateSearchRequest request,
         CancellationToken cancellationToken = default)
-        => establishmentService.SearchCandidatesAsync(request, cancellationToken);
+        => materialDemands.SearchSourceDemandCandidatesAsync(request, cancellationToken);
 
-    /// <summary>从来源需求建立物料需求，不回写来源本体的兼容拆解字段。</summary>
+    /// <summary>兼容旧入口，已迁移至 INetDemandServices.EstablishFromSourcesAsync。</summary>
     public Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishFromSourcesAsync(
         EstablishMaterialDemandsCommand command,
         CancellationToken cancellationToken = default)
-        => establishmentService.EstablishAsync(command, cancellationToken);
+        => materialDemands.EstablishFromSourcesAsync(command, cancellationToken);
 
-    /// <summary>回退来源物料需求修订并保留完整历史。</summary>
+    /// <summary>兼容旧入口，已迁移至 INetDemandServices.RollbackSourceEstablishmentAsync。</summary>
     public Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
         RollbackMaterialDemandsCommand command,
         CancellationToken cancellationToken = default)
-        => establishmentService.RollbackAsync(command, cancellationToken);
+        => materialDemands.RollbackSourceEstablishmentAsync(command, cancellationToken);
 
+    /// <summary>兼容旧入口，已迁移至 INetDemandServices.SearchAsync。</summary>
+    public Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
+        NetDemandSearchRequest request,
+        CancellationToken cancellationToken = default)
+        => materialDemands.SearchAsync(request, cancellationToken);
+
+    /// <summary>兼容旧入口，已迁移至 INetDemandServices.SearchSourceGroupsAsync。</summary>
+    public Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
+        NetDemandSourceGroupSearchRequest request,
+        CancellationToken cancellationToken = default)
+        => materialDemands.SearchSourceGroupsAsync(request, cancellationToken);
+
+    /// <summary>兼容旧入口，已迁移至 INetDemandServices.GetDetailAsync。</summary>
+    public Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default)
+        => materialDemands.GetDetailAsync(uid, cancellationToken);
+
+    /// <summary>兼容旧入口，已迁移至 INetDemandServices.GetTraceAsync。</summary>
+    public Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default)
+        => materialDemands.GetTraceAsync(uid, cancellationToken);
+
+    /// <summary>兼容旧入口，已迁移至 INetDemandServices.GetSourceDemandTraceAsync。</summary>
+    public Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(Guid grossDemandId, CancellationToken cancellationToken = default)
+        => materialDemands.GetSourceDemandTraceAsync(grossDemandId, cancellationToken);
+
+    /// <summary>待迁移至采购领域：采购取数预览，当前仅兼容旧页面。</summary>
     public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewPurchaseDraftsAsync(
         PurchaseDraftPreviewRequest request,
         CancellationToken cancellationToken = default)
         => purchaseDrafts.PreviewAsync(request, cancellationToken);
 
+    /// <summary>待迁移至采购领域：建单及关联写入，保留原事务与幂等。</summary>
     public Task<ServiceResult<CreatePurchaseDraftsResult>> CreatePurchaseDraftsAsync(
         CreatePurchaseDraftsCommand command,
         CancellationToken cancellationToken = default)
         => purchaseDrafts.CreateAsync(command, cancellationToken);
 
+    /// <summary>待迁移至采购领域：取消采购并处理关联，保留原取消规则。</summary>
     public Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelPurchaseDraftAsync(
         Guid uid,
         CancelPurchaseDraftCommand command,
         CancellationToken cancellationToken = default)
         => purchaseDraftLifecycle.CancelAsync(uid, command, cancellationToken);
 
+    /// <summary>待迁移至采购领域：采购减量影响预览。</summary>
     public Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewPurchaseDraftReleaseAsync(
         Guid uid,
         PurchaseDraftReleasePreviewRequest request,
         CancellationToken cancellationToken = default)
         => purchaseDraftLifecycle.PreviewReleaseAsync(uid, request, cancellationToken);
 
+    /// <summary>待迁移至采购领域：采购减量及关联更新。</summary>
     public Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleasePurchaseDraftAsync(
         Guid uid,
         ReleasePurchaseDraftCommand command,
         CancellationToken cancellationToken = default)
         => purchaseDraftLifecycle.ReleaseAsync(uid, command, cancellationToken);
 
+    /// <summary>待迁移至采购领域只读 Trace：按来源查询采购关联。</summary>
     public Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
         string sourceType,
         Guid sourceUid,
         CancellationToken cancellationToken = default)
         => purchaseDrafts.GetSourceTraceAsync(sourceType, sourceUid, cancellationToken);
 
-    public async Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
-        NetDemandSearchRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            request ??= new NetDemandSearchRequest();
-            request.PageIndex = Math.Max(1, request.PageIndex);
-            request.PageSize = Math.Clamp(request.PageSize, 1, 200);
-            return ServiceResult<PagedResponseBase<NetDemandListItemDto>>.Ok(
-                await netDemandRepository.SearchWorkspaceAsync(request, cancellationToken));
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "查询净需求工作台失败。");
-            return ServiceResult<PagedResponseBase<NetDemandListItemDto>>.Fail("查询净需求失败。");
-        }
-    }
-
-    /// <summary>
-    /// 查询左侧来源导航分组；该请求仅接受来源导航自己的来源类型和计划状态筛选。
-    /// </summary>
-    public async Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
-        NetDemandSourceGroupSearchRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            request ??= new NetDemandSourceGroupSearchRequest();
-            var groups = await netDemandRepository.SearchSourceGroupsAsync(request, cancellationToken);
-            return ServiceResult<List<NetDemandSourceGroupDto>>.Ok([.. groups]);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "查询净需求来源分组失败。");
-            return ServiceResult<List<NetDemandSourceGroupDto>>.Fail("查询净需求来源分组失败。");
-        }
-    }
-
-    public async Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(
-        Guid uid,
-        CancellationToken cancellationToken = default)
-    {
-        if (uid == Guid.Empty) return ServiceResult<NetDemandDetailDto>.Fail("净需求 Uid 不能为空。");
-        try
-        {
-            var summary = await netDemandRepository.GetWorkspaceItemAsync(uid, cancellationToken);
-            if (summary is null) return ServiceResult<NetDemandDetailDto>.Fail("未找到活动净需求。");
-            var family = await netDemandRepository.GetWorkspaceFamilyAsync(summary.RootNetDemandId, cancellationToken);
-            var history = await allocationRepository.GetHistoryAsync(uid, cancellationToken);
-            var active = history.SingleOrDefault(x => x.LifecycleStatus == NetDemandAllocationLifecycleStatusEnum.Active);
-            if (active is null) return ServiceResult<NetDemandDetailDto>.Fail("净需求没有有效的活动计划，请联系管理员修复数据。");
-            var blockers = await executionLinkRepository.GetByNetDemandIdsAsync(
-                family.Select(x => x.Uid), activeOnly: true, cancellationToken);
-            return ServiceResult<NetDemandDetailDto>.Ok(new NetDemandDetailDto
-            {
-                Summary = summary,
-                ActiveAllocation = active,
-                RelatedCustomerSuppliedPlans = family
-                    .Where(x => x.IsCustomerSupplied && x.Uid != uid)
-                    .OrderBy(x => x.LineNumber)
-                    .ToList(),
-                BlockingExecutionLinks = blockers.ToList()
-            });
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "加载净需求 {Uid} 详情失败。", uid);
-            return ServiceResult<NetDemandDetailDto>.Fail("加载净需求详情失败。");
-        }
-    }
-
-    public async Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(
-        Guid uid,
-        CancellationToken cancellationToken = default)
-    {
-        if (uid == Guid.Empty) return ServiceResult<NetDemandTraceDto>.Fail("净需求 Uid 不能为空。");
-        try
-        {
-            var summary = await netDemandRepository.GetWorkspaceItemAsync(uid, cancellationToken);
-            if (summary is null) return ServiceResult<NetDemandTraceDto>.Fail("未找到活动净需求。");
-            var history = await allocationRepository.GetHistoryAsync(uid, cancellationToken);
-            var links = await executionLinkRepository.GetByNetDemandIdsAsync([uid], activeOnly: false, cancellationToken);
-            return ServiceResult<NetDemandTraceDto>.Ok(new NetDemandTraceDto
-            {
-                Summary = summary,
-                AllocationHistory = history.ToList(),
-                ExecutionLinks = links.ToList()
-            });
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "加载净需求 {Uid} 追溯失败。", uid);
-            return ServiceResult<NetDemandTraceDto>.Fail("加载净需求追溯失败。");
-        }
-    }
-
-    /// <summary>在物料领域组合来源本体、物料历史和执行关系，不把追溯职责放回来源本体。</summary>
-    public async Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(
-        Guid grossDemandId,
-        CancellationToken cancellationToken = default)
-    {
-        if (grossDemandId == Guid.Empty) return ServiceResult<GrossDemandTraceDto>.Fail("来源需求 Uid 不能为空。");
-        try
-        {
-            var detail = await grossDemandRepository.GetWorkspaceDetailAsync(grossDemandId, cancellationToken);
-            if (detail is null) return ServiceResult<GrossDemandTraceDto>.Fail("未找到来源需求。");
-            var demands = await netDemandRepository.GetByGrossDemandForTraceAsync(grossDemandId, cancellationToken);
-            var links = await executionLinkRepository.GetTraceByNetDemandIdsAsync(demands.Select(item => item.Uid), cancellationToken);
-            return ServiceResult<GrossDemandTraceDto>.Ok(new GrossDemandTraceDto
-            {
-                GrossDemand = detail, NetDemands = [.. demands], ExecutionLinks = [.. links]
-            });
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "加载来源需求 {GrossDemandId} 的物料追溯失败。", grossDemandId);
-            return ServiceResult<GrossDemandTraceDto>.Fail("加载来源物料追溯失败。");
-        }
-    }
-
+    /// <summary>待废弃：旧 Allocation 替代命令，独立计划退出后移除。</summary>
     public async Task<ServiceResult<NetDemandPlanCommandResult>> ReplacePlanAsync(ReplaceNetDemandPlanCommand command)
     {
         if (command is null || command.CommandId == Guid.Empty)
@@ -236,6 +140,7 @@ public sealed class NetDemandWorkspaceService(
         return ServiceResult<NetDemandPlanCommandResult>.Ok(result);
     }
 
+    /// <summary>待废弃：旧计划应用默认供应商，实际供应商选择归采购。</summary>
     public async Task<ServiceResult<NetDemandPlanCommandResult>> ApplyDefaultSupplierAsync(
         ApplyProductDefaultSupplierCommand command)
     {
@@ -255,6 +160,7 @@ public sealed class NetDemandWorkspaceService(
         return ServiceResult<NetDemandPlanCommandResult>.Ok(result);
     }
 
+    /// <summary>待废弃：旧计划批量分配供应商，实际供应商选择归采购。</summary>
     public async Task<ServiceResult<NetDemandPlanCommandResult>> BatchAssignSupplierAsync(
         BatchAssignSupplierCommand command)
     {

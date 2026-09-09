@@ -403,36 +403,16 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         IsDrawerOpen = true;
     }
 
-    /// <summary>打开来源需求候选，并以客户端预览版本提交物料领域的幂等建立命令。</summary>
+    /// <summary>打开来源需求候选；建立由对话框完成，关闭后刷新物料工作台。</summary>
     [RelayCommand(CanExecute = nameof(CanWriteCommand))]
     private async Task EstablishFromSourcesAsync()
     {
         if (!await ConfirmDiscardPlanChangesAsync()) return;
-        var selected = await _netDemandDialogService.ShowSourceDemandCandidatesAsync();
-        if (selected.Count == 0) return;
-        await RunBusyAsync(async () =>
+        var hasEstablished = await _netDemandDialogService.ShowSourceDemandCandidatesAsync();
+        if (hasEstablished)
         {
-            var result = await _apiCallRunner.RunAsync(
-                () => _api.EstablishFromSourcesAsync(new EstablishMaterialDemandsCommand
-                {
-                    CommandId = Guid.NewGuid(),
-                    Items = selected.Select(item => new EstablishMaterialDemandItem
-                    {
-                        GrossDemandId = item.GrossDemandId,
-                        SourceDemandVersion = item.SourceDemandVersion,
-                        SourceVersion = item.SourceVersion
-                    }).ToList()
-                }),
-                "从来源需求建立物料需求失败");
-            if (!result.Success || result.Data is null)
-            {
-                _messageService.ShowError("建立失败", result.Message);
-                return;
-            }
-            _messageService.ShowSuccess("建立完成",
-                $"新建来源 {result.Data.CreatedSourceCount} 条、物料需求 {result.Data.CreatedMaterialDemandCount} 条；已存在 {result.Data.AlreadyEstablishedCount} 条。");
             await RefreshWorkspaceAsync();
-        }, "正在建立物料需求...");
+        }
     }
 
     /// <summary>按当前勾选行归并来源与修订后执行安全回退，活动执行关系由服务端阻断。</summary>

@@ -17,6 +17,5 @@
   <ItemGroup>
     <ProjectReference Include="..\SwiftExport.Application\SwiftExport.Application.csproj" />
     <ProjectReference Include="..\SwiftExport.WebApi\SwiftExport.WebApi.csproj" />
-    <ProjectReference Include="..\_tools\AdminPasswordRecovery\AdminPasswordRecovery.csproj" />
   </ItemGroup>
 </Project>

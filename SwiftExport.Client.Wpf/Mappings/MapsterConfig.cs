@@ -8,6 +8,7 @@ using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
+using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExportClient.Features.Customers.CustomerManagement.Models;
 using SwiftExportClient.Features.Customers.CustomerProducts.Models;
 using SwiftExportClient.Features.Products.Bom.Models;
@@ -19,6 +20,7 @@ using SwiftExportClient.Features.Suppliers.SupplierManagement.Models;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Features.QualityControl.AfterSales.Models;
+using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 
 namespace SwiftExportClient.Mappings;
 
@@ -26,6 +28,10 @@ public sealed class MapsterConfig : IRegister
 {
     public void Register(TypeAdapterConfig config)
     {
+        config.NewConfig<SourceDemandCandidateGroupDto, SourceDemandCandidateGroupModel>()
+            .Map(dest => dest.SourceType, src => src.SourceType ?? string.Empty)
+            .Map(dest => dest.SourceNo, src => src.SourceNo ?? string.Empty);
+
         config.NewConfig<ProductColorDto, ProductColorFilterOption>()
             .Ignore(dest => dest.IsChecked);
 

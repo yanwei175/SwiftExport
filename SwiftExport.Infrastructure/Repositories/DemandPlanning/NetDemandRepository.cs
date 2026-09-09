@@ -59,8 +59,8 @@ WHERE d.[LifecycleStatus]=0 AND d.[IsDeleted]=0
         var selectSql = @"
 SELECT d.[Uid] AS [GrossDemandId],d.[Version] AS [SourceDemandVersion],d.[SourceVersion],
        d.[SourceType],d.[SourceUid],d.[SourceNo],d.[SourceLineId],d.[SourceLineNumber],
-       d.[SkuSnapshot] AS [Sku],d.[CustomerSkuSnapshot] AS [CustomerSku],
-       d.[DescriptionSnapshot] AS [Description],d.[DemandQty],d.[RequiredDate],
+       d.[SkuSnapshot] AS [Sku],d.[LinkSkuSnapshot] AS [LinkSku],d.[CustomerSkuSnapshot] AS [CustomerSku],
+       d.[DescriptionSnapshot] AS [Description],d.[ImagePathSnapshot] AS [ImagePath],d.[DemandQty],d.[RequiredDate],
        historyFacts.[LatestRevision] AS [LatestDecompositionRevision],
        ISNULL(activeFacts.[ActiveCount],0) AS [ActiveMaterialDemandCount],
        CASE
@@ -99,6 +99,63 @@ OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
         {
             Items = [.. items], TotalCount = total, PageIndex = pageIndex, PageSize = pageSize
         };
+    }
+
+    /// <summary>
+    /// 按来源稳定身份聚合全部待建立来源行；不从分页候选结果二次去重，也不依赖来源兼容状态。
+    /// </summary>
+    public async Task<IReadOnlyList<SourceDemandCandidateGroupDto>> GetSourceDemandCandidateGroupsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = @"
+SELECT d.[SourceType],d.[SourceUid],MAX(d.[SourceNo]) AS [SourceNo],COUNT(1) AS [CandidateCount]
+FROM [dbo].[GrossDemand] d
+WHERE d.[LifecycleStatus]=0 AND d.[IsDeleted]=0
+  AND NOT EXISTS (
+      SELECT 1
+      FROM [dbo].[NetDemand] nd
+      WHERE nd.[GrossDemandId]=d.[Uid] AND nd.[LifecycleStatus]=0 AND nd.[IsDeleted]=0)
+GROUP BY d.[SourceType],d.[SourceUid]
+ORDER BY MAX(d.[SourceNo]),d.[SourceType],d.[SourceUid];";
+        var rows = await Connection.QueryAsync<SourceDemandCandidateGroupDto>(new CommandDefinition(
+            sql, transaction: Transaction, cancellationToken: cancellationToken));
+        return [.. rows];
+    }
+
+    /// <summary>
+    /// 使用来源类型与来源 Uid 双重边界完整返回一张来源单的待建立行，避免同号来源被误合并。
+    /// </summary>
+    public async Task<IReadOnlyList<SourceDemandCandidateDto>> GetSourceDemandCandidatesBySourceAsync(
+        string sourceType,
+        Guid sourceUid,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = @"
+SELECT d.[Uid] AS [GrossDemandId],d.[Version] AS [SourceDemandVersion],d.[SourceVersion],
+       d.[SourceType],d.[SourceUid],d.[SourceNo],d.[SourceLineId],d.[SourceLineNumber],
+       d.[SkuSnapshot] AS [Sku],d.[LinkSkuSnapshot] AS [LinkSku],d.[CustomerSkuSnapshot] AS [CustomerSku],
+       d.[DescriptionSnapshot] AS [Description],d.[ImagePathSnapshot] AS [ImagePath],d.[DemandQty],d.[RequiredDate],
+       historyFacts.[LatestRevision] AS [LatestDecompositionRevision],
+       CAST(0 AS int) AS [ActiveMaterialDemandCount],
+       CASE WHEN historyFacts.[LatestRevision]=0 THEN N'UNESTABLISHED' ELSE N'ROLLED_BACK' END AS [EstablishmentState],
+       CAST(1 AS bit) AS [CanEstablish],NULL AS [BlockerCode],NULL AS [BlockerMessage]
+FROM [dbo].[GrossDemand] d
+OUTER APPLY (
+    SELECT ISNULL(MAX(nd.[DecompositionRevision]),0) AS [LatestRevision]
+    FROM [dbo].[NetDemand] nd
+    WHERE nd.[GrossDemandId]=d.[Uid]
+) historyFacts
+WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid
+  AND d.[LifecycleStatus]=0 AND d.[IsDeleted]=0
+  AND NOT EXISTS (
+      SELECT 1
+      FROM [dbo].[NetDemand] nd
+      WHERE nd.[GrossDemandId]=d.[Uid] AND nd.[LifecycleStatus]=0 AND nd.[IsDeleted]=0)
+ORDER BY CASE WHEN d.[RequiredDate] IS NULL THEN 1 ELSE 0 END,d.[RequiredDate],d.[SourceLineNumber],d.[Uid];";
+        var rows = await Connection.QueryAsync<SourceDemandCandidateDto>(new CommandDefinition(
+            sql, new { SourceType = sourceType, SourceUid = sourceUid }, Transaction,
+            cancellationToken: cancellationToken));
+        return [.. rows];
     }
 
     /// <summary>锁定该来源的全部物料历史，保证并发建立只取得一个新修订号。</summary>

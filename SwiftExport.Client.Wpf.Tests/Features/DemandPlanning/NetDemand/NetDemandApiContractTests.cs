@@ -15,6 +15,8 @@ public sealed class NetDemandApiContractTests
         AssertRoute(nameof(INetDemandWorkspaceApi.SearchAsync), typeof(PostAttribute), "/search", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.SearchSourceGroupsAsync), typeof(PostAttribute), "/source-groups", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.SearchSourceDemandCandidatesAsync), typeof(PostAttribute), "/source-demands/candidates/search", 0);
+        AssertRoute(nameof(INetDemandWorkspaceApi.GetSourceDemandCandidateGroupsAsync), typeof(GetAttribute), "/source-demands/candidate-groups");
+        AssertRoute(nameof(INetDemandWorkspaceApi.GetSourceDemandCandidatesBySourceAsync), typeof(GetAttribute), "/source-demands/candidates/{sourceType}/{sourceUid}");
         AssertRoute(nameof(INetDemandWorkspaceApi.EstablishFromSourcesAsync), typeof(PostAttribute), "/source-demands/establish", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.RollbackSourceEstablishmentAsync), typeof(PostAttribute), "/source-demands/rollback", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.GetSourceDemandTraceAsync), typeof(GetAttribute), "/source-demands/{grossDemandId}/trace");
@@ -37,6 +39,8 @@ public sealed class NetDemandApiContractTests
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.SearchAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.SearchSourceGroupsAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.SearchSourceDemandCandidatesAsync));
+        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetSourceDemandCandidateGroupsAsync));
+        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetSourceDemandCandidatesBySourceAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.EstablishFromSourcesAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.RollbackSourceEstablishmentAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetSourceDemandTraceAsync));
