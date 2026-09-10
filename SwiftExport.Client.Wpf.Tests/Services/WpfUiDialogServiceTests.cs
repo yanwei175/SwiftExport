@@ -111,6 +111,12 @@ public sealed class WpfUiDialogServiceTests
             dialogs.Add((dialog.Title, dialog.PrimaryButtonText, dialog.CloseButtonText, dialog.DefaultButton));
             Assert.AreSame(DependencyProperty.UnsetValue,
                 dialog.ReadLocalValue(ScrollViewer.VerticalScrollBarVisibilityProperty));
+            Assert.AreSame(DependencyProperty.UnsetValue,
+                dialog.ReadLocalValue(ContentDialog.DialogWidthProperty));
+            Assert.AreSame(DependencyProperty.UnsetValue,
+                dialog.ReadLocalValue(ContentDialog.DialogHeightProperty));
+            Assert.AreEqual(900, dialog.DialogMaxWidth, "未指定宽度时仍应受当前宿主限制。");
+            Assert.AreEqual(600, dialog.DialogMaxHeight, "未指定高度时仍应受当前宿主限制。");
             return Task.FromResult(results.Dequeue());
         }));
 
@@ -173,12 +179,59 @@ public sealed class WpfUiDialogServiceTests
             () => service.ShowAsync("正文", new DialogOptions("标题") { MaxHeight = double.PositiveInfinity }));
     });
 
+    /// <summary>显式宽高应同时约束 WPF-UI 外壳的最小和最大尺寸，并在宿主缩小时同步收缩。</summary>
+    [TestMethod]
+    public void ExplicitDimensions_FixShellSizeWithinCurrentHost() => StaTest.RunAsync(() =>
+    {
+        var host = CreateHost(1000, 700);
+        var dialog = new ContentDialog();
+        var shell = new Border();
+        var options = new DialogOptions("固定尺寸")
+        {
+            Width = 1200,
+            Height = 900,
+            MaxWidth = 1400,
+            MaxHeight = 850
+        };
+
+        ApplyHostBounds(dialog, shell, host, options);
+        Assert.AreEqual(1000, dialog.DialogWidth);
+        Assert.AreEqual(700, dialog.DialogHeight);
+        Assert.AreEqual(1000, shell.MinWidth);
+        Assert.AreEqual(700, shell.MinHeight);
+
+        host.Width = 640;
+        host.Height = 480;
+        host.Measure(new Size(640, 480));
+        host.Arrange(new Rect(0, 0, 640, 480));
+        ApplyHostBounds(dialog, shell, host, options);
+        Assert.AreEqual(640, dialog.DialogWidth);
+        Assert.AreEqual(480, dialog.DialogHeight);
+        Assert.AreEqual(640, shell.MinWidth);
+        Assert.AreEqual(480, shell.MinHeight);
+        return Task.CompletedTask;
+    });
+
     private static ContentDialogHost CreateHost(double width, double height)
     {
         var host = new ContentDialogHost { Width = width, Height = height };
         host.Measure(new Size(width, height));
         host.Arrange(new Rect(0, 0, width, height));
         return host;
+    }
+
+    /// <summary>调用私有布局映射，直接验证 WPF-UI 模板外壳的尺寸契约。</summary>
+    private static void ApplyHostBounds(
+        ContentDialog dialog,
+        FrameworkElement shell,
+        ContentDialogHost host,
+        DialogOptions options)
+    {
+        var method = typeof(WpfUiDialogService).GetMethod(
+            "ApplyHostBounds",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.IsNotNull(method);
+        method.Invoke(null, [dialog, shell, host, options]);
     }
 
     private static IContentDialogService CreateContentDialogService(

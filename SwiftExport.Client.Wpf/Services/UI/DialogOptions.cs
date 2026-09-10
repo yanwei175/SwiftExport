@@ -21,9 +21,9 @@ public sealed class DialogOptions
     public string? CloseButtonText { get; init; } = "关闭";
     /// <summary>获取默认按钮。</summary>
     public DialogButton DefaultButton { get; init; } = DialogButton.Close;
-    /// <summary>获取首选外壳宽度；空值保留 WPF-UI 默认值。</summary>
+    /// <summary>获取固定外壳宽度；空值保留 WPF-UI 的按内容测量行为。</summary>
     public double? Width { get; init; }
-    /// <summary>获取首选外壳高度；空值保留 WPF-UI 默认值。</summary>
+    /// <summary>获取固定外壳高度；空值保留 WPF-UI 的按内容测量行为。</summary>
     public double? Height { get; init; }
     /// <summary>获取外壳最大宽度；最终值还会受当前宿主宽度限制。</summary>
     public double? MaxWidth { get; init; }

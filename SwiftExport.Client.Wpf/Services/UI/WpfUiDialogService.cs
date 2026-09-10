@@ -59,9 +59,15 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
             throw;
         }
         var completed = false;
+        FrameworkElement? dialogShell = null;
 
-        void ApplyCurrentSize() => ApplyHostBounds(dialog, host, options);
+        void ApplyCurrentSize() => ApplyHostBounds(dialog, dialogShell, host, options);
         void OnHostSizeChanged(object sender, SizeChangedEventArgs args) => ApplyCurrentSize();
+        void OnDialogLoaded(object sender, RoutedEventArgs args)
+        {
+            dialogShell = FindDialogShell(dialog);
+            ApplyCurrentSize();
+        }
         void OnStateChanged(object? sender, EventArgs args)
         {
             if (completed) return;
@@ -86,6 +92,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
         }
 
         var hostSubscribed = false;
+        var loadedSubscribed = false;
         var closingSubscribed = false;
         var stateSubscribed = false;
 
@@ -93,6 +100,8 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
         {
             host.SizeChanged += OnHostSizeChanged;
             hostSubscribed = true;
+            dialog.Loaded += OnDialogLoaded;
+            loadedSubscribed = true;
             dialog.Closing += OnClosing;
             closingSubscribed = true;
             if (state is not null)
@@ -111,6 +120,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
             try
             {
                 if (hostSubscribed) host.SizeChanged -= OnHostSizeChanged;
+                if (loadedSubscribed) dialog.Loaded -= OnDialogLoaded;
                 if (closingSubscribed) dialog.Closing -= OnClosing;
                 if (stateSubscribed) state!.StateChanged -= OnStateChanged;
             }
@@ -203,6 +213,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
     /// <summary>根据当前宿主的 DIP 尺寸限制 Dialog 外壳，不猜测标题和按钮区高度。</summary>
     private static void ApplyHostBounds(
         ContentDialog dialog,
+        FrameworkElement? dialogShell,
         ContentDialogHost host,
         DialogOptions options)
     {
@@ -211,10 +222,53 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
         var maxWidth = Math.Min(options.MaxWidth ?? double.PositiveInfinity, hostWidth);
         var maxHeight = Math.Min(options.MaxHeight ?? double.PositiveInfinity, hostHeight);
 
-        dialog.DialogMaxWidth = maxWidth;
-        dialog.DialogMaxHeight = maxHeight;
-        dialog.DialogWidth = options.Width is { } width ? Math.Min(width, maxWidth) : double.PositiveInfinity;
-        dialog.DialogHeight = options.Height is { } height ? Math.Min(height, maxHeight) : double.PositiveInfinity;
+        ApplyMaximum(dialog, ContentDialog.DialogMaxWidthProperty, maxWidth);
+        ApplyMaximum(dialog, ContentDialog.DialogMaxHeightProperty, maxHeight);
+
+        var requestedWidth = ClampRequestedSize(options.Width, maxWidth);
+        var requestedHeight = ClampRequestedSize(options.Height, maxHeight);
+
+        if (requestedWidth is { } width)
+            dialog.DialogWidth = width;
+        else
+            dialog.ClearValue(ContentDialog.DialogWidthProperty);
+
+        if (requestedHeight is { } height)
+            dialog.DialogHeight = height;
+        else
+            dialog.ClearValue(ContentDialog.DialogHeightProperty);
+
+        if (dialogShell is not null)
+        {
+            // WPF-UI 4.3.0 将 DialogWidth/DialogHeight 作为模板外壳的最大尺寸，
+            // 且会在 MeasureOverride 中按正文期望尺寸改写它们。同步最小尺寸后，
+            // 调用方明确填写的尺寸才不会随列表行数变化。
+            dialogShell.MinWidth = requestedWidth ?? 0;
+            dialogShell.MinHeight = requestedHeight ?? 0;
+        }
+    }
+
+    /// <summary>取得 WPF-UI 模板中承载标题、正文和按钮的外壳，用于落实调用方明确指定的固定尺寸。</summary>
+    private static FrameworkElement? FindDialogShell(ContentDialog dialog)
+    {
+        dialog.ApplyTemplate();
+        if (dialog.Template?.FindName("DialogRootGrid", dialog) is not Grid root || root.Children.Count == 0)
+            return null;
+
+        return root.Children[0] as FrameworkElement;
+    }
+
+    /// <summary>将首选尺寸限制在宿主与显式最大尺寸形成的有效上限内。</summary>
+    private static double? ClampRequestedSize(double? requestedSize, double maximum) =>
+        requestedSize is { } value ? Math.Min(value, maximum) : null;
+
+    /// <summary>存在有限约束时写入最大尺寸，否则恢复控件或样式提供的默认值。</summary>
+    private static void ApplyMaximum(ContentDialog dialog, DependencyProperty property, double value)
+    {
+        if (double.IsFinite(value))
+            dialog.SetValue(property, value);
+        else
+            dialog.ClearValue(property);
     }
 
     /// <summary>同步状态对象提供的按钮准入；空状态使用 WPF-UI 默认启用行为。</summary>

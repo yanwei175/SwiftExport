@@ -61,6 +61,21 @@ if (result == DialogResult.Primary)
 
 这里必须使用 `Disabled`。`Hidden` 只是隐藏滚动条，仍可能让外层 ScrollViewer 参与测量。
 
+关闭外层滚动不会为 Dialog 建立固定高度。如果调用方没有提供 `Height`，正文仍可能按数据量改变弹窗高度。表格类页面应明确设置合适的 `Width`、`Height`，并让内部 `DataGrid`、`ListBox` 在剩余空间内自行滚动：
+
+```csharp
+var options = new DialogOptions("选择数据")
+{
+    Width = 1200,
+    Height = 760,
+    MaxWidth = 1400,
+    MaxHeight = 850,
+    ScrollStrategy = DialogScrollStrategy.Content
+};
+```
+
+WPF-UI 4.3.0 的 `DialogWidth`、`DialogHeight` 原生表示模板外壳的最大尺寸，布局时还会被正文期望尺寸改写。公共服务会为明确填写的 `Width`、`Height` 同步外壳最小尺寸，使它们表现为固定外壳尺寸；宿主变小时仍会收缩到可用范围。不填写时不施加最小尺寸，继续采用 WPF-UI 的按内容测量行为。
+
 ## 4. 动态按钮和关闭校验
 
 需要动态按钮状态或关闭保护时，让页面状态或一个很薄的状态适配器实现 `IDialogContentState`。上例中的 `dialogState` 即该对象：
@@ -102,7 +117,9 @@ finally
 
 ## 6. 尺寸和宿主
 
-`Width`、`Height`、`MaxWidth`、`MaxHeight` 使用 WPF DIP。服务会把请求尺寸限制在当前 `ContentDialogHost.ActualWidth/ActualHeight` 内，并在宿主尺寸变化时重新计算，不需要调用方处理 DPI 像素换算，也不需要手工扣除标题和按钮高度。
+`Width`、`Height`、`MaxWidth`、`MaxHeight` 使用 WPF DIP。未设置 `Width` 或 `Height` 时，服务不写入本地值，保留 ContentDialog 的样式或控件默认值；同时仍通过 `DialogMaxWidth`、`DialogMaxHeight` 施加当前宿主边界。设置了首选尺寸时，服务会把它限制在请求最大值和当前 `ContentDialogHost.ActualWidth/ActualHeight` 内，并在宿主尺寸变化时重新计算。
+
+标题、按钮和模板边距属于 Dialog 外壳。调用方应根据整个弹窗需要设置 `Height`，不在公共服务中手工扣除标题或按钮高度。WPF 使用 DIP，因此无需手工进行 DPI 像素换算。
 
 窗口必须在 `Loaded` 阶段通过 WPF-UI `IContentDialogService.SetDialogHost` 注册宿主。没有有效宿主时，公共服务会抛出明确异常。
 
