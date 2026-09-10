@@ -36,7 +36,7 @@ public sealed class ProcurementDialogService(PurchaseOrderFromMaterialViewModel 
         }
     }
 
-    /// <summary>仅同步保护采购写命令执行期间的关闭；正文内部负责全部业务动作。</summary>
+    /// <summary>同步保护采购写命令执行期间及结果未知时的关闭；正文内部负责全部业务动作。</summary>
     private sealed class WorkflowDialogState(PurchaseOrderFromMaterialViewModel workflow) : IDialogContentState
     {
         /// <summary>弹窗没有主次按钮，无需发布按钮状态变化。</summary>
@@ -45,7 +45,7 @@ public sealed class ProcurementDialogService(PurchaseOrderFromMaterialViewModel 
         public bool IsPrimaryButtonEnabled => false;
         /// <summary>本弹窗不显示次按钮。</summary>
         public bool IsSecondaryButtonEnabled => false;
-        /// <summary>采购写命令执行中拒绝关闭，避免服务端成功但调用方遗漏刷新。</summary>
-        public bool CanClose(DialogResult requestedResult) => !workflow.IsWriting;
+        /// <summary>采购写命令执行中或结果未知时拒绝关闭，避免丢失幂等重试身份和刷新信号。</summary>
+        public bool CanClose(DialogResult requestedResult) => workflow.CanClose;
     }
 }

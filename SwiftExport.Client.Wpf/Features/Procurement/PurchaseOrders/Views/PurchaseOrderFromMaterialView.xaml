@@ -50,7 +50,8 @@
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="采购行生成方式" Style="{StaticResource CaptionTextBlock}" />
                         <ComboBox ItemsSource="{Binding LineModeOptions}" DisplayMemberPath="DisplayText" SelectedValuePath="Value"
-                                  SelectedValue="{Binding LineMode, Mode=TwoWay}" />
+                                  SelectedValue="{Binding LineMode, Mode=TwoWay}"
+                                  IsEnabled="{Binding HasUnknownCreateResult, Converter={StaticResource InverseBooleanConverter}}" />
                     </StackPanel>
                     <TextBlock Grid.Column="4" Text="{Binding StatusText}" TextWrapping="Wrap" VerticalAlignment="Center" />
                     <Button Grid.Column="5" Content="重新预览" Command="{Binding PreviewCommand}" />
@@ -66,7 +67,8 @@
 
                 <TabControl Grid.Row="4">
                     <TabItem Header="本次计划">
-                        <DataGrid ItemsSource="{Binding Items}" Style="{StaticResource SwiftExportDataGrid}" AutoGenerateColumns="False" RowHeight="34">
+                        <DataGrid ItemsSource="{Binding Items}" Style="{StaticResource SwiftExportDataGrid}" AutoGenerateColumns="False" RowHeight="34"
+                                  IsEnabled="{Binding HasUnknownCreateResult, Converter={StaticResource InverseBooleanConverter}}">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="来源单号" Width="120" Binding="{Binding SourceNo}" IsReadOnly="True" />
                                 <DataGridTextColumn Header="SKU" Width="130" Binding="{Binding Sku}" IsReadOnly="True" />
@@ -82,7 +84,8 @@
                     </TabItem>
                     <TabItem Header="采购草稿预览">
                         <Grid RowDefinitions="Auto,8,*">
-                            <DataGrid ItemsSource="{Binding Targets}" Style="{StaticResource SwiftExportDataGrid}" AutoGenerateColumns="False" RowHeight="34" MaxHeight="180">
+                            <DataGrid ItemsSource="{Binding Targets}" Style="{StaticResource SwiftExportDataGrid}" AutoGenerateColumns="False" RowHeight="34" MaxHeight="180"
+                                      IsEnabled="{Binding HasUnknownCreateResult, Converter={StaticResource InverseBooleanConverter}}">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="来源单号" Width="120" Binding="{Binding SourceNo}" IsReadOnly="True" />
                                     <DataGridTextColumn Header="采购供应商" Width="180" Binding="{Binding SupplierName}" IsReadOnly="True" />

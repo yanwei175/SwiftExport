@@ -21,7 +21,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         var api = new NetDemandApiStub { IncludeSafeAppend = true };
         using var viewModel = CreateViewModel(api);
 
-        await viewModel.OpenAsync(new PurchaseDraftPreviewOpenRequest
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
         {
             EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
             Rows = [CreateRow(remainingQty: 10m)],
@@ -48,7 +48,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         var api = new NetDemandApiStub { IncludeSafeAppend = true };
         using var viewModel = CreateViewModel(api);
 
-        await viewModel.OpenAsync(new PurchaseDraftPreviewOpenRequest
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
         {
             EntryMode = PurchaseDraftEntryModeEnum.SourceOneClick,
             SourceType = "SO",
@@ -68,7 +68,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
     {
         var api = new NetDemandApiStub { IncludeWarnings = true, IncludeSafeAppend = true };
         using var viewModel = CreateViewModel(api);
-        await viewModel.OpenAsync(new PurchaseDraftPreviewOpenRequest
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
         {
             EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
             Rows = [CreateRow(10m, api.SourceUid)],
@@ -106,7 +106,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
     {
         var api = new NetDemandApiStub();
         using var viewModel = CreateViewModel(api);
-        await viewModel.OpenAsync(new PurchaseDraftPreviewOpenRequest
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
         {
             EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
             Rows = [CreateRow(10m, api.SourceUid)],
@@ -145,7 +145,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
     {
         var api = new NetDemandApiStub();
         using var viewModel = CreateViewModel(api);
-        await viewModel.OpenAsync(new PurchaseDraftPreviewOpenRequest
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
         {
             EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
             Rows = [CreateRow(10m, api.SourceUid)],
@@ -165,6 +165,8 @@ public sealed class PurchaseDraftWorkflowViewModelTests
 
         Assert.IsTrue(viewModel.IsCreateInProgress);
         Assert.IsFalse(viewModel.CanClose);
+        await viewModel.CreateCommand.ExecuteAsync(null);
+        Assert.HasCount(1, api.CreateCommands);
 
         completed.SetResult(api.CreateSucceededResult());
         await createTask;
@@ -174,8 +176,331 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.IsTrue(viewModel.HasAppliedResults);
     }
 
-    private static PurchaseDraftWorkflowViewModel CreateViewModel(NetDemandApiStub api) =>
-        new(api, new DirectApiCallRunner(), new MessageServiceStub());
+    [TestMethod]
+    public async Task UpdateSelection_ShouldPreserveUnchangedInputIdentityAndLineMode()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api);
+        var retainedRow = CreateRow(10m, api.SourceUid);
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [retainedRow],
+        });
+        var retainedItem = viewModel.Items.Single();
+        retainedItem.PurchaseQty = 6m;
+        viewModel.LineMode = PurchaseDraftLineModeEnum.MergeCompatibleLines;
+        var executionRequestId = viewModel.ExecutionRequestId;
+
+        var addedRow = CreateRow(4m, api.SourceUid);
+        await viewModel.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [retainedRow, addedRow],
+        });
+
+        Assert.AreSame(retainedItem, viewModel.Items.Single(item => item.NetDemandId == retainedRow.Uid));
+        Assert.AreEqual(6m, retainedItem.PurchaseQty);
+        Assert.AreEqual(executionRequestId, viewModel.ExecutionRequestId);
+        Assert.AreEqual(PurchaseDraftLineModeEnum.MergeCompatibleLines, viewModel.LineMode);
+        Assert.AreEqual(4m, viewModel.Items.Single(item => item.NetDemandId == addedRow.Uid).PurchaseQty);
+
+        await viewModel.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [retainedRow],
+        });
+
+        Assert.AreSame(retainedItem, viewModel.Items.Single());
+        Assert.AreEqual(6m, retainedItem.PurchaseQty);
+
+        var changedFacts = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
+        {
+            Uid = retainedRow.Uid,
+            Version = retainedRow.Version + 1,
+            SourceType = retainedRow.SourceType,
+            SourceUid = retainedRow.SourceUid,
+            SourceNo = retainedRow.SourceNo,
+            Sku = retainedRow.Sku,
+            NetQty = 9m,
+            SuggestedPurchaseSupplierId = retainedRow.SuggestedPurchaseSupplierId,
+            SuggestedDeliverySupplierId = retainedRow.SuggestedDeliverySupplierId,
+        });
+        await viewModel.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [changedFacts],
+        });
+
+        Assert.AreNotSame(retainedItem, viewModel.Items.Single());
+        Assert.AreNotEqual(retainedItem.CommandItemId, viewModel.Items.Single().CommandItemId);
+        Assert.AreEqual(9m, viewModel.Items.Single().PurchaseQty);
+        StringAssert.Contains(viewModel.StatusText, "版本或剩余额度");
+    }
+
+    [TestMethod]
+    public async Task InputChangeDuringPreview_ShouldRejectLateSuccessAndClearConfirmation()
+    {
+        var api = new NetDemandApiStub { IncludeWarnings = true };
+        using var viewModel = CreateViewModel(api);
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [CreateRow(10m, api.SourceUid)],
+        });
+        foreach (var warning in viewModel.Warnings.Where(item => item.RequiresConfirmation))
+            warning.IsConfirmed = true;
+
+        var completion = new TaskCompletionSource<ServiceResult<PurchaseDraftPreviewResponse>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        PurchaseDraftPreviewRequest? captured = null;
+        api.PreviewHandler = (request, _) =>
+        {
+            captured = request;
+            return completion.Task;
+        };
+        var pending = viewModel.PreviewCommand.ExecuteAsync(null);
+        await Task.Yield();
+
+        viewModel.Items.Single().PurchaseQty = 7m;
+        completion.SetResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(api.CreatePreview(captured!, "LATE-SKU")));
+        await pending;
+
+        Assert.IsTrue(viewModel.IsStale);
+        Assert.IsFalse(viewModel.Warnings.Any(item => item.IsConfirmed));
+        Assert.IsFalse(viewModel.PreviewLines.Any(item => item.Sku == "LATE-SKU"));
+        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task InputChangeDuringPreview_ShouldRejectLateFailureStatus()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api);
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [CreateRow(10m, api.SourceUid)],
+        });
+        var completion = new TaskCompletionSource<ServiceResult<PurchaseDraftPreviewResponse>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        api.PreviewHandler = (_, _) => completion.Task;
+        var pending = viewModel.PreviewCommand.ExecuteAsync(null);
+        await Task.Yield();
+
+        viewModel.Items.Single().PurchaseQty = 7m;
+        completion.SetResult(ServiceResult<PurchaseDraftPreviewResponse>.Fail("旧请求失败"));
+        await pending;
+
+        StringAssert.Contains(viewModel.StatusText, "重新预览");
+        Assert.AreNotEqual("旧请求失败", viewModel.StatusText);
+        Assert.IsTrue(viewModel.IsStale);
+    }
+
+    [TestMethod]
+    public async Task PartialSuccess_ShouldRetryOnlyFailedSourceWithStableIdentityAndKeepCumulativeResults()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api);
+        var sourceA = api.SourceUid;
+        var sourceB = Guid.NewGuid();
+        var rowA = CreateRow(10m, sourceA);
+        var rowB = CreateRow(8m, sourceB);
+        var sourceByDemand = new Dictionary<Guid, Guid>
+        {
+            [rowA.Uid] = sourceA,
+            [rowB.Uid] = sourceB,
+        };
+        api.PreviewHandler = (request, _) => Task.FromResult(
+            ServiceResult<PurchaseDraftPreviewResponse>.Ok(CreateMultiSourcePreview(api, request, sourceByDemand)));
+        var createCall = 0;
+        api.CreateHandler = (command, _) => Task.FromResult(++createCall == 1
+            ? CreateResult(command,
+                (sourceA, NetDemandCommandOutcomeEnum.Succeeded),
+                (sourceB, NetDemandCommandOutcomeEnum.Failed))
+            : CreateResult(command, (sourceB, NetDemandCommandOutcomeEnum.Succeeded)));
+
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [rowA, rowB],
+        });
+        await viewModel.CreateCommand.ExecuteAsync(null);
+        var firstCommand = api.CreateCommands[0];
+        var failedItem = firstCommand.Sources.Single(source => source.SourceUid == sourceB).Items.Single();
+
+        Assert.IsTrue(viewModel.HasAppliedResults);
+        Assert.HasCount(2, viewModel.Results);
+        Assert.AreEqual(sourceB, viewModel.Items.Single().SourceUid);
+
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+        await viewModel.CreateCommand.ExecuteAsync(null);
+        var retry = api.CreateCommands[1];
+
+        Assert.HasCount(1, retry.Sources);
+        Assert.AreEqual(sourceB, retry.Sources.Single().SourceUid);
+        Assert.AreEqual(firstCommand.ExecutionRequestId, retry.ExecutionRequestId);
+        Assert.AreEqual(failedItem.CommandItemId, retry.Sources.Single().Items.Single().CommandItemId);
+        Assert.IsTrue(viewModel.HasAppliedResults);
+        Assert.IsTrue(viewModel.Results.All(item => item.Outcome == NetDemandCommandOutcomeEnum.Succeeded));
+    }
+
+    [TestMethod]
+    public async Task AppliedResults_ShouldSurviveSelectionUpdateAndLaterPreviewFailure()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api);
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [CreateRow(10m, api.SourceUid)],
+        });
+        await viewModel.CreateCommand.ExecuteAsync(null);
+        var appliedResult = viewModel.Results.Single();
+        var nextSource = Guid.NewGuid();
+        api.PreviewHandler = (request, _) => Task.FromResult(
+            ServiceResult<PurchaseDraftPreviewResponse>.Ok(api.CreatePreview(request, sourceUid: nextSource)));
+
+        await viewModel.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [CreateRow(5m, nextSource)],
+        });
+        api.PreviewHandler = (_, _) => Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Fail("预览失败"));
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+
+        Assert.IsTrue(viewModel.HasAppliedResults);
+        Assert.AreSame(appliedResult, viewModel.Results.Single());
+        Assert.AreEqual("预览失败", viewModel.StatusText);
+    }
+
+    [TestMethod]
+    public async Task UnknownCreateResult_ShouldRetryFrozenCommandWithoutChangingIdentityOrPayload()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api, allowErrors: true);
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [CreateRow(10m, api.SourceUid)],
+        });
+        var call = 0;
+        api.CreateHandler = (command, _) => Task.FromResult(++call == 1
+            ? ServiceResult<CreatePurchaseDraftsResult>.Fail("网络中断")
+            : CreateResult(command, (api.SourceUid, NetDemandCommandOutcomeEnum.AlreadyApplied)));
+
+        await viewModel.CreateCommand.ExecuteAsync(null);
+        var frozen = api.CreateCommands[0];
+        viewModel.Items.Single().PurchaseQty = 3m;
+
+        Assert.IsTrue(viewModel.HasUnknownCreateResult);
+        Assert.IsFalse(viewModel.CanClose);
+        Assert.IsTrue(viewModel.CreateCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.PreviewCommand.CanExecute(null));
+
+        await viewModel.CreateCommand.ExecuteAsync(null);
+        var replay = api.CreateCommands[1];
+
+        Assert.AreSame(frozen, replay);
+        Assert.AreEqual(10m, replay.Sources.Single().Items.Single().PurchaseQty);
+        Assert.AreEqual(frozen.ExecutionRequestId, replay.ExecutionRequestId);
+        Assert.IsFalse(viewModel.HasUnknownCreateResult);
+        Assert.IsTrue(viewModel.CanClose);
+        Assert.IsTrue(viewModel.HasAppliedResults);
+    }
+
+    [TestMethod]
+    public async Task ClosedSessionPreview_ShouldNotWriteIntoReopenedSession()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api);
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [CreateRow(10m, api.SourceUid)],
+        });
+        var oldCompletion = new TaskCompletionSource<ServiceResult<PurchaseDraftPreviewResponse>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var call = 0;
+        PurchaseDraftPreviewRequest? oldRequest = null;
+        api.PreviewHandler = (request, _) =>
+        {
+            if (++call == 1)
+            {
+                oldRequest = request;
+                return oldCompletion.Task;
+            }
+            return Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(api.CreatePreview(request, "NEW-SESSION")));
+        };
+        var oldTask = viewModel.PreviewCommand.ExecuteAsync(null);
+        await Task.Yield();
+
+        viewModel.Close();
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [CreateRow(5m, api.SourceUid)],
+        });
+        oldCompletion.SetResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(api.CreatePreview(oldRequest!, "OLD-SESSION")));
+        await oldTask;
+
+        Assert.AreEqual("NEW-SESSION", viewModel.PreviewLines.Single().Sku);
+    }
+
+    private static PurchaseDraftWorkflowViewModel CreateViewModel(NetDemandApiStub api, bool allowErrors = false) =>
+        new(api, new DirectApiCallRunner(), new MessageServiceStub { AllowErrors = allowErrors });
+
+    private static Task OpenSessionAsync(
+        PurchaseDraftWorkflowViewModel viewModel,
+        PurchaseDraftPreviewOpenRequest request)
+    {
+        viewModel.BeginSession();
+        return viewModel.UpdateSelectionAsync(request);
+    }
+
+    private static PurchaseDraftPreviewResponse CreateMultiSourcePreview(
+        NetDemandApiStub api,
+        PurchaseDraftPreviewRequest request,
+        IReadOnlyDictionary<Guid, Guid> sourceByDemand)
+    {
+        var combined = new PurchaseDraftPreviewResponse
+        {
+            ExecutionRequestId = request.ExecutionRequestId,
+            EntryMode = request.EntryMode,
+            LineMode = request.LineMode,
+            PreviewToken = Guid.NewGuid().ToString("N"),
+            Currency = "CNY",
+        };
+        foreach (var item in request.Items)
+        {
+            var singleRequest = new PurchaseDraftPreviewRequest
+            {
+                ExecutionRequestId = request.ExecutionRequestId,
+                EntryMode = request.EntryMode,
+                LineMode = request.LineMode,
+                Items = [item],
+                Targets = request.Targets,
+            };
+            var source = api.CreatePreview(singleRequest, sourceUid: sourceByDemand[item.NetDemandId]);
+            combined.SourceGroups.AddRange(source.SourceGroups);
+        }
+        return combined;
+    }
+
+    private static ServiceResult<CreatePurchaseDraftsResult> CreateResult(
+        CreatePurchaseDraftsCommand command,
+        params (Guid SourceUid, NetDemandCommandOutcomeEnum Outcome)[] sources) =>
+        ServiceResult<CreatePurchaseDraftsResult>.Ok(new CreatePurchaseDraftsResult
+        {
+            ExecutionRequestId = command.ExecutionRequestId,
+            Sources = sources.Select(source => new CreatePurchaseDraftSourceResult
+            {
+                SourceType = "SO",
+                SourceUid = source.SourceUid,
+                Outcome = source.Outcome,
+                Message = source.Outcome == NetDemandCommandOutcomeEnum.Failed ? "失败" : "已执行",
+            }).ToList(),
+        });
 
     private static PurchaseCandidateItemModel CreateRow(decimal remainingQty, Guid? sourceUid = null) => PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
     {
@@ -197,6 +522,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         public bool IncludeWarnings { get; set; }
         public bool IncludeSafeAppend { get; set; }
         public CreatePurchaseDraftsCommand? LastCreateCommand { get; private set; }
+        public List<CreatePurchaseDraftsCommand> CreateCommands { get; } = [];
         public Func<PurchaseDraftPreviewRequest, CancellationToken, Task<ServiceResult<PurchaseDraftPreviewResponse>>>? PreviewHandler { get; set; }
         public Func<CreatePurchaseDraftsCommand, CancellationToken, Task<ServiceResult<CreatePurchaseDraftsResult>>>? CreateHandler { get; set; }
 
@@ -206,7 +532,10 @@ public sealed class PurchaseDraftWorkflowViewModelTests
                 ?? Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(CreatePreview(request)));
         }
 
-        public PurchaseDraftPreviewResponse CreatePreview(PurchaseDraftPreviewRequest request, string sku = "A-100")
+        public PurchaseDraftPreviewResponse CreatePreview(
+            PurchaseDraftPreviewRequest request,
+            string sku = "A-100",
+            Guid? sourceUid = null)
         {
             var item = request.Items.FirstOrDefault() ?? new PurchaseDraftPreviewItem
             {
@@ -230,7 +559,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
             var source = new PurchaseDraftPreviewSourceGroupDto
             {
                 SourceType = "SO",
-                SourceUid = SourceUid,
+                SourceUid = sourceUid ?? SourceUid,
                 SourceNo = "SO-1001",
                 SourcePreviewToken = Guid.NewGuid().ToString("N"),
                 CanCreate = true,
@@ -239,7 +568,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
             var document = new PurchaseDraftPreviewDocumentDto
             {
                 SourceType = "SO",
-                SourceUid = SourceUid,
+                SourceUid = sourceUid ?? SourceUid,
                 SourceNo = "SO-1001",
                 SupplierId = SupplierId,
                 SupplierCode = "S001",
@@ -260,7 +589,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
                     Version = 3,
                     OrderNo = "PO-DRAFT-1",
                     SourceType = "SO",
-                    SourceUid = SourceUid,
+                    SourceUid = sourceUid ?? SourceUid,
                     SupplierId = SupplierId,
                 });
             }
@@ -316,6 +645,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         public Task<ServiceResult<CreatePurchaseDraftsResult>> CreateAsync(CreatePurchaseDraftsCommand command, CancellationToken cancellationToken = default)
         {
             LastCreateCommand = command;
+            CreateCommands.Add(command);
             return CreateHandler?.Invoke(command, cancellationToken)
                 ?? Task.FromResult(CreateSucceededResult());
         }
@@ -355,9 +685,13 @@ public sealed class PurchaseDraftWorkflowViewModelTests
 
     private sealed class MessageServiceStub : IMessageService
     {
+        public bool AllowErrors { get; init; }
         public void ShowInfo(string title, string message) { }
         public void ShowSuccess(string title, string message) { }
         public void ShowWarning(string title, string message) { }
-        public void ShowError(string title, string message) => Assert.Fail($"{title}: {message}");
+        public void ShowError(string title, string message)
+        {
+            if (!AllowErrors) Assert.Fail($"{title}: {message}");
+        }
     }
 }
