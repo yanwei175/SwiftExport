@@ -1,5 +1,6 @@
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.DemandPlanning;
 
@@ -19,11 +20,11 @@ public interface INetDemandRepository
         MaterialDemandSourceGroupSearchRequest request,
         CancellationToken cancellationToken = default);
     /// <summary>汇总仍包含待采购物料的完整来源分组。</summary>
-    Task<IReadOnlyList<PurchaseCandidateSourceGroupDto>> GetPurchaseCandidateSourceGroupsAsync(
+    Task<IReadOnlyList<PurchaseDraftCandidateSourceGroupDto>> GetPurchaseCandidateSourceGroupsAsync(
         CancellationToken cancellationToken = default);
     /// <summary>按来源或全部来源完整读取待采购物料，不分页。</summary>
-    Task<IReadOnlyList<MaterialDemandWorkspaceItemDto>> GetPurchaseCandidatesAsync(
-        PurchaseCandidateQuery request,
+    Task<IReadOnlyList<PurchaseDraftCandidateDto>> GetPurchaseCandidatesAsync(
+        PurchaseDraftCandidateQuery request,
         CancellationToken cancellationToken = default);
     Task<PagedResponseBase<NetDemandListItemDto>> SearchWorkspaceAsync(
         NetDemandSearchRequest request,

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;

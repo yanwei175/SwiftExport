@@ -1,7 +1,8 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
-using SwiftExport.Contracts.Apis.DemandPlanning;
+using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
@@ -11,7 +12,7 @@ using SwiftExportClient.Services.UI;
 namespace SwiftExport.Client.Wpf.Tests.Features.Procurement.PurchaseOrders;
 
 [TestClass]
-public sealed class NetDemandPurchasePickerViewModelTests
+public sealed class PurchaseCandidateSelectionViewModelTests
 {
     [TestMethod]
     public void Open_ShouldOnlyLoadGroups_AndKeepDetailEmpty()
@@ -93,10 +94,10 @@ public sealed class NetDemandPurchasePickerViewModelTests
             var secondSourceUid = Guid.NewGuid();
             api.Groups.Add(CreateGroup("SO-A", api.FirstSourceUid, 1));
             api.Groups.Add(CreateGroup("SO-B", secondSourceUid, 1));
-            var firstCompletion = new TaskCompletionSource<ServiceResult<List<MaterialDemandWorkspaceItemDto>>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var firstCompletion = new TaskCompletionSource<ServiceResult<List<PurchaseDraftCandidateDto>>>(TaskCreationOptions.RunContinuationsAsynchronously);
             api.DetailHandler = (request, _) => request.SourceUid == api.FirstSourceUid
                 ? firstCompletion.Task
-                : Task.FromResult(ServiceResult<List<MaterialDemandWorkspaceItemDto>>.Ok(
+                : Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok(
                     [CreateCandidate(secondSourceUid, "SO-B", 2)]));
             using var viewModel = CreateViewModel(api);
             await viewModel.OpenAsync();
@@ -104,17 +105,17 @@ public sealed class NetDemandPurchasePickerViewModelTests
             var firstLoad = viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
             await Task.Yield();
             await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[2]);
-            firstCompletion.SetResult(ServiceResult<List<MaterialDemandWorkspaceItemDto>>.Ok(
+            firstCompletion.SetResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok(
                 [CreateCandidate(api.FirstSourceUid, "SO-A", 1)]));
             await firstLoad;
 
             Assert.AreEqual("SO-B", viewModel.Items.Single().SourceNo);
-            var lateCompletion = new TaskCompletionSource<ServiceResult<List<MaterialDemandWorkspaceItemDto>>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var lateCompletion = new TaskCompletionSource<ServiceResult<List<PurchaseDraftCandidateDto>>>(TaskCreationOptions.RunContinuationsAsynchronously);
             api.DetailHandler = (_, _) => lateCompletion.Task;
             var closingLoad = viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
             await Task.Yield();
             viewModel.Close();
-            lateCompletion.SetResult(ServiceResult<List<MaterialDemandWorkspaceItemDto>>.Ok(
+            lateCompletion.SetResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok(
                 [CreateCandidate(api.FirstSourceUid, "SO-A", 3)]));
             await closingLoad;
             Assert.AreEqual(0, viewModel.Items.Count);
@@ -131,14 +132,15 @@ public sealed class NetDemandPurchasePickerViewModelTests
             api.Groups.Add(CreateGroup("SO-A", api.FirstSourceUid, 1));
             api.Groups.Add(CreateGroup("SO-B", secondSourceUid, 1));
             api.Candidates.Add(CreateCandidate(api.FirstSourceUid, "SO-A", 1));
-            var dialogs = new DialogServiceStub { ConfirmResult = false };
-            using var viewModel = new NetDemandPurchasePickerViewModel(api, new DirectApiCallRunner(), dialogs);
+            using var viewModel = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
             await viewModel.OpenAsync();
             await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
             viewModel.Items.Single().IsChecked = true;
             var callsBeforeSwitch = api.DetailRequests.Count;
 
             await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[2]);
+            Assert.IsTrue(viewModel.IsSourceSwitchPending);
+            viewModel.CancelSourceSwitchCommand.Execute(null);
 
             Assert.AreEqual(callsBeforeSwitch, api.DetailRequests.Count);
             Assert.AreEqual("SO-A", viewModel.Items.Single().SourceNo);
@@ -147,10 +149,10 @@ public sealed class NetDemandPurchasePickerViewModelTests
         });
     }
 
-    private static NetDemandPurchasePickerViewModel CreateViewModel(CandidateApiStub api) =>
-        new(api, new DirectApiCallRunner(), new DialogServiceStub());
+    private static PurchaseCandidateSelectionViewModel CreateViewModel(CandidateApiStub api) =>
+        new(api, new DirectApiCallRunner());
 
-    private static PurchaseCandidateSourceGroupDto CreateGroup(string sourceNo, Guid sourceUid, int count) => new()
+    private static PurchaseDraftCandidateSourceGroupDto CreateGroup(string sourceNo, Guid sourceUid, int count) => new()
     {
         SourceType = "SO",
         SourceUid = sourceUid,
@@ -158,7 +160,7 @@ public sealed class NetDemandPurchasePickerViewModelTests
         CandidateCount = count,
     };
 
-    private static MaterialDemandWorkspaceItemDto CreateCandidate(
+    private static PurchaseDraftCandidateDto CreateCandidate(
         Guid sourceUid,
         string sourceNo,
         int line,
@@ -184,22 +186,22 @@ public sealed class NetDemandPurchasePickerViewModelTests
         AssociatedPurchaseQty = 2,
     };
 
-    private sealed class CandidateApiStub : IMaterialDemandWorkspaceApi
+    private sealed class CandidateApiStub : IPurchaseDraftApi
     {
         public Guid FirstSourceUid { get; } = Guid.NewGuid();
-        public List<PurchaseCandidateSourceGroupDto> Groups { get; } = [];
-        public List<MaterialDemandWorkspaceItemDto> Candidates { get; } = [];
-        public List<PurchaseCandidateQuery> DetailRequests { get; } = [];
+        public List<PurchaseDraftCandidateSourceGroupDto> Groups { get; } = [];
+        public List<PurchaseDraftCandidateDto> Candidates { get; } = [];
+        public List<PurchaseDraftCandidateQuery> DetailRequests { get; } = [];
         public int GroupCallCount { get; private set; }
-        public Func<PurchaseCandidateQuery, CancellationToken, Task<ServiceResult<List<MaterialDemandWorkspaceItemDto>>>>? DetailHandler { get; set; }
+        public Func<PurchaseDraftCandidateQuery, CancellationToken, Task<ServiceResult<List<PurchaseDraftCandidateDto>>>>? DetailHandler { get; set; }
 
-        public Task<ServiceResult<List<PurchaseCandidateSourceGroupDto>>> GetPurchaseCandidateSourceGroupsAsync(CancellationToken cancellationToken = default)
+        public Task<ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>> GetCandidateSourceGroupsAsync(CancellationToken cancellationToken = default)
         {
             GroupCallCount++;
-            return Task.FromResult(ServiceResult<List<PurchaseCandidateSourceGroupDto>>.Ok(Groups.ToList()));
+            return Task.FromResult(ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>.Ok(Groups.ToList()));
         }
 
-        public Task<ServiceResult<List<MaterialDemandWorkspaceItemDto>>> GetPurchaseCandidatesAsync(PurchaseCandidateQuery request, CancellationToken cancellationToken = default)
+        public Task<ServiceResult<List<PurchaseDraftCandidateDto>>> GetCandidatesAsync(PurchaseDraftCandidateQuery request, CancellationToken cancellationToken = default)
         {
             DetailRequests.Add(request);
             if (DetailHandler is not null) return DetailHandler(request, cancellationToken);
@@ -207,13 +209,15 @@ public sealed class NetDemandPurchasePickerViewModelTests
                 ? Candidates.Where(item => item.SourceUid == request.SourceUid
                     && string.Equals(item.SourceType, request.SourceType, StringComparison.Ordinal)).ToList()
                 : Candidates.ToList();
-            return Task.FromResult(ServiceResult<List<MaterialDemandWorkspaceItemDto>>.Ok(rows));
+            return Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok(rows));
         }
 
-        public Task<ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>> SearchAsync(MaterialDemandWorkspaceSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(MaterialDemandSourceGroupSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<UpdateSuggestedPurchaseSupplierResult>> UpdateSuggestedPurchaseSupplierAsync(UpdateSuggestedPurchaseSupplierCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(RollbackMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewAsync(PurchaseDraftPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<CreatePurchaseDraftsResult>> CreateAsync(CreatePurchaseDraftsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelAsync(Guid uid, CancelPurchaseDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewReleaseAsync(Guid uid, PurchaseDraftReleasePreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleaseAsync(Guid uid, ReleasePurchaseDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<SourcePurchaseTraceDto>> GetSourceTraceAsync(string sourceType, Guid sourceUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class DirectApiCallRunner : IApiCallRunner
@@ -223,11 +227,4 @@ public sealed class NetDemandPurchasePickerViewModelTests
         public async Task<ServiceResult<T>> RunValueAsync<T>(Func<Task<T>> action, string successMessage = "成功", string failureMessage = "请求失败") => ServiceResult<T>.Ok(await action(), successMessage);
     }
 
-    private sealed class DialogServiceStub : IDialogService
-    {
-        public bool ConfirmResult { get; set; } = true;
-        public Task ShowContentAsync(string title, object content, string closeButtonText = "关闭", CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<bool> ConfirmAsync(string title, string message, string primaryButtonText = "确定", string closeButtonText = "取消", CancellationToken cancellationToken = default) => Task.FromResult(ConfirmResult);
-        public Task ShowErrorAsync(string title, string message, CancellationToken cancellationToken = default) => Task.CompletedTask;
-    }
 }

@@ -30,10 +30,10 @@ public sealed class NetDemandWorkspaceControllerContractTests
             repositoryRoot,
             "SwiftExport.WebApi",
             "Controllers",
-            "DemandPlanning",
-            "NetDemandWorkspaceController.cs");
+            "Procurement",
+            "PurchaseDraftController.cs");
         var source = File.ReadAllText(controllerPath);
-        const string route = "[HttpPost(\"purchase-drafts/create\")]";
+        const string route = "[HttpPost(\"create\")]";
         var routeIndex = source.IndexOf(route, StringComparison.Ordinal);
         Assert.IsTrue(routeIndex >= 0, "未找到采购草稿 Create 路由。");
 

@@ -7,7 +7,6 @@ using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Authentication;
-using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
@@ -26,7 +25,6 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     private readonly IPurchaseOrderManagerApi _managerApi;
     private readonly IProcurementOrderApi _orderApi;
     private readonly IProcurementDialogService _procurementDialogs;
-    private readonly INetDemandDialogService _netDemandDialogs;
     private readonly INavigationService _navigation;
     private readonly IDialogService _dialogs;
     private readonly IMessageService _messages;
@@ -38,12 +36,12 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
 
     public PurchaseOrderManagerViewModel(IPurchaseOrderManagerApi managerApi, IProcurementOrderApi orderApi,
         IProcurementDialogService procurementDialogs,
-        INetDemandDialogService netDemandDialogs, INavigationService navigation, IDialogService dialogs,
+        INavigationService navigation, IDialogService dialogs,
         IMessageService messages, IPurchaseOrderCancellationDialogService cancellationDialog,
         ICurrentUserService currentUser)
     {
         _managerApi = managerApi; _orderApi = orderApi; _procurementDialogs = procurementDialogs;
-        _netDemandDialogs = netDemandDialogs; _navigation = navigation; _dialogs = dialogs;
+        _navigation = navigation; _dialogs = dialogs;
         _messages = messages; _cancellationDialog = cancellationDialog;
         _currentUser = currentUser; Title = "采购订单管理";
         RegisterBusyAwareCommand(SearchCommand); RegisterBusyAwareCommand(RefreshCommand);
@@ -215,15 +213,8 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     [RelayCommand(CanExecute = nameof(CanCreateIndependent))]
     private async Task GetFromNetDemandAsync()
     {
-        var rows = await _procurementDialogs.SelectNetDemandsAsync();
-        if (rows.Count == 0) return;
-        var applied = await _netDemandDialogs.ShowPurchaseDraftPreviewAsync(
-            new PurchaseDraftPreviewOpenRequest
-            {
-                EntryMode = PurchaseDraftEntryModeEnum.PurchaseWorkspace,
-                Rows = rows
-            });
-        if (applied) await LoadPageAsync();
+        var result = await _procurementDialogs.ShowFromMaterialAsync();
+        if (result.HasAppliedResults) await LoadPageAsync();
     }
 
     private async Task LoadPageAsync()

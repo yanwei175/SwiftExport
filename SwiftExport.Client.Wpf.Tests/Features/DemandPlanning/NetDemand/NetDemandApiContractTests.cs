@@ -1,7 +1,9 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Contracts.Apis.DemandPlanning;
+using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using System.Reflection;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.NetDemand;
@@ -14,14 +16,10 @@ public sealed class NetDemandApiContractTests
     {
         AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchAsync), typeof(PostAttribute), "/material-search", 0);
         AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchSourceGroupsAsync), typeof(PostAttribute), "/material-source-groups", 0);
-        AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.GetPurchaseCandidateSourceGroupsAsync), typeof(GetAttribute), "/purchase-candidates/source-groups");
-        AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.GetPurchaseCandidatesAsync), typeof(PostAttribute), "/purchase-candidates", 0);
         AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.UpdateSuggestedPurchaseSupplierAsync), typeof(PostAttribute), "/suggested-purchase-supplier", 0);
         AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.RollbackSourceEstablishmentAsync), typeof(PostAttribute), "/source-demands/rollback", 0);
         AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchAsync));
         AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchSourceGroupsAsync));
-        AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.GetPurchaseCandidateSourceGroupsAsync));
-        AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.GetPurchaseCandidatesAsync));
         AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.UpdateSuggestedPurchaseSupplierAsync));
 
         var itemProperties = typeof(MaterialDemandWorkspaceItemDto).GetProperties().Select(property => property.Name).ToArray();
@@ -64,12 +62,6 @@ public sealed class NetDemandApiContractTests
         AssertRoute(nameof(INetDemandWorkspaceApi.ReplacePlanAsync), typeof(PostAttribute), "/plans/replace", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.ApplyDefaultSupplierAsync), typeof(PostAttribute), "/plans/apply-product-default", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.BatchAssignSupplierAsync), typeof(PostAttribute), "/plans/batch-assign-supplier", 0);
-        AssertRoute(nameof(INetDemandWorkspaceApi.PreviewPurchaseDraftsAsync), typeof(PostAttribute), "/purchase-drafts/preview", 0);
-        AssertRoute(nameof(INetDemandWorkspaceApi.CreatePurchaseDraftsAsync), typeof(PostAttribute), "/purchase-drafts/create", 0);
-        AssertRoute(nameof(INetDemandWorkspaceApi.CancelPurchaseDraftAsync), typeof(PostAttribute), "/purchase-drafts/{uid}/cancel", 1);
-        AssertRoute(nameof(INetDemandWorkspaceApi.PreviewPurchaseDraftReleaseAsync), typeof(PostAttribute), "/purchase-drafts/{uid}/release-preview", 1);
-        AssertRoute(nameof(INetDemandWorkspaceApi.ReleasePurchaseDraftAsync), typeof(PostAttribute), "/purchase-drafts/{uid}/release", 1);
-        AssertRoute(nameof(INetDemandWorkspaceApi.GetPurchaseTraceBySourceAsync), typeof(GetAttribute), "/sources/{sourceType}/{sourceUid}/purchase-trace");
     }
 
     [TestMethod]
@@ -105,11 +97,19 @@ public sealed class NetDemandApiContractTests
     }
 
     [TestMethod]
-    public void PurchaseDraftLifecycleRoutes_ShouldBelongToNetDemandWorkspaceApi()
+    public void PurchaseDraftRoutes_ShouldBelongToProcurementApi()
     {
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.CancelPurchaseDraftAsync));
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.PreviewPurchaseDraftReleaseAsync));
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.ReleasePurchaseDraftAsync));
+        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.GetCandidateSourceGroupsAsync), typeof(GetAttribute), "/candidates/source-groups");
+        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.GetCandidatesAsync), typeof(PostAttribute), "/candidates", 0);
+        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.PreviewAsync), typeof(PostAttribute), "/preview", 0);
+        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.CreateAsync), typeof(PostAttribute), "/create", 0);
+        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.CancelAsync), typeof(PostAttribute), "/{uid}/cancel", 1);
+        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.PreviewReleaseAsync), typeof(PostAttribute), "/{uid}/release-preview", 1);
+        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.ReleaseAsync), typeof(PostAttribute), "/{uid}/release", 1);
+        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.GetSourceTraceAsync), typeof(GetAttribute), "/sources/{sourceType}/{sourceUid}/trace");
+        AssertHasCancellationToken<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.CancelAsync));
+        AssertHasCancellationToken<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.PreviewReleaseAsync));
+        AssertHasCancellationToken<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.ReleaseAsync));
     }
 
     private static void AssertRoute(string methodName, Type attributeType, string path, int? bodyParameterIndex = null)

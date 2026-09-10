@@ -1,5 +1,6 @@
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Core.Entities.DemandPlanning;
 
 namespace SwiftExport.Core.Interfaces.DemandPlanning;

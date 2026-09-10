@@ -17,13 +17,6 @@ public interface INetDemandServices
     Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchMaterialSourceGroupsAsync(
         MaterialDemandSourceGroupSearchRequest request,
         CancellationToken cancellationToken = default);
-    /// <summary>查询全部仍包含待采购物料的来源单分组。</summary>
-    Task<ServiceResult<List<PurchaseCandidateSourceGroupDto>>> GetPurchaseCandidateSourceGroupsAsync(
-        CancellationToken cancellationToken = default);
-    /// <summary>按来源或全部来源完整查询待采购物料，不分页。</summary>
-    Task<ServiceResult<List<MaterialDemandWorkspaceItemDto>>> GetPurchaseCandidatesAsync(
-        PurchaseCandidateQuery request,
-        CancellationToken cancellationToken = default);
     /// <summary>局部更新活动物料需求的推荐采购供应商，不改变采购与送达事实。</summary>
     Task<ServiceResult<UpdateSuggestedPurchaseSupplierResult>> UpdateSuggestedPurchaseSupplierAsync(
         UpdateSuggestedPurchaseSupplierCommand command,

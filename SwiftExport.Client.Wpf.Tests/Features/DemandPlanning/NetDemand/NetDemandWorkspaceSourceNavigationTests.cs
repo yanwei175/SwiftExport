@@ -247,13 +247,6 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
             ]));
         }
 
-        public Task<ServiceResult<List<PurchaseCandidateSourceGroupDto>>> GetPurchaseCandidateSourceGroupsAsync(
-            CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public Task<ServiceResult<List<MaterialDemandWorkspaceItemDto>>> GetPurchaseCandidatesAsync(
-            PurchaseCandidateQuery request,
-            CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
         public Task<ServiceResult<UpdateSuggestedPurchaseSupplierResult>> UpdateSuggestedPurchaseSupplierAsync(
             UpdateSuggestedPurchaseSupplierCommand command,
             CancellationToken cancellationToken = default)

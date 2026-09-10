@@ -71,6 +71,7 @@ public static class DependencyInjection
         services.AddScoped<PurchaseDraftCreationService>();
         services.AddScoped<PurchaseDraftReleasePlanner>();
         services.AddScoped<PurchaseDraftLifecycleService>();
+        services.AddScoped<IPurchaseDraftService, PurchaseDraftService>();
         // 新物料服务独立演进；旧混合接口仅兼容未迁移调用方。
         services.AddScoped<INetDemandServices, NetDemandServices>();
         services.AddScoped<INetDemandWorkspaceService, NetDemandWorkspaceService>();

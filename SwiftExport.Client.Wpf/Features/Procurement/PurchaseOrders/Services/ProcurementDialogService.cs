@@ -1,45 +1,51 @@
-using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Views;
-using System.Windows.Controls;
-using Wpf.Ui;
-using Wpf.Ui.Controls;
+using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
 
-/// <summary>负责在 WPF-UI 对话框中承载采购候选选择流程及有限正文布局。</summary>
-public sealed class ProcurementDialogService(NetDemandPurchasePickerViewModel picker, IContentDialogService dialogs) : IProcurementDialogService
+/// <summary>通过公共 Dialog 服务承载采购从物料选择到创建结果的单一弹窗。</summary>
+public sealed class ProcurementDialogService(PurchaseOrderFromMaterialViewModel workflow, IDialogService dialogs) : IProcurementDialogService
 {
-    /// <summary>打开采购候选对话框，并让候选列表在有限正文区域内自行滚动。</summary>
-    public async Task<IReadOnlyList<MaterialDemandWorkspaceRowModel>> SelectNetDemandsAsync(CancellationToken cancellationToken = default)
+    /// <inheritdoc/>
+    public async Task<PurchaseOrderFromMaterialResult> ShowFromMaterialAsync(CancellationToken cancellationToken = default)
     {
-        var view = new NetDemandPurchasePickerView
-        {
-            DataContext = picker
-        };
-        var dialog = new ContentDialog
-        {
-            Title = "从净需求获取采购草稿",
-            Content = view,
-            PrimaryButtonText = "进入预览",
-            CloseButtonText = "取消",
-            DefaultButton = ContentDialogButton.Primary,
-            DialogMaxWidth = 1400,
-            DialogMaxHeight = 850
-        };
-        // WPF-UI 模板会把这两个附加属性传给 PART_ContentScroll；Disabled 让正文接受有限测量，
-        // 避免外层 ScrollViewer 与页面内 DataGrid 争夺滚动所有权。
-        ScrollViewer.SetHorizontalScrollBarVisibility(dialog, ScrollBarVisibility.Disabled);
-        ScrollViewer.SetVerticalScrollBarVisibility(dialog, ScrollBarVisibility.Disabled);
         try
         {
-            await picker.OpenAsync(cancellationToken);
-            var result = await dialogs.ShowAsync(dialog, cancellationToken);
-            return result == ContentDialogResult.Primary ? picker.SelectedRows : [];
+            await workflow.OpenAsync(cancellationToken);
+            await dialogs.ShowAsync(
+                new PurchaseOrderFromMaterialView { DataContext = workflow },
+                new DialogOptions("从物料需求建立采购草稿")
+                {
+                    CloseButtonText = "关闭",
+                    DefaultButton = DialogButton.Close,
+                    ScrollStrategy = DialogScrollStrategy.Content,
+                    Width = 1400,
+                    Height = 860,
+                    MaxWidth = 1400,
+                    MaxHeight = 860
+                },
+                new WorkflowDialogState(workflow),
+                cancellationToken);
+            return new PurchaseOrderFromMaterialResult { HasAppliedResults = workflow.HasAppliedResults };
         }
         finally
         {
-            picker.Close();
+            workflow.Close();
         }
+    }
+
+    /// <summary>仅同步保护采购写命令执行期间的关闭；正文内部负责全部业务动作。</summary>
+    private sealed class WorkflowDialogState(PurchaseOrderFromMaterialViewModel workflow) : IDialogContentState
+    {
+        /// <summary>弹窗没有主次按钮，无需发布按钮状态变化。</summary>
+        public event EventHandler? StateChanged { add { } remove { } }
+        /// <summary>本弹窗不显示主按钮。</summary>
+        public bool IsPrimaryButtonEnabled => false;
+        /// <summary>本弹窗不显示次按钮。</summary>
+        public bool IsSecondaryButtonEnabled => false;
+        /// <summary>采购写命令执行中拒绝关闭，避免服务端成功但调用方遗漏刷新。</summary>
+        public bool CanClose(DialogResult requestedResult) => !workflow.IsWriting;
     }
 }

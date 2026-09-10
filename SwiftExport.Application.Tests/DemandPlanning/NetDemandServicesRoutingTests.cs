@@ -7,7 +7,7 @@ using SwiftExport.WebApi.Controllers.DemandPlanning;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
-/// <summary>验证物料 HTTP 用例进入新服务，旧计划与采购用例继续兼容，且参数和结果原样传递。</summary>
+/// <summary>验证物料 HTTP 用例进入新服务，只有旧计划命令继续兼容，且参数和结果原样传递。</summary>
 [TestClass]
 public sealed class NetDemandServicesRoutingTests
 {
@@ -25,7 +25,7 @@ public sealed class NetDemandServicesRoutingTests
         Assert.AreEqual(0, ((ForwardingProbe)(object)legacy).CallCount);
     }
 
-    /// <summary>尚未迁移的计划与采购 action 不能混入新物料服务。</summary>
+    /// <summary>尚未迁移的计划 action 不能混入新物料服务。</summary>
     [TestMethod]
     public void LegacyActions_RemainOnCompatibilityService()
     {

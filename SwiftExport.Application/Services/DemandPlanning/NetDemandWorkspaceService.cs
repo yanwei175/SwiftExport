@@ -27,9 +27,7 @@ public sealed class NetDemandWorkspaceService(
     IProductRepository productRepository,
     ISupplierRepository supplierRepository,
     NetDemandPlanReplacementPlanner replacementPlanner,
-    NetDemandPlanCommandIdempotencyPolicy idempotencyPolicy,
-    PurchaseDraftCreationService purchaseDrafts,
-    PurchaseDraftLifecycleService purchaseDraftLifecycle) : INetDemandWorkspaceService
+    NetDemandPlanCommandIdempotencyPolicy idempotencyPolicy) : INetDemandWorkspaceService
 {
     private readonly DbSession _session = context.Session;
     private readonly ILogger<NetDemandWorkspaceService> _logger = context.LoggerFactory.CreateLogger<NetDemandWorkspaceService>();
@@ -75,46 +73,6 @@ public sealed class NetDemandWorkspaceService(
     /// <summary>兼容旧入口，已迁移至 INetDemandServices.GetSourceDemandTraceAsync。</summary>
     public Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(Guid grossDemandId, CancellationToken cancellationToken = default)
         => materialDemands.GetSourceDemandTraceAsync(grossDemandId, cancellationToken);
-
-    /// <summary>待迁移至采购领域：采购取数预览，当前仅兼容旧页面。</summary>
-    public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewPurchaseDraftsAsync(
-        PurchaseDraftPreviewRequest request,
-        CancellationToken cancellationToken = default)
-        => purchaseDrafts.PreviewAsync(request, cancellationToken);
-
-    /// <summary>待迁移至采购领域：建单及关联写入，保留原事务与幂等。</summary>
-    public Task<ServiceResult<CreatePurchaseDraftsResult>> CreatePurchaseDraftsAsync(
-        CreatePurchaseDraftsCommand command,
-        CancellationToken cancellationToken = default)
-        => purchaseDrafts.CreateAsync(command, cancellationToken);
-
-    /// <summary>待迁移至采购领域：取消采购并处理关联，保留原取消规则。</summary>
-    public Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelPurchaseDraftAsync(
-        Guid uid,
-        CancelPurchaseDraftCommand command,
-        CancellationToken cancellationToken = default)
-        => purchaseDraftLifecycle.CancelAsync(uid, command, cancellationToken);
-
-    /// <summary>待迁移至采购领域：采购减量影响预览。</summary>
-    public Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewPurchaseDraftReleaseAsync(
-        Guid uid,
-        PurchaseDraftReleasePreviewRequest request,
-        CancellationToken cancellationToken = default)
-        => purchaseDraftLifecycle.PreviewReleaseAsync(uid, request, cancellationToken);
-
-    /// <summary>待迁移至采购领域：采购减量及关联更新。</summary>
-    public Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleasePurchaseDraftAsync(
-        Guid uid,
-        ReleasePurchaseDraftCommand command,
-        CancellationToken cancellationToken = default)
-        => purchaseDraftLifecycle.ReleaseAsync(uid, command, cancellationToken);
-
-    /// <summary>待迁移至采购领域只读 Trace：按来源查询采购关联。</summary>
-    public Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
-        string sourceType,
-        Guid sourceUid,
-        CancellationToken cancellationToken = default)
-        => purchaseDrafts.GetSourceTraceAsync(sourceType, sourceUid, cancellationToken);
 
     /// <summary>待废弃：旧 Allocation 替代命令，独立计划退出后移除。</summary>
     public async Task<ServiceResult<NetDemandPlanCommandResult>> ReplacePlanAsync(ReplaceNetDemandPlanCommand command)

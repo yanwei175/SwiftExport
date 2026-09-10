@@ -5,14 +5,15 @@ using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Views;
 
 /// <summary>承载采购候选来源导航与本地筛选列表。</summary>
-public partial class NetDemandPurchasePickerView : UserControl
+public partial class PurchaseCandidateSelectionView : UserControl
 {
-    public NetDemandPurchasePickerView() => InitializeComponent();
+    /// <summary>初始化采购候选选择组件。</summary>
+    public PurchaseCandidateSelectionView() => InitializeComponent();
 
     /// <summary>把来源切换交给 ViewModel；取消切换时恢复原选中项。</summary>
     private async void OnSourceGroupSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (DataContext is not NetDemandPurchasePickerViewModel viewModel
+        if (DataContext is not PurchaseCandidateSelectionViewModel viewModel
             || sender is not ListBox listBox)
         {
             return;

@@ -9,6 +9,7 @@ using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExportClient.Features.Customers.CustomerManagement.Models;
 using SwiftExportClient.Features.Customers.CustomerProducts.Models;
 using SwiftExportClient.Features.Products.Bom.Models;
@@ -55,7 +56,7 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.SupplyType, src => src.SupplyType ?? string.Empty)
             .Map(dest => dest.PurchaseOrderNos, src => src.PurchaseOrderNos ?? string.Empty);
 
-        config.NewConfig<PurchaseCandidateSourceGroupDto, PurchaseCandidateSourceGroupModel>()
+        config.NewConfig<PurchaseDraftCandidateSourceGroupDto, PurchaseCandidateSourceGroupModel>()
             .Map(dest => dest.SourceType, src => src.SourceType ?? string.Empty)
             .Map(dest => dest.SourceNo, src => src.SourceNo ?? string.Empty)
             .Map(dest => dest.SourceUid, src => (Guid?)src.SourceUid)

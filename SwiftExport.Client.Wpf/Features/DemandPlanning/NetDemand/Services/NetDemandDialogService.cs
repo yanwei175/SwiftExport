@@ -1,18 +1,12 @@
-using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Views;
 using SwiftExportClient.Services.UI;
-using Wpf.Ui;
-using Wpf.Ui.Controls;
-using IDialogService = SwiftExportClient.Services.UI.IDialogService;
 
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 
 /// <summary>创建需求选择与旧采购预览视图，并管理业务状态的打开、结果接纳和关闭。</summary>
 public sealed class NetDemandDialogService(
-    PurchaseDraftPreviewViewModel previewViewModel,
     SourceDemandCandidatePickerViewModel sourceDemandPicker,
-    IContentDialogService contentDialogService,
     IDialogService dialogService) : INetDemandDialogService
 {
     /// <summary>展示物料领域候选，建立成功后在对话框内刷新来源单与当前明细。</summary>
@@ -52,34 +46,5 @@ public sealed class NetDemandDialogService(
         public bool IsSecondaryButtonEnabled => false;
         /// <summary>写入结束前不允许关闭，以便接纳建立结果和刷新列表。</summary>
         public bool CanClose(DialogResult requestedResult) => !picker.IsWriting;
-    }
-
-    public async Task<bool> ShowPurchaseDraftPreviewAsync(
-        PurchaseDraftPreviewOpenRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        await previewViewModel.OpenAsync(request, cancellationToken);
-        var view = new PurchaseDraftPreviewView { DataContext = previewViewModel };
-        var dialog = new ContentDialog
-        {
-            Title = "转采购草稿预览",
-            Content = view,
-            CloseButtonText = "关闭",
-            DefaultButton = ContentDialogButton.Close
-        };
-        dialog.Closing += (_, args) =>
-        {
-            // 创建接口可能已经进入数据库事务；此时不允许关闭并取消客户端等待，
-            // 否则服务端提交成功后工作台不会刷新，也看不到逐来源执行结果。
-            if (!previewViewModel.CanClose)
-            {
-                args.Cancel = true;
-            }
-        };
-
-        await contentDialogService.ShowAsync(dialog, cancellationToken);
-        var hasAppliedResults = previewViewModel.HasAppliedResults;
-        previewViewModel.Close();
-        return hasAppliedResults;
     }
 }

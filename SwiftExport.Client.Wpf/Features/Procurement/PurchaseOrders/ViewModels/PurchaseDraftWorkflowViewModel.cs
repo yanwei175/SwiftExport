@@ -1,19 +1,21 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SwiftExport.Contracts.Apis.DemandPlanning;
-using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.Apis.Procurement;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using System.Collections.ObjectModel;
 
-namespace SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
+namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 
-public sealed partial class PurchaseDraftPreviewViewModel : ViewModelBaseEx, IDisposable
+/// <summary>负责采购草稿预览、目标调整、幂等创建和逐来源结果呈现。</summary>
+public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, IDisposable
 {
-    private readonly INetDemandWorkspaceApi _api;
+    private readonly IPurchaseDraftApi _api;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private CancellationTokenSource? _previewCancellation;
@@ -22,8 +24,8 @@ public sealed partial class PurchaseDraftPreviewViewModel : ViewModelBaseEx, IDi
     private bool _suppressStale;
     private bool _disposed;
 
-    public PurchaseDraftPreviewViewModel(
-        INetDemandWorkspaceApi api,
+    public PurchaseDraftWorkflowViewModel(
+        IPurchaseDraftApi api,
         IApiCallRunner apiCallRunner,
         IMessageService messageService)
     {
@@ -159,7 +161,7 @@ public sealed partial class PurchaseDraftPreviewViewModel : ViewModelBaseEx, IDi
             await RunBusyAsync(async () =>
             {
                 var result = await _apiCallRunner.RunAsync(
-                    () => _api.PreviewPurchaseDraftsAsync(CreatePreviewRequest(), cancellation.Token),
+                    () => _api.PreviewAsync(CreatePreviewRequest(), cancellation.Token),
                     cancellation.Token,
                     "生成采购草稿预览失败");
                 if (cancellation.IsCancellationRequested || !ReferenceEquals(_previewCancellation, cancellation))
@@ -206,7 +208,7 @@ public sealed partial class PurchaseDraftPreviewViewModel : ViewModelBaseEx, IDi
             await RunWriteAsync(async () =>
             {
                 var result = await _apiCallRunner.RunAsync(
-                    () => _api.CreatePurchaseDraftsAsync(CreateCommandDto(preview), cancellation.Token),
+                    () => _api.CreateAsync(CreateCommandDto(preview), cancellation.Token),
                     cancellation.Token,
                     "创建采购草稿失败");
                 if (cancellation.IsCancellationRequested || !ReferenceEquals(_createCancellation, cancellation))

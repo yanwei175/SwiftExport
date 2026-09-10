@@ -28,19 +28,6 @@ public sealed class NetDemandWorkspaceController(INetDemandServices service, INe
         CancellationToken cancellationToken)
         => service.SearchMaterialSourceGroupsAsync(request, cancellationToken);
 
-    /// <summary>查询全部仍包含待采购物料的来源单分组。</summary>
-    [HttpGet("purchase-candidates/source-groups")]
-    public Task<ServiceResult<List<PurchaseCandidateSourceGroupDto>>> GetPurchaseCandidateSourceGroupsAsync(
-        CancellationToken cancellationToken)
-        => service.GetPurchaseCandidateSourceGroupsAsync(cancellationToken);
-
-    /// <summary>按来源或全部来源完整查询待采购物料，不分页。</summary>
-    [HttpPost("purchase-candidates")]
-    public Task<ServiceResult<List<MaterialDemandWorkspaceItemDto>>> GetPurchaseCandidatesAsync(
-        [FromBody] PurchaseCandidateQuery request,
-        CancellationToken cancellationToken)
-        => service.GetPurchaseCandidatesAsync(request, cancellationToken);
-
     /// <summary>局部保存物料需求推荐采购供应商；不修改已有采购与送达事实。</summary>
     [HttpPost("suggested-purchase-supplier")]
     [PreventDuplicateRequest(WindowSeconds = 3)]
@@ -142,49 +129,4 @@ public sealed class NetDemandWorkspaceController(INetDemandServices service, INe
         [FromBody] BatchAssignSupplierCommand command)
         => legacyService.BatchAssignSupplierAsync(command);
 
-    /// <summary>待迁移至采购领域：采购取数预览，当前仅兼容旧页面。</summary>
-    [HttpPost("purchase-drafts/preview")]
-    public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewPurchaseDraftsAsync(
-        [FromBody] PurchaseDraftPreviewRequest request,
-        CancellationToken cancellationToken)
-        => legacyService.PreviewPurchaseDraftsAsync(request, cancellationToken);
-
-    /// <summary>待迁移至采购领域：建单及关联写入，保留原事务与幂等。</summary>
-    [HttpPost("purchase-drafts/create")]
-    public Task<ServiceResult<CreatePurchaseDraftsResult>> CreatePurchaseDraftsAsync(
-        [FromBody] CreatePurchaseDraftsCommand command,
-        CancellationToken cancellationToken)
-        => legacyService.CreatePurchaseDraftsAsync(command, cancellationToken);
-
-    /// <summary>待迁移至采购领域：取消采购并处理关联，保留原取消规则。</summary>
-    [HttpPost("purchase-drafts/{uid:guid}/cancel")]
-    public Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelPurchaseDraftAsync(
-        Guid uid,
-        [FromBody] CancelPurchaseDraftCommand command,
-        CancellationToken cancellationToken)
-        => legacyService.CancelPurchaseDraftAsync(uid, command, cancellationToken);
-
-    /// <summary>待迁移至采购领域：采购减量影响预览。</summary>
-    [HttpPost("purchase-drafts/{uid:guid}/release-preview")]
-    public Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewPurchaseDraftReleaseAsync(
-        Guid uid,
-        [FromBody] PurchaseDraftReleasePreviewRequest request,
-        CancellationToken cancellationToken)
-        => legacyService.PreviewPurchaseDraftReleaseAsync(uid, request, cancellationToken);
-
-    /// <summary>待迁移至采购领域：采购减量及关联更新。</summary>
-    [HttpPost("purchase-drafts/{uid:guid}/release")]
-    public Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleasePurchaseDraftAsync(
-        Guid uid,
-        [FromBody] ReleasePurchaseDraftCommand command,
-        CancellationToken cancellationToken)
-        => legacyService.ReleasePurchaseDraftAsync(uid, command, cancellationToken);
-
-    /// <summary>待迁移至采购领域只读 Trace：按来源查询采购关联。</summary>
-    [HttpGet("sources/{sourceType}/{sourceUid:guid}/purchase-trace")]
-    public Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
-        string sourceType,
-        Guid sourceUid,
-        CancellationToken cancellationToken)
-        => legacyService.GetPurchaseTraceBySourceAsync(sourceType, sourceUid, cancellationToken);
 }

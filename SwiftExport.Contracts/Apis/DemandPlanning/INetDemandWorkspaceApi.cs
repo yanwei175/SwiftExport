@@ -84,38 +84,5 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
         Task<ServiceResult<NetDemandPlanCommandResult>> BatchAssignSupplierAsync(
             [Body] BatchAssignSupplierCommand command);
 
-        [Post("/purchase-drafts/preview")]
-        Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewPurchaseDraftsAsync(
-            [Body] PurchaseDraftPreviewRequest request,
-            CancellationToken cancellationToken = default(CancellationToken));
-
-        [Post("/purchase-drafts/create")]
-        Task<ServiceResult<CreatePurchaseDraftsResult>> CreatePurchaseDraftsAsync(
-            [Body] CreatePurchaseDraftsCommand command,
-            CancellationToken cancellationToken = default(CancellationToken));
-
-        [Post("/purchase-drafts/{uid}/cancel")]
-        Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelPurchaseDraftAsync(
-            Guid uid,
-            [Body] CancelPurchaseDraftCommand command,
-            CancellationToken cancellationToken = default(CancellationToken));
-
-        [Post("/purchase-drafts/{uid}/release-preview")]
-        Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewPurchaseDraftReleaseAsync(
-            Guid uid,
-            [Body] PurchaseDraftReleasePreviewRequest request,
-            CancellationToken cancellationToken = default(CancellationToken));
-
-        [Post("/purchase-drafts/{uid}/release")]
-        Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleasePurchaseDraftAsync(
-            Guid uid,
-            [Body] ReleasePurchaseDraftCommand command,
-            CancellationToken cancellationToken = default(CancellationToken));
-
-        [Get("/sources/{sourceType}/{sourceUid}/purchase-trace")]
-        Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
-            string sourceType,
-            Guid sourceUid,
-            CancellationToken cancellationToken = default(CancellationToken));
     }
 }

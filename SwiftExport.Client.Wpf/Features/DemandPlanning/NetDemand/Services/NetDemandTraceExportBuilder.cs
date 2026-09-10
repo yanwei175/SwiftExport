@@ -1,5 +1,6 @@
 using System.Globalization;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Wpf.EnterpriseGrid.Exporting;
 
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Services;

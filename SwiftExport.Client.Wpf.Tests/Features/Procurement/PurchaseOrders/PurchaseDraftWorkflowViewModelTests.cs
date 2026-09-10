@@ -1,18 +1,19 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Contracts.Apis.DemandPlanning;
+using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
-using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
 
-namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.NetDemand;
+namespace SwiftExport.Client.Wpf.Tests.Features.Procurement.PurchaseOrders;
 
 [TestClass]
-public sealed class PurchaseDraftPreviewViewModelTests
+public sealed class PurchaseDraftWorkflowViewModelTests
 {
     [TestMethod]
     public async Task ManualPreview_ShouldDefaultRemainingQtyAndRequireRepreviewAfterEdit()
@@ -173,10 +174,10 @@ public sealed class PurchaseDraftPreviewViewModelTests
         Assert.IsTrue(viewModel.HasAppliedResults);
     }
 
-    private static PurchaseDraftPreviewViewModel CreateViewModel(NetDemandApiStub api) =>
+    private static PurchaseDraftWorkflowViewModel CreateViewModel(NetDemandApiStub api) =>
         new(api, new DirectApiCallRunner(), new MessageServiceStub());
 
-    private static MaterialDemandWorkspaceRowModel CreateRow(decimal remainingQty, Guid? sourceUid = null) => MaterialDemandWorkspaceRowModel.FromDto(new MaterialDemandWorkspaceItemDto
+    private static PurchaseCandidateItemModel CreateRow(decimal remainingQty, Guid? sourceUid = null) => PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
     {
         Uid = Guid.NewGuid(),
         Version = 2,
@@ -189,7 +190,7 @@ public sealed class PurchaseDraftPreviewViewModelTests
         SuggestedPurchaseSupplierId = Guid.NewGuid(),
     });
 
-    private sealed class NetDemandApiStub : INetDemandWorkspaceApi
+    private sealed class NetDemandApiStub : IPurchaseDraftApi
     {
         public Guid SourceUid { get; } = Guid.NewGuid();
         public Guid SupplierId { get; } = Guid.NewGuid();
@@ -199,7 +200,7 @@ public sealed class PurchaseDraftPreviewViewModelTests
         public Func<PurchaseDraftPreviewRequest, CancellationToken, Task<ServiceResult<PurchaseDraftPreviewResponse>>>? PreviewHandler { get; set; }
         public Func<CreatePurchaseDraftsCommand, CancellationToken, Task<ServiceResult<CreatePurchaseDraftsResult>>>? CreateHandler { get; set; }
 
-        public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewPurchaseDraftsAsync(PurchaseDraftPreviewRequest request, CancellationToken cancellationToken = default)
+        public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewAsync(PurchaseDraftPreviewRequest request, CancellationToken cancellationToken = default)
         {
             return PreviewHandler?.Invoke(request, cancellationToken)
                 ?? Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(CreatePreview(request)));
@@ -312,7 +313,7 @@ public sealed class PurchaseDraftPreviewViewModelTests
             return response;
         }
 
-        public Task<ServiceResult<CreatePurchaseDraftsResult>> CreatePurchaseDraftsAsync(CreatePurchaseDraftsCommand command, CancellationToken cancellationToken = default)
+        public Task<ServiceResult<CreatePurchaseDraftsResult>> CreateAsync(CreatePurchaseDraftsCommand command, CancellationToken cancellationToken = default)
         {
             LastCreateCommand = command;
             return CreateHandler?.Invoke(command, cancellationToken)
@@ -337,23 +338,12 @@ public sealed class PurchaseDraftPreviewViewModelTests
             });
         }
 
-        public Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(NetDemandSourceGroupSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(NetDemandSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(SourceDemandCandidateSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<List<SourceDemandCandidateDto>>> GetSourceDemandCandidatesBySourceAsync(string sourceType, Guid sourceUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishFromSourcesAsync(EstablishMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(RollbackMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.GrossDemandTraceDto>> GetSourceDemandTraceAsync(Guid grossDemandId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<NetDemandPlanCommandResult>> ReplacePlanAsync(ReplaceNetDemandPlanCommand command) => throw new NotSupportedException();
-        public Task<ServiceResult<NetDemandPlanCommandResult>> ApplyDefaultSupplierAsync(ApplyProductDefaultSupplierCommand command) => throw new NotSupportedException();
-        public Task<ServiceResult<NetDemandPlanCommandResult>> BatchAssignSupplierAsync(BatchAssignSupplierCommand command) => throw new NotSupportedException();
-        public Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelPurchaseDraftAsync(Guid uid, CancelPurchaseDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewPurchaseDraftReleaseAsync(Guid uid, PurchaseDraftReleasePreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleasePurchaseDraftAsync(Guid uid, ReleasePurchaseDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(string sourceType, Guid sourceUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelAsync(Guid uid, CancelPurchaseDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewReleaseAsync(Guid uid, PurchaseDraftReleasePreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleaseAsync(Guid uid, ReleasePurchaseDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<SourcePurchaseTraceDto>> GetSourceTraceAsync(string sourceType, Guid sourceUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>> GetCandidateSourceGroupsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<List<PurchaseDraftCandidateDto>>> GetCandidatesAsync(PurchaseDraftCandidateQuery request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class DirectApiCallRunner : IApiCallRunner

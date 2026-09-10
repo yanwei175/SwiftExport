@@ -1,5 +1,6 @@
 using Dapper;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Infrastructure.Repositories.Base;
@@ -160,7 +161,7 @@ ORDER BY MAX(gd.[SourceType]),MAX(gd.[SourceNo]),gd.[SourceUid];";
     }
 
     /// <summary>按采购候选统一资格汇总全部来源分组，不读取 Allocation。</summary>
-    public async Task<IReadOnlyList<PurchaseCandidateSourceGroupDto>> GetPurchaseCandidateSourceGroupsAsync(
+    public async Task<IReadOnlyList<PurchaseDraftCandidateSourceGroupDto>> GetPurchaseCandidateSourceGroupsAsync(
         CancellationToken cancellationToken = default)
     {
         var sql = $@"
@@ -171,7 +172,7 @@ INNER JOIN [dbo].[GrossDemand] gd ON gd.[Uid]=nd.[GrossDemandId]
 WHERE {PurchaseCandidateEligibilitySql}
 GROUP BY gd.[SourceType],gd.[SourceUid]
 ORDER BY gd.[SourceType],MAX(gd.[SourceNo]),gd.[SourceUid];";
-        var rows = await Connection.QueryAsync<PurchaseCandidateSourceGroupDto>(new CommandDefinition(
+        var rows = await Connection.QueryAsync<PurchaseDraftCandidateSourceGroupDto>(new CommandDefinition(
             sql,
             new { PurchaseTargetType = "PO", PurchaseSupplyType = SupplyTypeEnums.采购 },
             Transaction,
@@ -182,8 +183,8 @@ ORDER BY gd.[SourceType],MAX(gd.[SourceNo]),gd.[SourceUid];";
     /// <summary>
     /// 按稳定来源身份或全部来源完整查询待采购物料；图片和产品型号只取当前物料产品，不猜用来源父产品快照。
     /// </summary>
-    public async Task<IReadOnlyList<MaterialDemandWorkspaceItemDto>> GetPurchaseCandidatesAsync(
-        PurchaseCandidateQuery request,
+    public async Task<IReadOnlyList<PurchaseDraftCandidateDto>> GetPurchaseCandidatesAsync(
+        PurchaseDraftCandidateQuery request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -247,7 +248,7 @@ OUTER APPLY
 WHERE {PurchaseCandidateEligibilitySql}
 {sourceFilter}
 ORDER BY gd.[SourceType],gd.[SourceNo],gd.[SourceUid],gd.[SourceLineNumber],nd.[LineNumber],nd.[Uid];";
-        var rows = await Connection.QueryAsync<MaterialDemandWorkspaceItemDto>(new CommandDefinition(
+        var rows = await Connection.QueryAsync<PurchaseDraftCandidateDto>(new CommandDefinition(
             sql,
             new
             {

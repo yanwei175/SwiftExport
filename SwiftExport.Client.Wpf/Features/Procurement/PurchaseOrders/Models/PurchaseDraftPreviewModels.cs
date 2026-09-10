@@ -1,13 +1,15 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
-namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
+namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
 public sealed class PurchaseDraftPreviewOpenRequest
 {
     public PurchaseDraftEntryModeEnum EntryMode { get; init; }
-    public IReadOnlyList<MaterialDemandWorkspaceRowModel> Rows { get; init; } = [];
+    public IReadOnlyList<PurchaseCandidateItemModel> Rows { get; init; } = [];
     public string SourceType { get; init; } = string.Empty;
     public Guid? SourceUid { get; init; }
     public string SourceNo { get; init; } = string.Empty;

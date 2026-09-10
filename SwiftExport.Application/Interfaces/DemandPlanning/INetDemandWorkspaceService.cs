@@ -39,32 +39,4 @@ public interface INetDemandWorkspaceService
     Task<ServiceResult<NetDemandPlanCommandResult>> ApplyDefaultSupplierAsync(ApplyProductDefaultSupplierCommand command);
     /// <summary>待废弃：旧计划批量分配供应商，实际供应商选择归采购。</summary>
     Task<ServiceResult<NetDemandPlanCommandResult>> BatchAssignSupplierAsync(BatchAssignSupplierCommand command);
-    /// <summary>待迁移至采购领域：采购取数预览，当前仅兼容旧页面。</summary>
-    Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewPurchaseDraftsAsync(
-        PurchaseDraftPreviewRequest request,
-        CancellationToken cancellationToken = default);
-    /// <summary>待迁移至采购领域：建单及关联写入，保留原事务与幂等。</summary>
-    Task<ServiceResult<CreatePurchaseDraftsResult>> CreatePurchaseDraftsAsync(
-        CreatePurchaseDraftsCommand command,
-        CancellationToken cancellationToken = default);
-    /// <summary>待迁移至采购领域：取消采购并处理关联，保留原取消规则。</summary>
-    Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelPurchaseDraftAsync(
-        Guid uid,
-        CancelPurchaseDraftCommand command,
-        CancellationToken cancellationToken = default);
-    /// <summary>待迁移至采购领域：采购减量影响预览。</summary>
-    Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewPurchaseDraftReleaseAsync(
-        Guid uid,
-        PurchaseDraftReleasePreviewRequest request,
-        CancellationToken cancellationToken = default);
-    /// <summary>待迁移至采购领域：采购减量及关联更新。</summary>
-    Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleasePurchaseDraftAsync(
-        Guid uid,
-        ReleasePurchaseDraftCommand command,
-        CancellationToken cancellationToken = default);
-    /// <summary>待迁移至采购领域只读 Trace：按来源查询采购关联。</summary>
-    Task<ServiceResult<SourcePurchaseTraceDto>> GetPurchaseTraceBySourceAsync(
-        string sourceType,
-        Guid sourceUid,
-        CancellationToken cancellationToken = default);
 }

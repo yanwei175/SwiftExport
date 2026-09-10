@@ -1,4 +1,5 @@
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 

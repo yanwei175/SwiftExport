@@ -1,6 +1,7 @@
 using Dapper;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Interfaces.DemandPlanning;

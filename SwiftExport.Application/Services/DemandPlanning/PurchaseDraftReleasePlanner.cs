@@ -1,4 +1,5 @@
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;

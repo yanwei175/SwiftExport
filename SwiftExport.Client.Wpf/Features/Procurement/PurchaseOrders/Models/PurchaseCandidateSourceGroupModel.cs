@@ -1,5 +1,5 @@
 using Mapster;
-using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
@@ -44,6 +44,6 @@ public sealed class PurchaseCandidateSourceGroupModel
     };
 
     /// <summary>把采购候选来源契约映射为页面分组模型。</summary>
-    public static PurchaseCandidateSourceGroupModel FromDto(PurchaseCandidateSourceGroupDto dto)
+    public static PurchaseCandidateSourceGroupModel FromDto(PurchaseDraftCandidateSourceGroupDto dto)
         => dto.Adapt<PurchaseCandidateSourceGroupModel>();
 }

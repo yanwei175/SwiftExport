@@ -3,37 +3,32 @@ using System.ComponentModel;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SwiftExport.Contracts.Apis.DemandPlanning;
+using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
-using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
-using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 
 /// <summary>负责按来源完整加载待采购物料，并在内存中筛选和维护当前选择。</summary>
-public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, IDisposable
+public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseEx, IDisposable
 {
-    private readonly IMaterialDemandWorkspaceApi _api;
+    private readonly IPurchaseDraftApi _api;
     private readonly IApiCallRunner _runner;
-    private readonly IDialogService _dialogs;
     private CancellationTokenSource? _lifetimeCancellation;
     private CancellationTokenSource? _groupCancellation;
     private CancellationTokenSource? _detailCancellation;
-    private bool _switchConfirmationPending;
     private bool _disposed;
 
     /// <summary>初始化采购候选选择器依赖和本地集合视图。</summary>
-    public NetDemandPurchasePickerViewModel(
-        IMaterialDemandWorkspaceApi api,
-        IApiCallRunner runner,
-        IDialogService dialogs)
+    public PurchaseCandidateSelectionViewModel(
+        IPurchaseDraftApi api,
+        IApiCallRunner runner)
     {
         _api = api;
         _runner = runner;
-        _dialogs = dialogs;
         ItemsView = CollectionViewSource.GetDefaultView(Items);
         ItemsView.Filter = MatchesLocalFilter;
     }
@@ -42,13 +37,13 @@ public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, 
     public ObservableCollection<PurchaseCandidateSourceGroupModel> SourceGroups { get; } = [];
 
     /// <summary>当前来源入口一次完整加载的采购候选。</summary>
-    public ObservableCollection<MaterialDemandWorkspaceRowModel> Items { get; } = [];
+    public ObservableCollection<PurchaseCandidateItemModel> Items { get; } = [];
 
     /// <summary>只对当前已加载集合应用筛选的 WPF 视图。</summary>
     public ICollectionView ItemsView { get; }
 
     /// <summary>返回已加载集合中全部勾选项；本地筛选不会丢失隐藏行选择。</summary>
-    public IReadOnlyList<MaterialDemandWorkspaceRowModel> SelectedRows =>
+    public IReadOnlyList<PurchaseCandidateItemModel> SelectedRows =>
         Items.Where(static item => item.IsChecked).ToArray();
 
     /// <summary>当前本地筛选后的可见候选数量。</summary>
@@ -69,6 +64,17 @@ public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, 
 
     [ObservableProperty]
     public partial PurchaseCandidateSourceGroupModel? SelectedSourceGroup { get; private set; }
+
+    [ObservableProperty]
+    public partial PurchaseCandidateSourceGroupModel? PendingSourceGroup { get; private set; }
+
+    /// <summary>是否正在等待用户在当前页面确认来源切换。</summary>
+    public bool IsSourceSwitchPending => PendingSourceGroup is not null;
+
+    /// <summary>来源切换确认提示；使用行内状态避免在统一采购弹窗内再打开嵌套 Dialog。</summary>
+    public string SourceSwitchPrompt => PendingSourceGroup is null
+        ? string.Empty
+        : $"切换到 {PendingSourceGroup.DisplaySourceNo} 将清除当前已选的 {SelectedCount} 条物料。";
 
     [ObservableProperty]
     public partial string Keyword { get; set; } = string.Empty;
@@ -99,6 +105,9 @@ public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, 
         ClearItems();
         SourceGroups.Clear();
         SelectedSourceGroup = null;
+        PendingSourceGroup = null;
+        OnPropertyChanged(nameof(IsSourceSwitchPending));
+        OnPropertyChanged(nameof(SourceSwitchPrompt));
         IsDetailLoaded = false;
         SourceGroupStatusText = "正在加载待采购来源...";
         StatusText = "请选择左侧来源查看待采购物料。";
@@ -109,7 +118,7 @@ public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, 
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task SelectSourceGroupAsync(PurchaseCandidateSourceGroupModel? group)
     {
-        if (group is null || _disposed || _switchConfirmationPending
+        if (group is null || _disposed
             || ReferenceEquals(SelectedSourceGroup, group)
             || _lifetimeCancellation is null
             || _lifetimeCancellation.IsCancellationRequested)
@@ -119,28 +128,34 @@ public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, 
 
         if (SelectedCount > 0)
         {
-            _switchConfirmationPending = true;
-            try
-            {
-                var confirmed = await _dialogs.ConfirmAsync(
-                    "切换待采购来源",
-                    $"切换后将清除当前已选的 {SelectedCount} 条物料，是否继续？",
-                    "继续切换",
-                    "保留当前选择",
-                    _lifetimeCancellation.Token);
-                if (!confirmed) return;
-            }
-            catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
-            {
-                return;
-            }
-            finally
-            {
-                _switchConfirmationPending = false;
-            }
+            PendingSourceGroup = group;
+            OnPropertyChanged(nameof(IsSourceSwitchPending));
+            OnPropertyChanged(nameof(SourceSwitchPrompt));
+            return;
         }
 
         await LoadCandidatesAsync(group, _lifetimeCancellation.Token);
+    }
+
+    /// <summary>在当前页面确认清除选择并切换来源。</summary>
+    [RelayCommand]
+    private async Task ConfirmSourceSwitchAsync()
+    {
+        var group = PendingSourceGroup;
+        PendingSourceGroup = null;
+        OnPropertyChanged(nameof(IsSourceSwitchPending));
+        OnPropertyChanged(nameof(SourceSwitchPrompt));
+        if (group is not null && _lifetimeCancellation is { IsCancellationRequested: false } lifetime)
+            await LoadCandidatesAsync(group, lifetime.Token);
+    }
+
+    /// <summary>取消来源切换并保留当前选择。</summary>
+    [RelayCommand]
+    private void CancelSourceSwitch()
+    {
+        PendingSourceGroup = null;
+        OnPropertyChanged(nameof(IsSourceSwitchPending));
+        OnPropertyChanged(nameof(SourceSwitchPrompt));
     }
 
     /// <summary>显式刷新本地筛选；不会发送后端请求。</summary>
@@ -175,7 +190,7 @@ public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, 
         try
         {
             var result = await _runner.RunAsync(
-                () => _api.GetPurchaseCandidateSourceGroupsAsync(request.Token),
+                () => _api.GetCandidateSourceGroupsAsync(request.Token),
                 request.Token,
                 "加载待采购来源失败");
             if (!CanAccept(_groupCancellation, request)) return;
@@ -217,7 +232,7 @@ public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, 
         try
         {
             var result = await _runner.RunAsync(
-                () => _api.GetPurchaseCandidatesAsync(new PurchaseCandidateQuery
+                () => _api.GetCandidatesAsync(new PurchaseDraftCandidateQuery
                 {
                     SourceType = group.IsAllSources ? string.Empty : group.SourceType,
                     SourceUid = group.IsAllSources ? null : group.SourceUid,
@@ -238,7 +253,7 @@ public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, 
 
             foreach (var dto in result.Data)
             {
-                var row = MaterialDemandWorkspaceRowModel.FromDto(dto);
+                var row = PurchaseCandidateItemModel.FromDto(dto);
                 row.PropertyChanged += OnRowPropertyChanged;
                 Items.Add(row);
             }
@@ -254,7 +269,7 @@ public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, 
     /// <summary>匹配当前已加载候选的关键词和来源号，不发起远程查询。</summary>
     private bool MatchesLocalFilter(object item)
     {
-        if (item is not MaterialDemandWorkspaceRowModel row) return false;
+        if (item is not PurchaseCandidateItemModel row) return false;
         var keyword = Keyword.Trim();
         var sourceNo = SourceNo.Trim();
         return (keyword.Length == 0
@@ -269,8 +284,8 @@ public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, 
     private static bool Contains(string? value, string filter) =>
         value?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true;
 
-    private List<MaterialDemandWorkspaceRowModel> GetVisibleRows() =>
-        ItemsView.Cast<object>().OfType<MaterialDemandWorkspaceRowModel>().ToList();
+    private List<PurchaseCandidateItemModel> GetVisibleRows() =>
+        ItemsView.Cast<object>().OfType<PurchaseCandidateItemModel>().ToList();
 
     /// <summary>刷新集合视图并同步加载、筛选和选择计数。</summary>
     private void RefreshLocalFilter()
@@ -292,7 +307,7 @@ public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, 
     /// <summary>把行勾选变化提升为页面级全选和已选计数通知。</summary>
     private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(MaterialDemandWorkspaceRowModel.IsChecked)) return;
+        if (e.PropertyName != nameof(PurchaseCandidateItemModel.IsChecked)) return;
         OnPropertyChanged(nameof(IsAllVisibleChecked));
         UpdateCountStatus();
     }
