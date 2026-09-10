@@ -1,6 +1,8 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Contracts.Apis.MasterData;
 using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
@@ -457,8 +459,236 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.AreEqual("NEW-SESSION", viewModel.PreviewLines.Single().Sku);
     }
 
+    [TestMethod]
+    public async Task SupplierSelections_ShouldRemainIndependentAndRequireExplicitDeliveryWhenParentHasMultipleActualSuppliers()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api);
+        var suggestedDeliverySupplierId = Guid.NewGuid();
+        var firstActual = new PurchaseDraftActualSupplierFactDto
+        {
+            SupplierId = Guid.NewGuid(),
+            SupplierCode = "ACT-1",
+            SupplierName = "实际供应商一",
+            IsActive = true,
+            PurchaseOrderNos = "PO-001",
+        };
+        var secondActual = new PurchaseDraftActualSupplierFactDto
+        {
+            SupplierId = Guid.NewGuid(),
+            SupplierCode = "ACT-2",
+            SupplierName = "实际供应商二",
+            IsActive = true,
+            PurchaseOrderNos = "PO-002",
+        };
+        var row = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
+        {
+            Uid = Guid.NewGuid(),
+            Version = 2,
+            SourceType = "SO",
+            SourceUid = api.SourceUid,
+            SourceNo = "SO-1001",
+            Sku = "CS-100",
+            LinkSku = "CUSTOMER-SUPPLIED",
+            IsCustomerSupplied = true,
+            SupplyType = SupplyTypeEnums.采购,
+            NetQty = 5m,
+            SuggestedDeliverySupplierId = suggestedDeliverySupplierId,
+            SuggestedDeliverySupplierCode = "SUG-DELIVERY",
+            SuggestedDeliverySupplierName = "建议送达供应商",
+            ParentActualPurchaseSuppliers = { firstActual, secondActual },
+        });
+
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [row],
+        });
+        var item = viewModel.Items.Single();
+
+        Assert.AreEqual(Guid.Empty, item.SupplierId);
+        Assert.IsNull(item.DeliveryTargetSupplierId);
+        Assert.IsTrue(item.RequiresExplicitDeliverySelection);
+        StringAssert.Contains(item.ParentActualSupplierEvidence, "PO-001");
+        StringAssert.Contains(item.ParentActualSupplierEvidence, "PO-002");
+        Assert.IsNull(api.LastPreviewRequest!.Items.Single().DeliveryTargetSupplierId);
+
+        item.PurchaseSupplierSelection = new ProcurementSupplierCandidateDto
+        {
+            Uid = firstActual.SupplierId,
+            SupplierCode = firstActual.SupplierCode,
+            SupplierName = firstActual.SupplierName,
+        };
+        viewModel.CommitPurchaseSupplierCommand.Execute(item);
+        Assert.IsTrue(viewModel.IsStale);
+        Assert.AreEqual(firstActual.SupplierId, item.SupplierId);
+        Assert.IsNull(item.DeliveryTargetSupplierId);
+
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+        item.DeliverySupplierSelection = new ProcurementSupplierCandidateDto
+        {
+            Uid = secondActual.SupplierId,
+            SupplierCode = secondActual.SupplierCode,
+            SupplierName = secondActual.SupplierName,
+        };
+        viewModel.CommitDeliverySupplierCommand.Execute(item);
+        Assert.IsTrue(viewModel.IsStale);
+        Assert.AreEqual(firstActual.SupplierId, item.SupplierId);
+        Assert.AreEqual(secondActual.SupplierId, item.DeliveryTargetSupplierId);
+
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+        Assert.AreEqual(firstActual.SupplierId, api.LastPreviewRequest!.Items.Single().SupplierId);
+        Assert.AreEqual(secondActual.SupplierId, api.LastPreviewRequest.Items.Single().DeliveryTargetSupplierId);
+    }
+
+    [TestMethod]
+    public async Task UniqueActiveParentActualSupplier_ShouldOverrideDifferentDeliverySuggestionWithEvidence()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api);
+        var suggestedId = Guid.NewGuid();
+        var actualId = Guid.NewGuid();
+        var row = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
+        {
+            Uid = Guid.NewGuid(),
+            Version = 2,
+            SourceType = "SO",
+            SourceUid = api.SourceUid,
+            SourceNo = "SO-1001",
+            Sku = "CS-200",
+            LinkSku = "CUSTOMER-SUPPLIED-2",
+            IsCustomerSupplied = true,
+            SupplyType = SupplyTypeEnums.采购,
+            NetQty = 5m,
+            SuggestedPurchaseSupplierId = Guid.NewGuid(),
+            SuggestedDeliverySupplierId = suggestedId,
+            SuggestedDeliverySupplierCode = "SUG",
+            SuggestedDeliverySupplierName = "建议供应商",
+            ParentActualPurchaseSuppliers =
+            {
+                new PurchaseDraftActualSupplierFactDto
+                {
+                    SupplierId = actualId,
+                    SupplierCode = "ACT",
+                    SupplierName = "实际供应商",
+                    IsActive = true,
+                    PurchaseOrderNos = "PO-ACTUAL",
+                },
+            },
+        });
+
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [row],
+        });
+
+        Assert.AreEqual(actualId, viewModel.Items.Single().DeliveryTargetSupplierId);
+        Assert.AreNotEqual(suggestedId, viewModel.Items.Single().DeliveryTargetSupplierId);
+        StringAssert.Contains(viewModel.Items.Single().ParentActualSupplierEvidence, "PO-ACTUAL");
+    }
+
+    [TestMethod]
+    public async Task RebuildWarnings_ShouldMergeAllAffectedIdentitiesBySourceAndCode()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api);
+        var first = CreateRow(5m, api.SourceUid);
+        var second = CreateRow(6m, api.SourceUid);
+        var firstSupplier = Guid.NewGuid();
+        var secondSupplier = Guid.NewGuid();
+        api.PreviewHandler = (request, _) =>
+        {
+            var response = api.CreatePreview(request);
+            response.HasBlockers = true;
+            response.Warnings.Add(new PurchaseDraftWarningDto
+            {
+                Code = PurchaseDraftWarningCodes.PurchaseSupplierInvalid,
+                Message = "供应商一已失效。",
+                IsBlocker = true,
+                SourceType = "SO",
+                SourceUid = api.SourceUid,
+                SupplierId = firstSupplier,
+                NetDemandIds = { first.Uid },
+            });
+            response.Warnings.Add(new PurchaseDraftWarningDto
+            {
+                Code = PurchaseDraftWarningCodes.PurchaseSupplierInvalid,
+                Message = "供应商二已失效。",
+                IsBlocker = true,
+                SourceType = "SO",
+                SourceUid = api.SourceUid,
+                SupplierId = secondSupplier,
+                NetDemandIds = { second.Uid },
+            });
+            return Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(response));
+        };
+
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [first, second],
+        });
+
+        Assert.HasCount(1, viewModel.Warnings);
+        Assert.AreEqual(2, viewModel.Warnings.Single().NetDemandIds.Count);
+        Assert.AreEqual(2, viewModel.Warnings.Single().SupplierIds.Count);
+        Assert.AreEqual(2, viewModel.Warnings.Single().AffectedItems.Count);
+        Assert.AreEqual(2, viewModel.BlockerCount);
+        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
+
+        viewModel.SelectedPreviewTabIndex = 2;
+        viewModel.LocateWarningCommand.Execute(viewModel.Warnings.Single());
+        Assert.AreEqual(0, viewModel.SelectedPreviewTabIndex);
+        Assert.IsNotNull(viewModel.SelectedInputItem);
+    }
+
+    [TestMethod]
+    public async Task AggregatedConfirmation_ShouldSendOneSourceScopedWarningCode()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api);
+        var first = CreateRow(5m, api.SourceUid);
+        var second = CreateRow(6m, api.SourceUid);
+        api.PreviewHandler = (request, _) =>
+        {
+            var response = api.CreatePreview(request);
+            response.RequiresConfirmation = true;
+            foreach (var row in new[] { first, second })
+            {
+                response.Warnings.Add(new PurchaseDraftWarningDto
+                {
+                    Code = PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining,
+                    Message = $"{row.Sku} 仍有关联客供件未转采购。",
+                    RequiresConfirmation = true,
+                    SourceType = "SO",
+                    SourceUid = api.SourceUid,
+                    NetDemandIds = { row.Uid },
+                });
+            }
+            return Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(response));
+        };
+
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [first, second],
+        });
+
+        Assert.HasCount(1, viewModel.Warnings);
+        Assert.AreEqual(2, viewModel.Warnings.Single().AffectedCount);
+        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
+        viewModel.Warnings.Single().IsConfirmed = true;
+        Assert.IsTrue(viewModel.CreateCommand.CanExecute(null));
+
+        await viewModel.CreateCommand.ExecuteAsync(null);
+        CollectionAssert.AreEqual(
+            new[] { PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining },
+            api.LastCreateCommand!.Sources.Single().ConfirmedWarningCodes);
+    }
+
     private static PurchaseDraftWorkflowViewModel CreateViewModel(NetDemandApiStub api, bool allowErrors = false) =>
-        new(api, new DirectApiCallRunner(), new MessageServiceStub { AllowErrors = allowErrors });
+        new(api, new ProcurementMasterDataApiStub(), new DirectApiCallRunner(), new MessageServiceStub { AllowErrors = allowErrors });
 
     private static Task OpenSessionAsync(
         PurchaseDraftWorkflowViewModel viewModel,
@@ -520,9 +750,12 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         SourceUid = sourceUid ?? Guid.NewGuid(),
         SourceNo = "SO-1001",
         Sku = "A-100",
+        LinkSku = "MODEL-A-100",
         SupplyType = SupplyTypeEnums.采购,
         NetQty = remainingQty,
         SuggestedPurchaseSupplierId = Guid.NewGuid(),
+        SuggestedPurchaseSupplierCode = "S001",
+        SuggestedPurchaseSupplierName = "供应商一",
     });
 
     private sealed class NetDemandApiStub : IPurchaseDraftApi
@@ -531,6 +764,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         public Guid SupplierId { get; } = Guid.NewGuid();
         public bool IncludeWarnings { get; set; }
         public bool IncludeSafeAppend { get; set; }
+        public PurchaseDraftPreviewRequest? LastPreviewRequest { get; private set; }
         public CreatePurchaseDraftsCommand? LastCreateCommand { get; private set; }
         public List<CreatePurchaseDraftsCommand> CreateCommands { get; } = [];
         public Func<PurchaseDraftPreviewRequest, CancellationToken, Task<ServiceResult<PurchaseDraftPreviewResponse>>>? PreviewHandler { get; set; }
@@ -538,6 +772,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
 
         public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewAsync(PurchaseDraftPreviewRequest request, CancellationToken cancellationToken = default)
         {
+            LastPreviewRequest = request;
             return PreviewHandler?.Invoke(request, cancellationToken)
                 ?? Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(CreatePreview(request)));
         }
@@ -716,5 +951,18 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         {
             if (!AllowErrors) Assert.Fail($"{title}: {message}");
         }
+    }
+
+    private sealed class ProcurementMasterDataApiStub : IProcurementMasterDataQueryApi
+    {
+        public Task<ServiceResult<PagedResponseBase<ProcurementSupplierCandidateDto>>> SearchSuppliersAsync(
+            PagedRequestBase request,
+            CancellationToken cancellationToken = default) => Task.FromResult(
+                ServiceResult<PagedResponseBase<ProcurementSupplierCandidateDto>>.Ok(new PagedResponseBase<ProcurementSupplierCandidateDto>()));
+
+        public Task<ServiceResult<PagedResponseBase<ProcurementCustomerCandidateDto>>> SearchCustomersAsync(PagedRequestBase request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PagedResponseBase<ProcurementProductCandidateDto>>> SearchProductsAsync(ProcurementProductSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PagedResponseBase<ProcurementCustomerFilterDto>>> SearchCustomerHistoryFiltersAsync(PagedRequestBase request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PagedResponseBase<ProcurementSupplierFilterDto>>> SearchSupplierHistoryFiltersAsync(PagedRequestBase request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 }

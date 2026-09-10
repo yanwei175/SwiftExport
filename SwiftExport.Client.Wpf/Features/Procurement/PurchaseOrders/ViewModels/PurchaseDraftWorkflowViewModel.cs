@@ -1,9 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Mapster;
+using SwiftExport.Contracts.Apis.MasterData;
 using SwiftExport.Contracts.Apis.Procurement;
+using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Mvvm;
@@ -17,9 +20,12 @@ namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, IDisposable
 {
     private readonly IPurchaseDraftApi _api;
+    private readonly IProcurementMasterDataQueryApi _masterData;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private CancellationTokenSource? _previewCancellation;
+    private CancellationTokenSource? _purchaseSupplierSearchCancellation;
+    private CancellationTokenSource? _deliverySupplierSearchCancellation;
     private PurchaseDraftPreviewResponse? _preview;
     private CreatePurchaseDraftsCommand? _pendingCreateCommand;
     private long _sessionVersion;
@@ -31,10 +37,12 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
 
     public PurchaseDraftWorkflowViewModel(
         IPurchaseDraftApi api,
+        IProcurementMasterDataQueryApi masterData,
         IApiCallRunner apiCallRunner,
         IMessageService messageService)
     {
         _api = api;
+        _masterData = masterData;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         Title = "转采购草稿预览";
@@ -48,6 +56,8 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     public ObservableCollection<PurchaseDraftPreviewLineModel> PreviewLines { get; } = [];
     public ObservableCollection<PurchaseDraftSkippedItemDto> SkippedItems { get; } = [];
     public ObservableCollection<PurchaseDraftCreateResultModel> Results { get; } = [];
+    public ObservableCollection<ProcurementSupplierCandidateDto> PurchaseSupplierCandidates { get; } = [];
+    public ObservableCollection<ProcurementSupplierCandidateDto> DeliverySupplierCandidates { get; } = [];
 
     public IReadOnlyList<NetDemandFilterOption<PurchaseDraftLineModeEnum>> LineModeOptions { get; } =
     [
@@ -67,8 +77,26 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     public bool HasPreview => _preview is not null;
     public bool HasBlockers => _preview?.HasBlockers == true || Warnings.Any(item => item.IsBlocker);
     public bool HasUnconfirmedWarnings => Warnings.Any(item => item.RequiresConfirmation && !item.IsConfirmed);
+    public int BlockerCount => Warnings.Where(item => item.IsBlocker).Sum(item => Math.Max(1, item.AffectedCount));
+    public int PendingConfirmationCount => Warnings
+        .Where(item => item.RequiresConfirmation && !item.IsConfirmed)
+        .Sum(item => Math.Max(1, item.AffectedCount));
     public bool CanCreateCurrent => CanCreate();
     public bool CanClose => !IsCreateInProgress && !HasUnknownCreateResult;
+    public bool CanEditInputs => _isSessionActive && !IsCreateInProgress && !HasUnknownCreateResult;
+    public string CreateBlockReason => HasUnknownCreateResult
+        ? "创建结果未知：只能按冻结负载重试。"
+        : IsCreateInProgress
+            ? "正在创建采购草稿，暂不可修改。"
+            : ValidateItems() is { } validationError
+                ? $"{validationError} 处理：修正本次计划后重新预览。"
+                : IsStale
+                    ? "预览已失效，请重新预览。"
+                : BlockerCount > 0
+                    ? $"存在 {BlockerCount} 项阻断，必须先修正并重新预览。"
+                    : PendingConfirmationCount > 0
+                        ? $"还有 {PendingConfirmationCount} 项待确认。"
+                        : string.Empty;
     /// <summary>当前有效预览的采购项、单据数及合并前后行数；失效时不展示旧数字。</summary>
     public string PreviewSummaryText => _preview is null || IsStale
         ? "预览摘要已失效，请重新预览。"
@@ -80,6 +108,8 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
     [NotifyPropertyChangedFor(nameof(CanCreateCurrent))]
     [NotifyPropertyChangedFor(nameof(CanClose))]
+    [NotifyPropertyChangedFor(nameof(CanEditInputs))]
+    [NotifyPropertyChangedFor(nameof(CreateBlockReason))]
     public partial bool HasUnknownCreateResult { get; private set; }
 
     [ObservableProperty]
@@ -106,6 +136,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
     [NotifyPropertyChangedFor(nameof(CanCreateCurrent))]
+    [NotifyPropertyChangedFor(nameof(CreateBlockReason))]
     public partial bool IsStale { get; private set; } = true;
 
     [ObservableProperty]
@@ -116,6 +147,8 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     [NotifyCanExecuteChangedFor(nameof(PreviewCommand))]
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
     [NotifyPropertyChangedFor(nameof(CanCreateCurrent))]
+    [NotifyPropertyChangedFor(nameof(CanEditInputs))]
+    [NotifyPropertyChangedFor(nameof(CreateBlockReason))]
     public partial bool IsCreateInProgress { get; private set; }
 
     [ObservableProperty]
@@ -123,6 +156,18 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
 
     [ObservableProperty]
     public partial string ResultSummary { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial PurchaseDraftSelectionItemModel? SelectedInputItem { get; set; }
+
+    [ObservableProperty]
+    public partial int SelectedPreviewTabIndex { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsPurchaseSupplierSearchBusy { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsDeliverySupplierSearchBusy { get; set; }
 
     /// <summary>开始一次独立 Dialog 会话；只有这里重置累计结果并生成新的执行请求身份。</summary>
     public void BeginSession()
@@ -236,6 +281,118 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     [RelayCommand(AllowConcurrentExecutions = true, CanExecute = nameof(CanPreview))]
     private Task PreviewAsync() => CanPreview() ? LoadPreviewAsync() : Task.CompletedTask;
 
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private Task SearchPurchaseSuppliersAsync(string? keyword) => SearchSuppliersAsync(
+        keyword,
+        PurchaseSupplierCandidates,
+        isDeliverySearch: false);
+
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private Task SearchDeliverySuppliersAsync(string? keyword) => SearchSuppliersAsync(
+        keyword,
+        DeliverySupplierCandidates,
+        isDeliverySearch: true);
+
+    /// <summary>执行可替代的有效供应商查询，仅允许当前会话的最新请求回写候选。</summary>
+    private async Task SearchSuppliersAsync(
+        string? keyword,
+        ObservableCollection<ProcurementSupplierCandidateDto> target,
+        bool isDeliverySearch)
+    {
+        if (!CanEditInputs) return;
+        var previous = isDeliverySearch
+            ? _deliverySupplierSearchCancellation
+            : _purchaseSupplierSearchCancellation;
+        previous?.Cancel();
+        var cancellation = new CancellationTokenSource();
+        if (isDeliverySearch) _deliverySupplierSearchCancellation = cancellation;
+        else _purchaseSupplierSearchCancellation = cancellation;
+        if (isDeliverySearch) IsDeliverySupplierSearchBusy = true;
+        else IsPurchaseSupplierSearchBusy = true;
+        try
+        {
+            var result = await _apiCallRunner.RunAsync(
+                () => _masterData.SearchSuppliersAsync(new PagedRequestBase
+                {
+                    Keyword = keyword?.Trim(),
+                    PageIndex = 1,
+                    PageSize = 50,
+                }, cancellation.Token),
+                cancellation.Token,
+                "搜索供应商失败");
+            var isCurrent = ReferenceEquals(
+                isDeliverySearch ? _deliverySupplierSearchCancellation : _purchaseSupplierSearchCancellation,
+                cancellation);
+            if (cancellation.IsCancellationRequested || !isCurrent) return;
+            target.Clear();
+            if (result.Success && result.Data is not null)
+            {
+                foreach (var supplier in result.Data.Items) target.Add(supplier);
+            }
+            else if (!string.IsNullOrWhiteSpace(result.Message))
+            {
+                StatusText = result.Message;
+            }
+        }
+        finally
+        {
+            var isCurrent = ReferenceEquals(
+                isDeliverySearch ? _deliverySupplierSearchCancellation : _purchaseSupplierSearchCancellation,
+                cancellation);
+            if (isCurrent)
+            {
+                if (isDeliverySearch)
+                {
+                    _deliverySupplierSearchCancellation = null;
+                    IsDeliverySupplierSearchBusy = false;
+                }
+                else
+                {
+                    _purchaseSupplierSearchCancellation = null;
+                    IsPurchaseSupplierSearchBusy = false;
+                }
+            }
+            cancellation.Dispose();
+        }
+    }
+
+    [RelayCommand]
+    private void CommitPurchaseSupplier(PurchaseDraftSelectionItemModel? item)
+    {
+        if (!CanEditInputs || item is null) return;
+        item.CommitPurchaseSupplier();
+    }
+
+    [RelayCommand]
+    private void ClearPurchaseSupplier(PurchaseDraftSelectionItemModel? item)
+    {
+        if (!CanEditInputs || item is null) return;
+        item.ClearPurchaseSupplier();
+    }
+
+    [RelayCommand]
+    private void CommitDeliverySupplier(PurchaseDraftSelectionItemModel? item)
+    {
+        if (!CanEditInputs || item is null || !item.IsCustomerSupplied) return;
+        item.CommitDeliverySupplier();
+    }
+
+    [RelayCommand]
+    private void ClearDeliverySupplier(PurchaseDraftSelectionItemModel? item)
+    {
+        if (!CanEditInputs || item is null || !item.IsCustomerSupplied) return;
+        item.ClearDeliverySupplier();
+    }
+
+    /// <summary>定位警告首个受影响输入项；聚合范围仍在警告卡片中完整展示。</summary>
+    [RelayCommand]
+    private void LocateWarning(PurchaseDraftWarningModel? warning)
+    {
+        if (warning?.AffectedItems.FirstOrDefault() is not { } item) return;
+        SelectedInputItem = item;
+        SelectedPreviewTabIndex = 0;
+    }
+
     private async Task LoadPreviewAsync(CancellationToken externalCancellation = default)
     {
         var validationError = ValidateItems();
@@ -271,7 +428,10 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
 
                 if (!result.Success || result.Data is null)
                 {
-                    StatusText = result.Message;
+                    StatusText = BuildPreviewFailureText(result);
+                    SelectedInputItem = Items.FirstOrDefault();
+                    SelectedPreviewTabIndex = 0;
+                    NotifyPreviewStateChanged();
                     return;
                 }
 
@@ -420,21 +580,34 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     /// <summary>建立新选择项；只有新增项或服务端事实变化项才生成新的命令项身份。</summary>
     private static PurchaseDraftSelectionItemModel CreateSelectionItem(
         PurchaseCandidateItemModel row,
-        PurchaseDraftEntryModeEnum entryMode) => new()
+        PurchaseDraftEntryModeEnum entryMode)
     {
-        CommandItemId = Guid.NewGuid(),
-        NetDemandId = row.Uid,
-        ExpectedVersion = row.Version,
-        ExpectedRemainingQty = row.RemainingQty,
-        PurchaseQty = row.RemainingQty,
-        SupplierId = row.SuggestedPurchaseSupplierId ?? Guid.Empty,
-        DeliveryTargetSupplierId = row.SuggestedDeliverySupplierId,
-        SourceType = row.SourceType,
-        SourceUid = row.SourceUid,
-        SourceNo = row.SourceNo,
-        Sku = row.Sku,
-        IsQuantityReadOnly = entryMode != PurchaseDraftEntryModeEnum.ManualSelection,
-    };
+        var item = new PurchaseDraftSelectionItemModel
+        {
+            CommandItemId = Guid.NewGuid(),
+            NetDemandId = row.Uid,
+            ExpectedVersion = row.Version,
+            ExpectedRemainingQty = row.RemainingQty,
+            PurchaseQty = row.RemainingQty,
+            SourceType = row.SourceType,
+            SourceUid = row.SourceUid,
+            SourceNo = row.SourceNo,
+            Sku = row.Sku,
+            LinkSku = row.LinkSku,
+            IsCustomerSupplied = row.IsCustomerSupplied,
+            SuggestedPurchaseSupplierId = row.SuggestedPurchaseSupplierId,
+            SuggestedPurchaseSupplierCode = row.SuggestedPurchaseSupplierCode,
+            SuggestedPurchaseSupplierName = row.SuggestedPurchaseSupplierName,
+            SuggestedDeliverySupplierId = row.SuggestedDeliverySupplierId,
+            SuggestedDeliverySupplierCode = row.SuggestedDeliverySupplierCode,
+            SuggestedDeliverySupplierName = row.SuggestedDeliverySupplierName,
+            SuggestedDeliverySupplierHint = row.SuggestedDeliverySupplierHint,
+            ParentActualPurchaseSuppliers = row.ParentActualPurchaseSuppliers,
+            IsQuantityReadOnly = entryMode != PurchaseDraftEntryModeEnum.ManualSelection,
+        };
+        item.InitializeSupplierSelections();
+        return item;
+    }
 
     /// <summary>比较会参与预览和幂等重放的事实；任一变化都必须换新命令项并重新预览。</summary>
     private static bool HasSameFacts(
@@ -444,13 +617,36 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         item.NetDemandId == row.Uid
         && item.ExpectedVersion == row.Version
         && item.ExpectedRemainingQty == row.RemainingQty
-        && item.SupplierId == (row.SuggestedPurchaseSupplierId ?? Guid.Empty)
-        && item.DeliveryTargetSupplierId == row.SuggestedDeliverySupplierId
+        && item.SuggestedPurchaseSupplierId == row.SuggestedPurchaseSupplierId
+        && item.SuggestedDeliverySupplierId == row.SuggestedDeliverySupplierId
+        && string.Equals(item.SuggestedPurchaseSupplierCode, row.SuggestedPurchaseSupplierCode, StringComparison.Ordinal)
+        && string.Equals(item.SuggestedPurchaseSupplierName, row.SuggestedPurchaseSupplierName, StringComparison.Ordinal)
+        && string.Equals(item.SuggestedDeliverySupplierCode, row.SuggestedDeliverySupplierCode, StringComparison.Ordinal)
+        && string.Equals(item.SuggestedDeliverySupplierName, row.SuggestedDeliverySupplierName, StringComparison.Ordinal)
+        && string.Equals(item.SuggestedDeliverySupplierHint, row.SuggestedDeliverySupplierHint, StringComparison.Ordinal)
         && item.SourceUid == row.SourceUid
         && string.Equals(item.SourceType, row.SourceType, StringComparison.OrdinalIgnoreCase)
         && string.Equals(item.SourceNo, row.SourceNo, StringComparison.Ordinal)
         && string.Equals(item.Sku, row.Sku, StringComparison.Ordinal)
+        && string.Equals(item.LinkSku, row.LinkSku, StringComparison.Ordinal)
+        && item.IsCustomerSupplied == row.IsCustomerSupplied
+        && HaveSameSupplierFacts(item.ParentActualPurchaseSuppliers, row.ParentActualPurchaseSuppliers)
         && item.IsQuantityReadOnly == (entryMode != PurchaseDraftEntryModeEnum.ManualSelection);
+
+    private static bool HaveSameSupplierFacts(
+        IReadOnlyList<PurchaseDraftActualSupplierFactDto> left,
+        IReadOnlyList<PurchaseDraftActualSupplierFactDto> right) => left
+        .OrderBy(fact => fact.SupplierId)
+        .Select(fact => (fact.SupplierId, fact.SupplierCode, fact.SupplierName, fact.IsActive, PurchaseOrders: NormalizePurchaseOrderNos(fact.PurchaseOrderNos)))
+        .SequenceEqual(right.OrderBy(fact => fact.SupplierId)
+            .Select(fact => (fact.SupplierId, fact.SupplierCode, fact.SupplierName, fact.IsActive, PurchaseOrders: NormalizePurchaseOrderNos(fact.PurchaseOrderNos))));
+
+    /// <summary>规范化数据库聚合的采购单号顺序，避免等价事实因 STRING_AGG 顺序变化被误判为新事实。</summary>
+    private static string NormalizePurchaseOrderNos(string? value) => string.Join(",",
+        (value ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries)
+        .Select(item => item.Trim())
+        .Distinct(StringComparer.Ordinal)
+        .OrderBy(item => item, StringComparer.Ordinal));
 
     /// <summary>仅接纳属于当前会话、当前输入修订和最新请求的预览响应。</summary>
     private bool CanAcceptPreview(
@@ -578,25 +774,33 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         Items.Clear();
         foreach (var entry in response.SourceGroups
                      .SelectMany(group => group.Documents.SelectMany(document => document.Lines.SelectMany(line =>
-                         line.Contributions.Select(contribution => new { group, line, contribution }))))
+                         line.Contributions.Select(contribution => new { group, document, line, contribution }))))
                      .GroupBy(item => item.contribution.CommandItemId)
                      .Select(group => group.First()))
         {
-            AddItem(new PurchaseDraftSelectionItemModel
+            var item = new PurchaseDraftSelectionItemModel
             {
                 CommandItemId = entry.contribution.CommandItemId,
                 NetDemandId = entry.contribution.NetDemandId,
                 ExpectedVersion = entry.contribution.NetDemandVersion,
                 ExpectedRemainingQty = entry.contribution.ExpectedRemainingQty,
                 PurchaseQty = entry.contribution.PurchaseQty,
-                SupplierId = entry.contribution.SupplierId,
-                DeliveryTargetSupplierId = entry.contribution.DeliveryTargetSupplierId,
                 SourceType = entry.group.SourceType,
                 SourceUid = entry.group.SourceUid,
                 SourceNo = entry.group.SourceNo,
                 Sku = entry.line.Sku,
+                LinkSku = entry.line.LinkSku,
+                IsCustomerSupplied = entry.line.IsCustomerSupplied,
+                SuggestedPurchaseSupplierId = entry.contribution.SupplierId,
+                SuggestedPurchaseSupplierCode = entry.document.SupplierCode,
+                SuggestedPurchaseSupplierName = entry.document.SupplierName,
+                SuggestedDeliverySupplierId = entry.contribution.DeliveryTargetSupplierId,
+                SuggestedDeliverySupplierCode = entry.line.DeliveryTargetSupplierCode,
+                SuggestedDeliverySupplierName = entry.line.DeliveryTargetSupplierName,
                 IsQuantityReadOnly = true,
-            });
+            };
+            item.InitializeSupplierSelections();
+            AddItem(item);
         }
     }
 
@@ -647,11 +851,11 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         Warnings.Clear();
         var warnings = response.Warnings
             .Concat(response.SourceGroups.SelectMany(group => group.Warnings))
-            .GroupBy(item => $"{item.SourceType}|{item.SourceUid}|{item.Code}|{item.Message}", StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First());
-        foreach (var warningDto in warnings)
+            .GroupBy(item => $"{item.SourceType}|{item.SourceUid}|{item.Code}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.ToList());
+        foreach (var warningDtos in warnings)
         {
-            var warning = PurchaseDraftWarningModel.FromDto(warningDto);
+            var warning = PurchaseDraftWarningModel.FromDtos(warningDtos, Items.ToArray());
             warning.ConfirmationChanged += OnWarningConfirmationChanged;
             Warnings.Add(warning);
         }
@@ -729,6 +933,18 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         return Items.Select(item => item.QuantityError).FirstOrDefault(error => error is not null);
     }
 
+    /// <summary>按结构化错误代码给出预览失败后的恢复动作，不依赖服务端消息文本分类。</summary>
+    private static string BuildPreviewFailureText(ServiceResult<PurchaseDraftPreviewResponse> result)
+    {
+        var message = string.IsNullOrWhiteSpace(result.Message) ? "采购预览未完成。" : result.Message;
+        return result.Error?.Code switch
+        {
+            "PREVIEW_FACT_CHANGED" or "NET_DEMAND_NOT_FOUND" => $"{message} 处理：刷新采购候选；若该物料已失效，请移除选择。",
+            "SOURCE_NOT_FOUND" => $"{message} 处理：刷新来源；若来源已关闭，请移除对应选择。",
+            _ => $"{message} 处理：核对本次计划后重新预览。",
+        };
+    }
+
     private bool CanPreview() => _isSessionActive
         && !IsCreateInProgress
         && !HasUnknownCreateResult
@@ -752,7 +968,11 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         OnPropertyChanged(nameof(HasPreview));
         OnPropertyChanged(nameof(HasBlockers));
         OnPropertyChanged(nameof(HasUnconfirmedWarnings));
+        OnPropertyChanged(nameof(BlockerCount));
+        OnPropertyChanged(nameof(PendingConfirmationCount));
         OnPropertyChanged(nameof(CanCreateCurrent));
+        OnPropertyChanged(nameof(CanEditInputs));
+        OnPropertyChanged(nameof(CreateBlockReason));
         OnPropertyChanged(nameof(PreviewSummaryText));
         PreviewCommand.NotifyCanExecuteChanged();
         CreateCommand.NotifyCanExecuteChanged();
@@ -765,6 +985,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         _previewCancellation?.Cancel();
         _previewCancellation?.Dispose();
         _previewCancellation = null;
+        CancelSupplierSearches();
         DetachItemEvents();
         DetachTargetEvents();
         DetachWarningEvents();
@@ -774,6 +995,10 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         PreviewLines.Clear();
         SkippedItems.Clear();
         Results.Clear();
+        PurchaseSupplierCandidates.Clear();
+        DeliverySupplierCandidates.Clear();
+        SelectedInputItem = null;
+        SelectedPreviewTabIndex = 0;
         _preview = null;
         _pendingCreateCommand = null;
         HasUnknownCreateResult = false;
@@ -785,6 +1010,17 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         StatusText = "尚未生成转采购预览。";
         IsStale = true;
         NotifyPreviewStateChanged();
+    }
+
+    /// <summary>结束页面级供应商查询，防止关闭会话后旧结果回写候选集合。</summary>
+    private void CancelSupplierSearches()
+    {
+        _purchaseSupplierSearchCancellation?.Cancel();
+        _purchaseSupplierSearchCancellation = null;
+        _deliverySupplierSearchCancellation?.Cancel();
+        _deliverySupplierSearchCancellation = null;
+        IsPurchaseSupplierSearchBusy = false;
+        IsDeliverySupplierSearchBusy = false;
     }
 
     /// <summary>在调用方读取结果后结束本次 Dialog 会话，并拒绝所有迟到查询回写。</summary>

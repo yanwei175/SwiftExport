@@ -21,6 +21,8 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject
     public int? SourceLineNumber { get; init; }
     /// <summary>物料 SKU 快照。</summary>
     public string Sku { get; init; } = string.Empty;
+    /// <summary>是否为送往父件实际执行供应商的客供件。</summary>
+    public bool IsCustomerSupplied { get; init; }
     /// <summary>产品关联 SKU。</summary>
     public string LinkSku { get; init; } = string.Empty;
     /// <summary>物料描述。</summary>
@@ -35,6 +37,14 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject
     public string SuggestedPurchaseSupplierName { get; init; } = string.Empty;
     /// <summary>建议送达供应商 Uid。</summary>
     public Guid? SuggestedDeliverySupplierId { get; init; }
+    /// <summary>建议送达供应商编码。</summary>
+    public string SuggestedDeliverySupplierCode { get; init; } = string.Empty;
+    /// <summary>建议送达供应商名称。</summary>
+    public string SuggestedDeliverySupplierName { get; init; } = string.Empty;
+    /// <summary>建议送达方无法确定时的事实提示。</summary>
+    public string SuggestedDeliverySupplierHint { get; init; } = string.Empty;
+    /// <summary>客供件父件活动采购单中的实际采购供应商事实。</summary>
+    public List<PurchaseDraftActualSupplierFactDto> ParentActualPurchaseSuppliers { get; init; } = [];
     /// <summary>来源需求交期。</summary>
     public DateTime? DemandRequiredDate { get; init; }
     /// <summary>当前尚未被有效采购贡献承接的数量。</summary>

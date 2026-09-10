@@ -53,7 +53,7 @@ public sealed class PurchaseDraftCreationService(
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (PurchaseDraftException ex)
         {
-            return ServiceResult<PurchaseDraftPreviewResponse>.Fail($"{ex.Code}: {ex.Message}");
+            return ServiceResult<PurchaseDraftPreviewResponse>.Fail(ex.Code, ex.Message);
         }
         catch (Exception ex)
         {
@@ -407,7 +407,10 @@ public sealed class PurchaseDraftCreationService(
         var supplierIds = workspaceRows.SelectMany(row =>
         {
             itemByDemand.TryGetValue(row.Uid, out var item);
-            return new[] { item?.SupplierId ?? row.SuggestedPurchaseSupplierId, item?.DeliveryTargetSupplierId ?? row.SuggestedDeliverySupplierId };
+            var deliverySupplierId = item is null
+                ? row.SuggestedDeliverySupplierId
+                : item.DeliveryTargetSupplierId;
+            return new[] { item?.SupplierId ?? row.SuggestedPurchaseSupplierId, deliverySupplierId };
         }).Where(x => x.HasValue && x.Value != Guid.Empty).Select(x => x!.Value).Distinct().ToArray();
         var suppliers = (await supplierRepository.GetByIdListAsync(supplierIds)).ToDictionary(x => x.Uid);
         var purchaseRows = workspaceRows.Where(x => ResolveExecutionType(x.SupplyType) == DemandExecutionTypeEnum.Purchase).ToList();
@@ -530,11 +533,14 @@ public sealed class PurchaseDraftCreationService(
             var deliveryTarget = net.DeliveryTargetNetDemandId.HasValue
                 ? netById.GetValueOrDefault(net.DeliveryTargetNetDemandId.Value)
                 : null;
-            var deliverySupplierId = item?.DeliveryTargetSupplierId ?? deliveryTarget?.SuggestedPurchaseSupplierId;
+            // 命令项存在时，空送达方表示采购尚未完成实际选择，不能再次回退计划建议绕过预览阻断。
+            var deliverySupplierId = item is null
+                ? deliveryTarget?.SuggestedPurchaseSupplierId
+                : item.DeliveryTargetSupplierId;
             suppliers.TryGetValue(purchaseSupplierId ?? Guid.Empty, out var purchaseSupplier);
             suppliers.TryGetValue(deliverySupplierId ?? Guid.Empty, out var deliverySupplier);
             var deliveryTargetValid = net.DeliveryMode != DemandDeliveryModeEnum.ParentExecutionSupplier
-                || (deliveryTarget is not null && deliverySupplier is not null);
+                || (deliveryTarget is not null && deliverySupplier?.IsActive == true);
             purchaseData.TryGetValue((net.ProductId, purchaseSupplierId), out var data);
             Product? product = null;
             if (net.ProductId.HasValue)
@@ -569,7 +575,7 @@ public sealed class PurchaseDraftCreationService(
                 Unit = EffectiveUnit(product?.Unit),
                 QuantityScale = 4,
                 PurchaseSupplierId = purchaseSupplierId,
-                PurchaseSupplierIsActive = purchaseSupplier is not null,
+                PurchaseSupplierIsActive = purchaseSupplier?.IsActive == true,
                 PurchaseSupplierCode = purchaseSupplier?.SupplierCode ?? string.Empty,
                 PurchaseSupplierName = purchaseSupplier?.SupplierName ?? string.Empty,
                 DeliveryTargetNetDemandId = net.DeliveryTargetNetDemandId,
@@ -631,7 +637,10 @@ public sealed class PurchaseDraftCreationService(
         IReadOnlyDictionary<Guid, Supplier> suppliers)
     {
         var purchaseSupplierId = item?.SupplierId ?? row.SuggestedPurchaseSupplierId;
-        var deliverySupplierId = item?.DeliveryTargetSupplierId ?? row.SuggestedDeliverySupplierId;
+        // 工作台预览同样尊重命令项的显式空值；仅无命令项的一键入口沿用建议送达方。
+        var deliverySupplierId = item is null
+            ? row.SuggestedDeliverySupplierId
+            : item.DeliveryTargetSupplierId;
         suppliers.TryGetValue(purchaseSupplierId ?? Guid.Empty, out var purchaseSupplier);
         suppliers.TryGetValue(deliverySupplierId ?? Guid.Empty, out var deliverySupplier);
         return new PurchaseDraftPreviewCandidate
@@ -664,13 +673,13 @@ public sealed class PurchaseDraftCreationService(
             Unit = EffectiveUnit(row.Unit),
             QuantityScale = 4,
             PurchaseSupplierId = purchaseSupplierId,
-            PurchaseSupplierIsActive = purchaseSupplier is not null,
+            PurchaseSupplierIsActive = purchaseSupplier?.IsActive == true,
             PurchaseSupplierCode = purchaseSupplier?.SupplierCode ?? string.Empty,
             PurchaseSupplierName = purchaseSupplier?.SupplierName ?? string.Empty,
             DeliveryTargetNetDemandId = row.DeliveryTargetNetDemandId,
             DeliveryTargetSupplierId = deliverySupplierId,
             DeliveryTargetIsValid = !row.IsCustomerSupplied
-                || (row.DeliveryTargetNetDemandId.HasValue && deliverySupplier is not null),
+                || (row.DeliveryTargetNetDemandId.HasValue && deliverySupplier?.IsActive == true),
             DeliveryTargetSupplierCode = deliverySupplier?.SupplierCode ?? string.Empty,
             DeliveryTargetSupplierName = deliverySupplier?.SupplierName ?? string.Empty,
             HasSupplierProduct = data is not null,

@@ -1,5 +1,6 @@
 using SwiftExport.Contracts.SysEnums;
 using System;
+using System.Collections.Generic;
 
 namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
 {
@@ -40,6 +41,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public string SuggestedDeliverySupplierCode { get; set; }
         public string SuggestedDeliverySupplierName { get; set; }
         public string SuggestedDeliverySupplierHint { get; set; }
+        /// <summary>客供件父件活动采购单中的实际采购供应商；多项时必须由采购员明确选择送达方。</summary>
+        public List<PurchaseDraftActualSupplierFactDto> ParentActualPurchaseSuppliers { get; set; } = new List<PurchaseDraftActualSupplierFactDto>();
         public decimal GrossQty { get; set; }
         public decimal NetQty { get; set; }
         public DateTime? DemandRequiredDate { get; set; }

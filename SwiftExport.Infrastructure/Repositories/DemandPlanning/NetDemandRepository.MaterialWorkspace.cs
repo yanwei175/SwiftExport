@@ -4,6 +4,7 @@ using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Infrastructure.Repositories.Base;
+using System.Text.Json;
 
 namespace SwiftExport.Infrastructure.Repositories.DemandPlanning;
 
@@ -211,7 +212,30 @@ SELECT nd.[Uid],nd.[Version],nd.[LifecycleStatus],nd.[GrossDemandId],nd.[Decompo
             WHEN deliverySupplier.[Uid] IS NULL THEN N'父件推荐采购供应商已失效'
             ELSE NULL END AS [SuggestedDeliverySupplierHint],
        nd.[GrossQty],nd.[NetQty],nd.[RequiredDate] AS [DemandRequiredDate],
-       COALESCE(purchaseFacts.[AssociatedPurchaseQty],0) AS [AssociatedPurchaseQty],purchaseNumbers.[PurchaseOrderNos]
+       COALESCE(purchaseFacts.[AssociatedPurchaseQty],0) AS [AssociatedPurchaseQty],purchaseNumbers.[PurchaseOrderNos],
+       COALESCE((
+           SELECT facts.[SupplierId],MAX(facts.[SupplierCode]) AS [SupplierCode],MAX(facts.[SupplierName]) AS [SupplierName],
+                  CAST(MAX(CASE WHEN activeSupplier.[Uid] IS NOT NULL THEN 1 ELSE 0 END) AS bit) AS [IsActive],
+                  STRING_AGG(CAST(facts.[OrderNo] AS nvarchar(max)),N',') AS [PurchaseOrderNos]
+           FROM
+           (
+               SELECT DISTINCT purchaseHead.[SupplierId],purchaseHead.[SupplierCode],purchaseHead.[SupplierName],purchaseHead.[OrderNo]
+               FROM [dbo].[DemandExecutionLink] parentLink
+               INNER JOIN [dbo].[PurchaseOrderHead] purchaseHead
+                 ON purchaseHead.[Uid]=parentLink.[TargetHeadId]
+                AND purchaseHead.[LifecycleStatus]=0 AND ISNULL(purchaseHead.[IsDeleted],0)=0
+               INNER JOIN [dbo].[PurchaseOrderLine] purchaseLine
+                 ON purchaseLine.[Uid]=parentLink.[TargetLineId]
+                AND purchaseLine.[PurchaseOrderId]=purchaseHead.[Uid] AND ISNULL(purchaseLine.[IsDeleted],0)=0
+               WHERE parentLink.[NetDemandId]=deliveryTarget.[Uid]
+                 AND parentLink.[TargetType]=@PurchaseTargetType AND parentLink.[LinkStatus]=0 AND ISNULL(parentLink.[IsDeleted],0)=0
+           ) facts
+           LEFT JOIN [dbo].[Supplier] activeSupplier
+             ON activeSupplier.[Uid]=facts.[SupplierId] AND activeSupplier.[IsActive]=1 AND ISNULL(activeSupplier.[IsDeleted],0)=0
+           GROUP BY facts.[SupplierId]
+           ORDER BY MAX(facts.[SupplierCode]),facts.[SupplierId]
+           FOR JSON PATH
+       ),N'[]') AS [ParentActualPurchaseSuppliersJson]
 FROM [dbo].[NetDemand] nd
 INNER JOIN [dbo].[GrossDemand] gd ON gd.[Uid]=nd.[GrossDemandId]
 LEFT JOIN [dbo].[NetDemand] root ON root.[Uid]=nd.[RootNetDemandId]
@@ -248,7 +272,7 @@ OUTER APPLY
 WHERE {PurchaseCandidateEligibilitySql}
 {sourceFilter}
 ORDER BY gd.[SourceType],gd.[SourceNo],gd.[SourceUid],gd.[SourceLineNumber],nd.[LineNumber],nd.[Uid];";
-        var rows = await Connection.QueryAsync<PurchaseDraftCandidateDto>(new CommandDefinition(
+        var rows = await Connection.QueryAsync<PurchaseDraftCandidateQueryRow>(new CommandDefinition(
             sql,
             new
             {
@@ -259,7 +283,14 @@ ORDER BY gd.[SourceType],gd.[SourceNo],gd.[SourceUid],gd.[SourceLineNumber],nd.[
             },
             Transaction,
             cancellationToken: cancellationToken));
-        return rows.ToList();
+        var result = rows.ToList();
+        foreach (var row in result)
+        {
+            row.ParentActualPurchaseSuppliers = JsonSerializer.Deserialize<List<PurchaseDraftActualSupplierFactDto>>(
+                row.ParentActualPurchaseSuppliersJson,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+        }
+        return result;
     }
 
     private const string PurchaseCandidatePurchaseFactsSql = @"
@@ -323,5 +354,11 @@ AND nd.[NetQty]>COALESCE(purchaseFacts.[AssociatedPurchaseQty],0)";
         if (request.IsNonStandard.HasValue)
             where.Add(request.IsNonStandard.Value ? "nd.[ProductId] IS NULL" : "nd.[ProductId] IS NOT NULL");
         return where;
+    }
+
+    /// <summary>承接 SQL 内部 JSON 列；解析后只向上层暴露结构化的采购供应商事实。</summary>
+    private sealed class PurchaseDraftCandidateQueryRow : PurchaseDraftCandidateDto
+    {
+        public string ParentActualPurchaseSuppliersJson { get; set; } = "[]";
     }
 }

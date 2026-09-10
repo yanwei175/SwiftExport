@@ -106,7 +106,7 @@ public sealed class PurchaseDraftPreviewBuilder
         if (!candidate.IsPlanningFactValid)
         {
             AddWarning(response, candidate, PurchaseDraftWarningCodes.CorruptedPlanningState,
-                "净需求、活动计划、数量或 A/B 关系不完整，请先修复数据。",
+                "物料需求或来源关系不完整；请刷新候选，若仍存在请移除选择并联系计划人员核对。",
                 isBlocker: true, requiresConfirmation: false);
             valid = false;
         }
@@ -114,7 +114,7 @@ public sealed class PurchaseDraftPreviewBuilder
         if (selection.PurchaseQty <= 0 || selection.PurchaseQty > candidate.RemainingQty)
         {
             AddWarning(response, candidate, PurchaseDraftWarningCodes.InvalidPurchaseQuantity,
-                $"采购数量必须大于 0 且不超过剩余量 {candidate.RemainingQty.ToString("0.####", CultureInfo.InvariantCulture)}。",
+                $"采购数量必须大于 0 且不超过剩余量 {candidate.RemainingQty.ToString("0.####", CultureInfo.InvariantCulture)}；请修正数量后重新预览。",
                 isBlocker: true, requiresConfirmation: false);
             valid = false;
         }
@@ -122,14 +122,14 @@ public sealed class PurchaseDraftPreviewBuilder
         if (!candidate.PurchaseSupplierId.HasValue || candidate.PurchaseSupplierId.Value == Guid.Empty)
         {
             AddWarning(response, candidate, PurchaseDraftWarningCodes.PurchaseSupplierRequired,
-                "采购供应商尚未分配，不能生成采购草稿。",
+                "实际采购供应商尚未选择；请在本次计划中补选后重新预览。",
                 isBlocker: true, requiresConfirmation: false);
             valid = false;
         }
         else if (!candidate.PurchaseSupplierIsActive)
         {
             AddWarning(response, candidate, PurchaseDraftWarningCodes.PurchaseSupplierInvalid,
-                "采购供应商已失效，不能生成采购草稿。",
+                "实际采购供应商已失效；请在本次计划中重新选择有效供应商。",
                 isBlocker: true, requiresConfirmation: false);
             valid = false;
         }
@@ -142,7 +142,7 @@ public sealed class PurchaseDraftPreviewBuilder
                 || !candidate.DeliveryTargetIsValid))
         {
             AddWarning(response, candidate, PurchaseDraftWarningCodes.DeliveryTargetRequired,
-                "客供件送达目标未完整解析，不能生成采购草稿。",
+                "客供件实际送达方或父件关系无效；请明确选择送达方，若关系失效请刷新或移除选择。",
                 isBlocker: true, requiresConfirmation: false);
             valid = false;
         }
@@ -151,7 +151,7 @@ public sealed class PurchaseDraftPreviewBuilder
             || (!candidate.UnitPrice.HasValue && !candidate.TaxPrice.HasValue))
         {
             AddWarning(response, candidate, PurchaseDraftWarningCodes.PurchaseDataIncomplete,
-                "供应商产品或采购价格不完整；允许生成草稿，但需要采购人员补充资料。",
+                "供应商产品或采购价格不完整；允许生成草稿，创建后需在采购详情补齐资料。",
                 isBlocker: false, requiresConfirmation: false);
         }
 

@@ -378,6 +378,32 @@ public sealed class PurchaseDraftPreviewBuilderTests
     }
 
     [TestMethod]
+    public void Build_SameSourceSameBlockerCodeKeepsEveryAffectedDemandAndSupplier()
+    {
+        var first = CreateCandidate();
+        first.PurchaseSupplierIsActive = false;
+        var second = CloneForNextSourceLine(first);
+        second.PurchaseSupplierId = Guid.NewGuid();
+        second.PurchaseSupplierCode = "SUP002";
+        second.PurchaseSupplierName = "供应商二";
+
+        var result = _builder.Build(CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, first, second));
+        var warnings = result.Warnings
+            .Where(warning => warning.Code == PurchaseDraftWarningCodes.PurchaseSupplierInvalid)
+            .ToArray();
+
+        Assert.IsTrue(result.HasBlockers);
+        Assert.HasCount(2, warnings);
+        CollectionAssert.AreEquivalent(
+            new[] { first.NetDemandId, second.NetDemandId },
+            warnings.SelectMany(warning => warning.NetDemandIds).ToArray());
+        CollectionAssert.AreEquivalent(
+            new[] { first.PurchaseSupplierId!.Value, second.PurchaseSupplierId!.Value },
+            warnings.Select(warning => warning.SupplierId!.Value).ToArray());
+        Assert.IsTrue(result.SourceGroups.Single().Documents.Count == 0);
+    }
+
+    [TestMethod]
     public void Build_ImplicitAndExplicitCreateNewProduceSamePreviewTokens()
     {
         var candidate = CreateCandidate();
