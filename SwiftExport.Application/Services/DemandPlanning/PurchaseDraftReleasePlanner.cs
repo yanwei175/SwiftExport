@@ -26,7 +26,7 @@ public sealed class PurchaseDraftReleasePlanner
         if (purchaseOrderId == Guid.Empty) response.Blockers.Add("采购草稿 Uid 不能为空。");
         if (expectedVersion <= 0) response.Blockers.Add("采购草稿版本无效。");
         if (links.Count == 0) response.Blockers.Add("采购草稿没有可释放的新链路贡献。");
-        if (links.Any(x => x.LinkId == Guid.Empty || x.AllocationId == Guid.Empty
+        if (links.Any(x => x.LinkId == Guid.Empty || x.NetDemandId == Guid.Empty
             || x.PurchaseOrderLineId == Guid.Empty || x.EffectiveQty < 0))
             response.Blockers.Add("采购草稿 Link 事实不完整。");
         if (newTotalQty < 0) response.Blockers.Add("新数量不能小于 0。");
@@ -40,7 +40,7 @@ public sealed class PurchaseDraftReleasePlanner
             foreach (var link in links
                          .OrderByDescending(x => x.PlannedDeliveryDate ?? DateTime.MinValue)
                          .ThenByDescending(x => x.SourceLineNumber ?? int.MinValue)
-                         .ThenByDescending(x => x.AllocationId)
+                         .ThenByDescending(x => x.NetDemandId)
                          .ThenByDescending(x => x.LinkId))
             {
                 if (pending <= 0) break;
@@ -49,7 +49,8 @@ public sealed class PurchaseDraftReleasePlanner
                 response.Releases.Add(new PurchaseDraftLinkReleaseDto
                 {
                     LinkId = link.LinkId,
-                    AllocationId = link.AllocationId,
+                    NetDemandId = link.NetDemandId,
+                    HistoricalAllocationId = link.HistoricalAllocationId,
                     PurchaseOrderLineId = link.PurchaseOrderLineId,
                     SourceLineNumber = link.SourceLineNumber,
                     PlannedDeliveryDate = link.PlannedDeliveryDate,
@@ -78,7 +79,7 @@ public sealed class PurchaseDraftReleasePlanner
         foreach (var link in links.OrderBy(x => x.LinkId))
         {
             builder.Append('|').Append(link.LinkId.ToString("D"))
-                .Append(':').Append(link.AllocationId.ToString("D"))
+                .Append(':').Append(link.NetDemandId.ToString("D"))
                 .Append(':').Append(link.PurchaseOrderLineId.ToString("D"))
                 .Append(':').Append(link.EffectiveQty.ToString("0.####", CultureInfo.InvariantCulture))
                 .Append(':').Append(link.PlannedDeliveryDate?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty)

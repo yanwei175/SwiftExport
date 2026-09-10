@@ -193,14 +193,14 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
             (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,
              PurchaseOrderId,LineNumber,OrderNo,ProductId,Sku,CustomerSku,LinkSku,SupplierSku,
              DescriptionZh,FinishZh,FeaturesZh,UnitSnapshot,QTY,UnitPrice,TaxPrice,UnitAmount,TaxAmount,
-             PlannedDeliveryDate,DeliveryTargetAllocationId,DeliveryTargetSupplierId,
+             PlannedDeliveryDate,DeliveryTargetSupplierId,
              DeliverySupplierCodeSnapshot,DeliverySupplierNameSnapshot,SubNote,SupplyType,MaterialType,
              SourceType,SourceNo,SourceUid,SourceLineId,SourceLineNumber)
             VALUES
             (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
              @PurchaseOrderId,@LineNumber,@OrderNo,@ProductId,@Sku,@CustomerSku,@LinkSku,@SupplierSku,
              @DescriptionZh,@FinishZh,@FeaturesZh,@UnitSnapshot,@Quantity,@UnitPrice,@TaxPrice,@UnitAmount,@TaxAmount,
-             @PlannedDeliveryDate,@DeliveryTargetAllocationId,@DeliveryTargetSupplierId,
+             @PlannedDeliveryDate,@DeliveryTargetSupplierId,
              @DeliverySupplierCodeSnapshot,@DeliverySupplierNameSnapshot,@SubNote,@SupplyType,@MaterialType,
              @SourceType,@SourceNo,@SourceUid,@SourceLineId,@SourceLineNumber);
             """;

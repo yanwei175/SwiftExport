@@ -4,5 +4,5 @@ namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
 
 public interface IProcurementDialogService
 {
-    Task<IReadOnlyList<NetDemandRowModel>> SelectNetDemandsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<MaterialDemandWorkspaceRowModel>> SelectNetDemandsAsync(CancellationToken cancellationToken = default);
 }

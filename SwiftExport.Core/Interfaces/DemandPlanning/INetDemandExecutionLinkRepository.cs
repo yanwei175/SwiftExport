@@ -13,6 +13,10 @@ public interface INetDemandExecutionLinkRepository
         IEnumerable<Guid> netDemandIds,
         bool activeOnly,
         CancellationToken cancellationToken = default);
+    /// <summary>按物料需求锁定活动执行关系，保证采购承接数量不超额。</summary>
+    Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByNetDemandIdsForUpdateAsync(
+        IEnumerable<Guid> netDemandIds);
+    /// <summary>按历史计划分配锁定活动执行关系，供计划域回退校验继续使用。</summary>
     Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByAllocationIdsForUpdateAsync(
         IEnumerable<Guid> allocationIds);
     Task<IReadOnlyList<MaterialDemandRollbackBlockerDto>> GetActiveRollbackBlockersAsync(

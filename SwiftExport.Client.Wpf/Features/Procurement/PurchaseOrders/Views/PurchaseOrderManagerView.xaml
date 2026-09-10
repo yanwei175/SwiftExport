@@ -10,14 +10,16 @@
             <DockPanel LastChildFill="True">
                 <TextBlock Text="采购订单管理" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <WrapPanel HorizontalAlignment="Right">
+                    
                     <ui:DropDownButton Content="新建采购单" Margin="4,0,0,0" AutomationProperties.Name="新建采购单">
                         <ui:DropDownButton.Flyout>
                             <ContextMenu MinWidth="150" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                                <MenuItem Header="从需求获取" Command="{Binding GetFromNetDemandCommand}"/>
-                                <MenuItem Header="手动新建" Command="{Binding CreateIndependentCommand}"/>
+                                <MenuItem Header="从物料需求创建" Command="{Binding GetFromNetDemandCommand}"/>
+                                <MenuItem Header="新建无关联采购" Command="{Binding CreateIndependentCommand}"/>
                             </ContextMenu>
                         </ui:DropDownButton.Flyout>
                     </ui:DropDownButton>
+                    
                     <Button Content="确认" Command="{Binding ConfirmCommand}" Margin="4,0,0,0"/>
                     <Button Content="取消确认" Command="{Binding CancelConfirmationCommand}" Margin="4,0,0,0"/>
                     <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="4,0,0,0"/>

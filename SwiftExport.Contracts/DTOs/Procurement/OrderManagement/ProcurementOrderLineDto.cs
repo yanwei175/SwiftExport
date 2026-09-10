@@ -28,7 +28,6 @@ namespace SwiftExport.Contracts.DTOs.Procurement.OrderManagement
         public Guid DeliverySupplierId { get; set; }
         public string DeliverySupplierCode { get; set; }
         public string DeliverySupplierName { get; set; }
-        public Guid? DeliveryTargetAllocationId { get; set; }
         public string SourceType { get; set; }
         public string SourceNo { get; set; }
         public Guid? SourceUid { get; set; }

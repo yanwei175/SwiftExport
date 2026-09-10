@@ -14,10 +14,14 @@ public sealed class NetDemandApiContractTests
     {
         AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchAsync), typeof(PostAttribute), "/material-search", 0);
         AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchSourceGroupsAsync), typeof(PostAttribute), "/material-source-groups", 0);
+        AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.GetPurchaseCandidateSourceGroupsAsync), typeof(GetAttribute), "/purchase-candidates/source-groups");
+        AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.GetPurchaseCandidatesAsync), typeof(PostAttribute), "/purchase-candidates", 0);
         AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.UpdateSuggestedPurchaseSupplierAsync), typeof(PostAttribute), "/suggested-purchase-supplier", 0);
         AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.RollbackSourceEstablishmentAsync), typeof(PostAttribute), "/source-demands/rollback", 0);
         AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchAsync));
         AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchSourceGroupsAsync));
+        AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.GetPurchaseCandidateSourceGroupsAsync));
+        AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.GetPurchaseCandidatesAsync));
         AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.UpdateSuggestedPurchaseSupplierAsync));
 
         var itemProperties = typeof(MaterialDemandWorkspaceItemDto).GetProperties().Select(property => property.Name).ToArray();
@@ -26,7 +30,7 @@ public sealed class NetDemandApiContractTests
         CollectionAssert.Contains(itemProperties, nameof(MaterialDemandWorkspaceItemDto.SuggestedDeliverySupplierId));
         CollectionAssert.DoesNotContain(itemProperties, "AllocationId");
         CollectionAssert.DoesNotContain(itemProperties, "PlannedQty");
-        CollectionAssert.DoesNotContain(itemProperties, "RemainingQty");
+        CollectionAssert.Contains(itemProperties, nameof(MaterialDemandWorkspaceItemDto.RemainingQty));
         CollectionAssert.DoesNotContain(itemProperties, "BlockerSummary");
 
         var requestProperties = typeof(MaterialDemandWorkspaceSearchRequest).GetProperties().Select(property => property.Name).ToArray();

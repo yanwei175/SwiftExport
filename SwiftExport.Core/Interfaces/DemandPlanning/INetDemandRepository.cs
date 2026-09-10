@@ -18,6 +18,13 @@ public interface INetDemandRepository
     Task<IReadOnlyList<NetDemandSourceGroupDto>> SearchMaterialSourceGroupsAsync(
         MaterialDemandSourceGroupSearchRequest request,
         CancellationToken cancellationToken = default);
+    /// <summary>汇总仍包含待采购物料的完整来源分组。</summary>
+    Task<IReadOnlyList<PurchaseCandidateSourceGroupDto>> GetPurchaseCandidateSourceGroupsAsync(
+        CancellationToken cancellationToken = default);
+    /// <summary>按来源或全部来源完整读取待采购物料，不分页。</summary>
+    Task<IReadOnlyList<MaterialDemandWorkspaceItemDto>> GetPurchaseCandidatesAsync(
+        PurchaseCandidateQuery request,
+        CancellationToken cancellationToken = default);
     Task<PagedResponseBase<NetDemandListItemDto>> SearchWorkspaceAsync(
         NetDemandSearchRequest request,
         CancellationToken cancellationToken = default);

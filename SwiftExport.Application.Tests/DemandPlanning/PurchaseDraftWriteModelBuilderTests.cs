@@ -73,9 +73,9 @@ public sealed class PurchaseDraftWriteModelBuilderTests
         var first = new PurchaseDraftSourceContributionDto
         {
             CommandItemId = Guid.NewGuid(),
-            AllocationId = Guid.NewGuid(),
-            AllocationVersion = 1,
             NetDemandId = Guid.NewGuid(),
+            NetDemandVersion = 1,
+            SupplierId = supplierId,
             SourceLineId = Guid.NewGuid(),
             SourceLineNumber = 1,
             ExpectedRemainingQty = 3m,
@@ -86,9 +86,9 @@ public sealed class PurchaseDraftWriteModelBuilderTests
         var second = new PurchaseDraftSourceContributionDto
         {
             CommandItemId = Guid.NewGuid(),
-            AllocationId = Guid.NewGuid(),
-            AllocationVersion = 1,
             NetDemandId = Guid.NewGuid(),
+            NetDemandVersion = 1,
+            SupplierId = supplierId,
             SourceLineId = Guid.NewGuid(),
             SourceLineNumber = 2,
             ExpectedRemainingQty = 2m,

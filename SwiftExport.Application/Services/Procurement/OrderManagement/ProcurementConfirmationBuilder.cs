@@ -46,7 +46,7 @@ public sealed class ProcurementConfirmationBuilder(IProcurementOrderRepository r
         foreach (var line in lines.OrderBy(x => x.LineNumber))
         {
             if (!line.ProductId.HasValue || !line.DeliveryWarehouseSiteId.HasValue || line.UnlinkedQty != line.Quantity
-                || line.SourceUid.HasValue || line.DeliveryTargetAllocationId.HasValue)
+                || line.SourceUid.HasValue)
                 throw new InvalidOperationException("独立采购行身份、数量或收货目标不完整。");
             ProcurementOrderPolicy.Number(line.Quantity, 4, "采购数量", true);
             var product = await repository.GetProductAsync(line.ProductId.Value, ct);

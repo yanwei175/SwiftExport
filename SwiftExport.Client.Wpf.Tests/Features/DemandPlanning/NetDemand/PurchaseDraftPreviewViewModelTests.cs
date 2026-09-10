@@ -2,6 +2,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
@@ -175,17 +176,17 @@ public sealed class PurchaseDraftPreviewViewModelTests
     private static PurchaseDraftPreviewViewModel CreateViewModel(NetDemandApiStub api) =>
         new(api, new DirectApiCallRunner(), new MessageServiceStub());
 
-    private static NetDemandRowModel CreateRow(decimal remainingQty, Guid? sourceUid = null) => NetDemandRowModel.FromDto(new NetDemandListItemDto
+    private static MaterialDemandWorkspaceRowModel CreateRow(decimal remainingQty, Guid? sourceUid = null) => MaterialDemandWorkspaceRowModel.FromDto(new MaterialDemandWorkspaceItemDto
     {
         Uid = Guid.NewGuid(),
-        AllocationId = Guid.NewGuid(),
-        AllocationVersion = 2,
+        Version = 2,
         SourceType = "SO",
         SourceUid = sourceUid ?? Guid.NewGuid(),
         SourceNo = "SO-1001",
         Sku = "A-100",
-        ExecutionType = DemandExecutionTypeEnum.Purchase,
-        RemainingQty = remainingQty,
+        SupplyType = SupplyTypeEnums.采购,
+        NetQty = remainingQty,
+        SuggestedPurchaseSupplierId = Guid.NewGuid(),
     });
 
     private sealed class NetDemandApiStub : INetDemandWorkspaceApi
@@ -209,7 +210,8 @@ public sealed class PurchaseDraftPreviewViewModelTests
             var item = request.Items.FirstOrDefault() ?? new PurchaseDraftPreviewItem
             {
                 CommandItemId = Guid.NewGuid(),
-                AllocationId = Guid.NewGuid(),
+                NetDemandId = Guid.NewGuid(),
+                SupplierId = SupplierId,
                 ExpectedVersion = 2,
                 ExpectedRemainingQty = 10m,
                 PurchaseQty = 10m,
@@ -270,9 +272,9 @@ public sealed class PurchaseDraftPreviewViewModelTests
                     new PurchaseDraftSourceContributionDto
                     {
                         CommandItemId = item.CommandItemId,
-                        AllocationId = item.AllocationId,
-                        AllocationVersion = item.ExpectedVersion,
-                        NetDemandId = Guid.NewGuid(),
+                        NetDemandId = item.NetDemandId,
+                        NetDemandVersion = item.ExpectedVersion,
+                        SupplierId = item.SupplierId,
                         ExpectedRemainingQty = item.ExpectedRemainingQty,
                         PurchaseQty = item.PurchaseQty,
                     },

@@ -74,9 +74,6 @@ public sealed class PurchaseOrderLine : BaseEntity
     /// <summary>采购计划交付日期。</summary>
     public DateTime? PlannedDeliveryDate { get; set; }
 
-    /// <summary>客供件送达目标的 Allocation Uid。</summary>
-    public Guid? DeliveryTargetAllocationId { get; set; }
-
     /// <summary>客供件送达目标供应商 Uid。</summary>
     public Guid? DeliveryTargetSupplierId { get; set; }
 

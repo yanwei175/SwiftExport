@@ -8,7 +8,7 @@ using System.Text;
 namespace SwiftExport.Application.Services.DemandPlanning;
 
 /// <summary>
-/// 采购草稿预览纯计算器。调用方负责先读取活动 Allocation、剩余量、供应商和采购资料事实。
+/// 采购草稿预览纯计算器。调用方负责先读取活动物料需求、已承接量、实际供应商选择和采购资料事实。
 /// 本类型不访问数据库，也不创建采购单或 DemandExecutionLink。
 /// </summary>
 public sealed class PurchaseDraftPreviewBuilder
@@ -22,7 +22,7 @@ public sealed class PurchaseDraftPreviewBuilder
             .OrderBy(x => x.SourceType, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.SourceUid)
             .ThenBy(x => x.SourceLineNumber ?? int.MaxValue)
-            .ThenBy(x => x.AllocationId)
+            .ThenBy(x => x.NetDemandId)
             .ToList();
 
         var response = new PurchaseDraftPreviewResponse
@@ -75,7 +75,7 @@ public sealed class PurchaseDraftPreviewBuilder
             {
                 response.SkippedItems.Add(new PurchaseDraftSkippedItemDto
                 {
-                    AllocationId = candidate.AllocationId,
+                    NetDemandId = candidate.NetDemandId,
                     ExecutionType = candidate.ExecutionType,
                     ReasonCode = PurchaseDraftWarningCodes.ExecutionTypeNotPurchase,
                     Message = "当前计划不是采购执行方式，本次不处理。"
@@ -133,8 +133,8 @@ public sealed class PurchaseDraftPreviewBuilder
         }
 
         if (candidate.IsCustomerSupplied
-            && (!candidate.DeliveryTargetAllocationId.HasValue
-                || candidate.DeliveryTargetAllocationId.Value == Guid.Empty
+            && (!candidate.DeliveryTargetNetDemandId.HasValue
+                || candidate.DeliveryTargetNetDemandId.Value == Guid.Empty
                 || !candidate.DeliveryTargetSupplierId.HasValue
                 || candidate.DeliveryTargetSupplierId.Value == Guid.Empty
                 || !candidate.DeliveryTargetIsValid))
@@ -165,7 +165,7 @@ public sealed class PurchaseDraftPreviewBuilder
         PurchaseDraftPreviewResponse response)
     {
         var selectedQty = selected
-            .GroupBy(x => x.Candidate.AllocationId)
+            .GroupBy(x => x.Candidate.NetDemandId)
             .ToDictionary(x => x.Key, x => x.Sum(y => y.PurchaseQty));
 
         foreach (var parent in selected.Where(x => !x.Candidate.IsCustomerSupplied))
@@ -173,10 +173,10 @@ public sealed class PurchaseDraftPreviewBuilder
             var remainingChildren = candidates
                 .Where(x => x.IsCustomerSupplied
                     && x.ExecutionType == DemandExecutionTypeEnum.Purchase
-                    && x.DeliveryTargetAllocationId == parent.Candidate.AllocationId)
-                .Where(x => x.RemainingQty - selectedQty.GetValueOrDefault(x.AllocationId) > 0)
+                    && x.DeliveryTargetNetDemandId == parent.Candidate.NetDemandId)
+                .Where(x => x.RemainingQty - selectedQty.GetValueOrDefault(x.NetDemandId) > 0)
                 .OrderBy(x => x.SourceLineNumber ?? int.MaxValue)
-                .ThenBy(x => x.AllocationId)
+                .ThenBy(x => x.NetDemandId)
                 .ToList();
 
             if (remainingChildren.Count == 0)
@@ -193,8 +193,8 @@ public sealed class PurchaseDraftPreviewBuilder
                 SourceType = parent.Candidate.SourceType,
                 SourceUid = parent.Candidate.SourceUid,
                 SupplierId = parent.Candidate.PurchaseSupplierId,
-                AllocationIds = new[] { parent.Candidate.AllocationId }
-                    .Concat(remainingChildren.Select(x => x.AllocationId))
+                NetDemandIds = new[] { parent.Candidate.NetDemandId }
+                    .Concat(remainingChildren.Select(x => x.NetDemandId))
                     .ToList()
             });
         }
@@ -225,7 +225,7 @@ public sealed class PurchaseDraftPreviewBuilder
                 RequiresConfirmation = false,
                 SourceType = first.SourceType,
                 SourceUid = first.SourceUid,
-                AllocationIds = source.Select(x => x.Candidate.AllocationId).ToList()
+                NetDemandIds = source.Select(x => x.Candidate.NetDemandId).ToList()
             });
         }
     }
@@ -324,7 +324,7 @@ public sealed class PurchaseDraftPreviewBuilder
         {
             document.Lines = selections
                 .OrderBy(x => x.Candidate.SourceLineNumber ?? int.MaxValue)
-                .ThenBy(x => x.Candidate.AllocationId)
+                .ThenBy(x => x.Candidate.NetDemandId)
                 .Select(x => BuildLine(new[] { x }, response))
                 .ToList();
         }
@@ -333,7 +333,7 @@ public sealed class PurchaseDraftPreviewBuilder
             document.Lines = selections
                 .GroupBy(x => new MergeKey(x.Candidate))
                 .OrderBy(x => x.Min(y => y.Candidate.SourceLineNumber ?? int.MaxValue))
-                .ThenBy(x => x.Min(y => y.Candidate.AllocationId))
+                .ThenBy(x => x.Min(y => y.Candidate.NetDemandId))
                 .Select(x => BuildLine(x.ToList(), response))
                 .ToList();
         }
@@ -378,7 +378,7 @@ public sealed class PurchaseDraftPreviewBuilder
                 SourceType = first.SourceType,
                 SourceUid = first.SourceUid,
                 SupplierId = first.PurchaseSupplierId,
-                AllocationIds = selections.Select(x => x.Candidate.AllocationId).ToList()
+                NetDemandIds = selections.Select(x => x.Candidate.NetDemandId).ToList()
             });
         }
 
@@ -397,7 +397,6 @@ public sealed class PurchaseDraftPreviewBuilder
             TaxPrice = first.TaxPrice,
             PurchaseQty = selections.Sum(x => x.PurchaseQty),
             PlannedDeliveryDate = MinDate(dates),
-            DeliveryTargetAllocationId = first.DeliveryTargetAllocationId,
             DeliveryTargetSupplierId = first.DeliveryTargetSupplierId,
             DeliveryTargetSupplierCode = first.DeliveryTargetSupplierCode,
             DeliveryTargetSupplierName = first.DeliveryTargetSupplierName,
@@ -406,13 +405,14 @@ public sealed class PurchaseDraftPreviewBuilder
             SourcePlannedDeliveryDates = dates,
             Contributions = selections
                 .OrderBy(x => x.Candidate.SourceLineNumber ?? int.MaxValue)
-                .ThenBy(x => x.Candidate.AllocationId)
+                .ThenBy(x => x.Candidate.NetDemandId)
                 .Select(x => new PurchaseDraftSourceContributionDto
                 {
                     CommandItemId = x.Candidate.CommandItemId,
-                    AllocationId = x.Candidate.AllocationId,
-                    AllocationVersion = x.Candidate.AllocationVersion,
                     NetDemandId = x.Candidate.NetDemandId,
+                    NetDemandVersion = x.Candidate.NetDemandVersion,
+                    SupplierId = x.Candidate.PurchaseSupplierId!.Value,
+                    DeliveryTargetSupplierId = x.Candidate.DeliveryTargetSupplierId,
                     SourceLineId = x.Candidate.SourceLineId,
                     SourceLineNumber = x.Candidate.SourceLineNumber,
                     ExpectedRemainingQty = x.Candidate.RemainingQty,
@@ -441,7 +441,7 @@ public sealed class PurchaseDraftPreviewBuilder
             SourceType = candidate.SourceType,
             SourceUid = candidate.SourceUid,
             SupplierId = candidate.PurchaseSupplierId,
-            AllocationIds = new List<Guid> { candidate.AllocationId }
+            NetDemandIds = new List<Guid> { candidate.NetDemandId }
         });
     }
 
@@ -460,13 +460,12 @@ public sealed class PurchaseDraftPreviewBuilder
                      .OrderBy(x => x.Candidate.SourceType, StringComparer.OrdinalIgnoreCase)
                      .ThenBy(x => x.Candidate.SourceUid)
                      .ThenBy(x => x.Candidate.PurchaseSupplierId)
-                     .ThenBy(x => x.Candidate.AllocationId))
+                     .ThenBy(x => x.Candidate.NetDemandId))
         {
             var candidate = item.Candidate;
             text.Append("\nI|").Append(candidate.CommandItemId.ToString("N"))
-                .Append('|').Append(candidate.AllocationId.ToString("N"))
-                .Append('|').Append(candidate.AllocationVersion)
                 .Append('|').Append(candidate.NetDemandId.ToString("N"))
+                .Append('|').Append(candidate.NetDemandVersion)
                 .Append('|').Append(candidate.SourceType?.Trim().ToUpperInvariant())
                 .Append('|').Append(candidate.SourceUid.ToString("N"))
                 .Append('|').Append(candidate.SourceNo?.Trim())
@@ -479,7 +478,7 @@ public sealed class PurchaseDraftPreviewBuilder
                 .Append('|').Append(candidate.PurchaseSupplierIsActive ? '1' : '0')
                 .Append('|').Append(candidate.PurchaseSupplierCode?.Trim())
                 .Append('|').Append(candidate.PurchaseSupplierName?.Trim())
-                .Append('|').Append(candidate.DeliveryTargetAllocationId?.ToString("N"))
+                .Append('|').Append(candidate.DeliveryTargetNetDemandId?.ToString("N"))
                 .Append('|').Append(candidate.DeliveryTargetSupplierId?.ToString("N"))
                 .Append('|').Append(candidate.DeliveryTargetIsValid ? '1' : '0')
                 .Append('|').Append(candidate.DeliveryTargetSupplierCode?.Trim())
@@ -520,7 +519,7 @@ public sealed class PurchaseDraftPreviewBuilder
             text.Append("\nW|").Append(warning.Code)
                 .Append('|').Append(warning.IsBlocker ? '1' : '0')
                 .Append('|').Append(warning.RequiresConfirmation ? '1' : '0')
-                .Append('|').Append(string.Join(",", warning.AllocationIds.OrderBy(x => x).Select(x => x.ToString("N"))));
+                .Append('|').Append(string.Join(",", warning.NetDemandIds.OrderBy(x => x).Select(x => x.ToString("N"))));
         }
 
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
@@ -673,9 +672,8 @@ public sealed class PurchaseDraftPreviewBuildRequest
 public sealed class PurchaseDraftPreviewCandidate
 {
     public Guid CommandItemId { get; set; }
-    public Guid AllocationId { get; set; }
-    public int AllocationVersion { get; set; }
     public Guid NetDemandId { get; set; }
+    public int NetDemandVersion { get; set; }
     public string SourceType { get; set; } = string.Empty;
     public Guid SourceUid { get; set; }
     public string SourceNo { get; set; } = string.Empty;
@@ -701,7 +699,7 @@ public sealed class PurchaseDraftPreviewCandidate
     public bool PurchaseSupplierIsActive { get; set; } = true;
     public string PurchaseSupplierCode { get; set; } = string.Empty;
     public string PurchaseSupplierName { get; set; } = string.Empty;
-    public Guid? DeliveryTargetAllocationId { get; set; }
+    public Guid? DeliveryTargetNetDemandId { get; set; }
     public Guid? DeliveryTargetSupplierId { get; set; }
     public bool DeliveryTargetIsValid { get; set; } = true;
     public string DeliveryTargetSupplierCode { get; set; } = string.Empty;

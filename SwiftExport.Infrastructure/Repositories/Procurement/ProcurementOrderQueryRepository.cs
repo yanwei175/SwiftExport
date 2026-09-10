@@ -68,7 +68,7 @@ public sealed class ProcurementOrderQueryRepository(RepositoryBaseContext contex
               CASE WHEN l.MaterialType=N'客供件' THEN l.DeliveryTargetSupplierId END AS DeliverySupplierId,
               CASE WHEN l.MaterialType=N'客供件' THEN l.DeliverySupplierCodeSnapshot ELSE N'' END AS DeliverySupplierCode,
               CASE WHEN l.MaterialType=N'客供件' THEN l.DeliverySupplierNameSnapshot ELSE N'' END AS DeliverySupplierName,
-              l.DeliveryTargetAllocationId,l.SourceType,l.SourceNo,
+              l.SourceType,l.SourceNo,
               l.SourceUid,l.SourceLineId,l.SourceLineNumber,l.UnitPrice,l.TaxPrice,l.UnitAmount,l.TaxAmount,
               l.PlannedDeliveryDate,l.SupplierSku,l.DescriptionZh,l.SubNote,l.CreatedDate,l.CreatedBy,l.UpdatedDate,l.UpdatedBy
             FROM dbo.PurchaseOrderLine l JOIN dbo.PurchaseOrderHead h ON h.Uid=l.PurchaseOrderId

@@ -62,7 +62,7 @@ public sealed class PurchaseDraftLifecycleService(
             var links = await linkRepository.GetPurchaseLinksByHeadAsync(uid, withUpdLock: true, cancellationToken);
             if (links.Count == 0)
                 return RollbackFail<PurchaseDraftLifecycleResult>("采购草稿没有完整的新净需求 Link，不能执行专项取消。");
-            if (links.Any(x => x.LinkId == Guid.Empty || x.AllocationId == Guid.Empty
+            if (links.Any(x => x.LinkId == Guid.Empty || x.NetDemandId == Guid.Empty
                 || x.PurchaseOrderLineId == Guid.Empty))
                 return RollbackFail<PurchaseDraftLifecycleResult>("采购草稿混有遗留或不完整 Link，不能执行专项取消。");
             _ = await purchaseDraftRepository.GetDraftLinesForUpdateAsync(uid);

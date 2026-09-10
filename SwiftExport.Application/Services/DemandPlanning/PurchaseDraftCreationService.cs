@@ -25,7 +25,6 @@ public sealed class PurchaseDraftCreationService(
     ServiceBaseContext context,
     IGrossDemandRepository grossDemandRepository,
     INetDemandRepository netDemandRepository,
-    INetDemandAllocationRepository allocationRepository,
     INetDemandExecutionLinkRepository executionLinkRepository,
     IPurchaseOrderDraftRepository purchaseDraftRepository,
     IProductRepository productRepository,
@@ -131,7 +130,7 @@ public sealed class PurchaseDraftCreationService(
         _session.Transaction = _session.Connection.BeginTransaction();
         try
         {
-            // 固定锁序：GrossDemand -> NetDemand -> Allocation -> Link/CommandItem -> PurchaseOrder。
+            // 固定锁序：GrossDemand -> NetDemand -> Link/CommandItem -> PurchaseOrder。
             var grossDemands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(source.SourceType, source.SourceUid);
             if (grossDemands.Count == 0)
                 throw new PurchaseDraftException("SOURCE_NOT_FOUND", "来源单没有活动毛需求。");
@@ -142,15 +141,8 @@ public sealed class PurchaseDraftCreationService(
             if (netDemands.Count == 0)
                 throw new PurchaseDraftException("CORRUPTED_STATE", "来源单没有活动净需求。");
 
-            var allocations = new List<NetDemandAllocation>();
-            foreach (var grossDemand in grossDemands)
-                allocations.AddRange(await allocationRepository.GetActiveByGrossDemandForUpdateAsync(grossDemand.Uid));
-            if (allocations.Count != netDemands.Count
-                || allocations.GroupBy(x => x.NetDemandId).Any(x => x.Count() != 1))
-                throw new PurchaseDraftException("CORRUPTED_STATE", "来源单的活动计划不完整。");
-
-            var activeLinks = await executionLinkRepository.GetActiveByAllocationIdsForUpdateAsync(
-                allocations.Select(x => x.Uid));
+            var activeLinks = await executionLinkRepository.GetActiveByNetDemandIdsForUpdateAsync(
+                netDemands.Select(x => x.Uid));
             var existingCommandLinks = await executionLinkRepository.GetByCommandItemIdsForUpdateAsync(
                 source.Items.Select(x => x.CommandItemId));
 
@@ -165,7 +157,7 @@ public sealed class PurchaseDraftCreationService(
             }
 
             var buildRequest = await BuildLockedPreviewRequestAsync(
-                command, source, grossDemands, netDemands, allocations, activeLinks);
+                command, source, grossDemands, netDemands, activeLinks);
             var preview = previewBuilder.Build(buildRequest);
             var sourcePreview = preview.SourceGroups.SingleOrDefault(x =>
                 x.SourceUid == source.SourceUid
@@ -313,7 +305,7 @@ public sealed class PurchaseDraftCreationService(
                 return null;
             var link = matches[0];
             if (link.ExecutionRequestId != command.ExecutionRequestId
-                || link.NetDemandAllocationId != item.AllocationId
+                || link.NetDemandId != item.NetDemandId
                 || link.AllocatedQty != item.PurchaseQty)
                 throw new PurchaseDraftException("IDEMPOTENCY_KEY_REUSED",
                     "CommandItemId 已被不同的执行事实使用。");
@@ -341,76 +333,102 @@ public sealed class PurchaseDraftCreationService(
         };
     }
 
-    private async Task<IReadOnlyList<NetDemandListItemDto>> LoadPreviewWorkspaceRowsAsync(
+    /// <summary>按物料需求身份读取预览事实，并补齐同来源行以保留客供件提示语义。</summary>
+    private async Task<IReadOnlyList<MaterialDemandWorkspaceItemDto>> LoadPreviewWorkspaceRowsAsync(
         PurchaseDraftPreviewRequest request,
         CancellationToken cancellationToken)
     {
         if (request.EntryMode == PurchaseDraftEntryModeEnum.SourceOneClick)
         {
-            var sourceRows = await netDemandRepository.GetWorkspaceBySourceAsync(
-                request.SourceType, request.SourceUid!.Value, cancellationToken);
+            var page = await netDemandRepository.SearchMaterialWorkspaceAsync(new MaterialDemandWorkspaceSearchRequest
+            {
+                SourceUid = request.SourceUid,
+                SourceTypes = new List<string> { request.SourceType },
+                PageIndex = 1,
+                PageSize = 200
+            }, cancellationToken);
+            var sourceRows = page.Items;
             if (sourceRows.Count == 0)
-                throw new PurchaseDraftException("SOURCE_NOT_FOUND", "来源单没有活动净需求计划。");
+                throw new PurchaseDraftException("SOURCE_NOT_FOUND", "来源单没有活动物料需求。");
             if (request.Items.Count > 0)
             {
-                var rowByAllocation = sourceRows.ToDictionary(x => x.AllocationId);
+                var rowByDemand = sourceRows.ToDictionary(x => x.Uid);
                 foreach (var item in request.Items)
                 {
-                    if (!rowByAllocation.TryGetValue(item.AllocationId, out var row)
-                        || row.AllocationVersion != item.ExpectedVersion
+                    if (!rowByDemand.TryGetValue(item.NetDemandId, out var row)
+                        || row.Version != item.ExpectedVersion
                         || row.RemainingQty != item.ExpectedRemainingQty)
                         throw new PurchaseDraftException("PREVIEW_FACT_CHANGED",
-                            "一键预览包含不属于当前来源或已经变化的计划。");
+                            "一键预览包含不属于当前来源或已经变化的物料需求。");
                 }
             }
             return sourceRows;
         }
 
-        var selectedRows = new List<NetDemandListItemDto>();
-        var rootIds = new HashSet<Guid>();
+        var selectedRows = new List<MaterialDemandWorkspaceItemDto>();
         foreach (var item in request.Items)
         {
-            var allocation = await allocationRepository.GetByIdAsync(item.AllocationId)
-                ?? throw new PurchaseDraftException("ALLOCATION_NOT_FOUND", "选择的计划分配不存在。");
-            var row = await netDemandRepository.GetWorkspaceItemAsync(allocation.NetDemandId, cancellationToken)
-                ?? throw new PurchaseDraftException("NET_DEMAND_NOT_FOUND", "选择的活动净需求不存在。");
-            if (row.AllocationId != item.AllocationId
-                || row.AllocationVersion != item.ExpectedVersion
+            var page = await netDemandRepository.SearchMaterialWorkspaceAsync(new MaterialDemandWorkspaceSearchRequest
+            {
+                NetDemandIds = new List<Guid> { item.NetDemandId },
+                PageIndex = 1,
+                PageSize = 1
+            }, cancellationToken);
+            var row = page.Items.SingleOrDefault()
+                ?? throw new PurchaseDraftException("NET_DEMAND_NOT_FOUND", "选择的活动物料需求不存在。");
+            if (row.Version != item.ExpectedVersion
                 || row.RemainingQty != item.ExpectedRemainingQty)
-                throw new PurchaseDraftException("PREVIEW_FACT_CHANGED", "计划版本或剩余数量已变化，请刷新后重试。");
+                throw new PurchaseDraftException("PREVIEW_FACT_CHANGED", "物料需求版本或剩余数量已变化，请刷新后重试。");
             selectedRows.Add(row);
-            rootIds.Add(row.RootNetDemandId);
         }
 
-        var rows = new Dictionary<Guid, NetDemandListItemDto>();
-        foreach (var rootId in rootIds)
-            foreach (var row in await netDemandRepository.GetWorkspaceFamilyAsync(rootId, cancellationToken))
-                rows[row.AllocationId] = row;
-        foreach (var row in selectedRows) rows[row.AllocationId] = row;
+        var rows = new Dictionary<Guid, MaterialDemandWorkspaceItemDto>();
+        foreach (var sourceUid in selectedRows.Select(x => x.SourceUid).Distinct())
+        {
+            var page = await netDemandRepository.SearchMaterialWorkspaceAsync(new MaterialDemandWorkspaceSearchRequest
+            {
+                SourceUid = sourceUid,
+                PageIndex = 1,
+                PageSize = 200
+            }, cancellationToken);
+            foreach (var row in page.Items) rows[row.Uid] = row;
+        }
+        foreach (var row in selectedRows) rows[row.Uid] = row;
         return rows.Values.ToList();
     }
 
     private async Task<PurchaseDraftPreviewBuildRequest> BuildReadOnlyPreviewRequestAsync(
         PurchaseDraftPreviewRequest request,
-        IReadOnlyList<NetDemandListItemDto> workspaceRows,
+        IReadOnlyList<MaterialDemandWorkspaceItemDto> workspaceRows,
         CancellationToken cancellationToken)
     {
-        var itemByAllocation = request.Items.ToDictionary(x => x.AllocationId);
-        var purchaseRows = workspaceRows.Where(x => x.ExecutionType == DemandExecutionTypeEnum.Purchase).ToList();
-        var purchaseData = await LoadPurchaseDataAsync(purchaseRows.Select(x => (x.ProductId, x.PurchaseSupplierId)));
+        var itemByDemand = request.Items.ToDictionary(x => x.NetDemandId);
+        var supplierIds = workspaceRows.SelectMany(row =>
+        {
+            itemByDemand.TryGetValue(row.Uid, out var item);
+            return new[] { item?.SupplierId ?? row.SuggestedPurchaseSupplierId, item?.DeliveryTargetSupplierId ?? row.SuggestedDeliverySupplierId };
+        }).Where(x => x.HasValue && x.Value != Guid.Empty).Select(x => x!.Value).Distinct().ToArray();
+        var suppliers = (await supplierRepository.GetByIdListAsync(supplierIds)).ToDictionary(x => x.Uid);
+        var purchaseRows = workspaceRows.Where(x => ResolveExecutionType(x.SupplyType) == DemandExecutionTypeEnum.Purchase).ToList();
+        var purchaseData = await LoadPurchaseDataAsync(purchaseRows.Select(row =>
+        {
+            itemByDemand.TryGetValue(row.Uid, out var item);
+            return (row.ProductId, (Guid?)(item?.SupplierId ?? row.SuggestedPurchaseSupplierId));
+        }));
         var candidates = new List<PurchaseDraftPreviewCandidate>();
         foreach (var row in workspaceRows)
         {
-            itemByAllocation.TryGetValue(row.AllocationId, out var item);
+            itemByDemand.TryGetValue(row.Uid, out var item);
             var selected = request.EntryMode == PurchaseDraftEntryModeEnum.SourceOneClick || item is not null;
             var commandItemId = item?.CommandItemId
-                ?? (selected && row.ExecutionType == DemandExecutionTypeEnum.Purchase
+                ?? (selected && ResolveExecutionType(row.SupplyType) == DemandExecutionTypeEnum.Purchase
                     ? GuidSequentialGenerator.NewGuid() : Guid.Empty);
-            purchaseData.TryGetValue((row.ProductId, row.PurchaseSupplierId), out var data);
-            candidates.Add(MapWorkspaceCandidate(row, item, commandItemId, selected, data));
+            var purchaseSupplierId = item?.SupplierId ?? row.SuggestedPurchaseSupplierId;
+            purchaseData.TryGetValue((row.ProductId, purchaseSupplierId), out var data);
+            candidates.Add(MapWorkspaceCandidate(row, item, commandItemId, selected, data, suppliers));
         }
 
-        var supplierIds = candidates
+        var selectedSupplierIds = candidates
             .Where(x => x.IsSelected && x.PurchaseSupplierId.HasValue)
             .Select(x => x.PurchaseSupplierId!.Value)
             .Distinct()
@@ -422,7 +440,7 @@ public sealed class PurchaseDraftCreationService(
                          .Select(x => (x.SourceType, x.SourceUid)).Distinct())
             {
                 var rows = await purchaseDraftRepository.GetSafeAppendCandidatesAsync(
-                    source.SourceType, source.SourceUid, supplierIds, cancellationToken);
+                    source.SourceType, source.SourceUid, selectedSupplierIds, cancellationToken);
                 safeAppend.AddRange(rows.Select(x => new PurchaseDraftSafeAppendCandidate
                 {
                     PurchaseOrderId = x.PurchaseOrderId,
@@ -473,20 +491,18 @@ public sealed class PurchaseDraftCreationService(
         CreatePurchaseDraftSourceCommand source,
         IReadOnlyList<Core.Entities.DemandPlanning.GrossDemand> grossDemands,
         IReadOnlyList<NetDemand> netDemands,
-        IReadOnlyList<NetDemandAllocation> allocations,
         IReadOnlyList<NetDemandExecutionLinkDto> activeLinks)
     {
-        var itemByAllocation = source.Items.ToDictionary(x => x.AllocationId);
+        var itemByDemand = source.Items.ToDictionary(x => x.NetDemandId);
         var grossById = grossDemands.ToDictionary(x => x.Uid);
         var netById = netDemands.ToDictionary(x => x.Uid);
-        var allocationByNet = allocations.ToDictionary(x => x.NetDemandId);
-        var allocatedByAllocation = activeLinks
-            .Where(x => x.NetDemandAllocationId.HasValue)
-            .GroupBy(x => x.NetDemandAllocationId!.Value)
+        var allocatedByDemand = activeLinks
+            .GroupBy(x => x.NetDemandId)
             .ToDictionary(x => x.Key, x => x.Sum(y => y.AllocatedQty));
 
-        var supplierIds = allocations
-            .SelectMany(x => new[] { x.PurchaseSupplierId, x.DeliveryTargetSupplierId })
+        var supplierIds = source.Items
+            .SelectMany(x => new Guid?[] { x.SupplierId, x.DeliveryTargetSupplierId })
+            .Concat(netDemands.Select(x => x.SuggestedPurchaseSupplierId))
             .Where(x => x.HasValue)
             .Select(x => x!.Value)
             .Distinct()
@@ -496,34 +512,37 @@ public sealed class PurchaseDraftCreationService(
         var productIds = netDemands.Where(x => x.ProductId.HasValue).Select(x => x.ProductId!.Value).Distinct().ToArray();
         var products = (await productRepository.GetByIdListAsync(productIds, withUpdLock: true))
             .ToDictionary(x => x.Uid);
-        var purchaseData = await LoadPurchaseDataAsync(allocations.Select(x =>
+        var purchaseData = await LoadPurchaseDataAsync(netDemands.Select(net =>
         {
-            var net = netById[x.NetDemandId];
-            return (net.ProductId, x.PurchaseSupplierId);
+            itemByDemand.TryGetValue(net.Uid, out var item);
+            return (net.ProductId, (Guid?)(item?.SupplierId ?? net.SuggestedPurchaseSupplierId));
         }));
 
         var candidates = new List<PurchaseDraftPreviewCandidate>();
-        foreach (var allocation in allocations.OrderBy(x => netById[x.NetDemandId].LineNumber).ThenBy(x => x.Uid))
+        foreach (var net in netDemands.OrderBy(x => x.LineNumber).ThenBy(x => x.Uid))
         {
-            var net = netById[allocation.NetDemandId];
             var gross = grossById[net.GrossDemandId];
-            itemByAllocation.TryGetValue(allocation.Uid, out var item);
-            var allocatedQty = allocatedByAllocation.GetValueOrDefault(allocation.Uid);
-            var remainingQty = allocation.PlannedQty - allocatedQty;
-            var purchaseSupplierActive = allocation.PurchaseSupplierId.HasValue
-                && suppliers.ContainsKey(allocation.PurchaseSupplierId.Value);
-            var deliveryTargetValid = ValidateDeliveryTarget(
-                net, allocation, allocationByNet, allocations, suppliers);
-            purchaseData.TryGetValue((net.ProductId, allocation.PurchaseSupplierId), out var data);
+            itemByDemand.TryGetValue(net.Uid, out var item);
+            var allocatedQty = allocatedByDemand.GetValueOrDefault(net.Uid);
+            var remainingQty = net.NetQty - allocatedQty;
+            var purchaseSupplierId = item?.SupplierId ?? net.SuggestedPurchaseSupplierId;
+            var deliveryTarget = net.DeliveryTargetNetDemandId.HasValue
+                ? netById.GetValueOrDefault(net.DeliveryTargetNetDemandId.Value)
+                : null;
+            var deliverySupplierId = item?.DeliveryTargetSupplierId ?? deliveryTarget?.SuggestedPurchaseSupplierId;
+            suppliers.TryGetValue(purchaseSupplierId ?? Guid.Empty, out var purchaseSupplier);
+            suppliers.TryGetValue(deliverySupplierId ?? Guid.Empty, out var deliverySupplier);
+            var deliveryTargetValid = net.DeliveryMode != DemandDeliveryModeEnum.ParentExecutionSupplier
+                || (deliveryTarget is not null && deliverySupplier is not null);
+            purchaseData.TryGetValue((net.ProductId, purchaseSupplierId), out var data);
             Product? product = null;
             if (net.ProductId.HasValue)
                 products.TryGetValue(net.ProductId.Value, out product);
             candidates.Add(new PurchaseDraftPreviewCandidate
             {
                 CommandItemId = item?.CommandItemId ?? Guid.Empty,
-                AllocationId = allocation.Uid,
-                AllocationVersion = allocation.Version,
                 NetDemandId = net.Uid,
+                NetDemandVersion = net.Version,
                 SourceType = gross.SourceType,
                 SourceUid = gross.SourceUid,
                 SourceNo = gross.SourceNo,
@@ -531,14 +550,12 @@ public sealed class PurchaseDraftCreationService(
                 SourceLineNumber = gross.SourceLineNumber,
                 IsSelected = item is not null,
                 IsCustomerSupplied = net.DeliveryMode == DemandDeliveryModeEnum.ParentExecutionSupplier,
-                IsPlanningFactValid = allocation.PlannedQty > 0
-                    && allocation.PlannedQty == net.NetQty
-                    && remainingQty >= 0,
-                ExecutionType = allocation.ExecutionType,
+                IsPlanningFactValid = net.NetQty > 0 && remainingQty >= 0,
+                ExecutionType = ResolveExecutionType(net.SupplyTypeSnapshot),
                 RemainingQty = remainingQty,
                 RequestedPurchaseQty = item?.PurchaseQty,
-                DemandRequiredDate = allocation.DemandRequiredDate,
-                PlannedDeliveryDate = allocation.PlannedDeliveryDate,
+                DemandRequiredDate = net.RequiredDate,
+                PlannedDeliveryDate = net.RequiredDate,
                 ProductId = net.ProductId,
                 Sku = net.SkuSnapshot,
                 LinkSku = product?.LinkSku ?? gross.LinkSkuSnapshot ?? string.Empty,
@@ -547,15 +564,15 @@ public sealed class PurchaseDraftCreationService(
                 MaterialType = net.MaterialTypeSnapshot ?? string.Empty,
                 Unit = EffectiveUnit(product?.Unit),
                 QuantityScale = 4,
-                PurchaseSupplierId = allocation.PurchaseSupplierId,
-                PurchaseSupplierIsActive = purchaseSupplierActive,
-                PurchaseSupplierCode = allocation.SupplierCodeSnapshot ?? string.Empty,
-                PurchaseSupplierName = allocation.SupplierNameSnapshot ?? string.Empty,
-                DeliveryTargetAllocationId = allocation.DeliveryTargetAllocationId,
-                DeliveryTargetSupplierId = allocation.DeliveryTargetSupplierId,
+                PurchaseSupplierId = purchaseSupplierId,
+                PurchaseSupplierIsActive = purchaseSupplier is not null,
+                PurchaseSupplierCode = purchaseSupplier?.SupplierCode ?? string.Empty,
+                PurchaseSupplierName = purchaseSupplier?.SupplierName ?? string.Empty,
+                DeliveryTargetNetDemandId = net.DeliveryTargetNetDemandId,
+                DeliveryTargetSupplierId = deliverySupplierId,
                 DeliveryTargetIsValid = deliveryTargetValid,
-                DeliveryTargetSupplierCode = allocation.DeliverySupplierCodeSnapshot ?? string.Empty,
-                DeliveryTargetSupplierName = allocation.DeliverySupplierNameSnapshot ?? string.Empty,
+                DeliveryTargetSupplierCode = deliverySupplier?.SupplierCode ?? string.Empty,
+                DeliveryTargetSupplierName = deliverySupplier?.SupplierName ?? string.Empty,
                 HasSupplierProduct = data is not null,
                 SupplierSku = data?.SupplierSku ?? string.Empty,
                 UnitPrice = data?.UnitPrice,
@@ -602,17 +619,22 @@ public sealed class PurchaseDraftCreationService(
     }
 
     private static PurchaseDraftPreviewCandidate MapWorkspaceCandidate(
-        NetDemandListItemDto row,
+        MaterialDemandWorkspaceItemDto row,
         PurchaseDraftPreviewItem? item,
         Guid commandItemId,
         bool selected,
-        SupplierProduct? data)
-        => new()
+        SupplierProduct? data,
+        IReadOnlyDictionary<Guid, Supplier> suppliers)
+    {
+        var purchaseSupplierId = item?.SupplierId ?? row.SuggestedPurchaseSupplierId;
+        var deliverySupplierId = item?.DeliveryTargetSupplierId ?? row.SuggestedDeliverySupplierId;
+        suppliers.TryGetValue(purchaseSupplierId ?? Guid.Empty, out var purchaseSupplier);
+        suppliers.TryGetValue(deliverySupplierId ?? Guid.Empty, out var deliverySupplier);
+        return new PurchaseDraftPreviewCandidate
         {
             CommandItemId = commandItemId,
-            AllocationId = row.AllocationId,
-            AllocationVersion = row.AllocationVersion,
             NetDemandId = row.Uid,
+            NetDemandVersion = row.Version,
             SourceType = row.SourceType,
             SourceUid = row.SourceUid,
             SourceNo = row.SourceNo,
@@ -620,12 +642,12 @@ public sealed class PurchaseDraftCreationService(
             SourceLineNumber = row.SourceLineNumber,
             IsSelected = selected,
             IsCustomerSupplied = row.IsCustomerSupplied,
-            IsPlanningFactValid = row.PlanStatus != NetDemandPlanStatusEnum.DataCorrupted,
-            ExecutionType = row.ExecutionType,
+            IsPlanningFactValid = row.NetQty > 0 && row.AssociatedPurchaseQty <= row.NetQty,
+            ExecutionType = ResolveExecutionType(row.SupplyType),
             RemainingQty = row.RemainingQty,
             RequestedPurchaseQty = item?.PurchaseQty,
             DemandRequiredDate = row.DemandRequiredDate,
-            PlannedDeliveryDate = row.PlannedDeliveryDate,
+            PlannedDeliveryDate = row.DemandRequiredDate,
             ProductId = row.ProductId,
             Sku = row.Sku,
             LinkSku = row.LinkSku,
@@ -634,24 +656,22 @@ public sealed class PurchaseDraftCreationService(
             MaterialType = row.MaterialType,
             Unit = EffectiveUnit(row.Unit),
             QuantityScale = 4,
-            PurchaseSupplierId = row.PurchaseSupplierId,
-            PurchaseSupplierIsActive = !row.PurchaseSupplierId.HasValue
-                || !string.IsNullOrWhiteSpace(row.CurrentPurchaseSupplierName),
-            PurchaseSupplierCode = row.PurchaseSupplierCode,
-            PurchaseSupplierName = row.PurchaseSupplierName,
-            DeliveryTargetAllocationId = row.DeliveryTargetAllocationId,
-            DeliveryTargetSupplierId = row.DeliveryTargetSupplierId,
+            PurchaseSupplierId = purchaseSupplierId,
+            PurchaseSupplierIsActive = purchaseSupplier is not null,
+            PurchaseSupplierCode = purchaseSupplier?.SupplierCode ?? string.Empty,
+            PurchaseSupplierName = purchaseSupplier?.SupplierName ?? string.Empty,
+            DeliveryTargetNetDemandId = row.DeliveryTargetNetDemandId,
+            DeliveryTargetSupplierId = deliverySupplierId,
             DeliveryTargetIsValid = !row.IsCustomerSupplied
-                || (row.DeliveryTargetAllocationId.HasValue
-                    && row.DeliveryTargetSupplierId.HasValue
-                    && row.PlanStatus != NetDemandPlanStatusEnum.DataCorrupted),
-            DeliveryTargetSupplierCode = row.DeliveryTargetSupplierCode,
-            DeliveryTargetSupplierName = row.DeliveryTargetSupplierName,
+                || (row.DeliveryTargetNetDemandId.HasValue && deliverySupplier is not null),
+            DeliveryTargetSupplierCode = deliverySupplier?.SupplierCode ?? string.Empty,
+            DeliveryTargetSupplierName = deliverySupplier?.SupplierName ?? string.Empty,
             HasSupplierProduct = data is not null,
             SupplierSku = data?.SupplierSku ?? string.Empty,
             UnitPrice = data?.UnitPrice,
             TaxPrice = data?.TaxPrice
         };
+    }
 
     private static string EffectiveUnit(string? unit) =>
         string.IsNullOrWhiteSpace(unit) ? "PCS" : unit.Trim();
@@ -667,24 +687,12 @@ public sealed class PurchaseDraftCreationService(
             ExpectedPurchaseOrderVersion = target.ExpectedPurchaseOrderVersion
         };
 
-    private static bool ValidateDeliveryTarget(
-        NetDemand net,
-        NetDemandAllocation allocation,
-        IReadOnlyDictionary<Guid, NetDemandAllocation> allocationByNet,
-        IReadOnlyList<NetDemandAllocation> allocations,
-        IReadOnlyDictionary<Guid, Supplier> suppliers)
-    {
-        if (net.DeliveryMode != DemandDeliveryModeEnum.ParentExecutionSupplier) return true;
-        if (!net.DeliveryTargetNetDemandId.HasValue
-            || !allocation.DeliveryTargetAllocationId.HasValue
-            || !allocation.DeliveryTargetSupplierId.HasValue
-            || !allocationByNet.TryGetValue(net.DeliveryTargetNetDemandId.Value, out var target)
-            || target.Uid != allocation.DeliveryTargetAllocationId.Value
-            || target.PurchaseSupplierId != allocation.DeliveryTargetSupplierId
-            || !suppliers.ContainsKey(allocation.DeliveryTargetSupplierId.Value))
-            return false;
-        return allocations.Count(x => x.Uid == allocation.DeliveryTargetAllocationId.Value) == 1;
-    }
+    private static DemandExecutionTypeEnum ResolveExecutionType(string? supplyType)
+        => string.Equals(supplyType, SupplyTypeEnums.生产, StringComparison.Ordinal)
+            ? DemandExecutionTypeEnum.Production
+            : string.Equals(supplyType, SupplyTypeEnums.外协, StringComparison.Ordinal)
+                ? DemandExecutionTypeEnum.Outsourcing
+                : DemandExecutionTypeEnum.Purchase;
 
     private static Dictionary<Guid, CreatePurchaseDraftTargetCommand> ValidateAndIndexTargets(
         PurchaseDraftEntryModeEnum entryMode,
@@ -730,12 +738,12 @@ public sealed class PurchaseDraftCreationService(
         CreatePurchaseDraftSourceCommand source,
         IReadOnlyList<PurchaseDraftPreviewCandidate> candidates)
     {
-        var candidateById = candidates.ToDictionary(x => x.AllocationId);
+        var candidateById = candidates.ToDictionary(x => x.NetDemandId);
         foreach (var item in source.Items)
         {
-            if (!candidateById.TryGetValue(item.AllocationId, out var candidate))
-                throw new PurchaseDraftException("ALLOCATION_NOT_FOUND", "计划不属于当前活动来源单。");
-            if (candidate.AllocationVersion != item.ExpectedVersion
+            if (!candidateById.TryGetValue(item.NetDemandId, out var candidate))
+                throw new PurchaseDraftException("NET_DEMAND_NOT_FOUND", "物料需求不属于当前活动来源单。");
+            if (candidate.NetDemandVersion != item.ExpectedVersion
                 || candidate.RemainingQty != item.ExpectedRemainingQty)
                 throw new PurchaseDraftException("PREVIEW_EXPIRED", "计划版本或剩余数量已变化，请重新预览。");
             if (item.PurchaseQty <= 0 || item.PurchaseQty > candidate.RemainingQty)
@@ -746,9 +754,9 @@ public sealed class PurchaseDraftCreationService(
         {
             var required = candidates
                 .Where(x => x.ExecutionType == DemandExecutionTypeEnum.Purchase && x.RemainingQty > 0)
-                .Select(x => x.AllocationId)
+                .Select(x => x.NetDemandId)
                 .ToHashSet();
-            if (!required.SetEquals(source.Items.Select(x => x.AllocationId))
+            if (!required.SetEquals(source.Items.Select(x => x.NetDemandId))
                 || source.Items.Any(x => x.PurchaseQty != x.ExpectedRemainingQty))
                 throw new PurchaseDraftException("ONE_CLICK_REQUIRES_ALL_REMAINING",
                     "来源一键转采购必须包含全部采购型剩余计划并使用全部剩余量。");
@@ -795,11 +803,11 @@ public sealed class PurchaseDraftCreationService(
 
     private static void ValidatePreviewItems(IReadOnlyList<PurchaseDraftPreviewItem> items)
     {
-        if (items.Any(x => x.CommandItemId == Guid.Empty || x.AllocationId == Guid.Empty
+        if (items.Any(x => x.CommandItemId == Guid.Empty || x.NetDemandId == Guid.Empty
                            || x.ExpectedVersion <= 0 || x.ExpectedRemainingQty < 0)
             || items.GroupBy(x => x.CommandItemId).Any(x => x.Count() > 1)
-            || items.GroupBy(x => x.AllocationId).Any(x => x.Count() > 1))
-            throw new PurchaseDraftException("INVALID_ITEM", "预览包含无效或重复的命令项/计划分配。");
+            || items.GroupBy(x => x.NetDemandId).Any(x => x.Count() > 1))
+            throw new PurchaseDraftException("INVALID_ITEM", "预览包含无效或重复的命令项/物料需求。");
     }
 
     private static void ValidateCreateCommand(CreatePurchaseDraftsCommand command)
@@ -822,8 +830,8 @@ public sealed class PurchaseDraftCreationService(
             throw new PurchaseDraftException("DUPLICATE_SOURCE", "执行命令包含重复来源单。");
         var allItems = command.Sources.SelectMany(x => x.Items ?? new List<CreatePurchaseDraftItemCommand>()).ToList();
         if (allItems.GroupBy(x => x.CommandItemId).Any(x => x.Count() > 1)
-            || allItems.GroupBy(x => x.AllocationId).Any(x => x.Count() > 1))
-            throw new PurchaseDraftException("DUPLICATE_ITEM", "不同来源之间不能重复提交命令项或计划分配。");
+            || allItems.GroupBy(x => x.NetDemandId).Any(x => x.Count() > 1))
+            throw new PurchaseDraftException("DUPLICATE_ITEM", "不同来源之间不能重复提交命令项或物料需求。");
         foreach (var source in command.Sources)
         {
             source.SourceType = source.SourceType?.Trim();
@@ -840,11 +848,11 @@ public sealed class PurchaseDraftCreationService(
 
     private static void ValidateCreateItems(IReadOnlyList<CreatePurchaseDraftItemCommand> items)
     {
-        if (items.Any(x => x.CommandItemId == Guid.Empty || x.AllocationId == Guid.Empty
+        if (items.Any(x => x.CommandItemId == Guid.Empty || x.NetDemandId == Guid.Empty || x.SupplierId == Guid.Empty
                            || x.ExpectedVersion <= 0 || x.ExpectedRemainingQty <= 0 || x.PurchaseQty <= 0)
             || items.GroupBy(x => x.CommandItemId).Any(x => x.Count() > 1)
-            || items.GroupBy(x => x.AllocationId).Any(x => x.Count() > 1))
-            throw new PurchaseDraftException("INVALID_ITEM", "执行命令包含无效或重复的计划项。");
+            || items.GroupBy(x => x.NetDemandId).Any(x => x.Count() > 1))
+            throw new PurchaseDraftException("INVALID_ITEM", "执行命令包含无效或重复的物料需求项。");
     }
 
     private sealed class PurchaseDraftException(string code, string message) : Exception(message)

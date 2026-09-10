@@ -16,18 +16,20 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public List<PurchaseDraftTargetSelectionDto> Targets { get; set; } = new List<PurchaseDraftTargetSelectionDto>();
     }
 
-    /// <summary>客户端选中的计划及期望数量；一键入口由服务端强制使用全部剩余量。</summary>
+    /// <summary>客户端选中的物料需求、并发版本及本次采购决策。</summary>
     public class PurchaseDraftPreviewItem
     {
         public Guid CommandItemId { get; set; }
-        public Guid AllocationId { get; set; }
+        public Guid NetDemandId { get; set; }
         public int ExpectedVersion { get; set; }
         public decimal ExpectedRemainingQty { get; set; }
         public decimal PurchaseQty { get; set; }
+        public Guid SupplierId { get; set; }
+        public Guid? DeliveryTargetSupplierId { get; set; }
     }
 
     /// <summary>来源与供应商对应的采购草稿写入目标。</summary>
-    /// <remarks>来源表：NetDemandAllocation、NetDemand、Product、Supplier。</remarks>
+    /// <remarks>来源表：NetDemand、Product、Supplier。</remarks>
     public class PurchaseDraftTargetSelectionDto
     {
         public string SourceType { get; set; }
@@ -99,7 +101,6 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public decimal? TaxPrice { get; set; }
         public decimal PurchaseQty { get; set; }
         public DateTime? PlannedDeliveryDate { get; set; }
-        public Guid? DeliveryTargetAllocationId { get; set; }
         public Guid? DeliveryTargetSupplierId { get; set; }
         public string DeliveryTargetSupplierCode { get; set; }
         public string DeliveryTargetSupplierName { get; set; }
@@ -108,13 +109,14 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public List<PurchaseDraftSourceContributionDto> Contributions { get; set; } = new List<PurchaseDraftSourceContributionDto>();
     }
 
-    /// <summary>合并采购行仍保留的逐计划来源贡献。</summary>
+    /// <summary>合并采购行仍保留的逐物料需求来源贡献。</summary>
     public class PurchaseDraftSourceContributionDto
     {
         public Guid CommandItemId { get; set; }
-        public Guid AllocationId { get; set; }
-        public int AllocationVersion { get; set; }
         public Guid NetDemandId { get; set; }
+        public int NetDemandVersion { get; set; }
+        public Guid SupplierId { get; set; }
+        public Guid? DeliveryTargetSupplierId { get; set; }
         public Guid SourceLineId { get; set; }
         public int? SourceLineNumber { get; set; }
         public decimal ExpectedRemainingQty { get; set; }
@@ -132,18 +134,18 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public string SourceType { get; set; }
         public Guid? SourceUid { get; set; }
         public Guid? SupplierId { get; set; }
-        public List<Guid> AllocationIds { get; set; } = new List<Guid>();
+        public List<Guid> NetDemandIds { get; set; } = new List<Guid>();
     }
 
     public class PurchaseDraftSkippedItemDto
     {
-        public Guid AllocationId { get; set; }
+        public Guid NetDemandId { get; set; }
         public DemandExecutionTypeEnum ExecutionType { get; set; }
         public string ReasonCode { get; set; }
         public string Message { get; set; }
     }
 
-    /// <remarks>来源表：NetDemandAllocation、NetDemand、GrossDemand、Product、Supplier、DemandExecutionLink。</remarks>
+    /// <remarks>来源表：NetDemand、GrossDemand、Product、Supplier、DemandExecutionLink。</remarks>
     public class SafePurchaseDraftCandidateDto
     {
         public Guid PurchaseOrderId { get; set; }
@@ -177,10 +179,12 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
     public class CreatePurchaseDraftItemCommand
     {
         public Guid CommandItemId { get; set; }
-        public Guid AllocationId { get; set; }
+        public Guid NetDemandId { get; set; }
         public int ExpectedVersion { get; set; }
         public decimal ExpectedRemainingQty { get; set; }
         public decimal PurchaseQty { get; set; }
+        public Guid SupplierId { get; set; }
+        public Guid? DeliveryTargetSupplierId { get; set; }
     }
 
     public class CreatePurchaseDraftTargetCommand
@@ -233,7 +237,8 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
     {
         public Guid GrossDemandId { get; set; }
         public Guid NetDemandId { get; set; }
-        public Guid AllocationId { get; set; }
+        /// <summary>历史计划分配 Uid；新采购 Link 不再写入。</summary>
+        public Guid? AllocationId { get; set; }
         public Guid DemandExecutionLinkId { get; set; }
         public DemandExecutionLinkStatusEnum LinkStatus { get; set; }
         public int? SourceLineNumber { get; set; }

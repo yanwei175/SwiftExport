@@ -154,7 +154,7 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
         const string sql = """
             SELECT l.Uid,l.Version,l.LineNumber,l.ProductId,l.Sku,l.CustomerSku,l.LinkSku,l.SupplierSku,l.DescriptionZh,
                    l.FinishZh,l.FeaturesZh,l.MaterialType,l.SupplyType,COALESCE(p.MainImage,N'') AS MainImage,l.QTY AS Quantity,
-                   l.UnitPrice,l.TaxPrice,l.UnitAmount,l.TaxAmount,l.PlannedDeliveryDate,l.DeliveryTargetAllocationId,
+                   l.UnitPrice,l.TaxPrice,l.UnitAmount,l.TaxAmount,l.PlannedDeliveryDate,
                    l.DeliveryTargetSupplierId,l.DeliverySupplierNameSnapshot AS DeliverySupplierName,l.SubNote,
                    COALESCE(linkFacts.LinkedQty,0) AS LinkedQty,COALESCE(receiveFacts.ReceivedQty,0) AS RecQty,
                    CONCAT(CONVERT(decimal(18,4),CASE WHEN l.QTY>COALESCE(receiveFacts.ReceivedQty,0) THEN l.QTY-COALESCE(receiveFacts.ReceivedQty,0) ELSE 0 END),N' / ',CONVERT(decimal(18,4),l.QTY)) AS UnreceivedQtyText
@@ -194,12 +194,11 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
                    gd.SourceType,gd.SourceUid,gd.SourceNo,gd.SourceLineNumber,nd.SkuSnapshot AS Sku,link.AllocatedQty,link.ReleasedQty,
                    link.AllocatedQty-link.ReleasedQty AS EffectiveQty,link.DemandRequiredDate,link.PlannedDeliveryDate
             FROM dbo.DemandExecutionLink link {lockHint}
-            INNER JOIN dbo.NetDemandAllocation allocation ON allocation.Uid=link.NetDemandAllocationId AND ISNULL(allocation.IsDeleted,0)=0
-            INNER JOIN dbo.NetDemand nd ON nd.Uid=allocation.NetDemandId AND nd.Uid=link.NetDemandId AND ISNULL(nd.IsDeleted,0)=0
+            INNER JOIN dbo.NetDemand nd ON nd.Uid=link.NetDemandId AND ISNULL(nd.IsDeleted,0)=0
             INNER JOIN dbo.GrossDemand gd ON gd.Uid=nd.GrossDemandId AND ISNULL(gd.IsDeleted,0)=0
             INNER JOIN dbo.PurchaseOrderLine line ON line.Uid=link.TargetLineId AND line.PurchaseOrderId=@Uid AND ISNULL(line.IsDeleted,0)=0
             WHERE link.TargetHeadId=@Uid AND EXISTS(SELECT 1 FROM dbo.PurchaseOrderHead owner WHERE owner.Uid=@Uid AND ISNULL(owner.IsDeleted,0)=0) AND link.TargetType=N'PO' {activeClause} AND ISNULL(link.IsDeleted,0)=0
-            ORDER BY line.LineNumber,gd.SourceLineNumber,allocation.Uid,link.Uid;
+            ORDER BY line.LineNumber,gd.SourceLineNumber,nd.Uid,link.Uid;
             """;
         var rows = await Session.Connection.QueryAsync<PurchaseOrderSourceContributionDto>(new CommandDefinition(sql, new { Uid = uid }, Session.Transaction, cancellationToken: cancellationToken));
         return [.. rows];
@@ -309,14 +308,18 @@ public sealed class PurchaseOrderWorkspaceRepository(RepositoryBaseContext conte
         JOIN dbo.OutboundDocument outHead ON outHead.Uid=outLine.OutboundDocumentId
         WHERE outHead.DocumentType=20 AND outHead.PostingStatus=1
           AND ISNULL(outHead.IsDeleted,0)=0 AND ISNULL(outLine.IsDeleted,0)=0
-          AND outLine.NetDemandAllocationId IN
+          AND EXISTS
           (
-              SELECT link.NetDemandAllocationId FROM dbo.DemandExecutionLink link
-              WHERE link.TargetHeadId=h.Uid AND link.TargetType=N'PO' AND link.LinkStatus=0 AND ISNULL(link.IsDeleted,0)=0
+              SELECT 1
+              FROM dbo.PackingListContributionLine contribution
+              JOIN dbo.DemandExecutionLink link ON link.Uid=contribution.DemandExecutionLinkId
+              WHERE contribution.Uid=outLine.PackingListContributionId
+                AND link.TargetHeadId=h.Uid AND link.TargetType=N'PO'
+                AND ISNULL(contribution.IsDeleted,0)=0 AND ISNULL(link.IsDeleted,0)=0
           )
         """;
     private const string HeadColumns = "h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,h.ConfirmationStatus,h.LifecycleStatus,h.OrderNo,h.BoNo,h.CustomerPoNo,h.CustomerCode,h.Currency,h.SupplierId,h.SupplierCode,h.SupplierName,h.DemandSourceType,h.DemandSourceUid,h.DemandSourceNo,h.ExecutionRequestId,h.SoPerson,h.PoPerson,h.InletrHoseType,h.AeratorType,h.PalletType,h.BoxType,h.LabelType,h.IMType,h.CartonType,h.LogoType,h.ReviewedBy,h.PoFolder,h.ZheKouBeiZhu,h.Remark,h.OrderDate,h.ExpectedDate,h.ReplyDate,h.ConfirmedDate,h.ConfirmedBy";
-    private const string LineColumns = "l.Uid,l.Version,l.IsDeleted,l.CreatedDate,l.CreatedBy,l.UpdatedDate,l.UpdatedBy,l.PurchaseOrderId,l.LineNumber,l.OrderNo,l.ProductId,l.Sku,l.CustomerSku,l.LinkSku,l.SupplierSku,l.DescriptionZh,l.FinishZh,l.FeaturesZh,l.UnitSnapshot,l.QTY AS Quantity,l.UnitPrice,l.TaxPrice,l.UnitAmount,l.TaxAmount,l.PlannedDeliveryDate,l.DeliveryTargetAllocationId,l.DeliveryTargetSupplierId,l.DeliverySupplierCodeSnapshot,l.DeliverySupplierNameSnapshot,l.SubNote,l.SupplyType,l.MaterialType,l.SourceType,l.SourceNo,l.SourceUid,l.SourceLineId,l.SourceLineNumber";
+    private const string LineColumns = "l.Uid,l.Version,l.IsDeleted,l.CreatedDate,l.CreatedBy,l.UpdatedDate,l.UpdatedBy,l.PurchaseOrderId,l.LineNumber,l.OrderNo,l.ProductId,l.Sku,l.CustomerSku,l.LinkSku,l.SupplierSku,l.DescriptionZh,l.FinishZh,l.FeaturesZh,l.UnitSnapshot,l.QTY AS Quantity,l.UnitPrice,l.TaxPrice,l.UnitAmount,l.TaxAmount,l.PlannedDeliveryDate,l.DeliveryTargetSupplierId,l.DeliverySupplierCodeSnapshot,l.DeliverySupplierNameSnapshot,l.SubNote,l.SupplyType,l.MaterialType,l.SourceType,l.SourceNo,l.SourceUid,l.SourceLineId,l.SourceLineNumber";
 
     private static void AddLike(string? value, string clause, string parameterName, ICollection<string> where, DynamicParameters parameters)
     { if (!string.IsNullOrWhiteSpace(value)) { where.Add(clause); parameters.Add(parameterName, "%" + value.Trim() + "%"); } }

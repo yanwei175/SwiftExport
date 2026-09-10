@@ -66,6 +66,48 @@ public sealed class NetDemandServices(
         }
     }
 
+    /// <summary>查询完整待采购来源分组，候选资格与采购明细查询保持一致。</summary>
+    public async Task<ServiceResult<List<PurchaseCandidateSourceGroupDto>>> GetPurchaseCandidateSourceGroupsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var groups = await netDemandRepository.GetPurchaseCandidateSourceGroupsAsync(cancellationToken);
+            return ServiceResult<List<PurchaseCandidateSourceGroupDto>>.Ok([.. groups]);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "查询待采购来源分组失败。");
+            return ServiceResult<List<PurchaseCandidateSourceGroupDto>>.Fail("查询待采购来源分组失败。");
+        }
+    }
+
+    /// <summary>按稳定来源身份或全部来源完整查询待采购物料，不接受页面筛选条件。</summary>
+    public async Task<ServiceResult<List<MaterialDemandWorkspaceItemDto>>> GetPurchaseCandidatesAsync(
+        PurchaseCandidateQuery request,
+        CancellationToken cancellationToken = default)
+    {
+        request ??= new PurchaseCandidateQuery();
+        request.SourceType = request.SourceType?.Trim();
+        if (request.SourceUid.HasValue != !string.IsNullOrWhiteSpace(request.SourceType)
+            || request.SourceUid == Guid.Empty)
+            return ServiceResult<List<MaterialDemandWorkspaceItemDto>>.Fail(
+                "INVALID_SOURCE", "来源类型和来源 Uid 必须同时提供或同时为空。");
+
+        try
+        {
+            var items = await netDemandRepository.GetPurchaseCandidatesAsync(request, cancellationToken);
+            return ServiceResult<List<MaterialDemandWorkspaceItemDto>>.Ok([.. items]);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "查询待采购物料失败。");
+            return ServiceResult<List<MaterialDemandWorkspaceItemDto>>.Fail("查询待采购物料失败。");
+        }
+    }
+
     /// <summary>
     /// 以物料需求版本为并发边界局部保存推荐采购供应商；该建议不修改任何既有采购单或送达事实。
     /// </summary>

@@ -7,7 +7,7 @@ namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 public sealed class PurchaseDraftPreviewOpenRequest
 {
     public PurchaseDraftEntryModeEnum EntryMode { get; init; }
-    public IReadOnlyList<NetDemandRowModel> Rows { get; init; } = [];
+    public IReadOnlyList<MaterialDemandWorkspaceRowModel> Rows { get; init; } = [];
     public string SourceType { get; init; } = string.Empty;
     public Guid? SourceUid { get; init; }
     public string SourceNo { get; init; } = string.Empty;
@@ -16,9 +16,11 @@ public sealed class PurchaseDraftPreviewOpenRequest
 public sealed partial class PurchaseDraftSelectionItemModel : ObservableObject
 {
     public Guid CommandItemId { get; init; } = Guid.NewGuid();
-    public Guid AllocationId { get; init; }
+    public Guid NetDemandId { get; init; }
     public int ExpectedVersion { get; init; }
     public decimal ExpectedRemainingQty { get; init; }
+    public Guid SupplierId { get; init; }
+    public Guid? DeliveryTargetSupplierId { get; init; }
     public string SourceType { get; init; } = string.Empty;
     public Guid SourceUid { get; init; }
     public string SourceNo { get; init; } = string.Empty;
@@ -39,10 +41,12 @@ public sealed partial class PurchaseDraftSelectionItemModel : ObservableObject
     public PurchaseDraftPreviewItem ToDto() => new()
     {
         CommandItemId = CommandItemId,
-        AllocationId = AllocationId,
+        NetDemandId = NetDemandId,
         ExpectedVersion = ExpectedVersion,
         ExpectedRemainingQty = ExpectedRemainingQty,
         PurchaseQty = PurchaseQty,
+        SupplierId = SupplierId,
+        DeliveryTargetSupplierId = DeliveryTargetSupplierId,
     };
 }
 

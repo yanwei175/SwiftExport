@@ -154,6 +154,24 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
         CollectionAssert.DoesNotContain(buttonTexts, "来源一键转采购");
         CollectionAssert.DoesNotContain(buttonTexts, "计划追溯");
 
+        var suggestionColumns = workspace.Descendants(presentation + "DataGridTemplateColumn")
+            .Where(element => string.Equals((string?)element.Attribute("Header"), "推荐采购供应商", StringComparison.Ordinal))
+            .ToArray();
+        Assert.AreEqual(1, suggestionColumns.Length);
+        Assert.IsFalse(workspace.Descendants(presentation + "DataGridTemplateColumn")
+            .Any(element => string.Equals((string?)element.Attribute("Header"), "默认供应商", StringComparison.Ordinal)));
+        var displayTemplate = suggestionColumns[0].Element(presentation + "DataGridTemplateColumn.CellTemplate");
+        Assert.IsNotNull(displayTemplate);
+        Assert.AreEqual(0, displayTemplate.Descendants().Count(element => element.Name.LocalName.EndsWith("LookupTextBox", StringComparison.Ordinal)));
+        var editingLookup = suggestionColumns[0]
+            .Element(presentation + "DataGridTemplateColumn.CellEditingTemplate")!
+            .Descendants()
+            .Single(element => element.Name.LocalName == "PurchaseSupplierLookupTextBox");
+        StringAssert.Contains((string?)editingLookup.Attribute("SelectedSupplier") ?? string.Empty, "SuggestedPurchaseSupplierSelection");
+        Assert.AreEqual("{Binding CommitSuggestedSupplierSelectionCommand}", (string?)editingLookup.Attribute("SelectionCommittedCommand"));
+        Assert.AreEqual("{Binding ClearSuggestedSupplierSelectionCommand}", (string?)editingLookup.Attribute("SelectionClearedCommand"));
+        Assert.IsNull(editingLookup.Attribute("Text"));
+
         var pagerTrigger = workspace.Descendants(presentation + "DataTrigger")
             .Single(element => ((string?)element.Attribute("Binding"))?.Contains("IsSourceSelected", StringComparison.Ordinal) == true);
         Assert.AreEqual("True", (string?)pagerTrigger.Attribute("Value"));
@@ -228,6 +246,13 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
                 },
             ]));
         }
+
+        public Task<ServiceResult<List<PurchaseCandidateSourceGroupDto>>> GetPurchaseCandidateSourceGroupsAsync(
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<ServiceResult<List<MaterialDemandWorkspaceItemDto>>> GetPurchaseCandidatesAsync(
+            PurchaseCandidateQuery request,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task<ServiceResult<UpdateSuggestedPurchaseSupplierResult>> UpdateSuggestedPurchaseSupplierAsync(
             UpdateSuggestedPurchaseSupplierCommand command,

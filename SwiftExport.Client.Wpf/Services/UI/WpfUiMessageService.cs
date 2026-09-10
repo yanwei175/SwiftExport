@@ -3,10 +3,7 @@ using Wpf.Ui.Controls;
 
 namespace SwiftExportClient.Services.UI;
 
-public sealed class WpfUiMessageService(
-    ISnackbarService snackbarService,
-    IStatusMessageService statusMessageService)
-    : IMessageService
+public sealed class WpfUiMessageService(ISnackbarService snackbarService, IStatusMessageService statusMessageService) : IMessageService
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(3);
 

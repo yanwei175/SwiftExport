@@ -106,7 +106,7 @@
                     <DataGrid Grid.Row="2" ItemsSource="{Binding SkippedItems}" Style="{StaticResource SwiftExportDataGrid}"
                               AutoGenerateColumns="False" IsReadOnly="True" RowHeight="30" MaxHeight="160">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="跳过 Allocation" Width="220" Binding="{Binding AllocationId}" />
+                            <DataGridTextColumn Header="跳过物料需求" Width="220" Binding="{Binding NetDemandId}" />
                             <DataGridTextColumn Header="执行方式" Width="90" Binding="{Binding ExecutionType}" />
                             <DataGridTextColumn Header="原因" Width="*" Binding="{Binding Message}" />
                         </DataGrid.Columns>

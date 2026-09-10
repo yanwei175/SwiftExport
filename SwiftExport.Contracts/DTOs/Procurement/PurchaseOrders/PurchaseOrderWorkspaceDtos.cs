@@ -129,7 +129,6 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public decimal? UnitAmount { get; set; }
         public decimal? TaxAmount { get; set; }
         public DateTime? PlannedDeliveryDate { get; set; }
-        public Guid? DeliveryTargetAllocationId { get; set; }
         public Guid? DeliveryTargetSupplierId { get; set; }
         public string DeliverySupplierName { get; set; }
         public string SubNote { get; set; }
@@ -144,12 +143,12 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
     /// <summary>
     /// 采购行的需求来源贡献，描述采购数量如何从净需求分配及执行链路追溯到原始需求。
     /// </summary>
-    /// <remarks>来源表：DemandExecutionLink、NetDemandAllocation、NetDemand、GrossDemand。</remarks>
+    /// <remarks>来源表：DemandExecutionLink、NetDemand、GrossDemand；Allocation 仅作历史标识。</remarks>
     public class PurchaseOrderSourceContributionDto
     {
         public Guid LinkId { get; set; }
         public Guid PurchaseOrderLineId { get; set; }
-        public Guid AllocationId { get; set; }
+        public Guid? AllocationId { get; set; }
         public Guid NetDemandId { get; set; }
         public Guid GrossDemandId { get; set; }
         public string SourceType { get; set; }

@@ -117,10 +117,12 @@ public sealed partial class PurchaseDraftPreviewViewModel : ViewModelBaseEx, IDi
             AddItem(new PurchaseDraftSelectionItemModel
             {
                 CommandItemId = Guid.NewGuid(),
-                AllocationId = row.AllocationId,
-                ExpectedVersion = row.AllocationVersion,
+                NetDemandId = row.Uid,
+                ExpectedVersion = row.Version,
                 ExpectedRemainingQty = row.RemainingQty,
                 PurchaseQty = row.RemainingQty,
+                SupplierId = row.SuggestedPurchaseSupplierId ?? Guid.Empty,
+                DeliveryTargetSupplierId = row.SuggestedDeliverySupplierId,
                 SourceType = row.SourceType,
                 SourceUid = row.SourceUid,
                 SourceNo = row.SourceNo,
@@ -308,10 +310,12 @@ public sealed partial class PurchaseDraftPreviewViewModel : ViewModelBaseEx, IDi
             return contributions.Select(item => new CreatePurchaseDraftItemCommand
             {
                 CommandItemId = item.CommandItemId,
-                AllocationId = item.AllocationId,
-                ExpectedVersion = item.AllocationVersion,
+                NetDemandId = item.NetDemandId,
+                ExpectedVersion = item.NetDemandVersion,
                 ExpectedRemainingQty = item.ExpectedRemainingQty,
                 PurchaseQty = item.PurchaseQty,
+                SupplierId = item.SupplierId,
+                DeliveryTargetSupplierId = item.DeliveryTargetSupplierId,
             });
         }
 
@@ -320,10 +324,12 @@ public sealed partial class PurchaseDraftPreviewViewModel : ViewModelBaseEx, IDi
             .Select(item => new CreatePurchaseDraftItemCommand
             {
                 CommandItemId = item.CommandItemId,
-                AllocationId = item.AllocationId,
+                NetDemandId = item.NetDemandId,
                 ExpectedVersion = item.ExpectedVersion,
                 ExpectedRemainingQty = item.ExpectedRemainingQty,
                 PurchaseQty = item.PurchaseQty,
+                SupplierId = item.SupplierId,
+                DeliveryTargetSupplierId = item.DeliveryTargetSupplierId,
             });
     }
 
@@ -376,10 +382,12 @@ public sealed partial class PurchaseDraftPreviewViewModel : ViewModelBaseEx, IDi
             AddItem(new PurchaseDraftSelectionItemModel
             {
                 CommandItemId = entry.contribution.CommandItemId,
-                AllocationId = entry.contribution.AllocationId,
-                ExpectedVersion = entry.contribution.AllocationVersion,
+                NetDemandId = entry.contribution.NetDemandId,
+                ExpectedVersion = entry.contribution.NetDemandVersion,
                 ExpectedRemainingQty = entry.contribution.ExpectedRemainingQty,
                 PurchaseQty = entry.contribution.PurchaseQty,
+                SupplierId = entry.contribution.SupplierId,
+                DeliveryTargetSupplierId = entry.contribution.DeliveryTargetSupplierId,
                 SourceType = entry.group.SourceType,
                 SourceUid = entry.group.SourceUid,
                 SourceNo = entry.group.SourceNo,

@@ -193,10 +193,6 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     [ObservableProperty]
     public partial string ResultSummary { get; set; } = "尚未加载净需求。";
 
-    /// <summary>DataGrid Lookup 当前提交的供应商候选，由明确的提交命令应用到目标行。</summary>
-    [ObservableProperty]
-    public partial ProcurementSupplierCandidateDto? PendingSuggestedSupplier { get; set; }
-
     /// <summary>推荐供应商远程搜索是否正在执行。</summary>
     [ObservableProperty]
     public partial bool IsSuggestedSupplierSearchBusy { get; private set; }
@@ -386,29 +382,6 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
 
             cancellation.Dispose();
         }
-    }
-
-    /// <summary>把 Lookup 明确提交的候选应用到目标物料行，不触发网络写入。</summary>
-    [RelayCommand]
-    private void CommitSuggestedSupplier(MaterialDemandWorkspaceRowModel? row)
-    {
-        if (row is null || PendingSuggestedSupplier is null)
-        {
-            return;
-        }
-
-        row.ApplySuggestedSupplier(PendingSuggestedSupplier);
-        PendingSuggestedSupplier = null;
-        UpdateSuggestionCommands();
-    }
-
-    /// <summary>显式清空目标行的推荐采购供应商。</summary>
-    [RelayCommand]
-    private void ClearSuggestedSupplier(MaterialDemandWorkspaceRowModel? row)
-    {
-        row?.ClearSuggestedSupplier();
-        PendingSuggestedSupplier = null;
-        UpdateSuggestionCommands();
     }
 
     /// <summary>逐行保存全部本地建议修改；失败行及尚未提交行保持脏状态。</summary>

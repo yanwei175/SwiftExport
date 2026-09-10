@@ -8,7 +8,7 @@ namespace SwiftExport.Application.Tests.DemandPlanning;
 public sealed class PurchaseDraftReleasePlannerTests
 {
     [TestMethod]
-    public void Build_ShouldReleaseByDateThenSourceLineThenAllocationDescending()
+    public void Build_ShouldReleaseByDateThenSourceLineThenNetDemandDescending()
     {
         var planner = new PurchaseDraftReleasePlanner();
         var early = Link("10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000001", 1, new DateTime(2026, 8, 10), 4);
@@ -41,13 +41,14 @@ public sealed class PurchaseDraftReleasePlannerTests
 
     private static PurchaseDraftLifecycleLinkFactDto Link(
         string linkId,
-        string allocationId,
+        string netDemandId,
         int sourceLine,
         DateTime? date,
         decimal qty) => new()
         {
             LinkId = Guid.Parse(linkId),
-            AllocationId = Guid.Parse(allocationId),
+            NetDemandId = Guid.Parse(netDemandId),
+            HistoricalAllocationId = null,
             PurchaseOrderLineId = Guid.NewGuid(),
             SourceLineNumber = sourceLine,
             PlannedDeliveryDate = date,

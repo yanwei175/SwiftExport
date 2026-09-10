@@ -33,12 +33,16 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public string SourceNo { get; set; }
         /// <summary>来源业务行号快照。</summary>
         public int? SourceLineNumber { get; set; }
+        /// <summary>来源业务行 Uid，用于采购行历史追溯。</summary>
+        public Guid SourceLineId { get; set; }
         /// <summary>拆解树根物料需求 Uid。</summary>
         public Guid RootNetDemandId { get; set; }
         /// <summary>拆解树根 SKU 快照。</summary>
         public string RootSku { get; set; }
         /// <summary>是否为送往父件执行供应商的客供件。</summary>
         public bool IsCustomerSupplied { get; set; }
+        /// <summary>客供件的送达目标物料需求 Uid；标准交付为空。</summary>
+        public Guid? DeliveryTargetNetDemandId { get; set; }
         /// <summary>关联产品 Uid；非标物料允许为空。</summary>
         public Guid? ProductId { get; set; }
         /// <summary>是否为未关联产品的非标物料。</summary>
@@ -85,6 +89,8 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public DateTime? DemandRequiredDate { get; set; }
         /// <summary>有效采购 Link 的分配量减释放量合计。</summary>
         public decimal AssociatedPurchaseQty { get; set; }
+        /// <summary>当前尚未被有效采购 Link 承接的数量。</summary>
+        public decimal RemainingQty { get { return Math.Max(0m, NetQty - AssociatedPurchaseQty); } }
         /// <summary>有效采购 Link 对应的采购单号集合。</summary>
         public string PurchaseOrderNos { get; set; }
     }

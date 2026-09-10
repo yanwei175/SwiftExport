@@ -43,7 +43,8 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
     public class PurchaseDraftLinkReleaseDto
     {
         public Guid LinkId { get; set; }
-        public Guid AllocationId { get; set; }
+        public Guid NetDemandId { get; set; }
+        public Guid? HistoricalAllocationId { get; set; }
         public Guid PurchaseOrderLineId { get; set; }
         public int? SourceLineNumber { get; set; }
         public DateTime? PlannedDeliveryDate { get; set; }
@@ -52,11 +53,12 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public decimal RemainingEffectiveQty { get; set; }
     }
 
-    /// <remarks>来源表：DemandExecutionLink、NetDemandAllocation、PurchaseOrderHead、PurchaseOrderLine。</remarks>
+    /// <remarks>来源表：DemandExecutionLink、NetDemand、PurchaseOrderHead、PurchaseOrderLine。</remarks>
     public class PurchaseDraftLifecycleLinkFactDto
     {
         public Guid LinkId { get; set; }
-        public Guid AllocationId { get; set; }
+        public Guid NetDemandId { get; set; }
+        public Guid? HistoricalAllocationId { get; set; }
         public Guid PurchaseOrderLineId { get; set; }
         public int? SourceLineNumber { get; set; }
         public DateTime? PlannedDeliveryDate { get; set; }

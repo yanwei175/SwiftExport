@@ -1,45 +1,370 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 
-public sealed partial class NetDemandPurchasePickerViewModel(INetDemandWorkspaceApi api, IApiCallRunner runner) : ViewModelBaseEx
+/// <summary>负责按来源完整加载待采购物料，并在内存中筛选和维护当前选择。</summary>
+public sealed partial class NetDemandPurchasePickerViewModel : ViewModelBaseEx, IDisposable
 {
-    private CancellationTokenSource? _searchCancellation;
-    public ObservableCollection<NetDemandRowModel> Items { get; } = [];
-    public IReadOnlyList<NetDemandRowModel> SelectedRows => Items.Where(x => x.IsChecked && x.RemainingQty > 0).ToList();
-    [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
-    [ObservableProperty] public partial string SourceNo { get; set; } = string.Empty;
-    [ObservableProperty] public partial string StatusText { get; set; } = "请选择待转采购净需求。";
+    private readonly IMaterialDemandWorkspaceApi _api;
+    private readonly IApiCallRunner _runner;
+    private readonly IDialogService _dialogs;
+    private CancellationTokenSource? _lifetimeCancellation;
+    private CancellationTokenSource? _groupCancellation;
+    private CancellationTokenSource? _detailCancellation;
+    private bool _switchConfirmationPending;
+    private bool _disposed;
 
-    public Task OpenAsync(CancellationToken cancellationToken = default) => LoadAsync(cancellationToken);
-
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    private Task SearchAsync() => LoadAsync();
-
-    private async Task LoadAsync(CancellationToken external = default)
+    /// <summary>初始化采购候选选择器依赖和本地集合视图。</summary>
+    public NetDemandPurchasePickerViewModel(
+        IMaterialDemandWorkspaceApi api,
+        IApiCallRunner runner,
+        IDialogService dialogs)
     {
-        _searchCancellation?.Cancel(); _searchCancellation?.Dispose();
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(external); _searchCancellation = cts;
+        _api = api;
+        _runner = runner;
+        _dialogs = dialogs;
+        ItemsView = CollectionViewSource.GetDefaultView(Items);
+        ItemsView.Filter = MatchesLocalFilter;
+    }
+
+    /// <summary>全部入口及仍有采购候选的来源单。</summary>
+    public ObservableCollection<PurchaseCandidateSourceGroupModel> SourceGroups { get; } = [];
+
+    /// <summary>当前来源入口一次完整加载的采购候选。</summary>
+    public ObservableCollection<MaterialDemandWorkspaceRowModel> Items { get; } = [];
+
+    /// <summary>只对当前已加载集合应用筛选的 WPF 视图。</summary>
+    public ICollectionView ItemsView { get; }
+
+    /// <summary>返回已加载集合中全部勾选项；本地筛选不会丢失隐藏行选择。</summary>
+    public IReadOnlyList<MaterialDemandWorkspaceRowModel> SelectedRows =>
+        Items.Where(static item => item.IsChecked).ToArray();
+
+    /// <summary>当前本地筛选后的可见候选数量。</summary>
+    public int FilteredCount => ItemsView.Cast<object>().Count();
+
+    /// <summary>当前已勾选候选数量，包含因本地筛选暂时隐藏的行。</summary>
+    public int SelectedCount => Items.Count(static item => item.IsChecked);
+
+    /// <summary>当前可见行是否全部勾选。</summary>
+    public bool IsAllVisibleChecked
+    {
+        get
+        {
+            var visible = GetVisibleRows();
+            return visible.Count > 0 && visible.All(static item => item.IsChecked);
+        }
+    }
+
+    [ObservableProperty]
+    public partial PurchaseCandidateSourceGroupModel? SelectedSourceGroup { get; private set; }
+
+    [ObservableProperty]
+    public partial string Keyword { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string SourceNo { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool IsLoading { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsDetailLoaded { get; private set; }
+
+    [ObservableProperty]
+    public partial string SourceGroupStatusText { get; private set; } = "正在加载待采购来源...";
+
+    [ObservableProperty]
+    public partial string StatusText { get; private set; } = "请选择左侧来源查看待采购物料。";
+
+    /// <summary>打开时只加载完整来源分组，右侧候选保持为空。</summary>
+    public async Task OpenAsync(CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        CancelPendingRequests();
+        _lifetimeCancellation?.Cancel();
+        _lifetimeCancellation?.Dispose();
+        _lifetimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        ClearItems();
+        SourceGroups.Clear();
+        SelectedSourceGroup = null;
+        IsDetailLoaded = false;
+        SourceGroupStatusText = "正在加载待采购来源...";
+        StatusText = "请选择左侧来源查看待采购物料。";
+        await LoadGroupsAsync(_lifetimeCancellation.Token);
+    }
+
+    /// <summary>切换来源前确认清除已有选择，再以 latest-request-wins 加载完整候选。</summary>
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task SelectSourceGroupAsync(PurchaseCandidateSourceGroupModel? group)
+    {
+        if (group is null || _disposed || _switchConfirmationPending
+            || ReferenceEquals(SelectedSourceGroup, group)
+            || _lifetimeCancellation is null
+            || _lifetimeCancellation.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (SelectedCount > 0)
+        {
+            _switchConfirmationPending = true;
+            try
+            {
+                var confirmed = await _dialogs.ConfirmAsync(
+                    "切换待采购来源",
+                    $"切换后将清除当前已选的 {SelectedCount} 条物料，是否继续？",
+                    "继续切换",
+                    "保留当前选择",
+                    _lifetimeCancellation.Token);
+                if (!confirmed) return;
+            }
+            catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
+            {
+                return;
+            }
+            finally
+            {
+                _switchConfirmationPending = false;
+            }
+        }
+
+        await LoadCandidatesAsync(group, _lifetimeCancellation.Token);
+    }
+
+    /// <summary>显式刷新本地筛选；不会发送后端请求。</summary>
+    [RelayCommand]
+    private void ApplyFilter() => RefreshLocalFilter();
+
+    /// <summary>清空本地筛选并保留当前加载集合和勾选。</summary>
+    [RelayCommand]
+    private void ClearFilters()
+    {
+        Keyword = string.Empty;
+        SourceNo = string.Empty;
+        RefreshLocalFilter();
+    }
+
+    /// <summary>仅切换当前筛选可见行，隐藏行的勾选保持不变。</summary>
+    [RelayCommand]
+    private void ToggleAllVisible()
+    {
+        if (!IsDetailLoaded || IsLoading) return;
+        var visible = GetVisibleRows();
+        if (visible.Count == 0) return;
+        var target = !visible.All(static item => item.IsChecked);
+        foreach (var item in visible) item.IsChecked = target;
+    }
+
+    /// <summary>加载完整采购候选来源分组，不自动选择或加载明细。</summary>
+    private async Task LoadGroupsAsync(CancellationToken externalCancellation)
+    {
+        var request = ReplaceCancellation(ref _groupCancellation, externalCancellation);
+        IsLoading = true;
         try
         {
-            var result = await runner.RunAsync(() => api.SearchAsync(new NetDemandSearchRequest
+            var result = await _runner.RunAsync(
+                () => _api.GetPurchaseCandidateSourceGroupsAsync(request.Token),
+                request.Token,
+                "加载待采购来源失败");
+            if (!CanAccept(_groupCancellation, request)) return;
+
+            if (!result.Success || result.Data is null)
             {
-                Keyword = Keyword.Trim(), SourceNos = string.IsNullOrWhiteSpace(SourceNo) ? new List<string>() : new List<string> { SourceNo.Trim() },
-                HasRemainingQty = true, PageIndex = 1, PageSize = 200
-            }, cts.Token), cts.Token, "加载待采购净需求失败");
-            if (cts.IsCancellationRequested || !ReferenceEquals(_searchCancellation, cts)) return;
-            Items.Clear();
-            if (result.Success && result.Data is not null)
-                foreach (var dto in result.Data.Items.Where(x => x.CanTransferPurchase && x.RemainingQty > 0)) Items.Add(NetDemandRowModel.FromDto(dto));
-            StatusText = result.Success ? $"当前页可选择 {Items.Count} 条；将按全部剩余量转采购。" : result.Message;
+                SourceGroupStatusText = result.Message;
+                StatusText = "待采购来源加载失败，右侧未加载数据。";
+                return;
+            }
+
+            var total = result.Data.Sum(static item => item.CandidateCount);
+            SourceGroups.Add(PurchaseCandidateSourceGroupModel.CreateAll(total));
+            foreach (var group in result.Data)
+                SourceGroups.Add(PurchaseCandidateSourceGroupModel.FromDto(group));
+
+            SourceGroupStatusText = result.Data.Count == 0
+                ? "当前没有待采购来源；可打开全部入口确认。"
+                : $"共 {result.Data.Count} 张来源单，{total} 条待采购物料。";
+            StatusText = "请选择左侧来源查看待采购物料。";
         }
-        finally { if (ReferenceEquals(_searchCancellation, cts)) _searchCancellation = null; cts.Dispose(); }
+        finally
+        {
+            CompleteRequest(ref _groupCancellation, request);
+        }
+    }
+
+    /// <summary>按来源类型和 Uid 或全部入口一次完整加载候选，并拒绝过期结果回写。</summary>
+    private async Task LoadCandidatesAsync(
+        PurchaseCandidateSourceGroupModel group,
+        CancellationToken externalCancellation)
+    {
+        var request = ReplaceCancellation(ref _detailCancellation, externalCancellation);
+        ClearItems();
+        IsDetailLoaded = false;
+        SelectedSourceGroup = group;
+        IsLoading = true;
+        StatusText = $"正在加载 {group.DisplaySourceNo}...";
+        try
+        {
+            var result = await _runner.RunAsync(
+                () => _api.GetPurchaseCandidatesAsync(new PurchaseCandidateQuery
+                {
+                    SourceType = group.IsAllSources ? string.Empty : group.SourceType,
+                    SourceUid = group.IsAllSources ? null : group.SourceUid,
+                }, request.Token),
+                request.Token,
+                "加载待采购物料失败");
+            if (!CanAccept(_detailCancellation, request)
+                || !ReferenceEquals(SelectedSourceGroup, group))
+            {
+                return;
+            }
+
+            if (!result.Success || result.Data is null)
+            {
+                StatusText = result.Message;
+                return;
+            }
+
+            foreach (var dto in result.Data)
+            {
+                var row = MaterialDemandWorkspaceRowModel.FromDto(dto);
+                row.PropertyChanged += OnRowPropertyChanged;
+                Items.Add(row);
+            }
+            IsDetailLoaded = true;
+            RefreshLocalFilter();
+        }
+        finally
+        {
+            CompleteRequest(ref _detailCancellation, request);
+        }
+    }
+
+    /// <summary>匹配当前已加载候选的关键词和来源号，不发起远程查询。</summary>
+    private bool MatchesLocalFilter(object item)
+    {
+        if (item is not MaterialDemandWorkspaceRowModel row) return false;
+        var keyword = Keyword.Trim();
+        var sourceNo = SourceNo.Trim();
+        return (keyword.Length == 0
+                || Contains(row.Sku, keyword)
+                || Contains(row.LinkSku, keyword)
+                || Contains(row.Description, keyword)
+                || Contains(row.SuggestedPurchaseSupplierName, keyword)
+                || Contains(row.SuggestedPurchaseSupplierCode, keyword))
+            && (sourceNo.Length == 0 || Contains(row.SourceNo, sourceNo));
+    }
+
+    private static bool Contains(string? value, string filter) =>
+        value?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true;
+
+    private List<MaterialDemandWorkspaceRowModel> GetVisibleRows() =>
+        ItemsView.Cast<object>().OfType<MaterialDemandWorkspaceRowModel>().ToList();
+
+    /// <summary>刷新集合视图并同步加载、筛选和选择计数。</summary>
+    private void RefreshLocalFilter()
+    {
+        ItemsView.Refresh();
+        OnPropertyChanged(nameof(FilteredCount));
+        OnPropertyChanged(nameof(IsAllVisibleChecked));
+        UpdateCountStatus();
+    }
+
+    private void UpdateCountStatus()
+    {
+        OnPropertyChanged(nameof(SelectedRows));
+        OnPropertyChanged(nameof(SelectedCount));
+        if (IsDetailLoaded && !IsLoading)
+            StatusText = $"已加载 {Items.Count} 条，筛选后 {FilteredCount} 条，已选 {SelectedCount} 条。";
+    }
+
+    /// <summary>把行勾选变化提升为页面级全选和已选计数通知。</summary>
+    private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MaterialDemandWorkspaceRowModel.IsChecked)) return;
+        OnPropertyChanged(nameof(IsAllVisibleChecked));
+        UpdateCountStatus();
+    }
+
+    /// <summary>解除行事件并清空当前候选，防止跨来源保留选择。</summary>
+    private void ClearItems()
+    {
+        foreach (var item in Items) item.PropertyChanged -= OnRowPropertyChanged;
+        Items.Clear();
+        ItemsView.Refresh();
+        OnPropertyChanged(nameof(FilteredCount));
+        OnPropertyChanged(nameof(IsAllVisibleChecked));
+        OnPropertyChanged(nameof(SelectedRows));
+        OnPropertyChanged(nameof(SelectedCount));
+    }
+
+    partial void OnKeywordChanged(string value) => RefreshLocalFilter();
+
+    partial void OnSourceNoChanged(string value) => RefreshLocalFilter();
+
+    private static CancellationTokenSource ReplaceCancellation(
+        ref CancellationTokenSource? owner,
+        CancellationToken externalCancellation)
+    {
+        var previous = owner;
+        owner = CancellationTokenSource.CreateLinkedTokenSource(externalCancellation);
+        previous?.Cancel();
+        return owner;
+    }
+
+    private bool CanAccept(CancellationTokenSource? owner, CancellationTokenSource request) =>
+        !_disposed && !request.IsCancellationRequested && ReferenceEquals(owner, request);
+
+    private void CompleteRequest(ref CancellationTokenSource? owner, CancellationTokenSource request)
+    {
+        if (ReferenceEquals(owner, request))
+        {
+            owner = null;
+            IsLoading = false;
+            UpdateCountStatus();
+        }
+        request.Dispose();
+    }
+
+    private void CancelPendingRequests()
+    {
+        var groups = _groupCancellation;
+        var details = _detailCancellation;
+        _groupCancellation = null;
+        _detailCancellation = null;
+        groups?.Cancel();
+        details?.Cancel();
+    }
+
+    private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
+
+    /// <summary>对话框关闭时取消查询并阻止旧结果回写；下一次打开会重新建立生命周期。</summary>
+    public void Close()
+    {
+        CancelPendingRequests();
+        _lifetimeCancellation?.Cancel();
+        _lifetimeCancellation?.Dispose();
+        _lifetimeCancellation = null;
+        IsLoading = false;
+    }
+
+    /// <summary>释放选择器持有的查询资源和行事件。</summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        Close();
+        ClearItems();
     }
 }

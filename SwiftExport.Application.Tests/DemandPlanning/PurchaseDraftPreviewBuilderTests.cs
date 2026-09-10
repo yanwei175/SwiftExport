@@ -32,7 +32,6 @@ public sealed class PurchaseDraftPreviewBuilderTests
         var second = CreateCandidate(sourceNo: "SO002");
         second.SourceUid = Guid.NewGuid();
         second.SourceLineId = Guid.NewGuid();
-        second.AllocationId = Guid.NewGuid();
         second.NetDemandId = Guid.NewGuid();
         second.CommandItemId = Guid.NewGuid();
 
@@ -102,14 +101,13 @@ public sealed class PurchaseDraftPreviewBuilderTests
     {
         var parent = CreateCandidate();
         var customerSupplied = CreateCandidate();
-        customerSupplied.AllocationId = Guid.NewGuid();
         customerSupplied.NetDemandId = Guid.NewGuid();
         customerSupplied.SourceLineId = Guid.NewGuid();
         customerSupplied.SourceLineNumber = 2;
         customerSupplied.CommandItemId = Guid.NewGuid();
         customerSupplied.IsSelected = false;
         customerSupplied.IsCustomerSupplied = true;
-        customerSupplied.DeliveryTargetAllocationId = parent.AllocationId;
+        customerSupplied.DeliveryTargetNetDemandId = parent.NetDemandId;
         customerSupplied.DeliveryTargetSupplierId = parent.PurchaseSupplierId;
 
         var result = _builder.Build(CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, parent, customerSupplied));
@@ -117,8 +115,8 @@ public sealed class PurchaseDraftPreviewBuilderTests
         var warning = result.Warnings.Single(x => x.Code == PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining);
         Assert.IsTrue(warning.RequiresConfirmation);
         Assert.IsFalse(warning.IsBlocker);
-        CollectionAssert.Contains(warning.AllocationIds, parent.AllocationId);
-        CollectionAssert.Contains(warning.AllocationIds, customerSupplied.AllocationId);
+        CollectionAssert.Contains(warning.NetDemandIds, parent.NetDemandId);
+        CollectionAssert.Contains(warning.NetDemandIds, customerSupplied.NetDemandId);
     }
 
     [TestMethod]
@@ -158,7 +156,7 @@ public sealed class PurchaseDraftPreviewBuilderTests
     {
         var candidate = CreateCandidate();
         candidate.IsCustomerSupplied = true;
-        candidate.DeliveryTargetAllocationId = null;
+        candidate.DeliveryTargetNetDemandId = null;
         candidate.DeliveryTargetSupplierId = null;
 
         var result = _builder.Build(CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, candidate));
@@ -207,7 +205,6 @@ public sealed class PurchaseDraftPreviewBuilderTests
         var production = CloneForNextSourceLine(purchase);
         production.ExecutionType = DemandExecutionTypeEnum.Production;
         var outsourcing = CloneForNextSourceLine(purchase);
-        outsourcing.AllocationId = Guid.NewGuid();
         outsourcing.NetDemandId = Guid.NewGuid();
         outsourcing.SourceLineId = Guid.NewGuid();
         outsourcing.SourceLineNumber = 3;
@@ -334,9 +331,8 @@ public sealed class PurchaseDraftPreviewBuilderTests
         return new PurchaseDraftPreviewCandidate
         {
             CommandItemId = Guid.NewGuid(),
-            AllocationId = Guid.NewGuid(),
-            AllocationVersion = 1,
             NetDemandId = Guid.NewGuid(),
+            NetDemandVersion = 1,
             SourceType = "SO",
             SourceUid = sourceUid,
             SourceNo = sourceNo,
@@ -370,9 +366,8 @@ public sealed class PurchaseDraftPreviewBuilderTests
         => new()
         {
             CommandItemId = Guid.NewGuid(),
-            AllocationId = Guid.NewGuid(),
-            AllocationVersion = source.AllocationVersion,
             NetDemandId = Guid.NewGuid(),
+            NetDemandVersion = source.NetDemandVersion,
             SourceType = source.SourceType,
             SourceUid = source.SourceUid,
             SourceNo = source.SourceNo,
@@ -396,7 +391,7 @@ public sealed class PurchaseDraftPreviewBuilderTests
             PurchaseSupplierId = source.PurchaseSupplierId,
             PurchaseSupplierCode = source.PurchaseSupplierCode,
             PurchaseSupplierName = source.PurchaseSupplierName,
-            DeliveryTargetAllocationId = source.DeliveryTargetAllocationId,
+            DeliveryTargetNetDemandId = source.DeliveryTargetNetDemandId,
             DeliveryTargetSupplierId = source.DeliveryTargetSupplierId,
             DeliveryTargetSupplierCode = source.DeliveryTargetSupplierCode,
             DeliveryTargetSupplierName = source.DeliveryTargetSupplierName,

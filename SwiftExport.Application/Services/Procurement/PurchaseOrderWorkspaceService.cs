@@ -200,7 +200,6 @@ public sealed class PurchaseOrderWorkspaceService(
                 if (!line.TaxPrice.HasValue || line.TaxPrice.Value < 0) throw new ProcurementException($"采购行 {line.LineNumber} 必须填写含税单价；明确的零价允许确认。");
                 var linked = contributions.Where(x => x.PurchaseOrderLineId == line.Uid).Sum(x => x.EffectiveQty);
                 if (linked != line.Quantity) throw new ProcurementException($"采购行 {line.LineNumber} 的需求 Link 数量不守恒。");
-                if (line.DeliveryTargetAllocationId.HasValue != line.DeliveryTargetSupplierId.HasValue) throw new ProcurementException($"采购行 {line.LineNumber} 的客供件送达目标不完整。");
             }
             var now = DateTime.Now;
             if (await purchaseOrders.SetConfirmationAsync(uid, command.ExpectedVersion, true, now, currentUser.UserName, currentUser.UserName) != 1)

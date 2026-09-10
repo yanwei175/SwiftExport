@@ -28,6 +28,19 @@ public sealed class NetDemandWorkspaceController(INetDemandServices service, INe
         CancellationToken cancellationToken)
         => service.SearchMaterialSourceGroupsAsync(request, cancellationToken);
 
+    /// <summary>查询全部仍包含待采购物料的来源单分组。</summary>
+    [HttpGet("purchase-candidates/source-groups")]
+    public Task<ServiceResult<List<PurchaseCandidateSourceGroupDto>>> GetPurchaseCandidateSourceGroupsAsync(
+        CancellationToken cancellationToken)
+        => service.GetPurchaseCandidateSourceGroupsAsync(cancellationToken);
+
+    /// <summary>按来源或全部来源完整查询待采购物料，不分页。</summary>
+    [HttpPost("purchase-candidates")]
+    public Task<ServiceResult<List<MaterialDemandWorkspaceItemDto>>> GetPurchaseCandidatesAsync(
+        [FromBody] PurchaseCandidateQuery request,
+        CancellationToken cancellationToken)
+        => service.GetPurchaseCandidatesAsync(request, cancellationToken);
+
     /// <summary>局部保存物料需求推荐采购供应商；不修改已有采购与送达事实。</summary>
     [HttpPost("suggested-purchase-supplier")]
     [PreventDuplicateRequest(WindowSeconds = 3)]

@@ -34,6 +34,7 @@ public sealed class MapsterConfig : IRegister
 
         config.NewConfig<MaterialDemandWorkspaceItemDto, MaterialDemandWorkspaceRowModel>()
             .Ignore(dest => dest.IsChecked)
+            .Ignore(dest => dest.SuggestedPurchaseSupplierSelection)
             .Map(dest => dest.SuggestedPurchaseSupplierCode, src => src.SuggestedPurchaseSupplierCode ?? string.Empty)
             .Map(dest => dest.SuggestedPurchaseSupplierName, src => src.SuggestedPurchaseSupplierName ?? string.Empty)
             .Map(dest => dest.SuggestedDeliverySupplierCode, src => src.SuggestedDeliverySupplierCode ?? string.Empty)
@@ -53,6 +54,12 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.Unit, src => src.Unit ?? string.Empty)
             .Map(dest => dest.SupplyType, src => src.SupplyType ?? string.Empty)
             .Map(dest => dest.PurchaseOrderNos, src => src.PurchaseOrderNos ?? string.Empty);
+
+        config.NewConfig<PurchaseCandidateSourceGroupDto, PurchaseCandidateSourceGroupModel>()
+            .Map(dest => dest.SourceType, src => src.SourceType ?? string.Empty)
+            .Map(dest => dest.SourceNo, src => src.SourceNo ?? string.Empty)
+            .Map(dest => dest.SourceUid, src => (Guid?)src.SourceUid)
+            .Ignore(dest => dest.IsAllSources);
 
         config.NewConfig<ProductColorDto, ProductColorFilterOption>()
             .Ignore(dest => dest.IsChecked);

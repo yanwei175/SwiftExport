@@ -215,8 +215,14 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     [RelayCommand(CanExecute = nameof(CanCreateIndependent))]
     private async Task GetFromNetDemandAsync()
     {
-        var rows = await _procurementDialogs.SelectNetDemandsAsync(); if (rows.Count == 0) return;
-        var applied = await _netDemandDialogs.ShowPurchaseDraftPreviewAsync(new PurchaseDraftPreviewOpenRequest { EntryMode = PurchaseDraftEntryModeEnum.PurchaseWorkspace, Rows = rows });
+        var rows = await _procurementDialogs.SelectNetDemandsAsync();
+        if (rows.Count == 0) return;
+        var applied = await _netDemandDialogs.ShowPurchaseDraftPreviewAsync(
+            new PurchaseDraftPreviewOpenRequest
+            {
+                EntryMode = PurchaseDraftEntryModeEnum.PurchaseWorkspace,
+                Rows = rows
+            });
         if (applied) await LoadPageAsync();
     }
 

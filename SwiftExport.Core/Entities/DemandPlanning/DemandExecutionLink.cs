@@ -10,8 +10,8 @@ public sealed class DemandExecutionLink : BaseEntity
 {
     /// <summary>关联的净需求 Uid。</summary>
     public Guid NetDemandId { get; set; }
-    /// <summary>实际消耗数量的计划分配 Uid，是净需求执行追溯的计划锚点。</summary>
-    public Guid NetDemandAllocationId { get; set; }
+    /// <summary>历史计划分配 Uid；新执行关系直接以 NetDemandId 为业务锚点。</summary>
+    public Guid? NetDemandAllocationId { get; set; }
     /// <summary>一次采购草稿创建请求的幂等标识。</summary>
     public Guid ExecutionRequestId { get; set; }
     /// <summary>请求内单条贡献的幂等标识，防止重复生成 Link。</summary>

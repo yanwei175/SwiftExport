@@ -36,6 +36,24 @@ ORDER BY l.[CreatedDate],l.[Uid];";
         return [.. rows];
     }
 
+    /// <summary>按物料需求锁定活动执行关系，新链路不再要求计划分配存在。</summary>
+    public async Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByNetDemandIdsForUpdateAsync(
+        IEnumerable<Guid> netDemandIds)
+    {
+        var ids = netDemandIds.Distinct().ToArray();
+        if (ids.Length == 0) return [];
+        var rows = await context.Session.Connection.QueryAsync<NetDemandExecutionLinkDto>(LinkSelect + @"
+FROM [dbo].[DemandExecutionLink] l WITH (UPDLOCK,HOLDLOCK)
+LEFT JOIN [dbo].[PurchaseOrderLine] pol
+  ON pol.[Uid]=l.[TargetLineId] AND l.[TargetType]=@PurchaseTargetType AND ISNULL(pol.[IsDeleted],0)=0
+WHERE l.[NetDemandId] IN @Ids AND l.[LinkStatus]=@Active AND l.[IsDeleted]=0
+ORDER BY l.[CreatedDate],l.[Uid];",
+            new { Ids = ids, Active = DemandExecutionLinkStatusEnum.Active, PurchaseTargetType = "PO" },
+            context.Session.Transaction);
+        return [.. rows];
+    }
+
+    /// <summary>按历史计划分配锁定活动执行关系，仅用于计划域既有回退校验。</summary>
     public async Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByAllocationIdsForUpdateAsync(
         IEnumerable<Guid> allocationIds)
     {
@@ -51,6 +69,7 @@ ORDER BY l.[CreatedDate],l.[Uid];",
             context.Session.Transaction);
         return [.. rows];
     }
+
     public async Task<IReadOnlyList<MaterialDemandRollbackBlockerDto>> GetActiveRollbackBlockersAsync(
         IEnumerable<Guid> netDemandIds)
     {
@@ -180,8 +199,6 @@ INNER JOIN [dbo].[NetDemand] nd
 INNER JOIN [dbo].[DemandExecutionLink] l
         ON l.[NetDemandId]=nd.[Uid]
        AND l.[TargetType]=@PurchaseTargetType AND l.[IsDeleted]=0
-INNER JOIN [dbo].[NetDemandAllocation] allocation
-        ON allocation.[Uid]=l.[NetDemandAllocationId] AND allocation.[NetDemandId]=nd.[Uid]
 INNER JOIN [dbo].[PurchaseOrderHead] h
         ON h.[Uid]=l.[TargetHeadId] AND h.[IsDeleted]=0
 INNER JOIN [dbo].[PurchaseOrderLine] line
@@ -214,7 +231,7 @@ ORDER BY d.[SourceLineNumber],nd.[LineNumber],line.[LineNumber],l.[Uid];";
             throw new ArgumentException("采购头 Uid 不能为空。", nameof(purchaseOrderId));
         var lockHint = withUpdLock ? "WITH (UPDLOCK,HOLDLOCK)" : "WITH (NOLOCK)";
         var sql = $"""
-            SELECT l.Uid AS LinkId,l.NetDemandAllocationId AS AllocationId,
+            SELECT l.Uid AS LinkId,l.NetDemandId,l.NetDemandAllocationId AS HistoricalAllocationId,
                    l.TargetLineId AS PurchaseOrderLineId,gd.SourceLineNumber,l.PlannedDeliveryDate,
                    l.AllocatedQty,l.ReleasedQty,l.AllocatedQty-l.ReleasedQty AS EffectiveQty
             FROM dbo.DemandExecutionLink l {lockHint}
@@ -222,7 +239,7 @@ ORDER BY d.[SourceLineNumber],nd.[LineNumber],line.[LineNumber],l.[Uid];";
             INNER JOIN dbo.GrossDemand gd ON gd.Uid=nd.GrossDemandId AND gd.IsDeleted=0
             WHERE l.TargetHeadId=@PurchaseOrderId AND l.TargetType=@PurchaseTargetType
               AND l.LinkStatus=@Active AND l.IsDeleted=0
-            ORDER BY l.PlannedDeliveryDate DESC,gd.SourceLineNumber DESC,l.NetDemandAllocationId DESC,l.Uid DESC;
+            ORDER BY l.PlannedDeliveryDate DESC,gd.SourceLineNumber DESC,l.NetDemandId DESC,l.Uid DESC;
             """;
         var rows = await context.Session.Connection.QueryAsync<PurchaseDraftLifecycleLinkFactDto>(
             new CommandDefinition(sql, new
