@@ -9,11 +9,10 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
     {
         public Guid ExecutionRequestId { get; set; }
         public PurchaseDraftEntryModeEnum EntryMode { get; set; }
-        public PurchaseDraftLineModeEnum LineMode { get; set; }
+        public PurchaseDraftLineModeEnum LineMode { get; set; } = PurchaseDraftLineModeEnum.MergeCompatibleLines;
         public string SourceType { get; set; }
         public Guid? SourceUid { get; set; }
         public List<PurchaseDraftPreviewItem> Items { get; set; } = new List<PurchaseDraftPreviewItem>();
         public List<PurchaseDraftTargetSelectionDto> Targets { get; set; } = new List<PurchaseDraftTargetSelectionDto>();
     }
 }
-

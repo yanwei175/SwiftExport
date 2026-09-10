@@ -28,14 +28,23 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         });
 
         Assert.AreEqual(10m, viewModel.Items.Single().PurchaseQty);
+        Assert.AreEqual(PurchaseDraftLineModeEnum.MergeCompatibleLines, viewModel.LineMode);
         Assert.IsFalse(viewModel.Items.Single().IsQuantityReadOnly);
         Assert.IsFalse(viewModel.IsStale);
+        StringAssert.Contains(viewModel.PreviewSummaryText, "选中物料 1 项");
+        StringAssert.Contains(viewModel.PreviewSummaryText, "采购行 1 → 1");
+        var previewLine = viewModel.PreviewLines.Single();
+        Assert.AreEqual("MODEL-A-100", previewLine.LinkSku);
+        Assert.AreEqual("PCS", previewLine.Unit);
+        Assert.AreEqual("products/a-100.png", previewLine.ImagePath);
+        Assert.AreEqual("SO-1001", previewLine.Contributions.Single().SourceNo);
 
         viewModel.Items.Single().PurchaseQty = 6m;
 
         Assert.IsTrue(viewModel.IsStale);
         Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
         StringAssert.Contains(viewModel.StatusText, "重新预览");
+        StringAssert.Contains(viewModel.PreviewSummaryText, "已失效");
 
         viewModel.Items.Single().PurchaseQty = 11m;
         Assert.IsNotNull(viewModel.Items.Single().QuantityError);
@@ -189,7 +198,8 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         });
         var retainedItem = viewModel.Items.Single();
         retainedItem.PurchaseQty = 6m;
-        viewModel.LineMode = PurchaseDraftLineModeEnum.MergeCompatibleLines;
+        Assert.AreEqual(PurchaseDraftLineModeEnum.MergeCompatibleLines, viewModel.LineMode);
+        viewModel.LineMode = PurchaseDraftLineModeEnum.KeepSourceLines;
         var executionRequestId = viewModel.ExecutionRequestId;
 
         var addedRow = CreateRow(4m, api.SourceUid);
@@ -202,7 +212,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.AreSame(retainedItem, viewModel.Items.Single(item => item.NetDemandId == retainedRow.Uid));
         Assert.AreEqual(6m, retainedItem.PurchaseQty);
         Assert.AreEqual(executionRequestId, viewModel.ExecutionRequestId);
-        Assert.AreEqual(PurchaseDraftLineModeEnum.MergeCompatibleLines, viewModel.LineMode);
+        Assert.AreEqual(PurchaseDraftLineModeEnum.KeepSourceLines, viewModel.LineMode);
         Assert.AreEqual(4m, viewModel.Items.Single(item => item.NetDemandId == addedRow.Uid).PurchaseQty);
 
         await viewModel.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
@@ -596,6 +606,14 @@ public sealed class PurchaseDraftWorkflowViewModelTests
             document.Lines.Add(new PurchaseDraftPreviewLineDto
             {
                 Sku = sku,
+                LinkSku = "MODEL-A-100",
+                Description = "测试采购物料",
+                ImagePath = "products/a-100.png",
+                MaterialType = "成品",
+                Unit = "PCS",
+                SupplierSku = "SUP-A-100",
+                UnitPrice = 12m,
+                TaxPrice = 13.56m,
                 PurchaseQty = item.PurchaseQty,
                 Contributions =
                 {
@@ -605,6 +623,11 @@ public sealed class PurchaseDraftWorkflowViewModelTests
                         NetDemandId = item.NetDemandId,
                         NetDemandVersion = item.ExpectedVersion,
                         SupplierId = item.SupplierId,
+                        SourceType = "SO",
+                        SourceNo = "SO-1001",
+                        SourceLineNumber = 1,
+                        Sku = sku,
+                        LinkSku = "MODEL-A-100",
                         ExpectedRemainingQty = item.ExpectedRemainingQty,
                         PurchaseQty = item.PurchaseQty,
                     },

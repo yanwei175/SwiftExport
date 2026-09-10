@@ -36,7 +36,9 @@ public sealed class PurchaseDraftPreviewBuilderTests
         second.NetDemandId = Guid.NewGuid();
         second.CommandItemId = Guid.NewGuid();
 
-        var result = _builder.Build(CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, first, second));
+        var request = CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, first, second);
+        request.LineMode = PurchaseDraftLineModeEnum.MergeCompatibleLines;
+        var result = _builder.Build(request);
 
         Assert.AreEqual(2, result.SourceGroups.Count);
         Assert.AreEqual(2, result.SourceGroups.Sum(x => x.Documents.Count));
@@ -58,13 +60,13 @@ public sealed class PurchaseDraftPreviewBuilderTests
     }
 
     [TestMethod]
-    public void Build_DefaultKeepSourceLinesPreservesSameSkuContributions()
+    public void Build_KeepSourceLinesPreservesSameSkuContributions()
     {
         var first = CreateCandidate();
         var second = CloneForNextSourceLine(first);
 
         var request = CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, first, second);
-        Assert.AreEqual(PurchaseDraftLineModeEnum.KeepSourceLines, request.LineMode);
+        request.LineMode = PurchaseDraftLineModeEnum.KeepSourceLines;
 
         var result = _builder.Build(request);
         var document = result.SourceGroups.Single().Documents.Single();
@@ -72,6 +74,22 @@ public sealed class PurchaseDraftPreviewBuilderTests
         Assert.AreEqual(2, document.SourceLineCount);
         Assert.AreEqual(2, document.PreviewLineCount);
         Assert.IsTrue(document.Lines.All(x => x.Contributions.Count == 1));
+    }
+
+    [TestMethod]
+    public void Build_DefaultLineModeMergesCompatibleSameSkuContributions()
+    {
+        var first = CreateCandidate();
+        var second = CloneForNextSourceLine(first);
+        var request = CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, first, second);
+
+        var result = _builder.Build(request);
+        var document = result.SourceGroups.Single().Documents.Single();
+
+        Assert.AreEqual(PurchaseDraftLineModeEnum.MergeCompatibleLines, request.LineMode);
+        Assert.AreEqual(2, document.SourceLineCount);
+        Assert.AreEqual(1, document.PreviewLineCount);
+        Assert.AreEqual(2, document.Lines.Single().Contributions.Count);
     }
 
     [TestMethod]
@@ -95,6 +113,83 @@ public sealed class PurchaseDraftPreviewBuilderTests
         Assert.AreEqual(new DateTime(2026, 8, 10), line.PlannedDeliveryDate);
         Assert.IsTrue(result.RequiresConfirmation);
         Assert.IsTrue(result.Warnings.Any(x => x.Code == PurchaseDraftWarningCodes.DifferentPlannedDeliveryDates));
+    }
+
+    [TestMethod]
+    public void Build_MergeCompatibleLinesSeparatesIncompatibleSnapshotsAndExplainsReasons()
+    {
+        AssertSplit(candidate => candidate.Unit = "BOX", "计量单位不同");
+        AssertSplit(candidate => candidate.DeliveryTargetSupplierId = Guid.NewGuid(), "实际送达方不同");
+        AssertSplit(candidate => candidate.UnitPrice = candidate.UnitPrice.GetValueOrDefault() + 1m, "采购价格不同");
+        AssertSplit(candidate => candidate.ProductId = Guid.NewGuid(), "产品身份或物料快照不同");
+        AssertSplit(candidate => candidate.LinkSku = "OTHER-MODEL", "产品身份或物料快照不同");
+        AssertSplit(candidate => candidate.Description = "另一物料快照", "产品身份或物料快照不同");
+        AssertSplit(candidate => candidate.Color = "蓝色", "产品身份或物料快照不同");
+        AssertSplit(candidate => candidate.Specification = "M10", "产品身份或物料快照不同");
+        AssertSplit(candidate => candidate.MaterialType = "客供件", "产品身份或物料快照不同");
+        AssertSplit(candidate =>
+        {
+            candidate.IsCustomerSupplied = true;
+            candidate.DeliveryTargetNetDemandId = Guid.NewGuid();
+            candidate.DeliveryTargetSupplierId = Guid.NewGuid();
+        }, "产品身份或物料快照不同");
+        AssertSplit(candidate => candidate.SupplierSku = "OTHER-SUPPLIER-SKU", "供应商产品资料不同");
+        AssertSplit(candidate => candidate.QuantityScale = 2, "数量精度不同");
+
+        void AssertSplit(Action<PurchaseDraftPreviewCandidate> mutate, string expectedReason)
+        {
+            var first = CreateCandidate();
+            var second = CloneForNextSourceLine(first);
+            mutate(second);
+            var request = CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, first, second);
+            request.LineMode = PurchaseDraftLineModeEnum.MergeCompatibleLines;
+
+            var document = _builder.Build(request).SourceGroups.Single().Documents.Single();
+
+            Assert.AreEqual(2, document.PreviewLineCount);
+            Assert.IsTrue(document.Lines.All(line => line.MergeDifferenceReason.Contains(expectedReason, StringComparison.Ordinal)));
+        }
+    }
+
+    [TestMethod]
+    public void Build_DifferentPurchaseSuppliersExplainWhySameSkuUsesSeparateDocuments()
+    {
+        var first = CreateCandidate();
+        var second = CloneForNextSourceLine(first);
+        second.PurchaseSupplierId = Guid.NewGuid();
+        second.PurchaseSupplierCode = "SUP002";
+        second.PurchaseSupplierName = "供应商二";
+        var request = CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, first, second);
+        request.LineMode = PurchaseDraftLineModeEnum.MergeCompatibleLines;
+
+        var result = _builder.Build(request);
+
+        Assert.AreEqual(2, result.SourceGroups.Single().Documents.Count);
+        Assert.IsTrue(result.SourceGroups.Single().Documents
+            .SelectMany(document => document.Lines)
+            .All(line => line.MergeDifferenceReason.Contains("实际采购供应商不同", StringComparison.Ordinal)));
+    }
+
+    [TestMethod]
+    public void Build_PreviewLineAndContributionKeepRecognitionAndDateFacts()
+    {
+        var candidate = CreateCandidate();
+        candidate.ImagePath = "products/current-item.png";
+        candidate.Color = "蓝色";
+        candidate.Specification = "M8";
+
+        var line = _builder.Build(CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, candidate))
+            .SourceGroups.Single().Documents.Single().Lines.Single();
+        var contribution = line.Contributions.Single();
+
+        Assert.AreEqual("products/current-item.png", line.ImagePath);
+        Assert.AreEqual("蓝色", line.Color);
+        Assert.AreEqual("M8", line.Specification);
+        Assert.AreEqual(candidate.SourceNo, contribution.SourceNo);
+        Assert.AreEqual(candidate.Sku, contribution.Sku);
+        Assert.AreEqual(candidate.LinkSku, contribution.LinkSku);
+        Assert.AreEqual(candidate.RemainingQty, contribution.ExpectedRemainingQty);
+        Assert.AreEqual(candidate.PlannedDeliveryDate, contribution.PlannedDeliveryDate);
     }
 
     [TestMethod]
@@ -172,6 +267,7 @@ public sealed class PurchaseDraftPreviewBuilderTests
     {
         var candidate = CreateCandidate();
         var keepRequest = CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, candidate);
+        keepRequest.LineMode = PurchaseDraftLineModeEnum.KeepSourceLines;
         var mergeRequest = CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, candidate);
         mergeRequest.ExecutionRequestId = keepRequest.ExecutionRequestId;
         mergeRequest.LineMode = PurchaseDraftLineModeEnum.MergeCompatibleLines;
@@ -350,6 +446,9 @@ public sealed class PurchaseDraftPreviewBuilderTests
             LinkSku = "LINK001",
             CustomerSku = "CUS001",
             Description = "测试产品",
+            Color = "红色",
+            Specification = "M6",
+            ImagePath = "products/sku001.png",
             MaterialType = "成品",
             Unit = "PCS",
             QuantityScale = 4,
@@ -386,6 +485,9 @@ public sealed class PurchaseDraftPreviewBuilderTests
             LinkSku = source.LinkSku,
             CustomerSku = source.CustomerSku,
             Description = source.Description,
+            Color = source.Color,
+            Specification = source.Specification,
+            ImagePath = source.ImagePath,
             MaterialType = source.MaterialType,
             Unit = source.Unit,
             QuantityScale = source.QuantityScale,

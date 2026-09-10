@@ -62,6 +62,8 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.SourceUid, src => (Guid?)src.SourceUid)
             .Ignore(dest => dest.IsAllSources);
 
+        config.NewConfig<PurchaseDraftPreviewLineDto, PurchaseDraftPreviewLineModel>();
+
         config.NewConfig<ProductColorDto, ProductColorFilterOption>()
             .Ignore(dest => dest.IsChecked);
 

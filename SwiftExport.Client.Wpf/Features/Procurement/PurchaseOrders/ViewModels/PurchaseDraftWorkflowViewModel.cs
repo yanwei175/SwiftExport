@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Mapster;
 using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums;
@@ -68,6 +69,10 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     public bool HasUnconfirmedWarnings => Warnings.Any(item => item.RequiresConfirmation && !item.IsConfirmed);
     public bool CanCreateCurrent => CanCreate();
     public bool CanClose => !IsCreateInProgress && !HasUnknownCreateResult;
+    /// <summary>当前有效预览的采购项、单据数及合并前后行数；失效时不展示旧数字。</summary>
+    public string PreviewSummaryText => _preview is null || IsStale
+        ? "预览摘要已失效，请重新预览。"
+        : $"选中物料 {Items.Count} 项 · 采购草稿 {_preview.SourceGroups.Sum(group => group.DocumentCount)} 张 · 采购行 {_preview.SourceGroups.Sum(group => group.Documents.Sum(document => document.SourceLineCount))} → {_preview.SourceGroups.Sum(group => group.Documents.Sum(document => document.PreviewLineCount))}";
 
     /// <summary>当前写请求结果是否未知；未知时只能按冻结负载和原幂等身份重试。</summary>
     [ObservableProperty]
@@ -132,7 +137,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         try
         {
             ExecutionRequestId = Guid.NewGuid();
-            LineMode = PurchaseDraftLineModeEnum.KeepSourceLines;
+            LineMode = PurchaseDraftLineModeEnum.MergeCompatibleLines;
         }
         finally
         {
@@ -661,18 +666,12 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
             {
                 foreach (var line in document.Lines)
                 {
-                    PreviewLines.Add(new PurchaseDraftPreviewLineModel
-                    {
-                        SourceNo = source.SourceNo,
-                        SupplierName = $"{document.SupplierCode} {document.SupplierName}".Trim(),
-                        Sku = line.Sku ?? string.Empty,
-                        CustomerSku = line.CustomerSku ?? string.Empty,
-                        PurchaseQty = line.PurchaseQty,
-                        PlannedDeliveryDate = line.PlannedDeliveryDate,
-                        DeliveryTargetSupplierName = line.DeliveryTargetSupplierName ?? string.Empty,
-                        PurchaseDataIncomplete = line.PurchaseDataIncomplete,
-                        ContributionCount = line.Contributions.Count,
-                    });
+                    var model = line.Adapt<PurchaseDraftPreviewLineModel>();
+                    model.SourceType = source.SourceType ?? string.Empty;
+                    model.SourceNo = source.SourceNo ?? string.Empty;
+                    model.SupplierCode = document.SupplierCode ?? string.Empty;
+                    model.SupplierName = document.SupplierName ?? string.Empty;
+                    PreviewLines.Add(model);
                 }
             }
         }
@@ -754,6 +753,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         OnPropertyChanged(nameof(HasBlockers));
         OnPropertyChanged(nameof(HasUnconfirmedWarnings));
         OnPropertyChanged(nameof(CanCreateCurrent));
+        OnPropertyChanged(nameof(PreviewSummaryText));
         PreviewCommand.NotifyCanExecuteChanged();
         CreateCommand.NotifyCanExecuteChanged();
     }

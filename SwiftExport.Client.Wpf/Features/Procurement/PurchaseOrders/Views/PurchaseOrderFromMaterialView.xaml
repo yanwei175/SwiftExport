@@ -2,6 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.Views"
+             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:Width="1400" d:Height="820">
@@ -53,7 +54,13 @@
                                   SelectedValue="{Binding LineMode, Mode=TwoWay}"
                                   IsEnabled="{Binding HasUnknownCreateResult, Converter={StaticResource InverseBooleanConverter}}" />
                     </StackPanel>
-                    <TextBlock Grid.Column="4" Text="{Binding StatusText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="4" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" />
+                        <TextBlock Margin="0,4,0,0"
+                                   Text="{Binding PreviewSummaryText}"
+                                   Style="{StaticResource CaptionTextBlock}"
+                                   Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                    </StackPanel>
                     <Button Grid.Column="5" Content="重新预览" Command="{Binding PreviewCommand}" />
                     <Button Grid.Column="7" Content="创建采购草稿"
                             Command="{Binding DataContext.CreateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -94,15 +101,85 @@
                                     </DataGridTemplateColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <DataGrid Grid.Row="2" ItemsSource="{Binding PreviewLines}" Style="{StaticResource SwiftExportDataGrid}" AutoGenerateColumns="False" IsReadOnly="True" RowHeight="32">
+                            <DataGrid Grid.Row="2"
+                                      ItemsSource="{Binding PreviewLines}"
+                                      Style="{StaticResource SwiftExportDataGrid}"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      RowHeight="60"
+                                      RowDetailsVisibilityMode="VisibleWhenSelected"
+                                      EnableRowVirtualization="True"
+                                      AutomationProperties.Name="采购草稿预览行，选择一行可查看来源贡献">
+                                <DataGrid.RowDetailsTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="8,4,8,8"
+                                                Padding="8"
+                                                BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                                                BorderThickness="1"
+                                                CornerRadius="4">
+                                            <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,4,Auto,*">
+                                                <TextBlock FontWeight="SemiBold" Text="来源贡献（逐条数量之和等于本采购行数量）" />
+                                                <Grid Grid.Row="2" ColumnDefinitions="110,56,110,110,95,95,95,95">
+                                                    <TextBlock Text="来源单号" Style="{StaticResource CaptionTextBlock}" />
+                                                    <TextBlock Grid.Column="1" Text="行号" Style="{StaticResource CaptionTextBlock}" />
+                                                    <TextBlock Grid.Column="2" Text="物料 SKU" Style="{StaticResource CaptionTextBlock}" />
+                                                    <TextBlock Grid.Column="3" Text="产品型号" Style="{StaticResource CaptionTextBlock}" />
+                                                    <TextBlock Grid.Column="4" Text="原剩余量" Style="{StaticResource CaptionTextBlock}" />
+                                                    <TextBlock Grid.Column="5" Text="本次贡献" Style="{StaticResource CaptionTextBlock}" />
+                                                    <TextBlock Grid.Column="6" Text="需求交期" Style="{StaticResource CaptionTextBlock}" />
+                                                    <TextBlock Grid.Column="7" Text="原计划交期" Style="{StaticResource CaptionTextBlock}" />
+                                                </Grid>
+                                                <ScrollViewer Grid.Row="3" MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                                                    <ItemsControl ItemsSource="{Binding Contributions}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Grid Margin="0,4,0,0" ColumnDefinitions="110,56,110,110,95,95,95,95">
+                                                                    <TextBlock Text="{Binding SourceNo}" TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock Grid.Column="1" Text="{Binding SourceLineNumber}" />
+                                                                    <TextBlock Grid.Column="2" Text="{Binding Sku}" TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock Grid.Column="3" Text="{Binding LinkSku}" TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock Grid.Column="4" Text="{Binding ExpectedRemainingQty, StringFormat=N4}" />
+                                                                    <TextBlock Grid.Column="5" Text="{Binding PurchaseQty, StringFormat=N4}" />
+                                                                    <TextBlock Grid.Column="6" Text="{Binding DemandRequiredDate, StringFormat={}{0:yyyy-MM-dd}}" />
+                                                                    <TextBlock Grid.Column="7" Text="{Binding PlannedDeliveryDate, StringFormat={}{0:yyyy-MM-dd}}" />
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </ScrollViewer>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGrid.RowDetailsTemplate>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="来源" Width="110" Binding="{Binding SourceNo}" />
-                                    <DataGridTextColumn Header="供应商" Width="160" Binding="{Binding SupplierName}" />
+                                    <DataGridTextColumn Header="来源" Width="105" Binding="{Binding SourceNo}" />
+                                    <DataGridTemplateColumn Header="图片" Width="64">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <controls:CachedImage Width="52" Height="52"
+                                                                      Margin="2"
+                                                                      Style="{StaticResource SwiftExportCachedImage}"
+                                                                      SourcePath="{Binding ImagePath}"
+                                                                      DecodePixelWidth="96"
+                                                                      Stretch="Uniform" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="SKU" Width="120" Binding="{Binding Sku}" />
+                                    <DataGridTextColumn Header="产品型号" Width="120" Binding="{Binding LinkSku}" />
                                     <DataGridTextColumn Header="客户型号" Width="110" Binding="{Binding CustomerSku}" />
-                                    <DataGridTextColumn Header="采购数量" Width="95" Binding="{Binding PurchaseQty, StringFormat=N4}" />
-                                    <DataGridTextColumn Header="计划交期" Width="95" Binding="{Binding PlannedDeliveryDate, StringFormat=yyyy-MM-dd}" />
-                                    <DataGridTextColumn Header="送达供应商" Width="140" Binding="{Binding DeliveryTargetSupplierName}" />
+                                    <DataGridTextColumn Header="描述" Width="170" Binding="{Binding Description}" />
+                                    <DataGridTextColumn Header="物料属性" Width="140" Binding="{Binding AttributeSummary}" />
+                                    <DataGridTextColumn Header="供货属性" Width="90" Binding="{Binding DeliveryModeText}" />
+                                    <DataGridTextColumn Header="单位" Width="65" Binding="{Binding Unit}" />
+                                    <DataGridTextColumn Header="实际采购供应商" Width="150" Binding="{Binding SupplierDisplay}" />
+                                    <DataGridTextColumn Header="供应商型号" Width="120" Binding="{Binding SupplierSku}" />
+                                    <DataGridTextColumn Header="未税价(CNY)" Width="95" Binding="{Binding UnitPrice, StringFormat=N4}" />
+                                    <DataGridTextColumn Header="含税价(CNY)" Width="95" Binding="{Binding TaxPrice, StringFormat=N4}" />
+                                    <DataGridTextColumn Header="实际送达方" Width="140" Binding="{Binding DeliveryTargetSupplierName}" />
+                                    <DataGridTextColumn Header="采购数量" Width="90" Binding="{Binding PurchaseQty, StringFormat=N4}" />
+                                    <DataGridTextColumn Header="采用交期" Width="95" Binding="{Binding PlannedDeliveryDate, StringFormat=yyyy-MM-dd}" />
+                                    <DataGridTextColumn Header="未合并原因" Width="190" Binding="{Binding MergeDifferenceReason}" />
                                     <DataGridCheckBoxColumn Header="资料待补" Width="80" Binding="{Binding PurchaseDataIncomplete}" />
                                     <DataGridTextColumn Header="来源贡献" Width="80" Binding="{Binding ContributionCount}" />
                                 </DataGrid.Columns>

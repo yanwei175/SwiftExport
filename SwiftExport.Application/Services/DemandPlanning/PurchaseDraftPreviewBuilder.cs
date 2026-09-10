@@ -14,6 +14,7 @@ namespace SwiftExport.Application.Services.DemandPlanning;
 /// </summary>
 public sealed class PurchaseDraftPreviewBuilder
 {
+    /// <summary>按来源、实际采购供应商和兼容快照生成可写入的采购草稿预览。</summary>
     public PurchaseDraftPreviewResponse Build(PurchaseDraftPreviewBuildRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -280,6 +281,11 @@ public sealed class PurchaseDraftPreviewBuilder
                 sourceGroup.Documents.Add(BuildDocument(request, sourceKey, supplierGroup.Key, supplierGroup.ToList(), response));
             }
 
+            if (request.LineMode == PurchaseDraftLineModeEnum.MergeCompatibleLines)
+            {
+                AddSupplierSplitReasons(sourceGroup);
+            }
+
             sourceGroup.Warnings = response.Warnings
                 .Where(x => x.SourceUid == sourceKey.SourceUid
                     && string.Equals(x.SourceType, sourceKey.SourceType, StringComparison.OrdinalIgnoreCase))
@@ -331,12 +337,26 @@ public sealed class PurchaseDraftPreviewBuilder
         }
         else
         {
-            document.Lines = selections
+            var mergedGroups = selections
                 .GroupBy(x => new MergeKey(x.Candidate))
                 .OrderBy(x => x.Min(y => y.Candidate.SourceLineNumber ?? int.MaxValue))
                 .ThenBy(x => x.Min(y => y.Candidate.NetDemandId))
-                .Select(x => BuildLine(x.ToList(), response))
                 .ToList();
+            document.Lines = mergedGroups
+                .Select(group => BuildLine(group.ToList(), response))
+                .ToList();
+
+            for (var index = 0; index < mergedGroups.Count; index++)
+            {
+                var current = mergedGroups[index];
+                var reasons = mergedGroups
+                    .Where(other => !ReferenceEquals(other, current)
+                        && string.Equals(other.Key.Sku, current.Key.Sku, StringComparison.Ordinal))
+                    .SelectMany(other => current.Key.DescribeDifferences(other.Key))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                document.Lines[index].MergeDifferenceReason = string.Join("；", reasons);
+            }
         }
 
         document.PreviewLineCount = document.Lines.Count;
@@ -390,7 +410,11 @@ public sealed class PurchaseDraftPreviewBuilder
             LinkSku = first.LinkSku,
             CustomerSku = first.CustomerSku,
             Description = first.Description,
+            Color = first.Color,
+            Specification = first.Specification,
+            ImagePath = first.ImagePath,
             MaterialType = first.MaterialType,
+            IsCustomerSupplied = first.IsCustomerSupplied,
             Unit = first.Unit,
             QuantityScale = first.QuantityScale,
             SupplierSku = first.SupplierSku,
@@ -414,8 +438,12 @@ public sealed class PurchaseDraftPreviewBuilder
                     NetDemandVersion = x.Candidate.NetDemandVersion,
                     SupplierId = x.Candidate.PurchaseSupplierId!.Value,
                     DeliveryTargetSupplierId = x.Candidate.DeliveryTargetSupplierId,
+                    SourceType = x.Candidate.SourceType,
+                    SourceNo = x.Candidate.SourceNo,
                     SourceLineId = x.Candidate.SourceLineId,
                     SourceLineNumber = x.Candidate.SourceLineNumber,
+                    Sku = x.Candidate.Sku,
+                    LinkSku = x.Candidate.LinkSku,
                     ExpectedRemainingQty = x.Candidate.RemainingQty,
                     PurchaseQty = x.PurchaseQty,
                     DemandRequiredDate = x.Candidate.DemandRequiredDate,
@@ -493,6 +521,8 @@ public sealed class PurchaseDraftPreviewBuilder
                 .Append('|').Append(candidate.LinkSku?.Trim().ToUpperInvariant())
                 .Append('|').Append(candidate.CustomerSku?.Trim().ToUpperInvariant())
                 .Append('|').Append(candidate.Description?.Trim())
+                .Append('|').Append(candidate.Color?.Trim())
+                .Append('|').Append(candidate.Specification?.Trim())
                 .Append('|').Append(candidate.MaterialType?.Trim())
                 .Append('|').Append(candidate.Unit?.Trim().ToUpperInvariant())
                 .Append('|').Append(candidate.QuantityScale)
@@ -612,6 +642,30 @@ public sealed class PurchaseDraftPreviewBuilder
         return values.Count == 0 ? null : values.Min();
     }
 
+    /// <summary>对同一来源中因实际采购供应商不同而分开的同 SKU 行补充说明。</summary>
+    private static void AddSupplierSplitReasons(PurchaseDraftPreviewSourceGroupDto sourceGroup)
+    {
+        var lines = sourceGroup.Documents
+            .SelectMany(document => document.Lines.Select(line => new { document.SupplierId, Line = line }))
+            .ToList();
+        foreach (var current in lines)
+        {
+            if (lines.Any(other => other.SupplierId != current.SupplierId
+                && string.Equals(NormalizeText(other.Line.Sku), NormalizeText(current.Line.Sku), StringComparison.Ordinal)))
+            {
+                current.Line.MergeDifferenceReason = AppendReason(
+                    current.Line.MergeDifferenceReason,
+                    "实际采购供应商不同");
+            }
+        }
+    }
+
+    private static string AppendReason(string? existing, string reason) => string.IsNullOrWhiteSpace(existing)
+        ? reason
+        : $"{existing}；{reason}";
+
+    private static string NormalizeText(string? value) => value?.Trim().ToUpperInvariant() ?? string.Empty;
+
     private sealed record SelectedPurchaseDraftCandidate(
         PurchaseDraftPreviewCandidate Candidate,
         decimal PurchaseQty);
@@ -632,6 +686,13 @@ public sealed class PurchaseDraftPreviewBuilder
         {
             ProductId = candidate.ProductId;
             Sku = Normalize(candidate.Sku);
+            LinkSku = Normalize(candidate.LinkSku);
+            CustomerSku = Normalize(candidate.CustomerSku);
+            Description = Normalize(candidate.Description);
+            Color = Normalize(candidate.Color);
+            Specification = Normalize(candidate.Specification);
+            MaterialType = Normalize(candidate.MaterialType);
+            IsCustomerSupplied = candidate.IsCustomerSupplied;
             ExecutionType = candidate.ExecutionType;
             DeliveryTargetSupplierId = candidate.DeliveryTargetSupplierId;
             Unit = Normalize(candidate.Unit);
@@ -644,6 +705,13 @@ public sealed class PurchaseDraftPreviewBuilder
 
         public Guid? ProductId { get; }
         public string Sku { get; }
+        public string LinkSku { get; }
+        public string CustomerSku { get; }
+        public string Description { get; }
+        public string Color { get; }
+        public string Specification { get; }
+        public string MaterialType { get; }
+        public bool IsCustomerSupplied { get; }
         public DemandExecutionTypeEnum ExecutionType { get; }
         public Guid? DeliveryTargetSupplierId { get; }
         public string Unit { get; }
@@ -653,6 +721,30 @@ public sealed class PurchaseDraftPreviewBuilder
         public decimal? UnitPrice { get; }
         public decimal? TaxPrice { get; }
 
+        /// <summary>使用合并键自身解释分行原因，避免 UI 复制另一套兼容性规则。</summary>
+        public IEnumerable<string> DescribeDifferences(MergeKey other)
+        {
+            if (ProductId != other.ProductId
+                || Sku != other.Sku
+                || LinkSku != other.LinkSku
+                || CustomerSku != other.CustomerSku
+                || Description != other.Description
+                || Color != other.Color
+                || Specification != other.Specification
+                || MaterialType != other.MaterialType
+                || IsCustomerSupplied != other.IsCustomerSupplied)
+            {
+                yield return "产品身份或物料快照不同";
+            }
+            if (Unit != other.Unit) yield return "计量单位不同";
+            if (DeliveryTargetSupplierId != other.DeliveryTargetSupplierId) yield return "实际送达方不同";
+            if (UnitPrice != other.UnitPrice || TaxPrice != other.TaxPrice) yield return "采购价格不同";
+            if (HasSupplierProduct != other.HasSupplierProduct || SupplierSku != other.SupplierSku)
+                yield return "供应商产品资料不同";
+            if (QuantityScale != other.QuantityScale) yield return "数量精度不同";
+            if (ExecutionType != other.ExecutionType) yield return "执行方式不同";
+        }
+
         private static string Normalize(string? value) => value?.Trim().ToUpperInvariant() ?? string.Empty;
     }
 }
@@ -661,7 +753,7 @@ public sealed class PurchaseDraftPreviewBuildRequest
 {
     public Guid ExecutionRequestId { get; set; }
     public PurchaseDraftEntryModeEnum EntryMode { get; set; }
-    public PurchaseDraftLineModeEnum LineMode { get; set; }
+    public PurchaseDraftLineModeEnum LineMode { get; set; } = PurchaseDraftLineModeEnum.MergeCompatibleLines;
     public string SourceType { get; set; } = string.Empty;
     public Guid? SourceUid { get; set; }
     public IReadOnlyList<PurchaseDraftPreviewCandidate> Candidates { get; set; } = Array.Empty<PurchaseDraftPreviewCandidate>();
@@ -693,6 +785,9 @@ public sealed class PurchaseDraftPreviewCandidate
     public string LinkSku { get; set; } = string.Empty;
     public string CustomerSku { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string Color { get; set; } = string.Empty;
+    public string Specification { get; set; } = string.Empty;
+    public string ImagePath { get; set; } = string.Empty;
     public string MaterialType { get; set; } = string.Empty;
     public string Unit { get; set; } = string.Empty;
     public int QuantityScale { get; set; } = 4;

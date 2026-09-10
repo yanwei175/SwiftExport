@@ -137,17 +137,38 @@ public sealed partial class PurchaseDraftWarningModel : ObservableObject
     };
 }
 
+/// <summary>组合服务端采购行与所属来源/实际供应商，供预览表格只读展示。</summary>
 public sealed class PurchaseDraftPreviewLineModel
 {
-    public string SourceNo { get; init; } = string.Empty;
-    public string SupplierName { get; init; } = string.Empty;
-    public string Sku { get; init; } = string.Empty;
-    public string CustomerSku { get; init; } = string.Empty;
-    public decimal PurchaseQty { get; init; }
-    public DateTime? PlannedDeliveryDate { get; init; }
-    public string DeliveryTargetSupplierName { get; init; } = string.Empty;
-    public bool PurchaseDataIncomplete { get; init; }
-    public int ContributionCount { get; init; }
+    public string SourceType { get; set; } = string.Empty;
+    public string SourceNo { get; set; } = string.Empty;
+    public string SupplierCode { get; set; } = string.Empty;
+    public string SupplierName { get; set; } = string.Empty;
+    public string ImagePath { get; set; } = string.Empty;
+    public string Sku { get; set; } = string.Empty;
+    public string LinkSku { get; set; } = string.Empty;
+    public string CustomerSku { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Color { get; set; } = string.Empty;
+    public string Specification { get; set; } = string.Empty;
+    public string MaterialType { get; set; } = string.Empty;
+    public bool IsCustomerSupplied { get; set; }
+    public string Unit { get; set; } = string.Empty;
+    public string SupplierSku { get; set; } = string.Empty;
+    public decimal? UnitPrice { get; set; }
+    public decimal? TaxPrice { get; set; }
+    public decimal PurchaseQty { get; set; }
+    public DateTime? PlannedDeliveryDate { get; set; }
+    public string DeliveryTargetSupplierName { get; set; } = string.Empty;
+    public bool PurchaseDataIncomplete { get; set; }
+    public string MergeDifferenceReason { get; set; } = string.Empty;
+    public List<DateTime?> SourcePlannedDeliveryDates { get; set; } = [];
+    public List<PurchaseDraftSourceContributionDto> Contributions { get; set; } = [];
+    public int ContributionCount => Contributions.Count;
+    public string SupplierDisplay => $"{SupplierCode} {SupplierName}".Trim();
+    public string AttributeSummary => string.Join(" / ", new[] { Color, Specification, MaterialType }
+        .Where(value => !string.IsNullOrWhiteSpace(value)));
+    public string DeliveryModeText => IsCustomerSupplied ? "客供送达" : "标准交付";
 }
 
 public sealed class PurchaseDraftCreateResultModel

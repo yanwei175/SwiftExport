@@ -12,12 +12,15 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public int NetDemandVersion { get; set; }
         public Guid SupplierId { get; set; }
         public Guid? DeliveryTargetSupplierId { get; set; }
+        public string SourceType { get; set; }
+        public string SourceNo { get; set; }
         public Guid SourceLineId { get; set; }
         public int? SourceLineNumber { get; set; }
+        public string Sku { get; set; }
+        public string LinkSku { get; set; }
         public decimal ExpectedRemainingQty { get; set; }
         public decimal PurchaseQty { get; set; }
         public DateTime? DemandRequiredDate { get; set; }
         public DateTime? PlannedDeliveryDate { get; set; }
     }
 }
-
