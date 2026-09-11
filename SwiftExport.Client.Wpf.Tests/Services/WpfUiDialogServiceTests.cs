@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Services.UI;
@@ -13,8 +15,77 @@ namespace SwiftExport.Client.Wpf.Tests.Services;
 
 /// <summary>验证公共 DialogService 的结果、布局、关闭保护、并发和资源释放。</summary>
 [TestClass]
+[DoNotParallelize]
 public sealed class WpfUiDialogServiceTests
 {
+    /// <summary>真实 WPF-UI 模板在比例占满时应保留外围留白，并让标题和按钮处于可见外壳内。</summary>
+    [TestMethod]
+    public void RatioSize_RealTemplate_PreservesOuterMarginInsideHost() =>
+        Controls.DatePickerAssistTests.RunWithApplication(async () =>
+        {
+            Application.Current.Resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ThemesDictionary());
+            Application.Current.Resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ControlsDictionary());
+
+            var host = new ContentDialogHost();
+            var window = new Window
+            {
+                Width = 1000,
+                Height = 700,
+                Content = host,
+                WindowStyle = WindowStyle.None
+            };
+            var nativeService = new ContentDialogService();
+            nativeService.SetDialogHost(host);
+            var service = new WpfUiDialogService(nativeService);
+
+            try
+            {
+                window.Show();
+                var pending = service.ShowAsync(
+                    new Grid(),
+                    new DialogOptions("尺寸复现")
+                    {
+                        WidthRatio = 1,
+                        HeightRatio = 1,
+                        ScrollStrategy = DialogScrollStrategy.Content
+                    });
+
+                await host.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+                var dialog = (ContentDialog)host.Content!;
+                dialog.UpdateLayout();
+                var shell = FindDialogShell(dialog);
+                var shellOrigin = shell.TranslatePoint(new Point(), host);
+                var margin = dialog.DialogMargin;
+
+                Assert.IsGreaterThanOrEqualTo(shellOrigin.X, margin.Left - 0.5);
+                Assert.IsGreaterThanOrEqualTo(shellOrigin.Y, margin.Top - 0.5);
+                Assert.IsLessThanOrEqualTo(
+                    shellOrigin.X + shell.ActualWidth,
+                    host.ActualWidth - margin.Right + 0.5);
+                Assert.IsLessThanOrEqualTo(
+                    shellOrigin.Y + shell.ActualHeight,
+                    host.ActualHeight - margin.Bottom + 0.5);
+
+                var title = FindVisualDescendant<ContentPresenter>(
+                    shell,
+                    presenter => Equals(presenter.Content, dialog.Title));
+                var closeButton = dialog.Template.FindName("CloseButton", dialog) as FrameworkElement;
+                Assert.IsNotNull(title);
+                Assert.IsNotNull(closeButton);
+                Assert.IsGreaterThan(title.ActualHeight, 0);
+                Assert.IsGreaterThan(closeButton.ActualHeight, 0);
+                AssertInsideShell(title, shell);
+                AssertInsideShell(closeButton, shell);
+
+                dialog.Hide();
+                _ = await pending;
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+
     /// <summary>结构化弹窗应应用按钮、有限宿主尺寸、正文滚动和动态状态，并在完成后释放订阅。</summary>
     [TestMethod]
     public void ShowAsync_AppliesOptionsBoundsScrollAndState_ThenReleases() => StaTest.RunAsync(async () =>
@@ -177,6 +248,20 @@ public sealed class WpfUiDialogServiceTests
             () => service.ShowAsync("正文", new DialogOptions("标题") { Width = 0 }));
         await Assert.ThrowsExceptionAsync<ArgumentOutOfRangeException>(
             () => service.ShowAsync("正文", new DialogOptions("标题") { MaxHeight = double.PositiveInfinity }));
+        await Assert.ThrowsExceptionAsync<ArgumentOutOfRangeException>(
+            () => service.ShowAsync("正文", new DialogOptions("标题") { WidthRatio = 0 }));
+        await Assert.ThrowsExceptionAsync<ArgumentOutOfRangeException>(
+            () => service.ShowAsync("正文", new DialogOptions("标题") { HeightRatio = double.NaN }));
+        await Assert.ThrowsExceptionAsync<ArgumentOutOfRangeException>(
+            () => service.ShowAsync("正文", new DialogOptions("标题") { WidthRatio = 1.01 }));
+        await Assert.ThrowsExceptionAsync<ArgumentException>(
+            () => service.ShowAsync(
+                "正文",
+                new DialogOptions("标题") { Width = 500, WidthRatio = 0.8 }));
+        await Assert.ThrowsExceptionAsync<ArgumentException>(
+            () => service.ShowAsync(
+                "正文",
+                new DialogOptions("标题") { Height = 400, HeightRatio = 0.8 }));
     });
 
     /// <summary>显式宽高应同时约束 WPF-UI 外壳的最小和最大尺寸，并在宿主缩小时同步收缩。</summary>
@@ -184,7 +269,7 @@ public sealed class WpfUiDialogServiceTests
     public void ExplicitDimensions_FixShellSizeWithinCurrentHost() => StaTest.RunAsync(() =>
     {
         var host = CreateHost(1000, 700);
-        var dialog = new ContentDialog();
+        var dialog = new ContentDialog { DialogMargin = new Thickness(35) };
         var shell = new Border();
         var options = new DialogOptions("固定尺寸")
         {
@@ -195,20 +280,102 @@ public sealed class WpfUiDialogServiceTests
         };
 
         ApplyHostBounds(dialog, shell, host, options);
-        Assert.AreEqual(1000, dialog.DialogWidth);
-        Assert.AreEqual(700, dialog.DialogHeight);
-        Assert.AreEqual(1000, shell.MinWidth);
-        Assert.AreEqual(700, shell.MinHeight);
+        Assert.AreEqual(930, dialog.DialogWidth);
+        Assert.AreEqual(630, dialog.DialogHeight);
+        Assert.AreEqual(930, shell.MinWidth);
+        Assert.AreEqual(630, shell.MinHeight);
+        Assert.AreEqual(930, shell.MaxWidth);
+        Assert.AreEqual(630, shell.MaxHeight);
 
         host.Width = 640;
         host.Height = 480;
         host.Measure(new Size(640, 480));
         host.Arrange(new Rect(0, 0, 640, 480));
         ApplyHostBounds(dialog, shell, host, options);
-        Assert.AreEqual(640, dialog.DialogWidth);
-        Assert.AreEqual(480, dialog.DialogHeight);
-        Assert.AreEqual(640, shell.MinWidth);
-        Assert.AreEqual(480, shell.MinHeight);
+        Assert.AreEqual(570, dialog.DialogWidth);
+        Assert.AreEqual(410, dialog.DialogHeight);
+        Assert.AreEqual(570, shell.MinWidth);
+        Assert.AreEqual(410, shell.MinHeight);
+        Assert.AreEqual(570, shell.MaxWidth);
+        Assert.AreEqual(410, shell.MaxHeight);
+        return Task.CompletedTask;
+    });
+
+    /// <summary>比例尺寸应基于扣除外围留白后的宿主空间，并受显式最大值约束且可随宿主恢复。</summary>
+    [TestMethod]
+    public void RatioDimensions_UseAvailableHostSpaceAndRestoreAfterResize() => StaTest.RunAsync(() =>
+    {
+        var host = CreateHost(1000, 700);
+        var dialog = new ContentDialog { DialogMargin = new Thickness(35) };
+        var shell = new Border();
+        var options = new DialogOptions("比例尺寸")
+        {
+            WidthRatio = 0.8,
+            HeightRatio = 0.5,
+            MaxWidth = 700,
+            MaxHeight = 400
+        };
+
+        ApplyHostBounds(dialog, shell, host, options);
+        Assert.AreEqual(700, dialog.DialogWidth);
+        Assert.AreEqual(315, dialog.DialogHeight);
+        Assert.AreEqual(700, shell.MinWidth);
+        Assert.AreEqual(315, shell.MinHeight);
+
+        host.Width = 600;
+        host.Height = 400;
+        host.Measure(new Size(600, 400));
+        host.Arrange(new Rect(0, 0, 600, 400));
+        ApplyHostBounds(dialog, shell, host, options);
+        Assert.AreEqual(424, dialog.DialogWidth, 0.001);
+        Assert.AreEqual(165, dialog.DialogHeight, 0.001);
+
+        host.Width = 1000;
+        host.Height = 700;
+        host.Measure(new Size(1000, 700));
+        host.Arrange(new Rect(0, 0, 1000, 700));
+        ApplyHostBounds(dialog, shell, host, options);
+        Assert.AreEqual(700, dialog.DialogWidth);
+        Assert.AreEqual(315, dialog.DialogHeight);
+
+        ApplyHostBounds(
+            dialog,
+            shell,
+            host,
+            new DialogOptions("混合尺寸") { Width = 500, HeightRatio = 0.5 });
+        Assert.AreEqual(500, dialog.DialogWidth);
+        Assert.AreEqual(315, dialog.DialogHeight);
+        return Task.CompletedTask;
+    });
+
+    /// <summary>宿主尚未测量时应延迟比例固定值，极小宿主则只产生非负有限边界。</summary>
+    [TestMethod]
+    public void RatioDimensions_HandleUnmeasuredAndTinyHostWithoutInvalidValues() => StaTest.RunAsync(() =>
+    {
+        var host = new ContentDialogHost();
+        var dialog = new ContentDialog { DialogMargin = new Thickness(35) };
+        var shell = new Border();
+        var options = new DialogOptions("边界尺寸") { WidthRatio = 1, HeightRatio = 1 };
+
+        ApplyHostBounds(dialog, shell, host, options);
+        Assert.AreSame(
+            DependencyProperty.UnsetValue,
+            dialog.ReadLocalValue(ContentDialog.DialogWidthProperty));
+        Assert.AreSame(
+            DependencyProperty.UnsetValue,
+            dialog.ReadLocalValue(ContentDialog.DialogHeightProperty));
+
+        host.Width = 50;
+        host.Height = 40;
+        host.Measure(new Size(50, 40));
+        host.Arrange(new Rect(0, 0, 50, 40));
+        ApplyHostBounds(dialog, shell, host, options);
+        Assert.AreEqual(0, dialog.DialogWidth);
+        Assert.AreEqual(0, dialog.DialogHeight);
+        Assert.AreEqual(0, shell.MinWidth);
+        Assert.AreEqual(0, shell.MinHeight);
+        Assert.AreEqual(0, shell.MaxWidth);
+        Assert.AreEqual(0, shell.MaxHeight);
         return Task.CompletedTask;
     });
 
@@ -218,6 +385,44 @@ public sealed class WpfUiDialogServiceTests
         host.Measure(new Size(width, height));
         host.Arrange(new Rect(0, 0, width, height));
         return host;
+    }
+
+    /// <summary>取得真实 WPF-UI 模板中的可见弹窗外壳。</summary>
+    private static FrameworkElement FindDialogShell(ContentDialog dialog)
+    {
+        dialog.ApplyTemplate();
+        var root = dialog.Template.FindName("DialogRootGrid", dialog) as Grid;
+        Assert.IsNotNull(root);
+        Assert.HasCount(1, root.Children);
+        return (FrameworkElement)root.Children[0];
+    }
+
+    /// <summary>确认标题或按钮的布局矩形完全位于可见外壳中。</summary>
+    private static void AssertInsideShell(FrameworkElement child, FrameworkElement shell)
+    {
+        var origin = child.TranslatePoint(new Point(), shell);
+        Assert.IsGreaterThanOrEqualTo(origin.X, -0.5);
+        Assert.IsGreaterThanOrEqualTo(origin.Y, -0.5);
+        Assert.IsLessThanOrEqualTo(origin.X + child.ActualWidth, shell.ActualWidth + 0.5);
+        Assert.IsLessThanOrEqualTo(origin.Y + child.ActualHeight, shell.ActualHeight + 0.5);
+    }
+
+    /// <summary>按类型和条件查找模板中的首个可视元素。</summary>
+    private static T? FindVisualDescendant<T>(DependencyObject root, Func<T, bool> predicate)
+        where T : DependencyObject
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is T match && predicate(match))
+                return match;
+
+            var descendant = FindVisualDescendant(child, predicate);
+            if (descendant is not null)
+                return descendant;
+        }
+
+        return null;
     }
 
     /// <summary>调用私有布局映射，直接验证 WPF-UI 模板外壳的尺寸契约。</summary>

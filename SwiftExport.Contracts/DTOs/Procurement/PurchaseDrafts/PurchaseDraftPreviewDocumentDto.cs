@@ -10,6 +10,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public string SourceType { get; set; }
         public Guid SourceUid { get; set; }
         public string SourceNo { get; set; }
+        public Guid? CustomerId { get; set; }
+        public string CustomerCode { get; set; }
+        public string CustomerName { get; set; }
         public Guid SupplierId { get; set; }
         public string SupplierCode { get; set; }
         public string SupplierName { get; set; }

@@ -210,41 +210,43 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
         return dialog;
     }
 
-    /// <summary>根据当前宿主的 DIP 尺寸限制 Dialog 外壳，不猜测标题和按钮区高度。</summary>
+    /// <summary>根据宿主可用空间计算 Dialog 外壳尺寸，并保留模板定义的外围留白。</summary>
     private static void ApplyHostBounds(
         ContentDialog dialog,
         FrameworkElement? dialogShell,
         ContentDialogHost host,
         DialogOptions options)
     {
-        var hostWidth = PositiveOrInfinity(host.ActualWidth);
-        var hostHeight = PositiveOrInfinity(host.ActualHeight);
-        var maxWidth = Math.Min(options.MaxWidth ?? double.PositiveInfinity, hostWidth);
-        var maxHeight = Math.Min(options.MaxHeight ?? double.PositiveInfinity, hostHeight);
+        var margin = dialog.DialogMargin;
+        var availableWidth = GetAvailableSize(host.ActualWidth, margin.Left, margin.Right);
+        var availableHeight = GetAvailableSize(host.ActualHeight, margin.Top, margin.Bottom);
+        var maxWidth = GetEffectiveMaximum(options.MaxWidth, availableWidth);
+        var maxHeight = GetEffectiveMaximum(options.MaxHeight, availableHeight);
 
         ApplyMaximum(dialog, ContentDialog.DialogMaxWidthProperty, maxWidth);
         ApplyMaximum(dialog, ContentDialog.DialogMaxHeightProperty, maxHeight);
 
-        var requestedWidth = ClampRequestedSize(options.Width, maxWidth);
-        var requestedHeight = ClampRequestedSize(options.Height, maxHeight);
+        var requestedWidth = ResolveRequestedSize(options.Width, options.WidthRatio, availableWidth, maxWidth);
+        var requestedHeight = ResolveRequestedSize(options.Height, options.HeightRatio, availableHeight, maxHeight);
 
-        if (requestedWidth is { } width)
-            dialog.DialogWidth = width;
-        else
-            dialog.ClearValue(ContentDialog.DialogWidthProperty);
-
-        if (requestedHeight is { } height)
-            dialog.DialogHeight = height;
-        else
-            dialog.ClearValue(ContentDialog.DialogHeightProperty);
+        ApplyOptionalValue(dialog, ContentDialog.DialogWidthProperty, requestedWidth);
+        ApplyOptionalValue(dialog, ContentDialog.DialogHeightProperty, requestedHeight);
 
         if (dialogShell is not null)
         {
             // WPF-UI 4.3.0 将 DialogWidth/DialogHeight 作为模板外壳的最大尺寸，
-            // 且会在 MeasureOverride 中按正文期望尺寸改写它们。同步最小尺寸后，
-            // 调用方明确填写的尺寸才不会随列表行数变化。
-            dialogShell.MinWidth = requestedWidth ?? 0;
-            dialogShell.MinHeight = requestedHeight ?? 0;
+            // 且会在 MeasureOverride 中改写尺寸和对侧最大值。对实际 Border 同步
+            // 最小、最大尺寸，既落实显式尺寸，也阻止内容反向撑破宿主边界。
+            ApplyOptionalValue(dialogShell, FrameworkElement.MinWidthProperty, requestedWidth);
+            ApplyOptionalValue(dialogShell, FrameworkElement.MinHeightProperty, requestedHeight);
+            ApplyMaximum(
+                dialogShell,
+                FrameworkElement.MaxWidthProperty,
+                requestedWidth ?? maxWidth);
+            ApplyMaximum(
+                dialogShell,
+                FrameworkElement.MaxHeightProperty,
+                requestedHeight ?? maxHeight);
         }
     }
 
@@ -258,18 +260,86 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
         return root.Children[0] as FrameworkElement;
     }
 
-    /// <summary>将首选尺寸限制在宿主与显式最大尺寸形成的有效上限内。</summary>
-    private static double? ClampRequestedSize(double? requestedSize, double maximum) =>
-        requestedSize is { } value ? Math.Min(value, maximum) : null;
+    /// <summary>从宿主安排尺寸中扣除模板外边距；宿主尚未测量时返回空值以延后比例计算。</summary>
+    private static double? GetAvailableSize(double hostSize, double leadingMargin, double trailingMargin)
+    {
+        if (!double.IsFinite(hostSize) || hostSize <= 0)
+            return null;
+
+        var marginSize = leadingMargin + trailingMargin;
+        if (!double.IsFinite(marginSize) || marginSize < 0)
+            marginSize = 0;
+
+        return Math.Max(0, hostSize - marginSize);
+    }
+
+    /// <summary>合并调用方最大值与当前宿主上限；任一方缺失时保留另一方。</summary>
+    private static double? GetEffectiveMaximum(double? requestedMaximum, double? hostMaximum) =>
+        (requestedMaximum, hostMaximum) switch
+        {
+            ({ } requested, { } host) => Math.Min(requested, host),
+            ({ } requested, null) => requested,
+            (null, { } host) => host,
+            _ => null
+        };
+
+    /// <summary>按固定值或宿主比例计算外壳尺寸，并限制到有效最大值。</summary>
+    private static double? ResolveRequestedSize(
+        double? fixedSize,
+        double? ratio,
+        double? availableSize,
+        double? maximum)
+    {
+        var requestedSize = fixedSize;
+        if (requestedSize is null && ratio is { } ratioValue && availableSize is { } available)
+            requestedSize = available * ratioValue;
+
+        if (requestedSize is { } value && maximum is { } limit)
+            return Math.Min(value, limit);
+
+        return requestedSize;
+    }
 
     /// <summary>存在有限约束时写入最大尺寸，否则恢复控件或样式提供的默认值。</summary>
-    private static void ApplyMaximum(ContentDialog dialog, DependencyProperty property, double value)
+    private static void ApplyMaximum(DependencyObject target, DependencyProperty property, double? value)
     {
-        if (double.IsFinite(value))
-            dialog.SetValue(property, value);
+        if (value is { } maximum && double.IsFinite(maximum))
+            ApplyValue(target, property, maximum);
         else
-            dialog.ClearValue(property);
+            ClearLocalValue(target, property);
     }
+
+    /// <summary>仅在有效值变化时更新依赖属性，空值则恢复模板或样式值。</summary>
+    private static void ApplyOptionalValue(
+        DependencyObject target,
+        DependencyProperty property,
+        double? value)
+    {
+        if (value is { } actualValue && double.IsFinite(actualValue))
+            ApplyValue(target, property, actualValue);
+        else
+            ClearLocalValue(target, property);
+    }
+
+    /// <summary>避免把相同尺寸重复写回 WPF 布局系统。</summary>
+    private static void ApplyValue(DependencyObject target, DependencyProperty property, double value)
+    {
+        if (target.ReadLocalValue(property) is double current && AreClose(current, value))
+            return;
+
+        // 外壳的 MaxWidth/MaxHeight 原本是 TemplateBinding。这里需要建立本地值，
+        // 避免 WPF-UI 随后的 MeasureOverride 改写 Dialog 属性后把边界再次撑大。
+        target.SetValue(property, value);
+    }
+
+    /// <summary>仅清理由本服务写入的本地值，避免无意义的重新测量。</summary>
+    private static void ClearLocalValue(DependencyObject target, DependencyProperty property)
+    {
+        if (target.ReadLocalValue(property) != DependencyProperty.UnsetValue)
+            target.ClearValue(property);
+    }
+
+    private static bool AreClose(double left, double right) => Math.Abs(left - right) < 0.01;
 
     /// <summary>同步状态对象提供的按钮准入；空状态使用 WPF-UI 默认启用行为。</summary>
     private static void ApplyButtonState(ContentDialog dialog, IDialogContentState? state)
@@ -283,8 +353,19 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
     {
         ValidateDimension(options.Width, nameof(options.Width));
         ValidateDimension(options.Height, nameof(options.Height));
+        ValidateRatio(options.WidthRatio, nameof(options.WidthRatio));
+        ValidateRatio(options.HeightRatio, nameof(options.HeightRatio));
         ValidateDimension(options.MaxWidth, nameof(options.MaxWidth));
         ValidateDimension(options.MaxHeight, nameof(options.MaxHeight));
+
+        if (options.Width is not null && options.WidthRatio is not null)
+            throw new ArgumentException(
+                "Width 与 WidthRatio 不能同时指定。",
+                nameof(DialogOptions.WidthRatio));
+        if (options.Height is not null && options.HeightRatio is not null)
+            throw new ArgumentException(
+                "Height 与 HeightRatio 不能同时指定。",
+                nameof(DialogOptions.HeightRatio));
     }
 
     private static void ValidateDimension(double? value, string name)
@@ -294,8 +375,13 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
             throw new ArgumentOutOfRangeException(name, "Dialog 尺寸必须是大于零的有限 DIP 值。");
     }
 
-    private static double PositiveOrInfinity(double value) =>
-        double.IsFinite(value) && value > 0 ? value : double.PositiveInfinity;
+    /// <summary>验证比例可安全参与宿主尺寸计算。</summary>
+    private static void ValidateRatio(double? value, string name)
+    {
+        if (value is not { } ratio) return;
+        if (!double.IsFinite(ratio) || ratio <= 0 || ratio > 1)
+            throw new ArgumentOutOfRangeException(name, "Dialog 尺寸比例必须是大于零且不超过一的有限值。");
+    }
 
     private static WpfContentDialogButton MapButton(DialogButton button) => button switch
     {

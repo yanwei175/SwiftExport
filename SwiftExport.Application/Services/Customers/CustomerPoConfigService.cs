@@ -14,12 +14,45 @@ using SwiftExport.Core.Interfaces;
 using System.Text;
 namespace SwiftExport.Application.Services.Customers;
 
-public partial class CustomerPoConfigService(ICustomerPoConfigRepository repository, ServiceBaseContext context)
+/// <summary>编排客户采购默认配置查询、组合校验与原子批量保存。</summary>
+public partial class CustomerPoConfigService(
+    ICustomerPoConfigRepository repository,
+    ISysDicCurrencyRepository currencyRepository,
+    ServiceBaseContext context)
     : BaseService<CustomerPoConfig, CustomerPoConfigDto>(repository, context), ICustomerPoConfigService
 {
     private readonly ILogger<CustomerPoConfigService> _logger = context.LoggerFactory.CreateLogger<CustomerPoConfigService>();
 
     #region 显式基础读写
+
+    /// <summary>校验主数据标识后，返回指定客户与供应商的完整只读配置。</summary>
+    public async Task<ServiceResult<CustomerPoConfigDto>> GetByPartiesAsync(
+        Guid customerId,
+        Guid supplierId,
+        CancellationToken cancellationToken = default)
+    {
+        if (customerId == Guid.Empty)
+            return ServiceResult<CustomerPoConfigDto>.Fail("客户 Id 不能为空。");
+        if (supplierId == Guid.Empty)
+            return ServiceResult<CustomerPoConfigDto>.Fail("供应商 Id 不能为空。");
+
+        try
+        {
+            var dto = await repository.GetByPartiesAsync(customerId, supplierId, cancellationToken);
+            return dto == null
+                ? ServiceResult<CustomerPoConfigDto>.Fail("未找到该客户与供应商的采购默认配置。")
+                : ServiceResult<CustomerPoConfigDto>.Ok(dto);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "按客户和供应商查询采购默认配置失败。CustomerId={CustomerId}, SupplierId={SupplierId}", customerId, supplierId);
+            return ServiceResult<CustomerPoConfigDto>.Fail("查询客户采购默认配置失败。");
+        }
+    }
 
     public async Task<ServiceResult<IReadOnlyList<CustomerPoConfigDto>>> GetAllAsync()
     {
@@ -88,7 +121,7 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
                 var entity = item.Data.Adapt<CustomerPoConfig>();
 
                 if (!await repository.PopulateRelationIdsAsync(entity))
-                    throw new InvalidOperationException("客户或供应商编码无法唯一解析为 Uid。");
+                    throw CreateRelationResolutionException(entity);
 
                 var writeResult = await _repository.AddAsync(entity);
 
@@ -107,7 +140,7 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
                 var entity = item.Data.Adapt<CustomerPoConfig>();
 
                 if (!await repository.PopulateRelationIdsAsync(entity))
-                    throw new InvalidOperationException("客户或供应商编码无法唯一解析为 Uid。");
+                    throw CreateRelationResolutionException(entity);
 
                 entity.Uid = item.Uid;
                 entity.Version = item.Version;
@@ -159,6 +192,15 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
     }
     private async Task<string?> ValidateBatchSaveAsync(CustomerPoConfigBatchSaveRequest batchReq)
     {
+        foreach (var item in batchReq.CreateItems)
+        {
+            if (item.Data != null) NormalizeCodes(item.Data);
+        }
+        foreach (var item in batchReq.UpdateItems)
+        {
+            if (item.Data != null) NormalizeCodes(item.Data);
+        }
+
         var errorMsg = new StringBuilder();
 
         if (batchReq.CreateItems.Count > 0)
@@ -188,6 +230,40 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
             }
         }
 
+        if (errorMsg.Length == 0)
+        {
+            var submittedPairs = batchReq.CreateItems
+                .Where(item => item.Data != null)
+                .Select(item => new PoConfigCheck
+                {
+                    CustomerCode = item.Data.CustomerCode,
+                    SupplierCode = item.Data.SupplierCode
+                })
+                .Concat(batchReq.UpdateItems.Where(item => item.Data != null).Select(item => new PoConfigCheck
+                {
+                    Uid = item.Uid,
+                    CustomerCode = item.Data.CustomerCode,
+                    SupplierCode = item.Data.SupplierCode
+                }))
+                .ToList();
+
+            var duplicatePairs = submittedPairs
+                .GroupBy(item => $"{item.CustomerCode}|{item.SupplierCode}", StringComparer.OrdinalIgnoreCase)
+                .Where(group => group.Count() > 1)
+                .Select(group => group.Key.Replace('|', '+'))
+                .ToList();
+            if (duplicatePairs.Count > 0)
+            {
+                errorMsg.AppendLine("保存失败：本次提交中存在重复客户+供应商：" + string.Join(", ", duplicatePairs));
+            }
+            else
+            {
+                var occupiedPairs = await repository.GetUsedByCustomerCodeAndSupplierCodeAsync(submittedPairs);
+                if (occupiedPairs.Count > 0)
+                    errorMsg.AppendLine("保存失败：以下客户+供应商组合已被其他记录使用：" + string.Join(", ", occupiedPairs));
+            }
+        }
+
         return errorMsg.Length > 0
             ? errorMsg.ToString().TrimEnd()
             : null;
@@ -203,6 +279,8 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
                 return $"第 {item.RowIndex} 行：新增数据不能为空。";
             }
 
+            NormalizeCodes(item.Data);
+
             if (string.IsNullOrWhiteSpace(item.Data.CustomerCode))
             {
                 return $"第 {item.RowIndex} 行：客户代码不能为空。";
@@ -213,12 +291,18 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
                 return $"第 {item.RowIndex} 行：供应商代码名称不能为空。";
             }
 
+            var lengthError = ValidateFieldLengths(item.Data);
+            if (!string.IsNullOrWhiteSpace(lengthError)) return $"第 {item.RowIndex} 行：{lengthError}";
+
             codes.Add(new PoConfigCheck
             {
                 CustomerCode = item.Data.CustomerCode.Trim(),
                 SupplierCode = item.Data.SupplierCode.Trim()
             });
         }
+
+        var currencyError = await ValidateCurrenciesAsync(createItems.Select(item => item.Data));
+        if (!string.IsNullOrWhiteSpace(currencyError)) return currencyError;
 
         var duplicatePairsInRequest = codes
             .GroupBy(
@@ -227,7 +311,7 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
                     CustomerCode = x.CustomerCode!.ToUpperInvariant(),
                     SupplierCode = x.SupplierCode!.ToUpperInvariant()
                 })
-            .Where(g => g.Select(x => x.Uid).Distinct().Count() > 1)
+            .Where(g => g.Count() > 1)
             .Select(g => $"{g.Key.CustomerCode} + {g.Key.SupplierCode}")
             .ToList();
 
@@ -266,6 +350,8 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
                 return $"第 {item.RowIndex} 行：修改数据不能为空。";
             }
 
+            NormalizeCodes(item.Data);
+
             if (string.IsNullOrWhiteSpace(item.Data.CustomerCode))
             {
                 return $"第 {item.RowIndex} 行：客户不能为空。";
@@ -275,7 +361,13 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
             {
                 return $"第 {item.RowIndex} 行：供应商不能为空。";
             }
+
+            var lengthError = ValidateFieldLengths(item.Data);
+            if (!string.IsNullOrWhiteSpace(lengthError)) return $"第 {item.RowIndex} 行：{lengthError}";
         }
+
+        var currencyError = await ValidateCurrenciesAsync(updateItems.Select(item => item.Data));
+        if (!string.IsNullOrWhiteSpace(currencyError)) return currencyError;
 
         var uids = updateItems
             .Select(x => x.Uid)
@@ -364,6 +456,64 @@ public partial class CustomerPoConfigService(ICustomerPoConfigRepository reposit
 
         return null;
     }
+
+    /// <summary>统一清理业务编码和新增可选字段，确保校验与最终写入采用同一值。</summary>
+    private static void NormalizeCodes(CustomerPoConfigDto data)
+    {
+        data.CustomerCode = data.CustomerCode?.Trim();
+        data.SupplierCode = data.SupplierCode?.Trim();
+        data.Currency = string.IsNullOrWhiteSpace(data.Currency) ? null : data.Currency.Trim();
+        data.DiscountRemark = string.IsNullOrWhiteSpace(data.DiscountRemark) ? null : data.DiscountRemark.Trim();
+    }
+
+    /// <summary>按数据库列宽验证文本，避免把截断异常推迟到事务写入阶段。</summary>
+    internal static string? ValidateFieldLengths(CustomerPoConfigDto data)
+    {
+        if (data.CustomerCode?.Length > 255) return "客户编码不能超过 255 个字符。";
+        if (data.SupplierCode?.Length > 50) return "供应商编码不能超过 50 个字符。";
+        if (data.Currency?.Length > 10) return "币种代码不能超过 10 个字符。";
+        if (data.DefaultDiscountRate is < 0m) return "默认折扣率不能小于 0。";
+        if (data.DefaultDiscountRate.HasValue && decimal.Round(data.DefaultDiscountRate.Value, 6) != data.DefaultDiscountRate.Value)
+            return "默认折扣率最多保留 6 位小数。";
+        if (data.DiscountRemark?.Length > 500) return "折扣备注不能超过 500 个字符。";
+        var fiftyCharacterFields = new[]
+        {
+            data.InletHoseType, data.AeratorType, data.PalletType, data.BoxType,
+            data.LabelType, data.IMType, data.CartonType, data.LogoType
+        };
+        if (fiftyCharacterFields.Any(value => value?.Length > 50))
+            return "进水管、起泡器、托盘、包装盒、标签、说明书、外箱和标志不能超过 50 个字符。";
+        if (data.SalesPerson?.Length > 10) return "销售人员不能超过 10 个字符。";
+        if (data.Purchaser?.Length > 10) return "采购人员不能超过 10 个字符。";
+        return null;
+    }
+
+    /// <summary>校验所有非空币种代码均存在于未删除币种主数据；停用币种仍允许保留历史引用。</summary>
+    private async Task<string?> ValidateCurrenciesAsync(IEnumerable<CustomerPoConfigDto> items)
+    {
+        var codes = items
+            .Select(item => item.Currency)
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Select(code => code!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (codes.Length == 0) return null;
+
+        var currencies = await currencyRepository.GetByCurrencyCodesAsync(codes);
+        var existingCodes = currencies
+            .Where(currency => !string.IsNullOrWhiteSpace(currency.CurrencyCode))
+            .Select(currency => currency.CurrencyCode!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missingCodes = codes.Where(code => !existingCodes.Contains(code)).ToArray();
+        return missingCodes.Length == 0
+            ? null
+            : "以下币种代码不存在：" + string.Join(", ", missingCodes);
+    }
+
+    /// <summary>构造包含主数据标识和编码的关系解析错误，便于定位缺失、删除或重复主数据。</summary>
+    private static InvalidOperationException CreateRelationResolutionException(CustomerPoConfig entity) => new(
+        $"客户或供应商无法解析为有效 Uid。客户：{entity.CustomerCode ?? "（空）"} / {entity.CustomerId?.ToString() ?? "无 Id"}；" +
+        $"供应商：{entity.SupplierCode ?? "（空）"} / {entity.SupplierId?.ToString() ?? "无 Id"}。请检查主数据是否存在、未删除；缺少 Id 时编码必须唯一。");
     #endregion
 
 }

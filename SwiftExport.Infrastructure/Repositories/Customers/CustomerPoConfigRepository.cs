@@ -12,36 +12,90 @@ using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Customers;
 
+/// <summary>提供客户采购默认配置的分页查询、关系解析和组合唯一性检查。</summary>
 public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperRepository<CustomerPoConfig>(context), ICustomerPoConfigRepository
 {
+    /// <summary>按客户与供应商标识读取完整的活动配置 DTO。</summary>
+    public Task<CustomerPoConfigDto?> GetByPartiesAsync(
+        Guid customerId,
+        Guid supplierId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT
+                cpc.Uid, cpc.Version, cpc.IsDeleted,
+                cpc.CreatedDate, cpc.CreatedBy, cpc.UpdatedDate, cpc.UpdatedBy,
+                cpc.CustomerId, cpc.CustomerCode, cpc.SupplierId, cpc.SupplierCode,
+                cpc.Currency, cpc.DefaultDiscountRate, cpc.DiscountRemark,
+                cpc.InletHoseType, cpc.AeratorType, cpc.PalletType, cpc.BoxType,
+                cpc.LabelType, cpc.IMType, cpc.CartonType, cpc.LogoType,
+                cpc.SalesPerson, cpc.Purchaser, cpc.Note
+            FROM dbo.CustomerPoConfig AS cpc
+            WHERE cpc.CustomerId = @CustomerId
+              AND cpc.SupplierId = @SupplierId
+              AND cpc.IsDeleted = 0;
+            """;
+
+        return Connection.QuerySingleOrDefaultAsync<CustomerPoConfigDto>(new CommandDefinition(
+            sql,
+            new { CustomerId = customerId, SupplierId = supplierId },
+            Transaction,
+            cancellationToken: cancellationToken));
+    }
+
+    /// <summary>按唯一有效业务编码解析客户与供应商标识并写入实体。</summary>
     public async Task<bool> PopulateRelationIdsAsync(CustomerPoConfig entity)
     {
         const string sql = """
             SELECT
-              (SELECT CASE WHEN COUNT_BIG(*)=1 THEN MAX(Uid) END FROM dbo.Customer WHERE CustomerCode=@CustomerCode AND ISNULL(IsDeleted,0)=0) AS CustomerId,
-              (SELECT CASE WHEN COUNT_BIG(*)=1 THEN MAX(Uid) END FROM dbo.Supplier WHERE SupplierCode=@SupplierCode AND ISNULL(IsDeleted,0)=0) AS SupplierId;
+              (SELECT CASE WHEN COUNT_BIG(*)=1 THEN MAX(Uid) END FROM dbo.Customer
+               WHERE ISNULL(IsDeleted,0)=0
+                 AND ((@CustomerId IS NOT NULL AND Uid=@CustomerId) OR (@CustomerId IS NULL AND CustomerCode=@CustomerCode))) AS CustomerId,
+              (SELECT CASE WHEN COUNT_BIG(*)=1 THEN MAX(CustomerCode) END FROM dbo.Customer
+               WHERE ISNULL(IsDeleted,0)=0
+                 AND ((@CustomerId IS NOT NULL AND Uid=@CustomerId) OR (@CustomerId IS NULL AND CustomerCode=@CustomerCode))) AS CustomerCode,
+              (SELECT CASE WHEN COUNT_BIG(*)=1 THEN MAX(Uid) END FROM dbo.Supplier
+               WHERE ISNULL(IsDeleted,0)=0
+                 AND ((@SupplierId IS NOT NULL AND Uid=@SupplierId) OR (@SupplierId IS NULL AND SupplierCode=@SupplierCode))) AS SupplierId,
+              (SELECT CASE WHEN COUNT_BIG(*)=1 THEN MAX(SupplierCode) END FROM dbo.Supplier
+               WHERE ISNULL(IsDeleted,0)=0
+                 AND ((@SupplierId IS NOT NULL AND Uid=@SupplierId) OR (@SupplierId IS NULL AND SupplierCode=@SupplierCode))) AS SupplierCode;
             """;
-        var ids = await Connection.QuerySingleAsync<RelationIds>(sql, new { entity.CustomerCode, entity.SupplierCode }, Transaction);
+        var ids = await Connection.QuerySingleAsync<RelationIds>(sql, new
+        {
+            entity.CustomerId,
+            entity.CustomerCode,
+            entity.SupplierId,
+            entity.SupplierCode
+        }, Transaction);
         if (!ids.CustomerId.HasValue || !ids.SupplierId.HasValue) return false;
         entity.CustomerId = ids.CustomerId;
+        entity.CustomerCode = ids.CustomerCode;
         entity.SupplierId = ids.SupplierId;
+        entity.SupplierCode = ids.SupplierCode;
         return true;
     }
 
+    /// <summary>返回活动记录中已经存在的客户与供应商完整组合。</summary>
     public async Task<IReadOnlyList<string>> GetExistingCustomerCodesAsync(IEnumerable<PoConfigCheck> items)
     {
         var sql = $@"SELECT {nameof(CustomerPoConfig.CustomerCode)},
-                            {nameof(CustomerPoConfig.SupplierCode)} 
+                            {nameof(CustomerPoConfig.SupplierCode)}
                     FROM [{TableName}]
-                    WHERE  {nameof(Customer.IsDeleted)}=0 
+                    WHERE  {nameof(Customer.IsDeleted)}=0
                       AND {nameof(CustomerPoConfig.CustomerCode)} IN @CustomerCode
                       AND  {nameof(CustomerPoConfig.SupplierCode)} IN @SupplierCode";
-        var rst = await Connection.QueryAsync<string>(sql, new
+        var candidates = (await Connection.QueryAsync<PoConfigCheck>(sql, new
         {
             CustomerCode = items.Select(i => i.CustomerCode),
             SupplierCode = items.Select(i => i.SupplierCode)
-        }, transaction: Transaction);
-        return [.. rst];
+        }, transaction: Transaction)).ToList();
+        var requested = items.Select(ToPairKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return candidates
+            .Where(item => requested.Contains(ToPairKey(item)))
+            .Select(item => $"{item.CustomerCode} + {item.SupplierCode}")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     public async Task<IReadOnlyList<PoConfigCheck>> GetNonUniqueByPoConfigCheckList(IEnumerable<PoConfigCheck> poConfigCheckList)
@@ -53,8 +107,8 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
         }
         var customerCodes = poConfigCheckList.Select(x => x.CustomerCode).Distinct().ToArray();
         var supplierCodes = poConfigCheckList.Select(x => x.SupplierCode).Distinct().ToArray();
-        var sql = $@"SELECT CustomerCode, SupplierCode 
-                    FROM [{TableName}] 
+        var sql = $@"SELECT CustomerCode, SupplierCode
+                    FROM [{TableName}]
                     WHERE  CustomerCode IN @CustomerCodes AND SupplierCode IN @SupplierCodes";
 
 
@@ -83,6 +137,7 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
 
     }
 
+    /// <summary>按客户或供应商编码分页查询活动配置。</summary>
     public async Task<PagedResponseBase<CustomerPoConfigDto>> GetPagedAsync(CustomerPoConfigSearchRequest request)
     {
         request ??= new CustomerPoConfigSearchRequest();
@@ -107,8 +162,8 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
         {
             whereSb.AppendLine(@$"
                                     AND (
-                                           {nameof(CustomerPoConfig.CustomerCode)}       LIKE @Keyword ESCAPE '~'
-                                        OR {nameof(CustomerPoConfig.SupplierCode)}       LIKE @Keyword ESCAPE '~'
+                                           cpc.{nameof(CustomerPoConfig.CustomerCode)} LIKE @Keyword ESCAPE '~'
+                                        OR cpc.{nameof(CustomerPoConfig.SupplierCode)} LIKE @Keyword ESCAPE '~'
                                     )");
 
             parameters.Add("@Keyword", SqlLikePattern.Build(request.Keyword));
@@ -121,14 +176,19 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
 
         var sql = $@"
                         SELECT COUNT(1)
-                        FROM
-                        {TableName}
+                        FROM dbo.[{TableName}] AS cpc
                         {whereClause};
-                        SELECT *
-                        FROM
-                        {TableName}
+                        SELECT
+                            cpc.Uid, cpc.CustomerId, cpc.CustomerCode, cpc.SupplierId, cpc.SupplierCode,
+                            cpc.Currency, cpc.DefaultDiscountRate, cpc.DiscountRemark,
+                            cpc.InletHoseType, cpc.AeratorType, cpc.PalletType, cpc.BoxType,
+                            cpc.LabelType, cpc.IMType, cpc.CartonType, cpc.LogoType,
+                            cpc.SalesPerson, cpc.Purchaser, cpc.Note,
+                            cpc.Version, cpc.IsDeleted,
+                            cpc.CreatedDate, cpc.CreatedBy, cpc.UpdatedDate, cpc.UpdatedBy
+                        FROM dbo.[{TableName}] AS cpc
                         {whereClause}
-                        ORDER BY {nameof(CustomerPoConfig.CreatedDate)} DESC
+                        ORDER BY cpc.{nameof(CustomerPoConfig.CreatedDate)} DESC, cpc.{nameof(CustomerPoConfig.Uid)} DESC
                         OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
                         ";
 
@@ -148,11 +208,11 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
             PageSize = pageSize
         };
     }
+    /// <summary>返回被其他活动记录占用的客户与供应商组合。</summary>
     public async Task<List<string>> GetUsedByCustomerCodeAndSupplierCodeAsync(IEnumerable<PoConfigCheck> items)
     {
         var list = items
             .Where(x =>
-                x.Uid != Guid.Empty &&
                 !string.IsNullOrWhiteSpace(x.CustomerCode) &&
                 !string.IsNullOrWhiteSpace(x.SupplierCode))
             .Select(x => new PoConfigCheck
@@ -179,7 +239,7 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
             .ToList();
 
         var sql = $@"
-                       SELECT 
+                       SELECT
                            {nameof(CustomerPoConfig.Uid)},
                            {nameof(CustomerPoConfig.CustomerCode)},
                            {nameof(CustomerPoConfig.SupplierCode)}
@@ -204,7 +264,7 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
         foreach (var item in list)
         {
             var exists = dbRows.Any(db =>
-                db.Uid != item.Uid &&
+                (item.Uid == Guid.Empty || db.Uid != item.Uid) &&
                 string.Equals(db.CustomerCode, item.CustomerCode, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(db.SupplierCode, item.SupplierCode, StringComparison.OrdinalIgnoreCase));
 
@@ -217,10 +277,16 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
         return [.. usedPairs.Distinct(StringComparer.OrdinalIgnoreCase)];
     }
 
+    /// <summary>建立忽略大小写的客户与供应商组合键。</summary>
+    private static string ToPairKey(PoConfigCheck item) =>
+        $"{item.CustomerCode?.Trim()}|{item.SupplierCode?.Trim()}";
+
     private sealed class RelationIds
     {
         public Guid? CustomerId { get; set; }
+        public string? CustomerCode { get; set; }
         public Guid? SupplierId { get; set; }
+        public string? SupplierCode { get; set; }
     }
 }
 

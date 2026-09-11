@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
+using SwiftExportClient.Features.Customers.CustomerPoConfigs.ViewModels;
 using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
@@ -12,6 +13,7 @@ using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.Placeholders.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
 using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
@@ -33,6 +35,7 @@ using SwiftExportClient.Shell;
 
 namespace SwiftExportClient.Bootstrapper;
 
+/// <summary>注册客户端窗口、视图模型及其瞬态生命周期。</summary>
 public static class ViewRegistrationExtensions
 {
     public static IServiceCollection AddSwiftExportClientViews(this IServiceCollection services)
@@ -52,6 +55,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<ProductCategoryManagerViewModel>();
         services.AddTransient<ProductBomViewModel>();
         services.AddTransient<CustomerManagerViewModel>();
+        services.AddTransient<CustomerPoConfigManagerViewModel>();
         services.AddTransient<CustomerProductManagerViewModel>();
         services.AddTransient<CustomerProductWorkspaceViewModel>();
         services.AddTransient<SupplierManagerViewModel>();
@@ -70,6 +74,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<NetDemandPlanEditorViewModel>();
         services.AddTransient<NetDemandTraceViewModel>();
         services.AddTransient<PurchaseDraftWorkflowViewModel>();
+        services.AddTransient<PurchasePreparationService>();
         services.AddTransient<PurchaseOrderManagerViewModel>();
         services.AddTransient<PurchaseOrderProgressWorkspaceViewModel>();
         services.AddTransient<PurchaseOrderDetailViewModel>();

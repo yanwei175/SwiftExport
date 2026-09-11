@@ -61,20 +61,22 @@ if (result == DialogResult.Primary)
 
 这里必须使用 `Disabled`。`Hidden` 只是隐藏滚动条，仍可能让外层 ScrollViewer 参与测量。
 
-关闭外层滚动不会为 Dialog 建立固定高度。如果调用方没有提供 `Height`，正文仍可能按数据量改变弹窗高度。表格类页面应明确设置合适的 `Width`、`Height`，并让内部 `DataGrid`、`ListBox` 在剩余空间内自行滚动：
+关闭外层滚动不会为 Dialog 建立固定高度。如果调用方没有提供高度或高度比例，正文仍可能按数据量改变弹窗高度。表格类页面可以按宿主可用空间的比例设置外壳，并让内部 `DataGrid`、`ListBox` 在剩余空间内自行滚动：
 
 ```csharp
 var options = new DialogOptions("选择数据")
 {
-    Width = 1200,
-    Height = 760,
-    MaxWidth = 1400,
-    MaxHeight = 850,
+    WidthRatio = 0.95,
+    HeightRatio = 0.9,
     ScrollStrategy = DialogScrollStrategy.Content
 };
 ```
 
-WPF-UI 4.3.0 的 `DialogWidth`、`DialogHeight` 原生表示模板外壳的最大尺寸，布局时还会被正文期望尺寸改写。公共服务会为明确填写的 `Width`、`Height` 同步外壳最小尺寸，使它们表现为固定外壳尺寸；宿主变小时仍会收缩到可用范围。不填写时不施加最小尺寸，继续采用 WPF-UI 的按内容测量行为。
+`WidthRatio = 1`、`HeightRatio = 1` 表示占满扣除 WPF-UI 外围留白后的宿主可用空间，并不表示屏幕全屏。比例会在宿主缩放时重新计算，所以大表格弹窗通常比写死 DIP 尺寸更合适。
+
+WPF-UI 4.3.0 的 `DialogWidth`、`DialogHeight` 原生表示模板外壳的最大尺寸，布局时还会被正文期望尺寸改写。公共服务会为明确填写的固定尺寸或比例尺寸同步外壳最小、最大尺寸，使弹窗不会随列表行数变化，也不会由正文反向撑破宿主边界。不填写时不施加固定尺寸，继续采用 WPF-UI 的按内容测量行为。
+
+外壳同步依赖当前 4.3.0 模板中的 `DialogRootGrid` 结构。升级 WPF-UI 时必须运行 `WpfUiDialogServiceTests` 的真实模板场景，确认模板名称、外围边距和标题/按钮布局仍兼容。
 
 ## 4. 动态按钮和关闭校验
 
@@ -117,9 +119,13 @@ finally
 
 ## 6. 尺寸和宿主
 
-`Width`、`Height`、`MaxWidth`、`MaxHeight` 使用 WPF DIP。未设置 `Width` 或 `Height` 时，服务不写入本地值，保留 ContentDialog 的样式或控件默认值；同时仍通过 `DialogMaxWidth`、`DialogMaxHeight` 施加当前宿主边界。设置了首选尺寸时，服务会把它限制在请求最大值和当前 `ContentDialogHost.ActualWidth/ActualHeight` 内，并在宿主尺寸变化时重新计算。
+`Width`、`Height`、`MaxWidth`、`MaxHeight` 使用 WPF DIP；`WidthRatio`、`HeightRatio` 使用大于零且不超过一的有限数。固定尺寸和比例可以跨方向混用，例如固定宽度配比例高度；同一方向不能同时设置 `Width` 与 `WidthRatio`，或同时设置 `Height` 与 `HeightRatio`，否则服务会在展示前抛出参数异常。
 
-标题、按钮和模板边距属于 Dialog 外壳。调用方应根据整个弹窗需要设置 `Height`，不在公共服务中手工扣除标题或按钮高度。WPF 使用 DIP，因此无需手工进行 DPI 像素换算。
+未设置固定尺寸或比例时，服务不写入对应外壳尺寸，保留 ContentDialog 的按内容测量行为。`MaxWidth`、`MaxHeight` 始终是可选上限；最终外壳尺寸同时受固定值或比例值、显式最大值、当前宿主可用空间限制。
+
+宿主可用空间按 `ContentDialogHost` 的实际布局尺寸计算，并扣除 WPF-UI 模板当前 `DialogMargin`。因此固定尺寸大于宿主时会安全收缩，比例一会保留模板外围留白。窗口缩小后再放大时，服务会从原始 `DialogOptions` 重新计算，而不是沿用缩小时的结果。
+
+标题、正文和底部按钮都属于可见 Dialog 外壳。公共服务只扣模板外壳之外的 `DialogMargin`，不会手工扣标题或按钮高度，也不会重复扣正文边距。WPF 使用 DIP，因此无需手工进行 DPI 像素换算。
 
 窗口必须在 `Loaded` 阶段通过 WPF-UI `IContentDialogService.SetDialogHost` 注册宿主。没有有效宿主时，公共服务会抛出明确异常。
 

@@ -15,5 +15,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public Guid? SourceUid { get; set; }
         public Guid? SupplierId { get; set; }
         public List<Guid> NetDemandIds { get; set; } = new List<Guid>();
+        /// <summary>受警告或确认范围覆盖的结构化物料摘要；包含未被本次勾选但受关联规则影响的对象。</summary>
+        public List<PurchaseDraftWarningAffectedObjectDto> AffectedObjects { get; set; } = new List<PurchaseDraftWarningAffectedObjectDto>();
     }
 }

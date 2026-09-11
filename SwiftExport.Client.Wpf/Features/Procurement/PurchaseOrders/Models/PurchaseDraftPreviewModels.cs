@@ -1,9 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums;
-using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
@@ -39,6 +38,9 @@ public sealed partial class PurchaseDraftSelectionItemModel : ObservableObject
     public string SuggestedDeliverySupplierHint { get; init; } = string.Empty;
     public IReadOnlyList<PurchaseDraftActualSupplierFactDto> ParentActualPurchaseSuppliers { get; init; } = [];
     public bool IsQuantityReadOnly { get; init; }
+    public Guid? CustomerId { get; init; }
+    public string CustomerCode { get; init; } = string.Empty;
+    public string CustomerName { get; init; } = string.Empty;
     public string? QuantityError => PurchaseQty <= 0 || PurchaseQty > ExpectedRemainingQty
         ? $"本次数量必须大于 0 且不超过 {ExpectedRemainingQty:N4}。"
         : null;
@@ -46,6 +48,15 @@ public sealed partial class PurchaseDraftSelectionItemModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(QuantityError))]
     public partial decimal PurchaseQty { get; set; }
+
+    [ObservableProperty]
+    public partial decimal UnitPrice { get; set; }
+
+    [ObservableProperty]
+    public partial decimal TaxPrice { get; set; }
+
+    [ObservableProperty]
+    public partial DateTime? PlannedDeliveryDate { get; set; }
 
     [ObservableProperty]
     public partial string PurchaseSupplierSearchText { get; set; } = string.Empty;
@@ -64,9 +75,7 @@ public sealed partial class PurchaseDraftSelectionItemModel : ObservableObject
     public string SuggestedDeliverySupplierDisplay => IsCustomerSupplied
         ? FormatSupplier(SuggestedDeliverySupplierCode, SuggestedDeliverySupplierName, "未提供建议")
         : "不适用";
-    public bool RequiresExplicitDeliverySelection => IsCustomerSupplied
-        && (ParentActualPurchaseSuppliers.Count > 1
-            || (ParentActualPurchaseSuppliers.Count == 1 && !ParentActualPurchaseSuppliers[0].IsActive));
+    public bool RequiresExplicitDeliverySelection => IsCustomerSupplied && !DeliveryTargetSupplierId.HasValue;
     public string ParentActualSupplierEvidence => !IsCustomerSupplied
         ? "不适用：标准交付。"
         : ParentActualPurchaseSuppliers.Count == 0
@@ -75,19 +84,18 @@ public sealed partial class PurchaseDraftSelectionItemModel : ObservableObject
             $"{FormatSupplier(fact.SupplierCode, fact.SupplierName, fact.SupplierId.ToString())}（采购单 {fact.PurchaseOrderNos}）"));
     public string DeliverySelectionGuidance => !IsCustomerSupplied
         ? "标准交付，无需单独选择送达供应商。"
-        : ParentActualPurchaseSuppliers.Count > 1
-            ? "父件存在多个实际采购方，必须明确选择本次实际送达方，系统不会任取一个。"
-            : ParentActualPurchaseSuppliers.Count == 1 && !ParentActualPurchaseSuppliers[0].IsActive
-                ? "父件唯一实际采购供应商当前已失效，不能自动采用；请明确选择有效送达方。"
-                : ParentActualPurchaseSuppliers.Count == 1
-                ? "实际送达方依据父件唯一活动采购单预填；可由采购明确修正。"
-                : string.IsNullOrWhiteSpace(SuggestedDeliverySupplierHint)
-                    ? "暂无父件实际采购事实；当前建议仅供对照，请核对实际送达方。"
-                    : SuggestedDeliverySupplierHint;
+        : DeliveryTargetSupplierId.HasValue
+            ? "实际送达方由推荐送达方初始化，可由采购明确修正；父件历史采购方仅供追溯，不覆盖本次输入。"
+            : string.IsNullOrWhiteSpace(SuggestedDeliverySupplierHint)
+                ? "当前没有可采用的推荐送达方，请明确选择本次实际送达方。"
+                : SuggestedDeliverySupplierHint;
 
     public event EventHandler? ValueChanged;
 
     partial void OnPurchaseQtyChanged(decimal value) => ValueChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnUnitPriceChanged(decimal value) => ValueChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnTaxPriceChanged(decimal value) => ValueChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnPlannedDeliveryDateChanged(DateTime? value) => ValueChanged?.Invoke(this, EventArgs.Empty);
 
     /// <summary>初始化实际采购方与送达方；多项父件实际采购事实绝不自动取第一项。</summary>
     public void InitializeSupplierSelections()
@@ -101,17 +109,7 @@ public sealed partial class PurchaseDraftSelectionItemModel : ObservableObject
             }
             : null;
         ProcurementSupplierCandidateDto? delivery = null;
-        var activeActual = ParentActualPurchaseSuppliers.Where(fact => fact.IsActive).ToArray();
-        if (IsCustomerSupplied && ParentActualPurchaseSuppliers.Count == 1 && activeActual.Length == 1)
-        {
-            delivery = new ProcurementSupplierCandidateDto
-            {
-                Uid = activeActual[0].SupplierId,
-                SupplierCode = activeActual[0].SupplierCode,
-                SupplierName = activeActual[0].SupplierName,
-            };
-        }
-        else if (IsCustomerSupplied && ParentActualPurchaseSuppliers.Count == 0 && SuggestedDeliverySupplierId.HasValue)
+        if (IsCustomerSupplied && SuggestedDeliverySupplierId.HasValue)
         {
             delivery = new ProcurementSupplierCandidateDto
             {
@@ -175,6 +173,9 @@ public sealed partial class PurchaseDraftSelectionItemModel : ObservableObject
         PurchaseQty = PurchaseQty,
         SupplierId = SupplierId,
         DeliveryTargetSupplierId = DeliveryTargetSupplierId,
+        UnitPrice = UnitPrice,
+        TaxPrice = TaxPrice,
+        PlannedDeliveryDate = PlannedDeliveryDate,
     };
 }
 
@@ -195,10 +196,20 @@ public sealed partial class PurchaseDraftTargetSelectionModel : ObservableObject
     public string SourceNo { get; init; } = string.Empty;
     public Guid SupplierId { get; init; }
     public string SupplierName { get; init; } = string.Empty;
+    public CreatePurchaseDraftHeaderCommand? Header { get; set; }
     public IReadOnlyList<PurchaseDraftTargetChoiceModel> Choices { get; init; } = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedChoiceDisplayText))]
+    [NotifyPropertyChangedFor(nameof(IsCreateNew))]
     public partial PurchaseDraftTargetChoiceModel? SelectedChoice { get; set; }
+
+    /// <summary>是否存在需要采购员选择的多个合法草稿目标。</summary>
+    public bool HasMultipleChoices => Choices.Count > 1;
+    public bool IsCreateNew => SelectedChoice?.TargetMode != PurchaseDraftTargetModeEnum.AppendExisting;
+
+    /// <summary>当前草稿目标的只读业务名称。</summary>
+    public string SelectedChoiceDisplayText => SelectedChoice?.DisplayText ?? "新建采购草稿";
 
     public event EventHandler? ValueChanged;
 
@@ -227,12 +238,75 @@ public sealed partial class PurchaseDraftTargetSelectionModel : ObservableObject
         ExpectedPurchaseOrderVersion = SelectedChoice?.ExpectedPurchaseOrderVersion,
     };
 
-    public CreatePurchaseDraftTargetCommand ToCreateDto() => new()
+    public CreatePurchaseDraftTargetCommand ToCreateDto(CreatePurchaseDraftHeaderCommand? header = null) => new()
     {
         SupplierId = SupplierId,
         TargetMode = SelectedChoice?.TargetMode ?? PurchaseDraftTargetModeEnum.CreateNew,
         ExistingPurchaseOrderId = SelectedChoice?.ExistingPurchaseOrderId,
         ExpectedPurchaseOrderVersion = SelectedChoice?.ExpectedPurchaseOrderVersion,
+        Header = SelectedChoice?.TargetMode == PurchaseDraftTargetModeEnum.AppendExisting ? null : header ?? Header,
+    };
+}
+
+/// <summary>采购单审核阶段的显式单据模型，不依赖分组首行推断单头。</summary>
+public sealed class PurchaseDraftDocumentReviewModel
+{
+    public string SourceType { get; init; } = string.Empty;
+    public Guid SourceUid { get; init; }
+    public string SourceNo { get; init; } = string.Empty;
+    public Guid SupplierId { get; init; }
+    public string SupplierDisplay { get; init; } = string.Empty;
+    public Guid? CustomerId { get; init; }
+    public string CustomerDisplay { get; init; } = string.Empty;
+    public PurchaseDraftTargetSelectionModel Target { get; init; } = null!;
+    public PurchaseDraftHeaderEditModel Header { get; init; } = new();
+    public IReadOnlyList<PurchaseDraftPreviewLineModel> Lines { get; init; } = [];
+    public string DocumentKey => $"{SourceType.Trim().ToUpperInvariant()}|{SourceUid:N}|{SupplierId:N}";
+}
+
+/// <summary>新建采购单的会话内可编辑单头快照；默认配置只用于首次初始化。</summary>
+public sealed partial class PurchaseDraftHeaderEditModel : ObservableObject
+{
+    [ObservableProperty] public partial string InletHoseType { get; set; } = string.Empty;
+    [ObservableProperty] public partial string AeratorType { get; set; } = string.Empty;
+    [ObservableProperty] public partial string PalletType { get; set; } = string.Empty;
+    [ObservableProperty] public partial string BoxType { get; set; } = string.Empty;
+    [ObservableProperty] public partial string LabelType { get; set; } = string.Empty;
+    [ObservableProperty] public partial string InstructionManualType { get; set; } = string.Empty;
+    [ObservableProperty] public partial string CartonType { get; set; } = string.Empty;
+    [ObservableProperty] public partial string LogoType { get; set; } = string.Empty;
+    [ObservableProperty] public partial string SalesPerson { get; set; } = string.Empty;
+    [ObservableProperty] public partial string PurchasePerson { get; set; } = string.Empty;
+    [ObservableProperty] public partial string Remark { get; set; } = string.Empty;
+
+    public static PurchaseDraftHeaderEditModel FromConfig(CustomerPoConfigDto? config) => new()
+    {
+        InletHoseType = config?.InletHoseType ?? string.Empty,
+        AeratorType = config?.AeratorType ?? string.Empty,
+        PalletType = config?.PalletType ?? string.Empty,
+        BoxType = config?.BoxType ?? string.Empty,
+        LabelType = config?.LabelType ?? string.Empty,
+        InstructionManualType = config?.IMType ?? string.Empty,
+        CartonType = config?.CartonType ?? string.Empty,
+        LogoType = config?.LogoType ?? string.Empty,
+        SalesPerson = config?.SalesPerson ?? string.Empty,
+        PurchasePerson = config?.Purchaser ?? string.Empty,
+        Remark = config?.Note ?? string.Empty,
+    };
+
+    public CreatePurchaseDraftHeaderCommand ToCommand() => new()
+    {
+        InletHoseType = InletHoseType,
+        AeratorType = AeratorType,
+        PalletType = PalletType,
+        BoxType = BoxType,
+        LabelType = LabelType,
+        InstructionManualType = InstructionManualType,
+        CartonType = CartonType,
+        LogoType = LogoType,
+        SalesPerson = SalesPerson,
+        PurchasePerson = PurchasePerson,
+        Remark = Remark,
     };
 }
 
@@ -248,12 +322,18 @@ public sealed partial class PurchaseDraftWarningModel : ObservableObject
     public IReadOnlyList<Guid> NetDemandIds { get; init; } = [];
     public IReadOnlyList<Guid> SupplierIds { get; init; } = [];
     public IReadOnlyList<PurchaseDraftSelectionItemModel> AffectedItems { get; init; } = [];
-    public int AffectedCount => Math.Max(NetDemandIds.Count, SupplierIds.Count);
+    /// <summary>服务端返回的完整影响范围，包含本次未勾选但受确认规则覆盖的关联需求。</summary>
+    public IReadOnlyList<PurchaseDraftWarningAffectedObjectDto> AffectedObjects { get; init; } = [];
+    /// <summary>当前可辨认的受影响对象总数。</summary>
+    public int AffectedCount => AffectedObjects.Count > 0
+        ? AffectedObjects.Count
+        : Math.Max(NetDemandIds.Count, SupplierIds.Count);
     public bool CanLocate => AffectedItems.Count > 0;
-    public string AffectedObjectText => AffectedItems.Count == 0
-        ? "当前返回未包含可定位行；请刷新候选后重试。"
-        : string.Join("；", AffectedItems.Select(item =>
-            $"{item.SourceNo}/{(string.IsNullOrWhiteSpace(item.LinkSku) ? "无型号" : item.LinkSku)}/{item.Sku}"));
+    /// <summary>逐对象展示文本，明确区分本次已选与关联未选。</summary>
+    public IReadOnlyList<string> AffectedObjectLines => AffectedObjects.Count == 0
+        ? ["受影响对象辨认信息不完整；请刷新候选后重试。"]
+        : AffectedObjects.Select(FormatAffectedObject).ToArray();
+    public string AffectedObjectText => string.Join("；", AffectedObjectLines);
     public string ActionText => Code switch
     {
         PurchaseDraftWarningCodes.InvalidPurchaseQuantity => "处理：回到本次计划，修正采购数量后重新预览。",
@@ -261,7 +341,7 @@ public sealed partial class PurchaseDraftWarningModel : ObservableObject
         PurchaseDraftWarningCodes.PurchaseSupplierInvalid => "处理：原供应商已失效，请重新选择有效的实际采购供应商。",
         PurchaseDraftWarningCodes.DeliveryTargetRequired => "处理：为客供件明确选择实际送达方；若父件关系无效，请刷新或移除该选择。",
         PurchaseDraftWarningCodes.CorruptedPlanningState => "处理：刷新采购候选；若仍存在，请移除该选择并联系计划人员核对来源事实。",
-        PurchaseDraftWarningCodes.PurchaseDataIncomplete => "处理：允许创建草稿；创建后在采购详情补齐供应商产品或价格资料。",
+        PurchaseDraftWarningCodes.PurchaseDataIncomplete => "处理：允许创建草稿；创建后可在采购详情补齐供应商产品资料。",
         PurchaseDraftWarningCodes.DifferentPlannedDeliveryDates => "处理：核对展开明细中的原交期；确认采用最早交期后方可创建。",
         PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining => "处理：核对受影响父件和客供件；确认本次仅采购当前选择后方可创建。",
         _ => "处理：按提示核对受影响对象后重新预览。",
@@ -289,6 +369,14 @@ public sealed partial class PurchaseDraftWarningModel : ObservableObject
             .OrderBy(id => id)
             .ToArray();
         var affected = items.Where(item => netDemandIds.Contains(item.NetDemandId)).ToArray();
+        var affectedObjects = dtos
+            .SelectMany(dto => dto.AffectedObjects ?? [])
+            .GroupBy(item => item.NetDemandId)
+            .Select(group => group.First())
+            .OrderBy(item => item.SourceNo, StringComparer.Ordinal)
+            .ThenBy(item => item.SourceLineNumber ?? int.MaxValue)
+            .ThenBy(item => item.NetDemandId)
+            .ToArray();
         return new PurchaseDraftWarningModel
         {
             Code = first.Code ?? string.Empty,
@@ -299,7 +387,9 @@ public sealed partial class PurchaseDraftWarningModel : ObservableObject
             RequiresConfirmation = dtos.Any(dto => dto.RequiresConfirmation),
             SourceType = first.SourceType ?? string.Empty,
             SourceUid = first.SourceUid,
-            SourceNo = affected.Select(item => item.SourceNo).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty,
+            SourceNo = affectedObjects.Select(item => item.SourceNo).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
+                ?? affected.Select(item => item.SourceNo).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
+                ?? string.Empty,
             NetDemandIds = netDemandIds,
             SupplierIds = dtos.Where(dto => dto.SupplierId.HasValue)
                 .Select(dto => dto.SupplierId!.Value)
@@ -307,15 +397,29 @@ public sealed partial class PurchaseDraftWarningModel : ObservableObject
                 .OrderBy(id => id)
                 .ToArray(),
             AffectedItems = affected,
+            AffectedObjects = affectedObjects,
         };
+    }
+
+    /// <summary>把结构化影响对象转换为采购员可辨认的紧凑文本，明确区分本次已选与关联未选。</summary>
+    private static string FormatAffectedObject(PurchaseDraftWarningAffectedObjectDto item)
+    {
+        var selection = item.IsIncludedInCurrentPurchase ? "本次已选" : "关联未选";
+        var line = item.SourceLineNumber.HasValue ? $"行 {item.SourceLineNumber.Value}" : "无行号";
+        var model = string.IsNullOrWhiteSpace(item.LinkSku) ? "无型号" : item.LinkSku;
+        return $"[{selection}] {item.SourceNo}/{line}/{model}/{item.Sku}，选择后剩余 {item.RemainingAfterSelectionQty:N4}";
     }
 }
 
 /// <summary>组合服务端采购行与所属来源/实际供应商，供预览表格只读展示。</summary>
-public sealed class PurchaseDraftPreviewLineModel
+public sealed partial class PurchaseDraftPreviewLineModel
 {
     public string SourceType { get; set; } = string.Empty;
+    /// <summary>来源业务稳定身份，用于页面分组而不作为主要显示文本。</summary>
+    public Guid SourceUid { get; set; }
     public string SourceNo { get; set; } = string.Empty;
+    /// <summary>实际采购供应商稳定身份，用于避免同名供应商被误分为一组。</summary>
+    public Guid SupplierId { get; set; }
     public string SupplierCode { get; set; } = string.Empty;
     public string SupplierName { get; set; } = string.Empty;
     public string ImagePath { get; set; } = string.Empty;
@@ -339,25 +443,44 @@ public sealed class PurchaseDraftPreviewLineModel
     public List<DateTime?> SourcePlannedDeliveryDates { get; set; } = [];
     public List<PurchaseDraftSourceContributionDto> Contributions { get; set; } = [];
     public int ContributionCount => Contributions.Count;
-    public string SupplierDisplay => $"{SupplierCode} {SupplierName}".Trim();
+    public string SupplierDisplay => $"{SupplierName}".Trim();
+    /// <summary>来源与实际供应商组成的稳定分组键。</summary>
+    public string SourceSupplierGroupKey => $"{SourceType.Trim().ToUpperInvariant()}|{SourceUid:N}|{SupplierId:N}";
+    /// <summary>预览分组的采购业务标题。</summary>
+    public string SourceSupplierGroupLabel => $"来源 {SourceNo} · 实际采购供应商 {SupplierDisplay}";
     public string AttributeSummary => string.Join(" / ", new[] { Color, Specification, MaterialType }
         .Where(value => !string.IsNullOrWhiteSpace(value)));
     public string DeliveryModeText => IsCustomerSupplied ? "客供送达" : "标准交付";
 }
 
-public sealed class PurchaseDraftCreateResultModel
+public sealed partial class PurchaseDraftCreateResultModel
 {
     public string SourceType { get; init; } = string.Empty;
     public Guid SourceUid { get; init; }
+    /// <summary>创建前保存的来源单号，用于结果阶段辨认。</summary>
+    public string SourceNo { get; init; } = string.Empty;
     public NetDemandCommandOutcomeEnum Outcome { get; init; }
     public string ErrorCode { get; init; } = string.Empty;
     public string Message { get; init; } = string.Empty;
     public string PurchaseOrderNos { get; init; } = string.Empty;
+    /// <summary>来源类型与业务单号的组合显示。</summary>
+    public string SourceDisplay => string.IsNullOrWhiteSpace(SourceNo) ? SourceType : $"{SourceType} · {SourceNo}";
+    /// <summary>面向采购员的创建结果名称。</summary>
+    public string OutcomeText => Outcome switch
+    {
+        NetDemandCommandOutcomeEnum.Succeeded => "创建成功",
+        NetDemandCommandOutcomeEnum.AlreadyApplied => "已安全重放",
+        _ => "创建失败",
+    };
+    /// <summary>仅在失败返回稳定代码时显示的辅助技术详情。</summary>
+    public string TechnicalDetail => string.IsNullOrWhiteSpace(ErrorCode) ? string.Empty : $"错误代码：{ErrorCode}";
 
-    public static PurchaseDraftCreateResultModel FromDto(CreatePurchaseDraftSourceResult dto) => new()
+    /// <summary>建立逐来源创建结果，并保留调用前已知的来源单号用于业务辨认。</summary>
+    public static PurchaseDraftCreateResultModel FromDto(CreatePurchaseDraftSourceResult dto, string sourceNo) => new()
     {
         SourceType = dto.SourceType ?? string.Empty,
         SourceUid = dto.SourceUid,
+        SourceNo = sourceNo,
         Outcome = dto.Outcome,
         ErrorCode = dto.ErrorCode ?? string.Empty,
         Message = dto.Message ?? string.Empty,

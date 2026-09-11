@@ -13,6 +13,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public Guid GrossDemandId { get; set; }
         public int DecompositionRevision { get; set; }
         public int LineNumber { get; set; }
+        public Guid? CustomerId { get; set; }
+        public string CustomerCode { get; set; }
+        public string CustomerName { get; set; }
         public string SourceType { get; set; }
         public Guid SourceUid { get; set; }
         public string SourceNo { get; set; }
@@ -41,6 +44,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public string SuggestedDeliverySupplierCode { get; set; }
         public string SuggestedDeliverySupplierName { get; set; }
         public string SuggestedDeliverySupplierHint { get; set; }
+        public string SuggestedSupplierSku { get; set; }
+        public decimal? SuggestedUnitPrice { get; set; }
+        public decimal? SuggestedTaxPrice { get; set; }
         /// <summary>客供件父件活动采购单中的实际采购供应商；多项时必须由采购员明确选择送达方。</summary>
         public List<PurchaseDraftActualSupplierFactDto> ParentActualPurchaseSuppliers { get; set; } = new List<PurchaseDraftActualSupplierFactDto>();
         public decimal GrossQty { get; set; }

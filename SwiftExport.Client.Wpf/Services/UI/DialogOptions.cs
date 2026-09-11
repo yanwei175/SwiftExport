@@ -25,6 +25,10 @@ public sealed class DialogOptions
     public double? Width { get; init; }
     /// <summary>获取固定外壳高度；空值保留 WPF-UI 的按内容测量行为。</summary>
     public double? Height { get; init; }
+    /// <summary>获取外壳占宿主可用宽度的比例；有效范围为大于零且不超过一，不能与 Width 同时设置。</summary>
+    public double? WidthRatio { get; init; }
+    /// <summary>获取外壳占宿主可用高度的比例；有效范围为大于零且不超过一，不能与 Height 同时设置。</summary>
+    public double? HeightRatio { get; init; }
     /// <summary>获取外壳最大宽度；最终值还会受当前宿主宽度限制。</summary>
     public double? MaxWidth { get; init; }
     /// <summary>获取外壳最大高度；最终值还会受当前宿主高度限制。</summary>

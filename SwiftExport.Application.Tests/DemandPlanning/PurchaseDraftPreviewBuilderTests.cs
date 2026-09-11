@@ -203,6 +203,8 @@ public sealed class PurchaseDraftPreviewBuilderTests
         customerSupplied.CommandItemId = Guid.NewGuid();
         customerSupplied.IsSelected = false;
         customerSupplied.IsCustomerSupplied = true;
+        customerSupplied.Sku = "CS-CHILD";
+        customerSupplied.LinkSku = "MODEL-CS-CHILD";
         customerSupplied.DeliveryTargetNetDemandId = parent.NetDemandId;
         customerSupplied.DeliveryTargetSupplierId = parent.PurchaseSupplierId;
 
@@ -213,10 +215,17 @@ public sealed class PurchaseDraftPreviewBuilderTests
         Assert.IsFalse(warning.IsBlocker);
         CollectionAssert.Contains(warning.NetDemandIds, parent.NetDemandId);
         CollectionAssert.Contains(warning.NetDemandIds, customerSupplied.NetDemandId);
+        Assert.HasCount(2, warning.AffectedObjects);
+        Assert.IsTrue(warning.AffectedObjects.Single(item => item.NetDemandId == parent.NetDemandId).IsIncludedInCurrentPurchase);
+        var relatedChild = warning.AffectedObjects.Single(item => item.NetDemandId == customerSupplied.NetDemandId);
+        Assert.IsFalse(relatedChild.IsIncludedInCurrentPurchase);
+        Assert.AreEqual("CS-CHILD", relatedChild.Sku);
+        Assert.AreEqual("MODEL-CS-CHILD", relatedChild.LinkSku);
+        Assert.AreEqual(customerSupplied.RemainingQty, relatedChild.RemainingAfterSelectionQty);
     }
 
     [TestMethod]
-    public void Build_MissingSupplierProductOrPriceIsWarningButDoesNotBlock()
+    public void Build_MissingSupplierProductIsWarningButDoesNotBlock()
     {
         var candidate = CreateCandidate();
         candidate.HasSupplierProduct = false;
@@ -229,6 +238,22 @@ public sealed class PurchaseDraftPreviewBuilderTests
         Assert.IsTrue(result.SourceGroups.Single().CanCreate);
         Assert.IsTrue(result.SourceGroups.Single().Documents.Single().Lines.Single().PurchaseDataIncomplete);
         Assert.IsTrue(result.Warnings.Any(x => x.Code == PurchaseDraftWarningCodes.PurchaseDataIncomplete));
+    }
+
+    [TestMethod]
+    public void Build_ZeroPricesAreLegalAndDoNotCreateDataWarning()
+    {
+        var candidate = CreateCandidate();
+        candidate.HasSupplierProduct = true;
+        candidate.UnitPrice = 0m;
+        candidate.TaxPrice = 0m;
+
+        var result = _builder.Build(CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, candidate));
+
+        Assert.IsFalse(result.HasBlockers);
+        Assert.IsFalse(result.Warnings.Any(x => x.Code == PurchaseDraftWarningCodes.PurchaseDataIncomplete));
+        Assert.AreEqual(0m, result.SourceGroups.Single().Documents.Single().Lines.Single().UnitPrice);
+        Assert.AreEqual(0m, result.SourceGroups.Single().Documents.Single().Lines.Single().TaxPrice);
     }
 
     [TestMethod]

@@ -1,5 +1,3 @@
-using System.ComponentModel;
-using System.Collections.Specialized;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.CustomerApis;
@@ -13,6 +11,8 @@ using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
+using System.Collections.Specialized;
+using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
 
@@ -250,8 +250,18 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
 
     private async Task<bool> PrepareReloadAsync()
     {
-        if (Customers.HasChanges && !await _dialogService.ConfirmAsync(
-                "放弃客户资料修改", "当前客户列表有未保存修改，继续将放弃这些修改。", "继续")) return false;
+        if (
+            Customers.HasChanges && !await _dialogService.ConfirmAsync
+            (
+                "放弃客户资料修改",
+                "当前客户列表有未保存修改，继续将放弃这些修改。",
+                "继续"
+                )
+            )
+        {
+
+            return false;
+        }
         return await CustomerProducts.CloseForNavigationAsync();
     }
 

@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Relations;
 
-/// <summary>客户采购单默认配置实体，保存指定客户和供应商组合的包装、标识及经办人默认要求。</summary>
+/// <summary>客户采购单默认配置实体，保存指定客户和供应商组合的币种、折扣、包装及经办人默认要求。</summary>
 [Table("CustomerPoConfig")]
 public class CustomerPoConfig : BaseEntity
 {
@@ -15,6 +15,12 @@ public class CustomerPoConfig : BaseEntity
     public Guid? SupplierId { get; set; }
     /// <summary>该实体保存的供应商业务编码。</summary>
     public string? SupplierCode { get; set; }
+    /// <summary>该客户与供应商组合默认使用的币种代码；空值表示未配置。</summary>
+    public string? Currency { get; set; }
+    /// <summary>默认价格倍率，允许大于 1 表示涨价；空值表示未配置。</summary>
+    public decimal? DefaultDiscountRate { get; set; }
+    /// <summary>独立的默认折扣说明，不与默认折扣率联动。</summary>
+    public string? DiscountRemark { get; set; }
     /// <summary>该实体保存的进水管类型。</summary>
     public string? InletHoseType { get; set; }
     /// <summary>该实体保存的起泡器类型。</summary>

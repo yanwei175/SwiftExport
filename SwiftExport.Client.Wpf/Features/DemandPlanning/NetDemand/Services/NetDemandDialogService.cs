@@ -17,13 +17,15 @@ public sealed class NetDemandDialogService(
         {
             await sourceDemandPicker.OpenAsync(cancellationToken);
             await dialogService.ShowAsync(
-                new SourceDemandCandidatePickerView { DataContext = sourceDemandPicker },
+                new SourceDemandCandidatePickerView
+                {
+                    DataContext = sourceDemandPicker
+                },
                 new DialogOptions("从来源需求建立物料需求")
                 {
                     ScrollStrategy = DialogScrollStrategy.Content,
-                    Width = 1400,
-                    Height = 860,
-                    MaxHeight = 860
+                    WidthRatio = 1,
+                    HeightRatio = 0.9
                 },
                 new SourcePickerDialogState(sourceDemandPicker),
                 cancellationToken);

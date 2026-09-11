@@ -21,6 +21,7 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
         _picker = picker;
         _preview = preview;
         _preview.PropertyChanged += OnPreviewPropertyChanged;
+        _picker.InputChanged += OnPickerInputChanged;
         Title = "从物料需求建立采购草稿";
     }
 
@@ -61,7 +62,7 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
         await _picker.OpenAsync(cancellationToken);
     }
 
-    /// <summary>保留当前选择并进入预览；预览失败时仍停留在预览阶段供用户修正。</summary>
+    /// <summary>先在准备阶段验证全部勾选输入；只有有效且强提示已确认时才进入单据审核。</summary>
     [RelayCommand(CanExecute = nameof(CanNavigateWithinDialog))]
     private async Task ContinueToPreviewAsync()
     {
@@ -74,12 +75,19 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
         }
 
         SelectionValidationText = string.Empty;
-        Stage = PurchaseOrderFromMaterialStage.Preview;
         await _preview.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
         {
             EntryMode = PurchaseDraftEntryModeEnum.PurchaseWorkspace,
             Rows = rows
         });
+        _picker.ApplyValidation(_preview.Warnings.ToArray());
+        if (!_preview.HasValidPreparation)
+        {
+            SelectionValidationText = _preview.CreateBlockReason;
+            return;
+        }
+
+        Stage = PurchaseOrderFromMaterialStage.Preview;
     }
 
     /// <summary>从预览返回选择阶段，保留候选与勾选，便于继续调整。</summary>
@@ -102,7 +110,14 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
             return;
         }
         if (_preview.Results.Count > 0)
-            Stage = PurchaseOrderFromMaterialStage.Result;
+        {
+            var hasFailure = _preview.Results.Any(result =>
+                result.Outcome is not NetDemandCommandOutcomeEnum.Succeeded
+                    and not NetDemandCommandOutcomeEnum.AlreadyApplied);
+            Stage = hasFailure ? PurchaseOrderFromMaterialStage.Selection : PurchaseOrderFromMaterialStage.Result;
+            if (hasFailure)
+                SelectionValidationText = "采购草稿保存未完成，请核对提示并重新验证当前采购准备。";
+        }
     }
 
     /// <summary>结果存在失败项时回到预览；沿用本次执行身份，成功来源不会被重复创建。</summary>
@@ -142,6 +157,12 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
 
     private bool CanCreate() => !IsWriting && _preview.CreateCommand.CanExecute(null);
 
+    private void OnPickerInputChanged(object? sender, EventArgs e)
+    {
+        SelectionValidationText = string.Empty;
+        _preview.InvalidatePreparation();
+    }
+
     /// <summary>关闭弹窗时取消查询、解除选择事件并重置预览；写命令由外层关闭门禁保护。</summary>
     public void Close()
     {
@@ -155,6 +176,7 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
         if (_disposed) return;
         _disposed = true;
         _preview.PropertyChanged -= OnPreviewPropertyChanged;
+        _picker.InputChanged -= OnPickerInputChanged;
         Close();
     }
 }

@@ -149,6 +149,9 @@ namespace SwiftExport.Infrastructure.Repositories.Systems
                     SELECT Currency FROM dbo.Supplier WITH (UPDLOCK, ROWLOCK)
                     WHERE Currency IN @Codes AND (IsDeleted = 0 OR IsDeleted IS NULL)
                     UNION ALL
+                    SELECT Currency FROM dbo.CustomerPoConfig WITH (UPDLOCK, ROWLOCK)
+                    WHERE Currency IN @Codes AND (IsDeleted = 0 OR IsDeleted IS NULL)
+                    UNION ALL
                     SELECT Currency FROM dbo.SalesOrderHeader WITH (UPDLOCK, ROWLOCK)
                     WHERE Currency IN @Codes AND (IsDeleted = 0 OR IsDeleted IS NULL)
                     UNION ALL

@@ -11,6 +11,7 @@ using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExportClient.Features.Customers.CustomerManagement.Models;
+using SwiftExportClient.Features.Customers.CustomerPoConfigs.Models;
 using SwiftExportClient.Features.Customers.CustomerProducts.Models;
 using SwiftExportClient.Features.Products.Bom.Models;
 using SwiftExportClient.Features.Products.Categories.Models;
@@ -25,6 +26,7 @@ using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 
 namespace SwiftExportClient.Mappings;
 
+/// <summary>集中注册客户端 DTO 与页面模型之间的结构映射。</summary>
 public sealed class MapsterConfig : IRegister
 {
     public void Register(TypeAdapterConfig config)
@@ -199,6 +201,15 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted);
 
         config.NewConfig<CustomerLineModel, CustomerDto>()
+            .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted);
+
+        config.NewConfig<CustomerPoConfigDto, CustomerPoConfigLineModel>()
+            .IgnoreNullValues(true)
+            .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
+            .Ignore(dest => dest.SelectedCustomer)
+            .Ignore(dest => dest.SelectedSupplier);
+
+        config.NewConfig<CustomerPoConfigLineModel, CustomerPoConfigDto>()
             .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted);
 
         config.NewConfig<CustomerProductDto, CustomerProductLineModel>()

@@ -103,6 +103,7 @@ internal sealed class GridOperationsModule
 
     internal bool CanFillDown() => IsEnabled && SupportsCellSelection && TryCreateFillPlan(out _);
 
+    /// <summary>向允许写入的目标单元格填充，跳过受限目标，成功改动仍作为一次操作撤销。</summary>
     internal bool FillDown()
     {
         if (!IsEnabled || !SupportsCellSelection)
@@ -130,9 +131,8 @@ internal sealed class GridOperationsModule
                 foreach (var path in column.FieldPaths)
                 {
                     var sourceValue = PropertyPathAccessor.GetValue(source, path);
-                    for (var rowIndex = 1; rowIndex < plan.Items.Count; rowIndex++)
+                    foreach (var target in column.TargetItems)
                     {
-                        var target = plan.Items[rowIndex];
                         var oldValue = PropertyPathAccessor.GetValue(target, path);
                         if (Equals(oldValue, sourceValue))
                         {
@@ -443,9 +443,11 @@ internal sealed class GridOperationsModule
 
         var items = rowIndexes.Select(index => _dataGrid.Items[index]).ToArray();
         var writableColumns = selectedColumns
-            .Where(column => !_dataGrid.IsReadOnly && !column.IsReadOnly)
-            .Select(column => new FillDownColumnPlan(column, GetFillDownFieldPaths(column)))
-            .Where(column => column.FieldPaths.Count > 0 &&
+            .Where(column => !_dataGrid.IsReadOnly && !column.IsReadOnly && GridColumn.GetCanFillDown(column))
+            // 在写入前按目标行快照许可，避免复合字段 setter 改变状态后只填了一部分字段。
+            .Select(column => new FillDownColumnPlan(column, GetFillDownFieldPaths(column),
+                items.Skip(1).Where(item => IsFillDownTargetAllowed(column, item)).ToArray()))
+            .Where(column => column.TargetItems.Count > 0 && column.FieldPaths.Count > 0 &&
                              column.FieldPaths.All(path => items.All(item =>
                                  PropertyPathAccessor.CanSetValue(item, path) &&
                                  PropertyPathAccessor.TryGetValueType(item, path, out _))))
@@ -457,6 +459,26 @@ internal sealed class GridOperationsModule
 
         plan = new FillPlan(items, writableColumns);
         return true;
+    }
+
+    /// <summary>仅从目标数据项读取许可，兼容尚未生成控件的虚拟化行；无效配置按禁止处理。</summary>
+    private static bool IsFillDownTargetAllowed(DataGridColumn column, object item)
+    {
+        var path = GridColumn.GetCanFillDownPath(column);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return true;
+        }
+
+        try
+        {
+            return PropertyPathAccessor.GetValue(item, path) is true;
+        }
+        catch
+        {
+            // 许可 getter 失败不能导致命令查询崩溃，更不能降级为允许写入。
+            return false;
+        }
     }
 
     private bool TryCreateCopyPlan(out SelectionRectangle plan)
@@ -1086,5 +1108,6 @@ internal sealed class GridOperationsModule
 
     private sealed record FillDownColumnPlan(
         DataGridColumn Column,
-        IReadOnlyList<string> FieldPaths);
+        IReadOnlyList<string> FieldPaths,
+        IReadOnlyList<object> TargetItems);
 }

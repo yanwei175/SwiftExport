@@ -38,6 +38,7 @@ IF OBJECT_ID(N'tempdb..#MaterialWorkspace',N'U') IS NOT NULL DROP TABLE #Materia
 
 SELECT
     nd.[Uid],nd.[Version],nd.[LifecycleStatus],nd.[GrossDemandId],nd.[DecompositionRevision],nd.[LineNumber],
+    gd.[CustomerId],customer.[CustomerCode],customer.[CustomerName],
     gd.[SourceType],gd.[SourceUid],gd.[SourceNo],gd.[SourceLineNumber],gd.[SourceLineId],nd.[RootNetDemandId],
     root.[SkuSnapshot] AS [RootSku],CAST(CASE WHEN nd.[DeliveryMode]=1 THEN 1 ELSE 0 END AS bit) AS [IsCustomerSupplied],nd.[DeliveryTargetNetDemandId],
     nd.[ProductId],CAST(CASE WHEN nd.[ProductId] IS NULL THEN 1 ELSE 0 END AS bit) AS [IsNonStandard],
@@ -62,6 +63,7 @@ SELECT
 INTO #MaterialWorkspace
 FROM [dbo].[NetDemand] nd
 INNER JOIN [dbo].[GrossDemand] gd ON gd.[Uid]=nd.[GrossDemandId]
+LEFT JOIN [dbo].[Customer] customer ON customer.[Uid]=gd.[CustomerId] AND ISNULL(customer.[IsDeleted],0)=0
 LEFT JOIN [dbo].[NetDemand] root ON root.[Uid]=nd.[RootNetDemandId]
 LEFT JOIN [dbo].[Product] p ON p.[Uid]=nd.[ProductId] AND ISNULL(p.[IsDeleted],0)=0
 LEFT JOIN [dbo].[Supplier] suggestedSupplier
@@ -109,6 +111,7 @@ WHERE {string.Join(" AND ", where)};
 
 SELECT COUNT(1) FROM #MaterialWorkspace;
 SELECT [Uid],[Version],[LifecycleStatus],[GrossDemandId],[DecompositionRevision],[LineNumber],
+       [CustomerId],[CustomerCode],[CustomerName],
        [SourceType],[SourceUid],[SourceNo],[SourceLineNumber],[SourceLineId],[RootNetDemandId],[RootSku],
        [IsCustomerSupplied],[DeliveryTargetNetDemandId],[ProductId],[IsNonStandard],[Sku],[LinkSku],[CustomerSku],[Description],
        [Color],[Specification],[ImagePath],[MaterialType],[Unit],[SupplyType],
@@ -194,6 +197,7 @@ ORDER BY gd.[SourceType],MAX(gd.[SourceNo]),gd.[SourceUid];";
             : string.Empty;
         var sql = $@"
 SELECT nd.[Uid],nd.[Version],nd.[LifecycleStatus],nd.[GrossDemandId],nd.[DecompositionRevision],nd.[LineNumber],
+       gd.[CustomerId],customer.[CustomerCode],customer.[CustomerName],
        gd.[SourceType],gd.[SourceUid],gd.[SourceNo],gd.[SourceLineNumber],gd.[SourceLineId],nd.[RootNetDemandId],
        root.[SkuSnapshot] AS [RootSku],CAST(CASE WHEN nd.[DeliveryMode]=1 THEN 1 ELSE 0 END AS bit) AS [IsCustomerSupplied],
        nd.[DeliveryTargetNetDemandId],nd.[ProductId],CAST(CASE WHEN nd.[ProductId] IS NULL THEN 1 ELSE 0 END AS bit) AS [IsNonStandard],
@@ -211,6 +215,8 @@ SELECT nd.[Uid],nd.[Version],nd.[LifecycleStatus],nd.[GrossDemandId],nd.[Decompo
             WHEN deliveryTarget.[SuggestedPurchaseSupplierId] IS NULL THEN N'父件尚未设置推荐采购供应商'
             WHEN deliverySupplier.[Uid] IS NULL THEN N'父件推荐采购供应商已失效'
             ELSE NULL END AS [SuggestedDeliverySupplierHint],
+       supplierProduct.[SupplierSku] AS [SuggestedSupplierSku],
+       supplierProduct.[UnitPrice] AS [SuggestedUnitPrice],supplierProduct.[TaxPrice] AS [SuggestedTaxPrice],
        nd.[GrossQty],nd.[NetQty],nd.[RequiredDate] AS [DemandRequiredDate],
        COALESCE(purchaseFacts.[AssociatedPurchaseQty],0) AS [AssociatedPurchaseQty],purchaseNumbers.[PurchaseOrderNos],
        COALESCE((
@@ -238,10 +244,14 @@ SELECT nd.[Uid],nd.[Version],nd.[LifecycleStatus],nd.[GrossDemandId],nd.[Decompo
        ),N'[]') AS [ParentActualPurchaseSuppliersJson]
 FROM [dbo].[NetDemand] nd
 INNER JOIN [dbo].[GrossDemand] gd ON gd.[Uid]=nd.[GrossDemandId]
+LEFT JOIN [dbo].[Customer] customer ON customer.[Uid]=gd.[CustomerId] AND ISNULL(customer.[IsDeleted],0)=0
 LEFT JOIN [dbo].[NetDemand] root ON root.[Uid]=nd.[RootNetDemandId]
 LEFT JOIN [dbo].[Product] p ON p.[Uid]=nd.[ProductId] AND ISNULL(p.[IsDeleted],0)=0
 LEFT JOIN [dbo].[Supplier] suggestedSupplier
   ON suggestedSupplier.[Uid]=nd.[SuggestedPurchaseSupplierId] AND ISNULL(suggestedSupplier.[IsDeleted],0)=0
+LEFT JOIN [dbo].[SupplierProduct] supplierProduct
+  ON supplierProduct.[SupplierId]=nd.[SuggestedPurchaseSupplierId]
+ AND supplierProduct.[SkuId]=nd.[ProductId] AND ISNULL(supplierProduct.[IsDeleted],0)=0
 LEFT JOIN [dbo].[NetDemand] deliveryTarget
   ON deliveryTarget.[Uid]=nd.[DeliveryTargetNetDemandId]
  AND deliveryTarget.[Uid]=nd.[ParentNetDemandId]

@@ -47,6 +47,17 @@ public static class GridColumn
         typeof(GridColumn),
         new PropertyMetadata(null));
 
+    /// <summary>是否允许向该列填充。默认 true；不影响复制、粘贴或原生编辑。</summary>
+    public static readonly DependencyProperty CanFillDownProperty = DependencyProperty.RegisterAttached(
+        "CanFillDown", typeof(bool), typeof(GridColumn), new PropertyMetadata(true));
+
+    /// <summary>
+    /// 目标行上的布尔属性路径，用于逐单元格限制填充。为空时不限制；配置后仅 true 允许写入。
+    /// 不读取模板内控件状态，宿主应与编辑器共享同一可编辑状态。
+    /// </summary>
+    public static readonly DependencyProperty CanFillDownPathProperty = DependencyProperty.RegisterAttached(
+        "CanFillDownPath", typeof(string), typeof(GridColumn), new PropertyMetadata(null));
+
     /// <summary>标识列是否参与筛选。默认参与。</summary>
     public static readonly DependencyProperty CanFilterProperty = DependencyProperty.RegisterAttached(
         "CanFilter",
@@ -116,6 +127,19 @@ public static class GridColumn
         element.SetValue(
             FillDownFieldPathsProperty,
             string.IsNullOrWhiteSpace(value) ? null : value.Trim());
+
+    /// <summary>获取该列是否允许向下填充。</summary>
+    public static bool GetCanFillDown(DependencyObject element) => (bool)element.GetValue(CanFillDownProperty);
+
+    /// <summary>设置该列是否允许向下填充。</summary>
+    public static void SetCanFillDown(DependencyObject element, bool value) => element.SetValue(CanFillDownProperty, value);
+
+    /// <summary>获取目标行的填充许可布尔属性路径。</summary>
+    public static string? GetCanFillDownPath(DependencyObject element) => (string?)element.GetValue(CanFillDownPathProperty);
+
+    /// <summary>设置目标行的填充许可路径；空白表示不附加行级限制。</summary>
+    public static void SetCanFillDownPath(DependencyObject element, string? value) =>
+        element.SetValue(CanFillDownPathProperty, string.IsNullOrWhiteSpace(value) ? null : value.Trim());
 
     /// <summary>获取列是否参与筛选。</summary>
     public static bool GetCanFilter(DependencyObject element) => (bool)element.GetValue(CanFilterProperty);

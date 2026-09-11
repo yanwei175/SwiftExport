@@ -15,20 +15,24 @@ public sealed class ProcurementDialogService(PurchaseOrderFromMaterialViewModel 
         {
             await workflow.OpenAsync(cancellationToken);
             await dialogs.ShowAsync(
-                new PurchaseOrderFromMaterialView { DataContext = workflow },
+                new PurchaseOrderFromMaterialView
+                {
+                    DataContext = workflow
+                },
                 new DialogOptions("从物料需求建立采购草稿")
                 {
                     CloseButtonText = "关闭",
                     DefaultButton = DialogButton.Close,
                     ScrollStrategy = DialogScrollStrategy.Content,
-                    Width = 1400,
-                    Height = 860,
-                    MaxWidth = 1400,
-                    MaxHeight = 860
+                    WidthRatio = 1,
+                    HeightRatio = 1
                 },
                 new WorkflowDialogState(workflow),
                 cancellationToken);
-            return new PurchaseOrderFromMaterialResult { HasAppliedResults = workflow.HasAppliedResults };
+            return new PurchaseOrderFromMaterialResult
+            {
+                HasAppliedResults = workflow.HasAppliedResults
+            };
         }
         finally
         {

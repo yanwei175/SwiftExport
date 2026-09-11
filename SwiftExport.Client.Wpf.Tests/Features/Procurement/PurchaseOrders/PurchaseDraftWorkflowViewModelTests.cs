@@ -40,6 +40,8 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.AreEqual("PCS", previewLine.Unit);
         Assert.AreEqual("products/a-100.png", previewLine.ImagePath);
         Assert.AreEqual("SO-1001", previewLine.Contributions.Single().SourceNo);
+        StringAssert.Contains(previewLine.SourceSupplierGroupLabel, "SO-1001");
+        StringAssert.Contains(previewLine.SourceSupplierGroupLabel, "供应商一");
 
         viewModel.Items.Single().PurchaseQty = 6m;
 
@@ -72,6 +74,8 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.IsTrue(viewModel.Items[0].IsQuantityReadOnly);
         Assert.HasCount(1, viewModel.Targets.Single().Choices);
         Assert.AreEqual(PurchaseDraftTargetModeEnum.CreateNew, viewModel.Targets.Single().Choices[0].TargetMode);
+        Assert.IsFalse(viewModel.Targets.Single().HasMultipleChoices);
+        Assert.AreEqual("新建采购草稿", viewModel.Targets.Single().SelectedChoiceDisplayText);
     }
 
     [TestMethod]
@@ -87,11 +91,15 @@ public sealed class PurchaseDraftWorkflowViewModelTests
 
         Assert.HasCount(3, viewModel.Warnings);
         Assert.AreEqual(2, viewModel.Warnings.Count(item => item.RequiresConfirmation));
+        StringAssert.Contains(viewModel.ProblemSummaryText, "待确认 2 项");
+        StringAssert.Contains(viewModel.ProblemSummaryText, "资料待补 1 项");
         Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
 
         var target = viewModel.Targets.Single();
+        Assert.IsTrue(target.HasMultipleChoices);
         target.SelectedChoice = target.Choices.Single(choice => choice.TargetMode == PurchaseDraftTargetModeEnum.AppendExisting);
         Assert.IsTrue(viewModel.IsStale);
+        Assert.HasCount(0, viewModel.Warnings);
         Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
@@ -279,8 +287,9 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         await pending;
 
         Assert.IsTrue(viewModel.IsStale);
-        Assert.IsFalse(viewModel.Warnings.Any(item => item.IsConfirmed));
-        Assert.IsFalse(viewModel.PreviewLines.Any(item => item.Sku == "LATE-SKU"));
+        Assert.HasCount(0, viewModel.Warnings);
+        Assert.HasCount(0, viewModel.PreviewLines);
+        StringAssert.Contains(viewModel.ProblemSummaryText, "预览已失效");
         Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
     }
 
@@ -343,6 +352,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
 
         Assert.IsTrue(viewModel.HasAppliedResults);
         Assert.HasCount(2, viewModel.Results);
+        Assert.IsTrue(viewModel.Results.All(result => result.SourceNo == "SO-1001"));
         Assert.AreEqual(sourceB, viewModel.Items.Single().SourceUid);
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
@@ -355,6 +365,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.AreEqual(failedItem.CommandItemId, retry.Sources.Single().Items.Single().CommandItemId);
         Assert.IsTrue(viewModel.HasAppliedResults);
         Assert.IsTrue(viewModel.Results.All(item => item.Outcome == NetDemandCommandOutcomeEnum.Succeeded));
+        Assert.IsTrue(viewModel.Results.All(item => item.OutcomeText == "创建成功"));
     }
 
     [TestMethod]
@@ -542,7 +553,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
     }
 
     [TestMethod]
-    public async Task UniqueActiveParentActualSupplier_ShouldOverrideDifferentDeliverySuggestionWithEvidence()
+    public async Task RecommendedDeliverySupplier_ShouldNotBeOverriddenByParentPurchaseEvidence()
     {
         var api = new NetDemandApiStub();
         using var viewModel = CreateViewModel(api);
@@ -583,8 +594,8 @@ public sealed class PurchaseDraftWorkflowViewModelTests
             Rows = [row],
         });
 
-        Assert.AreEqual(actualId, viewModel.Items.Single().DeliveryTargetSupplierId);
-        Assert.AreNotEqual(suggestedId, viewModel.Items.Single().DeliveryTargetSupplierId);
+        Assert.AreEqual(suggestedId, viewModel.Items.Single().DeliveryTargetSupplierId);
+        Assert.AreNotEqual(actualId, viewModel.Items.Single().DeliveryTargetSupplierId);
         StringAssert.Contains(viewModel.Items.Single().ParentActualSupplierEvidence, "PO-ACTUAL");
     }
 
@@ -637,10 +648,68 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.AreEqual(2, viewModel.BlockerCount);
         Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
 
-        viewModel.SelectedPreviewTabIndex = 2;
         viewModel.LocateWarningCommand.Execute(viewModel.Warnings.Single());
-        Assert.AreEqual(0, viewModel.SelectedPreviewTabIndex);
         Assert.IsNotNull(viewModel.SelectedInputItem);
+    }
+
+    [TestMethod]
+    public async Task RelatedWarning_ShouldDisplayUnselectedAffectedCustomerSuppliedDemand()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api);
+        var parent = CreateRow(5m, api.SourceUid);
+        var relatedChildId = Guid.NewGuid();
+        api.PreviewHandler = (request, _) =>
+        {
+            var response = api.CreatePreview(request);
+            response.RequiresConfirmation = true;
+            response.Warnings.Add(new PurchaseDraftWarningDto
+            {
+                Code = PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining,
+                Message = "仍有关联客供件未转采购。",
+                RequiresConfirmation = true,
+                SourceType = "SO",
+                SourceUid = api.SourceUid,
+                NetDemandIds = { parent.Uid, relatedChildId },
+                AffectedObjects =
+                {
+                    new PurchaseDraftWarningAffectedObjectDto
+                    {
+                        NetDemandId = parent.Uid,
+                        SourceNo = parent.SourceNo,
+                        SourceLineNumber = 1,
+                        Sku = parent.Sku,
+                        LinkSku = parent.LinkSku,
+                        IsIncludedInCurrentPurchase = true,
+                    },
+                    new PurchaseDraftWarningAffectedObjectDto
+                    {
+                        NetDemandId = relatedChildId,
+                        SourceNo = parent.SourceNo,
+                        SourceLineNumber = 2,
+                        Sku = "CS-CHILD",
+                        LinkSku = "MODEL-CS-CHILD",
+                        IsIncludedInCurrentPurchase = false,
+                        RemainingAfterSelectionQty = 3m,
+                    },
+                },
+            });
+            return Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(response));
+        };
+
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [parent],
+        });
+
+        var warning = viewModel.Warnings.Single();
+        Assert.AreEqual(2, warning.AffectedCount);
+        Assert.HasCount(1, warning.AffectedItems);
+        StringAssert.Contains(warning.AffectedObjectText, "关联未选");
+        StringAssert.Contains(warning.AffectedObjectText, "MODEL-CS-CHILD");
+        StringAssert.Contains(warning.AffectedObjectText, "3.0000");
+        Assert.IsTrue(warning.CanLocate);
     }
 
     [TestMethod]

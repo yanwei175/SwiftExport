@@ -25,6 +25,12 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public int DecompositionRevision { get; set; }
         /// <summary>拆解修订内的物料行号。</summary>
         public int LineNumber { get; set; }
+        /// <summary>来源需求归属客户 Uid；采购单头客户快照只能由该权威事实派生。</summary>
+        public Guid? CustomerId { get; set; }
+        /// <summary>来源需求归属客户当前编码。</summary>
+        public string CustomerCode { get; set; }
+        /// <summary>来源需求归属客户当前名称。</summary>
+        public string CustomerName { get; set; }
         /// <summary>来源业务类型快照。</summary>
         public string SourceType { get; set; }
         /// <summary>来源业务单据 Uid。</summary>
@@ -81,6 +87,12 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public string SuggestedDeliverySupplierName { get; set; }
         /// <summary>客供件无法派生建议送达供应商时的轻量提示；标准交付为空。</summary>
         public string SuggestedDeliverySupplierHint { get; set; }
+        /// <summary>推荐采购供应商与当前产品关系中的供应商型号。</summary>
+        public string SuggestedSupplierSku { get; set; }
+        /// <summary>推荐采购供应商关系中的未税价；不存在时为空。</summary>
+        public decimal? SuggestedUnitPrice { get; set; }
+        /// <summary>推荐采购供应商关系中的含税价；不存在时为空。</summary>
+        public decimal? SuggestedTaxPrice { get; set; }
         /// <summary>BOM 展开后的原始需求数量。</summary>
         public decimal GrossQty { get; set; }
         /// <summary>当前净需求数量；现阶段未自动抵扣库存和在途。</summary>

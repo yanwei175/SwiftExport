@@ -29,6 +29,7 @@ public sealed class PurchaseDraftCreationService(
     INetDemandExecutionLinkRepository executionLinkRepository,
     IPurchaseOrderDraftRepository purchaseDraftRepository,
     IProductRepository productRepository,
+    ICustomerRepository customerRepository,
     ISupplierRepository supplierRepository,
     ISupplierProductRepository supplierProductRepository,
     IDocumentNoService documentNoService,
@@ -227,7 +228,8 @@ public sealed class PurchaseDraftCreationService(
 
                 var writeModel = writeModelBuilder.Build(
                     document, command.ExecutionRequestId, purchaseOrderId, orderNo,
-                    firstLineNumber, targetMode == PurchaseDraftTargetModeEnum.CreateNew);
+                    firstLineNumber, targetMode == PurchaseDraftTargetModeEnum.CreateNew,
+                    targetMode == PurchaseDraftTargetModeEnum.CreateNew ? target?.Header : null);
                 if (writeModel.Head is not null
                     && await purchaseDraftRepository.InsertPurchaseDraftAsync(writeModel.Head) != 1)
                     throw new PurchaseDraftException("PURCHASE_HEAD_INSERT_FAILED", "采购草稿头写入失败。");
@@ -513,6 +515,10 @@ public sealed class PurchaseDraftCreationService(
             .ToArray();
         var suppliers = (await supplierRepository.GetByIdListAsync(supplierIds, withUpdLock: true))
             .ToDictionary(x => x.Uid);
+        var customerIds = grossDemands.Where(x => x.CustomerId.HasValue)
+            .Select(x => x.CustomerId!.Value).Distinct().ToArray();
+        var customers = (await customerRepository.GetByIdListAsync(customerIds, withUpdLock: true))
+            .ToDictionary(x => x.Uid);
         var productIds = netDemands.Where(x => x.ProductId.HasValue).Select(x => x.ProductId!.Value).Distinct().ToArray();
         var products = (await productRepository.GetByIdListAsync(productIds, withUpdLock: true))
             .ToDictionary(x => x.Uid);
@@ -526,6 +532,7 @@ public sealed class PurchaseDraftCreationService(
         foreach (var net in netDemands.OrderBy(x => x.LineNumber).ThenBy(x => x.Uid))
         {
             var gross = grossById[net.GrossDemandId];
+            customers.TryGetValue(gross.CustomerId ?? Guid.Empty, out var customer);
             itemByDemand.TryGetValue(net.Uid, out var item);
             var allocatedQty = allocatedByDemand.GetValueOrDefault(net.Uid);
             var remainingQty = net.NetQty - allocatedQty;
@@ -555,6 +562,9 @@ public sealed class PurchaseDraftCreationService(
                 SourceNo = gross.SourceNo,
                 SourceLineId = gross.SourceLineId,
                 SourceLineNumber = gross.SourceLineNumber,
+                CustomerId = gross.CustomerId,
+                CustomerCode = customer?.CustomerCode ?? string.Empty,
+                CustomerName = customer?.CustomerName ?? string.Empty,
                 IsSelected = item is not null,
                 IsCustomerSupplied = net.DeliveryMode == DemandDeliveryModeEnum.ParentExecutionSupplier,
                 IsPlanningFactValid = net.NetQty > 0 && remainingQty >= 0,
@@ -562,7 +572,7 @@ public sealed class PurchaseDraftCreationService(
                 RemainingQty = remainingQty,
                 RequestedPurchaseQty = item?.PurchaseQty,
                 DemandRequiredDate = net.RequiredDate,
-                PlannedDeliveryDate = net.RequiredDate,
+                PlannedDeliveryDate = item is null ? net.RequiredDate : item.PlannedDeliveryDate,
                 ProductId = net.ProductId,
                 Sku = net.SkuSnapshot,
                 LinkSku = product?.LinkSku ?? gross.LinkSkuSnapshot ?? string.Empty,
@@ -585,8 +595,8 @@ public sealed class PurchaseDraftCreationService(
                 DeliveryTargetSupplierName = deliverySupplier?.SupplierName ?? string.Empty,
                 HasSupplierProduct = data is not null,
                 SupplierSku = data?.SupplierSku ?? string.Empty,
-                UnitPrice = data?.UnitPrice,
-                TaxPrice = data?.TaxPrice
+                UnitPrice = item is null ? data?.UnitPrice ?? 0m : item.UnitPrice,
+                TaxPrice = item is null ? data?.TaxPrice ?? 0m : item.TaxPrice
             });
         }
 
@@ -653,6 +663,9 @@ public sealed class PurchaseDraftCreationService(
             SourceNo = row.SourceNo,
             SourceLineId = row.SourceLineId,
             SourceLineNumber = row.SourceLineNumber,
+            CustomerId = row.CustomerId,
+            CustomerCode = row.CustomerCode ?? string.Empty,
+            CustomerName = row.CustomerName ?? string.Empty,
             IsSelected = selected,
             IsCustomerSupplied = row.IsCustomerSupplied,
             IsPlanningFactValid = row.NetQty > 0 && row.AssociatedPurchaseQty <= row.NetQty,
@@ -660,7 +673,7 @@ public sealed class PurchaseDraftCreationService(
             RemainingQty = row.RemainingQty,
             RequestedPurchaseQty = item?.PurchaseQty,
             DemandRequiredDate = row.DemandRequiredDate,
-            PlannedDeliveryDate = row.DemandRequiredDate,
+            PlannedDeliveryDate = item is null ? row.DemandRequiredDate : item.PlannedDeliveryDate,
             ProductId = row.ProductId,
             Sku = row.Sku,
             LinkSku = row.LinkSku,
@@ -684,8 +697,8 @@ public sealed class PurchaseDraftCreationService(
             DeliveryTargetSupplierName = deliverySupplier?.SupplierName ?? string.Empty,
             HasSupplierProduct = data is not null,
             SupplierSku = data?.SupplierSku ?? string.Empty,
-            UnitPrice = data?.UnitPrice,
-            TaxPrice = data?.TaxPrice
+            UnitPrice = item is null ? data?.UnitPrice ?? 0m : item.UnitPrice,
+            TaxPrice = item is null ? data?.TaxPrice ?? 0m : item.TaxPrice
         };
     }
 

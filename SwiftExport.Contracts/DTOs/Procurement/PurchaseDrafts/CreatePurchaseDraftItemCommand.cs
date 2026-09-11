@@ -14,5 +14,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public decimal PurchaseQty { get; set; }
         public Guid SupplierId { get; set; }
         public Guid? DeliveryTargetSupplierId { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal TaxPrice { get; set; }
+        public DateTime? PlannedDeliveryDate { get; set; }
     }
 }

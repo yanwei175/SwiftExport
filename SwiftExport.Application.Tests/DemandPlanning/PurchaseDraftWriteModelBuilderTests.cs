@@ -19,7 +19,16 @@ public sealed class PurchaseDraftWriteModelBuilderTests
         var purchaseOrderId = Guid.NewGuid();
         var document = CreateDocument();
 
-        var model = _builder.Build(document, executionRequestId, purchaseOrderId, "PO2026070001", 1, createHead: true);
+        var header = new CreatePurchaseDraftHeaderCommand
+        {
+            InletHoseType = "软管 A",
+            AeratorType = "起泡器 B",
+            SalesPerson = "业务员甲",
+            PurchasePerson = "采购员乙",
+            InstructionManualType = "说明书 C",
+            Remark = "采购备注"
+        };
+        var model = _builder.Build(document, executionRequestId, purchaseOrderId, "PO2026070001", 1, createHead: true, header: header);
 
         Assert.IsNotNull(model.Head);
         Assert.AreEqual(executionRequestId, model.Head.ExecutionRequestId);
@@ -28,6 +37,14 @@ public sealed class PurchaseDraftWriteModelBuilderTests
         Assert.AreEqual(PurchaseOrderLifecycleStatusEnum.Active, model.Head.LifecycleStatus);
         Assert.AreEqual(ConfirmationStatusEnum.待确认, model.Head.ConfirmationStatus);
         Assert.AreEqual("CNY", model.Head.Currency);
+        Assert.AreEqual(document.CustomerId, model.Head.CustomerId);
+        Assert.AreEqual(document.CustomerName, model.Head.CustomerNameSnapshot);
+        Assert.AreEqual("软管 A", model.Head.InletrHoseType);
+        Assert.AreEqual("起泡器 B", model.Head.AeratorType);
+        Assert.AreEqual("业务员甲", model.Head.SoPerson);
+        Assert.AreEqual("采购员乙", model.Head.PoPerson);
+        Assert.AreEqual("说明书 C", model.Head.IMType);
+        Assert.AreEqual("采购备注", model.Head.Remark);
         Assert.AreEqual(1, model.Lines.Count);
         Assert.AreEqual(2, model.Links.Count);
         Assert.AreEqual(model.Lines[0].Uid, model.Links[0].TargetLineId);
@@ -102,6 +119,9 @@ public sealed class PurchaseDraftWriteModelBuilderTests
             SourceType = "SO",
             SourceUid = sourceUid,
             SourceNo = "SO001",
+            CustomerId = Guid.NewGuid(),
+            CustomerCode = "CUS001",
+            CustomerName = "客户一",
             SupplierId = supplierId,
             SupplierCode = "SUP001",
             SupplierName = "供应商一",

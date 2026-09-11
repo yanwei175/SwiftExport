@@ -12,6 +12,15 @@ namespace SwiftExport.WebApi.Controllers.Customers;
 
 public class CustomerPoConfigController(ICustomerPoConfigService service) : BaseController<CustomerPoConfig, CustomerPoConfigDto>(service)
 {
+    /// <summary>按客户与供应商标识查询完整的只读采购默认配置。</summary>
+    [HttpGet("by-parties")]
+    public async Task<ServiceResult<CustomerPoConfigDto>> GetByParties(
+        [FromQuery] Guid customerId,
+        [FromQuery] Guid supplierId,
+        CancellationToken cancellationToken)
+    {
+        return await service.GetByPartiesAsync(customerId, supplierId, cancellationToken);
+    }
 
     [HttpPost("page")]
     public async Task<ServiceResult<PagedResponseBase<CustomerPoConfigDto>>> GetPaged([FromBody] CustomerPoConfigSearchRequest request)

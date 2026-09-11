@@ -13,8 +13,158 @@ using EnterpriseGridCore = SwiftExport.Wpf.EnterpriseGrid.Core.EnterpriseGrid;
 namespace SwiftExport.Wpf.EnterpriseGrid.Tests.Operations;
 
 [TestClass]
+/// <summary>验证 Grid 批量操作的准入、原子写入及撤销契约。</summary>
 public sealed class GridOperationsTests
 {
+    /// <summary>列级开关只限制填充，重新启用后恢复既有行为。</summary>
+    [TestMethod]
+    public void FillDown_ColumnSwitch_ShouldSkipColumnAndSupportReenable()
+    {
+        StaTest.Run(() =>
+        {
+            var rows = new ObservableCollection<TestRow> { new("A", "1"), new("B", "2") };
+            var grid = CreateGrid(rows);
+            using var host = Show(grid);
+            SelectRectangle(grid, 0, 1, 0, 1);
+            Assert.IsTrue(GridColumn.GetCanFillDown(grid.Columns[0]));
+            GridColumn.SetCanFillDown(grid.Columns[0], false);
+            var operations = GetOperations(grid);
+            Assert.IsTrue(operations.FillDown());
+            Assert.AreEqual("B", rows[1].Name);
+            Assert.AreEqual("1", rows[1].Code);
+            Assert.IsTrue(operations.Undo());
+            GridColumn.SetCanFillDown(grid.Columns[1], false);
+            Assert.IsFalse(operations.CanFillDown());
+            Assert.IsFalse(operations.FillDown());
+            Assert.IsFalse(GridOperations.GetCanUndo(grid));
+            GridColumn.SetCanFillDown(grid.Columns[0], true);
+            Assert.IsTrue(operations.FillDown());
+            Assert.AreEqual("A", rows[1].Name);
+            Assert.AreEqual("2", rows[1].Code);
+        });
+    }
+
+    /// <summary>逐目标读取布尔状态，源行不可编辑仍可提供值，执行时重新检查最新状态。</summary>
+    [TestMethod]
+    public void FillDown_RowPermission_ShouldSkipBlockedTargetsAndRecheckBeforeExecution()
+    {
+        StaTest.Run(() =>
+        {
+            var rows = new ObservableCollection<TestRow>
+            {
+                new("A", "1") { CanEdit = false },
+                new("B", "2") { CanEdit = false },
+                new("C", "3")
+            };
+            var grid = CreateGrid(rows);
+            GridColumn.SetCanFillDownPath(grid.Columns[0], nameof(TestRow.CanEdit));
+            using var host = Show(grid);
+            SelectRectangle(grid, 0, 2, 0, 1);
+            var operations = GetOperations(grid);
+            Assert.IsTrue(operations.FillDown());
+            Assert.AreEqual("B", rows[1].Name);
+            Assert.AreEqual("A", rows[2].Name);
+            Assert.AreEqual("1", rows[1].Code);
+            Assert.AreEqual("1", rows[2].Code);
+            Assert.IsTrue(operations.Undo());
+            Assert.AreEqual("C", rows[2].Name);
+            Assert.AreEqual("2", rows[1].Code);
+            SelectRectangle(grid, 0, 2, 0, 0);
+            Assert.IsTrue(operations.CanFillDown());
+            rows[2].CanEdit = false;
+            Assert.IsFalse(operations.FillDown());
+            Assert.IsFalse(GridOperations.GetCanUndo(grid));
+            rows[1].CanEdit = true;
+            Assert.IsTrue(operations.FillDown());
+            Assert.AreEqual("A", rows[1].Name);
+            Assert.AreEqual("C", rows[2].Name);
+        });
+    }
+
+    /// <summary>错误路径、非布尔、空值与异常 getter 都不能放行目标写入。</summary>
+    [TestMethod]
+    [DataRow("Missing")]
+    [DataRow("Name")]
+    [DataRow("OptionalPermission")]
+    [DataRow("BrokenPermission")]
+    public void FillDown_InvalidPermission_ShouldFailClosed(string path)
+    {
+        StaTest.Run(() =>
+        {
+            var rows = new ObservableCollection<TestRow> { new("A", "1"), new("B", "2") };
+            var grid = CreateGrid(rows);
+            GridColumn.SetCanFillDownPath(grid.Columns[0], path);
+            using var host = Show(grid);
+            SelectRectangle(grid, 0, 1, 0, 0);
+            Assert.IsFalse(GetOperations(grid).CanFillDown());
+            Assert.IsFalse(GetOperations(grid).FillDown());
+            Assert.AreEqual("B", rows[1].Name);
+            Assert.IsFalse(GridOperations.GetCanUndo(grid));
+        });
+    }
+
+    /// <summary>复合列以目标 Cell 为单位跳过，不依赖屏幕外的虚拟化容器。</summary>
+    [TestMethod]
+    public void FillDown_CompositePermission_ShouldWorkForUnrealizedRowsAndUndo()
+    {
+        StaTest.Run(() =>
+        {
+            var rows = new ObservableCollection<CompositeLookupRow>(Enumerable.Range(0, 100)
+                .Select(index => new CompositeLookupRow(Guid.NewGuid(), $"S{index}", $"N{index}")));
+            var lastId = rows[99].SupplierId;
+            rows[98].CanEdit = false;
+            var blockedId = rows[98].SupplierId;
+            var column = new DataGridTemplateColumn();
+            GridColumn.SetFillDownFieldPaths(column, "SupplierId,SupplierCode,SupplierName");
+            GridColumn.SetCanFillDownPath(column, nameof(CompositeLookupRow.CanEdit));
+            var grid = CreateCompositeLookupGrid(rows, column);
+            using var host = Show(grid);
+            SelectRectangle(grid, 0, 99, 0, 0);
+            Assert.IsNull(grid.ItemContainerGenerator.ContainerFromItem(rows[99]));
+            Assert.IsTrue(GetOperations(grid).FillDown());
+            Assert.AreEqual(blockedId, rows[98].SupplierId);
+            Assert.AreEqual("S98", rows[98].SupplierCode);
+            Assert.AreEqual("N98", rows[98].SupplierName);
+            Assert.AreEqual(rows[0].SupplierId, rows[99].SupplierId);
+            Assert.AreEqual("S0", rows[99].SupplierCode);
+            Assert.AreEqual("N0", rows[99].SupplierName);
+            Assert.IsNull(grid.ItemContainerGenerator.ContainerFromItem(rows[99]));
+            Assert.IsTrue(GetOperations(grid).Undo());
+            Assert.AreEqual(lastId, rows[99].SupplierId);
+            Assert.AreEqual("S99", rows[99].SupplierCode);
+            Assert.AreEqual("N99", rows[99].SupplierName);
+        });
+    }
+
+    /// <summary>首个字段改变许可后仍完成同一逻辑 Cell，避免复合关系只写一半。</summary>
+    [TestMethod]
+    public void FillDown_CompositePermissionChangingDuringWrite_ShouldUseInitialPermission()
+    {
+        StaTest.Run(() =>
+        {
+            var targetId = Guid.NewGuid();
+            var rows = new ObservableCollection<CompositeLookupRow>
+            {
+                new(Guid.NewGuid(), "SUP", "Supplier"),
+                new(targetId, null, "Original")
+            };
+            var column = new DataGridTemplateColumn();
+            GridColumn.SetFillDownFieldPaths(column, "SupplierCode,SupplierId,SupplierName");
+            GridColumn.SetCanFillDownPath(column, nameof(CompositeLookupRow.IsSupplierEmpty));
+            var grid = CreateCompositeLookupGrid(rows, column);
+            using var host = Show(grid);
+            SelectRectangle(grid, 0, 1, 0, 0);
+            Assert.IsTrue(GetOperations(grid).FillDown());
+            Assert.IsFalse(rows[1].IsSupplierEmpty);
+            Assert.AreEqual(rows[0].SupplierId, rows[1].SupplierId);
+            Assert.AreEqual("Supplier", rows[1].SupplierName);
+            Assert.IsTrue(GetOperations(grid).Undo());
+            Assert.IsNull(rows[1].SupplierCode);
+            Assert.AreEqual(targetId, rows[1].SupplierId);
+            Assert.AreEqual("Original", rows[1].SupplierName);
+        });
+    }
+
     [TestMethod]
     public void FillDown_Rectangle_ShouldCopyEachTopValueAndUndoAtomically()
     {
@@ -678,6 +828,7 @@ public sealed class GridOperationsTests
         public void Dispose() => window.Close();
     }
 
+    /// <summary>提供文本字段和可动态变化的填充许可测试数据。</summary>
     private sealed class TestRow
     {
         public TestRow(string name, string code)
@@ -689,6 +840,13 @@ public sealed class GridOperationsTests
         public string Name { get; set; }
 
         public string Code { get; set; }
+
+        public bool CanEdit { get; set; } = true;
+
+        public bool? OptionalPermission => null;
+
+        /// <summary>模拟许可求值失败，验证命令查询安全降级。</summary>
+        public bool BrokenPermission => throw new InvalidOperationException("模拟许可读取失败。");
     }
 
     private sealed class PasteRow(string name, int quantity, TestKind kind)
@@ -709,6 +867,7 @@ public sealed class GridOperationsTests
         public int Number { get; set; }
     }
 
+    /// <summary>模拟具备多个关联字段的逻辑单元格。</summary>
     private sealed class CompositeLookupRow
     {
         private string? _supplierCode;
@@ -721,6 +880,8 @@ public sealed class GridOperationsTests
         }
 
         public Guid SupplierId { get; set; }
+
+        public bool CanEdit { get; set; } = true;
 
         public string? SupplierCode
         {
@@ -737,6 +898,9 @@ public sealed class GridOperationsTests
         }
 
         public string? SupplierName { get; set; }
+
+        /// <summary>模拟随填充字段变化的派生许可。</summary>
+        public bool IsSupplierEmpty => SupplierCode is null;
 
         public bool ThrowOnSupplierCodeSet { get; init; }
     }

@@ -1,6 +1,6 @@
 /*
   在新目标数据库中执行。
-  仅对已迁入的白名单表补目标关系字段、索引和必要外键；不删除、不猜测、不覆盖原始编码。
+  仅对已迁入的白名单表补目标关系字段和索引；实体关系采用逻辑外键，不创建数据库 FOREIGN KEY。
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
@@ -103,10 +103,6 @@ WHERE c.SupplierId IS NULL;';
 
     EXEC sys.sp_executesql N'CREATE INDEX IX_ProductDetails_ProductId ON dbo.ProductDetails(ProductId) WHERE IsDeleted=0 AND ProductId IS NOT NULL;';
     EXEC sys.sp_executesql N'CREATE INDEX IX_CustomerPoConfig_CustomerId_SupplierId ON dbo.CustomerPoConfig(CustomerId,SupplierId) WHERE IsDeleted=0;';
-    EXEC sys.sp_executesql N'ALTER TABLE dbo.ProductDetails WITH CHECK ADD CONSTRAINT FK_ProductDetails_Product FOREIGN KEY(ProductId) REFERENCES dbo.Product(Uid);';
-    EXEC sys.sp_executesql N'ALTER TABLE dbo.CustomerPoConfig WITH CHECK ADD CONSTRAINT FK_CustomerPoConfig_Customer FOREIGN KEY(CustomerId) REFERENCES dbo.Customer(Uid);';
-    EXEC sys.sp_executesql N'ALTER TABLE dbo.CustomerPoConfig WITH CHECK ADD CONSTRAINT FK_CustomerPoConfig_Supplier FOREIGN KEY(SupplierId) REFERENCES dbo.Supplier(Uid);';
-
     COMMIT;
 END TRY
 BEGIN CATCH

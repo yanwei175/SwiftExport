@@ -147,11 +147,10 @@ public sealed class PurchaseDraftPreviewBuilder
             valid = false;
         }
 
-        if (!candidate.HasSupplierProduct
-            || (!candidate.UnitPrice.HasValue && !candidate.TaxPrice.HasValue))
+        if (!candidate.HasSupplierProduct)
         {
             AddWarning(response, candidate, PurchaseDraftWarningCodes.PurchaseDataIncomplete,
-                "供应商产品或采购价格不完整；允许生成草稿，创建后需在采购详情补齐资料。",
+                "供应商产品资料未建立；允许生成草稿，创建后可在采购详情补齐资料。",
                 isBlocker: false, requiresConfirmation: false);
         }
 
@@ -197,6 +196,18 @@ public sealed class PurchaseDraftPreviewBuilder
                 SupplierId = parent.Candidate.PurchaseSupplierId,
                 NetDemandIds = new[] { parent.Candidate.NetDemandId }
                     .Concat(remainingChildren.Select(x => x.NetDemandId))
+                    .ToList(),
+                AffectedObjects = new[]
+                    {
+                        MapAffectedObject(
+                            parent.Candidate,
+                            isSelectedForPurchase: true,
+                            remainingAfterSelectionQty: Math.Max(0, parent.Candidate.RemainingQty - selectedQty.GetValueOrDefault(parent.Candidate.NetDemandId)))
+                    }
+                    .Concat(remainingChildren.Select(child => MapAffectedObject(
+                        child,
+                        selectedQty.ContainsKey(child.NetDemandId),
+                        Math.Max(0, child.RemainingQty - selectedQty.GetValueOrDefault(child.NetDemandId)))))
                     .ToList()
             });
         }
@@ -212,13 +223,31 @@ public sealed class PurchaseDraftPreviewBuilder
                      x.Candidate.SourceUid
                  }))
         {
+            var first = source.First().Candidate;
+            if (source.Select(x => x.Candidate.CustomerId).Distinct().Count() > 1)
+            {
+                response.Warnings.Add(new PurchaseDraftWarningDto
+                {
+                    Code = PurchaseDraftWarningCodes.CorruptedPlanningState,
+                    Message = "同一来源存在不同客户身份，不能确定采购单头默认配置。",
+                    IsBlocker = true,
+                    RequiresConfirmation = false,
+                    SourceType = first.SourceType,
+                    SourceUid = first.SourceUid,
+                    NetDemandIds = source.Select(x => x.Candidate.NetDemandId).ToList(),
+                    AffectedObjects = source.Select(x => MapAffectedObject(
+                        x.Candidate,
+                        isSelectedForPurchase: true,
+                        remainingAfterSelectionQty: Math.Max(0, x.Candidate.RemainingQty - x.PurchaseQty))).ToList()
+                });
+            }
+
             if (source.Select(x => x.Candidate.SourceNo?.Trim() ?? string.Empty)
                 .Distinct(StringComparer.OrdinalIgnoreCase).Count() <= 1)
             {
                 continue;
             }
 
-            var first = source.First().Candidate;
             response.Warnings.Add(new PurchaseDraftWarningDto
             {
                 Code = PurchaseDraftWarningCodes.CorruptedPlanningState,
@@ -227,7 +256,11 @@ public sealed class PurchaseDraftPreviewBuilder
                 RequiresConfirmation = false,
                 SourceType = first.SourceType,
                 SourceUid = first.SourceUid,
-                NetDemandIds = source.Select(x => x.Candidate.NetDemandId).ToList()
+                NetDemandIds = source.Select(x => x.Candidate.NetDemandId).ToList(),
+                AffectedObjects = source.Select(x => MapAffectedObject(
+                    x.Candidate,
+                    isSelectedForPurchase: true,
+                    remainingAfterSelectionQty: Math.Max(0, x.Candidate.RemainingQty - x.PurchaseQty))).ToList()
             });
         }
     }
@@ -315,6 +348,9 @@ public sealed class PurchaseDraftPreviewBuilder
             SourceType = sourceKey.SourceType,
             SourceUid = sourceKey.SourceUid,
             SourceNo = sourceKey.SourceNo,
+            CustomerId = first.CustomerId,
+            CustomerCode = first.CustomerCode,
+            CustomerName = first.CustomerName,
             SupplierId = supplierId,
             SupplierCode = first.PurchaseSupplierCode,
             SupplierName = first.PurchaseSupplierName,
@@ -399,7 +435,11 @@ public sealed class PurchaseDraftPreviewBuilder
                 SourceType = first.SourceType,
                 SourceUid = first.SourceUid,
                 SupplierId = first.PurchaseSupplierId,
-                NetDemandIds = selections.Select(x => x.Candidate.NetDemandId).ToList()
+                NetDemandIds = selections.Select(x => x.Candidate.NetDemandId).ToList(),
+                AffectedObjects = selections.Select(x => MapAffectedObject(
+                    x.Candidate,
+                    isSelectedForPurchase: true,
+                    remainingAfterSelectionQty: Math.Max(0, x.Candidate.RemainingQty - x.PurchaseQty))).ToList()
             });
         }
 
@@ -425,8 +465,7 @@ public sealed class PurchaseDraftPreviewBuilder
             DeliveryTargetSupplierId = first.DeliveryTargetSupplierId,
             DeliveryTargetSupplierCode = first.DeliveryTargetSupplierCode,
             DeliveryTargetSupplierName = first.DeliveryTargetSupplierName,
-            PurchaseDataIncomplete = selections.Any(x => !x.Candidate.HasSupplierProduct
-                || (!x.Candidate.UnitPrice.HasValue && !x.Candidate.TaxPrice.HasValue)),
+            PurchaseDataIncomplete = selections.Any(x => !x.Candidate.HasSupplierProduct),
             SourcePlannedDeliveryDates = dates,
             Contributions = selections
                 .OrderBy(x => x.Candidate.SourceLineNumber ?? int.MaxValue)
@@ -470,9 +509,31 @@ public sealed class PurchaseDraftPreviewBuilder
             SourceType = candidate.SourceType,
             SourceUid = candidate.SourceUid,
             SupplierId = candidate.PurchaseSupplierId,
-            NetDemandIds = new List<Guid> { candidate.NetDemandId }
+            NetDemandIds = new List<Guid> { candidate.NetDemandId },
+            AffectedObjects = new List<PurchaseDraftWarningAffectedObjectDto>
+            {
+                MapAffectedObject(
+                    candidate,
+                    isSelectedForPurchase: true,
+                    remainingAfterSelectionQty: Math.Max(0, candidate.RemainingQty - (candidate.RequestedPurchaseQty ?? 0)))
+            }
         });
     }
+
+    /// <summary>把服务端候选事实收窄为警告辨认摘要；只描述确认范围，不改变采购选择或数量。</summary>
+    private static PurchaseDraftWarningAffectedObjectDto MapAffectedObject(
+        PurchaseDraftPreviewCandidate candidate,
+        bool isSelectedForPurchase,
+        decimal remainingAfterSelectionQty) => new()
+    {
+        NetDemandId = candidate.NetDemandId,
+        SourceNo = candidate.SourceNo,
+        SourceLineNumber = candidate.SourceLineNumber,
+        Sku = candidate.Sku,
+        LinkSku = candidate.LinkSku,
+        IsIncludedInCurrentPurchase = isSelectedForPurchase,
+        RemainingAfterSelectionQty = remainingAfterSelectionQty
+    };
 
     private static string BuildPreviewToken(
         PurchaseDraftPreviewBuildRequest request,
@@ -500,6 +561,9 @@ public sealed class PurchaseDraftPreviewBuilder
                 .Append('|').Append(candidate.SourceNo?.Trim())
                 .Append('|').Append(candidate.SourceLineId.ToString("N"))
                 .Append('|').Append(candidate.SourceLineNumber)
+                .Append('|').Append(candidate.CustomerId?.ToString("N"))
+                .Append('|').Append(candidate.CustomerCode?.Trim())
+                .Append('|').Append(candidate.CustomerName?.Trim())
                 .Append('|').Append((int)candidate.ExecutionType)
                 .Append('|').Append(candidate.IsCustomerSupplied ? '1' : '0')
                 .Append('|').Append(candidate.IsPlanningFactValid ? '1' : '0')
@@ -772,6 +836,9 @@ public sealed class PurchaseDraftPreviewCandidate
     public string SourceNo { get; set; } = string.Empty;
     public Guid SourceLineId { get; set; }
     public int? SourceLineNumber { get; set; }
+    public Guid? CustomerId { get; set; }
+    public string CustomerCode { get; set; } = string.Empty;
+    public string CustomerName { get; set; } = string.Empty;
     public bool IsSelected { get; set; }
     public bool IsCustomerSupplied { get; set; }
     public bool IsPlanningFactValid { get; set; } = true;

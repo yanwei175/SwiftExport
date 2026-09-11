@@ -1,5 +1,6 @@
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
+using SwiftExportClient.Features.Customers.CustomerPoConfigs.ViewModels;
 using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
@@ -26,6 +27,7 @@ using SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels;
 
 namespace SwiftExportClient.Navigation;
 
+/// <summary>集中定义客户端路由、权限和侧边菜单结构。</summary>
 public sealed class NavigationRouteRegistry : INavigationRouteRegistry
 {
     private readonly IReadOnlyList<NavigationRoute> _routes =
@@ -39,6 +41,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new("product-colors", "产品颜色管理", "Workspace", typeof(ProductColorsViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
         new("product-bom", "BOM", "Workspace", typeof(ProductBomViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
         new("customers", "客户管理", "Workspace", typeof(CustomerManagerViewModel), NavigationModuleKeys.Customers, PermissionKeys.ModuleCustomersAccess),
+        new(CustomerPoConfigManagerViewModel.RouteKey, "客户采购默认配置", "Workspace", typeof(CustomerPoConfigManagerViewModel), NavigationModuleKeys.Customers, PermissionKeys.ModuleCustomersAccess),
         new(CustomerProductWorkspaceViewModel.RouteKey, "客户产品管理", "Workspace", typeof(CustomerProductWorkspaceViewModel), NavigationModuleKeys.Customers, PermissionKeys.ModuleCustomersAccess),
         new("suppliers", "供应商管理", "Workspace", typeof(SupplierManagerViewModel), NavigationModuleKeys.Suppliers, PermissionKeys.ModuleSuppliersAccess),
         new(SupplierProductWorkspaceViewModel.RouteKey, "供应商产品管理", "Workspace", typeof(SupplierProductWorkspaceViewModel), NavigationModuleKeys.Suppliers, PermissionKeys.ModuleSuppliersAccess),
@@ -97,6 +100,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 Children:
                 [
                     new("customers", "客户", "Workspace", "People24"),
+                    new(CustomerPoConfigManagerViewModel.RouteKey, "采购默认配置", "Workspace", "Settings24"),
                     new(CustomerProductWorkspaceViewModel.RouteKey, "客户产品管理", "Workspace", "DocumentTable24"),
                 ]),
             new(

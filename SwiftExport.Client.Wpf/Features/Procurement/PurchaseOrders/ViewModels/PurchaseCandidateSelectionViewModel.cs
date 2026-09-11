@@ -5,8 +5,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
 
@@ -17,15 +20,28 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
 {
     private readonly IPurchaseDraftApi _api;
     private readonly IApiCallRunner _runner;
+    private readonly PurchasePreparationService? _preparationService;
     private CancellationTokenSource? _lifetimeCancellation;
     private CancellationTokenSource? _groupCancellation;
     private CancellationTokenSource? _detailCancellation;
+    private CancellationTokenSource? _supplierSearchCancellation;
     private bool _disposed;
 
     /// <summary>初始化采购候选选择器依赖和本地集合视图。</summary>
     public PurchaseCandidateSelectionViewModel(
         IPurchaseDraftApi api,
+        PurchasePreparationService preparationService,
         IApiCallRunner runner)
+    {
+        _api = api;
+        _preparationService = preparationService;
+        _runner = runner;
+        ItemsView = CollectionViewSource.GetDefaultView(Items);
+        ItemsView.Filter = MatchesLocalFilter;
+    }
+
+    /// <summary>保留仅验证候选加载的测试入口；供应商搜索需使用完整应用依赖。</summary>
+    public PurchaseCandidateSelectionViewModel(IPurchaseDraftApi api, IApiCallRunner runner)
     {
         _api = api;
         _runner = runner;
@@ -41,6 +57,10 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
 
     /// <summary>只对当前已加载集合应用筛选的 WPF 视图。</summary>
     public ICollectionView ItemsView { get; }
+
+    public ObservableCollection<ProcurementSupplierCandidateDto> SupplierCandidates { get; } = [];
+
+    public event EventHandler? InputChanged;
 
     /// <summary>返回已加载集合中全部勾选项；本地筛选不会丢失隐藏行选择。</summary>
     public IReadOnlyList<PurchaseCandidateItemModel> SelectedRows =>
@@ -81,6 +101,15 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
 
     [ObservableProperty]
     public partial string SourceNo { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool ShowOnlyErrors { get; set; }
+
+    [ObservableProperty]
+    public partial PurchaseCandidateItemModel? SelectedItem { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsSupplierSearchBusy { get; private set; }
 
     [ObservableProperty]
     public partial bool IsLoading { get; private set; }
@@ -168,6 +197,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     {
         Keyword = string.Empty;
         SourceNo = string.Empty;
+        ShowOnlyErrors = false;
         RefreshLocalFilter();
     }
 
@@ -180,6 +210,78 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         if (visible.Count == 0) return;
         var target = !visible.All(static item => item.IsChecked);
         foreach (var item in visible) item.IsChecked = target;
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task SearchSuppliersAsync(string? keyword)
+    {
+        if (_preparationService is null) return;
+        var previous = _supplierSearchCancellation;
+        var request = new CancellationTokenSource();
+        _supplierSearchCancellation = request;
+        previous?.Cancel();
+        IsSupplierSearchBusy = true;
+        try
+        {
+            var result = await _preparationService.SearchSuppliersAsync(new PagedRequestBase
+            {
+                Keyword = keyword?.Trim(),
+                PageIndex = 1,
+                PageSize = 50,
+            }, request.Token);
+            if (request.IsCancellationRequested || !ReferenceEquals(_supplierSearchCancellation, request)) return;
+            SupplierCandidates.Clear();
+            if (result.Success && result.Data is not null)
+            {
+                foreach (var supplier in result.Data.Items) SupplierCandidates.Add(supplier);
+            }
+            else if (!string.IsNullOrWhiteSpace(result.Message))
+            {
+                StatusText = result.Message;
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_supplierSearchCancellation, request))
+            {
+                _supplierSearchCancellation = null;
+                IsSupplierSearchBusy = false;
+            }
+            request.Dispose();
+        }
+    }
+
+    [RelayCommand]
+    private void CommitPurchaseSupplier(PurchaseCandidateItemModel? item) => item?.CommitPurchaseSupplier();
+
+    [RelayCommand]
+    private void ClearPurchaseSupplier(PurchaseCandidateItemModel? item) => item?.ClearPurchaseSupplier();
+
+    [RelayCommand]
+    private void CommitDeliverySupplier(PurchaseCandidateItemModel? item)
+    {
+        if (item?.IsCustomerSupplied == true) item.CommitDeliverySupplier();
+    }
+
+    [RelayCommand]
+    private void ClearDeliverySupplier(PurchaseCandidateItemModel? item)
+    {
+        if (item?.IsCustomerSupplied == true) item.ClearDeliverySupplier();
+    }
+
+    /// <summary>把服务端结构化验证结果映射回稳定需求行，供只看错误和定位编辑使用。</summary>
+    public void ApplyValidation(IReadOnlyList<PurchaseDraftWarningModel> warnings)
+    {
+        foreach (var item in Items) item.ValidationMessage = string.Empty;
+        foreach (var warning in warnings.Where(static warning => warning.IsBlocker))
+        {
+            foreach (var item in Items.Where(item => warning.NetDemandIds.Contains(item.Uid)))
+                item.ValidationMessage = string.IsNullOrWhiteSpace(item.ValidationMessage)
+                    ? warning.Message
+                    : $"{item.ValidationMessage}；{warning.Message}";
+        }
+        RefreshLocalFilter();
+        SelectedItem = Items.FirstOrDefault(static item => item.HasValidationError);
     }
 
     /// <summary>加载完整采购候选来源分组，不自动选择或加载明细。</summary>
@@ -255,6 +357,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
             {
                 var row = PurchaseCandidateItemModel.FromDto(dto);
                 row.PropertyChanged += OnRowPropertyChanged;
+                row.ValueChanged += OnRowValueChanged;
                 Items.Add(row);
             }
             IsDetailLoaded = true;
@@ -272,7 +375,8 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         if (item is not PurchaseCandidateItemModel row) return false;
         var keyword = Keyword.Trim();
         var sourceNo = SourceNo.Trim();
-        return (keyword.Length == 0
+        return (!ShowOnlyErrors || row.HasValidationError)
+            && (keyword.Length == 0
                 || Contains(row.Sku, keyword)
                 || Contains(row.LinkSku, keyword)
                 || Contains(row.Description, keyword)
@@ -312,10 +416,21 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         UpdateCountStatus();
     }
 
+    private void OnRowValueChanged(object? sender, EventArgs e)
+    {
+        if (sender is PurchaseCandidateItemModel row) row.ValidationMessage = string.Empty;
+        InputChanged?.Invoke(this, EventArgs.Empty);
+        UpdateCountStatus();
+    }
+
     /// <summary>解除行事件并清空当前候选，防止跨来源保留选择。</summary>
     private void ClearItems()
     {
-        foreach (var item in Items) item.PropertyChanged -= OnRowPropertyChanged;
+        foreach (var item in Items)
+        {
+            item.PropertyChanged -= OnRowPropertyChanged;
+            item.ValueChanged -= OnRowValueChanged;
+        }
         Items.Clear();
         ItemsView.Refresh();
         OnPropertyChanged(nameof(FilteredCount));
@@ -327,6 +442,8 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     partial void OnKeywordChanged(string value) => RefreshLocalFilter();
 
     partial void OnSourceNoChanged(string value) => RefreshLocalFilter();
+
+    partial void OnShowOnlyErrorsChanged(bool value) => RefreshLocalFilter();
 
     private static CancellationTokenSource ReplaceCancellation(
         ref CancellationTokenSource? owner,
@@ -358,8 +475,11 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         var details = _detailCancellation;
         _groupCancellation = null;
         _detailCancellation = null;
+        var supplierSearch = _supplierSearchCancellation;
+        _supplierSearchCancellation = null;
         groups?.Cancel();
         details?.Cancel();
+        supplierSearch?.Cancel();
     }
 
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);

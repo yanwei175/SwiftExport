@@ -7,6 +7,8 @@
         xmlns:home="clr-namespace:SwiftExportClient.Features.Home"
         xmlns:customerViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerManagement.Views"
         xmlns:customerViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerManagement.ViewModels"
+        xmlns:customerPoConfigViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerPoConfigs.Views"
+        xmlns:customerPoConfigViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerPoConfigs.ViewModels"
         xmlns:customerProductViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.Views"
         xmlns:customerProductViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.ViewModels"
         xmlns:grossDemandViews="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.Views"
@@ -138,6 +140,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type customerViewModels:CustomerManagerViewModel}">
             <customerViews:CustomerManagerView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type customerPoConfigViewModels:CustomerPoConfigManagerViewModel}">
+            <customerPoConfigViews:CustomerPoConfigManagerView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type customerProductViewModels:CustomerProductWorkspaceViewModel}">
             <customerProductViews:CustomerProductWorkspaceView />

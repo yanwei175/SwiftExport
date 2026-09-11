@@ -17,7 +17,8 @@ public sealed class PurchaseDraftWriteModelBuilder
         Guid purchaseOrderId,
         string orderNo,
         int firstLineNumber,
-        bool createHead)
+        bool createHead,
+        CreatePurchaseDraftHeaderCommand? header = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         if (executionRequestId == Guid.Empty || purchaseOrderId == Guid.Empty)
@@ -38,6 +39,9 @@ public sealed class PurchaseDraftWriteModelBuilder
                 SupplierId = document.SupplierId,
                 SupplierCode = document.SupplierCode,
                 SupplierName = document.SupplierName,
+                CustomerId = document.CustomerId,
+                CustomerCode = document.CustomerCode,
+                CustomerNameSnapshot = document.CustomerName,
                 DemandSourceType = document.SourceType,
                 DemandSourceUid = document.SourceUid,
                 DemandSourceNo = document.SourceNo,
@@ -46,7 +50,18 @@ public sealed class PurchaseDraftWriteModelBuilder
                 ConfirmationStatus = ConfirmationStatusEnum.待确认,
                 Currency = CurrencyEnum.CNY,
                 OrderDate = DateTime.Now,
-                ExpectedDate = document.EarliestPlannedDeliveryDate
+                ExpectedDate = document.EarliestPlannedDeliveryDate,
+                InletrHoseType = header?.InletHoseType,
+                AeratorType = header?.AeratorType,
+                PalletType = header?.PalletType,
+                BoxType = header?.BoxType,
+                LabelType = header?.LabelType,
+                IMType = header?.InstructionManualType,
+                CartonType = header?.CartonType,
+                LogoType = header?.LogoType,
+                SoPerson = header?.SalesPerson,
+                PoPerson = header?.PurchasePerson,
+                Remark = header?.Remark
             };
         }
 
