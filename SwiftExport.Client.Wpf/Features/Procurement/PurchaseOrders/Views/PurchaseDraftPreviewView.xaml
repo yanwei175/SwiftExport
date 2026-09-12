@@ -113,11 +113,11 @@
                             <Setter Property="VerticalAlignment" Value="Center" />
                         </Style>
                     </Border.Resources>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                      HorizontalScrollBarVisibility="Auto">
+                    <ScrollViewer VerticalScrollBarVisibility="Visible"
+                                      HorizontalScrollBarVisibility="Disabled">
 
                         <Grid DataContext="{Binding SelectedDocument}"
-                                  d:DataContext="{d:DesignInstance models:PurchaseDraftDocumentReviewModel}">
+                              d:DataContext="{d:DesignInstance models:PurchaseDraftDocumentReviewModel}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="8" />
@@ -174,13 +174,21 @@
                             <TextBlock Grid.Row="8" Grid.Column="0" Text="业务员" />
                             <ui:TextBox Grid.Row="8" Grid.Column="2" Text="{Binding Header.SalesPerson, Mode=OneWay}" IsReadOnly="True" />
                             <TextBlock Grid.Row="10" Grid.Column="0" Text="特殊要求" />
-                            <ui:TextBox Grid.Row="10" Grid.RowSpan="3" Grid.Column="2" Grid.ColumnSpan="5"
-                                            PlaceholderText="特殊要求或备注"
-                                            Text="{Binding Header.Remark, Mode=OneWay}"
-                                            IsReadOnly="True"
-                                            AcceptsReturn="True"
-                                            TextWrapping="Wrap"
-                                            MinHeight="56" />
+                            
+                            <!--<ui:TextBlock Grid.Row="10" Grid.RowSpan="3" 
+                                        Grid.Column="2" Grid.ColumnSpan="5"
+                                        Text="{Binding Header.Remark, Mode=OneWay}"
+                                        TextWrapping="Wrap"
+                                        MinHeight="56" />-->
+                            <TextBox Grid.Row="10" 
+                                     Grid.RowSpan="3" 
+                                     Grid.Column="2" 
+                                     Grid.ColumnSpan="5"
+                                     Text="{Binding Header.Remark, Mode=OneWay}"
+                                     IsReadOnly="True"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     MinHeight="56" />
 
 
 

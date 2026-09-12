@@ -722,6 +722,113 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.IsTrue(warning.CanLocate);
     }
 
+    /// <summary>准备页必须展示关联客供件真实确认内容，并在确认后直接解锁进入审核而非停留在失效提示。</summary>
+    [TestMethod]
+    public async Task PreparationRelatedWarning_ShouldShowAffectedFactsAndUnlockAfterConfirmation()
+    {
+        var api = new NetDemandApiStub();
+        using var picker = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
+        using var preview = CreateViewModel(api);
+        picker.AttachWorkflow(preview);
+        preview.BeginSession();
+        var parentDto = new PurchaseDraftCandidateDto
+        {
+            Uid = Guid.NewGuid(), Version = 2, SourceType = "SO", SourceUid = api.SourceUid,
+            SourceNo = "SO-1001", SourceLineNumber = 1, Sku = "PARENT-SKU", LinkSku = "PARENT-MODEL",
+            SupplyType = SupplyTypeEnums.采购, NetQty = 5m,
+            SuggestedPurchaseSupplierId = api.SupplierId,
+            SuggestedPurchaseSupplierCode = "S001",
+            SuggestedPurchaseSupplierName = "供应商一",
+        };
+        var relatedChildDto = new PurchaseDraftCandidateDto
+        {
+            Uid = Guid.NewGuid(), Version = 2, SourceType = "SO", SourceUid = api.SourceUid,
+            SourceNo = "SO-1001", SourceLineNumber = 2, Sku = "CS-CHILD", LinkSku = "MODEL-CS-CHILD",
+            SupplyType = SupplyTypeEnums.采购, NetQty = 3m, IsCustomerSupplied = true,
+            DeliveryTargetNetDemandId = parentDto.Uid,
+            SuggestedPurchaseSupplierId = Guid.NewGuid(),
+            SuggestedPurchaseSupplierCode = "S002",
+            SuggestedPurchaseSupplierName = "客供采购方",
+            SuggestedDeliverySupplierId = api.SupplierId,
+            SuggestedDeliverySupplierCode = "S001",
+            SuggestedDeliverySupplierName = "供应商一",
+        };
+        api.CandidateGroups.Add(new PurchaseDraftCandidateSourceGroupDto
+        {
+            SourceType = "SO", SourceUid = api.SourceUid, SourceNo = "SO-1001", CandidateCount = 2,
+        });
+        api.Candidates.AddRange([parentDto, relatedChildDto]);
+        await picker.OpenAsync();
+        await picker.SelectSourceGroupCommand.ExecuteAsync(picker.SourceGroups[1]);
+        var parent = picker.Items.Single(item => item.Uid == parentDto.Uid);
+        var relatedChild = picker.Items.Single(item => item.Uid == relatedChildDto.Uid);
+        parent.IsChecked = true;
+        Assert.IsTrue(relatedChild.IsChecked);
+        relatedChild.IsChecked = false;
+        api.PreviewHandler = (request, _) =>
+        {
+            var response = api.CreatePreview(request);
+            response.RequiresConfirmation = true;
+            response.Warnings.Add(new PurchaseDraftWarningDto
+            {
+                Code = PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining,
+                Message = "父件仍有关联客供件未转采购。",
+                RequiresConfirmation = true,
+                SourceType = "SO",
+                SourceUid = api.SourceUid,
+                NetDemandIds = { parent.Uid, relatedChild.Uid },
+                AffectedObjects =
+                {
+                    new PurchaseDraftWarningAffectedObjectDto
+                    {
+                        NetDemandId = parent.Uid,
+                        SourceNo = parent.SourceNo,
+                        SourceLineNumber = 1,
+                        Sku = parent.Sku,
+                        LinkSku = parent.LinkSku,
+                        IsIncludedInCurrentPurchase = true,
+                    },
+                    new PurchaseDraftWarningAffectedObjectDto
+                    {
+                        NetDemandId = relatedChild.Uid,
+                        SourceNo = parent.SourceNo,
+                        SourceLineNumber = 2,
+                        Sku = "CS-CHILD",
+                        LinkSku = "MODEL-CS-CHILD",
+                        IsIncludedInCurrentPurchase = false,
+                        RemainingAfterSelectionQty = 3m,
+                    },
+                },
+            });
+            return Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(response));
+        };
+        var previewRequested = 0;
+        picker.PreviewRequested += (_, _) => previewRequested++;
+
+        await picker.ValidateSelectionCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(preview.IsStale);
+        Assert.IsTrue(picker.HasValidatedSelection);
+        Assert.IsFalse(picker.EnterPreviewCommand.CanExecute(null));
+        Assert.IsFalse(picker.SelectionValidationText.Contains("预览已失效", StringComparison.Ordinal));
+        StringAssert.Contains(picker.SelectionValidationText, "已选父件仍有关联客供件未选");
+        StringAssert.Contains(picker.SelectionValidationText, "MODEL-CS-CHILD");
+        StringAssert.Contains(picker.SelectionValidationText, "3.0000");
+
+        preview.Warnings.Single().IsConfirmed = true;
+
+        Assert.IsTrue(preview.HasValidPreparation);
+        Assert.IsTrue(picker.EnterPreviewCommand.CanExecute(null));
+        StringAssert.Contains(picker.SelectionValidationText, "可以进入采购审核");
+        picker.EnterPreviewCommand.Execute(null);
+        Assert.AreEqual(1, previewRequested);
+
+        relatedChild.IsChecked = true;
+        Assert.IsTrue(preview.IsStale);
+        Assert.HasCount(0, preview.Warnings);
+        Assert.IsFalse(picker.EnterPreviewCommand.CanExecute(null));
+    }
+
     [TestMethod]
     public async Task AggregatedConfirmation_ShouldSendOneSourceScopedWarningCode()
     {
@@ -1057,6 +1164,8 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         public PurchaseDraftPreviewRequest? LastPreviewRequest { get; private set; }
         public CreatePurchaseDraftsCommand? LastCreateCommand { get; private set; }
         public List<CreatePurchaseDraftsCommand> CreateCommands { get; } = [];
+        public List<PurchaseDraftCandidateSourceGroupDto> CandidateGroups { get; } = [];
+        public List<PurchaseDraftCandidateDto> Candidates { get; } = [];
         public Func<PurchaseDraftPreviewRequest, CancellationToken, Task<ServiceResult<PurchaseDraftPreviewResponse>>>? PreviewHandler { get; set; }
         public Func<CreatePurchaseDraftsCommand, CancellationToken, Task<ServiceResult<CreatePurchaseDraftsResult>>>? CreateHandler { get; set; }
 
@@ -1234,8 +1343,14 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         public Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewReleaseAsync(Guid uid, PurchaseDraftReleasePreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleaseAsync(Guid uid, ReleasePurchaseDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<SourcePurchaseTraceDto>> GetSourceTraceAsync(string sourceType, Guid sourceUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>> GetCandidateSourceGroupsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<List<PurchaseDraftCandidateDto>>> GetCandidatesAsync(PurchaseDraftCandidateQuery request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>> GetCandidateSourceGroupsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>.Ok(CandidateGroups.ToList()));
+
+        public Task<ServiceResult<List<PurchaseDraftCandidateDto>>> GetCandidatesAsync(PurchaseDraftCandidateQuery request, CancellationToken cancellationToken = default) =>
+            Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok(request.SourceUid.HasValue
+                ? Candidates.Where(item => item.SourceUid == request.SourceUid
+                    && string.Equals(item.SourceType, request.SourceType, StringComparison.OrdinalIgnoreCase)).ToList()
+                : Candidates.ToList()));
     }
 
     private sealed class DirectApiCallRunner : IApiCallRunner

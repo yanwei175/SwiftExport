@@ -94,6 +94,11 @@
                                                TextWrapping="Wrap" 
                                                Foreground="{DynamicResource SwiftExportBrush.WarningText}"
                                                Style="{StaticResource CaptionTextBlock}" />
+                                    <TextBlock Text="{Binding AffectedObjectText}"
+                                               TextWrapping="Wrap"
+                                               Visibility="{Binding HasAffectedObjects, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                                               Style="{StaticResource CaptionTextBlock}" />
                                 </StackPanel>
                             </Grid>
                         </Border>

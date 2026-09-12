@@ -8,6 +8,7 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Wpf.EnterpriseGrid.Columns;
 using SwiftExport.Wpf.EnterpriseGrid.Operations;
+using SwiftExport.Wpf.EnterpriseGrid.Validation;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Components;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
@@ -106,6 +107,62 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         Assert.IsFalse(standard.CanEditPurchaseSupplier);
         Assert.IsFalse(customerSupplied.CanEditPurchaseSupplier);
         Assert.IsFalse(customerSupplied.CanEditDeliverySupplier);
+    }
+
+    /// <summary>业务阻断只作为行级错误供行头与摘要使用，不把每个绑定属性都标成红框。</summary>
+    [TestMethod]
+    public void BusinessValidation_ShouldExposeRowErrorWithoutPropertyErrors()
+    {
+        var row = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
+        {
+            Uid = Guid.NewGuid(), Version = 1, SourceType = "SO", SourceUid = Guid.NewGuid(),
+            SourceNo = "SO-1", SupplyType = SupplyTypeEnums.采购, NetQty = 1m,
+        });
+        row.PurchaseQty = 0m;
+
+        Assert.IsTrue(row.HasErrors);
+        Assert.IsTrue(row.GetErrors(null).Cast<object>().Any());
+        Assert.IsFalse(row.GetErrors(nameof(row.PurchaseQty)).Cast<object>().Any());
+        StringAssert.Contains(row.ValidationDisplayMessage, "采购数量必须大于 0");
+    }
+
+    /// <summary>真实采购 Grid 聚合行级业务错误但不向各业务单元格分发软错误边框，并仍可定位错误行。</summary>
+    [TestMethod]
+    public void BusinessValidation_ShouldRemainRowScopedInPurchaseGrid()
+    {
+        StaTest.RunAsync(() =>
+        {
+            ApplicationResourceLoader.Load();
+            using var viewModel = CreateViewModel(new CandidateApiStub());
+            var row = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
+            {
+                Uid = Guid.NewGuid(), Version = 1, SourceType = "SO", SourceUid = Guid.NewGuid(),
+                SourceNo = "SO-1", Sku = "SKU-1", SupplyType = SupplyTypeEnums.采购, NetQty = 1m,
+            });
+            row.PurchaseQty = 0m;
+            viewModel.Items.Add(row);
+            var view = new PurchaseCandidateSelectionView { DataContext = viewModel };
+            var window = Show(view);
+            try
+            {
+                var grid = (DataGrid)view.FindName("CandidateGrid");
+                PumpDispatcher();
+                var errors = GridValidation.GetErrors(grid);
+                Assert.IsTrue(errors.Any(error => ReferenceEquals(error.Item, row)
+                    && error.ColumnKey is null
+                    && error.Message.Contains("采购数量必须大于 0", StringComparison.Ordinal)));
+                Assert.IsFalse(FindVisualDescendants<DataGridCell>(grid)
+                    .Where(cell => ReferenceEquals(cell.DataContext, row))
+                    .Any(cell => GridValidation.GetCellState(cell).HasError));
+                Assert.IsTrue(GridValidation.FocusFirstError(grid));
+                Assert.AreSame(row, grid.SelectedItem);
+            }
+            finally
+            {
+                window.Close();
+            }
+            return Task.CompletedTask;
+        });
     }
 
     /// <summary>真实采购页面必须由原生 DataGrid 进入编辑态，并把 Lookup 选择提交到当前行。</summary>
@@ -299,6 +356,99 @@ public sealed class PurchaseCandidateSelectionViewModelTests
             viewModel.ToggleAllVisibleCommand.Execute(null);
             Assert.AreEqual(2, viewModel.SelectedCount);
             Assert.IsTrue(viewModel.Items.All(static item => item.IsChecked));
+            viewModel.ToggleAllVisibleCommand.Execute(null);
+            Assert.IsTrue(viewModel.Items[0].IsChecked, "隐藏行不受表头全选/全不选影响。 ");
+            Assert.IsFalse(viewModel.Items[1].IsChecked);
+        });
+    }
+
+    /// <summary>直接勾选父件只联动同来源真实关联客供件，即使关联行被本地筛选隐藏也必须生效。</summary>
+    [TestMethod]
+    public void DirectParentSelection_ShouldSelectOnlyRelatedCustomerSuppliedRowsInSameSource()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var api = new CandidateApiStub();
+            var otherSourceUid = Guid.NewGuid();
+            var parent = CreateCandidate(api.FirstSourceUid, "SO-A", 1, "PARENT-VISIBLE");
+            var related = CreateCandidate(api.FirstSourceUid, "SO-A", 2, "CHILD-HIDDEN");
+            related.IsCustomerSupplied = true;
+            related.DeliveryTargetNetDemandId = parent.Uid;
+            var otherSource = CreateCandidate(otherSourceUid, "SO-B", 3, "CROSS-HIDDEN");
+            otherSource.IsCustomerSupplied = true;
+            otherSource.DeliveryTargetNetDemandId = parent.Uid;
+            var unrelated = CreateCandidate(api.FirstSourceUid, "SO-A", 4, "OTHER-HIDDEN");
+            unrelated.IsCustomerSupplied = true;
+            unrelated.DeliveryTargetNetDemandId = Guid.NewGuid();
+            api.Groups.Add(CreateGroup("SO-A", api.FirstSourceUid, 3));
+            api.Groups.Add(CreateGroup("SO-B", otherSourceUid, 1));
+            api.Candidates.AddRange([parent, related, otherSource, unrelated]);
+            using var viewModel = CreateViewModel(api);
+            await viewModel.OpenAsync();
+            await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[0]);
+            viewModel.Keyword = "PARENT-VISIBLE";
+            var relatedRow = viewModel.Items.Single(item => item.Uid == related.Uid);
+            relatedRow.PurchaseQty = 4m;
+            relatedRow.UnitPrice = 12.5m;
+
+            viewModel.Items.Single(item => item.Uid == parent.Uid).IsChecked = true;
+
+            Assert.IsTrue(relatedRow.IsChecked);
+            Assert.AreEqual(4m, relatedRow.PurchaseQty);
+            Assert.AreEqual(12.5m, relatedRow.UnitPrice);
+            Assert.IsFalse(viewModel.Items.Single(item => item.Uid == otherSource.Uid).IsChecked);
+            Assert.IsFalse(viewModel.Items.Single(item => item.Uid == unrelated.Uid).IsChecked);
+            Assert.AreEqual(2, viewModel.SelectedCount);
+            StringAssert.Contains(viewModel.StatusText, "已联动选择 1 条");
+
+            relatedRow.IsChecked = false;
+            Assert.IsFalse(relatedRow.IsChecked, "用户单独取消客供件后不得被已勾选父件立即选回。 ");
+            relatedRow.IsChecked = true;
+            viewModel.Items.Single(item => item.Uid == parent.Uid).IsChecked = false;
+            Assert.IsTrue(relatedRow.IsChecked, "取消父件不得撤掉用户独立保留的客供件。 ");
+        });
+    }
+
+    /// <summary>顶部反选逐行取反且抑制父件级联；隐藏项不变，两次反选恢复原状态。</summary>
+    [TestMethod]
+    public void InvertVisibleSelection_ShouldPreserveHiddenRowsAndSuppressParentCascade()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var api = new CandidateApiStub();
+            var parent = CreateCandidate(api.FirstSourceUid, "SO-A", 1, "VISIBLE-PARENT");
+            var child = CreateCandidate(api.FirstSourceUid, "SO-A", 2, "VISIBLE-CHILD");
+            child.IsCustomerSupplied = true;
+            child.DeliveryTargetNetDemandId = parent.Uid;
+            var hidden = CreateCandidate(api.FirstSourceUid, "SO-A", 3, "HIDDEN");
+            api.Groups.Add(CreateGroup("SO-A", api.FirstSourceUid, 3));
+            api.Candidates.AddRange([parent, child, hidden]);
+            using var viewModel = CreateViewModel(api);
+            await viewModel.OpenAsync();
+            await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
+            var parentRow = viewModel.Items.Single(item => item.Uid == parent.Uid);
+            var childRow = viewModel.Items.Single(item => item.Uid == child.Uid);
+            var hiddenRow = viewModel.Items.Single(item => item.Uid == hidden.Uid);
+            childRow.IsChecked = true;
+            hiddenRow.IsChecked = true;
+            viewModel.Keyword = "VISIBLE";
+            var inputChanged = 0;
+            viewModel.InputChanged += (_, _) => inputChanged++;
+
+            viewModel.InvertVisibleSelectionCommand.Execute(null);
+            Assert.IsTrue(parentRow.IsChecked);
+            Assert.IsFalse(childRow.IsChecked, "反选中的父件不得级联把同批次刚取消的客供件选回。 ");
+            Assert.IsTrue(hiddenRow.IsChecked);
+
+            viewModel.InvertVisibleSelectionCommand.Execute(null);
+            Assert.IsFalse(parentRow.IsChecked);
+            Assert.IsTrue(childRow.IsChecked);
+            Assert.IsTrue(hiddenRow.IsChecked);
+            Assert.AreEqual(2, inputChanged, "每次批量反选只能发布一次选择失效通知。 ");
+
+            viewModel.SetInputEnabled(false);
+            Assert.IsFalse(viewModel.InvertVisibleSelectionCommand.CanExecute(null));
+            Assert.IsFalse(viewModel.ToggleAllVisibleCommand.CanExecute(null));
         });
     }
 

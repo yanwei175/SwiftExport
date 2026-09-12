@@ -312,6 +312,8 @@ public sealed partial class PurchaseDraftWarningModel : ObservableObject
     public IReadOnlyList<PurchaseDraftSelectionItemModel> AffectedItems { get; init; } = [];
     /// <summary>服务端返回的完整影响范围，包含本次未勾选但受确认规则覆盖的关联需求。</summary>
     public IReadOnlyList<PurchaseDraftWarningAffectedObjectDto> AffectedObjects { get; init; } = [];
+    /// <summary>当前警告是否携带可向采购员展示的稳定影响对象。</summary>
+    public bool HasAffectedObjects => AffectedObjects.Count > 0;
     /// <summary>当前可辨认的受影响对象总数。</summary>
     public int AffectedCount => AffectedObjects.Count > 0
         ? AffectedObjects.Count
@@ -331,7 +333,7 @@ public sealed partial class PurchaseDraftWarningModel : ObservableObject
         PurchaseDraftWarningCodes.CorruptedPlanningState => "处理：刷新采购候选；若仍存在，请移除该选择并联系计划人员核对来源事实。",
         PurchaseDraftWarningCodes.PurchaseDataIncomplete => "处理：允许创建草稿；创建后可在采购详情补齐供应商产品资料。",
         PurchaseDraftWarningCodes.DifferentPlannedDeliveryDates => "处理：核对展开明细中的原交期；确认采用最早交期后方可创建。",
-        PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining => "处理：核对受影响父件和客供件；确认本次仅采购当前选择后方可创建。",
+        PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining => "已选父件仍有关联客供件未选，本次不会采购这些客供件；可勾选后重新校验，或确认仅采购当前选择后继续。",
         _ => "处理：按提示核对受影响对象后重新预览。",
     };
     public string ConfirmationScopeText => RequiresConfirmation

@@ -27,6 +27,8 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     private CancellationTokenSource? _detailCancellation;
     private CancellationTokenSource? _supplierSearchCancellation;
     private PurchaseDraftWorkflowViewModel? _workflow;
+    private int _selectionBatchDepth;
+    private bool _selectionBatchChanged;
     private bool _disposed;
 
     /// <summary>当前准备输入通过验证后，请求容器显示只读审核页。</summary>
@@ -140,15 +142,21 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     public partial bool IsSupplierSearchBusy { get; private set; }
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ToggleAllVisibleCommand))]
+    [NotifyCanExecuteChangedFor(nameof(InvertVisibleSelectionCommand))]
     public partial bool IsLoading { get; private set; }
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ToggleAllVisibleCommand))]
+    [NotifyCanExecuteChangedFor(nameof(InvertVisibleSelectionCommand))]
     public partial bool IsDetailLoaded { get; private set; }
 
     /// <summary>当前准备页是否允许修改来源、勾选和采购输入；恢复服务端事实期间统一关闭。</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ValidateSelectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(EnterPreviewCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleAllVisibleCommand))]
+    [NotifyCanExecuteChangedFor(nameof(InvertVisibleSelectionCommand))]
     public partial bool IsInputEnabled { get; private set; } = true;
 
     [ObservableProperty]
@@ -239,16 +247,39 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         RefreshLocalFilter();
     }
 
-    /// <summary>仅切换当前筛选可见行，隐藏行的勾选保持不变。</summary>
-    [RelayCommand]
+    /// <summary>把当前筛选可见行统一设为全选或全不选；批量语义不触发父件级联。</summary>
+    [RelayCommand(CanExecute = nameof(CanChangeVisibleSelection))]
     private void ToggleAllVisible()
     {
-        if (!IsInputEnabled || !IsDetailLoaded || IsLoading) return;
+        if (!CanChangeVisibleSelection()) return;
         var visible = GetVisibleRows();
         if (visible.Count == 0) return;
         var target = !visible.All(static item => item.IsChecked);
-        foreach (var item in visible) item.IsChecked = target;
+        RunSelectionBatch(() =>
+        {
+            foreach (var item in visible) item.IsChecked = target;
+        });
     }
+
+    /// <summary>逐项反转当前筛选可见行，隐藏行保持不变；批量期间抑制父件自动联动。</summary>
+    [RelayCommand(CanExecute = nameof(CanChangeVisibleSelection))]
+    private void InvertVisibleSelection()
+    {
+        if (!CanChangeVisibleSelection()) return;
+        var visible = GetVisibleRows();
+        if (visible.Count == 0) return;
+        RunSelectionBatch(() =>
+        {
+            foreach (var item in visible) item.IsChecked = !item.IsChecked;
+        });
+    }
+
+    private bool CanChangeVisibleSelection() => IsInputEnabled
+        && IsDetailLoaded
+        && !IsLoading
+        && (_workflow is null || (!_workflow.IsRecoveryInProgress
+            && !_workflow.IsCreateInProgress
+            && !_workflow.HasUnknownCreateResult));
 
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task SearchSuppliersAsync(string? keyword)
@@ -377,9 +408,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
             });
             ApplyValidation(_workflow.Warnings.ToArray());
             HasValidatedSelection = _workflow.HasPreview && !_workflow.IsStale && !_workflow.HasBlockers;
-            SelectionValidationText = _workflow.HasValidPreparation
-                ? "校验通过，可以进入采购审核。"
-                : _workflow.CreateBlockReason;
+            SelectionValidationText = BuildSelectionValidationText();
         }
         finally
         {
@@ -409,7 +438,22 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     public void AcceptCurrentPreviewValidation()
     {
         HasValidatedSelection = _workflow is { HasPreview: true, IsStale: false, HasBlockers: false };
+        SelectionValidationText = BuildSelectionValidationText();
         EnterPreviewCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>优先展示服务端真实强确认与影响对象，避免用笼统的预览失效文案覆盖有效警告。</summary>
+    private string BuildSelectionValidationText()
+    {
+        if (_workflow is null) return string.Empty;
+        if (_workflow.HasValidPreparation) return "校验和确认已完成，可以进入采购审核。";
+        if (!_workflow.IsStale && _workflow.HasUnconfirmedWarnings)
+        {
+            return string.Join("；", _workflow.Warnings
+                .Where(static warning => warning.RequiresConfirmation && !warning.IsConfirmed)
+                .Select(static warning => $"{warning.ActionText} 影响：{warning.AffectedObjectText}"));
+        }
+        return _workflow.CreateBlockReason;
     }
 
     /// <summary>重新加载当前来源完整范围；只有成功后才合并，传输失败完整保留当前集合和输入。</summary>
@@ -496,14 +540,14 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     {
         foreach (var item in Items)
         {
-            item.PropertyChanged -= OnRowPropertyChanged;
             item.ValueChanged -= OnRowValueChanged;
+            item.SelectionChanged -= OnRowSelectionChanged;
         }
         Items.Clear();
         foreach (var item in items)
         {
-            item.PropertyChanged += OnRowPropertyChanged;
             item.ValueChanged += OnRowValueChanged;
+            item.SelectionChanged += OnRowSelectionChanged;
             Items.Add(item);
         }
     }
@@ -595,8 +639,8 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
             foreach (var dto in result.Data)
             {
                 var row = PurchaseCandidateItemModel.FromDto(dto);
-                row.PropertyChanged += OnRowPropertyChanged;
                 row.ValueChanged += OnRowValueChanged;
+                row.SelectionChanged += OnRowSelectionChanged;
                 Items.Add(row);
             }
             IsDetailLoaded = true;
@@ -647,13 +691,73 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
             StatusText = $"已加载 {Items.Count} 条，筛选后 {FilteredCount} 条，已选 {SelectedCount} 条。";
     }
 
-    /// <summary>把行勾选变化提升为页面级全选和已选计数通知。</summary>
-    private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    /// <summary>直接勾选父件时只联动同来源、明确指向该父需求且仍可采购的已加载客供件。</summary>
+    private void OnRowSelectionChanged(object? sender, EventArgs e)
     {
-        if (e.PropertyName != nameof(PurchaseCandidateItemModel.IsChecked)) return;
+        if (sender is not PurchaseCandidateItemModel row) return;
+        if (_selectionBatchDepth > 0)
+        {
+            _selectionBatchChanged = true;
+            return;
+        }
+
+        var linkedCount = 0;
+        RunSelectionBatch(() =>
+        {
+            if (!IsInputEnabled || !row.IsChecked || row.IsCustomerSupplied) return;
+            foreach (var related in Items.Where(item => item.IsCustomerSupplied
+                         && item.IsAvailableForPurchase
+                         && item.DeliveryTargetNetDemandId == row.Uid
+                         && SameSource(item, row)
+                         && !item.IsChecked))
+            {
+                related.IsChecked = true;
+                linkedCount++;
+            }
+        }, includeExistingChange: true, linkedCountProvider: () => linkedCount);
+    }
+
+    /// <summary>合并批量选择通知，使全选、全不选和反选严格保持自身语义且只失效一次预览。</summary>
+    private void RunSelectionBatch(
+        Action action,
+        bool includeExistingChange = false,
+        Func<int>? linkedCountProvider = null)
+    {
+        var ownsBatch = _selectionBatchDepth == 0;
+        if (ownsBatch) _selectionBatchChanged = includeExistingChange;
+        _selectionBatchDepth++;
+        try
+        {
+            action();
+        }
+        finally
+        {
+            _selectionBatchDepth--;
+            if (ownsBatch && _selectionBatchDepth == 0)
+                CompleteSelectionBatch(linkedCountProvider?.Invoke() ?? 0);
+        }
+    }
+
+    private static bool SameSource(PurchaseCandidateItemModel left, PurchaseCandidateItemModel right) =>
+        left.SourceUid == right.SourceUid
+        && string.Equals(left.SourceType, right.SourceType, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>选择集合成批变化后统一清除旧确认、刷新计数和命令；联动提示只报告真实新增数量。</summary>
+    private void CompleteSelectionBatch(int linkedCount)
+    {
+        if (!_selectionBatchChanged) return;
+        _selectionBatchChanged = false;
+        foreach (var item in Items) item.ValidationMessage = string.Empty;
+        HasValidatedSelection = false;
+        SelectionValidationText = string.Empty;
+        _workflow?.InvalidatePreparation();
+        InputChanged?.Invoke(this, EventArgs.Empty);
         OnPropertyChanged(nameof(IsAllVisibleChecked));
         UpdateCountStatus();
+        if (linkedCount > 0)
+            StatusText = $"已联动选择 {linkedCount} 条同来源关联客供件；当前已选 {SelectedCount} 条。";
         ValidateSelectionCommand.NotifyCanExecuteChanged();
+        EnterPreviewCommand.NotifyCanExecuteChanged();
     }
 
     private void OnRowValueChanged(object? sender, EventArgs e)
@@ -671,13 +775,18 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     private void OnWorkflowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(PurchaseDraftWorkflowViewModel.HasValidPreparation)
+            or nameof(PurchaseDraftWorkflowViewModel.HasUnconfirmedWarnings)
+            or nameof(PurchaseDraftWorkflowViewModel.IsStale)
             or nameof(PurchaseDraftWorkflowViewModel.IsCreateInProgress)
             or nameof(PurchaseDraftWorkflowViewModel.HasUnknownCreateResult)
             or nameof(PurchaseDraftWorkflowViewModel.IsRecoveryInProgress))
         {
             HasValidatedSelection &= _workflow is { HasPreview: true, IsStale: false, HasBlockers: false };
+            if (HasValidationAttempted) SelectionValidationText = BuildSelectionValidationText();
             ValidateSelectionCommand.NotifyCanExecuteChanged();
             EnterPreviewCommand.NotifyCanExecuteChanged();
+            ToggleAllVisibleCommand.NotifyCanExecuteChanged();
+            InvertVisibleSelectionCommand.NotifyCanExecuteChanged();
         }
     }
 
@@ -686,8 +795,8 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     {
         foreach (var item in Items)
         {
-            item.PropertyChanged -= OnRowPropertyChanged;
             item.ValueChanged -= OnRowValueChanged;
+            item.SelectionChanged -= OnRowSelectionChanged;
         }
         Items.Clear();
         ItemsView.Refresh();

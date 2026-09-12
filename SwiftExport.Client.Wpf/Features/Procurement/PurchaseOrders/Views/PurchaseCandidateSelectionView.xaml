@@ -109,8 +109,8 @@
                           Content="只看错误" />
                 <Button Grid.Column="8"
                         MinWidth="72"
-                        Command="{Binding ToggleAllVisibleCommand}"
-                        Content="改成反选"
+                        Command="{Binding InvertVisibleSelectionCommand}"
+                        Content="反选当前筛选"
                         AutomationProperties.Name="反选当前筛选可见物料" />
             </Grid>
 
@@ -121,7 +121,6 @@
                       FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                       Style="{StaticResource SwiftExportDataGrid}"
                       ItemsSource="{Binding ItemsView}"
-                      SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                       AutoGenerateColumns="False"
                       IsReadOnly="False"
                       CanUserAddRows="False"

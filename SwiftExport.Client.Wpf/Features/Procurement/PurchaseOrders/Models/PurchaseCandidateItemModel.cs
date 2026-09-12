@@ -33,6 +33,8 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
     public string Sku { get; init; } = string.Empty;
     /// <summary>是否为送往父件实际执行供应商的客供件。</summary>
     public bool IsCustomerSupplied { get; init; }
+    /// <summary>客供件明确送往的父物料需求 Uid；仅用于同一已加载来源内识别真实父子关系。</summary>
+    public Guid? DeliveryTargetNetDemandId { get; init; }
     /// <summary>产品关联 SKU。</summary>
     public string LinkSku { get; init; } = string.Empty;
     /// <summary>物料描述。</summary>
@@ -124,6 +126,7 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
     /// <summary>候选恢复产生的本地阻断；为空表示仍处于服务端待采购范围。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasValidationError))]
+    [NotifyPropertyChangedFor(nameof(HasErrors))]
     [NotifyPropertyChangedFor(nameof(ValidationDisplayMessage))]
     [NotifyPropertyChangedFor(nameof(CanEditPurchaseSupplier))]
     [NotifyPropertyChangedFor(nameof(CanEditDeliverySupplier))]
@@ -155,12 +158,14 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
         : "不适用";
 
     public event EventHandler? ValueChanged;
+    /// <summary>勾选状态变化通知；与采购输入变化分离，供页面区分单行操作和批量选择。</summary>
+    public event EventHandler? SelectionChanged;
     public event EventHandler<DataErrorsChangedEventArgs>? ErrorsChanged;
 
     [ObservableProperty]
     public partial bool IsChecked { get; set; }
 
-    partial void OnIsCheckedChanged(bool value) => ValueChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnIsCheckedChanged(bool value) => SelectionChanged?.Invoke(this, EventArgs.Empty);
     partial void OnPurchaseQtyChanged(decimal value)
     {
         OnPropertyChanged(nameof(ValidationDisplayMessage));
@@ -191,10 +196,15 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
         OnPropertyChanged(nameof(HasErrors));
         ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(string.Empty));
     }
+    partial void OnRecoveryValidationMessageChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsAvailableForPurchase));
+        ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(string.Empty));
+    }
 
-    /// <summary>向 EnterpriseGrid 暴露服务端行级阻断，不把价格零值或空交期误判为错误。</summary>
-    public IEnumerable GetErrors(string? propertyName) => HasValidationError
-        ? new[] { ValidationMessage }
+    /// <summary>向 EnterpriseGrid 暴露行级业务阻断；属性级仅保留 WPF 转换错误，避免业务错误绘制整行单元格红框。</summary>
+    public IEnumerable GetErrors(string? propertyName) => HasValidationError && string.IsNullOrWhiteSpace(propertyName)
+        ? new[] { ValidationDisplayMessage }
         : Array.Empty<string>();
 
     /// <summary>推荐采购方与推荐送达方分别初始化实际选择，不读取父件历史采购方覆盖建议。</summary>
@@ -243,7 +253,6 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
     public void MarkOutsidePurchaseScope()
     {
         RecoveryValidationMessage = "该需求已不在当前待采购范围，请取消勾选后继续。";
-        OnPropertyChanged(nameof(IsAvailableForPurchase));
     }
 
     public void CommitPurchaseSupplier() => ApplyPurchaseSupplier(PurchaseSupplierSelection, true);

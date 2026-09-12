@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+                    xmlns:converters="clr-namespace:SwiftExportClient.Resources.Converters"
                     xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
                     xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
                     xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
@@ -7,6 +8,7 @@
                     xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
+    <converters:FirstValidationErrorConverter x:Key="SwiftExportFirstValidationErrorConverter" />
     <gridValidation:GridCellValidationStateConverter x:Key="SwiftExportGridCellValidationStateConverter" />
     <gridSelection:GridCurrentCellStateConverter x:Key="SwiftExportGridCurrentCellStateConverter" />
     <gridSelection:GridCurrentRowStateConverter x:Key="SwiftExportGridCurrentRowStateConverter" />
@@ -102,7 +104,7 @@
                 <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
                 <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
                 <Setter Property="ToolTip"
-                        Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent, FallbackValue={x:Null}}" />
+                        Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors), Converter={StaticResource SwiftExportFirstValidationErrorConverter}, FallbackValue={x:Null}}" />
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -129,7 +131,7 @@
                 <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
                 <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
                 <Setter Property="ToolTip"
-                        Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent, FallbackValue={x:Null}}" />
+                        Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors), Converter={StaticResource SwiftExportFirstValidationErrorConverter}, FallbackValue={x:Null}}" />
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -247,7 +249,7 @@
         <Setter Property="gridSelection:GridSelection.IsCurrentRow">
             <Setter.Value>
                 <MultiBinding Converter="{StaticResource SwiftExportGridCurrentRowStateConverter}">
-                    <Binding />
+                    <Binding Mode="OneWay" ValidatesOnNotifyDataErrors="False" ValidatesOnDataErrors="False" />
                     <Binding Path="(gridSelection:GridSelection.NativeCurrentCellState)" RelativeSource="{RelativeSource Self}" />
                 </MultiBinding>
             </Setter.Value>
@@ -279,7 +281,7 @@
         <Setter Property="gridValidation:GridValidation.RowState">
             <Setter.Value>
                 <MultiBinding Converter="{StaticResource SwiftExportGridCellValidationStateConverter}">
-                    <Binding />
+                    <Binding Mode="OneWay" ValidatesOnNotifyDataErrors="False" ValidatesOnDataErrors="False" />
                     <Binding Path="(gridValidation:GridValidation.Errors)" RelativeSource="{RelativeSource Self}" />
                 </MultiBinding>
             </Setter.Value>
@@ -336,7 +338,7 @@
         <Setter Property="gridValidation:GridValidation.CellState">
             <Setter.Value>
                 <MultiBinding Converter="{StaticResource SwiftExportGridCellValidationStateConverter}">
-                    <Binding />
+                    <Binding Mode="OneWay" ValidatesOnNotifyDataErrors="False" ValidatesOnDataErrors="False" />
                     <Binding Path="Column.(gridColumns:GridColumn.Key)" RelativeSource="{RelativeSource Self}" />
                     <Binding Path="(gridValidation:GridValidation.Errors)" RelativeSource="{RelativeSource Self}" />
                 </MultiBinding>
@@ -345,7 +347,7 @@
         <Setter Property="gridSelection:GridSelection.IsCurrentCell">
             <Setter.Value>
                 <MultiBinding Converter="{StaticResource SwiftExportGridCurrentCellStateConverter}">
-                    <Binding />
+                    <Binding Mode="OneWay" ValidatesOnNotifyDataErrors="False" ValidatesOnDataErrors="False" />
                     <Binding Path="Column" RelativeSource="{RelativeSource Self}" />
                     <Binding Path="(gridSelection:GridSelection.NativeCurrentCellState)" RelativeSource="{RelativeSource Self}" />
                 </MultiBinding>
@@ -376,7 +378,7 @@
             <Trigger Property="Validation.HasError" Value="True">
                 <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
                 <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
-                <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent, FallbackValue={x:Null}}" />
+                <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors), Converter={StaticResource SwiftExportFirstValidationErrorConverter}, FallbackValue={x:Null}}" />
             </Trigger>
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{DynamicResource SwiftExportBrush.DataGridSelectedBackground}" />
