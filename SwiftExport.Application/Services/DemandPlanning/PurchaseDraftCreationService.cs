@@ -3,6 +3,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.SysEnums;
@@ -10,6 +11,7 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.MasterData;
+using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
@@ -30,8 +32,10 @@ public sealed class PurchaseDraftCreationService(
     IPurchaseOrderDraftRepository purchaseDraftRepository,
     IProductRepository productRepository,
     ICustomerRepository customerRepository,
+    ICustomerPoConfigRepository customerPoConfigRepository,
     ISupplierRepository supplierRepository,
     ISupplierProductRepository supplierProductRepository,
+    ISalesOrderHeadRepository salesOrderHeadRepository,
     IDocumentNoService documentNoService,
     PurchaseDraftPreviewBuilder previewBuilder,
     PurchaseDraftWriteModelBuilder writeModelBuilder)
@@ -159,7 +163,7 @@ public sealed class PurchaseDraftCreationService(
             }
 
             var buildRequest = await BuildLockedPreviewRequestAsync(
-                command, source, grossDemands, netDemands, activeLinks);
+                command, source, grossDemands, netDemands, activeLinks, cancellationToken);
             var preview = previewBuilder.Build(buildRequest);
             var sourcePreview = preview.SourceGroups.SingleOrDefault(x =>
                 x.SourceUid == source.SourceUid
@@ -228,8 +232,7 @@ public sealed class PurchaseDraftCreationService(
 
                 var writeModel = writeModelBuilder.Build(
                     document, command.ExecutionRequestId, purchaseOrderId, orderNo,
-                    firstLineNumber, targetMode == PurchaseDraftTargetModeEnum.CreateNew,
-                    targetMode == PurchaseDraftTargetModeEnum.CreateNew ? target?.Header : null);
+                    firstLineNumber, targetMode == PurchaseDraftTargetModeEnum.CreateNew);
                 if (writeModel.Head is not null
                     && await purchaseDraftRepository.InsertPurchaseDraftAsync(writeModel.Head) != 1)
                     throw new PurchaseDraftException("PURCHASE_HEAD_INSERT_FAILED", "采购草稿头写入失败。");
@@ -454,10 +457,16 @@ public sealed class PurchaseDraftCreationService(
                     OrderNo = x.OrderNo,
                     SourceType = x.SourceType,
                     SourceUid = x.SourceUid,
-                    SupplierId = x.SupplierId
+                    SupplierId = x.SupplierId,
+                    UntaxedTotalAmount = x.UntaxedTotalAmount,
+                    TaxIncludedTotalAmount = x.TaxIncludedTotalAmount
                 }));
             }
         }
+
+        await AttachExistingHeadersAsync(safeAppend, cancellationToken);
+        var mappedTargets = request.Targets.Select(MapTarget).ToList();
+        var headers = await BuildHeaderFactsAsync(candidates, mappedTargets, withUpdLock: false, cancellationToken);
 
         var selectedDocumentKeys = candidates
             .Where(x => x.IsSelected && x.ExecutionType == DemandExecutionTypeEnum.Purchase
@@ -487,8 +496,9 @@ public sealed class PurchaseDraftCreationService(
             SourceType = request.SourceType,
             SourceUid = request.SourceUid,
             Candidates = candidates,
-            Targets = request.Targets.Select(MapTarget).ToList(),
-            SafeAppendCandidates = safeAppend
+            Targets = mappedTargets,
+            SafeAppendCandidates = safeAppend,
+            Headers = headers
         };
     }
 
@@ -497,7 +507,8 @@ public sealed class PurchaseDraftCreationService(
         CreatePurchaseDraftSourceCommand source,
         IReadOnlyList<Core.Entities.DemandPlanning.GrossDemand> grossDemands,
         IReadOnlyList<NetDemand> netDemands,
-        IReadOnlyList<NetDemandExecutionLinkDto> activeLinks)
+        IReadOnlyList<NetDemandExecutionLinkDto> activeLinks,
+        CancellationToken cancellationToken)
     {
         var itemByDemand = source.Items.ToDictionary(x => x.NetDemandId);
         var grossById = grossDemands.ToDictionary(x => x.Uid);
@@ -601,6 +612,35 @@ public sealed class PurchaseDraftCreationService(
         }
 
         ValidateLockedItems(command.EntryMode, source, candidates);
+        var safeAppendRows = command.EntryMode == PurchaseDraftEntryModeEnum.SourceOneClick
+            ? Array.Empty<SafePurchaseDraftCandidateDto>()
+            : await purchaseDraftRepository.GetSafeAppendCandidatesAsync(
+                source.SourceType,
+                source.SourceUid,
+                source.Targets.Select(x => x.SupplierId),
+                cancellationToken);
+        var safeAppend = safeAppendRows.Select(x => new PurchaseDraftSafeAppendCandidate
+        {
+            PurchaseOrderId = x.PurchaseOrderId,
+            Version = x.Version,
+            OrderNo = x.OrderNo,
+            SourceType = x.SourceType,
+            SourceUid = x.SourceUid,
+            SupplierId = x.SupplierId,
+            UntaxedTotalAmount = x.UntaxedTotalAmount,
+            TaxIncludedTotalAmount = x.TaxIncludedTotalAmount
+        }).ToList();
+        await AttachExistingHeadersAsync(safeAppend, cancellationToken);
+        var mappedTargets = source.Targets.Select(x => new PurchaseDraftPreviewBuildTarget
+        {
+            SourceType = source.SourceType,
+            SourceUid = source.SourceUid,
+            SupplierId = x.SupplierId,
+            TargetMode = x.TargetMode,
+            ExistingPurchaseOrderId = x.ExistingPurchaseOrderId,
+            ExpectedPurchaseOrderVersion = x.ExpectedPurchaseOrderVersion
+        }).ToList();
+        var headers = await BuildHeaderFactsAsync(candidates, mappedTargets, withUpdLock: true, cancellationToken);
         return new PurchaseDraftPreviewBuildRequest
         {
             ExecutionRequestId = command.ExecutionRequestId,
@@ -609,17 +649,163 @@ public sealed class PurchaseDraftCreationService(
             SourceType = source.SourceType,
             SourceUid = source.SourceUid,
             Candidates = candidates,
-            Targets = source.Targets.Select(x => new PurchaseDraftPreviewBuildTarget
-            {
-                SourceType = source.SourceType,
-                SourceUid = source.SourceUid,
-                SupplierId = x.SupplierId,
-                TargetMode = x.TargetMode,
-                ExistingPurchaseOrderId = x.ExistingPurchaseOrderId,
-                ExpectedPurchaseOrderVersion = x.ExpectedPurchaseOrderVersion
-            }).ToList()
+            Targets = mappedTargets,
+            SafeAppendCandidates = safeAppend,
+            Headers = headers
         };
     }
+
+    /// <summary>为每个新建单据组合读取一次客户配置，并组合销售来源与主数据形成可信单头。</summary>
+    private async Task<IReadOnlyList<PurchaseDraftPreviewHeaderFact>> BuildHeaderFactsAsync(
+        IReadOnlyList<PurchaseDraftPreviewCandidate> candidates,
+        IReadOnlyList<PurchaseDraftPreviewBuildTarget> targets,
+        bool withUpdLock,
+        CancellationToken cancellationToken)
+    {
+        var documents = candidates
+            .Where(x => x.IsSelected && x.ExecutionType == DemandExecutionTypeEnum.Purchase
+                && x.PurchaseSupplierId.HasValue && x.PurchaseSupplierId.Value != Guid.Empty)
+            .Where(x => targets.FirstOrDefault(target => target.SourceUid == x.SourceUid
+                && string.Equals(target.SourceType, x.SourceType, StringComparison.OrdinalIgnoreCase)
+                && target.SupplierId == x.PurchaseSupplierId.Value)?.TargetMode
+                != PurchaseDraftTargetModeEnum.AppendExisting)
+            .GroupBy(x => new
+            {
+                SourceType = x.SourceType.Trim().ToUpperInvariant(),
+                x.SourceUid,
+                SupplierId = x.PurchaseSupplierId!.Value
+            })
+            .Select(group => group.First())
+            .ToList();
+        if (documents.Count == 0) return [];
+        if (documents.Any(x => !x.CustomerId.HasValue || x.CustomerId.Value == Guid.Empty))
+            throw new PurchaseDraftException("CUSTOMER_REQUIRED", "采购预览缺少可确认的客户身份，不能构造单头。");
+
+        var customerIds = documents.Select(x => x.CustomerId!.Value).Distinct().ToArray();
+        var supplierIds = documents.Select(x => x.PurchaseSupplierId!.Value).Distinct().ToArray();
+        var customers = (await customerRepository.GetByIdListAsync(customerIds, withUpdLock)).ToDictionary(x => x.Uid);
+        var suppliers = (await supplierRepository.GetByIdListAsync(supplierIds, withUpdLock)).ToDictionary(x => x.Uid);
+        var salesSourceIds = documents
+            .Where(x => string.Equals(x.SourceType, DocumentTypeStaticsEnum.SalesOrder, StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.SourceUid)
+            .Distinct()
+            .ToArray();
+        var salesHeads = (await salesOrderHeadRepository.GetByIdListAsync(salesSourceIds, withUpdLock))
+            .ToDictionary(x => x.Uid);
+        if (salesSourceIds.Any(id => !salesHeads.ContainsKey(id)))
+            throw new PurchaseDraftException("SOURCE_HEADER_NOT_FOUND", "销售来源单头已不存在，不能推断客户 PO 号或业务关联号。");
+
+        var configs = new Dictionary<(Guid CustomerId, Guid SupplierId), SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto?>();
+        foreach (var key in documents
+                     .Select(x => (CustomerId: x.CustomerId!.Value, SupplierId: x.PurchaseSupplierId!.Value))
+                     .Distinct())
+        {
+            configs[key] = await customerPoConfigRepository.GetByPartiesAsync(
+                key.CustomerId, key.SupplierId, cancellationToken, withUpdLock);
+        }
+
+        return documents.Select(document =>
+        {
+            var customerId = document.CustomerId!.Value;
+            var supplierId = document.PurchaseSupplierId!.Value;
+            if (!customers.TryGetValue(customerId, out var customer) || !suppliers.TryGetValue(supplierId, out var supplier))
+                throw new PurchaseDraftException("MASTER_DATA_NOT_FOUND", "采购预览关联的客户或供应商主数据已不存在。");
+            configs.TryGetValue((customerId, supplierId), out var config);
+            salesHeads.TryGetValue(document.SourceUid, out var salesHead);
+            var hasSalesSource = string.Equals(
+                document.SourceType, DocumentTypeStaticsEnum.SalesOrder, StringComparison.OrdinalIgnoreCase);
+            return new PurchaseDraftPreviewHeaderFact
+            {
+                SourceType = document.SourceType,
+                SourceUid = document.SourceUid,
+                SupplierId = supplierId,
+                Header = BuildNewHeader(
+                    customer,
+                    supplier,
+                    hasSalesSource ? salesHead : null,
+                    config,
+                    candidates
+                        .Where(x => x.IsSelected && x.SourceUid == document.SourceUid
+                            && string.Equals(x.SourceType, document.SourceType, StringComparison.OrdinalIgnoreCase)
+                            && x.PurchaseSupplierId == supplierId)
+                        .Select(x => x.PlannedDeliveryDate)
+                        .Min())
+            };
+        }).ToList();
+    }
+
+    /// <summary>按已核验来源和默认配置建立新采购单头；没有销售来源时不猜测客户 PO 或内部关联号。</summary>
+    internal static PurchaseDraftPreviewHeaderDto BuildNewHeader(
+        Customer customer,
+        Supplier supplier,
+        SalesOrderHeader? salesHead,
+        CustomerPoConfigDto? config,
+        DateTime? expectedDate) => new()
+    {
+        OrderNo = string.Empty,
+        CustomerPoNo = salesHead?.CustomerPoNo ?? string.Empty,
+        BoNo = salesHead is null
+            ? string.Empty
+            : string.Concat(customer.DocRelateNo, salesHead.InvoiceNo, supplier.DocRelateNo),
+        Currency = config?.Currency ?? string.Empty,
+        DiscountRate = config?.DefaultDiscountRate,
+        DiscountAmount = null,
+        DiscountRemark = config?.DiscountRemark ?? string.Empty,
+        OrderDate = null,
+        ExpectedDate = expectedDate,
+        InletHoseType = config?.InletHoseType ?? string.Empty,
+        AeratorType = config?.AeratorType ?? string.Empty,
+        PalletType = config?.PalletType ?? string.Empty,
+        BoxType = config?.BoxType ?? string.Empty,
+        LabelType = config?.LabelType ?? string.Empty,
+        InstructionManualType = config?.IMType ?? string.Empty,
+        CartonType = config?.CartonType ?? string.Empty,
+        LogoType = config?.LogoType ?? string.Empty,
+        SalesPerson = config?.SalesPerson ?? string.Empty,
+        PurchasePerson = config?.Purchaser ?? string.Empty,
+        Remark = config?.Note ?? string.Empty
+    };
+
+    /// <summary>把安全追加候选关联到既有采购头；既有单头始终优先于当前默认配置。</summary>
+    private async Task AttachExistingHeadersAsync(
+        IReadOnlyList<PurchaseDraftSafeAppendCandidate> candidates,
+        CancellationToken cancellationToken)
+    {
+        if (candidates.Count == 0) return;
+        var heads = (await purchaseDraftRepository.GetPurchaseDraftsByIdsAsync(
+            candidates.Select(x => x.PurchaseOrderId), cancellationToken)).ToDictionary(x => x.Uid);
+        foreach (var candidate in candidates)
+        {
+            if (!heads.TryGetValue(candidate.PurchaseOrderId, out var head))
+                throw new PurchaseDraftException("APPEND_TARGET_UNSAFE", "安全追加候选的采购单头已不存在。");
+            candidate.Header = MapExistingHeader(head);
+        }
+    }
+
+    /// <summary>把既有采购头映射为只读预览快照，不应用当前配置覆盖历史字段。</summary>
+    private static PurchaseDraftPreviewHeaderDto MapExistingHeader(PurchaseOrderHead head) => new()
+    {
+        OrderNo = head.OrderNo,
+        CustomerPoNo = head.CustomerPoNo ?? string.Empty,
+        BoNo = head.BoNo ?? string.Empty,
+        Currency = head.Currency,
+        DiscountRate = head.DiscountRate,
+        DiscountAmount = head.DiscountAmount,
+        DiscountRemark = head.ZheKouBeiZhu ?? string.Empty,
+        OrderDate = head.OrderDate,
+        ExpectedDate = head.ExpectedDate,
+        InletHoseType = head.InletrHoseType ?? string.Empty,
+        AeratorType = head.AeratorType ?? string.Empty,
+        PalletType = head.PalletType ?? string.Empty,
+        BoxType = head.BoxType ?? string.Empty,
+        LabelType = head.LabelType ?? string.Empty,
+        InstructionManualType = head.IMType ?? string.Empty,
+        CartonType = head.CartonType ?? string.Empty,
+        LogoType = head.LogoType ?? string.Empty,
+        SalesPerson = head.SoPerson ?? string.Empty,
+        PurchasePerson = head.PoPerson ?? string.Empty,
+        Remark = head.Remark ?? string.Empty
+    };
 
     private async Task<Dictionary<(Guid? ProductId, Guid? SupplierId), SupplierProduct>> LoadPurchaseDataAsync(
         IEnumerable<(Guid? ProductId, Guid? SupplierId)> nullableKeys)

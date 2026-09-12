@@ -19,16 +19,21 @@ public sealed class PurchaseDraftWriteModelBuilderTests
         var purchaseOrderId = Guid.NewGuid();
         var document = CreateDocument();
 
-        var header = new CreatePurchaseDraftHeaderCommand
+        document.Header = new PurchaseDraftPreviewHeaderDto
         {
             InletHoseType = "软管 A",
             AeratorType = "起泡器 B",
             SalesPerson = "业务员甲",
             PurchasePerson = "采购员乙",
             InstructionManualType = "说明书 C",
-            Remark = "采购备注"
+            Remark = "采购备注",
+            BoNo = "CINV-S",
+            CustomerPoNo = "CUSTOMER-PO",
+            Currency = "USD",
+            DiscountRate = 0.95m,
+            DiscountRemark = "倍率说明"
         };
-        var model = _builder.Build(document, executionRequestId, purchaseOrderId, "PO2026070001", 1, createHead: true, header: header);
+        var model = _builder.Build(document, executionRequestId, purchaseOrderId, "PO2026070001", 1, createHead: true);
 
         Assert.IsNotNull(model.Head);
         Assert.AreEqual(executionRequestId, model.Head.ExecutionRequestId);
@@ -36,7 +41,12 @@ public sealed class PurchaseDraftWriteModelBuilderTests
         Assert.AreEqual(document.SourceUid, model.Head.DemandSourceUid);
         Assert.AreEqual(PurchaseOrderLifecycleStatusEnum.Active, model.Head.LifecycleStatus);
         Assert.AreEqual(ConfirmationStatusEnum.待确认, model.Head.ConfirmationStatus);
-        Assert.AreEqual("CNY", model.Head.Currency);
+        Assert.AreEqual("USD", model.Head.Currency);
+        Assert.AreEqual("CINV-S", model.Head.BoNo);
+        Assert.AreEqual("CUSTOMER-PO", model.Head.CustomerPoNo);
+        Assert.AreEqual(0.95m, model.Head.DiscountRate);
+        Assert.IsNull(model.Head.DiscountAmount);
+        Assert.AreEqual("倍率说明", model.Head.ZheKouBeiZhu);
         Assert.AreEqual(document.CustomerId, model.Head.CustomerId);
         Assert.AreEqual(document.CustomerName, model.Head.CustomerNameSnapshot);
         Assert.AreEqual("软管 A", model.Head.InletrHoseType);
@@ -84,6 +94,26 @@ public sealed class PurchaseDraftWriteModelBuilderTests
             _builder.Build(document, Guid.NewGuid(), Guid.NewGuid(), "PO2026070004", 1, createHead: true));
     }
 
+    [TestMethod]
+    public void Build_NullPricesSnapshotToZeroIndependentlyWithoutDiscountCalculation()
+    {
+        var document = CreateDocument();
+        document.Lines[0].UnitPrice = null;
+        document.Lines[0].TaxPrice = 11m;
+        document.Header.DiscountRate = 0.8m;
+        document.Header.DiscountAmount = null;
+
+        var model = _builder.Build(
+            document, Guid.NewGuid(), Guid.NewGuid(), "PO2026070005", 1, createHead: true);
+
+        Assert.AreEqual(0m, model.Lines.Single().UnitPrice);
+        Assert.AreEqual(0m, model.Lines.Single().UnitAmount);
+        Assert.AreEqual(11m, model.Lines.Single().TaxPrice);
+        Assert.AreEqual(55m, model.Lines.Single().TaxAmount);
+        Assert.AreEqual(0.8m, model.Head!.DiscountRate);
+        Assert.IsNull(model.Head.DiscountAmount);
+    }
+
     private static PurchaseDraftPreviewDocumentDto CreateDocument()
     {
         var sourceUid = Guid.NewGuid();
@@ -126,6 +156,11 @@ public sealed class PurchaseDraftWriteModelBuilderTests
             SupplierCode = "SUP001",
             SupplierName = "供应商一",
             Currency = CurrencyEnum.CNY,
+            Header = new PurchaseDraftPreviewHeaderDto
+            {
+                Currency = CurrencyEnum.CNY,
+                ExpectedDate = new DateTime(2026, 8, 10)
+            },
             SourceLineCount = 2,
             PreviewLineCount = 1,
             TotalQty = 5m,

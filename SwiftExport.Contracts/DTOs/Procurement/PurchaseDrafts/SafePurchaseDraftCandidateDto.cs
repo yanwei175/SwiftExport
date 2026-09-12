@@ -14,5 +14,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public string SourceType { get; set; }
         public Guid SourceUid { get; set; }
         public Guid SupplierId { get; set; }
+        /// <summary>既有草稿当前未税金额合计。</summary>
+        public decimal UntaxedTotalAmount { get; set; }
+        /// <summary>既有草稿当前含税金额合计。</summary>
+        public decimal TaxIncludedTotalAmount { get; set; }
     }
 }

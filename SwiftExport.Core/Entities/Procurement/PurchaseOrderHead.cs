@@ -39,8 +39,14 @@ public sealed class PurchaseOrderHead : BaseEntity
     /// <summary>客户代码快照。</summary>
     public string? CustomerCode { get; set; }
 
-    /// <summary>币种代码；当前采购固定为人民币。</summary>
+    /// <summary>采购创建时采用的配置币种快照；仅用于同币种展示与记账，本模块不执行币种换算。</summary>
     public string Currency { get; set; } = "CNY";
+
+    /// <summary>采购单采用的价格倍率快照；1 表示原价，小于 1 表示折扣，大于 1 表示加价，不在实体中换算或覆盖行价格。</summary>
+    public decimal? DiscountRate { get; set; }
+
+    /// <summary>用户手工填写的整单优惠金额快照，不由价格倍率自动计算；未填写或历史未知时保持空值。</summary>
+    public decimal? DiscountAmount { get; set; }
 
     /// <summary>采购供应商权威 Uid。</summary>
     public Guid SupplierId { get; set; }

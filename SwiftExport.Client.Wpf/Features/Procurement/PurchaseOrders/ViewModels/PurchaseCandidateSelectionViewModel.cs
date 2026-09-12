@@ -62,6 +62,9 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
 
     public event EventHandler? InputChanged;
 
+    /// <summary>由视图桥接原生 DataGrid 编辑提交；返回 false 表示转换错误仍停留在当前单元格。</summary>
+    public Func<bool>? CommitPendingEdits { get; set; }
+
     /// <summary>返回已加载集合中全部勾选项；本地筛选不会丢失隐藏行选择。</summary>
     public IReadOnlyList<PurchaseCandidateItemModel> SelectedRows =>
         Items.Where(static item => item.IsChecked).ToArray();
@@ -268,6 +271,15 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     {
         if (item?.IsCustomerSupplied == true) item.ClearDeliverySupplier();
     }
+
+    /// <summary>统一刷新所有行的输入许可，使编辑器与 EnterpriseGrid 填充使用同一业务门禁。</summary>
+    public void SetInputEnabled(bool isEnabled)
+    {
+        foreach (var item in Items) item.IsInputEnabled = isEnabled;
+    }
+
+    /// <summary>提交当前原生编辑事务；提交失败时调用方不得读取或发送旧模型值。</summary>
+    public bool TryCommitPendingEdits() => CommitPendingEdits?.Invoke() ?? true;
 
     /// <summary>把服务端结构化验证结果映射回稳定需求行，供只看错误和定位编辑使用。</summary>
     public void ApplyValidation(IReadOnlyList<PurchaseDraftWarningModel> warnings)
@@ -499,6 +511,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     {
         if (_disposed) return;
         _disposed = true;
+        CommitPendingEdits = null;
         Close();
         ClearItems();
     }

@@ -80,7 +80,9 @@ public sealed class PurchaseDraftPreviewBuilderTests
     public void Build_DefaultLineModeMergesCompatibleSameSkuContributions()
     {
         var first = CreateCandidate();
+        first.ImagePath = "products/source-line-1.png";
         var second = CloneForNextSourceLine(first);
+        second.ImagePath = "products/source-line-2.png";
         var request = CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, first, second);
 
         var result = _builder.Build(request);
@@ -90,6 +92,9 @@ public sealed class PurchaseDraftPreviewBuilderTests
         Assert.AreEqual(2, document.SourceLineCount);
         Assert.AreEqual(1, document.PreviewLineCount);
         Assert.AreEqual(2, document.Lines.Single().Contributions.Count);
+        CollectionAssert.AreEqual(
+            new[] { "products/source-line-1.png", "products/source-line-2.png" },
+            document.Lines.Single().Contributions.Select(item => item.ImagePath).ToArray());
     }
 
     [TestMethod]
@@ -188,6 +193,7 @@ public sealed class PurchaseDraftPreviewBuilderTests
         Assert.AreEqual(candidate.SourceNo, contribution.SourceNo);
         Assert.AreEqual(candidate.Sku, contribution.Sku);
         Assert.AreEqual(candidate.LinkSku, contribution.LinkSku);
+        Assert.AreEqual(candidate.ImagePath, contribution.ImagePath);
         Assert.AreEqual(candidate.RemainingQty, contribution.ExpectedRemainingQty);
         Assert.AreEqual(candidate.PlannedDeliveryDate, contribution.PlannedDeliveryDate);
     }
@@ -391,6 +397,79 @@ public sealed class PurchaseDraftPreviewBuilderTests
     }
 
     [TestMethod]
+    public void Build_HeaderConfigurationChangesPreviewTokenAndTotalsUseIndependentPrices()
+    {
+        var candidate = CreateCandidate(remainingQty: 2m);
+        candidate.UnitPrice = null;
+        candidate.TaxPrice = 15m;
+        var request = CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, candidate);
+        var before = _builder.Build(request);
+        var document = before.SourceGroups.Single().Documents.Single();
+
+        Assert.AreEqual(0m, document.Header.UntaxedTotalAmount);
+        Assert.AreEqual(30m, document.Header.TaxIncludedTotalAmount);
+        Assert.IsNull(document.Header.DiscountAmount);
+
+        request.Headers.Single().Header.DiscountRemark = "配置已变化";
+        var after = _builder.Build(request);
+
+        Assert.AreNotEqual(before.PreviewToken, after.PreviewToken);
+        Assert.AreNotEqual(
+            before.SourceGroups.Single().SourcePreviewToken,
+            after.SourceGroups.Single().SourcePreviewToken);
+    }
+
+    [TestMethod]
+    public void Build_AppendUsesExistingHeaderAndAddsCurrentLineTotals()
+    {
+        var candidate = CreateCandidate(remainingQty: 2m);
+        var request = CreateRequest(PurchaseDraftEntryModeEnum.ManualSelection, candidate);
+        var existingId = Guid.NewGuid();
+        request.Targets = new[]
+        {
+            new PurchaseDraftPreviewBuildTarget
+            {
+                SourceType = candidate.SourceType,
+                SourceUid = candidate.SourceUid,
+                SupplierId = candidate.PurchaseSupplierId!.Value,
+                TargetMode = PurchaseDraftTargetModeEnum.AppendExisting,
+                ExistingPurchaseOrderId = existingId,
+                ExpectedPurchaseOrderVersion = 3
+            }
+        };
+        request.SafeAppendCandidates = new[]
+        {
+            new PurchaseDraftSafeAppendCandidate
+            {
+                PurchaseOrderId = existingId,
+                Version = 3,
+                OrderNo = "PO-OLD",
+                SourceType = candidate.SourceType,
+                SourceUid = candidate.SourceUid,
+                SupplierId = candidate.PurchaseSupplierId.Value,
+                UntaxedTotalAmount = 100m,
+                TaxIncludedTotalAmount = 113m,
+                Header = new PurchaseDraftPreviewHeaderDto
+                {
+                    OrderNo = "PO-OLD",
+                    BoNo = "USER-EDITED",
+                    Currency = "USD",
+                    ExpectedDate = new DateTime(2026, 8, 20)
+                }
+            }
+        };
+
+        var document = _builder.Build(request).SourceGroups.Single().Documents.Single();
+
+        Assert.AreEqual("PO-OLD", document.Header.OrderNo);
+        Assert.AreEqual("USER-EDITED", document.Header.BoNo);
+        Assert.AreEqual("USD", document.Header.Currency);
+        Assert.AreEqual(125m, document.Header.UntaxedTotalAmount);
+        Assert.AreEqual(141.25m, document.Header.TaxIncludedTotalAmount);
+        Assert.AreEqual(new DateTime(2026, 8, 10), document.Header.ExpectedDate);
+    }
+
+    [TestMethod]
     public void Build_InactiveSupplierIsBlocker()
     {
         var candidate = CreateCandidate();
@@ -467,7 +546,25 @@ public sealed class PurchaseDraftPreviewBuilderTests
             LineMode = PurchaseDraftLineModeEnum.KeepSourceLines,
             SourceType = entryMode == PurchaseDraftEntryModeEnum.SourceOneClick ? first?.SourceType ?? string.Empty : string.Empty,
             SourceUid = entryMode == PurchaseDraftEntryModeEnum.SourceOneClick ? first?.SourceUid : null,
-            Candidates = candidates
+            Candidates = candidates,
+            Headers = candidates
+                .Where(candidate => candidate.PurchaseSupplierId.HasValue)
+                .GroupBy(candidate => new { candidate.SourceType, candidate.SourceUid, SupplierId = candidate.PurchaseSupplierId!.Value })
+                .Select(group => new PurchaseDraftPreviewHeaderFact
+                {
+                    SourceType = group.Key.SourceType,
+                    SourceUid = group.Key.SourceUid,
+                    SupplierId = group.Key.SupplierId,
+                    Header = new PurchaseDraftPreviewHeaderDto
+                    {
+                        CustomerPoNo = "CUSTOMER-PO",
+                        BoNo = "CINV-S",
+                        Currency = "CNY",
+                        DiscountRate = 0.95m,
+                        ExpectedDate = group.Min(item => item.PlannedDeliveryDate)
+                    }
+                })
+                .ToList()
         };
     }
 

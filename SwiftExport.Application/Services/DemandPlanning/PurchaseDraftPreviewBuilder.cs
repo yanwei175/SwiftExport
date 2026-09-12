@@ -32,7 +32,7 @@ public sealed class PurchaseDraftPreviewBuilder
             ExecutionRequestId = request.ExecutionRequestId,
             EntryMode = request.EntryMode,
             LineMode = request.LineMode,
-            Currency = CurrencyEnum.CNY
+            Currency = string.Empty
         };
 
         ValidateOneClickScope(request, candidates);
@@ -48,6 +48,12 @@ public sealed class PurchaseDraftPreviewBuilder
         AddSourceConsistencyWarnings(selected, response);
         AddRelatedCustomerSuppliedWarnings(candidates, usable, response);
         BuildSourceGroups(request, candidates, selected, usable, response);
+
+        var currencies = response.SourceGroups.SelectMany(x => x.Documents)
+            .Select(x => x.Header.Currency?.Trim() ?? string.Empty)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        response.Currency = currencies.Count == 1 ? currencies[0] : string.Empty;
 
         response.HasBlockers = response.Warnings.Any(x => x.IsBlocker);
         response.RequiresConfirmation = response.Warnings.Any(x => x.RequiresConfirmation);
@@ -354,7 +360,7 @@ public sealed class PurchaseDraftPreviewBuilder
             SupplierId = supplierId,
             SupplierCode = first.PurchaseSupplierCode,
             SupplierName = first.PurchaseSupplierName,
-            Currency = CurrencyEnum.CNY,
+            Currency = string.Empty,
             TargetMode = target?.TargetMode ?? PurchaseDraftTargetModeEnum.CreateNew,
             ExistingPurchaseOrderId = target?.ExistingPurchaseOrderId,
             ExpectedPurchaseOrderVersion = target?.ExpectedPurchaseOrderVersion,
@@ -396,6 +402,18 @@ public sealed class PurchaseDraftPreviewBuilder
         }
 
         document.PreviewLineCount = document.Lines.Count;
+        var lineUntaxedTotal = document.Lines.Sum(line => (line.UnitPrice ?? 0m) * line.PurchaseQty);
+        var lineTaxIncludedTotal = document.Lines.Sum(line => (line.TaxPrice ?? 0m) * line.PurchaseQty);
+        var appendCandidate = target?.TargetMode == PurchaseDraftTargetModeEnum.AppendExisting
+            ? request.SafeAppendCandidates.SingleOrDefault(x => x.PurchaseOrderId == target.ExistingPurchaseOrderId)
+            : null;
+        var newHeader = request.Headers.SingleOrDefault(x => SourceEquals(x, sourceKey.SourceType, sourceKey.SourceUid)
+            && x.SupplierId == supplierId)?.Header ?? new PurchaseDraftPreviewHeaderDto();
+        document.Header = CloneHeader(appendCandidate?.Header ?? newHeader);
+        document.Currency = document.Header.Currency;
+        document.Header.UntaxedTotalAmount = (appendCandidate?.UntaxedTotalAmount ?? 0m) + lineUntaxedTotal;
+        document.Header.TaxIncludedTotalAmount = (appendCandidate?.TaxIncludedTotalAmount ?? 0m) + lineTaxIncludedTotal;
+        document.Header.ExpectedDate = MinDate(new[] { appendCandidate?.Header.ExpectedDate, document.EarliestPlannedDeliveryDate });
         document.SafeAppendCandidates = request.SafeAppendCandidates
             .Where(x => SourceEquals(x, sourceKey.SourceType, sourceKey.SourceUid) && x.SupplierId == supplierId)
             .OrderBy(x => x.OrderNo, StringComparer.OrdinalIgnoreCase)
@@ -406,7 +424,9 @@ public sealed class PurchaseDraftPreviewBuilder
                 OrderNo = x.OrderNo,
                 SourceType = x.SourceType,
                 SourceUid = x.SourceUid,
-                SupplierId = x.SupplierId
+                SupplierId = x.SupplierId,
+                UntaxedTotalAmount = x.UntaxedTotalAmount,
+                TaxIncludedTotalAmount = x.TaxIncludedTotalAmount
             })
             .ToList();
         return document;
@@ -483,6 +503,7 @@ public sealed class PurchaseDraftPreviewBuilder
                     SourceLineNumber = x.Candidate.SourceLineNumber,
                     Sku = x.Candidate.Sku,
                     LinkSku = x.Candidate.LinkSku,
+                    ImagePath = x.Candidate.ImagePath ?? string.Empty,
                     ExpectedRemainingQty = x.Candidate.RemainingQty,
                     PurchaseQty = x.PurchaseQty,
                     DemandRequiredDate = x.Candidate.DemandRequiredDate,
@@ -606,6 +627,32 @@ public sealed class PurchaseDraftPreviewBuilder
                 .Append('|').Append(target.ExpectedPurchaseOrderVersion);
         }
 
+        foreach (var header in request.Headers
+                     .Where(x => sourceKey is null || SourceEquals(x, sourceKey.SourceType, sourceKey.SourceUid))
+                     .Where(x => request.Targets.FirstOrDefault(target => SourceEquals(target, x.SourceType, x.SourceUid)
+                         && target.SupplierId == x.SupplierId)?.TargetMode != PurchaseDraftTargetModeEnum.AppendExisting)
+                     .OrderBy(x => x.SourceType, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(x => x.SourceUid)
+                     .ThenBy(x => x.SupplierId))
+        {
+            AppendHeaderToken(text, "H", header.SourceType, header.SourceUid, header.SupplierId, header.Header);
+        }
+
+        foreach (var append in request.SafeAppendCandidates
+                     .Where(x => sourceKey is null || SourceEquals(x, sourceKey.SourceType, sourceKey.SourceUid))
+                     .Where(x => request.Targets.Any(target => SourceEquals(target, x.SourceType, x.SourceUid)
+                         && target.SupplierId == x.SupplierId
+                         && target.TargetMode == PurchaseDraftTargetModeEnum.AppendExisting
+                         && target.ExistingPurchaseOrderId == x.PurchaseOrderId))
+                     .OrderBy(x => x.PurchaseOrderId))
+        {
+            AppendHeaderToken(text, "A", append.SourceType, append.SourceUid, append.SupplierId, append.Header);
+            text.Append('|').Append(append.PurchaseOrderId.ToString("N"))
+                .Append('|').Append(append.Version)
+                .Append('|').Append(append.UntaxedTotalAmount.ToString(CultureInfo.InvariantCulture))
+                .Append('|').Append(append.TaxIncludedTotalAmount.ToString(CultureInfo.InvariantCulture));
+        }
+
         foreach (var warning in warnings
                      .OrderBy(x => x.Code, StringComparer.Ordinal)
                      .ThenBy(x => x.SourceType, StringComparer.OrdinalIgnoreCase)
@@ -618,6 +665,40 @@ public sealed class PurchaseDraftPreviewBuilder
         }
 
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
+    }
+
+    /// <summary>把单头业务快照写入规范令牌文本；新单的系统生成单号和系统下单时间不参与比较。</summary>
+    private static void AppendHeaderToken(
+        StringBuilder text,
+        string prefix,
+        string sourceType,
+        Guid sourceUid,
+        Guid supplierId,
+        PurchaseDraftPreviewHeaderDto header)
+    {
+        text.Append('\n').Append(prefix).Append('|').Append(sourceType?.Trim().ToUpperInvariant())
+            .Append('|').Append(sourceUid.ToString("N"))
+            .Append('|').Append(supplierId.ToString("N"))
+            .Append('|').Append(header.OrderNo?.Trim())
+            .Append('|').Append(header.CustomerPoNo?.Trim())
+            .Append('|').Append(header.BoNo?.Trim())
+            .Append('|').Append(header.Currency?.Trim().ToUpperInvariant())
+            .Append('|').Append(header.DiscountRate?.ToString(CultureInfo.InvariantCulture))
+            .Append('|').Append(header.DiscountAmount?.ToString(CultureInfo.InvariantCulture))
+            .Append('|').Append(header.DiscountRemark?.Trim())
+            .Append('|').Append(header.OrderDate?.Ticks)
+            .Append('|').Append(header.ExpectedDate?.Ticks)
+            .Append('|').Append(header.InletHoseType?.Trim())
+            .Append('|').Append(header.AeratorType?.Trim())
+            .Append('|').Append(header.PalletType?.Trim())
+            .Append('|').Append(header.BoxType?.Trim())
+            .Append('|').Append(header.LabelType?.Trim())
+            .Append('|').Append(header.InstructionManualType?.Trim())
+            .Append('|').Append(header.CartonType?.Trim())
+            .Append('|').Append(header.LogoType?.Trim())
+            .Append('|').Append(header.SalesPerson?.Trim())
+            .Append('|').Append(header.PurchasePerson?.Trim())
+            .Append('|').Append(header.Remark?.Trim());
     }
 
     private static IReadOnlyList<CanonicalTarget> BuildCanonicalTargets(
@@ -700,11 +781,42 @@ public sealed class PurchaseDraftPreviewBuilder
         => candidate.SourceUid == sourceUid
            && string.Equals(candidate.SourceType, sourceType, StringComparison.OrdinalIgnoreCase);
 
+    private static bool SourceEquals(PurchaseDraftPreviewHeaderFact candidate, string sourceType, Guid sourceUid)
+        => candidate.SourceUid == sourceUid
+           && string.Equals(candidate.SourceType, sourceType, StringComparison.OrdinalIgnoreCase);
+
     private static DateTime? MinDate(IEnumerable<DateTime?> dates)
     {
         var values = dates.Where(x => x.HasValue).Select(x => x!.Value).ToList();
         return values.Count == 0 ? null : values.Min();
     }
+
+    /// <summary>复制单头后再补预览合计，避免纯计算器修改调用方提供的事实对象。</summary>
+    private static PurchaseDraftPreviewHeaderDto CloneHeader(PurchaseDraftPreviewHeaderDto source) => new()
+    {
+        OrderNo = source.OrderNo,
+        CustomerPoNo = source.CustomerPoNo,
+        BoNo = source.BoNo,
+        Currency = source.Currency,
+        DiscountRate = source.DiscountRate,
+        DiscountAmount = source.DiscountAmount,
+        DiscountRemark = source.DiscountRemark,
+        UntaxedTotalAmount = source.UntaxedTotalAmount,
+        TaxIncludedTotalAmount = source.TaxIncludedTotalAmount,
+        OrderDate = source.OrderDate,
+        ExpectedDate = source.ExpectedDate,
+        InletHoseType = source.InletHoseType,
+        AeratorType = source.AeratorType,
+        PalletType = source.PalletType,
+        BoxType = source.BoxType,
+        LabelType = source.LabelType,
+        InstructionManualType = source.InstructionManualType,
+        CartonType = source.CartonType,
+        LogoType = source.LogoType,
+        SalesPerson = source.SalesPerson,
+        PurchasePerson = source.PurchasePerson,
+        Remark = source.Remark
+    };
 
     /// <summary>对同一来源中因实际采购供应商不同而分开的同 SKU 行补充说明。</summary>
     private static void AddSupplierSplitReasons(PurchaseDraftPreviewSourceGroupDto sourceGroup)
@@ -823,6 +935,16 @@ public sealed class PurchaseDraftPreviewBuildRequest
     public IReadOnlyList<PurchaseDraftPreviewCandidate> Candidates { get; set; } = Array.Empty<PurchaseDraftPreviewCandidate>();
     public IReadOnlyList<PurchaseDraftPreviewBuildTarget> Targets { get; set; } = Array.Empty<PurchaseDraftPreviewBuildTarget>();
     public IReadOnlyList<PurchaseDraftSafeAppendCandidate> SafeAppendCandidates { get; set; } = Array.Empty<PurchaseDraftSafeAppendCandidate>();
+    public IReadOnlyList<PurchaseDraftPreviewHeaderFact> Headers { get; set; } = Array.Empty<PurchaseDraftPreviewHeaderFact>();
+}
+
+/// <summary>按来源与实际采购供应商定位的新建采购单头事实。</summary>
+public sealed class PurchaseDraftPreviewHeaderFact
+{
+    public string SourceType { get; set; } = string.Empty;
+    public Guid SourceUid { get; set; }
+    public Guid SupplierId { get; set; }
+    public PurchaseDraftPreviewHeaderDto Header { get; set; } = new();
 }
 
 /// <summary>仓储事实投影；所有字段均由服务端读取，不能直接信任客户端。</summary>
@@ -891,4 +1013,7 @@ public sealed class PurchaseDraftSafeAppendCandidate
     public string SourceType { get; set; } = string.Empty;
     public Guid SourceUid { get; set; }
     public Guid SupplierId { get; set; }
+    public decimal UntaxedTotalAmount { get; set; }
+    public decimal TaxIncludedTotalAmount { get; set; }
+    public PurchaseDraftPreviewHeaderDto Header { get; set; } = new();
 }

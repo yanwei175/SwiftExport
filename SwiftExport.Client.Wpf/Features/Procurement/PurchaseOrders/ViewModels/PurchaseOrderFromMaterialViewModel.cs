@@ -45,6 +45,15 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
     [ObservableProperty]
     public partial string SelectionValidationText { get; private set; } = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreparationActionText))]
+    public partial bool HasPreparationAttempted { get; private set; }
+
+    /// <summary>首次与失败后的重复校验共用一个明确入口，旧阻断不会禁用恢复动作。</summary>
+    public string PreparationActionText => HasPreparationAttempted
+        ? "重新校验所选物料"
+        : "校验所选物料并进入审核";
+
     /// <summary>当前是否处于物料选择阶段。</summary>
     public bool IsSelectionStage => Stage == PurchaseOrderFromMaterialStage.Selection;
     /// <summary>当前是否处于采购预览阶段。</summary>
@@ -59,6 +68,8 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
         _preview.BeginSession();
         Stage = PurchaseOrderFromMaterialStage.Selection;
         SelectionValidationText = string.Empty;
+        HasPreparationAttempted = false;
+        _picker.SetInputEnabled(true);
         await _picker.OpenAsync(cancellationToken);
     }
 
@@ -67,6 +78,13 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
     private async Task ContinueToPreviewAsync()
     {
         if (!CanNavigateWithinDialog()) return;
+        HasPreparationAttempted = true;
+        if (!_picker.TryCommitPendingEdits())
+        {
+            SelectionValidationText = "当前单元格输入格式无效，请修正后重新校验所选物料。";
+            return;
+        }
+
         var rows = _picker.SelectedRows;
         if (rows.Count == 0)
         {
@@ -75,19 +93,28 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
         }
 
         SelectionValidationText = string.Empty;
-        await _preview.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
+        _picker.SetInputEnabled(false);
+        try
         {
-            EntryMode = PurchaseDraftEntryModeEnum.PurchaseWorkspace,
-            Rows = rows
-        });
-        _picker.ApplyValidation(_preview.Warnings.ToArray());
-        if (!_preview.HasValidPreparation)
-        {
-            SelectionValidationText = _preview.CreateBlockReason;
-            return;
-        }
+            await _preview.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
+            {
+                EntryMode = PurchaseDraftEntryModeEnum.PurchaseWorkspace,
+                Rows = rows
+            });
+            _picker.ApplyValidation(_preview.Warnings.ToArray());
+            if (!_preview.HasValidPreparation)
+            {
+                SelectionValidationText = _preview.CreateBlockReason;
+                return;
+            }
 
-        Stage = PurchaseOrderFromMaterialStage.Preview;
+            Stage = PurchaseOrderFromMaterialStage.Preview;
+        }
+        finally
+        {
+            if (Stage == PurchaseOrderFromMaterialStage.Selection)
+                _picker.SetInputEnabled(true);
+        }
     }
 
     /// <summary>从预览返回选择阶段，保留候选与勾选，便于继续调整。</summary>
@@ -95,6 +122,7 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
     private void BackToSelection()
     {
         if (!CanNavigateWithinDialog()) return;
+        _picker.SetInputEnabled(true);
         Stage = PurchaseOrderFromMaterialStage.Selection;
     }
 
@@ -116,7 +144,10 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
                     and not NetDemandCommandOutcomeEnum.AlreadyApplied);
             Stage = hasFailure ? PurchaseOrderFromMaterialStage.Selection : PurchaseOrderFromMaterialStage.Result;
             if (hasFailure)
+            {
+                _picker.SetInputEnabled(true);
                 SelectionValidationText = "采购草稿保存未完成，请核对提示并重新验证当前采购准备。";
+            }
         }
     }
 

@@ -30,7 +30,6 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     private CancellationTokenSource? _deliverySupplierSearchCancellation;
     private PurchaseDraftPreviewResponse? _preview;
     private CreatePurchaseDraftsCommand? _pendingCreateCommand;
-    private readonly Dictionary<string, PurchaseDraftHeaderEditModel> _headerSnapshots = [];
     private long _sessionVersion;
     private long _inputRevision;
     private long _previewSequence;
@@ -161,7 +160,11 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
     [NotifyPropertyChangedFor(nameof(CanCreateCurrent))]
     [NotifyPropertyChangedFor(nameof(CreateBlockReason))]
+    [NotifyPropertyChangedFor(nameof(PreviewActionText))]
     public partial bool IsStale { get; private set; } = true;
+
+    /// <summary>明确区分首次刷新与失效恢复，避免审核单据被清空后用户找不到下一步。</summary>
+    public string PreviewActionText => IsStale ? "重新生成当前审核" : "刷新当前审核";
 
     [ObservableProperty]
     public partial bool HasAppliedResults { get; private set; }
@@ -203,7 +206,6 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         if (_isSessionActive && !CanClose)
             throw new InvalidOperationException("当前采购写入尚未取得确定结果，不能开始新会话。");
         EndSessionCore();
-        _preparationService?.BeginSession();
         _sessionVersion++;
         _isSessionActive = true;
         _suppressStale = true;
@@ -466,7 +468,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
                     return;
                 }
 
-                ApplyPreview(result.Data.Preview, result.Data.Configurations);
+                ApplyPreview(result.Data.Preview);
             }, "正在生成采购草稿预览...", skipIfBusy: false);
         }
         finally
@@ -606,10 +608,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
                 Items = GetSourceCreateItems(source).ToList(),
                 Targets = Targets
                     .Where(target => target.SourceUid == source.SourceUid && string.Equals(target.SourceType, source.SourceType, StringComparison.OrdinalIgnoreCase))
-                    .Select(target => target.ToCreateDto(Documents.FirstOrDefault(document =>
-                        document.SourceUid == target.SourceUid
-                        && string.Equals(document.SourceType, target.SourceType, StringComparison.OrdinalIgnoreCase)
-                        && document.SupplierId == target.SupplierId)?.Header.ToCommand()))
+                    .Select(target => target.ToCreateDto())
                     .ToList(),
                 ConfirmedWarningCodes = Warnings
                     .Where(warning => warning.RequiresConfirmation
@@ -647,11 +646,11 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
             LinkSku = row.LinkSku,
             IsCustomerSupplied = row.IsCustomerSupplied,
             SuggestedPurchaseSupplierId = row.SupplierId == Guid.Empty ? null : row.SupplierId,
-            SuggestedPurchaseSupplierCode = row.PurchaseSupplierSelection?.SupplierCode ?? string.Empty,
-            SuggestedPurchaseSupplierName = row.PurchaseSupplierSelection?.SupplierName ?? string.Empty,
+            SuggestedPurchaseSupplierCode = row.PurchaseSupplierCode,
+            SuggestedPurchaseSupplierName = row.PurchaseSupplierName,
             SuggestedDeliverySupplierId = row.DeliveryTargetSupplierId,
-            SuggestedDeliverySupplierCode = row.DeliverySupplierSelection?.SupplierCode ?? string.Empty,
-            SuggestedDeliverySupplierName = row.DeliverySupplierSelection?.SupplierName ?? string.Empty,
+            SuggestedDeliverySupplierCode = row.DeliverySupplierCode,
+            SuggestedDeliverySupplierName = row.DeliverySupplierName,
             SuggestedDeliverySupplierHint = row.SuggestedDeliverySupplierHint,
             ParentActualPurchaseSuppliers = row.ParentActualPurchaseSuppliers,
             IsQuantityReadOnly = entryMode != PurchaseDraftEntryModeEnum.ManualSelection,
@@ -674,10 +673,10 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         && item.UnitPrice == row.UnitPrice
         && item.TaxPrice == row.TaxPrice
         && item.PlannedDeliveryDate == row.PlannedDeliveryDate
-        && string.Equals(item.SuggestedPurchaseSupplierCode, row.PurchaseSupplierSelection?.SupplierCode, StringComparison.Ordinal)
-        && string.Equals(item.SuggestedPurchaseSupplierName, row.PurchaseSupplierSelection?.SupplierName, StringComparison.Ordinal)
-        && string.Equals(item.SuggestedDeliverySupplierCode, row.DeliverySupplierSelection?.SupplierCode, StringComparison.Ordinal)
-        && string.Equals(item.SuggestedDeliverySupplierName, row.DeliverySupplierSelection?.SupplierName, StringComparison.Ordinal)
+        && string.Equals(item.SuggestedPurchaseSupplierCode, row.PurchaseSupplierCode, StringComparison.Ordinal)
+        && string.Equals(item.SuggestedPurchaseSupplierName, row.PurchaseSupplierName, StringComparison.Ordinal)
+        && string.Equals(item.SuggestedDeliverySupplierCode, row.DeliverySupplierCode, StringComparison.Ordinal)
+        && string.Equals(item.SuggestedDeliverySupplierName, row.DeliverySupplierName, StringComparison.Ordinal)
         && string.Equals(item.SuggestedDeliverySupplierHint, row.SuggestedDeliverySupplierHint, StringComparison.Ordinal)
         && item.SourceUid == row.SourceUid
         && string.Equals(item.SourceType, row.SourceType, StringComparison.OrdinalIgnoreCase)
@@ -776,9 +775,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
             });
     }
 
-    private void ApplyPreview(
-        PurchaseDraftPreviewResponse response,
-        IReadOnlyDictionary<(Guid CustomerId, Guid SupplierId), SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto?>? configurations = null)
+    private void ApplyPreview(PurchaseDraftPreviewResponse response)
     {
         _suppressStale = true;
         try
@@ -792,7 +789,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
             RebuildTargets(response);
             RebuildWarnings(response);
             RebuildLines(response);
-            RebuildDocuments(response, configurations);
+            RebuildDocuments(response);
             SkippedItems.Clear();
             foreach (var skipped in response.SkippedItems)
             {
@@ -956,10 +953,8 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     /// <summary>候选页任一采购输入变化时撤销旧验证和预览接纳资格。</summary>
     public void InvalidatePreparation() => MarkStale();
 
-    /// <summary>按服务端文档建立显式主从审核模型，并按稳定单据键保留已编辑单头。</summary>
-    private void RebuildDocuments(
-        PurchaseDraftPreviewResponse response,
-        IReadOnlyDictionary<(Guid CustomerId, Guid SupplierId), SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto?>? configurations)
+    /// <summary>按服务端文档建立显式主从审核模型，单头仅接纳后端可信只读快照。</summary>
+    private void RebuildDocuments(PurchaseDraftPreviewResponse response)
     {
         Documents.Clear();
         foreach (var source in response.SourceGroups)
@@ -969,15 +964,6 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
                 var target = Targets.First(item => item.SourceUid == document.SourceUid
                     && string.Equals(item.SourceType, document.SourceType, StringComparison.OrdinalIgnoreCase)
                     && item.SupplierId == document.SupplierId);
-                var key = $"{document.SourceType.Trim().ToUpperInvariant()}|{document.SourceUid:N}|{document.SupplierId:N}";
-                SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto? config = null;
-                if (document.CustomerId.HasValue && configurations is not null)
-                    configurations.TryGetValue((document.CustomerId.Value, document.SupplierId), out config);
-                if (!_headerSnapshots.TryGetValue(key, out var header))
-                {
-                    header = PurchaseDraftHeaderEditModel.FromConfig(config);
-                    _headerSnapshots[key] = header;
-                }
                 var lines = PreviewLines.Where(line => line.SourceUid == document.SourceUid
                     && string.Equals(line.SourceType, document.SourceType, StringComparison.OrdinalIgnoreCase)
                     && line.SupplierId == document.SupplierId).ToArray();
@@ -991,7 +977,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
                     CustomerId = document.CustomerId,
                     CustomerDisplay = $"{document.CustomerName}".Trim(),
                     Target = target,
-                    Header = header,
+                    Header = document.Header.Adapt<PurchaseDraftHeaderReviewModel>(),
                     Lines = lines,
                 });
             }
@@ -1100,7 +1086,6 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         Results.Clear();
         PurchaseSupplierCandidates.Clear();
         DeliverySupplierCandidates.Clear();
-        _headerSnapshots.Clear();
         SelectedInputItem = null;
         SelectedDocument = null;
         SelectedLine = null;

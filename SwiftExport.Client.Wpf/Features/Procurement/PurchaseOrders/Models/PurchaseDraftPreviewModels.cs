@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums;
@@ -196,7 +195,6 @@ public sealed partial class PurchaseDraftTargetSelectionModel : ObservableObject
     public string SourceNo { get; init; } = string.Empty;
     public Guid SupplierId { get; init; }
     public string SupplierName { get; init; } = string.Empty;
-    public CreatePurchaseDraftHeaderCommand? Header { get; set; }
     public IReadOnlyList<PurchaseDraftTargetChoiceModel> Choices { get; init; } = [];
 
     [ObservableProperty]
@@ -238,18 +236,17 @@ public sealed partial class PurchaseDraftTargetSelectionModel : ObservableObject
         ExpectedPurchaseOrderVersion = SelectedChoice?.ExpectedPurchaseOrderVersion,
     };
 
-    public CreatePurchaseDraftTargetCommand ToCreateDto(CreatePurchaseDraftHeaderCommand? header = null) => new()
+    public CreatePurchaseDraftTargetCommand ToCreateDto() => new()
     {
         SupplierId = SupplierId,
         TargetMode = SelectedChoice?.TargetMode ?? PurchaseDraftTargetModeEnum.CreateNew,
         ExistingPurchaseOrderId = SelectedChoice?.ExistingPurchaseOrderId,
         ExpectedPurchaseOrderVersion = SelectedChoice?.ExpectedPurchaseOrderVersion,
-        Header = SelectedChoice?.TargetMode == PurchaseDraftTargetModeEnum.AppendExisting ? null : header ?? Header,
     };
 }
 
 /// <summary>采购单审核阶段的显式单据模型，不依赖分组首行推断单头。</summary>
-public sealed class PurchaseDraftDocumentReviewModel
+public sealed partial class PurchaseDraftDocumentReviewModel
 {
     public string SourceType { get; init; } = string.Empty;
     public Guid SourceUid { get; init; }
@@ -259,55 +256,38 @@ public sealed class PurchaseDraftDocumentReviewModel
     public Guid? CustomerId { get; init; }
     public string CustomerDisplay { get; init; } = string.Empty;
     public PurchaseDraftTargetSelectionModel Target { get; init; } = null!;
-    public PurchaseDraftHeaderEditModel Header { get; init; } = new();
+    public PurchaseDraftHeaderReviewModel Header { get; init; } = new();
     public IReadOnlyList<PurchaseDraftPreviewLineModel> Lines { get; init; } = [];
     public string DocumentKey => $"{SourceType.Trim().ToUpperInvariant()}|{SourceUid:N}|{SupplierId:N}";
 }
 
-/// <summary>新建采购单的会话内可编辑单头快照；默认配置只用于首次初始化。</summary>
-public sealed partial class PurchaseDraftHeaderEditModel : ObservableObject
+/// <summary>采购审核页的只读单头快照；所有业务字段均来自后端可信预览。</summary>
+public sealed partial class PurchaseDraftHeaderReviewModel
 {
-    [ObservableProperty] public partial string InletHoseType { get; set; } = string.Empty;
-    [ObservableProperty] public partial string AeratorType { get; set; } = string.Empty;
-    [ObservableProperty] public partial string PalletType { get; set; } = string.Empty;
-    [ObservableProperty] public partial string BoxType { get; set; } = string.Empty;
-    [ObservableProperty] public partial string LabelType { get; set; } = string.Empty;
-    [ObservableProperty] public partial string InstructionManualType { get; set; } = string.Empty;
-    [ObservableProperty] public partial string CartonType { get; set; } = string.Empty;
-    [ObservableProperty] public partial string LogoType { get; set; } = string.Empty;
-    [ObservableProperty] public partial string SalesPerson { get; set; } = string.Empty;
-    [ObservableProperty] public partial string PurchasePerson { get; set; } = string.Empty;
-    [ObservableProperty] public partial string Remark { get; set; } = string.Empty;
-
-    public static PurchaseDraftHeaderEditModel FromConfig(CustomerPoConfigDto? config) => new()
-    {
-        InletHoseType = config?.InletHoseType ?? string.Empty,
-        AeratorType = config?.AeratorType ?? string.Empty,
-        PalletType = config?.PalletType ?? string.Empty,
-        BoxType = config?.BoxType ?? string.Empty,
-        LabelType = config?.LabelType ?? string.Empty,
-        InstructionManualType = config?.IMType ?? string.Empty,
-        CartonType = config?.CartonType ?? string.Empty,
-        LogoType = config?.LogoType ?? string.Empty,
-        SalesPerson = config?.SalesPerson ?? string.Empty,
-        PurchasePerson = config?.Purchaser ?? string.Empty,
-        Remark = config?.Note ?? string.Empty,
-    };
-
-    public CreatePurchaseDraftHeaderCommand ToCommand() => new()
-    {
-        InletHoseType = InletHoseType,
-        AeratorType = AeratorType,
-        PalletType = PalletType,
-        BoxType = BoxType,
-        LabelType = LabelType,
-        InstructionManualType = InstructionManualType,
-        CartonType = CartonType,
-        LogoType = LogoType,
-        SalesPerson = SalesPerson,
-        PurchasePerson = PurchasePerson,
-        Remark = Remark,
-    };
+    public string OrderNo { get; set; } = string.Empty;
+    public string CustomerPoNo { get; set; } = string.Empty;
+    public string BoNo { get; set; } = string.Empty;
+    public string Currency { get; set; } = string.Empty;
+    public decimal? DiscountRate { get; set; }
+    public decimal? DiscountAmount { get; set; }
+    public string DiscountRemark { get; set; } = string.Empty;
+    public decimal UntaxedTotalAmount { get; set; }
+    public decimal TaxIncludedTotalAmount { get; set; }
+    public DateTime? OrderDate { get; set; }
+    public DateTime? ExpectedDate { get; set; }
+    public string InletHoseType { get; set; } = string.Empty;
+    public string AeratorType { get; set; } = string.Empty;
+    public string PalletType { get; set; } = string.Empty;
+    public string BoxType { get; set; } = string.Empty;
+    public string LabelType { get; set; } = string.Empty;
+    public string InstructionManualType { get; set; } = string.Empty;
+    public string CartonType { get; set; } = string.Empty;
+    public string LogoType { get; set; } = string.Empty;
+    public string SalesPerson { get; set; } = string.Empty;
+    public string PurchasePerson { get; set; } = string.Empty;
+    public string Remark { get; set; } = string.Empty;
+    public string OrderNoDisplay => string.IsNullOrWhiteSpace(OrderNo) ? "创建时按现有规则生成" : OrderNo;
+    public string OrderDateDisplay => OrderDate.HasValue ? OrderDate.Value.ToString("yyyy-MM-dd") : "创建时取系统日期";
 }
 
 public sealed partial class PurchaseDraftWarningModel : ObservableObject

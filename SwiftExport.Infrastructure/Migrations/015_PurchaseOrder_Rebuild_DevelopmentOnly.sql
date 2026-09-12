@@ -43,6 +43,8 @@ CREATE TABLE dbo.PurchaseOrderHead
     CustomerPoNo nvarchar(100) NULL,
     CustomerCode nvarchar(100) NULL,
     Currency nvarchar(10) NOT NULL CONSTRAINT DF_PurchaseOrderHead_Currency_015 DEFAULT(N'CNY'),
+    DiscountRate decimal(9,6) NULL,
+    DiscountAmount decimal(18,4) NULL,
 
     SupplierId uniqueidentifier NOT NULL,
     SupplierCode nvarchar(100) NOT NULL,
@@ -75,6 +77,7 @@ CREATE TABLE dbo.PurchaseOrderHead
 
     CONSTRAINT PK_PurchaseOrderHead_015 PRIMARY KEY CLUSTERED(Uid),
     CONSTRAINT CK_PurchaseOrderHead_Version_015 CHECK(Version>0),
+    CONSTRAINT CK_PurchaseOrderHead_DiscountRate_015 CHECK(DiscountRate IS NULL OR DiscountRate>=0),
     CONSTRAINT CK_PurchaseOrderHead_ConfirmationStatus_015 CHECK(ConfirmationStatus IN (0,1)),
     CONSTRAINT CK_PurchaseOrderHead_LifecycleStatus_015 CHECK(LifecycleStatus IN (0,8,9)),
     CONSTRAINT CK_PurchaseOrderHead_Identity_015 CHECK(

@@ -62,8 +62,17 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
 
         var sql = $"""
             SELECT h.Uid AS PurchaseOrderId,h.Version,h.OrderNo,
-                   h.DemandSourceType AS SourceType,h.DemandSourceUid AS SourceUid,h.SupplierId
+                   h.DemandSourceType AS SourceType,h.DemandSourceUid AS SourceUid,h.SupplierId,
+                   COALESCE(amounts.UntaxedTotalAmount,0) AS UntaxedTotalAmount,
+                   COALESCE(amounts.TaxIncludedTotalAmount,0) AS TaxIncludedTotalAmount
             FROM dbo.PurchaseOrderHead h
+            OUTER APPLY
+            (
+                SELECT SUM(COALESCE(line.UnitAmount,0)) AS UntaxedTotalAmount,
+                       SUM(COALESCE(line.TaxAmount,0)) AS TaxIncludedTotalAmount
+                FROM dbo.PurchaseOrderLine line
+                WHERE line.PurchaseOrderId=h.Uid AND line.IsDeleted=0
+            ) amounts
             WHERE h.DemandSourceType=@SourceType
               AND h.DemandSourceUid=@SourceUid
               AND h.SupplierId IN @SupplierIds
@@ -142,14 +151,14 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
         const string sql = """
             INSERT INTO dbo.PurchaseOrderHead
             (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,
-             ConfirmationStatus,LifecycleStatus,OrderNo,BoNo,CustomerPoNo,CustomerCode,Currency,
+             ConfirmationStatus,LifecycleStatus,OrderNo,BoNo,CustomerPoNo,CustomerCode,Currency,DiscountRate,DiscountAmount,
              SupplierId,SupplierCode,SupplierName,DemandSourceType,DemandSourceUid,DemandSourceNo,
              ExecutionRequestId,SoPerson,PoPerson,InletrHoseType,AeratorType,PalletType,BoxType,
              LabelType,IMType,CartonType,LogoType,ReviewedBy,PoFolder,ZheKouBeiZhu,Remark,
              OrderDate,ExpectedDate,ReplyDate,ConfirmedDate,ConfirmedBy)
             VALUES
             (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
-             @ConfirmationStatus,@LifecycleStatus,@OrderNo,@BoNo,@CustomerPoNo,@CustomerCode,@Currency,
+             @ConfirmationStatus,@LifecycleStatus,@OrderNo,@BoNo,@CustomerPoNo,@CustomerCode,@Currency,@DiscountRate,@DiscountAmount,
              @SupplierId,@SupplierCode,@SupplierName,@DemandSourceType,@DemandSourceUid,@DemandSourceNo,
              @ExecutionRequestId,@SoPerson,@PoPerson,@InletrHoseType,@AeratorType,@PalletType,@BoxType,
              @LabelType,@IMType,@CartonType,@LogoType,@ReviewedBy,@PoFolder,@ZheKouBeiZhu,@Remark,
@@ -353,7 +362,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
 
     private const string HeadColumns = """
         h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,
-        h.ConfirmationStatus,h.LifecycleStatus,h.OrderNo,h.BoNo,h.CustomerPoNo,h.CustomerCode,h.Currency,
+        h.ConfirmationStatus,h.LifecycleStatus,h.OrderNo,h.BoNo,h.CustomerPoNo,h.CustomerCode,h.Currency,h.DiscountRate,h.DiscountAmount,
         h.SupplierId,h.SupplierCode,h.SupplierName,h.DemandSourceType,h.DemandSourceUid,h.DemandSourceNo,
         h.ExecutionRequestId,h.SoPerson,h.PoPerson,h.InletrHoseType,h.AeratorType,h.PalletType,h.BoxType,
         h.LabelType,h.IMType,h.CartonType,h.LogoType,h.ReviewedBy,h.PoFolder,h.ZheKouBeiZhu,h.Remark,

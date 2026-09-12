@@ -18,6 +18,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public int? SourceLineNumber { get; set; }
         public string Sku { get; set; }
         public string LinkSku { get; set; }
+        /// <summary>来源需求在采购预览时使用的图片快照路径。</summary>
+        public string ImagePath { get; set; }
         public decimal ExpectedRemainingQty { get; set; }
         public decimal PurchaseQty { get; set; }
         public DateTime? DemandRequiredDate { get; set; }

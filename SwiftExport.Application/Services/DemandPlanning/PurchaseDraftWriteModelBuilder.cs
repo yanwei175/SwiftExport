@@ -17,8 +17,7 @@ public sealed class PurchaseDraftWriteModelBuilder
         Guid purchaseOrderId,
         string orderNo,
         int firstLineNumber,
-        bool createHead,
-        CreatePurchaseDraftHeaderCommand? header = null)
+        bool createHead)
     {
         ArgumentNullException.ThrowIfNull(document);
         if (executionRequestId == Guid.Empty || purchaseOrderId == Guid.Empty)
@@ -48,20 +47,25 @@ public sealed class PurchaseDraftWriteModelBuilder
                 ExecutionRequestId = executionRequestId,
                 LifecycleStatus = PurchaseOrderLifecycleStatusEnum.Active,
                 ConfirmationStatus = ConfirmationStatusEnum.待确认,
-                Currency = CurrencyEnum.CNY,
+                BoNo = document.Header.BoNo,
+                CustomerPoNo = document.Header.CustomerPoNo,
+                Currency = document.Header.Currency,
+                DiscountRate = document.Header.DiscountRate,
+                DiscountAmount = document.Header.DiscountAmount,
                 OrderDate = DateTime.Now,
-                ExpectedDate = document.EarliestPlannedDeliveryDate,
-                InletrHoseType = header?.InletHoseType,
-                AeratorType = header?.AeratorType,
-                PalletType = header?.PalletType,
-                BoxType = header?.BoxType,
-                LabelType = header?.LabelType,
-                IMType = header?.InstructionManualType,
-                CartonType = header?.CartonType,
-                LogoType = header?.LogoType,
-                SoPerson = header?.SalesPerson,
-                PoPerson = header?.PurchasePerson,
-                Remark = header?.Remark
+                ExpectedDate = document.Header.ExpectedDate,
+                InletrHoseType = document.Header.InletHoseType,
+                AeratorType = document.Header.AeratorType,
+                PalletType = document.Header.PalletType,
+                BoxType = document.Header.BoxType,
+                LabelType = document.Header.LabelType,
+                IMType = document.Header.InstructionManualType,
+                CartonType = document.Header.CartonType,
+                LogoType = document.Header.LogoType,
+                SoPerson = document.Header.SalesPerson,
+                PoPerson = document.Header.PurchasePerson,
+                ZheKouBeiZhu = document.Header.DiscountRemark,
+                Remark = document.Header.Remark
             };
         }
 
@@ -91,11 +95,11 @@ public sealed class PurchaseDraftWriteModelBuilder
                 SupplierSku = previewLine.SupplierSku,
                 DescriptionZh = previewLine.Description,
                 UnitSnapshot = previewLine.Unit,
-                UnitPrice = previewLine.UnitPrice,
-                TaxPrice = previewLine.TaxPrice,
+                UnitPrice = previewLine.UnitPrice ?? 0m,
+                TaxPrice = previewLine.TaxPrice ?? 0m,
                 Quantity = previewLine.PurchaseQty,
-                UnitAmount = previewLine.UnitPrice * previewLine.PurchaseQty,
-                TaxAmount = previewLine.TaxPrice * previewLine.PurchaseQty,
+                UnitAmount = (previewLine.UnitPrice ?? 0m) * previewLine.PurchaseQty,
+                TaxAmount = (previewLine.TaxPrice ?? 0m) * previewLine.PurchaseQty,
                 PlannedDeliveryDate = previewLine.PlannedDeliveryDate,
                 DeliveryTargetSupplierId = previewLine.DeliveryTargetSupplierId,
                 DeliverySupplierCodeSnapshot = previewLine.DeliveryTargetSupplierCode,

@@ -10,6 +10,9 @@ namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 /// <summary>采购从物料需求取数时的页面候选模型，独立持有选择状态和采购展示字段。</summary>
 public sealed partial class PurchaseCandidateItemModel : ObservableObject, INotifyDataErrorInfo
 {
+    private bool _synchronizingPurchaseSupplier;
+    private bool _synchronizingDeliverySupplier;
+
     /// <summary>物料需求 Uid。</summary>
     public Guid Uid { get; init; }
     /// <summary>物料需求并发版本。</summary>
@@ -59,8 +62,29 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
 
     public string SuggestedSupplierSku { get; init; } = string.Empty;
 
-    public Guid SupplierId { get; private set; }
-    public Guid? DeliveryTargetSupplierId { get; private set; }
+    /// <summary>采购员最终选择的实际采购供应商稳定身份；名称存在不能替代本字段。</summary>
+    [ObservableProperty]
+    public partial Guid SupplierId { get; set; }
+
+    /// <summary>实际采购供应商编码快照，与 Uid、名称作为一个逻辑单元参与填充和撤销。</summary>
+    [ObservableProperty]
+    public partial string PurchaseSupplierCode { get; set; } = string.Empty;
+
+    /// <summary>实际采购供应商名称快照，与 Uid、编码作为一个逻辑单元参与填充和撤销。</summary>
+    [ObservableProperty]
+    public partial string PurchaseSupplierName { get; set; } = string.Empty;
+
+    /// <summary>客供件本次实际送达供应商稳定身份。</summary>
+    [ObservableProperty]
+    public partial Guid? DeliveryTargetSupplierId { get; set; }
+
+    /// <summary>实际送达供应商编码快照。</summary>
+    [ObservableProperty]
+    public partial string DeliverySupplierCode { get; set; } = string.Empty;
+
+    /// <summary>实际送达供应商名称快照。</summary>
+    [ObservableProperty]
+    public partial string DeliverySupplierName { get; set; } = string.Empty;
 
     [ObservableProperty]
     public partial ProcurementSupplierCandidateDto? PurchaseSupplierSelection { get; set; }
@@ -73,6 +97,12 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
 
     [ObservableProperty]
     public partial string DeliverySupplierSearchText { get; set; } = string.Empty;
+
+    /// <summary>当前采购准备是否允许修改行输入；校验和页面写入期间由父 ViewModel 统一冻结。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanEditPurchaseSupplier))]
+    [NotifyPropertyChangedFor(nameof(CanEditDeliverySupplier))]
+    public partial bool IsInputEnabled { get; set; } = true;
 
     [ObservableProperty]
     public partial decimal PurchaseQty { get; set; }
@@ -92,9 +122,13 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
 
     public bool HasValidationError => !string.IsNullOrWhiteSpace(ValidationMessage);
     public bool HasErrors => HasValidationError;
-    public string PurchaseSupplierDisplay => FormatSupplier(PurchaseSupplierSelection, "未选择");
+    /// <summary>实际采购方是否允许由 Lookup 编辑或由 EnterpriseGrid 向下填充。</summary>
+    public bool CanEditPurchaseSupplier => IsInputEnabled;
+    /// <summary>实际送达方仅在输入开放且当前行为客供件时允许编辑或填充。</summary>
+    public bool CanEditDeliverySupplier => IsInputEnabled && IsCustomerSupplied;
+    public string PurchaseSupplierDisplay => FormatSupplier(SupplierId, PurchaseSupplierCode, PurchaseSupplierName, "未选择");
     public string DeliverySupplierDisplay => IsCustomerSupplied
-        ? FormatSupplier(DeliverySupplierSelection, "未选择")
+        ? FormatSupplier(DeliveryTargetSupplierId, DeliverySupplierCode, DeliverySupplierName, "未选择")
         : "不适用";
 
     public event EventHandler? ValueChanged;
@@ -108,6 +142,20 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
     partial void OnUnitPriceChanged(decimal value) => ValueChanged?.Invoke(this, EventArgs.Empty);
     partial void OnTaxPriceChanged(decimal value) => ValueChanged?.Invoke(this, EventArgs.Empty);
     partial void OnPlannedDeliveryDateChanged(DateTime? value) => ValueChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnPurchaseSupplierSelectionChanged(ProcurementSupplierCandidateDto? value)
+    {
+        if (!_synchronizingPurchaseSupplier) ApplyPurchaseSupplier(value, true);
+    }
+    partial void OnDeliverySupplierSelectionChanged(ProcurementSupplierCandidateDto? value)
+    {
+        if (!_synchronizingDeliverySupplier) ApplyDeliverySupplier(value, true);
+    }
+    partial void OnSupplierIdChanged(Guid value) => SynchronizePurchaseSupplierFromFacts();
+    partial void OnPurchaseSupplierCodeChanged(string value) => SynchronizePurchaseSupplierFromFacts();
+    partial void OnPurchaseSupplierNameChanged(string value) => SynchronizePurchaseSupplierFromFacts();
+    partial void OnDeliveryTargetSupplierIdChanged(Guid? value) => SynchronizeDeliverySupplierFromFacts();
+    partial void OnDeliverySupplierCodeChanged(string value) => SynchronizeDeliverySupplierFromFacts();
+    partial void OnDeliverySupplierNameChanged(string value) => SynchronizeDeliverySupplierFromFacts();
     partial void OnValidationMessageChanged(string value)
     {
         OnPropertyChanged(nameof(HasErrors));
@@ -151,29 +199,113 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
 
     private void ApplyPurchaseSupplier(ProcurementSupplierCandidateDto? supplier, bool notify)
     {
-        var changed = SupplierId != (supplier?.Uid ?? Guid.Empty);
-        PurchaseSupplierSelection = supplier;
-        SupplierId = supplier?.Uid ?? Guid.Empty;
-        PurchaseSupplierSearchText = FormatSupplier(supplier, string.Empty);
+        var changed = SupplierId != (supplier?.Uid ?? Guid.Empty)
+            || !string.Equals(PurchaseSupplierCode, supplier?.SupplierCode ?? string.Empty, StringComparison.Ordinal)
+            || !string.Equals(PurchaseSupplierName, supplier?.SupplierName ?? string.Empty, StringComparison.Ordinal);
+        _synchronizingPurchaseSupplier = true;
+        try
+        {
+            PurchaseSupplierSelection = supplier;
+            SupplierId = supplier?.Uid ?? Guid.Empty;
+            PurchaseSupplierCode = supplier?.SupplierCode ?? string.Empty;
+            PurchaseSupplierName = supplier?.SupplierName ?? string.Empty;
+            PurchaseSupplierSearchText = FormatSupplier(
+                supplier?.Uid, supplier?.SupplierCode, supplier?.SupplierName, string.Empty);
+        }
+        finally
+        {
+            _synchronizingPurchaseSupplier = false;
+        }
         OnPropertyChanged(nameof(PurchaseSupplierDisplay));
         if (notify && changed) ValueChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void ApplyDeliverySupplier(ProcurementSupplierCandidateDto? supplier, bool notify)
     {
-        var changed = DeliveryTargetSupplierId != supplier?.Uid;
-        DeliverySupplierSelection = supplier;
-        DeliveryTargetSupplierId = supplier?.Uid;
-        DeliverySupplierSearchText = FormatSupplier(supplier, string.Empty);
+        var changed = DeliveryTargetSupplierId != supplier?.Uid
+            || !string.Equals(DeliverySupplierCode, supplier?.SupplierCode ?? string.Empty, StringComparison.Ordinal)
+            || !string.Equals(DeliverySupplierName, supplier?.SupplierName ?? string.Empty, StringComparison.Ordinal);
+        _synchronizingDeliverySupplier = true;
+        try
+        {
+            DeliverySupplierSelection = supplier;
+            DeliveryTargetSupplierId = supplier?.Uid;
+            DeliverySupplierCode = supplier?.SupplierCode ?? string.Empty;
+            DeliverySupplierName = supplier?.SupplierName ?? string.Empty;
+            DeliverySupplierSearchText = FormatSupplier(
+                supplier?.Uid, supplier?.SupplierCode, supplier?.SupplierName, string.Empty);
+        }
+        finally
+        {
+            _synchronizingDeliverySupplier = false;
+        }
         OnPropertyChanged(nameof(DeliverySupplierDisplay));
         if (notify && changed) ValueChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private static string FormatSupplier(ProcurementSupplierCandidateDto? supplier, string fallback)
+    /// <summary>复合填充或撤销直接写事实字段后，重建 Lookup 选择对象并使请求读取同一组值。</summary>
+    private void SynchronizePurchaseSupplierFromFacts()
     {
-        if (supplier is null) return fallback;
-        var value = $"{supplier.SupplierCode} {supplier.SupplierName}".Trim();
-        return string.IsNullOrWhiteSpace(value) ? supplier.Uid.ToString() : value;
+        if (_synchronizingPurchaseSupplier) return;
+        _synchronizingPurchaseSupplier = true;
+        try
+        {
+            PurchaseSupplierSelection = SupplierId == Guid.Empty
+                ? null
+                : new ProcurementSupplierCandidateDto
+                {
+                    Uid = SupplierId,
+                    SupplierCode = PurchaseSupplierCode,
+                    SupplierName = PurchaseSupplierName,
+                };
+            PurchaseSupplierSearchText = FormatSupplier(
+                SupplierId == Guid.Empty ? null : SupplierId,
+                PurchaseSupplierCode,
+                PurchaseSupplierName,
+                string.Empty);
+        }
+        finally
+        {
+            _synchronizingPurchaseSupplier = false;
+        }
+        OnPropertyChanged(nameof(PurchaseSupplierDisplay));
+        ValueChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>复合填充或撤销直接写送达事实后，重建 Lookup 选择对象。</summary>
+    private void SynchronizeDeliverySupplierFromFacts()
+    {
+        if (_synchronizingDeliverySupplier) return;
+        _synchronizingDeliverySupplier = true;
+        try
+        {
+            DeliverySupplierSelection = !DeliveryTargetSupplierId.HasValue
+                ? null
+                : new ProcurementSupplierCandidateDto
+                {
+                    Uid = DeliveryTargetSupplierId.Value,
+                    SupplierCode = DeliverySupplierCode,
+                    SupplierName = DeliverySupplierName,
+                };
+            DeliverySupplierSearchText = FormatSupplier(
+                DeliveryTargetSupplierId,
+                DeliverySupplierCode,
+                DeliverySupplierName,
+                string.Empty);
+        }
+        finally
+        {
+            _synchronizingDeliverySupplier = false;
+        }
+        OnPropertyChanged(nameof(DeliverySupplierDisplay));
+        ValueChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static string FormatSupplier(Guid? supplierId, string? code, string? name, string fallback)
+    {
+        if (!supplierId.HasValue || supplierId.Value == Guid.Empty) return fallback;
+        var value = $"{code} {name}".Trim();
+        return string.IsNullOrWhiteSpace(value) ? supplierId.Value.ToString() : value;
     }
 
     /// <summary>从只读候选契约建立采购页面模型。</summary>

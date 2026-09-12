@@ -9,7 +9,11 @@ namespace SwiftExport.Core.Interfaces
     public interface ICustomerPoConfigRepository : IRepository<CustomerPoConfig>
     {
         /// <summary>按客户与供应商标识读取完整的活动配置 DTO，不跟踪或修改实体。</summary>
-        Task<CustomerPoConfigDto?> GetByPartiesAsync(Guid customerId, Guid supplierId, CancellationToken cancellationToken = default);
+        Task<CustomerPoConfigDto?> GetByPartiesAsync(
+            Guid customerId,
+            Guid supplierId,
+            CancellationToken cancellationToken = default,
+            bool withUpdLock = false);
 
         /// <summary>查找被其他活动记录占用的客户与供应商组合；空 Uid 表示新增记录。</summary>
         Task<List<string>> GetUsedByCustomerCodeAndSupplierCodeAsync(IEnumerable<PoConfigCheck> items);

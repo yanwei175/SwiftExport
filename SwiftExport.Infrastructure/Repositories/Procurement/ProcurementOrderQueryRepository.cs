@@ -40,7 +40,7 @@ public sealed class ProcurementOrderQueryRepository(RepositoryBaseContext contex
     {
         using var grid = await context.Session.Connection.QueryMultipleAsync(new CommandDefinition("""
             SELECT h.Uid AS PurchaseOrderId,h.OrderNo,h.CustomerId,h.CustomerCode,h.CustomerNameSnapshot AS CustomerName,
-              h.OriginKind,h.SupplierId,h.SupplierCode,h.SupplierName,h.Currency,h.BoNo,h.CustomerPoNo,
+              h.OriginKind,h.SupplierId,h.SupplierCode,h.SupplierName,h.Currency,h.DiscountRate,h.DiscountAmount,h.BoNo,h.CustomerPoNo,
               h.DemandSourceType,h.DemandSourceUid,h.DemandSourceNo,h.ExecutionRequestId,h.SoPerson AS SalesPerson,
               h.PoPerson AS PurchasePerson,h.InletrHoseType AS InletHoseType,h.AeratorType,h.PalletType,h.BoxType,h.LabelType,
               h.IMType AS InstructionManualType,h.CartonType,h.LogoType,h.ReviewedBy,h.PoFolder AS PurchaseOrderFolder,

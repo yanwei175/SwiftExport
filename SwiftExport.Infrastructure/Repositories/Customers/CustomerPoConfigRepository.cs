@@ -19,9 +19,11 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
     public Task<CustomerPoConfigDto?> GetByPartiesAsync(
         Guid customerId,
         Guid supplierId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool withUpdLock = false)
     {
-        const string sql = """
+        var lockHint = withUpdLock ? "WITH (UPDLOCK,HOLDLOCK)" : string.Empty;
+        var sql = $"""
             SELECT
                 cpc.Uid, cpc.Version, cpc.IsDeleted,
                 cpc.CreatedDate, cpc.CreatedBy, cpc.UpdatedDate, cpc.UpdatedBy,
@@ -30,7 +32,7 @@ public class CustomerPoConfigRepository(RepositoryBaseContext context) : DapperR
                 cpc.InletHoseType, cpc.AeratorType, cpc.PalletType, cpc.BoxType,
                 cpc.LabelType, cpc.IMType, cpc.CartonType, cpc.LogoType,
                 cpc.SalesPerson, cpc.Purchaser, cpc.Note
-            FROM dbo.CustomerPoConfig AS cpc
+            FROM dbo.CustomerPoConfig AS cpc {lockHint}
             WHERE cpc.CustomerId = @CustomerId
               AND cpc.SupplierId = @SupplierId
               AND cpc.IsDeleted = 0;

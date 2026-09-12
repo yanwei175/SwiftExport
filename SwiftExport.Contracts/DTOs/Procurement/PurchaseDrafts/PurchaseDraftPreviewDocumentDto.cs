@@ -24,6 +24,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public int PreviewLineCount { get; set; }
         public decimal TotalQty { get; set; }
         public DateTime? EarliestPlannedDeliveryDate { get; set; }
+        /// <summary>由后端统一构造并纳入预览一致性校验的只读单头。</summary>
+        public PurchaseDraftPreviewHeaderDto Header { get; set; } = new PurchaseDraftPreviewHeaderDto();
         public List<PurchaseDraftPreviewLineDto> Lines { get; set; } = new List<PurchaseDraftPreviewLineDto>();
         public List<SafePurchaseDraftCandidateDto> SafeAppendCandidates { get; set; } = new List<SafePurchaseDraftCandidateDto>();
     }

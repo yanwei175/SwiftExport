@@ -18,6 +18,10 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto
         public string SupplierCode { get; set; }
         public string SupplierName { get; set; }
         public string Currency { get; set; }
+        /// <summary>采购单采用的价格倍率快照；不用于在查询契约中换算或覆盖行价格。</summary>
+        public decimal? DiscountRate { get; set; }
+        /// <summary>用户手工填写的整单优惠金额快照，不由价格倍率自动计算；空值表示未填写或历史未知。</summary>
+        public decimal? DiscountAmount { get; set; }
         public string CustomerPoNo { get; set; }
         public string DemandSourceType { get; set; }
         public Guid? DemandSourceUid { get; set; }

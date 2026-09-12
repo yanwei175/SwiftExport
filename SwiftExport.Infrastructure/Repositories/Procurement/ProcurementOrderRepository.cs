@@ -77,12 +77,12 @@ public sealed class ProcurementOrderRepository(RepositoryBaseContext context) : 
         await context.Session.Connection.ExecuteAsync(Command("""
             INSERT dbo.PurchaseOrderHead
             (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,OriginKind,
-             CustomerId,CustomerCode,CustomerNameSnapshot,SupplierId,SupplierCode,SupplierName,OrderNo,Currency,
+             CustomerId,CustomerCode,CustomerNameSnapshot,SupplierId,SupplierCode,SupplierName,OrderNo,Currency,DiscountRate,DiscountAmount,
              OrderDate,ExpectedDate,Remark,PackagingRequirements,ExecutionRequestId,DemandSourceType,DemandSourceUid,DemandSourceNo,
              ConfirmationStatus,LifecycleStatus)
             VALUES
             (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@OriginKind,
-             @CustomerId,@CustomerCode,@CustomerNameSnapshot,@SupplierId,@SupplierCode,@SupplierName,@OrderNo,@Currency,
+             @CustomerId,@CustomerCode,@CustomerNameSnapshot,@SupplierId,@SupplierCode,@SupplierName,@OrderNo,@Currency,@DiscountRate,@DiscountAmount,
              @OrderDate,@ExpectedDate,@Remark,@PackagingRequirements,@ExecutionRequestId,NULL,NULL,NULL,@ConfirmationStatus,@LifecycleStatus);
             """, head, ct));
         foreach (var line in lines)

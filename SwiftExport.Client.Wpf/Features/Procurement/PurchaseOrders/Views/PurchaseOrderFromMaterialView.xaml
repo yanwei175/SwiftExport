@@ -22,14 +22,16 @@
                            Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
             </StackPanel>
             
-            <ui:Button Grid.Column="1" Content="返回采购准备" 
+            <ui:Button Grid.Column="1" Content="返回采购准备修改"
                     Appearance="Primary"
                     Command="{Binding BackToSelectionCommand}"
+                    ToolTip="返回后修改供应商、数量、价格或交期，再重新校验进入审核。"
                     Visibility="{Binding IsPreviewStage, Converter={StaticResource BooleanToVisibilityConverter}}" />
             
-            <ui:Button Grid.Column="3" Content="验证并进入单据审核" 
+            <ui:Button Grid.Column="3" Content="{Binding PreparationActionText}"
                        Appearance="Primary"
                     Command="{Binding ContinueToPreviewCommand}"
+                    AutomationProperties.Name="校验所选物料并进入单据审核"
                     Visibility="{Binding IsSelectionStage, Converter={StaticResource BooleanToVisibilityConverter}}" />
             
         </Grid>
@@ -96,15 +98,62 @@
                   d:DataContext="{d:DesignInstance viewModels:PurchaseDraftWorkflowViewModel}"
                   Visibility="{Binding DataContext.IsPreviewStage, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"
                   RowDefinitions="Auto,8,*">
-                <Grid ColumnDefinitions="*,Auto,8,Auto,8,Auto">
+                <Grid ColumnDefinitions="*,Auto,8,Auto,8,Auto,8,Auto">
                     <StackPanel>
                         <TextBlock FontWeight="SemiBold" Text="采购单审核" />
-                        <TextBlock Text="供应商、数量、价格、交期如需修改，请返回采购准备；此处只审核单据和编辑新单单头。"
+                        <TextBlock Text="供应商、数量、价格、交期如需修改，请返回采购准备；此处只审核后端生成的只读单据快照。"
                                    Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                        <TextBlock Text="{Binding StatusText}"
+                                   TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlock}">
+                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsStale}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.WarningText}" />
+                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
-                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding PreviewSummaryText}" />
-                    <Button Grid.Column="3" Content="重新计算单据" Command="{Binding PreviewCommand}" />
-                    <Button Grid.Column="5" Content="创建采购草稿"
+                    <Grid Grid.Column="1" MinWidth="150">
+                        <TextBlock VerticalAlignment="Center"
+                                   Text="{Binding SelectedDocument.Target.SelectedChoiceDisplayText}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedDocument.Target.HasMultipleChoices}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <ComboBox ItemsSource="{Binding SelectedDocument.Target.Choices}"
+                                  AutomationProperties.Name="采购草稿目标"
+                                  DisplayMemberPath="DisplayText"
+                                  SelectedItem="{Binding SelectedDocument.Target.SelectedChoice, Mode=TwoWay}"
+                                  ToolTip="选择草稿目标后需重新计算单据。">
+                            <ComboBox.Style>
+                                <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedDocument.Target.HasMultipleChoices}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.Style>
+                        </ComboBox>
+                    </Grid>
+                    <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding PreviewSummaryText}" />
+                    <Button Grid.Column="5"
+                            Content="{Binding PreviewActionText}"
+                            Command="{Binding PreviewCommand}"
+                            ToolTip="草稿目标变化可直接重新生成；采购输入变化请返回采购准备修改并重新校验。" />
+                    <Button Grid.Column="7" Content="创建采购草稿"
                             Command="{Binding DataContext.CreateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                             IsEnabled="{Binding CanCreateCurrent}" />
                 </Grid>
@@ -131,8 +180,9 @@
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
-                    <Grid Grid.Column="2" RowDefinitions="Auto,8,5*,8,5*">
-                        <!--准备修改的单头-->
+                    <Grid Grid.Column="2" RowDefinitions="3*,8,5*,8,5*">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Auto">
                         <Border Padding="12"
                                 HorizontalAlignment="Stretch"
                                 BorderBrush="{DynamicResource SwiftExportBrush.Border}"
@@ -186,75 +236,78 @@
                                             Text="{Binding CustomerDisplay, Mode=OneWay}"
                                             IsReadOnly="True" />
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="草稿目标" />
-                                <ComboBox Grid.Row="2" Grid.Column="2"
-                                          ItemsSource="{Binding Target.Choices}"
-                                          DisplayMemberPath="DisplayText"
-                                          SelectedItem="{Binding Target.SelectedChoice, Mode=TwoWay}" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="客户PO号" />
+                                <ui:TextBox Grid.Row="2" Grid.Column="2" Text="{Binding Header.CustomerPoNo, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="来源单号" />
+                                <ui:TextBox Grid.Row="4" Grid.Column="2" Text="{Binding SourceNo, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="内部单号" />
+                                <ui:TextBox Grid.Row="6" Grid.Column="2" Text="{Binding Header.BoNo, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="8" Grid.Column="0" Text="采购单号" />
+                                <ui:TextBox Grid.Row="8" Grid.Column="2" Text="{Binding Header.OrderNoDisplay, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="10" Grid.Column="0" Text="草稿目标" />
+                                <ui:TextBox Grid.Row="10" Grid.Column="2" Text="{Binding Target.SelectedChoiceDisplayText, Mode=OneWay}" IsReadOnly="True" />
 
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="业务员" />
-                                <ui:TextBox Grid.Row="4" Grid.Column="2"
-                                            PlaceholderText="业务员"
-                                            Text="{Binding Header.SalesPerson, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Row="0" Grid.Column="4" Text="供应商" />
+                                <ui:TextBox Grid.Row="0" Grid.Column="6" Text="{Binding SupplierDisplay, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="2" Grid.Column="4" Text="币种" />
+                                <ui:TextBox Grid.Row="2" Grid.Column="6" Text="{Binding Header.Currency, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="4" Grid.Column="4" Text="价格倍率" />
+                                <ui:TextBox Grid.Row="4" Grid.Column="6" Text="{Binding Header.DiscountRate, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="6" Grid.Column="4" Text="整单折扣" />
+                                <ui:TextBox Grid.Row="6" Grid.Column="6" Text="{Binding Header.DiscountAmount, Mode=OneWay, StringFormat=N2}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="8" Grid.Column="4" Text="未税合计" />
+                                <ui:TextBox Grid.Row="8" Grid.Column="6" Text="{Binding Header.UntaxedTotalAmount, Mode=OneWay, StringFormat=N2}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="10" Grid.Column="4" Text="含税合计" />
+                                <ui:TextBox Grid.Row="10" Grid.Column="6" Text="{Binding Header.TaxIncludedTotalAmount, Mode=OneWay, StringFormat=N2}" IsReadOnly="True" />
 
-                                <TextBlock Grid.Row="6" Grid.Column="0" Text="采购员" />
-                                <ui:TextBox Grid.Row="6" Grid.Column="2"
-                                            PlaceholderText="采购员"
-                                            Text="{Binding Header.PurchasePerson, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Row="0" Grid.Column="8" Text="下单日期" />
+                                <ui:TextBox Grid.Row="0" Grid.Column="10" Text="{Binding Header.OrderDateDisplay, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="2" Grid.Column="8" Text="期望交期" />
+                                <ui:TextBox Grid.Row="2" Grid.Column="10" Text="{Binding Header.ExpectedDate, Mode=OneWay, StringFormat=yyyy-MM-dd}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="4" Grid.Column="8" Text="业务员" />
+                                <ui:TextBox Grid.Row="4" Grid.Column="10" Text="{Binding Header.SalesPerson, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="6" Grid.Column="8" Text="采购员" />
+                                <ui:TextBox Grid.Row="6" Grid.Column="10" Text="{Binding Header.PurchasePerson, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="8" Grid.Column="8" Text="进水管" />
+                                <ui:TextBox Grid.Row="8" Grid.Column="10" Text="{Binding Header.InletHoseType, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="10" Grid.Column="8" Text="起泡器" />
+                                <ui:TextBox Grid.Row="10" Grid.Column="10" Text="{Binding Header.AeratorType, Mode=OneWay}" IsReadOnly="True" />
 
-                                <TextBlock Grid.Row="0" Grid.Column="4" Text="进水管" />
-                                <ui:TextBox Grid.Row="0" Grid.Column="6"
-                                            PlaceholderText="进水管"
-                                            Text="{Binding Header.InletHoseType, UpdateSourceTrigger=PropertyChanged}" />
-
-                                <TextBlock Grid.Row="2" Grid.Column="4" Text="起泡器" />
-                                <ui:TextBox Grid.Row="2" Grid.Column="6"
-                                            PlaceholderText="起泡器"
-                                            Text="{Binding Header.AeratorType, UpdateSourceTrigger=PropertyChanged}" />
-
-                                <TextBlock Grid.Row="4" Grid.Column="4" Text="托盘" />
-                                <ui:TextBox Grid.Row="4" Grid.Column="6"
-                                            PlaceholderText="托盘"
-                                            Text="{Binding Header.PalletType, UpdateSourceTrigger=PropertyChanged}" />
-
-                                <TextBlock Grid.Row="0" Grid.Column="8" Text="内盒" />
-                                <ui:TextBox Grid.Row="0" Grid.Column="10"
-                                            PlaceholderText="内盒"
-                                            Text="{Binding Header.BoxType, UpdateSourceTrigger=PropertyChanged}" />
-
-                                <TextBlock Grid.Row="2" Grid.Column="8" Text="标贴" />
-                                <ui:TextBox Grid.Row="2" Grid.Column="10"
-                                            PlaceholderText="标贴"
-                                            Text="{Binding Header.LabelType, UpdateSourceTrigger=PropertyChanged}" />
-
-                                <TextBlock Grid.Row="4" Grid.Column="8" Text="说明书" />
-                                <ui:TextBox Grid.Row="4" Grid.Column="10"
-                                            PlaceholderText="说明书"
-                                            Text="{Binding Header.InstructionManualType, UpdateSourceTrigger=PropertyChanged}" />
-
-                                <TextBlock Grid.Row="0" Grid.Column="12" Text="外箱" />
-                                <ui:TextBox Grid.Row="0" Grid.Column="14"
-                                            PlaceholderText="外箱"
-                                            Text="{Binding Header.CartonType, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Row="0" Grid.Column="12" Text="托盘" />
+                                <ui:TextBox Grid.Row="0" Grid.Column="14" Text="{Binding Header.PalletType, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="2" Grid.Column="12" Text="内盒" />
+                                <ui:TextBox Grid.Row="2" Grid.Column="14" Text="{Binding Header.BoxType, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="4" Grid.Column="12" Text="标贴" />
+                                <ui:TextBox Grid.Row="4" Grid.Column="14" Text="{Binding Header.LabelType, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="6" Grid.Column="12" Text="说明书" />
+                                <ui:TextBox Grid.Row="6" Grid.Column="14" Text="{Binding Header.InstructionManualType, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="8" Grid.Column="12" Text="外箱" />
+                                <ui:TextBox Grid.Row="8" Grid.Column="14" Text="{Binding Header.CartonType, Mode=OneWay}" IsReadOnly="True" />
+                                <TextBlock Grid.Row="10" Grid.Column="12" Text="折扣备注" />
+                                <ui:TextBox Grid.Row="10" Grid.Column="14" Text="{Binding Header.DiscountRemark, Mode=OneWay}" IsReadOnly="True" />
 
                                 <TextBlock Grid.Row="0" Grid.Column="16" Text="Logo" />
-                                <ui:TextBox Grid.Row="0" Grid.RowSpan="7" Grid.Column="18"
+                                <ui:TextBox Grid.Row="0" Grid.RowSpan="5" Grid.Column="18"
                                             ClearButtonEnabled="False"
                                             FontWeight="Bold"
                                             FontSize="25"
                                             HorizontalContentAlignment="Center"
                                             VerticalContentAlignment="Center"
-                                            Text="{Binding Header.LogoType, UpdateSourceTrigger=PropertyChanged}" />
+                                            Text="{Binding Header.LogoType, Mode=OneWay}"
+                                            IsReadOnly="True" />
 
-                                <TextBlock Grid.Row="8" Grid.Column="0" Text="备注" />
-                                <ui:TextBox Grid.Row="8" Grid.RowSpan="3" Grid.Column="2" Grid.ColumnSpan="17"
+                                <TextBlock Grid.Row="6" Grid.Column="16" Text="特殊要求" />
+
+                                <ui:TextBox Grid.Row="6" Grid.RowSpan="5" Grid.Column="18"
                                             PlaceholderText="特殊要求或备注"
-                                            Text="{Binding Header.Remark, UpdateSourceTrigger=PropertyChanged}"
+                                            Text="{Binding Header.Remark, Mode=OneWay}"
+                                            IsReadOnly="True"
                                             AcceptsReturn="True"
                                             TextWrapping="Wrap"
                                             MinHeight="56" />
                             </Grid>
                         </Border>
+                        </ScrollViewer>
                         <Border Grid.Row="2" 
                                 Padding="8" 
                                 BorderBrush="{DynamicResource SwiftExportBrush.Border}" 

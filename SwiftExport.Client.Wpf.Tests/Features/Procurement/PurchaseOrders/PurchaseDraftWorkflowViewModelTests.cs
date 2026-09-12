@@ -42,6 +42,11 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.AreEqual("SO-1001", previewLine.Contributions.Single().SourceNo);
         StringAssert.Contains(previewLine.SourceSupplierGroupLabel, "SO-1001");
         StringAssert.Contains(previewLine.SourceSupplierGroupLabel, "供应商一");
+        Assert.AreEqual("CUSTOMER-PO", viewModel.Documents.Single().Header.CustomerPoNo);
+        Assert.AreEqual("CINV-S", viewModel.Documents.Single().Header.BoNo);
+        Assert.AreEqual("创建时按现有规则生成", viewModel.Documents.Single().Header.OrderNoDisplay);
+        Assert.AreEqual(120m, viewModel.Documents.Single().Header.UntaxedTotalAmount);
+        Assert.AreEqual(135.6m, viewModel.Documents.Single().Header.TaxIncludedTotalAmount);
 
         viewModel.Items.Single().PurchaseQty = 6m;
 
@@ -550,6 +555,10 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         await viewModel.PreviewCommand.ExecuteAsync(null);
         Assert.AreEqual(firstActual.SupplierId, api.LastPreviewRequest!.Items.Single().SupplierId);
         Assert.AreEqual(secondActual.SupplierId, api.LastPreviewRequest.Items.Single().DeliveryTargetSupplierId);
+
+        viewModel.ClearPurchaseSupplierCommand.Execute(item);
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+        Assert.AreEqual(Guid.Empty, api.LastPreviewRequest!.Items.Single().SupplierId);
     }
 
     [TestMethod]
@@ -756,6 +765,67 @@ public sealed class PurchaseDraftWorkflowViewModelTests
             api.LastCreateCommand!.Sources.Single().ConfirmedWarningCodes);
     }
 
+    /// <summary>原生 Cell 提交失败时不发送旧值；修正后同一入口可重新校验并进入审核。</summary>
+    [TestMethod]
+    public async Task Preparation_ShouldRecoverAfterPendingCellCommitFailure()
+    {
+        var api = new NetDemandApiStub();
+        using var picker = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
+        using var preview = CreateViewModel(api);
+        using var viewModel = new PurchaseOrderFromMaterialViewModel(picker, preview);
+        preview.BeginSession();
+        var row = CreateRow(5m, api.SourceUid);
+        row.SupplierId = api.SupplierId;
+        row.PurchaseSupplierCode = "S001";
+        row.PurchaseSupplierName = "供应商一";
+        row.IsChecked = true;
+        picker.Items.Add(row);
+        picker.CommitPendingEdits = static () => false;
+
+        await viewModel.ContinueToPreviewCommand.ExecuteAsync(null);
+
+        Assert.IsNull(api.LastPreviewRequest);
+        Assert.AreEqual(PurchaseOrderFromMaterialStage.Selection, viewModel.Stage);
+        Assert.AreEqual("重新校验所选物料", viewModel.PreparationActionText);
+        StringAssert.Contains(viewModel.SelectionValidationText, "当前单元格");
+
+        picker.CommitPendingEdits = static () => true;
+        await viewModel.ContinueToPreviewCommand.ExecuteAsync(null);
+
+        Assert.IsNotNull(api.LastPreviewRequest);
+        Assert.AreEqual(row.SupplierId, api.LastPreviewRequest.Items.Single().SupplierId);
+        Assert.AreEqual(PurchaseOrderFromMaterialStage.Preview, viewModel.Stage);
+        Assert.IsFalse(row.IsInputEnabled);
+    }
+
+    /// <summary>审核目标变化导致预览失效后，原预览命令仍须可执行并接纳新的有效快照。</summary>
+    [TestMethod]
+    public async Task StalePreview_ShouldKeepRegenerationCommandExecutable()
+    {
+        var api = new NetDemandApiStub { IncludeSafeAppend = true };
+        using var viewModel = CreateViewModel(api);
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [CreateRow(5m, api.SourceUid)],
+        });
+        var initialCallCount = api.PreviewCallCount;
+        var target = viewModel.Targets.Single();
+        Assert.IsTrue(target.HasMultipleChoices);
+
+        target.SelectedChoice = target.Choices.Last();
+
+        Assert.IsTrue(viewModel.IsStale);
+        Assert.AreEqual("重新生成当前审核", viewModel.PreviewActionText);
+        Assert.IsTrue(viewModel.PreviewCommand.CanExecute(null));
+
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(initialCallCount + 1, api.PreviewCallCount);
+        Assert.IsFalse(viewModel.IsStale);
+        Assert.AreEqual("刷新当前审核", viewModel.PreviewActionText);
+    }
+
     private static PurchaseDraftWorkflowViewModel CreateViewModel(NetDemandApiStub api, bool allowErrors = false) =>
         new(api, new ProcurementMasterDataApiStub(), new DirectApiCallRunner(), new MessageServiceStub { AllowErrors = allowErrors });
 
@@ -833,6 +903,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         public Guid SupplierId { get; } = Guid.NewGuid();
         public bool IncludeWarnings { get; set; }
         public bool IncludeSafeAppend { get; set; }
+        public int PreviewCallCount { get; private set; }
         public PurchaseDraftPreviewRequest? LastPreviewRequest { get; private set; }
         public CreatePurchaseDraftsCommand? LastCreateCommand { get; private set; }
         public List<CreatePurchaseDraftsCommand> CreateCommands { get; } = [];
@@ -841,6 +912,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
 
         public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewAsync(PurchaseDraftPreviewRequest request, CancellationToken cancellationToken = default)
         {
+            PreviewCallCount++;
             LastPreviewRequest = request;
             return PreviewHandler?.Invoke(request, cancellationToken)
                 ?? Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(CreatePreview(request)));
@@ -894,6 +966,18 @@ public sealed class PurchaseDraftWorkflowViewModelTests
                 SourceLineCount = 1,
                 PreviewLineCount = 1,
                 TotalQty = item.PurchaseQty,
+                Header = new PurchaseDraftPreviewHeaderDto
+                {
+                    CustomerPoNo = "CUSTOMER-PO",
+                    BoNo = "CINV-S",
+                    Currency = "CNY",
+                    DiscountRate = 0.95m,
+                    UntaxedTotalAmount = 12m * item.PurchaseQty,
+                    TaxIncludedTotalAmount = 13.56m * item.PurchaseQty,
+                    ExpectedDate = new DateTime(2026, 8, 10),
+                    SalesPerson = "业务员甲",
+                    PurchasePerson = "采购员乙"
+                },
             };
             if (IncludeSafeAppend)
             {
