@@ -118,14 +118,37 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasValidationError))]
+    [NotifyPropertyChangedFor(nameof(ValidationDisplayMessage))]
     public partial string ValidationMessage { get; set; } = string.Empty;
 
-    public bool HasValidationError => !string.IsNullOrWhiteSpace(ValidationMessage);
+    /// <summary>候选恢复产生的本地阻断；为空表示仍处于服务端待采购范围。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasValidationError))]
+    [NotifyPropertyChangedFor(nameof(ValidationDisplayMessage))]
+    [NotifyPropertyChangedFor(nameof(CanEditPurchaseSupplier))]
+    [NotifyPropertyChangedFor(nameof(CanEditDeliverySupplier))]
+    public partial string RecoveryValidationMessage { get; private set; } = string.Empty;
+
+    /// <summary>当前行是否仍属于服务端待采购范围；缺失行只允许取消勾选。</summary>
+    public bool IsAvailableForPurchase => string.IsNullOrWhiteSpace(RecoveryValidationMessage);
+    private string QuantityValidationMessage => PurchaseQty <= 0
+        ? "采购数量必须大于 0。"
+        : PurchaseQty > RemainingQty
+            ? $"采购数量超过当前待采数量 {RemainingQty:N4}，请修改后重新校验。"
+            : string.Empty;
+    /// <summary>合并恢复状态、数量边界和服务端阻断后的最终行提示。</summary>
+    public string ValidationDisplayMessage => string.Join("；", new[]
+        {
+            RecoveryValidationMessage,
+            QuantityValidationMessage,
+            ValidationMessage,
+        }.Where(static message => !string.IsNullOrWhiteSpace(message)));
+    public bool HasValidationError => !string.IsNullOrWhiteSpace(ValidationDisplayMessage);
     public bool HasErrors => HasValidationError;
     /// <summary>实际采购方是否允许由 Lookup 编辑或由 EnterpriseGrid 向下填充。</summary>
-    public bool CanEditPurchaseSupplier => IsInputEnabled;
+    public bool CanEditPurchaseSupplier => IsInputEnabled && IsAvailableForPurchase;
     /// <summary>实际送达方仅在输入开放且当前行为客供件时允许编辑或填充。</summary>
-    public bool CanEditDeliverySupplier => IsInputEnabled && IsCustomerSupplied;
+    public bool CanEditDeliverySupplier => IsInputEnabled && IsAvailableForPurchase && IsCustomerSupplied;
     public string PurchaseSupplierDisplay => FormatSupplier(SupplierId, PurchaseSupplierCode, PurchaseSupplierName, "未选择");
     public string DeliverySupplierDisplay => IsCustomerSupplied
         ? FormatSupplier(DeliveryTargetSupplierId, DeliverySupplierCode, DeliverySupplierName, "未选择")
@@ -138,7 +161,14 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
     public partial bool IsChecked { get; set; }
 
     partial void OnIsCheckedChanged(bool value) => ValueChanged?.Invoke(this, EventArgs.Empty);
-    partial void OnPurchaseQtyChanged(decimal value) => ValueChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnPurchaseQtyChanged(decimal value)
+    {
+        OnPropertyChanged(nameof(ValidationDisplayMessage));
+        OnPropertyChanged(nameof(HasValidationError));
+        OnPropertyChanged(nameof(HasErrors));
+        ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(nameof(PurchaseQty)));
+        ValueChanged?.Invoke(this, EventArgs.Empty);
+    }
     partial void OnUnitPriceChanged(decimal value) => ValueChanged?.Invoke(this, EventArgs.Empty);
     partial void OnTaxPriceChanged(decimal value) => ValueChanged?.Invoke(this, EventArgs.Empty);
     partial void OnPlannedDeliveryDateChanged(DateTime? value) => ValueChanged?.Invoke(this, EventArgs.Empty);
@@ -190,6 +220,30 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
                 SupplierName = dto.SuggestedDeliverySupplierName,
             }
             : null, false);
+    }
+
+    /// <summary>以最新服务端事实重建候选，同时保留采购员已经输入的业务值，不重新应用推荐值。</summary>
+    public static PurchaseCandidateItemModel MergeRefreshed(
+        PurchaseDraftCandidateDto dto,
+        PurchaseCandidateItemModel existing)
+    {
+        var refreshed = dto.Adapt<PurchaseCandidateItemModel>();
+        refreshed.IsChecked = existing.IsChecked;
+        refreshed.PurchaseQty = existing.PurchaseQty;
+        refreshed.UnitPrice = existing.UnitPrice;
+        refreshed.TaxPrice = existing.TaxPrice;
+        refreshed.PlannedDeliveryDate = existing.PlannedDeliveryDate;
+        refreshed.ApplyPurchaseSupplier(existing.PurchaseSupplierSelection, false);
+        refreshed.ApplyDeliverySupplier(existing.DeliverySupplierSelection, false);
+        refreshed.IsInputEnabled = existing.IsInputEnabled;
+        return refreshed;
+    }
+
+    /// <summary>保留已选但不再属于当前待采购范围的行，要求用户取消勾选后才能继续。</summary>
+    public void MarkOutsidePurchaseScope()
+    {
+        RecoveryValidationMessage = "该需求已不在当前待采购范围，请取消勾选后继续。";
+        OnPropertyChanged(nameof(IsAvailableForPurchase));
     }
 
     public void CommitPurchaseSupplier() => ApplyPurchaseSupplier(PurchaseSupplierSelection, true);

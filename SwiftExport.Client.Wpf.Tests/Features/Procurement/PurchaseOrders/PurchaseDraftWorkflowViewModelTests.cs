@@ -40,6 +40,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.AreEqual("PCS", previewLine.Unit);
         Assert.AreEqual("products/a-100.png", previewLine.ImagePath);
         Assert.AreEqual("SO-1001", previewLine.Contributions.Single().SourceNo);
+        Assert.AreEqual("products/source-a-100.png", previewLine.Contributions.Single().ImagePath);
         StringAssert.Contains(previewLine.SourceSupplierGroupLabel, "SO-1001");
         StringAssert.Contains(previewLine.SourceSupplierGroupLabel, "供应商一");
         Assert.AreEqual("CUSTOMER-PO", viewModel.Documents.Single().Header.CustomerPoNo);
@@ -782,15 +783,16 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         picker.Items.Add(row);
         picker.CommitPendingEdits = static () => false;
 
-        await viewModel.ContinueToPreviewCommand.ExecuteAsync(null);
+        await picker.ValidateSelectionCommand.ExecuteAsync(null);
 
         Assert.IsNull(api.LastPreviewRequest);
         Assert.AreEqual(PurchaseOrderFromMaterialStage.Selection, viewModel.Stage);
-        Assert.AreEqual("重新校验所选物料", viewModel.PreparationActionText);
-        StringAssert.Contains(viewModel.SelectionValidationText, "当前单元格");
+        Assert.AreEqual("重新校验所选物料", picker.ValidationActionText);
+        StringAssert.Contains(picker.SelectionValidationText, "当前单元格");
 
         picker.CommitPendingEdits = static () => true;
-        await viewModel.ContinueToPreviewCommand.ExecuteAsync(null);
+        await picker.ValidateSelectionCommand.ExecuteAsync(null);
+        picker.EnterPreviewCommand.Execute(null);
 
         Assert.IsNotNull(api.LastPreviewRequest);
         Assert.AreEqual(row.SupplierId, api.LastPreviewRequest.Items.Single().SupplierId);
@@ -816,14 +818,162 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         target.SelectedChoice = target.Choices.Last();
 
         Assert.IsTrue(viewModel.IsStale);
-        Assert.AreEqual("重新生成当前审核", viewModel.PreviewActionText);
+        Assert.AreEqual("刷新预览", viewModel.PreviewActionText);
         Assert.IsTrue(viewModel.PreviewCommand.CanExecute(null));
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
         Assert.AreEqual(initialCallCount + 1, api.PreviewCallCount);
         Assert.IsFalse(viewModel.IsStale);
-        Assert.AreEqual("刷新当前审核", viewModel.PreviewActionText);
+        Assert.AreEqual("刷新预览", viewModel.PreviewActionText);
+    }
+
+    /// <summary>候选恢复必须由预览命令等待，期间刷新、返回、创建和输入全部冻结。</summary>
+    [TestMethod]
+    public async Task PreviewConflict_ShouldAwaitRecoveryAndGateCompetingActions()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api);
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [CreateRow(5m, api.SourceUid)],
+        });
+        api.PreviewHandler = (_, _) => Task.FromResult(
+            ServiceResult<PurchaseDraftPreviewResponse>.Fail(
+                PurchaseDraftErrorCodes.PreviewFactChanged,
+                "需求事实已变化。"));
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        viewModel.SetCandidateRecoveryHandler(async (_, _) =>
+        {
+            started.SetResult();
+            return await completed.Task;
+        });
+
+        var previewTask = viewModel.PreviewCommand.ExecuteAsync(null);
+        await started.Task;
+
+        Assert.IsTrue(viewModel.IsRecoveryInProgress);
+        Assert.IsFalse(viewModel.CanEditInputs);
+        Assert.IsFalse(viewModel.PreviewCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.ReturnToPreparationCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
+
+        completed.SetResult(true);
+        await previewTask;
+
+        Assert.IsFalse(viewModel.IsRecoveryInProgress);
+        Assert.IsTrue(viewModel.ReturnToPreparationCommand.CanExecute(null));
+    }
+
+    /// <summary>关闭会话会取消在途恢复，迟到结果不得被接纳为恢复完成。</summary>
+    [TestMethod]
+    public async Task CloseDuringRecovery_ShouldCancelAndRejectLateCompletion()
+    {
+        var api = new NetDemandApiStub();
+        using var viewModel = CreateViewModel(api);
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [CreateRow(5m, api.SourceUid)],
+        });
+        api.PreviewHandler = (_, _) => Task.FromResult(
+            ServiceResult<PurchaseDraftPreviewResponse>.Fail(
+                PurchaseDraftErrorCodes.PreviewExpired,
+                "预览已过期。"));
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        viewModel.SetCandidateRecoveryHandler(async (_, token) =>
+        {
+            started.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            return true;
+        });
+        var recoveryCompleted = 0;
+        viewModel.CandidateRecoveryCompleted += (_, _) => recoveryCompleted++;
+
+        var previewTask = viewModel.PreviewCommand.ExecuteAsync(null);
+        await started.Task;
+        viewModel.Close();
+        await previewTask;
+
+        Assert.AreEqual(0, recoveryCompleted);
+        Assert.IsFalse(viewModel.IsRecoveryInProgress);
+    }
+
+    /// <summary>部分成功先累计并排除，再等待冲突来源恢复；恢复前不得触发普通创建完成导航。</summary>
+    [TestMethod]
+    public async Task PartialSuccessWithConflict_ShouldAwaitRecoveryBeforeNavigation()
+    {
+        var api = new NetDemandApiStub();
+        var secondSourceUid = Guid.NewGuid();
+        var first = CreateRow(5m, api.SourceUid);
+        var second = CreateRow(4m, secondSourceUid);
+        api.PreviewHandler = (request, _) => Task.FromResult(
+            ServiceResult<PurchaseDraftPreviewResponse>.Ok(CreateMultiSourcePreview(
+                api,
+                request,
+                new Dictionary<Guid, Guid>
+                {
+                    [first.Uid] = api.SourceUid,
+                    [second.Uid] = secondSourceUid,
+                })));
+        using var viewModel = CreateViewModel(api);
+        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [first, second],
+        });
+        api.CreateHandler = (command, _) => Task.FromResult(
+            ServiceResult<CreatePurchaseDraftsResult>.Ok(new CreatePurchaseDraftsResult
+            {
+                ExecutionRequestId = command.ExecutionRequestId,
+                Sources =
+                {
+                    new CreatePurchaseDraftSourceResult
+                    {
+                        SourceType = "SO",
+                        SourceUid = api.SourceUid,
+                        Outcome = NetDemandCommandOutcomeEnum.Succeeded,
+                        Message = "已创建",
+                    },
+                    new CreatePurchaseDraftSourceResult
+                    {
+                        SourceType = "SO",
+                        SourceUid = secondSourceUid,
+                        Outcome = NetDemandCommandOutcomeEnum.Failed,
+                        ErrorCode = PurchaseDraftErrorCodes.PreviewExpired,
+                        Message = "事实已变化",
+                    },
+                },
+            }));
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        PurchaseDraftCandidateRecoveryRequestedEventArgs? recovery = null;
+        viewModel.SetCandidateRecoveryHandler(async (request, _) =>
+        {
+            recovery = request;
+            started.SetResult();
+            return await completed.Task;
+        });
+        var creationCompleted = 0;
+        viewModel.CreationCompleted += (_, _) => creationCompleted++;
+
+        var createTask = viewModel.CreateCommand.ExecuteAsync(null);
+        await started.Task;
+
+        Assert.IsTrue(viewModel.HasAppliedResults);
+        Assert.HasCount(2, viewModel.Results);
+        Assert.HasCount(1, viewModel.Items);
+        Assert.AreEqual(second.Uid, viewModel.Items.Single().NetDemandId);
+        Assert.AreEqual(0, creationCompleted);
+        Assert.IsTrue(recovery!.CompletedSourceKeys.Single().Contains(api.SourceUid.ToString("N"), StringComparison.OrdinalIgnoreCase));
+
+        completed.SetResult(true);
+        await createTask;
+
+        Assert.AreEqual(0, creationCompleted);
+        Assert.IsFalse(viewModel.IsRecoveryInProgress);
     }
 
     private static PurchaseDraftWorkflowViewModel CreateViewModel(NetDemandApiStub api, bool allowErrors = false) =>
@@ -1016,6 +1166,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
                         SourceLineNumber = 1,
                         Sku = sku,
                         LinkSku = "MODEL-A-100",
+                        ImagePath = "products/source-a-100.png",
                         ExpectedRemainingQty = item.ExpectedRemainingQty,
                         PurchaseQty = item.PurchaseQty,
                     },

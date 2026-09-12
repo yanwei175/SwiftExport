@@ -28,14 +28,26 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     private CancellationTokenSource? _previewCancellation;
     private CancellationTokenSource? _purchaseSupplierSearchCancellation;
     private CancellationTokenSource? _deliverySupplierSearchCancellation;
+    private CancellationTokenSource? _recoveryCancellation;
+    private Func<PurchaseDraftCandidateRecoveryRequestedEventArgs, CancellationToken, Task<bool>>? _candidateRecoveryHandler;
     private PurchaseDraftPreviewResponse? _preview;
     private CreatePurchaseDraftsCommand? _pendingCreateCommand;
     private long _sessionVersion;
     private long _inputRevision;
     private long _previewSequence;
+    private long _recoverySequence;
     private bool _isSessionActive;
     private bool _suppressStale;
     private bool _disposed;
+
+    /// <summary>审核页请求返回采购准备修改。</summary>
+    public event EventHandler? ReturnToPreparationRequested;
+    /// <summary>有效预览刷新完成，容器据此决定继续审核或返回准备处理问题。</summary>
+    public event EventHandler? PreviewRefreshCompleted;
+    /// <summary>候选恢复已通过会话与修订校验，容器可安全返回采购准备。</summary>
+    public event EventHandler? CandidateRecoveryCompleted;
+    /// <summary>创建取得确定结果后通知容器切换结果或准备页面。</summary>
+    public event EventHandler? CreationCompleted;
 
     public PurchaseDraftWorkflowViewModel(
         IPurchaseDraftApi api,
@@ -66,8 +78,8 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
 
     public IReadOnlyList<NetDemandFilterOption<PurchaseDraftLineModeEnum>> LineModeOptions { get; } =
     [
-        new(PurchaseDraftLineModeEnum.KeepSourceLines, "保持来源明细"),
-        new(PurchaseDraftLineModeEnum.MergeCompatibleLines, "合并兼容采购行"),
+        new(PurchaseDraftLineModeEnum.KeepSourceLines, "不合并"),
+        new(PurchaseDraftLineModeEnum.MergeCompatibleLines, "合并"),
     ];
 
     public bool IsManualSelection => EntryMode == PurchaseDraftEntryModeEnum.ManualSelection;
@@ -106,7 +118,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         && _preview.SourceGroups.All(group => group.CanCreate)
         && !HasUnconfirmedWarnings;
     public bool CanClose => !IsCreateInProgress && !HasUnknownCreateResult;
-    public bool CanEditInputs => _isSessionActive && !IsCreateInProgress && !HasUnknownCreateResult;
+    public bool CanEditInputs => _isSessionActive && !IsCreateInProgress && !HasUnknownCreateResult && !IsRecoveryInProgress;
     public string CreateBlockReason => HasUnknownCreateResult
         ? "创建结果未知：只能按冻结负载重试。"
         : IsCreateInProgress
@@ -129,6 +141,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(PreviewCommand))]
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReturnToPreparationCommand))]
     [NotifyPropertyChangedFor(nameof(CanCreateCurrent))]
     [NotifyPropertyChangedFor(nameof(CanClose))]
     [NotifyPropertyChangedFor(nameof(CanEditInputs))]
@@ -163,8 +176,17 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     [NotifyPropertyChangedFor(nameof(PreviewActionText))]
     public partial bool IsStale { get; private set; } = true;
 
-    /// <summary>明确区分首次刷新与失效恢复，避免审核单据被清空后用户找不到下一步。</summary>
-    public string PreviewActionText => IsStale ? "重新生成当前审核" : "刷新当前审核";
+    /// <summary>审核页固定显示的恢复动作；有效或失效预览均从同一入口刷新。</summary>
+    public string PreviewActionText => "刷新预览";
+
+    /// <summary>是否正在按当前来源范围恢复采购候选；期间所有页面导航和输入均被冻结。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(PreviewCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReturnToPreparationCommand))]
+    [NotifyPropertyChangedFor(nameof(CanCreateCurrent))]
+    [NotifyPropertyChangedFor(nameof(CanEditInputs))]
+    public partial bool IsRecoveryInProgress { get; private set; }
 
     [ObservableProperty]
     public partial bool HasAppliedResults { get; private set; }
@@ -173,6 +195,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     [NotifyPropertyChangedFor(nameof(CanClose))]
     [NotifyCanExecuteChangedFor(nameof(PreviewCommand))]
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReturnToPreparationCommand))]
     [NotifyPropertyChangedFor(nameof(CanCreateCurrent))]
     [NotifyPropertyChangedFor(nameof(CanEditInputs))]
     [NotifyPropertyChangedFor(nameof(CreateBlockReason))]
@@ -198,6 +221,11 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
 
     [ObservableProperty]
     public partial bool IsDeliverySupplierSearchBusy { get; set; }
+
+    /// <summary>接入当前 Dialog 的候选恢复处理器；审核流程会等待处理完成后再决定页面导航。</summary>
+    public void SetCandidateRecoveryHandler(
+        Func<PurchaseDraftCandidateRecoveryRequestedEventArgs, CancellationToken, Task<bool>>? handler) =>
+        _candidateRecoveryHandler = handler;
 
     /// <summary>开始一次独立 Dialog 会话；只有这里重置累计结果并生成新的执行请求身份。</summary>
     public void BeginSession()
@@ -310,6 +338,10 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
 
     [RelayCommand(AllowConcurrentExecutions = true, CanExecute = nameof(CanPreview))]
     private Task PreviewAsync() => CanPreview() ? LoadPreviewAsync() : Task.CompletedTask;
+
+    /// <summary>从只读审核返回采购准备；导航只由当前页面命令发起。</summary>
+    [RelayCommand(CanExecute = nameof(CanReturnToPreparation))]
+    private void ReturnToPreparation() => ReturnToPreparationRequested?.Invoke(this, EventArgs.Empty);
 
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task SearchPurchaseSuppliersAsync(string? keyword) => SearchSuppliersAsync(
@@ -432,6 +464,9 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
             return;
         }
 
+        if (_preview is not null && !IsStale)
+            InvalidatePreview("正在刷新采购预览，创建暂不可用。", incrementRevision: false);
+
         _previewCancellation?.Cancel();
         _previewCancellation?.Dispose();
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(externalCancellation);
@@ -441,6 +476,8 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         var previewSequence = ++_previewSequence;
         var request = CreatePreviewRequest();
         StatusText = "正在重新计算采购草稿预览...";
+        var recoveredCandidates = false;
+        var previewCompleted = false;
 
         try
         {
@@ -454,11 +491,10 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
 
                 if (!result.Success || result.Data is null)
                 {
-                    StatusText = string.IsNullOrWhiteSpace(result.Message)
-                        ? "采购预览未完成。"
-                        : $"{result.Message} 处理：核对本次计划后重新预览。";
+                    StatusText = BuildPreviewFailureText(result);
                     SelectedInputItem = Items.FirstOrDefault();
                     NotifyPreviewStateChanged();
+                    recoveredCandidates = await RecoverCandidatesIfRequiredAsync(result.Error?.Code);
                     return;
                 }
 
@@ -469,6 +505,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
                 }
 
                 ApplyPreview(result.Data.Preview);
+                previewCompleted = true;
             }, "正在生成采购草稿预览...", skipIfBusy: false);
         }
         finally
@@ -480,6 +517,8 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
 
             cancellation.Dispose();
         }
+        if (recoveredCandidates) CandidateRecoveryCompleted?.Invoke(this, EventArgs.Empty);
+        else if (previewCompleted) PreviewRefreshCompleted?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand(CanExecute = nameof(CanCreate))]
@@ -499,6 +538,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         }
 
         var sessionVersion = _sessionVersion;
+        var recoveredCandidates = false;
         IsCreateInProgress = true;
         try
         {
@@ -514,6 +554,16 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
 
                 if (!result.Success || result.Data is null)
                 {
+                    if (IsRecoveryConflict(result.Error?.Code))
+                    {
+                        _pendingCreateCommand = null;
+                        HasUnknownCreateResult = false;
+                        StatusText = string.IsNullOrWhiteSpace(result.Message)
+                            ? "采购事实已变化，请返回采购准备重新校验。"
+                            : result.Message;
+                        recoveredCandidates = await RecoverCandidatesIfRequiredAsync(result.Error?.Code);
+                        return;
+                    }
                     HasUnknownCreateResult = true;
                     StatusText = "创建结果未知。为避免重复采购，只能使用原请求身份和冻结负载重试。";
                     _messageService.ShowError("创建采购草稿失败", result.Message);
@@ -532,6 +582,9 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
                 HasUnknownCreateResult = false;
                 MergeCreateResults(result.Data.Sources);
                 RemoveCompletedSourceItems();
+                var recoveryErrorCode = result.Data.Sources
+                    .Select(static source => source.ErrorCode)
+                    .FirstOrDefault(IsRecoveryConflict);
                 var succeeded = Results.Count(item => item.Outcome == NetDemandCommandOutcomeEnum.Succeeded);
                 var already = Results.Count(item => item.Outcome == NetDemandCommandOutcomeEnum.AlreadyApplied);
                 var failed = Results.Count - succeeded - already;
@@ -550,6 +603,12 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
                 {
                     _messageService.ShowSuccess("采购草稿已创建", ResultSummary);
                 }
+                if (IsRecoveryConflict(recoveryErrorCode))
+                {
+                    recoveredCandidates = await RecoverCandidatesIfRequiredAsync(recoveryErrorCode);
+                    return;
+                }
+                CreationCompleted?.Invoke(this, EventArgs.Empty);
             }, "正在创建采购草稿...");
         }
         finally
@@ -558,6 +617,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
             PreviewCommand.NotifyCanExecuteChanged();
             CreateCommand.NotifyCanExecuteChanged();
         }
+        if (recoveredCandidates) CandidateRecoveryCompleted?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>应用运行时使用组合服务；精简测试入口回退到原采购预览 API。</summary>
@@ -574,7 +634,12 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
             "生成采购草稿预览失败");
         return result.Success && result.Data is not null
             ? ServiceResult<PurchasePreparationResult>.Ok(new PurchasePreparationResult { Preview = result.Data })
-            : ServiceResult<PurchasePreparationResult>.Fail(result.Message);
+            : string.IsNullOrWhiteSpace(result.Error?.Code)
+                ? ServiceResult<PurchasePreparationResult>.Fail(result.Message)
+                : ServiceResult<PurchasePreparationResult>.Fail(
+                    result.Error.Code,
+                    result.Error.Message ?? result.Message,
+                    result.Error.Field);
     }
 
     private PurchaseDraftPreviewRequest CreatePreviewRequest() => new()
@@ -956,6 +1021,10 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     /// <summary>按服务端文档建立显式主从审核模型，单头仅接纳后端可信只读快照。</summary>
     private void RebuildDocuments(PurchaseDraftPreviewResponse response)
     {
+        var selectedDocumentKey = SelectedDocument?.DocumentKey;
+        var selectedLineKey = SelectedLine is null
+            ? string.Empty
+            : BuildLineSelectionKey(SelectedLine);
         Documents.Clear();
         foreach (var source in response.SourceGroups)
         {
@@ -982,8 +1051,15 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
                 });
             }
         }
-        SelectedDocument = Documents.FirstOrDefault();
+        SelectedDocument = Documents.FirstOrDefault(document => document.DocumentKey == selectedDocumentKey)
+            ?? Documents.FirstOrDefault();
+        SelectedLine = SelectedDocument?.Lines.FirstOrDefault(line => BuildLineSelectionKey(line) == selectedLineKey)
+            ?? SelectedDocument?.Lines.FirstOrDefault();
     }
+
+    /// <summary>用采购行及其来源贡献身份恢复刷新前选中行，不依赖集合实例或显示顺序。</summary>
+    private static string BuildLineSelectionKey(PurchaseDraftPreviewLineModel line) =>
+        $"{line.Sku}|{line.SupplierSku}|{string.Join(",", line.Contributions.Select(static item => item.NetDemandId).OrderBy(static id => id))}";
 
     partial void OnSelectedDocumentChanged(PurchaseDraftDocumentReviewModel? value) =>
         SelectedLine = value?.Lines.FirstOrDefault();
@@ -992,15 +1068,15 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     private void InvalidatePreview(string statusText, bool incrementRevision)
     {
         if (incrementRevision)
+        {
             _inputRevision++;
+            _recoveryCancellation?.Cancel();
+        }
         _previewCancellation?.Cancel();
         _preview = null;
         IsStale = true;
         DetachWarningEvents();
         Warnings.Clear();
-        PreviewLines.Clear();
-        Documents.Clear();
-        SkippedItems.Clear();
         StatusText = statusText;
         NotifyPreviewStateChanged();
     }
@@ -1019,25 +1095,91 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     }
 
     /// <summary>按结构化错误代码给出预览失败后的恢复动作，不依赖服务端消息文本分类。</summary>
-    private static string BuildPreviewFailureText(ServiceResult<PurchaseDraftPreviewResponse> result)
+    private static string BuildPreviewFailureText<T>(ServiceResult<T> result)
     {
         var message = string.IsNullOrWhiteSpace(result.Message) ? "采购预览未完成。" : result.Message;
         return result.Error?.Code switch
         {
-            "PREVIEW_FACT_CHANGED" or "NET_DEMAND_NOT_FOUND" => $"{message} 处理：刷新采购候选；若该物料已失效，请移除选择。",
-            "SOURCE_NOT_FOUND" => $"{message} 处理：刷新来源；若来源已关闭，请移除对应选择。",
+            PurchaseDraftErrorCodes.PreviewExpired
+                or PurchaseDraftErrorCodes.PreviewFactChanged
+                or PurchaseDraftErrorCodes.PreviewTokenMismatch
+                or PurchaseDraftErrorCodes.NetDemandNotFound => $"{message} 处理：正在恢复采购候选；若该物料已失效，请取消勾选。",
+            PurchaseDraftErrorCodes.SourceNotFound => $"{message} 处理：正在恢复来源范围；若来源已关闭，请取消对应选择。",
             _ => $"{message} 处理：核对本次计划后重新预览。",
         };
     }
 
+    private static bool IsRecoveryConflict(string? errorCode) => errorCode is
+        PurchaseDraftErrorCodes.PreviewExpired
+        or PurchaseDraftErrorCodes.PreviewFactChanged
+        or PurchaseDraftErrorCodes.PreviewTokenMismatch
+        or PurchaseDraftErrorCodes.NetDemandNotFound
+        or PurchaseDraftErrorCodes.SourceNotFound;
+
+    /// <summary>串行等待当前来源范围恢复；会话、输入修订或请求身份变化后拒绝旧恢复结果。</summary>
+    private async Task<bool> RecoverCandidatesIfRequiredAsync(string? errorCode)
+    {
+        if (!IsRecoveryConflict(errorCode) || _candidateRecoveryHandler is null) return false;
+        _recoveryCancellation?.Cancel();
+        _recoveryCancellation?.Dispose();
+        var cancellation = new CancellationTokenSource();
+        _recoveryCancellation = cancellation;
+        var sessionVersion = _sessionVersion;
+        var inputRevision = _inputRevision;
+        var recoverySequence = ++_recoverySequence;
+        IsRecoveryInProgress = true;
+        var accepted = false;
+        try
+        {
+            var recovered = await _candidateRecoveryHandler(new PurchaseDraftCandidateRecoveryRequestedEventArgs
+            {
+                ErrorCode = errorCode ?? string.Empty,
+                CompletedSourceKeys = Results
+                    .Where(static item => item.Outcome is NetDemandCommandOutcomeEnum.Succeeded or NetDemandCommandOutcomeEnum.AlreadyApplied)
+                    .Select(static item => CreateSourceKey(item.SourceType, item.SourceUid))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+            }, cancellation.Token);
+            accepted = recovered
+                && _isSessionActive
+                && !_disposed
+                && !cancellation.IsCancellationRequested
+                && ReferenceEquals(_recoveryCancellation, cancellation)
+                && sessionVersion == _sessionVersion
+                && inputRevision == _inputRevision
+                && recoverySequence == _recoverySequence;
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            accepted = false;
+        }
+        finally
+        {
+            if (ReferenceEquals(_recoveryCancellation, cancellation))
+            {
+                _recoveryCancellation = null;
+                IsRecoveryInProgress = false;
+            }
+            cancellation.Dispose();
+        }
+        return accepted;
+    }
+
+    private static string CreateSourceKey(string sourceType, Guid sourceUid) =>
+        $"{sourceType.Trim().ToUpperInvariant()}|{sourceUid:N}";
+
     private bool CanPreview() => _isSessionActive
         && !IsCreateInProgress
         && !HasUnknownCreateResult
+        && !IsRecoveryInProgress
+        && IsNotBusy
         && ValidateItems() is null;
+
+    private bool CanReturnToPreparation() => IsNotBusy && !IsCreateInProgress && !HasUnknownCreateResult && !IsRecoveryInProgress;
 
     private bool CanCreate()
     {
-        if (!_isSessionActive || IsCreateInProgress || !CanWrite || !IsNotBusy)
+        if (!_isSessionActive || IsCreateInProgress || IsRecoveryInProgress || !CanWrite || !IsNotBusy)
             return false;
         if (HasUnknownCreateResult)
             return _pendingCreateCommand is not null;
@@ -1065,6 +1207,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         OnPropertyChanged(nameof(PreviewSummaryText));
         PreviewCommand.NotifyCanExecuteChanged();
         CreateCommand.NotifyCanExecuteChanged();
+        ReturnToPreparationCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>结束当前会话并清空本次累计状态；调用方必须先读取 Dialog 结果。</summary>
@@ -1074,6 +1217,10 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         _previewCancellation?.Cancel();
         _previewCancellation?.Dispose();
         _previewCancellation = null;
+        _recoveryCancellation?.Cancel();
+        _recoveryCancellation?.Dispose();
+        _recoveryCancellation = null;
+        IsRecoveryInProgress = false;
         CancelSupplierSearches();
         DetachItemEvents();
         DetachTargetEvents();
@@ -1096,6 +1243,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         IsCreateInProgress = false;
         _inputRevision = 0;
         _previewSequence = 0;
+        _recoverySequence = 0;
         ResultSummary = string.Empty;
         StatusText = "尚未生成转采购预览。";
         IsStale = true;

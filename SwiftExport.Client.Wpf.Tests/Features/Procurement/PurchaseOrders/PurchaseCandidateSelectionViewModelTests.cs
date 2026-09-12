@@ -434,6 +434,149 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         });
     }
 
+    /// <summary>恢复候选时更新服务端事实，同时保留采购输入并显式暴露超额错误。</summary>
+    [TestMethod]
+    public async Task RestoreCurrentScope_ShouldMergeAllFactsWithoutOverwritingPurchaseInputs()
+    {
+        var api = new CandidateApiStub();
+        var original = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
+        var originallyUnchecked = CreateCandidate(api.FirstSourceUid, "SO-A", 2);
+        api.Groups.Add(CreateGroup("SO-A", api.FirstSourceUid, 2));
+        api.Candidates.AddRange([original, originallyUnchecked]);
+        using var viewModel = CreateViewModel(api);
+        await viewModel.OpenAsync();
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
+        var row = viewModel.Items.Single(item => item.Uid == original.Uid);
+        row.IsChecked = true;
+        row.PurchaseQty = 7m;
+        row.UnitPrice = 12.3m;
+        row.TaxPrice = 13.9m;
+        var plannedDate = new DateTime(2026, 10, 1);
+        row.PlannedDeliveryDate = plannedDate;
+
+        var refreshed = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
+        refreshed.Uid = original.Uid;
+        refreshed.Version = 2;
+        refreshed.NetQty = 6m;
+        refreshed.AssociatedPurchaseQty = 1m;
+        var refreshedUnchecked = CreateCandidate(api.FirstSourceUid, "SO-A", 2);
+        refreshedUnchecked.Uid = originallyUnchecked.Uid;
+        refreshedUnchecked.Version = 3;
+        var added = CreateCandidate(api.FirstSourceUid, "SO-A", 3);
+        api.DetailHandler = (_, _) => Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok(
+            [refreshed, refreshedUnchecked, added]));
+
+        Assert.IsTrue(await viewModel.RestoreCurrentScopeAsync([]));
+
+        row = viewModel.Items.Single(item => item.Uid == original.Uid);
+        Assert.AreEqual(2, row.Version);
+        Assert.AreEqual(5m, row.RemainingQty);
+        Assert.AreEqual(7m, row.PurchaseQty);
+        Assert.AreEqual(12.3m, row.UnitPrice);
+        Assert.AreEqual(13.9m, row.TaxPrice);
+        Assert.AreEqual(plannedDate, row.PlannedDeliveryDate);
+        Assert.IsTrue(row.IsChecked);
+        Assert.IsTrue(row.HasValidationError);
+        Assert.AreEqual(3, viewModel.Items.Single(item => item.Uid == originallyUnchecked.Uid).Version);
+        Assert.IsFalse(viewModel.Items.Single(item => item.Uid == added.Uid).IsChecked);
+        Assert.AreEqual(api.FirstSourceUid, api.DetailRequests.Last().SourceUid);
+        Assert.AreEqual("SO", api.DetailRequests.Last().SourceType);
+    }
+
+    /// <summary>当前待采购范围缺失的已选需求保留原输入，并要求用户显式取消选择。</summary>
+    [TestMethod]
+    public async Task RestoreCurrentScope_ShouldRetainMissingSelectedAndRemoveMissingUnchecked()
+    {
+        var api = new CandidateApiStub();
+        var original = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
+        var uncheckedRow = CreateCandidate(api.FirstSourceUid, "SO-A", 2);
+        api.Groups.Add(CreateGroup("SO-A", api.FirstSourceUid, 2));
+        api.Candidates.AddRange([original, uncheckedRow]);
+        using var viewModel = CreateViewModel(api);
+        await viewModel.OpenAsync();
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
+        var row = viewModel.Items.Single(item => item.Uid == original.Uid);
+        row.IsChecked = true;
+        row.PurchaseQty = 3m;
+        api.DetailHandler = (_, _) => Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok([]));
+
+        Assert.IsTrue(await viewModel.RestoreCurrentScopeAsync([]));
+
+        Assert.AreSame(row, viewModel.Items.Single());
+        Assert.AreEqual(3m, row.PurchaseQty);
+        Assert.IsTrue(row.IsChecked);
+        Assert.IsFalse(row.IsAvailableForPurchase);
+        StringAssert.Contains(row.ValidationDisplayMessage, "不在当前待采购范围");
+    }
+
+    /// <summary>全部来源入口恢复时保持空来源筛选，并按同一规则接纳新出现候选。</summary>
+    [TestMethod]
+    public async Task RestoreAllSources_ShouldQueryFullScopeAndLeaveNewRowsUnchecked()
+    {
+        var api = new CandidateApiStub();
+        api.Groups.Add(CreateGroup("SO-A", api.FirstSourceUid, 1));
+        api.Candidates.Add(CreateCandidate(api.FirstSourceUid, "SO-A", 1));
+        using var viewModel = CreateViewModel(api);
+        await viewModel.OpenAsync();
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[0]);
+        viewModel.Items.Single().IsChecked = true;
+        var added = CreateCandidate(Guid.NewGuid(), "SO-B", 2);
+        api.DetailHandler = (_, _) => Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok(
+            [api.Candidates.Single(), added]));
+
+        Assert.IsTrue(await viewModel.RestoreCurrentScopeAsync([$"SO|{api.FirstSourceUid:N}"]));
+
+        Assert.IsFalse(viewModel.Items.Single(item => item.Uid == api.Candidates.Single().Uid).IsChecked);
+        Assert.IsFalse(viewModel.Items.Single(item => item.Uid == added.Uid).IsChecked);
+        Assert.IsNull(api.DetailRequests.Last().SourceUid);
+        Assert.AreEqual(string.Empty, api.DetailRequests.Last().SourceType);
+    }
+
+    /// <summary>恢复失败保持原集合可重试；关闭后取消请求并拒绝迟到结果覆盖旧事实。</summary>
+    [TestMethod]
+    public async Task RestoreCurrentScope_ShouldPreserveOnFailureAndRejectLateResultAfterClose()
+    {
+        var api = new CandidateApiStub();
+        var original = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
+        api.Groups.Add(CreateGroup("SO-A", api.FirstSourceUid, 1));
+        api.Candidates.Add(original);
+        using var viewModel = CreateViewModel(api);
+        await viewModel.OpenAsync();
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
+        var row = viewModel.Items.Single();
+        row.IsChecked = true;
+        row.PurchaseQty = 3m;
+        api.DetailHandler = (_, _) => Task.FromResult(
+            ServiceResult<List<PurchaseDraftCandidateDto>>.Fail("网络失败"));
+
+        Assert.IsFalse(await viewModel.RestoreCurrentScopeAsync([]));
+        Assert.AreSame(row, viewModel.Items.Single());
+        Assert.AreEqual(3m, row.PurchaseQty);
+
+        var retried = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
+        retried.Uid = original.Uid;
+        retried.Version = 2;
+        api.DetailHandler = (_, _) => Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok([retried]));
+        Assert.IsTrue(await viewModel.RestoreCurrentScopeAsync([]));
+        Assert.AreEqual(2, viewModel.Items.Single().Version);
+        Assert.AreEqual(3m, viewModel.Items.Single().PurchaseQty);
+
+        var late = new TaskCompletionSource<ServiceResult<List<PurchaseDraftCandidateDto>>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        api.DetailHandler = (_, _) => late.Task;
+        var restoreTask = viewModel.RestoreCurrentScopeAsync([]);
+        await Task.Yield();
+        viewModel.Close();
+        var refreshed = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
+        refreshed.Uid = original.Uid;
+        refreshed.Version = 9;
+        late.SetResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok([refreshed]));
+
+        Assert.IsFalse(await restoreTask);
+        Assert.AreEqual(2, viewModel.Items.Single().Version);
+        Assert.AreEqual(3m, viewModel.Items.Single().PurchaseQty);
+    }
+
     private static PurchaseDraftCandidateSourceGroupDto CreateGroup(string sourceNo, Guid sourceUid, int count) => new()
     {
         SourceType = "SO",

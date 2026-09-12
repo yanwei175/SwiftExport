@@ -31,7 +31,12 @@ public sealed class PurchasePreparationService(
             cancellationToken,
             "生成采购预览失败");
         if (!previewResult.Success || previewResult.Data is null)
-            return ServiceResult<PurchasePreparationResult>.Fail(previewResult.Message);
+            return string.IsNullOrWhiteSpace(previewResult.Error?.Code)
+                ? ServiceResult<PurchasePreparationResult>.Fail(previewResult.Message)
+                : ServiceResult<PurchasePreparationResult>.Fail(
+                    previewResult.Error.Code,
+                    previewResult.Error.Message ?? previewResult.Message,
+                    previewResult.Error.Field);
 
         return ServiceResult<PurchasePreparationResult>.Ok(new PurchasePreparationResult
         {

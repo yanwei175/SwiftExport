@@ -77,7 +77,7 @@ public sealed class PurchaseDraftCreationService(
         }
         catch (PurchaseDraftException ex)
         {
-            return ServiceResult<CreatePurchaseDraftsResult>.Fail($"{ex.Code}: {ex.Message}");
+            return ServiceResult<CreatePurchaseDraftsResult>.Fail(ex.Code, ex.Message);
         }
 
         var result = new CreatePurchaseDraftsResult { ExecutionRequestId = command.ExecutionRequestId };

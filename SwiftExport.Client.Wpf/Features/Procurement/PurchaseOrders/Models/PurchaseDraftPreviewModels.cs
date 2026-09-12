@@ -245,6 +245,14 @@ public sealed partial class PurchaseDraftTargetSelectionModel : ObservableObject
     };
 }
 
+/// <summary>请求采购准备页按稳定需求身份恢复候选，并说明触发恢复的结构化原因。</summary>
+public sealed class PurchaseDraftCandidateRecoveryRequestedEventArgs : EventArgs
+{
+    public string ErrorCode { get; init; } = string.Empty;
+    /// <summary>本会话已经成功或幂等应用的来源键；完整范围恢复时这些来源不得重新选中。</summary>
+    public IReadOnlyList<string> CompletedSourceKeys { get; init; } = [];
+}
+
 /// <summary>采购单审核阶段的显式单据模型，不依赖分组首行推断单头。</summary>
 public sealed partial class PurchaseDraftDocumentReviewModel
 {

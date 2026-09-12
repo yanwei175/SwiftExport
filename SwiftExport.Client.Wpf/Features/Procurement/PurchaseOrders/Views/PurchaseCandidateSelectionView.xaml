@@ -34,6 +34,7 @@
 
                 <ListBox x:Name="SourceGroupList"
                          Grid.Row="2"
+                         IsEnabled="{Binding IsInputEnabled}"
                          ItemsSource="{Binding SourceGroups}"
                          SelectedItem="{Binding SelectedSourceGroup, Mode=OneWay}"
                          SelectionChanged="OnSourceGroupSelectionChanged"
@@ -80,21 +81,20 @@
                                Style="{StaticResource CaptionTextBlock}"
                                Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
                 </StackPanel>
-                <Button Grid.Column="1"
-                        MinWidth="112"
-                        Command="{Binding ToggleAllVisibleCommand}"
-                        Content="全选当前筛选"
-                        AutomationProperties.Name="全选或取消当前筛选可见物料" />
+                
+
             </Grid>
 
-            <Grid Grid.Row="2" ColumnDefinitions="260,8,180,8,Auto,8,Auto,8,Auto">
+            <Grid Grid.Row="2" ColumnDefinitions="260,8,280,8,Auto,8,Auto,8,Auto,8,Auto">
                 <ui:TextBox Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}"
                          PlaceholderText="筛选 SKU、产品型号、描述或推荐供应商"
                          AutomationProperties.Name="待采购物料关键词筛选" />
+                
                 <ui:TextBox Grid.Column="2"
-                         Text="{Binding SourceNo, UpdateSourceTrigger=PropertyChanged}"
-                         PlaceholderText="仅筛选已加载数据中的来源单号"
-                         AutomationProperties.Name="来源单号筛选" />
+                             Text="{Binding SourceNo, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="仅筛选已加载数据中的来源单号"
+                             AutomationProperties.Name="来源单号筛选" />
+                
                 <Button Grid.Column="4"
                         MinWidth="72"
                         Command="{Binding ApplyFilterCommand}"
@@ -103,14 +103,20 @@
                         MinWidth="72"
                         Command="{Binding ClearFiltersCommand}"
                         Content="清空" />
-                <CheckBox Grid.Column="8"
+                <CheckBox Grid.Column="10"
                           VerticalAlignment="Center"
                           IsChecked="{Binding ShowOnlyErrors, Mode=TwoWay}"
                           Content="只看错误" />
+                <Button Grid.Column="8"
+                        MinWidth="72"
+                        Command="{Binding ToggleAllVisibleCommand}"
+                        Content="改成反选"
+                        AutomationProperties.Name="反选当前筛选可见物料" />
             </Grid>
 
             <DataGrid x:Name="CandidateGrid"
                       Grid.Row="4"
+                      IsEnabled="{Binding IsInputEnabled}"
                       RowHeight="{StaticResource DataGridRowHeightMedium}"
                       FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                       Style="{StaticResource SwiftExportDataGrid}"
@@ -136,6 +142,7 @@
                       gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                       gridSelection:GridSelection.CurrentRow="{Binding SelectedItem, Mode=TwoWay}"
                       gridValidation:GridValidation.IsEnabled="True">
+                
                 <DataGrid.Columns>
                     <DataGridTemplateColumn Width="56" CanUserSort="False"
                                             gridColumns:GridColumn.Key="Select"
@@ -280,7 +287,7 @@
                                         gridColumns:GridColumn.Key="RemainingQty"
                                         gridColumns:GridColumn.CanFillDown="False" />
 
-                    <DataGridTextColumn Header="采购数量" Width="70" 
+                    <DataGridTextColumn Header="本次采购" Width="70" 
                                         Binding="{Binding PurchaseQty, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=N1}" 
                                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
@@ -315,12 +322,20 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
-                    
-                    <DataGridTextColumn Header="验证结果" Width="260" 
-                                        Binding="{Binding ValidationMessage}" IsReadOnly="True" 
+
+                    <DataGridTemplateColumn Header="验证结果" Width="260" 
                                         gridColumns:GridColumn.Key="ValidationMessage"
-                                        gridColumns:GridColumn.CanFillDown="False" />
-                    
+                                        gridColumns:GridColumn.CanFillDown="False">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ValidationDisplayMessage}"
+                                           Foreground="{DynamicResource SwiftExportBrush.ErrorText}"
+                                           Margin="4"
+                                           TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
                 </DataGrid.Columns>
             </DataGrid>
 

@@ -7,6 +7,7 @@ using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
@@ -25,7 +26,11 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     private CancellationTokenSource? _groupCancellation;
     private CancellationTokenSource? _detailCancellation;
     private CancellationTokenSource? _supplierSearchCancellation;
+    private PurchaseDraftWorkflowViewModel? _workflow;
     private bool _disposed;
+
+    /// <summary>当前准备输入通过验证后，请求容器显示只读审核页。</summary>
+    public event EventHandler? PreviewRequested;
 
     /// <summary>初始化采购候选选择器依赖和本地集合视图。</summary>
     public PurchaseCandidateSelectionViewModel(
@@ -61,6 +66,26 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     public ObservableCollection<ProcurementSupplierCandidateDto> SupplierCandidates { get; } = [];
 
     public event EventHandler? InputChanged;
+
+    /// <summary>当前会话的集中采购状态；页面通过它显示行模式和验证警告。</summary>
+    public PurchaseDraftWorkflowViewModel? Workflow => _workflow;
+
+    /// <summary>当前会话是否至少执行过一次采购校验。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ValidationActionText))]
+    public partial bool HasValidationAttempted { get; private set; }
+
+    /// <summary>当前输入是否已取得可继续确认的服务端验证快照。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(EnterPreviewCommand))]
+    public partial bool HasValidatedSelection { get; private set; }
+
+    /// <summary>采购准备页的校验与恢复反馈。</summary>
+    [ObservableProperty]
+    public partial string SelectionValidationText { get; private set; } = string.Empty;
+
+    /// <summary>重复校验始终保留入口，不受上一次服务端阻断影响。</summary>
+    public string ValidationActionText => HasValidationAttempted ? "重新校验所选物料" : "校验所选物料";
 
     /// <summary>由视图桥接原生 DataGrid 编辑提交；返回 false 表示转换错误仍停留在当前单元格。</summary>
     public Func<bool>? CommitPendingEdits { get; set; }
@@ -120,6 +145,12 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     [ObservableProperty]
     public partial bool IsDetailLoaded { get; private set; }
 
+    /// <summary>当前准备页是否允许修改来源、勾选和采购输入；恢复服务端事实期间统一关闭。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ValidateSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EnterPreviewCommand))]
+    public partial bool IsInputEnabled { get; private set; } = true;
+
     [ObservableProperty]
     public partial string SourceGroupStatusText { get; private set; } = "正在加载待采购来源...";
 
@@ -138,6 +169,9 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         SourceGroups.Clear();
         SelectedSourceGroup = null;
         PendingSourceGroup = null;
+        HasValidationAttempted = false;
+        HasValidatedSelection = false;
+        SelectionValidationText = string.Empty;
         OnPropertyChanged(nameof(IsSourceSwitchPending));
         OnPropertyChanged(nameof(SourceSwitchPrompt));
         IsDetailLoaded = false;
@@ -150,7 +184,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task SelectSourceGroupAsync(PurchaseCandidateSourceGroupModel? group)
     {
-        if (group is null || _disposed
+        if (!IsInputEnabled || group is null || _disposed
             || ReferenceEquals(SelectedSourceGroup, group)
             || _lifetimeCancellation is null
             || _lifetimeCancellation.IsCancellationRequested)
@@ -173,6 +207,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     [RelayCommand]
     private async Task ConfirmSourceSwitchAsync()
     {
+        if (!IsInputEnabled) return;
         var group = PendingSourceGroup;
         PendingSourceGroup = null;
         OnPropertyChanged(nameof(IsSourceSwitchPending));
@@ -208,7 +243,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     [RelayCommand]
     private void ToggleAllVisible()
     {
-        if (!IsDetailLoaded || IsLoading) return;
+        if (!IsInputEnabled || !IsDetailLoaded || IsLoading) return;
         var visible = GetVisibleRows();
         if (visible.Count == 0) return;
         var target = !visible.All(static item => item.IsChecked);
@@ -218,7 +253,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task SearchSuppliersAsync(string? keyword)
     {
-        if (_preparationService is null) return;
+        if (!IsInputEnabled || _preparationService is null) return;
         var previous = _supplierSearchCancellation;
         var request = new CancellationTokenSource();
         _supplierSearchCancellation = request;
@@ -255,31 +290,223 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     }
 
     [RelayCommand]
-    private void CommitPurchaseSupplier(PurchaseCandidateItemModel? item) => item?.CommitPurchaseSupplier();
+    private void CommitPurchaseSupplier(PurchaseCandidateItemModel? item)
+    {
+        if (IsInputEnabled && item?.CanEditPurchaseSupplier == true) item.CommitPurchaseSupplier();
+    }
 
     [RelayCommand]
-    private void ClearPurchaseSupplier(PurchaseCandidateItemModel? item) => item?.ClearPurchaseSupplier();
+    private void ClearPurchaseSupplier(PurchaseCandidateItemModel? item)
+    {
+        if (IsInputEnabled && item?.CanEditPurchaseSupplier == true) item.ClearPurchaseSupplier();
+    }
 
     [RelayCommand]
     private void CommitDeliverySupplier(PurchaseCandidateItemModel? item)
     {
-        if (item?.IsCustomerSupplied == true) item.CommitDeliverySupplier();
+        if (IsInputEnabled && item?.CanEditDeliverySupplier == true) item.CommitDeliverySupplier();
     }
 
     [RelayCommand]
     private void ClearDeliverySupplier(PurchaseCandidateItemModel? item)
     {
-        if (item?.IsCustomerSupplied == true) item.ClearDeliverySupplier();
+        if (IsInputEnabled && item?.CanEditDeliverySupplier == true) item.ClearDeliverySupplier();
     }
 
     /// <summary>统一刷新所有行的输入许可，使编辑器与 EnterpriseGrid 填充使用同一业务门禁。</summary>
     public void SetInputEnabled(bool isEnabled)
     {
+        if (!isEnabled) _supplierSearchCancellation?.Cancel();
+        IsInputEnabled = isEnabled;
         foreach (var item in Items) item.IsInputEnabled = isEnabled;
     }
 
     /// <summary>提交当前原生编辑事务；提交失败时调用方不得读取或发送旧模型值。</summary>
     public bool TryCommitPendingEdits() => CommitPendingEdits?.Invoke() ?? true;
+
+    /// <summary>由统一容器接入集中会话；采购准备页据此独立拥有校验和进入审核命令。</summary>
+    public void AttachWorkflow(PurchaseDraftWorkflowViewModel workflow)
+    {
+        ArgumentNullException.ThrowIfNull(workflow);
+        if (ReferenceEquals(_workflow, workflow)) return;
+        if (_workflow is not null) _workflow.PropertyChanged -= OnWorkflowPropertyChanged;
+        _workflow = workflow;
+        _workflow.PropertyChanged += OnWorkflowPropertyChanged;
+        OnPropertyChanged(nameof(Workflow));
+        ValidateSelectionCommand.NotifyCanExecuteChanged();
+        EnterPreviewCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>校验全部勾选行（包含筛选隐藏行），成功后缓存同一份有效预览供进入审核直接接纳。</summary>
+    [RelayCommand(CanExecute = nameof(CanValidateSelection))]
+    private async Task ValidateSelectionAsync()
+    {
+        if (_workflow is null) return;
+        HasValidationAttempted = true;
+        HasValidatedSelection = false;
+        if (!TryCommitPendingEdits())
+        {
+            SelectionValidationText = "当前单元格输入格式无效，请修正后重新校验所选物料。";
+            return;
+        }
+
+        var rows = SelectedRows;
+        if (rows.Count == 0)
+        {
+            SelectionValidationText = "请至少选择一条待采购物料。";
+            return;
+        }
+        var localError = rows.FirstOrDefault(static row => !row.IsAvailableForPurchase
+            || row.PurchaseQty <= 0
+            || row.PurchaseQty > row.RemainingQty);
+        if (localError is not null)
+        {
+            SelectedItem = localError;
+            SelectionValidationText = localError.ValidationDisplayMessage;
+            return;
+        }
+
+        SelectionValidationText = string.Empty;
+        SetInputEnabled(false);
+        try
+        {
+            await _workflow.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
+            {
+                EntryMode = PurchaseDraftEntryModeEnum.PurchaseWorkspace,
+                Rows = rows,
+            });
+            ApplyValidation(_workflow.Warnings.ToArray());
+            HasValidatedSelection = _workflow.HasPreview && !_workflow.IsStale && !_workflow.HasBlockers;
+            SelectionValidationText = _workflow.HasValidPreparation
+                ? "校验通过，可以进入采购审核。"
+                : _workflow.CreateBlockReason;
+        }
+        finally
+        {
+            SetInputEnabled(true);
+        }
+    }
+
+    /// <summary>接纳刚刚验证成功的同一份预览，不重复调用服务端。</summary>
+    [RelayCommand(CanExecute = nameof(CanEnterPreview))]
+    private void EnterPreview() => PreviewRequested?.Invoke(this, EventArgs.Empty);
+
+    private bool CanValidateSelection() => _workflow is not null
+        && IsInputEnabled
+        && !IsLoading
+        && !_workflow.IsRecoveryInProgress
+        && !_workflow.IsCreateInProgress
+        && !_workflow.HasUnknownCreateResult
+        && SelectedCount > 0;
+
+    private bool CanEnterPreview() => HasValidatedSelection
+        && IsInputEnabled
+        && _workflow?.HasValidPreparation == true
+        && !_workflow.IsRecoveryInProgress
+        && !_workflow.IsCreateInProgress;
+
+    /// <summary>审核刷新成功后接纳其验证快照；若仍有强提示，确认完成即可再次进入审核。</summary>
+    public void AcceptCurrentPreviewValidation()
+    {
+        HasValidatedSelection = _workflow is { HasPreview: true, IsStale: false, HasBlockers: false };
+        EnterPreviewCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>重新加载当前来源完整范围；只有成功后才合并，传输失败完整保留当前集合和输入。</summary>
+    public async Task<bool> RestoreCurrentScopeAsync(
+        IReadOnlyList<string> completedSourceKeys,
+        CancellationToken cancellationToken = default)
+    {
+        var request = ReplaceCancellation(ref _detailCancellation, cancellationToken);
+        var sourceGroup = SelectedSourceGroup;
+        IsLoading = true;
+        StatusText = "正在刷新采购候选事实...";
+        try
+        {
+            var result = await _runner.RunAsync(
+                () => _api.GetCandidatesAsync(new PurchaseDraftCandidateQuery
+                {
+                    SourceType = sourceGroup is { IsAllSources: false } ? sourceGroup.SourceType : string.Empty,
+                    SourceUid = sourceGroup is { IsAllSources: false } ? sourceGroup.SourceUid : null,
+                }, request.Token),
+                request.Token,
+                "刷新采购候选失败");
+            if (!CanAccept(_detailCancellation, request)) return false;
+            if (!result.Success || result.Data is null)
+            {
+                StatusText = string.IsNullOrWhiteSpace(result.Message)
+                    ? "刷新采购候选未完成，当前输入已保留，可重试。"
+                    : $"{result.Message} 当前输入已保留，可重试。";
+                return false;
+            }
+
+            if (!ReferenceEquals(SelectedSourceGroup, sourceGroup)) return false;
+            MergeRecoveredCandidates(result.Data, completedSourceKeys);
+            HasValidationAttempted = false;
+            HasValidatedSelection = false;
+            SelectionValidationText = "候选事实已刷新，请处理标记项后重新校验。";
+            return true;
+        }
+        finally
+        {
+            CompleteRequest(ref _detailCancellation, request);
+        }
+    }
+
+    /// <summary>以服务端新事实替换匹配行，同时保留采购员输入；当前范围缺失行原样保留并标为不可采购。</summary>
+    private void MergeRecoveredCandidates(
+        IReadOnlyList<PurchaseDraftCandidateDto> candidates,
+        IReadOnlyList<string> completedSourceKeys)
+    {
+        var candidateById = candidates.GroupBy(static item => item.Uid).ToDictionary(static group => group.Key, static group => group.First());
+        var completed = completedSourceKeys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var current = Items.ToArray();
+        var merged = new List<PurchaseCandidateItemModel>(current.Length + candidates.Count);
+        foreach (var item in current)
+        {
+            var isCompleted = completed.Contains(CreateSourceKey(item.SourceType, item.SourceUid));
+            if (candidateById.Remove(item.Uid, out var candidate))
+            {
+                var refreshed = PurchaseCandidateItemModel.MergeRefreshed(candidate, item);
+                if (isCompleted) refreshed.IsChecked = false;
+                merged.Add(refreshed);
+                continue;
+            }
+            if (item.IsChecked && !isCompleted)
+            {
+                item.MarkOutsidePurchaseScope();
+                merged.Add(item);
+            }
+        }
+        foreach (var candidate in candidateById.Values)
+        {
+            var added = PurchaseCandidateItemModel.FromDto(candidate);
+            added.IsChecked = false;
+            merged.Add(added);
+        }
+
+        ReplaceItems(merged);
+        RefreshLocalFilter();
+    }
+
+    private static string CreateSourceKey(string sourceType, Guid sourceUid) =>
+        $"{sourceType.Trim().ToUpperInvariant()}|{sourceUid:N}";
+
+    private void ReplaceItems(IEnumerable<PurchaseCandidateItemModel> items)
+    {
+        foreach (var item in Items)
+        {
+            item.PropertyChanged -= OnRowPropertyChanged;
+            item.ValueChanged -= OnRowValueChanged;
+        }
+        Items.Clear();
+        foreach (var item in items)
+        {
+            item.PropertyChanged += OnRowPropertyChanged;
+            item.ValueChanged += OnRowValueChanged;
+            Items.Add(item);
+        }
+    }
 
     /// <summary>把服务端结构化验证结果映射回稳定需求行，供只看错误和定位编辑使用。</summary>
     public void ApplyValidation(IReadOnlyList<PurchaseDraftWarningModel> warnings)
@@ -426,13 +653,32 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         if (e.PropertyName != nameof(PurchaseCandidateItemModel.IsChecked)) return;
         OnPropertyChanged(nameof(IsAllVisibleChecked));
         UpdateCountStatus();
+        ValidateSelectionCommand.NotifyCanExecuteChanged();
     }
 
     private void OnRowValueChanged(object? sender, EventArgs e)
     {
         if (sender is PurchaseCandidateItemModel row) row.ValidationMessage = string.Empty;
+        HasValidatedSelection = false;
+        SelectionValidationText = string.Empty;
+        _workflow?.InvalidatePreparation();
         InputChanged?.Invoke(this, EventArgs.Empty);
         UpdateCountStatus();
+        ValidateSelectionCommand.NotifyCanExecuteChanged();
+        EnterPreviewCommand.NotifyCanExecuteChanged();
+    }
+
+    private void OnWorkflowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PurchaseDraftWorkflowViewModel.HasValidPreparation)
+            or nameof(PurchaseDraftWorkflowViewModel.IsCreateInProgress)
+            or nameof(PurchaseDraftWorkflowViewModel.HasUnknownCreateResult)
+            or nameof(PurchaseDraftWorkflowViewModel.IsRecoveryInProgress))
+        {
+            HasValidatedSelection &= _workflow is { HasPreview: true, IsStale: false, HasBlockers: false };
+            ValidateSelectionCommand.NotifyCanExecuteChanged();
+            EnterPreviewCommand.NotifyCanExecuteChanged();
+        }
     }
 
     /// <summary>解除行事件并清空当前候选，防止跨来源保留选择。</summary>
@@ -477,6 +723,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
             owner = null;
             IsLoading = false;
             UpdateCountStatus();
+            ValidateSelectionCommand.NotifyCanExecuteChanged();
         }
         request.Dispose();
     }
@@ -511,6 +758,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     {
         if (_disposed) return;
         _disposed = true;
+        if (_workflow is not null) _workflow.PropertyChanged -= OnWorkflowPropertyChanged;
         CommitPendingEdits = null;
         Close();
         ClearItems();
