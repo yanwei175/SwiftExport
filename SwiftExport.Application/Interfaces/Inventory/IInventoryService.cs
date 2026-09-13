@@ -20,9 +20,10 @@ public interface IInventoryService
     Task<ServiceResult<WarehouseSiteDto>> DeactivateWarehouseSiteAsync(Guid uid, DeactivateWarehouseSiteCommand command, CancellationToken cancellationToken = default);
     /// <summary>软删除虚拟仓；仅允许不存在余额与流水时删除。</summary>
     Task<ServiceResult<WarehouseSiteDto>> DeleteWarehouseSiteAsync(Guid uid, DeleteWarehouseSiteCommand command, CancellationToken cancellationToken = default);
+    /// <summary>按供应商、虚拟仓、关键词和非零条件分页查询余额。</summary>
     Task<ServiceResult<PagedResponseBase<InventoryBalanceDto>>> SearchBalancesAsync(InventoryBalanceSearchRequest request, CancellationToken cancellationToken = default);
+    /// <summary>按日期、类型、来源单号和库存身份分页查询不可变流水。</summary>
     Task<ServiceResult<PagedResponseBase<InventoryLedgerItemDto>>> SearchLedgerAsync(InventoryLedgerSearchRequest request, CancellationToken cancellationToken = default);
-    Task<ServiceResult<InventoryBalanceTraceDto>> GetBalanceTraceAsync(Guid uid, CancellationToken cancellationToken = default);
-    Task<ServiceResult<List<InventoryPostingResultDto>>> PreviewOpeningBalancesAsync(OpeningBalanceCommand command, CancellationToken cancellationToken = default);
-    Task<ServiceResult<List<InventoryPostingResultDto>>> PostOpeningBalancesAsync(OpeningBalanceCommand command, CancellationToken cancellationToken = default);
+    /// <summary>分页读取指定余额的流水 Trace 与只读对账结果。</summary>
+    Task<ServiceResult<InventoryBalanceTraceDto>> GetBalanceTraceAsync(Guid uid, int pageIndex, int pageSize, CancellationToken cancellationToken = default);
 }

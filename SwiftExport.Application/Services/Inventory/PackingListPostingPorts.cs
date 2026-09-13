@@ -80,12 +80,14 @@ public sealed class InboundPostingPort(
                 WarehouseSiteId = document.WarehouseSiteId,
                 ProductId = x.ProductId,
                 SkuSnapshot = x.SkuSnapshot,
+                ProductNameSnapshot = x.DescriptionSnapshot,
                 UnitSnapshot = x.UnitSnapshot,
                 QuantityDelta = x.Quantity,
                 TransactionType = InventoryTransactionTypeEnum.PackingListAutoReceiptInbound,
                 SourceDocumentType = "InboundDocument",
                 SourceDocumentId = document.Uid,
                 SourceLineId = x.Uid,
+                SourceDocumentNoSnapshot = document.DocumentNo,
                 OccurredDate = businessDate
             }).ToList();
             await inventoryPosting.PostAsync(commandId, postingItems, cancellationToken);
@@ -102,23 +104,19 @@ public sealed class InboundPostingPort(
                      .OrderBy(x => x.WarehouseSiteId).ThenBy(x => x.Uid))
         {
             var ledgers = await documents.GetLedgersAsync(document.Uid, cancellationToken);
-            var items = ledgers.Where(x => x.QuantityDelta > 0).Select(x => new InventoryPostingItem
+            var occurredDate = DateTime.Now;
+            var items = ledgers.Where(x => x.QuantityDelta > 0).Select(x => new InventoryReverseItem
             {
                 CommandItemId = PostingPortIds.Create(commandId, x.Uid, "INBOUND_REVERSE"),
-                WarehouseSiteId = x.WarehouseSiteId,
-                ProductId = x.ProductId,
-                SkuSnapshot = x.Sku,
-                UnitSnapshot = x.Unit,
-                QuantityDelta = -x.QuantityDelta,
-                TransactionType = InventoryTransactionTypeEnum.Reversal,
+                OriginalLedgerId = x.Uid,
                 SourceDocumentType = "InboundDocumentReverse",
                 SourceDocumentId = document.Uid,
                 SourceLineId = x.SourceLineId,
-                ReversalOfLedgerId = x.Uid,
+                SourceDocumentNoSnapshot = document.DocumentNo,
                 Reason = reason,
-                OccurredDate = DateTime.Now
+                OccurredDate = occurredDate
             }).ToList();
-            await inventoryPosting.PostAsync(commandId, items, cancellationToken);
+            await inventoryPosting.ReverseAsync(commandId, items, cancellationToken);
             if (await documents.SetReversedAsync(document.Uid, document.Version, DateTime.Now, currentUser.UserName, reason, commandId) != 1)
                 throw new InventoryPostingException("自动入库反向发生并发冲突。");
         }
@@ -212,12 +210,14 @@ public sealed class OutboundPostingPort(
                 WarehouseSiteId = document.WarehouseSiteId,
                 ProductId = x.ProductId,
                 SkuSnapshot = x.SkuSnapshot,
+                ProductNameSnapshot = x.DescriptionSnapshot,
                 UnitSnapshot = x.UnitSnapshot,
                 QuantityDelta = -x.Quantity,
                 TransactionType = transactionType,
                 SourceDocumentType = "OutboundDocument",
                 SourceDocumentId = document.Uid,
                 SourceLineId = x.Uid,
+                SourceDocumentNoSnapshot = document.DocumentNo,
                 OccurredDate = businessDate
             }).ToList();
             await inventoryPosting.PostAsync(commandId, postingItems, cancellationToken);
@@ -235,23 +235,19 @@ public sealed class OutboundPostingPort(
                      .OrderBy(x => x.WarehouseSiteId).ThenBy(x => x.DocumentType).ThenBy(x => x.Uid))
         {
             var ledgers = await documents.GetLedgersAsync(document.Uid, cancellationToken);
-            var items = ledgers.Where(x => x.QuantityDelta < 0).Select(x => new InventoryPostingItem
+            var occurredDate = DateTime.Now;
+            var items = ledgers.Where(x => x.QuantityDelta < 0).Select(x => new InventoryReverseItem
             {
                 CommandItemId = PostingPortIds.Create(commandId, x.Uid, "OUTBOUND_REVERSE"),
-                WarehouseSiteId = x.WarehouseSiteId,
-                ProductId = x.ProductId,
-                SkuSnapshot = x.Sku,
-                UnitSnapshot = x.Unit,
-                QuantityDelta = -x.QuantityDelta,
-                TransactionType = InventoryTransactionTypeEnum.Reversal,
+                OriginalLedgerId = x.Uid,
                 SourceDocumentType = "OutboundDocumentReverse",
                 SourceDocumentId = document.Uid,
                 SourceLineId = x.SourceLineId,
-                ReversalOfLedgerId = x.Uid,
+                SourceDocumentNoSnapshot = document.DocumentNo,
                 Reason = reason,
-                OccurredDate = DateTime.Now
+                OccurredDate = occurredDate
             }).ToList();
-            await inventoryPosting.PostAsync(commandId, items, cancellationToken);
+            await inventoryPosting.ReverseAsync(commandId, items, cancellationToken);
             if (await documents.SetReversedAsync(document.Uid, document.Version, DateTime.Now, currentUser.UserName, reason) != 1)
                 throw new InventoryPostingException("出库反向发生并发冲突。");
         }

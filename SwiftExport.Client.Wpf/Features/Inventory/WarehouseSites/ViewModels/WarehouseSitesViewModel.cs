@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Inventory.WarehouseSites.Models;
@@ -10,6 +11,7 @@ using SwiftExportClient.Features.Inventory.WarehouseSites.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -35,15 +37,12 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     private readonly IDialogService _dialogs;
     private readonly IWarehouseSiteReasonDialogService _reasonDialog;
     private readonly ICurrentUserService _currentUser;
+    private readonly IReferenceDataCacheService _referenceDataCache;
     private readonly Dictionary<string, Guid> _writeIntents = new(StringComparer.Ordinal);
     private CancellationTokenSource? _listCancellation;
     private CancellationTokenSource? _detailCancellation;
-    private CancellationTokenSource? _filterSupplierCancellation;
-    private CancellationTokenSource? _editSupplierCancellation;
     private int _listRequestVersion;
     private int _detailRequestVersion;
-    private int _filterSupplierRequestVersion;
-    private int _editSupplierRequestVersion;
     private bool _initialized;
     private bool _isAlive = true;
 
@@ -54,7 +53,8 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
         IMessageService messages,
         IDialogService dialogs,
         IWarehouseSiteReasonDialogService reasonDialog,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        IReferenceDataCacheService referenceDataCache)
     {
         _api = api;
         _runner = runner;
@@ -62,6 +62,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
         _dialogs = dialogs;
         _reasonDialog = reasonDialog;
         _currentUser = currentUser;
+        _referenceDataCache = referenceDataCache;
         Title = "供应商虚拟仓";
         StatusOptions =
         [
@@ -82,14 +83,14 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     }
 
     public ObservableCollection<WarehouseSiteDto> Items { get; } = [];
-    public ObservableCollection<WarehouseSupplierLookupDto> FilterSupplierCandidates { get; } = [];
-    public ObservableCollection<WarehouseSupplierLookupDto> EditSupplierCandidates { get; } = [];
+    /// <summary>获取当前登录会话可见的供应商缓存，供筛选与新建抽屉本地精确选择。</summary>
+    public IEnumerable<SupplierDto> SupplierOptions => _referenceDataCache.Suppliers;
     public IReadOnlyList<WarehouseSiteStatusFilter> StatusOptions { get; }
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / Math.Max(1, PageSize));
     public string PageSummary => $"第 {PageIndex} / {TotalPages} 页";
 
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
-    [ObservableProperty] public partial WarehouseSupplierLookupDto? SearchSupplier { get; set; }
+    [ObservableProperty] public partial SupplierDto? SearchSupplier { get; set; }
     [ObservableProperty] public partial WarehouseSiteStatusFilter SelectedStatus { get; set; }
     [ObservableProperty] public partial string? ResultSummary { get; set; } = "尚未加载。";
     [ObservableProperty]
@@ -109,14 +110,15 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
     public partial WarehouseSiteDto? SelectedItem { get; set; }
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenCreateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeactivateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     [NotifyCanExecuteChangedFor(nameof(CloseDrawerCommand))]
     public partial bool IsDrawerOpen { get; set; }
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     public partial WarehouseSiteEditModel? EditModel { get; set; }
-    [ObservableProperty] public partial bool IsFilterSupplierBusy { get; set; }
-    [ObservableProperty] public partial bool IsEditSupplierBusy { get; set; }
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenCreateCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenEditCommand))]
@@ -126,11 +128,16 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     public partial bool HasManagePermission { get; private set; }
 
     /// <inheritdoc/>
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
-        if (_initialized || !_isAlive) return Task.CompletedTask;
+        if (_initialized || !_isAlive) return;
         _initialized = true;
-        return LoadWithBusyAsync(null, "正在查询虚拟仓...");
+        var cacheResult = await _referenceDataCache.EnsureLoadedAsync();
+        if (!_isAlive) return;
+        OnPropertyChanged(nameof(SupplierOptions));
+        if (!cacheResult.Success)
+            _messages.ShowError("供应商缓存未更新", cacheResult.Message);
+        await LoadWithBusyAsync(null, "正在查询虚拟仓...");
     }
 
     partial void OnEditModelChanging(WarehouseSiteEditModel? value)
@@ -178,7 +185,6 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     private async Task OpenCreateAsync()
     {
         if (!await PrepareDrawerReplacementAsync()) return;
-        EditSupplierCandidates.Clear();
         EditModel = WarehouseSiteEditModel.CreateNew();
         IsDrawerOpen = true;
     }
@@ -211,16 +217,6 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
         {
             _messages.ShowError("无法编辑虚拟仓", result?.Message ?? "虚拟仓详情加载失败。");
             return;
-        }
-        EditSupplierCandidates.Clear();
-        if (result.Data.SupplierId.HasValue)
-        {
-            EditSupplierCandidates.Add(new WarehouseSupplierLookupDto
-            {
-                Uid = result.Data.SupplierId.Value,
-                SupplierCode = result.Data.SupplierCode,
-                SupplierName = result.Data.SupplierName
-            });
         }
         EditModel = WarehouseSiteEditModel.FromDto(result.Data);
         IsDrawerOpen = true;
@@ -334,12 +330,6 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
         }, "正在删除虚拟仓...");
     }
 
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    private Task SearchFilterSupplierAsync(string? keyword) => SearchSupplierAsync(keyword, false);
-
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    private Task SearchEditSupplierAsync(string? keyword) => SearchSupplierAsync(keyword, true);
-
     /// <summary>加载列表并由当前用户操作持有 Busy；实际查询使用请求身份和页面存活双重校验。</summary>
     private async Task<bool> LoadWithBusyAsync(Guid? preferredId, string busyMessage)
     {
@@ -389,61 +379,6 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
         }
     }
 
-    /// <summary>分别管理筛选与编辑 Lookup，旧请求即使忽略取消也不能覆盖新候选。</summary>
-    private async Task SearchSupplierAsync(string? keyword, bool forEditor)
-    {
-        var cancellation = new CancellationTokenSource();
-        int requestVersion;
-        if (forEditor)
-        {
-            _editSupplierCancellation?.Cancel();
-            _editSupplierCancellation?.Dispose();
-            _editSupplierCancellation = cancellation;
-            requestVersion = ++_editSupplierRequestVersion;
-            IsEditSupplierBusy = true;
-        }
-        else
-        {
-            _filterSupplierCancellation?.Cancel();
-            _filterSupplierCancellation?.Dispose();
-            _filterSupplierCancellation = cancellation;
-            requestVersion = ++_filterSupplierRequestVersion;
-            IsFilterSupplierBusy = true;
-        }
-        try
-        {
-            var result = await _runner.RunAsync(() => _api.SearchSuppliersAsync(new PagedRequestBase
-            {
-                Keyword = string.IsNullOrWhiteSpace(keyword) ? null : keyword.Trim(), PageIndex = 1, PageSize = 30
-            }, cancellation.Token), cancellation.Token, "搜索供应商失败");
-            if (!CanAcceptSupplierResult(cancellation, requestVersion, forEditor)) return;
-            var candidates = forEditor ? EditSupplierCandidates : FilterSupplierCandidates;
-            candidates.Clear();
-            if (result.Success && result.Data is not null)
-            {
-                foreach (var supplier in result.Data.Items) candidates.Add(supplier);
-            }
-            else if (!string.IsNullOrWhiteSpace(result.Message))
-            {
-                _messages.ShowError("供应商候选未更新", result.Message);
-            }
-        }
-        finally
-        {
-            if (forEditor && ReferenceEquals(_editSupplierCancellation, cancellation))
-            {
-                _editSupplierCancellation = null;
-                IsEditSupplierBusy = false;
-            }
-            else if (!forEditor && ReferenceEquals(_filterSupplierCancellation, cancellation))
-            {
-                _filterSupplierCancellation = null;
-                IsFilterSupplierBusy = false;
-            }
-            cancellation.Dispose();
-        }
-    }
-
     /// <summary>关闭或替换抽屉前保护未保存内容；写命令期间拒绝关闭。</summary>
     private async Task<bool> PrepareDrawerReplacementAsync()
     {
@@ -461,17 +396,11 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     {
         IsDrawerOpen = false;
         EditModel = null;
-        EditSupplierCandidates.Clear();
         IsDirty = false;
     }
 
     private bool CanAcceptListResult(CancellationTokenSource source, int version) =>
         _isAlive && !source.IsCancellationRequested && ReferenceEquals(_listCancellation, source) && _listRequestVersion == version;
-
-    private bool CanAcceptSupplierResult(CancellationTokenSource source, int version, bool forEditor) =>
-        _isAlive && !source.IsCancellationRequested && (forEditor
-            ? ReferenceEquals(_editSupplierCancellation, source) && _editSupplierRequestVersion == version
-            : ReferenceEquals(_filterSupplierCancellation, source) && _filterSupplierRequestVersion == version);
 
     private Guid GetOrCreateIntent(string key)
     {
@@ -517,8 +446,6 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
         if (EditModel is not null) EditModel.PropertyChanged -= OnEditModelPropertyChanged;
         CancelAndDispose(ref _listCancellation);
         CancelAndDispose(ref _detailCancellation);
-        CancelAndDispose(ref _filterSupplierCancellation);
-        CancelAndDispose(ref _editSupplierCancellation);
     }
 
     /// <summary>取消并释放页面拥有的查询资源；重复释放安全。</summary>

@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using System.ComponentModel.DataAnnotations;
 
 namespace SwiftExportClient.Features.Inventory.WarehouseSites.Models;
@@ -26,7 +27,7 @@ public sealed partial class WarehouseSiteEditModel : ObservableValidator
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "请选择供应商。")]
-    public partial WarehouseSupplierLookupDto? SelectedSupplier { get; set; }
+    public partial SupplierDto? SelectedSupplier { get; set; }
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -66,7 +67,7 @@ public sealed partial class WarehouseSiteEditModel : ObservableValidator
         model.Code = dto.Code;
         model.Name = dto.Name;
         model.SelectedSupplier = dto.SupplierId is { } supplierId
-            ? new WarehouseSupplierLookupDto { Uid = supplierId, SupplierCode = dto.SupplierCode, SupplierName = dto.SupplierName }
+            ? new SupplierDto { Uid = supplierId, SupplierCode = dto.SupplierCode, SupplierName = dto.SupplierName }
             : null;
         return model.FinishInitialLoad();
     }
@@ -100,7 +101,7 @@ public sealed partial class WarehouseSiteEditModel : ObservableValidator
         OnPropertyChanged(nameof(Title));
     }
 
-    partial void OnSelectedSupplierChanged(WarehouseSupplierLookupDto? value)
+    partial void OnSelectedSupplierChanged(SupplierDto? value)
     {
         MarkChanged();
         if (!IsCreateMode || _nameWasEdited || value is null) return;

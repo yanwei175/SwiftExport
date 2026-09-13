@@ -41,9 +41,10 @@ public sealed class ProductUnitSnapshotContractTests
             "Inventory",
             "InventoryRepository.cs");
 
-        StringAssert.Contains(postingSource, "SkuSnapshot = skuSnapshot");
-        StringAssert.Contains(postingSource, "UnitSnapshot = unitSnapshot");
-        StringAssert.Contains(repositorySource, "SET SkuSnapshot=@SkuSnapshot,UnitSnapshot=@UnitSnapshot");
+        StringAssert.Contains(postingSource, "SkuSnapshot = balance.SkuSnapshot");
+        StringAssert.Contains(postingSource, "ProductNameSnapshot = balance.ProductNameSnapshot");
+        StringAssert.Contains(postingSource, "UnitSnapshot = balance.UnitSnapshot");
+        StringAssert.Contains(repositorySource, "SET SkuSnapshot=@SkuSnapshot,ProductNameSnapshot=@ProductNameSnapshot,UnitSnapshot=@UnitSnapshot");
     }
 
     private static string Read(params string[] parts) =>

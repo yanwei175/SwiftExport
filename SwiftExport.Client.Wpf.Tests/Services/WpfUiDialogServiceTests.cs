@@ -180,6 +180,9 @@ public sealed class WpfUiDialogServiceTests
         var service = new WpfUiDialogService(CreateContentDialogService(host, (dialog, _) =>
         {
             dialogs.Add((dialog.Title, dialog.PrimaryButtonText, dialog.CloseButtonText, dialog.DefaultButton));
+            Assert.IsFalse(dialog.IsSecondaryButtonEnabled, "未配置次按钮文字时必须隐藏次按钮。");
+            Assert.AreEqual(!string.IsNullOrWhiteSpace(dialog.PrimaryButtonText), dialog.IsPrimaryButtonEnabled,
+                "只有关闭按钮的提示弹窗不得显示空白主按钮。");
             Assert.AreSame(DependencyProperty.UnsetValue,
                 dialog.ReadLocalValue(ScrollViewer.VerticalScrollBarVisibilityProperty));
             Assert.AreSame(DependencyProperty.UnsetValue,

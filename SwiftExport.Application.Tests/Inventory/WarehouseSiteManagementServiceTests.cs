@@ -159,7 +159,6 @@ public sealed class WarehouseSiteManagementServiceTests
                 new ServiceBaseContext(Session(Connection), NullLoggerFactory.Instance),
                 Warehouses,
                 new InventoryRepositoryStub(),
-                new PostingServiceStub(),
                 Logs,
                 new CorrelationStub(),
                 new CurrentUserStub(),
@@ -259,21 +258,22 @@ public sealed class WarehouseSiteManagementServiceTests
     }
 
     private sealed class CorrelationStub : ICorrelationContext { public string CorrelationId => "warehouse-tests"; }
-    private sealed class PostingServiceStub : IInventoryPostingService
-    {
-        public Task<IReadOnlyList<InventoryPostingResultDto>> PostAsync(Guid commandId, IReadOnlyList<InventoryPostingItem> items, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-    }
-
     private sealed class InventoryRepositoryStub : IInventoryRepository
     {
         public Task<PagedResponseBase<InventoryBalanceDto>> SearchBalancesAsync(InventoryBalanceSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PagedResponseBase<InventoryLedgerItemDto>> SearchLedgerAsync(InventoryLedgerSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<InventoryBalanceDto?> GetBalanceDtoAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<IReadOnlyList<InventoryLedgerItemDto>> GetLedgerByBalanceAsync(Guid balanceId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PagedResponseBase<InventoryLedgerItemDto>> GetLedgerByBalanceAsync(Guid balanceId, int pageIndex, int pageSize, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<InventoryReconciliationDto?> GetReconciliationAsync(Guid balanceId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<InventoryBalance?> LockBalanceAsync(Guid warehouseSiteId, Guid productId) => throw new NotSupportedException();
         public Task<InventoryLedgerEntry?> FindLedgerByCommandItemAsync(Guid commandItemId) => throw new NotSupportedException();
         public Task<InventoryLedgerEntry?> LockLedgerByCommandItemAsync(Guid commandItemId) => throw new NotSupportedException();
-        public Task<Product?> GetActiveProductAsync(Guid productId) => throw new NotSupportedException();
+        public Task<InventoryLedgerEntry?> LockLedgerByIdAsync(Guid ledgerId) => throw new NotSupportedException();
+        public Task<InventoryLedgerEntry?> LockReversalByOriginalAsync(Guid originalLedgerId) => throw new NotSupportedException();
+        public Task<InventoryLedgerEntry?> LockReplacementByOriginalAsync(Guid originalLedgerId) => throw new NotSupportedException();
+        public Task<IReadOnlyList<InventoryLedgerEntry>> LockCorrectionGroupAsync(Guid correctionGroupId) => throw new NotSupportedException();
+        public Task<Product?> GetProductForPostingAsync(Guid productId) => throw new NotSupportedException();
+        public Task<int> AcquireCommandLockAsync(Guid commandId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<int> InsertBalanceAsync(InventoryBalance balance) => throw new NotSupportedException();
         public Task<int> UpdateBalanceAsync(InventoryBalance balance, int expectedVersion) => throw new NotSupportedException();
         public Task<long> NextLedgerSequenceAsync() => throw new NotSupportedException();

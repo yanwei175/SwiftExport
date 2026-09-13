@@ -341,11 +341,13 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
 
     private static bool AreClose(double left, double right) => Math.Abs(left - right) < 0.01;
 
-    /// <summary>同步状态对象提供的按钮准入；空状态使用 WPF-UI 默认启用行为。</summary>
+    /// <summary>仅启用具有文字且状态允许的按钮，避免本地值覆盖 WPF-UI 的空按钮隐藏规则。</summary>
     private static void ApplyButtonState(ContentDialog dialog, IDialogContentState? state)
     {
-        dialog.IsPrimaryButtonEnabled = state?.IsPrimaryButtonEnabled ?? true;
-        dialog.IsSecondaryButtonEnabled = state?.IsSecondaryButtonEnabled ?? true;
+        dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(dialog.PrimaryButtonText)
+            && (state?.IsPrimaryButtonEnabled ?? true);
+        dialog.IsSecondaryButtonEnabled = !string.IsNullOrWhiteSpace(dialog.SecondaryButtonText)
+            && (state?.IsSecondaryButtonEnabled ?? true);
     }
 
     /// <summary>拒绝无法参与 WPF 布局的尺寸，避免运行时由依赖属性抛出含糊异常。</summary>

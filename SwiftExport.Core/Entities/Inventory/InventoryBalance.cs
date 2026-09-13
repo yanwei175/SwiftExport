@@ -13,6 +13,8 @@ public sealed class InventoryBalance : BaseEntity
     public Guid ProductId { get; set; }
     /// <summary>单据或业务事实形成时冻结的产品编码历史快照，不随主数据更新。</summary>
     public string? SkuSnapshot { get; set; }
+    /// <summary>首次建账或归零重入时冻结的产品名称快照，供主数据缺失后的只读追溯。</summary>
+    public string? ProductNameSnapshot { get; set; }
     /// <summary>单据或业务事实形成时冻结的计量单位历史快照，不随主数据更新。</summary>
     public string? UnitSnapshot { get; set; }
     /// <summary>当前仓库与产品维度的在手库存投影，由有效库存流水累计形成。</summary>

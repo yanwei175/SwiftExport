@@ -2,13 +2,16 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
-using SwiftExportClient.Features.Inventory.WarehouseSites.Components;
 using SwiftExportClient.Features.Inventory.WarehouseSites.Services;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Inventory.WarehouseSites.Views;
+using SwiftExportClient.Features.Suppliers.Components;
+using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using SwiftExport.Client.Wpf.Tests.Controls;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
@@ -38,14 +41,17 @@ public sealed class WarehouseSitesViewModelTests
         Assert.IsFalse(viewModel.OpenCreateCommand.CanExecute(null));
     }
 
-    /// <summary>验证抽屉在切换到编辑模型后仍通过页面代理解析候选数据和页面级命令。</summary>
+    /// <summary>验证两处供应商控件复用同一缓存，抽屉仍通过页面代理解析页面级命令。</summary>
     [TestMethod]
     public void DrawerBindings_ShouldResolvePageViewModelThroughProxy()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
             ApplicationResourceLoader.Load();
-            using var viewModel = CreateViewModel(new FakeWarehouseApi());
+            var supplier = Supplier("S-01", "供应商甲");
+            using var viewModel = CreateViewModel(
+                new FakeWarehouseApi(),
+                cache: new ReferenceDataCacheServiceStub(suppliers: [supplier]));
             await viewModel.OpenCreateCommand.ExecuteAsync(null);
             var view = new WarehouseSitesView { DataContext = viewModel };
             var window = new Window
@@ -71,13 +77,14 @@ public sealed class WarehouseSitesViewModelTests
                 await Dispatcher.Yield(DispatcherPriority.DataBind);
                 view.UpdateLayout();
 
-                var editor = FindVisualDescendants<WarehouseSupplierLookupTextBox>(view)
+                var supplierEditors = FindVisualDescendants<SupplierAutoSuggestComboBox>(view).ToList();
+                Assert.AreEqual(2, supplierEditors.Count);
+                var editor = supplierEditors
                     .Single(candidate => BindingOperations
-                        .GetBinding(candidate, WarehouseSupplierLookupTextBox.SelectedSupplierProperty)
+                        .GetBinding(candidate, SupplierAutoSuggestComboBox.SelectedSupplierProperty)
                         ?.Path.Path == "SelectedSupplier");
-                Assert.AreSame(viewModel.EditSupplierCandidates, editor.ItemsSource);
-                Assert.AreSame(viewModel.SearchEditSupplierCommand, editor.SearchCommand);
-                Assert.AreEqual(viewModel.IsEditSupplierBusy, editor.IsBusy);
+                Assert.AreSame(viewModel.SupplierOptions, editor.ItemsSource);
+                Assert.IsTrue(supplierEditors.All(candidate => ReferenceEquals(viewModel.SupplierOptions, candidate.ItemsSource)));
 
                 var buttons = FindVisualDescendants<Button>(view).ToList();
                 Assert.IsTrue(buttons.Any(button => Equals(button.Content, "保存") && ReferenceEquals(button.Command, viewModel.SaveCommand)));
@@ -85,9 +92,7 @@ public sealed class WarehouseSitesViewModelTests
 
                 listener.Flush();
                 var bindingErrors = output.ToString();
-                Assert.IsFalse(bindingErrors.Contains("EditSupplierCandidates", StringComparison.Ordinal), bindingErrors);
-                Assert.IsFalse(bindingErrors.Contains("SearchEditSupplierCommand", StringComparison.Ordinal), bindingErrors);
-                Assert.IsFalse(bindingErrors.Contains("IsEditSupplierBusy", StringComparison.Ordinal), bindingErrors);
+                Assert.IsFalse(bindingErrors.Contains("SupplierOptions", StringComparison.Ordinal), bindingErrors);
                 Assert.IsFalse(bindingErrors.Contains("SaveCommand", StringComparison.Ordinal), bindingErrors);
                 Assert.IsFalse(bindingErrors.Contains("CloseDrawerCommand", StringComparison.Ordinal), bindingErrors);
             }
@@ -98,6 +103,161 @@ public sealed class WarehouseSitesViewModelTests
                 trace.Switch.Level = previousLevel;
             }
         });
+    }
+
+    /// <summary>验证页面初始化只加载共享缓存，不再调用仓库专用供应商远程搜索。</summary>
+    [TestMethod]
+    public async Task Initialize_ShouldLoadSharedSupplierCacheWithoutWarehouseSupplierSearch()
+    {
+        var api = new FakeWarehouseApi();
+        var cache = new ReferenceDataCacheServiceStub(suppliers: [Supplier("S-01", "供应商甲")]);
+        using var viewModel = CreateViewModel(api, cache: cache);
+
+        await viewModel.InitializeAsync();
+
+        Assert.AreEqual(1, cache.EnsureLoadedCallCount);
+        Assert.AreEqual(1, viewModel.SupplierOptions.Count());
+        Assert.AreEqual(0, api.SupplierSearchCallCount);
+    }
+
+    /// <summary>验证缓存加载失败会如实提示，但不阻断虚拟仓列表查询。</summary>
+    [TestMethod]
+    public async Task Initialize_WhenCacheFails_ShouldReportAndStillLoadWarehouseList()
+    {
+        var api = new FakeWarehouseApi();
+        var messages = new FakeMessageService();
+        var cache = new ReferenceDataCacheServiceStub(
+            ensureSuccess: false,
+            ensureMessage: "供应商缓存不可用");
+        using var viewModel = CreateViewModel(api, messages: messages, cache: cache);
+
+        await viewModel.InitializeAsync();
+
+        Assert.AreEqual(1, api.SearchCallCount);
+        Assert.AreEqual("供应商缓存未更新", messages.LastErrorTitle);
+        Assert.AreEqual("供应商缓存不可用", messages.LastErrorMessage);
+    }
+
+    /// <summary>验证筛选控件按缓存本地过滤，并把完整选择及显式清空双向写回页面。</summary>
+    [TestMethod]
+    public void FilterSupplier_ShouldSearchSelectAndClearAgainstLocalCache()
+    {
+        DatePickerAssistTests.RunWithApplication(async () =>
+        {
+            ApplicationResourceLoader.Load();
+            var first = Supplier("S-001", "供应商甲");
+            var second = Supplier("S-002", "供应商乙");
+            var api = new FakeWarehouseApi();
+            using var viewModel = CreateViewModel(
+                api,
+                cache: new ReferenceDataCacheServiceStub(suppliers: [first, second]));
+            var view = new WarehouseSitesView { DataContext = viewModel };
+            var window = CreateHiddenWindow(view);
+            try
+            {
+                window.Show();
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                var filter = FindVisualDescendants<SupplierAutoSuggestComboBox>(view)
+                    .Single(candidate => BindingOperations
+                        .GetBinding(candidate, SupplierAutoSuggestComboBox.SelectedSupplierProperty)
+                        ?.Path.Path == nameof(WarehouseSitesViewModel.SearchSupplier));
+                var lookup = FindVisualDescendants<LookupTextBox>(filter).Single();
+                var input = (TextBox)lookup.FindName("InputTextBox")!;
+                var results = (ListBox)lookup.FindName("ResultList")!;
+
+                input.Focus();
+                input.Text = second.SupplierCode;
+                await Dispatcher.Yield(DispatcherPriority.Background);
+                Assert.AreEqual(1, results.Items.Count);
+                Assert.AreSame(second, results.Items[0]);
+
+                filter.SelectedSupplier = second;
+                await Dispatcher.Yield(DispatcherPriority.DataBind);
+                Assert.AreSame(second, viewModel.SearchSupplier);
+                ((Button)lookup.FindName("BtnClear")!).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await Dispatcher.Yield(DispatcherPriority.DataBind);
+                Assert.IsNull(viewModel.SearchSupplier);
+                Assert.AreEqual(0, api.SupplierSearchCallCount);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    /// <summary>验证仓库筛选只提交已确认缓存对象的 Uid，而不提交输入显示文本。</summary>
+    [TestMethod]
+    public async Task Search_ShouldSubmitSelectedSupplierUid()
+    {
+        var api = new FakeWarehouseApi();
+        var supplier = Supplier("S-01", "供应商甲");
+        using var viewModel = CreateViewModel(
+            api,
+            cache: new ReferenceDataCacheServiceStub(suppliers: [supplier]));
+        viewModel.SearchSupplier = supplier;
+
+        await viewModel.SearchCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(1, api.SearchRequests.Count);
+        Assert.AreEqual(supplier.Uid, api.SearchRequests[0].SupplierId);
+        Assert.AreEqual(0, api.SupplierSearchCallCount);
+    }
+
+    /// <summary>验证历史供应商不在缓存时仍由详情快照回显，且编辑模式禁止改变归属。</summary>
+    [TestMethod]
+    public void EditSupplier_WhenMissingFromCache_ShouldKeepSnapshotReadOnly()
+    {
+        DatePickerAssistTests.RunWithApplication(async () =>
+        {
+            ApplicationResourceLoader.Load();
+            var warehouse = Warehouse("WH-01", "历史仓");
+            var api = new FakeWarehouseApi { DetailResult = ServiceResult<WarehouseSiteDto>.Ok(warehouse) };
+            using var viewModel = CreateViewModel(
+                api,
+                cache: new ReferenceDataCacheServiceStub(suppliers: [Supplier("S-NEW", "新供应商")]));
+            viewModel.SelectedItem = warehouse;
+            await viewModel.OpenEditCommand.ExecuteAsync(null);
+            var view = new WarehouseSitesView { DataContext = viewModel };
+            var window = CreateHiddenWindow(view);
+            try
+            {
+                window.Show();
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                await Dispatcher.Yield(DispatcherPriority.DataBind);
+                var editor = FindVisualDescendants<SupplierAutoSuggestComboBox>(view)
+                    .Single(candidate => BindingOperations
+                        .GetBinding(candidate, SupplierAutoSuggestComboBox.SelectedSupplierProperty)
+                        ?.Path.Path == "SelectedSupplier");
+
+                Assert.IsFalse(editor.IsEnabled);
+                Assert.AreEqual(warehouse.SupplierId, editor.SelectedSupplier?.Uid);
+                Assert.AreEqual(warehouse.SupplierCode, editor.SelectedSupplier?.SupplierCode);
+                Assert.IsNotNull(editor.ItemsSource);
+                Assert.IsFalse(editor.ItemsSource!.Cast<SupplierDto>().Any(item => item.Uid == warehouse.SupplierId));
+                var display = (TextBlock)FindVisualDescendants<LookupTextBox>(editor).Single().FindName("DisplayTextBlock")!;
+                Assert.AreEqual(warehouse.SupplierCode, display.Text);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    /// <summary>验证关闭新增抽屉会通知新增按钮恢复可用，无需刷新列表。</summary>
+    [TestMethod]
+    public async Task CloseCreateDrawer_ShouldNotifyAndRestoreCreate()
+    {
+        using var viewModel = CreateViewModel(new FakeWarehouseApi());
+        await viewModel.OpenCreateCommand.ExecuteAsync(null);
+        Assert.IsFalse(viewModel.OpenCreateCommand.CanExecute(null));
+        var notifications = 0;
+        viewModel.OpenCreateCommand.CanExecuteChanged += (_, _) => notifications++;
+        await viewModel.CloseDrawerCommand.ExecuteAsync(null);
+        Assert.IsFalse(viewModel.IsDrawerOpen);
+        Assert.IsTrue(viewModel.OpenCreateCommand.CanExecute(null));
+        Assert.IsTrue(notifications > 0);
     }
 
     /// <summary>验证编辑使用独立模型，放弃抽屉不会污染列表 DTO。</summary>
@@ -147,16 +307,15 @@ public sealed class WarehouseSitesViewModelTests
         };
         using var viewModel = CreateViewModel(api);
         await viewModel.OpenCreateCommand.ExecuteAsync(null);
-        viewModel.EditModel!.SelectedSupplier = new WarehouseSupplierLookupDto
-        {
-            Uid = Guid.NewGuid(), SupplierCode = "S-01", SupplierName = "供应商甲"
-        };
+        var selectedSupplier = Supplier("S-01", "供应商甲");
+        viewModel.EditModel!.SelectedSupplier = selectedSupplier;
         viewModel.EditModel.Code = "WH-01";
 
         await viewModel.SaveCommand.ExecuteAsync(null);
         await viewModel.SaveCommand.ExecuteAsync(null);
 
         Assert.AreEqual(2, api.CreateCommands.Count);
+        Assert.AreEqual(selectedSupplier.Uid, api.CreateCommands[0].SupplierId);
         Assert.AreEqual(api.CreateCommands[0].CommandId, api.CreateCommands[1].CommandId);
         Assert.IsFalse(viewModel.IsDrawerOpen);
     }
@@ -194,14 +353,34 @@ public sealed class WarehouseSitesViewModelTests
         FakeWarehouseApi api,
         FakeDialogService? dialogs = null,
         FakeReasonDialog? reasonDialog = null,
-        IReadOnlyList<string>? permissions = null)
+        IReadOnlyList<string>? permissions = null,
+        FakeMessageService? messages = null,
+        IReferenceDataCacheService? cache = null)
         => new(
             api,
             new PassThroughApiCallRunner(),
-            new FakeMessageService(),
+            messages ?? new FakeMessageService(),
             dialogs ?? new FakeDialogService(),
             reasonDialog ?? new FakeReasonDialog(),
-            new CurrentUserStub(permissions ?? [PermissionKeys.InventoryWarehouseManage]));
+            new CurrentUserStub(permissions ?? [PermissionKeys.InventoryWarehouseManage]),
+            cache ?? new ReferenceDataCacheServiceStub());
+
+    private static SupplierDto Supplier(string code, string name) => new()
+    {
+        Uid = Guid.NewGuid(), SupplierCode = code, SupplierName = name
+    };
+
+    /// <summary>创建不会干扰桌面的离屏测试窗口。</summary>
+    private static Window CreateHiddenWindow(UIElement content) => new()
+    {
+        Width = 900,
+        Height = 640,
+        ShowInTaskbar = false,
+        ShowActivated = false,
+        Left = -10000,
+        Top = -10000,
+        Content = content
+    };
 
     private static WarehouseSiteDto Warehouse(string code, string name) => new()
     {
@@ -240,17 +419,27 @@ public sealed class WarehouseSitesViewModelTests
         public Func<CreateSupplierVirtualWarehouseCommand, Task<ServiceResult<WarehouseSiteDto>>>? CreateHandler { get; set; }
         public ServiceResult<WarehouseSiteDto> DetailResult { get; init; } = ServiceResult<WarehouseSiteDto>.Fail("未配置详情");
         public List<CreateSupplierVirtualWarehouseCommand> CreateCommands { get; } = [];
+        public List<WarehouseSiteSearchRequest> SearchRequests { get; } = [];
+        public int SearchCallCount { get; private set; }
+        public int SupplierSearchCallCount { get; private set; }
         public int DeleteCallCount { get; private set; }
 
         public Task<ServiceResult<PagedResponseBase<WarehouseCandidateDto>>> SearchCandidatesAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
         public Task<ServiceResult<PagedResponseBase<WarehouseSiteDto>>> SearchAsync(WarehouseSiteSearchRequest request, CancellationToken cancellationToken = default)
-            => SearchHandler(request, cancellationToken);
+        {
+            SearchCallCount++;
+            SearchRequests.Add(request);
+            return SearchHandler(request, cancellationToken);
+        }
         public Task<ServiceResult<PagedResponseBase<WarehouseSupplierLookupDto>>> SearchSuppliersAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
-            => Task.FromResult(ServiceResult<PagedResponseBase<WarehouseSupplierLookupDto>>.Ok(new PagedResponseBase<WarehouseSupplierLookupDto>
+        {
+            SupplierSearchCallCount++;
+            return Task.FromResult(ServiceResult<PagedResponseBase<WarehouseSupplierLookupDto>>.Ok(new PagedResponseBase<WarehouseSupplierLookupDto>
             {
                 Items = [], TotalCount = 0, PageIndex = 1, PageSize = 20
             }));
+        }
         public Task<ServiceResult<WarehouseSiteDto>> GetAsync(Guid uid, CancellationToken cancellationToken = default)
             => Task.FromResult(DetailResult);
         public Task<ServiceResult<WarehouseSiteDto>> CreateSupplierVirtualAsync(CreateSupplierVirtualWarehouseCommand command, CancellationToken cancellationToken = default)
@@ -296,10 +485,16 @@ public sealed class WarehouseSitesViewModelTests
 
     private sealed class FakeMessageService : IMessageService
     {
+        public string? LastErrorTitle { get; private set; }
+        public string? LastErrorMessage { get; private set; }
         public void ShowInfo(string title, string message) { }
         public void ShowSuccess(string title, string message) { }
         public void ShowWarning(string title, string message) { }
-        public void ShowError(string title, string message) { }
+        public void ShowError(string title, string message)
+        {
+            LastErrorTitle = title;
+            LastErrorMessage = message;
+        }
     }
 
     private sealed class CurrentUserStub(IReadOnlyList<string> permissions) : ICurrentUserService

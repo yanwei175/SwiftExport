@@ -10,7 +10,7 @@
              d:DataContext="{d:DesignInstance viewModels:WarehouseSitesViewModel}"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:proxies="clr-namespace:SwiftExportClient.Resources.Proxies"
-             xmlns:warehouse="clr-namespace:SwiftExportClient.Features.Inventory.WarehouseSites.Components">
+             xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components">
     <UserControl.Resources>
         <proxies:BindingProxy x:Key="WarehousePageProxy" Data="{Binding}" />
     </UserControl.Resources>
@@ -28,12 +28,10 @@
             <ui:TextBox Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}"
                      PlaceholderText="仓库代码,名称,供应商代码或名称"
                      AutomationProperties.Name="虚拟仓关键词" />
-            <warehouse:WarehouseSupplierLookupTextBox Grid.Column="2"
-                                                      ItemsSource="{Binding FilterSupplierCandidates}"
-                                                      SearchCommand="{Binding SearchFilterSupplierCommand}"
-                                                      IsBusy="{Binding IsFilterSupplierBusy}"
-                                                      SelectedSupplier="{Binding SearchSupplier,Mode=TwoWay}"
-                                                      Placeholder="按供应商精确筛选" />
+            <supplierComponents:SupplierAutoSuggestComboBox Grid.Column="2"
+                                                             ItemsSource="{Binding SupplierOptions}"
+                                                             SelectedSupplier="{Binding SearchSupplier,Mode=TwoWay}"
+                                                             Placeholder="按供应商精确筛选" />
             <ComboBox Grid.Column="4" ItemsSource="{Binding StatusOptions}"
                       SelectedItem="{Binding SelectedStatus}" DisplayMemberPath="DisplayText"
                       AutomationProperties.Name="虚拟仓状态筛选" />
@@ -100,13 +98,11 @@
                         </DockPanel>
 
                         <TextBlock Margin="0,16,0,4" Text="供应商 *" FontWeight="SemiBold" />
-                        <warehouse:WarehouseSupplierLookupTextBox ItemsSource="{Binding Data.EditSupplierCandidates,Source={StaticResource WarehousePageProxy}}"
-                                                                 SearchCommand="{Binding Data.SearchEditSupplierCommand,Source={StaticResource WarehousePageProxy}}"
-                                                                 IsBusy="{Binding Data.IsEditSupplierBusy,Source={StaticResource WarehousePageProxy}}"
-                                                                 SelectedSupplier="{Binding SelectedSupplier,Mode=TwoWay,ValidatesOnNotifyDataErrors=True}"
-                                                                 Placeholder="选择活动供应商">
-                            <warehouse:WarehouseSupplierLookupTextBox.Style>
-                                <Style TargetType="warehouse:WarehouseSupplierLookupTextBox">
+                        <supplierComponents:SupplierAutoSuggestComboBox ItemsSource="{Binding Data.SupplierOptions,Source={StaticResource WarehousePageProxy}}"
+                                                                        SelectedSupplier="{Binding SelectedSupplier,Mode=TwoWay,ValidatesOnNotifyDataErrors=True}"
+                                                                        Placeholder="选择供应商">
+                            <supplierComponents:SupplierAutoSuggestComboBox.Style>
+                                <Style TargetType="supplierComponents:SupplierAutoSuggestComboBox">
                                     <Setter Property="IsEnabled" Value="False" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsCreateMode}" Value="True">
@@ -114,8 +110,8 @@
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
-                            </warehouse:WarehouseSupplierLookupTextBox.Style>
-                        </warehouse:WarehouseSupplierLookupTextBox>
+                            </supplierComponents:SupplierAutoSuggestComboBox.Style>
+                        </supplierComponents:SupplierAutoSuggestComboBox>
 
                         <TextBlock Margin="0,12,0,4" Text="仓库代码 *" FontWeight="SemiBold" />
                         <TextBox Text="{Binding Code,UpdateSourceTrigger=PropertyChanged,ValidatesOnNotifyDataErrors=True}" MaxLength="100">

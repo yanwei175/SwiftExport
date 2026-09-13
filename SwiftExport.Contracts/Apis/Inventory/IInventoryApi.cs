@@ -15,10 +15,6 @@ namespace SwiftExport.Contracts.Apis.Inventory
         [Post("/ledger/search")]
         Task<ServiceResult<PagedResponseBase<InventoryLedgerItemDto>>> SearchLedgerAsync([Body] InventoryLedgerSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));
         [Get("/balances/{uid}/trace")]
-        Task<ServiceResult<InventoryBalanceTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken));
-        [Post("/opening-balances/preview")]
-        Task<ServiceResult<System.Collections.Generic.List<InventoryPostingResultDto>>> PreviewOpeningBalancesAsync([Body] OpeningBalanceCommand command, CancellationToken cancellationToken = default(CancellationToken));
-        [Post("/opening-balances/post")]
-        Task<ServiceResult<System.Collections.Generic.List<InventoryPostingResultDto>>> PostOpeningBalancesAsync([Body] OpeningBalanceCommand command, CancellationToken cancellationToken = default(CancellationToken));
+        Task<ServiceResult<InventoryBalanceTraceDto>> GetTraceAsync(Guid uid, [Query] int pageIndex = 1, [Query] int pageSize = 50, CancellationToken cancellationToken = default(CancellationToken));
     }
 }

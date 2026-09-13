@@ -66,6 +66,9 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public string WarehouseCode { get; set; }
         /// <remarks>来源：WarehouseSite.Name。</remarks>
         public string WarehouseName { get; set; }
+        public Guid? SupplierId { get; set; }
+        public string SupplierCode { get; set; }
+        public string SupplierName { get; set; }
         public Guid ProductId { get; set; }
         /// <remarks>来源：优先 Product.Sku，为空时使用 InventoryBalance.SkuSnapshot。</remarks>
         public string Sku { get; set; }
@@ -76,6 +79,7 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public decimal OnHandQty { get; set; }
         /// <remarks>计算来源：当前阶段等于 InventoryBalance.OnHandQty，尚未扣减独立预占量。</remarks>
         public decimal AvailableQty { get; set; }
+        public long LastLedgerSequence { get; set; }
         public DateTime? UpdatedDate { get; set; }
     }
 
@@ -97,9 +101,11 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public Guid WarehouseSiteId { get; set; }
         /// <remarks>来源：WarehouseSite.Code。</remarks>
         public string WarehouseCode { get; set; }
+        public string WarehouseName { get; set; }
         public Guid ProductId { get; set; }
         /// <remarks>来源：优先 Product.Sku，为空时使用 InventoryLedgerEntry.SkuSnapshot。</remarks>
         public string Sku { get; set; }
+        public string ProductName { get; set; }
         /// <remarks>来源：InventoryLedgerEntry.UnitSnapshot。</remarks>
         public string Unit { get; set; }
         public InventoryTransactionTypeEnum TransactionType { get; set; }
@@ -110,6 +116,10 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public Guid? SourceLineId { get; set; }
         public string SourceDocumentNo { get; set; }
         public Guid? ReversalOfLedgerId { get; set; }
+        public Guid? ReversedByLedgerId { get; set; }
+        public Guid? ReplacementOfLedgerId { get; set; }
+        public Guid? ReplacedByLedgerId { get; set; }
+        public Guid? CorrectionGroupId { get; set; }
         public string Reason { get; set; }
         public DateTime OccurredDate { get; set; }
         public string CreatedBy { get; set; }
@@ -120,21 +130,20 @@ namespace SwiftExport.Contracts.DTOs.Inventory
     {
         public InventoryBalanceDto Balance { get; set; }
         public List<InventoryLedgerItemDto> Ledgers { get; set; } = new List<InventoryLedgerItemDto>();
+        public int TotalCount { get; set; }
+        public int PageIndex { get; set; }
+        public int PageSize { get; set; }
+        public InventoryReconciliationDto Reconciliation { get; set; }
     }
 
-    public class OpeningBalanceLineCommand
+    /// <summary>库存余额与不可变流水净额的只读对账结果，不自动修正任何数据。</summary>
+    public class InventoryReconciliationDto
     {
-        public Guid CommandItemId { get; set; }
-        public Guid WarehouseSiteId { get; set; }
-        public Guid ProductId { get; set; }
-        public decimal QuantityDelta { get; set; }
-        public string Reason { get; set; }
-    }
-
-    public class OpeningBalanceCommand
-    {
-        public Guid CommandId { get; set; }
-        public List<OpeningBalanceLineCommand> Lines { get; set; } = new List<OpeningBalanceLineCommand>();
+        public decimal BalanceQty { get; set; }
+        public decimal LedgerNetQty { get; set; }
+        public long BalanceLastLedgerSequence { get; set; }
+        public long LedgerLastSequence { get; set; }
+        public bool IsReconciled { get; set; }
     }
 
     public class InventoryPostingResultDto

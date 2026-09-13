@@ -22,7 +22,7 @@ namespace SwiftExport.Application.Services.Inventory;
 /// <summary>提供库存查询与命令编排；供应商虚拟仓写操作在同一事务内完成校验、变更和审计。</summary>
 public sealed class InventoryService(
     ServiceBaseContext context, IWarehouseSiteRepository warehouseSites, IInventoryRepository inventory,
-    IInventoryPostingService posting, IBusinessOperationLogRepository operationLogs, ICorrelationContext correlation,
+    IBusinessOperationLogRepository operationLogs, ICorrelationContext correlation,
     ICurrentUser currentUser, IUserPermissionService permissions) : IInventoryService
 {
     private const string Module = "Inventory";
@@ -31,12 +31,6 @@ public sealed class InventoryService(
     private readonly DbSession _session = context.Session;
     private readonly ILogger<InventoryService> _logger = context.LoggerFactory.CreateLogger<InventoryService>();
     private readonly IUserPermissionService _permissions = permissions;
-    /// <summary>库存期初过账权限稳定键。</summary>
-    public const string OpeningBalancePostPermission = "Inventory.OpeningBalance.Post";
-    /// <summary>负库存特批权限稳定键。</summary>
-    public const string NegativeStockOverridePermission = "Inventory.NegativeStock.Override";
-    /// <summary>库存单据反向操作权限稳定键。</summary>
-    public const string DocumentReversePermission = "Inventory.Document.Reverse";
 
     /// <inheritdoc/>
     public async Task<ServiceResult<PagedResponseBase<WarehouseSupplierLookupDto>>> SearchWarehouseSuppliersAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
@@ -64,13 +58,41 @@ public sealed class InventoryService(
             ? ServiceResult<WarehouseSiteDto>.Fail("虚拟仓 Uid 不能为空。")
             : await ReadWarehouseAsync(async () => await warehouseSites.GetDtoAsync(uid, cancellationToken)
                 ?? throw new InventoryPostingException("虚拟仓不存在。"), cancellationToken, "加载虚拟仓失败。");
-    public async Task<ServiceResult<PagedResponseBase<InventoryBalanceDto>>> SearchBalancesAsync(InventoryBalanceSearchRequest request, CancellationToken cancellationToken = default) => await ReadAsync(() => inventory.SearchBalancesAsync(request ?? new InventoryBalanceSearchRequest(), cancellationToken), "查询库存余额失败。");
-    public async Task<ServiceResult<PagedResponseBase<InventoryLedgerItemDto>>> SearchLedgerAsync(InventoryLedgerSearchRequest request, CancellationToken cancellationToken = default) => await ReadAsync(() => inventory.SearchLedgerAsync(request ?? new InventoryLedgerSearchRequest(), cancellationToken), "查询库存流水失败。");
-
-    public async Task<ServiceResult<InventoryBalanceTraceDto>> GetBalanceTraceAsync(Guid uid, CancellationToken cancellationToken = default)
+    public async Task<ServiceResult<PagedResponseBase<InventoryBalanceDto>>> SearchBalancesAsync(InventoryBalanceSearchRequest request, CancellationToken cancellationToken = default)
     {
-        if (uid == Guid.Empty) return ServiceResult<InventoryBalanceTraceDto>.Fail("库存余额 Uid 不能为空。");
-        return await ReadAsync(async () => new InventoryBalanceTraceDto { Balance = await inventory.GetBalanceDtoAsync(uid, cancellationToken) ?? throw new InventoryPostingException("库存余额不存在。"), Ledgers = (await inventory.GetLedgerByBalanceAsync(uid, cancellationToken)).ToList() }, "加载库存追溯失败。");
+        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > 200 || request.Keyword?.Length > 200)
+            return ServiceResult<PagedResponseBase<InventoryBalanceDto>>.Fail("库存余额查询条件无效。");
+        return await ReadWarehouseAsync(() => inventory.SearchBalancesAsync(request, cancellationToken), cancellationToken, "查询库存余额失败。");
+    }
+
+    public async Task<ServiceResult<PagedResponseBase<InventoryLedgerItemDto>>> SearchLedgerAsync(InventoryLedgerSearchRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > 200 || request.Keyword?.Length > 200
+            || request.SourceDocumentNo?.Length > 100 || request.OccurredDateFrom > request.OccurredDateTo)
+            return ServiceResult<PagedResponseBase<InventoryLedgerItemDto>>.Fail("库存流水查询条件无效。");
+        return await ReadWarehouseAsync(() => inventory.SearchLedgerAsync(request, cancellationToken), cancellationToken, "查询库存流水失败。");
+    }
+
+    public async Task<ServiceResult<InventoryBalanceTraceDto>> GetBalanceTraceAsync(Guid uid, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+    {
+        if (uid == Guid.Empty || pageIndex < 1 || pageSize is < 1 or > 200)
+            return ServiceResult<InventoryBalanceTraceDto>.Fail("库存余额 Uid 或追溯分页参数无效。");
+        return await ReadWarehouseAsync(async () =>
+        {
+            var balance = await inventory.GetBalanceDtoAsync(uid, cancellationToken)
+                ?? throw new InventoryPostingException("库存余额不存在。");
+            var ledgerPage = await inventory.GetLedgerByBalanceAsync(uid, pageIndex, pageSize, cancellationToken);
+            return new InventoryBalanceTraceDto
+            {
+                Balance = balance,
+                Ledgers = ledgerPage.Items,
+                TotalCount = ledgerPage.TotalCount,
+                PageIndex = ledgerPage.PageIndex,
+                PageSize = ledgerPage.PageSize,
+                Reconciliation = await inventory.GetReconciliationAsync(uid, cancellationToken)
+                    ?? throw new InventoryPostingException("库存对账信息不存在。")
+            };
+        }, cancellationToken, "加载库存追溯失败。");
     }
 
     /// <inheritdoc/>
@@ -171,25 +193,6 @@ public sealed class InventoryService(
                 IsActive = false, UpdatedDate = DateTime.Now
             };
             return WarehouseCommandExecution.Create(result, before, result, reason, "虚拟仓已删除。");
-        }, cancellationToken);
-    }
-
-    public Task<ServiceResult<List<InventoryPostingResultDto>>> PreviewOpeningBalancesAsync(OpeningBalanceCommand command, CancellationToken cancellationToken = default)
-    {
-        var validation = ValidateOpening(command); if (validation is not null) return Task.FromResult(ServiceResult<List<InventoryPostingResultDto>>.Fail(validation));
-        return Task.FromResult(ServiceResult<List<InventoryPostingResultDto>>.Ok(command.Lines.Select(x => new InventoryPostingResultDto { CommandItemId = x.CommandItemId, Delta = x.QuantityDelta, AfterQty = x.QuantityDelta }).ToList()));
-    }
-
-    public Task<ServiceResult<List<InventoryPostingResultDto>>> PostOpeningBalancesAsync(OpeningBalanceCommand command, CancellationToken cancellationToken = default)
-    {
-        var validation = ValidateOpening(command); if (validation is not null) return Task.FromResult(ServiceResult<List<InventoryPostingResultDto>>.Fail(validation));
-        if (!currentUser.IsAuthenticated) return Task.FromResult(ServiceResult<List<InventoryPostingResultDto>>.Fail($"需要权限 {OpeningBalancePostPermission}。"));
-        return ExecuteAsync(command.CommandId, "Inventory.OpeningBalance.Posted", async () =>
-        {
-            var items = command.Lines.Select(x => new InventoryPostingItem { CommandItemId = x.CommandItemId, WarehouseSiteId = x.WarehouseSiteId, ProductId = x.ProductId, QuantityDelta = x.QuantityDelta, TransactionType = InventoryTransactionTypeEnum.OpeningBalance, SourceDocumentType = "OpeningBalance", SourceDocumentId = command.CommandId, Reason = Normalize(x.Reason, 500), OccurredDate = DateTime.Now }).ToList();
-            var result = (await posting.PostAsync(command.CommandId, items, cancellationToken)).ToList();
-            await WriteLogAsync(command.CommandId, "InventoryOpeningBalance", command.CommandId, null, "Inventory.OpeningBalance.Posted", "库存期初余额已过账", null, $"已过账 {result.Count} 条库存期初余额。", null);
-            return result;
         }, cancellationToken);
     }
 
@@ -381,23 +384,6 @@ public sealed class InventoryService(
     {
         try { return ServiceResult<T>.Ok(await action()); } catch (OperationCanceledException) { throw; } catch (InventoryPostingException ex) { return ServiceResult<T>.Fail(ex.Message); } catch (Exception ex) { _logger.LogError(ex, "{Failure}", failure); return ServiceResult<T>.Fail(failure); }
     }
-    private async Task<ServiceResult<T>> ExecuteAsync<T>(Guid commandId, string operationType, Func<Task<T>> action, CancellationToken cancellationToken)
-    {
-        if (_session.Transaction is not null) return ServiceResult<T>.Fail("当前请求已存在未完成事务。");
-        _session.Transaction = _session.Connection.BeginTransaction();
-        try { var result = await action(); cancellationToken.ThrowIfCancellationRequested(); _session.Transaction.Commit(); return ServiceResult<T>.Ok(result); }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { _session.Transaction.Rollback(); throw; }
-        catch (InventoryPostingException ex) { _session.Transaction.Rollback(); return ServiceResult<T>.Fail(ex.Message); }
-        catch (Exception ex) { _session.Transaction.Rollback(); _logger.LogError(ex, "库存命令 {OperationType}/{CommandId} 执行失败。", operationType, commandId); return ServiceResult<T>.Fail("库存命令执行失败。"); }
-        finally { _session.Transaction.Dispose(); _session.Transaction = null; }
-    }
-    private async Task WriteLogAsync(Guid commandId, string aggregateType, Guid aggregateId, string? aggregateNo, string operationType, string operationName, string? reason, string summary, string? changed)
-    {
-        if (await operationLogs.GetByCommandAsync(Module, operationType, commandId) is not null) return;
-        var log = new BusinessOperationLog { Uid = GuidSequentialGenerator.NewGuid(), CorrelationId = Normalize(correlation.CorrelationId, 64) ?? commandId.ToString("N"), CommandId = commandId, Module = Module, AggregateType = aggregateType, AggregateUid = aggregateId, AggregateNoSnapshot = aggregateNo, OperationType = operationType, OperationName = operationName, Reason = reason, Summary = summary, ChangedFieldsJson = changed, UserUid = currentUser.UserId, UserNameSnapshot = currentUser.UserName, OccurredDate = DateTime.Now };
-        if (await operationLogs.InsertAsync(log) != 1) throw new InventoryPostingException("业务操作日志写入失败。");
-    }
-    private static string? ValidateOpening(OpeningBalanceCommand command) => command is null || command.CommandId == Guid.Empty || command.Lines is null || command.Lines.Count == 0 ? "期初余额命令和明细不能为空。" : command.Lines.Any(x => x.CommandItemId == Guid.Empty || x.WarehouseSiteId == Guid.Empty || x.ProductId == Guid.Empty || x.QuantityDelta == 0 || string.IsNullOrWhiteSpace(x.Reason)) ? "期初余额明细必须包含仓库、产品、非零数量和原因。" : command.Lines.Select(x => x.CommandItemId).Distinct().Count() != command.Lines.Count ? "期初余额 CommandItemId 不能重复。" : null;
     private static string? Normalize(string? text, int max) { var value = text?.Trim(); return string.IsNullOrEmpty(value) ? null : value[..Math.Min(value.Length, max)]; }
 
     /// <summary>仓库日志中的命令指纹与前后值载体，仅用于服务端可靠重放。</summary>

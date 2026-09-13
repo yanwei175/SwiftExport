@@ -145,6 +145,8 @@
 
 ## 写入边界
 
+D:\DevCaches是NuGet包的文档地址,你拥有权限,避免每次隔离构建都因目录缺少NuGet资产文件而退出.
+
 当前 .NET 10 前端任务默认写入范围：
 
 - `SwiftExport.Client.Wpf/**`

@@ -418,13 +418,16 @@ public sealed class PackingListWorkspaceService(
         if (_session.Transaction is not null) return Blocked("TRANSACTION_ACTIVE", "当前请求已存在未完成事务。");
         _session.Transaction = _session.Connection.BeginTransaction();
         try { var result = await action(); cancellationToken.ThrowIfCancellationRequested(); _session.Transaction.Commit(); return ServiceResult<PackingListCommandResultDto>.Ok(result); }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { _session.Transaction.Rollback(); throw; }
-        catch (PackingListBusinessException ex) { _session.Transaction.Rollback(); return Blocked(ex.Code, ex.Message, ex.Status); }
-        catch (SourceDeliveryException ex) { _session.Transaction.Rollback(); return Blocked(ex.Code, ex.Message); }
-        catch (InventoryPostingException ex) { _session.Transaction.Rollback(); return Blocked("POSTING_BLOCKED", ex.Message); }
-        catch (Exception ex) { _session.Transaction.Rollback(); _logger.LogError(ex, "PackingList 命令执行失败。"); return Blocked("UNEXPECTED_ERROR", "PackingList 命令执行失败。"); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { TryRollback(); throw; }
+        catch (PackingListBusinessException ex) { TryRollback(); return Blocked(ex.Code, ex.Message, ex.Status); }
+        catch (SourceDeliveryException ex) { TryRollback(); return Blocked(ex.Code, ex.Message); }
+        catch (InventoryPostingException ex) { TryRollback(); return Blocked("POSTING_BLOCKED", ex.Message); }
+        catch (Exception ex) { TryRollback(); _logger.LogError(ex, "PackingList 命令执行失败。"); return Blocked("UNEXPECTED_ERROR", "PackingList 命令执行失败。"); }
         finally { _session.Transaction.Dispose(); _session.Transaction = null; }
     }
+
+    /// <summary>库存内核可能已回滚外层事务；重复回滚不得覆盖首个业务异常。</summary>
+    private void TryRollback() { try { _session.Transaction?.Rollback(); } catch { } }
 
     private async Task WriteLogAsync(Guid commandId, PackingListDocument document, string operationType, string operationName, string? reason)
     {

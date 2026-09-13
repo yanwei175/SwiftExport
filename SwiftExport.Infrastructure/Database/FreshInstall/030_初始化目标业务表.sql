@@ -181,21 +181,31 @@ CREATE UNIQUE INDEX UX_WarehouseSite_ActiveSupplier ON dbo.WarehouseSite(Supplie
 CREATE TABLE dbo.InventoryBalance
 (
  Uid uniqueidentifier NOT NULL,Version int NOT NULL CONSTRAINT DF_InventoryBalance_Version DEFAULT(1),IsDeleted bit NOT NULL CONSTRAINT DF_InventoryBalance_IsDeleted DEFAULT(0),CreatedDate datetime2(7) NULL,CreatedBy nvarchar(100) NULL,UpdatedDate datetime2(7) NULL,UpdatedBy nvarchar(100) NULL,
- WarehouseSiteId uniqueidentifier NOT NULL,ProductId uniqueidentifier NOT NULL,SkuSnapshot nvarchar(200) NULL,UnitSnapshot nvarchar(100) NULL,OnHandQty decimal(18,4) NOT NULL CONSTRAINT DF_InventoryBalance_Qty DEFAULT(0),LastLedgerSequence bigint NOT NULL CONSTRAINT DF_InventoryBalance_Sequence DEFAULT(0),
+ WarehouseSiteId uniqueidentifier NOT NULL,ProductId uniqueidentifier NOT NULL,SkuSnapshot nvarchar(200) NULL,ProductNameSnapshot nvarchar(500) NULL,UnitSnapshot nvarchar(100) NULL,OnHandQty decimal(18,4) NOT NULL CONSTRAINT DF_InventoryBalance_Qty DEFAULT(0),LastLedgerSequence bigint NOT NULL CONSTRAINT DF_InventoryBalance_Sequence DEFAULT(0),
  CONSTRAINT PK_InventoryBalance PRIMARY KEY(Uid),CONSTRAINT CK_InventoryBalance_Version CHECK(Version>0)
 );
-CREATE UNIQUE INDEX UX_InventoryBalance_Warehouse_Product ON dbo.InventoryBalance(WarehouseSiteId,ProductId) WHERE IsDeleted=0;
+CREATE UNIQUE INDEX UX_InventoryBalance_Warehouse_Product ON dbo.InventoryBalance(WarehouseSiteId,ProductId);
 CREATE SEQUENCE dbo.InventoryLedgerSequence AS bigint START WITH 1 INCREMENT BY 1;
 
 CREATE TABLE dbo.InventoryLedgerEntry
 (
  Uid uniqueidentifier NOT NULL,Version int NOT NULL CONSTRAINT DF_InventoryLedger_Version DEFAULT(1),IsDeleted bit NOT NULL CONSTRAINT DF_InventoryLedger_IsDeleted DEFAULT(0),CreatedDate datetime2(7) NULL,CreatedBy nvarchar(100) NULL,UpdatedDate datetime2(7) NULL,UpdatedBy nvarchar(100) NULL,
- Sequence bigint NOT NULL,WarehouseSiteId uniqueidentifier NOT NULL,ProductId uniqueidentifier NOT NULL,TransactionType int NOT NULL,QuantityDelta decimal(18,4) NOT NULL,BalanceAfter decimal(18,4) NOT NULL,SourceDocumentType nvarchar(100) NOT NULL,SourceDocumentId uniqueidentifier NULL,SourceLineId uniqueidentifier NULL,ReversalOfLedgerId uniqueidentifier NULL,CommandId uniqueidentifier NOT NULL,CommandItemId uniqueidentifier NOT NULL,Reason nvarchar(2000) NULL,OccurredDate datetime2(7) NOT NULL,WarehouseCodeSnapshot nvarchar(100) NULL,SkuSnapshot nvarchar(200) NULL,UnitSnapshot nvarchar(100) NULL,
- CONSTRAINT PK_InventoryLedgerEntry PRIMARY KEY(Uid),CONSTRAINT CK_InventoryLedger_Version CHECK(Version>0),CONSTRAINT CK_InventoryLedger_Immutable CHECK(IsDeleted=0),CONSTRAINT CK_InventoryLedger_Type CHECK(TransactionType IN(10,11,12,20,21,90,100,900)),CONSTRAINT CK_InventoryLedger_Delta CHECK(QuantityDelta<>0)
+ Sequence bigint NOT NULL,WarehouseSiteId uniqueidentifier NOT NULL,ProductId uniqueidentifier NOT NULL,TransactionType int NOT NULL,QuantityDelta decimal(18,4) NOT NULL,BalanceAfter decimal(18,4) NOT NULL,SourceDocumentType nvarchar(100) NOT NULL,SourceDocumentId uniqueidentifier NULL,SourceLineId uniqueidentifier NULL,SourceDocumentNoSnapshot nvarchar(100) NULL,ReversalOfLedgerId uniqueidentifier NULL,ReplacementOfLedgerId uniqueidentifier NULL,CorrectionGroupId uniqueidentifier NULL,CommandId uniqueidentifier NOT NULL,CommandItemId uniqueidentifier NOT NULL,RequestFingerprint char(64) NULL,Reason nvarchar(2000) NULL,OccurredDate datetime2(7) NOT NULL,WarehouseCodeSnapshot nvarchar(100) NULL,WarehouseNameSnapshot nvarchar(300) NULL,SkuSnapshot nvarchar(200) NULL,ProductNameSnapshot nvarchar(500) NULL,UnitSnapshot nvarchar(100) NULL,
+ CONSTRAINT PK_InventoryLedgerEntry PRIMARY KEY(Uid),CONSTRAINT CK_InventoryLedger_Version CHECK(Version>0),CONSTRAINT CK_InventoryLedger_Immutable CHECK(IsDeleted=0),CONSTRAINT CK_InventoryLedger_Type CHECK(TransactionType IN(10,11,12,20,21,90,100,900)),CONSTRAINT CK_InventoryLedger_Delta CHECK(QuantityDelta<>0),CONSTRAINT CK_InventoryLedger_Relationships CHECK((TransactionType=900 AND ReversalOfLedgerId IS NOT NULL AND ReplacementOfLedgerId IS NULL) OR (TransactionType<>900 AND ReversalOfLedgerId IS NULL)),CONSTRAINT CK_InventoryLedger_CorrectionGroup CHECK(CorrectionGroupId IS NULL OR ReversalOfLedgerId IS NOT NULL OR ReplacementOfLedgerId IS NOT NULL)
 );
 CREATE UNIQUE INDEX UX_InventoryLedger_Sequence ON dbo.InventoryLedgerEntry(Sequence);
 CREATE UNIQUE INDEX UX_InventoryLedger_CommandItem ON dbo.InventoryLedgerEntry(CommandItemId);
 CREATE INDEX IX_InventoryLedger_Source ON dbo.InventoryLedgerEntry(SourceDocumentId,SourceLineId);
+CREATE UNIQUE INDEX UX_InventoryLedger_ReversalOf ON dbo.InventoryLedgerEntry(ReversalOfLedgerId) WHERE ReversalOfLedgerId IS NOT NULL;
+CREATE UNIQUE INDEX UX_InventoryLedger_ReplacementOf ON dbo.InventoryLedgerEntry(ReplacementOfLedgerId) WHERE ReplacementOfLedgerId IS NOT NULL;
+CREATE INDEX IX_InventoryLedger_CorrectionGroup ON dbo.InventoryLedgerEntry(CorrectionGroupId,Sequence) WHERE CorrectionGroupId IS NOT NULL;
+CREATE INDEX IX_InventoryLedger_WarehouseProductSequence ON dbo.InventoryLedgerEntry(WarehouseSiteId,ProductId,Sequence DESC);
+GO
+CREATE OR ALTER TRIGGER dbo.TR_InventoryLedgerEntry_Immutable ON dbo.InventoryLedgerEntry
+INSTEAD OF UPDATE,DELETE
+AS
+    THROW 53105,N'库存流水是不可变事实，禁止更新或删除；纠错必须追加反向流水。',1;
+GO
 
 CREATE TABLE dbo.InboundDocument
 (
