@@ -1,4 +1,5 @@
 using System.Windows.Controls;
+using System.Windows;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 
@@ -12,6 +13,16 @@ public partial class NetDemandWorkspaceView : UserControl
     public NetDemandWorkspaceView()
     {
         InitializeComponent();
+        IsVisibleChanged += OnIsVisibleChanged;
+    }
+
+    /// <summary>页签隐藏时关闭多行筛选 Popup，不清理用户已经输入的筛选条件。</summary>
+    private void OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is false && DataContext is NetDemandWorkspaceViewModel viewModel)
+        {
+            viewModel.IsMultiLineFilterOpen = false;
+        }
     }
 
     /// <summary>

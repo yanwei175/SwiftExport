@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Mvvm;
@@ -194,7 +195,8 @@ public sealed class NavigationAuthorizationTests
             registry,
             new NavigationAccessService(registry, currentUser),
             currentUser,
-            status);
+            status,
+            NullLogger<NavigationService>.Instance);
         return new TestContext(provider, currentUser, status, navigation);
     }
 
@@ -234,14 +236,29 @@ public sealed class NavigationAuthorizationTests
         }
     }
 
-    private sealed class TestServiceProvider : IServiceProvider
+    private sealed class TestServiceProvider : INavigationTabFactory
     {
         public int CreatedCount { get; private set; }
 
-        public object? GetService(Type serviceType)
+        public INavigationTabLease Create(NavigationRoute route)
         {
             CreatedCount++;
-            return Activator.CreateInstance(serviceType);
+            return new TestLease(Activator.CreateInstance(route.ViewModelType)!);
+        }
+
+        private sealed class TestLease(object viewModel) : INavigationTabLease
+        {
+            private object? _viewModel = viewModel;
+
+            public object ViewModel => _viewModel ?? throw new ObjectDisposedException(nameof(TestLease));
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref _viewModel, null) is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
         }
     }
 

@@ -1,0 +1,5 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:home="clr-namespace:SwiftExportClient.Features.Home">
+    <DataTemplate DataType="{x:Type home:HomeViewModel}"><home:HomeView /></DataTemplate>
+</ResourceDictionary>

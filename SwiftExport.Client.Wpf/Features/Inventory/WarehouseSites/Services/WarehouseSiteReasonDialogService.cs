@@ -14,14 +14,14 @@ public sealed class WarehouseSiteReasonDialogService(IContentDialogService dialo
     public async Task<string?> RequestAsync(string action, WarehouseSiteDto warehouse, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(warehouse);
-        var reasonBox = new TextBox
+        var reasonBox = new System.Windows.Controls.TextBox
         {
             AcceptsReturn = true, MaxLength = WarehouseSiteLimits.ReasonMaxLength, MinWidth = 440, MinHeight = 96,
             TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
         AutomationProperties.SetName(reasonBox, action + "原因");
         var panel = new StackPanel();
-        panel.Children.Add(new TextBlock
+        panel.Children.Add(new System.Windows.Controls.TextBlock
         {
             Text = $"目标：{warehouse.Code} · {warehouse.Name}\n该操作会由服务端重新校验版本和业务引用，请填写真实{action}原因。",
             TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)

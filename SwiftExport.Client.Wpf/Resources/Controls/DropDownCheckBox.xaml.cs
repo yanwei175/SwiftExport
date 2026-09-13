@@ -91,6 +91,7 @@ public partial class DropDownCheckBox : UserControl
         SetCurrentValue(SelectedItemsProperty, new ObservableCollection<object?>());
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+        IsVisibleChanged += OnIsVisibleChanged;
         UpdateSelectionText();
     }
 
@@ -194,6 +195,15 @@ public partial class DropDownCheckBox : UserControl
         SetCurrentValue(IsDropDownOpenProperty, false);
         DetachItemsSourceNotifier();
         DetachSelectedItemsNotifier();
+    }
+
+    /// <summary>页签内容隐藏时只关闭 Popup，不把隐藏误判为页面卸载或释放。</summary>
+    private void OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is false)
+        {
+            SetCurrentValue(IsDropDownOpenProperty, false);
+        }
     }
 
     private void DropDownButton_Click(object sender, RoutedEventArgs e)

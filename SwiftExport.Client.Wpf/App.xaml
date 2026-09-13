@@ -20,6 +20,18 @@
                 <ResourceDictionary Source="Resources/Image.xaml" />
                 <ResourceDictionary Source="Resources/TabControl.xaml" />
                 <ResourceDictionary Source="Resources/ListBox.xaml" />
+                <ResourceDictionary Source="Features/Home/页面模板.xaml" />
+                <ResourceDictionary Source="Features/Products/页面模板.xaml" />
+                <ResourceDictionary Source="Features/Customers/页面模板.xaml" />
+                <ResourceDictionary Source="Features/Suppliers/页面模板.xaml" />
+                <ResourceDictionary Source="Features/Sales/页面模板.xaml" />
+                <ResourceDictionary Source="Features/DemandPlanning/页面模板.xaml" />
+                <ResourceDictionary Source="Features/Procurement/页面模板.xaml" />
+                <ResourceDictionary Source="Features/QualityControl/页面模板.xaml" />
+                <ResourceDictionary Source="Features/Inventory/页面模板.xaml" />
+                <ResourceDictionary Source="Features/Shipping/页面模板.xaml" />
+                <ResourceDictionary Source="Features/Planning/页面模板.xaml" />
+                <ResourceDictionary Source="Features/SystemSettings/页面模板.xaml" />
 
             </ResourceDictionary.MergedDictionaries>
             <converters:EnumDescriptionConverter x:Key="EnumDescriptionConverter" />

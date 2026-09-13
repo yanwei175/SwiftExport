@@ -1,8 +1,13 @@
 <UserControl x:Class="SwiftExportClient.Features.Inventory.WarehouseSites.Views.WarehouseSitesView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:proxies="clr-namespace:SwiftExportClient.Resources.Proxies"
              xmlns:warehouse="clr-namespace:SwiftExportClient.Features.Inventory.WarehouseSites.Components">
+    <UserControl.Resources>
+        <proxies:BindingProxy x:Key="WarehousePageProxy" Data="{Binding}" />
+    </UserControl.Resources>
     <Grid Margin="12,8" RowDefinitions="Auto,8,Auto,8,*,8,Auto">
         <DockPanel LastChildFill="True">
             <StackPanel>
@@ -10,29 +15,31 @@
                 <TextBlock Text="管理供应商所在地仓库；库存数量与流水在独立只读页面维护。"
                            Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
             </StackPanel>
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <Button Content="查询" Command="{Binding SearchCommand}" AutomationProperties.Name="查询虚拟仓" />
-                <Button Margin="4,0,0,0" Content="刷新" Command="{Binding RefreshCommand}" AutomationProperties.Name="刷新虚拟仓" />
+
+        </DockPanel>
+
+        <Grid Grid.Row="2" ColumnDefinitions="240,8,280,8,140,8,Auto,*">
+            <ui:TextBox Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}"
+                     PlaceholderText="仓库代码,名称,供应商代码或名称"
+                     AutomationProperties.Name="虚拟仓关键词" />
+            <warehouse:WarehouseSupplierLookupTextBox Grid.Column="2"
+                                                      ItemsSource="{Binding FilterSupplierCandidates}"
+                                                      SearchCommand="{Binding SearchFilterSupplierCommand}"
+                                                      IsBusy="{Binding IsFilterSupplierBusy}"
+                                                      SelectedSupplier="{Binding SearchSupplier,Mode=TwoWay}"
+                                                      Placeholder="按供应商精确筛选" />
+            <ComboBox Grid.Column="4" ItemsSource="{Binding StatusOptions}"
+                      SelectedItem="{Binding SelectedStatus}" DisplayMemberPath="DisplayText"
+                      AutomationProperties.Name="虚拟仓状态筛选" />
+            <StackPanel Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <ui:Button Content="查询" Command="{Binding SearchCommand}" AutomationProperties.Name="查询虚拟仓" />
+                <Button Margin="4,0,0,0" Content="刷新" Command="{Binding RefreshCommand}" 
+                        AutomationProperties.Name="刷新虚拟仓" />
                 <Button Margin="12,0,0,0" Content="新增" Command="{Binding OpenCreateCommand}" />
                 <Button Margin="4,0,0,0" Content="编辑" Command="{Binding OpenEditCommand}" />
                 <Button Margin="4,0,0,0" Content="停用" Command="{Binding DeactivateCommand}" />
                 <Button Margin="4,0,0,0" Content="删除" Command="{Binding DeleteCommand}" />
             </StackPanel>
-        </DockPanel>
-
-        <Grid Grid.Row="2" ColumnDefinitions="220,8,280,8,140,*">
-            <TextBox Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}"
-                     ToolTip="仓库代码、名称、供应商代码或名称"
-                     AutomationProperties.Name="虚拟仓关键词" />
-            <warehouse:WarehouseSupplierLookupTextBox Grid.Column="2"
-                                                       ItemsSource="{Binding FilterSupplierCandidates}"
-                                                       SearchCommand="{Binding SearchFilterSupplierCommand}"
-                                                       IsBusy="{Binding IsFilterSupplierBusy}"
-                                                       SelectedSupplier="{Binding SearchSupplier,Mode=TwoWay}"
-                                                       Placeholder="按供应商精确筛选" />
-            <ComboBox Grid.Column="4" ItemsSource="{Binding StatusOptions}"
-                      SelectedItem="{Binding SelectedStatus}" DisplayMemberPath="DisplayText"
-                      AutomationProperties.Name="虚拟仓状态筛选" />
         </Grid>
 
         <controls:RightDrawerHost Grid.Row="4" IsOpen="{Binding IsDrawerOpen,Mode=OneWay}"
@@ -42,7 +49,6 @@
             <controls:RightDrawerHost.MainContent>
                 <DataGrid ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
                           AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
-                          Style="{StaticResource SwiftExportDataGrid}"
                           EnableRowVirtualization="True" EnableColumnVirtualization="True">
                     <DataGrid.InputBindings>
                         <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding OpenEditCommand}" />
@@ -76,18 +82,21 @@
             </controls:RightDrawerHost.MainContent>
 
             <controls:RightDrawerHost.DrawerContent>
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Background="Transparent">
                     <StackPanel Margin="16" DataContext="{Binding EditModel}">
                         <DockPanel LastChildFill="True">
                             <Button DockPanel.Dock="Right" Content="取消"
-                                    Command="{Binding DataContext.CloseDrawerCommand,RelativeSource={RelativeSource AncestorType=UserControl}}" />
-                            <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    Command="{Binding Data.CloseDrawerCommand,Source={StaticResource WarehousePageProxy}}" />
+                            <TextBlock Text="{Binding Title}" 
+                                       FontSize="18"
+                                       FontWeight="SemiBold" 
+                                       VerticalAlignment="Center" />
                         </DockPanel>
 
                         <TextBlock Margin="0,16,0,4" Text="供应商 *" FontWeight="SemiBold" />
-                        <warehouse:WarehouseSupplierLookupTextBox ItemsSource="{Binding DataContext.EditSupplierCandidates,RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                 SearchCommand="{Binding DataContext.SearchEditSupplierCommand,RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                 IsBusy="{Binding DataContext.IsEditSupplierBusy,RelativeSource={RelativeSource AncestorType=UserControl}}"
+                        <warehouse:WarehouseSupplierLookupTextBox ItemsSource="{Binding Data.EditSupplierCandidates,Source={StaticResource WarehousePageProxy}}"
+                                                                 SearchCommand="{Binding Data.SearchEditSupplierCommand,Source={StaticResource WarehousePageProxy}}"
+                                                                 IsBusy="{Binding Data.IsEditSupplierBusy,Source={StaticResource WarehousePageProxy}}"
                                                                  SelectedSupplier="{Binding SelectedSupplier,Mode=TwoWay,ValidatesOnNotifyDataErrors=True}"
                                                                  Placeholder="选择活动供应商">
                             <warehouse:WarehouseSupplierLookupTextBox.Style>
@@ -105,7 +114,7 @@
                         <TextBlock Margin="0,12,0,4" Text="仓库代码 *" FontWeight="SemiBold" />
                         <TextBox Text="{Binding Code,UpdateSourceTrigger=PropertyChanged,ValidatesOnNotifyDataErrors=True}" MaxLength="100">
                             <TextBox.Style>
-                                <Style TargetType="TextBox">
+                                <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
                                     <Setter Property="IsReadOnly" Value="True" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsCreateMode}" Value="True">
@@ -123,9 +132,11 @@
                                    Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" TextWrapping="Wrap" />
 
                         <StackPanel Margin="0,20,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="保存" Command="{Binding DataContext.SaveCommand,RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                            <ui:Button Content="保存" 
+                                       Appearance="Primary"
+                                       Command="{Binding Data.SaveCommand,Source={StaticResource WarehousePageProxy}}" />
                             <Button Margin="8,0,0,0" Content="取消"
-                                    Command="{Binding DataContext.CloseDrawerCommand,RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                    Command="{Binding Data.CloseDrawerCommand,Source={StaticResource WarehousePageProxy}}" />
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

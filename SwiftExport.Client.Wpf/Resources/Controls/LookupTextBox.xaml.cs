@@ -38,6 +38,7 @@ public partial class LookupTextBox : UserControl
 
         Loaded += LookupTextBox_Loaded;
         Unloaded += LookupTextBox_Unloaded;
+        IsVisibleChanged += LookupTextBox_IsVisibleChanged;
     }
 
     public static readonly DependencyProperty PlaceholderProperty =
@@ -543,6 +544,19 @@ public partial class LookupTextBox : UserControl
         _hasUserInputIntent = false;
         IsDropDownOpen = false;
         DetachCollectionChanged();
+    }
+
+    /// <summary>页签内容保活但被隐藏时关闭浮层并停止远程搜索防抖，避免后台页继续触发查询。</summary>
+    private void LookupTextBox_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true)
+        {
+            return;
+        }
+
+        _debounceTimer.Stop();
+        _hasUserInputIntent = false;
+        IsDropDownOpen = false;
     }
 
     public static readonly DependencyProperty SelectionClearedCommandProperty =

@@ -4,10 +4,21 @@ using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
+using SwiftExportClient.Features.Inventory.WarehouseSites.Components;
 using SwiftExportClient.Features.Inventory.WarehouseSites.Services;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
+using SwiftExportClient.Features.Inventory.WarehouseSites.Views;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using SwiftExport.Client.Wpf.Tests.Controls;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
+using System.Diagnostics;
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Inventory.WarehouseSites;
 
@@ -25,6 +36,68 @@ public sealed class WarehouseSitesViewModelTests
         Assert.IsTrue(viewModel.IsReadOnly);
         Assert.IsFalse(viewModel.HasManagePermission);
         Assert.IsFalse(viewModel.OpenCreateCommand.CanExecute(null));
+    }
+
+    /// <summary>验证抽屉在切换到编辑模型后仍通过页面代理解析候选数据和页面级命令。</summary>
+    [TestMethod]
+    public void DrawerBindings_ShouldResolvePageViewModelThroughProxy()
+    {
+        DatePickerAssistTests.RunWithApplication(async () =>
+        {
+            ApplicationResourceLoader.Load();
+            using var viewModel = CreateViewModel(new FakeWarehouseApi());
+            await viewModel.OpenCreateCommand.ExecuteAsync(null);
+            var view = new WarehouseSitesView { DataContext = viewModel };
+            var window = new Window
+            {
+                Width = 900,
+                Height = 640,
+                ShowInTaskbar = false,
+                ShowActivated = false,
+                Left = -10000,
+                Top = -10000,
+                Content = view
+            };
+            using var output = new StringWriter();
+            using var listener = new TextWriterTraceListener(output);
+            var trace = PresentationTraceSources.DataBindingSource;
+            var previousLevel = trace.Switch.Level;
+            trace.Switch.Level = SourceLevels.Error;
+            trace.Listeners.Add(listener);
+            try
+            {
+                window.Show();
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                await Dispatcher.Yield(DispatcherPriority.DataBind);
+                view.UpdateLayout();
+
+                var editor = FindVisualDescendants<WarehouseSupplierLookupTextBox>(view)
+                    .Single(candidate => BindingOperations
+                        .GetBinding(candidate, WarehouseSupplierLookupTextBox.SelectedSupplierProperty)
+                        ?.Path.Path == "SelectedSupplier");
+                Assert.AreSame(viewModel.EditSupplierCandidates, editor.ItemsSource);
+                Assert.AreSame(viewModel.SearchEditSupplierCommand, editor.SearchCommand);
+                Assert.AreEqual(viewModel.IsEditSupplierBusy, editor.IsBusy);
+
+                var buttons = FindVisualDescendants<Button>(view).ToList();
+                Assert.IsTrue(buttons.Any(button => Equals(button.Content, "保存") && ReferenceEquals(button.Command, viewModel.SaveCommand)));
+                Assert.AreEqual(2, buttons.Count(button => Equals(button.Content, "取消") && ReferenceEquals(button.Command, viewModel.CloseDrawerCommand)));
+
+                listener.Flush();
+                var bindingErrors = output.ToString();
+                Assert.IsFalse(bindingErrors.Contains("EditSupplierCandidates", StringComparison.Ordinal), bindingErrors);
+                Assert.IsFalse(bindingErrors.Contains("SearchEditSupplierCommand", StringComparison.Ordinal), bindingErrors);
+                Assert.IsFalse(bindingErrors.Contains("IsEditSupplierBusy", StringComparison.Ordinal), bindingErrors);
+                Assert.IsFalse(bindingErrors.Contains("SaveCommand", StringComparison.Ordinal), bindingErrors);
+                Assert.IsFalse(bindingErrors.Contains("CloseDrawerCommand", StringComparison.Ordinal), bindingErrors);
+            }
+            finally
+            {
+                window.Close();
+                trace.Listeners.Remove(listener);
+                trace.Switch.Level = previousLevel;
+            }
+        });
     }
 
     /// <summary>验证编辑使用独立模型，放弃抽屉不会污染列表 DTO。</summary>
@@ -141,6 +214,24 @@ public sealed class WarehouseSitesViewModelTests
         {
             Items = items.ToList(), TotalCount = items.Length, PageIndex = 1, PageSize = 20
         });
+
+    /// <summary>遍历已加载的真实视觉树，定位抽屉内控件及其绑定结果。</summary>
+    private static IEnumerable<T> FindVisualDescendants<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is T match)
+            {
+                yield return match;
+            }
+
+            foreach (var descendant in FindVisualDescendants<T>(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
 
     private sealed class FakeWarehouseApi : IWarehouseSiteApi
     {

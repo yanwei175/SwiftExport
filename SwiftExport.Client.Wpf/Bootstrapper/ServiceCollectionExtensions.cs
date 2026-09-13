@@ -34,6 +34,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAuthService, AuthService>();
         services.AddSingleton<INavigationRouteRegistry, NavigationRouteRegistry>();
         services.AddSingleton<INavigationAccessService, NavigationAccessService>();
+        services.AddSingleton<INavigationTabFactory, NavigationTabFactory>();
         services.AddSingleton<Navigation.INavigationService, Navigation.NavigationService>();
         services.AddSingleton<IApiCallRunner, ApiCallRunner>();
         services.AddSingleton<ISnackbarService, SnackbarService>();

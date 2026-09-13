@@ -1,40 +1,48 @@
-using Microsoft.Extensions.DependencyInjection;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using System.Windows;
+using Microsoft.Extensions.Logging;
 
 namespace SwiftExportClient.Navigation;
 
 /// <summary>管理工作区页签，并在所有打开和激活入口统一执行当前用户的路由权限校验。</summary>
 public sealed class NavigationService : ObservableObjectEx, INavigationService, IDisposable
 {
-    private readonly IServiceProvider _serviceProvider;
+    private const int MaximumBusinessTabCount = 10;
+    private const string HomeRouteKey = "home";
+    private readonly INavigationTabFactory _tabFactory;
     private readonly INavigationRouteRegistry _routeRegistry;
     private readonly INavigationAccessService _accessService;
     private readonly ICurrentUserService _currentUserService;
     private readonly IStatusMessageService _statusMessageService;
+    private readonly ILogger<NavigationService> _logger;
     private NavigationTabItem? _selectedTab;
     private bool _isDisposed;
 
+    /// <summary>创建会话级导航协调器，并订阅当前用户变化以隔离不同会话的页签状态。</summary>
     public NavigationService(
-        IServiceProvider serviceProvider,
+        INavigationTabFactory tabFactory,
         INavigationRouteRegistry routeRegistry,
         INavigationAccessService accessService,
         ICurrentUserService currentUserService,
-        IStatusMessageService statusMessageService)
+        IStatusMessageService statusMessageService,
+        ILogger<NavigationService> logger)
     {
-        _serviceProvider = serviceProvider;
+        _tabFactory = tabFactory;
         _routeRegistry = routeRegistry;
         _accessService = accessService;
         _currentUserService = currentUserService;
         _statusMessageService = statusMessageService;
+        _logger = logger;
         _currentUserService.CurrentUserChanged += OnCurrentUserChanged;
     }
 
+    /// <inheritdoc />
     public ObservableCollection<NavigationTabItem> OpenTabs { get; } = [];
 
+    /// <inheritdoc />
     public NavigationTabItem? SelectedTab
     {
         get => _selectedTab;
@@ -49,6 +57,7 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService, 
         }
     }
 
+    /// <inheritdoc />
     public async Task OpenAsync(string routeKey)
     {
         if (!_routeRegistry.TryGetRoute(routeKey, out var route))
@@ -71,17 +80,36 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService, 
             return;
         }
 
-        var viewModel = _serviceProvider.GetRequiredService(route.ViewModelType);
-        var tab = new NavigationTabItem(route, viewModel);
-        OpenTabs.Add(tab);
-        Activate(tab);
-
-        if (viewModel is IAsyncInitializable initializable)
+        if (!EnsureCapacity(route))
         {
-            await initializable.InitializeAsync();
+            return;
+        }
+
+        var previousSelection = SelectedTab;
+        var tab = RegisterInitializingTab(route, documentKey: null);
+        try
+        {
+            var lease = _tabFactory.Create(route);
+            tab.AttachContent(lease);
+            if (lease.ViewModel is IAsyncInitializable initializable)
+            {
+                await initializable.InitializeAsync();
+            }
+
+            if (OpenTabs.Contains(tab))
+            {
+                tab.CompleteInitialization();
+            }
+        }
+        catch (Exception exception)
+        {
+            var invalidated = !OpenTabs.Contains(tab) || tab.IsLifetimeCancellationRequested;
+            RemoveFailedTab(tab, previousSelection);
+            ReportInitializationFailure(route, exception, cancellationRequested: false, invalidated: invalidated);
         }
     }
 
+    /// <inheritdoc />
     public async Task OpenDocumentAsync(
         string routeKey,
         string documentKey,
@@ -114,17 +142,45 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService, 
             return;
         }
 
-        var viewModel = _serviceProvider.GetRequiredService(route.ViewModelType);
-        var tab = new NavigationTabItem(route, viewModel, documentKey);
-        OpenTabs.Add(tab);
-        Activate(tab);
-
-        if (viewModel is IDocumentTabInitializable initializable)
+        if (!EnsureCapacity(route))
         {
-            await initializable.InitializeDocumentAsync(parameter, cancellationToken);
+            return;
+        }
+
+        var previousSelection = SelectedTab;
+        var tab = RegisterInitializingTab(route, documentKey);
+        try
+        {
+            var lease = _tabFactory.Create(route);
+            tab.AttachContent(lease);
+            if (lease.ViewModel is IDocumentTabInitializable initializable)
+            {
+                using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    tab.LifetimeToken);
+                await initializable.InitializeDocumentAsync(parameter, linkedCancellation.Token);
+                linkedCancellation.Token.ThrowIfCancellationRequested();
+            }
+
+            if (OpenTabs.Contains(tab))
+            {
+                tab.CompleteInitialization();
+            }
+        }
+        catch (Exception exception)
+        {
+            var callerCancelled = cancellationToken.IsCancellationRequested;
+            var invalidated = !OpenTabs.Contains(tab) || tab.IsLifetimeCancellationRequested;
+            RemoveFailedTab(tab, previousSelection);
+            ReportInitializationFailure(
+                route,
+                exception,
+                callerCancelled,
+                invalidated);
         }
     }
 
+    /// <inheritdoc />
     public void UpdateDocumentKey(object contentViewModel, string documentKey)
     {
         ArgumentNullException.ThrowIfNull(contentViewModel);
@@ -159,6 +215,7 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService, 
         current.DocumentKey = documentKey;
     }
 
+    /// <inheritdoc />
     public void Activate(NavigationTabItem? tab)
     {
         if (tab is null || !CanActivate(tab, showMessage: true))
@@ -169,9 +226,15 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService, 
         SelectedTab = tab;
     }
 
+    /// <inheritdoc />
     public async Task CloseAsync(NavigationTabItem? tab)
     {
         if (tab is null || !tab.CanClose)
+        {
+            return;
+        }
+
+        if (tab.IsInitializing)
         {
             return;
         }
@@ -202,15 +265,85 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService, 
 
     }
 
+    /// <inheritdoc />
     public void Reset()
     {
-        foreach (var tab in OpenTabs)
+        var tabs = OpenTabs.ToArray();
+        OpenTabs.Clear();
+        SelectedTab = null;
+
+        foreach (var tab in tabs)
         {
             tab.Dispose();
         }
+    }
 
-        OpenTabs.Clear();
-        SelectedTab = null;
+    /// <summary>权限与查重完成后检查业务页签名额，首页不占用十个业务名额。</summary>
+    private bool EnsureCapacity(NavigationRoute route)
+    {
+        if (string.Equals(route.Key, HomeRouteKey, StringComparison.OrdinalIgnoreCase)
+            || OpenTabs.Count(tab => !string.Equals(tab.RouteKey, HomeRouteKey, StringComparison.OrdinalIgnoreCase)) < MaximumBusinessTabCount)
+        {
+            return true;
+        }
+
+        _statusMessageService.Show("导航", $"最多同时打开 {MaximumBusinessTabCount} 个业务页签，请先关闭不再使用的页面。", UiMessageSeverity.Warning);
+        return false;
+    }
+
+    /// <summary>在创建任何页签资源前登记占位，阻止同一路由或文档的重入重复创建。</summary>
+    private NavigationTabItem RegisterInitializingTab(NavigationRoute route, string? documentKey)
+    {
+        var tab = new NavigationTabItem(route, documentKey, isInitializing: true);
+        OpenTabs.Add(tab);
+        Activate(tab);
+        return tab;
+    }
+
+    /// <summary>初始化失败或取消时移除占位、释放作用域，并恢复仍有效的选择。</summary>
+    private void RemoveFailedTab(NavigationTabItem tab, NavigationTabItem? previousSelection)
+    {
+        var index = OpenTabs.IndexOf(tab);
+        if (index >= 0)
+        {
+            OpenTabs.RemoveAt(index);
+        }
+
+        tab.Dispose();
+        if (!ReferenceEquals(SelectedTab, tab))
+        {
+            return;
+        }
+
+        if (previousSelection is not null && CanActivate(previousSelection, showMessage: false))
+        {
+            SelectedTab = previousSelection;
+            return;
+        }
+
+        SelectedTab = OpenTabs.FirstOrDefault(candidate => CanActivate(candidate, showMessage: false));
+    }
+
+    /// <summary>初始化取消时安静收尾；真实故障由导航边界记录并只显示一次稳定消息。</summary>
+    private void ReportInitializationFailure(
+        NavigationRoute route,
+        Exception exception,
+        bool cancellationRequested,
+        bool invalidated)
+    {
+        if (invalidated)
+        {
+            _logger.LogDebug(exception, "已失效页签 {RouteKey} 的初始化在 Reset 后结束。", route.Key);
+            return;
+        }
+
+        if (exception is OperationCanceledException && cancellationRequested)
+        {
+            return;
+        }
+
+        _logger.LogError(exception, "初始化页签 {RouteKey} 失败。", route.Key);
+        _statusMessageService.Show("导航", $"无法打开“{route.Title}”，请稍后重试。", UiMessageSeverity.Error);
     }
 
     /// <summary>解除会话变更订阅并释放仍打开的页签。</summary>

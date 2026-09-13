@@ -15,6 +15,7 @@ public partial class PopupTextBox : UserControl
     {
         InitializeComponent();
         Loaded += PopupTextBox_Loaded;
+        IsVisibleChanged += PopupTextBox_IsVisibleChanged;
     }
 
     public static readonly DependencyProperty TextProperty =
@@ -188,6 +189,18 @@ public partial class PopupTextBox : UserControl
     {
         UpdateResolvedPopupWidth();
         UpdateTextVisualState();
+    }
+
+    /// <summary>宿主页签隐藏时关闭脱离主视觉树的编辑 Popup，同时保留尚未提交的文本绑定状态。</summary>
+    private void PopupTextBox_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true)
+        {
+            return;
+        }
+
+        _isPopupOpenPending = false;
+        IsPopupOpen = false;
     }
 
     private void CompactTextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)

@@ -1,0 +1,8 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:managerViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerManagement.Views" xmlns:managerViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerManagement.ViewModels"
+ xmlns:configViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerPoConfigs.Views" xmlns:configViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerPoConfigs.ViewModels"
+ xmlns:productViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.Views" xmlns:productViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.ViewModels">
+    <DataTemplate DataType="{x:Type managerViewModels:CustomerManagerViewModel}"><managerViews:CustomerManagerView /></DataTemplate>
+    <DataTemplate DataType="{x:Type configViewModels:CustomerPoConfigManagerViewModel}"><configViews:CustomerPoConfigManagerView /></DataTemplate>
+    <DataTemplate DataType="{x:Type productViewModels:CustomerProductWorkspaceViewModel}"><productViews:CustomerProductWorkspaceView /></DataTemplate>
+</ResourceDictionary>

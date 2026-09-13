@@ -47,7 +47,7 @@ public sealed partial class WarehouseSiteEditModel : ObservableValidator
     public string Title => IsCreateMode ? "新增供应商虚拟仓" : "编辑供应商虚拟仓";
 
     /// <summary>创建空的新建上下文。</summary>
-    public static WarehouseSiteEditModel CreateNew() => new()
+    public static WarehouseSiteEditModel CreateNew() => new WarehouseSiteEditModel
     {
         _suppressTracking = true,
         IsCreateMode = true,

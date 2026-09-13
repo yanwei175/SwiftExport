@@ -9,6 +9,7 @@ using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.UI;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SwiftExport.Client.Wpf.Tests.Navigation;
 
@@ -170,28 +171,48 @@ public sealed class NavigationServiceTests
             registry,
             new NavigationAccessService(registry, currentUser),
             currentUser,
-            new TestStatusMessageService());
+            new TestStatusMessageService(),
+            NullLogger<NavigationService>.Instance);
     }
 
-    private sealed class TestServiceProvider : IServiceProvider
+    private sealed class TestServiceProvider : INavigationTabFactory
     {
         public int CreatedCount { get; private set; }
 
-        public object? GetService(Type serviceType)
+        public INavigationTabLease Create(NavigationRoute route)
         {
-            if (serviceType == typeof(TestDocumentViewModel))
+            object viewModel;
+            if (route.ViewModelType == typeof(TestDocumentViewModel))
             {
                 CreatedCount++;
-                return new TestDocumentViewModel();
+                viewModel = new TestDocumentViewModel();
             }
-
-            if (serviceType != typeof(TestPageViewModel))
+            else if (route.ViewModelType == typeof(TestPageViewModel))
             {
-                return null;
+                CreatedCount++;
+                viewModel = new TestPageViewModel();
+            }
+            else
+            {
+                throw new InvalidOperationException($"未注册测试 ViewModel：{route.ViewModelType.Name}");
             }
 
-            CreatedCount++;
-            return new TestPageViewModel();
+            return new TestLease(viewModel);
+        }
+
+        private sealed class TestLease(object viewModel) : INavigationTabLease
+        {
+            private object? _viewModel = viewModel;
+
+            public object ViewModel => _viewModel ?? throw new ObjectDisposedException(nameof(TestLease));
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref _viewModel, null) is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
         }
     }
 

@@ -18,10 +18,12 @@
                             SelectedItem="{Binding SelectedSupplier, ElementName=Root, Mode=TwoWay}"
                             SearchCommand="{Binding SearchCommand, ElementName=Root}"
                             IsBusy="{Binding IsBusy, ElementName=Root}"
-                            SearchDelay="0:0:0.3" MinimumSearchLength="0"
+                            SearchDelay="0:0:0.3" 
+                            MinimumSearchLength="0"
                             Placeholder="{Binding Placeholder, ElementName=Root}"
                             SearchMode="Remote" DisplayMemberPath="SupplierCode"
                             FilterMemberPaths="SupplierCode,SupplierName" SelectedValuePath="Uid"
-                            RequireItemMatch="True" ClearSelectionOnEdit="False"
+                            RequireItemMatch="True" 
+                            ClearSelectionOnEdit="False"
                             ItemTemplate="{StaticResource WarehouseSupplierItemTemplate}" />
 </UserControl>

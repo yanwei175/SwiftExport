@@ -292,6 +292,9 @@ public sealed class SourceDemandReceptionServiceTests
     private sealed class FakeOperationLogs : IBusinessOperationLogRepository
     {
         public List<BusinessOperationLog> Items { get; } = [];
+        /// <inheritdoc/>
+        public Task<BusinessOperationLog?> GetByModuleCommandAsync(string module, Guid commandId)
+            => Task.FromResult(Items.SingleOrDefault(item => item.Module == module && item.CommandId == commandId));
         public Task<BusinessOperationLog?> GetByCommandAsync(string module, string operationType, Guid commandId)
             => Task.FromResult(Items.SingleOrDefault(item => item.Module == module && item.OperationType == operationType && item.CommandId == commandId));
         public Task<int> InsertAsync(BusinessOperationLog log) { Items.Add(log); return Task.FromResult(1); }

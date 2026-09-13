@@ -4,53 +4,6 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-        xmlns:home="clr-namespace:SwiftExportClient.Features.Home"
-        xmlns:customerViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerManagement.Views"
-        xmlns:customerViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerManagement.ViewModels"
-        xmlns:customerPoConfigViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerPoConfigs.Views"
-        xmlns:customerPoConfigViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerPoConfigs.ViewModels"
-        xmlns:customerProductViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.Views"
-        xmlns:customerProductViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.ViewModels"
-        xmlns:grossDemandViews="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.Views"
-        xmlns:grossDemandViewModels="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels"
-        xmlns:netDemandViews="clr-namespace:SwiftExportClient.Features.DemandPlanning.NetDemand.Views"
-        xmlns:netDemandViewModels="clr-namespace:SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels"
-        xmlns:inventoryWarehouseViews="clr-namespace:SwiftExportClient.Features.Inventory.WarehouseSites.Views"
-        xmlns:inventoryWarehouseViewModels="clr-namespace:SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels"
-        xmlns:inventoryBalanceViews="clr-namespace:SwiftExportClient.Features.Inventory.Balances.Views"
-        xmlns:inventoryBalanceViewModels="clr-namespace:SwiftExportClient.Features.Inventory.Balances.ViewModels"
-        xmlns:inventoryLedgerViews="clr-namespace:SwiftExportClient.Features.Inventory.Ledger.Views"
-        xmlns:inventoryLedgerViewModels="clr-namespace:SwiftExportClient.Features.Inventory.Ledger.ViewModels"
-        xmlns:inboundViews="clr-namespace:SwiftExportClient.Features.Inventory.Inbounds.Views"
-        xmlns:inboundViewModels="clr-namespace:SwiftExportClient.Features.Inventory.Inbounds.ViewModels"
-        xmlns:outboundViews="clr-namespace:SwiftExportClient.Features.Inventory.Outbounds.Views"
-        xmlns:outboundViewModels="clr-namespace:SwiftExportClient.Features.Inventory.Outbounds.ViewModels"
-        xmlns:packingViews="clr-namespace:SwiftExportClient.Features.Shipping.PackingLists.Views"
-        xmlns:packingViewModels="clr-namespace:SwiftExportClient.Features.Shipping.PackingLists.ViewModels"
-        xmlns:planning="clr-namespace:SwiftExportClient.Features.Planning"
-        xmlns:productCategoryViews="clr-namespace:SwiftExportClient.Features.Products.Categories.Views"
-        xmlns:productCategoryViewModels="clr-namespace:SwiftExportClient.Features.Products.Categories.ViewModels"
-        xmlns:productColorViews="clr-namespace:SwiftExportClient.Features.Products.Colors.Views"
-        xmlns:productColorViewModels="clr-namespace:SwiftExportClient.Features.Products.Colors.ViewModels"
-        xmlns:productListViews="clr-namespace:SwiftExportClient.Features.Products.ProductList.Views"
-        xmlns:productListViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductList.ViewModels"
-        xmlns:procurementViews="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.Views"
-        xmlns:procurementViewModels="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels"
-        xmlns:afterSalesViews="clr-namespace:SwiftExportClient.Features.QualityControl.AfterSales.Views"
-        xmlns:afterSalesViewModels="clr-namespace:SwiftExportClient.Features.QualityControl.AfterSales.ViewModels"
-        xmlns:productPlaceholderViews="clr-namespace:SwiftExportClient.Features.Products.Placeholders.Views"
-        xmlns:productPlaceholderViewModels="clr-namespace:SwiftExportClient.Features.Products.Placeholders.ViewModels"
-        xmlns:supplierViews="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierManagement.Views"
-        xmlns:supplierViewModels="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels"
-        xmlns:supplierProductViews="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierProducts.Views"
-        xmlns:supplierProductViewModels="clr-namespace:SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels"
-        xmlns:sales="clr-namespace:SwiftExportClient.Features.Sales"
-        xmlns:salesOrderViews="clr-namespace:SwiftExportClient.Features.Sales.Orders.Views"
-        xmlns:salesOrderViewModels="clr-namespace:SwiftExportClient.Features.Sales.Orders.ViewModels"
-        xmlns:salesFulfillmentViews="clr-namespace:SwiftExportClient.Features.Sales.Fulfillment.Views"
-        xmlns:salesFulfillmentViewModels="clr-namespace:SwiftExportClient.Features.Sales.Fulfillment.ViewModels"
-        xmlns:settingsViews="clr-namespace:SwiftExportClient.Features.SystemSettings.SettingsCenter.Views"
-        xmlns:settingsViewModels="clr-namespace:SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels"
         xmlns:uiServices="clr-namespace:SwiftExportClient.Services.UI"
         xmlns:shell="clr-namespace:SwiftExportClient.Shell"
         mc:Ignorable="d"
@@ -67,7 +20,6 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <shell:ShellNavigationItemsConverter x:Key="ShellNavigationItemsConverter" />
         <shell:RouteSelectionConverter x:Key="RouteSelectionConverter" />
-
         <Style x:Key="ShellStatusMessageIconStyle"
                TargetType="{x:Type ui:SymbolIcon}">
             <Setter Property="Symbol" Value="Info24" />
@@ -114,108 +66,6 @@
             </Style.Triggers>
         </Style>
 
-        <DataTemplate DataType="{x:Type home:HomeViewModel}">
-            <home:HomeView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type productListViewModels:ProductsViewModel}">
-            <productListViews:ProductsView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type productListViewModels:ProductMasterManagerViewModel}">
-            <productListViews:ProductMasterManagerView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type productListViewModels:ProductNeutralManagerViewModel}">
-            <productListViews:ProductNeutralManagerView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type productListViewModels:ProductMasterDetailViewModel}">
-            <productListViews:ProductMasterDetailView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type productCategoryViewModels:ProductCategoryManagerViewModel}">
-            <productCategoryViews:ProductCategoryManagerView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type productColorViewModels:ProductColorsViewModel}">
-            <productColorViews:ProductColorsView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type productPlaceholderViewModels:ProductBomViewModel}">
-            <productPlaceholderViews:ProductPlaceholderView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type customerViewModels:CustomerManagerViewModel}">
-            <customerViews:CustomerManagerView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type customerPoConfigViewModels:CustomerPoConfigManagerViewModel}">
-            <customerPoConfigViews:CustomerPoConfigManagerView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type customerProductViewModels:CustomerProductWorkspaceViewModel}">
-            <customerProductViews:CustomerProductWorkspaceView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type supplierViewModels:SupplierManagerViewModel}">
-            <supplierViews:SupplierManagerView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type supplierProductViewModels:SupplierProductWorkspaceViewModel}">
-            <supplierProductViews:SupplierProductWorkspaceView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type sales:SalesViewModel}">
-            <sales:SalesView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type salesOrderViewModels:SalesOrderManagerViewModel}">
-            <salesOrderViews:SalesOrderManagerView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type salesOrderViewModels:SalesOrderDetailViewModel}">
-            <salesOrderViews:SalesOrderDetailView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type salesFulfillmentViewModels:SalesFulfillmentManagerViewModel}">
-            <salesFulfillmentViews:SalesFulfillmentManagerView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type salesFulfillmentViewModels:SalesFulfillmentDetailViewModel}">
-            <salesFulfillmentViews:SalesFulfillmentDetailView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type grossDemandViewModels:GrossDemandWorkspaceViewModel}">
-            <grossDemandViews:GrossDemandWorkspaceView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type netDemandViewModels:NetDemandWorkspaceViewModel}">
-            <netDemandViews:NetDemandWorkspaceView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type procurementViewModels:PurchaseOrderManagerViewModel}">
-            <procurementViews:PurchaseOrderManagerView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type procurementViewModels:PurchaseOrderProgressWorkspaceViewModel}">
-            <procurementViews:PurchaseOrderProgressWorkspaceView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type procurementViewModels:PurchaseOrderDetailViewModel}">
-            <procurementViews:PurchaseOrderDetailView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type afterSalesViewModels:AfterSalesManagerViewModel}">
-            <afterSalesViews:AfterSalesManagerView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type afterSalesViewModels:AfterSalesDetailViewModel}">
-            <afterSalesViews:AfterSalesDetailView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type inventoryWarehouseViewModels:WarehouseSitesViewModel}">
-            <inventoryWarehouseViews:WarehouseSitesView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type inventoryBalanceViewModels:InventoryBalancesViewModel}">
-            <inventoryBalanceViews:InventoryBalancesView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type inventoryLedgerViewModels:InventoryLedgerViewModel}">
-            <inventoryLedgerViews:InventoryLedgerView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type inboundViewModels:InboundWorkspaceViewModel}">
-            <inboundViews:InboundWorkspaceView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type outboundViewModels:OutboundWorkspaceViewModel}">
-            <outboundViews:OutboundWorkspaceView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type packingViewModels:PackingListWorkspaceViewModel}">
-            <packingViews:PackingListWorkspaceView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type packingViewModels:PackingListDetailViewModel}">
-            <packingViews:PackingListDetailView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type planning:PlanningViewModel}">
-            <planning:PlanningView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type settingsViewModels:SettingsCenterViewModel}">
-            <settingsViews:SettingsCenterView />
-        </DataTemplate>
     </ui:FluentWindow.Resources>
 
     <Grid Background="Transparent">
@@ -303,9 +153,9 @@
                         BorderThickness="1,1,0,0"
                         CornerRadius="4,0,0,0">
                         <TabControl ItemsSource="{Binding OpenTabs}"
-                                Style="{StaticResource {x:Type TabControl}}"
+                                Style="{StaticResource ShellHeaderOnlyTabControlStyle}"
                                 Margin="8,8,0,4"
-                                Padding="0,8,0,8"
+                                Padding="0,8,0,0"
                                 SelectedItem="{Binding SelectedTab, Mode=TwoWay}">
                             <!-- 控制整个页签 TabItem 的 Margin -->
                             <TabControl.ItemContainerStyle>
@@ -337,11 +187,6 @@
                                 </DataTemplate>
                             </TabControl.ItemTemplate>
                             
-                            <TabControl.ContentTemplate>
-                                <DataTemplate>
-                                    <ContentControl Content="{Binding ContentViewModel}"/>
-                                </DataTemplate>
-                            </TabControl.ContentTemplate>
                         </TabControl>
                     </Border>
 
