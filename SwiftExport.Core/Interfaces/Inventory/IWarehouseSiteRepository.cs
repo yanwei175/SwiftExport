@@ -1,4 +1,5 @@
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Inventory;
 
@@ -7,6 +8,8 @@ namespace SwiftExport.Core.Interfaces.Inventory;
 /// <summary>定义供应商虚拟仓主数据查询、并发写入和删除引用检查的持久化边界。</summary>
 public interface IWarehouseSiteRepository
 {
+    /// <summary>分页读取活动且未删除的仓库选择候选，供应商仅用于显示。</summary>
+    Task<PagedResponseBase<WarehouseSitePickerDto>> GetPickerPagedAsync(PagedRequestBase request, CancellationToken cancellationToken = default);
     /// <summary>按仓库管理用例分页查询活动供应商候选。</summary>
     Task<PagedResponseBase<WarehouseSupplierLookupDto>> SearchSupplierLookupAsync(PagedRequestBase request, CancellationToken cancellationToken = default);
     /// <summary>分页查询未删除虚拟仓及供应商显示资料。</summary>

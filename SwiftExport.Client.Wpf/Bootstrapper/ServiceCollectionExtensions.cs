@@ -53,6 +53,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IAfterSalesFeatureService, AfterSalesFeatureService>();
         services.AddTransient<IAfterSalesReasonDialogService, AfterSalesReasonDialogService>();
         services.AddTransient<IWarehouseSiteReasonDialogService, WarehouseSiteReasonDialogService>();
+        services.AddTransient<IWarehousePickerService, WarehousePickerService>();
         services.AddTransient<ISalesOrderCancellationDialogService, SalesOrderCancellationDialogService>();
         services.AddTransient<IProductMasterSyncDialogService, ProductMasterSyncDialogService>();
         services.AddTransient<IPurchaseOrderTraceExportService, PurchaseOrderTraceExportService>();

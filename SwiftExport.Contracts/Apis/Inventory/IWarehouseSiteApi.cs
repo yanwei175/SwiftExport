@@ -1,5 +1,6 @@
 using Refit;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.Wrappers;
 using System;
 using System.Threading;
@@ -10,6 +11,9 @@ namespace SwiftExport.Contracts.Apis.Inventory
     /// <summary>客户端 BaseAddress 为 api/inventory/warehouse-sites。</summary>
     public interface IWarehouseSiteApi
     {
+        /// <summary>按库存读取权限分页取得活动仓库选择候选；最终业务命令仍须重验仓库。</summary>
+        [Get("/picker")]
+        Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehousePickerPagedAsync([Query] PagedRequestBase request, CancellationToken cancellationToken = default(CancellationToken));
         /// <summary>采购新增仓库候选，要求 Admin、Procurement.Order.Create 或 Procurement.Order.Confirm；错误按 HTTP 状态处理。</summary>
         [Post("/candidates/search")]
         Task<ServiceResult<PagedResponseBase<WarehouseCandidateDto>>> SearchCandidatesAsync([Body] PagedRequestBase request, CancellationToken cancellationToken = default(CancellationToken));

@@ -424,6 +424,8 @@ public sealed class WarehouseSitesViewModelTests
         public int SupplierSearchCallCount { get; private set; }
         public int DeleteCallCount { get; private set; }
 
+        public Task<ServiceResult<PagedResponseBase<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto>>> GetWarehousePickerPagedAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
         public Task<ServiceResult<PagedResponseBase<WarehouseCandidateDto>>> SearchCandidatesAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
         public Task<ServiceResult<PagedResponseBase<WarehouseSiteDto>>> SearchAsync(WarehouseSiteSearchRequest request, CancellationToken cancellationToken = default)

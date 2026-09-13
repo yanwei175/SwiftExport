@@ -1,0 +1,97 @@
+<UserControl x:Class="SwiftExportClient.Features.Inventory.Inbounds.Views.InboundSourcePickerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:supplierControls="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
+             xmlns:vm="clr-namespace:SwiftExportClient.Features.Inventory.Inbounds.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1440" d:DesignHeight="560"
+             d:DataContext="{d:DesignInstance Type=vm:InboundSourcePickerDesignViewModel, IsDesignTimeCreatable=True}"
+             Language="zh-CN">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <!--条件筛选区域-->
+        <Grid RowDefinitions="Auto,8, *">
+            <Grid ColumnDefinitions="3*,3*,3*">
+                <TextBlock Text="选择入库来源" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <!--搜索框-->
+                <ui:AutoSuggestBox Grid.Column="1"  PlaceholderText="键入搜索" HorizontalAlignment="Stretch"/>
+            </Grid>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal">
+                <!--来源筛选的条件(客供件,采购)默认客供件-->
+                <ComboBox />
+                <!--供应商筛选,走本地搜索.加载的时候只发一次api获取到待选的供应商列表-->
+                <supplierControls:SupplierAutoSuggestComboBox />
+                
+                <Button DockPanel.Dock="Right" Content="反选" Command="{Binding ToggleAllCommand}"
+                    AutomationProperties.Name="反选" Padding="12,4"/>
+            </StackPanel>
+        </Grid>
+
+        <DataGrid Grid.Row="1" 
+                  ItemsSource="{Binding Items}" 
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True" 
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  EnableRowVirtualization="True"
+                  EnableColumnVirtualization="True"
+                  RowHeight="{StaticResource DataGridRowHeightMedium}" 
+                  AutomationProperties.Name="入库来源候选列表">
+            <DataGrid.Columns>
+
+                <DataGridTemplateColumn Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
+                    <DataGridTemplateColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <CheckBox  IsChecked="{Binding IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
+                                       HorizontalAlignment="Left" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.HeaderTemplate>
+
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox Margin="0,0" 
+                                      IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      HorizontalAlignment="Center" 
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="勾选入库来源"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="图片" Width="64" CanUserSort="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <controls:CachedImage Width="48" Height="48" Margin="2"
+                                                  Style="{StaticResource SwiftExportCachedImage}"
+                                                  Stretch="Uniform" DecodePixelWidth="96"
+                                                  SourcePath="{Binding ImagePath}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTextColumn Header="来源单号" Binding="{Binding SourceNo}" Width="152"/>
+                <DataGridTextColumn Header="行号" Binding="{Binding LineNumber}" Width="56"/>
+                <DataGridTextColumn Header="自定义采购单号" Binding="{Binding BoNo}" Width="144"/>
+                <DataGridTextColumn Header="Sku" Binding="{Binding Sku}" Width="128"/>
+                <DataGridTextColumn Header="产品型号" Binding="{Binding LinkSku}" Width="128"/>
+                <DataGridTextColumn Header="描述" Binding="{Binding Description}" Width="*" MinWidth="180"/>
+                <DataGridTextColumn Header="原数量" Binding="{Binding OriginalQty, StringFormat=N4}" Width="104"/>
+                <DataGridTextColumn Header="待入库数量" Binding="{Binding RemainingReceivableQty, StringFormat=N4}" Width="112"/>
+                <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="64"/>
+                <DataGridTextColumn Header="采购供应商" Binding="{Binding SupplierName}" Width="144"/>
+                <DataGridTextColumn Header="收货仓库" Binding="{Binding WarehouseName}" Width="144"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <TextBlock Grid.Row="2" Margin="0,8,0,0" TextWrapping="Wrap"
+                   Text="勾选需要入库的采购来源。待入库数量为剩余可收数量，本组件不修改来源或库存。"/>
+    </Grid>
+</UserControl>

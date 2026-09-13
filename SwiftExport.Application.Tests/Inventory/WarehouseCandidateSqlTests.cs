@@ -37,10 +37,10 @@ public sealed class WarehouseCandidateSqlTests
         await Db.ExecuteAsync("""
             INSERT dbo.Supplier VALUES(@supplier,N'S-01',N'供应商一',1,0),(@stoppedSupplier,N'S-02',N'停用供应商',0,0);
             INSERT dbo.WarehouseSite VALUES
-              (NEWID(),1,N'WH-01',N'合格仓',0,@supplier,1,0),(NEWID(),1,N'WH-STOP',N'停用仓',0,@supplier,0,0),
-              (NEWID(),1,N'WH-INTERNAL',N'其他类型',1,@supplier,1,0),(NEWID(),1,N'WH-NO-SUP',N'无归属',0,NULL,1,0),
-              (NEWID(),1,N'WH-SUP-STOP',N'供应商停用仓',0,@stoppedSupplier,1,0),(NEWID(),1,N'WH-DELETED',N'删除仓',0,@supplier,1,1),
-              (NEWID(),1,NCHAR(9),N'空白编码',0,@supplier,1,0);
+              (NEWID(),1,N'WH-01',N'合格仓',0,@supplier,NULL,NULL,1,0),(NEWID(),1,N'WH-STOP',N'停用仓',0,@supplier,NULL,NULL,0,0),
+              (NEWID(),1,N'WH-INTERNAL',N'其他类型',1,@supplier,NULL,NULL,1,0),(NEWID(),1,N'WH-NO-SUP',N'无归属',0,NULL,NULL,NULL,1,0),
+              (NEWID(),1,N'WH-SUP-STOP',N'供应商停用仓',0,@stoppedSupplier,NULL,NULL,1,0),(NEWID(),1,N'WH-DELETED',N'删除仓',0,@supplier,NULL,NULL,1,1),
+              (NEWID(),1,NCHAR(9),N'空白编码',0,@supplier,NULL,NULL,1,0);
             """, new { supplier, stoppedSupplier });
         var result = await Db.QueryAsync(s => s.SearchAsync(new()));
         var row = result.Items.Single();
@@ -57,7 +57,7 @@ public sealed class WarehouseCandidateSqlTests
         var supplier = Guid.NewGuid();
         await Db.ExecuteAsync("""
             INSERT dbo.Supplier VALUES(@supplier,N'S-SEARCH',N'搜索供应商',1,0);
-            INSERT dbo.WarehouseSite VALUES(NEWID(),1,N'WH-02',N'乙仓',0,@supplier,1,0),(NEWID(),1,N'WH-01',N'甲仓',0,@supplier,1,0);
+            INSERT dbo.WarehouseSite VALUES(NEWID(),1,N'WH-02',N'乙仓',0,@supplier,NULL,NULL,1,0),(NEWID(),1,N'WH-01',N'甲仓',0,@supplier,NULL,NULL,1,0);
             """, new { supplier });
         var result = await Db.QueryAsync(s => s.SearchAsync(new() { Keyword = "搜索供应商", PageIndex = 2, PageSize = 1 }));
         Assert.AreEqual(2, result.TotalCount);

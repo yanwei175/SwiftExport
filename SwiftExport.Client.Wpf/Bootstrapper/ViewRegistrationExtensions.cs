@@ -84,6 +84,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<PurchaseOrderFromMaterialViewModel>();
         services.AddTransient<PlanningViewModel>();
         services.AddTransient<WarehouseSitesViewModel>();
+        services.AddTransient<WarehousePickerViewModel>();
         services.AddTransient<InventoryBalancesViewModel>();
         services.AddTransient<InventoryLedgerViewModel>();
         services.AddTransient<InboundWorkspaceViewModel>();

@@ -364,6 +364,7 @@ public sealed class InventoryPostingServiceTests
     private sealed class WarehouseRepositoryStub(WarehouseSite warehouse) : IWarehouseSiteRepository
     {
         public Task<WarehouseSite?> GetForUpdateAsync(Guid uid) => Task.FromResult<WarehouseSite?>(uid == warehouse.Uid ? warehouse : null);
+        public Task<PagedResponseBase<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto>> GetPickerPagedAsync(PagedRequestBase request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<int> AcquireCommandLockAsync(Guid commandId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PagedResponseBase<WarehouseSupplierLookupDto>> SearchSupplierLookupAsync(PagedRequestBase request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PagedResponseBase<WarehouseSiteDto>> SearchAsync(WarehouseSiteSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();

@@ -5,6 +5,7 @@ using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auditing;
@@ -31,6 +32,18 @@ public sealed class InventoryService(
     private readonly DbSession _session = context.Session;
     private readonly ILogger<InventoryService> _logger = context.LoggerFactory.CreateLogger<InventoryService>();
     private readonly IUserPermissionService _permissions = permissions;
+
+    /// <inheritdoc/>
+    public async Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehousePickerPagedAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+    {
+        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > 200 || request.Keyword?.Length > 200)
+            return ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>.Fail("仓库选择查询条件无效。");
+        return await ReadWarehouseAsync(
+            () => warehouseSites.GetPickerPagedAsync(new PagedRequestBase
+            {
+                Keyword = request.Keyword?.Trim(), PageIndex = request.PageIndex, PageSize = request.PageSize
+            }, cancellationToken), cancellationToken, "查询仓库选择候选失败。");
+    }
 
     /// <inheritdoc/>
     public async Task<ServiceResult<PagedResponseBase<WarehouseSupplierLookupDto>>> SearchWarehouseSuppliersAsync(PagedRequestBase request, CancellationToken cancellationToken = default)

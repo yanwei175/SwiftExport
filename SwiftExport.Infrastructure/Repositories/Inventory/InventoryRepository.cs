@@ -23,12 +23,12 @@ public sealed class InventoryRepository(RepositoryBaseContext context) : IInvent
             WHERE ISNULL(i.IsDeleted,0)=0 AND (@SupplierId IS NULL OR w.SupplierId=@SupplierId)
               AND (@WarehouseSiteId IS NULL OR i.WarehouseSiteId=@WarehouseSiteId)
               AND (ISNULL(@NonZeroOnly,0)=0 OR i.OnHandQty<>0)
-              AND (@Keyword IS NULL OR i.SkuSnapshot LIKE @Keyword ESCAPE '\\' OR i.ProductNameSnapshot LIKE @Keyword ESCAPE '\\' OR w.Code LIKE @Keyword ESCAPE '\\' OR w.Name LIKE @Keyword ESCAPE '\\')
+              AND (@Keyword IS NULL OR i.SkuSnapshot LIKE @Keyword ESCAPE '\' OR i.ProductNameSnapshot LIKE @Keyword ESCAPE '\' OR w.Code LIKE @Keyword ESCAPE '\' OR w.Name LIKE @Keyword ESCAPE '\')
             """;
         var total = await _context.Session.Connection.ExecuteScalarAsync<int>($"SELECT COUNT(1) FROM dbo.InventoryBalance i JOIN dbo.WarehouseSite w ON w.Uid=i.WarehouseSiteId {where};", p, _context.Session.Transaction);
         var rows = await _context.Session.Connection.QueryAsync<InventoryBalanceDto>(new CommandDefinition($"""
             SELECT i.Uid,i.Version,i.WarehouseSiteId,w.Code AS WarehouseCode,w.Name AS WarehouseName,w.SupplierId,
-                   s.Code AS SupplierCode,s.Name AS SupplierName,i.ProductId,i.SkuSnapshot AS Sku,i.ProductNameSnapshot AS ProductName,
+                   s.SupplierCode,s.SupplierName,i.ProductId,i.SkuSnapshot AS Sku,i.ProductNameSnapshot AS ProductName,
                    i.UnitSnapshot AS Unit,i.OnHandQty,i.OnHandQty AS AvailableQty,i.LastLedgerSequence,i.UpdatedDate
             FROM dbo.InventoryBalance i JOIN dbo.WarehouseSite w ON w.Uid=i.WarehouseSiteId LEFT JOIN dbo.Supplier s ON s.Uid=w.SupplierId
             {where} ORDER BY w.Code,i.SkuSnapshot,i.Uid OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
@@ -47,8 +47,8 @@ public sealed class InventoryRepository(RepositoryBaseContext context) : IInvent
               AND (@TransactionType IS NULL OR t.TransactionType=@TransactionType)
               AND (@OccurredDateFrom IS NULL OR t.OccurredDate>=@OccurredDateFrom)
               AND (@OccurredDateTo IS NULL OR t.OccurredDate<DATEADD(day,1,@OccurredDateTo))
-              AND (@SourceDocumentNo IS NULL OR t.SourceDocumentNoSnapshot LIKE @SourceDocumentNo ESCAPE '\\')
-              AND (@Keyword IS NULL OR t.SkuSnapshot LIKE @Keyword ESCAPE '\\' OR t.ProductNameSnapshot LIKE @Keyword ESCAPE '\\' OR t.SourceDocumentType LIKE @Keyword ESCAPE '\\' OR t.WarehouseCodeSnapshot LIKE @Keyword ESCAPE '\\')
+              AND (@SourceDocumentNo IS NULL OR t.SourceDocumentNoSnapshot LIKE @SourceDocumentNo ESCAPE '\')
+              AND (@Keyword IS NULL OR t.SkuSnapshot LIKE @Keyword ESCAPE '\' OR t.ProductNameSnapshot LIKE @Keyword ESCAPE '\' OR t.SourceDocumentType LIKE @Keyword ESCAPE '\' OR t.WarehouseCodeSnapshot LIKE @Keyword ESCAPE '\')
             """;
         var total = await _context.Session.Connection.ExecuteScalarAsync<int>($"SELECT COUNT(1) FROM dbo.InventoryLedgerEntry t JOIN dbo.WarehouseSite w ON w.Uid=t.WarehouseSiteId {where};", p, _context.Session.Transaction);
         var rows = await _context.Session.Connection.QueryAsync<InventoryLedgerItemDto>(new CommandDefinition($"{LedgerSelect} JOIN dbo.WarehouseSite w ON w.Uid=t.WarehouseSiteId {where} ORDER BY t.Sequence DESC,t.Uid DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;", p, _context.Session.Transaction, cancellationToken: cancellationToken));
@@ -58,7 +58,7 @@ public sealed class InventoryRepository(RepositoryBaseContext context) : IInvent
     /// <summary>读取余额详情。</summary>
     public Task<InventoryBalanceDto?> GetBalanceDtoAsync(Guid uid, CancellationToken cancellationToken = default) => _context.Session.Connection.QuerySingleOrDefaultAsync<InventoryBalanceDto>(new CommandDefinition("""
         SELECT i.Uid,i.Version,i.WarehouseSiteId,w.Code AS WarehouseCode,w.Name AS WarehouseName,w.SupplierId,
-               s.Code AS SupplierCode,s.Name AS SupplierName,i.ProductId,i.SkuSnapshot AS Sku,i.ProductNameSnapshot AS ProductName,
+               s.SupplierCode,s.SupplierName,i.ProductId,i.SkuSnapshot AS Sku,i.ProductNameSnapshot AS ProductName,
                i.UnitSnapshot AS Unit,i.OnHandQty,i.OnHandQty AS AvailableQty,i.LastLedgerSequence,i.UpdatedDate
         FROM dbo.InventoryBalance i JOIN dbo.WarehouseSite w ON w.Uid=i.WarehouseSiteId LEFT JOIN dbo.Supplier s ON s.Uid=w.SupplierId
         WHERE i.Uid=@Uid AND ISNULL(i.IsDeleted,0)=0;

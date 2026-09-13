@@ -36,7 +36,8 @@ internal sealed class WarehouseCandidateSqlFixture : IAsyncDisposable
         await ExecuteAsync("""
             CREATE TABLE dbo.Supplier(Uid uniqueidentifier PRIMARY KEY,SupplierCode nvarchar(100),SupplierName nvarchar(300),IsActive bit NOT NULL,IsDeleted bit);
             CREATE TABLE dbo.WarehouseSite(Uid uniqueidentifier PRIMARY KEY,Version int NOT NULL,Code nvarchar(100),Name nvarchar(300),
-              SiteType int NOT NULL,SupplierId uniqueidentifier NULL,IsActive bit NOT NULL,IsDeleted bit);
+              SiteType int NOT NULL,SupplierId uniqueidentifier NULL,SupplierCodeSnapshot nvarchar(100) NULL,SupplierNameSnapshot nvarchar(300) NULL,
+              IsActive bit NOT NULL,IsDeleted bit);
             CREATE TABLE dbo.SysUser(Uid uniqueidentifier PRIMARY KEY,IsActive bit NOT NULL,IsDeleted bit);
             CREATE TABLE dbo.SysRoles(Uid uniqueidentifier PRIMARY KEY,RoleName nvarchar(100),IsDeleted bit);
             CREATE TABLE dbo.SysUser_Roles(Uid uniqueidentifier PRIMARY KEY,UserId uniqueidentifier,RoleId uniqueidentifier,IsDeleted bit);
@@ -46,6 +47,7 @@ internal sealed class WarehouseCandidateSqlFixture : IAsyncDisposable
             INSERT dbo.SysUser VALUES(@UserId,1,0);
             INSERT dbo.SysRoles VALUES(@RoleId,N'Procurement.Order.Create',0);
             INSERT dbo.SysUser_Roles VALUES(NEWID(),@UserId,@RoleId,0);
+            INSERT dbo.SysUser_ModulePermissions(Uid,UserId,PermissionKey) VALUES(NEWID(),@UserId,N'Module.Inventory.Access');
             """, new { UserId, RoleId });
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -63,6 +65,13 @@ internal sealed class WarehouseCandidateSqlFixture : IAsyncDisposable
     {
         using var scope = provider!.CreateScope();
         return await action(scope.ServiceProvider.GetRequiredService<IWarehouseCandidateQueryService>());
+    }
+
+    /// <summary>在新作用域调用真实库存服务，供仓库选择器验证读权限与生产 SQL。</summary>
+    public async Task<T> QueryInventoryAsync<T>(Func<IInventoryService, Task<T>> action)
+    {
+        using var scope = provider!.CreateScope();
+        return await action(scope.ServiceProvider.GetRequiredService<IInventoryService>());
     }
 
     /// <summary>仅向当前夹具数据库执行参数化准备或断言 SQL。</summary>

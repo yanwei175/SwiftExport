@@ -1,6 +1,7 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Interfaces.Inventory;
@@ -12,6 +13,30 @@ namespace SwiftExport.Infrastructure.Repositories.Inventory;
 public sealed class WarehouseSiteRepository(RepositoryBaseContext context) : IWarehouseSiteRepository
 {
     private readonly RepositoryBaseContext _context = context;
+
+    /// <inheritdoc/>
+    public async Task<PagedResponseBase<WarehouseSitePickerDto>> GetPickerPagedAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+    {
+        var pageIndex = Math.Max(1, request.PageIndex);
+        var pageSize = Math.Clamp(request.PageSize <= 0 ? 20 : request.PageSize, 1, 200);
+        var keyword = string.IsNullOrWhiteSpace(request.Keyword) ? null : $"%{EscapeLike(request.Keyword.Trim())}%";
+        var parameters = new { Keyword = keyword, Offset = (pageIndex - 1) * pageSize, PageSize = pageSize };
+        const string filter = "WHERE ISNULL(w.IsDeleted,0)=0 AND w.IsActive=1 AND (@Keyword IS NULL OR w.Code LIKE @Keyword ESCAPE N'~' OR w.Name LIKE @Keyword ESCAPE N'~' OR COALESCE(s.SupplierCode,w.SupplierCodeSnapshot,N'') LIKE @Keyword ESCAPE N'~' OR COALESCE(s.SupplierName,w.SupplierNameSnapshot,N'') LIKE @Keyword ESCAPE N'~')";
+        var total = await _context.Session.Connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            $"SELECT COUNT(1) FROM dbo.WarehouseSite w LEFT JOIN dbo.Supplier s ON s.Uid=w.SupplierId AND ISNULL(s.IsDeleted,0)=0 {filter};",
+            parameters, _context.Session.Transaction, cancellationToken: cancellationToken));
+        var rows = await _context.Session.Connection.QueryAsync<WarehouseSitePickerDto>(new CommandDefinition($"""
+            SELECT w.Uid,w.Version,w.Code,w.Name,w.SupplierId,
+                   COALESCE(s.SupplierCode,w.SupplierCodeSnapshot,N'') AS SupplierCode,
+                   COALESCE(s.SupplierName,w.SupplierNameSnapshot,N'') AS SupplierName,w.SiteType,w.IsActive
+            FROM dbo.WarehouseSite w LEFT JOIN dbo.Supplier s ON s.Uid=w.SupplierId AND ISNULL(s.IsDeleted,0)=0
+            {filter} ORDER BY w.Code,w.Uid OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            """, parameters, _context.Session.Transaction, cancellationToken: cancellationToken));
+        return new PagedResponseBase<WarehouseSitePickerDto>
+        {
+            Items = rows.ToList(), TotalCount = total, PageIndex = pageIndex, PageSize = pageSize
+        };
+    }
 
     /// <inheritdoc/>
     public async Task<PagedResponseBase<WarehouseSupplierLookupDto>> SearchSupplierLookupAsync(PagedRequestBase request, CancellationToken cancellationToken = default)

@@ -10,6 +10,7 @@ using SwiftExport.Application.Models.Auth;
 using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auditing;
@@ -26,6 +27,27 @@ namespace SwiftExport.Application.Tests.Inventory;
 [TestClass]
 public sealed class WarehouseSiteManagementServiceTests
 {
+    /// <summary>验证选择器查询仅依赖库存模块读权限，未认证和无读权限均在访问仓储前拒绝。</summary>
+    [TestMethod]
+    public async Task Picker_ShouldRequireInventoryReadPermissionWithoutStartingTransaction()
+    {
+        var anonymous = new Fixture(authenticated: false);
+        var noRead = new Fixture(hasReadPermission: false);
+        var readOnly = new Fixture(hasManagePermission: false, hasReadPermission: true);
+
+        var anonymousResult = await anonymous.Service.GetWarehousePickerPagedAsync(new PagedRequestBase());
+        var noReadResult = await noRead.Service.GetWarehousePickerPagedAsync(new PagedRequestBase());
+        var allowedResult = await readOnly.Service.GetWarehousePickerPagedAsync(new PagedRequestBase());
+
+        Assert.IsFalse(anonymousResult.Success);
+        Assert.IsFalse(noReadResult.Success);
+        Assert.IsTrue(allowedResult.Success);
+        Assert.AreEqual(0, anonymous.Warehouses.PickerQueryCount);
+        Assert.AreEqual(0, noRead.Warehouses.PickerQueryCount);
+        Assert.AreEqual(1, readOnly.Warehouses.PickerQueryCount);
+        Assert.AreEqual(0, readOnly.Connection.BeginTransactionCount);
+    }
+
     /// <summary>验证没有独立管理权限时在开启事务和访问仓储前拒绝写命令。</summary>
     [TestMethod]
     public async Task Create_ShouldRejectUserWithoutManagePermissionBeforeTransaction()
@@ -150,7 +172,7 @@ public sealed class WarehouseSiteManagementServiceTests
 
     private sealed class Fixture
     {
-        public Fixture(bool hasManagePermission = true)
+        public Fixture(bool hasManagePermission = true, bool hasReadPermission = true, bool authenticated = true)
         {
             Connection = new ConnectionStub();
             Warehouses = new WarehouseRepositoryStub();
@@ -161,8 +183,8 @@ public sealed class WarehouseSiteManagementServiceTests
                 new InventoryRepositoryStub(),
                 Logs,
                 new CorrelationStub(),
-                new CurrentUserStub(),
-                new PermissionServiceStub(hasManagePermission));
+                new CurrentUserStub(authenticated),
+                new PermissionServiceStub(hasManagePermission, hasReadPermission));
         }
 
         public InventoryService Service { get; }
@@ -185,6 +207,7 @@ public sealed class WarehouseSiteManagementServiceTests
         private WarehouseSite? _site;
         public int InsertCount { get; private set; }
         public int DeleteCount { get; private set; }
+        public int PickerQueryCount { get; private set; }
         public IReadOnlyList<string> DeleteBlockers { get; set; } = [];
 
         public WarehouseSite AddExisting(string code, string name)
@@ -210,6 +233,14 @@ public sealed class WarehouseSiteManagementServiceTests
         public Task<int> UpdateNameAsync(WarehouseSite site, int expectedVersion) => Task.FromResult(1);
         public Task<int> DeactivateAsync(WarehouseSite site, int expectedVersion) => Task.FromResult(1);
         public Task<bool> HasBalanceOrLedgerAsync(Guid warehouseSiteId) => Task.FromResult(false);
+        public Task<PagedResponseBase<WarehouseSitePickerDto>> GetPickerPagedAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+        {
+            PickerQueryCount++;
+            return Task.FromResult(new PagedResponseBase<WarehouseSitePickerDto>
+            {
+                Items = [], TotalCount = 0, PageIndex = request.PageIndex, PageSize = request.PageSize
+            });
+        }
         public Task<PagedResponseBase<WarehouseSupplierLookupDto>> SearchSupplierLookupAsync(PagedRequestBase request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PagedResponseBase<WarehouseSiteDto>> SearchAsync(WarehouseSiteSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
@@ -240,21 +271,26 @@ public sealed class WarehouseSiteManagementServiceTests
             => Task.FromResult<IReadOnlyList<BusinessOperationTraceItemDto>>([]);
     }
 
-    private sealed class PermissionServiceStub(bool allowed) : IUserPermissionService
+    private sealed class PermissionServiceStub(bool manageAllowed, bool readAllowed) : IUserPermissionService
     {
         public Task<bool> HasPermissionAsync(Guid userId, string permissionKey, CancellationToken cancellationToken = default)
-            => Task.FromResult(allowed && permissionKey == PermissionKeys.InventoryWarehouseManage);
+            => Task.FromResult(permissionKey switch
+            {
+                PermissionKeys.InventoryWarehouseManage => manageAllowed,
+                PermissionKeys.ModuleInventoryAccess => readAllowed,
+                _ => false
+            });
         public Task<UserPermissionProjection?> GetProjectionAsync(Guid userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<List<UserSummaryDto>>> GetUsersAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<UserModulePermissionsDto>> GetUserModulesAsync(Guid userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<UserModulePermissionsDto>> SaveUserModulesAsync(Guid userId, SaveUserModulePermissionsRequestDto request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
-    private sealed class CurrentUserStub : ICurrentUser
+    private sealed class CurrentUserStub(bool authenticated) : ICurrentUser
     {
         public string UserName => "仓库测试用户";
         public Guid? UserId => Guid.Parse("22222222-2222-2222-2222-222222222222");
-        public bool IsAuthenticated => true;
+        public bool IsAuthenticated => authenticated;
     }
 
     private sealed class CorrelationStub : ICorrelationContext { public string CorrelationId => "warehouse-tests"; }

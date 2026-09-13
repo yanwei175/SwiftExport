@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.WebApi.Controllers.Inventory;
@@ -11,6 +12,13 @@ namespace SwiftExport.WebApi.Controllers.Inventory;
 [Route("api/inventory/warehouse-sites")]
 public sealed class WarehouseSitesController(IInventoryService service) : ControllerBase
 {
+    /// <summary>按库存读取权限返回活动仓库选择候选；选择结果不替代下游业务校验。</summary>
+    [Authorize]
+    [HttpGet("picker")]
+    public Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehousePickerPagedAsync(
+        [FromQuery] PagedRequestBase request,
+        CancellationToken cancellationToken) => service.GetWarehousePickerPagedAsync(request, cancellationToken);
+
     /// <summary>只读查询已有采购候选；认证由管道处理，输入、权限及系统错误按 HTTP 状态区分。</summary>
     [Authorize]
     [HttpPost("candidates/search")]

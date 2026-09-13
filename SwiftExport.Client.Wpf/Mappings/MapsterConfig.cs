@@ -10,6 +10,7 @@ using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
+using SwiftExportClient.Features.Suppliers.Components.Model;
 using SwiftExportClient.Features.Customers.CustomerManagement.Models;
 using SwiftExportClient.Features.Customers.CustomerPoConfigs.Models;
 using SwiftExportClient.Features.Customers.CustomerProducts.Models;
@@ -237,6 +238,9 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.ZheKou, src => src.Discount)
             .Map(dest => dest.ZheKouBeiZhu, src => src.DiscountRemark)
             .Map(dest => dest.DefaultLeadTime, src => src.DefaultLeadTimeDays);
+
+        config.NewConfig<SupplierDto, SupplierPickerModel>();
+        config.NewConfig<SupplierPickerModel, SupplierDto>();
 
         config.NewConfig<SupplierProductDto, SupplierProductLineModel>()
             .IgnoreNullValues(true)
