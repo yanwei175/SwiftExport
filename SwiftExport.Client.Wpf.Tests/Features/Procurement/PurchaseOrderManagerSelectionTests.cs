@@ -17,10 +17,12 @@ public sealed class PurchaseOrderManagerSelectionTests
     {
         var newId = Guid.NewGuid();
         var current = new PurchaseOrderManagerListItemDto
-        { PurchaseOrderId = newId, OrderNo = "PO-N", CustomerName = "客户", SupplierName = "供应商", ConfirmationStatus = ConfirmationStatusEnum.待确认 }
+        { PurchaseOrderId = newId, OrderNo = "PO-N", CustomerCode = "C-001", SupplierName = "供应商", ConfirmationStatus = ConfirmationStatusEnum.待确认 }
             .Adapt<PurchaseOrderManagementRowModel>();
         Assert.AreEqual(newId, current.PurchaseOrderId);
         Assert.AreEqual("PO-N", current.OrderNo);
+        Assert.AreEqual("C-001", current.CustomerCode);
+        Assert.IsNull(typeof(PurchaseOrderManagementRowModel).GetProperty("CustomerName"));
         Assert.IsNull(typeof(PurchaseOrderManagementRowModel).GetProperty("IsLegacy"));
         Assert.IsNull(typeof(PurchaseOrderManagementRowModel).GetProperty("DataScopeText"));
     }

@@ -65,6 +65,8 @@ public sealed class PurchaseOrderManagerContractTests
         Assert.AreEqual(typeof(decimal),
             typeof(PurchaseOrderManagerLineDto).GetProperty(nameof(PurchaseOrderManagerLineDto.UnreceivedQty))!.PropertyType);
         Assert.IsNull(typeof(PurchaseOrderManagerLineDto).GetProperty("UnreceivedQtyText"));
+        Assert.IsNotNull(typeof(PurchaseOrderManagerListItemDto).GetProperty("CustomerCode"));
+        Assert.IsNull(typeof(PurchaseOrderManagerListItemDto).GetProperty("CustomerName"));
     }
 
     /// <summary>目录内每个公开契约均使用同名独立文件，避免重新形成 Workspace 聚合桶。</summary>

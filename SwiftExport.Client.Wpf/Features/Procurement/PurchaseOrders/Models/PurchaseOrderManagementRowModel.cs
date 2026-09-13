@@ -1,13 +1,26 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
 /// <summary>采购订单管理页的新链头表只读投影。</summary>
-public sealed partial class PurchaseOrderManagementRowModel
+public sealed partial class PurchaseOrderManagementRowModel : ObservableObject
 {
+    /// <summary>当前页批量操作的临时勾选状态，不写入传输契约或数据库。</summary>
+    [ObservableProperty]
+    public partial bool IsChecked { get; set; }
+
+    /// <summary>上次批量确认是否出现无法判定写入结果的状态；核实前禁止生成新命令身份。</summary>
+    [ObservableProperty]
+    public partial bool HasUnknownConfirmationResult { get; private set; }
+
+    /// <summary>当前订单最近一次批量确认状态提示。</summary>
+    [ObservableProperty]
+    public partial string BatchConfirmationStatus { get; private set; } = string.Empty;
+
     public Guid PurchaseOrderId { get; set; }
     public string OrderNo { get; set; } = string.Empty;
-    public string CustomerName { get; set; } = string.Empty;
+    public string CustomerCode { get; set; } = string.Empty;
     public string SupplierName { get; set; } = string.Empty;
     public DateTime? OrderDate { get; set; }
     public ConfirmationStatusEnum ConfirmationStatus { get; set; }
@@ -26,4 +39,11 @@ public sealed partial class PurchaseOrderManagementRowModel
     public bool CanConfirm { get; set; }
     public bool CanCancelConfirmation { get; set; }
     public string CommandBlockedReason { get; set; } = string.Empty;
+
+    /// <summary>标记确认写入结果未知，要求用户先刷新并核实服务端状态。</summary>
+    public void MarkConfirmationResultUnknown()
+    {
+        HasUnknownConfirmationResult = true;
+        BatchConfirmationStatus = "确认结果待核实；仅当权威查询明确显示已确认时解除当前会话提交门禁。";
+    }
 }

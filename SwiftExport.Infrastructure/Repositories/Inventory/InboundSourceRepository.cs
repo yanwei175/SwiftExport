@@ -42,14 +42,24 @@ public sealed class InboundSourceRepository(RepositoryBaseContext context) : IIn
 
     private async Task<List<InboundSourceDto>> LoadAsync(InboundDocumentTypeEnum type, bool lockRows, CancellationToken cancellationToken)
     {
+        var sql = BuildLoadSql(type, lockRows);
+        var sourceType = type == InboundDocumentTypeEnum.CustomerSuppliedReceipt ? InboundSourceTypeEnum.NetDemandAllocation : InboundSourceTypeEnum.PurchaseOrderLine;
+        var rows = (await context.Session.Connection.QueryAsync<InboundSourceDto>(new CommandDefinition(sql, new { SourceType = sourceType }, context.Session.Transaction, cancellationToken: cancellationToken))).ToList();
+        foreach (var row in rows) { row.ReceivedQty = await GetReceivedNetQtyAsync(row.SourceType, row.SourceUid); row.RemainingReceivableQty = row.EffectiveQty - row.ReceivedQty; }
+        return rows;
+    }
+
+    /// <summary>生成来源查询；写路径同时持有来源行与虚拟仓锁，普通搜索不申请更新锁。</summary>
+    private static string BuildLoadSql(InboundDocumentTypeEnum type, bool lockRows)
+    {
         var hint = lockRows ? "WITH(UPDLOCK,HOLDLOCK)" : string.Empty;
-        var sql = type == InboundDocumentTypeEnum.CustomerSuppliedReceipt ? $"""
+        return type == InboundDocumentTypeEnum.CustomerSuppliedReceipt ? $"""
             SELECT a.Uid AS SourceUid,a.Version AS SourceVersion,CAST(@SourceType AS int) AS SourceType,nd.ProductId,nd.SkuSnapshot AS Sku,COALESCE(p.DescriptionZh,p.DescriptionEn,nd.SkuSnapshot) AS DefaultDescriptionEn,COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),N'PCS') AS Unit,
                    a.PlannedQty AS EffectiveQty,CAST(0 AS decimal(18,4)) AS ReceivedQty,a.PlannedQty AS RemainingReceivableQty,w.Uid AS WarehouseSiteId,w.Name AS WarehouseName,w.SupplierId,w.SupplierNameSnapshot AS SupplierName,
                    CAST(NULL AS uniqueidentifier) AS DemandExecutionLinkId,a.Uid AS NetDemandAllocationId,CAST(NULL AS nvarchar(100)) AS PurchaseOrderNo,gd.SourceNo AS SalesOrderNo
             FROM dbo.NetDemandAllocation a {hint} INNER JOIN dbo.NetDemand nd ON nd.Uid=a.NetDemandId AND ISNULL(nd.IsDeleted,0)=0 INNER JOIN dbo.GrossDemand gd ON gd.Uid=nd.GrossDemandId AND ISNULL(gd.IsDeleted,0)=0
             INNER JOIN dbo.NetDemandAllocation parent ON parent.Uid=a.DeliveryTargetAllocationId AND parent.LifecycleStatus=0 AND ISNULL(parent.IsDeleted,0)=0
-            INNER JOIN dbo.WarehouseSite w ON w.SupplierId=parent.PurchaseSupplierId AND w.SiteType=0 AND w.IsActive=1 AND ISNULL(w.IsDeleted,0)=0 LEFT JOIN dbo.Product p ON p.Uid=nd.ProductId AND ISNULL(p.IsDeleted,0)=0
+            INNER JOIN dbo.WarehouseSite w {hint} ON w.SupplierId=parent.PurchaseSupplierId AND w.SiteType=0 AND w.IsActive=1 AND ISNULL(w.IsDeleted,0)=0 LEFT JOIN dbo.Product p ON p.Uid=nd.ProductId AND ISNULL(p.IsDeleted,0)=0
             WHERE a.LifecycleStatus=0 AND a.DeliveryTargetAllocationId IS NOT NULL AND ISNULL(a.IsDeleted,0)=0;
             """ : $"""
             SELECT l.Uid AS SourceUid,l.Version AS SourceVersion,CAST(@SourceType AS int) AS SourceType,pol.ProductId,pol.Sku,COALESCE(p.DescriptionZh,p.DescriptionEn,pol.Sku) AS DefaultDescriptionEn,COALESCE(NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N''),NULLIF(LTRIM(RTRIM(p.Unit)),N''),N'PCS') AS Unit,
@@ -57,12 +67,8 @@ public sealed class InboundSourceRepository(RepositoryBaseContext context) : IIn
                    l.Uid AS DemandExecutionLinkId,l.NetDemandAllocationId,h.OrderNo AS PurchaseOrderNo,gd.SourceNo AS SalesOrderNo
             FROM dbo.DemandExecutionLink l {hint} INNER JOIN dbo.PurchaseOrderLine pol ON pol.Uid=l.TargetLineId AND ISNULL(pol.IsDeleted,0)=0 INNER JOIN dbo.PurchaseOrderHead h ON h.Uid=l.TargetHeadId AND h.ConfirmationStatus=1 AND ISNULL(h.IsDeleted,0)=0
             INNER JOIN dbo.NetDemandAllocation a ON a.Uid=l.NetDemandAllocationId AND a.LifecycleStatus=0 AND ISNULL(a.IsDeleted,0)=0 INNER JOIN dbo.NetDemand nd ON nd.Uid=l.NetDemandId AND ISNULL(nd.IsDeleted,0)=0 INNER JOIN dbo.GrossDemand gd ON gd.Uid=nd.GrossDemandId AND ISNULL(gd.IsDeleted,0)=0
-            INNER JOIN dbo.WarehouseSite w ON w.SupplierId=COALESCE(a.DeliveryTargetSupplierId,h.SupplierId) AND w.SiteType=0 AND w.IsActive=1 AND ISNULL(w.IsDeleted,0)=0 LEFT JOIN dbo.Product p ON p.Uid=pol.ProductId AND ISNULL(p.IsDeleted,0)=0
+            INNER JOIN dbo.WarehouseSite w {hint} ON w.SupplierId=COALESCE(a.DeliveryTargetSupplierId,h.SupplierId) AND w.SiteType=0 AND w.IsActive=1 AND ISNULL(w.IsDeleted,0)=0 LEFT JOIN dbo.Product p ON p.Uid=pol.ProductId AND ISNULL(p.IsDeleted,0)=0
             WHERE l.TargetType=N'PO' AND l.LinkStatus=0 AND ISNULL(l.IsDeleted,0)=0;
             """;
-        var sourceType = type == InboundDocumentTypeEnum.CustomerSuppliedReceipt ? InboundSourceTypeEnum.NetDemandAllocation : InboundSourceTypeEnum.PurchaseOrderLine;
-        var rows = (await context.Session.Connection.QueryAsync<InboundSourceDto>(new CommandDefinition(sql, new { SourceType = sourceType }, context.Session.Transaction, cancellationToken: cancellationToken))).ToList();
-        foreach (var row in rows) { row.ReceivedQty = await GetReceivedNetQtyAsync(row.SourceType, row.SourceUid); row.RemainingReceivableQty = row.EffectiveQty - row.ReceivedQty; }
-        return rows;
     }
 }

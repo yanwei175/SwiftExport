@@ -31,6 +31,9 @@ public sealed class PurchaseOrderManagerQueryContractTests
         Assert.IsFalse(repository.Contains("ExecutionModel", StringComparison.Ordinal));
         StringAssert.Contains(repository, "h.ConfirmationStatus IN @ConfirmationStatuses");
         StringAssert.Contains(repository, "h.LifecycleStatus IN @LifecycleStatuses");
+        StringAssert.Contains(repository, "h.CustomerCode AS CustomerCode");
+        StringAssert.Contains(repository, "OR h.CustomerCode LIKE @Keyword");
+        StringAssert.Contains(repository, "GROUP BY h.Uid,h.Version,h.LifecycleStatus,h.OrderNo,h.BoNo,h.CustomerCode");
         StringAssert.Contains(repository, "SELECT TOP (1)");
         StringAssert.Contains(repository, "FROM dbo.SupplierProgressReport");
         StringAssert.Contains(repository, "receiveHead.PostingStatus=@PostedStatus");
@@ -38,6 +41,7 @@ public sealed class PurchaseOrderManagerQueryContractTests
         StringAssert.Contains(repository, "product.MainImage");
         StringAssert.Contains(repository, "MAX(f.ExpectedReadyDate) AS ExpectedCompletionDate");
         StringAssert.Contains(repository, "l.MaterialType=@CustomerSuppliedMaterialType");
+        Assert.IsFalse(repository.Contains("CustomerNameSnapshot AS CustomerName", StringComparison.Ordinal));
     }
 
     /// <summary>确认管理查询不携带完整跟进历史、追溯或库存流水明细。</summary>

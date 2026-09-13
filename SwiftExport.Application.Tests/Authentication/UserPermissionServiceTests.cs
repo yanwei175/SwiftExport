@@ -17,7 +17,7 @@ namespace SwiftExport.Application.Tests.Authentication;
 [TestClass]
 public sealed class UserPermissionServiceTests
 {
-    /// <summary>可分配目录严格等于包含品质模块的九个一级模块，不包含管理能力。</summary>
+    /// <summary>一级模块目录保持不变，普通用户可分配目录额外包含虚拟仓独立管理能力。</summary>
     [TestMethod]
     public void ModuleCatalogContainsOnlyStableAssignableKeys()
     {
@@ -34,6 +34,31 @@ public sealed class UserPermissionServiceTests
             PermissionKeys.ModuleQualityControlAccess
         }, PermissionKeys.Modules.ToArray());
         CollectionAssert.DoesNotContain(PermissionKeys.Modules.ToList(), PermissionKeys.SystemSettingsManage);
+        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.InventoryWarehouseManage);
+        CollectionAssert.DoesNotContain(PermissionKeys.UserAssignable.ToList(), PermissionKeys.SystemSettingsManage);
+    }
+
+    /// <summary>验证管理员可保存虚拟仓独立管理能力，普通用户投影随后真实包含该权限。</summary>
+    [TestMethod]
+    public async Task WarehouseManagementPermission_ShouldBeAssignableAndProjected()
+    {
+        var actorId = Guid.NewGuid();
+        var targetId = Guid.NewGuid();
+        var repository = AdminRepository(actorId);
+        repository.Facts[targetId] = Facts(targetId, false, [], [PermissionKeys.InventoryWarehouseManage]);
+        var connection = new ConnectionStub();
+        var service = Service(repository, actorId, connection);
+
+        var saved = await service.SaveUserModulesAsync(targetId, new SaveUserModulePermissionsRequestDto
+        {
+            ModulePermissions = [PermissionKeys.ModuleInventoryAccess, PermissionKeys.InventoryWarehouseManage]
+        });
+        var projection = await service.GetProjectionAsync(targetId);
+
+        Assert.IsTrue(saved.Success);
+        CollectionAssert.Contains(repository.LastModules.ToList(), PermissionKeys.InventoryWarehouseManage);
+        Assert.IsNotNull(projection);
+        CollectionAssert.Contains(projection.Permissions.ToList(), PermissionKeys.InventoryWarehouseManage);
     }
 
     /// <summary>普通用户保留历史细权限，采购模块只在唯一投影点展开为四个既有操作键。</summary>
@@ -218,6 +243,14 @@ public sealed class UserPermissionServiceTests
             ReplaceCalls++;
             LastModules = modulePermissions.ToArray();
             if (ThrowOnReplace) throw new InvalidOperationException("模拟整组写入失败");
+            if (ReplaceStatus == UserModuleReplaceStatus.Updated && Facts.TryGetValue(targetUserId, out var current))
+            {
+                Facts[targetUserId] = new UserPermissionFacts
+                {
+                    UserId = current.UserId, IsActive = current.IsActive, IsAdmin = current.IsAdmin,
+                    RoleNames = current.RoleNames, ModulePermissions = modulePermissions.ToArray()
+                };
+            }
             return Task.FromResult(ReplaceStatus);
         }
     }

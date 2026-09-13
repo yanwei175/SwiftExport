@@ -584,9 +584,9 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         });
     }
 
-    /// <summary>恢复候选时更新服务端事实，同时保留采购输入并显式暴露超额错误。</summary>
+    /// <summary>刷新候选时更新服务端事实，同时保留采购输入并显式暴露超额错误。</summary>
     [TestMethod]
-    public async Task RestoreCurrentScope_ShouldMergeAllFactsWithoutOverwritingPurchaseInputs()
+    public async Task RefreshCandidateData_ShouldMergeAllFactsWithoutOverwritingPurchaseInputs()
     {
         var api = new CandidateApiStub();
         var original = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
@@ -599,10 +599,9 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         var row = viewModel.Items.Single(item => item.Uid == original.Uid);
         row.IsChecked = true;
         row.PurchaseQty = 7m;
-        row.UnitPrice = 12.3m;
+        row.UnitPrice = 0m;
         row.TaxPrice = 13.9m;
-        var plannedDate = new DateTime(2026, 10, 1);
-        row.PlannedDeliveryDate = plannedDate;
+        row.PlannedDeliveryDate = null;
 
         var refreshed = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
         refreshed.Uid = original.Uid;
@@ -616,26 +615,29 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         api.DetailHandler = (_, _) => Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok(
             [refreshed, refreshedUnchecked, added]));
 
-        Assert.IsTrue(await viewModel.RestoreCurrentScopeAsync([]));
+        await viewModel.RefreshCandidateDataCommand.ExecuteAsync(null);
 
         row = viewModel.Items.Single(item => item.Uid == original.Uid);
         Assert.AreEqual(2, row.Version);
         Assert.AreEqual(5m, row.RemainingQty);
         Assert.AreEqual(7m, row.PurchaseQty);
-        Assert.AreEqual(12.3m, row.UnitPrice);
+        Assert.AreEqual(0m, row.UnitPrice);
         Assert.AreEqual(13.9m, row.TaxPrice);
-        Assert.AreEqual(plannedDate, row.PlannedDeliveryDate);
+        Assert.IsNull(row.PlannedDeliveryDate);
         Assert.IsTrue(row.IsChecked);
         Assert.IsTrue(row.HasValidationError);
         Assert.AreEqual(3, viewModel.Items.Single(item => item.Uid == originallyUnchecked.Uid).Version);
         Assert.IsFalse(viewModel.Items.Single(item => item.Uid == added.Uid).IsChecked);
         Assert.AreEqual(api.FirstSourceUid, api.DetailRequests.Last().SourceUid);
         Assert.AreEqual("SO", api.DetailRequests.Last().SourceType);
+        Assert.IsTrue(viewModel.IsInputEnabled);
+        Assert.IsTrue(viewModel.RefreshCandidateDataCommand.CanExecute(null));
+        StringAssert.Contains(viewModel.SelectionValidationText, "重新校验");
     }
 
     /// <summary>当前待采购范围缺失的已选需求保留原输入，并要求用户显式取消选择。</summary>
     [TestMethod]
-    public async Task RestoreCurrentScope_ShouldRetainMissingSelectedAndRemoveMissingUnchecked()
+    public async Task RefreshCandidateData_ShouldRetainMissingSelectedAndRemoveMissingUnchecked()
     {
         var api = new CandidateApiStub();
         var original = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
@@ -650,7 +652,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         row.PurchaseQty = 3m;
         api.DetailHandler = (_, _) => Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok([]));
 
-        Assert.IsTrue(await viewModel.RestoreCurrentScopeAsync([]));
+        await viewModel.RefreshCandidateDataCommand.ExecuteAsync(null);
 
         Assert.AreSame(row, viewModel.Items.Single());
         Assert.AreEqual(3m, row.PurchaseQty);
@@ -659,9 +661,9 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         StringAssert.Contains(row.ValidationDisplayMessage, "不在当前待采购范围");
     }
 
-    /// <summary>全部来源入口恢复时保持空来源筛选，并按同一规则接纳新出现候选。</summary>
+    /// <summary>全部来源入口刷新时保持空来源筛选，并按同一规则接纳新出现候选。</summary>
     [TestMethod]
-    public async Task RestoreAllSources_ShouldQueryFullScopeAndLeaveNewRowsUnchecked()
+    public async Task RefreshAllSources_ShouldQueryFullScopeAndLeaveNewRowsUnchecked()
     {
         var api = new CandidateApiStub();
         api.Groups.Add(CreateGroup("SO-A", api.FirstSourceUid, 1));
@@ -674,17 +676,17 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         api.DetailHandler = (_, _) => Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok(
             [api.Candidates.Single(), added]));
 
-        Assert.IsTrue(await viewModel.RestoreCurrentScopeAsync([$"SO|{api.FirstSourceUid:N}"]));
+        await viewModel.RefreshCandidateDataCommand.ExecuteAsync(null);
 
-        Assert.IsFalse(viewModel.Items.Single(item => item.Uid == api.Candidates.Single().Uid).IsChecked);
+        Assert.IsTrue(viewModel.Items.Single(item => item.Uid == api.Candidates.Single().Uid).IsChecked);
         Assert.IsFalse(viewModel.Items.Single(item => item.Uid == added.Uid).IsChecked);
         Assert.IsNull(api.DetailRequests.Last().SourceUid);
         Assert.AreEqual(string.Empty, api.DetailRequests.Last().SourceType);
     }
 
-    /// <summary>恢复失败保持原集合可重试；关闭后取消请求并拒绝迟到结果覆盖旧事实。</summary>
+    /// <summary>刷新失败保持原集合可重试；关闭后取消请求并拒绝迟到结果覆盖旧事实。</summary>
     [TestMethod]
-    public async Task RestoreCurrentScope_ShouldPreserveOnFailureAndRejectLateResultAfterClose()
+    public async Task RefreshCandidateData_ShouldPreserveOnFailureAndRejectLateResultAfterClose()
     {
         var api = new CandidateApiStub();
         var original = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
@@ -699,32 +701,61 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         api.DetailHandler = (_, _) => Task.FromResult(
             ServiceResult<List<PurchaseDraftCandidateDto>>.Fail("网络失败"));
 
-        Assert.IsFalse(await viewModel.RestoreCurrentScopeAsync([]));
+        await viewModel.RefreshCandidateDataCommand.ExecuteAsync(null);
         Assert.AreSame(row, viewModel.Items.Single());
         Assert.AreEqual(3m, row.PurchaseQty);
+        Assert.IsTrue(viewModel.IsInputEnabled);
+        Assert.IsTrue(viewModel.RefreshCandidateDataCommand.CanExecute(null));
+        StringAssert.Contains(viewModel.StatusText, "可重试刷新");
 
         var retried = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
         retried.Uid = original.Uid;
         retried.Version = 2;
         api.DetailHandler = (_, _) => Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok([retried]));
-        Assert.IsTrue(await viewModel.RestoreCurrentScopeAsync([]));
+        await viewModel.RefreshCandidateDataCommand.ExecuteAsync(null);
         Assert.AreEqual(2, viewModel.Items.Single().Version);
         Assert.AreEqual(3m, viewModel.Items.Single().PurchaseQty);
 
         var late = new TaskCompletionSource<ServiceResult<List<PurchaseDraftCandidateDto>>>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         api.DetailHandler = (_, _) => late.Task;
-        var restoreTask = viewModel.RestoreCurrentScopeAsync([]);
+        var restoreTask = viewModel.RefreshCandidateDataCommand.ExecuteAsync(null);
         await Task.Yield();
+        Assert.IsTrue(viewModel.IsLoading);
+        Assert.IsFalse(viewModel.IsInputEnabled);
+        Assert.IsFalse(viewModel.RefreshCandidateDataCommand.CanExecute(null));
         viewModel.Close();
+        Assert.IsTrue(viewModel.IsInputEnabled);
         var refreshed = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
         refreshed.Uid = original.Uid;
         refreshed.Version = 9;
         late.SetResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok([refreshed]));
 
-        Assert.IsFalse(await restoreTask);
+        await restoreTask;
         Assert.AreEqual(2, viewModel.Items.Single().Version);
         Assert.AreEqual(3m, viewModel.Items.Single().PurchaseQty);
+    }
+
+    /// <summary>刷新必须先有当前来源并提交原生编辑；转换失败时不查询、不丢输入。</summary>
+    [TestMethod]
+    public async Task RefreshCandidateData_ShouldRequireSourceAndCommittedCellEdit()
+    {
+        var api = new CandidateApiStub();
+        api.Groups.Add(CreateGroup("SO-A", api.FirstSourceUid, 1));
+        api.Candidates.Add(CreateCandidate(api.FirstSourceUid, "SO-A", 1));
+        using var viewModel = CreateViewModel(api);
+        await viewModel.OpenAsync();
+
+        Assert.IsFalse(viewModel.RefreshCandidateDataCommand.CanExecute(null));
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
+        var callsAfterLoad = api.DetailRequests.Count;
+        viewModel.CommitPendingEdits = static () => false;
+
+        await viewModel.RefreshCandidateDataCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(callsAfterLoad, api.DetailRequests.Count);
+        Assert.IsTrue(viewModel.IsInputEnabled);
+        StringAssert.Contains(viewModel.SelectionValidationText, "当前单元格输入格式无效");
     }
 
     private static PurchaseDraftCandidateSourceGroupDto CreateGroup(string sourceNo, Guid sourceUid, int count) => new()

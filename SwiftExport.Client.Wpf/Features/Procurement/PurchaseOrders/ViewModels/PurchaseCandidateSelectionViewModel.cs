@@ -82,7 +82,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     [NotifyCanExecuteChangedFor(nameof(EnterPreviewCommand))]
     public partial bool HasValidatedSelection { get; private set; }
 
-    /// <summary>采购准备页的校验与恢复反馈。</summary>
+    /// <summary>采购准备页的校验与刷新反馈。</summary>
     [ObservableProperty]
     public partial string SelectionValidationText { get; private set; } = string.Empty;
 
@@ -113,9 +113,11 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     }
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCandidateDataCommand))]
     public partial PurchaseCandidateSourceGroupModel? SelectedSourceGroup { get; private set; }
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCandidateDataCommand))]
     public partial PurchaseCandidateSourceGroupModel? PendingSourceGroup { get; private set; }
 
     /// <summary>是否正在等待用户在当前页面确认来源切换。</summary>
@@ -144,6 +146,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ToggleAllVisibleCommand))]
     [NotifyCanExecuteChangedFor(nameof(InvertVisibleSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCandidateDataCommand))]
     public partial bool IsLoading { get; private set; }
 
     [ObservableProperty]
@@ -151,12 +154,13 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     [NotifyCanExecuteChangedFor(nameof(InvertVisibleSelectionCommand))]
     public partial bool IsDetailLoaded { get; private set; }
 
-    /// <summary>当前准备页是否允许修改来源、勾选和采购输入；恢复服务端事实期间统一关闭。</summary>
+    /// <summary>当前准备页是否允许修改来源、勾选和采购输入；刷新服务端事实期间统一关闭。</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ValidateSelectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(EnterPreviewCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleAllVisibleCommand))]
     [NotifyCanExecuteChangedFor(nameof(InvertVisibleSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCandidateDataCommand))]
     public partial bool IsInputEnabled { get; private set; } = true;
 
     [ObservableProperty]
@@ -277,8 +281,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     private bool CanChangeVisibleSelection() => IsInputEnabled
         && IsDetailLoaded
         && !IsLoading
-        && (_workflow is null || (!_workflow.IsRecoveryInProgress
-            && !_workflow.IsCreateInProgress
+        && (_workflow is null || (!_workflow.IsCreateInProgress
             && !_workflow.HasUnknownCreateResult));
 
     [RelayCommand(AllowConcurrentExecutions = true)]
@@ -364,6 +367,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         _workflow = workflow;
         _workflow.PropertyChanged += OnWorkflowPropertyChanged;
         OnPropertyChanged(nameof(Workflow));
+        RefreshCandidateDataCommand.NotifyCanExecuteChanged();
         ValidateSelectionCommand.NotifyCanExecuteChanged();
         EnterPreviewCommand.NotifyCanExecuteChanged();
     }
@@ -423,7 +427,6 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     private bool CanValidateSelection() => _workflow is not null
         && IsInputEnabled
         && !IsLoading
-        && !_workflow.IsRecoveryInProgress
         && !_workflow.IsCreateInProgress
         && !_workflow.HasUnknownCreateResult
         && SelectedCount > 0;
@@ -431,16 +434,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     private bool CanEnterPreview() => HasValidatedSelection
         && IsInputEnabled
         && _workflow?.HasValidPreparation == true
-        && !_workflow.IsRecoveryInProgress
         && !_workflow.IsCreateInProgress;
-
-    /// <summary>审核刷新成功后接纳其验证快照；若仍有强提示，确认完成即可再次进入审核。</summary>
-    public void AcceptCurrentPreviewValidation()
-    {
-        HasValidatedSelection = _workflow is { HasPreview: true, IsStale: false, HasBlockers: false };
-        SelectionValidationText = BuildSelectionValidationText();
-        EnterPreviewCommand.NotifyCanExecuteChanged();
-    }
 
     /// <summary>优先展示服务端真实强确认与影响对象，避免用笼统的预览失效文案覆盖有效警告。</summary>
     private string BuildSelectionValidationText()
@@ -456,49 +450,88 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         return _workflow.CreateBlockReason;
     }
 
-    /// <summary>重新加载当前来源完整范围；只有成功后才合并，传输失败完整保留当前集合和输入。</summary>
-    public async Task<bool> RestoreCurrentScopeAsync(
-        IReadOnlyList<string> completedSourceKeys,
-        CancellationToken cancellationToken = default)
+    /// <summary>显式刷新当前来源完整候选；先失效旧校验，成功后才合并，失败时完整保留画面和采购输入。</summary>
+    [RelayCommand(CanExecute = nameof(CanRefreshCandidateData))]
+    private async Task RefreshCandidateDataAsync()
     {
-        var request = ReplaceCancellation(ref _detailCancellation, cancellationToken);
         var sourceGroup = SelectedSourceGroup;
+        var workflow = _workflow;
+        if (sourceGroup is null || !CanRefreshCandidateData()) return;
+        if (!TryCommitPendingEdits())
+        {
+            SelectionValidationText = "当前单元格输入格式无效，请修正后再刷新待采购数据。";
+            return;
+        }
+
+        var sessionRequestId = workflow?.ExecutionRequestId;
+        var completedSourceKeys = workflow?.GetCompletedSourceKeys() ?? [];
+        workflow?.InvalidatePreparation();
+        HasValidationAttempted = false;
+        HasValidatedSelection = false;
+        SelectionValidationText = "旧校验已失效，正在刷新待采购数据...";
+        foreach (var item in Items) item.ValidationMessage = string.Empty;
+        RefreshLocalFilter();
+
+        var request = ReplaceCancellation(
+            ref _detailCancellation,
+            _lifetimeCancellation?.Token ?? CancellationToken.None);
+        SetInputEnabled(false);
         IsLoading = true;
-        StatusText = "正在刷新采购候选事实...";
+        StatusText = "正在刷新待采购数据...";
+        string? completionStatus = null;
         try
         {
             var result = await _runner.RunAsync(
                 () => _api.GetCandidatesAsync(new PurchaseDraftCandidateQuery
                 {
-                    SourceType = sourceGroup is { IsAllSources: false } ? sourceGroup.SourceType : string.Empty,
-                    SourceUid = sourceGroup is { IsAllSources: false } ? sourceGroup.SourceUid : null,
+                    SourceType = sourceGroup.IsAllSources ? string.Empty : sourceGroup.SourceType,
+                    SourceUid = sourceGroup.IsAllSources ? null : sourceGroup.SourceUid,
                 }, request.Token),
                 request.Token,
-                "刷新采购候选失败");
-            if (!CanAccept(_detailCancellation, request)) return false;
+                "刷新待采购数据失败");
+            if (!CanAccept(_detailCancellation, request)) return;
             if (!result.Success || result.Data is null)
             {
-                StatusText = string.IsNullOrWhiteSpace(result.Message)
-                    ? "刷新采购候选未完成，当前输入已保留，可重试。"
-                    : $"{result.Message} 当前输入已保留，可重试。";
-                return false;
+                completionStatus = string.IsNullOrWhiteSpace(result.Message)
+                    ? "刷新待采购数据未完成，当前列表和输入已保留，可重试。"
+                    : $"{result.Message} 当前列表和输入已保留，可重试刷新。";
+                SelectionValidationText = "旧校验已失效，请重试刷新待采购数据后重新校验。";
+                return;
             }
 
-            if (!ReferenceEquals(SelectedSourceGroup, sourceGroup)) return false;
-            MergeRecoveredCandidates(result.Data, completedSourceKeys);
-            HasValidationAttempted = false;
-            HasValidatedSelection = false;
-            SelectionValidationText = "候选事实已刷新，请处理标记项后重新校验。";
-            return true;
+            if (!ReferenceEquals(SelectedSourceGroup, sourceGroup)
+                || !ReferenceEquals(_workflow, workflow)
+                || workflow is not null && workflow.ExecutionRequestId != sessionRequestId)
+            {
+                completionStatus = "采购会话或来源范围已变化，本次刷新结果未接纳。";
+                return;
+            }
+
+            MergeRefreshedCandidates(result.Data, completedSourceKeys);
+            IsDetailLoaded = true;
+            SelectionValidationText = "待采购数据已刷新，请处理标记项后重新校验。";
+            completionStatus = $"待采购数据已刷新：共 {Items.Count} 条，已选 {SelectedCount} 条。";
         }
         finally
         {
+            var ownsRequest = ReferenceEquals(_detailCancellation, request);
             CompleteRequest(ref _detailCancellation, request);
+            if (ownsRequest && !_disposed)
+            {
+                SetInputEnabled(true);
+                if (!string.IsNullOrWhiteSpace(completionStatus)) StatusText = completionStatus;
+            }
         }
     }
 
+    private bool CanRefreshCandidateData() => SelectedSourceGroup is not null
+        && PendingSourceGroup is null
+        && IsInputEnabled
+        && !IsLoading
+        && (_workflow is null || (!_workflow.IsCreateInProgress && !_workflow.HasUnknownCreateResult));
+
     /// <summary>以服务端新事实替换匹配行，同时保留采购员输入；当前范围缺失行原样保留并标为不可采购。</summary>
-    private void MergeRecoveredCandidates(
+    private void MergeRefreshedCandidates(
         IReadOnlyList<PurchaseDraftCandidateDto> candidates,
         IReadOnlyList<string> completedSourceKeys)
     {
@@ -778,8 +811,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
             or nameof(PurchaseDraftWorkflowViewModel.HasUnconfirmedWarnings)
             or nameof(PurchaseDraftWorkflowViewModel.IsStale)
             or nameof(PurchaseDraftWorkflowViewModel.IsCreateInProgress)
-            or nameof(PurchaseDraftWorkflowViewModel.HasUnknownCreateResult)
-            or nameof(PurchaseDraftWorkflowViewModel.IsRecoveryInProgress))
+            or nameof(PurchaseDraftWorkflowViewModel.HasUnknownCreateResult))
         {
             HasValidatedSelection &= _workflow is { HasPreview: true, IsStale: false, HasBlockers: false };
             if (HasValidationAttempted) SelectionValidationText = BuildSelectionValidationText();
@@ -787,6 +819,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
             EnterPreviewCommand.NotifyCanExecuteChanged();
             ToggleAllVisibleCommand.NotifyCanExecuteChanged();
             InvertVisibleSelectionCommand.NotifyCanExecuteChanged();
+            RefreshCandidateDataCommand.NotifyCanExecuteChanged();
         }
     }
 
@@ -832,6 +865,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
             owner = null;
             IsLoading = false;
             UpdateCountStatus();
+            RefreshCandidateDataCommand.NotifyCanExecuteChanged();
             ValidateSelectionCommand.NotifyCanExecuteChanged();
         }
         request.Dispose();
@@ -860,6 +894,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         _lifetimeCancellation?.Dispose();
         _lifetimeCancellation = null;
         IsLoading = false;
+        SetInputEnabled(true);
     }
 
     /// <summary>释放选择器持有的查询资源和行事件。</summary>

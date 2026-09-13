@@ -245,14 +245,6 @@ public sealed partial class PurchaseDraftTargetSelectionModel : ObservableObject
     };
 }
 
-/// <summary>请求采购准备页按稳定需求身份恢复候选，并说明触发恢复的结构化原因。</summary>
-public sealed class PurchaseDraftCandidateRecoveryRequestedEventArgs : EventArgs
-{
-    public string ErrorCode { get; init; } = string.Empty;
-    /// <summary>本会话已经成功或幂等应用的来源键；完整范围恢复时这些来源不得重新选中。</summary>
-    public IReadOnlyList<string> CompletedSourceKeys { get; init; } = [];
-}
-
 /// <summary>采购单审核阶段的显式单据模型，不依赖分组首行推断单头。</summary>
 public sealed partial class PurchaseDraftDocumentReviewModel
 {
@@ -326,15 +318,15 @@ public sealed partial class PurchaseDraftWarningModel : ObservableObject
     public string AffectedObjectText => string.Join("；", AffectedObjectLines);
     public string ActionText => Code switch
     {
-        PurchaseDraftWarningCodes.InvalidPurchaseQuantity => "处理：回到本次计划，修正采购数量后重新预览。",
-        PurchaseDraftWarningCodes.PurchaseSupplierRequired => "处理：在本次计划中选择实际采购供应商后重新预览。",
+        PurchaseDraftWarningCodes.InvalidPurchaseQuantity => "处理：回到本次计划，修正采购数量后重新校验。",
+        PurchaseDraftWarningCodes.PurchaseSupplierRequired => "处理：在本次计划中选择实际采购供应商后重新校验。",
         PurchaseDraftWarningCodes.PurchaseSupplierInvalid => "处理：原供应商已失效，请重新选择有效的实际采购供应商。",
         PurchaseDraftWarningCodes.DeliveryTargetRequired => "处理：为客供件明确选择实际送达方；若父件关系无效，请刷新或移除该选择。",
         PurchaseDraftWarningCodes.CorruptedPlanningState => "处理：刷新采购候选；若仍存在，请移除该选择并联系计划人员核对来源事实。",
         PurchaseDraftWarningCodes.PurchaseDataIncomplete => "处理：允许创建草稿；创建后可在采购详情补齐供应商产品资料。",
         PurchaseDraftWarningCodes.DifferentPlannedDeliveryDates => "处理：核对展开明细中的原交期；确认采用最早交期后方可创建。",
         PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining => "已选父件仍有关联客供件未选，本次不会采购这些客供件；可勾选后重新校验，或确认仅采购当前选择后继续。",
-        _ => "处理：按提示核对受影响对象后重新预览。",
+        _ => "处理：按提示核对受影响对象后重新校验。",
     };
     public string ConfirmationScopeText => RequiresConfirmation
         ? $"一次确认覆盖来源 {SourceNo} 下当前列出的 {AffectedCount} 个受影响对象。"

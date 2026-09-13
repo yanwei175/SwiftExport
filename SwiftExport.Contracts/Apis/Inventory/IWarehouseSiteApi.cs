@@ -16,6 +16,9 @@ namespace SwiftExport.Contracts.Apis.Inventory
         /// <summary>读取仓库管理列表，包含停用展示；不得把结果当采购新增资格。</summary>
         [Post("/search")]
         Task<ServiceResult<PagedResponseBase<WarehouseSiteDto>>> SearchAsync([Body] WarehouseSiteSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));
+        /// <summary>分页搜索仓库管理可选择的活动供应商，不暴露供应商联系或交易资料。</summary>
+        [Post("/suppliers/search")]
+        Task<ServiceResult<PagedResponseBase<WarehouseSupplierLookupDto>>> SearchSuppliersAsync([Body] PagedRequestBase request, CancellationToken cancellationToken = default(CancellationToken));
         /// <summary>读取当前仓库显示资料，不替代采购历史快照。</summary>
         [Get("/{uid}")]
         Task<ServiceResult<WarehouseSiteDto>> GetAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken));
@@ -28,5 +31,8 @@ namespace SwiftExport.Contracts.Apis.Inventory
         /// <summary>按现有约束停用仓库，保留历史事实。</summary>
         [Post("/{uid}/deactivate")]
         Task<ServiceResult<WarehouseSiteDto>> DeactivateAsync(Guid uid, [Body] DeactivateWarehouseSiteCommand command, CancellationToken cancellationToken = default(CancellationToken));
+        /// <summary>按并发版本软删虚拟仓；停用与库存锁定校验仍在服务端生效。</summary>
+        [Delete("/{uid}")]
+        Task<ServiceResult<WarehouseSiteDto>> DeleteAsync(Guid uid, [Body] DeleteWarehouseSiteCommand command, CancellationToken cancellationToken = default(CancellationToken));
     }
 }

@@ -198,6 +198,19 @@ public sealed class SettingsViewModelTests
         viewModel.Dispose();
     }
 
+    /// <summary>验证权限维护界面真实展示供应商虚拟仓独立管理能力。</summary>
+    [TestMethod]
+    public void UserModules_ShouldExposeWarehouseManagementPermission()
+    {
+        var viewModel = new UserModulePermissionsViewModel(
+            new FakeAuthApi(), new PassThroughApiCallRunner(), new FakeDialogService());
+
+        Assert.IsTrue(viewModel.Modules.Any(option =>
+            option.PermissionKey == PermissionKeys.InventoryWarehouseManage));
+
+        viewModel.Dispose();
+    }
+
     /// <summary>验证取消放弃变更后保持原用户与原勾选。</summary>
     [TestMethod]
     public async Task UserModules_ShouldKeepCurrentUserWhenDiscardConfirmationIsCancelled()

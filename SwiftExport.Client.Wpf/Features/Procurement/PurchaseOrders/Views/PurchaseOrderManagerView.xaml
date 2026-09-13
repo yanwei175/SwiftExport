@@ -21,6 +21,8 @@
                     </ui:DropDownButton>
                     
                     <Button Content="确认" Command="{Binding ConfirmCommand}" Margin="4,0,0,0"/>
+                    <Button Content="批量确认" Command="{Binding BatchConfirmCommand}" Margin="4,0,0,0"
+                            AutomationProperties.Name="批量确认当前页已勾选采购单"/>
                     <Button Content="取消确认" Command="{Binding CancelConfirmationCommand}" Margin="4,0,0,0"/>
                     <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="4,0,0,0"/>
                     <Button Content="采购跟进" Command="{Binding OpenFollowUpCommand}" Margin="4,0,0,0"/>
@@ -53,6 +55,7 @@
             <Grid RowDefinitions="*,Auto">
                 <DataGrid ItemsSource="{Binding Orders}"
                           SelectedItem="{Binding SelectedOrder}"
+                          PreviewMouseDoubleClick="OnOrdersPreviewMouseDoubleClick"
                           AutoGenerateColumns="False"
                           IsReadOnly="True"
                           RowHeight="{StaticResource DataGridRowHeightSmall}"
@@ -61,16 +64,33 @@
                           gridCore:EnterpriseGrid.IsEnabled="True"
                           gridCore:GridVirtualization.IsEnabled="True"
                           gridCore:GridRowHeader.ShowRowNumber="True">
-                    <DataGrid.InputBindings>
-                        <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding OpenDetailCommand}"/>
-                    </DataGrid.InputBindings>
                     <DataGrid.Columns>
+                        <DataGridTemplateColumn Width="42" CanUserSort="False">
+                            <DataGridTemplateColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsThreeState="False"
+                                              IsChecked="{Binding DataContext.IsAllCurrentPageChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}"
+                                              IsEnabled="{Binding DataContext.IsNotBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                              ToolTip="全选或清除当前加载页"
+                                              AutomationProperties.Name="全选或清除当前页采购单"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.HeaderTemplate>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              IsEnabled="{Binding DataContext.IsNotBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                              ToolTip="{Binding BatchConfirmationStatus}"
+                                              AutomationProperties.Name="{Binding OrderNo, StringFormat=选择采购单 {0}}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="生命周期"
                                             Binding="{Binding LifecycleStatus,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}"
                                             Width="85"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="采购单号" Binding="{Binding OrderNo}" Width="145"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="诗亦霖采购单号" Binding="{Binding BoNo}" Width="140"/>
-                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="客户归属" Binding="{Binding CustomerName}" Width="150"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="客户代码" Binding="{Binding CustomerCode}" Width="120"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="供应商" Binding="{Binding SupplierName}" Width="170"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="确认状态" Binding="{Binding ConfirmationStatus,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}" Width="85"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="采购日期" Binding="{Binding OrderDate,StringFormat=yyyy-MM-dd}" Width="100"/>
@@ -85,10 +105,11 @@
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="预计完成" Binding="{Binding ExpectedCompletionDate,StringFormat=yyyy-MM-dd}" Width="105"/>
                     </DataGrid.Columns>
                 </DataGrid>
-                <Grid Grid.Row="1" Margin="0,4,0,0" ColumnDefinitions="*,Auto,12,Auto">
-                    <TextBlock Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}"/>
-                    <TextBlock Grid.Column="1" Text="{Binding PageStatus}" Style="{StaticResource CaptionTextBlock}"/>
-                    <controls:PageNavigator Grid.Column="3" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}" PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}"/>
+                <Grid Grid.Row="1" Margin="0,4,0,0" ColumnDefinitions="Auto,12,*,Auto,12,Auto">
+                    <TextBlock Text="{Binding SelectionSummary}" Style="{StaticResource CaptionTextBlock}"/>
+                    <TextBlock Grid.Column="2" Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}"/>
+                    <TextBlock Grid.Column="3" Text="{Binding PageStatus}" Style="{StaticResource CaptionTextBlock}"/>
+                    <controls:PageNavigator Grid.Column="5" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}" PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}"/>
                 </Grid>
             </Grid>
 

@@ -22,11 +22,8 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
         _preview = preview;
         _result = new PurchaseDraftResultViewModel(preview);
         _preparation.AttachWorkflow(preview);
-        _preview.SetCandidateRecoveryHandler(RecoverCandidatesAsync);
         _preparation.PreviewRequested += OnPreviewRequested;
         _preview.ReturnToPreparationRequested += OnReturnToPreparationRequested;
-        _preview.PreviewRefreshCompleted += OnPreviewRefreshCompleted;
-        _preview.CandidateRecoveryCompleted += OnCandidateRecoveryCompleted;
         _preview.CreationCompleted += OnCreationCompleted;
         _preview.PropertyChanged += OnPreviewPropertyChanged;
         _result.ReturnToPreviewRequested += OnReturnToPreviewRequested;
@@ -67,26 +64,6 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
     }
 
     private void OnReturnToPreparationRequested(object? sender, EventArgs e) => ShowPreparation();
-
-    /// <summary>在审核命令内部等待当前来源完整恢复；成功后才返回准备，失败则保留原审核画面。</summary>
-    private async Task<bool> RecoverCandidatesAsync(
-        PurchaseDraftCandidateRecoveryRequestedEventArgs request,
-        CancellationToken cancellationToken)
-    {
-        _preparation.SetInputEnabled(false);
-        return await _preparation.RestoreCurrentScopeAsync(
-            request.CompletedSourceKeys,
-            cancellationToken);
-    }
-
-    private void OnCandidateRecoveryCompleted(object? sender, EventArgs e) => ShowPreparation();
-
-    private void OnPreviewRefreshCompleted(object? sender, EventArgs e)
-    {
-        _preparation.AcceptCurrentPreviewValidation();
-        if (_preview.HasBlockers || _preview.HasUnconfirmedWarnings)
-            ShowPreparation();
-    }
 
     private void OnCreationCompleted(object? sender, EventArgs e)
     {
@@ -141,9 +118,6 @@ public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx
         _disposed = true;
         _preparation.PreviewRequested -= OnPreviewRequested;
         _preview.ReturnToPreparationRequested -= OnReturnToPreparationRequested;
-        _preview.SetCandidateRecoveryHandler(null);
-        _preview.PreviewRefreshCompleted -= OnPreviewRefreshCompleted;
-        _preview.CandidateRecoveryCompleted -= OnCandidateRecoveryCompleted;
         _preview.CreationCompleted -= OnCreationCompleted;
         _preview.PropertyChanged -= OnPreviewPropertyChanged;
         _result.ReturnToPreviewRequested -= OnReturnToPreviewRequested;

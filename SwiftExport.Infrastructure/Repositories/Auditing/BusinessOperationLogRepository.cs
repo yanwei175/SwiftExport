@@ -7,9 +7,14 @@ using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Infrastructure.Repositories.Auditing;
 
+/// <summary>使用当前 DbSession 查询和追加业务操作日志。</summary>
 public sealed class BusinessOperationLogRepository(RepositoryBaseContext context) : IBusinessOperationLogRepository
 {
     private DbSession Session => context.Session;
+    /// <inheritdoc/>
+    public Task<BusinessOperationLog?> GetByModuleCommandAsync(string module, Guid commandId)
+        => Session.Connection.QueryFirstOrDefaultAsync<BusinessOperationLog>($"SELECT TOP(1) {Columns} FROM dbo.BusinessOperationLog b WITH(UPDLOCK,HOLDLOCK) WHERE b.Module=@Module AND b.CommandId=@CommandId AND ISNULL(b.IsDeleted,0)=0 ORDER BY b.OccurredDate,b.Uid;", new { Module = module, CommandId = commandId }, Session.Transaction);
+
     public Task<BusinessOperationLog?> GetByCommandAsync(string module, string operationType, Guid commandId)
         => Session.Connection.QuerySingleOrDefaultAsync<BusinessOperationLog>($"SELECT {Columns} FROM dbo.BusinessOperationLog b WITH(UPDLOCK,HOLDLOCK) WHERE b.Module=@Module AND b.OperationType=@OperationType AND b.CommandId=@CommandId AND ISNULL(b.IsDeleted,0)=0;", new { Module = module, OperationType = operationType, CommandId = commandId }, Session.Transaction);
 

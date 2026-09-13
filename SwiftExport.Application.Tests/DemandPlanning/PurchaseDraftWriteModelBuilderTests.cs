@@ -48,7 +48,10 @@ public sealed class PurchaseDraftWriteModelBuilderTests
         Assert.IsNull(model.Head.DiscountAmount);
         Assert.AreEqual("倍率说明", model.Head.ZheKouBeiZhu);
         Assert.AreEqual(document.CustomerId, model.Head.CustomerId);
+        Assert.AreEqual(document.CustomerCode, model.Head.CustomerCode);
         Assert.AreEqual(document.CustomerName, model.Head.CustomerNameSnapshot);
+        Assert.IsNull(model.Head.ActiveConfirmationId);
+        Assert.IsNull(model.Head.PackagingRequirements);
         Assert.AreEqual("软管 A", model.Head.InletrHoseType);
         Assert.AreEqual("起泡器 B", model.Head.AeratorType);
         Assert.AreEqual("业务员甲", model.Head.SoPerson);

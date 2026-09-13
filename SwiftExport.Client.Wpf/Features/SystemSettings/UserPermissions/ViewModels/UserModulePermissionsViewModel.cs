@@ -49,7 +49,7 @@ public sealed partial class UserModulePermissionsViewModel
     /// <summary>管理员可维护的最小用户列表。</summary>
     public ObservableCollection<UserSummaryDto> Users { get; } = [];
 
-    /// <summary>固定八个可直接分配的一级模块，不包含管理能力和采购细权限。</summary>
+    /// <summary>可直接分配的一级模块和供应商虚拟仓独立管理能力。</summary>
     public IReadOnlyList<ModulePermissionOptionModel> Modules { get; }
 
     /// <summary>供统一未保存检查显示的窗口标题。</summary>
@@ -315,6 +315,7 @@ public sealed partial class UserModulePermissionsViewModel
             new(PermissionKeys.ModuleDemandPlanningAccess, "需求计划"),
             new(PermissionKeys.ModuleProcurementAccess, "采购"),
             new(PermissionKeys.ModuleInventoryAccess, "库存"),
+            new(PermissionKeys.InventoryWarehouseManage, "库存 - 供应商虚拟仓管理"),
             new(PermissionKeys.ModuleShippingAccess, "出货")
         ];
     }

@@ -11,7 +11,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto
         public PurchaseOrderLifecycleStatusEnum LifecycleStatus { get; set; }
         public string OrderNo { get; set; }
         public string BoNo { get; set; }
-        public string CustomerName { get; set; }
+        /// <summary>采购头保存的客户代码快照，用于管理列表识别与筛选。</summary>
+        public string CustomerCode { get; set; }
         public string SupplierName { get; set; }
         public ConfirmationStatusEnum ConfirmationStatus { get; set; }
         public DateTime? OrderDate { get; set; }

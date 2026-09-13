@@ -40,6 +40,9 @@ public sealed class WarehouseSitesController(IInventoryService service) : Contro
     /// <summary>转发既有管理列表查询，保留启用及停用筛选语义。</summary>
     [HttpPost("search")]
     public Task<ServiceResult<PagedResponseBase<WarehouseSiteDto>>> SearchAsync([FromBody] WarehouseSiteSearchRequest request, CancellationToken cancellationToken) => service.SearchWarehouseSitesAsync(request, cancellationToken);
+    /// <summary>返回仓库管理专用活动供应商候选，不复用供应商管理宽契约。</summary>
+    [HttpPost("suppliers/search")]
+    public Task<ServiceResult<PagedResponseBase<WarehouseSupplierLookupDto>>> SearchSuppliersAsync([FromBody] PagedRequestBase request, CancellationToken cancellationToken) => service.SearchWarehouseSuppliersAsync(request, cancellationToken);
     /// <summary>按稳定身份读取当前仓库资料。</summary>
     [HttpGet("{uid:guid}")]
     public Task<ServiceResult<WarehouseSiteDto>> GetAsync(Guid uid, CancellationToken cancellationToken) => service.GetWarehouseSiteAsync(uid, cancellationToken);
@@ -52,4 +55,7 @@ public sealed class WarehouseSitesController(IInventoryService service) : Contro
     /// <summary>转发现有停用命令，不改变库存及历史约束。</summary>
     [HttpPost("{uid:guid}/deactivate")]
     public Task<ServiceResult<WarehouseSiteDto>> DeactivateAsync(Guid uid, [FromBody] DeactivateWarehouseSiteCommand command, CancellationToken cancellationToken) => service.DeactivateWarehouseSiteAsync(uid, command, cancellationToken);
+    /// <summary>转发虚拟仓删除命令；仓库历史与余额约束在服务内仍然生效。</summary>
+    [HttpDelete("{uid:guid}")]
+    public Task<ServiceResult<WarehouseSiteDto>> DeleteAsync(Guid uid, [FromBody] DeleteWarehouseSiteCommand command, CancellationToken cancellationToken) => service.DeleteWarehouseSiteAsync(uid, command, cancellationToken);
 }

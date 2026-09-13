@@ -151,14 +151,14 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
         const string sql = """
             INSERT INTO dbo.PurchaseOrderHead
             (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,
-             ConfirmationStatus,LifecycleStatus,OrderNo,BoNo,CustomerPoNo,CustomerCode,Currency,DiscountRate,DiscountAmount,
+             OriginKind,ConfirmationStatus,LifecycleStatus,OrderNo,BoNo,CustomerPoNo,CustomerId,CustomerCode,CustomerNameSnapshot,Currency,DiscountRate,DiscountAmount,
              SupplierId,SupplierCode,SupplierName,DemandSourceType,DemandSourceUid,DemandSourceNo,
              ExecutionRequestId,SoPerson,PoPerson,InletrHoseType,AeratorType,PalletType,BoxType,
              LabelType,IMType,CartonType,LogoType,ReviewedBy,PoFolder,ZheKouBeiZhu,Remark,
              OrderDate,ExpectedDate,ReplyDate,ConfirmedDate,ConfirmedBy)
             VALUES
             (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
-             @ConfirmationStatus,@LifecycleStatus,@OrderNo,@BoNo,@CustomerPoNo,@CustomerCode,@Currency,@DiscountRate,@DiscountAmount,
+             @OriginKind,@ConfirmationStatus,@LifecycleStatus,@OrderNo,@BoNo,@CustomerPoNo,@CustomerId,@CustomerCode,@CustomerNameSnapshot,@Currency,@DiscountRate,@DiscountAmount,
              @SupplierId,@SupplierCode,@SupplierName,@DemandSourceType,@DemandSourceUid,@DemandSourceNo,
              @ExecutionRequestId,@SoPerson,@PoPerson,@InletrHoseType,@AeratorType,@PalletType,@BoxType,
              @LabelType,@IMType,@CartonType,@LogoType,@ReviewedBy,@PoFolder,@ZheKouBeiZhu,@Remark,
@@ -362,7 +362,7 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
 
     private const string HeadColumns = """
         h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,
-        h.ConfirmationStatus,h.LifecycleStatus,h.OrderNo,h.BoNo,h.CustomerPoNo,h.CustomerCode,h.Currency,h.DiscountRate,h.DiscountAmount,
+        h.ConfirmationStatus,h.LifecycleStatus,h.OrderNo,h.BoNo,h.CustomerPoNo,h.CustomerId,h.CustomerCode,h.CustomerNameSnapshot,h.Currency,h.DiscountRate,h.DiscountAmount,
         h.SupplierId,h.SupplierCode,h.SupplierName,h.DemandSourceType,h.DemandSourceUid,h.DemandSourceNo,
         h.ExecutionRequestId,h.SoPerson,h.PoPerson,h.InletrHoseType,h.AeratorType,h.PalletType,h.BoxType,
         h.LabelType,h.IMType,h.CartonType,h.LogoType,h.ReviewedBy,h.PoFolder,h.ZheKouBeiZhu,h.Remark,

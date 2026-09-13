@@ -34,6 +34,8 @@ namespace SwiftExport.Contracts.DTOs.Auth
         public const string ProcurementOrderCreate = "Procurement.Order.Create";
         public const string ProcurementOrderEdit = "Procurement.Order.Edit";
         public const string ProcurementOrderConfirm = "Procurement.Order.Confirm";
+        /// <summary>供应商虚拟仓新增、改名、停用和删除权限。</summary>
+        public const string InventoryWarehouseManage = "Inventory.Warehouse.Manage";
 
         private static readonly string[] ModuleValues =
         {
@@ -59,12 +61,23 @@ namespace SwiftExport.Contracts.DTOs.Auth
         private static readonly string[] AllValues = ModuleValues
             .Concat(new[] { SystemSettingsManage })
             .Concat(ProcurementOperationValues)
+            .Concat(new[] { InventoryWarehouseManage })
+            .ToArray();
+
+        private static readonly string[] UserAssignableValues = ModuleValues
+            .Concat(new[] { InventoryWarehouseManage })
             .ToArray();
 
         /// <summary>获取允许管理员直接分配给普通用户的一级模块键。</summary>
         public static IReadOnlyList<string> Modules
         {
             get { return ModuleValues; }
+        }
+
+        /// <summary>获取管理员可直接分配给普通用户的模块访问权限与独立业务能力。</summary>
+        public static IReadOnlyList<string> UserAssignable
+        {
+            get { return UserAssignableValues; }
         }
 
         /// <summary>获取需要继续兼容的采购操作权限键。</summary>

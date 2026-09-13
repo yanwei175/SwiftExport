@@ -934,18 +934,19 @@ public sealed class PurchaseDraftCreationService(
         return source.Targets.ToDictionary(x => x.SupplierId);
     }
 
-    /// <summary>验证追加目标的来源、供应商和安全状态一致。</summary>
+    /// <summary>验证追加目标的客户身份、来源、供应商和安全状态一致；名称与代码快照仍沿用原头。</summary>
     private static void ValidateAppendHead(
         PurchaseOrderHead head,
         CreatePurchaseDraftSourceCommand source,
         PurchaseDraftPreviewDocumentDto document)
     {
-        if (head.SupplierId != document.SupplierId
+        if (head.CustomerId != document.CustomerId
+            || head.SupplierId != document.SupplierId
             || head.DemandSourceUid != source.SourceUid
             || !string.Equals(head.DemandSourceType, source.SourceType, StringComparison.OrdinalIgnoreCase)
             || head.LifecycleStatus != PurchaseOrderLifecycleStatusEnum.Active
             || head.ConfirmationStatus != ConfirmationStatusEnum.待确认)
-            throw new PurchaseDraftException("APPEND_TARGET_MISMATCH", "目标采购草稿与来源或供应商不一致。");
+            throw new PurchaseDraftException("APPEND_TARGET_MISMATCH", "目标采购草稿与客户、来源或供应商不一致。");
     }
 
     private static void ValidateLockedItems(

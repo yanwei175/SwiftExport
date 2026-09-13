@@ -11,7 +11,7 @@
              d:DataContext="{d:DesignInstance viewModels:PurchaseDraftWorkflowViewModel}"
              d:Width="1400" d:Height="820">
     <Grid RowDefinitions="Auto,8,*">
-        <Grid ColumnDefinitions="*,Auto,8,Auto,8,Auto,8,Auto,8,Auto">
+        <Grid ColumnDefinitions="*,Auto,8,Auto,8,Auto,8,Auto">
             <StackPanel>
                 <TextBlock FontWeight="SemiBold" Text="采购单审核" />
                 <TextBlock Text="供应商、数量、价格、交期如需修改，请返回采购准备；此处只审核后端生成的只读单据快照。"
@@ -51,7 +51,7 @@
                                   DisplayMemberPath="DisplayText"
                                   SelectedItem="{Binding SelectedDocument.Target.SelectedChoice, Mode=TwoWay}"
                                   IsEnabled="{Binding CanEditInputs}"
-                                  ToolTip="选择草稿目标后需重新计算单据。">
+                                  ToolTip="选择草稿目标后，请返回采购准备重新校验。">
                     <ComboBox.Style>
                         <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
                             <Setter Property="Visibility" Value="Collapsed" />
@@ -65,15 +65,10 @@
                 </ComboBox>
             </Grid>
             <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding PreviewSummaryText}" />
-            <Button Grid.Column="5"
-                            Content="{Binding PreviewActionText}"
-                            Command="{Binding PreviewCommand}"
-                            ToolTip="草稿目标变化可直接重新生成；采购输入变化请返回采购准备修改并重新校验。" />
-            <ui:Button Grid.Column="7" Content="创建采购草稿"
+            <ui:Button Grid.Column="5" Content="创建采购草稿"
                        Appearance="Primary"
-                            Command="{Binding CreateCommand}"
-                            IsEnabled="{Binding CanCreateCurrent}" />
-            <Button Grid.Column="9" Content="返回采购准备修改"
+                            Command="{Binding CreateCommand}" />
+            <Button Grid.Column="7" Content="返回采购准备修改"
                             Command="{Binding ReturnToPreparationCommand}"
                             ToolTip="返回后修改供应商、数量、价格或交期，再重新校验进入审核。" />
         </Grid>

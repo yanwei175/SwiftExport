@@ -10,7 +10,7 @@ using SwiftExport.Core.Interfaces.Auth;
 
 namespace SwiftExport.Application.Services.Auth;
 
-/// <summary>集中合并模块、历史采购细权限和 Admin 固定权限，并编排模块整组替换。</summary>
+/// <summary>集中合并直接分配权限、历史采购细权限和 Admin 固定权限，并编排整组替换。</summary>
 public sealed class UserPermissionService(
     ServiceBaseContext context,
     IUserPermissionRepository repository,
@@ -40,7 +40,7 @@ public sealed class UserPermissionService(
         }
 
         var modules = facts.ModulePermissions
-            .Where(IsKnownModule)
+            .Where(IsKnownAssignment)
             .Distinct(StringComparer.Ordinal)
             .ToList();
         var permissions = new HashSet<string>(modules, StringComparer.Ordinal);
@@ -120,7 +120,7 @@ public sealed class UserPermissionService(
         if (request?.ModulePermissions is null)
             return Validation<UserModulePermissionsDto>("模块集合不能为空。", "ModulePermissions");
 
-        var unknown = request.ModulePermissions.FirstOrDefault(permission => !IsKnownModule(permission));
+        var unknown = request.ModulePermissions.FirstOrDefault(permission => !IsKnownAssignment(permission));
         if (unknown is not null)
             return Validation<UserModulePermissionsDto>($"未知或不可分配的模块键：{unknown}", "ModulePermissions");
         var modules = request.ModulePermissions.Distinct(StringComparer.Ordinal).ToArray();
@@ -184,14 +184,15 @@ public sealed class UserPermissionService(
         {
             UserId = userId,
             IsAdmin = isAdmin,
-            ModulePermissions = (isAdmin ? PermissionKeys.Modules : assignedModules.Where(IsKnownModule))
+            ModulePermissions = (isAdmin ? PermissionKeys.UserAssignable : assignedModules.Where(IsKnownAssignment))
                 .Distinct(StringComparer.Ordinal)
-                .OrderBy(permission => Array.IndexOf(PermissionKeys.Modules.ToArray(), permission))
+                .OrderBy(permission => Array.IndexOf(PermissionKeys.UserAssignable.ToArray(), permission))
                 .ToList()
         };
 
-    private static bool IsKnownModule(string? permission) =>
-        permission is not null && PermissionKeys.Modules.Contains(permission, StringComparer.Ordinal);
+    /// <summary>限制普通用户权限维护入口只能写入公开可分配的稳定键。</summary>
+    private static bool IsKnownAssignment(string? permission) =>
+        permission is not null && PermissionKeys.UserAssignable.Contains(permission, StringComparer.Ordinal);
 
     private static ServiceResult<UserModulePermissionsDto>? MapReplaceFailure(UserModuleReplaceStatus status) =>
         status switch

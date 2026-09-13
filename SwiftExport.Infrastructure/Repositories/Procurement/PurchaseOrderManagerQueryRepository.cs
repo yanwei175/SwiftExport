@@ -132,7 +132,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
         HeadFacts AS
         (
             SELECT h.Uid AS PurchaseOrderId,h.Version,h.LifecycleStatus,h.OrderNo,h.BoNo,
-                   h.CustomerNameSnapshot AS CustomerName,h.SupplierName,h.ConfirmationStatus,
+                   h.CustomerCode AS CustomerCode,h.SupplierName,h.ConfirmationStatus,
                    h.OrderDate,h.ExpectedDate,h.ReplyDate,
                    COUNT(f.Uid) AS LineCount,
                    COALESCE(SUM(f.ReadyQty),0) AS ReadyQty,
@@ -147,7 +147,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
             WHERE ISNULL(h.IsDeleted,0)=0
               AND (@Keyword IS NULL OR h.OrderNo LIKE @Keyword ESCAPE N'~'
                    OR h.BoNo LIKE @Keyword ESCAPE N'~'
-                   OR h.CustomerNameSnapshot LIKE @Keyword ESCAPE N'~'
+                   OR h.CustomerCode LIKE @Keyword ESCAPE N'~'
                    OR h.SupplierName LIKE @Keyword ESCAPE N'~'
                    OR EXISTS
                    (
@@ -181,7 +181,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
                          AND (@PlannedDeliveryDateFrom IS NULL OR plannedLine.PlannedDeliveryDate>=@PlannedDeliveryDateFrom)
                          AND (@PlannedDeliveryDateTo IS NULL OR plannedLine.PlannedDeliveryDate<=@PlannedDeliveryDateTo)
                    ))
-            GROUP BY h.Uid,h.Version,h.LifecycleStatus,h.OrderNo,h.BoNo,h.CustomerNameSnapshot,
+            GROUP BY h.Uid,h.Version,h.LifecycleStatus,h.OrderNo,h.BoNo,h.CustomerCode,
                      h.SupplierName,h.ConfirmationStatus,h.OrderDate,h.ExpectedDate,h.ReplyDate
         )
         SELECT facts.*,
@@ -195,7 +195,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
 
         SELECT COUNT(*) FROM #PurchaseOrderManagerHeads;
 
-        SELECT PurchaseOrderId,Version,LifecycleStatus,OrderNo,BoNo,CustomerName,SupplierName,
+        SELECT PurchaseOrderId,Version,LifecycleStatus,OrderNo,BoNo,CustomerCode,SupplierName,
                ConfirmationStatus,OrderDate,ExpectedDate,ReplyDate,LineCount,ReadyQty,TotalQty,
                ReceiptProgress,TaxTotalAmount,ReportedLineCount,ExpectedCompletionDate,
                CanConfirm,CanCancelConfirmation,CommandBlockedReason

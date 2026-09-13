@@ -34,6 +34,8 @@ public sealed class PurchaseDraftWriteModelBuilder
             {
                 Uid = purchaseOrderId,
                 Version = 1,
+                // 仅新建需求采购草稿时标记来源；追加采购行不修改原单头分类。
+                OriginKind = 1,
                 OrderNo = orderNo,
                 SupplierId = document.SupplierId,
                 SupplierCode = document.SupplierCode,

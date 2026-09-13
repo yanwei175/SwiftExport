@@ -68,7 +68,7 @@ public sealed class PurchaseOrderManagerContractsTests
     public void ManagerColumnsMustFollowFrozenHeaderAndLineOrder()
     {
         var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml");
-        AssertOrdered(view, "Header=\"生命周期\"", "Header=\"采购单号\"", "Header=\"诗亦霖采购单号\"", "Header=\"客户归属\"",
+        AssertOrdered(view, "Header=\"生命周期\"", "Header=\"采购单号\"", "Header=\"诗亦霖采购单号\"", "Header=\"客户代码\"",
             "Header=\"供应商\"", "Header=\"确认状态\"", "Header=\"采购日期\"", "Header=\"预计交期\"", "Header=\"回复交期\"",
             "Header=\"行数\"", "Header=\"已备好数量\"", "Header=\"总数量\"", "Header=\"收货进度\"", "Header=\"含税总金额\"",
             "Header=\"已反馈行数\"", "Header=\"预计完成\"");
@@ -77,6 +77,33 @@ public sealed class PurchaseOrderManagerContractsTests
             "Header=\"供货方式\"", "Header=\"数量\"", "Header=\"未收货\"", "Header=\"已备好\"", "Header=\"计划交期\"",
             "Header=\"预计完成\"", "Header=\"最近跟进\"", "Header=\"跟进人\"", "Header=\"未税价\"", "Header=\"含税价\"",
             "Header=\"未税金额\"", "Header=\"含税金额\"", "Header=\"送至供应商\"", "Header=\"来源\"", "Header=\"行备注\"");
+    }
+
+    /// <summary>批量选择只作用于当前页，并保持勾选与双击详情两个交互边界分离。</summary>
+    [TestMethod]
+    public void ManagerMustExposeCurrentPageSelectionAndSeparateBatchConfirmation()
+    {
+        var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml");
+        var source = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderManagerViewModel.cs");
+        var codeBehind = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml.cs");
+
+        AssertOrdered(view, "<DataGridTemplateColumn Width=\"42\"", "Header=\"生命周期\"");
+        StringAssert.Contains(view, "IsAllCurrentPageChecked");
+        StringAssert.Contains(view, "IsChecked=\"{Binding IsChecked");
+        StringAssert.Contains(view, "IsEnabled=\"{Binding DataContext.IsNotBusy");
+        StringAssert.Contains(view, "Command=\"{Binding BatchConfirmCommand}\"");
+        StringAssert.Contains(view, "Text=\"{Binding SelectionSummary}\"");
+        StringAssert.Contains(view, "PreviewMouseDoubleClick=\"OnOrdersPreviewMouseDoubleClick\"");
+        Assert.IsFalse(view.Contains("MouseBinding", StringComparison.Ordinal));
+        StringAssert.Contains(codeBehind, "FindAncestor<CheckBox>(source)");
+        StringAssert.Contains(source, "GetConfirmationContextAsync(order.PurchaseOrderId)");
+        StringAssert.Contains(source, "var succeededIds = new HashSet<Guid>()");
+        StringAssert.Contains(source, "LoadPageCoreAsync(selectedId, preserveCheckedIds)");
+        StringAssert.Contains(source, "Dictionary<Guid, PendingConfirmationState>");
+        StringAssert.Contains(source, "ApplyPendingConfirmationState(item, order)");
+        StringAssert.Contains(source, "!HasPendingConfirmation(SelectedOrder.PurchaseOrderId)");
+        StringAssert.Contains(source, "实际提交");
+        StringAssert.Contains(source, "BuildBatchCountSummary");
     }
 
     [TestMethod]
