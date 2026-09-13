@@ -21,7 +21,14 @@
             <Grid ColumnDefinitions="3*,3*,3*">
                 <TextBlock Text="选择入库来源" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <!--搜索框-->
-                <ui:AutoSuggestBox Grid.Column="1"  PlaceholderText="键入搜索" HorizontalAlignment="Stretch"/>
+                <ui:TextBox Grid.Column="1"
+                            Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
+                            Icon="{ui:SymbolIcon Symbol=Search24}"
+                            PlaceholderText="键入搜索">
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
             </Grid>
 
             <StackPanel Grid.Row="2" Orientation="Horizontal">
@@ -57,7 +64,7 @@
 
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <CheckBox Margin="0,0" 
+                            <CheckBox Margin="0,0" Padding="0"
                                       IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       HorizontalAlignment="Center" 
                                       VerticalAlignment="Center"
@@ -87,7 +94,7 @@
                 <DataGridTextColumn Header="待入库数量" Binding="{Binding RemainingReceivableQty, StringFormat=N4}" Width="112"/>
                 <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="64"/>
                 <DataGridTextColumn Header="采购供应商" Binding="{Binding SupplierName}" Width="144"/>
-                <DataGridTextColumn Header="收货仓库" Binding="{Binding WarehouseName}" Width="144"/>
+                <DataGridTextColumn Header="默认收货仓" Binding="{Binding WarehouseName}" Width="144"/>
             </DataGrid.Columns>
         </DataGrid>
 

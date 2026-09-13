@@ -6,26 +6,27 @@ using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 using SwiftExportClient.Features.Home;
+using SwiftExportClient.Features.Inventory.Balances.ViewModels;
+using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
+using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
+using SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
+using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Planning;
-using SwiftExportClient.Features.Products.Categories.ViewModels;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
+using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.Placeholders.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
-using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
-using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
 using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
+using SwiftExportClient.Features.Sales;
+using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
+using SwiftExportClient.Features.Sales.Orders.ViewModels;
+using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
+using SwiftExportClient.Features.Suppliers.Components.ViewModel;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
-using SwiftExportClient.Features.Sales;
-using SwiftExportClient.Features.Sales.Orders.ViewModels;
-using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
-using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
-using SwiftExportClient.Features.Inventory.Balances.ViewModels;
-using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
-using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
-using SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
-using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
 using SwiftExportClient.Features.SystemSettings.Passwords.ViewModels;
 using SwiftExportClient.Features.SystemSettings.Passwords.Views;
 using SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels;
@@ -45,22 +46,32 @@ public static class ViewRegistrationExtensions
         services.AddTransient<ShellViewModel>();
         services.AddTransient<ShellWindow>();
         services.AddTransient<HomeViewModel>();
+
         services.AddTransient<ProductsViewModel>();
         services.AddTransient<ProductMasterManagerViewModel>();
         services.AddTransient<ProductNeutralManagerViewModel>();
         services.AddTransient<ProductMasterDetailViewModel>();
+
         services.AddTransient<BomDrawerViewModel>();
+
         services.AddTransient<ProductColorsViewModel>();
+
         services.AddTransient<ProductCategoryAssignmentViewModel>();
         services.AddTransient<ProductCategoryManagerViewModel>();
+
         services.AddTransient<ProductBomViewModel>();
+
         services.AddTransient<CustomerManagerViewModel>();
         services.AddTransient<CustomerPoConfigManagerViewModel>();
         services.AddTransient<CustomerProductManagerViewModel>();
         services.AddTransient<CustomerProductWorkspaceViewModel>();
+
         services.AddTransient<SupplierManagerViewModel>();
         services.AddTransient<SupplierProductManagerViewModel>();
         services.AddTransient<SupplierProductWorkspaceViewModel>();
+        services.AddTransient<SupplierPickerViewModel>();
+
+
         services.AddTransient<SalesViewModel>();
         services.AddTransient<SalesOrderManagerViewModel>();
         services.AddTransient<SalesOrderDetailViewModel>();
@@ -83,15 +94,21 @@ public static class ViewRegistrationExtensions
         services.AddTransient<PurchaseCandidateSelectionViewModel>();
         services.AddTransient<PurchaseOrderFromMaterialViewModel>();
         services.AddTransient<PlanningViewModel>();
+
         services.AddTransient<WarehouseSitesViewModel>();
         services.AddTransient<WarehousePickerViewModel>();
+
         services.AddTransient<InventoryBalancesViewModel>();
         services.AddTransient<InventoryLedgerViewModel>();
         services.AddTransient<InboundWorkspaceViewModel>();
+
         services.AddTransient<OutboundWorkspaceViewModel>();
+
         services.AddTransient<PackingListWorkspaceViewModel>();
         services.AddTransient<PackingListDetailViewModel>();
+
         services.AddTransient<SettingsCenterViewModel>();
+
         services.AddTransient<ChangePasswordViewModel>();
         services.AddTransient<ChangePasswordWindow>();
         services.AddTransient<UserRegistrationViewModel>();

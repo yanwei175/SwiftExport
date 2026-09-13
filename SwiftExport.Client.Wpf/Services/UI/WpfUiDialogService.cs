@@ -13,11 +13,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
     private int _isShowing;
 
     /// <inheritdoc/>
-    public async Task<DialogResult> ShowAsync(
-        object content,
-        DialogOptions options,
-        IDialogContentState? state = null,
-        CancellationToken cancellationToken = default)
+    public async Task<DialogResult> ShowAsync(object content, DialogOptions options, IDialogContentState? state = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(options);
@@ -133,11 +129,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
     }
 
     /// <inheritdoc/>
-    public async Task ShowContentAsync(
-        string title,
-        object content,
-        string closeButtonText = "关闭",
-        CancellationToken cancellationToken = default)
+    public async Task ShowContentAsync(string title, object content, string closeButtonText = "关闭", CancellationToken cancellationToken = default)
     {
         _ = await ShowAsync(
             content,
@@ -150,12 +142,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
     }
 
     /// <inheritdoc/>
-    public async Task<bool> ConfirmAsync(
-        string title,
-        string message,
-        string primaryButtonText = "确定",
-        string closeButtonText = "取消",
-        CancellationToken cancellationToken = default)
+    public async Task<bool> ConfirmAsync(string title, string message, string primaryButtonText = "确定", string closeButtonText = "取消", CancellationToken cancellationToken = default)
     {
         var result = await ShowAsync(
             message,
@@ -171,10 +158,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
     }
 
     /// <inheritdoc/>
-    public async Task ShowErrorAsync(
-        string title,
-        string message,
-        CancellationToken cancellationToken = default)
+    public async Task ShowErrorAsync(string title, string message, CancellationToken cancellationToken = default)
     {
         _ = await ShowAsync(
             message,
@@ -183,10 +167,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
     }
 
     /// <summary>创建只使用 WPF-UI 官方 Dialog 属性的外壳。</summary>
-    private static ContentDialog CreateDialog(
-        object content,
-        DialogOptions options,
-        IDialogContentState? state)
+    private static ContentDialog CreateDialog(object content, DialogOptions options, IDialogContentState? state)
     {
         var dialog = new ContentDialog
         {
