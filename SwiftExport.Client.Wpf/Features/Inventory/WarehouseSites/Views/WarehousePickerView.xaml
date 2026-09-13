@@ -44,7 +44,8 @@
                       IsReadOnly="True" 
                       CanUserAddRows="False"
                       SelectionMode="Single" 
-                      SelectionUnit="FullRow">
+                      SelectionUnit="FullRow"
+                      MouseDoubleClick="WarehouseGrid_OnMouseDoubleClick">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="仓库代码" Binding="{Binding Code}" Width="130" />
                     <DataGridTextColumn Header="仓库名称" Binding="{Binding Name}" Width="2*" />

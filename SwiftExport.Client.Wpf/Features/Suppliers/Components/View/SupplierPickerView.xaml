@@ -7,82 +7,64 @@
              xmlns:vm="clr-namespace:SwiftExportClient.Features.Suppliers.Components.ViewModel"
              mc:Ignorable="d" 
              d:DesignHeight="560" d:DesignWidth="1240"
-             d:DataContext="{d:DesignInstance Type=vm:SupplierPickerViewModel, IsDesignTimeCreatable=True}"
+             d:DataContext="{d:DesignInstance Type=vm:SupplierPickerViewModel, IsDesignTimeCreatable=False}"
              Language="zh-CN">
     <Grid Margin="12">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="8" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!--条件筛选区域-->
-        <Grid RowDefinitions="Auto,8,*">
-            <Grid ColumnDefinitions="3*,3*,2*">
-                <TextBlock Text="选择供应商" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <!--搜索框-->
-                <ui:AutoSuggestBox Grid.Column="1" Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}"
-                                   PlaceholderText="键入供应商编码/名称" HorizontalAlignment="Stretch"/>
-
-            </Grid>
-
-            <StackPanel Grid.Row="2" Orientation="Horizontal">
-                <ComboBox Grid.Column="2"  Margin="0,0,8,0"
-                          Width="120"
-                          ItemsSource="{Binding ActiveFilterOptions}" SelectedItem="{Binding ActiveFilter, Mode=TwoWay}"/>
-                <Button DockPanel.Dock="Right" Content="反选" Command="{Binding ToggleAllCommand}"
-                        Padding="16,0"
-                        AutomationProperties.Name="反选全部供应商" VerticalAlignment="Stretch"/>
-            </StackPanel>
+        <Grid ColumnDefinitions="*,8,Auto">
+            <ui:TextBox Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}"
+                        Icon="{ui:SymbolIcon Symbol=Search24}"
+                        PlaceholderText="键入供应商编码或名称"
+                        AutomationProperties.Name="搜索供应商" />
+            <ui:Button Grid.Column="2"
+                       MinWidth="72"
+                       Content="刷新"
+                       Command="{Binding RefreshCommand}"
+                       AutomationProperties.Name="刷新供应商缓存" />
         </Grid>
 
-        <DataGrid Grid.Row="1" 
-                  ItemsSource="{Binding Items}" 
+        <DataGrid x:Name="SupplierGrid"
+                  Grid.Row="2"
+                  ItemsSource="{Binding Items}"
+                  SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                   AutoGenerateColumns="False"
-                  IsReadOnly="True" 
+                  IsReadOnly="True"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
+                  SelectionMode="Single"
+                  SelectionUnit="FullRow"
                   EnableRowVirtualization="True"
                   EnableColumnVirtualization="True"
-                  RowHeight="{StaticResource DataGridRowHeightMedium}" 
+                  RowHeight="{StaticResource DataGridRowHeightMedium}"
+                  MouseDoubleClick="SupplierGrid_OnMouseDoubleClick"
                   AutomationProperties.Name="供应商候选列表">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
-                    <DataGridTemplateColumn.HeaderTemplate>
-                        <DataTemplate>
-                            <CheckBox HorizontalAlignment="Center"
-                                      IsChecked="{Binding DataContext.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWay}"
-                                      Command="{Binding DataContext.ToggleAllCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                      AutomationProperties.Name="全选或取消全部供应商"
-                                      ToolTip="全选或取消全部供应商" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.HeaderTemplate>
-
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <CheckBox Margin="0,0" 
-                                      IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                      Command="{Binding DataContext.ToggleItemCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                      CommandParameter="{Binding}"
-                                      HorizontalAlignment="Center" 
-                                      VerticalAlignment="Center"
-                                      AutomationProperties.Name="勾选供应商"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-
-                <DataGridTextColumn Header="供应商编码" Binding="{Binding SupplierCode}" Width="170"/>
-                <DataGridTextColumn Header="供应商名称" Binding="{Binding SupplierName}" Width="240"/>
-                <DataGridTextColumn Header="单据关联号" Binding="{Binding DocRelateNo}" Width="140"/>
-                <DataGridTextColumn Header="联系人" Binding="{Binding ContactPerson}" Width="130"/>
-                <DataGridTextColumn Header="联系人电话" Binding="{Binding ContactPhone}" Width="150"/>
-                <DataGridTextColumn Header="联系人邮箱" Binding="{Binding ContactEmail}" Width="180"/>
-                <DataGridTextColumn Header="地址" Binding="{Binding Address}" Width="220"/>
-                <DataGridTextColumn Header="币种" Binding="{Binding Currency}" Width="80"/>
+                <DataGridTextColumn Header="供应商编码" Binding="{Binding SupplierCode}" Width="170" />
+                <DataGridTextColumn Header="供应商名称" Binding="{Binding SupplierName}" Width="240" />
+                <DataGridTextColumn Header="单据关联号" Binding="{Binding DocRelateNo}" Width="140" />
+                <DataGridTextColumn Header="联系人" Binding="{Binding ContactPerson}" Width="130" />
+                <DataGridTextColumn Header="联系人电话" Binding="{Binding ContactPhone}" Width="150" />
+                <DataGridTextColumn Header="联系人邮箱" Binding="{Binding ContactEmail}" Width="180" />
+                <DataGridTextColumn Header="地址" Binding="{Binding Address}" Width="220" />
+                <DataGridTextColumn Header="币种" Binding="{Binding Currency}" Width="80" />
             </DataGrid.Columns>
         </DataGrid>
 
-        <TextBlock Grid.Row="2" Margin="0,8,0,0" TextWrapping="Wrap"
-                   Text="勾选需要选用的供应商。列表仅作为展示/筛选入口，不包含库存处理或单据提交。"/>
+        <Grid Grid.Row="3"
+              Margin="0,8,0,0"
+              ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding ResultSummary}"
+                       TextWrapping="Wrap" />
+            <TextBlock Grid.Column="1"
+                       Margin="16,0,0,0"
+                       Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                       Text="选择一行后单击确定，或双击该行。" />
+        </Grid>
     </Grid>
 </UserControl>

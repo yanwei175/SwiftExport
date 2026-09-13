@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.CustomerApis;
+using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
@@ -27,6 +28,7 @@ public sealed class ProductCategoryManagerViewModelTests
         using var cache = new ReferenceDataCacheService(
             DispatchProxy.Create<ICustomerApi, NoCallApiProxy>(),
             DispatchProxy.Create<ISupplierApi, NoCallApiProxy>(),
+            DispatchProxy.Create<IWarehouseSiteApi, NoCallApiProxy>(),
             new ProductColorApiStub(),
             categoryApi,
             DispatchProxy.Create<ISysDicCurrencyApi, NoCallApiProxy>(),

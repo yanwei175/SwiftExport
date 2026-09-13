@@ -79,6 +79,21 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
             });
         }
 
+        void OnCloseRequested(object? sender, DialogCloseRequestedEventArgs args)
+        {
+            if (completed) return;
+            void CloseDialog()
+            {
+                if (completed || !CanRequestClose(state, args.Result)) return;
+                dialog.Hide(MapResult(args.Result));
+            }
+
+            if (dialog.Dispatcher.CheckAccess())
+                CloseDialog();
+            else
+                _ = dialog.Dispatcher.BeginInvoke(CloseDialog);
+        }
+
         void OnClosing(ContentDialog sender, ContentDialogClosingEventArgs args)
         {
             if (state is not null && !state.CanClose(MapResult(args.Result)))
@@ -91,6 +106,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
         var loadedSubscribed = false;
         var closingSubscribed = false;
         var stateSubscribed = false;
+        var closeRequestSubscribed = false;
 
         try
         {
@@ -104,6 +120,11 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
             {
                 state.StateChanged += OnStateChanged;
                 stateSubscribed = true;
+            }
+            if (state is IDialogCloseRequest closeRequest)
+            {
+                closeRequest.CloseRequested += OnCloseRequested;
+                closeRequestSubscribed = true;
             }
             ApplyCurrentSize();
 
@@ -119,6 +140,8 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
                 if (loadedSubscribed) dialog.Loaded -= OnDialogLoaded;
                 if (closingSubscribed) dialog.Closing -= OnClosing;
                 if (stateSubscribed) state!.StateChanged -= OnStateChanged;
+                if (closeRequestSubscribed)
+                    ((IDialogCloseRequest)state!).CloseRequested -= OnCloseRequested;
             }
             finally
             {
@@ -372,6 +395,22 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
         DialogButton.Secondary => WpfContentDialogButton.Secondary,
         DialogButton.Close => WpfContentDialogButton.Close,
         _ => throw new ArgumentOutOfRangeException(nameof(button), button, "未知的 Dialog 默认按钮。")
+    };
+
+    /// <summary>把内容区关闭请求映射到 WPF-UI 的原生结果，确保双击与外壳按钮返回相同语义。</summary>
+    private static WpfContentDialogResult MapResult(DialogResult result) => result switch
+    {
+        DialogResult.Primary => WpfContentDialogResult.Primary,
+        DialogResult.Secondary => WpfContentDialogResult.Secondary,
+        _ => WpfContentDialogResult.None
+    };
+
+    /// <summary>主动关闭只复用当前按钮准入；最终同步关闭校验仍由 Closing 事件统一执行。</summary>
+    private static bool CanRequestClose(IDialogContentState? state, DialogResult result) => result switch
+    {
+        DialogResult.Primary => state?.IsPrimaryButtonEnabled ?? true,
+        DialogResult.Secondary => state?.IsSecondaryButtonEnabled ?? true,
+        _ => true
     };
 
     private static DialogResult MapResult(WpfContentDialogResult result) => result switch

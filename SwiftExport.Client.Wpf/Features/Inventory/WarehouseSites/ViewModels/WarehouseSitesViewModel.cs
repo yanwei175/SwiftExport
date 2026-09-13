@@ -264,6 +264,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
             var refreshed = await LoadCoreAsync(savedId) == ListLoadResult.Succeeded;
             _messages.ShowSuccess(action, result.Data.Code);
             if (!refreshed) _messages.ShowWarning(action + "，但列表刷新失败", ResultSummary ?? "请稍后刷新列表。");
+            await RefreshWarehousePickerCacheAfterWriteAsync("保存成功，缓存刷新失败");
         }, editor.IsCreateMode ? "正在创建虚拟仓..." : "正在保存虚拟仓...");
     }
 
@@ -295,6 +296,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
             var refreshed = await LoadCoreAsync(target.Uid) == ListLoadResult.Succeeded;
             _messages.ShowSuccess("虚拟仓已停用", target.Code);
             if (!refreshed) _messages.ShowWarning("停用成功，但列表刷新失败", ResultSummary ?? "请稍后刷新列表。");
+            await RefreshWarehousePickerCacheAfterWriteAsync("停用成功，缓存刷新失败");
         }, "正在停用虚拟仓...");
     }
 
@@ -327,7 +329,23 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
             var refreshed = await LoadCoreAsync(null) == ListLoadResult.Succeeded;
             _messages.ShowSuccess("虚拟仓已删除", target.Code);
             if (!refreshed) _messages.ShowWarning("删除成功，但列表刷新失败", ResultSummary ?? "请稍后刷新列表。");
+            await RefreshWarehousePickerCacheAfterWriteAsync("删除成功，缓存刷新失败");
         }, "正在删除虚拟仓...");
+    }
+
+    /// <summary>在写命令已经成功后独立刷新选择器快照；缓存失败只提示，不改变已完成的业务结果。</summary>
+    private async Task RefreshWarehousePickerCacheAfterWriteAsync(string failureTitle)
+    {
+        try
+        {
+            var cacheResult = await _referenceDataCache.RefreshWarehouseSitesAsync();
+            if (!cacheResult.Success)
+                _messages.ShowWarning(failureTitle, cacheResult.Message);
+        }
+        catch (Exception exception)
+        {
+            _messages.ShowWarning(failureTitle, exception.Message);
+        }
     }
 
     /// <summary>加载列表并由当前用户操作持有 Busy；实际查询使用请求身份和页面存活双重校验。</summary>

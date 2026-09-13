@@ -34,8 +34,6 @@ public sealed class PackingListWorkspaceService(
     PackingListPreviewBuilder previewBuilder,
     IInboundPostingPort inboundPort,
     IOutboundPostingPort outboundPort,
-    IInboundDocumentRepository inboundDocuments,
-    IOutboundDocumentRepository outboundDocuments,
     IDocumentNoService documentNos,
     IBusinessOperationLogRepository operationLogs,
     ICorrelationContext correlation,
@@ -296,62 +294,9 @@ public sealed class PackingListWorkspaceService(
         return (document, lines);
     }
 
-    private async Task<PackingListPreviewDto> BuildReversePreviewAsync(Guid uid, int expectedVersion, bool forUpdate, CancellationToken cancellationToken)
-    {
-        var snapshot = await planning.LoadSnapshotAsync(uid, forUpdate, cancellationToken) ?? throw new PackingListBusinessException("NOT_FOUND", "PackingList 不存在。");
-        if (snapshot.Document.Version != expectedVersion || snapshot.Document.PostingStatus != PackingListPostingStatusEnum.Posted)
-            throw new PackingListBusinessException("VERSION_CONFLICT", "PackingList 状态或版本不允许反过账。", PackingListCommandStatusEnum.VersionConflict);
-        var result = new PackingListPreviewDto { PackingListId = uid, Version = expectedVersion, IsReverse = true };
-        if (snapshot.Lines.Count == 0)
-            result.Blockers.Add(new PackingListMessageDto { Code = "GENERATED_DOCUMENT_MISSING", Message = "PackingList 缺少可追溯的贡献明细。" });
-        var balances = new Dictionary<(Guid Warehouse, Guid Product), (string Sku, string? Name, decimal Qty, int Version)>();
-        foreach (var fact in snapshot.Lines)
-        {
-            balances[(fact.Line.WarehouseSiteId, fact.Line.ProductId)] = (fact.Line.SkuSnapshot, fact.Line.WarehouseNameSnapshot, fact.BalanceQty, fact.BalanceVersion);
-            foreach (var supplied in fact.CustomerSuppliedItems) balances[(fact.Line.WarehouseSiteId, supplied.ProductId)] = (supplied.Sku, fact.Line.WarehouseNameSnapshot, supplied.BalanceQty, supplied.BalanceVersion);
-        }
-        var outbound = (await outboundDocuments.GetByPackingListForUpdateAsync(uid))
-            .Where(x => x.DocumentType is OutboundDocumentTypeEnum.FinalCustomerShipment or OutboundDocumentTypeEnum.CustomerSuppliedConsumption)
-            .ToList();
-        var inbound = (await inboundDocuments.GetByPackingListForUpdateAsync(uid))
-            .Where(x => x.DocumentType == InboundDocumentTypeEnum.PackingListAutoReceipt)
-            .ToList();
-        var tokenParts = new List<string> { uid.ToString("N"), expectedVersion.ToString(CultureInfo.InvariantCulture) };
-        foreach (var warehouseId in snapshot.Lines.Select(x => x.Line.WarehouseSiteId).Distinct().OrderBy(x => x))
-        {
-            if (!outbound.Any(x => x.WarehouseSiteId == warehouseId && x.DocumentType == OutboundDocumentTypeEnum.FinalCustomerShipment))
-                result.Blockers.Add(new PackingListMessageDto { Code = "GENERATED_DOCUMENT_MISSING", Message = $"仓库 {warehouseId:N} 缺少最终客户出库单。" });
-        }
-        foreach (var doc in outbound.OrderBy(x => x.WarehouseSiteId).ThenBy(x => x.Uid))
-        {
-            tokenParts.Add($"OD:{doc.Uid:N}:{doc.Version}:{(int)doc.PostingStatus}");
-            if (doc.PostingStatus != OutboundPostingStatusEnum.Posted) { result.Blockers.Add(new PackingListMessageDto { Code = "GENERATED_DOCUMENT_STATE_INVALID", Message = $"出库单 {doc.DocumentNo} 状态异常。" }); continue; }
-            foreach (var ledger in await outboundDocuments.GetLedgersAsync(doc.Uid, cancellationToken))
-            {
-                var key = (ledger.WarehouseSiteId, ledger.ProductId); if (!balances.TryGetValue(key, out var current)) current = (ledger.Sku, null, ledger.BalanceAfter, 0);
-                current.Qty -= ledger.QuantityDelta; balances[key] = current; tokenParts.Add($"O:{ledger.Uid:N}:{ledger.QuantityDelta}");
-            }
-        }
-        foreach (var doc in inbound.OrderBy(x => x.WarehouseSiteId).ThenBy(x => x.Uid))
-        {
-            tokenParts.Add($"ID:{doc.Uid:N}:{doc.Version}:{(int)doc.PostingStatus}");
-            if (doc.PostingStatus != InboundPostingStatusEnum.Posted) { result.Blockers.Add(new PackingListMessageDto { Code = "GENERATED_DOCUMENT_STATE_INVALID", Message = $"入库单 {doc.DocumentNo} 状态异常。" }); continue; }
-            foreach (var ledger in await inboundDocuments.GetLedgersAsync(doc.Uid, cancellationToken))
-            {
-                var key = (ledger.WarehouseSiteId, ledger.ProductId); if (!balances.TryGetValue(key, out var current)) current = (ledger.Sku, null, ledger.BalanceAfter, 0);
-                current.Qty -= ledger.QuantityDelta; balances[key] = current; tokenParts.Add($"I:{ledger.Uid:N}:{ledger.QuantityDelta}");
-            }
-        }
-        foreach (var pair in balances.OrderBy(x => x.Key.Warehouse).ThenBy(x => x.Key.Product))
-        {
-            if (pair.Value.Qty < 0) result.Blockers.Add(new PackingListMessageDto { Code = "REVERSE_NEGATIVE_STOCK", Message = $"{pair.Value.Sku} 反过账后库存将为负。" });
-            result.InventoryEffects.Add(new PackingListInventoryEffectDto { WarehouseSiteId = pair.Key.Warehouse, ProductId = pair.Key.Product, Sku = pair.Value.Sku, WarehouseName = pair.Value.Name, BalanceAfter = pair.Value.Qty });
-            tokenParts.Add($"B:{pair.Key.Warehouse:N}:{pair.Key.Product:N}:{pair.Value.Version}:{pair.Value.Qty}");
-        }
-        result.HasBlockers = result.Blockers.Count > 0;
-        result.PreviewToken = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("|", tokenParts))));
-        return result;
-    }
+    /// <summary>入库链路已移除，无法完整验证反向影响；明确失败，不生成可提交的预览。</summary>
+    private Task<PackingListPreviewDto> BuildReversePreviewAsync(Guid uid, int expectedVersion, bool forUpdate, CancellationToken cancellationToken)
+        => Task.FromException<PackingListPreviewDto>(new PackingListBusinessException("INBOUND_REFACTOR_PENDING", "待重构"));
 
     /// <summary>在 PL 最外层事务内复核来源版本和合计额度；仅对实际产生客供件消耗的行要求订单池归属。</summary>
     private Task<IReadOnlyDictionary<Guid, SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery.SourceDemandDeliveryItemDto>> VerifySourceDeliveryAsync(
@@ -380,17 +325,9 @@ public sealed class PackingListWorkspaceService(
         });
     }
 
-    private async Task<List<PackingListGeneratedDocumentDto>> GeneratedDocumentsAsync(Guid uid)
-    {
-        var result = new List<PackingListGeneratedDocumentDto>();
-        result.AddRange((await inboundDocuments.GetByPackingListForUpdateAsync(uid))
-            .Where(x => x.DocumentType == InboundDocumentTypeEnum.PackingListAutoReceipt)
-            .Select(x => new PackingListGeneratedDocumentDto { DocumentKind = "AutoInbound", Uid = x.Uid, DocumentNo = x.DocumentNo }));
-        result.AddRange((await outboundDocuments.GetByPackingListForUpdateAsync(uid))
-            .Where(x => x.DocumentType is OutboundDocumentTypeEnum.FinalCustomerShipment or OutboundDocumentTypeEnum.CustomerSuppliedConsumption)
-            .Select(x => new PackingListGeneratedDocumentDto { DocumentKind = x.DocumentType == OutboundDocumentTypeEnum.FinalCustomerShipment ? "FinalOutbound" : "CustomerSuppliedConsumption", Uid = x.Uid, DocumentNo = x.DocumentNo }));
-        return result;
-    }
+    /// <summary>旧入库查询已移除，不以缺失自动入库单据的列表冒充完整结果。</summary>
+    private Task<List<PackingListGeneratedDocumentDto>> GeneratedDocumentsAsync(Guid uid)
+        => Task.FromException<List<PackingListGeneratedDocumentDto>>(new PackingListBusinessException("INBOUND_REFACTOR_PENDING", "待重构"));
 
     private static PackingListPostingPortLine ToPortLine(PackingListContributionLine line, decimal quantity, Guid commandItemId) => new()
     {

@@ -14,20 +14,6 @@ public sealed class ProductUnitSnapshotContractTests
     }
 
     [TestMethod]
-    public void PurchaseInbound_MustPreferPurchaseLineSnapshotOverCurrentProductUnit()
-    {
-        var source = Read(
-            "SwiftExport.Infrastructure",
-            "Repositories",
-            "Inventory",
-            "InboundSourceRepository.cs");
-
-        StringAssert.Contains(
-            source,
-            "COALESCE(NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N''),NULLIF(LTRIM(RTRIM(p.Unit)),N''),N'PCS') AS Unit");
-    }
-
-    [TestMethod]
     public void InventoryKernel_MustPersistSnapshotsToBalanceAndLedger()
     {
         var postingSource = Read(

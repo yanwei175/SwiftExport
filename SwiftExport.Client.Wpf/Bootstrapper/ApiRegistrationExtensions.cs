@@ -104,8 +104,8 @@ public static class ApiRegistrationExtensions
     private static void AddInventoryApis(this IServiceCollection services)
     {
         services.AddControllerApi<IInventoryApi>("inventory");
+        services.AddControllerApi<IInboundSourceApi>("inventory/inbound-sources");
         services.AddControllerApi<IWarehouseSiteApi>("inventory/warehouse-sites");
-        services.AddControllerApi<IInboundWorkspaceApi>("inventory/inbounds");
         services.AddControllerApi<IOutboundWorkspaceApi>("inventory/outbounds");
         services.AddControllerApi<IPackingListWorkspaceApi>("shipping/packing-lists");
     }

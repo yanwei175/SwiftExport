@@ -11,12 +11,15 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Refit;
 using SwiftExport.Contracts.Apis.CustomerApis;
+using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Customers.Requests;
 using SwiftExport.Contracts.DTOs.Customers.Responses;
+using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
@@ -420,6 +423,75 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.AreEqual(0, cache.ProductCategories.Count);
     }
 
+    /// <summary>仓库缓存必须逐页完整读取，并在全部成功后一次性按代码发布。</summary>
+    [TestMethod]
+    public async Task EnsureWarehouseSites_ShouldLoadEveryPageAndPublishCompleteSnapshot()
+    {
+        var warehouseApi = new WarehouseApiStub(request => Task.FromResult(
+            request.PageIndex == 1
+                ? Page<WarehouseSitePickerDto>(request, [Warehouse("WH-B"), Warehouse("WH-A")], 3)
+                : Page<WarehouseSitePickerDto>(request, [Warehouse("WH-C")], 3)));
+        using var cache = CreateCache(
+            new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => SuccessCategories()),
+            warehouseApi: warehouseApi);
+
+        var result = await cache.EnsureWarehouseSitesLoadedAsync();
+
+        Assert.IsTrue(result.Success);
+        CollectionAssert.AreEqual(new[] { 1, 2 }, warehouseApi.RequestedPages);
+        CollectionAssert.AreEqual(new[] { "WH-A", "WH-B", "WH-C" }, cache.WarehouseSites.Select(item => item.Code).ToArray());
+    }
+
+    /// <summary>仓库后续分页失败时不得发布残缺数据或覆盖上一次完整快照。</summary>
+    [TestMethod]
+    public async Task RefreshWarehouseSites_WhenLaterPageFails_ShouldRetainOldSnapshot()
+    {
+        var useFailure = false;
+        var oldWarehouse = Warehouse("WH-OLD");
+        var warehouseApi = new WarehouseApiStub(request =>
+        {
+            if (!useFailure) return Task.FromResult(Page<WarehouseSitePickerDto>(request, [oldWarehouse], 1));
+            return Task.FromResult(request.PageIndex == 1
+                ? Page<WarehouseSitePickerDto>(request, [Warehouse("WH-NEW")], 2)
+                : ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>.Fail("仓库第二页失败"));
+        });
+        using var cache = CreateCache(
+            new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => SuccessCategories()),
+            warehouseApi: warehouseApi);
+        Assert.IsTrue((await cache.RefreshWarehouseSitesAsync()).Success);
+
+        useFailure = true;
+        var failed = await cache.RefreshWarehouseSitesAsync();
+
+        Assert.IsFalse(failed.Success);
+        Assert.AreSame(oldWarehouse, cache.WarehouseSites.Single());
+    }
+
+    /// <summary>退出登录清空仓库快照，旧会话中的迟到响应也不能重新发布。</summary>
+    [TestMethod]
+    public async Task WarehouseSessionEnded_DuringLoad_ShouldClearAndRejectLateResponse()
+    {
+        var session = new SessionServiceStub();
+        var gate = new TaskCompletionSource<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var warehouseApi = new WarehouseApiStub(_ => gate.Task);
+        using var cache = CreateCache(
+            new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => SuccessCategories()),
+            session,
+            warehouseApi: warehouseApi);
+        var loading = cache.EnsureWarehouseSitesLoadedAsync();
+
+        session.EndSession(SessionEndReason.Logout);
+        var request = new PagedRequestBase { PageIndex = 1, PageSize = 200 };
+        gate.SetResult(Page<WarehouseSitePickerDto>(request, [Warehouse("WH-LATE")], 1));
+        var result = await loading;
+
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(0, cache.WarehouseSites.Count);
+    }
+
     [TestMethod]
     public void ProductColorGetAll_ShouldMatchControllerRoute()
     {
@@ -554,10 +626,12 @@ public sealed class ReferenceDataCacheServiceTests
         ISysDictTypeApi? dictTypeApi = null,
         ISysDictDataApi? dictDataApi = null,
         ICustomerApi? customerApi = null,
-        ISupplierApi? supplierApi = null) =>
+        ISupplierApi? supplierApi = null,
+        IWarehouseSiteApi? warehouseApi = null) =>
         new(
             customerApi ?? new CustomerApiStub(request => Task.FromResult(Page<CustomerDto>(request, [], 0))),
             supplierApi ?? new SupplierApiStub(request => Task.FromResult(Page<SupplierDto>(request, [], 0))),
+            warehouseApi ?? new WarehouseApiStub(request => Task.FromResult(Page<WarehouseSitePickerDto>(request, [], 0))),
             colorApi,
             categoryApi,
             currencyApi ?? new CurrencyApiStub(() => SuccessCurrencies()),
@@ -587,6 +661,12 @@ public sealed class ReferenceDataCacheServiceTests
         Uid = Guid.NewGuid(),
         SupplierCode = code,
         SupplierName = code,
+    };
+
+    private static WarehouseSitePickerDto Warehouse(string code) => new()
+    {
+        Uid = Guid.NewGuid(), Version = 1, Code = code, Name = code,
+        SupplierId = Guid.NewGuid(), SupplierCode = "S-01", SupplierName = "供应商甲", IsActive = true
     };
 
     private static ServiceResult<PagedResponseBase<T>> Page<T>(
@@ -720,6 +800,27 @@ public sealed class ReferenceDataCacheServiceTests
         public Task<ServiceResult<Guid>> CreateAsync(SupplierDto request) => throw new NotSupportedException();
         public Task<ServiceResult<Guid>> UpdateAsync(Guid id, SupplierDto request) => throw new NotSupportedException();
         public Task<ServiceResult<Guid>> DeleteAsync(Guid id) => throw new NotSupportedException();
+    }
+
+    private sealed class WarehouseApiStub(
+        Func<PagedRequestBase, Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>>> getPage) : IWarehouseSiteApi
+    {
+        public List<int> RequestedPages { get; } = [];
+
+        public Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehousePickerPagedAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+        {
+            RequestedPages.Add(request.PageIndex);
+            return getPage(request);
+        }
+
+        public Task<ServiceResult<PagedResponseBase<WarehouseCandidateDto>>> SearchCandidatesAsync(PagedRequestBase request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PagedResponseBase<WarehouseSiteDto>>> SearchAsync(WarehouseSiteSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PagedResponseBase<WarehouseSupplierLookupDto>>> SearchSuppliersAsync(PagedRequestBase request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<WarehouseSiteDto>> GetAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<WarehouseSiteDto>> CreateSupplierVirtualAsync(CreateSupplierVirtualWarehouseCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<WarehouseSiteDto>> UpdateAsync(Guid uid, UpdateWarehouseSiteCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<WarehouseSiteDto>> DeactivateAsync(Guid uid, DeactivateWarehouseSiteCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<WarehouseSiteDto>> DeleteAsync(Guid uid, DeleteWarehouseSiteCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class ProductColorApiStub(

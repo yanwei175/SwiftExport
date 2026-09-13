@@ -1,76 +1,76 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
-using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Mvvm;
-using SwiftExportClient.Services.Api;
+using SwiftExportClient.Resources.Controls;
+using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 
 namespace SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 
-/// <summary>编排活动仓库的只读单选、分页查询和弹窗生命周期，不修改来源仓库资料。</summary>
-public sealed partial class WarehousePickerViewModel : ViewModelBaseEx, IDialogContentState, IDisposable
+/// <summary>编排一次性活动仓库只读单选会话，并基于共享完整快照执行本地搜索与分页。</summary>
+public sealed partial class WarehousePickerViewModel : ViewModelBaseEx, IDialogContentState, IDialogCloseRequest, IDisposable
 {
     private const int DefaultPageSize = 20;
-    private readonly IWarehouseSiteApi _api;
-    private readonly IApiCallRunner _runner;
-    private CancellationTokenSource? _sessionCancellation;
-    private CancellationTokenSource? _loadCancellation;
-    private int _requestVersion;
-    private bool _isOpen;
-    private bool _hasCurrentResult;
+    private readonly IReferenceDataCacheService _cache;
+    private readonly CancellationTokenSource _lifetimeCancellation = new();
+    private bool _disposed;
 
-    /// <summary>创建仓库选择器并注册受 Busy 状态约束的分页命令。</summary>
-    public WarehousePickerViewModel(IWarehouseSiteApi api, IApiCallRunner runner)
+    /// <summary>创建一次性仓库选择会话；每次弹窗使用独立实例。</summary>
+    public WarehousePickerViewModel(IReferenceDataCacheService cache)
     {
-        _api = api;
-        _runner = runner;
+        _cache = cache;
         Title = "选择仓库";
         IsReadOnly = true;
-        RegisterBusyAwareCommand(PreviousPageCommand);
-        RegisterBusyAwareCommand(NextPageCommand);
+        RegisterBusyAwareCommand(RefreshCommand);
+        RegisterBusyAwareCommand(SearchCommand);
+        RegisterBusyAwareCommand(PageChangeCommand);
+        RegisterBusyAwareCommand(ConfirmCommand);
     }
 
     /// <inheritdoc/>
     public event EventHandler? StateChanged;
 
-    /// <summary>获取当前页候选。</summary>
+    /// <inheritdoc/>
+    public event EventHandler<DialogCloseRequestedEventArgs>? CloseRequested;
+
+    /// <summary>获取当前本地分页结果。</summary>
     public ObservableCollection<WarehouseSitePickerDto> Items { get; } = [];
 
     /// <summary>获取总页数。</summary>
-    public int TotalPages => Math.Max(1, (int)Math.Ceiling((double)TotalCount / Math.Max(1, PageSize)));
+    public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / Math.Max(1, PageSize));
 
-    /// <summary>获取分页摘要。</summary>
-    public string PageSummary => $"第 {PageIndex} / {TotalPages} 页，共 {TotalCount} 条";
+    /// <summary>获取 PageNavigator 左侧状态摘要。</summary>
+    public string PageStatus => $"第 {PageIndex} / {TotalPages} 页，共 {TotalCount} 条 · {ResultSummary}";
 
     [ObservableProperty]
     public partial string Keyword { get; set; } = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PageSummary))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int PageIndex { get; set; } = 1;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TotalPages))]
-    [NotifyPropertyChangedFor(nameof(PageSummary))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int PageSize { get; set; } = DefaultPageSize;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TotalPages))]
-    [NotifyPropertyChangedFor(nameof(PageSummary))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int TotalCount { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial string ResultSummary { get; set; } = "尚未加载。";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     public partial WarehouseSitePickerDto? SelectedItem { get; set; }
 
     /// <inheritdoc/>
-    public bool IsPrimaryButtonEnabled => _isOpen && _hasCurrentResult && !IsBusy
-        && SelectedItem is not null && Items.Contains(SelectedItem);
+    public bool IsPrimaryButtonEnabled => CanConfirm();
 
     /// <inheritdoc/>
     public bool IsSecondaryButtonEnabled => false;
@@ -78,142 +78,103 @@ public sealed partial class WarehousePickerViewModel : ViewModelBaseEx, IDialogC
     /// <inheritdoc/>
     public bool CanClose(DialogResult requestedResult) => true;
 
-    /// <summary>打开一个新的选择会话并加载第一页；外部取消会终止本会话的所有查询。</summary>
+    /// <summary>按需确保当前会话拥有完整仓库快照；释放后迟到结果不得回写页面。</summary>
     public async Task OpenAsync(CancellationToken cancellationToken = default)
     {
-        Close();
-        _isOpen = true;
-        _sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        PageIndex = 1;
-        SelectedItem = null;
-        Items.Clear();
-        TotalCount = 0;
+        if (_disposed) return;
+        using var cancellationRegistration = cancellationToken.Register(_lifetimeCancellation.Cancel);
         ResultSummary = "正在加载仓库...";
-        RaiseDialogStateChanged();
-        await LoadAsync();
+        var result = await _cache.EnsureWarehouseSitesLoadedAsync();
+        if (_disposed || _lifetimeCancellation.IsCancellationRequested) return;
+
+        ApplyFilter(resetPage: true);
+        if (!result.Success) ResultSummary = result.Message;
     }
 
-    /// <summary>返回当前页中仍有效的选中项；过期选择不会穿透弹窗边界。</summary>
-    public WarehouseSitePickerDto? GetSelectedResult()
-        => IsPrimaryButtonEnabled ? SelectedItem : null;
+    /// <summary>返回当前页仍有效的选中项；取消或过期选择返回空值。</summary>
+    public WarehouseSitePickerDto? GetSelectedResult() => CanConfirm() ? SelectedItem : null;
 
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    private async Task SearchAsync()
+    [RelayCommand(CanExecute = nameof(CanInteract))]
+    private void Search() => ApplyFilter(resetPage: true);
+
+    [RelayCommand(CanExecute = nameof(CanInteract))]
+    private async Task RefreshAsync()
     {
-        PageIndex = 1;
-        await LoadAsync();
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    private Task RefreshAsync() => LoadAsync();
-
-    [RelayCommand(CanExecute = nameof(CanPreviousPage))]
-    private async Task PreviousPageAsync()
-    {
-        PageIndex--;
-        await LoadAsync();
-    }
-
-    private bool CanPreviousPage() => _isOpen && !IsBusy && PageIndex > 1;
-
-    [RelayCommand(CanExecute = nameof(CanNextPage))]
-    private async Task NextPageAsync()
-    {
-        PageIndex++;
-        await LoadAsync();
-    }
-
-    private bool CanNextPage() => _isOpen && !IsBusy && PageIndex < TotalPages;
-
-    /// <summary>执行可替代查询；仅当前会话中的最后一个响应可以回写集合。</summary>
-    private async Task LoadAsync()
-    {
-        if (!_isOpen || _sessionCancellation is null) return;
-        _loadCancellation?.Cancel();
-        _loadCancellation?.Dispose();
-        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_sessionCancellation.Token);
-        _loadCancellation = cancellation;
-        var requestVersion = ++_requestVersion;
-        _hasCurrentResult = false;
-        SelectedItem = null;
-        Items.Clear();
-        TotalCount = 0;
-        ResultSummary = "正在查询仓库...";
-        RaiseDialogStateChanged();
-
-        ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>? result = null;
         await RunBusyAsync(async () =>
         {
             RaiseDialogStateChanged();
-            result = await _runner.RunAsync(
-                () => _api.GetWarehousePickerPagedAsync(new PagedRequestBase
-                {
-                    Keyword = string.IsNullOrWhiteSpace(Keyword) ? string.Empty : Keyword.Trim(),
-                    PageIndex = Math.Max(1, PageIndex),
-                    PageSize = Math.Clamp(PageSize, 1, 200)
-                }, cancellation.Token), cancellation.Token, "查询仓库失败");
-        }, "正在查询仓库...", false);
-
-        if (!CanAccept(cancellation, requestVersion))
-        {
-            cancellation.Dispose();
-            return;
-        }
-
-        _loadCancellation = null;
-        cancellation.Dispose();
-        if (result is null || !result.Success || result.Data is null)
-        {
-            PageIndex = 1;
-            ResultSummary = result?.Message ?? "仓库查询失败。";
-            RaiseDialogStateChanged();
-            return;
-        }
-
-        Items.Clear();
-        foreach (var item in result.Data.Items) Items.Add(item);
-        PageIndex = Math.Max(1, result.Data.PageIndex);
-        PageSize = Math.Max(1, result.Data.PageSize);
-        TotalCount = Math.Max(0, result.Data.TotalCount);
-        _hasCurrentResult = true;
-        ResultSummary = Items.Count == 0 ? "没有符合条件的活动仓库。" : $"当前页显示 {Items.Count} 个活动仓库。";
-        PreviousPageCommand.NotifyCanExecuteChanged();
-        NextPageCommand.NotifyCanExecuteChanged();
+            var result = await _cache.RefreshWarehouseSitesAsync();
+            if (_disposed || _lifetimeCancellation.IsCancellationRequested) return;
+            ApplyFilter(resetPage: true);
+            ResultSummary = result.Success ? "仓库缓存已刷新。" : result.Message;
+        }, "正在刷新仓库...");
         RaiseDialogStateChanged();
     }
 
-    private bool CanAccept(CancellationTokenSource cancellation, int requestVersion)
-        => _isOpen && !cancellation.IsCancellationRequested
-            && ReferenceEquals(_loadCancellation, cancellation) && requestVersion == _requestVersion;
+    [RelayCommand(CanExecute = nameof(CanChangePage))]
+    private void PageChange(PageChangeRequest? request)
+    {
+        if (request is null) return;
+        PageSize = Math.Clamp(request.NewSize <= 0 ? DefaultPageSize : request.NewSize, 1, 200);
+        PageIndex = Math.Max(1, request.NewIndex);
+        ApplyFilter(resetPage: false);
+    }
+
+    /// <summary>使用与外壳主按钮相同的准入状态请求确认，供有效数据行双击复用。</summary>
+    [RelayCommand(CanExecute = nameof(CanConfirm))]
+    private void Confirm() => CloseRequested?.Invoke(this, new DialogCloseRequestedEventArgs(DialogResult.Primary));
+
+    private bool CanInteract() => !_disposed && !IsBusy;
+
+    private bool CanChangePage(PageChangeRequest? request) => CanInteract() && request is not null;
+
+    private bool CanConfirm() => !_disposed && !IsBusy && SelectedItem is not null && Items.Contains(SelectedItem);
+
+    /// <summary>从共享只读快照筛选代码与名称，并在每次查询或换页时清除旧选择。</summary>
+    private void ApplyFilter(bool resetPage)
+    {
+        if (_disposed) return;
+        if (resetPage) PageIndex = 1;
+        SelectedItem = null;
+
+        var keyword = Keyword.Trim();
+        var filtered = _cache.WarehouseSites.Where(item =>
+            string.IsNullOrEmpty(keyword)
+            || Contains(item.Code, keyword)
+            || Contains(item.Name, keyword)
+            || Contains(item.SupplierCode, keyword)
+            || Contains(item.SupplierName, keyword)).ToArray();
+
+        TotalCount = filtered.Length;
+        PageIndex = Math.Clamp(PageIndex, 1, TotalPages);
+        var pageSize = Math.Clamp(PageSize, 1, 200);
+        Items.Clear();
+        foreach (var item in filtered.Skip((PageIndex - 1) * pageSize).Take(pageSize))
+            Items.Add(item);
+
+        ResultSummary = Items.Count == 0
+            ? "没有符合条件的活动仓库。"
+            : $"当前页显示 {Items.Count} 个活动仓库。";
+        PageChangeCommand.NotifyCanExecuteChanged();
+        RaiseDialogStateChanged();
+    }
+
+    private static bool Contains(string? source, string keyword) =>
+        !string.IsNullOrEmpty(source) && source.Contains(keyword, StringComparison.CurrentCultureIgnoreCase);
 
     partial void OnSelectedItemChanged(WarehouseSitePickerDto? value) => RaiseDialogStateChanged();
-
-    partial void OnPageIndexChanged(int value)
-    {
-        PreviousPageCommand.NotifyCanExecuteChanged();
-        NextPageCommand.NotifyCanExecuteChanged();
-    }
-
-    partial void OnTotalCountChanged(int value) => NextPageCommand.NotifyCanExecuteChanged();
-
-    /// <summary>关闭会话并取消所有未完成查询，防止迟到响应污染下一次打开。</summary>
-    public void Close()
-    {
-        _isOpen = false;
-        _hasCurrentResult = false;
-        _requestVersion++;
-        _loadCancellation?.Cancel();
-        _loadCancellation?.Dispose();
-        _loadCancellation = null;
-        _sessionCancellation?.Cancel();
-        _sessionCancellation?.Dispose();
-        _sessionCancellation = null;
-        SelectedItem = null;
-        RaiseDialogStateChanged();
-    }
 
     private void RaiseDialogStateChanged() => StateChanged?.Invoke(this, EventArgs.Empty);
 
     /// <inheritdoc/>
-    public void Dispose() => Close();
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _lifetimeCancellation.Cancel();
+        _lifetimeCancellation.Dispose();
+        SelectedItem = null;
+        Items.Clear();
+        RaiseDialogStateChanged();
+    }
 }

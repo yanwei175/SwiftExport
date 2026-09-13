@@ -379,6 +379,7 @@ public sealed class CustomerDictionaryColumnsTests
             Currencies = new ReadOnlyObservableCollection<SysDicCurrencyDto>(_currencies);
             Customers = new ReadOnlyObservableCollection<CustomerDto>([]);
             Suppliers = new ReadOnlyObservableCollection<SupplierDto>([]);
+            WarehouseSites = new ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto>([]);
             ProductColors = new ReadOnlyObservableCollection<ProductColorDto>([]);
             ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>([]);
             ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>([]);
@@ -388,6 +389,7 @@ public sealed class CustomerDictionaryColumnsTests
         public ReadOnlyObservableCollection<ProductColorDto> ProductColors { get; }
         public ReadOnlyObservableCollection<CustomerDto> Customers { get; }
         public ReadOnlyObservableCollection<SupplierDto> Suppliers { get; }
+        public ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto> WarehouseSites { get; }
         public ReadOnlyObservableCollection<SysDicCurrencyDto> Currencies { get; }
         public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; }
         public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
@@ -407,6 +409,8 @@ public sealed class CustomerDictionaryColumnsTests
         public Task<CacheRefreshResult> RefreshProductColorsAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshCustomersAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshSuppliersAsync() => throw new NotSupportedException();
+        public Task<CacheRefreshResult> EnsureWarehouseSitesLoadedAsync() => throw new NotSupportedException();
+        public Task<CacheRefreshResult> RefreshWarehouseSitesAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshProductCategoriesAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshCurrenciesAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshDictionariesAsync() => throw new NotSupportedException();

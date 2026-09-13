@@ -9,9 +9,13 @@ using SwiftExportClient.Features.Inventory.WarehouseSites.Services;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Inventory.WarehouseSites.Views;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
+using System.Collections.ObjectModel;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Threading;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Inventory.WarehouseSites;
@@ -21,50 +25,51 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Inventory.WarehouseSites;
 [DoNotParallelize]
 public sealed class WarehousePickerTests
 {
-    /// <summary>翻页开始时清除旧页选择，只有当前页重新选择后才能确认。</summary>
+    /// <summary>PageNavigator 协议换页时清除旧页选择，只有当前页重新选择后才能确认。</summary>
     [TestMethod]
     public async Task NextPage_ShouldClearStaleSelectionAndRequireCurrentRow()
     {
         var first = Warehouse("WH-01");
         var second = Warehouse("WH-02");
-        var api = new WarehouseApiStub
-        {
-            Handler = (request, _) => Task.FromResult(Page(request.PageIndex == 1 ? first : second, request.PageIndex, 2))
-        };
-        using var picker = new WarehousePickerViewModel(api, new Runner());
+        var cache = new ReferenceDataCacheServiceStub(warehouseSites: [first, second]);
+        using var picker = new WarehousePickerViewModel(cache) { PageSize = 1 };
 
         await picker.OpenAsync();
+        var dialogPrimaryEnabled = false;
+        picker.StateChanged += (_, _) => dialogPrimaryEnabled = picker.IsPrimaryButtonEnabled;
         picker.SelectedItem = first;
         Assert.IsTrue(picker.IsPrimaryButtonEnabled);
+        Assert.IsTrue(dialogPrimaryEnabled, "选择当前行后必须通知公共外壳启用确定按钮。");
 
-        await picker.NextPageCommand.ExecuteAsync(null);
+        picker.PageChangeCommand.Execute(new SwiftExportClient.Resources.Controls.PageChangeRequest
+        {
+            OldIndex = 1, NewIndex = 2, OldSize = 1, NewSize = 1
+        });
 
         Assert.IsNull(picker.SelectedItem);
         Assert.IsFalse(picker.IsPrimaryButtonEnabled);
+        Assert.IsFalse(dialogPrimaryEnabled, "换页清选后必须通知公共外壳禁用确定按钮。");
         Assert.AreSame(second, picker.Items.Single());
     }
 
-    /// <summary>旧请求即使忽略取消并迟到，也不能覆盖最后一次搜索的结果。</summary>
+    /// <summary>搜索只在完整仓库快照中本地匹配代码、名称和供应商，并重置分页选择。</summary>
     [TestMethod]
-    public async Task Search_ShouldAcceptOnlyLatestResponse()
+    public async Task Search_ShouldFilterLocalCacheAndClearSelection()
     {
-        var oldGate = new TaskCompletionSource<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var api = new WarehouseApiStub
-        {
-            Handler = (request, _) => request.Keyword == "旧"
-                ? oldGate.Task
-                : Task.FromResult(Page(Warehouse("NEW")))
-        };
-        using var picker = new WarehousePickerViewModel(api, new Runner()) { Keyword = "旧" };
-        var oldLoad = picker.OpenAsync();
-        await Task.Yield();
-        picker.Keyword = "新";
+        var first = Warehouse("WH-A");
+        var second = Warehouse("WH-B");
+        second.SupplierName = "目标供应商";
+        var cache = new ReferenceDataCacheServiceStub(warehouseSites: [first, second]);
+        using var picker = new WarehousePickerViewModel(cache);
+        await picker.OpenAsync();
+        picker.SelectedItem = first;
+        picker.Keyword = "目标";
 
-        await picker.SearchCommand.ExecuteAsync(null);
-        oldGate.SetResult(Page(Warehouse("OLD")));
-        await oldLoad;
+        picker.SearchCommand.Execute(null);
 
-        Assert.AreEqual("NEW", picker.Items.Single().Code);
+        Assert.IsNull(picker.SelectedItem);
+        Assert.AreSame(second, picker.Items.Single());
+        Assert.AreEqual(1, picker.PageIndex);
     }
 
     /// <summary>关闭会话后，未完成响应不得再写入集合或生成可确认结果。</summary>
@@ -72,12 +77,11 @@ public sealed class WarehousePickerTests
     public async Task Close_ShouldRejectLateResponse()
     {
         var gate = new TaskCompletionSource<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var api = new WarehouseApiStub { Handler = (_, _) => gate.Task };
-        using var picker = new WarehousePickerViewModel(api, new Runner());
+        using var picker = new WarehousePickerViewModel(CreateBlockingCache(gate));
         var loading = picker.OpenAsync();
         await Task.Yield();
 
-        picker.Close();
+        picker.Dispose();
         gate.SetResult(Page(Warehouse("LATE")));
         await loading;
 
@@ -90,24 +94,19 @@ public sealed class WarehousePickerTests
     public async Task FailedReplacementSearch_ShouldInvalidatePreviousCandidates()
     {
         var previous = Warehouse("WH-A");
-        var api = new WarehouseApiStub
-        {
-            Handler = (request, _) => request.Keyword == "失败"
-                ? Task.FromResult(ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>.Fail("模拟失败"))
-                : Task.FromResult(Page(previous))
-        };
-        using var picker = new WarehousePickerViewModel(api, new Runner());
+        var cache = new ReferenceDataCacheServiceStub(
+            warehouseSites: [previous], warehouseRefreshSuccess: false, warehouseRefreshMessage: "模拟失败");
+        using var picker = new WarehousePickerViewModel(cache);
         await picker.OpenAsync();
         picker.SelectedItem = previous;
-        picker.Keyword = "失败";
+        await picker.RefreshCommand.ExecuteAsync(null);
 
-        await picker.SearchCommand.ExecuteAsync(null);
-
-        Assert.AreEqual(0, picker.Items.Count);
-        Assert.AreEqual(0, picker.TotalCount);
+        Assert.AreEqual(1, picker.Items.Count);
+        Assert.AreSame(previous, picker.Items.Single());
         Assert.AreEqual(1, picker.PageIndex);
         Assert.IsFalse(picker.IsPrimaryButtonEnabled);
         Assert.IsNull(picker.GetSelectedResult());
+        Assert.AreEqual("模拟失败", picker.ResultSummary);
     }
 
     /// <summary>Feature 服务仅接纳主按钮确认；关闭按钮明确返回空值。</summary>
@@ -118,13 +117,12 @@ public sealed class WarehousePickerTests
         {
             ApplicationResourceLoader.Load();
             var warehouse = Warehouse("WH-01");
-            var api = new WarehouseApiStub { Handler = (_, _) => Task.FromResult(Page(warehouse)) };
-            using var primaryPicker = new WarehousePickerViewModel(api, new Runner());
+            var cache = new ReferenceDataCacheServiceStub(warehouseSites: [warehouse]);
             var primaryDialog = new DialogStub(DialogResult.Primary, state => ((WarehousePickerViewModel)state!).SelectedItem = warehouse);
-            var selected = await new WarehousePickerService(primaryPicker, primaryDialog).PickAsync();
+            var selected = await new WarehousePickerService(() => new WarehousePickerViewModel(cache), primaryDialog).PickAsync();
 
-            using var cancelPicker = new WarehousePickerViewModel(api, new Runner());
-            var cancelled = await new WarehousePickerService(cancelPicker, new DialogStub(DialogResult.Close)).PickAsync();
+            var cancelled = await new WarehousePickerService(
+                () => new WarehousePickerViewModel(cache), new DialogStub(DialogResult.Close)).PickAsync();
 
             Assert.AreSame(warehouse, selected);
             Assert.IsNull(cancelled);
@@ -132,27 +130,29 @@ public sealed class WarehousePickerTests
         });
     }
 
-    /// <summary>同一 Feature 服务并发打开时拒绝后来者，且后来者不会关闭首个会话。</summary>
+    /// <summary>同一 Feature 服务每次选择创建独立 ViewModel，不复用已释放会话。</summary>
     [TestMethod]
-    public void Service_ShouldRejectReentryWithoutClosingOwnerSession()
+    public void Service_ShouldCreateFreshViewModelForEveryPick()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
             ApplicationResourceLoader.Load();
             var warehouse = Warehouse("WH-01");
-            using var picker = new WarehousePickerViewModel(
-                new WarehouseApiStub { Handler = (_, _) => Task.FromResult(Page(warehouse)) }, new Runner());
-            var dialog = new BlockingDialogStub(warehouse);
-            var service = new WarehousePickerService(picker, dialog);
-            var owner = service.PickAsync();
-            await dialog.Entered.Task;
+            var cache = new ReferenceDataCacheServiceStub(warehouseSites: [warehouse]);
+            var created = new List<WarehousePickerViewModel>();
+            var dialog = new DialogStub(DialogResult.Close);
+            var service = new WarehousePickerService(() =>
+            {
+                var picker = new WarehousePickerViewModel(cache);
+                created.Add(picker);
+                return picker;
+            }, dialog);
 
-            var exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => service.PickAsync());
-            StringAssert.Contains(exception.Message, "已经打开");
-            Assert.IsTrue(picker.IsPrimaryButtonEnabled);
+            await service.PickAsync();
+            await service.PickAsync();
 
-            dialog.Release.SetResult();
-            Assert.AreSame(warehouse, await owner);
+            Assert.HasCount(2, created);
+            Assert.AreNotSame(created[0], created[1]);
         });
     }
 
@@ -165,7 +165,7 @@ public sealed class WarehousePickerTests
             ApplicationResourceLoader.Load();
             var warehouse = Warehouse("WH-01");
             using var picker = new WarehousePickerViewModel(
-                new WarehouseApiStub { Handler = (_, _) => Task.FromResult(Page(warehouse)) }, new Runner());
+                new ReferenceDataCacheServiceStub(warehouseSites: [warehouse]));
             await picker.OpenAsync();
             var view = new WarehousePickerView { DataContext = picker };
             var window = new Window
@@ -183,6 +183,33 @@ public sealed class WarehousePickerTests
                 Assert.AreEqual(DataGridSelectionUnit.FullRow, grid.SelectionUnit);
                 Assert.AreSame(picker.Items, grid.ItemsSource);
                 Assert.AreEqual(1, grid.Items.Count);
+                var navigator = FindVisualDescendant<SwiftExportClient.Resources.Controls.PageNavigator>(view);
+                Assert.IsNotNull(navigator);
+                Assert.AreSame(picker.PageChangeCommand, navigator.PageChangeCommand);
+
+                var closeCount = 0;
+                picker.CloseRequested += (_, args) =>
+                {
+                    Assert.AreEqual(DialogResult.Primary, args.Result);
+                    closeCount++;
+                };
+                grid.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+                {
+                    RoutedEvent = Control.MouseDoubleClickEvent,
+                    Source = grid
+                });
+                Assert.AreEqual(0, closeCount, "表头、空白或 Grid 自身双击不能确认旧选择。");
+
+                var row = (DataGridRow)grid.ItemContainerGenerator.ContainerFromItem(warehouse);
+                row.IsSelected = true;
+                var cell = FindVisualDescendant<DataGridCell>(row);
+                Assert.IsNotNull(cell);
+                cell.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+                {
+                    RoutedEvent = Control.MouseDoubleClickEvent,
+                    Source = cell
+                });
+                Assert.AreEqual(1, closeCount);
             }
             finally
             {
@@ -204,6 +231,50 @@ public sealed class WarehousePickerTests
             Items = [item], TotalCount = totalCount, PageIndex = pageIndex, PageSize = 1
         });
 
+    /// <summary>创建只实现本测试所需仓库缓存成员的动态替身。</summary>
+    private static IReferenceDataCacheService CreateBlockingCache(
+        TaskCompletionSource<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> gate)
+    {
+        var source = new ObservableCollection<WarehouseSitePickerDto>();
+        var readOnly = new ReadOnlyObservableCollection<WarehouseSitePickerDto>(source);
+        var proxy = DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>();
+        ((CacheProxy)(object)proxy).Handler = (method, _) => method.Name switch
+        {
+            "get_WarehouseSites" => readOnly,
+            nameof(IReferenceDataCacheService.EnsureWarehouseSitesLoadedAsync) => CompleteAsync(),
+            _ => throw new NotSupportedException(method.Name)
+        };
+        return proxy;
+
+        async Task<CacheRefreshResult> CompleteAsync()
+        {
+            var result = await gate.Task;
+            if (result.Success && result.Data is not null)
+                foreach (var item in result.Data.Items) source.Add(item);
+            return CreateCacheResult(result.Success, result.Message);
+        }
+    }
+
+    private static CacheRefreshResult CreateCacheResult(bool success, string message) =>
+        (CacheRefreshResult)(Activator.CreateInstance(
+            typeof(CacheRefreshResult),
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            args: [success, message],
+            culture: null) ?? throw new InvalidOperationException("无法创建缓存测试结果。"));
+
+    private static T? FindVisualDescendant<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var index = 0; index < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, index);
+            if (child is T match) return match;
+            var nested = FindVisualDescendant<T>(child);
+            if (nested is not null) return nested;
+        }
+        return null;
+    }
+
     private sealed class WarehouseApiStub : IWarehouseSiteApi
     {
         public Func<PagedRequestBase, CancellationToken, Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>>> Handler { get; init; }
@@ -224,6 +295,12 @@ public sealed class WarehousePickerTests
         public Task<ServiceResult<T>> RunAsync<T>(Func<Task<ServiceResult<T>>> action, string failureMessage = "请求失败") => action();
         public Task<ServiceResult<T>> RunAsync<T>(Func<Task<ServiceResult<T>>> action, CancellationToken cancellationToken, string failureMessage = "请求失败") => action();
         public async Task<ServiceResult<T>> RunValueAsync<T>(Func<Task<T>> action, string successMessage = "成功", string failureMessage = "请求失败") => ServiceResult<T>.Ok(await action());
+    }
+
+    private sealed class CacheProxy : DispatchProxy
+    {
+        public Func<MethodInfo, object?[]?, object?> Handler { get; set; } = null!;
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) => Handler(targetMethod!, args);
     }
 
     private sealed class DialogStub(DialogResult result, Action<IDialogContentState?>? beforeReturn = null) : IDialogService

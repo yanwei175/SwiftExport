@@ -33,17 +33,30 @@
 
             <StackPanel Grid.Row="2" Orientation="Horizontal">
                 <!--来源筛选的条件(客供件,采购)默认客供件-->
-                <ComboBox />
-                <!--供应商筛选,走本地搜索.加载的时候只发一次api获取到待选的供应商列表-->
-                <supplierControls:SupplierAutoSuggestComboBox />
+                <ComboBox Width="144" Margin="0,0,8,0"
+                          ItemsSource="{Binding PurchaseCategories}"
+                          SelectedItem="{Binding PurchaseCategory, Mode=TwoWay}"
+                          IsEnabled="{Binding IsPurchase}" AutomationProperties.Name="采购来源分类">
+                    <ComboBox.Style><Style TargetType="ComboBox"><Style.Triggers>
+                        <DataTrigger Binding="{Binding IsPurchase}" Value="False"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                    </Style.Triggers></Style></ComboBox.Style>
+                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource EnumDescriptionConverter}}"/></DataTemplate></ComboBox.ItemTemplate>
+                </ComboBox>
+                <!--供应商筛选使用会话全量缓存，不请求有效采购供应商子集。-->
+                <supplierControls:SupplierAutoSuggestComboBox Width="240" Margin="0,0,8,0"
+                    ItemsSource="{Binding Suppliers}" SelectedSupplier="{Binding SelectedSupplier, Mode=TwoWay}"
+                    IsEnabled="{Binding IsPurchase}"/>
+                <Button Content="查询" Command="{Binding SearchCommand}" Margin="0,0,8,0" IsEnabled="{Binding IsPurchase}"/>
+                <Button Content="清空勾选" Command="{Binding ClearSelectionCommand}" Margin="0,0,8,0"/>
                 
-                <Button DockPanel.Dock="Right" Content="反选" Command="{Binding ToggleAllCommand}"
+                <Button DockPanel.Dock="Right" Content="反选" Command="{Binding InvertSelectionCommand}" IsEnabled="{Binding CanSelect}"
                     AutomationProperties.Name="反选" Padding="12,4"/>
             </StackPanel>
         </Grid>
 
         <DataGrid Grid.Row="1" 
                   ItemsSource="{Binding Items}" 
+                  IsEnabled="{Binding CanSelect}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True" 
                   CanUserAddRows="False"
@@ -57,8 +70,9 @@
                 <DataGridTemplateColumn Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                     <DataGridTemplateColumn.HeaderTemplate>
                         <DataTemplate>
-                            <CheckBox  IsChecked="{Binding IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
-                                       HorizontalAlignment="Left" />
+                            <CheckBox IsChecked="{Binding DataContext.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWay}"
+                                      Command="{Binding DataContext.ToggleAllCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                      AutomationProperties.Name="全选或取消当前页" HorizontalAlignment="Left" />
                         </DataTemplate>
                     </DataGridTemplateColumn.HeaderTemplate>
 
@@ -94,11 +108,16 @@
                 <DataGridTextColumn Header="待入库数量" Binding="{Binding RemainingReceivableQty, StringFormat=N4}" Width="112"/>
                 <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="64"/>
                 <DataGridTextColumn Header="采购供应商" Binding="{Binding SupplierName}" Width="144"/>
-                <DataGridTextColumn Header="默认收货仓" Binding="{Binding WarehouseName}" Width="144"/>
             </DataGrid.Columns>
         </DataGrid>
 
-        <TextBlock Grid.Row="2" Margin="0,8,0,0" TextWrapping="Wrap"
-                   Text="勾选需要入库的采购来源。待入库数量为剩余可收数量，本组件不修改来源或库存。"/>
+        <Grid Grid.Row="2" Margin="0,8,0,0" ColumnDefinitions="*,Auto">
+            <StackPanel>
+                <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding CheckedCount, StringFormat=已选 {0} 行}"/>
+            </StackPanel>
+            <controls:PageNavigator Grid.Column="1" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}"
+                                    PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}"/>
+        </Grid>
     </Grid>
 </UserControl>

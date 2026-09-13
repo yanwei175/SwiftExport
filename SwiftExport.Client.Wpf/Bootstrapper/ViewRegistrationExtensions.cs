@@ -70,6 +70,8 @@ public static class ViewRegistrationExtensions
         services.AddTransient<SupplierProductManagerViewModel>();
         services.AddTransient<SupplierProductWorkspaceViewModel>();
         services.AddTransient<SupplierPickerViewModel>();
+        services.AddTransient<Func<SupplierPickerViewModel>>(provider =>
+            () => provider.GetRequiredService<SupplierPickerViewModel>());
 
 
         services.AddTransient<SalesViewModel>();
@@ -96,11 +98,13 @@ public static class ViewRegistrationExtensions
         services.AddTransient<PlanningViewModel>();
 
         services.AddTransient<WarehouseSitesViewModel>();
-        services.AddTransient<WarehousePickerViewModel>();
+        services.AddTransient<Func<WarehousePickerViewModel>>(provider =>
+            () => ActivatorUtilities.CreateInstance<WarehousePickerViewModel>(provider));
 
         services.AddTransient<InventoryBalancesViewModel>();
         services.AddTransient<InventoryLedgerViewModel>();
-        services.AddTransient<InboundWorkspaceViewModel>();
+        services.AddTransient<InboundManagerViewModel>();
+        services.AddTransient<SwiftExportClient.Features.Inventory.Inbounds.Services.IInboundSourceDialogService, SwiftExportClient.Features.Inventory.Inbounds.Services.InboundSourceDialogService>();
 
         services.AddTransient<OutboundWorkspaceViewModel>();
 

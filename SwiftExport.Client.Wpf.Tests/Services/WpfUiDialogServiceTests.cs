@@ -86,6 +86,42 @@ public sealed class WpfUiDialogServiceTests
             }
         });
 
+    /// <summary>内容区主动确认应复用原生 Primary 结果，并在弹窗结束后解除可选事件订阅。</summary>
+    [TestMethod]
+    public void CloseRequest_ShouldReturnPrimaryAndReleaseSubscription() =>
+        Controls.DatePickerAssistTests.RunWithApplication(async () =>
+        {
+            Application.Current.Resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ThemesDictionary());
+            Application.Current.Resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ControlsDictionary());
+            var host = new ContentDialogHost();
+            var window = new Window { Width = 800, Height = 500, Content = host, WindowStyle = WindowStyle.None };
+            var nativeService = new ContentDialogService();
+            nativeService.SetDialogHost(host);
+            var service = new WpfUiDialogService(nativeService);
+            var state = new TestDialogState();
+
+            try
+            {
+                window.Show();
+                var pending = service.ShowAsync(
+                    new Grid(),
+                    new DialogOptions("主动确认") { PrimaryButtonText = "确定", CloseButtonText = "取消" },
+                    state);
+                await host.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+
+                state.RaiseCloseRequested(PublicDialogResult.Primary);
+                var result = await pending;
+
+                Assert.AreEqual(PublicDialogResult.Primary, result);
+                Assert.AreEqual(1, state.CloseRequestAddCount);
+                Assert.AreEqual(1, state.CloseRequestRemoveCount);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+
     /// <summary>结构化弹窗应应用按钮、有限宿主尺寸、正文滚动和动态状态，并在完成后释放订阅。</summary>
     [TestMethod]
     public void ShowAsync_AppliesOptionsBoundsScrollAndState_ThenReleases() => StaTest.RunAsync(async () =>
@@ -468,7 +504,7 @@ public sealed class WpfUiDialogServiceTests
     }
 
     /// <summary>记录公共服务是否对动态状态完成成对订阅。</summary>
-    private sealed class TestDialogState : IDialogContentState
+    private sealed class TestDialogState : IDialogContentState, IDialogCloseRequest
     {
         private EventHandler? _stateChanged;
 
@@ -478,11 +514,20 @@ public sealed class WpfUiDialogServiceTests
             remove { RemoveCount++; _stateChanged -= value; }
         }
 
+        private EventHandler<DialogCloseRequestedEventArgs>? _closeRequested;
+        public event EventHandler<DialogCloseRequestedEventArgs>? CloseRequested
+        {
+            add { CloseRequestAddCount++; _closeRequested += value; }
+            remove { CloseRequestRemoveCount++; _closeRequested -= value; }
+        }
+
         public bool PrimaryEnabled { get; set; } = true;
         public bool SecondaryEnabled { get; set; } = true;
         public bool AllowClose { get; set; } = true;
         public int AddCount { get; private set; }
         public int RemoveCount { get; private set; }
+        public int CloseRequestAddCount { get; private set; }
+        public int CloseRequestRemoveCount { get; private set; }
         public PublicDialogResult? LastRequestedResult { get; private set; }
         public bool IsPrimaryButtonEnabled => PrimaryEnabled;
         public bool IsSecondaryButtonEnabled => SecondaryEnabled;
@@ -494,5 +539,7 @@ public sealed class WpfUiDialogServiceTests
         }
 
         public void RaiseChanged() => _stateChanged?.Invoke(this, EventArgs.Empty);
+        public void RaiseCloseRequested(PublicDialogResult result) =>
+            _closeRequested?.Invoke(this, new DialogCloseRequestedEventArgs(result));
     }
 }

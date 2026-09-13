@@ -305,7 +305,8 @@ public sealed class WarehouseSitesViewModelTests
                 ? ServiceResult<WarehouseSiteDto>.Fail("模拟网络结果未知")
                 : ServiceResult<WarehouseSiteDto>.Ok(Warehouse(command.Code, command.Name)));
         };
-        using var viewModel = CreateViewModel(api);
+        var cache = new ReferenceDataCacheServiceStub();
+        using var viewModel = CreateViewModel(api, cache: cache);
         await viewModel.OpenCreateCommand.ExecuteAsync(null);
         var selectedSupplier = Supplier("S-01", "供应商甲");
         viewModel.EditModel!.SelectedSupplier = selectedSupplier;
@@ -318,6 +319,33 @@ public sealed class WarehouseSitesViewModelTests
         Assert.AreEqual(selectedSupplier.Uid, api.CreateCommands[0].SupplierId);
         Assert.AreEqual(api.CreateCommands[0].CommandId, api.CreateCommands[1].CommandId);
         Assert.IsFalse(viewModel.IsDrawerOpen);
+        Assert.AreEqual(1, cache.RefreshWarehouseSitesCallCount, "失败写入不能刷新仓库缓存，成功写入只刷新一次。");
+    }
+
+    /// <summary>写入成功后的缓存刷新失败只给出独立警告，不能把已保存结果改报为失败。</summary>
+    [TestMethod]
+    public async Task Save_WhenPickerCacheRefreshFails_ShouldKeepSuccessAndWarnSeparately()
+    {
+        var api = new FakeWarehouseApi
+        {
+            CreateHandler = command => Task.FromResult(ServiceResult<WarehouseSiteDto>.Ok(Warehouse(command.Code, command.Name)))
+        };
+        var cache = new ReferenceDataCacheServiceStub(
+            warehouseRefreshSuccess: false,
+            warehouseRefreshMessage: "仓库缓存模拟失败");
+        var messages = new FakeMessageService();
+        using var viewModel = CreateViewModel(api, messages: messages, cache: cache);
+        await viewModel.OpenCreateCommand.ExecuteAsync(null);
+        viewModel.EditModel!.SelectedSupplier = Supplier("S-01", "供应商甲");
+        viewModel.EditModel.Code = "WH-01";
+
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.AreEqual("已创建虚拟仓", messages.LastSuccessTitle);
+        Assert.AreEqual("保存成功，缓存刷新失败", messages.LastWarningTitle);
+        Assert.AreEqual("仓库缓存模拟失败", messages.LastWarningMessage);
+        Assert.IsNull(messages.LastErrorTitle);
+        Assert.AreEqual(1, cache.RefreshWarehouseSitesCallCount);
     }
 
     /// <summary>验证被新查询替代的旧响应即使忽略取消，也不能覆盖最新列表。</summary>
@@ -487,11 +515,18 @@ public sealed class WarehouseSitesViewModelTests
 
     private sealed class FakeMessageService : IMessageService
     {
+        public string? LastSuccessTitle { get; private set; }
+        public string? LastWarningTitle { get; private set; }
+        public string? LastWarningMessage { get; private set; }
         public string? LastErrorTitle { get; private set; }
         public string? LastErrorMessage { get; private set; }
         public void ShowInfo(string title, string message) { }
-        public void ShowSuccess(string title, string message) { }
-        public void ShowWarning(string title, string message) { }
+        public void ShowSuccess(string title, string message) => LastSuccessTitle = title;
+        public void ShowWarning(string title, string message)
+        {
+            LastWarningTitle = title;
+            LastWarningMessage = message;
+        }
         public void ShowError(string title, string message)
         {
             LastErrorTitle = title;

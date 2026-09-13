@@ -172,6 +172,7 @@ public sealed class ProductNeutralManagerColorFilterTests
         public ReadOnlyObservableCollection<ProductColorDto> ProductColors { get; } = Empty<ProductColorDto>();
         public ReadOnlyObservableCollection<CustomerDto> Customers { get; } = Empty<CustomerDto>();
         public ReadOnlyObservableCollection<SupplierDto> Suppliers { get; } = Empty<SupplierDto>();
+        public ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto> WarehouseSites { get; } = Empty<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto>();
         public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; } = Empty<ProductCategoryCacheNode>();
         public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; } = Empty<ProductCategoryCacheNode>();
         public ReadOnlyObservableCollection<SysDictTypeDto> DictionaryTypes { get; } = Empty<SysDictTypeDto>();
@@ -182,6 +183,8 @@ public sealed class ProductNeutralManagerColorFilterTests
         public Task<CacheRefreshResult> RefreshProductColorsAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshCustomersAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshSuppliersAsync() => throw new NotSupportedException();
+        public Task<CacheRefreshResult> EnsureWarehouseSitesLoadedAsync() => throw new NotSupportedException();
+        public Task<CacheRefreshResult> RefreshWarehouseSitesAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshProductCategoriesAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshCurrenciesAsync() => throw new NotSupportedException();
         public Task<CacheRefreshResult> RefreshDictionariesAsync() => throw new NotSupportedException();

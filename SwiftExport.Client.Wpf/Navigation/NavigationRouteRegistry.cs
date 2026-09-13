@@ -59,8 +59,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(AfterSalesDetailViewModel.RouteKey, "售后服务单", "Detail", typeof(AfterSalesDetailViewModel), NavigationModuleKeys.QualityControl, PermissionKeys.ModuleQualityControlAccess),
         new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", typeof(WarehouseSitesViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
         new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", typeof(InventoryBalancesViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
+        new(InboundManagerViewModel.RouteKey, "入库单管理", "Workspace", typeof(InboundManagerViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
         new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", typeof(InventoryLedgerViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
-        new(InboundWorkspaceViewModel.RouteKey, "入库工作台", "Workspace", typeof(InboundWorkspaceViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
         new(OutboundWorkspaceViewModel.RouteKey, "出库工作台", "Workspace", typeof(OutboundWorkspaceViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
         new(PackingListWorkspaceViewModel.RouteKey, "PackingList 工作台", "Workspace", typeof(PackingListWorkspaceViewModel), NavigationModuleKeys.Shipping, PermissionKeys.ModuleShippingAccess),
         new(PackingListDetailViewModel.RouteKey, "PackingList 详情", "Workspace", typeof(PackingListDetailViewModel), NavigationModuleKeys.Shipping, PermissionKeys.ModuleShippingAccess),
@@ -167,8 +167,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 [
                     new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", "BuildingRetail24"),
                     new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", "DataBarHorizontal24"),
+                    new(InboundManagerViewModel.RouteKey, "入库单管理", "Workspace", "ArrowDownload24"),
                     new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", "ClipboardTextLtr24"),
-                    new(InboundWorkspaceViewModel.RouteKey, "入库工作台", "Workspace", "ArrowDownload24"),
                     new(OutboundWorkspaceViewModel.RouteKey, "出库工作台", "Workspace", "ArrowUpload24"),
                 ]),
             new(

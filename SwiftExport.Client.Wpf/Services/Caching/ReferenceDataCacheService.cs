@@ -1,11 +1,13 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using SwiftExport.Contracts.Apis.CustomerApis;
+using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Customers.Requests;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
@@ -24,6 +26,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private const int MasterDataPageSize = 200;
     private readonly ICustomerApi _customerApi;
     private readonly ISupplierApi _supplierApi;
+    private readonly IWarehouseSiteApi _warehouseSiteApi;
     private readonly IProductColorApi _productColorApi;
     private readonly IProductCategoryApi _productCategoryApi;
     private readonly ISysDicCurrencyApi _currencyApi;
@@ -34,6 +37,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private readonly CacheObservableCollection<ProductColorDto> _productColors = [];
     private readonly CacheObservableCollection<CustomerDto> _customers = [];
     private readonly CacheObservableCollection<SupplierDto> _suppliers = [];
+    private readonly CacheObservableCollection<WarehouseSitePickerDto> _warehouseSites = [];
     private readonly CacheObservableCollection<SysDicCurrencyDto> _currencies = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategoryTree = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategories = [];
@@ -41,10 +45,13 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private readonly CacheObservableCollection<SysDictDataDto> _dictionaryValues = [];
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly object _ensureSync = new();
+    private readonly object _warehouseEnsureSync = new();
     private Task<CacheRefreshResult>? _ensureTask;
+    private Task<CacheRefreshResult>? _warehouseEnsureTask;
     private volatile bool _colorsLoaded;
     private volatile bool _customersLoaded;
     private volatile bool _suppliersLoaded;
+    private volatile bool _warehouseSitesLoaded;
     private volatile bool _currenciesLoaded;
     private volatile bool _categoriesLoaded;
     private volatile bool _dictionariesLoaded;
@@ -54,6 +61,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     public ReferenceDataCacheService(
         ICustomerApi customerApi,
         ISupplierApi supplierApi,
+        IWarehouseSiteApi warehouseSiteApi,
         IProductColorApi productColorApi,
         IProductCategoryApi productCategoryApi,
         ISysDicCurrencyApi currencyApi,
@@ -64,6 +72,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     {
         _customerApi = customerApi;
         _supplierApi = supplierApi;
+        _warehouseSiteApi = warehouseSiteApi;
         _productColorApi = productColorApi;
         _productCategoryApi = productCategoryApi;
         _currencyApi = currencyApi;
@@ -74,6 +83,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         ProductColors = new ReadOnlyObservableCollection<ProductColorDto>(_productColors);
         Customers = new ReadOnlyObservableCollection<CustomerDto>(_customers);
         Suppliers = new ReadOnlyObservableCollection<SupplierDto>(_suppliers);
+        WarehouseSites = new ReadOnlyObservableCollection<WarehouseSitePickerDto>(_warehouseSites);
         Currencies = new ReadOnlyObservableCollection<SysDicCurrencyDto>(_currencies);
         ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategoryTree);
         ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategories);
@@ -93,6 +103,9 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
     /// <inheritdoc />
     public ReadOnlyObservableCollection<SupplierDto> Suppliers { get; }
+
+    /// <inheritdoc />
+    public ReadOnlyObservableCollection<WarehouseSitePickerDto> WarehouseSites { get; }
 
     /// <inheritdoc />
     public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; }
@@ -253,6 +266,53 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     }
 
     /// <inheritdoc />
+    public Task<CacheRefreshResult> EnsureWarehouseSitesLoadedAsync()
+    {
+        lock (_warehouseEnsureSync)
+        {
+            if (_warehouseSitesLoaded)
+                return Task.FromResult(CacheRefreshResult.Ok("仓库缓存已经加载。"));
+
+            if (_warehouseEnsureTask is { IsCompleted: false })
+                return _warehouseEnsureTask;
+
+            return _warehouseEnsureTask = RefreshWarehouseSitesAsync();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<CacheRefreshResult> RefreshWarehouseSitesAsync()
+    {
+        await _refreshGate.WaitAsync();
+        try
+        {
+            var generation = Volatile.Read(ref _sessionGeneration);
+            var result = await LoadWarehouseSitesAsync();
+            if (!result.Success)
+                return CacheRefreshResult.Fail(result.Message);
+
+            var warehouses = OrderWarehouseSites(result.Data ?? []).ToArray();
+            var applied = false;
+            await RunOnUiThreadAsync(() =>
+            {
+                if (generation != Volatile.Read(ref _sessionGeneration))
+                    return;
+
+                _warehouseSites.ReplaceAll(warehouses);
+                _warehouseSitesLoaded = true;
+                applied = true;
+            });
+            return applied
+                ? CacheRefreshResult.Ok("活动仓库缓存已更新。")
+                : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次仓库缓存结果。");
+        }
+        finally
+        {
+            _refreshGate.Release();
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<CacheRefreshResult> RefreshProductCategoriesAsync()
     {
         await _refreshGate.WaitAsync();
@@ -386,6 +446,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             _productColors.ReplaceAll([]);
             _customers.ReplaceAll([]);
             _suppliers.ReplaceAll([]);
+            _warehouseSites.ReplaceAll([]);
             _currencies.ReplaceAll([]);
             _productCategoryTree.ReplaceAll([]);
             _productCategories.ReplaceAll([]);
@@ -402,6 +463,12 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             _categoriesLoaded = false;
             _dictionariesLoaded = false;
             _ensureTask = null;
+        }
+
+        lock (_warehouseEnsureSync)
+        {
+            _warehouseSitesLoaded = false;
+            _warehouseEnsureTask = null;
         }
     }
 
@@ -550,6 +617,17 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             }),
             "加载供应商缓存失败");
 
+    /// <summary>逐页读取当前用户可见的全部活动仓库，完整成功后才允许发布快照。</summary>
+    private Task<ServiceResult<IReadOnlyList<WarehouseSitePickerDto>>> LoadWarehouseSitesAsync() =>
+        LoadAllPagesAsync(
+            (pageIndex, pageSize) => _warehouseSiteApi.GetWarehousePickerPagedAsync(new PagedRequestBase
+            {
+                PageIndex = pageIndex,
+                PageSize = pageSize,
+                Keyword = string.Empty
+            }),
+            "加载活动仓库缓存失败");
+
     private Task<SwiftExport.Contracts.Wrappers.ServiceResult<List<ProductCategoryDto>>> LoadCategoriesAsync() =>
         _apiCallRunner.RunAsync(() => _productCategoryApi.GetAllAsync(), "加载产品分类缓存失败");
 
@@ -612,6 +690,12 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         source
             .OrderBy(item => item.SupplierCode, StringComparer.OrdinalIgnoreCase)
             .ThenBy(item => item.SupplierName, StringComparer.CurrentCulture)
+            .ThenBy(item => item.Uid);
+
+    private static IEnumerable<WarehouseSitePickerDto> OrderWarehouseSites(IEnumerable<WarehouseSitePickerDto> source) =>
+        source
+            .OrderBy(item => item.Code, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Name, StringComparer.CurrentCulture)
             .ThenBy(item => item.Uid);
 
     private static IEnumerable<SysDictTypeDto> OrderDictionaryTypes(IEnumerable<SysDictTypeDto> source) =>

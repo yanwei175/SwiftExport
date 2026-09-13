@@ -89,7 +89,6 @@ public static class DependencyInjection
         services.AddScoped<IInventoryPostingService, InventoryPostingService>();
         services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IWarehouseCandidateQueryService, WarehouseCandidateQueryService>();
-        services.AddScoped<IInboundWorkspaceService, InboundWorkspaceService>();
         services.AddScoped<IInboundPostingPort, InboundPostingPort>();
         services.AddScoped<IOutboundPostingPort, OutboundPostingPort>();
         services.AddScoped<IOutboundWorkspaceService, OutboundWorkspaceService>();

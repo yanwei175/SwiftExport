@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using SwiftExport.Contracts.SysEnums.Inventory;
 
 namespace SwiftExportClient.Features.Inventory.Inbounds.Models;
 
@@ -9,10 +10,10 @@ public sealed partial class InboundSourcePickerRowModel : ObservableObject
     public partial bool IsChecked { get; set; }
 
     public Guid PurchaseOrderId { get; init; }
-    public Guid PurchaseOrderLineId { get; init; }
+    public Guid SourceLineId { get; init; }
+    public InboundDocumentTypeEnum DocumentType { get; init; }
     public int SourceVersion { get; init; }
     public Guid ProductId { get; init; }
-    public Guid WarehouseSiteId { get; init; }
     public string SourceNo { get; init; } = string.Empty;
     public int LineNumber { get; init; }
     public string BoNo { get; init; } = string.Empty;
@@ -22,7 +23,6 @@ public sealed partial class InboundSourcePickerRowModel : ObservableObject
     public string? ImagePath { get; init; }
     public string Unit { get; init; } = string.Empty;
     public string SupplierName { get; init; } = string.Empty;
-    public string WarehouseName { get; init; } = string.Empty;
     public decimal OriginalQty { get; init; }
 
     /// <summary>由来源查询提供的正式剩余可收量；不是本次实收输入，也不在客户端扣减草稿。</summary>

@@ -8,6 +8,7 @@ using SwiftExportClient.Features.Sales.Orders.Services;
 using SwiftExportClient.Features.Products.ProductList.Services;
 using SwiftExportClient.Features.Shipping.PackingLists.Services;
 using SwiftExportClient.Features.Inventory.WarehouseSites.Services;
+using SwiftExportClient.Features.Suppliers.Components.Services;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
@@ -54,6 +55,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IAfterSalesReasonDialogService, AfterSalesReasonDialogService>();
         services.AddTransient<IWarehouseSiteReasonDialogService, WarehouseSiteReasonDialogService>();
         services.AddTransient<IWarehousePickerService, WarehousePickerService>();
+        services.AddTransient<ISupplierPickerService, SupplierPickerService>();
         services.AddTransient<ISalesOrderCancellationDialogService, SalesOrderCancellationDialogService>();
         services.AddTransient<IProductMasterSyncDialogService, ProductMasterSyncDialogService>();
         services.AddTransient<IPurchaseOrderTraceExportService, PurchaseOrderTraceExportService>();
