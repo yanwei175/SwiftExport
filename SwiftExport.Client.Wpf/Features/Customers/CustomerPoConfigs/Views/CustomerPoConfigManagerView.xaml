@@ -143,6 +143,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+                
                 <gridNumeric:NumericDataGridColumn Header="默认折扣率（≥0；1.05 表示涨价 5%）" Width="230"
                                                    Binding="{Binding DefaultDiscountRate, UpdateSourceTrigger=LostFocus}"
                                                    Minimum="0" AllowEmpty="True" MaximumDecimalPlaces="6"
@@ -150,6 +151,7 @@
                                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
                                                    gridColumns:GridColumn.Key="default-discount-rate"
                                                    gridColumns:GridColumn.FieldPath="DefaultDiscountRate" />
+                
                 <DataGridTextColumn Header="折扣备注" Width="220"
                                     Binding="{Binding DiscountRemark, UpdateSourceTrigger=LostFocus}"
                                     ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}"

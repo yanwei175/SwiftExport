@@ -22,6 +22,7 @@ public sealed class InboundManagerRepository(RepositoryBaseContext context) : II
         const string filter = """
             FROM dbo.InboundDocument h WHERE h.IsDeleted=0
               AND (@DocumentType IS NULL OR h.DocumentType=@DocumentType)
+              AND (@PostingStatus IS NULL OR h.PostingStatus=@PostingStatus)
               AND (@Keyword IS NULL OR h.DocumentNo LIKE @Keyword ESCAPE '~'
                 OR h.WarehouseNameSnapshot LIKE @Keyword ESCAPE '~'
                 OR EXISTS(SELECT 1 FROM dbo.InboundDocumentLine l WHERE l.InboundDocumentId=h.Uid
@@ -34,7 +35,7 @@ public sealed class InboundManagerRepository(RepositoryBaseContext context) : II
                 (SELECT COUNT(*) FROM dbo.InboundDocumentLine l WHERE l.InboundDocumentId=h.Uid AND l.IsDeleted=0) AS LineCount,
                 COALESCE((SELECT SUM(l.Quantity) FROM dbo.InboundDocumentLine l WHERE l.InboundDocumentId=h.Uid AND l.IsDeleted=0),0) AS TotalQuantity
             """ + "\n" + filter + " ORDER BY h.ReceiptDate DESC,h.Uid DESC OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY;",
-            new { request.DocumentType, Keyword = Like(request.Keyword), Skip = (long)(request.PageIndex - 1) * request.PageSize, Take = request.PageSize }, token));
+            new { request.DocumentType, request.PostingStatus, Keyword = Like(request.Keyword), Skip = (long)(request.PageIndex - 1) * request.PageSize, Take = request.PageSize }, token));
         return new() { TotalCount = await reader.ReadSingleAsync<int>(), Items = (await reader.ReadAsync<InboundManagerListItemDto>()).ToList(), PageIndex = request.PageIndex, PageSize = request.PageSize };
     }
 
@@ -178,7 +179,7 @@ public sealed class InboundManagerRepository(RepositoryBaseContext context) : II
                     Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
                 WHERE Uid=@Uid AND Version=@Version AND IsDeleted=0 AND CreationMode=0 AND PostingStatus=0 AND LifecycleStatus=0;
                 """, header, token));
-            if (changed != 1) throw new InvalidOperationException("入库草稿发生并发冲突。");
+            if (changed != 1) throw new System.Data.DBConcurrencyException("入库草稿发生并发冲突。");
             header.Version++;
         }
         // 整单版本已经锁定；先软删省略行，保留稳定明细 Uid，不重建全部明细身份。
@@ -200,7 +201,7 @@ public sealed class InboundManagerRepository(RepositoryBaseContext context) : II
                     UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
                 WHERE Uid=@Uid AND InboundDocumentId=@InboundDocumentId AND Version=@Version AND IsDeleted=0;
                 """, line, token));
-            if (count != 1) throw new InvalidOperationException("入库明细保存失败。");
+            if (count != 1) throw new System.Data.DBConcurrencyException("入库明细版本已变化，保存失败。");
         }
     }
 
@@ -212,7 +213,7 @@ public sealed class InboundManagerRepository(RepositoryBaseContext context) : II
             UPDATE dbo.InboundDocument SET IsDeleted=1,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
             WHERE Uid=@Uid AND Version=@Version AND IsDeleted=0 AND CreationMode=0 AND PostingStatus=0 AND LifecycleStatus=0;
             """, header, token));
-        if (count != 1) throw new InvalidOperationException("入库草稿删除发生并发冲突。");
+        if (count != 1) throw new System.Data.DBConcurrencyException("入库草稿删除发生并发冲突。");
         await context.Session.Connection.ExecuteAsync(Command("""
             UPDATE dbo.InboundDocumentLine SET IsDeleted=1,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
             WHERE InboundDocumentId=@Uid AND IsDeleted=0;

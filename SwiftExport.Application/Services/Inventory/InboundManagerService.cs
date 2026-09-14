@@ -1,9 +1,14 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Data;
+using SwiftExport.Contracts.DTOs.Errors;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
+using SwiftExport.Application.Interfaces;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Contracts.Common;
@@ -22,7 +27,8 @@ namespace SwiftExport.Application.Services.Inventory;
 /// <summary>人工入库草稿编排；来源容量和采购版本由未来过账最终校验，本服务不触碰库存。</summary>
 public sealed class InboundManagerService(
     ServiceBaseContext context, IInboundManagerRepository repository, IWarehouseSiteRepository warehouses,
-    IBusinessOperationLogRepository logs, ICurrentUser user, IUserPermissionService permissions) : IInboundManagerService
+    IBusinessOperationLogRepository logs, ICurrentUser user, IUserPermissionService permissions,
+    IDocumentNoService numbers) : IInboundManagerService
 {
     private const string Module = "InboundManager";
     private readonly ILogger<InboundManagerService> _logger = context.LoggerFactory.CreateLogger<InboundManagerService>();
@@ -34,6 +40,8 @@ public sealed class InboundManagerService(
             ValidatePage(request);
             if (request.DocumentType.HasValue && !Enum.IsDefined(request.DocumentType.Value))
                 throw new DraftException("入库类型无效。");
+            if (request.PostingStatus.HasValue && !Enum.IsDefined(request.PostingStatus.Value))
+                throw new DraftException("过账状态无效。", ServiceErrorCodes.Validation, nameof(request.PostingStatus));
             return await repository.SearchAsync(request, token);
         }, token);
 
@@ -62,9 +70,9 @@ public sealed class InboundManagerService(
     public Task<ServiceResult<InboundDraftCommandResult>> CreateAsync(CreateInboundDraftCommand command, CancellationToken token = default) =>
         RunAsync(async () =>
         {
-            if (command is null || command.CommandId == Guid.Empty) throw new DraftException("CommandId 不能为空。");
+            if (command is null || command.CommandId == Guid.Empty) throw new DraftException("CommandId 不能为空。", ServiceErrorCodes.Validation, "CommandId");
             ValidateDraft(command.Draft);
-            if (command.Draft.Lines.Any(x => x.Uid != Guid.Empty)) throw new DraftException("新增草稿行不能携带已有入库行标识。");
+            if (command.Draft.Lines.Any(x => x.Uid != Guid.Empty)) throw new DraftException("新增草稿行不能携带已有入库行标识。", ServiceErrorCodes.Validation, "Draft.Lines");
             return await ExecuteAsync(command.CommandId, "Create", Fingerprint(command), async () =>
             {
                 var header = new InboundDocument
@@ -73,8 +81,16 @@ public sealed class InboundManagerService(
                     CreationMode = InboundCreationModeEnum.Manual, LifecycleStatus = InventoryDocumentLifecycleStatusEnum.Active,
                     PostingStatus = InboundPostingStatusEnum.Unposted, CommandId = command.CommandId
                 };
-                // 使用完整稳定身份生成不依赖共享编号器的唯一编号，不从客户端接受编号。
-                header.DocumentNo = $"IR-{header.Uid:N}";
+                // 幂等检查通过后才取号；编号器共享当前事务，保存失败时一同回滚。
+                var number = await numbers.GetNextDocumentNoAsync(new DocumentNoRequest
+                {
+                    DocType = DocumentTypeStaticsEnum.InboundDocument,
+                    BusinessDate = command.Draft.ReceiptDate,
+                    Operator = user.UserName
+                });
+                if (!number.Success || string.IsNullOrWhiteSpace(number.Data?.DocumentNo))
+                    throw new DraftException(number.Message ?? "入库单号生成失败，草稿未保存。");
+                header.DocumentNo = number.Data.DocumentNo;
                 await SaveDraftAsync(header, command.Draft, [], 0, token);
                 return Result(header, false);
             }, token);
@@ -102,7 +118,7 @@ public sealed class InboundManagerService(
         {
             ValidateIdentity(uid, command?.CommandId ?? Guid.Empty, command?.ExpectedVersion ?? 0);
             if (string.IsNullOrWhiteSpace(command!.Reason) || command.Reason.Length > 500)
-                throw new DraftException("请填写不超过 500 字的删除原因。");
+                throw new DraftException("请填写不超过 500 字的删除原因。", ServiceErrorCodes.Validation, "Reason");
             return await ExecuteAsync(command.CommandId, "Delete", Fingerprint(uid, command), async () =>
             {
                 var header = await RequireEditableAsync(uid, command.ExpectedVersion, token);
@@ -116,7 +132,7 @@ public sealed class InboundManagerService(
     private async Task<InboundDocument> RequireEditableAsync(Guid uid, int version, CancellationToken token)
     {
         var header = await repository.LockHeaderAsync(uid, token) ?? throw new DraftException("入库单不存在或已删除。");
-        if (header.Version != version) throw new DraftException("入库单已被其他人修改，请刷新后重试。");
+        if (header.Version != version) throw new DraftException("入库单已被其他人修改，请刷新后重试。", ServiceErrorCodes.VersionConflict, "ExpectedVersion");
         if (header.CreationMode != InboundCreationModeEnum.Manual || header.PostingStatus != InboundPostingStatusEnum.Unposted
             || header.LifecycleStatus != InventoryDocumentLifecycleStatusEnum.Active || header.TriggerPackingListId.HasValue)
             throw new DraftException("只允许修改活动、未过账的人工草稿。");
@@ -171,14 +187,16 @@ public sealed class InboundManagerService(
         context.Session.Transaction = transaction;
         try
         {
-            if (await repository.LockCommandAsync(commandId, token) < 0) throw new DraftException("入库命令正在处理中，请以同一 CommandId 重试。");
+            // 日志字段的 ISJSON 约束要求对象或数组；写入和重放比对共用同一对象格式。
+            var fingerprintJson = JsonSerializer.Serialize(new { Fingerprint = fingerprint });
+            if (await repository.LockCommandAsync(commandId, token) < 0) throw new DraftException("入库命令正在处理中，请以同一 CommandId 重试。", InboundErrorCodes.CommandBusy);
             var prior = await logs.GetByModuleCommandAsync(Module, commandId);
             if (prior is not null)
             {
-                if (prior.OperationType != operation || prior.ChangedFieldsJson != JsonSerializer.Serialize(fingerprint) || prior.UserUid != user.UserId)
-                    throw new DraftException("IDEMPOTENCY_CONFLICT：CommandId 已用于不同内容或操作。");
+                if (prior.OperationType != operation || prior.ChangedFieldsJson != fingerprintJson || prior.UserUid != user.UserId)
+                    throw new DraftException("IDEMPOTENCY_CONFLICT：CommandId 已用于不同内容或操作。", ServiceErrorCodes.CommandConflict, "CommandId");
                 var replay = JsonSerializer.Deserialize<InboundDraftCommandResult>(prior.RelatedObjectsJson ?? "")
-                    ?? throw new DraftException("历史命令结果不完整，不能安全重放。");
+                    ?? throw new DraftException("历史命令结果不完整，不能安全重放。", InboundErrorCodes.OutcomeUnknown);
                 token.ThrowIfCancellationRequested();
                 transaction.Commit();
                 return replay;
@@ -189,7 +207,7 @@ public sealed class InboundManagerService(
                 CommandId = commandId, CorrelationId = commandId.ToString("N"), Module = Module,
                 AggregateType = "InboundDocument", AggregateUid = result.Uid, AggregateNoSnapshot = result.DocumentNo,
                 OperationType = operation, OperationName = operation switch { "Create" => "创建入库草稿", "Update" => "更新入库草稿", _ => "删除入库草稿" },
-                Summary = "只变更入库草稿，不改变库存。", Reason = reason, ChangedFieldsJson = JsonSerializer.Serialize(fingerprint),
+                Summary = "只变更入库草稿，不改变库存。", Reason = reason, ChangedFieldsJson = fingerprintJson,
                 RelatedObjectsJson = JsonSerializer.Serialize(result), UserUid = user.UserId,
                 UserNameSnapshot = user.UserName, OccurredDate = DateTime.Now
             }) != 1) throw new DraftException("入库操作日志写入失败，草稿未保存。");
@@ -207,26 +225,33 @@ public sealed class InboundManagerService(
         try
         {
             token.ThrowIfCancellationRequested();
-            if (!user.IsAuthenticated || user.UserId is not { } id || !await permissions.HasPermissionAsync(id, PermissionKeys.ModuleInventoryAccess, token))
-                return ServiceResult<T>.Fail("当前账号无库存模块访问权限。");
+            if (!user.IsAuthenticated || user.UserId is not { } id)
+                return ServiceResult<T>.Fail(ServiceErrorCodes.Unauthenticated, "登录状态无效，请重新登录。");
+            if (!await permissions.HasPermissionAsync(id, PermissionKeys.ModuleInventoryAccess, token))
+                return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号无库存模块访问权限。");
             return ServiceResult<T>.Ok(await action());
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
-        catch (DraftException ex) { return ServiceResult<T>.Fail(ex.Message); }
+        catch (DraftException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field); }
+        catch (DBConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "入库草稿版本冲突，事务已回滚。");
+            return ServiceResult<T>.Fail(ServiceErrorCodes.VersionConflict, "入库单或明细已变化，请刷新后重试。", "ExpectedVersion");
+        }
         catch (SqlException ex) when (ex.Number is 207 or 208)
         {
             _logger.LogError(ex, "入库数据库结构尚未对齐。");
-            return ServiceResult<T>.Fail("入库数据库结构与当前实体不一致，请先完成数据库结构核对；本次操作未完成。");
+            return ServiceResult<T>.Fail(ServiceErrorCodes.BusinessBlocked, "入库数据库结构与当前实体不一致，请先完成数据库结构核对；本次操作未完成。");
         }
         catch (SqlException ex) when (ex.Number == 51001)
         {
             _logger.LogWarning(ex, "存在无法证明采购来源的正式入库事实。");
-            return ServiceResult<T>.Fail("存在未完成来源核对的历史入库，无法可靠计算待入库数量，请先完成历史来源核对。");
+            return ServiceResult<T>.Fail(ServiceErrorCodes.BusinessBlocked, "存在未完成来源核对的历史入库，无法可靠计算待入库数量，请先完成历史来源核对。");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "入库操作结果未能确认。");
-            return ServiceResult<T>.Fail("入库操作结果未能确认；写操作请使用原 CommandId 重试，不要重复创建单据。");
+            return ServiceResult<T>.Fail(InboundErrorCodes.OutcomeUnknown, "入库操作结果未能确认；写操作请使用原 CommandId 重试，不要重复创建单据。");
         }
     }
 
@@ -241,25 +266,29 @@ public sealed class InboundManagerService(
     private static void ValidateDraft(InboundDraftData? draft)
     {
         if (draft is null || draft.DocumentType != InboundDocumentTypeEnum.PurchaseReceipt)
-            throw new DraftException("当前只支持采购入库人工草稿。");
+            throw new DraftException("当前只支持采购入库人工草稿。", ServiceErrorCodes.Validation, "Draft.DocumentType");
         if (draft.WarehouseSiteId == Guid.Empty || draft.ReceiptDate == default || draft.Remark?.Length > 500)
-            throw new DraftException("请选择收货仓库、收货日期，备注最多 500 字。");
+            throw new DraftException("请选择收货仓库、收货日期，备注最多 500 字。", ServiceErrorCodes.Validation, "Draft");
         if (draft.Lines is null || draft.Lines.Count is < 1 or > 500)
-            throw new DraftException("每张草稿须包含 1–500 行。");
+            throw new DraftException("每张草稿须包含 1–500 行。", ServiceErrorCodes.Validation, "Draft.Lines");
         if (draft.Lines.Any(x => x is null || x.SourceLineId == Guid.Empty || x.Quantity <= 0
             || x.Quantity > 99999999999999.9999m || decimal.Round(x.Quantity, 4) != x.Quantity))
-            throw new DraftException("来源不能为空，实收数量须为正数、最多四位小数且符合 decimal(18,4)。");
+            throw new DraftException("来源不能为空，实收数量须为正数、最多四位小数且符合 decimal(18,4)。", ServiceErrorCodes.Validation, "Draft.Lines");
         if (draft.Lines.Select(x => x.SourceLineId).Distinct().Count() != draft.Lines.Count
             || draft.Lines.Where(x => x.Uid != Guid.Empty).Select(x => x.Uid).Distinct().Count() != draft.Lines.Count(x => x.Uid != Guid.Empty))
-            throw new DraftException("同一张入库单不能重复来源或明细标识。");
+            throw new DraftException("同一张入库单不能重复来源或明细标识。", ServiceErrorCodes.Validation, "Draft.Lines");
     }
 
     private static void ValidateIdentity(Guid uid, Guid command, int version)
     {
-        if (uid == Guid.Empty || command == Guid.Empty || version <= 0) throw new DraftException("单据标识、CommandId 和 ExpectedVersion 无效。");
+        if (uid == Guid.Empty || command == Guid.Empty || version <= 0) throw new DraftException("单据标识、CommandId 和 ExpectedVersion 无效。", ServiceErrorCodes.Validation);
     }
     private static string Fingerprint(params object[] values) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(values))));
     private static InboundDraftCommandResult Result(InboundDocument header, bool deleted) => new() { Uid = header.Uid, Version = header.Version, DocumentNo = header.DocumentNo, IsDeleted = deleted };
     /// <summary>可安全显示给用户的入库草稿业务错误。</summary>
-    private sealed class DraftException(string message) : Exception(message);
+    private sealed class DraftException(string message, string code = ServiceErrorCodes.BusinessBlocked, string? field = null) : Exception(message)
+    {
+        public string Code { get; } = code;
+        public string? Field { get; } = field;
+    }
 }

@@ -10,6 +10,11 @@ public sealed class InboundManagerMappings : IRegister
     /// <inheritdoc/>
     public void Register(TypeAdapterConfig config)
     {
+        config.NewConfig<InboundManagerListItemDto, InboundHeaderDetailDto>();
+        config.NewConfig<InboundLineModel, InboundDraftLineInput>()
+            .Map(x => x.Uid, x => x.IsNew ? Guid.Empty : x.Uid);
+        config.NewConfig<InboundHeaderModel, InboundDraftData>()
+            .Map(x => x.Lines, x => x.Lines.Items);
         config.NewConfig<InboundSourceCandidateDto, InboundSourcePickerRowModel>().Ignore(x => x.IsChecked);
         config.NewConfig<InboundSourcePickerRowModel, InboundSourceCandidateDto>();
         config.NewConfig<InboundSourceCandidateDto, InboundLineDetailDto>()

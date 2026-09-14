@@ -18,6 +18,8 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
         PurchaseOrderManagerSearchRequest request,
         CancellationToken cancellationToken = default)
     {
+        await EnsureFormalReceiptHistoryIsTraceableAsync(cancellationToken);
+
         // 空集合通过显式开关表示“不限制”；状态值始终走 IN，避免多选筛选退回单值语义。
         var confirmationStatuses = request.ConfirmationStatuses.Count == 0
             ? [-1]
@@ -41,8 +43,12 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
             request.PlannedDeliveryDateTo,
             request.ExpectedCompletionDateFrom,
             request.ExpectedCompletionDateTo,
-            PostedStatus = (int)InboundPostingStatusEnum.Posted,
-            PurchaseOrderLineSource = (int)InboundSourceTypeEnum.PurchaseOrderLine,
+            PurchaseReceipt = (int)InboundDocumentTypeEnum.PurchaseReceipt,
+            FormalPostingStatuses = new[]
+            {
+                (int)InboundPostingStatusEnum.Posted,
+                (int)InboundPostingStatusEnum.Reversed
+            },
             ActiveLifecycle = (int)PurchaseOrderLifecycleStatusEnum.Active,
             PendingConfirmation = (int)ConfirmationStatusEnum.待确认,
             Confirmed = (int)ConfirmationStatusEnum.已确认,
@@ -72,18 +78,58 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
         Guid purchaseOrderId,
         CancellationToken cancellationToken = default)
     {
+        await EnsureFormalReceiptHistoryIsTraceableAsync(cancellationToken);
+
         var rows = await context.Session.Connection.QueryAsync<PurchaseOrderManagerLineDto>(new CommandDefinition(
             LinesSql,
             new
             {
                 PurchaseOrderId = purchaseOrderId,
-                PostedStatus = (int)InboundPostingStatusEnum.Posted,
-                PurchaseOrderLineSource = (int)InboundSourceTypeEnum.PurchaseOrderLine,
+                PurchaseReceipt = (int)InboundDocumentTypeEnum.PurchaseReceipt,
+                FormalPostingStatuses = new[]
+                {
+                    (int)InboundPostingStatusEnum.Posted,
+                    (int)InboundPostingStatusEnum.Reversed
+                },
                 CustomerSuppliedMaterialType = MaterialTypesEnum.客供件
             },
             context.Session.Transaction,
             cancellationToken: cancellationToken));
         return rows.ToList();
+    }
+
+    /// <summary>正式采购入库历史若不能定位采购行则拒绝整个管理查询，避免把无法归属的历史静默当成零收货。</summary>
+    private async Task EnsureFormalReceiptHistoryIsTraceableAsync(CancellationToken cancellationToken)
+    {
+        var hasAmbiguousHistory = await context.Session.Connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            """
+            SELECT CAST(CASE WHEN EXISTS
+            (
+                SELECT 1
+                FROM dbo.InboundDocumentLine receiptLine
+                INNER JOIN dbo.InboundDocument receiptHead ON receiptHead.Uid=receiptLine.InboundDocumentId
+                LEFT JOIN dbo.PurchaseOrderLine purchaseLine ON purchaseLine.Uid=receiptLine.SourceLineId
+                WHERE receiptHead.DocumentType=@PurchaseReceipt
+                  AND receiptHead.PostingStatus IN @FormalPostingStatuses
+                  AND ISNULL(receiptHead.IsDeleted,0)=0
+                  AND ISNULL(receiptLine.IsDeleted,0)=0
+                  AND (receiptLine.SourceLineId IS NULL OR purchaseLine.Uid IS NULL)
+            ) THEN 1 ELSE 0 END AS bit);
+            """,
+            new
+            {
+                PurchaseReceipt = (int)InboundDocumentTypeEnum.PurchaseReceipt,
+                FormalPostingStatuses = new[]
+                {
+                    (int)InboundPostingStatusEnum.Posted,
+                    (int)InboundPostingStatusEnum.Reversed
+                }
+            },
+            context.Session.Transaction,
+            cancellationToken: cancellationToken));
+
+        if (hasAmbiguousHistory)
+            throw new InvalidOperationException("存在无法定位采购行的正式采购入库历史，请先完成数据核实与迁移。");
     }
 
     /// <summary>转义 SQL Server LIKE 元字符；空白输入保持为 null，交由 SQL 跳过该条件。</summary>
@@ -99,9 +145,20 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
             .Replace("[", "~[") + "%";
     }
 
-    // 每行只 OUTER APPLY 最新一条有效跟进和净正式收货，再按采购头聚合；不读取跟进历史、Trace 或库存流水。
+    // 正式收货先按采购行聚合，再联接采购行和最新跟进，避免需求 Link 展开导致数量倍增。
     private const string SearchSql = """
-        WITH LineFacts AS
+        WITH ReceiptFacts AS
+        (
+            SELECT receiveLine.SourceLineId,SUM(receiveLine.Quantity) AS ReceivedQty
+            FROM dbo.InboundDocumentLine receiveLine
+            INNER JOIN dbo.InboundDocument receiveHead ON receiveHead.Uid=receiveLine.InboundDocumentId
+            WHERE receiveHead.DocumentType=@PurchaseReceipt
+              AND receiveHead.PostingStatus IN @FormalPostingStatuses
+              AND ISNULL(receiveLine.IsDeleted,0)=0
+              AND ISNULL(receiveHead.IsDeleted,0)=0
+            GROUP BY receiveLine.SourceLineId
+        ),
+        LineFacts AS
         (
             SELECT l.PurchaseOrderId,l.Uid,l.QTY,l.TaxAmount,l.PlannedDeliveryDate,
                    COALESCE(latest.ReadyQty,0) AS ReadyQty,
@@ -116,17 +173,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
                 WHERE f.PurchaseOrderLineId=l.Uid AND ISNULL(f.IsDeleted,0)=0
                 ORDER BY f.Sequence DESC,f.Uid DESC
             ) latest
-            OUTER APPLY
-            (
-                SELECT SUM(receiveLine.Quantity) AS ReceivedQty
-                FROM dbo.InboundDocumentLine receiveLine
-                INNER JOIN dbo.InboundDocument receiveHead ON receiveHead.Uid=receiveLine.InboundDocumentId
-                WHERE receiveLine.SourceType=@PurchaseOrderLineSource
-                  AND receiveLine.SourceUid=l.Uid
-                  AND receiveHead.PostingStatus=@PostedStatus
-                  AND ISNULL(receiveLine.IsDeleted,0)=0
-                  AND ISNULL(receiveHead.IsDeleted,0)=0
-            ) receipt
+            LEFT JOIN ReceiptFacts receipt ON receipt.SourceLineId=l.Uid
             WHERE ISNULL(l.IsDeleted,0)=0
         ),
         HeadFacts AS
@@ -208,6 +255,17 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
 
     // 图片来自当前 Product.MainImage；送至供应商只为客供件投影，其他物料明确返回空值。
     private const string LinesSql = """
+        WITH ReceiptFacts AS
+        (
+            SELECT receiveLine.SourceLineId,SUM(receiveLine.Quantity) AS ReceivedQty
+            FROM dbo.InboundDocumentLine receiveLine
+            INNER JOIN dbo.InboundDocument receiveHead ON receiveHead.Uid=receiveLine.InboundDocumentId
+            WHERE receiveHead.DocumentType=@PurchaseReceipt
+              AND receiveHead.PostingStatus IN @FormalPostingStatuses
+              AND ISNULL(receiveLine.IsDeleted,0)=0
+              AND ISNULL(receiveHead.IsDeleted,0)=0
+            GROUP BY receiveLine.SourceLineId
+        )
         SELECT l.Uid AS PurchaseOrderLineId,l.Version,COALESCE(l.ProductId,'00000000-0000-0000-0000-000000000000') AS ProductId,
                l.LineNumber,product.MainImage,l.CustomerSku,l.Sku,l.LinkSku,l.SupplierSku,l.DescriptionZh,
                l.FinishZh,l.FeaturesZh,l.MaterialType,l.SupplyType,l.QTY AS Quantity,
@@ -229,17 +287,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
             WHERE f.PurchaseOrderLineId=l.Uid AND ISNULL(f.IsDeleted,0)=0
             ORDER BY f.Sequence DESC,f.Uid DESC
         ) latest
-        OUTER APPLY
-        (
-            SELECT SUM(receiveLine.Quantity) AS ReceivedQty
-            FROM dbo.InboundDocumentLine receiveLine
-            INNER JOIN dbo.InboundDocument receiveHead ON receiveHead.Uid=receiveLine.InboundDocumentId
-            WHERE receiveLine.SourceType=@PurchaseOrderLineSource
-              AND receiveLine.SourceUid=l.Uid
-              AND receiveHead.PostingStatus=@PostedStatus
-              AND ISNULL(receiveLine.IsDeleted,0)=0
-              AND ISNULL(receiveHead.IsDeleted,0)=0
-        ) receipt
+        LEFT JOIN ReceiptFacts receipt ON receipt.SourceLineId=l.Uid
         WHERE h.Uid=@PurchaseOrderId
           AND ISNULL(h.IsDeleted,0)=0 AND ISNULL(l.IsDeleted,0)=0
         ORDER BY l.LineNumber,l.Uid;

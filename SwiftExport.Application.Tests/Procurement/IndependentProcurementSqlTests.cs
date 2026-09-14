@@ -19,6 +19,71 @@ namespace SwiftExport.Application.Tests.Procurement;
 [DoNotParallelize]
 public sealed class IndependentProcurementSqlTests
 {
+    /// <summary>真实 SQL 验证 Manager 头行口径一致、采购行直连、多 Link 不倍增、无 Link 可读及草稿忽略。</summary>
+    [TestMethod]
+    public async Task ManagerReceiptFactsUsePurchaseLineIdentityWithoutDemandLinkDependency()
+    {
+        var created = await Db.CreateAsync();
+        Assert.IsTrue(created.Success, created.Message);
+        var orderId = created.Data.PurchaseOrderId;
+        var lineId = created.Data.Lines.Single().PurchaseOrderLineId;
+
+        // 隔离测试库仍使用旧入库表基线；只在本测试库补关系列并放开有符号数量，不改生产数据库脚本。
+        await Db.ExecuteAsync("""
+            IF COL_LENGTH(N'dbo.InboundDocumentLine',N'SourceLineId') IS NULL
+                ALTER TABLE dbo.InboundDocumentLine ADD SourceLineId uniqueidentifier NULL;
+            IF EXISTS(SELECT 1 FROM sys.check_constraints WHERE parent_object_id=OBJECT_ID(N'dbo.InboundDocumentLine') AND name=N'CK_InboundLine_Qty')
+                ALTER TABLE dbo.InboundDocumentLine DROP CONSTRAINT CK_InboundLine_Qty;
+
+            INSERT dbo.DemandExecutionLink
+                (Uid,NetDemandId,NetDemandAllocationId,ExecutionRequestId,CommandItemId,TargetType,TargetHeadId,TargetNo,TargetLineId,AllocatedQty,ReleasedQty)
+            VALUES
+                (NEWID(),NEWID(),NEWID(),NEWID(),NEWID(),N'PO',@OrderId,N'TEST-PO',@LineId,5,0),
+                (NEWID(),NEWID(),NEWID(),NEWID(),NEWID(),N'PO',@OrderId,N'TEST-PO',@LineId,5,0);
+
+            DECLARE @Draft uniqueidentifier=NEWID(),@PostedA uniqueidentifier=NEWID(),@PostedB uniqueidentifier=NEWID(),@Reversed uniqueidentifier=NEWID();
+            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
+            VALUES(@Draft,N'IR-DRAFT',10,0,0,@WarehouseId,GETDATE()),
+                  (@PostedA,N'IR-POSTED-A',10,0,1,@WarehouseId,GETDATE()),
+                  (@PostedB,N'IR-POSTED-B',10,0,1,@WarehouseId,GETDATE()),
+                  (@Reversed,N'IR-REVERSED',10,0,8,@WarehouseId,GETDATE());
+            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,Quantity,SourceType,SourceUid,SourceLineId)
+            VALUES(NEWID(),@Draft,1,@ProductId,N'TEST-FG',99,10,NEWID(),@LineId),
+                  (NEWID(),@PostedA,1,@ProductId,N'TEST-FG',6,10,NEWID(),@LineId),
+                  (NEWID(),@PostedB,1,@ProductId,N'TEST-FG',4,10,NEWID(),@LineId),
+                  (NEWID(),@Reversed,1,@ProductId,N'TEST-FG',-4,10,NEWID(),@LineId);
+            """, new { OrderId = orderId, LineId = lineId, WarehouseId = Db.ReceiptSiteId, ProductId = Db.ProductId });
+
+        var withMultipleLinks = await Db.InScopeAsync(async provider =>
+        {
+            var repository = provider.GetRequiredService<IPurchaseOrderManagerQueryRepository>();
+            var line = (await repository.GetLinesAsync(orderId)).Single();
+            var head = (await repository.SearchAsync(new())).Items.Single(x => x.PurchaseOrderId == orderId);
+            return (line, head);
+        });
+        Assert.AreEqual(6m, withMultipleLinks.line.ReceivedQty);
+        Assert.AreEqual(0.6m, withMultipleLinks.head.ReceiptProgress);
+
+        await Db.ExecuteAsync("DELETE FROM dbo.DemandExecutionLink WHERE TargetHeadId=@OrderId;", new { OrderId = orderId });
+        var noLinkReceipt = await Db.InScopeAsync(async provider =>
+            (await provider.GetRequiredService<IPurchaseOrderManagerQueryRepository>().GetLinesAsync(orderId)).Single());
+        Assert.AreEqual(6m, noLinkReceipt.ReceivedQty);
+
+        await Db.ExecuteAsync("""
+            DECLARE @Unknown uniqueidentifier=NEWID();
+            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
+            VALUES(@Unknown,N'IR-UNKNOWN',10,0,1,@WarehouseId,GETDATE());
+            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,Quantity,SourceType,SourceUid,SourceLineId)
+            VALUES(NEWID(),@Unknown,1,@ProductId,N'TEST-FG',1,10,NEWID(),NEWID());
+            """, new { WarehouseId = Db.ReceiptSiteId, ProductId = Db.ProductId });
+
+        var blocked = await Db.InScopeAsync(provider =>
+            provider.GetRequiredService<IPurchaseOrderManagerQueryService>().GetLinesAsync(orderId));
+        Assert.IsFalse(blocked.Success);
+        Assert.AreEqual(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.BusinessBlocked, blocked.Error.Code);
+        StringAssert.Contains(blocked.Message, "无法定位采购行");
+    }
+
     /// <summary>将新单 Uid 交给全部旧采购读写入口，必须因所有权被拒绝且不产生旧日志或报告。</summary>
     [TestMethod]
     public async Task LegacyWorkspaceCannotReadOrMutateIndependentOrder()

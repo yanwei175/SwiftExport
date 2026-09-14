@@ -14,6 +14,43 @@ namespace SwiftExport.Client.Wpf.Tests.Features;
 [TestClass]
 public sealed class InboundManagerTests
 {
+    /// <summary>空数量可进入编辑模型并显示软错误，修正后清除；非法文本仍是原生转换错误。</summary>
+    [TestMethod]
+    public void QuantityBinding_AllowsEmptyAndReportsSoftValidation()
+    {
+        SwiftExport.Client.Wpf.Tests.TestInfrastructure.StaTest.RunAsync(async () =>
+        {
+            var row = new InboundLineModel();
+            row.Load(new InboundLineDetailDto { Quantity = 2, SourceLineId = Guid.NewGuid(), ProductId = Guid.NewGuid(), UnitSnapshot = "PCS" });
+            var box = new System.Windows.Controls.TextBox();
+            box.SetBinding(System.Windows.Controls.TextBox.TextProperty, new System.Windows.Data.Binding(nameof(row.Quantity))
+            {
+                Source = row, Mode = System.Windows.Data.BindingMode.TwoWay,
+                TargetNullValue = string.Empty,
+                UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged,
+                ValidatesOnDataErrors = false, ValidatesOnNotifyDataErrors = false, NotifyOnValidationError = true
+            });
+            await box.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
+            Assert.AreEqual("2", box.Text);
+            box.SetCurrentValue(System.Windows.Controls.TextBox.TextProperty, "");
+            await box.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
+            Assert.IsNull(row.Quantity);
+            Assert.IsTrue(row.IsDirty);
+            Assert.IsFalse(System.Windows.Controls.Validation.GetHasError(box));
+            Assert.AreEqual("请输入本次入库数量。", row[nameof(row.Quantity)]);
+            Assert.IsNotNull(row.ValidateRow());
+            box.SetCurrentValue(System.Windows.Controls.TextBox.TextProperty, "1.2345");
+            await box.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
+            Assert.AreEqual(1.2345m, row.Quantity);
+            Assert.AreEqual(string.Empty, row[nameof(row.Quantity)]);
+            Assert.IsNull(row.ValidateRow());
+            Assert.AreEqual(1.2345m, row.ToDto().Quantity);
+            box.SetCurrentValue(System.Windows.Controls.TextBox.TextProperty, "abc");
+            await box.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
+            Assert.IsTrue(System.Windows.Controls.Validation.GetHasError(box));
+        });
+    }
+
     /// <summary>确认来源直接回填，重复获取不覆盖已编辑数量，也不把来源版本当入库行版本。</summary>
     [TestMethod]
     public async Task SourceSelection_MapsSnapshotAndSkipsDuplicates()
@@ -66,6 +103,10 @@ public sealed class InboundManagerTests
         Assert.AreEqual(4, row.ToDto().Version);
         Assert.IsNull(row.ValidateRow());
         row.Quantity = 11;
+        Assert.IsNull(row.ValidateRow()); // 保存不使用可收快照做容量判断。
+        row.Quantity = 0;
+        Assert.IsNotNull(row.ValidateRow());
+        row.Quantity = 1.00001m;
         Assert.IsNotNull(row.ValidateRow());
         var header = new InboundHeaderModel();
         header.Load(new InboundHeaderDetailDto { WarehouseSiteId = Guid.NewGuid(), WarehouseNameSnapshot = "仓库 A" });

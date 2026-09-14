@@ -65,7 +65,7 @@
                           gridCore:GridVirtualization.IsEnabled="True"
                           gridCore:GridRowHeader.ShowRowNumber="True">
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Width="42" CanUserSort="False">
+                        <DataGridTemplateColumn Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                             <DataGridTemplateColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <CheckBox IsThreeState="False"
@@ -113,17 +113,24 @@
                 </Grid>
             </Grid>
 
-            <GridSplitter Grid.Row="1" Height="8" HorizontalAlignment="Stretch" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"/>
+            <GridSplitter Grid.Row="1" Style="{StaticResource SwiftExportGridSplitterHorizontal}"/>
 
-            <Grid Grid.Row="2" RowDefinitions="Auto,4,*">
-                <Grid ColumnDefinitions="Auto,12,Auto,8,Auto,16,Auto,8,Auto,*">
-                    <TextBlock Text="采购行明细" FontWeight="SemiBold"/>
-                    <TextBlock Grid.Column="2" Text="采购单：" Foreground="Gray"/>
-                    <TextBlock Grid.Column="4" Text="{Binding SelectedOrder.OrderNo}" FontWeight="SemiBold"/>
-                    <TextBlock Grid.Column="6" Text="供应商：" Foreground="Gray"/>
-                    <TextBlock Grid.Column="8" Text="{Binding SelectedOrder.SupplierName}"/>
-                    <TextBlock Grid.Column="9" HorizontalAlignment="Right" Text="{Binding DetailStatusText}" Foreground="Gray"/>
+            <Grid Grid.Row="2" RowDefinitions="Auto,8,*">
+
+                <Grid Margin="0,8,0,0" ColumnDefinitions="Auto,8,Auto,18,Auto,8,Auto,*">
+                    
+                    <TextBlock Grid.Column="0" Text="采购单：" Style="{StaticResource BodyStrongTextBlock}"/>
+                    <TextBlock Grid.Column="2" Text="{Binding SelectedOrder.OrderNo}" Style="{StaticResource BodyTextBlock}"/>
+                    
+                    <TextBlock Grid.Column="4" Text="供应商：" Style="{StaticResource BodyStrongTextBlock}"/>
+                    <TextBlock Grid.Column="6" Text="{Binding SelectedOrder.SupplierName}" Style="{StaticResource BodyTextBlock}"/>
+                    
+                    <TextBlock Grid.Column="7" 
+                               HorizontalAlignment="Right" 
+                               Text="{Binding DetailStatusText}" 
+                               Style="{StaticResource BodyTextBlock}"/>
                 </Grid>
+                
                 <DataGrid Grid.Row="2" ItemsSource="{Binding Lines}" 
                           SelectedItem="{Binding SelectedLine}" 
                           AutoGenerateColumns="False" 

@@ -104,6 +104,8 @@ public static class ViewRegistrationExtensions
         services.AddTransient<InventoryBalancesViewModel>();
         services.AddTransient<InventoryLedgerViewModel>();
         services.AddTransient<InboundManagerViewModel>();
+        services.AddTransient<SwiftExportClient.Features.Inventory.Inbounds.Services.IInboundPersistenceService, SwiftExportClient.Features.Inventory.Inbounds.Services.InboundPersistenceService>();
+        services.AddTransient<SwiftExportClient.Features.Inventory.Inbounds.Services.IInboundDeleteDialogService, SwiftExportClient.Features.Inventory.Inbounds.Services.InboundDeleteDialogService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Inbounds.Services.IInboundSourceDialogService, SwiftExportClient.Features.Inventory.Inbounds.Services.InboundSourceDialogService>();
 
         services.AddTransient<OutboundWorkspaceViewModel>();

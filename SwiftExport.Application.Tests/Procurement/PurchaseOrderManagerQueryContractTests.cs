@@ -24,7 +24,7 @@ public sealed class PurchaseOrderManagerQueryContractTests
 
     /// <summary>确认头与行投影使用冻结的权威事实，且状态筛选保持集合 IN 语义。</summary>
     [TestMethod]
-    public void RepositorySql_MustUseLatestProgressNetPostedReceiptsAndMultiStatusFilters()
+    public void RepositorySql_MustUseLatestProgressTraceableReceiptFactsAndMultiStatusFilters()
     {
         var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderManagerQueryRepository.cs");
 
@@ -36,8 +36,14 @@ public sealed class PurchaseOrderManagerQueryContractTests
         StringAssert.Contains(repository, "GROUP BY h.Uid,h.Version,h.LifecycleStatus,h.OrderNo,h.BoNo,h.CustomerCode");
         StringAssert.Contains(repository, "SELECT TOP (1)");
         StringAssert.Contains(repository, "FROM dbo.SupplierProgressReport");
-        StringAssert.Contains(repository, "receiveHead.PostingStatus=@PostedStatus");
-        StringAssert.Contains(repository, "receiveLine.SourceType=@PurchaseOrderLineSource");
+        StringAssert.Contains(repository, "receiveHead.DocumentType=@PurchaseReceipt");
+        StringAssert.Contains(repository, "receiveHead.PostingStatus IN @FormalPostingStatuses");
+        StringAssert.Contains(repository, "SUM(receiveLine.Quantity) AS ReceivedQty");
+        StringAssert.Contains(repository, "GROUP BY receiveLine.SourceLineId");
+        StringAssert.Contains(repository, "LEFT JOIN ReceiptFacts receipt ON receipt.SourceLineId=l.Uid");
+        StringAssert.Contains(repository, "存在无法定位采购行的正式采购入库历史");
+        Assert.IsFalse(repository.Contains("receiveLine.SourceType", StringComparison.Ordinal));
+        Assert.IsFalse(repository.Contains("receiveLine.SourceUid", StringComparison.Ordinal));
         StringAssert.Contains(repository, "product.MainImage");
         StringAssert.Contains(repository, "MAX(f.ExpectedReadyDate) AS ExpectedCompletionDate");
         StringAssert.Contains(repository, "l.MaterialType=@CustomerSuppliedMaterialType");

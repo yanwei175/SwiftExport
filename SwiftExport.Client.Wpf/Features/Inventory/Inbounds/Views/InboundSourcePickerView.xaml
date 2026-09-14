@@ -19,7 +19,7 @@
                 <ui:TextBox Grid.Column="1"
                             Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
                             Icon="{ui:SymbolIcon Symbol=Search24}"
-                            PlaceholderText="键入搜索">
+                            PlaceholderText="按回车执行搜索">
                     <ui:TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                     </ui:TextBox.InputBindings>

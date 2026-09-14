@@ -1,4 +1,9 @@
 using System.Data;
+using System.Text.Json;
+using SwiftExport.Application.Services.Systems;
+using SwiftExport.Core.Interfaces;
+using SwiftExport.Core.Entities.Systems;
+using System.IO;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -8,6 +13,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auditing;
@@ -23,6 +29,40 @@ namespace SwiftExport.Application.Tests.Inventory;
 [TestClass]
 public sealed class InboundManagerServiceTests
 {
+    /// <summary>入库单号按收货月份生成，而不是按保存当天；取号失败不得写入草稿。</summary>
+    [TestMethod]
+    public async Task Create_NumberUsesReceiptMonth_AndFailureRollsBack()
+    {
+        var f = new Fixture();
+        var command = f.Create();
+        command.Draft.ReceiptDate = new DateTime(2025, 12, 20);
+        var result = await f.Service.CreateAsync(command);
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.AreEqual("IR2025120001", result.Data.DocumentNo);
+        var failed = new Fixture { FailNumber = true };
+        Assert.IsFalse((await failed.Service.CreateAsync(failed.Create())).Success);
+        Assert.AreEqual(0, failed.Saves);
+        Assert.AreEqual(1, failed.Connection.Rollbacks);
+        Assert.AreEqual(0, failed.Connection.Commits);
+    }
+
+    /// <summary>状态筛选原样交给仓储；无效枚举在查询前返回结构化校验错误。</summary>
+    [TestMethod]
+    public async Task Search_ValidatesAndForwardsPostingStatus()
+    {
+        var f = new Fixture();
+        var request = new InboundManagerSearchRequest { PostingStatus = InboundPostingStatusEnum.Reversed, PageIndex = 1, PageSize = 20 };
+        Assert.IsTrue((await f.Service.SearchAsync(request)).Success);
+        Assert.AreSame(request, f.LastSearch);
+        request.PostingStatus = (InboundPostingStatusEnum)999;
+        var invalid = await f.Service.SearchAsync(request);
+        Assert.AreEqual(ServiceErrorCodes.Validation, invalid.Error.Code);
+        Assert.AreEqual(nameof(request.PostingStatus), invalid.Error.Field);
+        Assert.AreEqual(1, f.Searches);
+        request.PostingStatus = null;
+        Assert.IsTrue((await f.Service.SearchAsync(request)).Success);
+    }
+
     /// <summary>允许草稿数量超过当前剩余量；仓库独立，保存从真实来源取得快照。</summary>
     [TestMethod]
     public async Task Create_UsesSourceSnapshot_DoesNotReserveRemaining()
@@ -32,6 +72,8 @@ public sealed class InboundManagerServiceTests
         Assert.IsTrue(result.Success, result.Message);
         Assert.AreEqual(1, f.Saves);
         Assert.AreEqual("PCS", f.SavedLines.Single().UnitSnapshot);
+        Assert.AreEqual($"IR{DateTime.Today:yyyyMM}0001", result.Data.DocumentNo);
+        Assert.AreEqual(1, f.NumberCalls);
         Assert.AreEqual(10m, f.SavedLines.Single().Quantity);
         Assert.AreEqual(f.WarehouseId, f.Header!.WarehouseSiteId);
         Assert.AreEqual(1, f.Connection.Commits);
@@ -48,11 +90,14 @@ public sealed class InboundManagerServiceTests
         var second = await f.Service.CreateAsync(command);
         Assert.IsTrue(second.Success, second.Message);
         Assert.AreEqual(first.Data.Uid, second.Data.Uid);
+        Assert.AreEqual(first.Data.DocumentNo, second.Data.DocumentNo);
+        Assert.AreEqual(1, f.NumberCalls);
         Assert.AreEqual(1, f.Saves);
         command.Draft.Lines[0].Quantity++;
         var conflict = await f.Service.CreateAsync(command);
         Assert.IsFalse(conflict.Success);
         StringAssert.Contains(conflict.Message, "IDEMPOTENCY_CONFLICT");
+        Assert.AreEqual(ServiceErrorCodes.CommandConflict, conflict.Error.Code);
         Assert.AreEqual(1, f.Saves);
     }
 
@@ -77,6 +122,7 @@ public sealed class InboundManagerServiceTests
         var update = await f.Service.UpdateAsync(f.Header!.Uid, new UpdateInboundDraftCommand
         { CommandId = Guid.NewGuid(), ExpectedVersion = 99, Draft = f.Create().Draft });
         Assert.IsFalse(update.Success);
+        Assert.AreEqual(ServiceErrorCodes.VersionConflict, update.Error.Code);
         Assert.AreEqual(1, f.Saves);
         foreach (var state in new[] { InboundPostingStatusEnum.Posted, InboundPostingStatusEnum.Reversed })
         {
@@ -141,6 +187,47 @@ public sealed class InboundManagerServiceTests
         Assert.AreEqual(1, f.Searches);
     }
 
+    /// <summary>命令锁繁忙、格式错误及权限失败提供机器可识别代码，不依赖消息文本。</summary>
+    [TestMethod]
+    public async Task WriteFailures_ExposeStructuredCodes()
+    {
+        var f = new Fixture { CommandLockResult = -1 };
+        var busy = await f.Service.CreateAsync(f.Create());
+        Assert.AreEqual(InboundErrorCodes.CommandBusy, busy.Error.Code);
+        Assert.AreEqual(0, f.Saves);
+        var invalid = f.Create();
+        invalid.Draft.Lines[0].Quantity = 1.00001m;
+        Assert.AreEqual(ServiceErrorCodes.Validation, (await f.Service.CreateAsync(invalid)).Error.Code);
+        f.Allowed = false;
+        Assert.AreEqual(ServiceErrorCodes.Forbidden, (await f.Service.CreateAsync(f.Create())).Error.Code);
+    }
+
+    /// <summary>仓储并发失败映射为版本冲突并回滚，不错误提示为可能已经保存。</summary>
+    [TestMethod]
+    public async Task RepositoryConcurrency_RollsBackAndReportsConflict()
+    {
+        var f = new Fixture { SaveFailure = new DBConcurrencyException("测试并发") };
+        var result = await f.Service.CreateAsync(f.Create());
+        Assert.AreEqual(ServiceErrorCodes.VersionConflict, result.Error.Code);
+        Assert.AreEqual(1, f.Connection.Rollbacks);
+        Assert.AreEqual(0, f.Connection.Commits);
+        Assert.IsNull(f.Session.Transaction);
+    }
+
+    /// <summary>不能确认的提交异常使用专属代码；后续前端必须保留原命令。</summary>
+    [TestMethod]
+    public async Task UnknownRepositoryFailure_PreservesRetrySemantics()
+    {
+        var f = new Fixture { SaveFailure = new IOException("模拟连接中断") };
+        var command = f.Create();
+        var result = await f.Service.CreateAsync(command);
+        Assert.AreEqual(InboundErrorCodes.OutcomeUnknown, result.Error.Code);
+        Assert.AreEqual(1, f.Connection.Rollbacks);
+        f.SaveFailure = null;
+        Assert.IsTrue((await f.Service.CreateAsync(command)).Success);
+        Assert.AreEqual(1, f.Connection.Commits);
+    }
+
     /// <summary>构造仅包含本用例调用面的替身，意外调用立即使测试失败。</summary>
     private sealed class Fixture
     {
@@ -156,6 +243,11 @@ public sealed class InboundManagerServiceTests
         public int Saves, Deletes, Searches, SourceReads;
         public bool FailLog, HasLedger;
         public bool Allowed = true;
+        public int CommandLockResult;
+        public Exception? SaveFailure;
+        public InboundManagerSearchRequest? LastSearch;
+        public int NumberCalls;
+        public bool FailNumber;
 
         public Fixture()
         {
@@ -164,7 +256,7 @@ public sealed class InboundManagerServiceTests
             Service = new(new ServiceBaseContext(Session, NullLoggerFactory.Instance),
                 Proxy<IInboundManagerRepository>((method, args) => method switch
                 {
-                    "LockCommandAsync" => Task.FromResult(0),
+                    "LockCommandAsync" => Task.FromResult(CommandLockResult),
                     "LockHeaderAsync" => Task.FromResult(Header),
                     "LockLinesAsync" => Task.FromResult<IReadOnlyList<InboundDocumentLine>>(SavedLines),
                     "HasLedgerAsync" => Task.FromResult(HasLedger),
@@ -172,6 +264,7 @@ public sealed class InboundManagerServiceTests
                     "SaveAsync" => Save((InboundDocument)args[0]!, (IReadOnlyList<InboundDocumentLine>)args[1]!, (int)args[2]!),
                     "DeleteAsync" => DeleteHeader(),
                     "SearchSourcesAsync" => Search(),
+                    "SearchAsync" => SearchManager((InboundManagerSearchRequest)args[0]!),
                     _ => throw new NotSupportedException(method)
                 }),
                 Proxy<IWarehouseSiteRepository>((method, _) => method == "GetForUpdateAsync"
@@ -183,15 +276,43 @@ public sealed class InboundManagerServiceTests
                     _ => throw new NotSupportedException(method)
                 }),
                 Proxy<ICurrentUser>((method, _) => method switch { "get_IsAuthenticated" => true, "get_UserId" => _userId, "get_UserName" => "测试", _ => throw new NotSupportedException(method) }),
-                Proxy<IUserPermissionService>((method, _) => method == "HasPermissionAsync" ? Task.FromResult(Allowed) : throw new NotSupportedException(method)));
+                Proxy<IUserPermissionService>((method, _) => method == "HasPermissionAsync" ? Task.FromResult(Allowed) : throw new NotSupportedException(method)),
+                new DocumentNoService(Proxy<IDocumentSequenceRepository>((method, args) =>
+                {
+                    if (method != "GetNextAsync") throw new NotSupportedException(method);
+                    Assert.IsNotNull(Session.Transaction, "取号必须处于入库保存事务内。");
+                    if (FailNumber) throw new InvalidOperationException("模拟取号失败");
+                    NumberCalls++;
+                    return Task.FromResult(new DocumentSequence { DocType = (string)args[0]!, YearMonth = (string)args[1]!, CurrentNo = NumberCalls });
+                })));
         }
 
         public CreateInboundDraftCommand Create() => new() { CommandId = Guid.NewGuid(), Draft = new() { DocumentType = InboundDocumentTypeEnum.PurchaseReceipt, WarehouseSiteId = WarehouseId, ReceiptDate = DateTime.Today, Lines = [new() { SourceLineId = SourceId, Quantity = 10 }] } };
+        private Task<PagedResponseBase<InboundManagerListItemDto>> SearchManager(InboundManagerSearchRequest request)
+        {
+            Searches++; LastSearch = request;
+            return Task.FromResult(new PagedResponseBase<InboundManagerListItemDto> { Items = [] });
+        }
         public DeleteInboundDraftCommand Delete() => new() { CommandId = Guid.NewGuid(), ExpectedVersion = Header!.Version, Reason = "录入错误" };
         private Task<IReadOnlyList<InboundSourceCandidateDto>> Sources() { SourceReads++; return Task.FromResult<IReadOnlyList<InboundSourceCandidateDto>>([new() { SourceLineId = SourceId, ProductId = Guid.NewGuid(), Unit = "PCS", Sku = "A", RemainingReceivableQty = 1 }]); }
-        private Task Save(InboundDocument header, IReadOnlyList<InboundDocumentLine> lines, int version) { Saves++; Header = header; Header.Version = version + 1; SavedLines = lines.ToList(); foreach (var line in SavedLines) line.Version++; return Task.CompletedTask; }
+        private Task Save(InboundDocument header, IReadOnlyList<InboundDocumentLine> lines, int version)
+        {
+            if (SaveFailure is not null) throw SaveFailure;
+            Saves++; Header = header; Header.Version = version + 1; SavedLines = lines.ToList();
+            foreach (var line in SavedLines) line.Version++;
+            return Task.CompletedTask;
+        }
         private Task DeleteHeader() { Deletes++; Header!.Version++; return Task.CompletedTask; }
-        private Task<int> Log(BusinessOperationLog log) { if (FailLog) return Task.FromResult(0); _logs.Add(log.CommandId, log); return Task.FromResult(1); }
+        /// <summary>模拟日志 JSON 对象约束，防止字符串标量在替身中通过、真实保存却失败。</summary>
+        private Task<int> Log(BusinessOperationLog log)
+        {
+            if (FailLog) return Task.FromResult(0);
+            using var changed = JsonDocument.Parse(log.ChangedFieldsJson!);
+            Assert.AreEqual(JsonValueKind.Object, changed.RootElement.ValueKind);
+            Assert.AreEqual(64, changed.RootElement.GetProperty("Fingerprint").GetString()!.Length);
+            _logs.Add(log.CommandId, log);
+            return Task.FromResult(1);
+        }
         private Task<PagedResponseBase<InboundSourceCandidateDto>> Search() { Searches++; return Task.FromResult(new PagedResponseBase<InboundSourceCandidateDto> { PageIndex = 1, PageSize = 20 }); }
     }
 

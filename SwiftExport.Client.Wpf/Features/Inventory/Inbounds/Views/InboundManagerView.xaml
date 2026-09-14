@@ -11,7 +11,7 @@
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid" xmlns:gridNumeric="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns.Numeric;assembly=SwiftExport.Wpf.EnterpriseGrid"
              mc:Ignorable="d" d:DesignWidth="1440" d:DesignHeight="560"
              d:DataContext="{d:DesignInstance Type=vm:InboundManagerViewModel}">
 
@@ -96,15 +96,18 @@
 
             <!--单头-->
             <Grid Grid.Row="2" RowDefinitions="*,Auto">
-                <DataGrid Grid.Row="0" 
+                <DataGrid x:Name="HeaderGrid" Grid.Row="0"
                           Style="{StaticResource SwiftExportDataGrid}"
                           FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                           RowHeight="{DynamicResource DataGridRowHeightSmall}"
                           ItemsSource="{Binding Headers.Items}" IsReadOnly="{Binding HeaderReadOnly}"
                           SelectedItem="{Binding SelectedItem}" 
+                          SelectionChanged="OnHeaderSelectionChanged"
                           AutoGenerateColumns="False" 
                           CanUserAddRows="False" 
-                          CanUserDeleteRows="False">
+                          CanUserDeleteRows="False"
+                          gridCore:EnterpriseGrid.IsEnabled="True"
+                          gridCore:GridRowHeader.ShowRowNumber="True">
                 <DataGrid.Columns>
 
                     <DataGridTemplateColumn Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
@@ -133,12 +136,12 @@
                     <DataGridTextColumn Header="建立方式" 
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                         Binding="{Binding CreationMode, Converter={StaticResource EnumDescriptionConverter}}" 
-                                        Width="70" 
+                                        Width="100" 
                                         IsReadOnly="True"/>
                         <DataGridTextColumn Header="过账状态" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                             Binding="{Binding PostingStatus,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}" 
-                                            Width="70" 
+                                            Width="100" 
                                             IsReadOnly="True"/>
 
                     <DataGridTemplateColumn Header="入库类型" Width="120">
@@ -208,10 +211,11 @@
                                Text="{Binding PageStatus}" 
                                Style="{StaticResource CaptionTextBlock}"/>
                     <controls:PageNavigator Grid.Column="2" 
-                                            IsEnabled="False" TotalCount="0" 
-                                            PageIndex="1" 
-                                            PageSize="50" 
-                                            ToolTip="分页查询待后端重构"/>
+                                            TotalCount="{Binding TotalCount}"
+                                            PageIndex="{Binding PageIndex, Mode=OneWay}"
+                                            PageSize="{Binding PageSize}"
+                                            PageSizeOptions="{Binding PageSizeOptions}"
+                                            PageChangeCommand="{Binding PageChangeCommand}"/>
                 </Grid>
             </Grid>
 
@@ -228,7 +232,7 @@
                     </StackPanel>
                 </Grid>
                 <!--单行-->
-                <DataGrid Grid.Row="2" 
+                <DataGrid x:Name="LineGrid" Grid.Row="2"
                       IsReadOnly="{Binding LinesReadOnly}" 
                       ItemsSource="{Binding Lines.Items}" 
                       SelectedItem="{Binding Lines.SelectedItem}" 
@@ -312,11 +316,13 @@
                                             Binding="{Binding RemainingReceivableQty, StringFormat=N0}" 
                                             Width="80" 
                                             IsReadOnly="True"/>
-
                         <DataGridTextColumn Header="本次入库" 
+                                            gridColumns:GridColumn.Key="Quantity"
+                                            gridColumns:GridColumn.FieldPath="Quantity"
                                             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                            Binding="{Binding Quantity, StringFormat=N0, UpdateSourceTrigger=PropertyChanged}" 
+                                            Foreground="{DynamicResource SwiftExportBrush.Accent}"
+                                            Binding="{Binding Quantity, TargetNullValue='', StringFormat=0.####, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=False, ValidatesOnNotifyDataErrors=False, NotifyOnValidationError=True}"
                                             Width="80"/>
 
                         <DataGridTextColumn Header="描述" 
@@ -333,8 +339,8 @@
 
             <!--提示信息-->
             <StackPanel Grid.Row="5">
-                <TextBlock Text="{Binding ValidationSummary}" Foreground="DarkOrange"/>
-                <TextBlock Text="{Binding ResultSummary}" Foreground="Gray"/>
+                <TextBlock Text="{Binding ValidationSummary}" Foreground="{DynamicResource SwiftExportBrush.ErrorText}"/>
+                <TextBlock Text="{Binding ResultSummary}" Foreground="{DynamicResource SwiftExportBrush.WarningText}"/>
             </StackPanel>
         </Grid>
     </Grid>

@@ -101,10 +101,12 @@ public static class ApiRegistrationExtensions
         services.AddControllerApi<IProcurementMasterDataQueryApi>("master-data/procurement-lookups");
     }
 
+    /// <summary>注册库存及入库管理、选源的独立 API 基址。</summary>
     private static void AddInventoryApis(this IServiceCollection services)
     {
         services.AddControllerApi<IInventoryApi>("inventory");
         services.AddControllerApi<IInboundSourceApi>("inventory/inbound-sources");
+        services.AddControllerApi<IInboundManagerApi>("inventory/inbounds");
         services.AddControllerApi<IWarehouseSiteApi>("inventory/warehouse-sites");
         services.AddControllerApi<IOutboundWorkspaceApi>("inventory/outbounds");
         services.AddControllerApi<IPackingListWorkspaceApi>("shipping/packing-lists");

@@ -25,6 +25,9 @@ namespace SwiftExport.Contracts.SysEnums.StaticEnums
         /// </summary>
         public const string PurchaseOrder = "PO";
 
+        /// <summary>入库单，按收货年月分段生成流水号。</summary>
+        public const string InboundDocument = "IR";
+
         /// <summary>
         /// 生产单（Manufacturing Order）。
         /// </summary>

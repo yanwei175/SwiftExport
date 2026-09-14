@@ -244,12 +244,13 @@
                         BorderBrush="{DynamicResource SwiftExportBrush.Border}" 
                         BorderThickness="0.5"
                         CornerRadius="8">
-                    <DataGrid Grid.Row="2" FontSize="12"
-                                  GridLinesVisibility="Horizontal"
-                                  RowHeight="{StaticResource DataGridRowHeightMedium}"
-                                  ItemsSource="{Binding SelectedDocument.Lines}" 
-                                  SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
-                                  AutoGenerateColumns="False" IsReadOnly="True">
+                    <DataGrid Grid.Row="2" 
+                              FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                              RowHeight="{StaticResource DataGridRowHeightMedium}"
+                              GridLinesVisibility="Horizontal"
+                              ItemsSource="{Binding SelectedDocument.Lines}" 
+                              SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
+                              AutoGenerateColumns="False" IsReadOnly="True">
                         <DataGrid.Columns>
                             <DataGridTemplateColumn Header="图片" Width="72" CanUserSort="False"
                                             IsReadOnly="True">
@@ -304,11 +305,12 @@
                         CornerRadius="8">
                     <Grid RowDefinitions="Auto,4,*">
                         <TextBlock FontWeight="SemiBold" Text="当前采购行的来源贡献" />
-                        <DataGrid Grid.Row="2" FontSize="12"
-                                          GridLinesVisibility="Horizontal"
-                                          RowHeight="{StaticResource DataGridRowHeightMedium}"
-                                          ItemsSource="{Binding SelectedLine.Contributions}" 
-                                          AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid Grid.Row="2"                               
+                                  FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                                  RowHeight="{StaticResource DataGridRowHeightMedium}"
+                               GridLinesVisibility="Horizontal"
+                               ItemsSource="{Binding SelectedLine.Contributions}" 
+                               AutoGenerateColumns="False" IsReadOnly="True">
                             <DataGrid.Columns>
                                 <DataGridTemplateColumn Header="图片" Width="72" CanUserSort="False"
                                             IsReadOnly="True">

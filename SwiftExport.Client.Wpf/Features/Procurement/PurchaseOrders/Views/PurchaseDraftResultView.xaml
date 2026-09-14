@@ -6,7 +6,7 @@
              xmlns:viewModels="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance viewModels:PurchaseDraftResultViewModel}"
-             d:Width="1400" d:Height="820">
+             d:Width="800" d:Height="400">
     <Grid Margin="4" RowDefinitions="Auto,8,*">
         <Grid ColumnDefinitions="*,Auto">
             <StackPanel>
@@ -16,8 +16,9 @@
             <Button Grid.Column="1" Content="返回未完成项" Command="{Binding ReturnToPreviewCommand}" />
         </Grid>
         <DataGrid Grid.Row="2"
+                  FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                  RowHeight="{StaticResource DataGridRowHeightSmall}"
                   ItemsSource="{Binding Session.Results}"
-                  Style="{StaticResource SwiftExportDataGrid}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True">
             <DataGrid.Columns>
