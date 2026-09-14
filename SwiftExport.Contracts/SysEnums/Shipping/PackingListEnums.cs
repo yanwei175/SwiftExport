@@ -1,5 +1,6 @@
 namespace SwiftExport.Contracts.SysEnums.Shipping
 {
+    /// <summary>保留装箱单实体的生命周期状态，供历史数据映射使用。</summary>
     public enum PackingListLifecycleStatusEnum
     {
         Active = 0,
@@ -7,6 +8,7 @@ namespace SwiftExport.Contracts.SysEnums.Shipping
         Voided = 9
     }
 
+    /// <summary>保留装箱单实体的库存过账状态，供历史数据映射使用。</summary>
     public enum PackingListPostingStatusEnum
     {
         Unposted = 0,
@@ -14,11 +16,4 @@ namespace SwiftExport.Contracts.SysEnums.Shipping
         Reversed = 8
     }
 
-    public enum PackingListCommandStatusEnum
-    {
-        Success = 0,
-        AlreadyApplied = 1,
-        VersionConflict = 2,
-        Blocked = 3
-    }
 }

@@ -116,6 +116,7 @@
                 <DataGridTextColumn Header="描述" Binding="{Binding Description}" Width="*" MinWidth="180"/>
                 <DataGridTextColumn Header="原数量" Binding="{Binding OriginalQty, StringFormat=N4}" Width="104"/>
                 <DataGridTextColumn Header="待入库数量" Binding="{Binding RemainingReceivableQty, StringFormat=N4}" Width="112"/>
+                <DataGridTextColumn Header="草稿提醒" Binding="{Binding OtherDraftWarning}" Width="230"/>
                 <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="64"/>
                 <DataGridTextColumn Header="采购供应商" Binding="{Binding SupplierName}" Width="144"/>
             </DataGrid.Columns>

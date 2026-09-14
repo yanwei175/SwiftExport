@@ -62,16 +62,6 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
             Guid uid,
             CancellationToken cancellationToken = default(CancellationToken));
 
-        [Get("/{uid}/trace")]
-        Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(
-            Guid uid,
-            CancellationToken cancellationToken = default(CancellationToken));
-
-        [Get("/source-demands/{grossDemandId}/trace")]
-        Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(
-            Guid grossDemandId,
-            CancellationToken cancellationToken = default(CancellationToken));
-
         [Post("/plans/replace")]
         Task<ServiceResult<NetDemandPlanCommandResult>> ReplacePlanAsync(
             [Body] ReplaceNetDemandPlanCommand command);

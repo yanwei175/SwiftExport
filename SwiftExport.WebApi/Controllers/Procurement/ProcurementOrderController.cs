@@ -48,8 +48,4 @@ public sealed class ProcurementOrderController(IProcurementOrderQueryService que
     public Task<ServiceResult<ProcurementOrderCommandResult>> ConfirmAsync(Guid uid, [FromBody] ConfirmProcurementOrderCommand command, CancellationToken cancellationToken = default)
         => commands.ConfirmAsync(uid, command, cancellationToken);
 
-    /// <summary>转发独立采购取消确认命令；下游事实与快照保留由 Application 保证。</summary>
-    [HttpPost("{uid}/cancel-confirmation")]
-    public Task<ServiceResult<ProcurementOrderCommandResult>> CancelConfirmationAsync(Guid uid, [FromBody] CancelProcurementOrderConfirmationCommand command, CancellationToken cancellationToken = default)
-        => commands.CancelConfirmationAsync(uid, command, cancellationToken);
 }

@@ -80,15 +80,8 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         new(ConfirmationStatusEnum.待确认, "待确认"),
         new(ConfirmationStatusEnum.已确认, "已确认"),
     ];
-    public IReadOnlyList<SalesOrderFilterOption<SalesOrderFulfillmentStatusEnum>> FulfillmentStatusOptions { get; } =
-    [
-        new(SalesOrderFulfillmentStatusEnum.NotStarted, "未发货"),
-        new(SalesOrderFulfillmentStatusEnum.PartiallyShipped, "部分发货"),
-        new(SalesOrderFulfillmentStatusEnum.FullyShipped, "全部发货"),
-    ];
     public ObservableCollection<SalesOrderFilterOption<SalesOrderDocumentStatusEnum>> SelectedDocumentStatuses { get; } = [];
     public ObservableCollection<SalesOrderFilterOption<ConfirmationStatusEnum>> SelectedConfirmationStatuses { get; } = [];
-    public ObservableCollection<SalesOrderFilterOption<SalesOrderFulfillmentStatusEnum>> SelectedFulfillmentStatuses { get; } = [];
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
 
@@ -175,7 +168,6 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         DeliveryDateTo = null;
         SelectedDocumentStatuses.Clear();
         SelectedConfirmationStatuses.Clear();
-        SelectedFulfillmentStatuses.Clear();
         PageIndex = 1;
         await LoadPageAsync();
     }
@@ -470,7 +462,6 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
                 : [CustomerCode.Trim()],
             DocumentStatuses = SelectedDocumentStatuses.Select(option => option.Value).Distinct().ToList(),
             ConfirmationStatuses = SelectedConfirmationStatuses.Select(option => option.Value).Distinct().ToList(),
-            FulfillmentStatuses = SelectedFulfillmentStatuses.Select(option => option.Value).Distinct().ToList(),
         };
         return request;
     }

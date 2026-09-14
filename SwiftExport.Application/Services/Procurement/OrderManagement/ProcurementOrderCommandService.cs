@@ -48,10 +48,7 @@ public sealed partial class ProcurementOrderCommandService(
                 AggregateType = "PurchaseOrder", AggregateUid = result.PurchaseOrderId, AggregateNoSnapshot = result.OrderNo,
                 OperationType = receiptOperation, OperationName = "独立采购" + receiptOperation, Summary = "独立采购命令成功；详情见原始回执及确认依据。",
                 UserUid = user.UserId, UserNameSnapshot = user.UserName, OccurredDate = DateTime.Now,
-                // 取消原因属于业务审计事实；仅该命令把窄请求与结果一并保存，其他命令保持原结果形状。
-                ChangedFieldsJson = receiptOperation == "CancelConfirmation"
-                    ? JsonSerializer.Serialize(new { result, command })
-                    : JsonSerializer.Serialize(result)
+                ChangedFieldsJson = JsonSerializer.Serialize(result)
             }) != 1) throw new InvalidOperationException("采购业务日志写入失败。");
             await repository.InsertReceiptAsync(new ProcurementCommandReceipt
             {

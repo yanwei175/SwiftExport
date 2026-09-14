@@ -6,7 +6,6 @@ using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
 using SwiftExportClient.Features.QualityControl.AfterSales.Services;
 using SwiftExportClient.Features.Sales.Orders.Services;
 using SwiftExportClient.Features.Products.ProductList.Services;
-using SwiftExportClient.Features.Shipping.PackingLists.Services;
 using SwiftExportClient.Features.Inventory.WarehouseSites.Services;
 using SwiftExportClient.Features.Suppliers.Components.Services;
 using SwiftExportClient.Navigation;
@@ -47,10 +46,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IClientVersionService, ClientVersionService>();
         services.AddSingleton<IImageCacheService, ImageCacheService>();
         services.AddSingleton<IReferenceDataCacheService, ReferenceDataCacheService>();
-        services.AddTransient<INetDemandTraceExportService, NetDemandTraceExportService>();
         services.AddTransient<INetDemandDialogService, NetDemandDialogService>();
         services.AddTransient<IProcurementDialogService, ProcurementDialogService>();
-        services.AddTransient<IPurchaseOrderCancellationDialogService, PurchaseOrderCancellationDialogService>();
         services.AddTransient<IAfterSalesFeatureService, AfterSalesFeatureService>();
         services.AddTransient<IAfterSalesReasonDialogService, AfterSalesReasonDialogService>();
         services.AddTransient<IWarehouseSiteReasonDialogService, WarehouseSiteReasonDialogService>();
@@ -58,8 +55,6 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ISupplierPickerService, SupplierPickerService>();
         services.AddTransient<ISalesOrderCancellationDialogService, SalesOrderCancellationDialogService>();
         services.AddTransient<IProductMasterSyncDialogService, ProductMasterSyncDialogService>();
-        services.AddTransient<IPurchaseOrderTraceExportService, PurchaseOrderTraceExportService>();
-        services.AddTransient<IPackingListDocumentOutputService, PackingListDocumentOutputService>();
         services.AddTransient<AuthTokenHandler>();
         services.AddSwiftExportApis();
 

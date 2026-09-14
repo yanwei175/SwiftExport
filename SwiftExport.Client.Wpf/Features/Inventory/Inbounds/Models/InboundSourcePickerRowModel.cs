@@ -27,4 +27,8 @@ public sealed partial class InboundSourcePickerRowModel : ObservableObject
 
     /// <summary>由来源查询提供的正式剩余可收量；不是本次实收输入，也不在客户端扣减草稿。</summary>
     public decimal RemainingReceivableQty { get; init; }
+    public int OtherDraftCount { get; init; }
+    public decimal OtherDraftQuantity { get; init; }
+    /// <summary>其他草稿仅作录入提示，没有时不显示。</summary>
+    public string OtherDraftWarning => OtherDraftCount > 0 ? $"另有 {OtherDraftCount} 张未过账草稿，合计 {OtherDraftQuantity:0.####}" : string.Empty;
 }

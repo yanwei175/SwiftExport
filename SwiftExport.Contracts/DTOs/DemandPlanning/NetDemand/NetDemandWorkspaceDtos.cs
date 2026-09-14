@@ -152,10 +152,4 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public List<NetDemandExecutionLinkDto> BlockingExecutionLinks { get; set; } = new List<NetDemandExecutionLinkDto>();
     }
 
-    public class NetDemandTraceDto
-    {
-        public NetDemandListItemDto Summary { get; set; }
-        public List<NetDemandAllocationDto> AllocationHistory { get; set; } = new List<NetDemandAllocationDto>();
-        public List<NetDemandExecutionLinkDto> ExecutionLinks { get; set; } = new List<NetDemandExecutionLinkDto>();
-    }
 }

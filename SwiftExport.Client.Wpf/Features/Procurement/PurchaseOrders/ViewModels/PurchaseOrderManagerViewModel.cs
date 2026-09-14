@@ -31,7 +31,6 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     private readonly INavigationService _navigation;
     private readonly IDialogService _dialogs;
     private readonly IMessageService _messages;
-    private readonly IPurchaseOrderCancellationDialogService _cancellationDialog;
     private readonly ICurrentUserService _currentUser;
     private readonly Dictionary<Guid, PendingConfirmationState> _pendingConfirmations = [];
     private CancellationTokenSource? _queryCancellation;
@@ -43,12 +42,11 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         IProcurementDialogService procurementDialogs,
         INavigationService navigation, IDialogService dialogs,
         IApiCallRunner apiCallRunner, IMessageService messages,
-        IPurchaseOrderCancellationDialogService cancellationDialog,
         ICurrentUserService currentUser)
     {
         _managerApi = managerApi; _orderApi = orderApi; _procurementDialogs = procurementDialogs;
         _navigation = navigation; _dialogs = dialogs;
-        _apiCallRunner = apiCallRunner; _messages = messages; _cancellationDialog = cancellationDialog;
+        _apiCallRunner = apiCallRunner; _messages = messages;
         _currentUser = currentUser; Title = "采购订单管理";
         RegisterBusyAwareCommand(SearchCommand); RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(ClearFiltersCommand); RegisterBusyAwareCommand(BatchConfirmCommand);
@@ -368,31 +366,12 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     }
 
     [RelayCommand(CanExecute = nameof(CanCancelOrderConfirmation))]
-    private async Task CancelConfirmationAsync()
+    private void CancelConfirmation()
     {
-        var order = SelectedOrder!;
-        var reason = await _cancellationDialog.RequestReasonAsync(order.OrderNo);
-        if (reason is null)
-            return;
-
-        await RunWriteAsync(async () =>
-        {
-            var result = await _orderApi.CancelConfirmationAsync(order.PurchaseOrderId,
-                new CancelProcurementOrderConfirmationCommand
-                {
-                    CommandId = Guid.NewGuid(),
-                    ExpectedVersion = order.Version,
-                    Reason = reason
-                });
-            if (!result.Success || result.Data is null)
-            {
-                await HandleCommandFailureAsync(result, "取消采购确认失败", order.PurchaseOrderId);
-                return;
-            }
-
-            await LoadPageCoreAsync(order.PurchaseOrderId);
-            _messages.ShowSuccess("已取消采购确认", order.OrderNo);
-        }, "正在取消采购确认...");
+        if (SelectedOrder is null) return;
+        _messages.ShowWarning(
+            "取消采购确认暂未开放",
+            "该能力等待入库与库存反向流程完成后重建；当前不会发送取消请求，也不会修改采购状态。");
     }
     [RelayCommand(CanExecute = nameof(CanCreateIndependent))]
     private Task CreateIndependentAsync() => _navigation.OpenDocumentAsync(PurchaseOrderDetailViewModel.RouteKey,
@@ -513,7 +492,8 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     private bool CanConfirmOrder() => HasReadPermission && HasConfirmPermission && IsNotBusy
         && SelectedOrder?.CanConfirm == true
         && !HasPendingConfirmation(SelectedOrder.PurchaseOrderId);
-    private bool CanCancelOrderConfirmation() => HasConfirmPermission && IsNotBusy && SelectedOrder?.CanCancelConfirmation == true;
+    private bool CanCancelOrderConfirmation() => HasConfirmPermission && IsNotBusy
+        && SelectedOrder is { LifecycleStatus: PurchaseOrderLifecycleStatusEnum.Active, ConfirmationStatus: ConfirmationStatusEnum.已确认 };
 
     /// <summary>同步当前页表头三态、已选数量和批量命令可执行状态。</summary>
     private void RefreshSelectionState()

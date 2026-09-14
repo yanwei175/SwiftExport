@@ -9,7 +9,8 @@ public interface INetDemandAllocationRepository
     Task<NetDemandAllocation?> GetByIdAsync(Guid allocationId);
     Task<NetDemandAllocation?> GetByIdForUpdateAsync(Guid allocationId);
     Task<IReadOnlyList<NetDemandAllocation>> GetActiveByNetDemandIdsForUpdateAsync(IEnumerable<Guid> netDemandIds);
-    Task<IReadOnlyList<NetDemandAllocationDto>> GetHistoryAsync(
+    /// <summary>读取指定物料需求当前有效的计划分配，供兼容详情使用。</summary>
+    Task<NetDemandAllocationDto?> GetActiveAsync(
         Guid netDemandId,
         CancellationToken cancellationToken = default);
     Task<RepositoryWriteResult> SupersedeAsync(Guid allocationId, int expectedVersion, string reason);

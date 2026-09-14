@@ -65,9 +65,6 @@ public interface INetDemandRepository
     Task<IReadOnlyDictionary<Guid, int>> GetHistoryCountsForUpdateAsync(IEnumerable<Guid> grossDemandIds);
     /// <summary>检查物料历史是否完整且已安全退出。</summary>
     Task<bool> HasInvalidExitHistoryAsync(IEnumerable<Guid> grossDemandIds);
-    Task<IReadOnlyList<NetDemandTraceItemDto>> GetByGrossDemandForTraceAsync(
-        Guid grossDemandId,
-        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RepositoryWriteResult>> AddDecompositionAsync(IEnumerable<NetDemand> demands);
     /// <summary>以乐观并发方式局部更新活动物料需求的推荐采购供应商。</summary>
     Task<int> UpdateSuggestedPurchaseSupplierAsync(

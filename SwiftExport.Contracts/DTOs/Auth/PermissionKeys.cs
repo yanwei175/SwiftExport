@@ -37,6 +37,11 @@ namespace SwiftExport.Contracts.DTOs.Auth
         /// <summary>供应商虚拟仓新增、改名、停用和删除权限。</summary>
         public const string InventoryWarehouseManage = "Inventory.Warehouse.Manage";
 
+        /// <summary>入库预览与正式过账权限，不包含反过账。</summary>
+        public const string InventoryInboundPost = "Inventory.Inbound.Post";
+        /// <summary>普通库存出库预览与正向过账，不包含反向或负库存放行。</summary>
+        public const string InventoryOutboundPost = "Inventory.Outbound.Post";
+
         private static readonly string[] ModuleValues =
         {
             ModuleProductsAccess,
@@ -61,11 +66,11 @@ namespace SwiftExport.Contracts.DTOs.Auth
         private static readonly string[] AllValues = ModuleValues
             .Concat(new[] { SystemSettingsManage })
             .Concat(ProcurementOperationValues)
-            .Concat(new[] { InventoryWarehouseManage })
+            .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryOutboundPost })
             .ToArray();
 
         private static readonly string[] UserAssignableValues = ModuleValues
-            .Concat(new[] { InventoryWarehouseManage })
+            .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryOutboundPost })
             .ToArray();
 
         /// <summary>获取允许管理员直接分配给普通用户的一级模块键。</summary>

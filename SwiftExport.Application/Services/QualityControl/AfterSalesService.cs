@@ -8,7 +8,6 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.DemandPlanning;
-using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Interfaces.QualityControl;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -30,7 +29,6 @@ public sealed class AfterSalesService(
     ServiceBaseContext context,
     IAfterSalesRepository repository,
     ISourceDemandReceptionService reception,
-    ISourceDeliveryService delivery,
     IDocumentNoService numbering,
     IBusinessOperationLogRepository logs,
     IUserPermissionService permissions,
@@ -205,14 +203,17 @@ public sealed class AfterSalesService(
 
     /// <inheritdoc />
     public Task<ServiceResult<AfterSalesCommandResult>> CloseAsync(Guid uid, CloseAfterSalesCommand command, CancellationToken cancellationToken = default)
-        => ChangeAsync(uid,command.CommandId,command.Version,"Close",command,command.Reason,async(head,lines)=>
+        => ChangeAsync(uid,command.CommandId,command.Version,"Close",command,command.Reason,(head,lines)=>
         {
             RequireOpen(head); RequireReason(command.Reason);
             var positive=lines.Where(x=>x.Quantity>0).ToList();
             if(positive.Count>0 && head.ConfirmationStatus!=ConfirmationStatusEnum.已确认) Fail("BUSINESS_BLOCKED","存在尚未确认的实物要求。");
             if(positive.Count>0)
-                await delivery.VerifyClosureAsync("CR",uid,positive.ToDictionary(x=>x.Uid,x=>x.Quantity!.Value),cancellationToken);
+                Fail(
+                    "AFTERSALES_DELIVERY_QUERY_UNAVAILABLE",
+                    "售后补货交付查询尚未接入，当前无法核验对应售后来源的 PackingList 是否已生效，不能结案。");
             head.DocumentStatus=DocumentStatusEnum.Closed; head.Conclusion=command.Reason;
+            return Task.CompletedTask;
         },cancellationToken);
 
     /// <inheritdoc />
@@ -283,7 +284,6 @@ public sealed class AfterSalesService(
         }
         catch(AfterSalesException ex) {tx.Rollback();return ServiceResult<AfterSalesCommandResult>.Fail(ex.Code,ex.Message,ex.Field);}
         catch(SourceDemandReceptionException ex) {tx.Rollback();return ServiceResult<AfterSalesCommandResult>.Fail(ex.Code,ex.Message);}
-        catch(SourceDeliveryException ex) {tx.Rollback();return ServiceResult<AfterSalesCommandResult>.Fail(ex.Code,ex.Message);}
         catch(OperationCanceledException) {tx.Rollback();throw;}
         catch(Exception ex)
         {

@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Inventory;
 
-/// <summary>出库单头实体，保存正式出库、目标仓库及过账和反向状态。</summary>
+/// <summary>出库单头实体，保存库存出库的来源仓库及过账和反向状态。</summary>
 [Table("OutboundDocument")]
 public sealed class OutboundDocument : BaseEntity
 {
@@ -24,8 +24,10 @@ public sealed class OutboundDocument : BaseEntity
     public string? WarehouseNameSnapshot { get; set; }
     /// <summary>该实体保存的实际出货日期。</summary>
     public DateTime ShipmentDate { get; set; }
-    /// <summary>关联的来源装箱单唯一标识。</summary>
-    public Guid? SourcePackingListId { get; set; }
+    /// <summary>人工库存出库备注，最多 500 字。</summary>
+    public string? Remark { get; set; }
+    /// <summary>触发自动出库的装箱单标识；手工出库为空，不代表销售交付来源。</summary>
+    public Guid? TriggerPackingListId { get; set; }
     /// <summary>单据或业务事实形成时冻结的装箱单号历史快照，不随主数据更新。</summary>
     public string? PackingListNoSnapshot { get; set; }
     /// <summary>该实体保存的过账时间。</summary>

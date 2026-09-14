@@ -5,7 +5,6 @@ using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Core.Interfaces.Inventory;
-using SwiftExport.Core.Interfaces.Shipping;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
 using SwiftExport.Infrastructure.Repositories.Auth;
@@ -20,7 +19,6 @@ using SwiftExport.Infrastructure.Repositories.Suppliers;
 using SwiftExport.Infrastructure.Repositories.SystemRepositories;
 using SwiftExport.Infrastructure.Repositories.Systems;
 using SwiftExport.Infrastructure.Repositories.Inventory;
-using SwiftExport.Infrastructure.Repositories.Shipping;
 using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Infrastructure;
@@ -79,11 +77,11 @@ public static class DependencyInjection
         services.AddScoped<INetDemandAllocationRepository, NetDemandAllocationRepository>();
         services.AddScoped<INetDemandPlanCommandRepository, NetDemandPlanCommandRepository>();
         services.AddScoped<IPurchaseOrderDraftRepository, PurchaseOrderDraftRepository>();
-        services.AddScoped<IPurchaseOrderWorkspaceRepository, PurchaseOrderWorkspaceRepository>();
         // 新链的事务持久化、管理投影与严格 BOM 读取使用同一请求 DbSession。
         services.AddScoped<IProcurementOrderRepository, ProcurementOrderRepository>();
         services.AddScoped<IProcurementOrderQueryRepository, ProcurementOrderQueryRepository>();
         services.AddScoped<IPurchaseOrderManagerQueryRepository, PurchaseOrderManagerQueryRepository>();
+        services.AddScoped<IPurchaseOrderProgressQueryRepository, PurchaseOrderProgressQueryRepository>();
         services.AddScoped<IProcurementConfirmationRepository, ProcurementConfirmationRepository>();
         services.AddScoped<IBomExecutionRepository, BomExecutionRepository>();
         services.AddScoped<SwiftExport.Core.Interfaces.MasterData.IExecutionEligibilityRepository, SwiftExport.Infrastructure.Repositories.MasterData.ExecutionEligibilityRepository>();
@@ -91,18 +89,11 @@ public static class DependencyInjection
         services.AddScoped<ISupplierProgressReportRepository, SupplierProgressReportRepository>();
         services.AddScoped<IBusinessOperationLogRepository, BusinessOperationLogRepository>();
         services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();
-        services.AddScoped<SwiftExport.Core.Interfaces.Orders.ISalesFulfillmentManagerRepository, SalesFulfillmentManagerRepository>();
-        services.AddScoped<SwiftExport.Core.Interfaces.Orders.ISalesFulfillmentDetailRepository, SalesFulfillmentDetailRepository>();
         services.AddScoped<IWarehouseSiteRepository, WarehouseSiteRepository>();
         services.AddScoped<IWarehouseCandidateRepository, WarehouseCandidateRepository>();
         services.AddScoped<IInventoryRepository, InventoryRepository>();
         services.AddScoped<IInboundManagerRepository, InboundManagerRepository>();
-        services.AddScoped<IOutboundDocumentRepository, OutboundDocumentRepository>();
-        services.AddScoped<IPackingListDocumentRepository, PackingListDocumentRepository>();
-        services.AddScoped<PackingListWorkspaceRepository>();
-        services.AddScoped<IPackingListPlanningRepository>(provider => provider.GetRequiredService<PackingListWorkspaceRepository>());
-        services.AddScoped<IPackingListQueryRepository>(provider => provider.GetRequiredService<PackingListWorkspaceRepository>());
-        services.AddScoped<ISourceDeliveryRepository, SourceDeliveryRepository>();
+        services.AddScoped<IOutboundManagerRepository, OutboundManagerRepository>();
 
         services.AddScoped<SwiftExport.Core.Interfaces.QualityControl.IAfterSalesRepository, SwiftExport.Infrastructure.Repositories.QualityControl.AfterSalesRepository>();
         return services;

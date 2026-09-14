@@ -66,14 +66,6 @@ public sealed class NetDemandWorkspaceService(
     public Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default)
         => materialDemands.GetDetailAsync(uid, cancellationToken);
 
-    /// <summary>兼容旧入口，已迁移至 INetDemandServices.GetTraceAsync。</summary>
-    public Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default)
-        => materialDemands.GetTraceAsync(uid, cancellationToken);
-
-    /// <summary>兼容旧入口，已迁移至 INetDemandServices.GetSourceDemandTraceAsync。</summary>
-    public Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(Guid grossDemandId, CancellationToken cancellationToken = default)
-        => materialDemands.GetSourceDemandTraceAsync(grossDemandId, cancellationToken);
-
     /// <summary>待废弃：旧 Allocation 替代命令，独立计划退出后移除。</summary>
     public async Task<ServiceResult<NetDemandPlanCommandResult>> ReplacePlanAsync(ReplaceNetDemandPlanCommand command)
     {

@@ -12,6 +12,4 @@ public interface IProcurementOrderCommandService
     Task<ServiceResult<ProcurementOrderCommandResult>> SaveAsync(Guid uid, UpdatePurchaseOrderDraftCommand command, CancellationToken ct = default);
     /// <summary>验证完整确认依据并原子固化快照。</summary>
     Task<ServiceResult<ProcurementOrderCommandResult>> ConfirmAsync(Guid uid, ConfirmProcurementOrderCommand command, CancellationToken ct = default);
-    /// <summary>取消无下游事实的确认；确认批次只解除活动引用，不删除历史快照。</summary>
-    Task<ServiceResult<ProcurementOrderCommandResult>> CancelConfirmationAsync(Guid uid, CancelProcurementOrderConfirmationCommand command, CancellationToken ct = default);
 }

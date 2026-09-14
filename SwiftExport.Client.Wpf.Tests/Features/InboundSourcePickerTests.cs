@@ -18,6 +18,19 @@ namespace SwiftExport.Client.Wpf.Tests.Features;
 [TestClass]
 public sealed class InboundSourcePickerTests
 {
+    /// <summary>当前入库身份仅用于其他草稿提示，查询和翻页持续携带，不增加仓库条件。</summary>
+    [TestMethod]
+    public async Task Initialize_PreservesCurrentInboundForWarningExclusion()
+    {
+        var api = new SourceApiStub();
+        using var vm = new InboundSourcePickerViewModel(api, new RunnerStub(), new ReferenceDataCacheServiceStub());
+        var id = Guid.NewGuid();
+        await vm.InitializeAsync(new() { DocumentType = InboundDocumentTypeEnum.PurchaseReceipt, CurrentInboundDocumentId = id }, CancellationToken.None);
+        Assert.AreEqual(id, api.Requests.Single().CurrentInboundDocumentId);
+        await vm.PageChangeCommand.ExecuteAsync(2);
+        Assert.AreEqual(id, api.Requests.Last().CurrentInboundDocumentId);
+    }
+
     /// <summary>条件编辑不能锁住已有结果或让用户失去确认已有勾选的出口。</summary>
     [TestMethod]
     public void FilterChanges_PreserveSelectionAndConfirmation()

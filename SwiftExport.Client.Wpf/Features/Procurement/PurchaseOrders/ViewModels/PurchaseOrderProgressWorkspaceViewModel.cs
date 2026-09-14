@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.Procurement;
-using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Mvvm;
@@ -18,7 +18,7 @@ namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelBaseEx, IAsyncInitializable
 {
     public const string RouteKey = "procurement-purchase-order-progress";
-    private readonly IPurchaseOrderWorkspaceApi _api;
+    private readonly IPurchaseOrderProgressApi _api;
     private readonly IApiCallRunner _runner;
     private readonly IDialogService _dialogs;
     private readonly IMessageService _messages;
@@ -28,7 +28,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
     private bool _initialized;
 
     public PurchaseOrderProgressWorkspaceViewModel(
-        IPurchaseOrderWorkspaceApi api,
+        IPurchaseOrderProgressApi api,
         IApiCallRunner runner,
         IDialogService dialogs,
         IMessageService messages)
@@ -48,7 +48,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
         RegisterBusyAwareCommand(PageChangeCommand);
     }
 
-    public ObservableCollection<PurchaseOrderListItemDto> Orders { get; } = [];
+    public ObservableCollection<PurchaseOrderProgressListItemDto> Orders { get; } = [];
     public ObservableCollection<PurchaseOrderLineEditorModel> Lines { get; } = [];
 
     public IReadOnlyList<PurchaseOrderFilterOption<ConfirmationStatusEnum>> ConfirmationOptions { get; } =
@@ -117,7 +117,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
     [NotifyCanExecuteChangedFor(nameof(ReportProgressCommand))]
     [NotifyPropertyChangedFor(nameof(CanReportSelectedOrder))]
     [NotifyPropertyChangedFor(nameof(FollowUpPermissionText))]
-    public partial PurchaseOrderListItemDto? SelectedOrder { get; set; }
+    public partial PurchaseOrderProgressListItemDto? SelectedOrder { get; set; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenDrawerCommand))]
@@ -150,7 +150,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
         return LoadPageAsync();
     }
 
-    partial void OnSelectedOrderChanged(PurchaseOrderListItemDto? value)
+    partial void OnSelectedOrderChanged(PurchaseOrderProgressListItemDto? value)
     {
         IsDrawerOpen = false;
     }
@@ -173,7 +173,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
     }
 
     [RelayCommand(AllowConcurrentExecutions = true)]
-    private Task RefreshAsync() => LoadPageAsync(SelectedOrder?.Uid, SelectedLine?.Uid);
+    private Task RefreshAsync() => LoadPageAsync(SelectedOrder?.PurchaseOrderId, SelectedLine?.Uid);
 
     [RelayCommand]
     private async Task ResetFiltersAsync()
@@ -225,7 +225,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
 
         await RunWriteAsync(async () =>
         {
-            var result = await _runner.RunAsync(() => _api.ReportProgressAsync(order.Uid, new SupplierProgressReportCommand
+            var result = await _runner.RunAsync(() => _api.ReportAsync(order.PurchaseOrderId, new ReportPurchaseOrderProgressCommand
             {
                 CommandId = Guid.NewGuid(),
                 PurchaseOrderLineId = line.Uid,
@@ -244,7 +244,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
             }
 
             _messages.ShowSuccess("供应商反馈已登记", $"{line.Sku} 累计已备好 {ReportReadyQty:#,##0.####}");
-            await LoadPageAsync(order.Uid, line.Uid);
+            await LoadPageAsync(order.PurchaseOrderId, line.Uid);
         }, "正在登记供应商反馈...");
     }
 
@@ -263,10 +263,10 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
         _searchCancellation?.Cancel();
         var cts = new CancellationTokenSource();
         _searchCancellation = cts;
-        PurchaseOrderListItemDto? orderToLoad = null;
+        PurchaseOrderProgressListItemDto? orderToLoad = null;
         await RunBusyAsync(async () =>
         {
-            var selectedId = preferredOrderId ?? SelectedOrder?.Uid;
+            var selectedId = preferredOrderId ?? SelectedOrder?.PurchaseOrderId;
             var result = await _runner.RunAsync(() => _api.SearchAsync(CreateRequest(), cts.Token), cts.Token, "查询采购订单跟进失败");
             if (cts.IsCancellationRequested || !ReferenceEquals(_searchCancellation, cts)) return;
 
@@ -283,7 +283,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
             foreach (var item in result.Data.Items) Orders.Add(item);
             TotalCount = result.Data.TotalCount;
             PageIndex = result.Data.PageIndex;
-            orderToLoad = Orders.FirstOrDefault(x => x.Uid == selectedId) ?? Orders.FirstOrDefault();
+            orderToLoad = Orders.FirstOrDefault(x => x.PurchaseOrderId == selectedId) ?? Orders.FirstOrDefault();
             SetSelectedOrder(orderToLoad);
             ResultSummary = $"共 {TotalCount} 张采购单，本页 {Orders.Count} 张。";
         }, "正在加载采购订单跟进...", false);
@@ -294,12 +294,12 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
     }
 
     /// <summary>加载所选采购单行明细，并阻止慢旧请求覆盖用户最新选择。</summary>
-    private async Task LoadDetailAsync(PurchaseOrderListItemDto? order, Guid? preferredLineId = null)
+    private async Task LoadDetailAsync(PurchaseOrderProgressListItemDto? order, Guid? preferredLineId = null)
     {
         _detailCancellation?.Cancel();
         var cts = new CancellationTokenSource();
         _detailCancellation = cts;
-        var orderId = order?.Uid;
+        var orderId = order?.PurchaseOrderId;
         IsDrawerOpen = false;
         SelectedLine = null;
         Lines.Clear();
@@ -315,7 +315,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
         try
         {
             var result = await _runner.RunAsync(() => _api.GetDetailAsync(orderId.Value, cts.Token), cts.Token, "加载采购行跟进明细失败");
-            if (cts.IsCancellationRequested || !ReferenceEquals(_detailCancellation, cts) || SelectedOrder?.Uid != orderId.Value) return;
+            if (cts.IsCancellationRequested || !ReferenceEquals(_detailCancellation, cts) || SelectedOrder?.PurchaseOrderId != orderId.Value) return;
             if (!result.Success || result.Data is null)
             {
                 DetailStatusText = string.IsNullOrWhiteSpace(result.Message) ? "采购行跟进明细加载失败。" : result.Message;
@@ -333,7 +333,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
         }
     }
 
-    private void SetSelectedOrder(PurchaseOrderListItemDto? order)
+    private void SetSelectedOrder(PurchaseOrderProgressListItemDto? order)
     {
         _restoringSelection = true;
         try { SelectedOrder = order; }
@@ -348,7 +348,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
         SelectedLifecycleStatuses.Add(LifecycleOptions.Single(x => x.Value == PurchaseOrderLifecycleStatusEnum.Active));
     }
 
-    private PurchaseOrderSearchRequest CreateRequest() => new()
+    private PurchaseOrderProgressSearchRequest CreateRequest() => new()
     {
         OrderNo = OrderNo.Trim(),
         SupplierKeyword = SupplierKeyword.Trim(),

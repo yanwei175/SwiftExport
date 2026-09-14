@@ -12,6 +12,12 @@ namespace SwiftExportClient.Features.Inventory.Inbounds.Services;
 public sealed class InboundPersistenceService(IInboundManagerApi api, ILogger<InboundPersistenceService> logger) : IInboundPersistenceService
 {
     /// <inheritdoc/>
+    public Task<ServiceResult<InboundPostPreviewDto>> PreviewPostAsync(Guid uid, InboundPostPreviewRequest request, CancellationToken token)
+        => RunAsync(() => api.PreviewPostAsync(uid, request, token));
+    /// <inheritdoc/>
+    public Task<ServiceResult<InboundPostResult>> PostAsync(Guid uid, PostInboundCommand command, CancellationToken token)
+        => RunAsync(() => api.PostAsync(uid, command, token));
+    /// <inheritdoc/>
     public Task<ServiceResult<InboundDraftCommandResult>> CreateAsync(CreateInboundDraftCommand command, CancellationToken token)
         => RunAsync(() => api.CreateAsync(command, token));
     /// <inheritdoc/>

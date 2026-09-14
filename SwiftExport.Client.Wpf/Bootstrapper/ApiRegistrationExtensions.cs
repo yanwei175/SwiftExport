@@ -12,7 +12,6 @@ using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.Apis.MasterData;
-using SwiftExport.Contracts.Apis.Shipping;
 using SwiftExportClient.Services.Api;
 
 namespace SwiftExportClient.Bootstrapper;
@@ -89,15 +88,13 @@ public static class ApiRegistrationExtensions
     {
         services.AddControllerApi<ISalesOrderManagerApi>("sales-orders/manager");
         services.AddControllerApi<ISalesOrderDetailApi>("sales-orders/detail");
-        services.AddControllerApi<ISalesFulfillmentManagerApi>("sales-fulfillment/manager");
-        services.AddControllerApi<ISalesFulfillmentDetailApi>("sales-fulfillment/detail");
         services.AddControllerApi<IGrossDemandWorkspaceApi>("demand-planning/gross-demands");
         services.AddControllerApi<INetDemandWorkspaceApi>("demand-planning/net-demands");
         services.AddControllerApi<IMaterialDemandWorkspaceApi>("demand-planning/net-demands");
         services.AddControllerApi<IPurchaseDraftApi>("procurement/purchase-drafts");
-        services.AddControllerApi<IPurchaseOrderWorkspaceApi>("procurement/purchase-orders");
         services.AddControllerApi<IProcurementOrderApi>("procurement/orders");
         services.AddControllerApi<IPurchaseOrderManagerApi>("procurement/order-manager");
+        services.AddControllerApi<IPurchaseOrderProgressApi>("procurement/purchase-order-progress");
         services.AddControllerApi<IProcurementMasterDataQueryApi>("master-data/procurement-lookups");
     }
 
@@ -107,9 +104,8 @@ public static class ApiRegistrationExtensions
         services.AddControllerApi<IInventoryApi>("inventory");
         services.AddControllerApi<IInboundSourceApi>("inventory/inbound-sources");
         services.AddControllerApi<IInboundManagerApi>("inventory/inbounds");
+        services.AddControllerApi<IOutboundManagerApi>("inventory/outbounds");
         services.AddControllerApi<IWarehouseSiteApi>("inventory/warehouse-sites");
-        services.AddControllerApi<IOutboundWorkspaceApi>("inventory/outbounds");
-        services.AddControllerApi<IPackingListWorkspaceApi>("shipping/packing-lists");
     }
 
     /// <summary>注册品质管理 API；售后契约使用站点根路径上的绝对路由。</summary>

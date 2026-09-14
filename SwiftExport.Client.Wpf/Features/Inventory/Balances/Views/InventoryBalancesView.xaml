@@ -16,7 +16,7 @@
                        Appearance="Primary"/>
             <ui:Button Grid.Column="10" Content="加载 Trace" Command="{Binding LoadTraceCommand}" Appearance="Secondary"/>
         </Grid>
-        <DataGrid Grid.Row="4" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}" AutoGenerateColumns="False" IsReadOnly="True" Style="{StaticResource SwiftExportDataGrid}">
+        <DataGrid Grid.Row="4" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}" AutoGenerateColumns="False" IsReadOnly="True" >
             <DataGrid.Columns>
                 <DataGridTextColumn Header="虚拟仓" Binding="{Binding WarehouseName}" Width="150"/>
                 <DataGridTextColumn Header="供应商" Binding="{Binding SupplierName}" Width="150"/>
@@ -27,7 +27,8 @@
                 <DataGridTextColumn Header="可用数量" Binding="{Binding AvailableQty,StringFormat=N4}" Width="100"/>
             </DataGrid.Columns>
         </DataGrid>
-        <DataGrid Grid.Row="6" ItemsSource="{Binding TraceItems}" AutoGenerateColumns="False" IsReadOnly="True" Style="{StaticResource SwiftExportDataGrid}">
+        <DataGrid Grid.Row="6" ItemsSource="{Binding TraceItems}" AutoGenerateColumns="False" IsReadOnly="True" 
+                  >
             <DataGrid.Columns>
                 <DataGridTextColumn Header="时间" Binding="{Binding OccurredDate,StringFormat=yyyy-MM-dd HH:mm}" Width="150"/>
                 <DataGridTextColumn Header="类型" Binding="{Binding TransactionType}" Width="170"/>

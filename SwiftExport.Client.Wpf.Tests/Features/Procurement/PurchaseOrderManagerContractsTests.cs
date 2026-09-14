@@ -37,7 +37,8 @@ public sealed class PurchaseOrderManagerContractsTests
         StringAssert.Contains(source, "IPurchaseOrderManagerApi");
         StringAssert.Contains(source, "PurchaseOrderManagerSearchRequest");
         StringAssert.Contains(source, "GetConfirmationContextAsync(order.PurchaseOrderId)");
-        StringAssert.Contains(source, "CancelConfirmationAsync(order.PurchaseOrderId");
+        StringAssert.Contains(source, "取消采购确认暂未开放");
+        Assert.IsFalse(source.Contains("_orderApi.CancelConfirmationAsync", StringComparison.Ordinal));
         StringAssert.Contains(source, "HandleCommandFailureAsync");
         Assert.IsFalse(source.Contains("ProcurementOrderSearchRequest", StringComparison.Ordinal));
         Assert.AreEqual(2, view.Split("DisplayMemberPath=\"DisplayText\"", StringSplitOptions.None).Length - 1);
@@ -122,8 +123,9 @@ public sealed class PurchaseOrderManagerContractsTests
     {
         var source = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderDetailViewModel.cs");
         foreach (var token in new[] { "IProcurementOrderApi", "CreateIndependentPurchaseOrderCommand", "UpdatePurchaseOrderDraftCommand",
-                     "ConfirmProcurementOrderCommand", "CancelProcurementOrderConfirmationCommand", "PurchaseOrderLineListModel" })
+                     "ConfirmProcurementOrderCommand", "PurchaseOrderLineListModel", "取消采购确认暂未开放" })
             StringAssert.Contains(source, token);
+        Assert.IsFalse(source.Contains("_api.CancelConfirmationAsync", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("LoadLegacyAsync", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("IsLegacyMode", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("ConfirmPurchaseOrderCommand", StringComparison.Ordinal));

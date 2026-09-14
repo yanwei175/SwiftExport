@@ -3,7 +3,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Interfaces.Shipping;
 
-/// <summary>统一交付查询、额度复核与交付证据校验；来源需求仅提供要求和生命周期事实。</summary>
+/// <summary>交付查询与复核边界；当前交付事实未接入，查询返回不可用，额度与结案校验明确拒绝。</summary>
 public interface ISourceDeliveryService
 {
     /// <summary>查询认可来源的当前可交付要求。</summary>

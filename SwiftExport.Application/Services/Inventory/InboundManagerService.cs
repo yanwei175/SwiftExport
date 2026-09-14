@@ -24,11 +24,11 @@ using SwiftExport.Core.Interfaces.Inventory;
 
 namespace SwiftExport.Application.Services.Inventory;
 
-/// <summary>人工入库草稿编排；来源容量和采购版本由未来过账最终校验，本服务不触碰库存。</summary>
-public sealed class InboundManagerService(
+/// <summary>人工入库草稿与正向过账编排；草稿不预占容量，正式过账通过库存内核同事务提交。</summary>
+public sealed partial class InboundManagerService(
     ServiceBaseContext context, IInboundManagerRepository repository, IWarehouseSiteRepository warehouses,
     IBusinessOperationLogRepository logs, ICurrentUser user, IUserPermissionService permissions,
-    IDocumentNoService numbers) : IInboundManagerService
+    IDocumentNoService numbers, IInventoryPostingService inventoryPosting) : IInboundManagerService
 {
     private const string Module = "InboundManager";
     private readonly ILogger<InboundManagerService> _logger = context.LoggerFactory.CreateLogger<InboundManagerService>();

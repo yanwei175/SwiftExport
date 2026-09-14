@@ -24,5 +24,9 @@ namespace SwiftExport.Contracts.DTOs.Inventory.Inbounds
         public string ImagePath { get; set; } = string.Empty;
         public decimal OriginalQty { get; set; }
         public decimal RemainingReceivableQty { get; set; }
+        /// <summary>同来源其他活动草稿数，仅提示，不预占。</summary>
+        public int OtherDraftCount { get; set; }
+        /// <summary>其他活动草稿录入量合计，不扣减剩余可收量。</summary>
+        public decimal OtherDraftQuantity { get; set; }
     }
 }

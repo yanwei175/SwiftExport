@@ -14,7 +14,7 @@ using SwiftExportClient.Services.Api;
 
 namespace SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 
-/// <summary>入库管理查询及草稿持久化会话；不执行库存过账。</summary>
+/// <summary>入库管理查询、草稿持久化与当前单正向过账会话；不直接操作库存。</summary>
 public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocumentTabViewModel, IDisposable
 {
     /// <summary>单实例管理页路由。</summary>
@@ -25,14 +25,17 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     private readonly CancellationTokenSource _lifetime = new();
     private bool _disposed;
 
-    /// <summary>注入选择器与非过账查询契约；可选 API 仅供现有本地模型测试使用。</summary>
+    /// <summary>注入选择器、查询和持久化服务；可选依赖支持设计时及本地模型测试。</summary>
     public InboundManagerViewModel(IWarehousePickerService warehouses, IInboundSourceDialogService sources, IDialogService dialogs,
         IInboundManagerApi? api = null, IApiCallRunner? runner = null,
-        IInboundPersistenceService? persistence = null, IInboundDeleteDialogService? deleteDialogs = null)
+        IInboundPersistenceService? persistence = null, IInboundDeleteDialogService? deleteDialogs = null,
+        IInboundPostDialogService? postDialogs = null, SwiftExportClient.Authentication.ICurrentUserService? postingUser = null)
     {
         _warehouses = warehouses; _sources = sources; _dialogs = dialogs;
         _api = api; _runner = runner;
         _persistence = persistence; _deleteDialogs = deleteDialogs;
+        _postDialogs = postDialogs; _postingUser = postingUser;
+        if (_postingUser is not null) _postingUser.CurrentUserChanged += OnPostingUserChanged;
         Title = "入库单管理";
         Headers.ListStateChanged += OnHeadersChanged;
         PropertyChanged += OnManagerPropertyChanged;
@@ -45,6 +48,7 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
         RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
         RegisterBusyAwareCommand(SaveCommand);
+        RegisterBusyAwareCommand(PostCommand);
     }
 
     /// <summary>头行编辑集合，每个头保留自己的明细。</summary>
@@ -59,8 +63,9 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     [NotifyPropertyChangedFor(nameof(HeaderReadOnly))]
     [NotifyCanExecuteChangedFor(nameof(OpenInboundSourceDialogCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedLineCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PostCommand))]
     public partial InboundHeaderModel? SelectedItem { get; set; }
-    [ObservableProperty] public partial string ResultSummary { get; set; } = "保存仅持久化草稿，不增加库存。过账尚未开放。";
+    [ObservableProperty] public partial string ResultSummary { get; set; } = "保存仅持久化草稿；正向过账后增加库存，暂不支持修改或撤销。";
 
     /// <summary>当前单明细集合；切换不丢弃其他单据的本地修改。</summary>
     public BaseListModel<InboundLineModel, InboundLineDetailDto>? Lines => SelectedItem?.Lines;
@@ -122,7 +127,7 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
         var type = header.DocumentType;
         await RunBusyAsync(async () =>
         {
-            var rows = await _sources.PickAsync(new InboundSourcePickerRequest { DocumentType = type }, _lifetime.Token);
+            var rows = await _sources.PickAsync(new InboundSourcePickerRequest { DocumentType = type, CurrentInboundDocumentId = header.IsNew ? null : header.Uid }, _lifetime.Token);
             if (_disposed || rows is null || !Headers.Items.Contains(header) || !header.CanEdit || header.DocumentType != type) return;
             if (rows.Any(x => x.DocumentType != type || x.SourceLineId == Guid.Empty || x.ProductId == Guid.Empty || string.IsNullOrWhiteSpace(x.Unit) || x.RemainingReceivableQty <= 0))
             { ResultSummary = "所选来源类型或标识不匹配，未加入明细。"; return; }
@@ -142,7 +147,6 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
         }, "选择入库来源");
     }
 
-    [RelayCommand(CanExecute = nameof(BackendUnavailable))] private void Post() { }
     [RelayCommand(CanExecute = nameof(BackendUnavailable))] private void Reverse() { }
     [RelayCommand(CanExecute = nameof(BackendUnavailable))] private void AddNewLineRow() { }
 
@@ -162,6 +166,7 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
         OnPropertyChanged(nameof(LinesReadOnly));
         OnPropertyChanged(nameof(HeaderReadOnly));
         OpenWarehousePickerCommand.NotifyCanExecuteChanged();
+        PostCommand.NotifyCanExecuteChanged();
         OpenInboundSourceDialogCommand.NotifyCanExecuteChanged();
         DeleteSelectedLineCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();
@@ -195,6 +200,7 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     /// <summary>关闭时解除事件并取消未完成的选择操作，禁止晚到结果回填。</summary>
     public void Dispose()
     {
+        if (_postingUser is not null) _postingUser.CurrentUserChanged -= OnPostingUserChanged;
         if (_disposed) return;
         _disposed = true;
         Headers.ListStateChanged -= OnHeadersChanged;

@@ -1,5 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
 using NewPurchaseOrderLineDto = SwiftExport.Contracts.DTOs.Procurement.OrderManagement.ProcurementOrderLineDto;
 using NewProgressSummaryDto = SwiftExport.Contracts.DTOs.Procurement.OrderManagement.ProcurementOrderProgressSummaryDto;
 
@@ -35,7 +35,6 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
     public string UnreceivedQtyText => $"{Math.Max(Quantity - RecQty, 0m):#,##0.####} / {Quantity:#,##0.####}";
     public decimal LinkedQty { get; init; }
     public string DeliverySupplierName { get; init; } = string.Empty;
-    public IReadOnlyList<PurchaseOrderSourceContributionDto> Contributions { get; init; } = [];
     public IReadOnlyList<SupplierProgressReportDto> ProgressHistory { get; init; } = [];
 
     /// <summary>按最高 Sequence 选择最新报告；即使调用方顺序异常也不以集合首项冒充最新反馈。</summary>
@@ -83,10 +82,6 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
         : LatestProgress is null
         ? "尚未跟进"
         : string.IsNullOrWhiteSpace(LatestProgress.CreatedBy) ? "未知" : LatestProgress.CreatedBy;
-    public string SourceSummary => Contributions.Count == 0
-        ? string.IsNullOrWhiteSpace(SourceNo) ? string.Empty : $"{SourceNo}/{SourceLineNumber}"
-        : string.Join("、", Contributions.Select(x => $"{x.SourceNo}/{x.SourceLineNumber}"));
-
     [ObservableProperty] public partial DateTime? PlannedDeliveryDate { get; set; }
     [ObservableProperty] public partial string SupplierSku { get; set; } = string.Empty;
     [ObservableProperty] public partial string DescriptionZh { get; set; } = string.Empty;
@@ -94,33 +89,19 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
     [ObservableProperty] public partial decimal? TaxPrice { get; set; }
     [ObservableProperty] public partial string SubNote { get; set; } = string.Empty;
 
-    /// <summary>从采购详情契约建立前端行模型，保留后台返回的 Sequence 降序反馈历史。</summary>
-    public static PurchaseOrderLineEditorModel FromDto(PurchaseOrderLineDetailDto dto) => new()
+    /// <summary>从跟进详情契约建立前端行模型，保留后台返回的 Sequence 降序反馈历史。</summary>
+    public static PurchaseOrderLineEditorModel FromDto(PurchaseOrderProgressLineDto dto) => new()
     {
-        Uid = dto.Uid,
+        Uid = dto.PurchaseOrderLineId,
         Version = dto.Version,
         LineNumber = dto.LineNumber,
         Sku = dto.Sku ?? string.Empty,
-        CustomerSku = dto.CustomerSku ?? string.Empty,
-        LinkSku = dto.LinkSku ?? string.Empty,
-        FinishZh = dto.FinishZh ?? string.Empty,
-        FeaturesZh = dto.FeaturesZh ?? string.Empty,
-        MaterialType = dto.MaterialType ?? string.Empty,
-        SupplyType = dto.SupplyType ?? string.Empty,
         MainImage = dto.MainImage ?? string.Empty,
         Quantity = dto.Quantity,
-        RecQty = dto.RecQty,
-        UnitAmount = dto.UnitAmount,
-        TaxAmount = dto.TaxAmount,
-        LinkedQty = dto.LinkedQty,
-        DeliverySupplierName = dto.DeliverySupplierName ?? string.Empty,
+        RecQty = dto.ReceivedQty,
         PlannedDeliveryDate = dto.PlannedDeliveryDate,
         SupplierSku = dto.SupplierSku ?? string.Empty,
         DescriptionZh = dto.DescriptionZh ?? string.Empty,
-        UnitPrice = dto.UnitPrice,
-        TaxPrice = dto.TaxPrice,
-        SubNote = dto.SubNote ?? string.Empty,
-        Contributions = dto.Contributions,
         ProgressHistory = dto.ProgressHistory,
     };
 
@@ -137,6 +118,6 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
         DeliverySupplierName = dto.DeliverySupplierName ?? string.Empty, PlannedDeliveryDate = dto.PlannedDeliveryDate,
         SupplierSku = dto.SupplierSku ?? string.Empty, DescriptionZh = dto.DescriptionZh ?? string.Empty,
         UnitPrice = dto.UnitPrice, TaxPrice = dto.TaxPrice, SubNote = dto.SubNote ?? string.Empty,
-        NewProgressSummary = dto.LatestProgress, Contributions = [], ProgressHistory = []
+        NewProgressSummary = dto.LatestProgress, ProgressHistory = []
     };
 }

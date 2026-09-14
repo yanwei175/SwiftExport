@@ -94,20 +94,6 @@ public sealed class NetDemandWorkspaceController(INetDemandServices service, INe
         CancellationToken cancellationToken)
         => service.GetDetailAsync(uid, cancellationToken);
 
-    /// <summary>读取物料历史与执行关联，保持原追溯查询语义。</summary>
-    [HttpGet("{uid:guid}/trace")]
-    public Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(
-        Guid uid,
-        CancellationToken cancellationToken)
-        => service.GetTraceAsync(uid, cancellationToken);
-
-    /// <summary>查询来源需求对应的物料及执行追溯。</summary>
-    [HttpGet("source-demands/{grossDemandId:guid}/trace")]
-    public Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(
-        Guid grossDemandId,
-        CancellationToken cancellationToken)
-        => service.GetSourceDemandTraceAsync(grossDemandId, cancellationToken);
-
     /// <summary>待废弃：旧 Allocation 替代命令，独立计划退出后移除。</summary>
     [HttpPost("plans/replace")]
     [PreventDuplicateRequest(WindowSeconds = 5)]

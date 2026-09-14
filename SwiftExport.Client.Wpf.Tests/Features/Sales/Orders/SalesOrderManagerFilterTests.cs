@@ -49,7 +49,7 @@ public sealed class SalesOrderManagerFilterTests
     }
 
     [TestMethod]
-    public async Task InitializeAndSearch_ShouldLoadCustomerCodesAndSendMultiStatusFilters()
+    public async Task InitializeAndSearch_ShouldLoadCustomerCodesAndSendAvailableStatusFilters()
     {
         var api = new RecordingManagerApi();
         var viewModel = new SalesOrderManagerViewModel(
@@ -68,9 +68,6 @@ public sealed class SalesOrderManagerFilterTests
         viewModel.SelectedConfirmationStatuses.Add(viewModel.ConfirmationStatusOptions[0]);
         viewModel.SelectedConfirmationStatuses.Add(viewModel.ConfirmationStatusOptions[1]);
         viewModel.SelectedDocumentStatuses.Add(viewModel.DocumentStatusOptions[1]);
-        viewModel.SelectedFulfillmentStatuses.Add(viewModel.FulfillmentStatusOptions[1]);
-        viewModel.SelectedFulfillmentStatuses.Add(viewModel.FulfillmentStatusOptions[2]);
-
         await viewModel.SearchCommand.ExecuteAsync(null);
 
         Assert.IsNotNull(api.LastSearchRequest);
@@ -81,9 +78,6 @@ public sealed class SalesOrderManagerFilterTests
         CollectionAssert.AreEqual(
             new[] { SalesOrderDocumentStatusEnum.Closed },
             api.LastSearchRequest.DocumentStatuses);
-        CollectionAssert.AreEquivalent(
-            new[] { SalesOrderFulfillmentStatusEnum.PartiallyShipped, SalesOrderFulfillmentStatusEnum.FullyShipped },
-            api.LastSearchRequest.FulfillmentStatuses);
     }
 
     [TestMethod]
@@ -101,16 +95,50 @@ public sealed class SalesOrderManagerFilterTests
         viewModel.CustomerCode = "MANUAL";
         viewModel.SelectedConfirmationStatuses.Add(viewModel.ConfirmationStatusOptions[0]);
         viewModel.SelectedDocumentStatuses.Add(viewModel.DocumentStatusOptions[0]);
-        viewModel.SelectedFulfillmentStatuses.Add(viewModel.FulfillmentStatusOptions[0]);
-
         await viewModel.ClearFiltersCommand.ExecuteAsync(null);
 
         Assert.AreEqual(string.Empty, viewModel.CustomerCode);
         Assert.IsEmpty(viewModel.SelectedConfirmationStatuses);
         Assert.IsEmpty(viewModel.SelectedDocumentStatuses);
-        Assert.IsEmpty(viewModel.SelectedFulfillmentStatuses);
         Assert.IsNotNull(api.LastSearchRequest);
         Assert.IsEmpty(api.LastSearchRequest.CustomerCodes);
+    }
+
+    /// <summary>
+    /// 验证 PackingList 交付净额接入前，契约使用空值且页面明确显示待接入和未知。
+    /// </summary>
+    [TestMethod]
+    public void DeliveryStatistics_ShouldRemainNullableAndDisplayUnknown()
+    {
+        Assert.AreEqual(
+            typeof(decimal?),
+            typeof(SalesOrderManagerListItemDto).GetProperty(nameof(SalesOrderManagerListItemDto.TotalShippedQty))!.PropertyType);
+        Assert.AreEqual(
+            typeof(decimal?),
+            typeof(SalesOrderManagerListItemDto).GetProperty(nameof(SalesOrderManagerListItemDto.TotalUnshippedQty))!.PropertyType);
+        Assert.AreEqual(
+            typeof(SalesOrderFulfillmentStatusEnum?),
+            typeof(SalesOrderManagerListItemDto).GetProperty(nameof(SalesOrderManagerListItemDto.FulfillmentStatus))!.PropertyType);
+        Assert.AreEqual(
+            typeof(decimal?),
+            typeof(SalesOrderDetailLineDto).GetProperty(nameof(SalesOrderDetailLineDto.ShippedQty))!.PropertyType);
+        Assert.AreEqual(
+            typeof(decimal?),
+            typeof(SalesOrderDetailLineDto).GetProperty(nameof(SalesOrderDetailLineDto.UnshippedQty))!.PropertyType);
+        Assert.IsNull(typeof(SalesOrderManagerSearchRequest).GetProperty("FulfillmentStatuses"));
+
+        var viewPath = Path.Combine(
+            FindRepositoryRoot(),
+            "SwiftExport.Client.Wpf",
+            "Features",
+            "Sales",
+            "Orders",
+            "Views",
+            "SalesOrderManagerView.xaml");
+        var viewSource = File.ReadAllText(viewPath);
+        StringAssert.Contains(viewSource, "交付统计待接入");
+        Assert.AreEqual(4, CountOccurrences(viewSource, "TargetNullValue=未知"));
+        Assert.IsFalse(viewSource.Contains("Placeholder=\"执行状态\"", StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -173,6 +201,20 @@ public sealed class SalesOrderManagerFilterTests
 
         Assert.Fail("无法定位 SwiftExport 仓库根目录。");
         return string.Empty;
+    }
+
+    /// <summary>统计页面源码中稳定标记的出现次数。</summary>
+    private static int CountOccurrences(string source, string marker)
+    {
+        var count = 0;
+        var offset = 0;
+        while ((offset = source.IndexOf(marker, offset, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            offset += marker.Length;
+        }
+
+        return count;
     }
 
     private static SalesOrderManagerListItemDto ConfirmedOrder() =>

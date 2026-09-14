@@ -570,10 +570,6 @@ public sealed class GrossDemandWorkspaceViewModelTests
     {
         public PagedResponseBase<GrossDemandListItemDto> SearchResponse { get; set; } = CreatePage();
         public List<GrossDemandSourceGroupDto> SourceGroupResponse { get; set; } = [];
-        public GrossDemandTraceDto TraceResponse { get; set; } = new()
-        {
-            GrossDemand = new GrossDemandDetailDto()
-        };
         public GrossDemandSearchRequest? LastSearchRequest { get; private set; }
         public GrossDemandSourceGroupSearchRequest? LastSourceGroupRequest { get; private set; }
         public int SearchCallCount { get; private set; }
@@ -597,11 +593,6 @@ public sealed class GrossDemandWorkspaceViewModelTests
         }
 
         public Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<GrossDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default)
-        {
-            TraceCallCount++;
-            return Task.FromResult(ServiceResult<GrossDemandTraceDto>.Ok(TraceResponse));
-        }
         public Task<ServiceResult<GrossDemandDetailDto>> CreateManualAsync(CreateManualGrossDemandRequest request) => throw new NotSupportedException();
         public Task<ServiceResult<GrossDemandDetailDto>> UpdateManualAsync(Guid uid, UpdateManualGrossDemandRequest request) => throw new NotSupportedException();
         public Task<ServiceResult<GrossDemandDetailDto>> CloseManualAsync(Guid uid, CloseGrossDemandCommand command) => throw new NotSupportedException();

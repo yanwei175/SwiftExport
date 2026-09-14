@@ -27,7 +27,7 @@ namespace SwiftExport.Application.Tests.Inventory;
 
 /// <summary>不连接数据库，验证入库草稿服务的事务、身份、状态和幂等编排。</summary>
 [TestClass]
-public sealed class InboundManagerServiceTests
+public sealed partial class InboundManagerServiceTests
 {
     /// <summary>入库单号按收货月份生成，而不是按保存当天；取号失败不得写入草稿。</summary>
     [TestMethod]
@@ -229,10 +229,10 @@ public sealed class InboundManagerServiceTests
     }
 
     /// <summary>构造仅包含本用例调用面的替身，意外调用立即使测试失败。</summary>
-    private sealed class Fixture
+    private sealed partial class Fixture
     {
         public readonly Guid WarehouseId = Guid.NewGuid();
-        public readonly Guid SourceId = Guid.NewGuid();
+        public Guid SourceId = Guid.NewGuid();
         private readonly Guid _userId = Guid.NewGuid();
         private readonly Dictionary<Guid, BusinessOperationLog> _logs = [];
         public readonly ConnectionStub Connection = new();
@@ -265,7 +265,7 @@ public sealed class InboundManagerServiceTests
                     "DeleteAsync" => DeleteHeader(),
                     "SearchSourcesAsync" => Search(),
                     "SearchAsync" => SearchManager((InboundManagerSearchRequest)args[0]!),
-                    _ => throw new NotSupportedException(method)
+                    _ => PostingRepository(method, args)
                 }),
                 Proxy<IWarehouseSiteRepository>((method, _) => method == "GetForUpdateAsync"
                     ? Task.FromResult<WarehouseSite?>(new WarehouseSite { Uid = WarehouseId, Code = "W", Name = "参考仓", IsActive = true }) : throw new NotSupportedException(method)),
@@ -276,7 +276,7 @@ public sealed class InboundManagerServiceTests
                     _ => throw new NotSupportedException(method)
                 }),
                 Proxy<ICurrentUser>((method, _) => method switch { "get_IsAuthenticated" => true, "get_UserId" => _userId, "get_UserName" => "测试", _ => throw new NotSupportedException(method) }),
-                Proxy<IUserPermissionService>((method, _) => method == "HasPermissionAsync" ? Task.FromResult(Allowed) : throw new NotSupportedException(method)),
+                Proxy<IUserPermissionService>((method, args) => method == "HasPermissionAsync" ? Task.FromResult(Allowed && ((string)args[1]! != SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundPost || AllowPost)) : throw new NotSupportedException(method)),
                 new DocumentNoService(Proxy<IDocumentSequenceRepository>((method, args) =>
                 {
                     if (method != "GetNextAsync") throw new NotSupportedException(method);
@@ -284,7 +284,8 @@ public sealed class InboundManagerServiceTests
                     if (FailNumber) throw new InvalidOperationException("模拟取号失败");
                     NumberCalls++;
                     return Task.FromResult(new DocumentSequence { DocType = (string)args[0]!, YearMonth = (string)args[1]!, CurrentNo = NumberCalls });
-                })));
+                })), Proxy<SwiftExport.Application.Interfaces.Inventory.IInventoryPostingService>((method, args) =>
+                    method == "PostAsync" ? PostInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryPostingItem>)args[1]!) : throw new NotSupportedException(method)));
         }
 
         public CreateInboundDraftCommand Create() => new() { CommandId = Guid.NewGuid(), Draft = new() { DocumentType = InboundDocumentTypeEnum.PurchaseReceipt, WarehouseSiteId = WarehouseId, ReceiptDate = DateTime.Today, Lines = [new() { SourceLineId = SourceId, Quantity = 10 }] } };
@@ -335,6 +336,7 @@ public sealed class InboundManagerServiceTests
     private sealed class ConnectionStub : IDbConnection
     {
         public int Commits, Rollbacks;
+        public Action<bool>? Finished;
         [AllowNull] public string ConnectionString { get; set; } = "";
         public int ConnectionTimeout => 0;
         public string Database => "test";
@@ -350,8 +352,8 @@ public sealed class InboundManagerServiceTests
         {
             public IDbConnection Connection => connection;
             public IsolationLevel IsolationLevel => IsolationLevel.ReadCommitted;
-            public void Commit() => connection.Commits++;
-            public void Rollback() => connection.Rollbacks++;
+            public void Commit() { connection.Commits++; connection.Finished?.Invoke(true); }
+            public void Rollback() { connection.Rollbacks++; connection.Finished?.Invoke(false); }
             public void Dispose() { }
         }
     }

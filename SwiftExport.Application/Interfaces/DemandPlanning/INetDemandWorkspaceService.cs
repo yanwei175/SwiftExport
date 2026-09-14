@@ -29,10 +29,6 @@ public interface INetDemandWorkspaceService
         CancellationToken cancellationToken = default);
     /// <summary>兼容入口，已迁移至 INetDemandServices.GetDetailAsync；新调用方使用新接口。</summary>
     Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default);
-    /// <summary>兼容入口，已迁移至 INetDemandServices.GetTraceAsync；新调用方使用新接口。</summary>
-    Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default);
-    /// <summary>兼容入口，已迁移至 INetDemandServices.GetSourceDemandTraceAsync；新调用方使用新接口。</summary>
-    Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(Guid grossDemandId, CancellationToken cancellationToken = default);
     /// <summary>待废弃：旧 Allocation 替代命令，独立计划退出后移除。</summary>
     Task<ServiceResult<NetDemandPlanCommandResult>> ReplacePlanAsync(ReplaceNetDemandPlanCommand command);
     /// <summary>待废弃：旧计划应用默认供应商，实际供应商选择归采购。</summary>

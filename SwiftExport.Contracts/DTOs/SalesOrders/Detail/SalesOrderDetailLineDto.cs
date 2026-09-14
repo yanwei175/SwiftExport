@@ -28,8 +28,11 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Detail
         public DateTime? ExpectedDeliveryDate { get; set; }
         public string SubNote { get; set; }
         public string MainImage { get; set; }
-        public decimal ShippedQty { get; set; }
-        public decimal UnshippedQty { get; set; }
+        /// <summary>PackingList 有效交付净额接入后的行级已发数量；当前为空表示未知。</summary>
+        public decimal? ShippedQty { get; set; }
+
+        /// <summary>PackingList 有效交付净额接入后的行级未发数量；当前为空表示未知。</summary>
+        public decimal? UnshippedQty { get; set; }
         public decimal? CnyAmount { get; set; }
         public decimal? UsdAmount { get; set; }
     }

@@ -149,6 +149,10 @@ public sealed class InboundManagerQueryTests
     /// <summary>可控查询服务；所有写入口抛错，确保本批查询不会误调用保存或删除。</summary>
     private sealed class ApiStub : IInboundManagerApi
     {
+        /// <inheritdoc/>
+        public Task<ServiceResult<InboundPostPreviewDto>> PreviewPostAsync(Guid uid, InboundPostPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        /// <inheritdoc/>
+        public Task<ServiceResult<InboundPostResult>> PostAsync(Guid uid, PostInboundCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         private readonly Guid[] _ids = [Guid.NewGuid(), Guid.NewGuid()];
         public bool FailSearch { get; set; }
         public bool FailDetail { get; set; }

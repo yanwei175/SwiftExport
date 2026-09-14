@@ -84,50 +84,6 @@ public sealed class IndependentProcurementSqlTests
         StringAssert.Contains(blocked.Message, "无法定位采购行");
     }
 
-    /// <summary>将新单 Uid 交给全部旧采购读写入口，必须因所有权被拒绝且不产生旧日志或报告。</summary>
-    [TestMethod]
-    public async Task LegacyWorkspaceCannotReadOrMutateIndependentOrder()
-    {
-        var created = await Db.CreateAsync();
-        Assert.IsTrue(created.Success, created.Message);
-        var uid = created.Data.PurchaseOrderId;
-        var lineId = created.Data.Lines.Single().PurchaseOrderLineId;
-        await Db.InScopeAsync(async provider =>
-        {
-            var old = provider.GetRequiredService<IPurchaseOrderWorkspaceService>();
-            var search = await old.SearchAsync(new SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders.PurchaseOrderSearchRequest());
-            Assert.IsTrue(search.Success, search.Message);
-            Assert.AreEqual(0, search.Data.TotalCount);
-            var detail = await old.GetDetailAsync(uid);
-            Assert.IsFalse(detail.Success);
-            StringAssert.Contains(detail.Message, "旧采购执行链");
-            var trace = await old.GetTraceAsync(uid);
-            Assert.IsFalse(trace.Success);
-            StringAssert.Contains(trace.Message, "旧采购执行链");
-            var progress = await old.GetProgressAsync(uid);
-            Assert.IsFalse(progress.Success);
-            StringAssert.Contains(progress.Message, "旧采购执行链");
-            var writes = new[]
-            {
-                await old.UpdateDraftAsync(uid, new() { CommandId=Guid.NewGuid(),ExpectedVersion=1,
-                    Lines=[new() {PurchaseOrderLineId=lineId,ExpectedVersion=1,TaxPrice=3m}] }),
-                await old.ConfirmAsync(uid, new() {CommandId=Guid.NewGuid(),ExpectedVersion=1}),
-                await old.CancelConfirmationAsync(uid, new() {CommandId=Guid.NewGuid(),ExpectedVersion=1,Reason="跨链测试"}),
-                await old.ReportProgressAsync(uid, new() {CommandId=Guid.NewGuid(),ExpectedPurchaseOrderVersion=1,
-                    PurchaseOrderLineId=lineId,ExpectedLineVersion=1,ReadyQty=1})
-            };
-            foreach (var result in writes)
-            {
-                Assert.IsFalse(result.Success);
-                StringAssert.Contains(result.Message, "采购单不存在");
-            }
-            return true;
-        });
-        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT Version FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid }));
-        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.SupplierProgressReport"));
-        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.BusinessOperationLog WHERE Module=N'Procurement'"));
-    }
-
     private IndependentProcurementSqlFixture? fixture;
     private IndependentProcurementSqlFixture Db => fixture!;
 

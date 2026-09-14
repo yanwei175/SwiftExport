@@ -1,0 +1,43 @@
+<UserControl x:Class="SwiftExportClient.Features.Inventory.Inbounds.Views.InboundPostPreviewView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="clr-namespace:SwiftExportClient.Features.Inventory.Inbounds.ViewModels"
+    mc:Ignorable="d" d:DataContext="{d:DesignInstance Type=vm:InboundPostPreviewViewModel}">
+    <StackPanel Margin="4">
+        <TextBlock Text="{Binding Preview.DocumentNo}" FontSize="18" FontWeight="SemiBold"/>
+        <TextBlock Text="{Binding Preview.WarehouseName, StringFormat=目标仓库：{0}}" Margin="0,8"/>
+        <TextBlock Text="过账后暂不支持修改或撤销。预览不预占数量，正式提交时会再次校验。" TextWrapping="Wrap" Margin="0,0,0,12"/>
+        <DataGrid ItemsSource="{Binding Preview.Lines}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" MaxHeight="260">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="行" Binding="{Binding LineNumber}"/>
+                <DataGridTextColumn Header="来源单号" Binding="{Binding SourceNo}"/>
+                <DataGridTextColumn Header="产品" Binding="{Binding Sku}" Width="*"/>
+                <DataGridTextColumn Header="单位" Binding="{Binding Unit}"/>
+                <DataGridTextColumn Header="采购数量" Binding="{Binding OriginalQty, StringFormat=0.####}"/>
+                <DataGridTextColumn Header="正式净额" Binding="{Binding PostedNetQty, StringFormat=0.####}"/>
+                <DataGridTextColumn Header="可收" Binding="{Binding RemainingQty, StringFormat=0.####}"/>
+                <DataGridTextColumn Header="本次" Binding="{Binding Quantity, StringFormat=0.####}"/>
+                <DataGridTextColumn Header="其他草稿数" Binding="{Binding OtherDraftCount}"/>
+                <DataGridTextColumn Header="其他草稿量" Binding="{Binding OtherDraftQuantity, StringFormat=0.####}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <TextBlock Text="其他草稿仅提醒重复录入，不占用可收额度。" Margin="0,4,0,8"/>
+        <DataGrid ItemsSource="{Binding Preview.StockImpacts}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" MaxHeight="150">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="产品" Binding="{Binding Sku}" Width="*"/>
+                <DataGridTextColumn Header="当前库存" Binding="{Binding CurrentQuantity, StringFormat=0.####}"/>
+                <DataGridTextColumn Header="增加" Binding="{Binding QuantityDelta, StringFormat=0.####}"/>
+                <DataGridTextColumn Header="预计库存" Binding="{Binding ExpectedQuantity, StringFormat=0.####}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <ScrollViewer MaxHeight="140" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+            <ItemsControl ItemsSource="{Binding Preview.Blockers}">
+                <ItemsControl.ItemTemplate><DataTemplate>
+                    <TextBlock Text="{Binding Message}" Foreground="{DynamicResource SwiftExportBrush.ErrorText}" TextWrapping="Wrap" Margin="0,2"/>
+                </DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </StackPanel>
+</UserControl>

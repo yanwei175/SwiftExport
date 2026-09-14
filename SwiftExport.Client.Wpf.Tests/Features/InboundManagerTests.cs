@@ -14,6 +14,20 @@ namespace SwiftExport.Client.Wpf.Tests.Features;
 [TestClass]
 public sealed class InboundManagerTests
 {
+    /// <summary>重复草稿信息仅用于提示，更新查询快照不能把已有行标记为修改。</summary>
+    [TestMethod]
+    public void DraftWarning_DoesNotReserveOrDirtyRow()
+    {
+        var row = new InboundLineModel();
+        row.Load(new InboundLineDetailDto { Quantity = 10, RemainingReceivableQty = 1,
+            ProductId = Guid.NewGuid(), SourceLineId = Guid.NewGuid(), UnitSnapshot = "PCS" });
+        Assert.AreEqual(string.Empty, row.OtherDraftWarning);
+        row.OtherDraftCount = 2; row.OtherDraftQuantity = 30;
+        StringAssert.Contains(row.OtherDraftWarning, "2 张");
+        Assert.IsFalse(row.IsDirty);
+        Assert.IsNull(row.ValidateRow());
+    }
+
     /// <summary>空数量可进入编辑模型并显示软错误，修正后清除；非法文本仍是原生转换错误。</summary>
     [TestMethod]
     public void QuantityBinding_AllowsEmptyAndReportsSoftValidation()

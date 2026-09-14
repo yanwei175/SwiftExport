@@ -6,4 +6,6 @@ namespace SwiftExportClient.Features.Inventory.Inbounds.Models;
 public sealed class InboundSourcePickerRequest
 {
     public InboundDocumentTypeEnum DocumentType { get; init; }
+    /// <summary>仅用于提示排除当前已保存草稿。</summary>
+    public Guid? CurrentInboundDocumentId { get; init; }
 }

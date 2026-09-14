@@ -7,6 +7,18 @@ namespace SwiftExport.Core.Interfaces.Inventory;
 /// <summary>入库管理及来源查询持久化边界；不提供余额或流水写入。</summary>
 public interface IInboundManagerRepository
 {
+    /// <summary>读取采购来源过账校验投影及正式净额；不要求需求关联。</summary>
+    Task<IReadOnlyList<InboundPurchasePostingSourceDto>> ReadPostingSourcesAsync(IReadOnlyList<Guid> ids, CancellationToken token);
+    /// <summary>按稳定顺序先锁采购头再锁采购行，必须在入库头锁之前调用。</summary>
+    Task LockPurchaseSourcesAsync(IReadOnlyList<Guid> ids, CancellationToken token);
+    /// <summary>检查无法证明来源的正式历史，不能当作零收货。</summary>
+    Task<bool> HasUnprovenReceiptAsync(CancellationToken token);
+    /// <summary>只读取得同仓产品余额，不预占。</summary>
+    Task<decimal> ReadBalanceAsync(Guid warehouseId, Guid productId, CancellationToken token);
+    /// <summary>只读校验仓库有效并返回当前名称；无效返回空。</summary>
+    Task<string?> ReadActiveWarehouseNameAsync(Guid warehouseId, CancellationToken token);
+    /// <summary>版本保护下更新正向过账状态，不修改原数量。</summary>
+    Task MarkPostedAsync(InboundDocument header, CancellationToken token);
     /// <summary>分页查询单据摘要。</summary>
     Task<PagedResponseBase<InboundManagerListItemDto>> SearchAsync(InboundManagerSearchRequest request, CancellationToken token);
     /// <summary>读取完整单据；不存在返回空。</summary>

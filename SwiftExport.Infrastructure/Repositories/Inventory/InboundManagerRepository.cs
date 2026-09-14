@@ -11,7 +11,7 @@ using SwiftExport.Infrastructure.Contexts;
 namespace SwiftExport.Infrastructure.Repositories.Inventory;
 
 /// <summary>新入库管理持久化；只写单据，不调用或更新库存余额与流水。</summary>
-public sealed class InboundManagerRepository(RepositoryBaseContext context) : IInboundManagerRepository
+public sealed partial class InboundManagerRepository(RepositoryBaseContext context) : IInboundManagerRepository
 {
     private CommandDefinition Command(string sql, object? args, CancellationToken token) =>
         new(sql, args, context.Session.Transaction, cancellationToken: token);
@@ -51,7 +51,7 @@ public sealed class InboundManagerRepository(RepositoryBaseContext context) : II
             SELECT l.Uid,l.Version,l.InboundDocumentId,l.LineNumber,l.ProductId,l.SkuSnapshot,l.DescriptionSnapshot,
                    l.UnitSnapshot,l.Quantity,l.SourceLineId,l.OriginalLineId,l.CreatedDate,l.CreatedBy,l.UpdatedDate,l.UpdatedBy,
                    p.Version AS SourceVersion,h.OrderNo AS SourceNo,h.BoNo,p.LinkSku,product.MainImage AS ImagePath,
-                   p.QTY AS OriginalQty,
+                   p.QTY AS OriginalQty,drafts.OtherDraftCount,drafts.OtherDraftQuantity,
                    CASE WHEN p.QTY>COALESCE(received.Qty,0) THEN p.QTY-COALESCE(received.Qty,0) ELSE 0 END AS RemainingReceivableQty
             FROM dbo.InboundDocumentLine l
             INNER JOIN dbo.InboundDocument ih ON ih.Uid=l.InboundDocumentId AND ih.IsDeleted=0
@@ -62,6 +62,10 @@ public sealed class InboundManagerRepository(RepositoryBaseContext context) : II
                 INNER JOIN dbo.InboundDocument rh ON rh.Uid=rl.InboundDocumentId
                 WHERE rl.SourceLineId=p.Uid AND rh.DocumentType=10 AND rh.PostingStatus IN (1,8)
                   AND rl.IsDeleted=0 AND rh.IsDeleted=0) received
+            OUTER APPLY(SELECT COUNT(DISTINCT dh.Uid) AS OtherDraftCount,COALESCE(SUM(dl.Quantity),0) AS OtherDraftQuantity
+                FROM dbo.InboundDocumentLine dl JOIN dbo.InboundDocument dh ON dh.Uid=dl.InboundDocumentId
+                WHERE dl.SourceLineId=p.Uid AND dh.DocumentType=10 AND dh.PostingStatus=0 AND dh.LifecycleStatus=0
+                    AND dl.IsDeleted=0 AND dh.IsDeleted=0 AND dh.Uid<>@Uid) drafts
             WHERE l.InboundDocumentId=@Uid AND l.IsDeleted=0 ORDER BY l.LineNumber,l.Uid;
             """, new { Uid = uid }, token));
         var header = await reader.ReadSingleOrDefaultAsync<InboundHeaderDetailDto>();
@@ -96,7 +100,7 @@ public sealed class InboundManagerRepository(RepositoryBaseContext context) : II
             ) candidates;
             SELECT COUNT(*) FROM #InboundSources;
             SELECT DocumentType,SourceLineId,SourceVersion,PurchaseOrderId,ProductId,SourceNo,LineNumber,BoNo,
-                   Sku,LinkSku,Description,ImagePath,Unit,SupplierName,OriginalQty,RemainingReceivableQty
+                   Sku,LinkSku,Description,ImagePath,Unit,SupplierName,OriginalQty,RemainingReceivableQty,OtherDraftCount,OtherDraftQuantity
             FROM #InboundSources ORDER BY SourceNo DESC,LineNumber,SourceLineId
             OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY;
             DROP TABLE #InboundSources;
@@ -106,21 +110,21 @@ public sealed class InboundManagerRepository(RepositoryBaseContext context) : II
             Confirmed = (int)ConfirmationStatusEnum.已确认, Active = (int)PurchaseOrderLifecycleStatusEnum.Active,
             KnownTypes = MaterialTypesEnum.MaterialTypes, CustomerType = MaterialTypesEnum.客供件,
             CustomerSupplied = request.PurchaseCategory == InboundPurchaseCategoryEnum.CustomerSupplied,
-            request.SupplierId, Keyword = Like(request.Keyword), Skip = (long)(request.PageIndex - 1) * request.PageSize, Take = request.PageSize
+            request.SupplierId, request.CurrentInboundDocumentId, Keyword = Like(request.Keyword), Skip = (long)(request.PageIndex - 1) * request.PageSize, Take = request.PageSize
         }, token));
         return new() { TotalCount = await reader.ReadSingleAsync<int>(), Items = (await reader.ReadAsync<InboundSourceCandidateDto>()).ToList(), PageIndex = request.PageIndex, PageSize = request.PageSize };
     }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<InboundSourceCandidateDto>> GetSourcesAsync(IReadOnlyList<Guid> ids, CancellationToken token) =>
-        (await context.Session.Connection.QueryAsync<InboundSourceCandidateDto>(Command(SourceProjection + " AND l.Uid IN @Ids", new { Ids = ids }, token))).ToList();
+        (await context.Session.Connection.QueryAsync<InboundSourceCandidateDto>(Command(SourceProjection + " AND l.Uid IN @Ids", new { Ids = ids, CurrentInboundDocumentId = (Guid?)null }, token))).ToList();
 
     // 保存只读取身份和快照，不按数量或版本拒绝草稿；最终采购状态、容量归过账校验。
     private const string SourceProjection = """
         SELECT 10 AS DocumentType,l.Uid AS SourceLineId,l.Version AS SourceVersion,l.PurchaseOrderId,l.ProductId,
                h.OrderNo AS SourceNo,l.LineNumber,h.BoNo,l.Sku,l.LinkSku,l.DescriptionZh AS Description,
                product.MainImage AS ImagePath,l.UnitSnapshot AS Unit,h.SupplierName,l.QTY AS OriginalQty,
-               l.QTY-COALESCE(received.Qty,0) AS RemainingReceivableQty
+               l.QTY-COALESCE(received.Qty,0) AS RemainingReceivableQty,drafts.OtherDraftCount,drafts.OtherDraftQuantity
         FROM dbo.PurchaseOrderLine l
         INNER JOIN dbo.PurchaseOrderHead h ON h.Uid=l.PurchaseOrderId
         INNER JOIN dbo.Product product ON product.Uid=l.ProductId
@@ -128,6 +132,10 @@ public sealed class InboundManagerRepository(RepositoryBaseContext context) : II
             INNER JOIN dbo.InboundDocument rh ON rh.Uid=rl.InboundDocumentId
             WHERE rl.SourceLineId=l.Uid AND rh.DocumentType=10 AND rh.PostingStatus IN (1,8)
                 AND rl.IsDeleted=0 AND rh.IsDeleted=0) received
+        OUTER APPLY(SELECT COUNT(DISTINCT dh.Uid) AS OtherDraftCount,COALESCE(SUM(dl.Quantity),0) AS OtherDraftQuantity
+            FROM dbo.InboundDocumentLine dl JOIN dbo.InboundDocument dh ON dh.Uid=dl.InboundDocumentId
+            WHERE dl.SourceLineId=l.Uid AND dh.DocumentType=10 AND dh.PostingStatus=0 AND dh.LifecycleStatus=0
+                AND dl.IsDeleted=0 AND dh.IsDeleted=0 AND (@CurrentInboundDocumentId IS NULL OR dh.Uid<>@CurrentInboundDocumentId)) drafts
         WHERE l.IsDeleted=0 AND h.IsDeleted=0 AND product.IsDeleted=0 AND l.ProductId IS NOT NULL
             AND NULLIF(LTRIM(RTRIM(l.UnitSnapshot)),'') IS NOT NULL
         """;

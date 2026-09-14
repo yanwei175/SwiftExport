@@ -6,17 +6,15 @@ namespace SwiftExport.Application.Tests.Procurement;
 [TestClass]
 public sealed class PurchaseDraftCustomerSnapshotContractTests
 {
-    /// <summary>Dapper 新建必须显式持久化三个客户字段，两个旧链仓储读取必须恢复同一实体快照。</summary>
+    /// <summary>Dapper 新建与读取必须显式保留完整客户快照。</summary>
     [TestMethod]
     public void DraftRepositoriesMustPersistAndProjectCompleteCustomerSnapshot()
     {
         var draftRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderDraftRepository.cs");
-        var workspaceRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderWorkspaceRepository.cs");
 
         StringAssert.Contains(draftRepository, "CustomerPoNo,CustomerId,CustomerCode,CustomerNameSnapshot,Currency");
         StringAssert.Contains(draftRepository, "@CustomerPoNo,@CustomerId,@CustomerCode,@CustomerNameSnapshot,@Currency");
         StringAssert.Contains(draftRepository, "h.CustomerPoNo,h.CustomerId,h.CustomerCode,h.CustomerNameSnapshot,h.Currency");
-        StringAssert.Contains(workspaceRepository, "h.CustomerPoNo,h.CustomerId,h.CustomerCode,h.CustomerNameSnapshot,h.Currency");
     }
 
     /// <summary>追加路径只创建行并推进版本，不得用当前客户名称或代码覆盖原采购头快照。</summary>

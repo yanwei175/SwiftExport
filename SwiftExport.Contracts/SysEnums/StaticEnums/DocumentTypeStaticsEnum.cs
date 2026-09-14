@@ -27,6 +27,8 @@ namespace SwiftExport.Contracts.SysEnums.StaticEnums
 
         /// <summary>入库单，按收货年月分段生成流水号。</summary>
         public const string InboundDocument = "IR";
+        /// <summary>普通库存出库单。</summary>
+        public const string OutboundDocument = "OI";
 
         /// <summary>
         /// 生产单（Manufacturing Order）。

@@ -40,7 +40,8 @@ ORDER BY a.[NetDemandId],a.[Sequence],a.[Uid];",
         return [.. rows];
     }
 
-    public async Task<IReadOnlyList<NetDemandAllocationDto>> GetHistoryAsync(
+    /// <summary>读取指定物料需求当前有效的计划分配，不再提供 Trace 历史查询。</summary>
+    public async Task<NetDemandAllocationDto?> GetActiveAsync(
         Guid netDemandId,
         CancellationToken cancellationToken = default)
     {
@@ -53,11 +54,12 @@ SELECT a.[Uid],a.[Version],a.[NetDemandId],a.[PlanRevision],a.[Sequence],a.[Life
        a.[DeliverySupplierNameSnapshot] AS [DeliveryTargetSupplierName],a.[ReplacesAllocationId],a.[ChangeReason],
        a.[CancelReasonCode],a.[CancelledAt],a.[CancelledBy],a.[CancelledReason],a.[CreatedDate],a.[CreatedBy]
 FROM [dbo].[NetDemandAllocation] a
-WHERE a.[NetDemandId]=@NetDemandId AND a.[IsDeleted]=0
-ORDER BY a.[PlanRevision] DESC,a.[Sequence],a.[Uid];";
-        var rows = await Connection.QueryAsync<NetDemandAllocationDto>(new CommandDefinition(
-            sql, new { NetDemandId = netDemandId }, Transaction, cancellationToken: cancellationToken));
-        return [.. rows];
+WHERE a.[NetDemandId]=@NetDemandId AND a.[LifecycleStatus]=@Active AND a.[IsDeleted]=0;";
+        return await Connection.QuerySingleOrDefaultAsync<NetDemandAllocationDto>(new CommandDefinition(
+            sql,
+            new { NetDemandId = netDemandId, Active = NetDemandAllocationLifecycleStatusEnum.Active },
+            Transaction,
+            cancellationToken: cancellationToken));
     }
 
     public async Task<RepositoryWriteResult> SupersedeAsync(Guid allocationId, int expectedVersion, string reason)

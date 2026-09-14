@@ -4,9 +4,9 @@ using System.IO;
 
 namespace SwiftExport.Application.Tests.Orders;
 
-/// <summary>验证销售确认接入来源需求以及履约 Manager/Detail 查询的分层契约。</summary>
+/// <summary>验证销售确认接入来源需求的分层契约。</summary>
 [TestClass]
-public sealed class SalesSourceDemandAndFulfillmentContractTests
+public sealed class SalesSourceDemandContractTests
 {
     [TestMethod]
     public void ConfirmCommandCarriesOnlyIdentityVersionAndIdempotencyKey()
@@ -32,22 +32,6 @@ public sealed class SalesSourceDemandAndFulfillmentContractTests
     }
 
     [TestMethod]
-    public void FulfillmentQueriesKeepSalesLinesAndAggregateFactsBeforeJoining()
-    {
-        var detail = Read("SwiftExport.Infrastructure", "Repositories", "Orders", "SalesFulfillmentDetailRepository.cs");
-        var manager = Read("SwiftExport.Infrastructure", "Repositories", "Orders", "SalesFulfillmentManagerRepository.cs");
-
-        StringAssert.Contains(detail, "FROM dbo.SalesOrderLine l");
-        StringAssert.Contains(detail, "WITH LinkFacts AS");
-        StringAssert.Contains(detail, "SOURCE_DEMAND_MISSING");
-        StringAssert.Contains(detail, "NOT EXISTS");
-        StringAssert.Contains(detail, "dbo.SupplierProgressReport");
-        StringAssert.Contains(detail, "dbo.OutboundDocumentLine");
-        StringAssert.Contains(manager, "dbo.OutboundDocumentLine");
-        StringAssert.Contains(manager, "NetDemandAllocation");
-    }
-
-    [TestMethod]
     public void SchemaAndPreviewUseFullSourceIdentityWithoutGuessingHistoricalVersion()
     {
         var fresh = Read("SwiftExport.Infrastructure", "Database", "FreshInstall", "030_初始化目标业务表.sql");
@@ -60,22 +44,6 @@ public sealed class SalesSourceDemandAndFulfillmentContractTests
         StringAssert.Contains(preview, "无法确定历史接收版本，不自动回填");
         Assert.IsFalse(preview.Contains("UPDATE ", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(preview.Contains("INSERT ", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [TestMethod]
-    public void RefitAndControllersExposeMatchingManagerAndDetailRoutes()
-    {
-        var managerApi = Read("SwiftExport.Contracts", "Apis", "SalesOrderApis", "ISalesFulfillmentManagerApi.cs");
-        var detailApi = Read("SwiftExport.Contracts", "Apis", "SalesOrderApis", "ISalesFulfillmentDetailApi.cs");
-        var managerController = Read("SwiftExport.WebApi", "Controllers", "Orders", "SalesFulfillmentManagerController.cs");
-        var detailController = Read("SwiftExport.WebApi", "Controllers", "Orders", "SalesFulfillmentDetailController.cs");
-
-        StringAssert.Contains(managerApi, "[Post(\"/search\")]");
-        StringAssert.Contains(managerController, "[Route(\"api/sales-fulfillment/manager\")]");
-        StringAssert.Contains(managerController, "[HttpPost(\"search\")]");
-        StringAssert.Contains(detailApi, "[Get(\"/{salesOrderId}\")]");
-        StringAssert.Contains(detailController, "[Route(\"api/sales-fulfillment/detail\")]");
-        StringAssert.Contains(detailController, "[HttpGet(\"{salesOrderId:guid}\")]");
     }
 
     [TestMethod]

@@ -11,6 +11,25 @@ namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.NetDemand;
 [TestClass]
 public sealed class NetDemandApiContractTests
 {
+    /// <summary>来源追溯退为空壳后，不再暴露独占远程查询及传输模型。</summary>
+    [TestMethod]
+    public void SourceTrace_ShouldNotExposeRemovedContract()
+    {
+        Assert.IsNull(typeof(INetDemandWorkspaceApi).GetMethod("GetSourceDemandTraceAsync"));
+        foreach (var name in new[] { "GrossDemandTraceDto", "NetDemandTraceItemDto", "DemandExecutionTraceItemDto" })
+            Assert.IsNull(typeof(INetDemandWorkspaceApi).Assembly.GetType(
+                "SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand." + name));
+    }
+
+    /// <summary>净需求追溯退为空壳后，不再暴露独占远程查询及传输模型。</summary>
+    [TestMethod]
+    public void NetDemandTrace_ShouldNotExposeRemovedContract()
+    {
+        Assert.IsNull(typeof(INetDemandWorkspaceApi).GetMethod("GetTraceAsync"));
+        Assert.IsNull(typeof(INetDemandWorkspaceApi).Assembly.GetType(
+            "SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.NetDemandTraceDto"));
+    }
+
     [TestMethod]
     public void MaterialWorkspaceApi_ShouldExposeAllocationFreeQueryRoutes()
     {
@@ -56,9 +75,7 @@ public sealed class NetDemandApiContractTests
         AssertRoute(nameof(INetDemandWorkspaceApi.GetSourceDemandCandidatesBySourceAsync), typeof(GetAttribute), "/source-demands/candidates/{sourceType}/{sourceUid}");
         AssertRoute(nameof(INetDemandWorkspaceApi.EstablishFromSourcesAsync), typeof(PostAttribute), "/source-demands/establish", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.RollbackSourceEstablishmentAsync), typeof(PostAttribute), "/source-demands/rollback", 0);
-        AssertRoute(nameof(INetDemandWorkspaceApi.GetSourceDemandTraceAsync), typeof(GetAttribute), "/source-demands/{grossDemandId}/trace");
         AssertRoute(nameof(INetDemandWorkspaceApi.GetDetailAsync), typeof(GetAttribute), "/{uid}");
-        AssertRoute(nameof(INetDemandWorkspaceApi.GetTraceAsync), typeof(GetAttribute), "/{uid}/trace");
         AssertRoute(nameof(INetDemandWorkspaceApi.ReplacePlanAsync), typeof(PostAttribute), "/plans/replace", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.ApplyDefaultSupplierAsync), typeof(PostAttribute), "/plans/apply-product-default", 0);
         AssertRoute(nameof(INetDemandWorkspaceApi.BatchAssignSupplierAsync), typeof(PostAttribute), "/plans/batch-assign-supplier", 0);
@@ -74,9 +91,7 @@ public sealed class NetDemandApiContractTests
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetSourceDemandCandidatesBySourceAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.EstablishFromSourcesAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.RollbackSourceEstablishmentAsync));
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetSourceDemandTraceAsync));
         AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetDetailAsync));
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetTraceAsync));
         Assert.IsFalse(typeof(INetDemandWorkspaceApi).GetMethod(nameof(INetDemandWorkspaceApi.ReplacePlanAsync))!
             .GetParameters().Any(parameter => parameter.ParameterType == typeof(CancellationToken)));
 
@@ -103,13 +118,10 @@ public sealed class NetDemandApiContractTests
         AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.GetCandidatesAsync), typeof(PostAttribute), "/candidates", 0);
         AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.PreviewAsync), typeof(PostAttribute), "/preview", 0);
         AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.CreateAsync), typeof(PostAttribute), "/create", 0);
-        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.CancelAsync), typeof(PostAttribute), "/{uid}/cancel", 1);
-        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.PreviewReleaseAsync), typeof(PostAttribute), "/{uid}/release-preview", 1);
-        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.ReleaseAsync), typeof(PostAttribute), "/{uid}/release", 1);
-        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.GetSourceTraceAsync), typeof(GetAttribute), "/sources/{sourceType}/{sourceUid}/trace");
-        AssertHasCancellationToken<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.CancelAsync));
-        AssertHasCancellationToken<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.PreviewReleaseAsync));
-        AssertHasCancellationToken<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.ReleaseAsync));
+        Assert.IsNull(typeof(IPurchaseDraftApi).GetMethod("CancelAsync"));
+        Assert.IsNull(typeof(IPurchaseDraftApi).GetMethod("PreviewReleaseAsync"));
+        Assert.IsNull(typeof(IPurchaseDraftApi).GetMethod("ReleaseAsync"));
+        Assert.IsNull(typeof(IPurchaseDraftApi).GetMethod("GetSourceTraceAsync"));
     }
 
     private static void AssertRoute(string methodName, Type attributeType, string path, int? bodyParameterIndex = null)

@@ -9,6 +9,7 @@ internal sealed class InboundPendingWrite
     public CreateInboundDraftCommand? Create { get; init; }
     public UpdateInboundDraftCommand? Update { get; init; }
     public DeleteInboundDraftCommand? Delete { get; init; }
+    public PostInboundCommand? Post { get; init; }
     public bool WasUncertain { get; set; }
     public InboundDraftCommandResult? AcceptedResult { get; set; }
 }

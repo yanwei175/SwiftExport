@@ -28,6 +28,30 @@ public sealed class SalesOrderHeadRepositorySqlContractTests
     }
 
     /// <summary>
+    /// 验证销售查询不再经 Allocation 反查出库，并在 PackingList 交付净额接入前返回可空占位。
+    /// </summary>
+    [TestMethod]
+    public void RepositorySql_MustNotUseAllocationOutboundCompatibilityChain()
+    {
+        var source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "SwiftExport.Infrastructure",
+            "Repositories",
+            "Orders",
+            "SalesOrderHeadRepository.cs"));
+
+        Assert.IsFalse(source.Contains("OutboundDocumentLine", StringComparison.Ordinal));
+        Assert.IsFalse(source.Contains("OutboundDocument", StringComparison.Ordinal));
+        Assert.IsFalse(source.Contains("NetDemandAllocation", StringComparison.Ordinal));
+        Assert.IsFalse(source.Contains("NetDemand", StringComparison.Ordinal));
+        Assert.IsFalse(source.Contains("GrossDemand", StringComparison.Ordinal));
+        StringAssert.Contains(source, "CAST(NULL AS decimal(18, 4)) AS TotalShippedQty");
+        StringAssert.Contains(source, "CAST(NULL AS decimal(18, 4)) AS TotalUnshippedQty");
+        StringAssert.Contains(source, "CAST(NULL AS decimal(18, 4)) AS ShippedQty");
+        StringAssert.Contains(source, "CAST(NULL AS decimal(18, 4)) AS UnshippedQty");
+    }
+
+    /// <summary>
     /// 从测试运行目录向上定位仓库根目录，供源码契约检查使用。
     /// </summary>
     /// <returns>包含 AGENTS.md 的仓库根目录。</returns>

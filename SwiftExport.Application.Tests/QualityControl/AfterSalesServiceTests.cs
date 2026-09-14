@@ -9,7 +9,6 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.DemandPlanning;
-using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Services.QualityControl;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
@@ -51,7 +50,7 @@ public sealed class AfterSalesServiceTests
     [TestMethod]
     public async Task ZeroComplaintCanClose()
     {
-        using var f=new Fixture();var c=f.Command();c.AddedLines[0].Quantity=0;
+        using var f=new Fixture();var c=f.Command();c.AddedLines[0].Quantity=0;c.AddedLines.Add(f.Line(null));
         var saved=await f.Service.SaveAsync(c.Uid,c,true);
         var confirmed=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
         Assert.IsTrue(confirmed.Success,confirmed.Message);Assert.IsNull(f.Received);
@@ -97,7 +96,7 @@ public sealed class AfterSalesServiceTests
         Assert.IsTrue(again.Success,again.Message);Assert.AreEqual(c.AddedLines[0].Uid,f.Received!.Items[0].SourceLineId);
         Assert.AreEqual(4m,f.Received.Items[0].DemandQty);
     }
-    /// <summary>版本冲突不残留部分修改；未完成的下游阻断结案。</summary>
+    /// <summary>版本冲突不残留部分修改；交付查询未接入时正数量补货明确阻断结案。</summary>
     [TestMethod]
     public async Task ConflictAndClosureBlockerPreserveFacts()
     {
@@ -107,9 +106,11 @@ public sealed class AfterSalesServiceTests
         Assert.AreEqual("VERSION_CONFLICT",(await f.Service.SaveAsync(c.Uid,edit,false)).Error.Code);
         Assert.AreEqual("成品故障",f.Rows[0].IssueDescription);
         var confirmed=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
-        f.FailClosure=true;
         var closed=await f.Service.CloseAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=confirmed.Data.Version,Reason="结案"});
-        Assert.AreEqual("SOURCE_NOT_COMPLETED",closed.Error.Code);Assert.AreEqual(DocumentStatusEnum.Open,f.Head!.DocumentStatus);
+        Assert.AreEqual("AFTERSALES_DELIVERY_QUERY_UNAVAILABLE",closed.Error.Code);
+        StringAssert.Contains(closed.Message,"PackingList");
+        StringAssert.Contains(closed.Message,"尚未接入");
+        Assert.AreEqual(DocumentStatusEnum.Open,f.Head!.DocumentStatus);
     }
     /// <summary>无权限不能读取、写入或借幂等重放越权。</summary>
     [TestMethod]
@@ -126,7 +127,7 @@ public sealed class AfterSalesServiceTests
         public AfterSalesHeader? Head;
         public List<AfterSalesLine> Rows=new();
         public List<BusinessOperationLog> Logs=new();
-        public bool Allowed=true,FailReception,FailCancellation,FailClosure;
+        public bool Allowed=true,FailReception,FailCancellation;
         public int NumberCalls,ReceiveCalls;
         public SourceDemandReceptionCommand? Received;
         public AfterSalesService Service {get;}
@@ -153,13 +154,10 @@ public sealed class AfterSalesServiceTests
             var logs=Port<IBusinessOperationLogRepository>((n,a)=>n switch {
                 "GetByCommandAsync"=>Task.FromResult(Logs.SingleOrDefault(x=>x.CommandId==(Guid)a[2]!)),
                 "InsertAsync"=>AppendLog((BusinessOperationLog)a[0]!),_=>throw new NotSupportedException(n)});
-            var delivery=Port<ISourceDeliveryService>((name,_)=>name=="VerifyClosureAsync"
-                ? FailClosure?throw new SourceDeliveryException("SOURCE_NOT_COMPLETED","尚未完成"):Task.CompletedTask
-                : throw new NotSupportedException(name));
             var numbering=Port<IDocumentNoService>((_,_)=>{NumberCalls++;return Task.FromResult(ServiceResult<DocumentNoResponse>.Ok(new(){DocumentNo="CR2026090001"}));});
             var permission=Port<IUserPermissionService>((_,_)=>Task.FromResult(Allowed));
             var user=Port<ICurrentUser>((n,_)=>n switch {"get_UserId"=>(Guid?)actor,"get_UserName"=>"tester","get_IsAuthenticated"=>true,_=>throw new NotSupportedException(n)});
-            Service=new(new(session,NullLoggerFactory.Instance),repo,reception,delivery,numbering,logs,permission,user);
+            Service=new(new(session,NullLoggerFactory.Instance),repo,reception,numbering,logs,permission,user);
         }
         public SaveAfterSalesCommand Command()=>new(){CommandId=Guid.NewGuid(),Uid=Guid.NewGuid(),Header=new(){CustomerId=customer,AcceptedDate=new(2026,9,8)},AddedLines=[Line(2)]};
         public AfterSalesEditLineDto Line(decimal? q)=>new(){Uid=Guid.NewGuid(),IssueDescription="成品故障",IssueSkuSnapshot="成品001",Quantity=q,IsNonStandard=true,DescriptionSnapshot="补发螺丝",ResponsibleSupplierId=Guid.NewGuid(),ServiceAmountCny=0,UnitSnapshot=""};

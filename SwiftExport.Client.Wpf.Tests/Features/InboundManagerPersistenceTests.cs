@@ -17,7 +17,7 @@ namespace SwiftExport.Client.Wpf.Tests.Features;
 
 /// <summary>验证 Manager 保存和软删除的可见行为，模拟服务端提交但响应丢失，不连接数据库。</summary>
 [TestClass]
-public sealed class InboundManagerPersistenceTests
+public sealed partial class InboundManagerPersistenceTests
 {
     /// <summary>真实删除表单将原因回写模型，空白与超长原因不会放行确认。</summary>
     [TestMethod]
@@ -247,8 +247,14 @@ public sealed class InboundManagerPersistenceTests
         public PersistenceStub Service { get; } = new();
         public DialogStub Dialogs { get; } = new();
         public DeleteDialogStub DeleteDialogs { get; } = new();
+        public PostDialogStub PostDialogs { get; } = new();
+        public SwiftExportClient.Authentication.CurrentUserService User { get; } = new();
         public InboundManagerViewModel Vm { get; }
-        public Fixture() => Vm = new(new WarehouseStub(), new SourceStub(), Dialogs, persistence: Service, deleteDialogs: DeleteDialogs);
+        public Fixture()
+        {
+            User.SetCurrentUser(new() { Permissions = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundPost, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.ModuleInventoryAccess] });
+            Vm = new(new WarehouseStub(), new SourceStub(), Dialogs, persistence: Service, deleteDialogs: DeleteDialogs, postDialogs: PostDialogs, postingUser: User);
+        }
         public InboundHeaderModel Add()
         {
             Vm.AddNewHeaderRowCommand.Execute(null);
@@ -263,7 +269,7 @@ public sealed class InboundManagerPersistenceTests
     }
 
     /// <summary>模拟服务器命令幂等和详情存储，允许响应丢失但保留提交事实。</summary>
-    private sealed class PersistenceStub : IInboundPersistenceService
+    private sealed partial class PersistenceStub : IInboundPersistenceService
     {
         private readonly Dictionary<Guid, InboundDraftCommandResult> _commands = [];
         private readonly Dictionary<Guid, InboundManagerDetailDto> _details = [];
@@ -340,6 +346,10 @@ public sealed class InboundManagerPersistenceTests
     /// <summary>模拟 Refit 返回或传输异常，意外调用其他接口立即失败。</summary>
     private sealed class TransportStub : IInboundManagerApi
     {
+        /// <inheritdoc/>
+        public Task<ServiceResult<InboundPostPreviewDto>> PreviewPostAsync(Guid uid, InboundPostPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        /// <inheritdoc/>
+        public Task<ServiceResult<InboundPostResult>> PostAsync(Guid uid, PostInboundCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Exception? Exception;
         public ServiceResult<InboundDraftCommandResult> Response = null!;
         /// <inheritdoc/>

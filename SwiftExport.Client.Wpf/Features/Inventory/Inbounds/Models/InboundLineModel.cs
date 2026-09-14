@@ -72,6 +72,19 @@ public sealed partial class InboundLineModel : BaseLineModel<InboundLineDetailDt
     [ObservableProperty]
     public partial decimal RemainingReceivableQty { get; set; }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OtherDraftWarning))]
+    public partial int OtherDraftCount { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OtherDraftWarning))]
+    public partial decimal OtherDraftQuantity { get; set; }
+    /// <summary>来源查询快照，仅提示重复录入，不作为保存容量门禁。</summary>
+    public string OtherDraftWarning => OtherDraftCount > 0 ? $"另有 {OtherDraftCount} 张未过账草稿，合计 {OtherDraftQuantity:0.####}" : string.Empty;
+
+    /// <inheritdoc/>
+    protected override bool IsTrackingIgnoredProperty(string? name) => base.IsTrackingIgnoredProperty(name)
+        || name is nameof(OtherDraftCount) or nameof(OtherDraftQuantity) or nameof(OtherDraftWarning);
+
     /// <inheritdoc/>
     public override string? ValidateRow()
     {

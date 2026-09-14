@@ -3,9 +3,13 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Interfaces.Inventory;
 
-/// <summary>入库管理非过账用例；所有写操作只影响草稿及审计。</summary>
+/// <summary>入库管理用例；草稿与审计原子保存，正向过账通过库存内核提交，不开放反向。</summary>
 public interface IInboundManagerService
 {
+    /// <summary>只读预览当前已保存单据的正向过账。</summary>
+    Task<ServiceResult<InboundPostPreviewDto>> PreviewPostAsync(Guid uid, InboundPostPreviewRequest request, CancellationToken token = default);
+    /// <summary>在同一事务内提交入库状态、库存及业务日志。</summary>
+    Task<ServiceResult<InboundPostResult>> PostAsync(Guid uid, PostInboundCommand command, CancellationToken token = default);
     /// <summary>分页读取管理摘要。</summary>
     Task<ServiceResult<PagedResponseBase<InboundManagerListItemDto>>> SearchAsync(InboundManagerSearchRequest request, CancellationToken token = default);
     /// <summary>读取整张单据。</summary>

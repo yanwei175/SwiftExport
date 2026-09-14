@@ -325,6 +325,8 @@
                                             Binding="{Binding Quantity, TargetNullValue='', StringFormat=0.####, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=False, ValidatesOnNotifyDataErrors=False, NotifyOnValidationError=True}"
                                             Width="80"/>
 
+                        <DataGridTextColumn Header="草稿提醒" Binding="{Binding OtherDraftWarning}" Width="230" IsReadOnly="True"/>
+
                         <DataGridTextColumn Header="描述" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                             Binding="{Binding DescriptionSnapshot}" Width="*" MinWidth="180" IsReadOnly="True"/>

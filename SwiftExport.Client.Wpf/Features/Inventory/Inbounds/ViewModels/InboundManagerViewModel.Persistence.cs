@@ -162,6 +162,7 @@ public sealed partial class InboundManagerViewModel
                 // 写入不使用查询取消源，也不因页面查询或选择变化而中断提交。
                 var result = pending.Create is not null ? await _persistence!.CreateAsync(pending.Create, CancellationToken.None)
                     : pending.Update is not null ? await _persistence!.UpdateAsync(pending.DocumentId, pending.Update, CancellationToken.None)
+                    : pending.Post is not null ? await SendPostAsync(pending)
                     : await _persistence!.DeleteAsync(pending.DocumentId, pending.Delete!, CancellationToken.None);
                 if (_disposed) return false;
                 if (!result.Success)
@@ -188,6 +189,8 @@ public sealed partial class InboundManagerViewModel
                 row.Uid = accepted.Uid;
                 row.Version = accepted.Version;
                 using (row.SuppressChangeTracking()) row.DocumentNo = accepted.DocumentNo;
+                if (pending.Post is not null)
+                    using (row.SuppressChangeTracking()) row.PostingStatus = SwiftExport.Contracts.SysEnums.Inventory.InboundPostingStatusEnum.Posted;
             }
             if (pending.Delete is not null)
             {
@@ -199,8 +202,9 @@ public sealed partial class InboundManagerViewModel
             if (_disposed) return false;
             var detail = detailResult.Data;
             if (!detailResult.Success || !ValidDetail(detail, pending.AcceptedResult.Uid)
-                || detail!.Header.Version < pending.AcceptedResult.Version)
-            { ResultSummary = $"已保存，但详情刷新失败：{detailResult.Message}。请点击刷新，仅重试详情。"; return false; }
+                || detail!.Header.Version < pending.AcceptedResult.Version
+                || (pending.Post is not null && detail.Header.PostingStatus != SwiftExport.Contracts.SysEnums.Inventory.InboundPostingStatusEnum.Posted))
+            { ResultSummary = $"{(pending.Post is null ? "已保存" : "已过账")}，但详情刷新失败：{detailResult.Message}。请点击刷新，仅重试详情。"; return false; }
             row.Load(detail.Header);
             row.Lines.LoadFromDtos(detail.Lines);
             row.IsDetailLoaded = true;
@@ -213,7 +217,7 @@ public sealed partial class InboundManagerViewModel
             System.Diagnostics.Trace.TraceError("入库命令接纳异常：{0}", ex.GetType().Name);
             pending.WasUncertain = true;
             if (!_disposed) ResultSummary = pending.AcceptedResult is null
-                ? "结果未确认，原命令已保留，请点击刷新重试。" : "已保存，详情接纳失败，请点击刷新重试详情。";
+                ? "结果未确认，原命令已保留，请点击刷新重试。" : $"{(pending.Post is null ? "已保存" : "已过账")}，详情接纳失败，请点击刷新重试详情。";
             return false;
         }
         finally { if (!_disposed) NotifyEditState(); }

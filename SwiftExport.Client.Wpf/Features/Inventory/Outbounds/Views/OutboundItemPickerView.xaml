@@ -1,0 +1,104 @@
+<UserControl x:Class="SwiftExportClient.Features.Inventory.Outbounds.Views.OutboundItemPickerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:vm="clr-namespace:SwiftExportClient.Features.Inventory.Outbounds.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1440" d:DesignHeight="560"
+             d:DataContext="{d:DesignInstance Type=vm:OutboundItemPickerViewModel}"
+             Language="zh-CN">
+    <Grid Margin="12" RowDefinitions="Auto,8,*,8,Auto">
+        <!--条件筛选区域-->
+        <Grid RowDefinitions="Auto,8, *">
+            <Grid ColumnDefinitions="3*,3*,3*">
+                <TextBlock Text="选择库存产品" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <!--搜索框-->
+                <ui:TextBox Grid.Column="1"
+                            Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
+                            Icon="{ui:SymbolIcon Symbol=Search24}"
+                            AutomationProperties.Name="库存产品关键词"
+                            PlaceholderText="按回车执行搜索">
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
+            </Grid>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal">
+                <ui:Button Content="查询" Appearance="Info" VerticalAlignment="Stretch" MinWidth="80"
+                        Command="{Binding SearchCommand}" Margin="0,0,8,0"/>
+                <Button Content="清空勾选" VerticalAlignment="Stretch" MinWidth="80"
+                        Command="{Binding ClearSelectionCommand}" Margin="0,0,8,0"/>
+
+                <Button DockPanel.Dock="Right" VerticalAlignment="Stretch" MinWidth="80"
+                        Content="反选" Command="{Binding InvertSelectionCommand}" IsEnabled="{Binding CanSelect}"
+                    AutomationProperties.Name="反选" Padding="12,4"/>
+            </StackPanel>
+        </Grid>
+
+        <DataGrid Grid.Row="2" 
+                  ItemsSource="{Binding Items}" 
+                  FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                  IsEnabled="{Binding CanSelect}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True" 
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  EnableRowVirtualization="True"
+                  EnableColumnVirtualization="True"
+                  RowHeight="{StaticResource DataGridRowHeightMedium}" 
+                  AutomationProperties.Name="库存产品候选列表">
+            <DataGrid.Columns>
+
+                <DataGridTemplateColumn Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
+                    <DataGridTemplateColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding DataContext.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWay}"
+                                      Command="{Binding DataContext.ToggleAllCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                      AutomationProperties.Name="全选或取消当前页" HorizontalAlignment="Left" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.HeaderTemplate>
+
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox Margin="0,0" Padding="0"
+                                      IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      HorizontalAlignment="Center" 
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="勾选库存产品"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="图片" Width="64" CanUserSort="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <controls:CachedImage Width="48" Height="48" Margin="2"
+                                                  Style="{StaticResource SwiftExportCachedImage}"
+                                                  Stretch="Uniform" DecodePixelWidth="96"
+                                                  SourcePath="{Binding ImagePath}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Sku" Binding="{Binding Sku}" Width="128"/>
+                <DataGridTextColumn Header="产品型号" Binding="{Binding LinkSku}" Width="128"/>
+                <DataGridTextColumn Header="描述" Binding="{Binding Description}" Width="*" MinWidth="180"/>
+                <DataGridTextColumn Header="库存数量" Binding="{Binding OnHandQty, StringFormat=N4}" Width="112"/>
+                <DataGridTextColumn Header="本单已选数量" Binding="{Binding SelectedQuantity, StringFormat=0.####}" Width="112"/>
+                <DataGridTextColumn Header="剩余可选数量" Binding="{Binding RemainingQuantity, StringFormat=0.####}" Width="112"/>
+                <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="64"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Grid Grid.Row="4" Margin="0,8,0,0" ColumnDefinitions="*,Auto">
+            <StackPanel>
+                <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding CheckedCount, StringFormat=已选 {0} 行}"/>
+            </StackPanel>
+            <controls:PageNavigator Grid.Column="1" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}"
+                                    PageSize="{Binding PageSize}" PageSizeOptions="{Binding PageSizeOptions}" PageChangeCommand="{Binding PageChangeCommand}"/>
+        </Grid>
+    </Grid>
+</UserControl>

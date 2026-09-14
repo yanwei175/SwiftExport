@@ -11,7 +11,7 @@
             <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="12" SelectedDate="{Binding DateTo}"/>
             <Button Grid.Column="14" Content="查询" Command="{Binding SearchCommand}"/>
         </Grid>
-        <DataGrid Grid.Row="4" ItemsSource="{Binding Items}" AutoGenerateColumns="False" IsReadOnly="True" Style="{StaticResource SwiftExportDataGrid}">
+        <DataGrid Grid.Row="4" ItemsSource="{Binding Items}" AutoGenerateColumns="False" IsReadOnly="True">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="90"/>
                 <DataGridTextColumn Header="时间" Binding="{Binding OccurredDate,StringFormat=yyyy-MM-dd HH:mm}" Width="150"/>

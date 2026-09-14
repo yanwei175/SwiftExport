@@ -32,7 +32,5 @@ namespace SwiftExport.Contracts.Apis.Procurement
         [Post("/{uid}/confirm")]
         Task<ServiceResult<ProcurementOrderCommandResult>> ConfirmAsync(Guid uid, [Body] ConfirmProcurementOrderCommand command, CancellationToken cancellationToken = default);
         /// <summary>取消尚无下游事实的独立采购确认，保留历史确认快照。</summary>
-        [Post("/{uid}/cancel-confirmation")]
-        Task<ServiceResult<ProcurementOrderCommandResult>> CancelConfirmationAsync(Guid uid, [Body] CancelProcurementOrderConfirmationCommand command, CancellationToken cancellationToken = default);
     }
 }

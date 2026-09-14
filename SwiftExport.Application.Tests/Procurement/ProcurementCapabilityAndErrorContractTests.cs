@@ -60,15 +60,14 @@ public sealed class ProcurementCapabilityAndErrorContractTests
         Assert.AreEqual("ContextFingerprint", changed.Field);
     }
 
-    /// <summary>取消确认是新链专用显式命令，只接受幂等标识、预期版本和原因。</summary>
+    /// <summary>取消确认未开放期间不得从采购 API 暴露可写路由。</summary>
     [TestMethod]
-    public void Cancel_confirmation_contract_is_narrow_and_has_own_route()
+    public void Cancel_confirmation_route_is_not_exposed()
     {
-        var method = typeof(IProcurementOrderApi).GetMethod(nameof(IProcurementOrderApi.CancelConfirmationAsync));
-        var route = method!.GetCustomAttributes(typeof(PostAttribute), false).Cast<PostAttribute>().Single();
-        Assert.AreEqual("/{uid}/cancel-confirmation", route.Path);
-        CollectionAssert.AreEquivalent(new[] { "CommandId", "ExpectedVersion", "Reason" },
-            typeof(CancelProcurementOrderConfirmationCommand).GetProperties().Select(x => x.Name).ToArray());
+        Assert.IsNull(typeof(IProcurementOrderApi).GetMethod("CancelConfirmationAsync"));
+        var controller = File.ReadAllText(Path.Combine(
+            Root(), "SwiftExport.WebApi", "Controllers", "Procurement", "ProcurementOrderController.cs"));
+        Assert.IsFalse(controller.Contains("cancel-confirmation", StringComparison.Ordinal));
     }
 
     /// <summary>新链详情恢复真实采购头行字段，不把跟进、追溯或库存能力并入详情契约。</summary>

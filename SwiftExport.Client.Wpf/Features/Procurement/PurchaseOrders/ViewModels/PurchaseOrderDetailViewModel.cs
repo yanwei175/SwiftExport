@@ -32,7 +32,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     private readonly IMessageService _messages;
     private readonly INavigationService _navigation;
     private readonly ICurrentUserService _currentUser;
-    private Guid _saveCommandId, _confirmCommandId, _cancelCommandId, _createCommandId;
+    private Guid _saveCommandId, _confirmCommandId, _createCommandId;
     private bool _loading;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _customerSearchCts, _supplierSearchCts, _productSearchCts, _deliverySupplierSearchCts;
@@ -67,7 +67,10 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     public bool HasCreatePermission => _currentUser.HasPermission(PermissionKeys.ProcurementOrderCreate);
     public bool CanEdit => !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderEdit) && Header.CanEditDraft;
     public bool CanConfirm => !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm) && Header.CanConfirm;
-    public bool CanCancel => !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm) && Header.CanCancelConfirmation;
+    public bool CanCancel => !IsCreateMode
+        && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm)
+        && LifecycleStatus == PurchaseOrderLifecycleStatusEnum.Active
+        && ConfirmationStatus == ConfirmationStatusEnum.已确认;
 
     [ObservableProperty] public partial bool IsCreateMode { get; set; }
     [ObservableProperty] public partial bool HeaderHasChanges { get; set; }
@@ -332,16 +335,11 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     }
 
     [RelayCommand(CanExecute = nameof(CanCancelCommand))]
-    private async Task CancelConfirmationAsync()
+    private void CancelConfirmation()
     {
-        if (string.IsNullOrWhiteSpace(CancellationReason)) { _messages.ShowWarning("需要原因", "取消确认原因必填。"); return; }
-        if (!await _dialogs.ConfirmAsync("取消采购确认", "服务端将检查入库等下游事实。", "取消确认")) return;
-        _cancelCommandId = _cancelCommandId == Guid.Empty ? Guid.NewGuid() : _cancelCommandId;
-        var result = await _api.CancelConfirmationAsync(PurchaseOrderId, new CancelProcurementOrderConfirmationCommand
-        { CommandId = _cancelCommandId, ExpectedVersion = Version, Reason = CancellationReason.Trim() });
-        if (!Handle(result.ToClientResult(), "取消确认失败")) return;
-        _cancelCommandId = Guid.Empty; CancellationReason = string.Empty;
-        await LoadAsync(PurchaseOrderId, CancellationToken.None); _messages.ShowSuccess("已取消确认", OrderNo);
+        _messages.ShowWarning(
+            "取消采购确认暂未开放",
+            "该能力等待入库与库存反向流程完成后重建；当前不会发送取消请求，也不会修改采购状态。");
     }
 
     [RelayCommand] private Task RefreshAsync() => PurchaseOrderId == Guid.Empty ? Task.CompletedTask : LoadAsync(PurchaseOrderId, CancellationToken.None);

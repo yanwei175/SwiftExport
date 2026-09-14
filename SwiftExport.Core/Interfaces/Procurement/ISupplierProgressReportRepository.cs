@@ -1,4 +1,4 @@
-using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
 using SwiftExport.Core.Entities.Procurement;
 
 namespace SwiftExport.Core.Interfaces.Procurement;

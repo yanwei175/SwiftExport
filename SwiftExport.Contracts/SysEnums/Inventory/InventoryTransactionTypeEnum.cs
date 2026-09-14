@@ -8,6 +8,8 @@ namespace SwiftExport.Contracts.SysEnums.Inventory
         PackingListAutoReceiptInbound = 12,
         FinalCustomerShipmentOutbound = 20,
         CustomerSuppliedConsumptionOutbound = 21,
+        /// <summary>普通库存出库，仅允许负向库存变化，不计客户交付。</summary>
+        StockIssueOutbound = 22,
         NegativeStockExceptionOutbound = 90,
         OpeningBalance = 100,
         Reversal = 900

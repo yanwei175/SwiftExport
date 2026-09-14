@@ -169,7 +169,7 @@ WHERE [GrossDemandId]=@GrossDemandId;",
         return latest + 1;
     }
 
-    /// <summary>按来源身份锁定物料和执行事实；正式收发事实同样阻断来源退出。</summary>
+    /// <summary>按完整来源身份核验物料、执行及实际采购供货入库；返回 false 仅代表无已知阻断，不证明交付安全。</summary>
     public Task<bool> HasSourceExitBlockerAsync(string sourceType, Guid sourceUid, IEnumerable<Guid> sourceLineIds)
     {
         var ids = sourceLineIds.Distinct().ToArray();
@@ -186,20 +186,21 @@ SELECT CASE WHEN EXISTS (
      INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
      WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid
        AND link.[LinkStatus]=0 AND link.[IsDeleted]=0)
- OR EXISTS (SELECT 1 FROM [dbo].[PackingListContributionLine] WHERE [SalesOrderLineId] IN @LineIds AND [IsDeleted]=0)
  OR EXISTS (
-     SELECT 1 FROM [dbo].[InboundDocumentLine] il
-     LEFT JOIN [dbo].[DemandExecutionLink] link ON link.[Uid]=il.[DemandExecutionLinkId]
-     LEFT JOIN [dbo].[NetDemandAllocation] allocation ON allocation.[Uid]=COALESCE(il.[NetDemandAllocationId],link.[NetDemandAllocationId])
-     LEFT JOIN [dbo].[NetDemand] nd ON nd.[Uid]=COALESCE(link.[NetDemandId],allocation.[NetDemandId])
-     LEFT JOIN [dbo].[GrossDemand] d ON d.[Uid]=COALESCE(il.[GrossDemandId],nd.[GrossDemandId])
-     WHERE d.[SourceLineId] IN @LineIds AND il.[IsDeleted]=0)
- OR EXISTS (
-     SELECT 1 FROM [dbo].[OutboundDocumentLine] ol
-     LEFT JOIN [dbo].[NetDemandAllocation] allocation ON allocation.[Uid]=ol.[NetDemandAllocationId]
-     LEFT JOIN [dbo].[NetDemand] nd ON nd.[Uid]=allocation.[NetDemandId]
-     LEFT JOIN [dbo].[GrossDemand] d ON d.[Uid]=COALESCE(ol.[GrossDemandId],nd.[GrossDemandId])
-     WHERE d.[SourceLineId] IN @LineIds AND ol.[IsDeleted]=0)
+     -- 入库来源是实际采购行；历史 Link 即使取消或软删，也不能抹掉已经存在的入库关系。
+     SELECT 1 FROM [dbo].[InboundDocumentLine] il WITH (UPDLOCK,HOLDLOCK)
+     INNER JOIN [dbo].[InboundDocument] ih WITH (UPDLOCK,HOLDLOCK) ON ih.[Uid]=il.[InboundDocumentId]
+     LEFT JOIN [dbo].[PurchaseOrderLine] po WITH (UPDLOCK,HOLDLOCK) ON po.[Uid]=il.[SourceLineId]
+     WHERE ih.[DocumentType]=10 AND ih.[IsDeleted]=0 AND il.[IsDeleted]=0
+       AND (po.[Uid] IS NULL
+         OR (po.[SourceType]=@SourceType AND po.[SourceUid]=@SourceUid AND po.[SourceLineId] IN @LineIds)
+         OR EXISTS (
+             SELECT 1 FROM [dbo].[DemandExecutionLink] link WITH (UPDLOCK,HOLDLOCK)
+             INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=link.[NetDemandId]
+             INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
+             WHERE link.[TargetType]='PO' AND link.[TargetHeadId]=po.[PurchaseOrderId]
+               AND link.[TargetLineId]=po.[Uid]
+               AND d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[SourceLineId] IN @LineIds)))
  THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
         return Connection.ExecuteScalarAsync<bool>(sql, new { SourceType = sourceType, SourceUid = sourceUid, LineIds = ids }, Transaction);
     }
@@ -237,53 +238,6 @@ SELECT CASE WHEN EXISTS (
         }, Transaction);
     }
 
-    public async Task<IReadOnlyList<NetDemandTraceItemDto>> GetByGrossDemandForTraceAsync(
-        Guid grossDemandId,
-        CancellationToken cancellationToken = default)
-    {
-        const string sql = @"
-SELECT nd.[Uid],nd.[Version],nd.[GrossDemandId],nd.[DecompositionRevision],
-       nd.[LineNumber],nd.[LifecycleStatus],nd.[ParentNetDemandId],nd.[ParentSkuSnapshot] AS [ParentSku],
-       nd.[RootNetDemandId],root.[SkuSnapshot] AS [RootSku],nd.[DeliveryTargetNetDemandId],target.[SkuSnapshot] AS [DeliveryTargetSku],
-       nd.[DeliveryMode],nd.[ProductId],nd.[BomLineId],nd.[BomVersion],nd.[BomPath],
-       nd.[MaterialTypeSnapshot] AS [MaterialType],nd.[SupplyTypeSnapshot] AS [SupplyType],nd.[SkuSnapshot] AS [Sku],
-       nd.[CustomerSkuSnapshot] AS [CustomerSku],nd.[DescriptionSnapshot] AS [DefaultDescriptionEn],
-       nd.[ColorSnapshot] AS [Color],nd.[SpecificationSnapshot] AS [Specification],
-       nd.[GrossQty],nd.[NetQty],nd.[RequiredDate],allocation.[PurchaseSupplierId] AS [PreferredSupplierId],
-       allocation.[SupplierCodeSnapshot] AS [PreferredSupplierCode],
-       CASE WHEN ISNULL(x.[ReceivedQty],0)>=nd.[NetQty] THEN 4
-            WHEN ISNULL(x.[ReceivedQty],0)>0 THEN 3
-            WHEN ISNULL(x.[AllocatedQty],0)>=nd.[NetQty] THEN 2
-            WHEN ISNULL(x.[AllocatedQty],0)>0 THEN 1 ELSE 0 END AS [ExecutionProgress],
-       nd.[RolledBackAt],nd.[RolledBackBy],nd.[RolledBackReason]
-FROM [dbo].[NetDemand] nd
-LEFT JOIN [dbo].[NetDemand] root ON root.[Uid]=nd.[RootNetDemandId]
-LEFT JOIN [dbo].[NetDemand] target ON target.[Uid]=nd.[DeliveryTargetNetDemandId]
-OUTER APPLY (
-    SELECT TOP(1) a.[PurchaseSupplierId],a.[SupplierCodeSnapshot]
-    FROM [dbo].[NetDemandAllocation] a
-    WHERE a.[NetDemandId]=nd.[Uid] AND a.[LifecycleStatus]=0 AND a.[IsDeleted]=0
-    ORDER BY a.[PlanRevision] DESC,a.[Sequence],a.[Uid]
-) allocation
-OUTER APPLY (
-    SELECT SUM(l.[AllocatedQty]-l.[ReleasedQty]) AS [AllocatedQty],
-           SUM(ISNULL(receipts.[ReceivedQty],0)) AS [ReceivedQty]
-    FROM [dbo].[DemandExecutionLink] l
-    OUTER APPLY (
-        SELECT SUM(il.[Quantity]) AS [ReceivedQty]
-        FROM [dbo].[InboundDocumentLine] il
-        INNER JOIN [dbo].[InboundDocument] ih ON ih.[Uid]=il.[InboundDocumentId]
-        WHERE il.[DemandExecutionLinkId]=l.[Uid] AND ih.[PostingStatus]=1
-          AND il.[IsDeleted]=0 AND ih.[IsDeleted]=0
-    ) receipts
-    WHERE l.[NetDemandId]=nd.[Uid] AND l.[LinkStatus]=0 AND l.[IsDeleted]=0
-) x
-WHERE nd.[GrossDemandId]=@GrossDemandId AND nd.[IsDeleted]=0
-ORDER BY nd.[DecompositionRevision],nd.[LineNumber],nd.[Uid];";
-        var rows = await Connection.QueryAsync<NetDemandTraceItemDto>(new CommandDefinition(
-            sql, new { GrossDemandId = grossDemandId }, Transaction, cancellationToken: cancellationToken));
-        return [.. rows];
-    }
 
     public async Task<IReadOnlyList<RepositoryWriteResult>> AddDecompositionAsync(IEnumerable<NetDemand> demands)
     {

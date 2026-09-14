@@ -119,7 +119,7 @@
                         <ui:TextBox Grid.Column="26" Grid.Row="0" PlaceholderText="复核人" Text="{Binding Header.ReviewedBy,Mode=OneWay}" IsReadOnly="True"/>
 
                         <TextBlock Grid.Column="28" Grid.Row="0" Text="取消确认原因"/>
-                        <ui:TextBox Grid.Column="30" Grid.Row="0" PlaceholderText="取消确认原因" Text="{Binding CancellationReason,UpdateSourceTrigger=PropertyChanged}"/>
+                        <ui:TextBox Grid.Column="30" Grid.Row="0" PlaceholderText="取消确认暂未开放" Text="{Binding CancellationReason}" IsReadOnly="True"/>
 
 
                     </Grid>

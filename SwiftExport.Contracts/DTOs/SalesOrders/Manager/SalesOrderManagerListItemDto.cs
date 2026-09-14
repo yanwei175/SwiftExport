@@ -13,7 +13,8 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Manager
         public int Version { get; set; }
         public SalesOrderDocumentStatusEnum DocumentStatus { get; set; }
         public ConfirmationStatusEnum ConfirmationStatus { get; set; }
-        public SalesOrderFulfillmentStatusEnum FulfillmentStatus { get; set; }
+        /// <summary>PackingList 有效交付净额接入后的履约状态；当前为空表示未知。</summary>
+        public SalesOrderFulfillmentStatusEnum? FulfillmentStatus { get; set; }
         public string OrderNo { get; set; }
         public Guid CustomerId { get; set; }
         public string CustomerCode { get; set; }
@@ -23,8 +24,11 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Manager
         public string Currency { get; set; }
         public decimal ExchangeRate { get; set; }
         public decimal TotalQty { get; set; }
-        public decimal TotalShippedQty { get; set; }
-        public decimal TotalUnshippedQty { get; set; }
+        /// <summary>PackingList 有效交付净额接入后的已发数量；当前为空表示未知。</summary>
+        public decimal? TotalShippedQty { get; set; }
+
+        /// <summary>PackingList 有效交付净额接入后的未发数量；当前为空表示未知。</summary>
+        public decimal? TotalUnshippedQty { get; set; }
         public decimal TotalAmountOriginalCurrency { get; set; }
         public decimal TotalAmountLocalCurrency { get; set; }
         public DateTime? OrderDate { get; set; }

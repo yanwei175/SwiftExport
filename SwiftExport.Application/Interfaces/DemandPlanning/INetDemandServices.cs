@@ -5,7 +5,7 @@ using SwiftExport.Contracts.Wrappers;
 namespace SwiftExport.Application.Interfaces.DemandPlanning;
 
 /// <summary>
-/// 定义物料建立、回退、查询及追溯入口，不承接旧计划命令和采购写操作。
+/// 定义物料建立、回退与查询入口，不承接旧计划命令和采购写操作。
 /// </summary>
 public interface INetDemandServices
 {
@@ -53,8 +53,4 @@ public interface INetDemandServices
         CancellationToken cancellationToken = default);
     /// <summary>读取物料详情；活动计划兼容字段随后续页面治理。</summary>
     Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default);
-    /// <summary>读取物料历史与执行关联，保持原追溯查询语义。</summary>
-    Task<ServiceResult<NetDemandTraceDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default);
-    /// <summary>由物料领域读取一条来源需求的物料及执行追溯。</summary>
-    Task<ServiceResult<GrossDemandTraceDto>> GetSourceDemandTraceAsync(Guid grossDemandId, CancellationToken cancellationToken = default);
 }

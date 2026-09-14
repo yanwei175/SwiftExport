@@ -7,8 +7,8 @@ using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 using SwiftExportClient.Features.Home;
 using SwiftExportClient.Features.Inventory.Balances.ViewModels;
 using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
-using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
 using SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
+using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Planning;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
@@ -20,7 +20,6 @@ using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.Sales;
 using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
-using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 using SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels;
@@ -60,10 +59,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", typeof(WarehouseSitesViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
         new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", typeof(InventoryBalancesViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
         new(InboundManagerViewModel.RouteKey, "入库单管理", "Workspace", typeof(InboundManagerViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
+        new(OutboundManagerViewModel.RouteKey, "出库单管理", "Workspace", typeof(OutboundManagerViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
         new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", typeof(InventoryLedgerViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
-        new(OutboundWorkspaceViewModel.RouteKey, "出库工作台", "Workspace", typeof(OutboundWorkspaceViewModel), NavigationModuleKeys.Inventory, PermissionKeys.ModuleInventoryAccess),
-        new(PackingListWorkspaceViewModel.RouteKey, "PackingList 工作台", "Workspace", typeof(PackingListWorkspaceViewModel), NavigationModuleKeys.Shipping, PermissionKeys.ModuleShippingAccess),
-        new(PackingListDetailViewModel.RouteKey, "PackingList 详情", "Workspace", typeof(PackingListDetailViewModel), NavigationModuleKeys.Shipping, PermissionKeys.ModuleShippingAccess),
         new("planning", "计划", "Workspace", typeof(PlanningViewModel), NavigationModuleKeys.DemandPlanning, PermissionKeys.ModuleDemandPlanningAccess),
         new(SettingsCenterViewModel.RouteKey, "设置", "Workspace", typeof(SettingsCenterViewModel), NavigationModuleKeys.SettingsCenter, RequiredPermission: null),
     ];
@@ -168,18 +165,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                     new(WarehouseSitesViewModel.RouteKey, "供应商虚拟仓", "Workspace", "BuildingRetail24"),
                     new(InventoryBalancesViewModel.RouteKey, "库存余额", "Workspace", "DataBarHorizontal24"),
                     new(InboundManagerViewModel.RouteKey, "入库单管理", "Workspace", "ArrowDownload24"),
+                    new(OutboundManagerViewModel.RouteKey, "出库单管理", "Workspace", "ArrowUpload24"),
                     new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", "ClipboardTextLtr24"),
-                    new(OutboundWorkspaceViewModel.RouteKey, "出库工作台", "Workspace", "ArrowUpload24"),
-                ]),
-            new(
-                "shipping",
-                "出货",
-                "Workspace",
-                "VehicleTruckBag24",
-                IsExpanded: false,
-                Children:
-                [
-                    new(PackingListWorkspaceViewModel.RouteKey, "PackingList 工作台", "Workspace", "DocumentTable24"),
                 ]),
         ];
     }

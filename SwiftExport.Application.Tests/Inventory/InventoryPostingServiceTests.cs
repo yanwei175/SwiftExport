@@ -20,6 +20,39 @@ namespace SwiftExport.Application.Tests.Inventory;
 [TestClass]
 public sealed class InventoryPostingServiceTests
 {
+    /// <summary>类型 22 只扣减库存，同一明细重放不重复扣减。</summary>
+    [TestMethod]
+    public async Task StockIssue_RequiresNegativeDelta_AndReplays()
+    {
+        var f = new Fixture();
+        await f.Service.PostAsync(Guid.NewGuid(), [f.Item(10)]);
+        var issue = f.Item(-4);
+        issue.TransactionType = InventoryTransactionTypeEnum.StockIssueOutbound;
+        var command = Guid.NewGuid();
+        await f.Service.PostAsync(command, [issue]);
+        await f.Service.PostAsync(command, [issue]);
+        Assert.AreEqual(6m, f.Repository.Balance!.OnHandQty);
+        Assert.AreEqual(2, f.Repository.Ledgers.Count);
+        var invalid = new Fixture();
+        var positive = invalid.Item(1);
+        positive.TransactionType = InventoryTransactionTypeEnum.StockIssueOutbound;
+        await Assert.ThrowsExactlyAsync<InventoryPostingException>(() => invalid.Service.PostAsync(Guid.NewGuid(), [positive]));
+        Assert.AreEqual(0, invalid.Repository.Ledgers.Count);
+    }
+
+    /// <summary>普通库存出库不能借类型 22 放行不足或超过四位小数的数量。</summary>
+    [TestMethod]
+    public async Task StockIssue_RejectsShortageAndPrecision()
+    {
+        foreach (var quantity in new[] { -1m, -0.00001m })
+        {
+            var f = new Fixture();
+            var issue = f.Item(quantity);
+            issue.TransactionType = InventoryTransactionTypeEnum.StockIssueOutbound;
+            await Assert.ThrowsExactlyAsync<InventoryPostingException>(() => f.Service.PostAsync(Guid.NewGuid(), [issue]));
+            Assert.AreEqual(0, f.Repository.Ledgers.Count);
+        }
+    }
     /// <summary>同一外层命令可以按调用链分批追加不同明细，而每条明细仍只入账一次。</summary>
     [TestMethod]
     public async Task PostAsync_SameCommandDifferentItems_ShouldAppendAndReplayPerItem()

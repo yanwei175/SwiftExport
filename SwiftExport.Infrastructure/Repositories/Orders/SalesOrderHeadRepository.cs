@@ -2,7 +2,6 @@ using Dapper;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Contracts.DTOs.SalesOrders.Manager;
 using SwiftExport.Contracts.SysEnums;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Interfaces;
@@ -29,7 +28,6 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
         var pageSize = Math.Min(request.PageSize <= 0 ? 20 : request.PageSize, 200);
         var parameters = new DynamicParameters(new
         {
-            SourceType = DocumentTypeStaticsEnum.SalesOrder,
             Offset = (pageIndex - 1) * pageSize,
             PageSize = pageSize
         });
@@ -104,40 +102,14 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
                         OR keywordLine.DescriptionEn LIKE @Keyword ESCAPE '~')))");
         }
 
-        if (request.FulfillmentStatuses?.Count > 0)
-        {
-            where.Append(" AND totals.FulfillmentStatus IN @FulfillmentStatuses");
-            parameters.Add("FulfillmentStatuses", request.FulfillmentStatuses.Distinct().ToArray());
-        }
-
         var fromSql = @"
             FROM SalesOrderHeader h WITH(NOLOCK)
             LEFT JOIN Customer c WITH(NOLOCK)
               ON c.Uid = h.CustomerId AND c.IsDeleted = 0
             OUTER APPLY (
-                SELECT
-                    ISNULL(SUM(lineTotals.Qty), 0) AS TotalQty,
-                    ISNULL(SUM(lineTotals.ShippedQty), 0) AS TotalShippedQty,
-                    CASE
-                        WHEN ISNULL(SUM(lineTotals.ShippedQty), 0) <= 0 THEN 0
-                        WHEN ISNULL(SUM(lineTotals.Qty), 0) > 0
-                         AND ISNULL(SUM(lineTotals.ShippedQty), 0) >= ISNULL(SUM(lineTotals.Qty), 0) THEN 2
-                        ELSE 1
-                    END AS FulfillmentStatus
-                FROM (
-                    SELECT l.Qty,
-                           ISNULL((SELECT SUM(outLine.Quantity)
-                                   FROM dbo.OutboundDocumentLine outLine WITH(NOLOCK)
-                                   JOIN dbo.OutboundDocument outHead WITH(NOLOCK) ON outHead.Uid=outLine.OutboundDocumentId
-                                   JOIN dbo.NetDemandAllocation allocation WITH(NOLOCK) ON allocation.Uid=outLine.NetDemandAllocationId
-                                   JOIN dbo.NetDemand netDemand WITH(NOLOCK) ON netDemand.Uid=allocation.NetDemandId
-                                   JOIN dbo.GrossDemand demand WITH(NOLOCK) ON demand.Uid=netDemand.GrossDemandId
-                                   WHERE demand.SourceType=@SourceType AND demand.SourceLineId=l.Uid
-                                     AND outHead.DocumentType=20 AND outHead.PostingStatus=1
-                                     AND ISNULL(outHead.IsDeleted,0)=0 AND ISNULL(outLine.IsDeleted,0)=0), 0) AS ShippedQty
-                    FROM SalesOrderLine l WITH(NOLOCK)
-                    WHERE l.SalesOrderId = h.Uid AND l.IsDeleted = 0
-                ) lineTotals
+                SELECT ISNULL(SUM(l.Qty), 0) AS TotalQty
+                FROM SalesOrderLine l WITH(NOLOCK)
+                WHERE l.SalesOrderId = h.Uid AND l.IsDeleted = 0
             ) totals";
 
         var sql = $@"
@@ -150,7 +122,7 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
                 h.Version,
                 h.DocumentStatus,
                 h.ConfirmationStatus,
-                totals.FulfillmentStatus,
+                CAST(NULL AS int) AS FulfillmentStatus,
                 h.OrderNo,
                 ISNULL(h.CustomerId, '00000000-0000-0000-0000-000000000000') AS CustomerId,
                 ISNULL(h.CustomerCode, '') AS CustomerCode,
@@ -160,9 +132,8 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
                 ISNULL(h.Currency, '') AS Currency,
                 ISNULL(h.ExchangeRate, 0) AS ExchangeRate,
                 totals.TotalQty,
-                totals.TotalShippedQty,
-                CASE WHEN totals.TotalQty > totals.TotalShippedQty
-                     THEN totals.TotalQty - totals.TotalShippedQty ELSE 0 END AS TotalUnshippedQty,
+                CAST(NULL AS decimal(18, 4)) AS TotalShippedQty,
+                CAST(NULL AS decimal(18, 4)) AS TotalUnshippedQty,
                 ISNULL(h.TotalAmountOriginalCurrency, 0) AS TotalAmountOriginalCurrency,
                 ISNULL(h.TotalAmountLocalCurrency, 0) AS TotalAmountLocalCurrency,
                 h.OrderDate,
@@ -194,7 +165,9 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
         };
     }
 
-    /// <summary>读取销售订单头、有效行和正式发货摘要组成的 Detail。</summary>
+    /// <summary>
+    /// 读取销售订单头与有效行组成的 Detail；PackingList 净交付尚未接入前，交付数量显式返回未知。
+    /// </summary>
     public async Task<SalesOrderDetailDto?> GetDetailAsync(
         Guid uid,
         CancellationToken cancellationToken = default)
@@ -209,32 +182,17 @@ public class SalesOrderHeadRepository(RepositoryBaseContext context)
                 l.Sku, l.LinkSku, l.CustomerSku, l.DescriptionEn, l.ColorNameEn, l.FeaturesEn,
                 l.Qty, l.CnyPrice, l.UsdPrice, l.PcsOfCarton, l.NwOfCarton, l.GwOfCarton,
                 l.CbmOfCarton, l.ExpectedDeliveryDate, l.SubNote, l.MainImage,
-                shipped.ShippedQty,
-                CASE WHEN l.Qty > shipped.ShippedQty THEN l.Qty - shipped.ShippedQty ELSE 0 END AS UnshippedQty,
+                CAST(NULL AS decimal(18, 4)) AS ShippedQty,
+                CAST(NULL AS decimal(18, 4)) AS UnshippedQty,
                 ISNULL(l.CnyAmount, l.CnyPrice * l.Qty) AS CnyAmount,
                 ISNULL(l.UsdAmount, l.UsdPrice * l.Qty) AS UsdAmount
             FROM SalesOrderLine l WITH(NOLOCK)
-            OUTER APPLY (
-                SELECT ISNULL(SUM(outLine.Quantity),0) AS ShippedQty
-                FROM dbo.OutboundDocumentLine outLine WITH(NOLOCK)
-                JOIN dbo.OutboundDocument outHead WITH(NOLOCK) ON outHead.Uid=outLine.OutboundDocumentId
-                JOIN dbo.NetDemandAllocation allocation WITH(NOLOCK) ON allocation.Uid=outLine.NetDemandAllocationId
-                JOIN dbo.NetDemand netDemand WITH(NOLOCK) ON netDemand.Uid=allocation.NetDemandId
-                JOIN dbo.GrossDemand demand WITH(NOLOCK) ON demand.Uid=netDemand.GrossDemandId
-                WHERE demand.SourceType=@SourceType AND demand.SourceLineId=l.Uid
-                  AND outHead.DocumentType=20 AND outHead.PostingStatus=1
-                  AND ISNULL(outHead.IsDeleted,0)=0 AND ISNULL(outLine.IsDeleted,0)=0
-            ) shipped
             WHERE l.SalesOrderId = @Uid AND l.IsDeleted = 0
             ORDER BY l.LineNumber, l.Uid;";
 
         var command = new CommandDefinition(
             sql,
-            new
-            {
-                Uid = uid,
-                SourceType = DocumentTypeStaticsEnum.SalesOrder
-            },
+            new { Uid = uid },
             transaction: Transaction,
             cancellationToken: cancellationToken);
         using var multi = await Connection.QueryMultipleAsync(command);

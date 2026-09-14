@@ -218,117 +218,12 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
     }
 
     public Task<int> AdvanceDraftVersionAfterAppendAsync(Guid uid, int expectedVersion)
-        => AdvanceDraftVersionAsync(uid, expectedVersion, requireSafeFacts: true);
+        => AdvanceDraftVersionAsync(uid, expectedVersion);
 
-    /// <summary>读取或锁定旧链来源完整的草稿，供取消及减量。</summary>
-    public Task<PurchaseOrderHead?> GetLifecycleDraftAsync(Guid uid, bool withUpdLock = false)
-    {
-        if (uid == Guid.Empty) throw new ArgumentException("采购头 Uid 不能为空。", nameof(uid));
-        var lockHint = withUpdLock ? "WITH (UPDLOCK,HOLDLOCK)" : "WITH (NOLOCK)";
-        var sql = $"""
-            SELECT {HeadColumns}
-            FROM dbo.PurchaseOrderHead h {lockHint}
-            WHERE h.Uid=@Uid AND h.IsDeleted=0
-              AND h.ExecutionRequestId<>@EmptyUid
-              AND h.DemandSourceType<>N''
-              AND h.DemandSourceUid<>@EmptyUid
-              AND h.SupplierId<>@EmptyUid;
-            """;
-        return Session.Connection.QuerySingleOrDefaultAsync<PurchaseOrderHead>(
-            sql, new { Uid = uid, EmptyUid = Guid.Empty }, transaction: Session.Transaction);
-    }
-
-    /// <summary>检查旧链采购的收货及库存事实，不接管其他执行链。</summary>
-    public Task<bool> HasDownstreamFactsAsync(Guid uid, bool withUpdLock = false)
-    {
-        if (uid == Guid.Empty) throw new ArgumentException("采购头 Uid 不能为空。", nameof(uid));
-        var predicate = withUpdLock ? SafeFactsPredicateWithLocks : SafeFactsPredicate;
-        var headLock = withUpdLock ? "WITH (UPDLOCK,HOLDLOCK)" : "WITH (NOLOCK)";
-        var sql = $"SELECT CAST(CASE WHEN {predicate} THEN 0 ELSE 1 END AS bit) FROM dbo.PurchaseOrderHead h {headLock} WHERE h.Uid=@Uid AND h.IsDeleted=0;";
-        return Session.Connection.ExecuteScalarAsync<bool>(sql, new { Uid = uid }, transaction: Session.Transaction);
-    }
-
-    /// <summary>锁定旧链采购行，保留减量执行所需数量与价格。</summary>
-    public async Task<IReadOnlyList<PurchaseOrderLine>> GetDraftLinesForUpdateAsync(Guid purchaseOrderId)
-    {
-        if (purchaseOrderId == Guid.Empty) throw new ArgumentException("采购头 Uid 不能为空。", nameof(purchaseOrderId));
-        var rows = await Session.Connection.QueryAsync<PurchaseOrderLine>("""
-            SELECT Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,
-                   PurchaseOrderId,LineNumber,QTY AS Quantity,UnitPrice,TaxPrice
-            FROM dbo.PurchaseOrderLine WITH (UPDLOCK,HOLDLOCK)
-            WHERE PurchaseOrderId=@PurchaseOrderId AND IsDeleted=0
-              AND EXISTS(SELECT 1 FROM dbo.PurchaseOrderHead owner WHERE owner.Uid=@PurchaseOrderId AND owner.IsDeleted=0)
-            ORDER BY LineNumber,Uid;
-            """, new { PurchaseOrderId = purchaseOrderId }, transaction: Session.Transaction);
-        return [.. rows];
-    }
-
-    /// <summary>在版本与旧链所有权一致时作废安全采购草稿。</summary>
-    public Task<int> VoidDraftAsync(Guid uid, int expectedVersion, string reason)
-        => Session.Connection.ExecuteAsync("""
-            UPDATE dbo.PurchaseOrderHead
-            SET LifecycleStatus=@Voided,UpdatedDate=@Now,UpdatedBy=@UserName,
-                Remark=CASE WHEN NULLIF(@Reason,N'') IS NULL THEN Remark
-                            WHEN NULLIF(Remark,N'') IS NULL THEN @Reason
-                            ELSE CONCAT(Remark,N'；',@Reason) END,
-                Version=Version+1
-            WHERE Uid=@Uid AND Version=@ExpectedVersion AND LifecycleStatus=@Active
-              AND ConfirmationStatus=@Pending AND ExecutionRequestId<>@EmptyUid
-              AND DemandSourceType<>N'' AND DemandSourceUid<>@EmptyUid
-              AND SupplierId<>@EmptyUid AND IsDeleted=0;
-            """, new
-        {
-            Uid = uid,
-            ExpectedVersion = expectedVersion,
-            Reason = reason,
-            EmptyUid = Guid.Empty,
-            Active = PurchaseOrderLifecycleStatusEnum.Active,
-            Voided = PurchaseOrderLifecycleStatusEnum.Voided,
-            Pending = ConfirmationStatusEnum.待确认,
-            Now = DateTime.Now,
-            UserName = context.CurrentUser.UserName
-        }, transaction: Session.Transaction);
-
-    /// <summary>更新旧链采购行数量和金额，禁止跨执行链减量。</summary>
-    public async Task<int> UpdateDraftLineQuantitiesAsync(
-        IReadOnlyDictionary<Guid, decimal> quantities,
-        string reason)
-    {
-        ArgumentNullException.ThrowIfNull(quantities);
-        var affected = 0;
-        const string sql = """
-            UPDATE dbo.PurchaseOrderLine
-            SET QTY=@Quantity,UnitAmount=CASE WHEN UnitPrice IS NULL THEN NULL ELSE UnitPrice*@Quantity END,
-                TaxAmount=CASE WHEN TaxPrice IS NULL THEN NULL ELSE TaxPrice*@Quantity END,
-                SubNote=CASE WHEN NULLIF(@Reason,N'') IS NULL THEN SubNote
-                             WHEN NULLIF(SubNote,N'') IS NULL THEN @Reason
-                             ELSE CONCAT(SubNote,N'；',@Reason) END,
-                UpdatedDate=@Now,UpdatedBy=@UserName,Version=Version+1
-            WHERE Uid=@Uid AND IsDeleted=0
-              AND EXISTS(SELECT 1 FROM dbo.PurchaseOrderHead owner WHERE owner.Uid=dbo.PurchaseOrderLine.PurchaseOrderId AND owner.IsDeleted=0);
-            """;
-        foreach (var item in quantities)
-        {
-            affected += await Session.Connection.ExecuteAsync(sql, new
-            {
-                Uid = item.Key,
-                Quantity = item.Value,
-                Reason = reason,
-                Now = DateTime.Now,
-                UserName = context.CurrentUser.UserName
-            }, transaction: Session.Transaction);
-        }
-        return affected;
-    }
-
-    public Task<int> AdvanceDraftVersionAfterReleaseAsync(Guid uid, int expectedVersion)
-        => AdvanceDraftVersionAsync(uid, expectedVersion, requireSafeFacts: false);
-
-    /// <summary>仅推进旧链采购头版本并重算交期，按调用用途保留下游事实门禁。</summary>
-    private Task<int> AdvanceDraftVersionAsync(Guid uid, int expectedVersion, bool requireSafeFacts)
+    /// <summary>追加已有草稿后推进采购头版本并重算交期，始终保留下游事实门禁。</summary>
+    private Task<int> AdvanceDraftVersionAsync(Guid uid, int expectedVersion)
     {
         ValidateHeadKey(uid, expectedVersion);
-        var safeFacts = requireSafeFacts ? $"AND {SafeFactsPredicateWithLocks}" : string.Empty;
         var sql = $"""
             UPDATE h
                SET ExpectedDate=facts.EarliestPlannedDeliveryDate,
@@ -341,7 +236,8 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
                 WHERE l.PurchaseOrderId=h.Uid AND l.IsDeleted=0 AND l.QTY>0
             ) facts
             WHERE h.Uid=@Uid AND h.Version=@ExpectedVersion AND h.LifecycleStatus=@Active
-              AND h.ConfirmationStatus=@Pending AND h.IsDeleted=0 {safeFacts};
+              AND h.ConfirmationStatus=@Pending AND h.IsDeleted=0
+              AND {SafeFactsPredicateWithLocks};
             """;
         return Session.Connection.ExecuteAsync(sql, new
         {

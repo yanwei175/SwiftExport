@@ -25,7 +25,8 @@ public sealed class PurchaseOrderFirstSliceContractsTests
         var source = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderManagerViewModel.cs");
         StringAssert.Contains(source, "GetConfirmationContextAsync(order.PurchaseOrderId)");
         StringAssert.Contains(source, "ConfirmAsync(order.PurchaseOrderId");
-        StringAssert.Contains(source, "CancelConfirmationAsync(order.PurchaseOrderId");
+        StringAssert.Contains(source, "取消采购确认暂未开放");
+        Assert.IsFalse(source.Contains("_orderApi.CancelConfirmationAsync", StringComparison.Ordinal));
         StringAssert.Contains(source, "requiresConsumptionBinding");
     }
 
@@ -37,7 +38,8 @@ public sealed class PurchaseOrderFirstSliceContractsTests
         StringAssert.Contains(source, "CreateIndependentPurchaseOrderCommand");
         StringAssert.Contains(source, "UpdatePurchaseOrderDraftCommand");
         StringAssert.Contains(source, "ConfirmProcurementOrderCommand");
-        StringAssert.Contains(source, "CancelProcurementOrderConfirmationCommand");
+        StringAssert.Contains(source, "取消采购确认暂未开放");
+        Assert.IsFalse(source.Contains("_api.CancelConfirmationAsync", StringComparison.Ordinal));
         StringAssert.Contains(source, "GetConfirmationContextAsync");
         StringAssert.Contains(source, "ProcurementConfirmationBindingModel");
         Assert.IsFalse(source.Contains("IPurchaseOrderWorkspaceApi", StringComparison.Ordinal));

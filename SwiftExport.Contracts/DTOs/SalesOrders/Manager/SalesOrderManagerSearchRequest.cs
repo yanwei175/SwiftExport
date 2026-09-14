@@ -20,6 +20,5 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Manager
         public List<string> CustomerSkus { get; set; } = new List<string>();
         public List<SalesOrderDocumentStatusEnum> DocumentStatuses { get; set; } = new List<SalesOrderDocumentStatusEnum>();
         public List<ConfirmationStatusEnum> ConfirmationStatuses { get; set; } = new List<ConfirmationStatusEnum>();
-        public List<SalesOrderFulfillmentStatusEnum> FulfillmentStatuses { get; set; } = new List<SalesOrderFulfillmentStatusEnum>();
     }
 }

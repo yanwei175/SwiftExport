@@ -111,7 +111,7 @@ public sealed partial class InboundManagerViewModel
             PageIndex = page; TotalCount = data.TotalCount;
             SelectedItem = Headers.Items.FirstOrDefault(x => x.Uid == selectedId) ?? Headers.Items.FirstOrDefault();
             NotifyEditState();
-            ResultSummary = Headers.Items.Count == 0 ? "没有符合条件的入库单。" : "列表已加载；过账尚未开放。";
+            ResultSummary = Headers.Items.Count == 0 ? "没有符合条件的入库单。" : "列表已加载；已保存草稿可预览过账，暂不支持反过账。";
             if (SelectedItem is not null) await LoadDetailCoreAsync(SelectedItem, token, id);
         }, "查询入库单");
     }

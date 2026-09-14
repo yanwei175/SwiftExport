@@ -1,5 +1,5 @@
 using Dapper;
-using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Infrastructure.Contexts;

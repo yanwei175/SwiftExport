@@ -6,7 +6,7 @@ using System.IO;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Fulfillment;
 
-/// <summary>验证销售履约 Manager/Detail 的路由、只读呈现和跨领域边界。</summary>
+/// <summary>验证销售履约 Manager/Detail 仅保留可导航的前端空壳。</summary>
 [TestClass]
 public sealed class SalesFulfillmentContractsTests
 {
@@ -26,28 +26,32 @@ public sealed class SalesFulfillmentContractsTests
     }
 
     [TestMethod]
-    public void DetailSeparatesLineAndOrderPurchasesAndDisplaysUnknownQuantities()
+    public void ViewsAndViewModelsDoNotRetainBackendQueryDependencies()
     {
+        var managerView = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "Views", "SalesFulfillmentManagerView.xaml");
         var detailView = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "Views", "SalesFulfillmentDetailView.xaml");
+        var managerViewModel = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "ViewModels", "SalesFulfillmentManagerViewModel.cs");
         var detailViewModel = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "ViewModels", "SalesFulfillmentDetailViewModel.cs");
 
-        StringAssert.Contains(detailView, "SelectedLinePurchases");
-        StringAssert.Contains(detailView, "OrderPurchases");
-        StringAssert.Contains(detailView, "TargetNullValue=未知");
-        StringAssert.Contains(detailViewModel, "SO-003");
-        StringAssert.Contains(detailViewModel, "PurchaseOrderDetailViewModel.RouteKey");
-        Assert.IsFalse(detailViewModel.Contains("SaveCommand", StringComparison.Ordinal));
-        Assert.IsFalse(detailViewModel.Contains("ConfirmCommand", StringComparison.Ordinal));
+        StringAssert.Contains(managerView, "Manager 页面空壳");
+        StringAssert.Contains(detailView, "Detail 页面空壳");
+        Assert.IsFalse(managerView.Contains("DataGrid", StringComparison.Ordinal));
+        Assert.IsFalse(detailView.Contains("DataGrid", StringComparison.Ordinal));
+        Assert.IsFalse(managerViewModel.Contains("ISalesFulfillment", StringComparison.Ordinal));
+        Assert.IsFalse(detailViewModel.Contains("ISalesFulfillment", StringComparison.Ordinal));
+        Assert.IsFalse(managerViewModel.Contains("Contracts.DTOs", StringComparison.Ordinal));
+        Assert.IsFalse(detailViewModel.Contains("Contracts.DTOs", StringComparison.Ordinal));
     }
 
     [TestMethod]
     public void ManagerAndSalesOrderEntryUseStableDetailDocumentKey()
     {
-        var fulfillmentManager = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "ViewModels", "SalesFulfillmentManagerViewModel.cs");
         var salesManager = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Orders", "ViewModels", "SalesOrderManagerViewModel.cs");
+        var fulfillmentDetail = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "ViewModels", "SalesFulfillmentDetailViewModel.cs");
 
-        StringAssert.Contains(fulfillmentManager, "$\"sales-fulfillment-detail:{order.SalesOrderId:N}\"");
         StringAssert.Contains(salesManager, "$\"sales-fulfillment-detail:{order.Uid:N}\"");
+        StringAssert.Contains(fulfillmentDetail, "IDocumentTabInitializable");
+        StringAssert.Contains(fulfillmentDetail, "SalesFulfillmentDetailOpenRequest");
     }
 
     [TestMethod]

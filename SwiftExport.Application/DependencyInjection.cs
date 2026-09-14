@@ -54,8 +54,6 @@ public static class DependencyInjection
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
         services.AddScoped<ISalesOrderManagerService, SalesOrderManagerService>();
         services.AddScoped<ISalesOrderDetailService, SalesOrderDetailService>();
-        services.AddScoped<ISalesFulfillmentManagerService, SalesFulfillmentManagerService>();
-        services.AddScoped<ISalesFulfillmentDetailService, SalesFulfillmentDetailService>();
         services.AddScoped<IGrossDemandWorkspaceService, GrossDemandWorkspaceService>();
         services.AddScoped<IMaterialDemandEstablishmentService, MaterialDemandEstablishmentService>();
         services.AddScoped<ISourceDemandReceptionService, SourceDemandReceptionService>();
@@ -69,13 +67,10 @@ public static class DependencyInjection
         services.AddScoped<PurchaseDraftPreviewBuilder>();
         services.AddScoped<PurchaseDraftWriteModelBuilder>();
         services.AddScoped<PurchaseDraftCreationService>();
-        services.AddScoped<PurchaseDraftReleasePlanner>();
-        services.AddScoped<PurchaseDraftLifecycleService>();
         services.AddScoped<IPurchaseDraftService, PurchaseDraftService>();
         // 新物料服务独立演进；旧混合接口仅兼容未迁移调用方。
         services.AddScoped<INetDemandServices, NetDemandServices>();
         services.AddScoped<INetDemandWorkspaceService, NetDemandWorkspaceService>();
-        services.AddScoped<IPurchaseOrderWorkspaceService, PurchaseOrderWorkspaceService>();
         // 独立采购按查询、命令和确认依据分别注册，不复用旧 Workspace。
         services.AddScoped<SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderTransaction>();
         services.AddScoped<SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementConfirmationBuilder>();
@@ -83,18 +78,15 @@ public static class DependencyInjection
         services.AddScoped<IProcurementOrderCommandService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderCommandService>();
         services.AddScoped<IProcurementOrderQueryService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderQueryService>();
         services.AddScoped<IPurchaseOrderManagerQueryService, SwiftExport.Application.Services.Procurement.OrderManagement.PurchaseOrderManagerQueryService>();
+        services.AddScoped<IPurchaseOrderProgressService, SwiftExport.Application.Services.Procurement.OrderManagement.PurchaseOrderProgressService>();
         services.AddScoped<IBomExecutionReader, SwiftExport.Application.Services.Products.Execution.BomExecutionReader>();
         services.AddScoped<SwiftExport.Application.Interfaces.MasterData.IExecutionEligibilityService, SwiftExport.Application.Services.MasterData.ExecutionEligibilityService>();
         services.AddScoped<SwiftExport.Application.Interfaces.MasterData.IProcurementMasterDataQueryService, SwiftExport.Application.Services.MasterData.ProcurementMasterDataQueryService>();
         services.AddScoped<IInventoryPostingService, InventoryPostingService>();
         services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IInboundManagerService, InboundManagerService>();
+        services.AddScoped<IOutboundManagerService, OutboundManagerService>();
         services.AddScoped<IWarehouseCandidateQueryService, WarehouseCandidateQueryService>();
-        services.AddScoped<IInboundPostingPort, InboundPostingPort>();
-        services.AddScoped<IOutboundPostingPort, OutboundPostingPort>();
-        services.AddScoped<IOutboundWorkspaceService, OutboundWorkspaceService>();
-        services.AddScoped<PackingListPreviewBuilder>();
-        services.AddScoped<IPackingListWorkspaceService, PackingListWorkspaceService>();
         services.AddScoped<IDocumentNoService, DocumentNoService>();
         services.AddScoped<ISysDicCurrencyService, SysDicCurrencyService>();
         services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();

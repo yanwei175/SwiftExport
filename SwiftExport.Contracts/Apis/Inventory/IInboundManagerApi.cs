@@ -7,9 +7,15 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Contracts.Apis.Inventory
 {
-    /// <summary>入库管理非过账契约，基址为 api/inventory/inbounds。</summary>
+    /// <summary>入库查询、草稿及正向过账契约，基址为 api/inventory/inbounds；不开放反向。</summary>
     public interface IInboundManagerApi
     {
+        /// <summary>只读预览正向过账，不预占容量。</summary>
+        [Post("/{uid}/post-preview")]
+        Task<ServiceResult<InboundPostPreviewDto>> PreviewPostAsync(Guid uid, [Body] InboundPostPreviewRequest request, CancellationToken cancellationToken = default(CancellationToken));
+        /// <summary>按版本与命令身份提交正向过账。</summary>
+        [Post("/{uid}/post")]
+        Task<ServiceResult<InboundPostResult>> PostAsync(Guid uid, [Body] PostInboundCommand command, CancellationToken cancellationToken = default(CancellationToken));
         /// <summary>分页读取入库摘要。</summary>
         [Post("/search")]
         Task<ServiceResult<PagedResponseBase<InboundManagerListItemDto>>> SearchAsync([Body] InboundManagerSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));

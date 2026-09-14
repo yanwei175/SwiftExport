@@ -28,8 +28,7 @@ public sealed class TargetDatabaseBaselineContractTests
         [typeof(InboundDocumentLine)] = "InboundDocumentLine",
         [typeof(OutboundDocument)] = "OutboundDocument",
         [typeof(OutboundDocumentLine)] = "OutboundDocumentLine",
-        [typeof(PackingListDocument)] = "PackingListDocument",
-        [typeof(PackingListContributionLine)] = "PackingListContributionLine",
+        // PackingList 新目标映射由 PackingListEntityContractTests 验证，历史脚本仍验证旧表。
         [typeof(SalesOrderLine)] = "SalesOrderLine"
     };
 
@@ -46,8 +45,8 @@ public sealed class TargetDatabaseBaselineContractTests
         AssertMissing<NetDemand>("PreferredSupplierId", "PreferredSupplierCode");
         AssertMissing<DemandExecutionLink>("CompletedQty", "ReceivedQty");
         AssertMissing<SalesOrderLine>("LastShippedDate");
-        AssertMissing<PackingListDocument>("LegacyHeadId", "IsLegacyReadOnly", "ReadOnlyReason");
-        AssertMissing<PackingListContributionLine>("LegacyPackingListHeadId");
+        AssertMissing<PackingListHead>("LegacyHeadId", "IsLegacyReadOnly", "ReadOnlyReason");
+        AssertMissing<PackingListLine>("LegacyPackingListHeadId");
         Assert.AreEqual(typeof(Guid), typeof(DemandExecutionLink).GetProperty(nameof(DemandExecutionLink.NetDemandAllocationId))!.PropertyType);
         Assert.AreEqual(typeof(Guid), typeof(DemandExecutionLink).GetProperty(nameof(DemandExecutionLink.CommandItemId))!.PropertyType);
     }

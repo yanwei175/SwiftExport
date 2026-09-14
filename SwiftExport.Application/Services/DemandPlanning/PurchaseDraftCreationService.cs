@@ -91,29 +91,6 @@ public sealed class PurchaseDraftCreationService(
         return ServiceResult<CreatePurchaseDraftsResult>.Ok(result);
     }
 
-    public async Task<ServiceResult<SourcePurchaseTraceDto>> GetSourceTraceAsync(
-        string sourceType,
-        Guid sourceUid,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(sourceType) || sourceUid == Guid.Empty)
-            return ServiceResult<SourcePurchaseTraceDto>.Fail("来源类型和来源 Uid 不能为空。");
-        try
-        {
-            var trace = await executionLinkRepository.GetPurchaseTraceBySourceAsync(
-                sourceType.Trim(), sourceUid, cancellationToken);
-            return trace is null
-                ? ServiceResult<SourcePurchaseTraceDto>.Fail("未找到来源采购追溯记录。")
-                : ServiceResult<SourcePurchaseTraceDto>.Ok(trace);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "查询来源 {SourceType}/{SourceUid} 的采购追溯失败。", sourceType, sourceUid);
-            return ServiceResult<SourcePurchaseTraceDto>.Fail("查询来源采购追溯失败。");
-        }
-    }
-
     private async Task<CreatePurchaseDraftSourceResult> CreateSourceAsync(
         CreatePurchaseDraftsCommand command,
         CreatePurchaseDraftSourceCommand source,

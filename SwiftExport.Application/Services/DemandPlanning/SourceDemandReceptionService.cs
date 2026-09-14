@@ -83,7 +83,7 @@ public sealed class SourceDemandReceptionService(
                 : !LegacyBusinessContentMatches(demand, command, item);
             if (requiresDisposition && await materialDemandEstablishment.HasSourceExitBlockerAsync(
                     command.SourceType, command.SourceUid, [item.SourceLineId]))
-                throw new SourceDemandReceptionException("SOURCE_CHANGE_REQUIRES_DISPOSITION", "来源需求已有下游事实，必须先完成影响处置。");
+                throw new SourceDemandReceptionException("SOURCE_CHANGE_REQUIRES_DISPOSITION", "来源需求已有物料、执行、关联入库或无法识别的供货历史，必须先完成影响处置。");
 
             // 来源只更新自身事实；物料建立状态由 NetDemand 历史联表判断，不再回写兼容字段。
             Apply(command, item, demand);
@@ -104,7 +104,7 @@ public sealed class SourceDemandReceptionService(
         if (demands.Count != sourceLineIds.Count || demands.GroupBy(item => item.SourceLineId).Any(group => group.Count() != 1))
             throw new SourceDemandReceptionException("SOURCE_DEMAND_MISMATCH", "来源需求数量与来源明细不一致。");
         if (await materialDemandEstablishment.HasSourceExitBlockerAsync(sourceType, sourceUid, sourceLineIds))
-            throw new SourceDemandReceptionException("SOURCE_EXIT_BLOCKED", "来源需求仍有活动拆解、执行关系或正式履约事实。");
+            throw new SourceDemandReceptionException("SOURCE_EXIT_BLOCKED", "存在活动物料、执行关系、关联入库或无法识别的供货历史，不能退出来源确认。");
         if (await materialDemandEstablishment.HasInvalidExitHistoryAsync(demands.Select(item => item.Uid)))
             throw new SourceDemandReceptionException("SOURCE_HISTORY_INVALID", "来源需求历史不完整，不能退出确认。");
 
@@ -134,7 +134,7 @@ public sealed class SourceDemandReceptionService(
         var demands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(sourceType, sourceUid);
         if (demands.Count == 0) return 0;
         if (await materialDemandEstablishment.HasSourceExitBlockerAsync(sourceType, sourceUid, sourceLineIds))
-            throw new SourceDemandReceptionException("SOURCE_EXIT_BLOCKED", "来源需求已拆解或产生下游执行，不能直接关闭。");
+            throw new SourceDemandReceptionException("SOURCE_EXIT_BLOCKED", "存在活动物料、执行关系、关联入库或无法识别的供货历史，不能直接关闭。");
         var affected = await grossDemandRepository.VoidPendingBySourceAsync(sourceType, sourceUid, reason);
         if (affected != demands.Count)
             throw new SourceDemandReceptionException("CONCURRENCY_CONFLICT", "部分来源需求状态已变化，关闭失败。");

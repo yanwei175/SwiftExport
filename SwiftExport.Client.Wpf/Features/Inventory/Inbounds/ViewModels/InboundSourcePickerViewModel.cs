@@ -24,6 +24,7 @@ public partial class InboundSourcePickerViewModel : ObservableObject, IDialogCon
     private bool _hasResult;
     private long _requestId;
     private InboundSourceSearchRequest? _appliedSearch;
+    private Guid? _currentInboundDocumentId;
 
     /// <summary>仅供设计器及本地模型测试创建，不提供任何远程数据。</summary>
     public InboundSourcePickerViewModel() { }
@@ -72,6 +73,7 @@ public partial class InboundSourcePickerViewModel : ObservableObject, IDialogCon
     /// <summary>初始化固定上下文并加载缓存与第一页；非采购来源明确不可用。</summary>
     public async Task InitializeAsync(InboundSourcePickerRequest request, CancellationToken cancellationToken)
     {
+        _currentInboundDocumentId = request.CurrentInboundDocumentId;
         DocumentType = request.DocumentType;
         OnPropertyChanged(nameof(IsPurchase));
         if (!IsPurchase)
@@ -109,6 +111,7 @@ public partial class InboundSourcePickerViewModel : ObservableObject, IDialogCon
         var request = new InboundSourceSearchRequest
         {
             DocumentType = DocumentType,
+            CurrentInboundDocumentId = _currentInboundDocumentId,
             PurchaseCategory = applied is null ? PurchaseCategory : applied.PurchaseCategory,
             SupplierId = applied is null ? SelectedSupplier?.Uid : applied.SupplierId,
             Keyword = applied is null ? Keyword : applied.Keyword,

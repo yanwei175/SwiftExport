@@ -8,12 +8,11 @@ using SwiftExport.Core.Interfaces.DemandPlanning;
 
 namespace SwiftExport.Application.Services.Procurement;
 
-/// <summary>统一承接采购候选读取、草稿预览创建及生命周期，不经由物料工作台服务转发。</summary>
+/// <summary>统一承接采购候选读取、草稿预览及创建，不经由物料工作台服务转发。</summary>
 public sealed class PurchaseDraftService(
     ServiceBaseContext context,
     INetDemandRepository materialDemandFacts,
-    PurchaseDraftCreationService creation,
-    PurchaseDraftLifecycleService lifecycle) : IPurchaseDraftService
+    PurchaseDraftCreationService creation) : IPurchaseDraftService
 {
     private readonly ILogger<PurchaseDraftService> _logger = context.LoggerFactory.CreateLogger<PurchaseDraftService>();
 
@@ -62,19 +61,4 @@ public sealed class PurchaseDraftService(
     public Task<ServiceResult<CreatePurchaseDraftsResult>> CreateAsync(CreatePurchaseDraftsCommand command, CancellationToken cancellationToken = default)
         => creation.CreateAsync(command, cancellationToken);
 
-    /// <inheritdoc/>
-    public Task<ServiceResult<PurchaseDraftLifecycleResult>> CancelAsync(Guid uid, CancelPurchaseDraftCommand command, CancellationToken cancellationToken = default)
-        => lifecycle.CancelAsync(uid, command, cancellationToken);
-
-    /// <inheritdoc/>
-    public Task<ServiceResult<PurchaseDraftReleasePreviewResponse>> PreviewReleaseAsync(Guid uid, PurchaseDraftReleasePreviewRequest request, CancellationToken cancellationToken = default)
-        => lifecycle.PreviewReleaseAsync(uid, request, cancellationToken);
-
-    /// <inheritdoc/>
-    public Task<ServiceResult<PurchaseDraftLifecycleResult>> ReleaseAsync(Guid uid, ReleasePurchaseDraftCommand command, CancellationToken cancellationToken = default)
-        => lifecycle.ReleaseAsync(uid, command, cancellationToken);
-
-    /// <inheritdoc/>
-    public Task<ServiceResult<SourcePurchaseTraceDto>> GetSourceTraceAsync(string sourceType, Guid sourceUid, CancellationToken cancellationToken = default)
-        => creation.GetSourceTraceAsync(sourceType, sourceUid, cancellationToken);
 }

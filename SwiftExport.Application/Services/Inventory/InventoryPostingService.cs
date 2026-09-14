@@ -288,7 +288,8 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
         if (item.ReversalOfLedgerId.HasValue || item.ReplacementOfLedgerId.HasValue)
             throw new InventoryPostingException("普通过账不能设置反向或替代关系。");
         var inbound = item.TransactionType is InventoryTransactionTypeEnum.PurchaseReceiptInbound or InventoryTransactionTypeEnum.CustomerSuppliedReceiptInbound or InventoryTransactionTypeEnum.PackingListAutoReceiptInbound;
-        var outbound = item.TransactionType is InventoryTransactionTypeEnum.FinalCustomerShipmentOutbound or InventoryTransactionTypeEnum.CustomerSuppliedConsumptionOutbound;
+        // 普通库存出库共用负向交易校验，不扩大负库存例外入口。
+        var outbound = item.TransactionType is InventoryTransactionTypeEnum.FinalCustomerShipmentOutbound or InventoryTransactionTypeEnum.CustomerSuppliedConsumptionOutbound or InventoryTransactionTypeEnum.StockIssueOutbound;
         if ((!inbound && !outbound) || (inbound && item.QuantityDelta < 0) || (outbound && item.QuantityDelta > 0))
             throw new InventoryPostingException("库存交易类型与数量方向不一致，且不允许普通接口写入期初、负库存异常或反向类型。");
         ValidateText(item.SourceDocumentType, 50, true, "来源单据类型");

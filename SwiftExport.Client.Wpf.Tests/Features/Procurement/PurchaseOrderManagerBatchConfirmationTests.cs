@@ -242,7 +242,7 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         if (includeReadPermission) permissions.Add(PermissionKeys.ProcurementOrderRead);
         if (includeConfirmPermission) permissions.Add(PermissionKeys.ProcurementOrderConfirm);
         var viewModel = new PurchaseOrderManagerViewModel(manager, orderApi, new ProcurementDialogStub(),
-            new NavigationStub(), dialogs, new ApiCallRunnerStub(), new MessageStub(), new CancellationDialogStub(),
+            new NavigationStub(), dialogs, new ApiCallRunnerStub(), new MessageStub(),
             new CurrentUserStub(permissions));
         return new Fixture(viewModel, manager, orderApi, dialogs);
     }

@@ -33,6 +33,7 @@ public sealed class MapsterConfig : IRegister
     public void Register(TypeAdapterConfig config)
     {
         new SwiftExportClient.Features.Inventory.Inbounds.Mappings.InboundManagerMappings().Register(config);
+        new SwiftExportClient.Features.Inventory.Outbounds.Mappings.OutboundManagerMappings().Register(config);
         config.NewConfig<SourceDemandCandidateGroupDto, SourceDemandCandidateGroupModel>()
             .Map(dest => dest.SourceType, src => src.SourceType ?? string.Empty)
             .Map(dest => dest.SourceNo, src => src.SourceNo ?? string.Empty);
