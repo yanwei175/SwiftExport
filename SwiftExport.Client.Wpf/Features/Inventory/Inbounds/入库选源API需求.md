@@ -1,6 +1,6 @@
 # 入库选源 API 交接
 
-本批只实现客户端与契约，后端未实现。不得复活旧 Workspace 来源语义或用假数据返回成功。
+2026-09-14：本批已实现非过账后端与契约。Picker 既有 Refit 已有对应服务端；Manager 新增 Refit，但页面查询/保存按钮尚未接线。数据库未连接、未迁移，不能把代码构建通过视为数据库部署完成。不得复活旧 Workspace 来源语义或用假数据返回成功。
 
 ## 查询协议
 
@@ -37,4 +37,33 @@
 - 确认返回独立快照，Manager 不二次获取详情，不比较来源版本。重复来源跳过，不覆盖已填数量。
 - 单头已有明细时不改类型，草稿仓库仍可独立选择或修改。新明细本次实收初始 0，用户填写。
 - 保存核对入库单自身版本；过账在同一事务最终核对采购状态、身份、单位、目标仓和同来源合计的剩余额度，并防重复命令。采购版本不变也可能已有其他收货，版本不能替代数量校验。
-- 过账失败提示用户修改草稿，不静默换来源、仓库或数量。保存及过账后端不属于本批实现范围。
+- 过账失败应提示用户修改草稿，不静默换来源、仓库或数量；过账后端仍不属于本批实现范围。
+
+## Manager 非过账 API（本批后端实现）
+
+基址为 `/api/inventory/inbounds`，Refit 为 `IInboundManagerApi`。
+
+| 方法 | 路由 | 输入 | 返回数据 |
+|---|---|---|---|
+| POST | /search | InboundManagerSearchRequest：Keyword、DocumentType、PageIndex、PageSize | 分页 InboundManagerListItemDto |
+| GET | /{uid} | 入库单 Uid | InboundManagerDetailDto：Header、Lines |
+| POST | /drafts | CreateInboundDraftCommand：CommandId、Draft | InboundDraftCommandResult |
+| PUT | /drafts/{uid} | UpdateInboundDraftCommand：CommandId、ExpectedVersion、Draft | 同上 |
+| POST | /drafts/{uid}/delete | DeleteInboundDraftCommand：CommandId、ExpectedVersion、Reason | 同上，IsDeleted=true |
+
+- 全部返回 `ServiceResult<T>`，业务阻断在 Message 明确说明；服务端验证真实用户的 `Module.Inventory.Access`，不把 UI 按钮状态作为权限。独立入库操作权限尚未新增，过账不因此获得授权。
+- 每次保存一张单，头行及日志同事务；多张单由调用方逐单处理，不承诺跨单原子性。请求限 1–500 行，数量为正数，最多四位小数。同单来源不重复。
+- Draft 只含 DocumentType、WarehouseSiteId、ReceiptDate、Remark 和 Lines。行输入只有 Uid、SourceLineId、Quantity。新增行 Uid 为空；已有行保持入库行 Uid，省略的已有行软删除。已有行不允许换来源，应删旧行、加新行。
+- 已保存单据类型固定；头版本保护完整明细集合。保存不比较采购版本、不扣剩余额度；新增行只验证可定位的采购、产品、单位。已有行保留历史产品快照。最终采购状态和累计容量必须在未来过账重新校验。
+- 仅活动、未过账、人工且非 PackingList 触发单可修改/删除；即使单头状态异常未过账，发现正式库存流水仍拒绝。删除保留头行及日志，不物理删除。
+- 当前编号为 `IR-{入库Uid的32位格式}`，由服务端建立，不接收客户端编号。
+- 重试复用 CommandId 和完整内容；更新/删除也复用最初 ExpectedVersion。同键不同内容、不同操作或不同用户冲突。响应不确定时不要新建 CommandId。
+- 来源版本仅为查询当时版本，不入库持久化；详情里的来源单号、BoNo、LinkSku、图片和剩余量为查询投影，不是销售/需求快照。
+- 正式净收货按采购来源行汇总有符号数量，包含 Posted 与 Reversed 原事实及相应反向单，排除草稿。历史枚举 11/12 或无法证明采购行的正式记录会阻断 Picker；不得把漏算历史当零收货。反向结构上线前仍须联合验收该口径。
+
+## 部署与验证边界
+
+- 以当前实体 `dbo.InboundDocument/InboundDocumentLine` 为目标；不恢复 `PurchaseReceiveHead/Line` 映射，不自动迁移历史身份。
+- 先人工审阅并运行 `SwiftExport.Infrastructure/Migrations/031_入库非过账接口_Preflight.sql`；本批未执行任何数据库脚本。
+- WebApi、WPF 项目构建通过；7 项草稿服务隔离单测通过。全量 Application 测试被需求模块两个 required 成员初始化错误阻断；未做真实 SQL Server、HTTP 或 WPF 联调。
+- Manager 前端接线、数据库结构迁移、采购旧 SourceType/SourceUid 查询迁移、过账/反向、Trace、PackingList 自动入库仍待后续实施。

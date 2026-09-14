@@ -15,7 +15,7 @@ namespace SwiftExport.Contracts.DTOs.Inventory.Inbounds
         public string UnitSnapshot { get; set; } = string.Empty;
         public decimal Quantity { get; set; }
         public Guid SourceLineId { get; set; }
-        /// <summary>选源时的采购行版本，仅为草稿快照信息，不等同入库行 Version 或可收额度锁。</summary>
+        /// <summary>查询时的采购行版本；不持久化到入库行，不等同入库行 Version 或可收额度锁。</summary>
         public int SourceVersion { get; set; }
         public Guid? OriginalLineId { get; set; }
         public string SourceNo { get; set; } = string.Empty;

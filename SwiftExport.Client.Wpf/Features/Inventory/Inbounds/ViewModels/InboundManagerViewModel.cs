@@ -40,6 +40,8 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     public BaseListModel<InboundHeaderModel, InboundHeaderDetailDto> Headers { get; } = new(_ => new InboundHeaderModel());
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
     [ObservableProperty] public partial InboundDocumentTypeEnum SelectedDocumentType { get; set; } = InboundDocumentTypeEnum.PurchaseReceipt;
+    [ObservableProperty] public partial InboundPostingStatusEnum SelectedPostingStatus { get; set; } = InboundPostingStatusEnum.Unposted;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Lines))]
     [NotifyPropertyChangedFor(nameof(LinesReadOnly))]
@@ -125,16 +127,16 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
             { ResultSummary = "所选来源类型或标识不匹配，未加入明细。"; return; }
             var added = 0;
             using (header.Lines.SuppressListEvents())
-            foreach (var source in rows)
-            {
-                // 重复获取不覆盖用户已经填写的数量；不同源版本不在选源阶段判定冲突。
-                if (header.Lines.Items.Any(x => x.SourceLineId == source.SourceLineId)) continue;
-                var dto = source.Adapt<InboundLineDetailDto>();
-                dto.Uid = Guid.NewGuid(); dto.Version = 0; dto.InboundDocumentId = header.Uid;
-                dto.LineNumber = header.Lines.Items.Count == 0 ? 1 : header.Lines.Items.Max(x => x.LineNumber) + 1;
-                dto.Quantity = 0; // 实收必须由用户填写，不能自动把剩余量当成本次实收。
-                header.Lines.AddNew(dto); added++;
-            }
+                foreach (var source in rows)
+                {
+                    // 重复获取不覆盖用户已经填写的数量；不同源版本不在选源阶段判定冲突。
+                    if (header.Lines.Items.Any(x => x.SourceLineId == source.SourceLineId)) continue;
+                    var dto = source.Adapt<InboundLineDetailDto>();
+                    dto.Uid = Guid.NewGuid(); dto.Version = 0; dto.InboundDocumentId = header.Uid;
+                    dto.LineNumber = header.Lines.Items.Count == 0 ? 1 : header.Lines.Items.Max(x => x.LineNumber) + 1;
+                    dto.Quantity = 0; // 实收必须由用户填写，不能自动把剩余量当成本次实收。
+                    header.Lines.AddNew(dto); added++;
+                }
             ResultSummary = $"已加入 {added} 行，重复来源已跳过；请填写本次入库数量。保存及过账仍待后端实现。";
         }, "选择入库来源");
     }

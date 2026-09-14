@@ -10,12 +10,7 @@
              mc:Ignorable="d" d:DesignWidth="1440" d:DesignHeight="560"
              d:DataContext="{d:DesignInstance Type=vm:InboundSourcePickerDesignViewModel, IsDesignTimeCreatable=True}"
              Language="zh-CN">
-    <Grid Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Grid Margin="12" RowDefinitions="Auto,8,*,8,Auto">
         <!--条件筛选区域-->
         <Grid RowDefinitions="Auto,8, *">
             <Grid ColumnDefinitions="3*,3*,3*">
@@ -36,26 +31,41 @@
                 <ComboBox Width="144" Margin="0,0,8,0"
                           ItemsSource="{Binding PurchaseCategories}"
                           SelectedItem="{Binding PurchaseCategory, Mode=TwoWay}"
-                          IsEnabled="{Binding IsPurchase}" AutomationProperties.Name="采购来源分类">
-                    <ComboBox.Style><Style TargetType="ComboBox"><Style.Triggers>
-                        <DataTrigger Binding="{Binding IsPurchase}" Value="False"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
-                    </Style.Triggers></Style></ComboBox.Style>
-                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource EnumDescriptionConverter}}"/></DataTemplate></ComboBox.ItemTemplate>
+                          IsEnabled="{Binding IsPurchase}" 
+                          AutomationProperties.Name="采购来源分类">
+                    <ComboBox.Style>
+                        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPurchase}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ComboBox.Style>
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Converter={StaticResource EnumDescriptionConverter}}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
                 </ComboBox>
                 <!--供应商筛选使用会话全量缓存，不请求有效采购供应商子集。-->
                 <supplierControls:SupplierAutoSuggestComboBox Width="240" Margin="0,0,8,0"
                     ItemsSource="{Binding Suppliers}" SelectedSupplier="{Binding SelectedSupplier, Mode=TwoWay}"
                     IsEnabled="{Binding IsPurchase}"/>
-                <Button Content="查询" Command="{Binding SearchCommand}" Margin="0,0,8,0" IsEnabled="{Binding IsPurchase}"/>
-                <Button Content="清空勾选" Command="{Binding ClearSelectionCommand}" Margin="0,0,8,0"/>
-                
-                <Button DockPanel.Dock="Right" Content="反选" Command="{Binding InvertSelectionCommand}" IsEnabled="{Binding CanSelect}"
+                <ui:Button Content="查询" Appearance="Info" VerticalAlignment="Stretch" MinWidth="80"
+                        Command="{Binding SearchCommand}" Margin="0,0,8,0" IsEnabled="{Binding IsPurchase}"/>
+                <Button Content="清空勾选" VerticalAlignment="Stretch" MinWidth="80"
+                        Command="{Binding ClearSelectionCommand}" Margin="0,0,8,0"/>
+
+                <Button DockPanel.Dock="Right" VerticalAlignment="Stretch" MinWidth="80"
+                        Content="反选" Command="{Binding InvertSelectionCommand}" IsEnabled="{Binding CanSelect}"
                     AutomationProperties.Name="反选" Padding="12,4"/>
             </StackPanel>
         </Grid>
 
-        <DataGrid Grid.Row="1" 
+        <DataGrid Grid.Row="2" 
                   ItemsSource="{Binding Items}" 
+                  FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                   IsEnabled="{Binding CanSelect}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True" 
@@ -111,7 +121,7 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <Grid Grid.Row="2" Margin="0,8,0,0" ColumnDefinitions="*,Auto">
+        <Grid Grid.Row="4" Margin="0,8,0,0" ColumnDefinitions="*,Auto">
             <StackPanel>
                 <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap"/>
                 <TextBlock Text="{Binding CheckedCount, StringFormat=已选 {0} 行}"/>

@@ -96,6 +96,7 @@ public static class DependencyInjection
         services.AddScoped<IWarehouseSiteRepository, WarehouseSiteRepository>();
         services.AddScoped<IWarehouseCandidateRepository, WarehouseCandidateRepository>();
         services.AddScoped<IInventoryRepository, InventoryRepository>();
+        services.AddScoped<IInboundManagerRepository, InboundManagerRepository>();
         services.AddScoped<IOutboundDocumentRepository, OutboundDocumentRepository>();
         services.AddScoped<IPackingListDocumentRepository, PackingListDocumentRepository>();
         services.AddScoped<PackingListWorkspaceRepository>();

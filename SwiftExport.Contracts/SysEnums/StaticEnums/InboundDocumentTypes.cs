@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using SwiftExport.Contracts.SysEnums.Inventory;
+using System.Collections.Generic;
 
 namespace SwiftExport.Contracts.SysEnums.StaticEnums
 {
@@ -14,4 +14,5 @@ namespace SwiftExport.Contracts.SysEnums.StaticEnums
                 InboundDocumentTypeEnum.ProductionReceipt
             }.AsReadOnly();
     }
+
 }

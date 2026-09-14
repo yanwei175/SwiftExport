@@ -20,9 +20,8 @@ public sealed class WarehousePickerService(Func<WarehousePickerViewModel> create
             {
                 PrimaryButtonText = "确定",
                 CloseButtonText = "取消",
+                WidthRatio = 0.5,
                 DefaultButton = DialogButton.Primary,
-                WidthRatio = 0.9,
-                HeightRatio = 0.8,
                 ScrollStrategy = DialogScrollStrategy.Content
             },
             picker,

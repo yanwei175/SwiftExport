@@ -1,5 +1,3 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Mapster;
@@ -11,6 +9,7 @@ using SwiftExportClient.Features.Inventory.Inbounds.Models;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
+using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 
@@ -24,6 +23,7 @@ public partial class InboundSourcePickerViewModel : ObservableObject, IDialogCon
     private bool _disposed;
     private bool _hasResult;
     private long _requestId;
+    private InboundSourceSearchRequest? _appliedSearch;
 
     /// <summary>仅供设计器及本地模型测试创建，不提供任何远程数据。</summary>
     public InboundSourcePickerViewModel() { }
@@ -55,8 +55,8 @@ public partial class InboundSourcePickerViewModel : ObservableObject, IDialogCon
     [ObservableProperty] public partial int TotalCount { get; private set; }
     /// <summary>选源按服务端分页加载，避免一次获取全部采购行。</summary>
     public int PageSize => 50;
-    [ObservableProperty] public partial string StatusText { get; private set; } = "选择当前页来源；重新查询或翻页会清空勾选。";
-    /// <summary>旧查询结果或未完成查询不得被确认。</summary>
+    [ObservableProperty] public partial string StatusText { get; private set; } = "修改条件后点击查询；已有勾选请先确认或清空。";
+    /// <summary>保留上次成功结果可供选择，仅查询加载或页面释放期间禁用。</summary>
     public bool CanSelect => !_disposed && !IsLoading && _hasResult;
     /// <inheritdoc/>
     public bool IsPrimaryButtonEnabled => CanSelect && Items.Any(x => x.IsChecked);
@@ -68,19 +68,6 @@ public partial class InboundSourcePickerViewModel : ObservableObject, IDialogCon
     public int CheckedCount => Items.Count(x => x.IsChecked);
     /// <inheritdoc/>
     public bool CanClose(DialogResult result) => result != DialogResult.Primary || IsPrimaryButtonEnabled;
-
-    partial void OnKeywordChanged(string value) => Invalidate();
-    partial void OnSelectedSupplierChanged(SupplierDto? value) => Invalidate();
-    partial void OnPurchaseCategoryChanged(InboundPurchaseCategoryEnum value) => Invalidate();
-
-    /// <summary>筛选改变只使旧结果失效，不在属性 setter 中发起 API。</summary>
-    private void Invalidate()
-    {
-        _hasResult = false;
-        _requestId++;
-        _query?.Cancel();
-        NotifySelection();
-    }
 
     /// <summary>初始化固定上下文并加载缓存与第一页；非采购来源明确不可用。</summary>
     public async Task InitializeAsync(InboundSourcePickerRequest request, CancellationToken cancellationToken)
@@ -106,10 +93,10 @@ public partial class InboundSourcePickerViewModel : ObservableObject, IDialogCon
 
     /// <summary>翻页重新加载快照，当前页勾选不被误当作跨页选择。</summary>
     [RelayCommand(AllowConcurrentExecutions = true)]
-    private Task PageChangeAsync(int page, CancellationToken token) => QueryAsync(Math.Max(1, page), token);
+    private Task PageChangeAsync(int page, CancellationToken token) => QueryAsync(Math.Max(1, page), token, applyEditedFilters: false);
 
     /// <summary>可取消且 latest-request-wins；这是 UI 请求防串回写，不是业务并发检查。</summary>
-    private async Task QueryAsync(int page, CancellationToken token)
+    private async Task QueryAsync(int page, CancellationToken token, bool applyEditedFilters = true)
     {
         if (_disposed || !IsPurchase || _api is null || _runner is null) return;
         if (Items.Any(x => x.IsChecked))
@@ -117,26 +104,38 @@ public partial class InboundSourcePickerViewModel : ObservableObject, IDialogCon
             StatusText = "已有勾选，请先确认加入 Manager，或点击清空勾选后再查询/翻页。";
             return;
         }
+        // 输入框是待查询条件；翻页继续使用当前结果的条件，避免未点查询就隐式切换筛选。
+        var applied = applyEditedFilters ? null : _appliedSearch;
+        var request = new InboundSourceSearchRequest
+        {
+            DocumentType = DocumentType,
+            PurchaseCategory = applied is null ? PurchaseCategory : applied.PurchaseCategory,
+            SupplierId = applied is null ? SelectedSupplier?.Uid : applied.SupplierId,
+            Keyword = applied is null ? Keyword : applied.Keyword,
+            PageIndex = page,
+            PageSize = PageSize
+        };
         _query?.Cancel();
         using var query = CancellationTokenSource.CreateLinkedTokenSource(token);
         _query = query;
         var requestId = ++_requestId;
-        _hasResult = false; IsLoading = true; NotifySelection();
+        IsLoading = true; NotifySelection();
         try
         {
-            var result = await _runner.RunAsync(() => _api.SearchAsync(new InboundSourceSearchRequest
-            {
-                DocumentType = DocumentType, PurchaseCategory = PurchaseCategory,
-                SupplierId = SelectedSupplier?.Uid, Keyword = Keyword, PageIndex = page, PageSize = PageSize
-            }, query.Token), query.Token, "入库来源查询失败（接口待实现或服务不可用）。");
+            var result = await _runner.RunAsync(() => _api.SearchAsync(request, query.Token),
+                query.Token, "入库来源查询失败，请重试。");
+
             if (_disposed || requestId != _requestId || query.IsCancellationRequested) return;
+
             if (!result.Success || result.Data is null)
             { StatusText = result.Message ?? "来源查询失败。"; return; }
+
             if (result.Data.Items.Any(x => x.DocumentType != DocumentType || x.SourceLineId == Guid.Empty))
             { StatusText = "来源响应的类型或行标识不符合本次查询，未接纳数据。"; return; }
             LoadItems(result.Data.Items.Adapt<List<InboundSourcePickerRowModel>>());
+            _appliedSearch = request;
             PageIndex = page; TotalCount = result.Data.TotalCount; _hasResult = true;
-            StatusText = Items.Count == 0 ? "没有符合条件的采购来源。" : "仅当前页勾选有效；查询、翻页会清空勾选，确认后可再次获取其他页。";
+            StatusText = Items.Count == 0 ? "没有符合条件的采购来源。" : "修改条件后点击查询；仅当前页勾选有效，换页前请先确认或清空勾选。";
         }
         catch (OperationCanceledException) when (query.IsCancellationRequested) { }
         catch (Exception ex)

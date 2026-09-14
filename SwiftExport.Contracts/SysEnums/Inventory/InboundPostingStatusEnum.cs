@@ -10,5 +10,6 @@ namespace SwiftExport.Contracts.SysEnums.Inventory
         [System.ComponentModel.Description("反过账")]
         Reversed = 8
     }
+
 }
 

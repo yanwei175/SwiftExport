@@ -116,7 +116,7 @@
         <Setter Property="TextAlignment" Value="Center" />
     </Style>
 
-    <Style x:Key="SwiftExportDataGridDatePicker" TargetType="{x:Type DatePicker}" BasedOn="{StaticResource SwiftExportDatePicker}">
+    <Style x:Key="SwiftExportDataGridDatePicker" TargetType="{x:Type DatePicker}" BasedOn="{StaticResource {x:Type DatePicker}}">
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="Margin" Value="0" />
         <Setter Property="Padding" Value="0" />
@@ -125,6 +125,7 @@
         <Setter Property="HorizontalAlignment" Value="Stretch" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="SelectedDateFormat" Value="Short" />
         <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
         <Style.Triggers>
             <Trigger Property="Validation.HasError" Value="True">
