@@ -17,8 +17,8 @@ public sealed partial class NetDemandRepository
     /// 本查询刻意不读取 NetDemandAllocation。推荐采购方读取物料自身字段；客供件建议送达方仅沿同一有效拆解树目标派生，
     /// 不能替代采购域保存的实际采购方和送达方。
     /// </remarks>
-    public async Task<PagedResponseBase<MaterialDemandWorkspaceItemDto>> SearchMaterialWorkspaceAsync(
-        MaterialDemandWorkspaceSearchRequest request,
+    public async Task<PagedResponseBase<MaterialDemandManagerItemDto>> SearchManagerAsync(
+        MaterialDemandManagerSearchRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -127,8 +127,8 @@ DROP TABLE #MaterialWorkspace;";
         using var multi = await Connection.QueryMultipleAsync(new CommandDefinition(
             sql, parameters, Transaction, cancellationToken: cancellationToken));
         var totalCount = await multi.ReadFirstAsync<int>();
-        var items = (await multi.ReadAsync<MaterialDemandWorkspaceItemDto>()).ToList();
-        return new PagedResponseBase<MaterialDemandWorkspaceItemDto>
+        var items = (await multi.ReadAsync<MaterialDemandManagerItemDto>()).ToList();
+        return new PagedResponseBase<MaterialDemandManagerItemDto>
         {
             Items = items,
             TotalCount = totalCount,
@@ -326,7 +326,7 @@ AND nd.[NetQty]>COALESCE(purchaseFacts.[AssociatedPurchaseQty],0)";
 
     /// <summary>构造物料事实筛选；禁止在此加入 Allocation 派生条件。</summary>
     private static List<string> CreateMaterialWorkspaceWhere(
-        MaterialDemandWorkspaceSearchRequest request,
+        MaterialDemandManagerSearchRequest request,
         DynamicParameters parameters)
     {
         var where = new List<string>

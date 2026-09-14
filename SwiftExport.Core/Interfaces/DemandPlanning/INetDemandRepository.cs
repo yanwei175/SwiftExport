@@ -12,8 +12,8 @@ namespace SwiftExport.Core.Interfaces.DemandPlanning;
 public interface INetDemandRepository
 {
     /// <summary>查询不依赖计划分配表的物料需求工作台列表。</summary>
-    Task<PagedResponseBase<MaterialDemandWorkspaceItemDto>> SearchMaterialWorkspaceAsync(
-        MaterialDemandWorkspaceSearchRequest request,
+    Task<PagedResponseBase<MaterialDemandManagerItemDto>> SearchManagerAsync(
+        MaterialDemandManagerSearchRequest request,
         CancellationToken cancellationToken = default);
     /// <summary>按来源事实汇总物料需求工作台左侧导航。</summary>
     Task<IReadOnlyList<NetDemandSourceGroupDto>> SearchMaterialSourceGroupsAsync(
@@ -26,23 +26,7 @@ public interface INetDemandRepository
     Task<IReadOnlyList<PurchaseDraftCandidateDto>> GetPurchaseCandidatesAsync(
         PurchaseDraftCandidateQuery request,
         CancellationToken cancellationToken = default);
-    Task<PagedResponseBase<NetDemandListItemDto>> SearchWorkspaceAsync(
-        NetDemandSearchRequest request,
-        CancellationToken cancellationToken = default);
-    /// <summary>
-    /// 按独立来源导航条件汇总活动净需求，计划状态口径与工作台查询保持一致。
-    /// </summary>
-    Task<IReadOnlyList<NetDemandSourceGroupDto>> SearchSourceGroupsAsync(
-        NetDemandSourceGroupSearchRequest request,
-        CancellationToken cancellationToken = default);
-    Task<NetDemandListItemDto?> GetWorkspaceItemAsync(Guid uid, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<NetDemandListItemDto>> GetWorkspaceFamilyAsync(
-        Guid rootNetDemandId,
-        CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<NetDemandListItemDto>> GetWorkspaceBySourceAsync(
-        string sourceType,
-        Guid sourceUid,
-        CancellationToken cancellationToken = default);
+    /// <summary>在调用方事务中锁定有效来源及其物料树。</summary>
     Task<IReadOnlyList<NetDemand>> GetActiveFamilyForUpdateAsync(Guid netDemandId);
     Task<IReadOnlyList<NetDemand>> GetActiveByGrossDemandForUpdateAsync(Guid grossDemandId);
     /// <summary>由物料领域查询来源需求建立候选，状态通过活动物料事实和历史联表计算。</summary>

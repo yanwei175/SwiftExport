@@ -8,7 +8,7 @@ using SwiftExport.Contracts.SysEnums;
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 
 /// <summary>表示物料需求工作台的一条物料事实，并仅跟踪推荐采购供应商的客户端编辑状态。</summary>
-public sealed partial class MaterialDemandWorkspaceRowModel : ObservableObject
+public sealed partial class MaterialDemandManagerRowModel : ObservableObject
 {
     private Guid? _originalSuggestedPurchaseSupplierId;
     private string _originalSuggestedPurchaseSupplierCode = string.Empty;
@@ -152,9 +152,9 @@ public sealed partial class MaterialDemandWorkspaceRowModel : ObservableObject
     public partial bool IsChecked { get; set; }
 
     /// <summary>把专用只读 DTO 转换为包含客户端选择状态的行模型。</summary>
-    public static MaterialDemandWorkspaceRowModel FromDto(MaterialDemandWorkspaceItemDto dto)
+    public static MaterialDemandManagerRowModel FromDto(MaterialDemandManagerItemDto dto)
     {
-        var model = dto.Adapt<MaterialDemandWorkspaceRowModel>();
+        var model = dto.Adapt<MaterialDemandManagerRowModel>();
         model._originalSuggestedPurchaseSupplierId = model.SuggestedPurchaseSupplierId;
         model._originalSuggestedPurchaseSupplierCode = model.SuggestedPurchaseSupplierCode;
         model._originalSuggestedPurchaseSupplierName = model.SuggestedPurchaseSupplierName;

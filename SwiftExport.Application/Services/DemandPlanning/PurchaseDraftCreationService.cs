@@ -317,13 +317,13 @@ public sealed class PurchaseDraftCreationService(
     }
 
     /// <summary>按物料需求身份读取预览事实，并补齐同来源行以保留客供件提示语义。</summary>
-    private async Task<IReadOnlyList<MaterialDemandWorkspaceItemDto>> LoadPreviewWorkspaceRowsAsync(
+    private async Task<IReadOnlyList<MaterialDemandManagerItemDto>> LoadPreviewWorkspaceRowsAsync(
         PurchaseDraftPreviewRequest request,
         CancellationToken cancellationToken)
     {
         if (request.EntryMode == PurchaseDraftEntryModeEnum.SourceOneClick)
         {
-            var page = await netDemandRepository.SearchMaterialWorkspaceAsync(new MaterialDemandWorkspaceSearchRequest
+            var page = await netDemandRepository.SearchManagerAsync(new MaterialDemandManagerSearchRequest
             {
                 SourceUid = request.SourceUid,
                 SourceTypes = new List<string> { request.SourceType },
@@ -348,10 +348,10 @@ public sealed class PurchaseDraftCreationService(
             return sourceRows;
         }
 
-        var selectedRows = new List<MaterialDemandWorkspaceItemDto>();
+        var selectedRows = new List<MaterialDemandManagerItemDto>();
         foreach (var item in request.Items)
         {
-            var page = await netDemandRepository.SearchMaterialWorkspaceAsync(new MaterialDemandWorkspaceSearchRequest
+            var page = await netDemandRepository.SearchManagerAsync(new MaterialDemandManagerSearchRequest
             {
                 NetDemandIds = new List<Guid> { item.NetDemandId },
                 PageIndex = 1,
@@ -365,10 +365,10 @@ public sealed class PurchaseDraftCreationService(
             selectedRows.Add(row);
         }
 
-        var rows = new Dictionary<Guid, MaterialDemandWorkspaceItemDto>();
+        var rows = new Dictionary<Guid, MaterialDemandManagerItemDto>();
         foreach (var sourceUid in selectedRows.Select(x => x.SourceUid).Distinct())
         {
-            var page = await netDemandRepository.SearchMaterialWorkspaceAsync(new MaterialDemandWorkspaceSearchRequest
+            var page = await netDemandRepository.SearchManagerAsync(new MaterialDemandManagerSearchRequest
             {
                 SourceUid = sourceUid,
                 PageIndex = 1,
@@ -382,7 +382,7 @@ public sealed class PurchaseDraftCreationService(
 
     private async Task<PurchaseDraftPreviewBuildRequest> BuildReadOnlyPreviewRequestAsync(
         PurchaseDraftPreviewRequest request,
-        IReadOnlyList<MaterialDemandWorkspaceItemDto> workspaceRows,
+        IReadOnlyList<MaterialDemandManagerItemDto> workspaceRows,
         CancellationToken cancellationToken)
     {
         var itemByDemand = request.Items.ToDictionary(x => x.NetDemandId);
@@ -802,7 +802,7 @@ public sealed class PurchaseDraftCreationService(
     }
 
     private static PurchaseDraftPreviewCandidate MapWorkspaceCandidate(
-        MaterialDemandWorkspaceItemDto row,
+        MaterialDemandManagerItemDto row,
         PurchaseDraftPreviewItem? item,
         Guid commandItemId,
         bool selected,

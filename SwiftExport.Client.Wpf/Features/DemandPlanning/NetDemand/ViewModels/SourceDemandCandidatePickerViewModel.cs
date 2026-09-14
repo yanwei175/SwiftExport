@@ -11,7 +11,7 @@ namespace SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 
 /// <summary>负责按来源单加载完整待建立需求、维护选择状态并隔离过期请求。</summary>
 public sealed partial class SourceDemandCandidatePickerViewModel(
-    INetDemandWorkspaceApi api,
+    INetDemandManagerApi api,
     IApiCallRunner apiCallRunner) : ObservableObject, IDisposable
 {
     private CancellationTokenSource? _groupCancellation;

@@ -10,7 +10,7 @@ public sealed class SourceDemandEstablishmentViewContractTests
     [TestMethod]
     public void NetDemandPage_ShouldOwnCandidateEntryAndSourcePageShouldRemoveDuplicateCommands()
     {
-        var netView = Read("SwiftExport.Client.Wpf", "Features", "DemandPlanning", "NetDemand", "Views", "NetDemandWorkspaceView.xaml");
+        var netView = Read("SwiftExport.Client.Wpf", "Features", "DemandPlanning", "NetDemand", "Views", "NetDemandManagerView.xaml");
         var picker = Read("SwiftExport.Client.Wpf", "Features", "DemandPlanning", "NetDemand", "Views", "SourceDemandCandidatePickerView.xaml");
         var sourceView = Read("SwiftExport.Client.Wpf", "Features", "DemandPlanning", "GrossDemand", "Views", "GrossDemandWorkspaceView.xaml");
 

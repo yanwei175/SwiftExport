@@ -177,7 +177,7 @@ public sealed class NetDemandSuggestedSupplierEditingTests
     {
 #pragma warning disable CS0618
         var displayFactory = new FrameworkElementFactory(typeof(TextBlock));
-        displayFactory.SetBinding(TextBlock.TextProperty, new Binding(nameof(MaterialDemandWorkspaceRowModel.SuggestedPurchaseSupplierDisplay)));
+        displayFactory.SetBinding(TextBlock.TextProperty, new Binding(nameof(MaterialDemandManagerRowModel.SuggestedPurchaseSupplierDisplay)));
         var displayTemplate = new DataTemplate { VisualTree = displayFactory };
 
         var editingFactory = new FrameworkElementFactory(typeof(PurchaseSupplierLookupTextBox));
@@ -189,13 +189,13 @@ public sealed class NetDemandSuggestedSupplierEditingTests
             });
         editingFactory.SetBinding(
             PurchaseSupplierLookupTextBox.SelectedSupplierProperty,
-            new Binding(nameof(MaterialDemandWorkspaceRowModel.SuggestedPurchaseSupplierSelection)) { Mode = BindingMode.OneWay });
+            new Binding(nameof(MaterialDemandManagerRowModel.SuggestedPurchaseSupplierSelection)) { Mode = BindingMode.OneWay });
         editingFactory.SetBinding(
             PurchaseLookupTextBoxBase.SelectionCommittedCommandProperty,
-            new Binding(nameof(MaterialDemandWorkspaceRowModel.CommitSuggestedSupplierSelectionCommand)));
+            new Binding(nameof(MaterialDemandManagerRowModel.CommitSuggestedSupplierSelectionCommand)));
         editingFactory.SetBinding(
             PurchaseLookupTextBoxBase.SelectionClearedCommandProperty,
-            new Binding(nameof(MaterialDemandWorkspaceRowModel.ClearSuggestedSupplierSelectionCommand)));
+            new Binding(nameof(MaterialDemandManagerRowModel.ClearSuggestedSupplierSelectionCommand)));
         var editingTemplate = new DataTemplate { VisualTree = editingFactory };
 #pragma warning restore CS0618
 
@@ -210,7 +210,7 @@ public sealed class NetDemandSuggestedSupplierEditingTests
     private static void AssertEditorSelection(
         DataGrid grid,
         DataGridTemplateColumn column,
-        MaterialDemandWorkspaceRowModel row,
+        MaterialDemandManagerRowModel row,
         string expectedCode)
     {
         BeginEdit(grid, column, row);
@@ -221,7 +221,7 @@ public sealed class NetDemandSuggestedSupplierEditingTests
         Assert.AreEqual(expectedCode, selection.SupplierCode);
     }
 
-    private static void BeginEdit(DataGrid grid, DataGridTemplateColumn column, MaterialDemandWorkspaceRowModel row)
+    private static void BeginEdit(DataGrid grid, DataGridTemplateColumn column, MaterialDemandManagerRowModel row)
     {
         grid.SelectedItem = row;
         grid.CurrentCell = new DataGridCellInfo(row, column);
@@ -230,10 +230,10 @@ public sealed class NetDemandSuggestedSupplierEditingTests
         PumpDispatcher();
     }
 
-    private static MaterialDemandWorkspaceRowModel CreateRow(string code, string name)
+    private static MaterialDemandManagerRowModel CreateRow(string code, string name)
     {
         var supplier = CreateSupplier(code, name);
-        return MaterialDemandWorkspaceRowModel.FromDto(new MaterialDemandWorkspaceItemDto
+        return MaterialDemandManagerRowModel.FromDto(new MaterialDemandManagerItemDto
         {
             Uid = Guid.NewGuid(),
             Version = 1,
@@ -281,9 +281,9 @@ public sealed class NetDemandSuggestedSupplierEditingTests
     }
 
     /// <summary>为测试提供行集合和可变化的远程候选集合。</summary>
-    private sealed class GridContext(params MaterialDemandWorkspaceRowModel[] rows)
+    private sealed class GridContext(params MaterialDemandManagerRowModel[] rows)
     {
-        public ObservableCollection<MaterialDemandWorkspaceRowModel> Rows { get; } = new(rows);
+        public ObservableCollection<MaterialDemandManagerRowModel> Rows { get; } = new(rows);
         public ObservableCollection<ProcurementSupplierCandidateDto> Candidates { get; } = [];
     }
 }

@@ -74,8 +74,6 @@ public static class DependencyInjection
         services.AddScoped<INetDemandExecutionLinkRepository, NetDemandExecutionLinkRepository>();
         services.AddScoped<IGrossDemandRepository, GrossDemandRepository>();
         services.AddScoped<INetDemandRepository, NetDemandRepository>();
-        services.AddScoped<INetDemandAllocationRepository, NetDemandAllocationRepository>();
-        services.AddScoped<INetDemandPlanCommandRepository, NetDemandPlanCommandRepository>();
         services.AddScoped<IPurchaseOrderDraftRepository, PurchaseOrderDraftRepository>();
         // 新链的事务持久化、管理投影与严格 BOM 读取使用同一请求 DbSession。
         services.AddScoped<IProcurementOrderRepository, ProcurementOrderRepository>();

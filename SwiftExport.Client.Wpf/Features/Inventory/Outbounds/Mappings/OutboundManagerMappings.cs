@@ -23,6 +23,7 @@ public sealed class OutboundManagerMappings : IRegister
             .Map(x => x.UnitSnapshot, x => x.Unit);
         config.NewConfig<OutboundHeaderDetailDto, OutboundHeaderModel>()
             .IgnoreNullValues(true).Ignore(x => x.Lines).Ignore(x => x.IsChecked)
+            .Map(x => x.IssueReason, x => x.IssueReason ?? string.Empty)
             .Map(x => x.PersistedIsDeleted, x => x.IsDeleted);
         config.NewConfig<OutboundHeaderModel, OutboundHeaderDetailDto>()
             .Map(x => x.IsDeleted, x => x.PersistedIsDeleted);

@@ -9,16 +9,9 @@ namespace SwiftExport.Core.Interfaces.DemandPlanning;
 /// </summary>
 public interface INetDemandExecutionLinkRepository
 {
-    /// <summary>读取指定物料需求当前有效的执行关系，供详情阻断提示使用。</summary>
-    Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByNetDemandIdsAsync(
-        IEnumerable<Guid> netDemandIds,
-        CancellationToken cancellationToken = default);
     /// <summary>按物料需求锁定活动执行关系，保证采购承接数量不超额。</summary>
     Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByNetDemandIdsForUpdateAsync(
         IEnumerable<Guid> netDemandIds);
-    /// <summary>按历史计划分配锁定活动执行关系，供计划域回退校验继续使用。</summary>
-    Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByAllocationIdsForUpdateAsync(
-        IEnumerable<Guid> allocationIds);
     Task<IReadOnlyList<MaterialDemandRollbackBlockerDto>> GetActiveRollbackBlockersAsync(
         IEnumerable<Guid> netDemandIds);
 

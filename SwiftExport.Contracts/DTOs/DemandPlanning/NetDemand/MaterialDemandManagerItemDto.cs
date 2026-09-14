@@ -11,7 +11,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
     /// 本契约不得读取 NetDemandAllocation；推荐采购供应商来自 NetDemand，建议送达供应商由同树目标物料派生。
     /// 两者都不是采购域保存的实际采购方或送达方。
     /// </remarks>
-    public class MaterialDemandWorkspaceItemDto
+    public class MaterialDemandManagerItemDto
     {
         /// <summary>物料需求 Uid。</summary>
         public Guid Uid { get; set; }

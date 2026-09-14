@@ -8,18 +8,18 @@ using SwiftExport.WebApi.Filters;
 namespace SwiftExport.WebApi.Controllers.DemandPlanning;
 
 /// <summary>
-/// 物料需求 HTTP 边界：物料用例转发新服务，旧计划和采购路由暂留兼容。
+/// 物料需求管理 HTTP 边界：转发物料事实查询、来源建立及安全回退。
 /// </summary>
 [ApiController]
 [Route("api/demand-planning/net-demands")]
-public sealed class NetDemandWorkspaceController(INetDemandServices service, INetDemandWorkspaceService legacyService) : ControllerBase
+public sealed class NetDemandManagerController(INetDemandManagerService service) : ControllerBase
 {
     /// <summary>查询不依赖计划分配表的物料需求工作台列表。</summary>
     [HttpPost("material-search")]
-    public Task<ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>> SearchMaterialWorkspaceAsync(
-        [FromBody] MaterialDemandWorkspaceSearchRequest request,
+    public Task<ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>> SearchManagerAsync(
+        [FromBody] MaterialDemandManagerSearchRequest request,
         CancellationToken cancellationToken)
-        => service.SearchMaterialWorkspaceAsync(request, cancellationToken);
+        => service.SearchManagerAsync(request, cancellationToken);
 
     /// <summary>查询仅按来源事实汇总的物料需求来源导航。</summary>
     [HttpPost("material-source-groups")]
@@ -70,49 +70,5 @@ public sealed class NetDemandWorkspaceController(INetDemandServices service, INe
         [FromBody] RollbackMaterialDemandsCommand command,
         CancellationToken cancellationToken)
         => service.RollbackSourceEstablishmentAsync(command, cancellationToken);
-
-    /// <summary>兼容旧计划与采购消费者的列表查询。</summary>
-    [HttpPost("search")]
-    public Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
-        [FromBody] NetDemandSearchRequest request,
-        CancellationToken cancellationToken)
-        => service.SearchAsync(request, cancellationToken);
-
-    /// <summary>
-    /// 查询净需求左侧来源导航分组。
-    /// </summary>
-    [HttpPost("source-groups")]
-    public Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
-        [FromBody] NetDemandSourceGroupSearchRequest request,
-        CancellationToken cancellationToken)
-        => service.SearchSourceGroupsAsync(request, cancellationToken);
-
-    /// <summary>读取物料详情；活动计划兼容字段随后续页面治理。</summary>
-    [HttpGet("{uid:guid}")]
-    public Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(
-        Guid uid,
-        CancellationToken cancellationToken)
-        => service.GetDetailAsync(uid, cancellationToken);
-
-    /// <summary>待废弃：旧 Allocation 替代命令，独立计划退出后移除。</summary>
-    [HttpPost("plans/replace")]
-    [PreventDuplicateRequest(WindowSeconds = 5)]
-    public Task<ServiceResult<NetDemandPlanCommandResult>> ReplacePlanAsync(
-        [FromBody] ReplaceNetDemandPlanCommand command)
-        => legacyService.ReplacePlanAsync(command);
-
-    /// <summary>待废弃：旧计划应用默认供应商，实际供应商选择归采购。</summary>
-    [HttpPost("plans/apply-product-default")]
-    [PreventDuplicateRequest(WindowSeconds = 5)]
-    public Task<ServiceResult<NetDemandPlanCommandResult>> ApplyDefaultSupplierAsync(
-        [FromBody] ApplyProductDefaultSupplierCommand command)
-        => legacyService.ApplyDefaultSupplierAsync(command);
-
-    /// <summary>待废弃：旧计划批量分配供应商，实际供应商选择归采购。</summary>
-    [HttpPost("plans/batch-assign-supplier")]
-    [PreventDuplicateRequest(WindowSeconds = 5)]
-    public Task<ServiceResult<NetDemandPlanCommandResult>> BatchAssignSupplierAsync(
-        [FromBody] BatchAssignSupplierCommand command)
-        => legacyService.BatchAssignSupplierAsync(command);
 
 }

@@ -180,6 +180,16 @@
                                         IsReadOnly="True"/>
                     
 
+                        <DataGridTextColumn Header="出库原因（过账必填）" Width="220"
+                                            ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                            Binding="{Binding IssueReason, UpdateSourceTrigger=PropertyChanged}">
+                            <DataGridTextColumn.EditingElementStyle>
+                                <Style TargetType="TextBox" BasedOn="{StaticResource SwiftExportDataGridWarpTextBox}">
+                                    <Setter Property="MaxLength" Value="500"/>
+                                    <Setter Property="AutomationProperties.Name" Value="出库原因，过账必填，最多500字"/>
+                                </Style>
+                            </DataGridTextColumn.EditingElementStyle>
+                        </DataGridTextColumn>
                         <DataGridTextColumn Header="备注" 
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"

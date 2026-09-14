@@ -1,25 +1,7 @@
-using SwiftExport.Contracts.SysEnums;
 using System;
-using System.Collections.Generic;
 
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
 {
-    /// <summary>
-    /// 净需求来源导航的独立筛选条件，不受工作台顶部主筛选影响。
-    /// </summary>
-    public class NetDemandSourceGroupSearchRequest
-    {
-        /// <summary>
-        /// 允许显示的来源类型；空集合表示全部来源类型。
-        /// </summary>
-        public List<string> SourceTypes { get; set; } = new List<string>();
-
-        /// <summary>
-        /// 允许显示的净需求计划状态；空集合表示全部计划状态。
-        /// </summary>
-        public List<NetDemandPlanStatusEnum> PlanStatuses { get; set; } = new List<NetDemandPlanStatusEnum>();
-    }
-
     /// <summary>
     /// 净需求来源导航中的一张来源单及其匹配净需求数量。
     /// </summary>

@@ -26,6 +26,8 @@ public sealed class OutboundDocument : BaseEntity
     public DateTime ShipmentDate { get; set; }
     /// <summary>人工库存出库备注，最多 500 字。</summary>
     public string? Remark { get; set; }
+    /// <summary>手工出库用途，最多 500 字；草稿和历史单可空，新增过账必须填写。</summary>
+    public string? IssueReason { get; set; }
     /// <summary>触发自动出库的装箱单标识；手工出库为空，不代表销售交付来源。</summary>
     public Guid? TriggerPackingListId { get; set; }
     /// <summary>单据或业务事实形成时冻结的装箱单号历史快照，不随主数据更新。</summary>

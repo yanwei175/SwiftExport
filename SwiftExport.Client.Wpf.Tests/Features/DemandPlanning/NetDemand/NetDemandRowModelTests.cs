@@ -11,7 +11,7 @@ public sealed class NetDemandRowModelTests
     [TestMethod]
     public void FromDto_ShouldKeepMaterialAndPurchaseFactsSeparateFromClientSelection()
     {
-        var dto = new MaterialDemandWorkspaceItemDto
+        var dto = new MaterialDemandManagerItemDto
         {
             Uid = Guid.NewGuid(),
             SourceType = "SO",
@@ -23,7 +23,7 @@ public sealed class NetDemandRowModelTests
             AssociatedPurchaseQty = 8m,
         };
 
-        var row = MaterialDemandWorkspaceRowModel.FromDto(dto);
+        var row = MaterialDemandManagerRowModel.FromDto(dto);
 
         Assert.AreEqual("客供件", row.DemandRoleText);
         Assert.AreEqual(8m, row.AssociatedPurchaseQty);
@@ -37,7 +37,7 @@ public sealed class NetDemandRowModelTests
     {
         var originalSupplierId = Guid.NewGuid();
         var deliverySupplierId = Guid.NewGuid();
-        var row = MaterialDemandWorkspaceRowModel.FromDto(new MaterialDemandWorkspaceItemDto
+        var row = MaterialDemandManagerRowModel.FromDto(new MaterialDemandManagerItemDto
         {
             Uid = Guid.NewGuid(),
             Version = 3,

@@ -1,6 +1,6 @@
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 
-public sealed class NetDemandWorkspaceOpenRequest
+public sealed class NetDemandManagerOpenRequest
 {
     public Guid? NetDemandId { get; init; }
     public Guid? GrossDemandId { get; init; }

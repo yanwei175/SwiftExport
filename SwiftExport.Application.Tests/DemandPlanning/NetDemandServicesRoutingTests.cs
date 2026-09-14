@@ -7,56 +7,48 @@ using SwiftExport.WebApi.Controllers.DemandPlanning;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
-/// <summary>验证物料 HTTP 用例进入新服务，只有旧计划命令继续兼容，且参数和结果原样传递。</summary>
+/// <summary>验证物料管理 HTTP 用例完整转发，且旧计划边界已经退出。</summary>
 [TestClass]
-public sealed class NetDemandServicesRoutingTests
+public sealed class NetDemandManagerServiceRoutingTests
 {
     /// <summary>全部物料 action 必须调用新接口，不能继续进入旧混合服务。</summary>
     [TestMethod]
     public void MaterialActions_ForwardToNewService()
     {
-        var material = DispatchProxy.Create<INetDemandServices, ForwardingProbe>();
-        var legacy = DispatchProxy.Create<INetDemandWorkspaceService, ForwardingProbe>();
-        var controller = new NetDemandWorkspaceController(material, legacy);
+        var material = DispatchProxy.Create<INetDemandManagerService, ForwardingProbe>();
+        var controller = new NetDemandManagerController(material);
 
-        foreach (var method in typeof(INetDemandServices).GetMethods())
+        foreach (var method in typeof(INetDemandManagerService).GetMethods())
             VerifyForwarding(controller, method, (ForwardingProbe)(object)material);
 
-        Assert.AreEqual(0, ((ForwardingProbe)(object)legacy).CallCount);
     }
 
-    /// <summary>尚未迁移的计划 action 不能混入新物料服务。</summary>
+    /// <summary>已退出的旧计划 action 不能重新进入当前物料事实边界。</summary>
     [TestMethod]
-    public void LegacyActions_RemainOnCompatibilityService()
+    public void LegacyActions_AreRemoved()
     {
-        var material = DispatchProxy.Create<INetDemandServices, ForwardingProbe>();
-        var legacy = DispatchProxy.Create<INetDemandWorkspaceService, ForwardingProbe>();
-        var controller = new NetDemandWorkspaceController(material, legacy);
-        var materialNames = typeof(INetDemandServices).GetMethods().Select(method => method.Name).ToHashSet();
-
-        foreach (var method in typeof(INetDemandWorkspaceService).GetMethods().Where(method => !materialNames.Contains(method.Name)))
-            VerifyForwarding(controller, method, (ForwardingProbe)(object)legacy);
-
-        Assert.AreEqual(0, ((ForwardingProbe)(object)material).CallCount);
+        foreach (var name in new[] { "ReplacePlanAsync", "ApplyDefaultSupplierAsync", "BatchAssignSupplierAsync", "GetDetailAsync" })
+        {
+            Assert.IsNull(typeof(NetDemandManagerController).GetMethod(name));
+            Assert.IsNull(typeof(INetDemandManagerService).GetMethod(name));
+        }
     }
 
-    /// <summary>新旧服务均使用请求级注册，新服务不能因遗漏 DI 而无法被 Controller 激活。</summary>
+    /// <summary>仅注册请求级 Manager 服务，不遗留已退出的计划服务。</summary>
     [TestMethod]
-    public void ApplicationRegistration_RegistersBothScopedServices()
+    public void ApplicationRegistration_RegistersManagerOnly()
     {
         var services = new ServiceCollection();
         services.AddApplicationServices();
-        var material = services.Single(item => item.ServiceType == typeof(INetDemandServices));
-        var legacy = services.Single(item => item.ServiceType == typeof(INetDemandWorkspaceService));
+        var material = services.Single(item => item.ServiceType == typeof(INetDemandManagerService));
 
-        Assert.AreEqual(typeof(NetDemandServices), material.ImplementationType);
+        Assert.AreEqual(typeof(NetDemandManagerService), material.ImplementationType);
         Assert.AreEqual(ServiceLifetime.Scoped, material.Lifetime);
-        Assert.AreEqual(typeof(NetDemandWorkspaceService), legacy.ImplementationType);
-        Assert.AreEqual(ServiceLifetime.Scoped, legacy.Lifetime);
+        Assert.IsFalse(services.Any(item => item.ServiceType.Name == "INetDemandWorkspaceService"));
     }
 
     /// <summary>真实调用 Controller 并检查目标、所有参数及返回任务，避免只搜索源码文本。</summary>
-    private static void VerifyForwarding(NetDemandWorkspaceController controller, MethodInfo method, ForwardingProbe probe)
+    private static void VerifyForwarding(NetDemandManagerController controller, MethodInfo method, ForwardingProbe probe)
     {
         using var cancellation = new CancellationTokenSource();
         var arguments = method.GetParameters().Select(parameter =>
@@ -65,7 +57,7 @@ public sealed class NetDemandServicesRoutingTests
             parameter.ParameterType == typeof(string) ? "SO" :
             Activator.CreateInstance(parameter.ParameterType)).ToArray();
         var before = probe.CallCount;
-        var result = typeof(NetDemandWorkspaceController).GetMethod(method.Name)!.Invoke(controller, arguments);
+        var result = typeof(NetDemandManagerController).GetMethod(method.Name)!.Invoke(controller, arguments);
 
         Assert.AreEqual(before + 1, probe.CallCount, method.Name);
         Assert.AreEqual(method.Name, probe.MethodName);

@@ -40,6 +40,10 @@ public sealed partial class OutboundHeaderModel : BaseLineModel<OutboundHeaderDe
     [ObservableProperty]
     public partial string Remark { get; set; } = string.Empty;
 
+    /// <summary>草稿用途说明；可暂存空值，服务端过账时强制校验。</summary>
+    [ObservableProperty]
+    public partial string IssueReason { get; set; } = string.Empty;
+
     [ObservableProperty]
     public partial DateTime? PostedDate { get; set; }
 
@@ -110,6 +114,7 @@ public sealed partial class OutboundHeaderModel : BaseLineModel<OutboundHeaderDe
         if (DocumentType != OutboundDocumentTypeEnum.StockIssue) return "当前仅支持普通库存出库草稿。";
         if (WarehouseSiteId == Guid.Empty || ShipmentDate == default) return "请选择出库仓库和出库日期。";
         if (Remark?.Length > 500) return "备注最多 500 字。";
+        if (IssueReason?.Length > 500) return "出库原因最多 500 字。";
         if (Lines.Items.Count > 500) return "每张草稿最多包含 500 行。";
         if (Lines.Items.Select(x => x.ProductId).Distinct().Count() != Lines.Items.Count) return "同一张出库单不能重复产品。";
         return null;

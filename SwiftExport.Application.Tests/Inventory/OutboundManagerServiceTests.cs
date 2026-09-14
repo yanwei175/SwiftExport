@@ -302,7 +302,7 @@ public sealed partial class OutboundManagerServiceTests
             {
                 Header = new() { Uid = Header!.Uid, Version = Header.Version, DocumentNo = Header.DocumentNo,
                     WarehouseSiteId = Header.WarehouseSiteId, ShipmentDate = Header.ShipmentDate, PostingStatus = Header.PostingStatus,
-                    DocumentType = Header.DocumentType, TriggerPackingListId = Header.TriggerPackingListId },
+                    DocumentType = Header.DocumentType, TriggerPackingListId = Header.TriggerPackingListId, IssueReason = Header.IssueReason! },
                 Lines = SavedLines.Select(x => new OutboundLineDetailDto { Uid = x.Uid, OutboundDocumentId = x.OutboundDocumentId,
                     ProductId = x.ProductId, CommandItemId = x.CommandItemId, Quantity = x.Quantity, UnitSnapshot = x.UnitSnapshot,
                     LineNumber = x.LineNumber, SkuSnapshot = x.SkuSnapshot }).ToList()
@@ -330,7 +330,7 @@ public sealed partial class OutboundManagerServiceTests
             return Task.FromResult<IReadOnlyList<SwiftExport.Contracts.DTOs.Inventory.InventoryPostingResultDto>>([]);
         }
 
-        public CreateOutboundDraftCommand Create() => new() { CommandId = Guid.NewGuid(), Draft = new() { DocumentType = OutboundDocumentTypeEnum.StockIssue, WarehouseSiteId = WarehouseId, ShipmentDate = DateTime.Today, Lines = [new() { ProductId = SourceId, Quantity = 10 }] } };
+        public CreateOutboundDraftCommand Create() => new() { CommandId = Guid.NewGuid(), Draft = new() { DocumentType = OutboundDocumentTypeEnum.StockIssue, WarehouseSiteId = WarehouseId, ShipmentDate = DateTime.Today, IssueReason = "试制领用", Lines = [new() { ProductId = SourceId, Quantity = 10 }] } };
         private Task<PagedResponseBase<OutboundManagerListItemDto>> SearchManager(OutboundManagerSearchRequest request)
         {
             Searches++; LastSearch = request;

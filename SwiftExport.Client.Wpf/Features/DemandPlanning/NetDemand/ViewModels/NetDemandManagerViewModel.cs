@@ -21,7 +21,7 @@ namespace SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 /// <summary>
 /// 负责物料需求工作台的分页查询、来源导航、来源建立和安全回退。
 /// </summary>
-public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
+public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     IAsyncInitializable,
     IDocumentTabViewModel,
     IDocumentTabInitializable,
@@ -29,7 +29,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
 {
     public const string RouteKey = "net-demands";
 
-    private readonly IMaterialDemandWorkspaceApi _api;
+    private readonly INetDemandManagerApi _api;
     private readonly IProcurementMasterDataQueryApi _masterDataApi;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IDialogService _dialogService;
@@ -44,10 +44,10 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     private bool _syncingSourceFilters;
     private bool _disposed;
     private Guid? _appliedSourceUid;
-    private NetDemandWorkspaceOpenRequest? _openRequest;
+    private NetDemandManagerOpenRequest? _openRequest;
 
-    public NetDemandWorkspaceViewModel(
-        IMaterialDemandWorkspaceApi api,
+    public NetDemandManagerViewModel(
+        INetDemandManagerApi api,
         IProcurementMasterDataQueryApi masterDataApi,
         IApiCallRunner apiCallRunner,
         IDialogService dialogService,
@@ -77,7 +77,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         SourceSourceTypes.CollectionChanged += OnSourceGroupFilterChanged;
     }
 
-    public ObservableCollection<MaterialDemandWorkspaceRowModel> Items { get; } = [];
+    public ObservableCollection<MaterialDemandManagerRowModel> Items { get; } = [];
     /// <summary>推荐采购供应商远程 Lookup 当前候选。</summary>
     public ObservableCollection<ProcurementSupplierCandidateDto> SuggestedSupplierCandidates { get; } = [];
     /// <summary>
@@ -171,7 +171,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     public partial NetDemandSourceGroupModel? SelectedSourceGroup { get; set; }
 
     [ObservableProperty]
-    public partial MaterialDemandWorkspaceRowModel? SelectedItem { get; set; }
+    public partial MaterialDemandManagerRowModel? SelectedItem { get; set; }
 
     [ObservableProperty]
     public partial bool? IsAllChecked { get; set; }
@@ -213,7 +213,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     {
         _initialized = true;
         InitializeDefaults();
-        _openRequest = parameter as NetDemandWorkspaceOpenRequest;
+        _openRequest = parameter as NetDemandManagerOpenRequest;
         if (!string.IsNullOrWhiteSpace(_openRequest?.SourceNo))
         {
             SourceNosText = _openRequest.SourceNo;
@@ -261,7 +261,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         {
             return;
         }
-        await RefreshWorkspaceAsync();
+        await RefreshManagerAsync();
     }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
@@ -292,7 +292,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         var hasEstablished = await _netDemandDialogService.ShowSourceDemandCandidatesAsync();
         if (hasEstablished)
         {
-            await RefreshWorkspaceAsync();
+            await RefreshManagerAsync();
         }
     }
 
@@ -324,7 +324,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
             }
             _messageService.ShowSuccess("回退完成",
                 $"已回退 {result.Data.RolledBackSourceCount} 条，已处于回退状态 {result.Data.AlreadyRolledBackCount} 条。");
-            await RefreshWorkspaceAsync();
+            await RefreshManagerAsync();
         }, "正在回退物料需求...");
     }
 
@@ -574,7 +574,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
                 Items.Clear();
                 foreach (var dto in result.Data.Items)
                 {
-                    var row = MaterialDemandWorkspaceRowModel.FromDto(dto);
+                    var row = MaterialDemandManagerRowModel.FromDto(dto);
                     row.PropertyChanged += OnRowPropertyChanged;
                     Items.Add(row);
                 }
@@ -608,12 +608,12 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
     /// <summary>
     /// 根据当前模式构建主分页查询或来源导航全量查询。
     /// </summary>
-    private MaterialDemandWorkspaceSearchRequest CreateSearchRequest()
+    private MaterialDemandManagerSearchRequest CreateSearchRequest()
         => IsSourceSelected ? CreateSelectedSourceSearchRequest() : CreateMainSearchRequest();
 
-    private MaterialDemandWorkspaceSearchRequest CreateMainSearchRequest()
+    private MaterialDemandManagerSearchRequest CreateMainSearchRequest()
     {
-        var request = new MaterialDemandWorkspaceSearchRequest
+        var request = new MaterialDemandManagerSearchRequest
         {
             Keyword = Keyword.Trim(),
             PageIndex = PageIndex,
@@ -645,9 +645,9 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         return request;
     }
 
-    private MaterialDemandWorkspaceSearchRequest CreateSelectedSourceSearchRequest()
+    private MaterialDemandManagerSearchRequest CreateSelectedSourceSearchRequest()
     {
-        var request = new MaterialDemandWorkspaceSearchRequest
+        var request = new MaterialDemandManagerSearchRequest
         {
             SourceUid = _appliedSourceUid,
             PageIndex = 1,
@@ -775,7 +775,7 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
         }
     }
 
-    private async Task RefreshWorkspaceAsync()
+    private async Task RefreshManagerAsync()
     {
         if (IsSourcePanelOpen && !await RefreshSourceNavigationAsync(reloadCurrentData: false))
         {
@@ -860,12 +860,12 @@ public sealed partial class NetDemandWorkspaceViewModel : ViewModelBaseEx,
 
     private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MaterialDemandWorkspaceRowModel.IsSuggestionDirty))
+        if (e.PropertyName == nameof(MaterialDemandManagerRowModel.IsSuggestionDirty))
         {
             UpdateSuggestionCommands();
         }
 
-        if (e.PropertyName != nameof(MaterialDemandWorkspaceRowModel.IsChecked) || _syncingChecks)
+        if (e.PropertyName != nameof(MaterialDemandManagerRowModel.IsChecked) || _syncingChecks)
         {
             return;
         }

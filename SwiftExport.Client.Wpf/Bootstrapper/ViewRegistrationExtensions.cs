@@ -80,10 +80,8 @@ public static class ViewRegistrationExtensions
         services.AddTransient<GrossDemandWorkspaceViewModel>();
         services.AddTransient<GrossDemandManualEditorViewModel>();
         services.AddTransient<GrossDemandTraceViewModel>();
-        services.AddTransient<NetDemandWorkspaceViewModel>();
+        services.AddTransient<NetDemandManagerViewModel>();
         services.AddTransient<SourceDemandCandidatePickerViewModel>();
-        services.AddTransient<NetDemandPlanEditorViewModel>();
-        services.AddTransient<NetDemandTraceViewModel>();
         services.AddTransient<PurchaseDraftWorkflowViewModel>();
         services.AddTransient<PurchasePreparationService>();
         services.AddTransient<PurchaseOrderManagerViewModel>();

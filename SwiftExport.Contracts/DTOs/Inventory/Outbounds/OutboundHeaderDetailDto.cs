@@ -16,6 +16,8 @@ namespace SwiftExport.Contracts.DTOs.Inventory.Outbounds
         public string WarehouseNameSnapshot { get; set; } = string.Empty;
         public DateTime ShipmentDate { get; set; } = DateTime.Today;
         public string Remark { get; set; } = string.Empty;
+        /// <summary>手工出库用途，最多 500 字；草稿可空，过账时必填。</summary>
+        public string IssueReason { get; set; } = string.Empty;
         public DateTime? PostedDate { get; set; }
         public string PostedBy { get; set; } = string.Empty;
         public DateTime? ReversedDate { get; set; }

@@ -178,6 +178,7 @@ public sealed partial class OutboundManagerService(
         if (site is null || !site.IsActive || site.IsDeleted) throw new DraftException("出库仓库不存在、已删除或已停用。");
         header.WarehouseSiteId = site.Uid; header.WarehouseCodeSnapshot = site.Code; header.WarehouseNameSnapshot = site.Name;
         header.ShipmentDate = draft.ShipmentDate.Date; header.Remark = draft.Remark;
+        header.IssueReason = draft.IssueReason;
         await repository.SaveAsync(header, rows, version, token);
     }
 
@@ -269,6 +270,8 @@ public sealed partial class OutboundManagerService(
             throw new DraftException("请选择出库仓库、出库日期，备注最多 500 字。", ServiceErrorCodes.Validation, "Draft");
         if (draft.Lines is null || draft.Lines.Count > 500)
             throw new DraftException("每张草稿最多包含 500 行。", ServiceErrorCodes.Validation, "Draft.Lines");
+        if (draft.IssueReason?.Length > 500)
+            throw new DraftException("出库原因最多 500 字。", ServiceErrorCodes.Validation, "Draft.IssueReason");
         if (draft.Lines.Any(x => x is null || x.ProductId == Guid.Empty || x.Quantity <= 0
             || x.Quantity > 99999999999999.9999m || decimal.Round(x.Quantity, 4) != x.Quantity))
             throw new DraftException("产品不能为空，出库数量须为正数、最多四位小数且符合 decimal(18,4)。", ServiceErrorCodes.Validation, "Draft.Lines");

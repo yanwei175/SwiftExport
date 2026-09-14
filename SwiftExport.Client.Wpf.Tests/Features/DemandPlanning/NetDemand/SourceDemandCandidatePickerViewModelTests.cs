@@ -155,9 +155,9 @@ public sealed class SourceDemandCandidatePickerViewModelTests
         Assert.IsFalse(viewModel.IsBusy);
     }
 
-    private static (INetDemandWorkspaceApi Api, CandidateApiProxy Proxy) CreateApi()
+    private static (INetDemandManagerApi Api, CandidateApiProxy Proxy) CreateApi()
     {
-        var api = DispatchProxy.Create<INetDemandWorkspaceApi, CandidateApiProxy>();
+        var api = DispatchProxy.Create<INetDemandManagerApi, CandidateApiProxy>();
         return (api, (CandidateApiProxy)(object)api);
     }
 
@@ -194,24 +194,24 @@ public sealed class SourceDemandCandidatePickerViewModelTests
         public Func<string, Guid, CancellationToken, Task<ServiceResult<List<SourceDemandCandidateDto>>>> DetailHandler { get; set; }
             = (_, _, _) => Task.FromResult(ServiceResult<List<SourceDemandCandidateDto>>.Ok([]));
         public Func<EstablishMaterialDemandsCommand, Task<ServiceResult<EstablishMaterialDemandsResult>>> EstablishHandler { get; set; }
-            = _ => throw new NotSupportedException(nameof(INetDemandWorkspaceApi.EstablishFromSourcesAsync));
+            = _ => throw new NotSupportedException(nameof(INetDemandManagerApi.EstablishFromSourcesAsync));
 
         /// <summary>按方法名返回确定结果，未授权调用会立即令测试失败。</summary>
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            if (targetMethod!.Name == nameof(INetDemandWorkspaceApi.GetSourceDemandCandidateGroupsAsync))
+            if (targetMethod!.Name == nameof(INetDemandManagerApi.GetSourceDemandCandidateGroupsAsync))
             {
                 return Task.FromResult(ServiceResult<List<SourceDemandCandidateGroupDto>>.Ok(
                     GroupHandler is null ? Groups.ToList() : GroupHandler()));
             }
-            if (targetMethod.Name == nameof(INetDemandWorkspaceApi.GetSourceDemandCandidatesBySourceAsync))
+            if (targetMethod.Name == nameof(INetDemandManagerApi.GetSourceDemandCandidatesBySourceAsync))
             {
                 var sourceType = (string)args![0]!;
                 var sourceUid = (Guid)args[1]!;
                 DetailCalls.Add((sourceType, sourceUid));
                 return DetailHandler(sourceType, sourceUid, (CancellationToken)args[2]!);
             }
-            if (targetMethod.Name == nameof(INetDemandWorkspaceApi.EstablishFromSourcesAsync))
+            if (targetMethod.Name == nameof(INetDemandManagerApi.EstablishFromSourcesAsync))
             {
                 return EstablishHandler((EstablishMaterialDemandsCommand)args![0]!);
             }

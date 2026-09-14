@@ -8,6 +8,8 @@ namespace SwiftExport.Contracts.DTOs.Inventory.Outbounds
         public Guid Uid { get; set; }
         public int Version { get; set; }
         public string DocumentNo { get; set; }
+        /// <summary>本次待过账单据保存的出库原因，不接受预览端改写。</summary>
+        public string IssueReason { get; set; }
         public Guid WarehouseSiteId { get; set; }
         public string WarehouseName { get; set; }
         public bool CanPost { get; set; }

@@ -48,8 +48,8 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
         Assert.AreEqual(20, viewModel.PageSize);
         Assert.AreEqual(1, viewModel.TotalPages);
         Assert.AreEqual("当前来源共 2 条", viewModel.PageStatus);
-        CollectionAssert.Contains(changedProperties, nameof(NetDemandWorkspaceViewModel.IsSourceSelected));
-        CollectionAssert.Contains(changedProperties, nameof(NetDemandWorkspaceViewModel.PageStatus));
+        CollectionAssert.Contains(changedProperties, nameof(NetDemandManagerViewModel.IsSourceSelected));
+        CollectionAssert.Contains(changedProperties, nameof(NetDemandManagerViewModel.PageStatus));
     }
 
     [TestMethod]
@@ -122,7 +122,7 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
             "DemandPlanning",
             "NetDemand",
             "Views",
-            "NetDemandWorkspaceView.xaml"));
+            "NetDemandManagerView.xaml"));
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
         var sourceList = workspace.Descendants(presentation + "ListBox").Single();
@@ -177,12 +177,12 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
         Assert.AreEqual("True", (string?)pagerTrigger.Attribute("Value"));
     }
 
-    private static NetDemandWorkspaceViewModel CreateViewModel(RecordingNetDemandApi api)
+    private static NetDemandManagerViewModel CreateViewModel(RecordingNetDemandApi api)
     {
         var runner = new DirectApiCallRunner();
         var messages = new MessageServiceStub();
         var dialogs = new DialogServiceStub();
-        return new NetDemandWorkspaceViewModel(
+        return new NetDemandManagerViewModel(
             api,
             DispatchProxy.Create<IProcurementMasterDataQueryApi, NoCallProxy>(),
             runner,
@@ -205,15 +205,36 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
         return string.Empty;
     }
 
-    private sealed class RecordingNetDemandApi(Guid sourceUid) : IMaterialDemandWorkspaceApi
+    /// <summary>记录管理页调用；来源候选建立由独立选择器测试覆盖，误调用时直接失败。</summary>
+    private sealed class RecordingNetDemandApi(Guid sourceUid) : INetDemandManagerApi
     {
-        public List<MaterialDemandWorkspaceSearchRequest> SearchRequests { get; } = [];
+        /// <summary>本夹具不承担候选分页查询。</summary>
+        public Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
+            SourceDemandCandidateSearchRequest request, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        /// <summary>本夹具不承担候选来源分组。</summary>
+        public Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        /// <summary>本夹具不承担候选来源行读取。</summary>
+        public Task<ServiceResult<List<SourceDemandCandidateDto>>> GetSourceDemandCandidatesBySourceAsync(
+            string sourceType, Guid sourceUid, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        /// <summary>本夹具不承担来源建立命令。</summary>
+        public Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishFromSourcesAsync(
+            EstablishMaterialDemandsCommand command, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public List<MaterialDemandManagerSearchRequest> SearchRequests { get; } = [];
         public List<MaterialDemandSourceGroupSearchRequest> SourceGroupRequests { get; } = [];
         public List<RollbackMaterialDemandsCommand> RollbackCommands { get; } = [];
         public List<UpdateSuggestedPurchaseSupplierCommand> SuggestedSupplierCommands { get; } = [];
 
-        public Task<ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>> SearchAsync(
-            MaterialDemandWorkspaceSearchRequest request,
+        public Task<ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>> SearchAsync(
+            MaterialDemandManagerSearchRequest request,
             CancellationToken cancellationToken = default)
         {
             SearchRequests.Add(request);
@@ -221,7 +242,7 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
             var items = sourceMode
                 ? new[] { CreateItem(sourceUid, 1), CreateItem(sourceUid, 2) }
                 : new[] { CreateItem(sourceUid, 1) };
-            return Task.FromResult(ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>.Ok(new PagedResponseBase<MaterialDemandWorkspaceItemDto>
+            return Task.FromResult(ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>.Ok(new PagedResponseBase<MaterialDemandManagerItemDto>
             {
                 Items = items.ToList(),
                 TotalCount = items.Length,
@@ -273,7 +294,7 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
             }));
         }
 
-        private static MaterialDemandWorkspaceItemDto CreateItem(Guid sourceUid, int lineNumber) => new()
+        private static MaterialDemandManagerItemDto CreateItem(Guid sourceUid, int lineNumber) => new()
         {
             Uid = Guid.NewGuid(),
             Version = 1,

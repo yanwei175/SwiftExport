@@ -31,7 +31,7 @@ public sealed partial class OutboundManagerRepository(RepositoryBaseContext cont
         using var reader = await context.Session.Connection.QueryMultipleAsync(Command(
             "SELECT COUNT(*) " + filter + """
             ; SELECT h.Uid,h.Version,h.DocumentNo,h.DocumentType,h.LifecycleStatus,h.PostingStatus,
-                h.WarehouseSiteId,h.WarehouseNameSnapshot,h.ShipmentDate,h.Remark,
+                h.WarehouseSiteId,h.WarehouseNameSnapshot,h.ShipmentDate,h.Remark,h.IssueReason,
                 (SELECT COUNT(*) FROM dbo.OutboundDocumentLine l WHERE l.OutboundDocumentId=h.Uid AND l.IsDeleted=0) AS LineCount,
                 COALESCE((SELECT SUM(l.Quantity) FROM dbo.OutboundDocumentLine l WHERE l.OutboundDocumentId=h.Uid AND l.IsDeleted=0),0) AS TotalQuantity
             """ + "\n" + filter + " ORDER BY h.ShipmentDate DESC,h.Uid DESC OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY;",
@@ -44,7 +44,7 @@ public sealed partial class OutboundManagerRepository(RepositoryBaseContext cont
     {
         using var reader = await context.Session.Connection.QueryMultipleAsync(Command("""
             SELECT Uid,Version,DocumentNo,DocumentType,LifecycleStatus,PostingStatus,
-                   WarehouseSiteId,WarehouseCodeSnapshot,WarehouseNameSnapshot,ShipmentDate,Remark,
+                   WarehouseSiteId,WarehouseCodeSnapshot,WarehouseNameSnapshot,ShipmentDate,Remark,IssueReason,
                    PostedDate,PostedBy,ReversedDate,ReversedBy,ReverseReason,TriggerPackingListId,CommandId,
                    CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,IsDeleted
             FROM dbo.OutboundDocument WHERE Uid=@Uid AND IsDeleted=0;
@@ -135,9 +135,9 @@ public sealed partial class OutboundManagerRepository(RepositoryBaseContext cont
             context.AuditStamp.StampForInsert(header);
             await context.Session.Connection.ExecuteAsync(Command("""
                 INSERT dbo.OutboundDocument(Uid,Version,IsDeleted,DocumentNo,DocumentType,LifecycleStatus,PostingStatus,
-                    WarehouseSiteId,WarehouseCodeSnapshot,WarehouseNameSnapshot,ShipmentDate,Remark,TriggerPackingListId,CommandId,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy)
+                    WarehouseSiteId,WarehouseCodeSnapshot,WarehouseNameSnapshot,ShipmentDate,Remark,IssueReason,TriggerPackingListId,CommandId,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy)
                 VALUES(@Uid,1,0,@DocumentNo,@DocumentType,@LifecycleStatus,@PostingStatus,
-                    @WarehouseSiteId,@WarehouseCodeSnapshot,@WarehouseNameSnapshot,@ShipmentDate,@Remark,NULL,@CommandId,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy);
+                    @WarehouseSiteId,@WarehouseCodeSnapshot,@WarehouseNameSnapshot,@ShipmentDate,@Remark,@IssueReason,NULL,@CommandId,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy);
                 """, header, token));
             header.Version = 1;
         }
@@ -146,7 +146,7 @@ public sealed partial class OutboundManagerRepository(RepositoryBaseContext cont
             context.AuditStamp.StampForUpdate(header);
             var changed = await context.Session.Connection.ExecuteAsync(Command("""
                 UPDATE dbo.OutboundDocument SET WarehouseSiteId=@WarehouseSiteId,WarehouseCodeSnapshot=@WarehouseCodeSnapshot,
-                    WarehouseNameSnapshot=@WarehouseNameSnapshot,ShipmentDate=@ShipmentDate,Remark=@Remark,
+                    WarehouseNameSnapshot=@WarehouseNameSnapshot,ShipmentDate=@ShipmentDate,Remark=@Remark,IssueReason=@IssueReason,
                     Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
                 WHERE Uid=@Uid AND Version=@Version AND IsDeleted=0 AND DocumentType=22 AND TriggerPackingListId IS NULL AND PostingStatus=0 AND LifecycleStatus=0;
                 """, header, token));

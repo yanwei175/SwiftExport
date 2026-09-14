@@ -41,9 +41,9 @@ public sealed class NavigationServiceTests
         var group = registry.MenuItems.Single(item => item.RouteKey == "demand-planning");
         Assert.AreEqual("需求计划", group.Title);
         Assert.IsTrue(group.Children.Any(item => item.RouteKey == GrossDemandWorkspaceViewModel.RouteKey));
-        Assert.IsTrue(group.Children.Any(item => item.RouteKey == NetDemandWorkspaceViewModel.RouteKey));
-        Assert.IsTrue(registry.TryGetRoute(NetDemandWorkspaceViewModel.RouteKey, out var netDemandRoute));
-        Assert.AreEqual(typeof(NetDemandWorkspaceViewModel), netDemandRoute.ViewModelType);
+        Assert.IsTrue(group.Children.Any(item => item.RouteKey == NetDemandManagerViewModel.RouteKey));
+        Assert.IsTrue(registry.TryGetRoute(NetDemandManagerViewModel.RouteKey, out var netDemandRoute));
+        Assert.AreEqual(typeof(NetDemandManagerViewModel), netDemandRoute.ViewModelType);
         Assert.IsFalse(registry.MenuItems.Any(item => item.RouteKey == "planning"));
         Assert.IsTrue(registry.TryGetRoute("planning", out _));
     }

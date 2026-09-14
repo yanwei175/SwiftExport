@@ -1,18 +1,15 @@
 using Refit;
-using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
-using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
-using SwiftExport.Contracts.Wrappers;
 using System;
+using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace SwiftExport.Contracts.Apis.DemandPlanning
 {
-    /// <summary>
-    /// 净需求计划工作台 API。客户端 BaseAddress 为 api/demand-planning/net-demands。
-    /// </summary>
-    public interface INetDemandWorkspaceApi
+    /// <summary>物料需求管理 API：负责事实查询、来源建立、推荐供应商维护与安全回退。</summary>
+    public interface INetDemandManagerApi
     {
         /// <summary>查询可建立物料需求的来源需求候选。</summary>
         [Post("/source-demands/candidates/search")]
@@ -38,41 +35,28 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
             [Body] EstablishMaterialDemandsCommand command,
             CancellationToken cancellationToken = default(CancellationToken));
 
-        /// <summary>回退来源对应的活动物料需求修订。</summary>
+        /// <summary>分页查询已经建立的物料需求事实。</summary>
+        [Post("/material-search")]
+        Task<ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>> SearchAsync(
+            [Body] MaterialDemandManagerSearchRequest request,
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>查询物料事实的来源导航分组。</summary>
+        [Post("/material-source-groups")]
+        Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
+            [Body] MaterialDemandSourceGroupSearchRequest request,
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>局部更新一条活动物料需求的推荐采购供应商；不更新既有采购单。</summary>
+        [Post("/suggested-purchase-supplier")]
+        Task<ServiceResult<UpdateSuggestedPurchaseSupplierResult>> UpdateSuggestedPurchaseSupplierAsync(
+            [Body] UpdateSuggestedPurchaseSupplierCommand command,
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>按来源及物料修订安全回退；存在执行事实时由后端阻断。</summary>
         [Post("/source-demands/rollback")]
         Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
             [Body] RollbackMaterialDemandsCommand command,
             CancellationToken cancellationToken = default(CancellationToken));
-
-        [Post("/search")]
-        Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
-            [Body] NetDemandSearchRequest request,
-            CancellationToken cancellationToken = default(CancellationToken));
-
-        /// <summary>
-        /// 查询净需求来源导航分组，筛选口径独立于工作台顶部查询条件。
-        /// </summary>
-        [Post("/source-groups")]
-        Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
-            [Body] NetDemandSourceGroupSearchRequest request,
-            CancellationToken cancellationToken = default(CancellationToken));
-
-        [Get("/{uid}")]
-        Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(
-            Guid uid,
-            CancellationToken cancellationToken = default(CancellationToken));
-
-        [Post("/plans/replace")]
-        Task<ServiceResult<NetDemandPlanCommandResult>> ReplacePlanAsync(
-            [Body] ReplaceNetDemandPlanCommand command);
-
-        [Post("/plans/apply-product-default")]
-        Task<ServiceResult<NetDemandPlanCommandResult>> ApplyDefaultSupplierAsync(
-            [Body] ApplyProductDefaultSupplierCommand command);
-
-        [Post("/plans/batch-assign-supplier")]
-        Task<ServiceResult<NetDemandPlanCommandResult>> BatchAssignSupplierAsync(
-            [Body] BatchAssignSupplierCommand command);
-
     }
 }

@@ -15,27 +15,6 @@ namespace SwiftExport.Infrastructure.Repositories.DemandPlanning;
 public sealed class NetDemandExecutionLinkRepository(RepositoryBaseContext context)
     : INetDemandExecutionLinkRepository
 {
-    /// <summary>读取指定物料需求当前有效的执行关系，不再提供 Trace 历史查询。</summary>
-    public async Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByNetDemandIdsAsync(
-        IEnumerable<Guid> netDemandIds,
-        CancellationToken cancellationToken = default)
-    {
-        var ids = netDemandIds.Distinct().ToArray();
-        if (ids.Length == 0) return [];
-        var sql = LinkSelect + @"
-FROM [dbo].[DemandExecutionLink] l
-LEFT JOIN [dbo].[PurchaseOrderLine] pol
-  ON pol.[Uid]=l.[TargetLineId] AND l.[TargetType]=@PurchaseTargetType AND ISNULL(pol.[IsDeleted],0)=0
-WHERE l.[NetDemandId] IN @Ids AND l.[LinkStatus]=@Active AND l.[IsDeleted]=0
-ORDER BY l.[CreatedDate],l.[Uid];";
-        var rows = await context.Session.Connection.QueryAsync<NetDemandExecutionLinkDto>(new CommandDefinition(
-            sql,
-            new { Ids = ids, Active = DemandExecutionLinkStatusEnum.Active, PurchaseTargetType = "PO" },
-            context.Session.Transaction,
-            cancellationToken: cancellationToken));
-        return [.. rows];
-    }
-
     /// <summary>按物料需求锁定活动执行关系，新链路不再要求计划分配存在。</summary>
     public async Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByNetDemandIdsForUpdateAsync(
         IEnumerable<Guid> netDemandIds)
@@ -47,23 +26,6 @@ FROM [dbo].[DemandExecutionLink] l WITH (UPDLOCK,HOLDLOCK)
 LEFT JOIN [dbo].[PurchaseOrderLine] pol
   ON pol.[Uid]=l.[TargetLineId] AND l.[TargetType]=@PurchaseTargetType AND ISNULL(pol.[IsDeleted],0)=0
 WHERE l.[NetDemandId] IN @Ids AND l.[LinkStatus]=@Active AND l.[IsDeleted]=0
-ORDER BY l.[CreatedDate],l.[Uid];",
-            new { Ids = ids, Active = DemandExecutionLinkStatusEnum.Active, PurchaseTargetType = "PO" },
-            context.Session.Transaction);
-        return [.. rows];
-    }
-
-    /// <summary>按历史计划分配锁定活动执行关系，仅用于计划域既有回退校验。</summary>
-    public async Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByAllocationIdsForUpdateAsync(
-        IEnumerable<Guid> allocationIds)
-    {
-        var ids = allocationIds.Distinct().ToArray();
-        if (ids.Length == 0) return [];
-        var rows = await context.Session.Connection.QueryAsync<NetDemandExecutionLinkDto>(LinkSelect + @"
-FROM [dbo].[DemandExecutionLink] l WITH (UPDLOCK,HOLDLOCK)
-LEFT JOIN [dbo].[PurchaseOrderLine] pol
-  ON pol.[Uid]=l.[TargetLineId] AND l.[TargetType]=@PurchaseTargetType AND ISNULL(pol.[IsDeleted],0)=0
-WHERE l.[NetDemandAllocationId] IN @Ids AND l.[LinkStatus]=@Active AND l.[IsDeleted]=0
 ORDER BY l.[CreatedDate],l.[Uid];",
             new { Ids = ids, Active = DemandExecutionLinkStatusEnum.Active, PurchaseTargetType = "PO" },
             context.Session.Transaction);

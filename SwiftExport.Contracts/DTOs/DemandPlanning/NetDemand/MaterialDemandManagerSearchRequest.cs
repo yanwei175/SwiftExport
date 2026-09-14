@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
 {
     /// <summary>物料需求工作台分页查询条件，不包含计划、分配或转单状态筛选。</summary>
-    public class MaterialDemandWorkspaceSearchRequest : PagedRequestBase
+    public class MaterialDemandManagerSearchRequest : PagedRequestBase
     {
         /// <summary>来源导航选中的唯一来源；填写后返回该来源全部活动物料需求。</summary>
         public Guid? SourceUid { get; set; }

@@ -8,6 +8,7 @@ using System.Reflection;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.NetDemand;
 
+/// <summary>验证物料管理与采购契约边界，旧计划接口不得重新暴露。</summary>
 [TestClass]
 public sealed class NetDemandApiContractTests
 {
@@ -15,9 +16,9 @@ public sealed class NetDemandApiContractTests
     [TestMethod]
     public void SourceTrace_ShouldNotExposeRemovedContract()
     {
-        Assert.IsNull(typeof(INetDemandWorkspaceApi).GetMethod("GetSourceDemandTraceAsync"));
+        Assert.IsNull(typeof(INetDemandManagerApi).GetMethod("GetSourceDemandTraceAsync"));
         foreach (var name in new[] { "GrossDemandTraceDto", "NetDemandTraceItemDto", "DemandExecutionTraceItemDto" })
-            Assert.IsNull(typeof(INetDemandWorkspaceApi).Assembly.GetType(
+            Assert.IsNull(typeof(INetDemandManagerApi).Assembly.GetType(
                 "SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand." + name));
     }
 
@@ -25,32 +26,32 @@ public sealed class NetDemandApiContractTests
     [TestMethod]
     public void NetDemandTrace_ShouldNotExposeRemovedContract()
     {
-        Assert.IsNull(typeof(INetDemandWorkspaceApi).GetMethod("GetTraceAsync"));
-        Assert.IsNull(typeof(INetDemandWorkspaceApi).Assembly.GetType(
+        Assert.IsNull(typeof(INetDemandManagerApi).GetMethod("GetTraceAsync"));
+        Assert.IsNull(typeof(INetDemandManagerApi).Assembly.GetType(
             "SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.NetDemandTraceDto"));
     }
 
     [TestMethod]
     public void MaterialWorkspaceApi_ShouldExposeAllocationFreeQueryRoutes()
     {
-        AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchAsync), typeof(PostAttribute), "/material-search", 0);
-        AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchSourceGroupsAsync), typeof(PostAttribute), "/material-source-groups", 0);
-        AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.UpdateSuggestedPurchaseSupplierAsync), typeof(PostAttribute), "/suggested-purchase-supplier", 0);
-        AssertRoute<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.RollbackSourceEstablishmentAsync), typeof(PostAttribute), "/source-demands/rollback", 0);
-        AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchAsync));
-        AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.SearchSourceGroupsAsync));
-        AssertHasCancellationToken<IMaterialDemandWorkspaceApi>(nameof(IMaterialDemandWorkspaceApi.UpdateSuggestedPurchaseSupplierAsync));
+        AssertRoute<INetDemandManagerApi>(nameof(INetDemandManagerApi.SearchAsync), typeof(PostAttribute), "/material-search", 0);
+        AssertRoute<INetDemandManagerApi>(nameof(INetDemandManagerApi.SearchSourceGroupsAsync), typeof(PostAttribute), "/material-source-groups", 0);
+        AssertRoute<INetDemandManagerApi>(nameof(INetDemandManagerApi.UpdateSuggestedPurchaseSupplierAsync), typeof(PostAttribute), "/suggested-purchase-supplier", 0);
+        AssertRoute<INetDemandManagerApi>(nameof(INetDemandManagerApi.RollbackSourceEstablishmentAsync), typeof(PostAttribute), "/source-demands/rollback", 0);
+        AssertHasCancellationToken<INetDemandManagerApi>(nameof(INetDemandManagerApi.SearchAsync));
+        AssertHasCancellationToken<INetDemandManagerApi>(nameof(INetDemandManagerApi.SearchSourceGroupsAsync));
+        AssertHasCancellationToken<INetDemandManagerApi>(nameof(INetDemandManagerApi.UpdateSuggestedPurchaseSupplierAsync));
 
-        var itemProperties = typeof(MaterialDemandWorkspaceItemDto).GetProperties().Select(property => property.Name).ToArray();
-        CollectionAssert.Contains(itemProperties, nameof(MaterialDemandWorkspaceItemDto.AssociatedPurchaseQty));
-        CollectionAssert.Contains(itemProperties, nameof(MaterialDemandWorkspaceItemDto.SuggestedPurchaseSupplierId));
-        CollectionAssert.Contains(itemProperties, nameof(MaterialDemandWorkspaceItemDto.SuggestedDeliverySupplierId));
+        var itemProperties = typeof(MaterialDemandManagerItemDto).GetProperties().Select(property => property.Name).ToArray();
+        CollectionAssert.Contains(itemProperties, nameof(MaterialDemandManagerItemDto.AssociatedPurchaseQty));
+        CollectionAssert.Contains(itemProperties, nameof(MaterialDemandManagerItemDto.SuggestedPurchaseSupplierId));
+        CollectionAssert.Contains(itemProperties, nameof(MaterialDemandManagerItemDto.SuggestedDeliverySupplierId));
         CollectionAssert.DoesNotContain(itemProperties, "AllocationId");
         CollectionAssert.DoesNotContain(itemProperties, "PlannedQty");
-        CollectionAssert.Contains(itemProperties, nameof(MaterialDemandWorkspaceItemDto.RemainingQty));
+        CollectionAssert.Contains(itemProperties, nameof(MaterialDemandManagerItemDto.RemainingQty));
         CollectionAssert.DoesNotContain(itemProperties, "BlockerSummary");
 
-        var requestProperties = typeof(MaterialDemandWorkspaceSearchRequest).GetProperties().Select(property => property.Name).ToArray();
+        var requestProperties = typeof(MaterialDemandManagerSearchRequest).GetProperties().Select(property => property.Name).ToArray();
         CollectionAssert.DoesNotContain(requestProperties, "PlanStatuses");
         CollectionAssert.DoesNotContain(requestProperties, "HasRemainingQty");
         CollectionAssert.DoesNotContain(requestProperties, "PurchaseSupplierIds");
@@ -66,46 +67,39 @@ public sealed class NetDemandApiContractTests
     }
 
     [TestMethod]
-    public void NetDemandApi_ShouldExposeQueryAndPlanRoutes()
+    public void NetDemandApi_ShouldExposeSourceEstablishmentWithoutLegacyPlans()
     {
-        AssertRoute(nameof(INetDemandWorkspaceApi.SearchAsync), typeof(PostAttribute), "/search", 0);
-        AssertRoute(nameof(INetDemandWorkspaceApi.SearchSourceGroupsAsync), typeof(PostAttribute), "/source-groups", 0);
-        AssertRoute(nameof(INetDemandWorkspaceApi.SearchSourceDemandCandidatesAsync), typeof(PostAttribute), "/source-demands/candidates/search", 0);
-        AssertRoute(nameof(INetDemandWorkspaceApi.GetSourceDemandCandidateGroupsAsync), typeof(GetAttribute), "/source-demands/candidate-groups");
-        AssertRoute(nameof(INetDemandWorkspaceApi.GetSourceDemandCandidatesBySourceAsync), typeof(GetAttribute), "/source-demands/candidates/{sourceType}/{sourceUid}");
-        AssertRoute(nameof(INetDemandWorkspaceApi.EstablishFromSourcesAsync), typeof(PostAttribute), "/source-demands/establish", 0);
-        AssertRoute(nameof(INetDemandWorkspaceApi.RollbackSourceEstablishmentAsync), typeof(PostAttribute), "/source-demands/rollback", 0);
-        AssertRoute(nameof(INetDemandWorkspaceApi.GetDetailAsync), typeof(GetAttribute), "/{uid}");
-        AssertRoute(nameof(INetDemandWorkspaceApi.ReplacePlanAsync), typeof(PostAttribute), "/plans/replace", 0);
-        AssertRoute(nameof(INetDemandWorkspaceApi.ApplyDefaultSupplierAsync), typeof(PostAttribute), "/plans/apply-product-default", 0);
-        AssertRoute(nameof(INetDemandWorkspaceApi.BatchAssignSupplierAsync), typeof(PostAttribute), "/plans/batch-assign-supplier", 0);
+        AssertRoute(nameof(INetDemandManagerApi.SearchAsync), typeof(PostAttribute), "/material-search", 0);
+        AssertRoute(nameof(INetDemandManagerApi.SearchSourceGroupsAsync), typeof(PostAttribute), "/material-source-groups", 0);
+        AssertRoute(nameof(INetDemandManagerApi.SearchSourceDemandCandidatesAsync), typeof(PostAttribute), "/source-demands/candidates/search", 0);
+        AssertRoute(nameof(INetDemandManagerApi.GetSourceDemandCandidateGroupsAsync), typeof(GetAttribute), "/source-demands/candidate-groups");
+        AssertRoute(nameof(INetDemandManagerApi.GetSourceDemandCandidatesBySourceAsync), typeof(GetAttribute), "/source-demands/candidates/{sourceType}/{sourceUid}");
+        AssertRoute(nameof(INetDemandManagerApi.EstablishFromSourcesAsync), typeof(PostAttribute), "/source-demands/establish", 0);
+        AssertRoute(nameof(INetDemandManagerApi.RollbackSourceEstablishmentAsync), typeof(PostAttribute), "/source-demands/rollback", 0);
+        foreach (var name in new[] { "GetDetailAsync", "ReplacePlanAsync", "ApplyDefaultSupplierAsync", "BatchAssignSupplierAsync" })
+            Assert.IsNull(typeof(INetDemandManagerApi).GetMethod(name));
     }
 
     [TestMethod]
     public void ReadMethods_ShouldSupportCancellation_AndWritesShouldCarryConcurrency()
     {
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.SearchAsync));
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.SearchSourceGroupsAsync));
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.SearchSourceDemandCandidatesAsync));
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetSourceDemandCandidateGroupsAsync));
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetSourceDemandCandidatesBySourceAsync));
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.EstablishFromSourcesAsync));
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.RollbackSourceEstablishmentAsync));
-        AssertHasCancellationToken(nameof(INetDemandWorkspaceApi.GetDetailAsync));
-        Assert.IsFalse(typeof(INetDemandWorkspaceApi).GetMethod(nameof(INetDemandWorkspaceApi.ReplacePlanAsync))!
-            .GetParameters().Any(parameter => parameter.ParameterType == typeof(CancellationToken)));
-
-        var properties = typeof(ReplaceNetDemandPlanCommand).GetProperties().Select(property => property.Name).ToArray();
-        CollectionAssert.Contains(properties, nameof(ReplaceNetDemandPlanCommand.CommandId));
-        CollectionAssert.Contains(properties, nameof(ReplaceNetDemandPlanCommand.AllocationId));
-        CollectionAssert.Contains(properties, nameof(ReplaceNetDemandPlanCommand.ExpectedVersion));
-        CollectionAssert.Contains(properties, nameof(ReplaceNetDemandPlanCommand.Reason));
+        AssertHasCancellationToken(nameof(INetDemandManagerApi.SearchAsync));
+        AssertHasCancellationToken(nameof(INetDemandManagerApi.SearchSourceGroupsAsync));
+        AssertHasCancellationToken(nameof(INetDemandManagerApi.SearchSourceDemandCandidatesAsync));
+        AssertHasCancellationToken(nameof(INetDemandManagerApi.GetSourceDemandCandidateGroupsAsync));
+        AssertHasCancellationToken(nameof(INetDemandManagerApi.GetSourceDemandCandidatesBySourceAsync));
+        AssertHasCancellationToken(nameof(INetDemandManagerApi.EstablishFromSourcesAsync));
+        AssertHasCancellationToken(nameof(INetDemandManagerApi.RollbackSourceEstablishmentAsync));
+        Assert.IsNotNull(typeof(EstablishMaterialDemandsCommand).GetProperty("CommandId"));
+        Assert.IsNotNull(typeof(EstablishMaterialDemandItem).GetProperty("SourceDemandVersion"));
+        Assert.IsNotNull(typeof(RollbackMaterialDemandsCommand).GetProperty("CommandId"));
+        Assert.IsNotNull(typeof(RollbackMaterialDemandsCommand).GetProperty("Reason"));
     }
 
     [TestMethod]
     public void QueryDto_ShouldNotLeakClientSelectionOrDirtyState()
     {
-        var properties = typeof(NetDemandListItemDto).GetProperties().Select(property => property.Name).ToArray();
+        var properties = typeof(MaterialDemandManagerItemDto).GetProperties().Select(property => property.Name).ToArray();
         CollectionAssert.DoesNotContain(properties, "IsChecked");
         CollectionAssert.DoesNotContain(properties, "IsDirty");
         CollectionAssert.DoesNotContain(properties, "TransferQty");
@@ -125,7 +119,7 @@ public sealed class NetDemandApiContractTests
     }
 
     private static void AssertRoute(string methodName, Type attributeType, string path, int? bodyParameterIndex = null)
-        => AssertRoute<INetDemandWorkspaceApi>(methodName, attributeType, path, bodyParameterIndex);
+        => AssertRoute<INetDemandManagerApi>(methodName, attributeType, path, bodyParameterIndex);
 
     private static void AssertRoute<TApi>(string methodName, Type attributeType, string path, int? bodyParameterIndex = null)
     {
@@ -143,7 +137,7 @@ public sealed class NetDemandApiContractTests
     }
 
     private static void AssertHasCancellationToken(string methodName)
-        => AssertHasCancellationToken<INetDemandWorkspaceApi>(methodName);
+        => AssertHasCancellationToken<INetDemandManagerApi>(methodName);
 
     private static void AssertHasCancellationToken<TApi>(string methodName)
     {

@@ -3,7 +3,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
 [TestClass]
-public sealed class NetDemandWorkspaceControllerContractTests
+public sealed class NetDemandManagerControllerContractTests
 {
     [TestMethod]
     public void SourceGroups_MustExposeDedicatedReadOnlyRoute()
@@ -14,12 +14,12 @@ public sealed class NetDemandWorkspaceControllerContractTests
             "SwiftExport.WebApi",
             "Controllers",
             "DemandPlanning",
-            "NetDemandWorkspaceController.cs");
+            "NetDemandManagerController.cs");
         var source = File.ReadAllText(controllerPath);
 
-        StringAssert.Contains(source, "[HttpPost(\"source-groups\")]");
-        StringAssert.Contains(source, "SearchSourceGroupsAsync");
-        StringAssert.Contains(source, "NetDemandSourceGroupSearchRequest");
+        StringAssert.Contains(source, "[HttpPost(\"material-source-groups\")]");
+        StringAssert.Contains(source, "SearchMaterialSourceGroupsAsync");
+        StringAssert.Contains(source, "MaterialDemandSourceGroupSearchRequest");
     }
 
     [TestMethod]

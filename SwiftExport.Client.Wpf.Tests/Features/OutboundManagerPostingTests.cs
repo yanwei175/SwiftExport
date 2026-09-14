@@ -15,10 +15,13 @@ public sealed partial class OutboundManagerPersistenceTests
     {
         TestInfrastructure.StaTest.RunAsync(async () =>
         {
-            var preview = new OutboundPostPreviewDto { CanPost = true };
+            var preview = new OutboundPostPreviewDto { CanPost = true, IssueReason = "展厅样品领用" };
             var model = new SwiftExportClient.Features.Inventory.Outbounds.ViewModels.OutboundPostPreviewViewModel(preview);
             var view = new SwiftExportClient.Features.Inventory.Outbounds.Views.OutboundPostPreviewView { DataContext = model };
             await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Loaded);
+            var reasonText = (System.Windows.Controls.TextBlock)view.FindName("IssueReasonText");
+            reasonText.GetBindingExpression(System.Windows.Controls.TextBlock.TextProperty)!.UpdateTarget();
+            StringAssert.Contains(reasonText.Text, "展厅样品领用");
             var grids = ((System.Windows.Controls.StackPanel)view.Content).Children.OfType<System.Windows.Controls.DataGrid>().ToArray();
             Assert.AreEqual(1, grids.Length);
             foreach (var grid in grids)

@@ -38,7 +38,7 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.SourceType, src => src.SourceType ?? string.Empty)
             .Map(dest => dest.SourceNo, src => src.SourceNo ?? string.Empty);
 
-        config.NewConfig<MaterialDemandWorkspaceItemDto, MaterialDemandWorkspaceRowModel>()
+        config.NewConfig<MaterialDemandManagerItemDto, MaterialDemandManagerRowModel>()
             .Ignore(dest => dest.IsChecked)
             .Ignore(dest => dest.SuggestedPurchaseSupplierSelection)
             .Map(dest => dest.SuggestedPurchaseSupplierCode, src => src.SuggestedPurchaseSupplierCode ?? string.Empty)

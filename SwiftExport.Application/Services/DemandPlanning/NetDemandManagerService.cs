@@ -12,36 +12,33 @@ using SwiftExport.Infrastructure.Data;
 namespace SwiftExport.Application.Services.DemandPlanning;
 
 /// <summary>物料需求服务入口，负责来源建立交接及物料查询。</summary>
-/// <remarks>工作台新查询不依赖 Allocation；详情与旧查询仍为未迁移消费者保留兼容。</remarks>
-public sealed class NetDemandServices(
+public sealed class NetDemandManagerService(
     ServiceBaseContext context,
     ISupplierRepository supplierRepository,
     INetDemandRepository netDemandRepository,
-    INetDemandAllocationRepository allocationRepository,
-    INetDemandExecutionLinkRepository executionLinkRepository,
-    IMaterialDemandEstablishmentService establishmentService) : INetDemandServices
+    IMaterialDemandEstablishmentService establishmentService) : INetDemandManagerService
 {
     private readonly DbSession _session = context.Session;
-    private readonly ILogger<NetDemandServices> _logger = context.LoggerFactory.CreateLogger<NetDemandServices>();
+    private readonly ILogger<NetDemandManagerService> _logger = context.LoggerFactory.CreateLogger<NetDemandManagerService>();
 
     /// <summary>查询物料需求工作台的物料事实和有效采购关联汇总。</summary>
-    public async Task<ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>> SearchMaterialWorkspaceAsync(
-        MaterialDemandWorkspaceSearchRequest request,
+    public async Task<ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>> SearchManagerAsync(
+        MaterialDemandManagerSearchRequest request,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            request ??= new MaterialDemandWorkspaceSearchRequest();
+            request ??= new MaterialDemandManagerSearchRequest();
             request.PageIndex = Math.Max(1, request.PageIndex);
             request.PageSize = Math.Clamp(request.PageSize, 1, 200);
-            return ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>.Ok(
-                await netDemandRepository.SearchMaterialWorkspaceAsync(request, cancellationToken));
+            return ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>.Ok(
+                await netDemandRepository.SearchManagerAsync(request, cancellationToken));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "查询物料需求工作台失败。");
-            return ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>.Fail("查询物料需求失败。");
+            return ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>.Fail("查询物料需求失败。");
         }
     }
 
@@ -204,80 +201,6 @@ public sealed class NetDemandServices(
         RollbackMaterialDemandsCommand command,
         CancellationToken cancellationToken = default)
         => establishmentService.RollbackAsync(command, cancellationToken);
-
-    /// <summary>兼容旧计划与采购消费者的列表查询。</summary>
-    public async Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
-        NetDemandSearchRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            request ??= new NetDemandSearchRequest();
-            request.PageIndex = Math.Max(1, request.PageIndex);
-            request.PageSize = Math.Clamp(request.PageSize, 1, 200);
-            return ServiceResult<PagedResponseBase<NetDemandListItemDto>>.Ok(
-                await netDemandRepository.SearchWorkspaceAsync(request, cancellationToken));
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "查询净需求工作台失败。");
-            return ServiceResult<PagedResponseBase<NetDemandListItemDto>>.Fail("查询净需求失败。");
-        }
-    }
-
-    /// <summary>查询物料工作台的来源导航分组。</summary>
-    public async Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
-        NetDemandSourceGroupSearchRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            request ??= new NetDemandSourceGroupSearchRequest();
-            var groups = await netDemandRepository.SearchSourceGroupsAsync(request, cancellationToken);
-            return ServiceResult<List<NetDemandSourceGroupDto>>.Ok([.. groups]);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "查询净需求来源分组失败。");
-            return ServiceResult<List<NetDemandSourceGroupDto>>.Fail("查询净需求来源分组失败。");
-        }
-    }
-
-    /// <summary>读取物料详情；活动计划兼容字段随后续页面治理。</summary>
-    public async Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(
-        Guid uid,
-        CancellationToken cancellationToken = default)
-    {
-        if (uid == Guid.Empty) return ServiceResult<NetDemandDetailDto>.Fail("净需求 Uid 不能为空。");
-        try
-        {
-            var summary = await netDemandRepository.GetWorkspaceItemAsync(uid, cancellationToken);
-            if (summary is null) return ServiceResult<NetDemandDetailDto>.Fail("未找到活动净需求。");
-            var family = await netDemandRepository.GetWorkspaceFamilyAsync(summary.RootNetDemandId, cancellationToken);
-            var active = await allocationRepository.GetActiveAsync(uid, cancellationToken);
-            if (active is null) return ServiceResult<NetDemandDetailDto>.Fail("净需求没有有效的活动计划，请联系管理员修复数据。");
-            var blockers = await executionLinkRepository.GetActiveByNetDemandIdsAsync(
-                family.Select(x => x.Uid), cancellationToken);
-            return ServiceResult<NetDemandDetailDto>.Ok(new NetDemandDetailDto
-            {
-                Summary = summary,
-                ActiveAllocation = active,
-                RelatedCustomerSuppliedPlans = family
-                    .Where(x => x.IsCustomerSupplied && x.Uid != uid)
-                    .OrderBy(x => x.LineNumber)
-                    .ToList(),
-                BlockingExecutionLinks = blockers.ToList()
-            });
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "加载净需求 {Uid} 详情失败。", uid);
-            return ServiceResult<NetDemandDetailDto>.Fail("加载净需求详情失败。");
-        }
-    }
 
     /// <summary>表示推荐供应商局部更新可预期的业务失败。</summary>
     private sealed class SuggestedSupplierException(string code, string message) : Exception(message)

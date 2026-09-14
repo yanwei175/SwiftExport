@@ -7,11 +7,11 @@ namespace SwiftExport.Application.Interfaces.DemandPlanning;
 /// <summary>
 /// 定义物料建立、回退与查询入口，不承接旧计划命令和采购写操作。
 /// </summary>
-public interface INetDemandServices
+public interface INetDemandManagerService
 {
     /// <summary>查询不依赖计划分配表的物料需求工作台列表。</summary>
-    Task<ServiceResult<PagedResponseBase<MaterialDemandWorkspaceItemDto>>> SearchMaterialWorkspaceAsync(
-        MaterialDemandWorkspaceSearchRequest request,
+    Task<ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>> SearchManagerAsync(
+        MaterialDemandManagerSearchRequest request,
         CancellationToken cancellationToken = default);
     /// <summary>查询仅按来源事实汇总的工作台来源导航。</summary>
     Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchMaterialSourceGroupsAsync(
@@ -41,16 +41,4 @@ public interface INetDemandServices
     Task<ServiceResult<RollbackMaterialDemandsResult>> RollbackSourceEstablishmentAsync(
         RollbackMaterialDemandsCommand command,
         CancellationToken cancellationToken = default);
-    /// <summary>兼容旧计划与采购消费者的列表查询。</summary>
-    Task<ServiceResult<PagedResponseBase<NetDemandListItemDto>>> SearchAsync(
-        NetDemandSearchRequest request,
-        CancellationToken cancellationToken = default);
-    /// <summary>
-    /// 查询左侧来源导航使用的独立来源分组。
-    /// </summary>
-    Task<ServiceResult<List<NetDemandSourceGroupDto>>> SearchSourceGroupsAsync(
-        NetDemandSourceGroupSearchRequest request,
-        CancellationToken cancellationToken = default);
-    /// <summary>读取物料详情；活动计划兼容字段随后续页面治理。</summary>
-    Task<ServiceResult<NetDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default);
 }

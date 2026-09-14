@@ -230,7 +230,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     {
         if (await ConfirmDiscardManualChangesAsync())
         {
-            await RefreshWorkspaceAsync();
+            await RefreshManagerAsync();
         }
     }
 
@@ -700,7 +700,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         }
     }
 
-    private async Task RefreshWorkspaceAsync()
+    private async Task RefreshManagerAsync()
     {
         if (IsSourcePanelOpen && !await RefreshSourceNavigationAsync(reloadCurrentData: false))
         {
@@ -710,7 +710,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         await LoadPageAsync();
     }
 
-    private Task ReloadAfterWriteAsync() => RefreshWorkspaceAsync();
+    private Task ReloadAfterWriteAsync() => RefreshManagerAsync();
 
     private void ExitSourceMode()
     {

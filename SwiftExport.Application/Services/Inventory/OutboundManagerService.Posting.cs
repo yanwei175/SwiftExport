@@ -78,6 +78,7 @@ public sealed partial class OutboundManagerService
                     CommandId = command.CommandId, CorrelationId = command.CommandId.ToString("N"), Module = Module,
                     AggregateType = "OutboundDocument", AggregateUid = uid, AggregateNoSnapshot = header.DocumentNo,
                     OperationType = "Post", OperationName = "出库过账", Summary = "出库状态、库存事实及余额同事务提交。",
+                    Reason = header.IssueReason,
                     ChangedFieldsJson = fingerprint, RelatedObjectsJson = JsonSerializer.Serialize(result),
                     UserUid = user.UserId, UserNameSnapshot = user.UserName, OccurredDate = header.PostedDate.Value
                 }) != 1) throw new DraftException("过账日志写入失败，过账已回滚。");
@@ -105,8 +106,11 @@ public sealed partial class OutboundManagerService
     {
         var h = detail.Header;
         var preview = new OutboundPostPreviewDto { Uid = h.Uid, Version = h.Version, DocumentNo = h.DocumentNo,
-            WarehouseSiteId = h.WarehouseSiteId, WarehouseName = h.WarehouseNameSnapshot };
+            WarehouseSiteId = h.WarehouseSiteId, WarehouseName = h.WarehouseNameSnapshot, IssueReason = h.IssueReason };
         void Block(string message, string code = ServiceErrorCodes.BusinessBlocked) => preview.Blockers.Add(new() { Message = message, Code = code });
+        // 草稿不强制用途，但正式库存减少必须有原因；历史空值只读保留，不猜测回填。
+        if (string.IsNullOrWhiteSpace(h.IssueReason) || h.IssueReason.Length > 500)
+            Block("请填写出库原因（最多 500 字），保存后再过账。", ServiceErrorCodes.Validation);
         if (h.Version != version) Block("出库版本已变化，请重新加载后预览。", ServiceErrorCodes.VersionConflict);
         if (h.PostingStatus != OutboundPostingStatusEnum.Unposted || h.LifecycleStatus != InventoryDocumentLifecycleStatusEnum.Active
             || h.DocumentType != OutboundDocumentTypeEnum.StockIssue || h.TriggerPackingListId.HasValue || h.IsDeleted)

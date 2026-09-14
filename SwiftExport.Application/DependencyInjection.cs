@@ -61,16 +61,12 @@ public static class DependencyInjection
         services.AddScoped<ISourceDemandDeliveryService, SourceDemandDeliveryService>();
         services.AddScoped<GrossDemandDecompositionPlanner>();
         services.AddScoped<MaterialDemandSuggestedSupplierInitializer>();
-        services.AddScoped<NetDemandInitialAllocationPlanner>();
-        services.AddScoped<NetDemandPlanReplacementPlanner>();
-        services.AddScoped<NetDemandPlanCommandIdempotencyPolicy>();
         services.AddScoped<PurchaseDraftPreviewBuilder>();
         services.AddScoped<PurchaseDraftWriteModelBuilder>();
         services.AddScoped<PurchaseDraftCreationService>();
         services.AddScoped<IPurchaseDraftService, PurchaseDraftService>();
-        // 新物料服务独立演进；旧混合接口仅兼容未迁移调用方。
-        services.AddScoped<INetDemandServices, NetDemandServices>();
-        services.AddScoped<INetDemandWorkspaceService, NetDemandWorkspaceService>();
+        // 物料事实统一进入 Manager，旧计划编辑服务不再注册。
+        services.AddScoped<INetDemandManagerService, NetDemandManagerService>();
         // 独立采购按查询、命令和确认依据分别注册，不复用旧 Workspace。
         services.AddScoped<SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderTransaction>();
         services.AddScoped<SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementConfirmationBuilder>();
