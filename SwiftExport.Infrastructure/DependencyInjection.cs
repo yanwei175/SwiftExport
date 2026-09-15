@@ -5,6 +5,7 @@ using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Shipping;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
 using SwiftExport.Infrastructure.Repositories.Auth;
@@ -19,6 +20,7 @@ using SwiftExport.Infrastructure.Repositories.Suppliers;
 using SwiftExport.Infrastructure.Repositories.SystemRepositories;
 using SwiftExport.Infrastructure.Repositories.Systems;
 using SwiftExport.Infrastructure.Repositories.Inventory;
+using SwiftExport.Infrastructure.Repositories.Shipping;
 using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Infrastructure;
@@ -93,6 +95,7 @@ public static class DependencyInjection
         services.AddScoped<IInventoryRepository, InventoryRepository>();
         services.AddScoped<IInboundManagerRepository, InboundManagerRepository>();
         services.AddScoped<IOutboundManagerRepository, OutboundManagerRepository>();
+        services.AddScoped<IPackingListRepository, PackingListRepository>();
 
         services.AddScoped<SwiftExport.Core.Interfaces.QualityControl.IAfterSalesRepository, SwiftExport.Infrastructure.Repositories.QualityControl.AfterSalesRepository>();
         return services;

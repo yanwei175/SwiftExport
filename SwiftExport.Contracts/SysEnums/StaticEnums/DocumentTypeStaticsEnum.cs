@@ -21,6 +21,11 @@ namespace SwiftExport.Contracts.SysEnums.StaticEnums
         public const string ComplaintReplenishment = "CR";
 
         /// <summary>
+        /// 装箱单。
+        /// </summary>
+        public const string PackingList = "PL";
+
+        /// <summary>
         /// 采购订单。
         /// </summary>
         public const string PurchaseOrder = "PO";

@@ -2,14 +2,14 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SwiftExport.Application.Tests.Shipping;
 
-/// <summary>保留实体和出货事实断言，并确保旧装箱单入口已移除。</summary>
+/// <summary>冻结新装箱单持久化、API 边界和出货事实断言。</summary>
 [TestClass]
 public sealed class PackingListWorkspaceContractTests
 {
 
 
 
-    /// <summary>新头行实体保留兼容字段退役约束，旧运行入口继续关闭。</summary>
+    /// <summary>新头行实体退役兼容字段，并只开放查询和草稿入口。</summary>
     [TestMethod]
     public void TargetPersistence_RemovesLegacyPackingListCompatibilityColumns()
     {
@@ -20,6 +20,8 @@ public sealed class PackingListWorkspaceContractTests
         Assert.IsFalse(line.Contains("LegacyPackingListHeadId", StringComparison.Ordinal));
         Assert.IsFalse(File.Exists(Path.Combine(Root(), "SwiftExport.Infrastructure/Repositories/Shipping/PackingListDocumentRepository.cs")));
         Assert.IsFalse(File.Exists(Path.Combine(Root(), "SwiftExport.WebApi/Controllers/Shipping/PackingListWorkspaceController.cs")));
+        Assert.IsTrue(File.Exists(Path.Combine(Root(), "SwiftExport.Infrastructure/Repositories/Shipping/PackingListRepository.cs")));
+        Assert.IsTrue(File.Exists(Path.Combine(Root(), "SwiftExport.WebApi/Controllers/Shipping/PackingListController.cs")));
     }
 
     [TestMethod]

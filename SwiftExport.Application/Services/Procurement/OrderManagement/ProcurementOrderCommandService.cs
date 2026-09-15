@@ -19,7 +19,7 @@ public sealed partial class ProcurementOrderCommandService(
     ProcurementOrderTransaction transaction, IProcurementOrderRepository repository,
     ProcurementConfirmationBuilder confirmation, IDocumentNoService numbers,
     IBusinessOperationLogRepository logs, ICurrentUser user, TypeAdapterConfig mappings,
-    IProcurementOrderReversalService reversals, IProcurementReversalRepository reversalFacts) : IProcurementOrderCommandService
+    IProcurementReversalRepository reversalFacts) : IProcurementOrderCommandService
 {
     /// <summary>命令键先锁定再读取订单；身份和请求不一致不允许复用回执。</summary>
     private Task<ServiceResult<ProcurementOrderCommandResult>> ExecuteAsync<T>(

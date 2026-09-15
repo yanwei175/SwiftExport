@@ -390,11 +390,6 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         public Task<PurchaseOrderFromMaterialResult> ShowFromMaterialAsync(CancellationToken cancellationToken = default) => Task.FromResult(new PurchaseOrderFromMaterialResult());
     }
 
-    private sealed class CancellationDialogStub : IPurchaseOrderCancellationDialogService
-    {
-        public Task<string?> RequestReasonAsync(string orderNo, CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
-    }
-
     private sealed class MessageStub : IMessageService
     {
         public void ShowInfo(string title, string message) { }

@@ -28,7 +28,8 @@ public sealed class TargetDatabaseBaselineContractTests
         [typeof(InboundDocumentLine)] = "InboundDocumentLine",
         [typeof(OutboundDocument)] = "OutboundDocument",
         [typeof(OutboundDocumentLine)] = "OutboundDocumentLine",
-        // PackingList 新目标映射由 PackingListEntityContractTests 验证，历史脚本仍验证旧表。
+        [typeof(PackingListHead)] = "PackingListHead",
+        [typeof(PackingListLine)] = "PackingListLine",
         [typeof(SalesOrderLine)] = "SalesOrderLine"
     };
 
@@ -61,7 +62,7 @@ public sealed class TargetDatabaseBaselineContractTests
     [TestMethod]
     public void ActiveRepositorySql_MustNotReferenceRetiredPhysicalTables()
     {
-        var oldNames = new[] { "IndependentDemand", "DependentDemand", "FollowUpLog", "PurchaseReceiveHead", "PurchaseReceiveLine", "PackingListHead", "PackingListLine", "Warehouse", "Inventory", "InventoryTransaction", "OutboundHead", "OutboundLine" };
+        var oldNames = new[] { "IndependentDemand", "DependentDemand", "FollowUpLog", "PurchaseReceiveHead", "PurchaseReceiveLine", "PackingListDocument", "PackingListContributionLine", "Warehouse", "Inventory", "InventoryTransaction", "OutboundHead", "OutboundLine" };
         var violations = new List<string>();
         var repositoryRoot = Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories");
         foreach (var path in Directory.EnumerateFiles(repositoryRoot, "*.cs", SearchOption.AllDirectories))
@@ -87,7 +88,7 @@ public sealed class TargetDatabaseBaselineContractTests
         StringAssert.Contains(script, "BEGIN TRAN;");
         StringAssert.Contains(script, "BEGIN CATCH");
         StringAssert.Contains(script, "IF @@TRANCOUNT<>0");
-        foreach (var table in new[] { "SupplierProduct", "ProductMaster", "ProductNeutral", "ProductPackage", "Bom", "SysDicCurrencyExchange", "DocumentSequence", "SalesOrderHeader", "SalesOrderLine", "GrossDemand", "NetDemand", "NetDemandAllocation", "NetDemandPlanCommandLog", "DemandExecutionLink", "PurchaseOrderHead", "PurchaseOrderLine", "SupplierProgressReport", "WarehouseSite", "InventoryBalance", "InventoryLedgerEntry", "InboundDocument", "InboundDocumentLine", "OutboundDocument", "OutboundDocumentLine", "PackingListDocument", "PackingListContributionLine", "BusinessOperationLog" })
+        foreach (var table in new[] { "SupplierProduct", "ProductMaster", "ProductNeutral", "ProductPackage", "Bom", "SysDicCurrencyExchange", "DocumentSequence", "SalesOrderHeader", "SalesOrderLine", "GrossDemand", "NetDemand", "NetDemandAllocation", "NetDemandPlanCommandLog", "DemandExecutionLink", "PurchaseOrderHead", "PurchaseOrderLine", "SupplierProgressReport", "WarehouseSite", "InventoryBalance", "InventoryLedgerEntry", "InboundDocument", "InboundDocumentLine", "OutboundDocument", "OutboundDocumentLine", "PackingListHead", "PackingListLine", "BusinessOperationLog" })
             StringAssert.Contains(script, $"CREATE TABLE dbo.{table}", table);
         foreach (var exception in new[] { "CustomerProduct", "CustomerPoConfig", "Customer", "Product", "ProductCategory", "ProductColor", "ProductDetails", "Supplier", "SysDicCurrency", "SysDictData", "SysDictType", "SysRoles", "SysUser", "SysUser_Roles", "SysViewRoute" })
             Assert.IsFalse(Regex.IsMatch(script, $@"DROP\s+TABLE(?:\s+IF\s+EXISTS)?\s+dbo\.{Regex.Escape(exception)}\b", RegexOptions.IgnoreCase), exception);

@@ -1,0 +1,597 @@
+using Microsoft.Extensions.Logging;
+using SwiftExport.Application.Contexts;
+using SwiftExport.Application.Interfaces;
+using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Shipping;
+using SwiftExport.Contracts.Common;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.SysEnums.Shipping;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.Auditing;
+using SwiftExport.Core.Entities.Inventory;
+using SwiftExport.Core.Entities.Shipping;
+using SwiftExport.Core.Interfaces;
+using SwiftExport.Core.Interfaces.Auditing;
+using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Shipping;
+using System.Data;
+using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
+namespace SwiftExport.Application.Services.Shipping;
+
+/// <summary>编排装箱单查询及草稿命令；草稿不预占交付额度，也不产生库存事实。</summary>
+public sealed class PackingListService(
+    ServiceBaseContext context,
+    IPackingListRepository repository,
+    ICustomerRepository customers,
+    IWarehouseSiteRepository warehouses,
+    IBusinessOperationLogRepository logs,
+    IDocumentNoService numbers,
+    ICurrentUser currentUser,
+    IUserPermissionService permissions) : IPackingListService
+{
+    private const string Module = "PackingList";
+    private const decimal MaxDecimal = 99999999999999.9999m;
+    private readonly ILogger<PackingListService> _logger = context.LoggerFactory.CreateLogger<PackingListService>();
+
+    /// <inheritdoc/>
+    public Task<ServiceResult<PagedResponseBase<PackingListManagerListItemDto>>> SearchAsync(
+        PackingListManagerSearchRequest request, CancellationToken cancellationToken = default) =>
+        RunAsync(async () =>
+        {
+            await RequireSchemaAsync(cancellationToken);
+            ValidatePage(request);
+            if (request.PostingStatus.HasValue && !Enum.IsDefined(request.PostingStatus.Value))
+                Fail(PackingListErrorCodes.InvalidDraft, "过账状态无效。", nameof(request.PostingStatus));
+            if (request.InvoiceDateFrom.HasValue && request.InvoiceDateTo.HasValue
+                && request.InvoiceDateFrom.Value.Date > request.InvoiceDateTo.Value.Date)
+                Fail(PackingListErrorCodes.InvalidDraft, "单据日期起始不能晚于截止日期。", nameof(request.InvoiceDateFrom));
+            return await repository.SearchAsync(request, cancellationToken);
+        }, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<ServiceResult<PackingListDetailDto>> GetAsync(Guid uid, CancellationToken cancellationToken = default) =>
+        RunAsync(async () =>
+        {
+            await RequireSchemaAsync(cancellationToken);
+            if (uid == Guid.Empty) Fail(PackingListErrorCodes.InvalidDraft, "装箱单标识不能为空。", nameof(uid));
+            return await repository.GetDetailAsync(uid, cancellationToken)
+                ?? throw new PackingListException(PackingListErrorCodes.NotFound, "装箱单不存在或已删除。");
+        }, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<ServiceResult<PagedResponseBase<PackingListSourceCandidateDto>>> SearchSourcesAsync(
+        PackingListSourceSearchRequest request, CancellationToken cancellationToken = default) =>
+        RunAsync(async () =>
+        {
+            await RequireSchemaAsync(cancellationToken);
+            ValidatePage(request);
+            if (request.CustomerId == Guid.Empty)
+                Fail(PackingListErrorCodes.InvalidDraft, "必须指定最终客户。", nameof(request.CustomerId));
+            return await repository.SearchSourcesAsync(request, cancellationToken);
+        }, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<ServiceResult<PackingListDraftCommandResult>> CreateAsync(
+        CreatePackingListDraftCommand command, CancellationToken cancellationToken = default) =>
+        RunAsync(async () =>
+        {
+            await RequireSchemaAsync(cancellationToken);
+            if (command is null || command.CommandId == Guid.Empty)
+                Fail(PackingListErrorCodes.InvalidDraft, "CommandId 不能为空。", "CommandId");
+            if (command!.Uid == Guid.Empty) Fail(PackingListErrorCodes.InvalidDraft, "装箱单 Uid 不能为空。", "Uid");
+            ValidateHeader(command.Header);
+            ValidateLineInputs(command.Lines, Array.Empty<PackingListDeletedLineInput>());
+            if (command.Lines.Any(row => row.ExpectedVersion != 0))
+                Fail(PackingListErrorCodes.LineSetMismatch, "创建草稿的全部行 ExpectedVersion 必须为 0。", "Lines.ExpectedVersion");
+            var fingerprint = Fingerprint("Create", command.Uid, 0, command.Header, command.Lines, Array.Empty<PackingListDeletedLineInput>());
+            return await ExecuteWriteAsync(command.CommandId, "Create", command.Uid, fingerprint, async () =>
+            {
+                if (await repository.LockHeaderAsync(command.Uid, true, cancellationToken) is not null)
+                    Fail(PackingListErrorCodes.IdempotencyConflict, "该装箱单 Uid 已由另一创建意图占用。", "Uid");
+                var customer = await RequireCustomerAsync(command.Header.CustomerId, true);
+                var header = new PackingListHead
+                {
+                    Uid = command.Uid,
+                    Version = 1,
+                    LifecycleStatus = PackingListLifecycleStatusEnum.Active,
+                    PostingStatus = PackingListPostingStatusEnum.Unposted,
+                    CreateCommandId = command.CommandId
+                };
+                ApplyHeader(header, command.Header);
+                if (string.IsNullOrWhiteSpace(header.CustomerNameSnapshot))
+                    header.CustomerNameSnapshot = customer.CustomerName?.Trim();
+                var owners = await repository.LockLineOwnersAsync(command.Lines.Select(row => row.Uid).ToArray(), cancellationToken);
+                if (owners.Count != 0)
+                    Fail(PackingListErrorCodes.LineSetMismatch, "创建行 Uid 已被其他单据或历史行占用。", "Lines.Uid");
+                var number = await numbers.GetNextDocumentNoAsync(new DocumentNoRequest
+                {
+                    DocType = DocumentTypeStaticsEnum.PackingList,
+                    BusinessDate = header.InvoiceDate,
+                    Operator = currentUser.UserName
+                });
+                if (!number.Success || string.IsNullOrWhiteSpace(number.Data?.DocumentNo))
+                    Fail(PackingListErrorCodes.StateBlocked, number.Message ?? "装箱单号生成失败，草稿未保存。");
+                header.PackingListNo = number.Data!.DocumentNo.Trim();
+                var lines = await BuildLinesAsync(header, command.Lines, Array.Empty<PackingListLine>(), cancellationToken);
+                await repository.SaveAsync(header, lines, Array.Empty<PackingListLine>(), 0, cancellationToken);
+                return await ResultAsync(header.Uid, false, cancellationToken);
+            }, cancellationToken);
+        }, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<ServiceResult<PackingListDraftCommandResult>> UpdateAsync(
+        Guid uid, UpdatePackingListDraftCommand command, CancellationToken cancellationToken = default) =>
+        RunAsync(async () =>
+        {
+            await RequireSchemaAsync(cancellationToken);
+            ValidateIdentity(uid, command?.CommandId ?? Guid.Empty, command?.ExpectedVersion ?? 0);
+            ValidateHeader(command!.Header);
+            ValidateLineInputs(command.Lines, command.DeletedLines);
+            var fingerprint = Fingerprint("Update", uid, command.ExpectedVersion, command.Header, command.Lines, command.DeletedLines);
+            return await ExecuteWriteAsync(command.CommandId, "Update", uid, fingerprint, async () =>
+            {
+                var header = await RequireEditableAsync(uid, command.ExpectedVersion, cancellationToken);
+                var existing = await repository.LockLinesAsync(uid, cancellationToken);
+                ValidateLineSet(existing, command.Lines, command.DeletedLines);
+                var owners = await repository.LockLineOwnersAsync(command.Lines.Select(row => row.Uid)
+                    .Concat(command.DeletedLines.Select(row => row.Uid)).ToArray(), cancellationToken);
+                if (owners.Any(pair => pair.Value != uid))
+                    Fail(PackingListErrorCodes.LineSetMismatch, "行 Uid 属于其他装箱单。", $"Lines[{owners.First(pair => pair.Value != uid).Key}]");
+                var historicalReuse = command.Lines.FirstOrDefault(input =>
+                    existing.All(row => row.Uid != input.Uid) && owners.ContainsKey(input.Uid));
+                if (historicalReuse is not null)
+                    Fail(PackingListErrorCodes.LineSetMismatch, "已删除行的 Uid 不能作为新行复用。", $"Lines[{historicalReuse.Uid}].Uid");
+                if (existing.Count > 0 && header.CustomerId != command.Header.CustomerId)
+                    Fail(PackingListErrorCodes.CustomerMismatch, "已有物理明细时不能更换客户，请重新建单。", "Header.CustomerId");
+                await RequireCustomerAsync(command.Header.CustomerId, header.CustomerId != command.Header.CustomerId);
+                ApplyHeader(header, command.Header);
+                var lines = await BuildLinesAsync(header, command.Lines, existing, cancellationToken);
+                var deleted = command.DeletedLines.Select(input => existing.Single(row => row.Uid == input.Uid)).ToArray();
+                await repository.SaveAsync(header, lines, deleted, command.ExpectedVersion, cancellationToken);
+                return await ResultAsync(uid, false, cancellationToken);
+            }, cancellationToken);
+        }, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<ServiceResult<PackingListDraftCommandResult>> DeleteAsync(
+        Guid uid, DeletePackingListDraftCommand command, CancellationToken cancellationToken = default) =>
+        RunAsync(async () =>
+        {
+            await RequireSchemaAsync(cancellationToken);
+            ValidateIdentity(uid, command?.CommandId ?? Guid.Empty, command?.ExpectedVersion ?? 0);
+            var fingerprint = Fingerprint("Delete", uid, command!.ExpectedVersion, null,
+                Array.Empty<PackingListDraftLineInput>(), Array.Empty<PackingListDeletedLineInput>());
+            return await ExecuteWriteAsync(command.CommandId, "Delete", uid, fingerprint, async () =>
+            {
+                var header = await RequireEditableAsync(uid, command.ExpectedVersion, cancellationToken);
+                await repository.LockLinesAsync(uid, cancellationToken);
+                await repository.DeleteAsync(header, cancellationToken);
+                return new PackingListDraftCommandResult { Uid = uid, AlreadyApplied = false, Detail = null };
+            }, cancellationToken);
+        }, cancellationToken);
+
+    /// <summary>建立或更新行模型；新行采用来源快照，已有行保留历史来源快照。</summary>
+    private async Task<IReadOnlyList<PackingListLine>> BuildLinesAsync(
+        PackingListHead header, IReadOnlyList<PackingListDraftLineInput> inputs,
+        IReadOnlyList<PackingListLine> existing, CancellationToken token)
+    {
+        var existingById = existing.ToDictionary(row => row.Uid);
+        var sources = (await repository.GetSourcesAsync(inputs.Select(row => row.GrossDemandId).Distinct().ToArray(), token))
+            .ToDictionary(source => source.GrossDemandId);
+        var totals = inputs.GroupBy(row => row.GrossDemandId).ToDictionary(group => group.Key, group => group.Sum(row => row.Qty));
+        foreach (var total in totals)
+        {
+            if (!sources.TryGetValue(total.Key, out var source))
+                Fail(PackingListErrorCodes.SourceChanged, "来源需求不存在、已关闭或已不再适用于出货。", $"Lines[{total.Key}].GrossDemandId");
+            if (source.CustomerId != header.CustomerId)
+                Fail(PackingListErrorCodes.CustomerMismatch, "装箱单中存在其他客户的来源需求。", $"Lines[{total.Key}].GrossDemandId");
+            if (!source.RemainingQty.HasValue)
+                Fail(PackingListErrorCodes.DeliveryUnavailable, source.DeliveryUnavailableReason ?? "无法证明来源交付余额。", $"Lines[{total.Key}].Qty");
+            if (total.Value > source.RemainingQty.Value)
+                Fail(PackingListErrorCodes.SourceChanged, "本单来源数量超过当前剩余可交付量。", $"Lines[{total.Key}].Qty");
+        }
+
+        var warehouseCache = new Dictionary<Guid, WarehouseSite>();
+        var result = new List<PackingListLine>(inputs.Count);
+        foreach (var input in inputs)
+        {
+            var source = sources[input.GrossDemandId];
+            PackingListLine line;
+            if (existingById.TryGetValue(input.Uid, out var old))
+            {
+                if (old.GrossDemandId != input.GrossDemandId || old.ProductId != input.ProductId
+                    || old.ProductId != source.ProductId)
+                    Fail(PackingListErrorCodes.SourceChanged, "已有行的来源或产品身份已变化。", $"Lines[{input.Uid}].GrossDemandId");
+                line = old;
+            }
+            else
+            {
+                if (input.ProductId != source.ProductId)
+                    Fail(PackingListErrorCodes.SourceChanged, "所选来源的产品身份已变化。", $"Lines[{input.Uid}].ProductId");
+                ValidateAdoptedPackage(source, input.Uid);
+                line = new PackingListLine
+                {
+                    Uid = input.Uid,
+                    Version = 0,
+                    PackingListHeadId = header.Uid,
+                    GrossDemandId = source.GrossDemandId,
+                    ProductId = source.ProductId,
+                    SkuSnapshot = RequiredSnapshot(source.SkuSnapshot, "来源产品编码不完整。", input.Uid, "SkuSnapshot"),
+                    LinkSkuSnapshot = Clean(source.LinkSkuSnapshot, 200),
+                    CustomerSkuSnapshot = Clean(source.CustomerSkuSnapshot, 200),
+                    DescriptionEnSnapshot = Clean(source.DescriptionEnSnapshot, 2000),
+                    ColorNameEnSnapshot = Clean(source.ColorNameEnSnapshot, 100),
+                    UnitSnapshot = RequiredSnapshot(source.UnitSnapshot, "来源计量单位不完整。", input.Uid, "UnitSnapshot"),
+                    CustomerPoNo = Clean(source.CustomerPoNo, 200),
+                    PcsPerPackage = source.PcsPerPackage,
+                    NwPerPackage = source.NwPerPackage,
+                    GwPerPackage = source.GwPerPackage,
+                    CbmPerPackage = source.CbmPerPackage
+                };
+            }
+            line.LineNumber = input.LineNumber;
+            line.Qty = input.Qty;
+            line.PackageCount = input.PackageCount;
+            line.SubTotalNw = Multiply(input.PackageCount, line.NwPerPackage);
+            line.SubTotalGw = Multiply(input.PackageCount, line.GwPerPackage);
+            line.SubTotalCbm = Multiply(input.PackageCount, line.CbmPerPackage);
+            line.InvoiceNo = Clean(input.InvoiceNo, 200);
+            line.Marks = Clean(input.Marks, 2000);
+            line.Note = Clean(input.Note, 2000);
+            await ApplyWarehouseAsync(line, input.WarehouseSiteId, warehouseCache);
+            result.Add(line);
+        }
+        return result;
+    }
+
+    /// <summary>仓库可空；一旦选择，服务端重新采用活动仓库的编码和名称。</summary>
+    private async Task ApplyWarehouseAsync(PackingListLine line, Guid? warehouseId,
+        IDictionary<Guid, WarehouseSite> cache)
+    {
+        if (!warehouseId.HasValue)
+        {
+            line.WarehouseSiteId = null;
+            line.WarehouseCodeSnapshot = null;
+            line.WarehouseNameSnapshot = null;
+            return;
+        }
+        if (warehouseId.Value == Guid.Empty)
+            Fail(PackingListErrorCodes.InvalidDraft, "仓库标识无效。", $"Lines[{line.Uid}].WarehouseSiteId");
+        if (!cache.TryGetValue(warehouseId.Value, out var site))
+        {
+            site = await warehouses.GetForUpdateAsync(warehouseId.Value)
+                ?? throw new PackingListException(PackingListErrorCodes.InvalidDraft, "仓库不存在或已删除。", $"Lines[{line.Uid}].WarehouseSiteId");
+            cache[warehouseId.Value] = site;
+        }
+        if (!site.IsActive) Fail(PackingListErrorCodes.InvalidDraft, "仓库已停用。", $"Lines[{line.Uid}].WarehouseSiteId");
+        line.WarehouseSiteId = site.Uid;
+        line.WarehouseCodeSnapshot = site.Code;
+        line.WarehouseNameSnapshot = site.Name;
+    }
+
+    /// <summary>在同一事务内串行命令、执行写入并保存可重放结果。</summary>
+    private async Task<PackingListDraftCommandResult> ExecuteWriteAsync(Guid commandId, string operation,
+        Guid aggregateUid, string fingerprint, Func<Task<PackingListDraftCommandResult>> action, CancellationToken token)
+    {
+        if (context.Session.Transaction is not null)
+            Fail(PackingListErrorCodes.StateBlocked, "当前请求已有事务，不能接管装箱单草稿命令。");
+        // 写命令的来源、已交付量与头行版本必须在提交前保持同一可证明视图。
+        using var transaction = context.Session.Connection.BeginTransaction(IsolationLevel.Serializable);
+        context.Session.Transaction = transaction;
+        try
+        {
+            var fingerprintJson = JsonSerializer.Serialize(new { Fingerprint = fingerprint });
+            if (await repository.LockCommandAsync(commandId, token) < 0)
+                Fail(PackingListErrorCodes.CommandBusy, "命令正在处理中，请使用相同 CommandId 重试。", "CommandId");
+            var prior = await logs.GetByModuleCommandAsync(Module, commandId);
+            if (prior is not null)
+            {
+                if (prior.OperationType != operation || prior.UserUid != currentUser.UserId
+                    || prior.ChangedFieldsJson != fingerprintJson || prior.AggregateUid != aggregateUid)
+                    Fail(PackingListErrorCodes.IdempotencyConflict, "CommandId 已用于不同内容、操作、用户或单据。", "CommandId");
+                var replay = JsonSerializer.Deserialize<PackingListDraftCommandResult>(prior.RelatedObjectsJson ?? string.Empty);
+                if (replay is null || replay.Uid != aggregateUid)
+                    Fail(PackingListErrorCodes.OutcomeUnknown, "历史命令结果不完整，不能安全重放。");
+                replay.AlreadyApplied = true;
+                token.ThrowIfCancellationRequested();
+                transaction.Commit();
+                return replay;
+            }
+
+            var result = await action();
+            var now = DateTime.Now;
+            if (await logs.InsertAsync(new BusinessOperationLog
+            {
+                Uid = GuidSequentialGenerator.NewGuid(),
+                CommandId = commandId,
+                CorrelationId = commandId.ToString("N"),
+                Module = Module,
+                AggregateType = "PackingListHead",
+                AggregateUid = aggregateUid,
+                AggregateNoSnapshot = result.Detail?.Header?.PackingListNo,
+                OperationType = operation,
+                OperationName = operation switch { "Create" => "创建装箱单草稿", "Update" => "更新装箱单草稿", _ => "删除装箱单草稿" },
+                Summary = "装箱单头、行与幂等结果在同一事务提交；未产生库存事实。",
+                ChangedFieldsJson = fingerprintJson,
+                RelatedObjectsJson = JsonSerializer.Serialize(result),
+                UserUid = currentUser.UserId,
+                UserNameSnapshot = currentUser.UserName,
+                OccurredDate = now
+            }) != 1) Fail(PackingListErrorCodes.StateBlocked, "业务日志写入失败，草稿已回滚。");
+            token.ThrowIfCancellationRequested();
+            transaction.Commit();
+            return result;
+        }
+        catch
+        {
+            try { transaction.Rollback(); } catch { }
+            throw;
+        }
+        finally
+        {
+            context.Session.Transaction = null;
+        }
+    }
+
+    private async Task<PackingListHead> RequireEditableAsync(Guid uid, int expectedVersion, CancellationToken token)
+    {
+        var header = await repository.LockHeaderAsync(uid, false, token)
+            ?? throw new PackingListException(PackingListErrorCodes.NotFound, "装箱单不存在或已删除。");
+        if (header.Version != expectedVersion)
+            Fail(PackingListErrorCodes.VersionConflict, "装箱单已被其他用户修改，请刷新后重试。", "ExpectedVersion");
+        if (header.LifecycleStatus != PackingListLifecycleStatusEnum.Active
+            || header.PostingStatus != PackingListPostingStatusEnum.Unposted)
+            Fail(PackingListErrorCodes.StateBlocked, "只有活动且未过账的草稿允许修改或删除。");
+        return header;
+    }
+
+    private async Task<Core.Entities.MasterData.Customer> RequireCustomerAsync(Guid uid, bool requireActive)
+    {
+        var customer = await customers.GetByIdAsync(uid);
+        if (customer is null || customer.IsDeleted)
+            throw new PackingListException(PackingListErrorCodes.InvalidDraft, "客户不存在或已删除。", "Header.CustomerId");
+        if (requireActive && !customer.IsActive)
+            Fail(PackingListErrorCodes.InvalidDraft, "客户已停用，不能建立新的业务引用。", "Header.CustomerId");
+        return customer;
+    }
+
+    private async Task<PackingListDraftCommandResult> ResultAsync(Guid uid, bool alreadyApplied, CancellationToken token)
+    {
+        var detail = await repository.GetDetailAsync(uid, token)
+            ?? throw new PackingListException(PackingListErrorCodes.OutcomeUnknown, "草稿已保存但无法重新读取完整结果。");
+        return new PackingListDraftCommandResult { Uid = uid, AlreadyApplied = alreadyApplied, Detail = detail };
+    }
+
+    private static void ValidateLineSet(IReadOnlyList<PackingListLine> existing,
+        IReadOnlyList<PackingListDraftLineInput> active, IReadOnlyList<PackingListDeletedLineInput> deleted)
+    {
+        var activeIds = active.Select(row => row.Uid).ToHashSet();
+        var deletedIds = deleted.Select(row => row.Uid).ToHashSet();
+        foreach (var row in existing)
+        {
+            var activeHit = activeIds.Contains(row.Uid);
+            var deletedHit = deletedIds.Contains(row.Uid);
+            if (activeHit == deletedHit)
+                Fail(PackingListErrorCodes.LineSetMismatch, "每个存量行必须在有效行或删除行中恰好出现一次。", $"Lines[{row.Uid}]");
+        }
+        foreach (var input in active)
+        {
+            var old = existing.FirstOrDefault(row => row.Uid == input.Uid);
+            if (old is null && input.ExpectedVersion != 0)
+                Fail(PackingListErrorCodes.LineSetMismatch, "新增行 ExpectedVersion 必须为 0。", $"Lines[{input.Uid}].ExpectedVersion");
+            if (old is not null && old.Version != input.ExpectedVersion)
+                Fail(PackingListErrorCodes.VersionConflict, "装箱单行版本已变化。", $"Lines[{input.Uid}].ExpectedVersion");
+        }
+        foreach (var input in deleted)
+        {
+            var old = existing.FirstOrDefault(row => row.Uid == input.Uid);
+            if (old is null) Fail(PackingListErrorCodes.LineSetMismatch, "待删除行不属于当前装箱单。", $"DeletedLines[{input.Uid}]");
+            if (old!.Version != input.ExpectedVersion)
+                Fail(PackingListErrorCodes.VersionConflict, "待删除行版本已变化。", $"DeletedLines[{input.Uid}].ExpectedVersion");
+        }
+    }
+
+    private static void ValidateLineInputs(IReadOnlyList<PackingListDraftLineInput>? lines,
+        IReadOnlyList<PackingListDeletedLineInput>? deleted)
+    {
+        if (lines is null || lines.Count is < 1 or > 500)
+            Fail(PackingListErrorCodes.InvalidDraft, "装箱单必须包含 1 至 500 条有效行。", "Lines");
+        deleted ??= Array.Empty<PackingListDeletedLineInput>();
+        if (lines!.Any(row => row.Uid == Guid.Empty) || deleted.Any(row => row.Uid == Guid.Empty))
+            Fail(PackingListErrorCodes.InvalidDraft, "头行身份必须为非空 Guid。", "Lines");
+        if (lines.Select(row => row.Uid).Distinct().Count() != lines.Count
+            || deleted.Select(row => row.Uid).Distinct().Count() != deleted.Count
+            || lines.Select(row => row.Uid).Intersect(deleted.Select(row => row.Uid)).Any())
+            Fail(PackingListErrorCodes.LineSetMismatch, "有效行与删除行存在重复或交叉身份。", "Lines");
+        if (lines.Any(row => row.LineNumber <= 0)
+            || lines.Select(row => row.LineNumber).Distinct().Count() != lines.Count)
+            Fail(PackingListErrorCodes.InvalidDraft, "行号必须为唯一正整数。", "Lines.LineNumber");
+        foreach (var row in lines)
+        {
+            var field = $"Lines[{row.Uid}]";
+            if (row.GrossDemandId == Guid.Empty || row.ProductId == Guid.Empty)
+                Fail(PackingListErrorCodes.InvalidDraft, "来源和产品身份不能为空。", field);
+            ValidateDecimal(row.Qty, false, field + ".Qty");
+            if (row.PackageCount.HasValue && (row.PackageCount < 0 || decimal.Truncate(row.PackageCount.Value) != row.PackageCount.Value))
+                Fail(PackingListErrorCodes.InvalidDraft, "实际包装数必须为非负整数。", field + ".PackageCount");
+            if (row.PackageCount > MaxDecimal)
+                Fail(PackingListErrorCodes.InvalidDraft, "实际包装数超出允许范围。", field + ".PackageCount");
+        }
+    }
+
+    private static void ValidateHeader(PackingListDraftHeaderInput? header)
+    {
+        if (header is null) Fail(PackingListErrorCodes.InvalidDraft, "装箱单头不能为空。", "Header");
+        if (header!.CustomerId == Guid.Empty) Fail(PackingListErrorCodes.InvalidDraft, "客户标识不能为空。", "Header.CustomerId");
+        if (header.InvoiceDate == default) Fail(PackingListErrorCodes.InvalidDraft, "单据日期无效。", "Header.InvoiceDate");
+        Length(header.CustomerNameSnapshot, 300, "Header.CustomerNameSnapshot");
+        Length(header.CustomerAddressSnapshot, 2000, "Header.CustomerAddressSnapshot");
+        Length(header.AttentionSnapshot, 2000, "Header.AttentionSnapshot");
+        Length(header.ContainerNo, 100, "Header.ContainerNo");
+        Length(header.SealNo, 100, "Header.SealNo");
+        Length(header.ShippingMark, 2000, "Header.ShippingMark");
+        Length(header.Note, 2000, "Header.Note");
+    }
+
+    private static void ApplyHeader(PackingListHead target, PackingListDraftHeaderInput input)
+    {
+        target.CustomerId = input.CustomerId;
+        target.CustomerNameSnapshot = Clean(input.CustomerNameSnapshot, 300);
+        target.CustomerAddressSnapshot = Clean(input.CustomerAddressSnapshot, 2000);
+        target.AttentionSnapshot = Clean(input.AttentionSnapshot, 2000);
+        target.InvoiceDate = input.InvoiceDate;
+        target.ContainerNo = Clean(input.ContainerNo, 100);
+        target.SealNo = Clean(input.SealNo, 100);
+        target.ShippingMark = Clean(input.ShippingMark, 2000);
+        target.Note = Clean(input.Note, 2000);
+        target.Etd = input.Etd;
+        target.Eta = input.Eta;
+    }
+
+    private static string Fingerprint(string operation, Guid uid, int version, PackingListDraftHeaderInput? header,
+        IEnumerable<PackingListDraftLineInput> lines, IEnumerable<PackingListDeletedLineInput> deleted)
+    {
+        var canonical = new
+        {
+            Operation = operation,
+            Uid = uid,
+            ExpectedVersion = version,
+            Header = header is null ? null : new
+            {
+                header.CustomerId,
+                CustomerNameSnapshot = Normalize(header.CustomerNameSnapshot),
+                CustomerAddressSnapshot = Normalize(header.CustomerAddressSnapshot),
+                AttentionSnapshot = Normalize(header.AttentionSnapshot),
+                header.InvoiceDate,
+                ContainerNo = Normalize(header.ContainerNo),
+                SealNo = Normalize(header.SealNo),
+                ShippingMark = Normalize(header.ShippingMark),
+                Note = Normalize(header.Note),
+                header.Etd,
+                header.Eta
+            },
+            Lines = lines.OrderBy(row => row.Uid).Select(row => new
+            {
+                row.Uid, row.ExpectedVersion, row.LineNumber, row.GrossDemandId, row.ProductId, row.Qty,
+                row.PackageCount,
+                InvoiceNo = Normalize(row.InvoiceNo), Marks = Normalize(row.Marks), Note = Normalize(row.Note), row.WarehouseSiteId
+            }).ToArray(),
+            DeletedLines = deleted.OrderBy(row => row.Uid).Select(row => new { row.Uid, row.ExpectedVersion }).ToArray()
+        };
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(canonical)));
+        return Convert.ToHexString(bytes);
+    }
+
+    private async Task<T> RunAuthorizedAsync<T>(Func<Task<T>> action, CancellationToken token)
+    {
+        var userId = currentUser.UserId;
+        if (!currentUser.IsAuthenticated || !userId.HasValue
+            || !await permissions.HasPermissionAsync(userId.Value, PermissionKeys.ModuleShippingAccess, token))
+            throw new PackingListException(ServiceErrorCodes.Forbidden, "当前账号没有出货模块访问权限。");
+        return await action();
+    }
+
+    private async Task<ServiceResult<T>> RunAsync<T>(Func<Task<T>> action, CancellationToken token)
+    {
+        try { return ServiceResult<T>.Ok(await RunAuthorizedAsync(action, token)); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch (PackingListException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field); }
+        catch (DBConcurrencyException ex) { return ServiceResult<T>.Fail(PackingListErrorCodes.VersionConflict, ex.Message); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "装箱单操作失败，未提交变更。");
+            return ServiceResult<T>.Fail(ServiceErrorCodes.Unexpected, "装箱单操作失败，未提交变更。");
+        }
+    }
+
+    private async Task RequireSchemaAsync(CancellationToken token)
+    {
+        if (!await repository.IsSchemaReadyAsync(token))
+            Fail(PackingListErrorCodes.DeliveryUnavailable, "PackingList 新表或幂等索引尚未完整部署。");
+    }
+
+    private static void ValidatePage(PagedRequestBase? request)
+    {
+        if (request is null) Fail(PackingListErrorCodes.InvalidDraft, "查询条件不能为空。");
+        request!.PageIndex = Math.Max(1, request.PageIndex);
+        request.PageSize = Math.Clamp(request.PageSize, 1, 200);
+    }
+
+    private static void ValidateIdentity(Guid uid, Guid commandId, int expectedVersion)
+    {
+        if (uid == Guid.Empty) Fail(PackingListErrorCodes.InvalidDraft, "装箱单标识不能为空。", "Uid");
+        if (commandId == Guid.Empty) Fail(PackingListErrorCodes.InvalidDraft, "CommandId 不能为空。", "CommandId");
+        if (expectedVersion <= 0) Fail(PackingListErrorCodes.InvalidDraft, "ExpectedVersion 必须大于零。", "ExpectedVersion");
+    }
+
+    private static void ValidateDecimal(decimal value, bool allowZero, string field)
+    {
+        if (value < 0 || (!allowZero && value == 0) || value > MaxDecimal || decimal.Round(value, 4) != value)
+            Fail(PackingListErrorCodes.InvalidDraft, "数值必须为最多四位小数的有效正数。", field);
+    }
+
+    private static decimal? Multiply(decimal? count, decimal? value)
+    {
+        if (!count.HasValue || !value.HasValue) return null;
+        try
+        {
+            var result = decimal.Round(count.Value * value.Value, 4, MidpointRounding.AwayFromZero);
+            if (result > MaxDecimal) Fail(PackingListErrorCodes.InvalidDraft, "包装小计超出允许范围。");
+            return result;
+        }
+        catch (OverflowException) { Fail(PackingListErrorCodes.InvalidDraft, "包装小计超出允许范围。"); return null; }
+    }
+
+    /// <summary>校验服务端采用的唯一默认包装，避免脏主数据越过草稿数值边界。</summary>
+    private static void ValidateAdoptedPackage(PackingListSourceCandidateDto source, Guid lineUid)
+    {
+        var field = $"Lines[{lineUid}]";
+        if (source.PcsPerPackage.HasValue)
+            ValidateDecimal(source.PcsPerPackage.Value, false, field + ".PcsPerPackage");
+        ValidateOptionalNonNegative(source.NwPerPackage, field + ".NwPerPackage");
+        ValidateOptionalNonNegative(source.GwPerPackage, field + ".GwPerPackage");
+        ValidateOptionalNonNegative(source.CbmPerPackage, field + ".CbmPerPackage");
+    }
+
+    private static void ValidateOptionalNonNegative(decimal? value, string field)
+    {
+        if (value.HasValue && (value.Value < 0 || value.Value > MaxDecimal || decimal.Round(value.Value, 4) != value.Value))
+            Fail(PackingListErrorCodes.SourceChanged, "默认包装数值必须为最多四位小数的非负数。", field);
+    }
+
+    private static string RequiredSnapshot(string? value, string message, Guid uid, string field)
+    {
+        var result = Clean(value, 100);
+        if (string.IsNullOrWhiteSpace(result)) Fail(PackingListErrorCodes.SourceChanged, message, $"Lines[{uid}].{field}");
+        return result!;
+    }
+
+    private static string? Clean(string? value, int maxLength)
+    {
+        var result = value?.Trim();
+        if (string.IsNullOrEmpty(result)) return null;
+        if (result.Length > maxLength) Fail(PackingListErrorCodes.InvalidDraft, $"文本长度不能超过 {maxLength} 个字符。");
+        return result;
+    }
+
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static void Length(string? value, int maxLength, string field)
+    {
+        if (value?.Trim().Length > maxLength)
+            Fail(PackingListErrorCodes.InvalidDraft, $"文本长度不能超过 {maxLength} 个字符。", field);
+    }
+
+    [DoesNotReturn]
+    private static void Fail(string code, string message, string? field = null) =>
+        throw new PackingListException(code, message, field);
+}

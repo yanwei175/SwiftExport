@@ -119,13 +119,14 @@ BEGIN TRY
         CONSTRAINT PK_PackingListLine PRIMARY KEY CLUSTERED ([Uid]),
         CONSTRAINT CK_PackingListLine_Version CHECK ([Version] >= 1),
         CONSTRAINT CK_PackingListLine_LineNumber CHECK (LineNumber > 0),
-        CONSTRAINT CK_PackingListLine_Qty CHECK (Qty >= 0),
+        CONSTRAINT CK_PackingListLine_Qty CHECK (Qty > 0),
         CONSTRAINT CK_PackingListLine_Pcs CHECK (PcsPerPackage IS NULL OR PcsPerPackage > 0),
         CONSTRAINT CK_PackingListLine_Packages CHECK (PackageCount IS NULL OR (PackageCount >= 0 AND PackageCount = FLOOR(PackageCount))),
         CONSTRAINT CK_PackingListLine_Measures CHECK (NwPerPackage >= 0 AND GwPerPackage >= 0 AND CbmPerPackage >= 0 AND SubTotalNw >= 0 AND SubTotalGw >= 0 AND SubTotalCbm >= 0)
     );
 
     CREATE UNIQUE INDEX UX_PackingListHead_ActiveNo ON dbo.PackingListHead(PackingListNo) WHERE IsDeleted=0 AND LifecycleStatus=0;
+    CREATE UNIQUE INDEX UX_PackingListHead_CreateCommand ON dbo.PackingListHead(CreateCommandId);
     CREATE UNIQUE INDEX UX_PackingListLine_HeadLine ON dbo.PackingListLine(PackingListHeadId,LineNumber) WHERE IsDeleted=0;
     CREATE INDEX IX_PackingListHead_CustomerDate ON dbo.PackingListHead(CustomerId,InvoiceDate,Uid) INCLUDE(LifecycleStatus,PostingStatus) WHERE IsDeleted=0;
     CREATE INDEX IX_PackingListLine_GrossDemand ON dbo.PackingListLine(GrossDemandId,PackingListHeadId) INCLUDE(ProductId,Qty) WHERE IsDeleted=0;

@@ -59,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<ISourceDemandReceptionService, SourceDemandReceptionService>();
         services.AddScoped<ISourceDeliveryService, SourceDeliveryService>();
         services.AddScoped<ISourceDemandDeliveryService, SourceDemandDeliveryService>();
+        services.AddScoped<IPackingListService, PackingListService>();
         services.AddScoped<GrossDemandDecompositionPlanner>();
         services.AddScoped<MaterialDemandSuggestedSupplierInitializer>();
         services.AddScoped<PurchaseDraftPreviewBuilder>();

@@ -265,16 +265,6 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
     }
 
     /// <summary>
-    /// 采购单取消确认命令；要求提供取消原因，并通过命令标识和预期版本保证幂等及并发安全。
-    /// </summary>
-    public class CancelPurchaseOrderConfirmationCommand
-    {
-        public Guid CommandId { get; set; }
-        public int ExpectedVersion { get; set; }
-        public string Reason { get; set; }
-    }
-
-    /// <summary>
     /// 追加供应商进度报告的命令。客户端只提交业务反馈，跟进时间和跟单员由后台根据服务器时间及当前用户生成。
     /// </summary>
     public class SupplierProgressReportCommand

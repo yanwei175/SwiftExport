@@ -5,7 +5,7 @@ INSERT @Targets VALUES
 (N'SupplierProduct'),(N'ProductMaster'),(N'ProductPackage'),(N'Bom'),(N'SysDicCurrencyExchange'),(N'DocumentSequence'),
 (N'SalesOrderHeader'),(N'SalesOrderLine'),(N'GrossDemand'),(N'NetDemand'),(N'NetDemandAllocation'),(N'NetDemandPlanCommandLog'),(N'DemandExecutionLink'),
 (N'PurchaseOrderHead'),(N'PurchaseOrderLine'),(N'SupplierProgressReport'),(N'WarehouseSite'),(N'InventoryBalance'),(N'InventoryLedgerEntry'),
-(N'InboundDocument'),(N'InboundDocumentLine'),(N'OutboundDocument'),(N'OutboundDocumentLine'),(N'PackingListDocument'),(N'PackingListContributionLine'),(N'BusinessOperationLog');
+(N'InboundDocument'),(N'InboundDocumentLine'),(N'OutboundDocument'),(N'OutboundDocumentLine'),(N'PackingListHead'),(N'PackingListLine'),(N'BusinessOperationLog');
 
 SELECT CASE WHEN t.object_id IS NULL THEN N'BLOCKER' ELSE N'OK' END Result,x.TableName
 FROM @Targets x LEFT JOIN sys.tables t ON t.name=x.TableName AND SCHEMA_NAME(t.schema_id)=N'dbo' ORDER BY x.TableName;
@@ -36,4 +36,4 @@ FROM dbo.CustomerPoConfig c LEFT JOIN dbo.Supplier x ON x.Uid=c.SupplierId WHERE
 
 SELECT name LegacyTableStillPresent FROM sys.tables
 WHERE SCHEMA_NAME(schema_id)=N'dbo' AND name IN
-(N'IndependentDemand',N'DependentDemand',N'FollowUpLog',N'Warehouse',N'Inventory',N'InventoryTransaction',N'PurchaseReceiveHead',N'PurchaseReceiveLine',N'OutboundHead',N'OutboundLine',N'PackingListHead',N'PackingListLine');
+(N'IndependentDemand',N'DependentDemand',N'FollowUpLog',N'Warehouse',N'Inventory',N'InventoryTransaction',N'PurchaseReceiveHead',N'PurchaseReceiveLine',N'OutboundHead',N'OutboundLine',N'PackingListDocument',N'PackingListContributionLine');

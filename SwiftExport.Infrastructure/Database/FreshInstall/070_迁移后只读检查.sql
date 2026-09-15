@@ -186,7 +186,7 @@ INSERT @TargetTables(TableName) VALUES
  (N'NetDemandAllocation'),(N'NetDemandPlanCommandLog'),(N'DemandExecutionLink'),(N'PurchaseOrderHead'),
  (N'PurchaseOrderLine'),(N'SupplierProgressReport'),(N'WarehouseSite'),(N'InventoryBalance'),
  (N'InventoryLedgerEntry'),(N'InboundDocument'),(N'InboundDocumentLine'),(N'OutboundDocument'),
- (N'OutboundDocumentLine'),(N'PackingListDocument'),(N'PackingListContributionLine'),(N'BusinessOperationLog');
+ (N'OutboundDocumentLine'),(N'PackingListHead'),(N'PackingListLine'),(N'BusinessOperationLog');
 
 SELECT N'BLOCKER' Result,t.TableName,N'目标业务表不存在' Problem
 FROM @TargetTables t
