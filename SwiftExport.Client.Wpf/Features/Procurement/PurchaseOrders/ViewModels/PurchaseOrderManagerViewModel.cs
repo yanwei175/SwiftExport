@@ -42,12 +42,16 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         IProcurementDialogService procurementDialogs,
         INavigationService navigation, IDialogService dialogs,
         IApiCallRunner apiCallRunner, IMessageService messages,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser, ProcurementReversalSession? reversalSession = null,
+        IProcurementReversalDialogService? reversalDialogs = null)
     {
         _managerApi = managerApi; _orderApi = orderApi; _procurementDialogs = procurementDialogs;
         _navigation = navigation; _dialogs = dialogs;
         _apiCallRunner = apiCallRunner; _messages = messages;
         _currentUser = currentUser; Title = "采购订单管理";
+        _reversalSession = reversalSession ?? new ProcurementReversalSession(); _reversalDialogs = reversalDialogs;
+        _reversalSession.Changed += OnReversalChanged;
+        RegisterBusyAwareCommand(VoidOrderCommand); RegisterBusyAwareCommand(RetryReversalCommand);
         RegisterBusyAwareCommand(SearchCommand); RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(ClearFiltersCommand); RegisterBusyAwareCommand(BatchConfirmCommand);
         RegisterBusyAwareCommand(OpenDetailCommand); RegisterBusyAwareCommand(CreateIndependentCommand);
@@ -96,6 +100,8 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelConfirmationCommand))]
+    [NotifyCanExecuteChangedFor(nameof(VoidOrderCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RetryReversalCommand))]
     public partial PurchaseOrderManagementRowModel? SelectedOrder { get; set; }
     [ObservableProperty] public partial PurchaseOrderManagementLineModel? SelectedLine { get; set; }
     [ObservableProperty][NotifyPropertyChangedFor(nameof(TotalPages))][NotifyPropertyChangedFor(nameof(PageStatus))] public partial int TotalCount { get; set; }
@@ -366,13 +372,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     }
 
     [RelayCommand(CanExecute = nameof(CanCancelOrderConfirmation))]
-    private void CancelConfirmation()
-    {
-        if (SelectedOrder is null) return;
-        _messages.ShowWarning(
-            "取消采购确认暂未开放",
-            "该能力等待入库与库存反向流程完成后重建；当前不会发送取消请求，也不会修改采购状态。");
-    }
+    private Task CancelConfirmationAsync() => StartReversalAsync(ProcurementReversalOperation.CancelConfirmation);
     [RelayCommand(CanExecute = nameof(CanCreateIndependent))]
     private Task CreateIndependentAsync() => _navigation.OpenDocumentAsync(PurchaseOrderDetailViewModel.RouteKey,
         $"purchase-order:new:{Guid.NewGuid():N}", new PurchaseOrderDocumentOpenRequest());
@@ -493,7 +493,8 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         && SelectedOrder?.CanConfirm == true
         && !HasPendingConfirmation(SelectedOrder.PurchaseOrderId);
     private bool CanCancelOrderConfirmation() => HasConfirmPermission && IsNotBusy
-        && SelectedOrder is { LifecycleStatus: PurchaseOrderLifecycleStatusEnum.Active, ConfirmationStatus: ConfirmationStatusEnum.已确认 };
+        && SelectedOrder is { LifecycleStatus: PurchaseOrderLifecycleStatusEnum.Active, ConfirmationStatus: ConfirmationStatusEnum.已确认 }
+        && !HasPendingConfirmation(SelectedOrder.PurchaseOrderId);
 
     /// <summary>同步当前页表头三态、已选数量和批量命令可执行状态。</summary>
     private void RefreshSelectionState()
@@ -577,7 +578,8 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     }
 
     /// <summary>查询当前订单是否存在尚未由权威已确认状态消解的写入结果。</summary>
-    private bool HasPendingConfirmation(Guid purchaseOrderId) => _pendingConfirmations.ContainsKey(purchaseOrderId);
+    private bool HasPendingConfirmation(Guid purchaseOrderId) => _pendingConfirmations.ContainsKey(purchaseOrderId)
+        || _reversalSession.Find(ReversalUser, purchaseOrderId) is not null;
 
     /// <summary>把会话未决状态投影到重建行；仅权威查询明确返回已确认时解除门禁。</summary>
     private void ApplyPendingConfirmationState(
@@ -647,5 +649,5 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     /// <summary>保存结果未决确认的原始命令身份与完整负载；当前页面不自动重放。</summary>
     private sealed record PendingConfirmationState(ConfirmProcurementOrderCommand Command);
 
-    public void Dispose() { DetachOrderEvents(); _queryCancellation?.Cancel(); _queryCancellation?.Dispose(); _detailCancellation?.Cancel(); _detailCancellation?.Dispose(); }
+    public void Dispose() { _reversalDisposed = true; _reversalSession.Changed -= OnReversalChanged; DetachOrderEvents(); _queryCancellation?.Cancel(); _queryCancellation?.Dispose(); _detailCancellation?.Cancel(); _detailCancellation?.Dispose(); }
 }

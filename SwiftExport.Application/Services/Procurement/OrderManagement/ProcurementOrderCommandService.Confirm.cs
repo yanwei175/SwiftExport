@@ -15,9 +15,12 @@ public sealed partial class ProcurementOrderCommandService
         if (command is null) return Task.FromResult(ServiceResult<ProcurementOrderCommandResult>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Validation, "确认命令不能为空。", "command"));
         return ExecuteAsync(uid, command.CommandId, "Confirm", command, async () =>
         {
-            var head = await RequireHeadAsync(uid, ct);
+            // 与解除引用保持同一锁序，防止确认过程中来源已回退或贡献集合改变。
+            var facts = await reversalFacts.LockAsync(uid, ct);
+            ProcurementConfirmationBuilder.RequireSourceReferences(facts);
+            var head = facts.Head ?? throw new InvalidOperationException("采购单不存在。");
             ProcurementOrderPolicy.RequireDraft(head, command.ExpectedVersion);
-            var lines = await repository.GetLinesAsync(uid, ct);
+            var lines = facts.Lines.Where(x => !x.IsDeleted).ToList();
             foreach (var line in lines)
             {
                 if (!line.TaxPrice.HasValue) throw new InvalidOperationException("确认前必须明确含税单价；零价允许。");

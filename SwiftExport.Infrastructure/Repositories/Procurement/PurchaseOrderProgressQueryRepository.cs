@@ -134,6 +134,7 @@ public sealed class PurchaseOrderProgressQueryRepository(RepositoryBaseContext c
             SELECT h.Uid AS PurchaseOrderId,h.Version,h.ConfirmationStatus,h.LifecycleStatus,
                    h.OrderNo,h.OrderDate,h.BoNo,h.SupplierName,h.DemandSourceNo,
                    COUNT(f.Uid) AS LineCount,COALESCE(SUM(f.HasProgress),0) AS ReportedLineCount,
+                   SUM(CASE WHEN f.Uid IS NOT NULL AND f.ReadyQty IS NULL THEN 1 ELSE 0 END) AS UnknownReadyQtyLineCount,
                    COALESCE(SUM(f.QTY),0) AS TotalQty,COALESCE(SUM(f.ReadyQty),0) AS LatestReadyQty,
                    MAX(f.ExpectedReadyDate) AS LatestExpectedReadyDate
             FROM dbo.PurchaseOrderHead h
@@ -165,7 +166,10 @@ public sealed class PurchaseOrderProgressQueryRepository(RepositoryBaseContext c
             GROUP BY h.Uid,h.Version,h.ConfirmationStatus,h.LifecycleStatus,h.OrderNo,h.OrderDate,
                      h.BoNo,h.SupplierName,h.DemandSourceNo
         )
-        SELECT facts.*,
+        SELECT facts.PurchaseOrderId,facts.Version,facts.ConfirmationStatus,facts.LifecycleStatus,
+               facts.OrderNo,facts.OrderDate,facts.BoNo,facts.SupplierName,facts.DemandSourceNo,
+               facts.LineCount,facts.ReportedLineCount,facts.TotalQty,facts.LatestReadyQty,
+               facts.UnknownReadyQtyLineCount,facts.LatestExpectedReadyDate,
                CONVERT(bit,CASE WHEN facts.LifecycleStatus=@Active AND facts.ConfirmationStatus=@Confirmed THEN 1 ELSE 0 END) AS CanReportProgress,
                CASE WHEN facts.LifecycleStatus<>@Active THEN N'仅活动采购单允许登记供应商反馈。'
                     WHEN facts.ConfirmationStatus<>@Confirmed THEN N'仅已确认采购单允许登记供应商反馈。'
@@ -176,7 +180,10 @@ public sealed class PurchaseOrderProgressQueryRepository(RepositoryBaseContext c
           AND (@ExpectedReadyDateTo IS NULL OR facts.LatestExpectedReadyDate<DATEADD(day,1,@ExpectedReadyDateTo));
 
         SELECT COUNT(*) FROM #PurchaseOrderProgressHeads;
-        SELECT * FROM #PurchaseOrderProgressHeads
+        SELECT PurchaseOrderId,Version,ConfirmationStatus,LifecycleStatus,OrderNo,OrderDate,BoNo,
+               SupplierName,DemandSourceNo,LineCount,ReportedLineCount,TotalQty,LatestReadyQty,
+               UnknownReadyQtyLineCount,LatestExpectedReadyDate,CanReportProgress,ReadOnlyReason
+        FROM #PurchaseOrderProgressHeads
         ORDER BY OrderDate DESC,OrderNo DESC,PurchaseOrderId DESC
         OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY;
         DROP TABLE #PurchaseOrderProgressHeads;

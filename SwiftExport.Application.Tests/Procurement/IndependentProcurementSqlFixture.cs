@@ -3,6 +3,7 @@ using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SwiftExport.Application;
 using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Application.Services.Procurement.OrderManagement;
@@ -65,6 +66,8 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
         await SeedAsync();
 
         var services = new ServiceCollection();
+        // 隔离测试保留真实服务异常，避免只看到通用错误而无法定位 SQL 失败。
+        services.AddLogging(builder => builder.AddConsole());
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:Default"] = ConnectionString(databaseName)
@@ -83,6 +86,18 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
         migration = Regex.Replace(migration, @"(@ExpectedDatabaseName\s+sysname\s*=\s*)NULL", $"$1N'{databaseName}'", RegexOptions.IgnoreCase);
         foreach (var batch in Regex.Split(migration, @"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
             if (!string.IsNullOrWhiteSpace(batch)) await ExecuteAsync(batch);
+    }
+
+    /// <summary>反向测试补齐当前采购迁移及入库实体字段；仅作用于本实例空库，不作为生产迁移。</summary>
+    public async Task PrepareReversalSchemaAsync()
+    {
+        foreach (var file in new[] { "021_移除采购执行模型.sql", "029_采购Allocation依赖清理.sql" })
+            await ExecuteAsync(await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "SwiftExport.Infrastructure/Migrations", file)));
+        // 空库基线仍保留旧入库字段；测试显式补齐当前实体契约，不凭空回填任何既有数据。
+        await ExecuteAsync("""
+            ALTER TABLE dbo.InboundDocument ADD CreationMode int NOT NULL DEFAULT(0),TriggerPackingListId uniqueidentifier NULL;
+            ALTER TABLE dbo.InboundDocumentLine ADD SourceLineId uniqueidentifier NULL;
+            """);
     }
 
     /// <summary>在新列和快照表尚不存在时写入已确认历史采购，检验迁移是否原样保留未知身份与历史数量。</summary>

@@ -72,6 +72,7 @@ public static class DependencyInjection
         services.AddScoped<SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementConfirmationBuilder>();
         services.AddScoped<IProcurementConfirmationQueryService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementConfirmationQueryService>();
         services.AddScoped<IProcurementOrderCommandService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderCommandService>();
+        services.AddScoped<IProcurementOrderReversalService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderReversalService>();
         services.AddScoped<IProcurementOrderQueryService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderQueryService>();
         services.AddScoped<IPurchaseOrderManagerQueryService, SwiftExport.Application.Services.Procurement.OrderManagement.PurchaseOrderManagerQueryService>();
         services.AddScoped<IPurchaseOrderProgressService, SwiftExport.Application.Services.Procurement.OrderManagement.PurchaseOrderProgressService>();

@@ -30,7 +30,9 @@ public sealed class OutboundItemPickerTests
         h.WarehouseSiteId = Guid.NewGuid();
         source.Result = [new() { WarehouseSiteId = h.WarehouseSiteId, ProductId = Guid.NewGuid(), Sku = "A", Unit = "PCS", OnHandQty = 3.125m }];
         await vm.OpenOutboundItemDialogCommand.ExecuteAsync(null);
-        Assert.AreEqual(3.125m, h.Lines.Items.Single().Quantity);
+        Assert.IsNull(h.Lines.Items.Single().Quantity, "库存余额不得默认成为手工出库数量。");
+        Assert.AreEqual(3.125m, h.Lines.Items.Single().OnHandQty);
+        Assert.IsNotNull(h.Lines.Items.Single().ValidateRow(), "未人工填写数量时不能保存。");
         Assert.IsFalse(vm.OpenWarehousePickerCommand.CanExecute(h));
         h.Lines.Items[0].Quantity = 1;
         await vm.OpenOutboundItemDialogCommand.ExecuteAsync(null);

@@ -10,7 +10,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress
         public Guid PurchaseOrderLineId { get; set; }
         public int Sequence { get; set; }
         public SupplierArrangementStatusEnum ArrangementStatus { get; set; }
-        public decimal ReadyQty { get; set; }
+        /// <summary>本次报告形成后的累计数量快照；空值表示至今尚未反馈数量。</summary>
+        public decimal? ReadyQty { get; set; }
         public DateTime? ExpectedReadyDate { get; set; }
         public DateTime SupplierReportedDate { get; set; }
         public string Note { get; set; }

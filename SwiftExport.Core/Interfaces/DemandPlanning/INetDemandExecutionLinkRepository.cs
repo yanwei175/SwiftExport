@@ -1,5 +1,6 @@
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Core.Entities.DemandPlanning;
 
 namespace SwiftExport.Core.Interfaces.DemandPlanning;
@@ -10,7 +11,7 @@ namespace SwiftExport.Core.Interfaces.DemandPlanning;
 public interface INetDemandExecutionLinkRepository
 {
     /// <summary>按物料需求锁定活动执行关系，保证采购承接数量不超额。</summary>
-    Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByNetDemandIdsForUpdateAsync(
+    Task<IReadOnlyList<PurchaseDemandCommitmentDto>> GetActiveByNetDemandIdsForUpdateAsync(
         IEnumerable<Guid> netDemandIds);
     Task<IReadOnlyList<MaterialDemandRollbackBlockerDto>> GetActiveRollbackBlockersAsync(
         IEnumerable<Guid> netDemandIds);

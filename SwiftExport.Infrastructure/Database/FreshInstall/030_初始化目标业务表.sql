@@ -163,7 +163,7 @@ CREATE INDEX IX_DemandExecutionLink_Target ON dbo.DemandExecutionLink(TargetHead
 CREATE TABLE dbo.SupplierProgressReport
 (
  Uid uniqueidentifier NOT NULL,Version int NOT NULL CONSTRAINT DF_SupplierProgress_Version DEFAULT(1),IsDeleted bit NOT NULL CONSTRAINT DF_SupplierProgress_IsDeleted DEFAULT(0),CreatedDate datetime2(7) NULL,CreatedBy nvarchar(100) NULL,UpdatedDate datetime2(7) NULL,UpdatedBy nvarchar(100) NULL,
- PurchaseOrderLineId uniqueidentifier NOT NULL,Sequence int NOT NULL,ArrangementStatus tinyint NOT NULL,ReadyQty decimal(18,4) NOT NULL,ExpectedReadyDate datetime2(7) NULL,SupplierReportedDate datetime2(7) NOT NULL,Note nvarchar(2000) NULL,IsCorrection bit NOT NULL CONSTRAINT DF_SupplierProgress_Correction DEFAULT(0),CorrectionReason nvarchar(2000) NULL,CommandId uniqueidentifier NOT NULL,
+ PurchaseOrderLineId uniqueidentifier NOT NULL,Sequence int NOT NULL,ArrangementStatus tinyint NOT NULL,ReadyQty decimal(18,4) NULL,ExpectedReadyDate datetime2(7) NULL,SupplierReportedDate datetime2(7) NOT NULL,Note nvarchar(2000) NULL,IsCorrection bit NOT NULL CONSTRAINT DF_SupplierProgress_Correction DEFAULT(0),CorrectionReason nvarchar(2000) NULL,CommandId uniqueidentifier NOT NULL,
  CONSTRAINT PK_SupplierProgressReport PRIMARY KEY(Uid),CONSTRAINT CK_SupplierProgress_Version CHECK(Version>0),CONSTRAINT CK_SupplierProgress_Status CHECK(ArrangementStatus IN(0,1,2,8)),CONSTRAINT CK_SupplierProgress_Qty CHECK(ReadyQty>=0),CONSTRAINT CK_SupplierProgress_Sequence CHECK(Sequence>0)
 );
 CREATE UNIQUE INDEX UX_SupplierProgress_Line_Sequence ON dbo.SupplierProgressReport(PurchaseOrderLineId,Sequence) WHERE IsDeleted=0;
@@ -200,12 +200,11 @@ CREATE UNIQUE INDEX UX_InventoryLedger_ReversalOf ON dbo.InventoryLedgerEntry(Re
 CREATE UNIQUE INDEX UX_InventoryLedger_ReplacementOf ON dbo.InventoryLedgerEntry(ReplacementOfLedgerId) WHERE ReplacementOfLedgerId IS NOT NULL;
 CREATE INDEX IX_InventoryLedger_CorrectionGroup ON dbo.InventoryLedgerEntry(CorrectionGroupId,Sequence) WHERE CorrectionGroupId IS NOT NULL;
 CREATE INDEX IX_InventoryLedger_WarehouseProductSequence ON dbo.InventoryLedgerEntry(WarehouseSiteId,ProductId,Sequence DESC);
-GO
-CREATE OR ALTER TRIGGER dbo.TR_InventoryLedgerEntry_Immutable ON dbo.InventoryLedgerEntry
+-- 触发器需要独立批次；动态执行保持外层初始化事务及 TRY/CATCH 完整。
+EXEC(N'CREATE OR ALTER TRIGGER dbo.TR_InventoryLedgerEntry_Immutable ON dbo.InventoryLedgerEntry
 INSTEAD OF UPDATE,DELETE
 AS
-    THROW 53105,N'库存流水是不可变事实，禁止更新或删除；纠错必须追加反向流水。',1;
-GO
+    THROW 53105,N''库存流水是不可变事实，禁止更新或删除；纠错必须追加反向流水。'',1;');
 
 CREATE TABLE dbo.InboundDocument
 (

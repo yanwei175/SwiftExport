@@ -484,7 +484,7 @@ public sealed class PurchaseDraftCreationService(
         CreatePurchaseDraftSourceCommand source,
         IReadOnlyList<Core.Entities.DemandPlanning.GrossDemand> grossDemands,
         IReadOnlyList<NetDemand> netDemands,
-        IReadOnlyList<NetDemandExecutionLinkDto> activeLinks,
+        IReadOnlyList<PurchaseDemandCommitmentDto> activeLinks,
         CancellationToken cancellationToken)
     {
         var itemByDemand = source.Items.ToDictionary(x => x.NetDemandId);

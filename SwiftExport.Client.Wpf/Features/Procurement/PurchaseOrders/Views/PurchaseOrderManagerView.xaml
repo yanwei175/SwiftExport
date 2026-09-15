@@ -24,6 +24,8 @@
                     <Button Content="批量确认" Command="{Binding BatchConfirmCommand}" Margin="4,0,0,0"
                             AutomationProperties.Name="批量确认当前页已勾选采购单"/>
                     <Button Content="取消确认" Command="{Binding CancelConfirmationCommand}" Margin="4,0,0,0"/>
+                    <Button Content="整单作废" Command="{Binding VoidOrderCommand}" Margin="4,0,0,0"/>
+                    <Button Content="重试原操作" Command="{Binding RetryReversalCommand}" Margin="4,0,0,0"/>
                     <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="4,0,0,0"/>
                     <Button Content="采购跟进" Command="{Binding OpenFollowUpCommand}" Margin="4,0,0,0"/>
                 </WrapPanel>
@@ -97,7 +99,7 @@
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="预计交期" Binding="{Binding ExpectedDate,StringFormat=yyyy-MM-dd}" Width="105"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="回复交期" Binding="{Binding ReplyDate,StringFormat=yyyy-MM-dd}" Width="105"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="行数" Binding="{Binding LineCount}" Width="60"/>
-                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="已备好数量" Binding="{Binding LatestReadyQty,StringFormat=N1}" Width="100"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="已知已备好合计" Binding="{Binding LatestReadyQty,StringFormat={}{0:0.####}}" Width="120"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="总数量" Binding="{Binding TotalQty,StringFormat=N1}" Width="95"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="收货进度" Binding="{Binding ReceiptProgress}" Width="100"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="含税总金额" Binding="{Binding TaxTotalAmount,StringFormat=N2}" Width="110"/>

@@ -15,11 +15,12 @@ public sealed class ProcurementConfirmationQueryService(ProcurementOrderTransact
         => transaction.ExecuteAsync("Read", async () =>
         {
             var head = await orders.GetHeadAsync(uid, ct) ?? throw new InvalidOperationException("独立采购单不存在。");
-            if (!head.ActiveConfirmationId.HasValue) throw new InvalidOperationException("订单尚无已确认依据。");
-            var lines = await snapshots.GetLinesAsync(uid, head.ActiveConfirmationId.Value, ct);
+            var batch = head.ActiveConfirmationId ?? await snapshots.GetLatestBatchAsync(uid, ct);
+            if (!batch.HasValue) throw new InvalidOperationException("订单尚无已确认依据。");
+            var lines = await snapshots.GetLinesAsync(uid, batch.Value, ct);
             if (lines.Count == 0) throw new InvalidOperationException("已确认依据缺失，不能按当前 BOM 补造。");
-            var nodes = (await snapshots.GetNodesAsync(uid, head.ActiveConfirmationId.Value, ct)).ToLookup(x => x.ConfirmationLineId);
-            var result = new ProcurementConfirmationSnapshotDto { PurchaseOrderId = uid, ConfirmationId = head.ActiveConfirmationId.Value };
+            var nodes = (await snapshots.GetNodesAsync(uid, batch.Value, ct)).ToLookup(x => x.ConfirmationLineId);
+            var result = new ProcurementConfirmationSnapshotDto { PurchaseOrderId = uid, ConfirmationId = batch.Value };
             foreach (var line in lines)
             {
                 var item = line.Adapt<ProcurementConfirmedLineDto>(mappings);

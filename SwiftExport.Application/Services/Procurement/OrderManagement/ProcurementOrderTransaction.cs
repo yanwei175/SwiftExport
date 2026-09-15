@@ -76,6 +76,7 @@ public sealed class ProcurementOrderTransaction(
         "Create" => PermissionKeys.ProcurementOrderCreate,
         "Edit" => PermissionKeys.ProcurementOrderEdit,
         "Confirm" => PermissionKeys.ProcurementOrderConfirm,
+        "Void" => PermissionKeys.ProcurementOrderVoid,
         _ => string.Empty
     };
 }

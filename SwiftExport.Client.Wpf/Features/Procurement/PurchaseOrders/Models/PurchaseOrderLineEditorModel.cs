@@ -58,7 +58,7 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
     public decimal LatestReadyQty => LatestProgress?.ReadyQty ?? 0m;
 
     /// <summary>最新累计已备好数量文本；无反馈时不伪造为业务零。</summary>
-    public string LatestReadyQtyText => NewProgressSummary is not null ? NewProgressSummary.ReadyQty.ToString("#,##0.####") : LatestProgress is null ? "尚未跟进" : LatestProgress.ReadyQty.ToString("#,##0.####");
+    public string LatestReadyQtyText => NewProgressSummary is not null ? (NewProgressSummary.ReadyQty?.ToString("#,##0.####") ?? "尚未反馈") : LatestProgress is null ? "尚未跟进" : (LatestProgress.ReadyQty?.ToString("#,##0.####") ?? "尚未反馈");
 
     public DateTime? LatestExpectedReadyDate => LatestProgress?.ExpectedReadyDate;
 

@@ -31,6 +31,23 @@ namespace SwiftExport.Contracts.Apis.Procurement
         /// <summary>执行专用采购ConfirmAsync用例。</summary>
         [Post("/{uid}/confirm")]
         Task<ServiceResult<ProcurementOrderCommandResult>> ConfirmAsync(Guid uid, [Body] ConfirmProcurementOrderCommand command, CancellationToken cancellationToken = default);
-        /// <summary>取消尚无下游事实的独立采购确认，保留历史确认快照。</summary>
+        /// <summary>预览取消确认资格，保留物料需求引用。</summary>
+        [Post("/{uid}/cancel-confirmation-preview")]
+        Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewCancelConfirmationAsync(Guid uid, [Body] ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default);
+        /// <summary>取消确认回到草稿，原确认依据保留。</summary>
+        [Post("/{uid}/cancel-confirmation")]
+        Task<ServiceResult<ProcurementOrderCommandResult>> CancelConfirmationAsync(Guid uid, [Body] CancelProcurementOrderConfirmationCommand request, CancellationToken cancellationToken = default);
+        /// <summary>预览整单作废及需求释放影响。</summary>
+        [Post("/{uid}/void-preview")]
+        Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewVoidAsync(Guid uid, [Body] ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default);
+        /// <summary>作废整单并解除本单活动需求引用。</summary>
+        [Post("/{uid}/void")]
+        Task<ServiceResult<ProcurementOrderCommandResult>> VoidAsync(Guid uid, [Body] VoidProcurementOrderCommand request, CancellationToken cancellationToken = default);
+        /// <summary>预览删除选定草稿行及需求释放影响。</summary>
+        [Post("/{uid}/delete-lines-preview")]
+        Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewDeleteLinesAsync(Guid uid, [Body] ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default);
+        /// <summary>立即软删除选定草稿行，不接收其他商务修改。</summary>
+        [Post("/{uid}/delete-lines")]
+        Task<ServiceResult<ProcurementOrderCommandResult>> DeleteLinesAsync(Guid uid, [Body] DeleteProcurementDraftLinesCommand request, CancellationToken cancellationToken = default);
     }
 }

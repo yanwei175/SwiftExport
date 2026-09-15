@@ -7,7 +7,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.OrderManagement
     public class ProcurementOrderProgressSummaryDto
     {
         public SupplierArrangementStatusEnum ArrangementStatus { get; set; }
-        public decimal ReadyQty { get; set; }
+        /// <summary>累计已备好数量；空值表示尚未反馈数量。</summary>
+        public decimal? ReadyQty { get; set; }
         public DateTime? ExpectedReadyDate { get; set; }
         public DateTime ReportedDate { get; set; }
         public string ReportedBy { get; set; }

@@ -86,32 +86,40 @@ public sealed class PurchaseOrderProgressService(
                     "累计已备好数量不能超过采购行当前有效数量。", "ReadyQty");
 
             var latest = await reports.GetLatestForUpdateAsync(line.Uid);
-            var isCorrection = latest is not null && command.ReadyQty < latest.ReadyQty;
-            if (isCorrection && string.IsNullOrWhiteSpace(command.CorrectionReason))
-                throw ProcurementOperationException.Validation(
-                    "累计已备好数量下降时必须填写纠错原因。", "CorrectionReason");
-
-            var report = new SupplierProgressReport
-            {
-                Uid = GuidSequentialGenerator.NewGuid(),
-                PurchaseOrderLineId = line.Uid,
-                Sequence = (latest?.Sequence ?? 0) + 1,
-                ArrangementStatus = command.ArrangementStatus,
-                ReadyQty = command.ReadyQty,
-                ExpectedReadyDate = command.ExpectedReadyDate,
-                Note = Normalize(command.Note, 2000),
-                IsCorrection = isCorrection,
-                CorrectionReason = isCorrection ? Normalize(command.CorrectionReason, 2000) : null,
-                CommandId = command.CommandId
-            };
+            var report = CreateReport(line.Uid, command, latest);
             if (await reports.InsertAsync(report) != 1)
                 throw new InvalidOperationException("供应商反馈保存失败。");
-            if (await operationLogs.InsertAsync(CreateOperationLog(head, line, report)) != 1)
+            if (await operationLogs.InsertAsync(CreateOperationLog(head, line, report, command)) != 1)
                 throw new InvalidOperationException("供应商反馈业务日志写入失败。");
 
             return CreateResult(head, report.Uid, ProcurementCommandOutcomeEnum.Succeeded,
                 "供应商反馈已登记。");
         }, cancellationToken);
+
+    /// <summary>根据锁定的最新报告形成追加快照，保留未填写字段并验证累计数量纠错。</summary>
+    internal static SupplierProgressReport CreateReport(
+        Guid lineId, ReportPurchaseOrderProgressCommand command, SupplierProgressReport? latest)
+    {
+            var isCorrection = latest is not null && command.ReadyQty < latest.ReadyQty;
+            if (isCorrection && string.IsNullOrWhiteSpace(command.CorrectionReason))
+                throw ProcurementOperationException.Validation(
+                    "累计已备好数量下降时必须填写纠错原因。", "CorrectionReason");
+
+            return new SupplierProgressReport
+            {
+                Uid = GuidSequentialGenerator.NewGuid(),
+                PurchaseOrderLineId = lineId,
+                Sequence = (latest?.Sequence ?? 0) + 1,
+                // 未填字段在锁定最新报告后继承，首次未反馈数量保持未知。
+                ArrangementStatus = latest?.ArrangementStatus ?? SupplierArrangementStatusEnum.Unknown,
+                ReadyQty = command.ReadyQty ?? latest?.ReadyQty,
+                ExpectedReadyDate = command.ExpectedReadyDate ?? latest?.ExpectedReadyDate,
+                Note = Normalize(command.Note, 2000),
+                IsCorrection = isCorrection,
+                CorrectionReason = isCorrection ? Normalize(command.CorrectionReason, 2000) : null,
+                CommandId = command.CommandId
+            };
+    }
 
     /// <summary>验证分页、文本、状态集合及日期范围，避免无界或无效筛选进入 SQL。</summary>
     private static void ValidateSearchRequest(PurchaseOrderProgressSearchRequest request)
@@ -138,8 +146,8 @@ public sealed class PurchaseOrderProgressService(
             throw ProcurementOperationException.Validation("采购跟进筛选参数无效。");
     }
 
-    /// <summary>验证追加反馈的身份、版本、枚举和文本边界；业务状态在锁定事实后复验。</summary>
-    private static void ValidateReportCommand(Guid purchaseOrderId, ReportPurchaseOrderProgressCommand command)
+    /// <summary>验证追加反馈的身份、版本、有效输入和文本边界；业务状态在锁定事实后复验。</summary>
+    internal static void ValidateReportCommand(Guid purchaseOrderId, ReportPurchaseOrderProgressCommand command)
     {
         if (purchaseOrderId == Guid.Empty)
             throw ProcurementOperationException.Validation("采购单标识不能为空。", "PurchaseOrderId");
@@ -153,8 +161,8 @@ public sealed class PurchaseOrderProgressService(
             throw ProcurementOperationException.Validation("采购单版本无效。", "ExpectedPurchaseOrderVersion");
         if (command.ExpectedLineVersion <= 0)
             throw ProcurementOperationException.Validation("采购行版本无效。", "ExpectedLineVersion");
-        if (!Enum.IsDefined(command.ArrangementStatus))
-            throw ProcurementOperationException.Validation("供应商安排状态无效。", "ArrangementStatus");
+        if (!command.ReadyQty.HasValue && !command.ExpectedReadyDate.HasValue && string.IsNullOrWhiteSpace(command.Note))
+            throw ProcurementOperationException.Validation("请至少填写累计已备好数量、预计交期或跟进备注中的一项。");
         if (command.ReadyQty < 0)
             throw ProcurementOperationException.Validation("累计已备好数量不能小于零。", "ReadyQty");
         if (command.Note?.Length > 2000)
@@ -167,7 +175,8 @@ public sealed class PurchaseOrderProgressService(
     private BusinessOperationLog CreateOperationLog(
         PurchaseOrderHead head,
         PurchaseOrderLine line,
-        SupplierProgressReport report)
+        SupplierProgressReport report,
+        ReportPurchaseOrderProgressCommand command)
         => new()
         {
             Uid = GuidSequentialGenerator.NewGuid(),
@@ -180,12 +189,14 @@ public sealed class PurchaseOrderProgressService(
             OperationType = Operation,
             OperationName = "供应商进度已登记",
             Reason = report.CorrectionReason,
-            Summary = $"采购行 {line.LineNumber} 累计已备好 {report.ReadyQty}。",
+            Summary = $"采购行 {line.LineNumber} 已追加跟进反馈，累计已备好：{report.ReadyQty?.ToString() ?? "尚未反馈"}。",
             ChangedFieldsJson = JsonSerializer.Serialize(new
             {
-                report.ArrangementStatus,
-                report.ReadyQty,
-                report.ExpectedReadyDate,
+                SubmittedReadyQty = command.ReadyQty,
+                SubmittedExpectedReadyDate = command.ExpectedReadyDate,
+                SubmittedNote = Normalize(command.Note, 2000),
+                SnapshotReadyQty = report.ReadyQty,
+                SnapshotExpectedReadyDate = report.ExpectedReadyDate,
                 report.IsCorrection
             }),
             RelatedObjectsJson = JsonSerializer.Serialize(new

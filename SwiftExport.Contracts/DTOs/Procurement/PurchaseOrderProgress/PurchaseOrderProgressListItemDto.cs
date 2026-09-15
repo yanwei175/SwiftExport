@@ -18,6 +18,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress
         public int ReportedLineCount { get; set; }
         public decimal TotalQty { get; set; }
         public decimal LatestReadyQty { get; set; }
+        /// <summary>最新报告没有已知累计数量的采购行数，包括尚未跟进的行。</summary>
+        public int UnknownReadyQtyLineCount { get; set; }
         public DateTime? LatestExpectedReadyDate { get; set; }
         public string DemandSourceNo { get; set; }
         public bool CanReportProgress { get; set; }

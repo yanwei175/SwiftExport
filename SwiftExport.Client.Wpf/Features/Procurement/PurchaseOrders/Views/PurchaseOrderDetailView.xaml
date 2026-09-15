@@ -38,6 +38,9 @@
                 <Button Content="保存草稿" Command="{Binding SaveCommand}" Margin="0,0,4,0"/>
                 <Button Content="确认订单" Command="{Binding ConfirmCommand}" Margin="0,0,4,0"/>
                 <Button Content="取消确认" Command="{Binding CancelConfirmationCommand}" Margin="0,0,4,0"/>
+                <Button Content="删除选定行" Command="{Binding DeleteDraftLinesCommand}" Margin="0,0,4,0"/>
+                <Button Content="整单作废" Command="{Binding VoidOrderCommand}" Margin="0,0,4,0"/>
+                <Button Content="重试原操作" Command="{Binding RetryReversalCommand}" Margin="0,0,4,0"/>
                 <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,4,0"/>
                 <Button Content="关闭" Command="{Binding CloseDocumentCommand}"/>
             </StackPanel>
@@ -48,6 +51,15 @@
         </DockPanel>
 
         <ScrollViewer Grid.Row="2">
+            <ScrollViewer.Style>
+                <Style TargetType="ScrollViewer">
+                    <Setter Property="IsEnabled" Value="True"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding CanInteractWithDocument}" Value="False"><Setter Property="IsEnabled" Value="False"/></DataTrigger>
+                        <DataTrigger Binding="{Binding IsBusy}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ScrollViewer.Style>
             <Grid RowDefinitions="Auto,4,Auto,4,*,4">
                 <Grid.Resources>
                     <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
@@ -119,7 +131,7 @@
                         <ui:TextBox Grid.Column="26" Grid.Row="0" PlaceholderText="复核人" Text="{Binding Header.ReviewedBy,Mode=OneWay}" IsReadOnly="True"/>
 
                         <TextBlock Grid.Column="28" Grid.Row="0" Text="取消确认原因"/>
-                        <ui:TextBox Grid.Column="30" Grid.Row="0" PlaceholderText="取消确认暂未开放" Text="{Binding CancellationReason}" IsReadOnly="True"/>
+                        <ui:TextBox Grid.Column="30" Grid.Row="0" PlaceholderText="反向操作原因在确认弹窗填写" Text="{Binding CancellationReason}" IsReadOnly="True"/>
 
 
                     </Grid>
@@ -535,6 +547,7 @@
                             <TextBlock Text="确认时仅为客供件完整 BOM 路径选择消耗仓；它不等于采购行收货目标。" Foreground="DarkOrange"/>
                             <DataGrid Grid.Row="2" ItemsSource="{Binding ConfirmationBindings}" AutoGenerateColumns="False" Style="{StaticResource SwiftExportDataGrid}">
                                 <DataGrid.Columns>
+                                    <DataGridCheckBoxColumn Header="选择" Binding="{Binding IsChecked,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Width="52" gridColumns:GridColumn.Key="reversal-selected"/>
                                     <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="BOM 路径" Binding="{Binding Path}" IsReadOnly="True" Width="2*"/>
                                     <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="客供件" Binding="{Binding ComponentSku}" IsReadOnly="True" Width="140"/>
                                     <DataGridTemplateColumn Header="消耗仓库" Width="180">

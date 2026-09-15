@@ -1,4 +1,8 @@
 using SwiftExport.Application.Interfaces;
+using Mapster;
+using SwiftExport.Contracts.DTOs.Products.Execution;
+using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Core.Models.Procurement;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
@@ -8,9 +12,26 @@ using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces.Procurement;
 namespace SwiftExport.Application.Services.Procurement.OrderManagement;
 
-/// <summary>确认依据编排：验证固定身份、收货资格和完整 BOM；不读取需求链，也不执行库存变动。</summary>
-public sealed class ProcurementConfirmationBuilder(IProcurementOrderRepository repository, IBomExecutionReader bom)
+/// <summary>确认依据编排：独立采购读取当前 BOM，需求来源剩余行复用历史依据；不执行库存变动。</summary>
+public sealed class ProcurementConfirmationBuilder(IProcurementOrderRepository repository, IBomExecutionReader bom,
+    IProcurementConfirmationRepository snapshots, TypeAdapterConfig mappings)
 {
+    /// <summary>按来源锁定后检查剩余行活动贡献，确认不能复活已经释放或失效的物料引用。</summary>
+    public static void RequireSourceReferences(ProcurementReversalFacts facts)
+    {
+        var head = facts.Head ?? throw new InvalidOperationException("采购单不存在。");
+        foreach (var line in facts.Lines.Where(x => !x.IsDeleted))
+        {
+            var links = facts.Links.Where(x => x.TargetType == "PO" && x.TargetHeadId == head.Uid && x.TargetLineId == line.Uid
+                && !x.IsDeleted && x.LinkStatus == DemandExecutionLinkStatusEnum.Active).ToList();
+            if (head.OriginKind != 1 && !line.SourceUid.HasValue && links.Count == 0) continue;
+            if (links.Count == 0 || links.Any(x => x.ReleasedQty < 0 || x.AllocatedQty <= x.ReleasedQty)
+                || links.Sum(x => x.AllocatedQty - x.ReleasedQty) + line.UnlinkedQty != line.Quantity
+                || links.Any(x => !facts.Demands.Any(n => n.Uid == x.NetDemandId && !n.IsDeleted && n.LifecycleStatus == NetDemandLifecycleStatusEnum.Active
+                    && facts.Sources.Any(s => s.Uid == n.GrossDemandId && !s.IsDeleted))))
+                throw new InvalidOperationException("采购剩余行的活动物料引用缺失、失效或贡献数量不一致，不能重新确认。");
+        }
+    }
     /// <summary>检查客户和实际供应商仍存在且启用，名称变化不覆写既有订单快照。</summary>
     public async Task ValidatePartiesAsync(Guid customerId, Guid supplierId, CancellationToken ct)
     {
@@ -43,11 +64,21 @@ public sealed class ProcurementConfirmationBuilder(IProcurementOrderRepository r
         if (!head.CustomerId.HasValue || lines.Count == 0) throw new InvalidOperationException("采购客户或明细缺失。");
         await ValidatePartiesAsync(head.CustomerId.Value, head.SupplierId, ct);
         var result = new ProcurementConfirmationContextDto { PurchaseOrderId = head.Uid, Version = head.Version };
+        var sourceOrder = head.OriginKind == 1 || lines.Any(x => x.SourceUid.HasValue);
+        List<PurchaseConfirmationLine> historicalLines = [];
+        List<PurchaseConfirmationNode> historicalNodes = [];
+        if (sourceOrder)
+        {
+            var batch = await snapshots.GetLatestBatchAsync(head.Uid, ct)
+                ?? throw new InvalidOperationException("需求来源采购缺少历史确认依据；首次确认的收货目标衔接尚未完成，不能用当前 BOM 补造。");
+            historicalLines = await snapshots.GetLinesAsync(head.Uid, batch, ct);
+            historicalNodes = await snapshots.GetNodesAsync(head.Uid, batch, ct);
+        }
         foreach (var line in lines.OrderBy(x => x.LineNumber))
         {
-            if (!line.ProductId.HasValue || !line.DeliveryWarehouseSiteId.HasValue || line.UnlinkedQty != line.Quantity
-                || line.SourceUid.HasValue)
-                throw new InvalidOperationException("独立采购行身份、数量或收货目标不完整。");
+            if (!line.ProductId.HasValue || !line.DeliveryWarehouseSiteId.HasValue
+                || (!sourceOrder && (line.UnlinkedQty != line.Quantity || line.SourceUid.HasValue)))
+                throw new InvalidOperationException("采购行身份、数量或收货目标不完整。");
             ProcurementOrderPolicy.Number(line.Quantity, 4, "采购数量", true);
             var product = await repository.GetProductAsync(line.ProductId.Value, ct);
             ProcurementOrderPolicy.RequireProduct(product);
@@ -67,7 +98,7 @@ public sealed class ProcurementConfirmationBuilder(IProcurementOrderRepository r
             result.Lines.Add(new ProcurementLineConfirmationContextDto
             {
                 PurchaseOrderLineId = line.Uid, LineVersion = line.Version,
-                Bom = await bom.ReadAsync(product.Uid, ct)
+                Bom = sourceOrder ? RestoreBasis(line, historicalLines, historicalNodes) : await bom.ReadAsync(product.Uid, ct)
             });
         }
         result.Fingerprint = ProcurementOrderPolicy.Fingerprint(new
@@ -76,5 +107,20 @@ public sealed class ProcurementConfirmationBuilder(IProcurementOrderRepository r
             Lines = result.Lines.Select(x => new { x.PurchaseOrderLineId, x.LineVersion, x.Bom.Fingerprint }).ToArray()
         });
         return result;
+    }
+
+    /// <summary>仅复用相同行及根产品的原始结构；历史缺失或节点损坏时阻断，不读取当前 BOM。</summary>
+    private BomExecutionSnapshotDto RestoreBasis(PurchaseOrderLine line, List<PurchaseConfirmationLine> lines, List<PurchaseConfirmationNode> nodes)
+    {
+        var original = lines.SingleOrDefault(x => x.PurchaseOrderLineId == line.Uid);
+        if (original is null || original.RootProductId != line.ProductId || string.IsNullOrWhiteSpace(original.Fingerprint))
+            throw new InvalidOperationException("采购剩余行的历史确认依据缺失或产品身份不一致。");
+        var children = nodes.Where(x => x.ConfirmationLineId == original.Uid).ToList();
+        if (original.HasBom != (children.Count > 0) || children.Any(x => x.IsDeleted || x.RootProductId != original.RootProductId
+            || string.IsNullOrWhiteSpace(x.Path) || x.Denominator <= 0 || x.Numerator <= 0)
+            || children.Select(x => x.Path).Distinct().Count() != children.Count)
+            throw new InvalidOperationException("历史 BOM 节点不完整，不能重新确认。");
+        return new BomExecutionSnapshotDto { RootProductId = original.RootProductId, HasBom = original.HasBom,
+            Fingerprint = original.Fingerprint, Nodes = children.Select(x => x.Adapt<BomExecutionNodeDto>(mappings)).ToList() };
     }
 }

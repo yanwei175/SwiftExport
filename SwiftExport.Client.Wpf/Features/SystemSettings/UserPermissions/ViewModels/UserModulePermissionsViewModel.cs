@@ -318,6 +318,7 @@ public sealed partial class UserModulePermissionsViewModel
             new(PermissionKeys.InventoryWarehouseManage, "库存 - 供应商虚拟仓管理"),
             new(PermissionKeys.InventoryInboundPost, "库存 - 入库过账"),
             new(PermissionKeys.InventoryInboundReverse, "库存 - 入库反过账"),
+            new(PermissionKeys.ProcurementOrderVoid, "采购 - 整单作废"),
             new(PermissionKeys.InventoryOutboundPost, "库存 - 出库过账"),
             new(PermissionKeys.InventoryOutboundReverse, "库存 - 手工出库反过账"),
             new(PermissionKeys.ModuleShippingAccess, "出货")

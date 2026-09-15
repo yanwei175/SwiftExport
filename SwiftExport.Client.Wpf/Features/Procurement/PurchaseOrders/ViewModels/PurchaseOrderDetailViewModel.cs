@@ -12,6 +12,7 @@ using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
@@ -40,10 +41,14 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
 
     public PurchaseOrderDetailViewModel(IProcurementOrderApi api, IProcurementMasterDataQueryApi masterData,
         IWarehouseSiteApi warehouses, IDialogService dialogs, IMessageService messages,
-        INavigationService navigation, ICurrentUserService currentUser)
+        INavigationService navigation, ICurrentUserService currentUser,
+        ProcurementReversalSession? reversalSession = null, IProcurementReversalDialogService? reversalDialogs = null)
     {
         _api = api; _masterData = masterData; _warehouses = warehouses; _dialogs = dialogs;
         _messages = messages; _navigation = navigation; _currentUser = currentUser;
+        _reversalSession = reversalSession ?? new ProcurementReversalSession(); _reversalDialogs = reversalDialogs;
+        _reversalSession.Changed += OnReversalChanged;
+        RegisterBusyAwareCommand(VoidOrderCommand); RegisterBusyAwareCommand(DeleteDraftLinesCommand); RegisterBusyAwareCommand(RetryReversalCommand);
         Title = "采购订单详情";
         Lines.ListStateChanged += OnLinesStateChanged;
         Header.PropertyChanged += OnHeaderPropertyChanged;
@@ -65,9 +70,9 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     public bool HasUnsavedChanges => HeaderHasChanges || Lines.HasChanges;
     public bool HasReadPermission => _currentUser.HasPermission(PermissionKeys.ProcurementOrderRead);
     public bool HasCreatePermission => _currentUser.HasPermission(PermissionKeys.ProcurementOrderCreate);
-    public bool CanEdit => !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderEdit) && Header.CanEditDraft;
-    public bool CanConfirm => !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm) && Header.CanConfirm;
-    public bool CanCancel => !IsCreateMode
+    public bool CanEdit => CanInteractWithDocument && !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderEdit) && Header.CanEditDraft;
+    public bool CanConfirm => CanInteractWithDocument && !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm) && Header.CanConfirm;
+    public bool CanCancel => CanInteractWithDocument && !IsCreateMode
         && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm)
         && LifecycleStatus == PurchaseOrderLifecycleStatusEnum.Active
         && ConfirmationStatus == ConfirmationStatusEnum.已确认;
@@ -279,6 +284,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     [RelayCommand(CanExecute = nameof(CanSaveCommand))]
     private async Task SaveAsync()
     {
+        if (!CanSaveCommand()) return;
         var error = await Lines.ValidateAllAsync();
         if (error is not null) { _messages.ShowWarning("采购行校验失败", error); return; }
         _saveCommandId = _saveCommandId == Guid.Empty ? Guid.NewGuid() : _saveCommandId;
@@ -309,13 +315,18 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     [RelayCommand(CanExecute = nameof(CanConfirmCommand))]
     private async Task ConfirmAsync()
     {
+        if (!CanConfirmCommand()) return;
         if (HasUnsavedChanges) { _messages.ShowWarning("请先保存", "确认前必须保存当前商务修改。"); return; }
         var context = await _api.GetConfirmationContextAsync(PurchaseOrderId);
         if (!Handle(context.ToClientResult(), "读取确认依据失败")) return;
+        var priorBindings = ConfirmationBindings.ToDictionary(x => (x.PurchaseOrderLineId, x.Path));
+        var sameBasis = _confirmationFingerprint == context.Data!.Fingerprint;
         ConfirmationBindings.Clear();
         foreach (var line in context.Data!.Lines)
             foreach (var node in line.Bom.Nodes.Where(x => x.IsCustomerSupplied))
-                ConfirmationBindings.Add(new ProcurementConfirmationBindingModel { PurchaseOrderLineId = line.PurchaseOrderLineId, Path = node.Path, ComponentSku = node.ComponentSkuSnapshot });
+                ConfirmationBindings.Add(sameBasis && priorBindings.TryGetValue((line.PurchaseOrderLineId, node.Path), out var prior)
+                    ? prior : new ProcurementConfirmationBindingModel { PurchaseOrderLineId = line.PurchaseOrderLineId, Path = node.Path, ComponentSku = node.ComponentSkuSnapshot });
+        _confirmationFingerprint = context.Data.Fingerprint;
         HasConfirmationBindings = ConfirmationBindings.Count > 0; OnPropertyChanged(nameof(ConfirmationBindings));
         if (ConfirmationBindings.Any(x => x.Warehouse is null))
         { SelectedDetailTabIndex = 1; _messages.ShowWarning("需要消耗仓绑定", "请为每条客供件 BOM 路径选择消耗仓库，然后再次确认。"); return; }
@@ -335,14 +346,14 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     }
 
     [RelayCommand(CanExecute = nameof(CanCancelCommand))]
-    private void CancelConfirmation()
-    {
-        _messages.ShowWarning(
-            "取消采购确认暂未开放",
-            "该能力等待入库与库存反向流程完成后重建；当前不会发送取消请求，也不会修改采购状态。");
-    }
+    private Task CancelConfirmationAsync() => StartReversalAsync(ProcurementReversalOperation.CancelConfirmation);
 
-    [RelayCommand] private Task RefreshAsync() => PurchaseOrderId == Guid.Empty ? Task.CompletedTask : LoadAsync(PurchaseOrderId, CancellationToken.None);
+    [RelayCommand] private async Task RefreshAsync()
+    {
+        if (PurchaseOrderId == Guid.Empty || IsBusy) return;
+        if (HasUnsavedChanges && !await _dialogs.ConfirmAsync("刷新采购", "放弃未保存修改并重新加载？", "放弃并刷新")) return;
+        await LoadAsync(PurchaseOrderId, CancellationToken.None);
+    }
     [RelayCommand] private Task CloseDocumentAsync() => _navigation.CloseAsync(_navigation.OpenTabs.FirstOrDefault(x => ReferenceEquals(x.ContentViewModel, this)));
 
     private void InitializeCreate()
@@ -374,10 +385,11 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         {
             return;
         }
-        if (requestId != Volatile.Read(ref _loadSequence) || currentCts.IsCancellationRequested) return;
+        if (_reversalDisposed || requestId != Volatile.Read(ref _loadSequence) || currentCts.IsCancellationRequested) return;
         if (!Handle(result.ToClientResult(), "加载采购详情失败")) return;
         _loading = true;
         var dto = result.Data!; PurchaseOrderId = dto.PurchaseOrderId; OrderNo = dto.OrderNo ?? string.Empty;
+        IsReadOnly = false;
         Version = dto.Version; ConfirmationStatus = dto.ConfirmationStatus; LifecycleStatus = dto.LifecycleStatus;
         Header.LoadNew(dto); Lines.LoadFromDtos(dto.Lines); ConfirmationBindings.Clear(); HasConfirmationBindings = false;
         CustomerLookupText = Header.CustomerDisplay; SupplierLookupText = Header.SupplierDisplay;
@@ -413,9 +425,12 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         CreateCommand.NotifyCanExecuteChanged(); SaveCommand.NotifyCanExecuteChanged();
         ConfirmCommand.NotifyCanExecuteChanged(); CancelConfirmationCommand.NotifyCanExecuteChanged();
         MoveLineUpCommand.NotifyCanExecuteChanged(); MoveLineDownCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanInteractWithDocument));
+        VoidOrderCommand.NotifyCanExecuteChanged(); DeleteDraftLinesCommand.NotifyCanExecuteChanged(); RetryReversalCommand.NotifyCanExecuteChanged();
     }
     public void Dispose()
     {
+        _reversalDisposed = true; _reversalSession.Changed -= OnReversalChanged;
         Header.PropertyChanged -= OnHeaderPropertyChanged;
         Lines.ListStateChanged -= OnLinesStateChanged;
         var cts = Interlocked.Exchange(ref _loadCts, null);

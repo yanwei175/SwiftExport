@@ -8,7 +8,8 @@ namespace SwiftExport.Application.Services.Procurement.OrderManagement;
 
 /// <summary>采购管理查询编排，不调用旧详情，也不附加跟进、库存或追溯集合。</summary>
 public sealed class ProcurementOrderQueryService(ProcurementOrderTransaction transaction,
-    IProcurementOrderQueryRepository queries, IProcurementOrderRepository orders, ProcurementConfirmationBuilder confirmation)
+    IProcurementOrderQueryRepository queries, ProcurementConfirmationBuilder confirmation,
+    IProcurementReversalRepository reversalFacts)
     : IProcurementOrderQueryService
 {
     /// <inheritdoc/>
@@ -29,7 +30,9 @@ public sealed class ProcurementOrderQueryService(ProcurementOrderTransaction tra
     public Task<ServiceResult<ProcurementConfirmationContextDto>> GetConfirmationContextAsync(Guid uid, CancellationToken ct = default)
         => transaction.ExecuteAsync("Read", async () =>
         {
-            var head = await orders.GetHeadAsync(uid, ct) ?? throw new InvalidOperationException("独立采购单不存在。");
-            return await confirmation.BuildAsync(head, await orders.GetLinesAsync(uid, ct), ct);
+            var facts = await reversalFacts.LockAsync(uid, ct);
+            ProcurementConfirmationBuilder.RequireSourceReferences(facts);
+            var head = facts.Head ?? throw new InvalidOperationException("采购单不存在。");
+            return await confirmation.BuildAsync(head, facts.Lines.Where(x => !x.IsDeleted).ToList(), ct);
         }, ct);
 }

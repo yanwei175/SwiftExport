@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.3.0" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.3.0" />
+    <ProjectReference Include="../../SwiftExport.Client.Wpf/SwiftExport.Client.Wpf.csproj" />
+    <Compile Include="../../SwiftExport.Client.Wpf.Tests/Features/Procurement/ProcurementReversalSessionTests.cs" Link="ProcurementReversalSessionTests.cs" />
+    <Compile Include="../../SwiftExport.Client.Wpf.Tests/Features/Procurement/PurchaseOrderManagerBatchConfirmationTests.cs" Link="PurchaseOrderManagerBatchConfirmationTests.cs" />
+  </ItemGroup>
+</Project>

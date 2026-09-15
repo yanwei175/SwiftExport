@@ -273,7 +273,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
                l.FinishZh,l.FeaturesZh,l.MaterialType,l.SupplyType,l.QTY AS Quantity,
                COALESCE(receipt.ReceivedQty,0) AS ReceivedQty,
                CASE WHEN l.QTY>COALESCE(receipt.ReceivedQty,0) THEN l.QTY-COALESCE(receipt.ReceivedQty,0) ELSE 0 END AS UnreceivedQty,
-               COALESCE(latest.ReadyQty,0) AS ReadyQty,l.PlannedDeliveryDate,
+               latest.ReadyQty AS ReadyQty,l.PlannedDeliveryDate,
                latest.ExpectedReadyDate AS ExpectedCompletionDate,
                latest.SupplierReportedDate AS LatestFollowUpDate,latest.CreatedBy AS FollowUpUserName,
                l.UnitPrice,l.TaxPrice,l.UnitAmount,l.TaxAmount,

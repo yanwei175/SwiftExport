@@ -80,7 +80,8 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         Assert.IsFalse(fixture.ViewModel.SearchCommand.CanExecute(null));
         Assert.IsFalse(fixture.ViewModel.RefreshCommand.CanExecute(null));
         Assert.IsFalse(fixture.ViewModel.PageChangeCommand.CanExecute(new PageChangeRequest { NewIndex = 2, NewSize = 20 }));
-        contextSource.SetResult(ServiceResult<ProcurementConfirmationContextDto>.Ok(Context(fixture.ViewModel.Orders[0], 7, "fp-7")));
+        contextSource.SetResult(ServiceResult<ProcurementConfirmationContextDto>.Ok(Context(
+            new PurchaseOrderManagerListItemDto { PurchaseOrderId = fixture.ViewModel.Orders[0].PurchaseOrderId }, 7, "fp-7")));
         await execution;
 
         Assert.HasCount(0, fixture.Orders.ConfirmCalls);
@@ -325,6 +326,11 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         public Task<ServiceResult<ProcurementOrderCommandResult>> CreateAsync(CreateIndependentPurchaseOrderCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<ProcurementOrderCommandResult>> SaveAsync(Guid uid, UpdatePurchaseOrderDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<ProcurementOrderCommandResult>> CancelConfirmationAsync(Guid uid, CancelProcurementOrderConfirmationCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewCancelConfirmationAsync(Guid uid, ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewVoidAsync(Guid uid, ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewDeleteLinesAsync(Guid uid, ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<ProcurementOrderCommandResult>> VoidAsync(Guid uid, VoidProcurementOrderCommand request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<ProcurementOrderCommandResult>> DeleteLinesAsync(Guid uid, DeleteProcurementDraftLinesCommand request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class ApiCallRunnerStub : IApiCallRunner

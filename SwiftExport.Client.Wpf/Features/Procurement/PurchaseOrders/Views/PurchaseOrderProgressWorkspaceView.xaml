@@ -9,7 +9,7 @@
         <DockPanel LastChildFill="True">
             <StackPanel>
                 <TextBlock Text="采购订单跟进" FontSize="16" FontWeight="SemiBold"/>
-                <TextBlock Text="聚焦采购数量、供应商安排、累计已备好和预计备妥信息" Foreground="Gray"/>
+                <TextBlock Text="独立登记累计已备好数量、预计交期和跟进备注" Foreground="Gray"/>
             </StackPanel>
             <WrapPanel HorizontalAlignment="Right" VerticalAlignment="Center">
                 
@@ -45,10 +45,7 @@
                                            ItemsSource="{Binding LifecycleOptions}"
                                            SelectedItems="{Binding SelectedLifecycleStatuses,Mode=OneWay}"/>
                 
-                <controls:DropDownCheckBox Grid.Column="10" Placeholder="供应商安排状态" 
-                                           DisplayMemberPath="DisplayText"
-                                           ItemsSource="{Binding ArrangementOptions}"
-                                           SelectedItems="{Binding SelectedArrangementStatuses,Mode=OneWay}"/>
+
                 
                 <Button Grid.Column="12" Content="查询" Command="{Binding SearchCommand}" />
                 
@@ -65,10 +62,10 @@
                             controls:DatePickerAssist.PlaceholderText="计划交期至"/>
                 
                 <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="4" SelectedDate="{Binding ExpectedReadyDateFrom}"
-                            controls:DatePickerAssist.PlaceholderText="预计备妥起"/>
+                            controls:DatePickerAssist.PlaceholderText="预计交期起"/>
                 
                 <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="6" SelectedDate="{Binding ExpectedReadyDateTo}"
-                            controls:DatePickerAssist.PlaceholderText="预计备妥至"/>
+                            controls:DatePickerAssist.PlaceholderText="预计交期至"/>
                 
                 <TextBlock Grid.Column="7" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="Gray"
                            Text="默认仅显示活动且已确认采购单；清除状态选择可查看只读历史。"/>
@@ -110,9 +107,9 @@
                                     <TextBlock Grid.Column="6" Text="{Binding SelectedLine.LatestReadyQtyText}"/>
                                 </Grid>
                                 <Grid Margin="0,4,0,0" ColumnDefinitions="Auto,8,*,16,Auto,8,*">
-                                    <TextBlock Text="供应商安排" Foreground="Gray"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding SelectedLine.LatestArrangementText}"/>
-                                    <TextBlock Grid.Column="4" Text="预计备妥" Foreground="Gray"/>
+                                    <TextBlock Text="货好状态" Foreground="Gray"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding SelectedLine.ReadyStatusText}"/>
+                                    <TextBlock Grid.Column="4" Text="预计交期" Foreground="Gray"/>
                                     <TextBlock Grid.Column="6" Text="{Binding SelectedLine.LatestExpectedReadyDateText}"/>
                                 </Grid>
                                 <Grid Margin="0,4,0,0" ColumnDefinitions="Auto,8,*,16,Auto,8,*">
@@ -127,25 +124,16 @@
                         <TextBlock Margin="0,12,0,0" Text="{Binding FollowUpPermissionText}" Foreground="DarkOrange" TextWrapping="Wrap"/>
 
                         <StackPanel Margin="0,8,0,0" IsEnabled="{Binding CanReportSelectedOrder}">
-                            <TextBlock Text="登记供应商反馈（累计口径）" FontWeight="SemiBold"/>
-                            <Grid Margin="0,6,0,0" ColumnDefinitions="160,8,130,8,135,*">
-                                <ComboBox ItemsSource="{Binding ReportArrangementOptions}" 
-                                          SelectedIndex="2"
-                                          SelectedItem="{Binding ReportArrangementStatus}" 
-                                          ToolTip="供应商安排状态">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Converter={StaticResource EnumDescriptionConverter}}"/>
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
+                            <TextBlock Text="登记供应商反馈（可只填一项）" FontWeight="SemiBold"/>
+                            <Grid Margin="0,6,0,0" ColumnDefinitions="*,8,*">
+
                                 
-                                <TextBox Grid.Column="2" Text="{Binding ReportReadyQty,UpdateSourceTrigger=PropertyChanged}" ToolTip="累计已备好数量"/>
-                                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="4" SelectedDate="{Binding ReportExpectedReadyDate}" ToolTip="预计备妥日期"/>
+                                <ui:TextBox Text="{Binding ReportReadyQtyInput,UpdateSourceTrigger=PropertyChanged}" PlaceholderText="累计已备好数量（可留空）"/>
+                                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="2" SelectedDate="{Binding ReportExpectedReadyDate}" ToolTip="预计交期日期"/>
                             </Grid>
                             
-                            <TextBlock Margin="0,6,0,0" Text="跟进时间和跟单员由服务器自动记录" Foreground="Gray"/>
-                            <TextBox Margin="0,6,0,0" Text="{Binding ReportNote}" ToolTip="跟进备注"/>
+                            <TextBlock Margin="0,6,0,0" Text="数量和日期留空表示本次不更新；跟进时间和跟单员由服务器记录" Foreground="Gray"/>
+                            <ui:TextBox Margin="0,6,0,0" Text="{Binding ReportNote}" PlaceholderText="跟进备注"/>
                             <Border Margin="0,6,0,0" Padding="8" 
                                     Background="#FFFFF4CE" 
                                     BorderBrush="#FFE5A000" 
@@ -166,23 +154,29 @@
                                            FontWeight="SemiBold"/>
                             </Border>
                             
-                            <TextBox Margin="0,6,0,0" Text="{Binding CorrectionReason}" ToolTip="累计数量下降时必填纠错原因"/>
+                            <ui:TextBox Margin="0,6,0,0" Text="{Binding CorrectionReason}" PlaceholderText="累计数量下降时必填纠错原因"/>
                             <Button Margin="0,8,0,0" HorizontalAlignment="Left" Content="登记不可覆盖反馈"
                                     Command="{Binding ReportProgressCommand}" />
                         </StackPanel>
 
                         <Separator Margin="0,16,0,12"/>
-                        <TextBlock Text="完整反馈历史" FontWeight="SemiBold"/>
+                        <TextBlock Text="完整反馈历史（每次跟进后的累计快照）" FontWeight="SemiBold"/>
                         <DataGrid Margin="0,6,0,0" ItemsSource="{Binding SelectedLine.ProgressHistory}"
                                   AutoGenerateColumns="False" IsReadOnly="True" MaxHeight="300">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="50"/>
-                                <DataGridTextColumn Header="供应商安排" Binding="{Binding ArrangementStatus,Converter={StaticResource EnumDescriptionConverter}}" Width="95"/>
-                                <DataGridTextColumn Header="累计已备好" Binding="{Binding ReadyQty,StringFormat={}{0:0.####}}" Width="105"/>
-                                <DataGridTextColumn Header="预计备妥" Binding="{Binding ExpectedReadyDate,StringFormat=yyyy-MM-dd}" Width="105"/>
+                                <DataGridTextColumn Header="累计已备好" Binding="{Binding ReadyQty,TargetNullValue=尚未反馈,StringFormat={}{0:0.####}}" Width="105"/>
+                                <DataGridTextColumn Header="预计交期" Binding="{Binding ExpectedReadyDate,StringFormat=yyyy-MM-dd}" Width="105"/>
                                 <DataGridTextColumn Header="跟进时间" Binding="{Binding SupplierReportedDate,StringFormat=yyyy-MM-dd HH:mm}" Width="130"/>
                                 <DataGridTextColumn Header="跟单员" Binding="{Binding CreatedBy}" Width="90"/>
-                                <DataGridCheckBoxColumn Header="纠错" Binding="{Binding IsCorrection}" Width="55"/>
+                                <DataGridTemplateColumn Header="纠错" Width="55">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox Content="纠错" IsHitTestVisible="False" Focusable="False" IsChecked="{Binding IsCorrection, Mode=OneWay}" ></CheckBox>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                   
                                 <DataGridTextColumn Header="备注" Binding="{Binding Note}" Width="160"/>
                                 <DataGridTextColumn Header="纠错原因" Binding="{Binding CorrectionReason}" Width="180"/>
                             </DataGrid.Columns>
@@ -234,7 +228,8 @@
                                 <DataGridTextColumn Header="采购总数量" Binding="{Binding TotalQty,StringFormat={}{0:0.####}}" Width="105"
                                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"/>
                                 
-                                <DataGridTemplateColumn Header="最新累计已备好合计" Width="145">
+                                <DataGridTextColumn Header="数量尚未反馈行数" Binding="{Binding UnknownReadyQtyLineCount}" Width="130"/>
+                                <DataGridTemplateColumn Header="已知累计已备好合计" Width="145">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock VerticalAlignment="Center">
@@ -253,7 +248,7 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                                 
-                                <DataGridTemplateColumn Header="最新预计备妥" Width="120">
+                                <DataGridTemplateColumn Header="最新预计交期" Width="120">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock VerticalAlignment="Center">
@@ -346,7 +341,7 @@
                                 <DataGridTextColumn Header="计划交期" Binding="{Binding PlannedDeliveryDate,StringFormat=yyyy-MM-dd}" Width="105"
                                                     ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"/>
 
-                                <DataGridTextColumn Header="供应商安排" Binding="{Binding LatestArrangementText}" Width="95"
+                                <DataGridTextColumn Header="货好状态" Binding="{Binding ReadyStatusText}" Width="95"
                                                     ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
 
                                 <DataGridTextColumn Header="货好数量" Binding="{Binding LatestReadyQtyText}" Width="110"

@@ -15,8 +15,8 @@ public sealed class SupplierProgressReport : BaseEntity
     public int Sequence { get; set; }
     /// <summary>供应商排产状态，用于判断当前记录允许执行的业务操作。</summary>
     public SupplierArrangementStatusEnum ArrangementStatus { get; set; }
-    /// <summary>供应商截至本次报告累计已备妥的数量，不代表已入库或当前库存。</summary>
-    public decimal ReadyQty { get; set; }
+    /// <summary>供应商截至本次报告累计已备妥的数量；空值表示尚未反馈，不代表已入库或当前库存。</summary>
+    public decimal? ReadyQty { get; set; }
     /// <summary>该实体保存的预计备妥日期。</summary>
     public DateTime? ExpectedReadyDate { get; set; }
     /// <summary>该实体保存的供应商报告日期。</summary>

@@ -49,7 +49,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
     }
 
     public ObservableCollection<PurchaseOrderProgressListItemDto> Orders { get; } = [];
-    public ObservableCollection<PurchaseOrderLineEditorModel> Lines { get; } = [];
+    public ObservableCollection<PurchaseOrderProgressLineModel> Lines { get; } = [];
 
     public IReadOnlyList<PurchaseOrderFilterOption<ConfirmationStatusEnum>> ConfirmationOptions { get; } =
     [
@@ -64,25 +64,8 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
         new(PurchaseOrderLifecycleStatusEnum.Voided, "已作废")
     ];
 
-    public IReadOnlyList<PurchaseOrderFilterOption<SupplierArrangementStatusEnum>> ArrangementOptions { get; } =
-    [
-        new(SupplierArrangementStatusEnum.Unknown, "未知"),
-        new(SupplierArrangementStatusEnum.NotArranged, "未安排"),
-        new(SupplierArrangementStatusEnum.Arranged, "已安排"),
-        new(SupplierArrangementStatusEnum.NotApplicable, "不适用")
-    ];
-
-    public IReadOnlyList<SupplierArrangementStatusEnum> ReportArrangementOptions { get; } =
-    [
-        SupplierArrangementStatusEnum.Unknown,
-        SupplierArrangementStatusEnum.NotArranged,
-        SupplierArrangementStatusEnum.Arranged,
-        SupplierArrangementStatusEnum.NotApplicable
-    ];
-
     public ObservableCollection<PurchaseOrderFilterOption<ConfirmationStatusEnum>> SelectedConfirmationStatuses { get; } = [];
     public ObservableCollection<PurchaseOrderFilterOption<PurchaseOrderLifecycleStatusEnum>> SelectedLifecycleStatuses { get; } = [];
-    public ObservableCollection<PurchaseOrderFilterOption<SupplierArrangementStatusEnum>> SelectedArrangementStatuses { get; } = [];
 
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
@@ -124,15 +107,24 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
     [NotifyCanExecuteChangedFor(nameof(ReportProgressCommand))]
     [NotifyPropertyChangedFor(nameof(IsProgressCorrection))]
     [NotifyPropertyChangedFor(nameof(ProgressCorrectionWarning))]
-    public partial PurchaseOrderLineEditorModel? SelectedLine { get; set; }
+    public partial PurchaseOrderProgressLineModel? SelectedLine { get; set; }
 
     [ObservableProperty] public partial bool IsDrawerOpen { get; set; }
-    [ObservableProperty] public partial SupplierArrangementStatusEnum ReportArrangementStatus { get; set; }
 
+    /// <summary>保留数量原始输入，以区分空白与无效数字，防止绑定转换失败后提交旧值。</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReportReadyQty))]
+    [NotifyPropertyChangedFor(nameof(HasInvalidReadyQty))]
     [NotifyPropertyChangedFor(nameof(IsProgressCorrection))]
     [NotifyPropertyChangedFor(nameof(ProgressCorrectionWarning))]
-    public partial decimal ReportReadyQty { get; set; }
+    public partial string ReportReadyQtyInput { get; set; } = string.Empty;
+
+    /// <summary>按当前客户端文化解析累计数量，留空不更新。</summary>
+    public decimal? ReportReadyQty => decimal.TryParse(ReportReadyQtyInput,
+        System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.CurrentCulture, out var value) ? value : null;
+
+    /// <summary>非空但不能转换为数量的输入必须阻止提交。</summary>
+    public bool HasInvalidReadyQty => !string.IsNullOrWhiteSpace(ReportReadyQtyInput) && !ReportReadyQty.HasValue;
 
     [ObservableProperty] public partial DateTime? ReportExpectedReadyDate { get; set; }
     [ObservableProperty] public partial string ReportNote { get; set; } = string.Empty;
@@ -155,12 +147,10 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
         IsDrawerOpen = false;
     }
 
-    partial void OnSelectedLineChanged(PurchaseOrderLineEditorModel? value)
+    partial void OnSelectedLineChanged(PurchaseOrderProgressLineModel? value)
     {
-        var latest = value?.LatestProgress;
-        ReportArrangementStatus = latest?.ArrangementStatus ?? SupplierArrangementStatusEnum.Unknown;
-        ReportReadyQty = latest?.ReadyQty ?? 0m;
-        ReportExpectedReadyDate = latest?.ExpectedReadyDate;
+        ReportReadyQtyInput = string.Empty;
+        ReportExpectedReadyDate = null;
         ReportNote = string.Empty;
         CorrectionReason = string.Empty;
     }
@@ -180,7 +170,6 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
     {
         OrderNo = SupplierKeyword = Sku = string.Empty;
         PlannedDeliveryDateFrom = PlannedDeliveryDateTo = ExpectedReadyDateFrom = ExpectedReadyDateTo = null;
-        SelectedArrangementStatuses.Clear();
         ApplyDefaultStatuses();
         PageIndex = 1;
         await LoadPageAsync();
@@ -200,12 +189,23 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
     [RelayCommand]
     private void CloseDrawer() => IsDrawerOpen = false;
 
+    /// <summary>独立提交本次数量、交期或备注；由后台形成完整快照并追加历史。</summary>
     [RelayCommand(CanExecute = nameof(CanReportProgress))]
     private async Task ReportProgressAsync()
     {
         var order = SelectedOrder;
         var line = SelectedLine;
-        if (order is null || line is null) return;
+        if (!CanReportProgress() || order is null || line is null) return;
+        if (HasInvalidReadyQty)
+        {
+            _messages.ShowWarning("已备好数量无效", "请输入有效数字，或留空表示本次不更新数量。");
+            return;
+        }
+        if (!ReportReadyQty.HasValue && !ReportExpectedReadyDate.HasValue && string.IsNullOrWhiteSpace(ReportNote))
+        {
+            _messages.ShowWarning("尚未填写跟进", "请至少填写累计已备好数量、预计交期或跟进备注中的一项。");
+            return;
+        }
         if (ReportReadyQty < 0 || ReportReadyQty > line.Quantity)
         {
             _messages.ShowWarning("已备好数量无效", $"累计已备好数量必须在 0 与采购数量 {line.Quantity:#,##0.####} 之间。");
@@ -218,33 +218,37 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
             return;
         }
 
-        var confirmation = IsProgressCorrection
-            ? $"将为采购行 {line.LineNumber} 新增纠错报告，累计已备好由 {line.LatestReadyQty:#,##0.####} 下调为 {ReportReadyQty:#,##0.####}；原历史不会被覆盖。"
-            : $"将为采购行 {line.LineNumber} 新增一条不可覆盖的累计反馈，已备好 {ReportReadyQty:#,##0.####}。";
-        if (!await _dialogs.ConfirmAsync("登记供应商反馈", confirmation, "登记")) return;
+        // 在确认对话框前固定输入，避免等待期间切换行或编辑内容改变本次命令。
+        var command = new ReportPurchaseOrderProgressCommand
+        {
+            CommandId = Guid.NewGuid(),
+            PurchaseOrderLineId = line.Uid,
+            ExpectedPurchaseOrderVersion = order.Version,
+            ExpectedLineVersion = line.Version,
+            ReadyQty = ReportReadyQty,
+            ExpectedReadyDate = ReportExpectedReadyDate,
+            Note = ReportNote,
+            CorrectionReason = CorrectionReason
+        };
+        var fields = new List<string>();
+        if (command.ReadyQty.HasValue) fields.Add($"累计已备好 {command.ReadyQty:#,##0.####}");
+        if (command.ExpectedReadyDate.HasValue) fields.Add($"预计交期 {command.ExpectedReadyDate:yyyy-MM-dd}");
+        if (!string.IsNullOrWhiteSpace(command.Note)) fields.Add("跟进备注");
+        var summary = string.Join("；", fields);
+        var confirmation = $"采购行 {line.LineNumber}：{summary}。" + (IsProgressCorrection ? "将新增纠错报告并保留原历史。" : "");
 
         await RunWriteAsync(async () =>
         {
-            var result = await _runner.RunAsync(() => _api.ReportAsync(order.PurchaseOrderId, new ReportPurchaseOrderProgressCommand
-            {
-                CommandId = Guid.NewGuid(),
-                PurchaseOrderLineId = line.Uid,
-                ExpectedPurchaseOrderVersion = order.Version,
-                ExpectedLineVersion = line.Version,
-                ArrangementStatus = ReportArrangementStatus,
-                ReadyQty = ReportReadyQty,
-                ExpectedReadyDate = ReportExpectedReadyDate,
-                Note = ReportNote,
-                CorrectionReason = CorrectionReason
-            }), "登记供应商反馈失败");
+            if (!await _dialogs.ConfirmAsync("登记供应商反馈", confirmation, "登记")) return;
+            var result = await _runner.RunAsync(() => _api.ReportAsync(order.PurchaseOrderId, command), "登记供应商反馈失败");
             if (!result.Success)
             {
                 _messages.ShowError("登记失败", result.Message);
                 return;
             }
 
-            _messages.ShowSuccess("供应商反馈已登记", $"{line.Sku} 累计已备好 {ReportReadyQty:#,##0.####}");
-            await LoadPageAsync(order.PurchaseOrderId, line.Uid);
+            _messages.ShowSuccess("供应商反馈已登记", $"{line.Sku}：{summary}");
+            await LoadPageAsync(order.PurchaseOrderId, line.Uid, ownsBusy: false);
         }, "正在登记供应商反馈...");
     }
 
@@ -258,13 +262,14 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
     }
 
     /// <summary>加载采购单分页，并按 Uid 恢复采购单和采购行选择。</summary>
-    private async Task LoadPageAsync(Guid? preferredOrderId = null, Guid? preferredLineId = null)
+    private async Task LoadPageAsync(Guid? preferredOrderId = null, Guid? preferredLineId = null, bool ownsBusy = true)
     {
         _searchCancellation?.Cancel();
         var cts = new CancellationTokenSource();
         _searchCancellation = cts;
         PurchaseOrderProgressListItemDto? orderToLoad = null;
-        await RunBusyAsync(async () =>
+        // 写后刷新复用外层 Busy，避免同一用户操作嵌套占用页面忙状态。
+        async Task LoadCoreAsync()
         {
             var selectedId = preferredOrderId ?? SelectedOrder?.PurchaseOrderId;
             var result = await _runner.RunAsync(() => _api.SearchAsync(CreateRequest(), cts.Token), cts.Token, "查询采购订单跟进失败");
@@ -286,7 +291,9 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
             orderToLoad = Orders.FirstOrDefault(x => x.PurchaseOrderId == selectedId) ?? Orders.FirstOrDefault();
             SetSelectedOrder(orderToLoad);
             ResultSummary = $"共 {TotalCount} 张采购单，本页 {Orders.Count} 张。";
-        }, "正在加载采购订单跟进...", false);
+        }
+        if (ownsBusy) await RunBusyAsync(LoadCoreAsync, "正在加载采购订单跟进...", false);
+        else await LoadCoreAsync();
 
         if (ReferenceEquals(_searchCancellation, cts)) _searchCancellation = null;
         cts.Dispose();
@@ -322,7 +329,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
                 return;
             }
 
-            foreach (var item in result.Data.Lines.Select(PurchaseOrderLineEditorModel.FromDto)) Lines.Add(item);
+            foreach (var item in result.Data.Lines.Select(PurchaseOrderProgressLineModel.FromDto)) Lines.Add(item);
             SelectedLine = Lines.FirstOrDefault(x => x.Uid == preferredLineId) ?? Lines.FirstOrDefault();
             DetailStatusText = Lines.Count == 0 ? "该采购单没有采购行。" : $"共 {Lines.Count} 条采购行。";
         }
@@ -355,7 +362,6 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
         Sku = Sku.Trim(),
         ConfirmationStatuses = SelectedConfirmationStatuses.Select(x => x.Value).Distinct().ToList(),
         LifecycleStatuses = SelectedLifecycleStatuses.Select(x => x.Value).Distinct().ToList(),
-        ArrangementStatuses = SelectedArrangementStatuses.Select(x => x.Value).Distinct().ToList(),
         PlannedDeliveryDateFrom = PlannedDeliveryDateFrom,
         PlannedDeliveryDateTo = PlannedDeliveryDateTo,
         ExpectedReadyDateFrom = ExpectedReadyDateFrom,

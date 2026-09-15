@@ -34,13 +34,14 @@ public sealed partial class OutboundManagerViewModel : ViewModelBaseEx, IDocumen
         IOutboundManagerApi? api = null, IApiCallRunner? runner = null,
         IOutboundPersistenceService? persistence = null, IOutboundDeleteDialogService? deleteDialogs = null,
         IOutboundPostDialogService? postDialogs = null, SwiftExportClient.Authentication.ICurrentUserService? postingUser = null,
-        IOutboundReverseDialogService? reverseDialogs = null)
+        IOutboundReverseDialogService? reverseDialogs = null, IOutboundIssueReasonDialogService? issueReasonDialogs = null)
     {
         _warehouses = warehouses; _sources = sources; _dialogs = dialogs;
         _api = api; _runner = runner;
         _persistence = persistence; _deleteDialogs = deleteDialogs;
         _postDialogs = postDialogs; _postingUser = postingUser;
         _reverseDialogs = reverseDialogs;
+        _issueReasonDialogs = issueReasonDialogs;
         if (_postingUser is not null) _postingUser.CurrentUserChanged += OnPostingUserChanged;
         Title = "出库单管理";
         Headers.ListStateChanged += OnHeadersChanged;
@@ -147,8 +148,9 @@ public sealed partial class OutboundManagerViewModel : ViewModelBaseEx, IDocumen
                     var dto = source.Adapt<OutboundLineDetailDto>();
                     dto.Uid = Guid.NewGuid(); dto.Version = 0; dto.OutboundDocumentId = header.Uid;
                     dto.LineNumber = header.Lines.Items.Count == 0 ? 1 : header.Lines.Items.Max(x => x.LineNumber) + 1;
-                    dto.Quantity = source.OnHandQty; // 选择时余额仅是默认值，最终库存由服务端重验。
-                    header.Lines.AddNew(dto); added++;
+                    // 库存余额仅供参考；本次数量必须由用户在明细中独立填写。
+                    var line = header.Lines.AddNew(dto);
+                    line.Quantity = null; added++;
                 }
             ResultSummary = $"已加入 {added} 行，重复产品已跳过；请填写本次出库数量，保存不会扣减库存。";
         }, "选择出库来源");

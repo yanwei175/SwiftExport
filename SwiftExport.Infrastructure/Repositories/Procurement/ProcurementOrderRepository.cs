@@ -168,32 +168,6 @@ public sealed class ProcurementOrderRepository(RepositoryBaseContext context) : 
             """, head, ct)) != 1) throw new ProcurementConcurrencyException("采购确认并发冲突。");
     }
     /// <inheritdoc/>
-    public async Task<bool> HasDownstreamFactsAsync(Guid uid, CancellationToken ct)
-        => await context.Session.Connection.ExecuteScalarAsync<bool>(Command("""
-            SELECT CAST(CASE WHEN EXISTS(
-                SELECT 1 FROM dbo.InboundDocumentLine i WITH(UPDLOCK,HOLDLOCK)
-                JOIN dbo.PurchaseOrderLine l WITH(HOLDLOCK) ON l.Uid=i.SourceUid
-                WHERE l.PurchaseOrderId=@uid AND ISNULL(l.IsDeleted,0)=0
-                  AND ISNULL(i.IsDeleted,0)=0 AND i.SourceType=10)
-             OR EXISTS(
-                SELECT 1 FROM dbo.InventoryLedgerEntry e WITH(UPDLOCK,HOLDLOCK)
-                JOIN dbo.InboundDocumentLine i WITH(HOLDLOCK) ON i.Uid=e.SourceLineId
-                JOIN dbo.PurchaseOrderLine l WITH(HOLDLOCK) ON l.Uid=i.SourceUid
-                WHERE l.PurchaseOrderId=@uid AND ISNULL(l.IsDeleted,0)=0 AND i.SourceType=10)
-             THEN 1 ELSE 0 END AS bit);
-            """, new { uid }, ct));
-    /// <inheritdoc/>
-    public async Task CancelConfirmationAsync(PurchaseOrderHead head, CancellationToken ct)
-    {
-        context.AuditStamp.StampForUpdate(head);
-        if (await context.Session.Connection.ExecuteAsync(Command("""
-            UPDATE dbo.PurchaseOrderHead SET ConfirmationStatus=0,ActiveConfirmationId=NULL,
-              ConfirmedDate=NULL,ConfirmedBy=NULL,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
-            WHERE Uid=@Uid AND Version=@Version
-              AND ConfirmationStatus=1 AND LifecycleStatus=0 AND IsDeleted=0;
-            """, head, ct)) != 1) throw new ProcurementConcurrencyException("采购取消确认并发冲突。");
-    }
-    /// <inheritdoc/>
     public async Task InsertReceiptAsync(ProcurementCommandReceipt receipt, CancellationToken ct)
     {
         context.AuditStamp.StampForInsert(receipt);

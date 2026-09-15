@@ -257,7 +257,8 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.ReceiptProgress, src => src.ReceiptProgress.ToString("P0"));
 
         config.NewConfig<PurchaseOrderManagerLineDto, PurchaseOrderManagementLineModel>()
-            .Map(dest => dest.LatestReadyQtyText, src => src.ReadyQty.ToString("N1"))
+            // 查询快照中的未知数量保留“尚未反馈”，不把空值格式化成零。
+            .Map(dest => dest.LatestReadyQtyText, src => src.ReadyQty.HasValue ? src.ReadyQty.Value.ToString("#,##0.####") : "尚未反馈")
             .Map(dest => dest.ExpectedCompletionDateText, src => src.ExpectedCompletionDate.HasValue ? src.ExpectedCompletionDate.Value.ToString("yyyy-MM-dd") : string.Empty)
             .Map(dest => dest.LatestFollowUpDateText, src => src.LatestFollowUpDate.HasValue ? src.LatestFollowUpDate.Value.ToString("yyyy-MM-dd HH:mm") : string.Empty)
             .Map(dest => dest.LatestFollowUpUserText, src => src.FollowUpUserName ?? string.Empty)

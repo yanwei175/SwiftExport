@@ -60,14 +60,16 @@ public sealed class ProcurementCapabilityAndErrorContractTests
         Assert.AreEqual("ContextFingerprint", changed.Field);
     }
 
-    /// <summary>取消确认未开放期间不得从采购 API 暴露可写路由。</summary>
+    /// <summary>三个反向操作分别暴露命令和预览，禁止退回旧的未开放占位行为。</summary>
     [TestMethod]
-    public void Cancel_confirmation_route_is_not_exposed()
+    public void Reversal_routes_are_exposed_as_separate_commands()
     {
-        Assert.IsNull(typeof(IProcurementOrderApi).GetMethod("CancelConfirmationAsync"));
         var controller = File.ReadAllText(Path.Combine(
             Root(), "SwiftExport.WebApi", "Controllers", "Procurement", "ProcurementOrderController.cs"));
-        Assert.IsFalse(controller.Contains("cancel-confirmation", StringComparison.Ordinal));
+        foreach (var name in new[] { "CancelConfirmationAsync", "VoidAsync", "DeleteLinesAsync", "PreviewCancelConfirmationAsync", "PreviewVoidAsync", "PreviewDeleteLinesAsync" })
+            Assert.IsNotNull(typeof(IProcurementOrderApi).GetMethod(name));
+        foreach (var route in new[] { "cancel-confirmation", "void", "delete-lines" })
+            StringAssert.Contains(controller, route);
     }
 
     /// <summary>新链详情恢复真实采购头行字段，不把跟进、追溯或库存能力并入详情契约。</summary>

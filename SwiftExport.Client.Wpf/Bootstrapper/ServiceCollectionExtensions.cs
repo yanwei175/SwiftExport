@@ -48,6 +48,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IReferenceDataCacheService, ReferenceDataCacheService>();
         services.AddTransient<INetDemandDialogService, NetDemandDialogService>();
         services.AddTransient<IProcurementDialogService, ProcurementDialogService>();
+        services.AddTransient<IProcurementReversalDialogService, ProcurementReversalDialogService>();
+        services.AddSingleton<ProcurementReversalSession>();
         services.AddTransient<IAfterSalesFeatureService, AfterSalesFeatureService>();
         services.AddTransient<IAfterSalesReasonDialogService, AfterSalesReasonDialogService>();
         services.AddTransient<IWarehouseSiteReasonDialogService, WarehouseSiteReasonDialogService>();

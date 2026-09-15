@@ -18,7 +18,8 @@ namespace SwiftExport.Application.Services.Procurement.OrderManagement;
 public sealed partial class ProcurementOrderCommandService(
     ProcurementOrderTransaction transaction, IProcurementOrderRepository repository,
     ProcurementConfirmationBuilder confirmation, IDocumentNoService numbers,
-    IBusinessOperationLogRepository logs, ICurrentUser user, TypeAdapterConfig mappings) : IProcurementOrderCommandService
+    IBusinessOperationLogRepository logs, ICurrentUser user, TypeAdapterConfig mappings,
+    IProcurementOrderReversalService reversals, IProcurementReversalRepository reversalFacts) : IProcurementOrderCommandService
 {
     /// <summary>命令键先锁定再读取订单；身份和请求不一致不允许复用回执。</summary>
     private Task<ServiceResult<ProcurementOrderCommandResult>> ExecuteAsync<T>(
@@ -64,7 +65,7 @@ public sealed partial class ProcurementOrderCommandService(
         => new()
         {
             PurchaseOrderId = head.Uid, OrderNo = head.OrderNo, Version = head.Version,
-            ConfirmationStatus = head.ConfirmationStatus, ConfirmationId = head.ActiveConfirmationId,
+            ConfirmationStatus = head.ConfirmationStatus, LifecycleStatus = head.LifecycleStatus, ConfirmationId = head.ActiveConfirmationId,
             Lines = lines.Select(x => new ProcurementLineVersionDto { PurchaseOrderLineId = x.Uid, Version = x.Version }).ToList()
         };
     /// <summary>读取本链订单，防止新命令接管历史单。</summary>

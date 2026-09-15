@@ -249,12 +249,13 @@ public sealed partial class OutboundManagerPersistenceTests
         public DeleteDialogStub DeleteDialogs { get; } = new();
         public PostDialogStub PostDialogs { get; } = new();
         public ReverseDialogStub ReverseDialogs { get; } = new();
+        public IssueReasonDialogStub IssueReasonDialogs { get; } = new();
         public SwiftExportClient.Authentication.CurrentUserService User { get; } = new();
         public OutboundManagerViewModel Vm { get; }
         public Fixture()
         {
             User.SetCurrentUser(new() { Permissions = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundPost, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundReverse, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.ModuleInventoryAccess] });
-            Vm = new(new WarehouseStub(), new SourceStub(), Dialogs, persistence: Service, deleteDialogs: DeleteDialogs, postDialogs: PostDialogs, postingUser: User, reverseDialogs: ReverseDialogs);
+            Vm = new(new WarehouseStub(), new SourceStub(), Dialogs, persistence: Service, deleteDialogs: DeleteDialogs, postDialogs: PostDialogs, postingUser: User, reverseDialogs: ReverseDialogs, issueReasonDialogs: IssueReasonDialogs);
         }
         public OutboundHeaderModel Add()
         {
@@ -311,7 +312,7 @@ public sealed partial class OutboundManagerPersistenceTests
             _commands.Add(command, result);
             if (draft is not null) _details[uid] = new()
             {
-                Header = new() { Uid = uid, Version = version, DocumentNo = result.DocumentNo, WarehouseSiteId = draft.WarehouseSiteId, ShipmentDate = draft.ShipmentDate, Remark = draft.Remark },
+                Header = new() { Uid = uid, Version = version, DocumentNo = result.DocumentNo, WarehouseSiteId = draft.WarehouseSiteId, ShipmentDate = draft.ShipmentDate, Remark = draft.Remark, IssueReason = draft.IssueReason },
                 Lines = draft.Lines.Select((x, i) => new OutboundLineDetailDto
                 { Uid = x.Uid == Guid.Empty ? Guid.NewGuid() : x.Uid, Version = version, OutboundDocumentId = uid, ProductId = x.ProductId, Quantity = x.Quantity, UnitSnapshot = "PCS", LineNumber = i + 1 }).ToList()
             };

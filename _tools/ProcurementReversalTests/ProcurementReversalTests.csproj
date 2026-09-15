@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.3.0" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.3.0" />
+    <ProjectReference Include="../../SwiftExport.WebApi/SwiftExport.WebApi.csproj" />
+    <Compile Include="../../SwiftExport.Application.Tests/Procurement/IndependentProcurementSqlFixture.cs" Link="IndependentProcurementSqlFixture.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Procurement/ProcurementReversalSqlTests.cs" Link="ProcurementReversalSqlTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Procurement/ProcurementReversalPolicyTests.cs" Link="ProcurementReversalPolicyTests.cs" />
+  </ItemGroup>
+</Project>

@@ -106,6 +106,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.ViewModels.OutboundManagerViewModel>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundPostDialogService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundPostDialogService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundReverseDialogService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundReverseDialogService>();
+        services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundIssueReasonDialogService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundIssueReasonDialogService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundPersistenceService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundPersistenceService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundDeleteDialogService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundDeleteDialogService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundItemDialogService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundItemDialogService>();

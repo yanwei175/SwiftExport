@@ -14,6 +14,7 @@ public sealed partial class OutboundManagerViewModel
 {
     private readonly IOutboundPersistenceService? _persistence;
     private readonly IOutboundDeleteDialogService? _deleteDialogs;
+    private readonly IOutboundIssueReasonDialogService? _issueReasonDialogs;
     private readonly Dictionary<OutboundHeaderModel, OutboundPendingWrite> _pendingWrites = [];
 
     /// <summary>请求 View 提交原生 Grid 编辑；转换或验证失败可设置 Cancel 阻止发送。</summary>
@@ -21,7 +22,7 @@ public sealed partial class OutboundManagerViewModel
 
     private bool CanSave() => CanEdit() && _persistence is not null && HasUnsavedChanges;
 
-    /// <summary>发送前完整验证所有修改单据；逐单提交，首个失败后保留后续编辑。</summary>
+    /// <summary>发送前验证全部明细并补齐各单出库原因；取消不提交，逐单写入失败保留后续编辑。</summary>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
@@ -42,6 +43,21 @@ public sealed partial class OutboundManagerViewModel
         }
         await RunWriteAsync(async () =>
         {
+            // 全部补填完成后才发送首个命令；已确认的原因保留为本地编辑，不因后续取消丢失。
+            foreach (var row in rows.Where(x => string.IsNullOrWhiteSpace(x.IssueReason)))
+            {
+                if (_issueReasonDialogs is null)
+                { ValidationSummary = $"{DisplayName(row)}：请先填写出库原因。"; return; }
+                SelectedItem = row;
+                var result = await _issueReasonDialogs.CollectAsync(DisplayName(row), _lifetime.Token);
+                if (_disposed) return;
+                if (result.Result != SwiftExportClient.Services.UI.DialogResult.Primary)
+                { ResultSummary = "已取消保存，未发送任何草稿；当前编辑已保留。"; return; }
+                if (string.IsNullOrWhiteSpace(result.Reason) || result.Reason.Length > 500)
+                { ValidationSummary = "出库原因必填，最多 500 字。"; return; }
+                row.IssueReason = result.Reason;
+            }
+            if (_disposed) return;
             var saved = 0;
             foreach (var row in rows)
             {

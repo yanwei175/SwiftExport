@@ -7,6 +7,12 @@ namespace SwiftExport.Infrastructure.Repositories.Procurement;
 public sealed class ProcurementConfirmationRepository(RepositoryBaseContext context) : IProcurementConfirmationRepository
 {
     /// <inheritdoc/>
+    public Task<Guid?> GetLatestBatchAsync(Guid orderId, CancellationToken ct)
+        => context.Session.Connection.QuerySingleOrDefaultAsync<Guid?>(new CommandDefinition("""
+            SELECT TOP(1) ConfirmationId FROM dbo.PurchaseConfirmationLine
+            WHERE PurchaseOrderId=@orderId ORDER BY ConfirmedAt DESC,ConfirmationId DESC;
+            """, new { orderId }, context.Session.Transaction, cancellationToken: ct));
+    /// <inheritdoc/>
     public async Task<List<PurchaseConfirmationLine>> GetLinesAsync(Guid orderId, Guid confirmationId, CancellationToken ct)
         => (await context.Session.Connection.QueryAsync<PurchaseConfirmationLine>(new CommandDefinition("""
             SELECT s.* FROM dbo.PurchaseConfirmationLine s

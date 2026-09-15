@@ -16,15 +16,14 @@ public sealed class NetDemandExecutionLinkRepository(RepositoryBaseContext conte
     : INetDemandExecutionLinkRepository
 {
     /// <summary>按物料需求锁定活动执行关系，新链路不再要求计划分配存在。</summary>
-    public async Task<IReadOnlyList<NetDemandExecutionLinkDto>> GetActiveByNetDemandIdsForUpdateAsync(
+    public async Task<IReadOnlyList<PurchaseDemandCommitmentDto>> GetActiveByNetDemandIdsForUpdateAsync(
         IEnumerable<Guid> netDemandIds)
     {
         var ids = netDemandIds.Distinct().ToArray();
         if (ids.Length == 0) return [];
-        var rows = await context.Session.Connection.QueryAsync<NetDemandExecutionLinkDto>(LinkSelect + @"
+        var rows = await context.Session.Connection.QueryAsync<PurchaseDemandCommitmentDto>(@"
+SELECT l.Uid,l.NetDemandId,l.AllocatedQty-l.ReleasedQty AS AllocatedQty
 FROM [dbo].[DemandExecutionLink] l WITH (UPDLOCK,HOLDLOCK)
-LEFT JOIN [dbo].[PurchaseOrderLine] pol
-  ON pol.[Uid]=l.[TargetLineId] AND l.[TargetType]=@PurchaseTargetType AND ISNULL(pol.[IsDeleted],0)=0
 WHERE l.[NetDemandId] IN @Ids AND l.[LinkStatus]=@Active AND l.[IsDeleted]=0
 ORDER BY l.[CreatedDate],l.[Uid];",
             new { Ids = ids, Active = DemandExecutionLinkStatusEnum.Active, PurchaseTargetType = "PO" },
@@ -100,18 +99,4 @@ VALUES
             sql, materialized, context.Session.Transaction);
     }
 
-    private const string LinkSelect = @"
-SELECT l.[Uid],l.[NetDemandId],l.[NetDemandAllocationId],l.[LinkStatus],
-       l.[TargetType],l.[TargetHeadId],l.[TargetNo],l.[TargetLineId],pol.[LineNumber] AS [TargetLineNumber],
-       l.[AllocatedQty]-l.[ReleasedQty] AS [AllocatedQty],l.[ReleasedQty],
-       l.[AllocatedQty]-l.[ReleasedQty] AS [EffectiveQty],
-       ISNULL((SELECT SUM(il.[Quantity]) FROM [dbo].[InboundDocumentLine] il
-               INNER JOIN [dbo].[InboundDocument] ih ON ih.[Uid]=il.[InboundDocumentId]
-               WHERE il.[DemandExecutionLinkId]=l.[Uid] AND ih.[PostingStatus]=1
-                 AND il.[IsDeleted]=0 AND ih.[IsDeleted]=0),0) AS [CompletedQty],
-       ISNULL((SELECT SUM(il.[Quantity]) FROM [dbo].[InboundDocumentLine] il
-               INNER JOIN [dbo].[InboundDocument] ih ON ih.[Uid]=il.[InboundDocumentId]
-               WHERE il.[DemandExecutionLinkId]=l.[Uid] AND ih.[PostingStatus]=1
-                 AND il.[IsDeleted]=0 AND ih.[IsDeleted]=0),0) AS [ReceivedQty],
-       l.[DemandRequiredDate],l.[PlannedDeliveryDate],l.[CancelledAt],l.[CancelledBy],l.[CancelledReason],l.[Remark] ";
 }

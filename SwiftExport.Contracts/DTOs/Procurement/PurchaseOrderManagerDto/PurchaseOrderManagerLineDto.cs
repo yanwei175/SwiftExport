@@ -22,7 +22,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto
         public decimal Quantity { get; set; }
         public decimal ReceivedQty { get; set; }
         public decimal UnreceivedQty { get; set; }
-        public decimal ReadyQty { get; set; }
+        /// <summary>最新已知累计货好数量；空值表示尚未取得数量反馈。</summary>
+        public decimal? ReadyQty { get; set; }
         public DateTime? PlannedDeliveryDate { get; set; }
         public DateTime? ExpectedCompletionDate { get; set; }
         public DateTime? LatestFollowUpDate { get; set; }

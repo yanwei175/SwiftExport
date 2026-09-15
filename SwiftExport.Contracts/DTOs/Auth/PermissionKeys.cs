@@ -34,6 +34,8 @@ namespace SwiftExport.Contracts.DTOs.Auth
         public const string ProcurementOrderCreate = "Procurement.Order.Create";
         public const string ProcurementOrderEdit = "Procurement.Order.Edit";
         public const string ProcurementOrderConfirm = "Procurement.Order.Confirm";
+        /// <summary>采购整单作废权限，独立分配，不由采购模块访问自动扩展。</summary>
+        public const string ProcurementOrderVoid = "Procurement.Order.Void";
         /// <summary>供应商虚拟仓新增、改名、停用和删除权限。</summary>
         public const string InventoryWarehouseManage = "Inventory.Warehouse.Manage";
 
@@ -68,12 +70,13 @@ namespace SwiftExport.Contracts.DTOs.Auth
         };
 
         private static readonly string[] AllValues = ModuleValues
-            .Concat(new[] { SystemSettingsManage })
+            .Concat(new[] { SystemSettingsManage, ProcurementOrderVoid })
             .Concat(ProcurementOperationValues)
             .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryInboundReverse, InventoryOutboundPost, InventoryOutboundReverse })
             .ToArray();
 
         private static readonly string[] UserAssignableValues = ModuleValues
+            .Concat(new[] { ProcurementOrderVoid })
             .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryInboundReverse, InventoryOutboundPost, InventoryOutboundReverse })
             .ToArray();
 
