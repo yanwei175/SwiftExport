@@ -6,6 +6,18 @@ namespace SwiftExport.Wpf.EnterpriseGrid.Core;
 /// <summary>DataGrid RowHeader 的通用呈现状态。</summary>
 public static class GridRowHeader
 {
+    /// <summary>在最前方只读列显示行号，默认关闭；启用时优先于 RowHeader 行号。</summary>
+    public static readonly DependencyProperty ShowRowNumberInColumnProperty = DependencyProperty.RegisterAttached(
+        "ShowRowNumberInColumn", typeof(bool), typeof(GridRowHeader),
+        new PropertyMetadata(false, OnShowRowNumberChanged));
+
+    /// <summary>获取是否使用独立行号列。</summary>
+    public static bool GetShowRowNumberInColumn(DependencyObject element) =>
+        (bool)element.GetValue(ShowRowNumberInColumnProperty);
+
+    /// <summary>设置是否使用独立行号列，不修改宿主 RowHeader 样式。</summary>
+    public static void SetShowRowNumberInColumn(DependencyObject element, bool value) =>
+        element.SetValue(ShowRowNumberInColumnProperty, value);
     /// <summary>控制 RowHeader 是否显示当前 DataGrid 视图的一基行号。</summary>
     public static readonly DependencyProperty ShowRowNumberProperty = DependencyProperty.RegisterAttached(
         "ShowRowNumber",
@@ -45,8 +57,14 @@ public static class GridRowHeader
     public static int GetRowNumber(DependencyObject element) =>
         (int)element.GetValue(RowNumberProperty);
 
-    internal static void SetRowNumber(DataGridRow row, int value)
+    internal static void SetRowNumber(DataGridRow row, int value, bool showInHeader = true)
     {
+        if (!showInHeader)
+        {
+            ClearRowNumber(row);
+            row.SetValue(RowNumberPropertyKey, value);
+            return;
+        }
         row.SetValue(RowNumberPropertyKey, value);
         if (!(bool)row.GetValue(OwnsHeaderProperty))
         {

@@ -6,6 +6,10 @@ namespace SwiftExportClient.Features.Inventory.Outbounds.Services;
 /// <summary>出库持久化边界，统一命令与详情错误语义，不持有页面或弹窗。</summary>
 public interface IOutboundPersistenceService
 {
+    /// <summary>读取整单反过账预览。</summary>
+    Task<ServiceResult<OutboundReversePreviewDto>> PreviewReverseAsync(Guid uid, OutboundReversePreviewRequest request, CancellationToken token);
+    /// <summary>提交冻结的整单反过账命令。</summary>
+    Task<ServiceResult<OutboundReverseResult>> ReverseAsync(Guid uid, ReverseOutboundCommand command, CancellationToken token);
     /// <summary>读取当前单据过账预览，不产生写入。</summary>
     Task<ServiceResult<OutboundPostPreviewDto>> PreviewPostAsync(Guid uid, OutboundPostPreviewRequest request, CancellationToken token);
     /// <summary>提交冻结的正向过账命令。</summary>

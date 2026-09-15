@@ -20,6 +20,25 @@ namespace SwiftExport.Application.Tests.Inventory;
 [TestClass]
 public sealed class InventoryPostingServiceTests
 {
+    /// <summary>手工出库反向由原负向事实推导为类型 900，恢复库存且不改写原流水。</summary>
+    [TestMethod]
+    public async Task StockIssue_ReverseRestoresOriginalQuantityOnce()
+    {
+        var f = new Fixture();
+        await f.Service.PostAsync(Guid.NewGuid(), [f.Item(10)]);
+        var issue = f.Item(-4); issue.TransactionType = InventoryTransactionTypeEnum.StockIssueOutbound;
+        var original = (await f.Service.PostAsync(Guid.NewGuid(), [issue])).Single();
+        var reverse = f.Reverse(original.LedgerId); var command = Guid.NewGuid();
+        await f.Service.ReverseAsync(command, [reverse]);
+        await f.Service.ReverseAsync(command, [reverse]);
+        Assert.AreEqual(10m, f.Repository.Balance!.OnHandQty);
+        var restored = f.Repository.Ledgers.Single(x => x.ReversalOfLedgerId == original.LedgerId);
+        Assert.AreEqual(InventoryTransactionTypeEnum.Reversal, restored.TransactionType);
+        Assert.AreEqual(4m, restored.QuantityDelta);
+        Assert.AreEqual(-4m, f.Repository.Ledgers.Single(x => x.Uid == original.LedgerId).QuantityDelta);
+        await Assert.ThrowsExactlyAsync<InventoryPostingException>(() => f.Service.ReverseAsync(Guid.NewGuid(), [f.Reverse(original.LedgerId)]));
+    }
+
     /// <summary>类型 22 只扣减库存，同一明细重放不重复扣减。</summary>
     [TestMethod]
     public async Task StockIssue_RequiresNegativeDelta_AndReplays()

@@ -10,6 +10,8 @@ internal sealed class OutboundPendingWrite
     public UpdateOutboundDraftCommand? Update { get; init; }
     public DeleteOutboundDraftCommand? Delete { get; init; }
     public PostOutboundCommand? Post { get; init; }
+    public ReverseOutboundCommand? Reverse { get; init; }
+    public OutboundReverseResult? ReverseResult { get; set; }
     public bool WasUncertain { get; set; }
     public OutboundDraftCommandResult? AcceptedResult { get; set; }
 }

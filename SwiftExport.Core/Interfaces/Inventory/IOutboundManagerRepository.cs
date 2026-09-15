@@ -7,6 +7,14 @@ namespace SwiftExport.Core.Interfaces.Inventory;
 /// <summary>出库管理及来源查询持久化边界；不提供余额或流水写入。</summary>
 public interface IOutboundManagerRepository
 {
+    /// <summary>读取全部头行或幂等键关联流水及其反向、替代事实。</summary>
+    Task<IReadOnlyList<InventoryLedgerEntry>> ReadReverseLedgersAsync(Guid uid, CancellationToken token);
+    /// <summary>读取原投影和删除标记，不把缺失余额当零。</summary>
+    Task<InventoryBalance?> ReadReverseBalanceAsync(Guid warehouseId, Guid productId, CancellationToken token);
+    /// <summary>历史反向要求仓库存在且未删除，不按停用状态阻断。</summary>
+    Task<bool> ReverseWarehouseExistsAsync(Guid warehouseId, CancellationToken token);
+    /// <summary>版本保护下保存反过账元数据，保留原过账信息和明细。</summary>
+    Task MarkReversedAsync(OutboundDocument header, CancellationToken token);
     /// <summary>只读取得同仓产品余额，不预占。</summary>
     Task<decimal> ReadBalanceAsync(Guid warehouseId, Guid productId, CancellationToken token);
     /// <summary>只读校验仓库有效并返回当前名称；无效返回空。</summary>

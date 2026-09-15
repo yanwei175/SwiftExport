@@ -36,6 +36,8 @@
   <ItemGroup>
     <Folder Include="Features\QualityControl\AfterSales\ViewModels\" />
     <Folder Include="Features\QualityControl\AfterSales\Models\" />
+    <Folder Include="Features\Shipping\PackingLists\Models\" />
+    <Folder Include="Features\Shipping\PackingLists\Services\" />
     <Folder Include="Resources\AttachedProperties\" />
   </ItemGroup>
 

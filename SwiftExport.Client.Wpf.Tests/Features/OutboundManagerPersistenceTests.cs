@@ -248,12 +248,13 @@ public sealed partial class OutboundManagerPersistenceTests
         public DialogStub Dialogs { get; } = new();
         public DeleteDialogStub DeleteDialogs { get; } = new();
         public PostDialogStub PostDialogs { get; } = new();
+        public ReverseDialogStub ReverseDialogs { get; } = new();
         public SwiftExportClient.Authentication.CurrentUserService User { get; } = new();
         public OutboundManagerViewModel Vm { get; }
         public Fixture()
         {
-            User.SetCurrentUser(new() { Permissions = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundPost, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.ModuleInventoryAccess] });
-            Vm = new(new WarehouseStub(), new SourceStub(), Dialogs, persistence: Service, deleteDialogs: DeleteDialogs, postDialogs: PostDialogs, postingUser: User);
+            User.SetCurrentUser(new() { Permissions = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundPost, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundReverse, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.ModuleInventoryAccess] });
+            Vm = new(new WarehouseStub(), new SourceStub(), Dialogs, persistence: Service, deleteDialogs: DeleteDialogs, postDialogs: PostDialogs, postingUser: User, reverseDialogs: ReverseDialogs);
         }
         public OutboundHeaderModel Add()
         {
@@ -346,6 +347,10 @@ public sealed partial class OutboundManagerPersistenceTests
     /// <summary>模拟 Refit 返回或传输异常，意外调用其他接口立即失败。</summary>
     private sealed class TransportStub : IOutboundManagerApi
     {
+        /// <inheritdoc/>
+        public Task<ServiceResult<OutboundReversePreviewDto>> PreviewReverseAsync(Guid uid, OutboundReversePreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        /// <inheritdoc/>
+        public Task<ServiceResult<OutboundReverseResult>> ReverseAsync(Guid uid, ReverseOutboundCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         /// <inheritdoc/>
         public Task<ServiceResult<PagedResponseBase<OutboundItemCandidateDto>>> SearchItemsAsync(OutboundItemSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         /// <inheritdoc/>

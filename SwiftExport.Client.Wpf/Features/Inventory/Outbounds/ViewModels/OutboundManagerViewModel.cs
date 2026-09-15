@@ -33,12 +33,14 @@ public sealed partial class OutboundManagerViewModel : ViewModelBaseEx, IDocumen
     public OutboundManagerViewModel(IWarehousePickerService warehouses, IOutboundItemDialogService sources, IDialogService dialogs,
         IOutboundManagerApi? api = null, IApiCallRunner? runner = null,
         IOutboundPersistenceService? persistence = null, IOutboundDeleteDialogService? deleteDialogs = null,
-        IOutboundPostDialogService? postDialogs = null, SwiftExportClient.Authentication.ICurrentUserService? postingUser = null)
+        IOutboundPostDialogService? postDialogs = null, SwiftExportClient.Authentication.ICurrentUserService? postingUser = null,
+        IOutboundReverseDialogService? reverseDialogs = null)
     {
         _warehouses = warehouses; _sources = sources; _dialogs = dialogs;
         _api = api; _runner = runner;
         _persistence = persistence; _deleteDialogs = deleteDialogs;
         _postDialogs = postDialogs; _postingUser = postingUser;
+        _reverseDialogs = reverseDialogs;
         if (_postingUser is not null) _postingUser.CurrentUserChanged += OnPostingUserChanged;
         Title = "出库单管理";
         Headers.ListStateChanged += OnHeadersChanged;
@@ -53,6 +55,7 @@ public sealed partial class OutboundManagerViewModel : ViewModelBaseEx, IDocumen
         RegisterBusyAwareCommand(PageChangeCommand);
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(PostCommand);
+        RegisterBusyAwareCommand(ReverseCommand);
     }
 
     /// <summary>头行编辑集合，每个头保留自己的明细。</summary>
@@ -68,8 +71,9 @@ public sealed partial class OutboundManagerViewModel : ViewModelBaseEx, IDocumen
     [NotifyCanExecuteChangedFor(nameof(OpenOutboundItemDialogCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedLineCommand))]
     [NotifyCanExecuteChangedFor(nameof(PostCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReverseCommand))]
     public partial OutboundHeaderModel? SelectedItem { get; set; }
-    [ObservableProperty] public partial string ResultSummary { get; set; } = "保存仅持久化草稿；正向过账后扣减库存，暂不支持修改或撤销。";
+    [ObservableProperty] public partial string ResultSummary { get; set; } = "保存仅持久化草稿；手工出库过账后可授权整单反过账，原单始终保留只读。";
 
     /// <summary>当前单明细集合；切换不丢弃其他单据的本地修改。</summary>
     public BaseListModel<OutboundLineModel, OutboundLineDetailDto>? Lines => SelectedItem?.Lines;
@@ -168,6 +172,7 @@ public sealed partial class OutboundManagerViewModel : ViewModelBaseEx, IDocumen
         OnPropertyChanged(nameof(HeaderReadOnly));
         OpenWarehousePickerCommand.NotifyCanExecuteChanged();
         PostCommand.NotifyCanExecuteChanged();
+        ReverseCommand.NotifyCanExecuteChanged();
         OpenOutboundItemDialogCommand.NotifyCanExecuteChanged();
         DeleteSelectedLineCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();

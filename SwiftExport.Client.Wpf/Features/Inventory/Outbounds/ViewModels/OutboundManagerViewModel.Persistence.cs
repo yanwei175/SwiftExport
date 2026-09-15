@@ -163,6 +163,7 @@ public sealed partial class OutboundManagerViewModel
                 var result = pending.Create is not null ? await _persistence!.CreateAsync(pending.Create, CancellationToken.None)
                     : pending.Update is not null ? await _persistence!.UpdateAsync(pending.DocumentId, pending.Update, CancellationToken.None)
                     : pending.Post is not null ? await SendPostAsync(pending)
+                    : pending.Reverse is not null ? await SendReverseAsync(pending)
                     : await _persistence!.DeleteAsync(pending.DocumentId, pending.Delete!, CancellationToken.None);
                 if (_disposed) return false;
                 if (!result.Success)
@@ -191,6 +192,12 @@ public sealed partial class OutboundManagerViewModel
                 using (row.SuppressChangeTracking()) row.DocumentNo = accepted.DocumentNo;
                 if (pending.Post is not null)
                     using (row.SuppressChangeTracking()) row.PostingStatus = SwiftExport.Contracts.SysEnums.Inventory.OutboundPostingStatusEnum.Posted;
+                if (pending.ReverseResult is { } reversed)
+                    using (row.SuppressChangeTracking())
+                    {
+                        row.PostingStatus = SwiftExport.Contracts.SysEnums.Inventory.OutboundPostingStatusEnum.Reversed;
+                        row.ReversedDate = reversed.ReversedDate; row.ReversedBy = reversed.ReversedBy; row.ReverseReason = reversed.ReverseReason;
+                    }
             }
             if (pending.Delete is not null)
             {
@@ -203,8 +210,9 @@ public sealed partial class OutboundManagerViewModel
             var detail = detailResult.Data;
             if (!detailResult.Success || !ValidDetail(detail, pending.AcceptedResult.Uid)
                 || detail!.Header.Version < pending.AcceptedResult.Version
-                || (pending.Post is not null && detail.Header.PostingStatus != SwiftExport.Contracts.SysEnums.Inventory.OutboundPostingStatusEnum.Posted))
-            { ResultSummary = $"{(pending.Post is null ? "已保存" : "已过账")}，但详情刷新失败：{detailResult.Message}。请点击刷新，仅重试详情。"; return false; }
+                || (pending.Post is not null && detail.Header.PostingStatus != SwiftExport.Contracts.SysEnums.Inventory.OutboundPostingStatusEnum.Posted)
+                || (pending.Reverse is not null && detail.Header.PostingStatus != SwiftExport.Contracts.SysEnums.Inventory.OutboundPostingStatusEnum.Reversed))
+            { ResultSummary = $"{(pending.Reverse is not null ? "已反过账" : pending.Post is null ? "已保存" : "已过账")}，但详情刷新失败：{detailResult.Message}。请点击刷新，仅重试详情。"; return false; }
             row.Load(detail.Header);
             row.Lines.LoadFromDtos(detail.Lines);
             row.IsDetailLoaded = true;
@@ -217,7 +225,7 @@ public sealed partial class OutboundManagerViewModel
             System.Diagnostics.Trace.TraceError("出库命令接纳异常：{0}", ex.GetType().Name);
             pending.WasUncertain = true;
             if (!_disposed) ResultSummary = pending.AcceptedResult is null
-                ? "结果未确认，原命令已保留，请点击刷新重试。" : $"{(pending.Post is null ? "已保存" : "已过账")}，详情接纳失败，请点击刷新重试详情。";
+                ? "结果未确认，原命令已保留，请点击刷新重试。" : "命令已成功，详情接纳失败，请点击刷新仅重试详情。";
             return false;
         }
         finally { if (!_disposed) NotifyEditState(); }

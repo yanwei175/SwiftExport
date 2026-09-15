@@ -1,0 +1,314 @@
+﻿<UserControl x:Class="SwiftExportClient.Features.Shipping.PackingLists.Views.PackingListDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SwiftExportClient.Features.Shipping.PackingLists.Views"
+             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:customerComponents="clr-namespace:SwiftExportClient.Features.Customers.Components"
+             xmlns:vm="clr-namespace:SwiftExportClient.Features.Shipping.PackingLists.ViewModels"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             mc:Ignorable="d" 
+             d:DataContext="{d:DesignInstance vm:PackingListDetailViewModel}"
+             d:DesignHeight="800" d:DesignWidth="1200">
+    <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,*,8,Auto">
+        
+        <!--Title-->
+        <Grid ColumnDefinitions="Auto,8,*,8,Auto">
+            <Grid ColumnDefinitions="Auto,8,Auto" >
+                <ui:Button Grid.Column="0" Content="保存箱单" MinWidth="70" VerticalAlignment="Stretch" Appearance="Primary"/>
+                
+            </Grid>
+            
+            <TextBlock Grid.Column="0" Grid.ColumnSpan="10"
+                       HorizontalAlignment="Center" 
+                       Text="PackingList" Style="{DynamicResource TitleTextBlock}" />
+            
+            <ui:Button Grid.Column="4" Content="关闭页签" MinWidth="70" VerticalAlignment="Stretch" Appearance="Primary"/>
+        </Grid>
+
+        <!--Header-->
+        <Grid Grid.Row="2" RowDefinitions="Auto,8,Auto">
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="1*"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="1*"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="0.9*"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="0.9*"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="0.9*"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="0.8*"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="0.5*"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="0.8*"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="0.8*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="客户代码:" VerticalAlignment="Center"/>
+                <customerComponents:CustomerAutoSuggestComboBox Grid.Column="2"
+                          ItemsSource="{Binding Customers}"
+                          SelectedCustomer="{Binding SelectedCustomer,Mode=TwoWay}"
+                          IsEnabled="{Binding CanEditFacts}"/>
+
+                <TextBlock Grid.Column="4" Text="系统箱单号:" VerticalAlignment="Center" />
+                <ui:TextBox Grid.Column="6" Text="{Binding Header.PackingListNo,Mode=OneWay}" IsReadOnly="True" ToolTip="新订单保存时由服务端生成" />
+
+                <TextBlock Grid.Column="8" Text="创建日期:" VerticalAlignment="Center" />
+                <ui:TextBox Grid.Column="10" Text="{Binding Header.CreatedDate,Mode=OneWay}" IsReadOnly="True"/>
+                
+                <TextBlock Grid.Column="28" Text="状态:" VerticalAlignment="Center" />
+                <ui:TextBox Grid.Column="30" Text="{Binding Header.LifecycleStatus,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}" IsReadOnly="True"/>
+                
+                <TextBlock Grid.Column="32" Text="过账:" VerticalAlignment="Center" />
+                <ui:TextBox Grid.Column="34" Text="{Binding Header.PostingStatus,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}" IsReadOnly="True"/>
+
+                
+            </Grid>
+            
+            <Border Grid.Row="2"
+                    Padding="8"
+                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    IsEnabled="{Binding IsEditable}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="4"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="4"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="4"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="4"/>
+                    <RowDefinition Height="50"/>
+                </Grid.RowDefinitions>
+
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="6*"/>
+                    <ColumnDefinition Width="20" />
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="2*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Ship-To"/>
+
+                <ui:TextBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
+                            PlaceholderText="客户联系人..."
+                            Text="{Binding Header.CustomerName, UpdateSourceTrigger=PropertyChanged}" />
+
+                <ui:TextBox Grid.Row="4" Grid.ColumnSpan="3"  Grid.RowSpan="3"
+                            PlaceholderText="客户地址..."
+                            Text="{Binding Header.CustomerAddress, UpdateSourceTrigger=PropertyChanged}" 
+                            TextWrapping="Wrap"/>
+
+
+                 <TextBlock Grid.Row="8" Text="Attention: :" VerticalAlignment="Top" />
+                <ui:TextBox Grid.Row="8" Grid.Column="2" 
+                                    Text="{Binding Header.Attention,UpdateSourceTrigger=PropertyChanged}"
+                                    PlaceholderText="备注"
+                                    TextAlignment="Left" TextWrapping="Wrap"/>
+                
+                    <TextBlock Grid.Row="0" Grid.Column="4" Text="InvoiceNo" VerticalAlignment="Center" />
+                    <ui:TextBox Grid.Row="0" Grid.Column="6" Grid.ColumnSpan="8" 
+                                    PlaceholderText="发票号汇总"
+                                    Text="{Binding Header.InvoiceNoConcat, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="4" Text="InvoiceDate:" VerticalAlignment="Center" />
+                     <DatePicker Grid.Row="2" Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}"
+                                    controls:DatePickerAssist.PlaceholderText="发票日期"/>
+
+                    <TextBlock Grid.Row="4" Grid.Column="4" Text="Container:" VerticalAlignment="Center" />
+                    <ui:TextBox Grid.Row="4" Grid.Column="6" Grid.ColumnSpan="8" 
+                                    PlaceholderText="集装箱号"
+                                    Text="{Binding Header.ContainerNo, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Grid.Row="6" Grid.Column="4" Text="Seal:" VerticalAlignment="Center" />
+                    <ui:TextBox Grid.Row="6" Grid.Column="6" Grid.ColumnSpan="8" 
+                                    PlaceholderText="铅封号"
+                                    Text="{Binding Header.SealNo, UpdateSourceTrigger=PropertyChanged}" />
+
+                
+                
+                <TextBlock Grid.Row="8" Grid.Column="4" Text="ETD:" VerticalAlignment="Center" />
+                    <DatePicker  Grid.Row="8" Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}"
+                                    controls:DatePickerAssist.PlaceholderText="ETD"/>
+
+                <TextBlock Grid.Row="8" Grid.Column="8" Text="ETA:" VerticalAlignment="Center" />
+                <DatePicker Grid.Row="8" Grid.Column="10"
+                                Style="{StaticResource SwiftExportDatePicker}" 
+                                    controls:DatePickerAssist.PlaceholderText="ETA"/>
+                </Grid>
+        </Border>
+        </Grid>
+        
+        <GridSplitter Grid.Row="3" Style="{StaticResource SwiftExportGridSplitterHorizontal}"/>
+        <!--LineDataGrid-->
+        <Grid Grid.Row="4" RowDefinitions="Auto,8,*">
+            <!--汇总-->
+            <Grid Grid.Row="0" ColumnDefinitions="*,8,Auto,8,50,8,Auto,8,50,8,Auto,8,50,8,Auto,8,50,8,Auto,8,50">
+                <StackPanel Orientation="Horizontal">
+                    <ui:Button MinWidth="88" Margin="0,0,8,0" Content="获取"  VerticalAlignment="Stretch" Appearance="Primary"/>
+                    <ui:Button MinWidth="88" Margin="0,0,8,0" Content="删除行"  VerticalAlignment="Stretch"/>
+                </StackPanel>
+
+                <TextBlock Grid.Column="2" Text="总数量:" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" Text="{Binding QtySummary,Mode=OneWay}" VerticalAlignment="Center"/>
+
+                <TextBlock Grid.Column="6" Text="总净重:" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="8" Text="{Binding NetWeightSummary,Mode=OneWay}" VerticalAlignment="Center"/>
+
+                <TextBlock Grid.Column="10" Text="总毛重:" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="12" Text="{Binding GrossWeightSummary,Mode=OneWay}" VerticalAlignment="Center"/>
+
+                <TextBlock Grid.Column="14" Text="总箱数:" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="16" Text="{Binding CartonSummary,Mode=OneWay}" VerticalAlignment="Center"/>
+
+                <TextBlock Grid.Column="18" Text="总体积:" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="20" Text="{Binding CbmSummary,Mode=OneWay}" VerticalAlignment="Center"/>
+
+            </Grid>
+            
+            <DataGrid Grid.Row="2" x:Name="OrderLinesGrid" 
+                      RowHeight="{StaticResource DataGridRowHeightMedium}"
+                      FontSize="{StaticResource SwiftExportDefaltFontSize}"
+                      ItemsSource="{Binding Lines.Items}"
+                      Style="{StaticResource SwiftExportDataGrid}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserSortColumns="False"
+                      SelectionMode="Single" 
+                      SelectionUnit="FullRow"
+                      gridCore:EnterpriseGrid.IsEnabled="True"
+                      gridCore:GridVirtualization.IsEnabled="True"
+                      gridCore:GridRowHeader.ShowRowNumber="False"
+                      gridOperations:GridOperations.IsEnabled="True"
+                      gridOperations:DataGridLineReorder.IsEnabled="True"
+                      gridOperations:DataGridLineReorder.MoveUpCommand="{Binding MoveLineUpCommand}"
+                      gridOperations:DataGridLineReorder.MoveDownCommand="{Binding MoveLineDownCommand}"
+                      gridOperations:DataGridLineReorder.ShowWhenReadOnly="False"
+                      gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
+                      gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
+                      gridValidation:GridValidation.IsEnabled="True">
+                <DataGrid.Columns>
+                    
+                    <DataGridTextColumn Width="50" Header="序号" 
+                                        Binding="{Binding LineNumber}"  IsReadOnly="True"/>
+                    
+                    <DataGridTemplateColumn Header="图片" Width="60" CanUserSort="False" gridColumns:GridColumn.Key="image">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <controls:CachedImage Width="56" Height="56" Margin="2"
+                                                    Style="{StaticResource SwiftExportCachedImage}"
+                                                    Stretch="Uniform"
+                                                    SourcePath="{Binding MainImage}" 
+                                                    DecodePixelWidth="72"  />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                   
+                    <DataGridTextColumn Width="50" Header="唛头" 
+                                        Binding="{Binding Marks}" />
+
+                    <DataGridTextColumn Width="120" Header="Sku" 
+                                        Binding="{Binding Sku}" IsReadOnly="True"/>
+
+                    <DataGridTextColumn Width="120" Header="客户型号" 
+                                        Binding="{Binding CustomerSku}"  IsReadOnly="True"/>
+                    
+                    <DataGridTextColumn Width="120" Header="产品型号" 
+                                        Binding="{Binding LinkSku}" IsReadOnly="True"/>
+                    
+                    <DataGridTextColumn Width="120" Header="描述" 
+                                        Binding="{Binding DescriptionEn}" IsReadOnly="True"/>
+                    
+                    <DataGridTextColumn Width="120" Header="颜色" 
+                                        Binding="{Binding ColorNameEn}" IsReadOnly="True"/>
+                    
+                    <DataGridTextColumn Width="120" Header="数量" 
+                                        Binding="{Binding Qty}" IsReadOnly="True"/>
+                    
+                    <DataGridTextColumn Width="120" Header="每箱数量" 
+                                        Binding="{Binding PcsPerPackage}" IsReadOnly="True"/>
+                    
+                    <DataGridTextColumn Width="120" Header="每箱净重" 
+                                        Binding="{Binding NwPerPackage}" IsReadOnly="True"/>
+                    
+                    <DataGridTextColumn Width="120" Header="每箱毛重" 
+                                        Binding="{Binding GwPerPackage}" IsReadOnly="True"/>
+                    
+                    <DataGridTextColumn Width="120" Header="每箱体积" 
+                                        Binding="{Binding CbmPerPackage}" IsReadOnly="True"/>
+                    
+                    <DataGridTextColumn Width="120" Header="小计箱数" 
+                                        Binding="{Binding PackageCount}" IsReadOnly="True"/>
+
+                    <DataGridTextColumn Width="120" Header="小计净重" 
+                                        Binding="{Binding SubTotalNw}" IsReadOnly="True"/>
+
+                    <DataGridTextColumn Width="120" Header="小计毛重" 
+                                        Binding="{Binding SubTotalGw}" IsReadOnly="True"/>
+                    
+                    <DataGridTextColumn Width="120" Header="小计体积" 
+                                        Binding="{Binding SubTotalCbm}" IsReadOnly="True"/>
+
+                    <DataGridTextColumn Width="120" Header="PoNo" 
+                                        Binding="{Binding CustomerPoNo}" IsReadOnly="True"/>
+                    
+                    <DataGridTextColumn Width="120" Header="InvoiceNo" 
+                                        Binding="{Binding InvoiceNo}" IsReadOnly="True"/>
+
+                    <DataGridTextColumn Width="120" Header="SubNote" 
+                                        Binding="{Binding Note}" IsReadOnly="True"/>
+                    
+                    <DataGridTextColumn Width="120" Header="WarehouseName" 
+                                        Binding="{Binding WarehouseName}" IsReadOnly="True"/>
+                    
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+        
+        <!--Message-->
+        <Grid Grid.Row="6">
+            <StackPanel>
+                
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

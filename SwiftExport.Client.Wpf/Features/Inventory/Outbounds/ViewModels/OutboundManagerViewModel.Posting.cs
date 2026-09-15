@@ -44,7 +44,7 @@ public sealed partial class OutboundManagerViewModel
             var pending = new OutboundPendingWrite { DocumentId = row.Uid, Post = new() { CommandId = Guid.NewGuid(), ExpectedVersion = version } };
             BeginPending(row, pending);
             if (await CompletePendingAsync(row, pending) && !_disposed)
-                ResultSummary = $"{row.DocumentNo} 已过账，单据只读；暂不支持修改或撤销。";
+                ResultSummary = $"{row.DocumentNo} 已过账，单据只读；符合条件的手工单可授权整单反过账。";
         }, "预览并提交当前出库单");
     }
 
@@ -58,5 +58,6 @@ public sealed partial class OutboundManagerViewModel
         return ServiceResult<OutboundDraftCommandResult>.Ok(new() { Uid = result.Data.Uid, Version = result.Data.Version, DocumentNo = result.Data.DocumentNo });
     }
 
-    private void OnPostingUserChanged(object? sender, EventArgs e) => PostCommand.NotifyCanExecuteChanged();
+    private void OnPostingUserChanged(object? sender, EventArgs e)
+    { PostCommand.NotifyCanExecuteChanged(); ReverseCommand.NotifyCanExecuteChanged(); }
 }

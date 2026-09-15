@@ -283,7 +283,9 @@ public sealed partial class OutboundManagerServiceTests
                     _ => throw new NotSupportedException(method)
                 }),
                 Proxy<ICurrentUser>((method, _) => method switch { "get_IsAuthenticated" => true, "get_UserId" => _userId, "get_UserName" => "测试", _ => throw new NotSupportedException(method) }),
-                Proxy<IUserPermissionService>((method, args) => method == "HasPermissionAsync" ? Task.FromResult(Allowed && ((string)args[1]! != SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundPost || AllowPost)) : throw new NotSupportedException(method)),
+                Proxy<IUserPermissionService>((method, args) => method == "HasPermissionAsync" ? Task.FromResult(Allowed
+                    && ((string)args[1]! != SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundPost || AllowPost)
+                    && ((string)args[1]! != SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundReverse || AllowReverse)) : throw new NotSupportedException(method)),
                 new DocumentNoService(Proxy<IDocumentSequenceRepository>((method, args) =>
                 {
                     if (method != "GetNextAsync") throw new NotSupportedException(method);
@@ -292,7 +294,8 @@ public sealed partial class OutboundManagerServiceTests
                     NumberCalls++;
                     return Task.FromResult(new DocumentSequence { DocType = (string)args[0]!, YearMonth = (string)args[1]!, CurrentNo = NumberCalls });
                 })), Proxy<SwiftExport.Application.Interfaces.Inventory.IInventoryPostingService>((method, args) =>
-                    method == "PostAsync" ? PostInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryPostingItem>)args[1]!) : throw new NotSupportedException(method)));
+                    method == "PostAsync" ? PostInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryPostingItem>)args[1]!)
+                    : method == "ReverseAsync" ? ReverseInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryReverseItem>)args[1]!) : throw new NotSupportedException(method)));
         }
 
         /// <summary>读侧只返回库存凭证和余额；不构造任何需求/采购关联。</summary>
@@ -302,7 +305,8 @@ public sealed partial class OutboundManagerServiceTests
             {
                 Header = new() { Uid = Header!.Uid, Version = Header.Version, DocumentNo = Header.DocumentNo,
                     WarehouseSiteId = Header.WarehouseSiteId, ShipmentDate = Header.ShipmentDate, PostingStatus = Header.PostingStatus,
-                    DocumentType = Header.DocumentType, TriggerPackingListId = Header.TriggerPackingListId, IssueReason = Header.IssueReason! },
+                    DocumentType = Header.DocumentType, TriggerPackingListId = Header.TriggerPackingListId, IssueReason = Header.IssueReason!,
+                    LifecycleStatus = Header.LifecycleStatus, IsDeleted = Header.IsDeleted },
                 Lines = SavedLines.Select(x => new OutboundLineDetailDto { Uid = x.Uid, OutboundDocumentId = x.OutboundDocumentId,
                     ProductId = x.ProductId, CommandItemId = x.CommandItemId, Quantity = x.Quantity, UnitSnapshot = x.UnitSnapshot,
                     LineNumber = x.LineNumber, SkuSnapshot = x.SkuSnapshot }).ToList()
@@ -310,7 +314,7 @@ public sealed partial class OutboundManagerServiceTests
             "ReadActiveWarehouseNameAsync" => Task.FromResult(ActiveWarehouse ? "仓库" : null),
             "ReadBalanceAsync" => Task.FromResult(Balance),
             "MarkPostedAsync" => MarkPosted(),
-            _ => throw new NotSupportedException(method)
+            _ => ReverseRepository(method)
         };
         private Task MarkPosted() { Header!.Version++; Header.PostingStatus = OutboundPostingStatusEnum.Posted; return Task.CompletedTask; }
         /// <summary>模拟库存内核拒绝与事务回滚，验证 Application 不残留过账状态。</summary>
@@ -394,8 +398,8 @@ public sealed partial class OutboundManagerServiceTests
         {
             public IDbConnection Connection => connection;
             public IsolationLevel IsolationLevel => IsolationLevel.ReadCommitted;
-            public void Commit() { connection.Commits++; connection.Finished?.Invoke(true); }
-            public void Rollback() { connection.Rollbacks++; connection.Finished?.Invoke(false); }
+            public void Commit() { connection.Commits++; var finish = connection.Finished; connection.Finished = null; finish?.Invoke(true); }
+            public void Rollback() { connection.Rollbacks++; var finish = connection.Finished; connection.Finished = null; finish?.Invoke(false); }
             public void Dispose() { }
         }
     }

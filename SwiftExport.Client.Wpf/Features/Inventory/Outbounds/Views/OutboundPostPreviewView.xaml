@@ -10,7 +10,7 @@
         <TextBlock Text="{Binding Preview.WarehouseName, StringFormat=目标仓库：{0}}" Margin="0,8"/>
         <TextBlock x:Name="IssueReasonText" Text="{Binding Preview.IssueReason, StringFormat=出库原因：{0}}"
                    TextWrapping="Wrap" Margin="0,0,0,8" AutomationProperties.Name="本次出库原因"/>
-        <TextBlock Text="过账后暂不支持修改或撤销。预览不预占数量，正式提交时会再次校验。" TextWrapping="Wrap" Margin="0,0,0,12"/>
+        <TextBlock Text="过账后单据只读；符合条件的手工单可授权整单反过账。预览不预占数量，提交时再次校验。" TextWrapping="Wrap" Margin="0,0,0,12"/>
         <DataGrid ItemsSource="{Binding Preview.StockImpacts}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" MaxHeight="150">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="产品" Binding="{Binding Sku}" Width="*"/>

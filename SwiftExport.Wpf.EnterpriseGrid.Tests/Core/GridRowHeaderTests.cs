@@ -16,6 +16,58 @@ namespace SwiftExport.Wpf.EnterpriseGrid.Tests.Core;
 [TestClass]
 public sealed class GridRowHeaderTests
 {
+    /// <summary>独立列使用当前视图行号，模式切换不覆盖宿主行头或删除业务列。</summary>
+    [TestMethod]
+    public void NumberColumn_ShouldFollowViewAndRestoreHeaderMode()
+    {
+        StaTest.Run(() =>
+        {
+            var grid = CreateGrid(new ObservableCollection<TestRow> { new("C"), new("A"), new("B") });
+            var originalColumns = grid.Columns.ToArray();
+            GridRowHeader.SetShowRowNumberInColumn(grid, true);
+            using var host = Show(grid);
+            DrainDispatcher();
+            var column = (DataGridTextColumn)grid.Columns[0];
+            Assert.AreEqual(originalColumns.Length + 1, grid.Columns.Count);
+            Assert.IsTrue(column.IsReadOnly);
+            Assert.IsFalse(column.CanUserSort);
+            Assert.IsFalse(column.CanUserReorder);
+            Assert.IsTrue(column.CanUserResize);
+            Assert.AreEqual(0, column.DisplayIndex);
+            void CheckNumbers()
+            {
+                grid.UpdateLayout();
+                for (var index = 0; index < grid.Items.Count; index++)
+                {
+                    var row = (DataGridRow)grid.ItemContainerGenerator.ContainerFromIndex(index);
+                    Assert.IsNull(row.Header);
+                    Assert.AreEqual(index + 1, GridRowHeader.GetRowNumber(row));
+                    Assert.AreEqual((index + 1).ToString(), ((TextBlock)column.GetCellContent(row)).Text);
+                }
+            }
+            CheckNumbers();
+            grid.Items.SortDescriptions.Add(new SortDescription(nameof(TestRow.Name), ListSortDirection.Ascending));
+            DrainDispatcher();
+            CheckNumbers();
+            grid.Items.Filter = item => ((TestRow)item).Name != "B";
+            DrainDispatcher();
+            CheckNumbers();
+            GridRowHeader.SetShowRowNumberInColumn(grid, false);
+            DrainDispatcher();
+            CollectionAssert.AreEqual(originalColumns, grid.Columns.ToArray());
+            AssertRowNumbers(grid);
+            GridRowHeader.SetShowRowNumber(grid, false);
+            GridRowHeader.SetShowRowNumberInColumn(grid, true);
+            DrainDispatcher();
+            column = (DataGridTextColumn)grid.Columns[0];
+            CheckNumbers();
+            GridRowHeader.SetShowRowNumberInColumn(grid, true);
+            Assert.AreEqual(originalColumns.Length + 1, grid.Columns.Count);
+            EnterpriseGridCore.SetIsEnabled(grid, false);
+            CollectionAssert.AreEqual(originalColumns, grid.Columns.ToArray());
+        });
+    }
+
     [TestMethod]
     public void ShowRowNumber_ShouldNumberCurrentViewWithoutChangingHeaderWidth()
     {

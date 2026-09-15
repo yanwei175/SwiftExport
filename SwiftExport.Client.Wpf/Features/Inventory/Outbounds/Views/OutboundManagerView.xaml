@@ -90,6 +90,7 @@
                     <ui:Button Content="刷新" MinWidth="70"   Margin="0,0,8,0"  Command="{Binding RefreshCommand}" VerticalAlignment="Stretch"/>
                     <ui:Button Content="删除" MinWidth="70"   Margin="0,0,8,0"  Command="{Binding DeleteSelectedCommand}" VerticalAlignment="Stretch"/>
                     <ui:Button Content="过账" MinWidth="70"   Margin="0,0,8,0" Command="{Binding PostCommand}" Appearance="Primary"/>
+                    <ui:Button Content="反过账" MinWidth="80" Margin="0,0,8,0" Command="{Binding ReverseCommand}" AutomationProperties.Name="当前手工出库整单反过账"/>
                 </StackPanel>
             </Grid>
 
@@ -190,6 +191,9 @@
                                 </Style>
                             </DataGridTextColumn.EditingElementStyle>
                         </DataGridTextColumn>
+                        <DataGridTextColumn Header="反过账时间" Binding="{Binding ReversedDate,StringFormat=yyyy-MM-dd HH:mm:ss}" Width="160" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="反过账人" Binding="{Binding ReversedBy}" Width="100" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="反过账原因" Binding="{Binding ReverseReason}" Width="180" IsReadOnly="True"/>
                         <DataGridTextColumn Header="备注" 
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"

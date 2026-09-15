@@ -150,6 +150,10 @@ public sealed class OutboundManagerQueryTests
     private sealed class ApiStub : IOutboundManagerApi
     {
         /// <inheritdoc/>
+        public Task<ServiceResult<OutboundReversePreviewDto>> PreviewReverseAsync(Guid uid, OutboundReversePreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        /// <inheritdoc/>
+        public Task<ServiceResult<OutboundReverseResult>> ReverseAsync(Guid uid, ReverseOutboundCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        /// <inheritdoc/>
         public Task<ServiceResult<OutboundPostPreviewDto>> PreviewPostAsync(Guid uid, OutboundPostPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         /// <inheritdoc/>
         public Task<ServiceResult<OutboundPostResult>> PostAsync(Guid uid, PostOutboundCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();

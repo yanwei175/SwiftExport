@@ -6,16 +6,22 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.WebApi.Controllers.Inventory;
 
-/// <summary>出库管理及正向过账 HTTP 边界；写入采用命令锁及幂等日志，不使用接口冷却过滤器，不开放反向或自动出库。</summary>
+/// <summary>手工出库管理及整单反过账 HTTP 边界；写入采用命令锁及幂等日志，不使用接口冷却过滤器，不开放自动出库。</summary>
 [ApiController]
 [Authorize]
 [Route("api/inventory/outbounds")]
 public sealed class OutboundManagerController(IOutboundManagerService service) : ControllerBase
 {
+    /// <summary>预览手工出库整单反过账。</summary>
+    [HttpPost("{uid:guid}/reverse-preview")]
+    public Task<ServiceResult<OutboundReversePreviewDto>> PreviewReverseAsync(Guid uid, [FromBody] OutboundReversePreviewRequest request, CancellationToken token) => service.PreviewReverseAsync(uid, request, token);
+    /// <summary>按原命令完整反向，不开放自动出库反向。</summary>
+    [HttpPost("{uid:guid}/reverse")]
+    public Task<ServiceResult<OutboundReverseResult>> ReverseAsync(Guid uid, [FromBody] ReverseOutboundCommand command, CancellationToken token) => service.ReverseAsync(uid, command, token);
     /// <summary>只读预览正向过账，正式提交仍重新校验。</summary>
     [HttpPost("{uid:guid}/post-preview")]
     public Task<ServiceResult<OutboundPostPreviewDto>> PreviewPostAsync(Guid uid, [FromBody] OutboundPostPreviewRequest request, CancellationToken token) => service.PreviewPostAsync(uid, request, token);
-    /// <summary>按命令和版本原子提交出库与库存，不开放反向。</summary>
+    /// <summary>按命令和版本原子提交出库与库存。</summary>
     [HttpPost("{uid:guid}/post")]
     public Task<ServiceResult<OutboundPostResult>> PostAsync(Guid uid, [FromBody] PostOutboundCommand command, CancellationToken token) => service.PostAsync(uid, command, token);
     /// <summary>按仓库分页读取正库存产品。</summary>

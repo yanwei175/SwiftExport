@@ -12,6 +12,12 @@ namespace SwiftExportClient.Features.Inventory.Outbounds.Services;
 public sealed class OutboundPersistenceService(IOutboundManagerApi api, ILogger<OutboundPersistenceService> logger) : IOutboundPersistenceService
 {
     /// <inheritdoc/>
+    public Task<ServiceResult<OutboundReversePreviewDto>> PreviewReverseAsync(Guid uid, OutboundReversePreviewRequest request, CancellationToken token)
+        => RunAsync(() => api.PreviewReverseAsync(uid, request, token));
+    /// <inheritdoc/>
+    public Task<ServiceResult<OutboundReverseResult>> ReverseAsync(Guid uid, ReverseOutboundCommand command, CancellationToken token)
+        => RunAsync(() => api.ReverseAsync(uid, command, token));
+    /// <inheritdoc/>
     public Task<ServiceResult<OutboundPostPreviewDto>> PreviewPostAsync(Guid uid, OutboundPostPreviewRequest request, CancellationToken token)
         => RunAsync(() => api.PreviewPostAsync(uid, request, token));
     /// <inheritdoc/>
