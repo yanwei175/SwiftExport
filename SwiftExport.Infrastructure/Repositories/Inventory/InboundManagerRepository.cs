@@ -42,7 +42,7 @@ public sealed partial class InboundManagerRepository(RepositoryBaseContext conte
     /// <inheritdoc/>
     public async Task<InboundManagerDetailDto?> GetDetailAsync(Guid uid, CancellationToken token)
     {
-        using var reader = await context.Session.Connection.QueryMultipleAsync(Command("""
+        using var reader = await context.Session.Connection.QueryMultipleAsync(Command(InboundReceiptHistorySql.Guard + """
             SELECT Uid,Version,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,
                    WarehouseSiteId,WarehouseCodeSnapshot,WarehouseNameSnapshot,ReceiptDate,Remark,
                    PostedDate,PostedBy,ReversedDate,ReversedBy,ReverseReason,TriggerPackingListId,CommandId,
@@ -58,7 +58,7 @@ public sealed partial class InboundManagerRepository(RepositoryBaseContext conte
             LEFT JOIN dbo.PurchaseOrderLine p ON ih.DocumentType=10 AND p.Uid=l.SourceLineId
             LEFT JOIN dbo.PurchaseOrderHead h ON h.Uid=p.PurchaseOrderId
             LEFT JOIN dbo.Product product ON product.Uid=l.ProductId
-            OUTER APPLY(SELECT SUM(rl.Quantity) AS Qty FROM dbo.InboundDocumentLine rl
+            OUTER APPLY(SELECT SUM(CASE WHEN rh.PostingStatus=1 THEN rl.Quantity ELSE 0 END) AS Qty FROM dbo.InboundDocumentLine rl
                 INNER JOIN dbo.InboundDocument rh ON rh.Uid=rl.InboundDocumentId
                 WHERE rl.SourceLineId=p.Uid AND rh.DocumentType=10 AND rh.PostingStatus IN (1,8)
                   AND rl.IsDeleted=0 AND rh.IsDeleted=0) received
@@ -76,7 +76,7 @@ public sealed partial class InboundManagerRepository(RepositoryBaseContext conte
     /// <inheritdoc/>
     public async Task<PagedResponseBase<InboundSourceCandidateDto>> SearchSourcesAsync(InboundSourceSearchRequest request, CancellationToken token)
     {
-        // 先按真实采购行汇总有符号正式收货；反向原单及负向单共同计入，草稿从不占额度。
+        // 先验证历史反向完整性；仅已过账单贡献收货数量，已完整反向和草稿不占额度。
         var sql = SourceProjection + "\n" + """
             AND h.ConfirmationStatus=@Confirmed AND h.LifecycleStatus=@Active
             AND l.MaterialType IN @KnownTypes
@@ -87,7 +87,7 @@ public sealed partial class InboundManagerRepository(RepositoryBaseContext conte
                  OR l.Sku LIKE @Keyword ESCAPE '~' OR l.LinkSku LIKE @Keyword ESCAPE '~')
             """;
         // 临时结果固定同一次请求的计数和页数据，不使用 NOLOCK 或更新锁。
-        sql = """
+        sql = InboundReceiptHistorySql.Guard + """
             IF EXISTS(
                 SELECT 1 FROM dbo.InboundDocumentLine il
                 INNER JOIN dbo.InboundDocument ih ON ih.Uid=il.InboundDocumentId
@@ -117,7 +117,7 @@ public sealed partial class InboundManagerRepository(RepositoryBaseContext conte
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<InboundSourceCandidateDto>> GetSourcesAsync(IReadOnlyList<Guid> ids, CancellationToken token) =>
-        (await context.Session.Connection.QueryAsync<InboundSourceCandidateDto>(Command(SourceProjection + " AND l.Uid IN @Ids", new { Ids = ids, CurrentInboundDocumentId = (Guid?)null }, token))).ToList();
+        (await context.Session.Connection.QueryAsync<InboundSourceCandidateDto>(Command(InboundReceiptHistorySql.Guard + SourceProjection + " AND l.Uid IN @Ids", new { Ids = ids, CurrentInboundDocumentId = (Guid?)null }, token))).ToList();
 
     // 保存只读取身份和快照，不按数量或版本拒绝草稿；最终采购状态、容量归过账校验。
     private const string SourceProjection = """
@@ -128,7 +128,7 @@ public sealed partial class InboundManagerRepository(RepositoryBaseContext conte
         FROM dbo.PurchaseOrderLine l
         INNER JOIN dbo.PurchaseOrderHead h ON h.Uid=l.PurchaseOrderId
         INNER JOIN dbo.Product product ON product.Uid=l.ProductId
-        OUTER APPLY(SELECT SUM(rl.Quantity) AS Qty FROM dbo.InboundDocumentLine rl
+        OUTER APPLY(SELECT SUM(CASE WHEN rh.PostingStatus=1 THEN rl.Quantity ELSE 0 END) AS Qty FROM dbo.InboundDocumentLine rl
             INNER JOIN dbo.InboundDocument rh ON rh.Uid=rl.InboundDocumentId
             WHERE rl.SourceLineId=l.Uid AND rh.DocumentType=10 AND rh.PostingStatus IN (1,8)
                 AND rl.IsDeleted=0 AND rh.IsDeleted=0) received

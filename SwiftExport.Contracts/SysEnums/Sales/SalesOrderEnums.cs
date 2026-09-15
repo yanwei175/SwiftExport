@@ -5,7 +5,9 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum SalesOrderDocumentStatusEnum
     {
+        [System.ComponentModel.Description("开放")]
         Open = 0,
+        [System.ComponentModel.Description("已关闭")]
         Closed = 9
     }
 
@@ -14,8 +16,11 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum SalesOrderFulfillmentStatusEnum
     {
+        [System.ComponentModel.Description("未开始")]
         NotStarted = 0,
+        [System.ComponentModel.Description("部分发货")]
         PartiallyShipped = 1,
+        [System.ComponentModel.Description("全部发货")]
         FullyShipped = 2
     }
 }

@@ -248,12 +248,13 @@ public sealed partial class InboundManagerPersistenceTests
         public DialogStub Dialogs { get; } = new();
         public DeleteDialogStub DeleteDialogs { get; } = new();
         public PostDialogStub PostDialogs { get; } = new();
+        public ReverseDialogStub ReverseDialogs { get; } = new();
         public SwiftExportClient.Authentication.CurrentUserService User { get; } = new();
         public InboundManagerViewModel Vm { get; }
         public Fixture()
         {
-            User.SetCurrentUser(new() { Permissions = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundPost, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.ModuleInventoryAccess] });
-            Vm = new(new WarehouseStub(), new SourceStub(), Dialogs, persistence: Service, deleteDialogs: DeleteDialogs, postDialogs: PostDialogs, postingUser: User);
+            User.SetCurrentUser(new() { Permissions = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundReverse, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundPost, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.ModuleInventoryAccess] });
+            Vm = new(new WarehouseStub(), new SourceStub(), Dialogs, persistence: Service, deleteDialogs: DeleteDialogs, postDialogs: PostDialogs, postingUser: User, reverseDialogs: ReverseDialogs);
         }
         public InboundHeaderModel Add()
         {
@@ -346,6 +347,10 @@ public sealed partial class InboundManagerPersistenceTests
     /// <summary>模拟 Refit 返回或传输异常，意外调用其他接口立即失败。</summary>
     private sealed class TransportStub : IInboundManagerApi
     {
+        /// <inheritdoc/>
+        public Task<ServiceResult<InboundReversePreviewDto>> PreviewReverseAsync(Guid uid, InboundReversePreviewRequest request, CancellationToken token = default) => throw new NotSupportedException();
+        /// <inheritdoc/>
+        public Task<ServiceResult<InboundReverseResult>> ReverseAsync(Guid uid, ReverseInboundCommand command, CancellationToken token = default) => throw new NotSupportedException();
         /// <inheritdoc/>
         public Task<ServiceResult<InboundPostPreviewDto>> PreviewPostAsync(Guid uid, InboundPostPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         /// <inheritdoc/>

@@ -5,8 +5,11 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum GrossDemandLifecycleStatusEnum
     {
+        [System.ComponentModel.Description("活动")]
         Active = 0,
+        [System.ComponentModel.Description("已关闭")]
         Closed = 8,
+        [System.ComponentModel.Description("已作废")]
         Voided = 9
     }
 
@@ -15,7 +18,9 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum GrossDemandDecompositionStatusEnum
     {
+        [System.ComponentModel.Description("待拆解")]
         Pending = 0,
+        [System.ComponentModel.Description("已拆解")]
         Decomposed = 1
     }
 
@@ -24,8 +29,11 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum NetDemandLifecycleStatusEnum
     {
+        [System.ComponentModel.Description("活动")]
         Active = 0,
+        [System.ComponentModel.Description("已回滚")]
         RolledBack = 8,
+        [System.ComponentModel.Description("已作废")]
         Voided = 9
     }
 
@@ -34,7 +42,9 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum DemandDeliveryModeEnum
     {
+        [System.ComponentModel.Description("标准交付")]
         Standard = 0,
+        [System.ComponentModel.Description("父级执行供应商")]
         ParentExecutionSupplier = 1
     }
 
@@ -43,8 +53,11 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum DemandExecutionLinkStatusEnum
     {
+        [System.ComponentModel.Description("活动")]
         Active = 0,
+        [System.ComponentModel.Description("已取消")]
         Cancelled = 8,
+        [System.ComponentModel.Description("已冲销")]
         Reversed = 9
     }
 
@@ -53,10 +66,15 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum DemandExecutionProgressEnum
     {
+        [System.ComponentModel.Description("未开始")]
         NotStarted = 0,
+        [System.ComponentModel.Description("部分分配")]
         PartiallyAllocated = 1,
+        [System.ComponentModel.Description("全部分配")]
         FullyAllocated = 2,
+        [System.ComponentModel.Description("部分完成")]
         PartiallyCompleted = 3,
+        [System.ComponentModel.Description("已完成")]
         Completed = 4
     }
 
@@ -65,8 +83,11 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum NetDemandAllocationLifecycleStatusEnum
     {
+        [System.ComponentModel.Description("活动")]
         Active = 0,
+        [System.ComponentModel.Description("已替代")]
         Superseded = 8,
+        [System.ComponentModel.Description("已取消")]
         Cancelled = 9
     }
 
@@ -75,8 +96,11 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum DemandExecutionTypeEnum
     {
+        [System.ComponentModel.Description("采购")]
         Purchase = 0,
+        [System.ComponentModel.Description("生产")]
         Production = 1,
+        [System.ComponentModel.Description("外协")]
         Outsourcing = 2
     }
 
@@ -85,11 +109,17 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum SupplierAssignmentSourceEnum
     {
+        [System.ComponentModel.Description("产品默认")]
         ProductDefault = 0,
+        [System.ComponentModel.Description("未分配")]
         Unassigned = 1,
+        [System.ComponentModel.Description("手工分配")]
         Manual = 2,
+        [System.ComponentModel.Description("重新分配")]
         Reassigned = 3,
+        [System.ComponentModel.Description("已应用产品默认")]
         AppliedProductDefault = 4,
+        [System.ComponentModel.Description("拆分")]
         Split = 5
     }
 
@@ -98,14 +128,23 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum NetDemandPlanStatusEnum
     {
+        [System.ComponentModel.Description("供应商未分配")]
         UnassignedSupplier = 0,
+        [System.ComponentModel.Description("交付目标待定")]
         DeliveryTargetPending = 1,
+        [System.ComponentModel.Description("可转采购")]
         ReadyForPurchase = 2,
+        [System.ComponentModel.Description("部分分配")]
         PartiallyAllocated = 3,
+        [System.ComponentModel.Description("全部分配")]
         FullyAllocated = 4,
+        [System.ComponentModel.Description("下游草稿")]
         DownstreamDraft = 5,
+        [System.ComponentModel.Description("下游已确认")]
         DownstreamConfirmed = 6,
+        [System.ComponentModel.Description("数据异常")]
         DataCorrupted = 8,
+        [System.ComponentModel.Description("执行工作台待处理")]
         ExecutionWorkspacePending = 9
     }
 
@@ -114,8 +153,11 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum NetDemandCommandOutcomeEnum
     {
+        [System.ComponentModel.Description("成功")]
         Succeeded = 0,
+        [System.ComponentModel.Description("已应用")]
         AlreadyApplied = 1,
+        [System.ComponentModel.Description("失败")]
         Failed = 2
     }
 
@@ -124,8 +166,11 @@ namespace SwiftExport.Contracts.SysEnums
     /// </summary>
     public enum GrossDemandCommandOutcomeEnum
     {
+        [System.ComponentModel.Description("成功")]
         Succeeded = 0,
+        [System.ComponentModel.Description("已应用")]
         AlreadyApplied = 1,
+        [System.ComponentModel.Description("失败")]
         Failed = 2
     }
 }

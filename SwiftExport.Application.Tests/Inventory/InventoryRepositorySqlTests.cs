@@ -53,6 +53,24 @@ public sealed class InventoryRepositorySqlTests
         Assert.IsNotNull(detail);
         Assert.AreEqual("SUP-QUERY", detail.SupplierCode);
         Assert.AreEqual("库存查询供应商", detail.SupplierName);
+        Assert.AreEqual("images/product-1.png", detail.ImagePath);
+
+        var deletedProduct = await Db.QueryAsync(repository => repository.GetBalanceDtoAsync(Db.BalanceIds[1]));
+        var missingProduct = await Db.QueryAsync(repository => repository.GetBalanceDtoAsync(Db.BalanceIds[2]));
+        Assert.IsNotNull(deletedProduct);
+        Assert.IsNotNull(missingProduct);
+        Assert.IsNull(deletedProduct.ImagePath, "已删除产品不得提供当前主图，但余额必须保留。");
+        Assert.IsNull(missingProduct.ImagePath, "缺失产品不得导致余额被内连接过滤。");
+
+        var allRows = await Db.QueryAsync(repository => repository.SearchBalancesAsync(new InventoryBalanceSearchRequest
+        {
+            PageIndex = 1, PageSize = 10
+        }));
+        Assert.AreEqual(5, allRows.TotalCount);
+        Assert.AreEqual(5, allRows.Items.Count);
+        Assert.AreEqual("images/product-1.png", allRows.Items.Single(item => item.Uid == Db.BalanceIds[0]).ImagePath);
+        Assert.IsNull(allRows.Items.Single(item => item.Uid == Db.BalanceIds[1]).ImagePath);
+        Assert.IsNull(allRows.Items.Single(item => item.Uid == Db.BalanceIds[2]).ImagePath);
     }
 
     /// <summary>流水 count/page SQL 对关键词和来源单号都按字面量处理 LIKE 特殊字符。</summary>

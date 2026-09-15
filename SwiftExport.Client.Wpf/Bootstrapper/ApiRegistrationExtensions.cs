@@ -45,6 +45,8 @@ public static class ApiRegistrationExtensions
         services.AddOrderApis();
         services.AddInventoryApis();
         services.AddQualityControlApis();
+        // PackingList 前端契约使用控制器基址，后端接口仍待实现。
+        services.AddControllerApi<SwiftExport.Contracts.Apis.Shipping.IPackingListApi>("shipping/packing-lists");
 
         return services;
     }

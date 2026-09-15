@@ -15,14 +15,14 @@ public sealed partial class InboundManagerRepository
     public async Task<IReadOnlyList<InboundPurchasePostingSourceDto>> ReadPostingSourcesAsync(IReadOnlyList<Guid> ids, CancellationToken token)
     {
         if (ids.Count == 0) return [];
-        return (await context.Session.Connection.QueryAsync<InboundPurchasePostingSourceDto>(Command("""
+        return (await context.Session.Connection.QueryAsync<InboundPurchasePostingSourceDto>(Command(InboundReceiptHistorySql.Guard + """
             SELECT l.Uid AS SourceLineId,l.PurchaseOrderId,l.ProductId,h.OrderNo AS SourceNo,
                 l.UnitSnapshot AS Unit,p.Unit AS CurrentUnit,l.QTY AS OriginalQty,
                 CONVERT(bit,CASE WHEN h.IsDeleted=0 AND l.IsDeleted=0 AND p.IsDeleted=0
                     AND h.ConfirmationStatus=@Confirmed AND h.LifecycleStatus=@Active
                     AND l.MaterialType IN @KnownTypes THEN 1 ELSE 0 END) AS IsReceivable,
                 CONVERT(bit,CASE WHEN l.MaterialType=@CustomerType THEN 1 ELSE 0 END) AS IsCustomerSupplied,
-                COALESCE((SELECT SUM(il.Quantity) FROM dbo.InboundDocumentLine il
+                COALESCE((SELECT SUM(CASE WHEN ih.PostingStatus=1 THEN il.Quantity ELSE 0 END) FROM dbo.InboundDocumentLine il
                     JOIN dbo.InboundDocument ih ON ih.Uid=il.InboundDocumentId
                     WHERE il.SourceLineId=l.Uid AND ih.DocumentType=10 AND ih.PostingStatus IN(1,8)
                         AND il.IsDeleted=0 AND ih.IsDeleted=0),0) AS PostedNetQty

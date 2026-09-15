@@ -23,6 +23,7 @@ using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 using SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels;
+using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
 
 namespace SwiftExportClient.Navigation;
 
@@ -32,6 +33,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
     private readonly IReadOnlyList<NavigationRoute> _routes =
     [
         new("home", "首页", "Workspace", typeof(HomeViewModel), NavigationModuleKeys.Home, RequiredPermission: null, CanClose: false),
+        new(PackingListManagerViewModel.RouteKey, "PackingList 工作台", "Workspace", typeof(PackingListManagerViewModel), NavigationModuleKeys.Shipping, PermissionKeys.ModuleShippingAccess),
+        new(PackingListDetailViewModel.RouteKey, "PackingList 详情", "Detail", typeof(PackingListDetailViewModel), NavigationModuleKeys.Shipping, PermissionKeys.ModuleShippingAccess),
         new("products", "产品", "Workspace", typeof(ProductsViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
         new(ProductMasterManagerViewModel.RouteKey, "主产品管理", "Workspace", typeof(ProductMasterManagerViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
         new(ProductNeutralManagerViewModel.RouteKey, "中性产品管理", "Workspace", typeof(ProductNeutralManagerViewModel), NavigationModuleKeys.Products, PermissionKeys.ModuleProductsAccess),
@@ -168,6 +171,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                     new(OutboundManagerViewModel.RouteKey, "出库单管理", "Workspace", "ArrowUpload24"),
                     new(InventoryLedgerViewModel.RouteKey, "库存流水", "Workspace", "ClipboardTextLtr24"),
                 ]),
+            new(NavigationModuleKeys.Shipping, "出货", "Workspace", "ArrowUpload24", IsExpanded: false,
+                Children: [new(PackingListManagerViewModel.RouteKey, "PackingList 工作台", "Workspace", "DocumentBulletList24")]),
         ];
     }
 

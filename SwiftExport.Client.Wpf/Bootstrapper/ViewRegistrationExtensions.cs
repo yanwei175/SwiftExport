@@ -100,12 +100,16 @@ public static class ViewRegistrationExtensions
         services.AddTransient<InventoryBalancesViewModel>();
         services.AddTransient<InventoryLedgerViewModel>();
         services.AddTransient<InboundManagerViewModel>();
+        services.AddTransient<SwiftExportClient.Features.Shipping.PackingLists.ViewModels.PackingListManagerViewModel>();
+        services.AddTransient<SwiftExportClient.Features.Shipping.PackingLists.ViewModels.PackingListDetailViewModel>();
+        services.AddTransient<SwiftExportClient.Features.Shipping.PackingLists.Services.IPackingListSourcePickerService, SwiftExportClient.Features.Shipping.PackingLists.Services.PackingListSourcePickerService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.ViewModels.OutboundManagerViewModel>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundPostDialogService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundPostDialogService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundReverseDialogService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundReverseDialogService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundPersistenceService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundPersistenceService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundDeleteDialogService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundDeleteDialogService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundItemDialogService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundItemDialogService>();
+        services.AddTransient<SwiftExportClient.Features.Inventory.Inbounds.Services.IInboundReverseDialogService, SwiftExportClient.Features.Inventory.Inbounds.Services.InboundReverseDialogService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Inbounds.Services.IInboundPostDialogService, SwiftExportClient.Features.Inventory.Inbounds.Services.InboundPostDialogService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Inbounds.Services.IInboundPersistenceService, SwiftExportClient.Features.Inventory.Inbounds.Services.InboundPersistenceService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Inbounds.Services.IInboundDeleteDialogService, SwiftExportClient.Features.Inventory.Inbounds.Services.InboundDeleteDialogService>();

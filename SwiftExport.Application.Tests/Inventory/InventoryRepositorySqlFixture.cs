@@ -24,6 +24,9 @@ internal sealed class InventoryRepositorySqlFixture : IAsyncDisposable
     /// <summary>测试余额身份集合，顺序与测试数据定义一致。</summary>
     public IReadOnlyList<Guid> BalanceIds { get; private set; } = [];
 
+    /// <summary>测试产品身份集合，顺序与测试数据定义一致。</summary>
+    public IReadOnlyList<Guid> ProductIds { get; private set; } = [];
+
     private static string ConnectionString(string database) => new SqlConnectionStringBuilder
     {
         DataSource = @"(LocalDB)\MSSQLLocalDB",
@@ -69,6 +72,12 @@ internal sealed class InventoryRepositorySqlFixture : IAsyncDisposable
                 ProductId uniqueidentifier NOT NULL,SkuSnapshot nvarchar(200) NULL,ProductNameSnapshot nvarchar(500) NULL,
                 UnitSnapshot nvarchar(100) NULL,OnHandQty decimal(18,4) NOT NULL,LastLedgerSequence bigint NOT NULL
             );
+            CREATE TABLE dbo.Product
+            (
+                Uid uniqueidentifier NOT NULL PRIMARY KEY,
+                IsDeleted bit NOT NULL,
+                MainImage nvarchar(500) NULL
+            );
             CREATE TABLE dbo.InventoryLedgerEntry
             (
                 Uid uniqueidentifier NOT NULL PRIMARY KEY,
@@ -95,6 +104,7 @@ internal sealed class InventoryRepositorySqlFixture : IAsyncDisposable
             new Sample(@"SKU-\-反斜杠", @"DOC-\-反斜杠")
         };
         BalanceIds = samples.Select(_ => Guid.NewGuid()).ToArray();
+        ProductIds = samples.Select(_ => Guid.NewGuid()).ToArray();
         await ExecuteAsync("""
             INSERT dbo.Supplier(Uid,SupplierCode,SupplierName,IsActive,IsDeleted)
             VALUES(@SupplierId,N'SUP-QUERY',N'库存查询供应商',1,0);
@@ -105,7 +115,16 @@ internal sealed class InventoryRepositorySqlFixture : IAsyncDisposable
         for (var index = 0; index < samples.Length; index++)
         {
             var sample = samples[index];
-            var productId = Guid.NewGuid();
+            var productId = ProductIds[index];
+            if (index <= 1)
+            {
+                await ExecuteAsync("INSERT dbo.Product(Uid,IsDeleted,MainImage) VALUES(@ProductId,@IsDeleted,@MainImage);", new
+                {
+                    ProductId = productId,
+                    IsDeleted = index == 1,
+                    MainImage = $"images/product-{index + 1}.png"
+                });
+            }
             await ExecuteAsync("""
                 INSERT dbo.InventoryBalance
                     (Uid,Version,IsDeleted,UpdatedDate,WarehouseSiteId,ProductId,SkuSnapshot,ProductNameSnapshot,UnitSnapshot,OnHandQty,LastLedgerSequence)

@@ -39,6 +39,8 @@ namespace SwiftExport.Contracts.DTOs.Auth
 
         /// <summary>入库预览与正式过账权限，不包含反过账。</summary>
         public const string InventoryInboundPost = "Inventory.Inbound.Post";
+        /// <summary>人工入库整单反过账权限，与正向过账独立分配。</summary>
+        public const string InventoryInboundReverse = "Inventory.Inbound.Reverse";
         /// <summary>普通库存出库预览与正向过账，不包含反向或负库存放行。</summary>
         public const string InventoryOutboundPost = "Inventory.Outbound.Post";
         /// <summary>手工库存出库整单反过账，不包含自动出库。</summary>
@@ -68,11 +70,11 @@ namespace SwiftExport.Contracts.DTOs.Auth
         private static readonly string[] AllValues = ModuleValues
             .Concat(new[] { SystemSettingsManage })
             .Concat(ProcurementOperationValues)
-            .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryOutboundPost, InventoryOutboundReverse })
+            .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryInboundReverse, InventoryOutboundPost, InventoryOutboundReverse })
             .ToArray();
 
         private static readonly string[] UserAssignableValues = ModuleValues
-            .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryOutboundPost, InventoryOutboundReverse })
+            .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryInboundReverse, InventoryOutboundPost, InventoryOutboundReverse })
             .ToArray();
 
         /// <summary>获取允许管理员直接分配给普通用户的一级模块键。</summary>

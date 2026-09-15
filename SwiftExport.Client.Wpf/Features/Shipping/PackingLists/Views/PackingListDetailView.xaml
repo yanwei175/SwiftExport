@@ -20,16 +20,20 @@
         
         <!--Title-->
         <Grid ColumnDefinitions="Auto,8,*,8,Auto">
-            <Grid ColumnDefinitions="Auto,8,Auto" >
-                <ui:Button Grid.Column="0" Content="保存箱单" MinWidth="70" VerticalAlignment="Stretch" Appearance="Primary"/>
+            <StackPanel Orientation="Horizontal">
+                <ui:Button Grid.Column="0" Content="保存箱单" Command="{Binding SaveCommand}" MinWidth="70" VerticalAlignment="Stretch" Appearance="Primary"/>
                 
-            </Grid>
+                <ui:Button Content="撤销" Command="{Binding UndoCommand}" Margin="8,0,0,0"/>
+                <ui:Button Content="重新加载" Command="{Binding ReloadCommand}" Margin="8,0,0,0"/>
+                <ui:Button Content="过账" Command="{Binding PostCommand}" Margin="8,0,0,0"/>
+                <ui:Button Content="反过账" Command="{Binding ReverseCommand}" Margin="8,0,0,0"/>
+            </StackPanel>
             
             <TextBlock Grid.Column="0" Grid.ColumnSpan="10"
-                       HorizontalAlignment="Center" 
+                       IsHitTestVisible="False" HorizontalAlignment="Center"
                        Text="PackingList" Style="{DynamicResource TitleTextBlock}" />
             
-            <ui:Button Grid.Column="4" Content="关闭页签" MinWidth="70" VerticalAlignment="Stretch" Appearance="Primary"/>
+            <ui:Button Grid.Column="4" Content="关闭页签" Command="{Binding CloseCommand}" MinWidth="70" VerticalAlignment="Stretch" Appearance="Primary"/>
         </Grid>
 
         <!--Header-->
@@ -84,6 +88,10 @@
 
                 <TextBlock Grid.Column="8" Text="创建日期:" VerticalAlignment="Center" />
                 <ui:TextBox Grid.Column="10" Text="{Binding Header.CreatedDate,Mode=OneWay}" IsReadOnly="True"/>
+                <TextBlock Grid.Column="12" Text="箱唛:" VerticalAlignment="Center"/>
+                <ui:TextBox Grid.Column="14" Grid.ColumnSpan="5" Text="{Binding Header.ShippingMark, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}"/>
+                <TextBlock Grid.Column="20" Text="备注:" VerticalAlignment="Center"/>
+                <ui:TextBox Grid.Column="22" Grid.ColumnSpan="5" Text="{Binding Header.Note, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}"/>
                 
                 <TextBlock Grid.Column="28" Text="状态:" VerticalAlignment="Center" />
                 <ui:TextBox Grid.Column="30" Text="{Binding Header.LifecycleStatus,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}" IsReadOnly="True"/>
@@ -131,28 +139,28 @@
 
                 <ui:TextBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
                             PlaceholderText="客户联系人..."
-                            Text="{Binding Header.CustomerName, UpdateSourceTrigger=PropertyChanged}" />
+                            Text="{Binding Header.CustomerNameSnapshot, UpdateSourceTrigger=PropertyChanged}" />
 
                 <ui:TextBox Grid.Row="4" Grid.ColumnSpan="3"  Grid.RowSpan="3"
                             PlaceholderText="客户地址..."
-                            Text="{Binding Header.CustomerAddress, UpdateSourceTrigger=PropertyChanged}" 
+                            Text="{Binding Header.CustomerAddressSnapshot, UpdateSourceTrigger=PropertyChanged}"
                             TextWrapping="Wrap"/>
 
 
                  <TextBlock Grid.Row="8" Text="Attention: :" VerticalAlignment="Top" />
                 <ui:TextBox Grid.Row="8" Grid.Column="2" 
-                                    Text="{Binding Header.Attention,UpdateSourceTrigger=PropertyChanged}"
+                                    Text="{Binding Header.AttentionSnapshot,UpdateSourceTrigger=PropertyChanged}"
                                     PlaceholderText="备注"
                                     TextAlignment="Left" TextWrapping="Wrap"/>
                 
                     <TextBlock Grid.Row="0" Grid.Column="4" Text="InvoiceNo" VerticalAlignment="Center" />
                     <ui:TextBox Grid.Row="0" Grid.Column="6" Grid.ColumnSpan="8" 
                                     PlaceholderText="发票号汇总"
-                                    Text="{Binding Header.InvoiceNoConcat, UpdateSourceTrigger=PropertyChanged}" />
+                                    IsReadOnly="True" Text="{Binding Header.InvoiceNosSummary, Mode=OneWay}" />
 
                     <TextBlock Grid.Row="2" Grid.Column="4" Text="InvoiceDate:" VerticalAlignment="Center" />
                      <DatePicker Grid.Row="2" Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}"
-                                    controls:DatePickerAssist.PlaceholderText="发票日期"/>
+                                    SelectedDate="{Binding Header.InvoiceDate, Mode=TwoWay}" controls:DatePickerAssist.PlaceholderText="发票日期"/>
 
                     <TextBlock Grid.Row="4" Grid.Column="4" Text="Container:" VerticalAlignment="Center" />
                     <ui:TextBox Grid.Row="4" Grid.Column="6" Grid.ColumnSpan="8" 
@@ -168,12 +176,12 @@
                 
                 <TextBlock Grid.Row="8" Grid.Column="4" Text="ETD:" VerticalAlignment="Center" />
                     <DatePicker  Grid.Row="8" Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}"
-                                    controls:DatePickerAssist.PlaceholderText="ETD"/>
+                                    SelectedDate="{Binding Header.Etd, Mode=TwoWay}" controls:DatePickerAssist.PlaceholderText="ETD"/>
 
                 <TextBlock Grid.Row="8" Grid.Column="8" Text="ETA:" VerticalAlignment="Center" />
                 <DatePicker Grid.Row="8" Grid.Column="10"
                                 Style="{StaticResource SwiftExportDatePicker}" 
-                                    controls:DatePickerAssist.PlaceholderText="ETA"/>
+                                    SelectedDate="{Binding Header.Eta, Mode=TwoWay}" controls:DatePickerAssist.PlaceholderText="ETA"/>
                 </Grid>
         </Border>
         </Grid>
@@ -184,24 +192,26 @@
             <!--汇总-->
             <Grid Grid.Row="0" ColumnDefinitions="*,8,Auto,8,50,8,Auto,8,50,8,Auto,8,50,8,Auto,8,50,8,Auto,8,50">
                 <StackPanel Orientation="Horizontal">
-                    <ui:Button MinWidth="88" Margin="0,0,8,0" Content="获取"  VerticalAlignment="Stretch" Appearance="Primary"/>
-                    <ui:Button MinWidth="88" Margin="0,0,8,0" Content="删除行"  VerticalAlignment="Stretch"/>
+                    <ui:Button MinWidth="88" Margin="0,0,8,0" Content="获取" Command="{Binding SelectSourcesCommand}"  VerticalAlignment="Stretch" Appearance="Primary"/>
+                    <ui:Button MinWidth="88" Margin="0,0,8,0" Content="删除行" Command="{Binding DeleteLineCommand}"  VerticalAlignment="Stretch"/>
+                    <ui:Button Content="选择仓库" Command="{Binding SelectWarehouseCommand}" Margin="0,0,8,0"/>
+                    <ui:Button Content="清空仓库" Command="{Binding ClearWarehouseCommand}"/>
                 </StackPanel>
 
                 <TextBlock Grid.Column="2" Text="总数量:" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="4" Text="{Binding QtySummary,Mode=OneWay}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" Text="{Binding Lines.QtySummary,Mode=OneWay}" VerticalAlignment="Center"/>
 
                 <TextBlock Grid.Column="6" Text="总净重:" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="8" Text="{Binding NetWeightSummary,Mode=OneWay}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="8" Text="{Binding Lines.NetWeightSummary,Mode=OneWay}" VerticalAlignment="Center"/>
 
                 <TextBlock Grid.Column="10" Text="总毛重:" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="12" Text="{Binding GrossWeightSummary,Mode=OneWay}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="12" Text="{Binding Lines.GrossWeightSummary,Mode=OneWay}" VerticalAlignment="Center"/>
 
                 <TextBlock Grid.Column="14" Text="总箱数:" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="16" Text="{Binding CartonSummary,Mode=OneWay}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="16" Text="{Binding Lines.CartonSummary,Mode=OneWay}" VerticalAlignment="Center"/>
 
                 <TextBlock Grid.Column="18" Text="总体积:" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="20" Text="{Binding CbmSummary,Mode=OneWay}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="20" Text="{Binding Lines.CbmSummary,Mode=OneWay}" VerticalAlignment="Center"/>
 
             </Grid>
             
@@ -212,6 +222,8 @@
                       Style="{StaticResource SwiftExportDataGrid}"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
+                      IsReadOnly="{Binding IsReadOnly, FallbackValue=True}"
+                      IsEnabled="{Binding CanInteractWithLines}"
                       CanUserSortColumns="False"
                       SelectionMode="Single" 
                       SelectionUnit="FullRow"
@@ -237,7 +249,7 @@
                                 <controls:CachedImage Width="56" Height="56" Margin="2"
                                                     Style="{StaticResource SwiftExportCachedImage}"
                                                     Stretch="Uniform"
-                                                    SourcePath="{Binding MainImage}" 
+                                                    SourcePath="{Binding ImagePath}"
                                                     DecodePixelWidth="72"  />
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
@@ -247,37 +259,37 @@
                                         Binding="{Binding Marks}" />
 
                     <DataGridTextColumn Width="120" Header="Sku" 
-                                        Binding="{Binding Sku}" IsReadOnly="True"/>
+                                        Binding="{Binding SkuSnapshot}" IsReadOnly="True"/>
 
                     <DataGridTextColumn Width="120" Header="客户型号" 
-                                        Binding="{Binding CustomerSku}"  IsReadOnly="True"/>
+                                        Binding="{Binding CustomerSkuSnapshot}"  IsReadOnly="True"/>
                     
                     <DataGridTextColumn Width="120" Header="产品型号" 
-                                        Binding="{Binding LinkSku}" IsReadOnly="True"/>
+                                        Binding="{Binding LinkSkuSnapshot}" IsReadOnly="True"/>
                     
                     <DataGridTextColumn Width="120" Header="描述" 
-                                        Binding="{Binding DescriptionEn}" IsReadOnly="True"/>
+                                        Binding="{Binding DescriptionEnSnapshot}" IsReadOnly="True"/>
                     
                     <DataGridTextColumn Width="120" Header="颜色" 
-                                        Binding="{Binding ColorNameEn}" IsReadOnly="True"/>
+                                        Binding="{Binding ColorNameEnSnapshot}" IsReadOnly="True"/>
                     
                     <DataGridTextColumn Width="120" Header="数量" 
-                                        Binding="{Binding Qty}" IsReadOnly="True"/>
+                                        Binding="{Binding Qty, UpdateSourceTrigger=PropertyChanged}"/>
                     
                     <DataGridTextColumn Width="120" Header="每箱数量" 
-                                        Binding="{Binding PcsPerPackage}" IsReadOnly="True"/>
+                                        Binding="{Binding PcsPerPackage, UpdateSourceTrigger=PropertyChanged}"/>
                     
                     <DataGridTextColumn Width="120" Header="每箱净重" 
-                                        Binding="{Binding NwPerPackage}" IsReadOnly="True"/>
+                                        Binding="{Binding NwPerPackage, UpdateSourceTrigger=PropertyChanged}"/>
                     
                     <DataGridTextColumn Width="120" Header="每箱毛重" 
-                                        Binding="{Binding GwPerPackage}" IsReadOnly="True"/>
+                                        Binding="{Binding GwPerPackage, UpdateSourceTrigger=PropertyChanged}"/>
                     
                     <DataGridTextColumn Width="120" Header="每箱体积" 
-                                        Binding="{Binding CbmPerPackage}" IsReadOnly="True"/>
+                                        Binding="{Binding CbmPerPackage, UpdateSourceTrigger=PropertyChanged}"/>
                     
                     <DataGridTextColumn Width="120" Header="小计箱数" 
-                                        Binding="{Binding PackageCount}" IsReadOnly="True"/>
+                                        Binding="{Binding PackageCount, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <DataGridTextColumn Width="120" Header="小计净重" 
                                         Binding="{Binding SubTotalNw}" IsReadOnly="True"/>
@@ -289,16 +301,16 @@
                                         Binding="{Binding SubTotalCbm}" IsReadOnly="True"/>
 
                     <DataGridTextColumn Width="120" Header="PoNo" 
-                                        Binding="{Binding CustomerPoNo}" IsReadOnly="True"/>
+                                        Binding="{Binding CustomerPoNo, UpdateSourceTrigger=PropertyChanged}"/>
                     
                     <DataGridTextColumn Width="120" Header="InvoiceNo" 
-                                        Binding="{Binding InvoiceNo}" IsReadOnly="True"/>
+                                        Binding="{Binding InvoiceNo, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <DataGridTextColumn Width="120" Header="SubNote" 
-                                        Binding="{Binding Note}" IsReadOnly="True"/>
+                                        Binding="{Binding Note, UpdateSourceTrigger=PropertyChanged}"/>
                     
                     <DataGridTextColumn Width="120" Header="WarehouseName" 
-                                        Binding="{Binding WarehouseName}" IsReadOnly="True"/>
+                                        Binding="{Binding WarehouseNameSnapshot}" IsReadOnly="True"/>
                     
                 </DataGrid.Columns>
             </DataGrid>
@@ -307,7 +319,8 @@
         <!--Message-->
         <Grid Grid.Row="6">
             <StackPanel>
-                
+                <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" Foreground="{DynamicResource SwiftExportBrush.Error}"/>
+                <TextBlock Text="{Binding ResultSummary}" TextWrapping="Wrap"/>
             </StackPanel>
         </Grid>
     </Grid>

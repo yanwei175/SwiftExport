@@ -155,7 +155,7 @@ public sealed partial class InboundManagerServiceTests
             "HasUnprovenReceiptAsync" => Task.FromResult(Unproven),
             "LockPurchaseSourcesAsync" => LockSource(),
             "MarkPostedAsync" => MarkPosted(),
-            _ => throw new NotSupportedException(method)
+            _ => ReverseRepository(method)
         };
 
         private async Task LockSource()
@@ -163,12 +163,13 @@ public sealed partial class InboundManagerServiceTests
             if (Shared is not null) await Shared.Gate.WaitAsync();
             _sourceLocked = true;
             var version = Header!.Version;
+            var status = Header.PostingStatus;
             Connection.Finished = committed =>
             {
                 if (!committed)
                 {
                     if (Shared is not null) Shared.Quantity -= _postedDelta; else Received -= _postedDelta;
-                    Header.Version = version; Header.PostingStatus = InboundPostingStatusEnum.Unposted;
+                    Header.Version = version; Header.PostingStatus = status;
                 }
                 _postedDelta = 0;
                 if (_sourceLocked && Shared is not null) Shared.Gate.Release();

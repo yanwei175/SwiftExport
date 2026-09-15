@@ -76,6 +76,8 @@ namespace SwiftExport.Contracts.DTOs.Inventory
         public string ProductName { get; set; }
         /// <remarks>来源：InventoryBalance.UnitSnapshot。</remarks>
         public string Unit { get; set; }
+        /// <remarks>来源：当前未删除 Product.MainImage；产品缺失或已删除时为空。</remarks>
+        public string ImagePath { get; set; }
         public decimal OnHandQty { get; set; }
         /// <remarks>计算来源：当前阶段等于 InventoryBalance.OnHandQty，尚未扣减独立预占量。</remarks>
         public decimal AvailableQty { get; set; }

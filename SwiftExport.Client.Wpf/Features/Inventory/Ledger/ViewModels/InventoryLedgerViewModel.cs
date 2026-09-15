@@ -5,7 +5,9 @@ using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.SysEnums.Inventory;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Mvvm;
+using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 
@@ -33,14 +35,13 @@ public sealed partial class InventoryLedgerViewModel : ViewModelBaseEx, IAsyncIn
         Title = "库存流水";
         IsReadOnly = true;
         RegisterBusyAwareCommand(SearchCommand);
-        RegisterBusyAwareCommand(PreviousPageCommand);
-        RegisterBusyAwareCommand(NextPageCommand);
+        RegisterBusyAwareCommand(PageChangeCommand);
     }
 
     public ObservableCollection<InventoryLedgerItemDto> Items { get; } = [];
     public ObservableCollection<WarehouseSiteDto> WarehouseOptions { get; } = [];
     public IEnumerable<SupplierDto> SupplierOptions => _referenceDataCache.Suppliers;
-    public IReadOnlyList<InventoryTransactionTypeEnum?> TransactionTypes { get; } = [null, InventoryTransactionTypeEnum.PurchaseReceiptInbound, InventoryTransactionTypeEnum.CustomerSuppliedReceiptInbound, InventoryTransactionTypeEnum.PackingListAutoReceiptInbound, InventoryTransactionTypeEnum.FinalCustomerShipmentOutbound, InventoryTransactionTypeEnum.CustomerSuppliedConsumptionOutbound, InventoryTransactionTypeEnum.OpeningBalance, InventoryTransactionTypeEnum.Reversal];
+    public IReadOnlyList<InventoryTransactionTypeEnum?> TransactionTypes { get; } = [null, .. InventoryTransactionTypeList.All.Select(value => (InventoryTransactionTypeEnum?)value)];
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
     [ObservableProperty] public partial string SourceDocumentNo { get; set; } = string.Empty;
     [ObservableProperty] public partial SupplierDto? SelectedSupplier { get; set; }
@@ -52,8 +53,6 @@ public sealed partial class InventoryLedgerViewModel : ViewModelBaseEx, IAsyncIn
     [ObservableProperty] public partial int PageSize { get; set; } = 50;
     [ObservableProperty] public partial int TotalCount { get; set; }
     [ObservableProperty] public partial string ResultSummary { get; set; } = "尚未加载。";
-    public bool CanPreviousPage => PageIndex > 1;
-    public bool CanNextPage => PageIndex * PageSize < TotalCount;
 
     /// <inheritdoc/>
     public async Task InitializeAsync()
@@ -71,8 +70,18 @@ public sealed partial class InventoryLedgerViewModel : ViewModelBaseEx, IAsyncIn
         await LoadAsync(true);
     }
     [RelayCommand] private Task SearchAsync() => LoadAsync(true);
-    [RelayCommand(CanExecute = nameof(CanPreviousPage))] private Task PreviousPageAsync() { PageIndex--; return LoadAsync(false); }
-    [RelayCommand(CanExecute = nameof(CanNextPage))] private Task NextPageAsync() { PageIndex++; return LoadAsync(false); }
+
+    /// <summary>接受共享分页控件的页码与每页条数请求，并继续使用可取消查询。</summary>
+    [RelayCommand(CanExecute = nameof(CanChangePage))]
+    private Task PageChangeAsync(PageChangeRequest? request)
+    {
+        if (request is null) return Task.CompletedTask;
+        PageSize = Math.Clamp(request.NewSize <= 0 ? 50 : request.NewSize, 1, 200);
+        PageIndex = Math.Max(1, request.NewIndex);
+        return LoadAsync(false);
+    }
+
+    private bool CanChangePage(PageChangeRequest? request) => !_disposed && !IsBusy && request is not null;
 
     /// <summary>执行可替代的服务端分页查询，避免旧请求覆盖新筛选结果。</summary>
     private async Task LoadAsync(bool resetPage)
@@ -103,10 +112,7 @@ public sealed partial class InventoryLedgerViewModel : ViewModelBaseEx, IAsyncIn
                 ResultSummary = $"共 {TotalCount} 条流水，本页 {Items.Count} 条。";
             }
             else ResultSummary = result.Message;
-            OnPropertyChanged(nameof(CanPreviousPage));
-            OnPropertyChanged(nameof(CanNextPage));
-            PreviousPageCommand.NotifyCanExecuteChanged();
-            NextPageCommand.NotifyCanExecuteChanged();
+            PageChangeCommand.NotifyCanExecuteChanged();
         }, "正在查询库存流水...", false);
     }
 

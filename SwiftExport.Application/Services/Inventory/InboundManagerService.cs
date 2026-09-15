@@ -245,8 +245,8 @@ public sealed partial class InboundManagerService(
         }
         catch (SqlException ex) when (ex.Number == 51001)
         {
-            _logger.LogWarning(ex, "存在无法证明采购来源的正式入库事实。");
-            return ServiceResult<T>.Fail(ServiceErrorCodes.BusinessBlocked, "存在未完成来源核对的历史入库，无法可靠计算待入库数量，请先完成历史来源核对。");
+            _logger.LogWarning(ex, "存在来源或反向关系未核实的正式入库事实。");
+            return ServiceResult<T>.Fail(ServiceErrorCodes.BusinessBlocked, "存在未完成来源或反向完整性核对的历史入库，无法可靠计算净收货量，请先核实历史事实。");
         }
         catch (Exception ex)
         {

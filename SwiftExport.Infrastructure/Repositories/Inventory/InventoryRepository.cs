@@ -13,7 +13,7 @@ public sealed class InventoryRepository(RepositoryBaseContext context) : IInvent
 {
     private readonly RepositoryBaseContext _context = context;
 
-    /// <summary>分页查询库存余额，展示字段使用过账快照。</summary>
+    /// <summary>分页查询库存余额；业务展示字段使用过账快照，图片读取当前有效产品主数据。</summary>
     public async Task<PagedResponseBase<InventoryBalanceDto>> SearchBalancesAsync(InventoryBalanceSearchRequest request, CancellationToken cancellationToken = default)
     {
         var index = Math.Max(1, request.PageIndex);
@@ -29,8 +29,9 @@ public sealed class InventoryRepository(RepositoryBaseContext context) : IInvent
         var rows = await _context.Session.Connection.QueryAsync<InventoryBalanceDto>(new CommandDefinition($"""
             SELECT i.Uid,i.Version,i.WarehouseSiteId,w.Code AS WarehouseCode,w.Name AS WarehouseName,w.SupplierId,
                    s.SupplierCode,s.SupplierName,i.ProductId,i.SkuSnapshot AS Sku,i.ProductNameSnapshot AS ProductName,
-                   i.UnitSnapshot AS Unit,i.OnHandQty,i.OnHandQty AS AvailableQty,i.LastLedgerSequence,i.UpdatedDate
+                   i.UnitSnapshot AS Unit,p.MainImage AS ImagePath,i.OnHandQty,i.OnHandQty AS AvailableQty,i.LastLedgerSequence,i.UpdatedDate
             FROM dbo.InventoryBalance i JOIN dbo.WarehouseSite w ON w.Uid=i.WarehouseSiteId LEFT JOIN dbo.Supplier s ON s.Uid=w.SupplierId
+            LEFT JOIN dbo.Product p ON p.Uid=i.ProductId AND ISNULL(p.IsDeleted,0)=0
             {where} ORDER BY w.Code,i.SkuSnapshot,i.Uid OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
             """, p, _context.Session.Transaction, cancellationToken: cancellationToken));
         return Page(rows, total, index, size);
@@ -55,12 +56,13 @@ public sealed class InventoryRepository(RepositoryBaseContext context) : IInvent
         return Page(rows, total, index, size);
     }
 
-    /// <summary>读取余额详情。</summary>
+    /// <summary>读取余额详情；产品缺失或已删除时仍返回余额，并将图片留空。</summary>
     public Task<InventoryBalanceDto?> GetBalanceDtoAsync(Guid uid, CancellationToken cancellationToken = default) => _context.Session.Connection.QuerySingleOrDefaultAsync<InventoryBalanceDto>(new CommandDefinition("""
         SELECT i.Uid,i.Version,i.WarehouseSiteId,w.Code AS WarehouseCode,w.Name AS WarehouseName,w.SupplierId,
                s.SupplierCode,s.SupplierName,i.ProductId,i.SkuSnapshot AS Sku,i.ProductNameSnapshot AS ProductName,
-               i.UnitSnapshot AS Unit,i.OnHandQty,i.OnHandQty AS AvailableQty,i.LastLedgerSequence,i.UpdatedDate
+               i.UnitSnapshot AS Unit,p.MainImage AS ImagePath,i.OnHandQty,i.OnHandQty AS AvailableQty,i.LastLedgerSequence,i.UpdatedDate
         FROM dbo.InventoryBalance i JOIN dbo.WarehouseSite w ON w.Uid=i.WarehouseSiteId LEFT JOIN dbo.Supplier s ON s.Uid=w.SupplierId
+        LEFT JOIN dbo.Product p ON p.Uid=i.ProductId AND ISNULL(p.IsDeleted,0)=0
         WHERE i.Uid=@Uid AND ISNULL(i.IsDeleted,0)=0;
         """, new { Uid = uid }, _context.Session.Transaction, cancellationToken: cancellationToken));
 

@@ -29,7 +29,9 @@ namespace SwiftExport.Contracts.SysEnums
     /// <summary>采购工作台命令结果；用于区分首次成功与幂等重试。</summary>
     public enum ProcurementCommandOutcomeEnum
     {
+        [System.ComponentModel.Description("成功")]
         Succeeded = 0,
+        [System.ComponentModel.Description("已应用")]
         AlreadyApplied = 1
     }
 }

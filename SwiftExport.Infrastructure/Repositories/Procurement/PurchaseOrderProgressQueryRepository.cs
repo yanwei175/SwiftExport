@@ -1,3 +1,4 @@
+using SwiftExport.Infrastructure.Repositories.Inventory;
 using Dapper;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
 using SwiftExport.Contracts.SysEnums;
@@ -50,7 +51,7 @@ public sealed class PurchaseOrderProgressQueryRepository(RepositoryBaseContext c
         };
 
         using var grid = await context.Session.Connection.QueryMultipleAsync(new CommandDefinition(
-            SearchSql, parameters, context.Session.Transaction, cancellationToken: cancellationToken));
+            InboundReceiptHistorySql.Guard + SearchSql, parameters, context.Session.Transaction, cancellationToken: cancellationToken));
         var totalCount = await grid.ReadSingleAsync<int>();
         return new PagedResponseBase<PurchaseOrderProgressListItemDto>
         {
@@ -67,7 +68,7 @@ public sealed class PurchaseOrderProgressQueryRepository(RepositoryBaseContext c
         CancellationToken cancellationToken = default)
     {
         using var grid = await context.Session.Connection.QueryMultipleAsync(new CommandDefinition(
-            DetailSql,
+            InboundReceiptHistorySql.Guard + DetailSql,
             new
             {
                 PurchaseOrderId = purchaseOrderId,
@@ -189,7 +190,7 @@ public sealed class PurchaseOrderProgressQueryRepository(RepositoryBaseContext c
 
         WITH ReceiptFacts AS
         (
-            SELECT receiveLine.SourceLineId,SUM(receiveLine.Quantity) AS ReceivedQty
+            SELECT receiveLine.SourceLineId,SUM(CASE WHEN receiveHead.PostingStatus=1 THEN receiveLine.Quantity ELSE 0 END) AS ReceivedQty
             FROM dbo.InboundDocumentLine receiveLine
             INNER JOIN dbo.InboundDocument receiveHead ON receiveHead.Uid=receiveLine.InboundDocumentId
             WHERE receiveHead.DocumentType=@PurchaseReceipt

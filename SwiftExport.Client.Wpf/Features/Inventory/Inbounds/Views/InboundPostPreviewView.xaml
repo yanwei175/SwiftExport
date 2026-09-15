@@ -8,7 +8,7 @@
     <StackPanel Margin="4">
         <TextBlock Text="{Binding Preview.DocumentNo}" FontSize="18" FontWeight="SemiBold"/>
         <TextBlock Text="{Binding Preview.WarehouseName, StringFormat=目标仓库：{0}}" Margin="0,8"/>
-        <TextBlock Text="过账后暂不支持修改或撤销。预览不预占数量，正式提交时会再次校验。" TextWrapping="Wrap" Margin="0,0,0,12"/>
+        <TextBlock Text="过账后原单不可编辑；撤销须使用人工整单反过账。预览不预占数量，正式提交时会再次校验。" TextWrapping="Wrap" Margin="0,0,0,12"/>
         <DataGrid ItemsSource="{Binding Preview.Lines}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" MaxHeight="260">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="行" Binding="{Binding LineNumber}"/>

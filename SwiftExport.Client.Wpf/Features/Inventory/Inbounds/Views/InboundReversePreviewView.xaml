@@ -1,0 +1,25 @@
+<UserControl x:Class="SwiftExportClient.Features.Inventory.Inbounds.Views.InboundReversePreviewView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <StackPanel Margin="4">
+  <TextBlock Text="{Binding Preview.DocumentNo}" FontSize="18" FontWeight="SemiBold"/>
+  <TextBlock Text="{Binding Preview.WarehouseName, StringFormat=原仓库：{0}}" Margin="0,8"/>
+  <TextBlock Text="整单扣减库存，原单将保持已反过账且不可编辑。重新入库请新建单据，实际退货不使用此入口。" TextWrapping="Wrap" Margin="0,0,0,12"/>
+  <DataGrid ItemsSource="{Binding Preview.StockImpacts}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="240" AutomationProperties.Name="整单库存扣减预览">
+   <DataGrid.Columns>
+    <DataGridTextColumn Header="产品" Binding="{Binding Sku}" Width="*"/>
+    <DataGridTextColumn Header="单位" Binding="{Binding Unit}"/>
+    <DataGridTextColumn Header="原库存变化" Binding="{Binding OriginalQuantityDelta, StringFormat=0.####}"/>
+    <DataGridTextColumn Header="当前库存" Binding="{Binding CurrentQuantity, StringFormat=0.####}"/>
+    <DataGridTextColumn Header="本次扣减" Binding="{Binding ReverseQuantity, StringFormat=0.####}"/>
+    <DataGridTextColumn Header="预计库存" Binding="{Binding ExpectedQuantity, StringFormat=0.####}"/>
+   </DataGrid.Columns>
+  </DataGrid>
+  <TextBlock Text="反过账原因（必填，最多500字）" Margin="0,12,0,4"/>
+  <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" MaxLength="500" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" MaxHeight="120" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="反过账原因"/>
+  <ScrollViewer MaxHeight="120" Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
+   <ItemsControl ItemsSource="{Binding Preview.Blockers}"><ItemsControl.ItemTemplate><DataTemplate>
+    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,2"/>
+   </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+  </ScrollViewer>
+ </StackPanel>
+</UserControl>

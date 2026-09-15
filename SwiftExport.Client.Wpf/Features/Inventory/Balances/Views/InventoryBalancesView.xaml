@@ -135,7 +135,7 @@
 
                     <DataGridTextColumn Header="时间" Binding="{Binding OccurredDate,StringFormat=yyyy-MM-dd HH:mm}" Width="150"/>
 
-                    <DataGridTextColumn Header="类型" Binding="{Binding TransactionType}" Width="220"/>
+                    <DataGridTextColumn Header="类型" Binding="{Binding TransactionType,Converter={StaticResource EnumDescriptionConverter}}" Width="220"/>
 
                     <DataGridTextColumn Header="变化" 
                                     Binding="{Binding QuantityDelta,StringFormat=N1}" 

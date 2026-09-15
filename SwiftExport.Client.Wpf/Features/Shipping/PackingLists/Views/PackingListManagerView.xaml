@@ -30,14 +30,24 @@
                           VerticalAlignment="Center"/>
                 <!--搜索框-->
                 <ui:TextBox Grid.Column="1"
-                           Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
+                           Text="{Binding Search.Keyword,UpdateSourceTrigger=PropertyChanged}"
                            Icon="{ui:SymbolIcon Symbol=Search24}"
-                           PlaceholderText="搜索箱单号,InvoiceNo,CustoerSku,Sku,LinkSku,采购单号,自定义采购单号">
+                           AutomationProperties.Name="箱单搜索关键词"
+                           PlaceholderText="搜索箱单号、发票号、客户、SKU">
                     <ui:TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                     </ui:TextBox.InputBindings>
                 </ui:TextBox>
             </Grid>
+            <StackPanel Grid.Row="2" Orientation="Horizontal">
+                <TextBlock Text="客户:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox Width="160" ItemsSource="{Binding Customers}" DisplayMemberPath="CustomerCode" SelectedValuePath="Uid"
+                          SelectedValue="{Binding Search.CustomerId, Mode=TwoWay}" AutomationProperties.Name="箱单客户筛选"/>
+                <TextBlock Text="单据日期:" VerticalAlignment="Center" Margin="12,0,8,0"/>
+                <DatePicker SelectedDate="{Binding Search.InvoiceDateFrom}" Width="140" AutomationProperties.Name="开始日期"/>
+                <TextBlock Text="至" VerticalAlignment="Center" Margin="8,0"/>
+                <DatePicker SelectedDate="{Binding Search.InvoiceDateTo}" Width="140" AutomationProperties.Name="结束日期"/>
+            </StackPanel>
         </Grid>
 
         <Grid Grid.Row="2" RowDefinitions="Auto,8,3*,8,8*,Auto">
@@ -49,9 +59,15 @@
                            HorizontalAlignment="Left"/>
                 <ComboBox Grid.Column="2" 
                           ItemsSource="{x:Static staticEnums:PackingListPostingStatusList.All}"
-                          SelectedItem="{Binding SelectedPostingEnum, Mode=TwoWay}"
-                          DisplayMemberPath="{Binding SelectedPostingEnum,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}" 
-                          MinWidth="120"/>
+                          SelectedItem="{Binding Search.PostingStatus, Mode=TwoWay}"
+                          AutomationProperties.Name="过账状态筛选"
+                          MinWidth="120">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Converter={StaticResource EnumDescriptionConverter}}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
                 
                 <ui:Button Grid.Column="6" 
                            Content="查询" 
@@ -59,33 +75,42 @@
                            Command="{Binding SearchCommand}" 
                            VerticalAlignment="Stretch"/>
 
-                <StackPanel Grid.Column="8" Orientation="Horizontal" HorizontalAlignment="Left">
-                    <ui:Button Content="新增" MinWidth="70"  Margin="0,0,6,0" Command="{Binding AddNewHeaderRowCommand}" VerticalAlignment="Stretch"/>
-                    <ui:Button Content="保存" MinWidth="70"   Margin="0,0,6,0"  Command="{Binding SaveCommand}" Appearance="Success"/>
+                <StackPanel Grid.Column="8" Orientation="Horizontal" HorizontalAlignment="Left" IsEnabled="{Binding IsNotBusy}">
+                    <ui:Button Content="新增" MinWidth="70"  Margin="0,0,6,0" Command="{Binding AddNewCommand}" VerticalAlignment="Stretch"/>
+                    <ui:Button Content="编辑" MinWidth="70"   Margin="0,0,6,0" Command="{Binding EditCommand}"/>
                     <ui:Button Content="刷新" MinWidth="70"   Margin="0,0,6,0"  Command="{Binding RefreshCommand}" VerticalAlignment="Stretch"/>
-                    <ui:Button Content="删除" MinWidth="70"   Margin="0,0,6,0"  Command="{Binding DeleteSelectedCommand}" VerticalAlignment="Stretch"/>
-                    <ui:Button Content="过账" MinWidth="70"   Margin="0,0,6,0" Command="{Binding PostCommand}" Appearance="Primary"/>
-                    <ui:Button Content="反过账" MinWidth="70" Margin="0,0,6,0" Command="{Binding ReverseCommand}" Appearance="Danger" VerticalAlignment="Stretch"/>
+                    <ui:Button Content="删除" MinWidth="70"   Margin="0,0,6,0"  Command="{Binding DeleteCommand}" VerticalAlignment="Stretch"/>
+                    <ui:Button Content="过账" MinWidth="70" Margin="0,0,6,0" Command="{Binding PostCommand}" ToolTip="待开发" Appearance="Primary"/>
+                    <ui:Button Content="反过账" MinWidth="70" Margin="0,0,6,0" Command="{Binding ReverseCommand}" ToolTip="待开发" Appearance="Danger" VerticalAlignment="Stretch"/>
+                    <ui:Button Content="清空筛选" Command="{Binding ClearFiltersCommand}"/>
                 </StackPanel>
             </Grid>
 
             <!--单头-->
             <Grid Grid.Row="2" RowDefinitions="*,Auto">
                 <DataGrid x:Name="HeaderGrid" Grid.Row="0"
+                          IsEnabled="{Binding IsNotBusy}"
                           Style="{StaticResource SwiftExportDataGrid}"
                           FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                           RowHeight="{DynamicResource DataGridRowHeightSmall}"
                           ItemsSource="{Binding Headers.Items}" 
-                          IsReadOnly="{Binding HeaderReadOnly}"
-                          SelectedItem="{Binding SelectedItem}" 
+                          IsReadOnly="True"
+                          SelectedItem="{Binding SelectedHeader}"
                           AutoGenerateColumns="False" 
                           CanUserAddRows="False" 
                           CanUserDeleteRows="False"
                           gridCore:EnterpriseGrid.IsEnabled="True"
                           gridCore:GridRowHeader.ShowRowNumber="True">
                     <DataGrid.Columns>
-
-
+                        <DataGridTextColumn Header="箱单号" Binding="{Binding PackingListNo}" Width="150"/>
+                        <DataGridTextColumn Header="客户" Binding="{Binding CustomerNameSnapshot}" Width="180"/>
+                        <DataGridTextColumn Header="单据日期" Binding="{Binding InvoiceDate, StringFormat=d}" Width="110"/>
+                        <DataGridTextColumn Header="发票号" Binding="{Binding InvoiceNosSummary}" Width="180"/>
+                        <DataGridTextColumn Header="过账状态" Binding="{Binding PostingStatus, Converter={StaticResource EnumDescriptionConverter}}" Width="100"/>
+                        <DataGridTextColumn Header="柜号" Binding="{Binding ContainerNo}" Width="130"/>
+                        <DataGridTextColumn Header="封条号" Binding="{Binding SealNo}" Width="120"/>
+                        <DataGridTextColumn Header="ETD" Binding="{Binding Etd, StringFormat=d}" Width="110"/>
+                        <DataGridTextColumn Header="ETA" Binding="{Binding Eta, StringFormat=d}" Width="110"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -95,8 +120,8 @@
                                Style="{StaticResource CaptionTextBlock}"/>
                     <controls:PageNavigator Grid.Column="2" 
                                             TotalCount="{Binding TotalCount}"
-                                            PageIndex="{Binding PageIndex, Mode=OneWay}"
-                                            PageSize="{Binding PageSize}"
+                                            PageIndex="{Binding Search.PageIndex, Mode=OneWay}"
+                                            PageSize="{Binding Search.PageSize, Mode=OneWay}"
                                             PageSizeOptions="{Binding PageSizeOptions}"
                                             PageChangeCommand="{Binding PageChangeCommand}"/>
                 </Grid>
@@ -112,26 +137,26 @@
                                Style="{StaticResource BodyStrongTextBlock}"
                                VerticalAlignment="Center" 
                                HorizontalAlignment="Left"/>
-                        <TextBlock Grid.Column="2" Text="总数量"/>
-                        <TextBlock Grid.Column="4" Text="{Binding QtySummary,Mode=OneWay}"/>
+                        <TextBlock Grid.Column="2" Text="数量（按单位）"/>
+                        <TextBlock Grid.Column="4" Text="{Binding Lines.QtySummary,Mode=OneWay}"/>
                     
                         <TextBlock Grid.Column="6" Text="总净重"/>
-                        <TextBlock Grid.Column="8" Text="{Binding NetWeightSummary,Mode=OneWay}"/>
+                        <TextBlock Grid.Column="8" Text="{Binding Lines.NetWeightSummary,Mode=OneWay}"/>
                     
                         <TextBlock Grid.Column="10" Text="总毛重"/>
-                        <TextBlock Grid.Column="12" Text="{Binding GrossWeightSummary,Mode=OneWay}"/>
+                        <TextBlock Grid.Column="12" Text="{Binding Lines.GrossWeightSummary,Mode=OneWay}"/>
                     
                         <TextBlock Grid.Column="14" Text="总箱数"/>
-                        <TextBlock Grid.Column="16" Text="{Binding CartonSummary,Mode=OneWay}"/>
+                        <TextBlock Grid.Column="16" Text="{Binding Lines.CartonSummary,Mode=OneWay}"/>
                     
                         <TextBlock Grid.Column="18" Text="总体积"/>
-                         <TextBlock Grid.Column="20" Text="{Binding CbmSummary,Mode=OneWay}"/>
+                         <TextBlock Grid.Column="20" Text="{Binding Lines.CbmSummary,Mode=OneWay}"/>
                     
                 </Grid>
                 
                 <!--单行-->
                 <DataGrid x:Name="LineGrid" Grid.Row="2"
-                          IsReadOnly="{Binding LinesReadOnly}" 
+                          IsReadOnly="True"
                           ItemsSource="{Binding Lines.Items}" 
                           SelectedItem="{Binding Lines.SelectedItem}" 
                           Style="{StaticResource SwiftExportDataGrid}"
@@ -144,7 +169,7 @@
                           HeadersVisibility="Column"
                           gridCore:EnterpriseGrid.IsEnabled="True"
                           gridCore:GridVirtualization.IsEnabled="True"
-                          gridOperations:GridOperations.IsEnabled="True"
+                          gridOperations:GridOperations.IsEnabled="False"
                           gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                           gridSelection:GridSelection.CurrentRow="{Binding Lines.SelectedItem,Mode=TwoWay}"
                           gridValidation:GridValidation.IsEnabled="True">
@@ -165,8 +190,21 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-
-
+                        <DataGridTextColumn Header="SKU" Binding="{Binding SkuSnapshot}" Width="120"/>
+                        <DataGridTextColumn Header="Link SKU" Binding="{Binding LinkSkuSnapshot}" Width="120"/>
+                        <DataGridTextColumn Header="客户SKU" Binding="{Binding CustomerSkuSnapshot}" Width="120"/>
+                        <DataGridTextColumn Header="英文描述" Binding="{Binding DescriptionEnSnapshot}" Width="200"/>
+                        <DataGridTextColumn Header="英文颜色" Binding="{Binding ColorNameEnSnapshot}" Width="120"/>
+                        <DataGridTextColumn Header="数量" Binding="{Binding Qty}" Width="90"/>
+                        <DataGridTextColumn Header="单位" Binding="{Binding UnitSnapshot}" Width="70"/>
+                        <DataGridTextColumn Header="每包数量" Binding="{Binding PcsPerPackage}" Width="90"/>
+                        <DataGridTextColumn Header="包装数" Binding="{Binding PackageCount}" Width="90"/>
+                        <DataGridTextColumn Header="净重小计" Binding="{Binding SubTotalNw}" Width="100"/>
+                        <DataGridTextColumn Header="毛重小计" Binding="{Binding SubTotalGw}" Width="100"/>
+                        <DataGridTextColumn Header="体积小计" Binding="{Binding SubTotalCbm}" Width="100"/>
+                        <DataGridTextColumn Header="客户PO" Binding="{Binding CustomerPoNo}" Width="120"/>
+                        <DataGridTextColumn Header="发票号" Binding="{Binding InvoiceNo}" Width="120"/>
+                        <DataGridTextColumn Header="仓库" Binding="{Binding WarehouseNameSnapshot}" Width="130"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>

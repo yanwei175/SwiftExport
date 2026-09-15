@@ -26,6 +26,7 @@ public sealed class InventoryQueryContractTests
         Assert.AreEqual("/ledger/search", methods[nameof(IInventoryApi.SearchLedgerAsync)].GetCustomAttributes(typeof(PostAttribute), false).Cast<PostAttribute>().Single().Path);
         Assert.AreEqual("/balances/{uid}/trace", methods[nameof(IInventoryApi.GetTraceAsync)].GetCustomAttributes(typeof(GetAttribute), false).Cast<GetAttribute>().Single().Path);
         Assert.IsNotNull(typeof(InventoryBalanceTraceDto).GetProperty(nameof(InventoryBalanceTraceDto.Reconciliation)));
+        Assert.AreEqual(typeof(string), typeof(InventoryBalanceDto).GetProperty(nameof(InventoryBalanceDto.ImagePath))?.PropertyType);
     }
 
     /// <summary>库存 HTTP 边界要求认证，细粒度模块权限继续由 Application 服务重验。</summary>
@@ -64,6 +65,17 @@ public sealed class InventoryQueryContractTests
         Assert.IsFalse(source.Contains("s.Code AS SupplierCode", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("s.Name AS SupplierName", StringComparison.Ordinal));
         Assert.AreEqual(2, Count(source, "s.SupplierCode,s.SupplierName"));
+    }
+
+    /// <summary>余额列表与详情仅左连接当前有效产品图片，不得改变余额 count 查询。</summary>
+    [TestMethod]
+    public void InventoryRepository_ShouldReadLiveProductImageWithoutFilteringBalances()
+    {
+        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "InventoryRepository.cs"));
+
+        Assert.AreEqual(2, Count(source, "LEFT JOIN dbo.Product p ON p.Uid=i.ProductId AND ISNULL(p.IsDeleted,0)=0"));
+        Assert.AreEqual(2, Count(source, "p.MainImage AS ImagePath"));
+        StringAssert.Contains(source, "SELECT COUNT(1) FROM dbo.InventoryBalance i JOIN dbo.WarehouseSite w");
     }
 
     /// <summary>选择器 SQL 仅返回活动未删除仓库，保留非活动供应商显示，并对 LIKE 特殊字符逐一转义。</summary>

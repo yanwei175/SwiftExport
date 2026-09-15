@@ -1,6 +1,18 @@
 # 入库选源 API 交接
 
-2026-09-14：已实现采购入库正向过账、只读预览与其他草稿提醒；Manager 保留查询、分页、详情、保存和草稿软删除。未开放反过账、售后、生产、自动入库或出库检查。数据库未连接、未迁移，不能把构建通过视为部署完成，不恢复旧 Workspace。
+## 2026-09-15 人工入库整单反过账（本批）
+
+- 仅活动、人工、已过账且非 PL 触发的采购入库；原单原行保留，反过账后仍只读，不生成负数入库单。不加入客户归属、消耗分配、库存池或预留，不检查后续出库；库存按仓库＋产品合计扣减，余额不足整单阻断。
+- 新增 `POST /api/inventory/inbounds/{uid}/reverse-preview`，请求 ExpectedVersion，返回 InboundReversePreviewDto（原流水 Ledgers、汇总 StockImpacts、结构化 Blockers、CanReverse）。
+- 新增 `POST /api/inventory/inbounds/{uid}/reverse`，请求 CommandId、ExpectedVersion、Reason（Trim 后 1–500 字），返回 InboundReverseResult（Uid、Version、DocumentNo、PostingStatus、反过账审计信息）。预览与提交要求 Module.Inventory.Access 和独立可分配 Inventory.Inbound.Reverse。
+- 先命令重放，再按采购来源、入库头行顺序锁定；原流水与明细一一证明后调用现有库存 ReverseAsync。采购关闭或主数据停用不重新取消原事实的纠错资格；历史仓库和单位规则沿用库存内核。库存、状态、审计、日志同事务，失败全量回滚。
+- Manager 启用当前单反过账预览和原因弹窗；确认冻结命令，未知响应刷新原命令重试；成功但详情失败只重读。成功只回填当前单，不丢其他编辑。真实退货不使用此入口。
+- 净收货：Posted 贡献原行数量；已证明完整整单反向的 Reversed 贡献零。入库选源/详情/容量、采购管理/跟进数量查询同步适配。共享只读历史门禁拒绝旧负数单、无明细或不完整反向，不自动迁移。历史事实存在性安全检查不删除。
+- 需求既有查询只累计 PostingStatus=1，不需要因本次状态归零改分摊；其旧 DemandExecutionLinkId 关联问题单独记录，不在本批臆造按 Link 分配规则。
+- 专项隔离测试 100 项通过（入库、出库反过账、库存内核、入库 WPF 会话）；WebApi/WPF 构建通过。全量 Application 测试被需求旧类型缺失阻断，WPF 全量测试在获准重试后确认被旧需求 ViewModel/DTO/API 类型缺失阻断；不修改无关测试。真实 SQL 锁、事务、死锁及桌面联调未验证，未连接数据库。
+- 交付 `036_人工入库反过账_Preflight.sql`，仅只读核对，未执行；保持原入库行正数约束，不新增表。旧段落与本节冲突时以本节为准。
+
+2026-09-14：已实现采购入库正向过账、只读预览与其他草稿提醒；Manager 保留查询、分页、详情、保存和草稿软删除。未开放售后、生产、自动入库或出库检查。数据库未连接、未迁移，不能把构建通过视为部署完成，不恢复旧 Workspace。
 
 ## 查询协议
 
@@ -62,7 +74,7 @@
 - 新建编号由现有 `IDocumentNoService` 生成，格式为 `IR{收货日期yyyyMM}{至少4位流水}`，如 `IR2026090001`；取号在保存事务内、幂等检查后执行。不接收客户端编号，不重编已有单号。
 - 重试复用 CommandId 和完整内容；更新/删除也复用最初 ExpectedVersion。同键不同内容、不同操作或不同用户冲突。响应不确定时不要新建 CommandId。
 - 来源版本仅为查询当时版本，不入库持久化；详情里的来源单号、BoNo、LinkSku、图片和剩余量为查询投影，不是销售/需求快照。
-- 正式净收货按采购来源行汇总有符号数量，包含 Posted 与 Reversed 原事实及相应反向单，排除草稿。历史枚举 11/12 或无法证明采购行的正式记录会阻断 Picker；不得把漏算历史当零收货。反向结构上线前仍须联合验收该口径。
+- 正式净收货按采购行汇总，仅 Posted 贡献数量；完整证明的 Reversed 归零，旧负数反向单阻断。历史枚举 11/12 或无法证明采购行的正式记录会阻断 Picker；不得把漏算历史当零收货。反向结构上线前仍须联合验收该口径。
 
 ## 正向过账与提醒
 
@@ -83,7 +95,7 @@
 - Search 已包含 PostingStatus 并有服务端过滤；默认未过账，点击查询应用，不仅筛当前页。
 - 全量 WPF 测试仍因既有 API Runner、Dialog 和采购批量确认测试编译错误阻断。本次临时隔离入口只选入库测试源，不删除或修改无关测试；NuGet 漏洞数据获取因网络受限产生警告。
 - 启用前阻断：`ProcurementOrderRepository.HasDownstreamFactsAsync` 仍通过入库 `SourceUid/SourceType` 判断下游；当前入库事实已是 `SourceLineId` 加头 DocumentType，可能导致取消确认查询 SQL 失败或无法正确保护。实际采购命令已使用采购头更新锁，但下游事实查询需由采购任务独立迁移并联调。本批未修改采购模块。
-- 数据库迁移、反过账/红冲/已过账纠错、Trace、售后、生产及 PackingList 自动入库未实现，不因本批构建通过宣称部署可用。
+- 数据库迁移、部分红冲/自动纠错、Trace、售后、生产及 PackingList 自动入库未实现，不因本批构建通过宣称部署可用。
 
 ## Manager 保存、删除与恢复（已接线）
 

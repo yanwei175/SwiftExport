@@ -4,10 +4,13 @@ namespace SwiftExport.Contracts.SysEnums
     public enum ExecutionEligibilityKind
     {
         /// <summary>产品身份。</summary>
+        [System.ComponentModel.Description("产品")]
         Product = 1,
         /// <summary>客户归属。</summary>
+        [System.ComponentModel.Description("客户")]
         Customer = 2,
         /// <summary>实际供应商或供应商仓库所属方。</summary>
+        [System.ComponentModel.Description("供应商")]
         Supplier = 3
     }
 }

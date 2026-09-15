@@ -44,7 +44,7 @@ public sealed partial class InboundManagerViewModel
             var pending = new InboundPendingWrite { DocumentId = row.Uid, Post = new() { CommandId = Guid.NewGuid(), ExpectedVersion = version } };
             BeginPending(row, pending);
             if (await CompletePendingAsync(row, pending) && !_disposed)
-                ResultSummary = $"{row.DocumentNo} 已过账，单据只读；暂不支持修改或撤销。";
+                ResultSummary = $"{row.DocumentNo} 已过账，单据只读；如需撤销请使用整单反过账。";
         }, "预览并提交当前入库单");
     }
 
@@ -58,5 +58,5 @@ public sealed partial class InboundManagerViewModel
         return ServiceResult<InboundDraftCommandResult>.Ok(new() { Uid = result.Data.Uid, Version = result.Data.Version, DocumentNo = result.Data.DocumentNo });
     }
 
-    private void OnPostingUserChanged(object? sender, EventArgs e) => PostCommand.NotifyCanExecuteChanged();
+    private void OnPostingUserChanged(object? sender, EventArgs e) { PostCommand.NotifyCanExecuteChanged(); ReverseCommand.NotifyCanExecuteChanged(); }
 }

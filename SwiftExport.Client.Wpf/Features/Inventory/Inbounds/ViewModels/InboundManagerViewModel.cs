@@ -29,11 +29,12 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     public InboundManagerViewModel(IWarehousePickerService warehouses, IInboundSourceDialogService sources, IDialogService dialogs,
         IInboundManagerApi? api = null, IApiCallRunner? runner = null,
         IInboundPersistenceService? persistence = null, IInboundDeleteDialogService? deleteDialogs = null,
-        IInboundPostDialogService? postDialogs = null, SwiftExportClient.Authentication.ICurrentUserService? postingUser = null)
+        IInboundPostDialogService? postDialogs = null, SwiftExportClient.Authentication.ICurrentUserService? postingUser = null, IInboundReverseDialogService? reverseDialogs = null)
     {
         _warehouses = warehouses; _sources = sources; _dialogs = dialogs;
         _api = api; _runner = runner;
         _persistence = persistence; _deleteDialogs = deleteDialogs;
+        _reverseDialogs = reverseDialogs;
         _postDialogs = postDialogs; _postingUser = postingUser;
         if (_postingUser is not null) _postingUser.CurrentUserChanged += OnPostingUserChanged;
         Title = "入库单管理";
@@ -49,6 +50,7 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
         RegisterBusyAwareCommand(PageChangeCommand);
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(PostCommand);
+        RegisterBusyAwareCommand(ReverseCommand);
     }
 
     /// <summary>头行编辑集合，每个头保留自己的明细。</summary>
@@ -64,8 +66,9 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     [NotifyCanExecuteChangedFor(nameof(OpenInboundSourceDialogCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedLineCommand))]
     [NotifyCanExecuteChangedFor(nameof(PostCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReverseCommand))]
     public partial InboundHeaderModel? SelectedItem { get; set; }
-    [ObservableProperty] public partial string ResultSummary { get; set; } = "保存仅持久化草稿；正向过账后增加库存，暂不支持修改或撤销。";
+    [ObservableProperty] public partial string ResultSummary { get; set; } = "保存仅持久化草稿；正向过账后增加库存，原单不可编辑，可整单反过账。";
 
     /// <summary>当前单明细集合；切换不丢弃其他单据的本地修改。</summary>
     public BaseListModel<InboundLineModel, InboundLineDetailDto>? Lines => SelectedItem?.Lines;
@@ -147,7 +150,6 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
         }, "选择入库来源");
     }
 
-    [RelayCommand(CanExecute = nameof(BackendUnavailable))] private void Reverse() { }
     [RelayCommand(CanExecute = nameof(BackendUnavailable))] private void AddNewLineRow() { }
 
     /// <summary>同步汇总与关闭脏状态；不将显示合计写回实体。</summary>
@@ -167,6 +169,7 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
         OnPropertyChanged(nameof(HeaderReadOnly));
         OpenWarehousePickerCommand.NotifyCanExecuteChanged();
         PostCommand.NotifyCanExecuteChanged();
+        ReverseCommand.NotifyCanExecuteChanged();
         OpenInboundSourceDialogCommand.NotifyCanExecuteChanged();
         DeleteSelectedLineCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();

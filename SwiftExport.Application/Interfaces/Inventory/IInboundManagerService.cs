@@ -3,9 +3,13 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Interfaces.Inventory;
 
-/// <summary>入库管理用例；草稿与审计原子保存，正向过账通过库存内核提交，不开放反向。</summary>
+/// <summary>入库管理用例；草稿与审计原子保存，正向过账通过库存内核提交，支持人工整单反向。</summary>
 public interface IInboundManagerService
 {
+    /// <summary>只读预览原事实与整单余额扣减。</summary>
+    Task<ServiceResult<InboundReversePreviewDto>> PreviewReverseAsync(Guid uid, InboundReversePreviewRequest request, CancellationToken token = default);
+    /// <summary>原子追加反向库存事实并将原单保持只读。</summary>
+    Task<ServiceResult<InboundReverseResult>> ReverseAsync(Guid uid, ReverseInboundCommand command, CancellationToken token = default);
     /// <summary>只读预览当前已保存单据的正向过账。</summary>
     Task<ServiceResult<InboundPostPreviewDto>> PreviewPostAsync(Guid uid, InboundPostPreviewRequest request, CancellationToken token = default);
     /// <summary>在同一事务内提交入库状态、库存及业务日志。</summary>

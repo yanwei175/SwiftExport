@@ -1,3 +1,4 @@
+using SwiftExport.Infrastructure.Repositories.Inventory;
 using Dapper;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
 using SwiftExport.Contracts.SysEnums;
@@ -101,6 +102,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
     /// <summary>正式采购入库历史若不能定位采购行则拒绝整个管理查询，避免把无法归属的历史静默当成零收货。</summary>
     private async Task EnsureFormalReceiptHistoryIsTraceableAsync(CancellationToken cancellationToken)
     {
+        await context.Session.Connection.ExecuteAsync(new CommandDefinition(InboundReceiptHistorySql.Guard, transaction: context.Session.Transaction, cancellationToken: cancellationToken));
         var hasAmbiguousHistory = await context.Session.Connection.ExecuteScalarAsync<bool>(new CommandDefinition(
             """
             SELECT CAST(CASE WHEN EXISTS
@@ -149,7 +151,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
     private const string SearchSql = """
         WITH ReceiptFacts AS
         (
-            SELECT receiveLine.SourceLineId,SUM(receiveLine.Quantity) AS ReceivedQty
+            SELECT receiveLine.SourceLineId,SUM(CASE WHEN receiveHead.PostingStatus=1 THEN receiveLine.Quantity ELSE 0 END) AS ReceivedQty
             FROM dbo.InboundDocumentLine receiveLine
             INNER JOIN dbo.InboundDocument receiveHead ON receiveHead.Uid=receiveLine.InboundDocumentId
             WHERE receiveHead.DocumentType=@PurchaseReceipt
@@ -257,7 +259,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
     private const string LinesSql = """
         WITH ReceiptFacts AS
         (
-            SELECT receiveLine.SourceLineId,SUM(receiveLine.Quantity) AS ReceivedQty
+            SELECT receiveLine.SourceLineId,SUM(CASE WHEN receiveHead.PostingStatus=1 THEN receiveLine.Quantity ELSE 0 END) AS ReceivedQty
             FROM dbo.InboundDocumentLine receiveLine
             INNER JOIN dbo.InboundDocument receiveHead ON receiveHead.Uid=receiveLine.InboundDocumentId
             WHERE receiveHead.DocumentType=@PurchaseReceipt
