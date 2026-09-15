@@ -6,21 +6,31 @@ namespace SwiftExport.Application.Tests.Orders;
 public sealed class SalesOrderCancellationSqlContractTests
 {
     [TestMethod]
-    public void RepositorySql_MustKeepHardDeleteAndHistoryPreservationStrict()
+    public void RepositorySql_MustKeepSourceExitAndMaterialHistoryResponsibilitiesSeparated()
     {
-        var source = Read(
+        var sourceRepository = Read(
             "SwiftExport.Infrastructure",
             "Repositories",
             "DemandPlanning",
             "GrossDemandRepository.cs");
+        var materialRepository = Read(
+            "SwiftExport.Infrastructure",
+            "Repositories",
+            "DemandPlanning",
+            "NetDemandRepository.cs");
+        var hardDeleteSql = ExtractMethod(sourceRepository, "HardDeleteForSourceCancellationAsync");
+        var voidSql = ExtractMethod(sourceRepository, "VoidRolledBackForSourceCancellationAsync");
 
-        StringAssert.Contains(source, "HardDeleteNeverDecomposedAsync");
-        StringAssert.Contains(source, "d.[DecompositionRevision]=0");
-        StringAssert.Contains(source, "NOT EXISTS(SELECT 1 FROM [dbo].[NetDemand]");
-        StringAssert.Contains(source, "VoidRolledBackForSourceCancellationAsync");
-        StringAssert.Contains(source, "nd.[LifecycleStatus] NOT IN (@NetDemandRolledBack,@NetDemandVoided)");
-        StringAssert.Contains(source, "allocation.[LifecycleStatus] NOT IN (@AllocationSuperseded,@AllocationCancelled)");
-        StringAssert.Contains(source, "WITH (UPDLOCK,HOLDLOCK)");
+        StringAssert.Contains(sourceRepository, "HardDeleteForSourceCancellationAsync");
+        StringAssert.Contains(sourceRepository, "VoidRolledBackForSourceCancellationAsync");
+        Assert.IsFalse(hardDeleteSql.Contains("[DecompositionRevision]", StringComparison.Ordinal));
+        Assert.IsFalse(hardDeleteSql.Contains("[dbo].[NetDemand]", StringComparison.Ordinal));
+        Assert.IsFalse(voidSql.Contains("[DecompositionRevision]", StringComparison.Ordinal));
+        Assert.IsFalse(voidSql.Contains("[dbo].[NetDemand]", StringComparison.Ordinal));
+        StringAssert.Contains(materialRepository, "GetHistoryCountsForUpdateAsync");
+        StringAssert.Contains(materialRepository, "HasInvalidExitHistoryAsync");
+        StringAssert.Contains(materialRepository, "WITH (UPDLOCK,HOLDLOCK)");
+        Assert.IsFalse(materialRepository.Contains("[dbo].[NetDemandAllocation]", StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -30,15 +40,14 @@ public sealed class SalesOrderCancellationSqlContractTests
             "SwiftExport.Infrastructure",
             "Repositories",
             "DemandPlanning",
-            "GrossDemandRepository.cs");
-        var sql = ExtractSql(source, "HasInvalidSourceCancellationHistoryAsync");
+            "NetDemandRepository.cs");
+        var sql = ExtractSql(source, "HasInvalidExitHistoryAsync");
         var compactSql = System.Text.RegularExpressions.Regex.Replace(sql, @"\s+", " ");
 
         AssertParenthesesAreBalanced(sql);
-        StringAssert.Contains(
-            compactSql,
-            "WHERE allocation.[NetDemandId]=nd.[Uid])) ) OR EXISTS (",
-            "NetDemand 历史检查和 Allocation 历史检查必须是同级 OR EXISTS 条件。");
+        StringAssert.Contains(compactSql, "nd.[LifecycleStatus] NOT IN (@RolledBack,@Voided)");
+        StringAssert.Contains(compactSql, "nd.[DecompositionRevision]<1");
+        Assert.IsFalse(compactSql.Contains("[dbo].[NetDemandAllocation]", StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -73,6 +82,15 @@ public sealed class SalesOrderCancellationSqlContractTests
         var sqlEnd = source.IndexOf("\";", sqlStart, StringComparison.Ordinal);
         Assert.IsGreaterThanOrEqualTo(0, sqlEnd, $"方法 {methodName} 中的 SQL 常量没有结束标记。");
         return source[sqlStart..sqlEnd];
+    }
+
+    /// <summary>截取一个公开仓储方法的源码范围，供内联 SQL 职责断言使用。</summary>
+    private static string ExtractMethod(string source, string methodName)
+    {
+        var methodStart = source.IndexOf(methodName, StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, methodStart, $"找不到方法 {methodName}。");
+        var methodEnd = source.IndexOf("\n    public ", methodStart + methodName.Length, StringComparison.Ordinal);
+        return methodEnd < 0 ? source[methodStart..] : source[methodStart..methodEnd];
     }
 
     private static void AssertParenthesesAreBalanced(string sql)

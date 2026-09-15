@@ -120,7 +120,7 @@ public sealed class SourceDemandReceptionService(
             throw new SourceDemandReceptionException("SOURCE_HISTORY_INVALID", ex.Message);
         }
 
-        var deleted = await grossDemandRepository.HardDeleteNeverDecomposedAsync(plan.HardDeleteGrossDemandIds);
+        var deleted = await grossDemandRepository.HardDeleteForSourceCancellationAsync(plan.HardDeleteGrossDemandIds);
         var voided = await grossDemandRepository.VoidRolledBackForSourceCancellationAsync(plan.VoidGrossDemandIds, reason);
         if (deleted != plan.HardDeleteGrossDemandIds.Count || voided != plan.VoidGrossDemandIds.Count)
             throw new SourceDemandReceptionException("CONCURRENCY_CONFLICT", "来源需求状态已变化，退出确认失败。");

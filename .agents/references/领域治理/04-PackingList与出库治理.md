@@ -8,7 +8,7 @@
 
 依赖来源需求交付准入、采购固定执行组成及可收量、订单池过账能力。PL 正常确认自动生成必要非客供件入库、客户交付出库、客供件记账消耗；出库维护事实，销售查询只计客户交付。
 
-当前 PackingListContributionLine 必填 GrossDemand/NetDemand/Allocation，SalesOrderId/LineId 可空；OutboundDocumentLine 必填 Allocation；PL 来源查询仍从活动计划出发。现有 PostPreviewToken 可作为改造起点，不能认定它已绑定订单池及用户消耗确认。
+2026-09-16 当前 PackingList 已改为 `PackingListHead` / `PackingListLine`，来源只锚定 `GrossDemandId`，查询和草稿不依赖 NetDemand、Allocation 或采购。过账预览、正式出库、自动入库、客供件耗用与反向均尚未实现；下文相关内容是 PL-003 目标，不能描述成现有能力。
 
 ## 关系和字段
 

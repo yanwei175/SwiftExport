@@ -216,7 +216,8 @@ WHERE [Uid]=@Uid AND [Version]=@ExpectedVersion AND [SourceType]='MD'
             : RepositoryWriteResult.Fail(uid, expectedVersion, "CONCURRENCY_CONFLICT", "手工毛需求状态或版本已变化，请刷新后重试。");
     }
 
-    public Task<int> HardDeleteNeverDecomposedAsync(IEnumerable<Guid> grossDemandIds)
+    /// <summary>删除由上层物料历史校验判定为无历史的来源需求；本仓储不反向读取物料表。</summary>
+    public Task<int> HardDeleteForSourceCancellationAsync(IEnumerable<Guid> grossDemandIds)
     {
         var ids = grossDemandIds.Distinct().ToArray();
         if (ids.Length == 0) return Task.FromResult(0);

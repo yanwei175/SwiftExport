@@ -66,6 +66,7 @@ public sealed class MaterialDemandSuggestedSupplierInitializerTests
     private static Product CreateProduct(Guid? supplierId) => new()
     {
         Uid = Guid.NewGuid(),
+        Sku = $"SKU-{Guid.NewGuid():N}",
         DefaultSupplierId = supplierId
     };
 
@@ -73,6 +74,7 @@ public sealed class MaterialDemandSuggestedSupplierInitializerTests
     {
         Uid = Guid.NewGuid(),
         SupplierCode = code,
-        SupplierName = code
+        SupplierName = code,
+        DocRelateNo = code
     };
 }

@@ -2,11 +2,13 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
+/// <summary>验证物料需求 Manager 查询使用可复用的物化结果完成统计和分页。</summary>
 [TestClass]
-public sealed class NetDemandWorkspaceSqlContractTests
+public sealed class NetDemandManagerSqlContractTests
 {
+    /// <summary>确认当前 Manager SQL 不退回一次性 CTE，也不重新依赖旧 Allocation。</summary>
     [TestMethod]
-    public void WorkspaceQuery_MustMaterializeProjectionBeforeCountAndPage()
+    public void ManagerQuery_MustMaterializeProjectionBeforeCountAndPage()
     {
         var repositoryRoot = FindRepositoryRoot();
         var sourcePath = Path.Combine(
@@ -14,25 +16,27 @@ public sealed class NetDemandWorkspaceSqlContractTests
             "SwiftExport.Infrastructure",
             "Repositories",
             "DemandPlanning",
-            "NetDemandRepository.Workspace.cs");
+            "NetDemandRepository.Manager.cs");
         var source = File.ReadAllText(sourcePath);
 
-        StringAssert.Contains(source, "INTO #Workspace");
-        StringAssert.Contains(source, "SELECT COUNT(1) FROM #Workspace");
-        StringAssert.Contains(source, "SELECT w.* FROM #Workspace");
-        StringAssert.Contains(source, "DROP TABLE #Workspace");
+        StringAssert.Contains(source, "INTO #MaterialWorkspace");
+        StringAssert.Contains(source, "SELECT COUNT(1) FROM #MaterialWorkspace");
+        StringAssert.Contains(source, "FROM #MaterialWorkspace");
+        StringAssert.Contains(source, "DROP TABLE #MaterialWorkspace");
         Assert.IsFalse(
-            source.Contains("WITH Workspace AS", StringComparison.Ordinal),
+            source.Contains("WITH MaterialWorkspace AS", StringComparison.Ordinal),
             "SQL Server CTE 只能服务紧随其后的一条语句，不能同时供统计和分页查询复用。");
         StringAssert.Contains(
             source,
             "COALESCE(NULLIF(LTRIM(RTRIM(p.[Unit])),N''),N'PCS') AS [Unit]");
         StringAssert.Contains(source, "!request.SourceUid.HasValue");
         StringAssert.Contains(source, "gd.[SourceUid]=@SelectedSourceUid");
-        StringAssert.Contains(source, "SearchSourceGroupsAsync");
-        StringAssert.Contains(source, "PlanStatuses = request.PlanStatuses");
+        StringAssert.Contains(source, "SearchMaterialSourceGroupsAsync");
+        StringAssert.Contains(source, "CreateMaterialWorkspaceWhere");
+        Assert.IsFalse(source.Contains("[dbo].[NetDemandAllocation]", StringComparison.Ordinal));
     }
 
+    /// <summary>从测试输出目录向上定位仓库根目录。</summary>
     private static string FindRepositoryRoot()
     {
         foreach (var startDirectory in new[] { Environment.CurrentDirectory, AppContext.BaseDirectory })

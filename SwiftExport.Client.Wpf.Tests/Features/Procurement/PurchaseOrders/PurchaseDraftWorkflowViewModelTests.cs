@@ -1545,7 +1545,6 @@ public sealed class PurchaseDraftWorkflowViewModelTests
             });
         }
 
-        public Task<ServiceResult<SourcePurchaseTraceDto>> GetSourceTraceAsync(string sourceType, Guid sourceUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>> GetCandidateSourceGroupsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>.Ok(CandidateGroups.ToList()));
 

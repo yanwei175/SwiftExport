@@ -223,7 +223,7 @@ public sealed class SourceDemandReceptionServiceTests
         public Task<GrossDemand?> GetByIdForUpdateAsync(Guid uid) => throw new NotSupportedException();
         public Task<RepositoryWriteResult> UpdateManualAsync(GrossDemand demand, int expectedVersion) => throw new NotSupportedException();
         public Task<RepositoryWriteResult> CloseManualAsync(Guid uid, int expectedVersion, string reason) => throw new NotSupportedException();
-        public Task<int> HardDeleteNeverDecomposedAsync(IEnumerable<Guid> grossDemandIds) => throw new NotSupportedException();
+        public Task<int> HardDeleteForSourceCancellationAsync(IEnumerable<Guid> grossDemandIds) => throw new NotSupportedException();
         public Task<int> VoidRolledBackForSourceCancellationAsync(IEnumerable<Guid> grossDemandIds, string reason) => throw new NotSupportedException();
         public Task<int> VoidPendingBySourceAsync(string sourceType, Guid sourceUid, string reason) => throw new NotSupportedException();
     }

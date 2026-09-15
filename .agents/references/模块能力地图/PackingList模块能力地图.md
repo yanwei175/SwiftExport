@@ -1,14 +1,14 @@
 # PackingList 模块能力地图
 
-## 当前实体清洗决策（2026-09-14）
+## 当前实体与草稿切片（2026-09-16）
 
-本轮以 [PackingList 实体与关联交付设计](../../../docs/PackingList实体与关联交付设计.md) 为准。实体改为 PackingListHead / PackingListLine，目标表待迁移；唯一交付来源为 GrossDemandId，同来源可多行。不强制采购行或 Allocation，采购仅展示去重后的关联来源交付进度。行 InvoiceNo 手工填写，头汇总为派生展示。自动入出库及客供件耗用本轮未实现。
+当前生产模型为 `PackingListHead` / `PackingListLine`，唯一交付来源为 `GrossDemandId`，同来源允许多行。`IPackingListApi` 已实现查询、详情、SO/CR 来源候选及草稿创建、更新、删除六个用例；选源和保存不依赖 NetDemand、Allocation 或采购。行 `InvoiceNo` 手工填写，头部摘要由有效行派生。自动入出库、客供件耗用、过账/反过账和业务修订仍未实现；数据库增量脚本仅已准备，未在真实数据库执行。
 
-下文旧源码路径和 PL-001～005 为历史审计记录，不代表仍有可调用实现；旧 API、服务及专用仓储已清理。旧采购凭证强制规则和销售 InvoiceNo 同源规则不用于本轮实体。历史数据库脚本及仓库引用保护不提前切换表名。
+旧版 PackingList API、服务、仓储、聚合 DTO 及采购/Allocation 选源链已清理。新装库脚本、重建后检查和仓库删除保护已切换到 `PackingListHead` / `PackingListLine`；旧名称只可保留在明确标注的历史迁移记录中，不再作为当前实现入口。
 
 > **2026-09-07 口径修正：** 以《业务架构总纲》开头“采购来源可选与独立供货修正”为准。本文旧“采购必须对应一个销售单”、强制销售归属迁移及相关验收/提示词已撤销。采购可选关联来源需求；无上游的独立采购可正常入出库，PL 可选择其供货，交付要求仍来自来源需求。客供件池仅在实际消耗时明确归属并经用户批准，不得将订单池约束提升为所有采购的必填条件。阶段 02 使用已修订提示词。
 
-本地图是后续实现与重构的目标，不表示已实现。核对日期：2026-08-31。业务权威见 [业务架构总纲](../业务架构总纲.md) 第 12—14 节；同时读取 [入库](入库模块能力地图.md)、[库存](库存模块能力地图.md)、[出库](出库模块能力地图.md) 地图。涉及采购来源再读 [采购](采购模块能力地图.md)，涉及需求履约再读 [需求计划](需求计划模块能力地图.md)。
+本地图同时记录已落地草稿切片与后续治理目标。核对日期：2026-09-16。业务权威见 [业务架构总纲](../业务架构总纲.md) 第 12—14 节；同时读取 [入库](入库模块能力地图.md)、[库存](库存模块能力地图.md)、[出库](出库模块能力地图.md) 地图。涉及采购来源再读 [采购](采购模块能力地图.md)，涉及需求履约再读 [需求计划](需求计划模块能力地图.md)。
 
 ## 2026-09-06 当前修订
 
@@ -16,7 +16,7 @@
 
 以[业务总纲第 24 节](../业务架构总纲.md#24-订单级客供件池与领域解耦2026-09-06)为当前目标，不代表源码已实现。
 
-PL 正常确认编排必要非客供件入库、客户出库、客供件消耗。来源需求交付与采购执行分配分别关联，物料需求/Allocation 不必经，来源需求必须关联。各父件用量按确认组成计算，再按订单池汇总并保留来源；先阻断展示影响、用户明确确认、绑定预览版本、提交重验。普通确认不等于负库存放行。现存已耗料库存不重复耗用，未知不猜测。一采购单一销售单；PL 同客户多销售单仍逐行隔离池。PL-001/003/005 继续治理。
+当前草稿不预占库存或交付额度，只通过 `GrossDemandId` 保存来源快照并复核正式已交付净额。未来正常确认需编排必要非客供件入库、客户出库和客供件消耗；物料需求/Allocation 不是前提，来源需求必须可证明。PL-001 与 PL-005 已随草稿切片收口，PL-003 自动库存和 PL-004 修订/纠错继续治理。
 
 实施步骤与提示词见[本领域治理方案](../领域治理/04-PackingList与出库治理.md)。
 
@@ -103,7 +103,7 @@ PL 草稿不预占来源需求交付额度；既有草稿在销售变更后提�
 
 ## 5. 契约、Model 与复用决策
 
-下表目标为用例形状，不代表已建立 API/DTO；现有 API 位于 SwiftExport.Contracts/Apis/Shipping/IPackingListWorkspaceApi.cs。
+当前六个草稿用例契约位于 `SwiftExport.Contracts/Apis/Shipping/IPackingListApi.cs`；下表中的过账、反向、修订和输出仍是后续目标，不表示已经建立 API/DTO。
 
 | 用例与权限 | 字段来源/权威 | 消费者与目标前端 Model | 契约决策 |
 |---|---|---|---|
@@ -119,25 +119,24 @@ PL 草稿不预占来源需求交付额度；既有草稿在销售变更后提�
 
 ## 6. 当前源码与偏差账本
 
-以下未修复；路径相对仓库根。现有 sources 查询没有 ReadyQty>0 硬过滤，预览对不足 ReadyQty 发确认警告，不能误报成当前硬阻断。
+下表区分已收口与未实现能力；路径相对仓库根。当前来源候选按正式 PackingList 净交付量过滤剩余额度，不再读取采购 ReadyQty。
 
 | ID | 源码证据与现状 | 最小治理方向 |
 |---|---|---|
-| PL-001 | SwiftExport.Infrastructure/Repositories/Shipping/PackingListWorkspaceRepository.cs 的 SearchSourcesAsync/GetSourceForUpdateAsync 从活动 Allocation/NetDemand/GrossDemand 与 SO 选源，并要求供应商/仓；SwiftExport.Application/Services/Shipping/PackingListWorkspaceService.cs 复核这些来源 | 以汇聚销售/品质售后的来源需求解耦物料计划选源；无采购/分配可计划；正式出货校验仍保留 |
-| PL-002 | SwiftExport.Core/Entities/Shipping/PackingListDocument.cs 与 SwiftExport.Contracts/DTOs/Shipping/PackingLists/PackingListDtos.cs 头部为单个 InvoiceNo，贡献以需求/Allocation 和销售字段组织 | 支持多来源 InvoiceNo 与售后编号；保留来源快照，不强改旧头值代表全部来源 |
-| PL-003 | SwiftExport.Application/Services/Shipping/PackingListPreviewBuilder.cs 按 SourceInboundNetQty-ShippedNetQty 求来源库存；SwiftExport.Application/Services/Inventory/PackingListPostingPorts.cs 自动入库以 PackingList 贡献生成 | 与 INB-008/INV-006 共用整改，不重复开源库存修复；先客户归属，再采购行容量及人工/自动收货统一净额，并验证多贡献并发 |
-| PL-004 | SwiftExport.Application/Services/Shipping/PackingListWorkspaceService.cs 有草稿 Update/Post/Reverse，无已过账修订/真实退回补发命令；现有 Version 是并发版本 | 独立业务修订与纠错流程，保留原事实和有效版，真实错发走售后交接 |
-| PL-005 | SwiftExport.Contracts/DTOs/Shipping/PackingLists/PackingListDtos.cs 聚合多公开类型，贡献要求需求及 Allocation 身份 | 按触碰范围拆用例文件；来源通用交付身份与可选需求追溯分离，不造万能 DTO |
+| PL-001（已收口） | `PackingListRepository` 只从活动、未删除、标准产品身份可证明的 SO/CR `GrossDemand` 选源；不读取 NetDemand、Allocation 或采购 | 无采购/分配仍可建立草稿；正式出货和库存动作留给 PL-003 |
+| PL-002（已收口） | `PackingListHead` / `PackingListLine` 保存来源、产品、仓库和包装快照；发票摘要由有效行稳定排序并去重派生 | 查询不刷新历史快照，图片仅沿 `GrossDemandId` 读取当前图片路径 |
+| PL-003（未实现） | 当前没有 PackingList 过账预览、自动入库、正式出库、客供件耗用或反向用例 | 与 INB-008/INV-006 共用整改；先建立客户归属、采购容量与统一库存事实，再实现原子预览/提交/反向 |
+| PL-004（未实现） | 当前仅允许活动且未过账草稿按头行 Version 更新或软删除 | 后续增加独立业务修订与纠错流程，保留原事实和有效版，真实错发走售后交接 |
+| PL-005（已收口） | Contracts 已按查询、详情、来源和草稿命令拆分，`IPackingListApi` 提供六条稳定路由 | 后续新增用例继续独立建契约，不恢复万能 DTO 或旧版聚合 API |
 
-现有 SwiftExport.Application.Tests/Shipping/PackingListPreviewBuilderTests.cs、SwiftExport.Application.Tests/Shipping/PackingListWorkspaceContractTests.cs、SwiftExport.Client.Wpf.Tests/Features/Shipping/PackingListWorkspaceTests.cs 是回归起点，不代表上述新目标已通过。不得删除/削弱现有测试来通过新门禁。
+当前后端回归起点为 `PackingListEntityContractTests` 与 `PackingListDraftApiContractTests`；WPF 回归已按 Manager、Editor、映射和保存协调器等职责拆分。旧版聚合契约测试与已删除实现重复且包含过期库存断言，已移除；不得删除或削弱当前有效测试来通过新门禁。
 
 ## 7. 实施与验收
 
-1. Backend：客户库存归属和来源交接契约，含历史未知归属核实；不从页面字段反推表结构。
-2. Backend/Frontend 分任务：计划工作台及草稿、跨来源编号、无货好/无采购可计划，保持各自写入边界。
-3. Backend：真实预览、采购容量、同客户库存、自动入出库/B 消耗及并发幂等事务。
-4. Backend/Frontend 分任务：同号修订、影响预览、实际退回/售后补发交接、历史版输出。
-5. Reviewer：联验地图及全部下列场景，核对授权、事务和追溯。
+1. 已完成：查询、详情、SO/CR 来源候选及草稿创建、更新、删除，含权限、并发和幂等。
+2. Backend：真实预览、采购容量、同客户库存、自动入出库/B 消耗及并发幂等事务。
+3. Backend/Frontend 分任务：同号修订、影响预览、实际退回/售后补发交接、历史版输出。
+4. Reviewer：联验地图及全部下列场景，核对授权、事务和追溯。
 
 验收覆盖：同客户多 SO/售后/InvoiceNo；跨客户拒绝；未报货好/无采购可草稿；草稿不预留；已有同客户库存不重补；未知归属不视作零；自动收货与人工收货合计不超 PO；重复来源/并发提交不超交付；B 不足/历史配置缺失；同键成品与 B 合计；授权类型 90；任何中途失败全回滚；超时重试不重复过账；文档修订不动库存；库存纠错完整反向替代且历史可查；真实未退回不加库存；补发不双开额度；整单反向遇下游依赖拒绝。
 

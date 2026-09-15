@@ -21,7 +21,8 @@ public interface IGrossDemandRepository
     Task<RepositoryWriteResult> UpdateSourceDemandAsync(GrossDemand demand, int expectedVersion);
     Task<RepositoryWriteResult> UpdateManualAsync(GrossDemand demand, int expectedVersion);
     Task<RepositoryWriteResult> CloseManualAsync(Guid uid, int expectedVersion, string reason);
-    Task<int> HardDeleteNeverDecomposedAsync(IEnumerable<Guid> grossDemandIds);
+    /// <summary>删除已经由物料历史校验证明从未建立过物料事实的来源需求。</summary>
+    Task<int> HardDeleteForSourceCancellationAsync(IEnumerable<Guid> grossDemandIds);
     Task<int> VoidRolledBackForSourceCancellationAsync(IEnumerable<Guid> grossDemandIds, string reason);
     Task<int> VoidPendingBySourceAsync(string sourceType, Guid sourceUid, string reason);
 }

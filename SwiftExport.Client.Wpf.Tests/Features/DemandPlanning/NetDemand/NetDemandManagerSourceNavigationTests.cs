@@ -18,7 +18,7 @@ namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.NetDemand;
 /// 验证净需求来源导航与更多条件 Popup 的关键交互契约。
 /// </summary>
 [TestClass]
-public sealed class NetDemandWorkspaceSourceNavigationTests
+public sealed class NetDemandManagerSourceNavigationTests
 {
     [TestMethod]
     public async Task SelectingSource_ShouldUseSourceFactFilterAndKeepNormalPageSize()
@@ -113,7 +113,7 @@ public sealed class NetDemandWorkspaceSourceNavigationTests
     }
 
     [TestMethod]
-    public void WorkspaceView_ShouldExposeSourceListAndFullWidthMultilinePopup()
+    public void ManagerView_ShouldExposeSourceListAndFullWidthMultilinePopup()
     {
         var workspace = XDocument.Load(Path.Combine(
             FindRepositoryRoot(),

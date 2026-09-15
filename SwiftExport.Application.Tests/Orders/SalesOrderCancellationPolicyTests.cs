@@ -12,7 +12,7 @@ public sealed class SalesOrderCancellationPolicyTests
     [TestMethod]
     public void Build_ShouldHardDeleteNeverDecomposedDemand()
     {
-        var demand = CreateDemand(0);
+        var demand = CreateDemand();
 
         var plan = SourceDemandCancellationPolicy.Build(
             [demand],
@@ -25,7 +25,7 @@ public sealed class SalesOrderCancellationPolicyTests
     [TestMethod]
     public void Build_ShouldVoidDemandWithRolledBackHistory()
     {
-        var demand = CreateDemand(2);
+        var demand = CreateDemand();
 
         var plan = SourceDemandCancellationPolicy.Build(
             [demand],
@@ -38,8 +38,8 @@ public sealed class SalesOrderCancellationPolicyTests
     [TestMethod]
     public void Build_ShouldSupportMixedOrder()
     {
-        var neverDecomposed = CreateDemand(0);
-        var rolledBack = CreateDemand(1);
+        var neverDecomposed = CreateDemand();
+        var rolledBack = CreateDemand();
 
         var plan = SourceDemandCancellationPolicy.Build(
             [neverDecomposed, rolledBack],
@@ -54,23 +54,10 @@ public sealed class SalesOrderCancellationPolicyTests
     }
 
     [TestMethod]
-    [DataRow(0, 1)]
-    [DataRow(1, 0)]
-    public void Build_ShouldRejectRevisionAndHistoryMismatch(int revision, int historyCount)
+    public void Build_ShouldRejectInactiveDemand()
     {
-        var demand = CreateDemand(revision);
-
-        Assert.ThrowsExactly<InvalidOperationException>(() =>
-            SourceDemandCancellationPolicy.Build(
-                [demand],
-                new Dictionary<Guid, int> { [demand.Uid] = historyCount }));
-    }
-
-    [TestMethod]
-    public void Build_ShouldRejectNonPendingDemand()
-    {
-        var demand = CreateDemand(1);
-        demand.DecompositionStatus = GrossDemandDecompositionStatusEnum.Decomposed;
+        var demand = CreateDemand();
+        demand.LifecycleStatus = GrossDemandLifecycleStatusEnum.Voided;
 
         Assert.ThrowsExactly<InvalidOperationException>(() =>
             SourceDemandCancellationPolicy.Build(
@@ -78,12 +65,10 @@ public sealed class SalesOrderCancellationPolicyTests
                 new Dictionary<Guid, int> { [demand.Uid] = 1 }));
     }
 
-    private static GrossDemand CreateDemand(int revision) =>
+    private static GrossDemand CreateDemand() =>
         new()
         {
             Uid = Guid.NewGuid(),
-            LifecycleStatus = GrossDemandLifecycleStatusEnum.Active,
-            DecompositionStatus = GrossDemandDecompositionStatusEnum.Pending,
-            DecompositionRevision = revision
+            LifecycleStatus = GrossDemandLifecycleStatusEnum.Active
         };
 }

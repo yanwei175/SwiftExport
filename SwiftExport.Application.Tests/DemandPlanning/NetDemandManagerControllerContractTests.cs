@@ -2,9 +2,12 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
+/// <summary>验证物料需求管理与采购草稿 HTTP 边界保持当前路由及幂等职责。</summary>
 [TestClass]
 public sealed class NetDemandManagerControllerContractTests
 {
+    /// <summary>确认来源分组由物料需求 Manager 提供独立只读路由。</summary>
+    /// <summary>确认采购创建允许同一业务命令重试，并由数据库幂等约束裁决。</summary>
     [TestMethod]
     public void SourceGroups_MustExposeDedicatedReadOnlyRoute()
     {
@@ -46,6 +49,7 @@ public sealed class NetDemandManagerControllerContractTests
             "Create 必须允许相同 ExecutionRequestId/CommandItemId 重试，由数据库幂等约束裁决。");
     }
 
+    /// <summary>从测试输出目录向上定位仓库根目录。</summary>
     private static string FindRepositoryRoot()
     {
         foreach (var start in new[] { Environment.CurrentDirectory, AppContext.BaseDirectory })
