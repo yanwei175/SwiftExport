@@ -1,9 +1,12 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.Extensions.Logging.Abstractions;
+using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Services.DemandPlanning;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
@@ -12,10 +15,12 @@ using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.DemandPlanning;
+using SwiftExport.Core.Interfaces.Shipping;
 using SwiftExport.Infrastructure.Data;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Reflection;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
@@ -122,6 +127,58 @@ public sealed class SourceDemandReceptionServiceTests
         Assert.AreEqual("UNSUBMITTED_ACTIVE_SOURCE", error.Code);
     }
 
+    /// <summary>同一来源单按物料历史混合执行硬删除和作废，并返回准确计数。</summary>
+    [TestMethod]
+    public async Task CancellationHardDeletesNoHistoryAndVoidsRolledBackHistory()
+    {
+        using var fixture = new ReceptionFixture();
+        var secondLineId = Guid.NewGuid();
+        var command = fixture.Command("SO", 1);
+        command.Items = [command.Items[0], fixture.Item(secondLineId)];
+        await fixture.Service.ReceiveAsync(command);
+        var historical = fixture.Repository.Demands.Single(item => item.SourceLineId == secondLineId);
+        fixture.MaterialEstablishment.HistoryCounts[historical.Uid] = 2;
+
+        var result = await fixture.Service.CancelConfirmationAsync(
+            "SO", fixture.SourceUid, [fixture.SourceLineId, secondLineId], "销售取消确认");
+
+        Assert.AreEqual(1, result.HardDeletedCount);
+        Assert.AreEqual(1, result.VoidedCount);
+        Assert.IsTrue(fixture.Repository.Demands.Single(item => item.SourceLineId == fixture.SourceLineId).IsDeleted);
+        Assert.AreEqual(GrossDemandLifecycleStatusEnum.Voided, historical.LifecycleStatus);
+    }
+
+    /// <summary>Shipping 阻断发生在 GrossDemand 写入前，不能留下部分退出。</summary>
+    [TestMethod]
+    public async Task CancellationDeliveryFailureLeavesGrossDemandActive()
+    {
+        using var fixture = new ReceptionFixture();
+        await fixture.Service.ReceiveAsync(fixture.Command("SO", 1));
+        fixture.SourceDelivery.ErrorCode = "SOURCE_DELIVERY_EXISTS";
+
+        var error = await Assert.ThrowsAsync<SourceDemandReceptionException>(() => fixture.Service.CancelConfirmationAsync(
+            "SO", fixture.SourceUid, [fixture.SourceLineId], "销售取消确认"));
+
+        Assert.AreEqual("SOURCE_DELIVERY_EXISTS", error.Code);
+        var demand = fixture.Repository.Demands.Single();
+        Assert.IsFalse(demand.IsDeleted);
+        Assert.AreEqual(GrossDemandLifecycleStatusEnum.Active, demand.LifecycleStatus);
+    }
+
+    /// <summary>来源行集合即使数量相同也必须逐项匹配，避免退出错误来源行。</summary>
+    [TestMethod]
+    public async Task CancellationRejectsDifferentSourceLineWithSameCount()
+    {
+        using var fixture = new ReceptionFixture();
+        await fixture.Service.ReceiveAsync(fixture.Command("SO", 1));
+
+        var error = await Assert.ThrowsAsync<SourceDemandReceptionException>(() => fixture.Service.CancelConfirmationAsync(
+            "SO", fixture.SourceUid, [Guid.NewGuid()], "销售取消确认"));
+
+        Assert.AreEqual("SOURCE_DEMAND_MISMATCH", error.Code);
+        Assert.IsFalse(fixture.Repository.Demands.Single().IsDeleted);
+    }
+
     /// <summary>来源接收仍隔离销售与售后；交付尚未接入时两类额度声明都必须明确拒绝。</summary>
     [TestMethod]
     public async Task DeliveryVerificationIsUnavailableForBothAcceptedSourceTypes()
@@ -157,8 +214,9 @@ public sealed class SourceDemandReceptionServiceTests
             Session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             Session.Transaction = _connection.BeginTransaction();
             MaterialEstablishment = new FakeMaterialDemandEstablishmentService(Repository);
-            Service = new SourceDemandReceptionService(Session, Repository, MaterialEstablishment, Logs, new Correlation(), new User());
-            DeliveryService = new SourceDeliveryService();
+            SourceDelivery = new FakeSourceDeliveryService();
+            Service = new SourceDemandReceptionService(Session, Repository, MaterialEstablishment, SourceDelivery, Logs, new Correlation(), new User());
+            DeliveryService = CreateUnavailableDeliveryService();
         }
 
         public Guid SourceUid { get; } = Guid.NewGuid();
@@ -168,9 +226,18 @@ public sealed class SourceDemandReceptionServiceTests
         public FakeGrossDemandRepository Repository { get; } = new();
         public FakeOperationLogs Logs { get; } = new();
         public FakeMaterialDemandEstablishmentService MaterialEstablishment { get; }
+        public FakeSourceDeliveryService SourceDelivery { get; }
         public DbSession Session { get; }
         public SourceDemandReceptionService Service { get; }
         public SourceDeliveryService DeliveryService { get; }
+
+        private static SourceDeliveryService CreateUnavailableDeliveryService()
+        {
+            var session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
+            var repository = DispatchProxy.Create<IPackingListRepository, EmptyPackingListPort>();
+            return new SourceDeliveryService(
+                new ServiceBaseContext(session, NullLoggerFactory.Instance), repository);
+        }
 
         public SourceDemandReceptionCommand Command(string sourceType, int sourceVersion) => new()
         {
@@ -190,12 +257,41 @@ public sealed class SourceDemandReceptionServiceTests
     /// <summary>模拟来源本体通过物料应用边界执行的退出与变更影响校验。</summary>
     private sealed class FakeMaterialDemandEstablishmentService(FakeGrossDemandRepository repository) : IMaterialDemandEstablishmentService
     {
+        public Dictionary<Guid, int> HistoryCounts { get; } = [];
         public Task<bool> HasActiveAsync(Guid grossDemandId) => Task.FromResult(repository.HasBlocker);
-        public Task<bool> HasSourceExitBlockerAsync(string sourceType, Guid sourceUid, IReadOnlyCollection<Guid> sourceLineIds) => Task.FromResult(repository.HasBlocker);
-        public Task<IReadOnlyDictionary<Guid, int>> GetHistoryCountsForUpdateAsync(IEnumerable<Guid> grossDemandIds) => Task.FromResult<IReadOnlyDictionary<Guid, int>>(grossDemandIds.ToDictionary(id => id, _ => 0));
-        public Task<bool> HasInvalidExitHistoryAsync(IEnumerable<Guid> grossDemandIds) => Task.FromResult(false);
+        public Task<IReadOnlyDictionary<Guid, MaterialDemandSourceExitAssessment>> AssessSourceExitAsync(IEnumerable<Guid> grossDemandIds)
+            => Task.FromResult<IReadOnlyDictionary<Guid, MaterialDemandSourceExitAssessment>>(grossDemandIds.ToDictionary(
+                id => id,
+                id => new MaterialDemandSourceExitAssessment
+                {
+                    GrossDemandId = id,
+                    HistoryCount = HistoryCounts.GetValueOrDefault(id),
+                    HasActiveRevision = repository.HasBlocker,
+                    IsHistoryComplete = !repository.HasBlocker
+                }));
         public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.EstablishMaterialDemandsResult>> EstablishAsync(SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.EstablishMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.RollbackMaterialDemandsResult>> RollbackAsync(SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.RollbackMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
+    /// <summary>默认放行来源退出的 Shipping 测试边界。</summary>
+    private sealed class FakeSourceDeliveryService : ISourceDeliveryService
+    {
+        public string? ErrorCode { get; set; }
+        public Task VerifySourceExitAsync(string sourceType, Guid sourceUid, IReadOnlyCollection<Guid> grossDemandIds, CancellationToken cancellationToken = default)
+            => ErrorCode is null
+                ? Task.CompletedTask
+                : Task.FromException(new SourceDeliveryException(ErrorCode, "模拟交付阻断"));
+        public Task<ServiceResult<PagedResponseBase<SourceDemandDeliveryItemDto>>> SearchAsync(SourceDemandDeliverySearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<SourceDemandDeliveryItemDto>> GetAsync(Guid grossDemandId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyDictionary<Guid, SourceDemandDeliveryItemDto>> VerifyForUpdateAsync(IReadOnlyCollection<SourceDeliveryClaim> claims, bool requireInventoryContext, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task VerifyClosureAsync(string sourceType, Guid sourceUid, IReadOnlyDictionary<Guid, decimal> expectedLines, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
+    /// <summary>只用于构造仍返回不可用的交付查询服务。</summary>
+    private class EmptyPackingListPort : DispatchProxy
+    {
+        protected override object? Invoke(System.Reflection.MethodInfo? targetMethod, object?[]? args) =>
+            throw new NotSupportedException(targetMethod?.Name);
     }
 
     /// <summary>仅实现接收协议使用的仓储成员，其余成员禁止测试误调用。</summary>
@@ -222,8 +318,22 @@ public sealed class SourceDemandReceptionServiceTests
         public Task<GrossDemand?> GetByIdForUpdateAsync(Guid uid) => throw new NotSupportedException();
         public Task<RepositoryWriteResult> UpdateManualAsync(GrossDemand demand, int expectedVersion) => throw new NotSupportedException();
         public Task<RepositoryWriteResult> CloseManualAsync(Guid uid, int expectedVersion, string reason) => throw new NotSupportedException();
-        public Task<int> HardDeleteForSourceCancellationAsync(IEnumerable<Guid> grossDemandIds) => throw new NotSupportedException();
-        public Task<int> VoidRolledBackForSourceCancellationAsync(IEnumerable<Guid> grossDemandIds, string reason) => throw new NotSupportedException();
+        public Task<int> HardDeleteForSourceCancellationAsync(IEnumerable<Guid> grossDemandIds)
+        {
+            var ids = grossDemandIds.ToHashSet();
+            var rows = Demands.Where(item => ids.Contains(item.Uid) && !item.IsDeleted
+                && item.LifecycleStatus == GrossDemandLifecycleStatusEnum.Active).ToArray();
+            foreach (var demand in rows) demand.IsDeleted = true;
+            return Task.FromResult(rows.Length);
+        }
+        public Task<int> VoidRolledBackForSourceCancellationAsync(IEnumerable<Guid> grossDemandIds, string reason)
+        {
+            var ids = grossDemandIds.ToHashSet();
+            var rows = Demands.Where(item => ids.Contains(item.Uid) && !item.IsDeleted
+                && item.LifecycleStatus == GrossDemandLifecycleStatusEnum.Active).ToArray();
+            foreach (var demand in rows) demand.LifecycleStatus = GrossDemandLifecycleStatusEnum.Voided;
+            return Task.FromResult(rows.Length);
+        }
         public Task<int> VoidPendingBySourceAsync(string sourceType, Guid sourceUid, string reason) => throw new NotSupportedException();
     }
 

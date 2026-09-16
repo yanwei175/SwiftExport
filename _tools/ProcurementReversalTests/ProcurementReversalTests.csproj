@@ -14,5 +14,6 @@
     <Compile Include="../../SwiftExport.Application.Tests/Procurement/IndependentProcurementSqlFixture.cs" Link="IndependentProcurementSqlFixture.cs" />
     <Compile Include="../../SwiftExport.Application.Tests/Procurement/ProcurementReversalSqlTests.cs" Link="ProcurementReversalSqlTests.cs" />
     <Compile Include="../../SwiftExport.Application.Tests/Procurement/ProcurementReversalPolicyTests.cs" Link="ProcurementReversalPolicyTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Procurement/PurchaseOrderManagerFilterSqlTests.cs" Link="PurchaseOrderManagerFilterSqlTests.cs" />
   </ItemGroup>
 </Project>

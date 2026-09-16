@@ -13,9 +13,8 @@
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             mc:Ignorable="d" 
-             d:DataContext="{d:DesignInstance vm:PackingListDetailViewModel}"
-             d:DesignHeight="800" d:DesignWidth="1200">
+             mc:Ignorable="d" d:DesignHeight="800" d:DesignWidth="1200"
+             d:DataContext="{d:DesignInstance vm:PackingListDetailViewModel}">
     <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,*,8,Auto">
         
         <!--Title-->

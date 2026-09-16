@@ -27,8 +27,7 @@ public sealed class SalesOrderCancellationSqlContractTests
         Assert.IsFalse(hardDeleteSql.Contains("[dbo].[NetDemand]", StringComparison.Ordinal));
         Assert.IsFalse(voidSql.Contains("[DecompositionRevision]", StringComparison.Ordinal));
         Assert.IsFalse(voidSql.Contains("[dbo].[NetDemand]", StringComparison.Ordinal));
-        StringAssert.Contains(materialRepository, "GetHistoryCountsForUpdateAsync");
-        StringAssert.Contains(materialRepository, "HasInvalidExitHistoryAsync");
+        StringAssert.Contains(materialRepository, "AssessSourceExitForUpdateAsync");
         StringAssert.Contains(materialRepository, "WITH (UPDLOCK,HOLDLOCK)");
         Assert.IsFalse(materialRepository.Contains("[dbo].[NetDemandAllocation]", StringComparison.Ordinal));
     }
@@ -41,7 +40,7 @@ public sealed class SalesOrderCancellationSqlContractTests
             "Repositories",
             "DemandPlanning",
             "NetDemandRepository.cs");
-        var sql = ExtractSql(source, "HasInvalidExitHistoryAsync");
+        var sql = ExtractSql(source, "AssessSourceExitForUpdateAsync");
         var compactSql = System.Text.RegularExpressions.Regex.Replace(sql, @"\s+", " ");
 
         AssertParenthesesAreBalanced(sql);

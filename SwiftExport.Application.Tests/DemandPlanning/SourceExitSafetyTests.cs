@@ -11,13 +11,13 @@ using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
-/// <summary>验证来源退出不能将无已知供货阻断误认为无交付事实。</summary>
+/// <summary>验证物料领域只提供批量 NetDemand 历史证明，不再跨域解释采购、入库或交付事实。</summary>
 [TestClass]
 public sealed class SourceExitSafetyTests
 {
-    /// <summary>已知下游事实返回阻断；查询为空时明确报告安全性未知，而不是放行。</summary>
+    /// <summary>物料评估完整透传无历史、活动修订和安全历史三类结果。</summary>
     [TestMethod]
-    public async Task KnownBlockerAndUnknownDeliveryBothPreventExit()
+    public async Task MaterialAssessmentReturnsHistoryAndActivityFacts()
     {
         using var session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
         session.Transaction = DispatchProxy.Create<IDbTransaction, NoOpPort>();
@@ -26,33 +26,37 @@ public sealed class SourceExitSafetyTests
         var service = new MaterialDemandEstablishmentService(
             new ServiceBaseContext(session, NullLoggerFactory.Instance), null!, repository,
             null!, null!, null!, null!, null!, null!, null!, null!, null!);
-        var sourceId = Guid.NewGuid();
-        var lineId = Guid.NewGuid();
+        var empty = Guid.NewGuid();
+        var active = Guid.NewGuid();
+        var safe = Guid.NewGuid();
+        port.Assessments =
+        [
+            new() { GrossDemandId = empty, HistoryCount = 0, IsHistoryComplete = true },
+            new() { GrossDemandId = active, HistoryCount = 2, HasActiveRevision = true, IsHistoryComplete = false },
+            new() { GrossDemandId = safe, HistoryCount = 3, IsHistoryComplete = true }
+        ];
 
-        port.HasBlocker = true;
-        Assert.IsTrue(await service.HasSourceExitBlockerAsync("SO", sourceId, [lineId]));
-        port.HasBlocker = false;
-        foreach (var type in new[] { "SO", "CR" })
-        {
-            var error = await Assert.ThrowsAsync<SourceDemandReceptionException>(
-                () => service.HasSourceExitBlockerAsync(type, sourceId, [lineId]));
-            Assert.AreEqual("SOURCE_EXIT_SAFETY_UNAVAILABLE", error.Code);
-        }
-        Assert.AreEqual(3, port.CallCount);
+        var result = await service.AssessSourceExitAsync([safe, empty, active]);
+
+        Assert.AreEqual(0, result[empty].HistoryCount);
+        Assert.IsTrue(result[active].HasActiveRevision);
+        Assert.AreEqual(3, result[safe].HistoryCount);
+        Assert.IsTrue(result[safe].IsHistoryComplete);
+        Assert.AreEqual(1, port.CallCount);
     }
 
     /// <summary>只模拟仓储已知阻断结果，不提供虚构交付余额或连接生产数据库。</summary>
     public class ExitRepositoryPort : DispatchProxy
     {
-        public bool HasBlocker { get; set; }
+        public IReadOnlyList<MaterialDemandSourceExitAssessment> Assessments { get; set; } = [];
         public int CallCount { get; private set; }
         /// <summary>仅接受退出核验调用，其他调用视为测试越界。</summary>
         protected override object? Invoke(MethodInfo? method, object?[]? args)
         {
-            if (method?.Name != nameof(INetDemandRepository.HasSourceExitBlockerAsync))
+            if (method?.Name != nameof(INetDemandRepository.AssessSourceExitForUpdateAsync))
                 throw new NotSupportedException(method?.Name);
             CallCount++;
-            return Task.FromResult(HasBlocker);
+            return Task.FromResult(Assessments);
         }
     }
 

@@ -3,6 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:customers="clr-namespace:SwiftExportClient.Features.Customers.Components"
+             xmlns:suppliers="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
+             xmlns:vm="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid">
 
@@ -17,7 +20,7 @@
                 <ui:TextBox Grid.Column="1"
                             Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
                             Icon="{ui:SymbolIcon Symbol=Search24}"
-                            PlaceholderText="综合关键词">
+                            PlaceholderText="采购单号、来源单号、SKU 等关键词">
                     <ui:TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                     </ui:TextBox.InputBindings>
@@ -49,38 +52,21 @@
                 </WrapPanel>
             </DockPanel>
 
-            <Grid Grid.Row="2" ColumnDefinitions="120,8,120,8,120,8,120,8,100,8,100,8,120,8,120,8,120,8,120,8,Auto,4,Auto">
-                <ui:TextBox Grid.Column="0" Text="{Binding OrderNo}" PlaceholderText="系统采购单号">
-                    <ui:TextBox.InputBindings>
-                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                    </ui:TextBox.InputBindings>
-                </ui:TextBox>
-                <ui:TextBox Grid.Column="2" Text="{Binding SourceNo}" PlaceholderText="系统来源单号">
-                    <ui:TextBox.InputBindings>
-                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                    </ui:TextBox.InputBindings>
-                </ui:TextBox>
-                <ui:TextBox Grid.Column="4" Text="{Binding SupplierKeyword}" PlaceholderText="供应商">
-                    <ui:TextBox.InputBindings>
-                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                    </ui:TextBox.InputBindings>
-                </ui:TextBox>
-
-                <ui:TextBox Grid.Column="6" Text="{Binding Sku}" PlaceholderText="SKU">
-                    <ui:TextBox.InputBindings>
-                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                    </ui:TextBox.InputBindings>
-                </ui:TextBox>
-
-                <controls:DropDownCheckBox Grid.Column="8" Placeholder="确认状态" 
-                                           ItemsSource="{Binding ConfirmationOptions}" 
-                                           DisplayMemberPath="DisplayText"
+            <Grid Grid.Row="2" ColumnDefinitions="120,8,120,8,100,8,100,8,120,8,120,8,120,8,120,8,120,8,120,8,Auto,4,Auto">
+                <customers:CustomerAutoSuggestComboBox Grid.Column="0" Placeholder="客户"
+                    ItemsSource="{Binding CustomerOptions}" SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}"/>
+                <suppliers:SupplierAutoSuggestComboBox Grid.Column="2" Placeholder="供应商"
+                    ItemsSource="{Binding SupplierOptions}" SelectedSupplier="{Binding SelectedSupplier, Mode=TwoWay}"/>
+                <controls:DropDownCheckBox Grid.Column="4" Placeholder="确认状态"
+                                           ItemsSource="{x:Static vm:PurchaseOrderManagerViewModel.ConfirmationStatuses}"
+                                           DisplayConverter="{StaticResource EnumDescriptionConverter}"
                                            SelectedItems="{Binding SelectedConfirmationStatuses,Mode=OneWay}"/>
-                <controls:DropDownCheckBox Grid.Column="10" Placeholder="生命周期" 
-                                           ItemsSource="{Binding LifecycleOptions}" 
-                                           DisplayMemberPath="DisplayText"
+                <controls:DropDownCheckBox Grid.Column="6" Placeholder="生命周期"
+                                           ItemsSource="{x:Static vm:PurchaseOrderManagerViewModel.LifecycleStatuses}"
+                                           DisplayConverter="{StaticResource EnumDescriptionConverter}"
                                            SelectedItems="{Binding SelectedLifecycleStatuses,Mode=OneWay}"/>
-
+                <DatePicker Grid.Column="8" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding OrderDateFrom}" controls:DatePickerAssist.PlaceholderText="下单日期起"/>
+                <DatePicker Grid.Column="10" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding OrderDateTo}" controls:DatePickerAssist.PlaceholderText="下单日期至"/>
                 <DatePicker Grid.Column="12" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding PlannedDeliveryDateFrom}" controls:DatePickerAssist.PlaceholderText="计划交期起"/>
                 <DatePicker Grid.Column="14" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding PlannedDeliveryDateTo}" controls:DatePickerAssist.PlaceholderText="计划交期至"/>
                 <DatePicker Grid.Column="16" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding ExpectedCompletionDateFrom}" controls:DatePickerAssist.PlaceholderText="预计完成起"/>

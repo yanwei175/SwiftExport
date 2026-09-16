@@ -17,6 +17,9 @@ using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.Suppliers;
+using SwiftExportClient.Services.Caching;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 
@@ -37,18 +40,20 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     private CancellationTokenSource? _detailCancellation;
     private bool _synchronizingSelection;
     private bool _initialized;
+    private readonly IReferenceDataCacheService? _referenceDataCache;
 
     public PurchaseOrderManagerViewModel(IPurchaseOrderManagerApi managerApi, IProcurementOrderApi orderApi,
         IProcurementDialogService procurementDialogs,
         INavigationService navigation, IDialogService dialogs,
         IApiCallRunner apiCallRunner, IMessageService messages,
         ICurrentUserService currentUser, ProcurementReversalSession? reversalSession = null,
-        IProcurementReversalDialogService? reversalDialogs = null)
+        IProcurementReversalDialogService? reversalDialogs = null, IReferenceDataCacheService? referenceDataCache = null)
     {
         _managerApi = managerApi; _orderApi = orderApi; _procurementDialogs = procurementDialogs;
         _navigation = navigation; _dialogs = dialogs;
         _apiCallRunner = apiCallRunner; _messages = messages;
         _currentUser = currentUser; Title = "采购订单管理";
+        _referenceDataCache = referenceDataCache;
         _reversalSession = reversalSession ?? new ProcurementReversalSession(); _reversalDialogs = reversalDialogs;
         _reversalSession.Changed += OnReversalChanged;
         RegisterBusyAwareCommand(VoidOrderCommand); RegisterBusyAwareCommand(RetryReversalCommand);
@@ -62,19 +67,17 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
 
     public ObservableCollection<PurchaseOrderManagementRowModel> Orders { get; } = [];
     public ObservableCollection<PurchaseOrderManagementLineModel> Lines { get; } = [];
-    public IReadOnlyList<PurchaseOrderFilterOption<ConfirmationStatusEnum>> ConfirmationOptions { get; } =
-    [
-        new(ConfirmationStatusEnum.待确认, "待确认"),
-        new(ConfirmationStatusEnum.已确认, "已确认")
-    ];
-    public IReadOnlyList<PurchaseOrderFilterOption<PurchaseOrderLifecycleStatusEnum>> LifecycleOptions { get; } =
-    [
-        new(PurchaseOrderLifecycleStatusEnum.Active, "活动"),
-        new(PurchaseOrderLifecycleStatusEnum.Closed, "已关闭"),
-        new(PurchaseOrderLifecycleStatusEnum.Voided, "已作废")
-    ];
-    public ObservableCollection<PurchaseOrderFilterOption<ConfirmationStatusEnum>> SelectedConfirmationStatuses { get; } = [];
-    public ObservableCollection<PurchaseOrderFilterOption<PurchaseOrderLifecycleStatusEnum>> SelectedLifecycleStatuses { get; } = [];
+    /// <summary>共享枚举直接作为筛选值，中文名称由页面转换器提供。</summary>
+    public static IReadOnlyList<ConfirmationStatusEnum> ConfirmationStatuses { get; } = Array.AsReadOnly(Enum.GetValues<ConfirmationStatusEnum>());
+    /// <summary>生命周期多选候选，避免在页面模型中重复维护中文描述。</summary>
+    public static IReadOnlyList<PurchaseOrderLifecycleStatusEnum> LifecycleStatuses { get; } = Array.AsReadOnly(Enum.GetValues<PurchaseOrderLifecycleStatusEnum>());
+    /// <summary>首次打开默认待确认；清空集合表示不限制确认状态。</summary>
+    public ObservableCollection<ConfirmationStatusEnum> SelectedConfirmationStatuses { get; } = [ConfirmationStatusEnum.待确认];
+    public ObservableCollection<PurchaseOrderLifecycleStatusEnum> SelectedLifecycleStatuses { get; } = [];
+    /// <summary>直接提供完整客户缓存，不按是否存在采购裁剪。</summary>
+    public ReadOnlyObservableCollection<CustomerDto>? CustomerOptions => _referenceDataCache?.Customers;
+    /// <summary>直接提供完整供应商缓存，不按当前筛选或采购历史裁剪。</summary>
+    public ReadOnlyObservableCollection<SupplierDto>? SupplierOptions => _referenceDataCache?.Suppliers;
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
     /// <summary>获取当前加载页已勾选的采购单数量。</summary>
@@ -88,10 +91,12 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     /// <summary>获取当前用户的采购确认权限；列表候选状态不能替代服务端最终资格判断。</summary>
     public bool HasConfirmPermission => _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm);
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
-    [ObservableProperty] public partial string OrderNo { get; set; } = string.Empty;
-    [ObservableProperty] public partial string SourceNo { get; set; } = string.Empty;
-    [ObservableProperty] public partial string SupplierKeyword { get; set; } = string.Empty;
-    [ObservableProperty] public partial string Sku { get; set; } = string.Empty;
+    /// <summary>已选择的客户按采购头客户编码筛选。</summary>
+    [ObservableProperty] public partial CustomerDto? SelectedCustomer { get; set; }
+    /// <summary>已选择的供应商按稳定身份精确筛选。</summary>
+    [ObservableProperty] public partial SupplierDto? SelectedSupplier { get; set; }
+    [ObservableProperty] public partial DateTime? OrderDateFrom { get; set; }
+    [ObservableProperty] public partial DateTime? OrderDateTo { get; set; }
     [ObservableProperty] public partial DateTime? PlannedDeliveryDateFrom { get; set; }
     [ObservableProperty] public partial DateTime? PlannedDeliveryDateTo { get; set; }
     [ObservableProperty] public partial DateTime? ExpectedCompletionDateFrom { get; set; }
@@ -117,6 +122,12 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     {
         if (_initialized) return; _initialized = true;
         if (!HasReadPermission) { ResultSummary = "当前账号没有采购订单读取权限。"; return; }
+        if (_referenceDataCache is not null)
+        {
+            var loaded = await _referenceDataCache.EnsureLoadedAsync();
+            if (_reversalDisposed) return;
+            if (!loaded.Success) _messages.ShowWarning("基础资料加载失败", loaded.Message);
+        }
         await LoadPageAsync();
     }
 
@@ -141,7 +152,9 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     [RelayCommand(CanExecute = nameof(CanQuery))]
     private Task ClearFiltersAsync()
     {
-        Keyword = OrderNo = SourceNo = SupplierKeyword = Sku = string.Empty;
+        Keyword = string.Empty;
+        SelectedCustomer = null; SelectedSupplier = null;
+        OrderDateFrom = OrderDateTo = null;
         SelectedConfirmationStatuses.Clear();
         SelectedLifecycleStatuses.Clear();
         PlannedDeliveryDateFrom = PlannedDeliveryDateTo = ExpectedCompletionDateFrom = ExpectedCompletionDateTo = null;
@@ -421,12 +434,12 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
                 () => _managerApi.SearchAsync(new PurchaseOrderManagerSearchRequest
                 {
                     Keyword = Keyword.Trim(),
-                    OrderNo = OrderNo.Trim(),
-                    SourceNo = SourceNo.Trim(),
-                    SupplierKeyword = SupplierKeyword.Trim(),
-                    Sku = Sku.Trim(),
-                    ConfirmationStatuses = SelectedConfirmationStatuses.Select(static option => option.Value).ToList(),
-                    LifecycleStatuses = SelectedLifecycleStatuses.Select(static option => option.Value).ToList(),
+                    CustomerCode = SelectedCustomer?.CustomerCode,
+                    SupplierId = SelectedSupplier?.Uid,
+                    OrderDateFrom = OrderDateFrom,
+                    OrderDateTo = OrderDateTo,
+                    ConfirmationStatuses = SelectedConfirmationStatuses.ToList(),
+                    LifecycleStatuses = SelectedLifecycleStatuses.ToList(),
                     PlannedDeliveryDateFrom = PlannedDeliveryDateFrom,
                     PlannedDeliveryDateTo = PlannedDeliveryDateTo,
                     ExpectedCompletionDateFrom = ExpectedCompletionDateFrom,

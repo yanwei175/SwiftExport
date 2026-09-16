@@ -1,30 +1,63 @@
 <UserControl x:Class="SwiftExportClient.Features.Procurement.PurchaseOrders.Views.ProcurementReversalPreviewView"
- xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
- <StackPanel Margin="4">
-  <TextBlock Text="{Binding Preview.OrderNo}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
-  <ItemsControl ItemsSource="{Binding Preview.Blockers}" Margin="0,0,0,8">
-   <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" FontWeight="SemiBold"/></DataTemplate></ItemsControl.ItemTemplate>
-  </ItemsControl>
-  <ItemsControl ItemsSource="{Binding Preview.Warnings}" Margin="0,0,0,8">
-   <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap"/></DataTemplate></ItemsControl.ItemTemplate>
-  </ItemsControl>
-  <TextBlock Text="涉及采购行" FontWeight="SemiBold" Margin="0,0,0,4"/>
-  <DataGrid ItemsSource="{Binding Preview.Lines}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" MaxHeight="220">
-   <DataGrid.Columns>
-    <DataGridTextColumn Header="行号" Binding="{Binding LineNumber}" Width="60"/>
-    <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="*"/>
-    <DataGridTextColumn Header="采购数量" Binding="{Binding Quantity}" Width="120"/>
-   </DataGrid.Columns>
-  </DataGrid>
-  <TextBlock Text="本次解除的物料需求贡献（取消确认不解除引用）" Margin="0,8,0,4" FontWeight="SemiBold"/>
-  <DataGrid ItemsSource="{Binding Preview.Contributions}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" MaxHeight="220">
-   <DataGrid.Columns>
-    <DataGridTextColumn Header="来源单号" Binding="{Binding SourceNo}" Width="*"/>
-    <DataGridTextColumn Header="物料 SKU" Binding="{Binding Sku}" Width="*"/>
-    <DataGridTextColumn Header="解除数量" Binding="{Binding Quantity}" Width="120"/>
-   </DataGrid.Columns>
-  </DataGrid>
-  <TextBlock Text="原因（必填，最多 500 字）" Margin="0,8,0,4"/>
-  <TextBox Text="{Binding Reason,UpdateSourceTrigger=PropertyChanged}" MaxLength="500" AcceptsReturn="True" MinHeight="64" TextWrapping="Wrap" AutomationProperties.Name="采购反向操作原因"/>
- </StackPanel>
+            xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                          xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" d:DesignHeight="800" d:DesignWidth="900">
+    <StackPanel Margin="4">
+        <TextBlock Text="{Binding Preview.OrderNo}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
+        <ItemsControl ItemsSource="{Binding Preview.Blockers}" Margin="0,0,0,8">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <ItemsControl ItemsSource="{Binding Preview.Warnings}" Margin="0,0,0,8">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="涉及采购行" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <DataGrid ItemsSource="{Binding Preview.Lines}" 
+                  RowHeight="{DynamicResource DataGridRowHeightSmall}"
+                  FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                  GridLinesVisibility="Horizontal"
+                  AutoGenerateColumns="False" 
+                  IsReadOnly="True" 
+                  CanUserAddRows="False" 
+                  CanUserDeleteRows="False" 
+                  MaxHeight="220">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="行号" Binding="{Binding LineNumber}" Width="150"/>
+                <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="*"/>
+                <DataGridTextColumn Header="采购数量" Binding="{Binding Quantity}" Width="120"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <TextBlock Text="本次解除的物料需求贡献（取消确认不解除引用）" Margin="0,8,0,4" FontWeight="SemiBold"/>
+        <DataGrid ItemsSource="{Binding Preview.Contributions}" 
+                  RowHeight="{DynamicResource DataGridRowHeightSmall}"
+                  FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                  GridLinesVisibility="Horizontal"
+                  AutoGenerateColumns="False" 
+                  IsReadOnly="True" 
+                  CanUserAddRows="False" 
+                  CanUserDeleteRows="False" 
+                  MaxHeight="220">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="来源单号" Binding="{Binding SourceNo}" Width="150"/>
+                <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="*"/>
+                <DataGridTextColumn Header="解除数量" Binding="{Binding Quantity}" Width="120"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <TextBlock Text="原因（必填，最多 500 字）" Margin="0,8,0,4"/>
+        <TextBox Text="{Binding Reason,UpdateSourceTrigger=PropertyChanged}" 
+                 MaxLength="500" 
+                 AcceptsReturn="True" 
+                 MinHeight="64" 
+                 TextWrapping="Wrap" 
+                 AutomationProperties.Name="采购反向操作原因"/>
+    </StackPanel>
 </UserControl>

@@ -16,6 +16,17 @@ namespace SwiftExportClient.Resources.Controls;
 /// </summary>
 public partial class DropDownCheckBox : UserControl
 {
+    /// <summary>可选的选项文本转换器，用于直接展示枚举描述；未设置时保留原显示规则。</summary>
+    public static readonly DependencyProperty DisplayConverterProperty = DependencyProperty.Register(
+        nameof(DisplayConverter), typeof(System.Windows.Data.IValueConverter), typeof(DropDownCheckBox),
+        new PropertyMetadata(null, OnDisplayMemberPathChanged));
+
+    /// <summary>取得或设置选项显示转换器，不影响选中值及集合类型。</summary>
+    public System.Windows.Data.IValueConverter? DisplayConverter
+    {
+        get => (System.Windows.Data.IValueConverter?)GetValue(DisplayConverterProperty);
+        set => SetValue(DisplayConverterProperty, value);
+    }
     private static readonly DependencyPropertyKey SelectionTextPropertyKey =
         DependencyProperty.RegisterReadOnly(
             nameof(SelectionText),
@@ -503,7 +514,8 @@ public partial class DropDownCheckBox : UserControl
 
         if (string.IsNullOrWhiteSpace(DisplayMemberPath))
         {
-            return item.ToString() ?? string.Empty;
+            return DisplayConverter?.Convert(item, typeof(string), null, System.Globalization.CultureInfo.CurrentCulture)?.ToString()
+                ?? item.ToString() ?? string.Empty;
         }
 
         var property = TypeDescriptor.GetProperties(item).Find(DisplayMemberPath, true);

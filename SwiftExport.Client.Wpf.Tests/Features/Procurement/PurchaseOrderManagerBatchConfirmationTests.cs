@@ -25,6 +25,38 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Procurement;
 [TestClass]
 public sealed class PurchaseOrderManagerBatchConfirmationTests
 {
+    /// <summary>初始待确认、客户供应商精确身份及日期必须完整传递；清空筛选解除所有限制。</summary>
+    [TestMethod]
+    public async Task FiltersUseSelectedIdentitiesAndClearAllRestrictions()
+    {
+        var fixture = CreateFixture(Order("PO-FILTER"));
+        PurchaseOrderManagerSearchRequest? captured = null;
+        fixture.Manager.SearchHandler = request =>
+        {
+            captured = request;
+            return Task.FromResult(ServiceResult<PagedResponseBase<PurchaseOrderManagerListItemDto>>.Ok(new() { Items = [], PageIndex = 1, PageSize = 20 }));
+        };
+        await fixture.ViewModel.InitializeAsync();
+        CollectionAssert.AreEqual(new[] { ConfirmationStatusEnum.待确认 }, captured!.ConfirmationStatuses);
+        var supplierId = Guid.NewGuid();
+        fixture.ViewModel.SelectedCustomer = new() { CustomerCode = "C-SELECTED" };
+        fixture.ViewModel.SelectedSupplier = new() { Uid = supplierId };
+        fixture.ViewModel.Keyword = "  PO-KEY  ";
+        fixture.ViewModel.OrderDateFrom = new DateTime(2026, 9, 1);
+        fixture.ViewModel.OrderDateTo = new DateTime(2026, 9, 16);
+        await fixture.ViewModel.SearchCommand.ExecuteAsync(null);
+        Assert.AreEqual("C-SELECTED", captured.CustomerCode);
+        Assert.AreEqual(supplierId, captured.SupplierId);
+        Assert.AreEqual("PO-KEY", captured.Keyword);
+        Assert.AreEqual(new DateTime(2026, 9, 1), captured.OrderDateFrom);
+        Assert.AreEqual(new DateTime(2026, 9, 16), captured.OrderDateTo);
+        await fixture.ViewModel.ClearFiltersCommand.ExecuteAsync(null);
+        Assert.IsNull(captured.CustomerCode); Assert.IsNull(captured.SupplierId);
+        Assert.IsNull(captured.OrderDateFrom); Assert.IsNull(captured.OrderDateTo);
+        Assert.HasCount(0, captured.ConfirmationStatuses);
+        Assert.AreEqual(string.Empty, captured.Keyword);
+    }
+
     /// <summary>勾选、表头三态和查询失败不会改变主从选择或丢失当前页数据。</summary>
     [TestMethod]
     public async Task SelectionAndFailedRefreshMustPreserveCurrentPageState()

@@ -31,6 +31,24 @@ public sealed class SalesSourceDemandContractTests
         Assert.IsFalse(service.Contains("new GrossDemand", StringComparison.Ordinal));
     }
 
+    /// <summary>销售取消确认必须先完成来源退出，且不得自动替用户执行物料回退。</summary>
+    [TestMethod]
+    public void SalesCancellationUsesSourceExitBeforeChangingConfirmationStatus()
+    {
+        var service = Read("SwiftExport.Application", "Services", "Orders", "SalesOrderDetailService.cs");
+        var start = service.IndexOf("public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync", StringComparison.Ordinal);
+        var end = service.IndexOf("public Task<ServiceResult<SalesOrderDetailDto>> CloseAsync", start, StringComparison.Ordinal);
+        var method = service[start..end];
+        var sourceExit = method.IndexOf("sourceDemandReceptionService.CancelConfirmationAsync", StringComparison.Ordinal);
+        var statusWrite = method.IndexOf("SetConfirmationStatusAsync", StringComparison.Ordinal);
+
+        Assert.IsTrue(sourceExit >= 0 && statusWrite > sourceExit);
+        StringAssert.Contains(method, "SourceDemandReceptionException ex");
+        StringAssert.Contains(method, "ex.Code");
+        Assert.IsFalse(method.Contains("RollbackSourceEstablishmentAsync", StringComparison.Ordinal));
+        Assert.IsFalse(method.Contains("RollbackAsync", StringComparison.Ordinal));
+    }
+
     [TestMethod]
     public void GeneratedSchemaUsesFullSourceIdentityWithoutHistoricalMigration()
     {

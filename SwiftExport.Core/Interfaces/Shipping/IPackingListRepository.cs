@@ -17,6 +17,10 @@ public interface IPackingListRepository
     Task<PagedResponseBase<PackingListSourceCandidateDto>> SearchSourcesAsync(PackingListSourceSearchRequest request, CancellationToken cancellationToken = default);
     /// <summary>按来源标识读取当前来源与交付余额，不过滤零余额。</summary>
     Task<IReadOnlyList<PackingListSourceCandidateDto>> GetSourcesAsync(IReadOnlyCollection<Guid> grossDemandIds, CancellationToken cancellationToken = default);
+    /// <summary>在调用方事务内锁定并汇总来源退出涉及的 PackingList 与正式客户出库事实。</summary>
+    Task<SourceDeliveryExitAssessment> AssessSourceExitForUpdateAsync(
+        IReadOnlyCollection<Guid> grossDemandIds,
+        CancellationToken cancellationToken = default);
     /// <summary>以事务级应用锁串行处理同一命令。</summary>
     Task<int> LockCommandAsync(Guid commandId, CancellationToken cancellationToken = default);
     /// <summary>锁定并读取单头，可选包含已软删除记录。</summary>

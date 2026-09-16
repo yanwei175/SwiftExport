@@ -107,7 +107,7 @@ WHERE d.[Uid] = @Uid AND d.[IsDeleted] = 0;", new { Uid = uid }, Transaction);
     public async Task<IReadOnlyList<GrossDemand>> GetActiveBySourceForUpdateAsync(string sourceType, Guid sourceUid)
     {
         var rows = await Connection.QueryAsync<GrossDemand>(GrossDemandSelect + @"
-FROM [dbo].[GrossDemand] d WITH (UPDLOCK, ROWLOCK)
+FROM [dbo].[GrossDemand] d WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
 WHERE d.[SourceType] = @SourceType AND d.[SourceUid] = @SourceUid
   AND d.[LifecycleStatus] = @Active AND d.[IsDeleted] = 0
 ORDER BY d.[SourceLineNumber], d.[Uid];", new

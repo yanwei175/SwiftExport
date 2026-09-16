@@ -167,28 +167,18 @@ public sealed class MaterialDemandEstablishmentService(
         return (await netDemandRepository.GetActiveByGrossDemandForUpdateAsync(grossDemandId)).Count > 0;
     }
 
-    /// <summary>在来源事务内检查物料、执行和实际供货入库；交付未接入时不能将无已知阻断当作安全退出。</summary>
-    public async Task<bool> HasSourceExitBlockerAsync(string sourceType, Guid sourceUid, IReadOnlyCollection<Guid> sourceLineIds)
+    /// <summary>
+    /// 在来源调用方事务内批量取得物料退出证明；评估只解释 NetDemand 历史，不重复扫描执行和库存事实。
+    /// </summary>
+    public async Task<IReadOnlyDictionary<Guid, MaterialDemandSourceExitAssessment>> AssessSourceExitAsync(
+        IEnumerable<Guid> grossDemandIds)
     {
-        if (_session.Transaction is null) throw new InvalidOperationException("来源退出校验必须在调用方事务内执行。");
-        if (await netDemandRepository.HasSourceExitBlockerAsync(sourceType, sourceUid, sourceLineIds)) return true;
-        // 未命中物料/入库只说明无已知阻断；独立供货也可能已交付，不能借此推断来源未执行。
-        throw new SourceDemandReceptionException("SOURCE_EXIT_SAFETY_UNAVAILABLE",
-            "未发现已知物料或供货入库阻断，但交付查询尚未接入，无法证明来源退出或内容变更安全，请先完成交付核验接线。");
-    }
-
-    /// <summary>在来源调用方事务内取得物料历史计数，不再依赖来源兼容修订字段。</summary>
-    public Task<IReadOnlyDictionary<Guid, int>> GetHistoryCountsForUpdateAsync(IEnumerable<Guid> grossDemandIds)
-    {
-        if (_session.Transaction is null) throw new InvalidOperationException("来源退出校验必须在调用方事务内执行。");
-        return netDemandRepository.GetHistoryCountsForUpdateAsync(grossDemandIds);
-    }
-
-    /// <summary>在来源调用方事务内验证物料历史已完整安全退出。</summary>
-    public Task<bool> HasInvalidExitHistoryAsync(IEnumerable<Guid> grossDemandIds)
-    {
-        if (_session.Transaction is null) throw new InvalidOperationException("来源退出校验必须在调用方事务内执行。");
-        return netDemandRepository.HasInvalidExitHistoryAsync(grossDemandIds);
+        if (_session.Transaction is null)
+            throw new InvalidOperationException("来源退出校验必须在调用方事务内执行。");
+        var ids = grossDemandIds.Distinct().OrderBy(id => id).ToArray();
+        if (ids.Length == 0) return new Dictionary<Guid, MaterialDemandSourceExitAssessment>();
+        var rows = await netDemandRepository.AssessSourceExitForUpdateAsync(ids);
+        return rows.ToDictionary(row => row.GrossDemandId);
     }
 
     private async Task<PlanContext> BuildPlanAsync(GrossDemand demand, int revision)

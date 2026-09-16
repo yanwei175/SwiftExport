@@ -223,7 +223,7 @@ public sealed class SalesOrderDetailService(
     /// </summary>
     /// <remarks>
     /// 从未拆解的毛需求可以物理删除；曾拆解但已安全回退的毛需求必须作废保留历史。
-    /// 一旦存在活动拆解、净需求/分配历史缺口或正式下游执行事实，取消确认会被拒绝。
+    /// 一旦存在活动物料修订、物料历史缺口、PackingList 草稿或未反向正式交付，取消确认会被拒绝。
     /// <see cref="CancelSalesOrderConfirmationCommand.CommandId"/> 用作幂等键，同一命令重试返回首次执行结果。
     /// </remarks>
     public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(

@@ -39,12 +39,9 @@ public interface INetDemandRepository
         CancellationToken cancellationToken = default);
     /// <summary>锁定来源对应的物料历史并取得下一修订号。</summary>
     Task<int> GetNextDecompositionRevisionForUpdateAsync(Guid grossDemandId);
-    /// <summary>锁定并检查来源需求是否仍有活动物料、执行或正式收发事实。</summary>
-    Task<bool> HasSourceExitBlockerAsync(string sourceType, Guid sourceUid, IEnumerable<Guid> sourceLineIds);
-    /// <summary>按来源需求统计物料历史行数，供来源退出策略区分删除与作废。</summary>
-    Task<IReadOnlyDictionary<Guid, int>> GetHistoryCountsForUpdateAsync(IEnumerable<Guid> grossDemandIds);
-    /// <summary>检查物料历史是否完整且已安全退出。</summary>
-    Task<bool> HasInvalidExitHistoryAsync(IEnumerable<Guid> grossDemandIds);
+    /// <summary>批量锁定并评估来源需求的物料历史，不跨域扫描执行、采购、入库或交付表。</summary>
+    Task<IReadOnlyList<MaterialDemandSourceExitAssessment>> AssessSourceExitForUpdateAsync(
+        IEnumerable<Guid> grossDemandIds);
     Task<IReadOnlyList<RepositoryWriteResult>> AddDecompositionAsync(IEnumerable<NetDemand> demands);
     /// <summary>以乐观并发方式局部更新活动物料需求的推荐采购供应商。</summary>
     Task<int> UpdateSuggestedPurchaseSupplierAsync(

@@ -3,7 +3,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Interfaces.Shipping;
 
-/// <summary>交付查询与复核边界；当前交付事实未接入，查询返回不可用，额度与结案校验明确拒绝。</summary>
+/// <summary>交付查询与复核边界；来源退出核验已接入，尚未接入的查询、额度与结案能力继续明确拒绝。</summary>
 public interface ISourceDeliveryService
 {
     /// <summary>查询认可来源的当前可交付要求。</summary>
@@ -28,6 +28,15 @@ public interface ISourceDeliveryService
         Guid sourceUid,
         IReadOnlyDictionary<Guid, decimal> expectedLines,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 在来源调用方事务内核验相关 PackingList 草稿及正式客户出库已安全退出；成功时无返回值。
+    /// </summary>
+    Task VerifySourceExitAsync(
+        string sourceType,
+        Guid sourceUid,
+        IReadOnlyCollection<Guid> grossDemandIds,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>PL 提交的来源交付额度声明；订单池要求只在该行实际消耗客供件时生效。</summary>
@@ -41,7 +50,8 @@ public sealed class SourceDeliveryClaim
 }
 
 /// <summary>交付复核失败；稳定代码供 PL 和来源单据调用方映射业务阻断。</summary>
-public sealed class SourceDeliveryException(string code, string message) : Exception(message)
+public sealed class SourceDeliveryException(string code, string message, Exception? innerException = null)
+    : Exception(message, innerException)
 {
     /// <summary>稳定业务阻断代码。</summary>
     public string Code { get; } = code;

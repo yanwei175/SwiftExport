@@ -122,7 +122,7 @@
                             Content="安全回退" />
 
                     <ui:Button Command="{Binding SaveSuggestedSuppliersCommand}" Margin="0,0,8,0" 
-                            Content="保存推荐供应商"
+                            Content="保存默认供应商"
                             AutomationProperties.Name="保存推荐采购供应商修改" />
 
                     <ui:Button Command="{Binding CancelSuggestedSupplierChangesCommand}" Margin="0,0,8,0" 
@@ -150,6 +150,7 @@
                                                DisplayMemberPath="DisplayText"
                                                ItemsSource="{Binding SourceTypeOptions}" 
                                                SelectedItems="{Binding SelectedSourceTypes, Mode=OneWay}" />
+                    
                     <ComboBox Grid.Column="4"
                               ItemsSource="{Binding DemandRoleOptions}" 
                               DisplayMemberPath="DisplayText"
@@ -297,7 +298,7 @@
                                              ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                              gridColumns:GridColumn.Key="supply-type" />
 
-                            <DataGridTemplateColumn Header="推荐供应商" Width="100"
+                            <DataGridTemplateColumn Header="默认供应商" Width="100"
                                                     SortMemberPath="SuggestedPurchaseSupplierCode"
                                                     gridColumns:GridColumn.Key="suggested-purchase-supplier">
                                 <DataGridTemplateColumn.CellTemplate>

@@ -85,73 +85,42 @@ WHERE [GrossDemandId]=@GrossDemandId;",
         return latest + 1;
     }
 
-    /// <summary>按完整来源身份核验物料、执行及实际采购供货入库；返回 false 仅代表无已知阻断，不证明交付安全。</summary>
-    public Task<bool> HasSourceExitBlockerAsync(string sourceType, Guid sourceUid, IEnumerable<Guid> sourceLineIds)
+    /// <summary>
+    /// 锁定并批量评估来源需求的全部 NetDemand 历史；来源退出不再从本仓储跨域扫描 Link、采购或入库表。
+    /// </summary>
+    public async Task<IReadOnlyList<MaterialDemandSourceExitAssessment>> AssessSourceExitForUpdateAsync(
+        IEnumerable<Guid> grossDemandIds)
     {
-        var ids = sourceLineIds.Distinct().ToArray();
-        if (ids.Length == 0) return Task.FromResult(false);
+        var ids = grossDemandIds.Distinct().OrderBy(id => id).ToArray();
+        if (ids.Length == 0) return [];
         const string sql = @"
-SELECT CASE WHEN EXISTS (
-     SELECT 1 FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
-     INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
-     WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[IsDeleted]=0
-       AND nd.[LifecycleStatus]=0 AND nd.[IsDeleted]=0)
- OR EXISTS (
-     SELECT 1 FROM [dbo].[DemandExecutionLink] link WITH (UPDLOCK,HOLDLOCK)
-     INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=link.[NetDemandId]
-     INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
-     WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid
-       AND link.[LinkStatus]=0 AND link.[IsDeleted]=0)
- OR EXISTS (
-     -- 入库来源是实际采购行；历史 Link 即使取消或软删，也不能抹掉已经存在的入库关系。
-     SELECT 1 FROM [dbo].[InboundDocumentLine] il WITH (UPDLOCK,HOLDLOCK)
-     INNER JOIN [dbo].[InboundDocument] ih WITH (UPDLOCK,HOLDLOCK) ON ih.[Uid]=il.[InboundDocumentId]
-     LEFT JOIN [dbo].[PurchaseOrderLine] po WITH (UPDLOCK,HOLDLOCK) ON po.[Uid]=il.[SourceLineId]
-     WHERE ih.[DocumentType]=10 AND ih.[IsDeleted]=0 AND il.[IsDeleted]=0
-       AND (po.[Uid] IS NULL
-         OR (po.[SourceType]=@SourceType AND po.[SourceUid]=@SourceUid AND po.[SourceLineId] IN @LineIds)
-         OR EXISTS (
-             SELECT 1 FROM [dbo].[DemandExecutionLink] link WITH (UPDLOCK,HOLDLOCK)
-             INNER JOIN [dbo].[NetDemand] nd ON nd.[Uid]=link.[NetDemandId]
-             INNER JOIN [dbo].[GrossDemand] d ON d.[Uid]=nd.[GrossDemandId]
-             WHERE link.[TargetType]='PO' AND link.[TargetHeadId]=po.[PurchaseOrderId]
-               AND link.[TargetLineId]=po.[Uid]
-               AND d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[SourceLineId] IN @LineIds)))
- THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
-        return Connection.ExecuteScalarAsync<bool>(sql, new { SourceType = sourceType, SourceUid = sourceUid, LineIds = ids }, Transaction);
-    }
-
-    /// <summary>锁定并统计物料历史，修订事实只由 NetDemand 历史决定。</summary>
-    public async Task<IReadOnlyDictionary<Guid, int>> GetHistoryCountsForUpdateAsync(IEnumerable<Guid> grossDemandIds)
-    {
-        var ids = grossDemandIds.Distinct().ToArray();
-        if (ids.Length == 0) return new Dictionary<Guid, int>();
-        var rows = await Connection.QueryAsync<HistoryCountRow>(@"
-SELECT ids.[GrossDemandId],COUNT(nd.[Uid]) AS [HistoryCount]
-FROM (SELECT [Uid] AS [GrossDemandId] FROM [dbo].[GrossDemand] WITH (UPDLOCK,HOLDLOCK) WHERE [Uid] IN @Ids) ids
-LEFT JOIN [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK) ON nd.[GrossDemandId]=ids.[GrossDemandId]
-GROUP BY ids.[GrossDemandId];", new { Ids = ids }, Transaction);
-        return rows.ToDictionary(row => row.GrossDemandId, row => row.HistoryCount);
-    }
-
-    /// <summary>不读取来源兼容修订号或旧计划分配，仅以物料历史判断退出前是否完整安全回退。</summary>
-    public Task<bool> HasInvalidExitHistoryAsync(IEnumerable<Guid> grossDemandIds)
-    {
-        var ids = grossDemandIds.Distinct().ToArray();
-        if (ids.Length == 0) return Task.FromResult(false);
-        const string sql = @"
-SELECT CASE WHEN EXISTS (
-    SELECT 1 FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
-    WHERE nd.[GrossDemandId] IN @Ids
-      AND (nd.[IsDeleted]<>0 OR nd.[LifecycleStatus] NOT IN (@RolledBack,@Voided)
-           OR nd.[DecompositionRevision]<1)
-) THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
-        return Connection.ExecuteScalarAsync<bool>(sql, new
+SELECT sourceIds.[GrossDemandId],
+       COUNT(nd.[Uid]) AS [HistoryCount],
+       CONVERT(bit,CASE WHEN SUM(CASE WHEN nd.[Uid] IS NOT NULL
+                                      AND nd.[IsDeleted]=0
+                                      AND nd.[LifecycleStatus]=@Active THEN 1 ELSE 0 END)>0
+                        THEN 1 ELSE 0 END) AS [HasActiveRevision],
+       CONVERT(bit,CASE WHEN SUM(CASE WHEN nd.[Uid] IS NOT NULL
+                                      AND (nd.[IsDeleted]<>0
+                                           OR nd.[LifecycleStatus] NOT IN (@RolledBack,@Voided)
+                                           OR nd.[DecompositionRevision]<1)
+                                      THEN 1 ELSE 0 END)=0
+                        THEN 1 ELSE 0 END) AS [IsHistoryComplete]
+FROM (SELECT [Uid] AS [GrossDemandId]
+      FROM [dbo].[GrossDemand] WITH (UPDLOCK,HOLDLOCK)
+      WHERE [Uid] IN @Ids) sourceIds
+LEFT JOIN [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
+       ON nd.[GrossDemandId]=sourceIds.[GrossDemandId]
+GROUP BY sourceIds.[GrossDemandId]
+ORDER BY sourceIds.[GrossDemandId];";
+        var rows = await Connection.QueryAsync<MaterialDemandSourceExitAssessment>(sql, new
         {
             Ids = ids,
+            Active = NetDemandLifecycleStatusEnum.Active,
             RolledBack = NetDemandLifecycleStatusEnum.RolledBack,
             Voided = NetDemandLifecycleStatusEnum.Voided
         }, Transaction);
+        return [.. rows];
     }
 
 
@@ -242,9 +211,4 @@ SELECT nd.[Uid],nd.[Version],nd.[IsDeleted],nd.[CreatedDate],nd.[CreatedBy],nd.[
        nd.[GrossQty],nd.[NetQty],nd.[RequiredDate],nd.[Remark],
        nd.[RolledBackAt],nd.[RolledBackBy],nd.[RolledBackReason] ";
 
-    private sealed class HistoryCountRow
-    {
-        public Guid GrossDemandId { get; set; }
-        public int HistoryCount { get; set; }
-    }
 }

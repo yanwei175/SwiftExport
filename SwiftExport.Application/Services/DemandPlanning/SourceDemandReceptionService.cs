@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using SwiftExport.Application.Interfaces.DemandPlanning;
+using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
@@ -19,6 +20,7 @@ public sealed class SourceDemandReceptionService(
     DbSession session,
     IGrossDemandRepository grossDemandRepository,
     IMaterialDemandEstablishmentService materialDemandEstablishment,
+    ISourceDeliveryService sourceDeliveryService,
     IBusinessOperationLogRepository operationLogs,
     ICorrelationContext correlationContext,
     ICurrentUser currentUser) : ISourceDemandReceptionService
@@ -81,9 +83,18 @@ public sealed class SourceDemandReceptionService(
             var requiresDisposition = demand.SourceVersion.HasValue
                 ? !contentMatches
                 : !LegacyBusinessContentMatches(demand, command, item);
-            if (requiresDisposition && await materialDemandEstablishment.HasSourceExitBlockerAsync(
-                    command.SourceType, command.SourceUid, [item.SourceLineId]))
-                throw new SourceDemandReceptionException("SOURCE_CHANGE_REQUIRES_DISPOSITION", "来源需求已有物料、执行、关联入库或无法识别的供货历史，必须先完成影响处置。");
+            if (requiresDisposition)
+            {
+                try
+                {
+                    await VerifyExitAsync(command.SourceType, command.SourceUid, [demand]);
+                }
+                catch (SourceDemandReceptionException ex)
+                {
+                    throw new SourceDemandReceptionException("SOURCE_CHANGE_REQUIRES_DISPOSITION",
+                        $"来源需求已有物料或交付历史，必须先完成影响处置：{ex.Message}");
+                }
+            }
 
             // 来源只更新自身事实；物料建立状态由 NetDemand 历史联表判断，不再回写兼容字段。
             Apply(command, item, demand);
@@ -95,25 +106,26 @@ public sealed class SourceDemandReceptionService(
         return result;
     }
 
-    /// <summary>复用既有安全检查退出来源确认，不改变真实下游历史。</summary>
+    /// <summary>组合物料与交付退出证明，并按物料历史决定硬删除或作废 GrossDemand。</summary>
     public async Task<SourceDemandExitResult> CancelConfirmationAsync(
         string sourceType, Guid sourceUid, IReadOnlyCollection<Guid> sourceLineIds, string reason)
     {
         EnsureTransaction();
         var demands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(sourceType, sourceUid);
-        if (demands.Count != sourceLineIds.Count || demands.GroupBy(item => item.SourceLineId).Any(group => group.Count() != 1))
+        var requestedLineIds = sourceLineIds.OrderBy(id => id).ToArray();
+        var actualLineIds = demands.Select(item => item.SourceLineId).OrderBy(id => id).ToArray();
+        if (requestedLineIds.Length != requestedLineIds.Distinct().Count()
+            || demands.GroupBy(item => item.SourceLineId).Any(group => group.Count() != 1)
+            || !actualLineIds.SequenceEqual(requestedLineIds))
             throw new SourceDemandReceptionException("SOURCE_DEMAND_MISMATCH", "来源需求数量与来源明细不一致。");
-        if (await materialDemandEstablishment.HasSourceExitBlockerAsync(sourceType, sourceUid, sourceLineIds))
-            throw new SourceDemandReceptionException("SOURCE_EXIT_BLOCKED", "存在活动物料、执行关系、关联入库或无法识别的供货历史，不能退出来源确认。");
-        if (await materialDemandEstablishment.HasInvalidExitHistoryAsync(demands.Select(item => item.Uid)))
-            throw new SourceDemandReceptionException("SOURCE_HISTORY_INVALID", "来源需求历史不完整，不能退出确认。");
+        var assessments = await VerifyExitAsync(sourceType, sourceUid, demands);
 
         SourceDemandCancellationPlan plan;
         try
         {
             plan = SourceDemandCancellationPolicy.Build(
                 demands,
-                await materialDemandEstablishment.GetHistoryCountsForUpdateAsync(demands.Select(item => item.Uid)));
+                assessments.ToDictionary(pair => pair.Key, pair => pair.Value.HistoryCount));
         }
         catch (InvalidOperationException ex)
         {
@@ -133,8 +145,7 @@ public sealed class SourceDemandReceptionService(
         EnsureTransaction();
         var demands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(sourceType, sourceUid);
         if (demands.Count == 0) return 0;
-        if (await materialDemandEstablishment.HasSourceExitBlockerAsync(sourceType, sourceUid, sourceLineIds))
-            throw new SourceDemandReceptionException("SOURCE_EXIT_BLOCKED", "存在活动物料、执行关系、关联入库或无法识别的供货历史，不能直接关闭。");
+        await VerifyExitAsync(sourceType, sourceUid, demands);
         var affected = await grossDemandRepository.VoidPendingBySourceAsync(sourceType, sourceUid, reason);
         if (affected != demands.Count)
             throw new SourceDemandReceptionException("CONCURRENCY_CONFLICT", "部分来源需求状态已变化，关闭失败。");
@@ -146,6 +157,36 @@ public sealed class SourceDemandReceptionService(
     {
         EnsureTransaction();
         return (await grossDemandRepository.GetActiveBySourceForUpdateAsync(sourceType, sourceUid)).Count > 0;
+    }
+
+    /// <summary>
+    /// 在同一来源事务中组合物料历史证明与 Shipping 交付证明；任一证明缺失均失败关闭。
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Guid, MaterialDemandSourceExitAssessment>> VerifyExitAsync(
+        string sourceType,
+        Guid sourceUid,
+        IReadOnlyCollection<GrossDemand> demands)
+    {
+        var ids = demands.Select(item => item.Uid).OrderBy(id => id).ToArray();
+        var assessments = await materialDemandEstablishment.AssessSourceExitAsync(ids);
+        if (assessments.Count != ids.Length || ids.Any(id => !assessments.ContainsKey(id)))
+            throw new SourceDemandReceptionException("SOURCE_HISTORY_INVALID",
+                "来源需求的物料历史评估不完整，不能退出确认。");
+        if (assessments.Values.Any(item => item.HasActiveRevision))
+            throw new SourceDemandReceptionException("SOURCE_EXIT_BLOCKED",
+                "来源仍存在活动物料修订，请先在物料需求中完成安全回退。");
+        if (assessments.Values.Any(item => !item.IsHistoryComplete))
+            throw new SourceDemandReceptionException("SOURCE_HISTORY_INVALID",
+                "来源需求的物料历史不完整，不能退出确认。");
+        try
+        {
+            await sourceDeliveryService.VerifySourceExitAsync(sourceType, sourceUid, ids);
+        }
+        catch (SourceDeliveryException ex)
+        {
+            throw new SourceDemandReceptionException(ex.Code, ex.Message);
+        }
+        return assessments;
     }
 
     private static GrossDemand CreateDemand(SourceDemandReceptionCommand command, SourceDemandReceptionItem item)

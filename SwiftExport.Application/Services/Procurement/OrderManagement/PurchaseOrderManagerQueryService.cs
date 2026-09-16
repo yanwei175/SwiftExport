@@ -40,10 +40,9 @@ public sealed class PurchaseOrderManagerQueryService(
             || request.PageSize is < 1 or > 200
             || (long)(request.PageIndex - 1) * request.PageSize > int.MaxValue
             || HasOversizedText(request.Keyword)
-            || HasOversizedText(request.OrderNo)
-            || HasOversizedText(request.SourceNo)
-            || HasOversizedText(request.SupplierKeyword)
-            || HasOversizedText(request.Sku)
+            || HasOversizedText(request.CustomerCode)
+            || request.SupplierId == Guid.Empty
+            || request.OrderDateFrom?.Date > request.OrderDateTo?.Date
             || request.ConfirmationStatuses is null
             || request.LifecycleStatuses is null
             || request.ConfirmationStatuses.Count > 20

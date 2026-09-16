@@ -35,23 +35,27 @@ public sealed class SourceDemandDeliveryContractTests
     }
 
     [TestMethod]
-    public void SourceExitUsesActualSupplyAndDoesNotTreatMissingDeliveryAsSafe()
+    public void SourceExitSeparatesMaterialHistoryFromShippingDeliveryProof()
     {
         var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
         var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "NetDemandRepository.cs");
-        var exitSql = repository.Split("public Task<bool> HasSourceExitBlockerAsync")[1].Split("public async Task<IReadOnlyDictionary<Guid, int>>")[0];
+        var exitSql = repository.Split("AssessSourceExitForUpdateAsync")[1].Split("public async Task<IReadOnlyList<RepositoryWriteResult>>")[0];
         var material = Read("SwiftExport.Application", "Services", "DemandPlanning", "MaterialDemandEstablishmentService.cs");
+        var source = Read("SwiftExport.Application", "Services", "DemandPlanning", "SourceDemandReceptionService.cs");
+        var shipping = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingListRepository.cs");
         StringAssert.Contains(sourceRepository, "GetActiveBySourceForUpdateAsync");
-        StringAssert.Contains(sourceRepository, "WITH (UPDLOCK, ROWLOCK)");
-        foreach (var forbidden in new[] { "OutboundDocument", "PackingListContributionLine", "NetDemandAllocation", "il.[GrossDemandId]", "il.[DemandExecutionLinkId]" })
+        StringAssert.Contains(sourceRepository, "WITH (UPDLOCK, HOLDLOCK, ROWLOCK)");
+        foreach (var forbidden in new[] { "DemandExecutionLink", "PurchaseOrder", "InboundDocument", "OutboundDocument", "PackingList" })
             Assert.IsFalse(exitSql.Contains(forbidden, StringComparison.Ordinal), forbidden);
-        StringAssert.Contains(exitSql, "po.[Uid]=il.[SourceLineId]");
-        StringAssert.Contains(exitSql, "link.[TargetHeadId]=po.[PurchaseOrderId]");
-        StringAssert.Contains(exitSql, "link.[TargetLineId]=po.[Uid]");
-        StringAssert.Contains(exitSql, "ih.[DocumentType]=10");
-        StringAssert.Contains(exitSql, "po.[Uid] IS NULL");
-        StringAssert.Contains(exitSql, "d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid AND d.[SourceLineId] IN @LineIds");
-        StringAssert.Contains(material, "SOURCE_EXIT_SAFETY_UNAVAILABLE");
+        StringAssert.Contains(exitSql, "LifecycleStatus] NOT IN (@RolledBack,@Voided)");
+        StringAssert.Contains(material, "AssessSourceExitAsync");
+        StringAssert.Contains(source, "VerifySourceExitAsync");
+        StringAssert.Contains(shipping, "ActiveDraftCount");
+        StringAssert.Contains(shipping, "PostedPackingListCount");
+        StringAssert.Contains(shipping, "PostedCustomerOutboundCount");
+        StringAssert.Contains(shipping, "o.TriggerPackingListId");
+        StringAssert.Contains(shipping, "o.DocumentType=@FinalCustomerShipment");
+        Assert.IsFalse(shipping.Contains("StockIssue", StringComparison.Ordinal));
     }
 
     /// <summary>旧来源 API 只能转发查询；售后结案不得依赖按库存出库行聚合的通用交付边界。</summary>

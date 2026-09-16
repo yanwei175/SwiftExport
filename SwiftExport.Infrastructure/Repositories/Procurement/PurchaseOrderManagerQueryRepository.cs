@@ -32,10 +32,12 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
         var parameters = new
         {
             Keyword = ToLikePattern(request.Keyword),
-            OrderNo = ToLikePattern(request.OrderNo),
-            SourceNo = ToLikePattern(request.SourceNo),
-            SupplierKeyword = ToLikePattern(request.SupplierKeyword),
-            Sku = ToLikePattern(request.Sku),
+            CustomerCode = string.IsNullOrWhiteSpace(request.CustomerCode) ? null : request.CustomerCode.Trim(),
+            request.SupplierId,
+            OrderDateFrom = request.OrderDateFrom?.Date,
+            // 用半开区间包含结束日全部时间，保持 OrderDate 列可利用索引。
+            OrderDateToExclusive = request.OrderDateTo.HasValue && request.OrderDateTo.Value.Date < DateTime.MaxValue.Date
+                ? request.OrderDateTo.Value.Date.AddDays(1) : (DateTime?)null,
             ConfirmationStatuses = confirmationStatuses,
             LimitConfirmationStatuses = request.ConfirmationStatuses.Count > 0,
             LifecycleStatuses = lifecycleStatuses,
@@ -196,6 +198,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
             WHERE ISNULL(h.IsDeleted,0)=0
               AND (@Keyword IS NULL OR h.OrderNo LIKE @Keyword ESCAPE N'~'
                    OR h.BoNo LIKE @Keyword ESCAPE N'~'
+                   OR h.DemandSourceNo LIKE @Keyword ESCAPE N'~'
                    OR h.CustomerCode LIKE @Keyword ESCAPE N'~'
                    OR h.SupplierName LIKE @Keyword ESCAPE N'~'
                    OR EXISTS
@@ -205,22 +208,10 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
                          AND (keywordLine.Sku LIKE @Keyword ESCAPE N'~'
                               OR keywordLine.SourceNo LIKE @Keyword ESCAPE N'~')
                    ))
-              AND (@OrderNo IS NULL OR h.OrderNo LIKE @OrderNo ESCAPE N'~')
-              AND (@SourceNo IS NULL OR h.DemandSourceNo LIKE @SourceNo ESCAPE N'~'
-                   OR EXISTS
-                   (
-                       SELECT 1 FROM dbo.PurchaseOrderLine sourceLine
-                       WHERE sourceLine.PurchaseOrderId=h.Uid AND ISNULL(sourceLine.IsDeleted,0)=0
-                         AND sourceLine.SourceNo LIKE @SourceNo ESCAPE N'~'
-                   ))
-              AND (@SupplierKeyword IS NULL OR h.SupplierCode LIKE @SupplierKeyword ESCAPE N'~'
-                   OR h.SupplierName LIKE @SupplierKeyword ESCAPE N'~')
-              AND (@Sku IS NULL OR EXISTS
-                   (
-                       SELECT 1 FROM dbo.PurchaseOrderLine skuLine
-                       WHERE skuLine.PurchaseOrderId=h.Uid AND ISNULL(skuLine.IsDeleted,0)=0
-                         AND skuLine.Sku LIKE @Sku ESCAPE N'~'
-                   ))
+              AND (@CustomerCode IS NULL OR h.CustomerCode=@CustomerCode)
+              AND (@SupplierId IS NULL OR h.SupplierId=@SupplierId)
+              AND (@OrderDateFrom IS NULL OR h.OrderDate>=@OrderDateFrom)
+              AND (@OrderDateToExclusive IS NULL OR h.OrderDate<@OrderDateToExclusive)
               AND (@LimitConfirmationStatuses=0 OR h.ConfirmationStatus IN @ConfirmationStatuses)
               AND (@LimitLifecycleStatuses=0 OR h.LifecycleStatus IN @LifecycleStatuses)
               AND ((@PlannedDeliveryDateFrom IS NULL AND @PlannedDeliveryDateTo IS NULL) OR EXISTS
