@@ -1,9 +1,11 @@
 using SwiftExport.Core.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Auth;
 
 /// <summary>保存普通用户直接获得的一级模块权限，不承载角色或管理员身份。</summary>
-public sealed class SysUserModulePermission : BaseEntity
+[Table("SysUser_ModulePermissions")]
+public sealed partial class SysUserModulePermission : BaseEntity
 {
     /// <summary>被授予模块的用户标识。</summary>
     public Guid UserId { get; set; }

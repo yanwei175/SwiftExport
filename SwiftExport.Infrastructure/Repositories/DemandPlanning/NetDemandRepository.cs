@@ -27,81 +27,6 @@ ORDER BY nd.[DecompositionRevision],nd.[LineNumber],nd.[Uid];",
     }
 
     /// <summary>
-    /// 在物料领域按来源需求事实联表计算候选；不读取或回写来源表上的兼容拆解状态。
-    /// </summary>
-    public async Task<PagedResponseBase<SourceDemandCandidateDto>> SearchSourceDemandCandidatesAsync(
-        SourceDemandCandidateSearchRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        request ??= new SourceDemandCandidateSearchRequest();
-        var pageIndex = Math.Max(1, request.PageIndex);
-        var pageSize = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 200);
-        var keyword = string.IsNullOrWhiteSpace(request.Keyword) ? null : $"%{request.Keyword.Trim()}%";
-        const string facts = @"
-FROM [dbo].[GrossDemand] d
-OUTER APPLY (
-    SELECT COUNT(1) AS [ActiveCount], MIN(nd.[SourceDemandVersionSnapshot]) AS [MinDemandVersion],
-           MAX(nd.[SourceDemandVersionSnapshot]) AS [MaxDemandVersion],
-           MIN(nd.[SourceVersionSnapshot]) AS [MinSourceVersion], MAX(nd.[SourceVersionSnapshot]) AS [MaxSourceVersion],
-           MIN(nd.[SourceDemandBasisFingerprintSnapshot]) AS [MinBasis], MAX(nd.[SourceDemandBasisFingerprintSnapshot]) AS [MaxBasis]
-    FROM [dbo].[NetDemand] nd
-    WHERE nd.[GrossDemandId]=d.[Uid] AND nd.[LifecycleStatus]=0 AND nd.[IsDeleted]=0
-) activeFacts
-OUTER APPLY (
-    SELECT ISNULL(MAX(nd.[DecompositionRevision]),0) AS [LatestRevision]
-    FROM [dbo].[NetDemand] nd
-    WHERE nd.[GrossDemandId]=d.[Uid]
-) historyFacts
-WHERE d.[LifecycleStatus]=0 AND d.[IsDeleted]=0
-  AND (@Keyword IS NULL OR d.[SourceNo] LIKE @Keyword OR d.[SkuSnapshot] LIKE @Keyword
-       OR d.[CustomerSkuSnapshot] LIKE @Keyword OR d.[DescriptionSnapshot] LIKE @Keyword)
-  AND (@IncludeUnavailable=1 OR ISNULL(activeFacts.[ActiveCount],0)=0)";
-        var selectSql = @"
-SELECT d.[Uid] AS [GrossDemandId],d.[Version] AS [SourceDemandVersion],d.[SourceVersion],
-       d.[SourceType],d.[SourceUid],d.[SourceNo],d.[SourceLineId],d.[SourceLineNumber],
-       d.[SkuSnapshot] AS [Sku],d.[LinkSkuSnapshot] AS [LinkSku],d.[CustomerSkuSnapshot] AS [CustomerSku],
-       d.[DescriptionSnapshot] AS [Description],d.[ImagePathSnapshot] AS [ImagePath],d.[DemandQty],d.[RequiredDate],
-       historyFacts.[LatestRevision] AS [LatestDecompositionRevision],
-       ISNULL(activeFacts.[ActiveCount],0) AS [ActiveMaterialDemandCount],
-       CASE
-         WHEN ISNULL(activeFacts.[ActiveCount],0)=0 AND historyFacts.[LatestRevision]=0 THEN N'UNESTABLISHED'
-         WHEN ISNULL(activeFacts.[ActiveCount],0)=0 THEN N'ROLLED_BACK'
-         WHEN d.[DemandBasisFingerprint] IS NOT NULL
-          AND activeFacts.[MinBasis]=d.[DemandBasisFingerprint] AND activeFacts.[MaxBasis]=d.[DemandBasisFingerprint] THEN N'ESTABLISHED'
-         ELSE N'SOURCE_CHANGED'
-       END AS [EstablishmentState],
-       CASE WHEN ISNULL(activeFacts.[ActiveCount],0)=0 THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS [CanEstablish],
-       CASE WHEN ISNULL(activeFacts.[ActiveCount],0)>0 AND (
-          d.[DemandBasisFingerprint] IS NULL OR activeFacts.[MinBasis] IS NULL
-          OR activeFacts.[MinBasis]<>d.[DemandBasisFingerprint] OR activeFacts.[MaxBasis]<>d.[DemandBasisFingerprint])
-         THEN N'SOURCE_CHANGE_REQUIRES_DISPOSITION'
-         WHEN ISNULL(activeFacts.[ActiveCount],0)>0 THEN N'ALREADY_ESTABLISHED' ELSE NULL END AS [BlockerCode],
-       CASE WHEN ISNULL(activeFacts.[ActiveCount],0)>0 AND (
-          d.[DemandBasisFingerprint] IS NULL OR activeFacts.[MinBasis] IS NULL
-          OR activeFacts.[MinBasis]<>d.[DemandBasisFingerprint] OR activeFacts.[MaxBasis]<>d.[DemandBasisFingerprint])
-         THEN N'来源事实已变化，必须先处置当前物料需求。'
-         WHEN ISNULL(activeFacts.[ActiveCount],0)>0 THEN N'已存在有效物料需求。' ELSE NULL END AS [BlockerMessage] " + facts + @"
-ORDER BY CASE WHEN d.[RequiredDate] IS NULL THEN 1 ELSE 0 END,d.[RequiredDate],d.[SourceNo],d.[SourceLineNumber],d.[Uid]
-OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
-        var countSql = "SELECT COUNT(1) " + facts + ";";
-        var parameters = new
-        {
-            Keyword = keyword,
-            IncludeUnavailable = request.IncludeUnavailable,
-            Offset = (pageIndex - 1) * pageSize,
-            PageSize = pageSize
-        };
-        var items = await Connection.QueryAsync<SourceDemandCandidateDto>(new CommandDefinition(
-            selectSql, parameters, Transaction, cancellationToken: cancellationToken));
-        var total = await Connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            countSql, parameters, Transaction, cancellationToken: cancellationToken));
-        return new PagedResponseBase<SourceDemandCandidateDto>
-        {
-            Items = [.. items], TotalCount = total, PageIndex = pageIndex, PageSize = pageSize
-        };
-    }
-
-    /// <summary>
     /// 按来源稳定身份聚合全部待建立来源行；不从分页候选结果二次去重，也不依赖来源兼容状态。
     /// </summary>
     public async Task<IReadOnlyList<SourceDemandCandidateGroupDto>> GetSourceDemandCandidateGroupsAsync(
@@ -134,17 +59,8 @@ ORDER BY MAX(d.[SourceNo]),d.[SourceType],d.[SourceUid];";
 SELECT d.[Uid] AS [GrossDemandId],d.[Version] AS [SourceDemandVersion],d.[SourceVersion],
        d.[SourceType],d.[SourceUid],d.[SourceNo],d.[SourceLineId],d.[SourceLineNumber],
        d.[SkuSnapshot] AS [Sku],d.[LinkSkuSnapshot] AS [LinkSku],d.[CustomerSkuSnapshot] AS [CustomerSku],
-       d.[DescriptionSnapshot] AS [Description],d.[ImagePathSnapshot] AS [ImagePath],d.[DemandQty],d.[RequiredDate],
-       historyFacts.[LatestRevision] AS [LatestDecompositionRevision],
-       CAST(0 AS int) AS [ActiveMaterialDemandCount],
-       CASE WHEN historyFacts.[LatestRevision]=0 THEN N'UNESTABLISHED' ELSE N'ROLLED_BACK' END AS [EstablishmentState],
-       CAST(1 AS bit) AS [CanEstablish],NULL AS [BlockerCode],NULL AS [BlockerMessage]
+       d.[DescriptionSnapshot] AS [Description],d.[ImagePathSnapshot] AS [ImagePath],d.[DemandQty],d.[RequiredDate]
 FROM [dbo].[GrossDemand] d
-OUTER APPLY (
-    SELECT ISNULL(MAX(nd.[DecompositionRevision]),0) AS [LatestRevision]
-    FROM [dbo].[NetDemand] nd
-    WHERE nd.[GrossDemandId]=d.[Uid]
-) historyFacts
 WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid
   AND d.[LifecycleStatus]=0 AND d.[IsDeleted]=0
   AND NOT EXISTS (

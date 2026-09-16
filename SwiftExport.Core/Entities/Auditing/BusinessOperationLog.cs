@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.Auditing;
 
 /// <summary>面向业务人员的持久化操作日志；只追加，不提供更新或删除。</summary>
 [Table("BusinessOperationLog")]
-public sealed class BusinessOperationLog : BaseEntity
+public sealed partial class BusinessOperationLog : BaseEntity
 {
     /// <summary>关联的业务请求关联标识唯一标识。</summary>
     public string CorrelationId { get; set; } = string.Empty;

@@ -5,13 +5,32 @@
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid">
-    <Grid Margin="12,8" RowDefinitions="Auto,*">
-        <Grid RowDefinitions="Auto,4,Auto,4,Auto">
+
+    <Grid Margin="12,8" RowDefinitions="Auto,8,Auto,8,*">
+        <!--条件筛选区域-->
+        <Grid RowDefinitions="Auto,8, *">
+            <Grid ColumnDefinitions="3*,3*,3*">
+                <TextBlock Text="采购单管理" 
+                           Style="{StaticResource SubtitleTextBlock}"
+                           VerticalAlignment="Center"/>
+                <!--搜索框-->
+                <ui:TextBox Grid.Column="1"
+                            Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
+                            Icon="{ui:SymbolIcon Symbol=Search24}"
+                            PlaceholderText="综合关键词">
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
+            </Grid>
+        </Grid>
+
+
+        <Grid Grid.Row="2" RowDefinitions="Auto,8,Auto,4,Auto">
+            
             <DockPanel LastChildFill="True">
-                <TextBlock Text="采购订单管理" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <WrapPanel HorizontalAlignment="Right">
-                    
-                    <ui:DropDownButton Content="新建采购单" Margin="4,0,0,0" AutomationProperties.Name="新建采购单">
+                <WrapPanel HorizontalAlignment="Left">
+                    <ui:DropDownButton Content="新建采购单" Margin="4,0,0,0" >
                         <ui:DropDownButton.Flyout>
                             <ContextMenu MinWidth="150" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                                 <MenuItem Header="从物料需求创建" Command="{Binding GetFromNetDemandCommand}"/>
@@ -19,41 +38,66 @@
                             </ContextMenu>
                         </ui:DropDownButton.Flyout>
                     </ui:DropDownButton>
-                    
-                    <Button Content="确认" Command="{Binding ConfirmCommand}" Margin="4,0,0,0"/>
-                    <Button Content="批量确认" Command="{Binding BatchConfirmCommand}" Margin="4,0,0,0"
-                            AutomationProperties.Name="批量确认当前页已勾选采购单"/>
+
+                    <Button Content="确认" Command="{Binding ConfirmCommand}" MinWidth="70" Margin="4,0,0,0"/>
+                    <Button Content="批量确认" Command="{Binding BatchConfirmCommand}" Margin="4,0,0,0"/>
                     <Button Content="取消确认" Command="{Binding CancelConfirmationCommand}" Margin="4,0,0,0"/>
                     <Button Content="整单作废" Command="{Binding VoidOrderCommand}" Margin="4,0,0,0"/>
                     <Button Content="重试原操作" Command="{Binding RetryReversalCommand}" Margin="4,0,0,0"/>
-                    <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="4,0,0,0"/>
+                    <Button Content="刷新" Command="{Binding RefreshCommand}" MinWidth="70" Margin="4,0,0,0"/>
                     <Button Content="采购跟进" Command="{Binding OpenFollowUpCommand}" Margin="4,0,0,0"/>
                 </WrapPanel>
             </DockPanel>
 
-            <Grid Grid.Row="2" ColumnDefinitions="2*,8,140,8,140,8,160,8,130,8,Auto,4,Auto">
-                <ui:TextBox Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" PlaceholderText="综合关键词"/>
-                <ui:TextBox Grid.Column="2" Text="{Binding OrderNo}" PlaceholderText="采购单号"/>
-                <ui:TextBox Grid.Column="4" Text="{Binding SourceNo}" PlaceholderText="来源单号"/>
-                <ui:TextBox Grid.Column="6" Text="{Binding SupplierKeyword}" PlaceholderText="供应商"/>
-                <ui:TextBox Grid.Column="8" Text="{Binding Sku}" PlaceholderText="SKU"/>
-                <Button Grid.Column="10" Content="查询" Command="{Binding SearchCommand}"/>
-                <Button Grid.Column="12" Content="清空筛选" Command="{Binding ClearFiltersCommand}"/>
+            <Grid Grid.Row="2" ColumnDefinitions="120,8,120,8,120,8,120,8,100,8,100,8,120,8,120,8,120,8,120,8,Auto,4,Auto">
+                <ui:TextBox Grid.Column="0" Text="{Binding OrderNo}" PlaceholderText="系统采购单号">
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
+                <ui:TextBox Grid.Column="2" Text="{Binding SourceNo}" PlaceholderText="系统来源单号">
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
+                <ui:TextBox Grid.Column="4" Text="{Binding SupplierKeyword}" PlaceholderText="供应商">
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
+
+                <ui:TextBox Grid.Column="6" Text="{Binding Sku}" PlaceholderText="SKU">
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
+
+                <controls:DropDownCheckBox Grid.Column="8" Placeholder="确认状态" 
+                                           ItemsSource="{Binding ConfirmationOptions}" 
+                                           DisplayMemberPath="DisplayText"
+                                           SelectedItems="{Binding SelectedConfirmationStatuses,Mode=OneWay}"/>
+                <controls:DropDownCheckBox Grid.Column="10" Placeholder="生命周期" 
+                                           ItemsSource="{Binding LifecycleOptions}" 
+                                           DisplayMemberPath="DisplayText"
+                                           SelectedItems="{Binding SelectedLifecycleStatuses,Mode=OneWay}"/>
+
+                <DatePicker Grid.Column="12" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding PlannedDeliveryDateFrom}" controls:DatePickerAssist.PlaceholderText="计划交期起"/>
+                <DatePicker Grid.Column="14" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding PlannedDeliveryDateTo}" controls:DatePickerAssist.PlaceholderText="计划交期至"/>
+                <DatePicker Grid.Column="16" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding ExpectedCompletionDateFrom}" controls:DatePickerAssist.PlaceholderText="预计完成起"/>
+                <DatePicker Grid.Column="18" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding ExpectedCompletionDateTo}" controls:DatePickerAssist.PlaceholderText="预计完成至"/>
+                
+                <Button Grid.Column="20" Content="查询" Command="{Binding SearchCommand}" MinWidth="70"/>
+                <Button Grid.Column="22" Content="清空筛选" Command="{Binding ClearFiltersCommand}"/>
             </Grid>
 
             <Grid Grid.Row="4" ColumnDefinitions="160,8,160,8,125,8,125,8,125,8,125,*">
-                <controls:DropDownCheckBox Placeholder="确认状态" ItemsSource="{Binding ConfirmationOptions}" DisplayMemberPath="DisplayText"
-                                           SelectedItems="{Binding SelectedConfirmationStatuses,Mode=OneWay}"/>
-                <controls:DropDownCheckBox Grid.Column="2" Placeholder="生命周期" ItemsSource="{Binding LifecycleOptions}" DisplayMemberPath="DisplayText"
-                                           SelectedItems="{Binding SelectedLifecycleStatuses,Mode=OneWay}"/>
-                <DatePicker Grid.Column="4" Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding PlannedDeliveryDateFrom}" controls:DatePickerAssist.PlaceholderText="计划交期起"/>
-                <DatePicker Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding PlannedDeliveryDateTo}" controls:DatePickerAssist.PlaceholderText="计划交期至"/>
-                <DatePicker Grid.Column="8" Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding ExpectedCompletionDateFrom}" controls:DatePickerAssist.PlaceholderText="预计完成起"/>
-                <DatePicker Grid.Column="10" Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding ExpectedCompletionDateTo}" controls:DatePickerAssist.PlaceholderText="预计完成至"/>
+
+                
+
             </Grid>
         </Grid>
-
-        <Grid Grid.Row="1" RowDefinitions="4*,8,6*">
+        <!--主区域-->
+        <Grid Grid.Row="4" RowDefinitions="4*,8,6*">
             <Grid RowDefinitions="*,Auto">
                 <DataGrid ItemsSource="{Binding Orders}"
                           SelectedItem="{Binding SelectedOrder}"
@@ -91,7 +135,7 @@
                                             Binding="{Binding LifecycleStatus,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}"
                                             Width="85"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="采购单号" Binding="{Binding OrderNo}" Width="145"/>
-                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="诗亦霖采购单号" Binding="{Binding BoNo}" Width="140"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="自定义采购单号" Binding="{Binding BoNo}" Width="140"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="客户代码" Binding="{Binding CustomerCode}" Width="120"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="供应商" Binding="{Binding SupplierName}" Width="170"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="确认状态" Binding="{Binding ConfirmationStatus,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}" Width="85"/>
@@ -107,12 +151,26 @@
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="预计完成" Binding="{Binding ExpectedCompletionDate,StringFormat=yyyy-MM-dd}" Width="105"/>
                     </DataGrid.Columns>
                 </DataGrid>
+
                 <Grid Grid.Row="1" Margin="0,4,0,0" ColumnDefinitions="Auto,12,*,Auto,12,Auto">
-                    <TextBlock Text="{Binding SelectionSummary}" Style="{StaticResource CaptionTextBlock}"/>
-                    <TextBlock Grid.Column="2" Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}"/>
-                    <TextBlock Grid.Column="3" Text="{Binding PageStatus}" Style="{StaticResource CaptionTextBlock}"/>
-                    <controls:PageNavigator Grid.Column="5" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}" PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}"/>
+                    <TextBlock Text="{Binding SelectionSummary}" VerticalAlignment="Center"
+                               Style="{StaticResource CaptionTextBlock}"/>
+
+                    <TextBlock Grid.Column="2" Text="{Binding ResultSummary}" 
+                                VerticalAlignment="Center"
+                               Style="{StaticResource CaptionTextBlock}"/>
+
+                    <TextBlock Grid.Column="3" Text="{Binding PageStatus}"  
+                               VerticalAlignment="Center"
+                               Style="{StaticResource CaptionTextBlock}"/>
+
+                    <controls:PageNavigator Grid.Column="5" 
+                                            TotalCount="{Binding TotalCount}" 
+                                            PageIndex="{Binding PageIndex}" 
+                                            PageSize="{Binding PageSize}" 
+                                            PageChangeCommand="{Binding PageChangeCommand}"/>
                 </Grid>
+
             </Grid>
 
             <GridSplitter Grid.Row="1" Style="{StaticResource SwiftExportGridSplitterHorizontal}"/>
@@ -120,19 +178,19 @@
             <Grid Grid.Row="2" RowDefinitions="Auto,8,*">
 
                 <Grid Margin="0,8,0,0" ColumnDefinitions="Auto,8,Auto,18,Auto,8,Auto,*">
-                    
+
                     <TextBlock Grid.Column="0" Text="采购单：" Style="{StaticResource BodyStrongTextBlock}"/>
                     <TextBlock Grid.Column="2" Text="{Binding SelectedOrder.OrderNo}" Style="{StaticResource BodyTextBlock}"/>
-                    
+
                     <TextBlock Grid.Column="4" Text="供应商：" Style="{StaticResource BodyStrongTextBlock}"/>
                     <TextBlock Grid.Column="6" Text="{Binding SelectedOrder.SupplierName}" Style="{StaticResource BodyTextBlock}"/>
-                    
+
                     <TextBlock Grid.Column="7" 
                                HorizontalAlignment="Right" 
                                Text="{Binding DetailStatusText}" 
                                Style="{StaticResource BodyTextBlock}"/>
                 </Grid>
-                
+
                 <DataGrid Grid.Row="2" ItemsSource="{Binding Lines}" 
                           SelectedItem="{Binding SelectedLine}" 
                           AutoGenerateColumns="False" 
@@ -147,7 +205,7 @@
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
                                             Header="行" 
                                             Binding="{Binding LineNumber}" Width="32"/>
-                        
+
                         <DataGridTemplateColumn Header="图片" Width="64" CanUserSort="False" gridColumns:GridColumn.Key="image">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>

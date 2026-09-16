@@ -194,7 +194,6 @@ public sealed class SourceDemandReceptionServiceTests
         public Task<bool> HasSourceExitBlockerAsync(string sourceType, Guid sourceUid, IReadOnlyCollection<Guid> sourceLineIds) => Task.FromResult(repository.HasBlocker);
         public Task<IReadOnlyDictionary<Guid, int>> GetHistoryCountsForUpdateAsync(IEnumerable<Guid> grossDemandIds) => Task.FromResult<IReadOnlyDictionary<Guid, int>>(grossDemandIds.ToDictionary(id => id, _ => 0));
         public Task<bool> HasInvalidExitHistoryAsync(IEnumerable<Guid> grossDemandIds) => Task.FromResult(false);
-        public Task<ServiceResult<PagedResponseBase<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.SourceDemandCandidateDto>>> SearchCandidatesAsync(SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.SourceDemandCandidateSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.EstablishMaterialDemandsResult>> EstablishAsync(SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.EstablishMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.RollbackMaterialDemandsResult>> RollbackAsync(SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.RollbackMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }

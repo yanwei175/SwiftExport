@@ -22,11 +22,5 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public string ImagePath { get; set; }
         public decimal DemandQty { get; set; }
         public DateTime? RequiredDate { get; set; }
-        public int LatestDecompositionRevision { get; set; }
-        public int ActiveMaterialDemandCount { get; set; }
-        public string EstablishmentState { get; set; }
-        public bool CanEstablish { get; set; }
-        public string BlockerCode { get; set; }
-        public string BlockerMessage { get; set; }
     }
 }

@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.Shipping;
 
 /// <summary>装箱明细，以来源需求锚定交付要求，保存产品及实际包装快照，不承担采购数量分摊。</summary>
 [Table("PackingListLine")]
-public sealed class PackingListLine : BaseEntity
+public sealed partial class PackingListLine : BaseEntity
 {
     /// <summary>所属装箱单头 Uid，逻辑关联。</summary>
     public Guid PackingListHeadId { get; set; }

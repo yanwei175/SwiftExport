@@ -134,6 +134,7 @@
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <ComboBox Margin="4,0"
+                                      FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                                       ItemsSource="{Binding DataContext.CurrencyOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                       ItemTemplate="{StaticResource CustomerPoConfigCurrencyOptionTemplate}"
                                       SelectedValuePath="CurrencyCode"

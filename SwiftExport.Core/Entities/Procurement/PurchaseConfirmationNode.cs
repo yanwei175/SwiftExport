@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Procurement;
 /// <summary>按完整路径保存确认 BOM 节点和客供件消耗目标，保留原始比例供审计与后续执行。</summary>
 [Table("PurchaseConfirmationNode")]
-public sealed class PurchaseConfirmationNode : BaseEntity
+public sealed partial class PurchaseConfirmationNode : BaseEntity
 {
     public Guid ConfirmationLineId { get; set; }
     public string Path { get; set; } = "";

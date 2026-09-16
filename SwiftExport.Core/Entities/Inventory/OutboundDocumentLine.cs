@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.Inventory;
 
 /// <summary>出库单明细实体，保存仓库产品的出库数量和库存操作身份，不承担销售交付归属。</summary>
 [Table("OutboundDocumentLine")]
-public sealed class OutboundDocumentLine : BaseEntity
+public sealed partial class OutboundDocumentLine : BaseEntity
 {
     /// <summary>关联的出库单头唯一标识。</summary>
     public Guid OutboundDocumentId { get; set; }

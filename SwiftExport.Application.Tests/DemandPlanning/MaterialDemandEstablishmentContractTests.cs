@@ -16,17 +16,16 @@ public sealed class MaterialDemandEstablishmentContractTests
         StringAssert.Contains(service, "GetNextDecompositionRevisionForUpdateAsync");
         StringAssert.Contains(service, "SourceDemandBasisFingerprintSnapshot");
         StringAssert.Contains(service, "GetByCommandAsync(Module, EstablishOperation");
-        StringAssert.Contains(service, "GetActiveRollbackBlockersAsync");
+        StringAssert.Contains(service, "GetRollbackBlockersAsync");
         Assert.IsFalse(service.Contains("UpdateDecompositionStateAsync", StringComparison.Ordinal));
 
-        StringAssert.Contains(repository, "SearchSourceDemandCandidatesAsync");
         StringAssert.Contains(repository, "GetSourceDemandCandidateGroupsAsync");
         StringAssert.Contains(repository, "GetSourceDemandCandidatesBySourceAsync");
         StringAssert.Contains(repository, "GROUP BY d.[SourceType],d.[SourceUid]");
         StringAssert.Contains(repository, "d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid");
         StringAssert.Contains(repository, "d.[LinkSkuSnapshot] AS [LinkSku]");
         StringAssert.Contains(repository, "d.[ImagePathSnapshot] AS [ImagePath]");
-        StringAssert.Contains(repository, "OUTER APPLY");
+        Assert.IsFalse(repository.Contains("OUTER APPLY", StringComparison.Ordinal));
         StringAssert.Contains(repository, "SourceDemandBasisFingerprintSnapshot");
         StringAssert.Contains(repository, "WITH (UPDLOCK,HOLDLOCK)");
     }

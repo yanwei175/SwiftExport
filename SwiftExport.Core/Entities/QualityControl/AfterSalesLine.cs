@@ -6,7 +6,7 @@ namespace SwiftExport.Core.Entities.QualityControl;
 
 /// <summary>保存售后问题与补发明细事实，不持有下游进度。</summary>
 [Table("AfterSalesLine")]
-public sealed class AfterSalesLine : BaseEntity
+public sealed partial class AfterSalesLine : BaseEntity
 {
     /// <summary>所属售后单。</summary>
     public Guid HeaderId { get; set; }
@@ -69,4 +69,3 @@ public sealed class AfterSalesLine : BaseEntity
     /// <summary>行备注。</summary>
     public string? Remark { get; set; }
 }
-

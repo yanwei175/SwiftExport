@@ -36,13 +36,6 @@ public sealed class NetDemandManagerController(INetDemandManagerService service)
         CancellationToken cancellationToken)
         => service.UpdateSuggestedPurchaseSupplierAsync(command, cancellationToken);
 
-    /// <summary>查询由物料领域计算的来源需求建立候选。</summary>
-    [HttpPost("source-demands/candidates/search")]
-    public Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
-        [FromBody] SourceDemandCandidateSearchRequest request,
-        CancellationToken cancellationToken)
-        => service.SearchSourceDemandCandidatesAsync(request, cancellationToken);
-
     /// <summary>查询全部仍包含待建立行的来源单分组。</summary>
     [HttpGet("source-demands/candidate-groups")]
     public Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(

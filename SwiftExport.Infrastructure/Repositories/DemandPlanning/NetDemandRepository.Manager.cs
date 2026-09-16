@@ -14,7 +14,7 @@ public sealed partial class NetDemandRepository
     /// 查询物料需求工作台，只读取物料、来源、产品与有效采购关联事实。
     /// </summary>
     /// <remarks>
-    /// 本查询刻意不读取 NetDemandAllocation。推荐采购方读取物料自身字段；客供件建议送达方仅沿同一有效拆解树目标派生，
+    /// 本查询只读取物料需求事实。推荐采购方读取物料自身字段；客供件建议送达方仅沿同一有效拆解树目标派生，
     /// 不能替代采购域保存的实际采购方和送达方。
     /// </remarks>
     public async Task<PagedResponseBase<MaterialDemandManagerItemDto>> SearchManagerAsync(

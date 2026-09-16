@@ -90,76 +90,85 @@
             </Grid>
         </Border>
 
-        <Grid RowDefinitions="Auto,4,Auto,4,*,4,Auto">
+        <Grid RowDefinitions="Auto,8,Auto,8,Auto,8,*,8,Auto">
+            <!--条件筛选区域-->
+            <Grid RowDefinitions="Auto,8, *">
+                <Grid ColumnDefinitions="3*,3*,3*">
+                    <TextBlock Text="物料需求" 
+                           Style="{StaticResource SubtitleTextBlock}"
+                           VerticalAlignment="Center"/>
+                    <!--搜索框-->
+                    <ui:TextBox Grid.Column="1"
+                            Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
+                            Icon="{ui:SymbolIcon Symbol=Search24}"
+                            PlaceholderText="来源单号、SKU、客户型号或描述">
+                        <ui:TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                        </ui:TextBox.InputBindings>
+                    </ui:TextBox>
+                </Grid>
+            </Grid>
 
-            <Grid Grid.Row="0" ColumnDefinitions="240,4,Auto,12,*">
-                <ui:TextBox Grid.Column="0" MinHeight="32" VerticalContentAlignment="Center"
-                            PlaceholderText="来源单号、SKU、客户型号或描述"
-                             ToolTip="来源单号、SKU、客户型号或描述"
-                             Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}">
-                    <ui:TextBox.InputBindings>
-                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                    </ui:TextBox.InputBindings>
-                </ui:TextBox>
-                <Button Grid.Column="2" Width="40" 
-                Command="{Binding SearchCommand}" ToolTip="查询">
-                    <ui:SymbolIcon Symbol="Search24" />
-                </Button>
-                <StackPanel Grid.Column="4" Orientation="Horizontal">
-                    
-                    <Button Command="{Binding EstablishFromSourcesCommand}" Margin="0,0,4,0" Padding="8,4"
-                            Content="从来源需求建立" />
-                    
-                    <Button Command="{Binding RollbackSourceEstablishmentCommand}" Style="{StaticResource NetDemandToolbarButton}"
+
+
+            <Grid Grid.Row="2" ColumnDefinitions="Auto,8,*">
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <ui:Button Command="{Binding EstablishFromSourcesCommand}" Margin="0,0,8,0" 
+                               Appearance="Info"
+                               Content="从来源需求建立" />
+
+                    <ui:Button Command="{Binding RollbackSourceEstablishmentCommand}" Margin="0,0,8,0" 
                             Content="安全回退" />
-                    <Button Command="{Binding SaveSuggestedSuppliersCommand}"
-                            Style="{StaticResource NetDemandToolbarButton}"
+
+                    <ui:Button Command="{Binding SaveSuggestedSuppliersCommand}" Margin="0,0,8,0" 
                             Content="保存推荐供应商"
                             AutomationProperties.Name="保存推荐采购供应商修改" />
-                    <Button Command="{Binding CancelSuggestedSupplierChangesCommand}"
-                            Style="{StaticResource NetDemandToolbarButton}"
+
+                    <ui:Button Command="{Binding CancelSuggestedSupplierChangesCommand}" Margin="0,0,8,0" 
                             Content="取消修改"
                             AutomationProperties.Name="还原未保存的推荐采购供应商修改" />
-                    <Button Command="{Binding RefreshCommand}" Style="{StaticResource NetDemandToolbarButton}">
-                        <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon Symbol="ArrowClockwise24"/>
-                            <TextBlock Margin="6,0,0,0" Text="刷新"/>
-                        </StackPanel>
-                    </Button>
+
+                    <ui:Button Command="{Binding RefreshCommand}" Content="刷新" Margin="0,0,8,0" 
+                               MinWidth="70"/>
+
+
                 </StackPanel>
             </Grid>
 
-            <StackPanel Grid.Row="2">
-
-
-                <Grid ColumnDefinitions="Auto,4,Auto,4,128,4,138,4,Auto,*">
+            <StackPanel Grid.Row="4">
+                <Grid ColumnDefinitions="Auto,8,Auto,8,Auto,8,Auto,8,Auto,8,Auto,*">
                     <ToggleButton Grid.Column="0"
                                   Content="来源单号"
+                                  VerticalAlignment="Stretch"
                                   Command="{Binding ToggleSourcePanelCommand}"
                                   IsChecked="{Binding IsSourcePanelOpen, Mode=OneWay}"
-                                  MinHeight="34"
-                                  HorizontalAlignment="Left" />
-                    <ToggleButton Grid.Column="2"
-                                  Content="更多条件"
-                                  IsChecked="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
-                                  MinHeight="34"
                                   HorizontalAlignment="Left" />
 
-                    <controls:DropDownCheckBox Grid.Column="4" 
+                    <controls:DropDownCheckBox Grid.Column="2" 
                                                Placeholder="来源类型" 
                                                DisplayMemberPath="DisplayText"
                                                ItemsSource="{Binding SourceTypeOptions}" 
                                                SelectedItems="{Binding SelectedSourceTypes, Mode=OneWay}" />
-                    
-                    <ComboBox Grid.Column="6"
+                    <ComboBox Grid.Column="4"
                               ItemsSource="{Binding DemandRoleOptions}" 
                               DisplayMemberPath="DisplayText"
                               SelectedItem="{Binding SelectedDemandRole}" />
-                    <Button Grid.Column="8" Content="清空筛选" Command="{Binding ClearFiltersCommand}" />
+                    
+                    <ToggleButton Grid.Column="6"
+                                  Content="更多条件"
+                                  IsChecked="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
+                                  MinHeight="34"
+                                  HorizontalAlignment="Left" />
+                    
+                    <ui:Button Grid.Column="8" Content="查询"  Appearance="Primary"
+                        MinWidth="70" VerticalAlignment="Stretch"
+                        Command="{Binding SearchCommand}" />
+
+                    <Button Grid.Column="10" VerticalAlignment="Stretch"
+                            Content="清空筛选" Command="{Binding ClearFiltersCommand}" />
 
                 </Grid>
-
-
                 <Popup IsOpen="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
                        Placement="Bottom"
                        PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType={x:Type StackPanel}}}"
@@ -172,8 +181,8 @@
                             Background="{DynamicResource SwiftExportBrush.Surface}"
                             BorderThickness="1"
                             CornerRadius="4">
-                        <StackPanel Margin="0,4">
-                            <Grid Margin="0,4,0,0" ColumnDefinitions="Auto,4,Auto,*">
+                        <StackPanel Margin="0,4" Orientation="Horizontal">
+                            <Grid Margin="0,0,8,0" ColumnDefinitions="Auto,4,Auto,*" VerticalAlignment="Top" >
                                 <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="0" ToolTip="原需求交期起"
                                             controls:DatePickerAssist.PlaceholderText="需求交期起"
                                             SelectedDate="{Binding DemandRequiredDateFrom}" />
@@ -182,16 +191,17 @@
                                             SelectedDate="{Binding DemandRequiredDateTo}" />
                             </Grid>
                             <Separator Height="4" Background="Transparent" BorderThickness="0"/>
+                            
                             <Grid ColumnDefinitions="*,4,*,4,*,4,*,4,*,4,*,4,*">
                                 <ui:TextBox Grid.Column="0" PlaceholderText="来源单号（支持多行）"
                                             Text="{Binding SourceNosText}" AcceptsReturn="True" TextWrapping="Wrap"
-                                            VerticalAlignment="Top" Height="220" />
+                                            VerticalAlignment="Top" Height="220" Width="160" />
                                 <ui:TextBox Grid.Column="2" PlaceholderText="SKU（支持多行）"
                                             Text="{Binding SkusText}" AcceptsReturn="True" TextWrapping="Wrap"
-                                            VerticalAlignment="Top" Height="220" />
+                                            VerticalAlignment="Top" Height="220" Width="160"/>
                                 <ui:TextBox Grid.Column="4" PlaceholderText="客户型号（支持多行）"
                                             Text="{Binding CustomerSkusText}" AcceptsReturn="True" TextWrapping="Wrap"
-                                            VerticalAlignment="Top" Height="220" />
+                                            VerticalAlignment="Top" Height="220" Width="160"/>
                             </Grid>
 
                         </StackPanel>
@@ -199,10 +209,7 @@
                 </Popup>
             </StackPanel>
 
-
-
-
-            <DataGrid Grid.Row="4" ItemsSource="{Binding Items}"
+            <DataGrid Grid.Row="6" ItemsSource="{Binding Items}"
                           SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                           Style="{StaticResource SwiftExportDataGrid}"
                           AutoGenerateColumns="False"
@@ -347,7 +354,7 @@
                 </DataGrid.Columns>
                     </DataGrid>
 
-            <Grid Grid.Row="6" ColumnDefinitions="*,Auto,Auto,Auto">
+            <Grid Grid.Row="8" ColumnDefinitions="*,Auto,Auto,Auto">
                 <TextBlock Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center" />
                 <TextBlock Grid.Column="1" Text="{Binding CheckedCount, StringFormat=已选 {0} 条}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center" />
                 <TextBlock Grid.Column="2" Text="{Binding PageStatus}" Margin="16,0" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center" />
@@ -364,6 +371,7 @@
                     </controls:PageNavigator.Style>
                 </controls:PageNavigator>
             </Grid>
+            
         </Grid>
     </DockPanel>
 </UserControl>

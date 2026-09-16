@@ -8,7 +8,7 @@ namespace SwiftExport.Core.Entities.Auth;
 /// 一条记录表示某用户拥有某角色。
 /// </summary>
 [Table("SysUser_Roles")]
-public class SysUserRole : BaseEntity
+public partial class SysUserRole : BaseEntity
 {
     /// <summary>用户 ID（外键 → SysUser.Uid）</summary>
     public Guid UserId { get; set; }

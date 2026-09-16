@@ -6,7 +6,7 @@ namespace SwiftExport.Core.Entities.Orders;
 
 /// <summary>销售订单明细实体，保存客户订购产品、数量、价格及交易成立时的产品快照。</summary>
 [Table("SalesOrderLine")]
-public class SalesOrderLine : BaseEntity
+public partial class SalesOrderLine : BaseEntity
 {
     /// <summary>该实体保存的单据行号。</summary>
     public int LineNumber { get; set; }

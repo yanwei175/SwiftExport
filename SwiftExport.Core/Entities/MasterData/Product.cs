@@ -6,7 +6,7 @@ namespace SwiftExport.Core.Entities.MasterData;
 
 /// <summary>产品主数据实体，保存公司内部稳定产品身份、物料属性和当前默认供应商关系。</summary>
 [Table("Product")]
-public class Product : BaseEntity
+public partial class Product : BaseEntity
 {
     /// <summary>是否允许新业务引用；停用保留历史身份，不等同软删除。</summary>
     public bool IsActive { get; set; } = true;

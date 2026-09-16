@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.Inventory;
 
 /// <summary>入库单明细，保存产品、数量和可追溯来源。</summary>
 [Table("InboundDocumentLine")]
-public sealed class InboundDocumentLine : BaseEntity
+public sealed partial class InboundDocumentLine : BaseEntity
 {
     /// <summary>关联的入库单头唯一标识。</summary>
     public Guid InboundDocumentId { get; set; }

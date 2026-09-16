@@ -208,11 +208,6 @@ public sealed class NetDemandManagerSourceNavigationTests
     /// <summary>记录管理页调用；来源候选建立由独立选择器测试覆盖，误调用时直接失败。</summary>
     private sealed class RecordingNetDemandApi(Guid sourceUid) : INetDemandManagerApi
     {
-        /// <summary>本夹具不承担候选分页查询。</summary>
-        public Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
-            SourceDemandCandidateSearchRequest request, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
         /// <summary>本夹具不承担候选来源分组。</summary>
         public Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(
             CancellationToken cancellationToken = default)

@@ -11,12 +11,6 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
     /// <summary>物料需求管理 API：负责事实查询、来源建立、推荐供应商维护与安全回退。</summary>
     public interface INetDemandManagerApi
     {
-        /// <summary>查询可建立物料需求的来源需求候选。</summary>
-        [Post("/source-demands/candidates/search")]
-        Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
-            [Body] SourceDemandCandidateSearchRequest request,
-            CancellationToken cancellationToken = default(CancellationToken));
-
         /// <summary>查询全部仍包含待建立行的来源单分组。</summary>
         [Get("/source-demands/candidate-groups")]
         Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(

@@ -182,7 +182,6 @@ public sealed class SourceDemandCandidatePickerViewModelTests
         LinkSku = $"LINK-{lineNumber}",
         ImagePath = $"images/{lineNumber}.png",
         DemandQty = 1,
-        CanEstablish = true,
     };
 
     /// <summary>只实现本测试使用的候选分组和整单明细接口。</summary>

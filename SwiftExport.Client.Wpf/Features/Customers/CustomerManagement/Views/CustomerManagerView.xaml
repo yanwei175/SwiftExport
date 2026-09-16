@@ -168,6 +168,7 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox Margin="4,0"
+                                              FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                                               ItemsSource="{Binding DataContext.IncotermOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -183,7 +184,7 @@
                                                 gridColumns:GridColumn.FieldPath="IncotermLocation">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="8,0"
+                                    <ComboBox Margin="8,0" FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                                               ItemsSource="{Binding DataContext.IncotermLocationOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -199,7 +200,7 @@
                                                 gridColumns:GridColumn.FieldPath="IncotermSortRemark">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="8,0"
+                                    <ComboBox Margin="8,0" FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                                               ItemsSource="{Binding DataContext.IncotermSortRemarkOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -220,13 +221,13 @@
                                             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" 
                                             EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
                         
-                        <DataGridTemplateColumn Header="付款方式" Width="120"
+                        <DataGridTemplateColumn Header="付款方式" Width="120" 
                                                 SortMemberPath="PaymentMethod"
                                                 gridColumns:GridColumn.Key="payment-method"
                                                 gridColumns:GridColumn.FieldPath="PaymentMethod">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="4,0"
+                                    <ComboBox Margin="4,0" FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                                               ItemsSource="{Binding DataContext.PaymentMethodOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -242,7 +243,7 @@
                                                 gridColumns:GridColumn.FieldPath="Currency">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="4,0"
+                                    <ComboBox Margin="4,0" FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                                               ItemsSource="{Binding DataContext.CurrencyOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerCurrencyOptionTemplate}"
                                               SelectedValuePath="CurrencyCode"
@@ -258,7 +259,7 @@
                                                 gridColumns:GridColumn.FieldPath="ShippedBy">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="4,0"
+                                    <ComboBox Margin="4,0" FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                                               ItemsSource="{Binding DataContext.ShippedByOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"

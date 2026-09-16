@@ -8,7 +8,7 @@ namespace SwiftExport.Core.Entities.Auth;
 /// 支持父角色嵌套（ParentRoleId），可构建角色树。
 /// </summary>
 [Table("SysRoles")]
-public class SysRole : BaseEntity
+public partial class SysRole : BaseEntity
 {
     /// <summary>角色名称（唯一，数据库有 UQ_Roles 唯一索引）</summary>
     public string RoleName { get; set; } = default!;

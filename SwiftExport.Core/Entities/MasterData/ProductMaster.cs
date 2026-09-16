@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.MasterData;
 
 /// <summary>产品主型号实体，保存主型号层级的默认描述、分类和标签。</summary>
 [Table("ProductMaster")]
-public class ProductMaster : BaseEntity
+public partial class ProductMaster : BaseEntity
 {
     /// <summary>主型号业务编码；未删除记录内唯一。</summary>
     public string MasterSku { get; set; } = default!;

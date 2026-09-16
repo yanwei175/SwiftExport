@@ -43,27 +43,6 @@ public sealed class MaterialDemandEstablishmentService(
     private readonly ILogger<MaterialDemandEstablishmentService> _logger =
         context.LoggerFactory.CreateLogger<MaterialDemandEstablishmentService>();
 
-    /// <summary>查询由物料领域联表计算的来源需求候选。</summary>
-    public async Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchCandidatesAsync(
-        SourceDemandCandidateSearchRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            request ??= new SourceDemandCandidateSearchRequest();
-            request.PageIndex = Math.Max(1, request.PageIndex);
-            request.PageSize = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 200);
-            return ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>.Ok(
-                await netDemandRepository.SearchSourceDemandCandidatesAsync(request, cancellationToken));
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "查询来源需求建立候选失败。");
-            return ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>.Fail("查询来源需求建立候选失败。");
-        }
-    }
-
     /// <summary>
     /// 在单一事务中按稳定顺序锁定来源需求，复核版本后复用既有 BOM 规划器建立完整物料依据。
     /// </summary>
@@ -167,7 +146,7 @@ public sealed class MaterialDemandEstablishmentService(
                 }
                 if (active.Any(row => row.DecompositionRevision != item.DecompositionRevision))
                     throw new MaterialDemandException("REVISION_CONFLICT", "活动物料需求修订已变化，请刷新后重试。");
-                var blockers = await executionLinkRepository.GetActiveRollbackBlockersAsync(active.Select(row => row.Uid));
+                var blockers = await executionLinkRepository.GetRollbackBlockersAsync(active.Select(row => row.Uid));
                 if (blockers.Count > 0)
                     throw new MaterialDemandException("DOWNSTREAM_EXECUTION_EXISTS", "物料需求已有活动执行单，不能回退。");
                 if (await netDemandRepository.RollbackRevisionAsync(demand.Uid, item.DecompositionRevision, command.Reason.Trim()) != active.Count)

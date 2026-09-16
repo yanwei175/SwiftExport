@@ -28,7 +28,7 @@ public sealed partial class ProcurementOrderCommandService
                 CustomerId = customer.Uid, CustomerCode = customer.CustomerCode, CustomerNameSnapshot = customer.CustomerName,
                 SupplierId = supplier.Uid, SupplierCode = supplier.SupplierCode, SupplierName = supplier.SupplierName,
                 OrderDate = command.OrderDate, Currency = "CNY", ExecutionRequestId = command.CommandId,
-                DemandSourceType = null!, DemandSourceUid = null, DemandSourceNo = null!,
+                DemandSourceType = null, DemandSourceUid = null, DemandSourceNo = null,
                 Remark = ProcurementOrderPolicy.Text(command.Remark, 2000, "采购备注"),
                 PackagingRequirements = ProcurementOrderPolicy.Text(command.PackagingRequirements, 2000, "包装要求")
             };
@@ -76,7 +76,7 @@ public sealed partial class ProcurementOrderCommandService
                 line.SubNote = ProcurementOrderPolicy.Text(item.SubNote, 2000, "行备注");
                 line.UnitAmount = ProcurementOrderPolicy.Amount(item.Quantity, item.UnitPrice);
                 line.TaxAmount = ProcurementOrderPolicy.Amount(item.Quantity, item.TaxPrice);
-                line.SourceType = null!; line.SourceNo = null!;
+                line.SourceType = null; line.SourceNo = null;
                 lines.Add(line);
             }
             var number = await numbers.GetNextDocumentNoAsync(new DocumentNoRequest { DocType = "PO", BusinessDate = head.OrderDate, Operator = user.UserName });

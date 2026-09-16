@@ -130,17 +130,17 @@ ORDER BY d.[SourceLineNumber], d.[Uid];", new
             const string sql = @"
 INSERT INTO [dbo].[GrossDemand]
 ([Uid],[Version],[IsDeleted],[CreatedDate],[CreatedBy],[UpdatedDate],[UpdatedBy],
- [LifecycleStatus],[DecompositionStatus],[DecompositionRevision],
+ [LifecycleStatus],
  [SourceType],[SourceUid],[SourceNo],[SourceLineId],[SourceLineNumber],[SourceVersion],[DemandBasisFingerprint],[CustomerId],[ProductId],[IsNonStandard],
  [SkuSnapshot],[LinkSkuSnapshot],[CustomerSkuSnapshot],[DescriptionSnapshot],[ColorSnapshot],[SpecificationSnapshot],[ImagePathSnapshot],[UnitSnapshot],
- [DemandQty],[RequiredDate],[Remark],[DecomposedAt],[DecomposedBy],
+ [DemandQty],[RequiredDate],[Remark],
  [LifecycleChangedAt],[LifecycleChangedBy],[LifecycleChangedReason])
 VALUES
 (@Uid,@Version,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
- @LifecycleStatus,@DecompositionStatus,@DecompositionRevision,
+ @LifecycleStatus,
  @SourceType,@SourceUid,@SourceNo,@SourceLineId,@SourceLineNumber,@SourceVersion,@DemandBasisFingerprint,@CustomerId,@ProductId,@IsNonStandard,
  @SkuSnapshot,@LinkSkuSnapshot,@CustomerSkuSnapshot,@DescriptionSnapshot,@ColorSnapshot,@SpecificationSnapshot,@ImagePathSnapshot,@UnitSnapshot,
- @DemandQty,@RequiredDate,@Remark,@DecomposedAt,@DecomposedBy,
+ @DemandQty,@RequiredDate,@Remark,
  @LifecycleChangedAt,@LifecycleChangedBy,@LifecycleChangedReason);";
             var rows = await Connection.ExecuteAsync(sql, demand, Transaction);
             results.Add(rows == 1

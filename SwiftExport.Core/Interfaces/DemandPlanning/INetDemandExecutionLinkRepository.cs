@@ -13,7 +13,8 @@ public interface INetDemandExecutionLinkRepository
     /// <summary>按物料需求锁定活动执行关系，保证采购承接数量不超额。</summary>
     Task<IReadOnlyList<PurchaseDemandCommitmentDto>> GetActiveByNetDemandIdsForUpdateAsync(
         IEnumerable<Guid> netDemandIds);
-    Task<IReadOnlyList<MaterialDemandRollbackBlockerDto>> GetActiveRollbackBlockersAsync(
+    /// <summary>锁定仍有未释放贡献的执行关系，作为物料回退的唯一阻断事实。</summary>
+    Task<IReadOnlyList<MaterialDemandRollbackBlockerDto>> GetRollbackBlockersAsync(
         IEnumerable<Guid> netDemandIds);
 
     /// <summary>按命令项锁定已有 Link，用于创建命令幂等判断。</summary>

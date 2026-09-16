@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.MasterData;
 
 /// <summary>产品文件资料实体，保存产品图纸、说明书、标签和条码文件位置。</summary>
 [Table("ProductDetails")]
-public class ProductDetail : BaseEntity
+public partial class ProductDetail : BaseEntity
 {
     /// <summary>关联的产品主数据 Uid；旧数据按 ProductSKU 非破坏性回填。</summary>
     public Guid? ProductId { get; set; }

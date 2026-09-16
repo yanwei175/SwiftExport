@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Procurement;
 /// <summary>确认批次的行依据，记录明确无 BOM 与实际结构指纹；永不回填当前 BOM。</summary>
 [Table("PurchaseConfirmationLine")]
-public sealed class PurchaseConfirmationLine : BaseEntity
+public sealed partial class PurchaseConfirmationLine : BaseEntity
 {
     public Guid ConfirmationId { get; set; }
     public Guid PurchaseOrderId { get; set; }

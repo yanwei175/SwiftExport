@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.Systems;
 
 /// <summary>系统字典类型实体，用于定义字典分类、层级和维护入口。</summary>
 [Table("SysDictType")]
-public class SysDictType : BaseEntity
+public partial class SysDictType : BaseEntity
 {
     /// <summary>该实体保存的字典编码。</summary>
     public required string DictCode { get; set; }

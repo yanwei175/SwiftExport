@@ -49,13 +49,12 @@ public sealed class PackingListDraftApiContractTests
     {
         Assert.AreEqual("PL", DocumentTypeStaticsEnum.PackingList);
         Assert.AreEqual("IDEMPOTENCY_CONFLICT", PackingListErrorCodes.IdempotencyConflict);
-        var migration = Read("SwiftExport.Infrastructure", "Migrations", "037_PackingList草稿接口_AdditiveSchema.sql");
-        StringAssert.Contains(migration, "CHECK(Qty>0)");
-        StringAssert.Contains(migration, "UX_PackingListHead_CreateCommand");
-        var fresh = Read("SwiftExport.Infrastructure", "Database", "FreshInstall", "030_初始化目标业务表.sql");
-        StringAssert.Contains(fresh, "CREATE TABLE dbo.PackingListHead");
-        StringAssert.Contains(fresh, "CREATE TABLE dbo.PackingListLine");
-        Assert.IsFalse(fresh.Contains("CREATE TABLE dbo.PackingListDocument", StringComparison.Ordinal));
+        var baseline = Read("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql");
+        StringAssert.Contains(baseline, "CK_PackingListLine_Qty");
+        StringAssert.Contains(baseline, "UX_PackingListHead_CreateCommand");
+        StringAssert.Contains(baseline, "CREATE TABLE [dbo].[PackingListHead]");
+        StringAssert.Contains(baseline, "CREATE TABLE [dbo].[PackingListLine]");
+        Assert.IsFalse(baseline.Contains("PackingListDocument", StringComparison.Ordinal));
         var warehouse = Read("SwiftExport.Infrastructure", "Repositories", "Inventory", "WarehouseSiteRepository.cs");
         StringAssert.Contains(warehouse, "dbo.PackingListLine");
         Assert.IsFalse(warehouse.Contains("dbo.PackingListContributionLine", StringComparison.Ordinal));

@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.Relations;
 
 /// <summary>供应商产品关系实体，保存供应商与公司产品之间的采购编码、描述和价格约定。</summary>
 [Table("SupplierProduct")]
-public class SupplierProduct : BaseEntity
+public partial class SupplierProduct : BaseEntity
 {
     /// <summary>关联的供应商主数据唯一标识。</summary>
     public Guid SupplierId { get; set; }

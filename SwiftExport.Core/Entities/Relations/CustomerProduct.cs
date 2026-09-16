@@ -4,7 +4,7 @@ namespace SwiftExport.Core.Entities.Relations;
 
 /// <summary>客户产品关系实体，保存客户专属产品编码、描述、价格和交付约定。</summary>
 [Table("CustomerProduct")]
-public class CustomerProduct : BaseEntity
+public partial class CustomerProduct : BaseEntity
 {
 
     // ============================================================

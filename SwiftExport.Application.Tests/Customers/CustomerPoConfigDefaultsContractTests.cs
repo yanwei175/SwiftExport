@@ -55,17 +55,16 @@ public sealed class CustomerPoConfigDefaultsContractTests
         Assert.IsNull(CustomerPoConfigService.ValidateFieldLengths(ValidDto(0.95m, "CNY", null)));
     }
 
-    /// <summary>增量脚本必须保持单表、幂等列检查和无数据库外键边界。</summary>
+    /// <summary>实体生成基线必须声明字段精度、检查约束和零数据库外键边界。</summary>
     [TestMethod]
-    public void IncrementalSql_ShouldDeclareExpectedNullableColumnsAndCheckConstraint()
+    public void GeneratedSchema_ShouldDeclareExpectedNullableColumnsAndCheckConstraint()
     {
-        var sql = Read("SwiftExport.Infrastructure", "Database", "20260911_客户采购默认配置增加币种与折扣字段.sql");
-        StringAssert.Contains(sql, "Currency nvarchar(10) NULL");
-        StringAssert.Contains(sql, "DefaultDiscountRate decimal(9,6) NULL");
-        StringAssert.Contains(sql, "DiscountRemark nvarchar(500) NULL");
+        var sql = Read("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql");
+        StringAssert.Contains(sql, "[Currency] nvarchar(10) NULL");
+        StringAssert.Contains(sql, "[DefaultDiscountRate] decimal(9,6) NULL");
+        StringAssert.Contains(sql, "[DiscountRemark] nvarchar(500) NULL");
         StringAssert.Contains(sql, "CK_CustomerPoConfig_DefaultDiscountRate");
-        StringAssert.Contains(sql, "EXEC sys.sp_executesql");
-        StringAssert.Contains(sql, "DefaultDiscountRate >= 0");
+        StringAssert.Contains(sql, "[DefaultDiscountRate] >= 0");
         Assert.IsFalse(sql.Contains("DefaultDiscountRate <= 1", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(sql.Contains("FOREIGN KEY", StringComparison.OrdinalIgnoreCase));
     }

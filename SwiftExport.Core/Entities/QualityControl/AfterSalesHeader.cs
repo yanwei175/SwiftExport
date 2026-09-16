@@ -6,7 +6,7 @@ namespace SwiftExport.Core.Entities.QualityControl;
 
 /// <summary>保存售后单头和实物确认事实，不持有下游进度。</summary>
 [Table("AfterSalesHeader")]
-public sealed class AfterSalesHeader : BaseEntity
+public sealed partial class AfterSalesHeader : BaseEntity
 {
     /// <summary>售后单号。</summary>
     public string AfterSalesNo { get; set; } = string.Empty;
@@ -35,4 +35,3 @@ public sealed class AfterSalesHeader : BaseEntity
     /// <summary>整单备注。</summary>
     public string? Remark { get; set; }
 }
-

@@ -6,12 +6,10 @@ namespace SwiftExport.Core.Entities.DemandPlanning;
 
 /// <summary>净需求到采购、生产或外协执行行的权威追溯关系。</summary>
 [Table("DemandExecutionLink")]
-public sealed class DemandExecutionLink : BaseEntity
+public sealed partial class DemandExecutionLink : BaseEntity
 {
     /// <summary>关联的净需求 Uid。</summary>
     public Guid NetDemandId { get; set; }
-    /// <summary>历史计划分配 Uid；新执行关系直接以 NetDemandId 为业务锚点。</summary>
-    public Guid? NetDemandAllocationId { get; set; }
     /// <summary>一次采购草稿创建请求的幂等标识。</summary>
     public Guid ExecutionRequestId { get; set; }
     /// <summary>请求内单条贡献的幂等标识，防止重复生成 Link。</summary>

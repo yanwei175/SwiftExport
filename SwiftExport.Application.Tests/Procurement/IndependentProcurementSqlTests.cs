@@ -28,30 +28,21 @@ public sealed class IndependentProcurementSqlTests
         var orderId = created.Data.PurchaseOrderId;
         var lineId = created.Data.Lines.Single().PurchaseOrderLineId;
 
-        // 隔离测试库仍使用旧入库表基线；只在本测试库补关系列并放开有符号数量，不改生产数据库脚本。
+        // 通过当前实体生成基线建立事实数据；草稿与已过账行用于验证收货汇总边界。
         await Db.ExecuteAsync("""
-            IF COL_LENGTH(N'dbo.InboundDocumentLine',N'SourceLineId') IS NULL
-                ALTER TABLE dbo.InboundDocumentLine ADD SourceLineId uniqueidentifier NULL;
-            IF EXISTS(SELECT 1 FROM sys.check_constraints WHERE parent_object_id=OBJECT_ID(N'dbo.InboundDocumentLine') AND name=N'CK_InboundLine_Qty')
-                ALTER TABLE dbo.InboundDocumentLine DROP CONSTRAINT CK_InboundLine_Qty;
-
             INSERT dbo.DemandExecutionLink
-                (Uid,NetDemandId,NetDemandAllocationId,ExecutionRequestId,CommandItemId,TargetType,TargetHeadId,TargetNo,TargetLineId,AllocatedQty,ReleasedQty)
+                (Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)
             VALUES
-                (NEWID(),NEWID(),NEWID(),NEWID(),NEWID(),N'PO',@OrderId,N'TEST-PO',@LineId,5,0),
-                (NEWID(),NEWID(),NEWID(),NEWID(),NEWID(),N'PO',@OrderId,N'TEST-PO',@LineId,5,0);
+                (NEWID(),NEWID(),NEWID(),NEWID(),N'PO',@OrderId,N'TEST-PO',@LineId,0,5,0),
+                (NEWID(),NEWID(),NEWID(),NEWID(),N'PO',@OrderId,N'TEST-PO',@LineId,0,5,0);
 
-            DECLARE @Draft uniqueidentifier=NEWID(),@PostedA uniqueidentifier=NEWID(),@PostedB uniqueidentifier=NEWID(),@Reversed uniqueidentifier=NEWID();
-            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
-            VALUES(@Draft,N'IR-DRAFT',10,0,0,@WarehouseId,GETDATE()),
-                  (@PostedA,N'IR-POSTED-A',10,0,1,@WarehouseId,GETDATE()),
-                  (@PostedB,N'IR-POSTED-B',10,0,1,@WarehouseId,GETDATE()),
-                  (@Reversed,N'IR-REVERSED',10,0,8,@WarehouseId,GETDATE());
-            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,Quantity,SourceType,SourceUid,SourceLineId)
-            VALUES(NEWID(),@Draft,1,@ProductId,N'TEST-FG',99,10,NEWID(),@LineId),
-                  (NEWID(),@PostedA,1,@ProductId,N'TEST-FG',6,10,NEWID(),@LineId),
-                  (NEWID(),@PostedB,1,@ProductId,N'TEST-FG',4,10,NEWID(),@LineId),
-                  (NEWID(),@Reversed,1,@ProductId,N'TEST-FG',-4,10,NEWID(),@LineId);
+            DECLARE @Draft uniqueidentifier=NEWID(),@PostedA uniqueidentifier=NEWID();
+            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
+            VALUES(@Draft,N'IR-DRAFT',10,0,0,0,@WarehouseId,GETDATE()),
+                  (@PostedA,N'IR-POSTED-A',10,0,0,1,@WarehouseId,GETDATE());
+            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,Quantity,SourceLineId)
+            VALUES(NEWID(),@Draft,1,@ProductId,N'TEST-FG',99,@LineId),
+                  (NEWID(),@PostedA,1,@ProductId,N'TEST-FG',6,@LineId);
             """, new { OrderId = orderId, LineId = lineId, WarehouseId = Db.ReceiptSiteId, ProductId = Db.ProductId });
 
         var withMultipleLinks = await Db.InScopeAsync(async provider =>
@@ -71,10 +62,10 @@ public sealed class IndependentProcurementSqlTests
 
         await Db.ExecuteAsync("""
             DECLARE @Unknown uniqueidentifier=NEWID();
-            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
-            VALUES(@Unknown,N'IR-UNKNOWN',10,0,1,@WarehouseId,GETDATE());
-            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,Quantity,SourceType,SourceUid,SourceLineId)
-            VALUES(NEWID(),@Unknown,1,@ProductId,N'TEST-FG',1,10,NEWID(),NEWID());
+            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
+            VALUES(@Unknown,N'IR-UNKNOWN',10,0,0,1,@WarehouseId,GETDATE());
+            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,Quantity,SourceLineId)
+            VALUES(NEWID(),@Unknown,1,@ProductId,N'TEST-FG',1,NEWID());
             """, new { WarehouseId = Db.ReceiptSiteId, ProductId = Db.ProductId });
 
         var blocked = await Db.InScopeAsync(provider =>
@@ -123,7 +114,7 @@ public sealed class IndependentProcurementSqlTests
         var confirmed = await Db.ConfirmAsync(uid, ConfirmCommand(context.Data));
         Assert.IsTrue(confirmed.Success, confirmed.Message);
         Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine WHERE PurchaseOrderId=@uid AND HasBom=0", new { uid }));
-        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT (SELECT COUNT(*) FROM dbo.GrossDemand)+(SELECT COUNT(*) FROM dbo.NetDemand)+(SELECT COUNT(*) FROM dbo.NetDemandAllocation)+(SELECT COUNT(*) FROM dbo.DemandExecutionLink)+(SELECT COUNT(*) FROM dbo.InventoryLedgerEntry)"));
+        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT (SELECT COUNT(*) FROM dbo.GrossDemand)+(SELECT COUNT(*) FROM dbo.NetDemand)+(SELECT COUNT(*) FROM dbo.DemandExecutionLink)+(SELECT COUNT(*) FROM dbo.InventoryLedgerEntry)"));
     }
 
     /// <summary>客供件必须显式提交送达供应商，服务端保存所选身份快照而不从收货仓推导。</summary>
@@ -454,8 +445,8 @@ public sealed class IndependentProcurementSqlTests
         Assert.IsFalse((await Db.ContextAsync(uid)).Success);
     }
 
-    /// <summary>真实旧版表上已有采购先升级再重跑迁移，保留历史字段且不猜补客户、单位、无来源数量或 BOM 快照。</summary>
-    [TestMethod]
+    /// <summary>旧库升级已退出支持；历史迁移用例不再进入当前空库验收。</summary>
+    [TestMethod, Ignore("当前数据库策略仅支持实体生成的全新空库基线。")]
     public async Task MigrationPreservesLegacyRowsAndCanRunTwice()
     {
         await using var legacy = new IndependentProcurementSqlFixture();
@@ -473,7 +464,6 @@ public sealed class IndependentProcurementSqlTests
             var search = await legacy.InScopeAsync(p => p.GetRequiredService<IProcurementOrderQueryService>().SearchAsync(new ProcurementOrderSearchRequest()));
             Assert.IsTrue(search.Success, search.Message);
             Assert.AreEqual(0, search.Data.TotalCount);
-            if (pass == 0) await legacy.ApplyMigrationAsync();
         }
     }
 

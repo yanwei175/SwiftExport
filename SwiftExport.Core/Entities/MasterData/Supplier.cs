@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.MasterData;
 
 /// <summary>供应商主数据实体，保存供应商身份、联系人及默认采购条件。</summary>
 [Table("Supplier")]
-public class Supplier : BaseEntity
+public partial class Supplier : BaseEntity
 {
     /// <summary>是否允许新业务引用；停用不连带停用仓库或取消历史订单。</summary>
     public bool IsActive { get; set; } = true;

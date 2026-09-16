@@ -1,5 +1,6 @@
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Common;
+using SwiftExport.Core.DatabaseSchema;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Procurement;
@@ -9,7 +10,7 @@ namespace SwiftExport.Core.Entities.Procurement;
 /// 对应物理表 dbo.PurchaseOrderHead。
 /// </summary>
 [Table("PurchaseOrderHead")]
-public sealed class PurchaseOrderHead : BaseEntity
+public sealed partial class PurchaseOrderHead : BaseEntity
 {
     /// <summary>来源类别：0 为历史未分类，1 为需求，2 为手工；不以来源缺失推断类别。</summary>
     public int OriginKind { get; set; }
@@ -43,9 +44,11 @@ public sealed class PurchaseOrderHead : BaseEntity
     public string Currency { get; set; } = "CNY";
 
     /// <summary>采购单采用的价格倍率快照；1 表示原价，小于 1 表示折扣，大于 1 表示加价，不在实体中换算或覆盖行价格。</summary>
+    [DbColumn(StoreType = "decimal(9,6)")]
     public decimal? DiscountRate { get; set; }
 
     /// <summary>用户手工填写的整单优惠金额快照，不由价格倍率自动计算；未填写或历史未知时保持空值。</summary>
+    [DbColumn(StoreType = "decimal(18,4)")]
     public decimal? DiscountAmount { get; set; }
 
     /// <summary>采购供应商权威 Uid。</summary>
@@ -57,14 +60,14 @@ public sealed class PurchaseOrderHead : BaseEntity
     /// <summary>采购供应商名称快照。</summary>
     public string? SupplierName { get; set; }
 
-    /// <summary>形成采购单的需求来源类型。</summary>
-    public string DemandSourceType { get; set; } = string.Empty;
+    /// <summary>形成采购单的需求来源类型；独立采购没有需求来源时为空。</summary>
+    public string? DemandSourceType { get; set; }
 
     /// <summary>形成采购单的来源单据 Uid。</summary>
     public Guid? DemandSourceUid { get; set; }
 
-    /// <summary>形成采购单的来源单号快照，可用于销售订单号检索。</summary>
-    public string DemandSourceNo { get; set; } = string.Empty;
+    /// <summary>形成采购单的来源单号快照；独立采购没有来源单据时为空。</summary>
+    public string? DemandSourceNo { get; set; }
 
     /// <summary>创建请求 Uid；旧链用于需求转换，新链对应独立创建命令。</summary>
     public Guid ExecutionRequestId { get; set; }

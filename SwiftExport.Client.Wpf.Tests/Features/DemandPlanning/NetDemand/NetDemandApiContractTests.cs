@@ -71,7 +71,6 @@ public sealed class NetDemandApiContractTests
     {
         AssertRoute(nameof(INetDemandManagerApi.SearchAsync), typeof(PostAttribute), "/material-search", 0);
         AssertRoute(nameof(INetDemandManagerApi.SearchSourceGroupsAsync), typeof(PostAttribute), "/material-source-groups", 0);
-        AssertRoute(nameof(INetDemandManagerApi.SearchSourceDemandCandidatesAsync), typeof(PostAttribute), "/source-demands/candidates/search", 0);
         AssertRoute(nameof(INetDemandManagerApi.GetSourceDemandCandidateGroupsAsync), typeof(GetAttribute), "/source-demands/candidate-groups");
         AssertRoute(nameof(INetDemandManagerApi.GetSourceDemandCandidatesBySourceAsync), typeof(GetAttribute), "/source-demands/candidates/{sourceType}/{sourceUid}");
         AssertRoute(nameof(INetDemandManagerApi.EstablishFromSourcesAsync), typeof(PostAttribute), "/source-demands/establish", 0);
@@ -85,7 +84,6 @@ public sealed class NetDemandApiContractTests
     {
         AssertHasCancellationToken(nameof(INetDemandManagerApi.SearchAsync));
         AssertHasCancellationToken(nameof(INetDemandManagerApi.SearchSourceGroupsAsync));
-        AssertHasCancellationToken(nameof(INetDemandManagerApi.SearchSourceDemandCandidatesAsync));
         AssertHasCancellationToken(nameof(INetDemandManagerApi.GetSourceDemandCandidateGroupsAsync));
         AssertHasCancellationToken(nameof(INetDemandManagerApi.GetSourceDemandCandidatesBySourceAsync));
         AssertHasCancellationToken(nameof(INetDemandManagerApi.EstablishFromSourcesAsync));

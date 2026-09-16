@@ -46,7 +46,7 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
         IntegratedSecurity = true, TrustServerCertificate = true, ConnectTimeout = 30
     }.ConnectionString;
 
-    /// <summary>先执行真实空库初始化，再补测试主数据并执行真实采购迁移。</summary>
+    /// <summary>先执行实体生成的真实空库基线，再插入参数化测试主数据。</summary>
     public async Task InitializeAsync(bool includeLegacyOrder = false)
     {
         RequireOwnedDatabase();
@@ -57,12 +57,9 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
             created = true;
         }
         var root = FindRepositoryRoot();
-        var baseline = await File.ReadAllTextAsync(Path.Combine(root, "SwiftExport.Infrastructure/Database/FreshInstall/030_初始化目标业务表.sql"));
-        baseline = baseline.Replace("@ExpectedDatabaseName sysname=N'dv_next'", $"@ExpectedDatabaseName sysname=N'{databaseName}'");
+        var baseline = await File.ReadAllTextAsync(Path.Combine(root, "SwiftExport.Infrastructure/Database/Generated/SwiftExport.Schema.sql"));
         await ExecuteAsync(baseline);
-        await ExecuteAsync(MasterSchema);
         if (includeLegacyOrder) await InsertLegacyOrderAsync();
-        await ApplyMigrationAsync();
         await SeedAsync();
 
         var services = new ServiceCollection();
@@ -79,26 +76,8 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
         provider = services.BuildServiceProvider();
     }
 
-    /// <summary>重复执行真实迁移以验证对象创建幂等；仍强制绑定本实例隔离库。</summary>
-    public async Task ApplyMigrationAsync()
-    {
-        var migration = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "SwiftExport.Infrastructure/Migrations/020_独立采购执行.sql"));
-        migration = Regex.Replace(migration, @"(@ExpectedDatabaseName\s+sysname\s*=\s*)NULL", $"$1N'{databaseName}'", RegexOptions.IgnoreCase);
-        foreach (var batch in Regex.Split(migration, @"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
-            if (!string.IsNullOrWhiteSpace(batch)) await ExecuteAsync(batch);
-    }
-
-    /// <summary>反向测试补齐当前采购迁移及入库实体字段；仅作用于本实例空库，不作为生产迁移。</summary>
-    public async Task PrepareReversalSchemaAsync()
-    {
-        foreach (var file in new[] { "021_移除采购执行模型.sql", "029_采购Allocation依赖清理.sql" })
-            await ExecuteAsync(await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "SwiftExport.Infrastructure/Migrations", file)));
-        // 空库基线仍保留旧入库字段；测试显式补齐当前实体契约，不凭空回填任何既有数据。
-        await ExecuteAsync("""
-            ALTER TABLE dbo.InboundDocument ADD CreationMode int NOT NULL DEFAULT(0),TriggerPackingListId uniqueidentifier NULL;
-            ALTER TABLE dbo.InboundDocumentLine ADD SourceLineId uniqueidentifier NULL;
-            """);
-    }
+    /// <summary>实体生成基线已经包含反向操作所需结构，因此无需追加迁移。</summary>
+    public Task PrepareReversalSchemaAsync() => Task.CompletedTask;
 
     /// <summary>在新列和快照表尚不存在时写入已确认历史采购，检验迁移是否原样保留未知身份与历史数量。</summary>
     private Task<int> InsertLegacyOrderAsync() => ExecuteAsync("""
@@ -177,19 +156,19 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
 
     private Task<int> SeedAsync() => ExecuteAsync("""
         INSERT dbo.SysRoles(Uid,RoleName) VALUES(@RoleId,N'Admin');
-        INSERT dbo.SysUser(Uid,UserName,IsActive) VALUES(@ActorId,N'sql-test-admin',1),(@OtherActorId,N'sql-test-admin-2',1);
+        INSERT dbo.SysUser(Uid,UserName,PasswordHash,CredentialVersion,IsActive) VALUES(@ActorId,N'sql-test-admin',N'test-only',1,1),(@OtherActorId,N'sql-test-admin-2',N'test-only',1,1);
         INSERT dbo.SysUser_Roles(Uid,UserId,RoleId) VALUES(NEWID(),@ActorId,@RoleId),(NEWID(),@OtherActorId,@RoleId);
-        INSERT dbo.Customer(Uid,CustomerCode,CustomerName) VALUES(@CustomerId,N'TEST-C',N'归属客户');
-        INSERT dbo.Supplier(Uid,SupplierCode,SupplierName) VALUES
-          (@SupplierId,N'TEST-ACTUAL',N'实际供应商'),(@ReceiptSupplierId,N'TEST-RECEIPT',N'收货供应商'),
-          (@ConsumptionSupplierId,N'TEST-CONSUME',N'消耗供应商');
-        INSERT dbo.Product(Uid,Sku,DescriptionZh,Unit,MaterialType,SupplyType,BomVersion) VALUES
-          (@ProductId,N'TEST-FG',N'采购成品',N'PCS',N'成品',N'采购',0),
-          (@ComponentId,N'TEST-B',N'客供件',N'PCS',N'客供件',N'采购',0);
-        INSERT dbo.SysDictData(Uid,DictCode,DataNameEn,IsEnabled) VALUES(NEWID(),N'Unit',N'PCS',1);
-        INSERT dbo.WarehouseSite(Uid,Code,Name,SiteType,SupplierId) VALUES
-          (@ReceiptSiteId,N'TEST-R',N'收货仓',0,@ReceiptSupplierId),(@ConsumptionSiteId,N'TEST-C',N'消耗仓',0,@ConsumptionSupplierId);
-        """, new { ActorId, OtherActorId, RoleId, CustomerId, SupplierId, ReceiptSupplierId, ConsumptionSupplierId, ProductId, ComponentId, ReceiptSiteId, ConsumptionSiteId });
+        INSERT dbo.Customer(Uid,CustomerCode,CustomerName,DocRelateNo,DepositRate,LeadTimeDays,IsActive) VALUES(@CustomerId,N'TEST-C',N'归属客户',N'TEST-C',0,0,1);
+        INSERT dbo.Supplier(Uid,SupplierCode,SupplierName,DocRelateNo,IsActive) VALUES
+          (@SupplierId,N'TEST-ACTUAL',N'实际供应商',N'TEST-ACTUAL',1),(@ReceiptSupplierId,N'TEST-RECEIPT',N'收货供应商',N'TEST-RECEIPT',1),
+          (@ConsumptionSupplierId,N'TEST-CONSUME',N'消耗供应商',N'TEST-CONSUME',1);
+        INSERT dbo.Product(Uid,Sku,DescriptionZh,Unit,MaterialType,SupplyType,BomVersion,ColorId,CategoryId,IsActive) VALUES
+          (@ProductId,N'TEST-FG',N'采购成品',N'PCS',N'成品',N'采购',0,@EmptyId,@EmptyId,1),
+          (@ComponentId,N'TEST-B',N'客供件',N'PCS',N'客供件',N'采购',0,@EmptyId,@EmptyId,1);
+        INSERT dbo.SysDictData(Uid,DictCode,DataNameEn,IsSystem,IsEnabled) VALUES(NEWID(),N'Unit',N'PCS',1,1);
+        INSERT dbo.WarehouseSite(Uid,Code,Name,SiteType,SupplierId,IsActive) VALUES
+          (@ReceiptSiteId,N'TEST-R',N'收货仓',0,@ReceiptSupplierId,1),(@ConsumptionSiteId,N'TEST-C',N'消耗仓',0,@ConsumptionSupplierId,1);
+        """, new { ActorId, OtherActorId, RoleId, CustomerId, SupplierId, ReceiptSupplierId, ConsumptionSupplierId, ProductId, ComponentId, ReceiptSiteId, ConsumptionSiteId, EmptyId = Guid.Empty });
 
     /// <summary>只允许删除本实例创建的唯一测试库，不能由外部输入指定目标。</summary>
     public async ValueTask DisposeAsync()
@@ -228,20 +207,4 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
         public string CorrelationId => "isolated-sql-test";
     }
 
-    // 只补 FreshInstall 未创建的外部主数据与认证表，字段采用实际仓储读取的真实名称。
-    private const string MasterSchema = """
-        CREATE TABLE dbo.ProductColor(Uid uniqueidentifier NOT NULL PRIMARY KEY,ColorNameZh nvarchar(300) NULL,IsDeleted bit NOT NULL DEFAULT(0));
-        CREATE TABLE dbo.Product(Uid uniqueidentifier NOT NULL PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),IsActive bit NOT NULL DEFAULT(1),CreatedDate datetime2 NULL,CreatedBy nvarchar(100) NULL,UpdatedDate datetime2 NULL,UpdatedBy nvarchar(100) NULL,
-          Sku nvarchar(200) NOT NULL,DescriptionZh nvarchar(300) NULL,DescriptionEn nvarchar(300) NULL,MainImage nvarchar(1000) NULL,LinkSku nvarchar(200) NULL,FeaturesZh nvarchar(300) NULL,ColorId uniqueidentifier NULL,Unit nvarchar(100) NULL,MaterialType nvarchar(100) NULL,SupplyType nvarchar(100) NULL,BomNo nvarchar(100) NULL,BomVersion int NOT NULL DEFAULT(0));
-        CREATE TABLE dbo.CustomerProduct(Uid uniqueidentifier NOT NULL PRIMARY KEY,CustomerId uniqueidentifier NOT NULL,SkuId uniqueidentifier NULL,CustomerSku nvarchar(200) NULL,IsActive bit NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0));
-        CREATE TABLE dbo.Customer(Uid uniqueidentifier NOT NULL PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),CreatedDate datetime2 NULL,CreatedBy nvarchar(100) NULL,UpdatedDate datetime2 NULL,UpdatedBy nvarchar(100) NULL,
-          CustomerCode nvarchar(100) NOT NULL,CustomerName nvarchar(300) NULL,IsActive bit NOT NULL DEFAULT(1));
-        CREATE TABLE dbo.Supplier(Uid uniqueidentifier NOT NULL PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),CreatedDate datetime2 NULL,CreatedBy nvarchar(100) NULL,UpdatedDate datetime2 NULL,UpdatedBy nvarchar(100) NULL,
-          SupplierCode nvarchar(100) NOT NULL,SupplierName nvarchar(300) NOT NULL,IsActive bit NOT NULL DEFAULT(1));
-        CREATE TABLE dbo.SysDictData(Uid uniqueidentifier NOT NULL PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),DictCode nvarchar(100) NOT NULL,DataNameEn nvarchar(100) NULL,IsEnabled bit NOT NULL);
-        CREATE TABLE dbo.SysUser(Uid uniqueidentifier NOT NULL PRIMARY KEY,UserName nvarchar(100) NOT NULL,IsActive bit NOT NULL,IsDeleted bit NOT NULL DEFAULT(0));
-        CREATE TABLE dbo.SysRoles(Uid uniqueidentifier NOT NULL PRIMARY KEY,RoleName nvarchar(100) NOT NULL,IsDeleted bit NOT NULL DEFAULT(0));
-        CREATE TABLE dbo.SysUser_Roles(Uid uniqueidentifier NOT NULL PRIMARY KEY,UserId uniqueidentifier NOT NULL,RoleId uniqueidentifier NOT NULL,IsDeleted bit NOT NULL DEFAULT(0));
-        CREATE TABLE dbo.SysUser_ModulePermissions(Uid uniqueidentifier NOT NULL PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),CreatedDate datetime2 NULL,CreatedBy nvarchar(256) NULL,UpdatedDate datetime2 NULL,UpdatedBy nvarchar(256) NULL,UserId uniqueidentifier NOT NULL,PermissionKey nvarchar(128) NOT NULL);
-        """;
 }

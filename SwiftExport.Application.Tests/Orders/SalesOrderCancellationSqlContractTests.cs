@@ -50,24 +50,6 @@ public sealed class SalesOrderCancellationSqlContractTests
         Assert.IsFalse(compactSql.Contains("[dbo].[NetDemandAllocation]", StringComparison.Ordinal));
     }
 
-    [TestMethod]
-    public void CleanupMigration_MustDefaultToReadOnlyAndRejectBlockedBatch()
-    {
-        var script = Read(
-            "SwiftExport.Infrastructure",
-            "Migrations",
-            "018_SalesOrderGrossDemandCancellationCleanup.sql");
-
-        StringAssert.Contains(script, "DECLARE @Execute bit = 0");
-        StringAssert.Contains(script, "IF @Execute = 0");
-        StringAssert.Contains(script, "ROLLBACK TRANSACTION");
-        StringAssert.Contains(script, "[Disposition]='BLOCKED'");
-        StringAssert.Contains(script, "THROW 51001");
-        StringAssert.Contains(script, "'HARD_DELETE'");
-        StringAssert.Contains(script, "'RESTORE_VOID'");
-        StringAssert.Contains(script, "COMMIT TRANSACTION");
-    }
-
     private static string Read(params string[] parts) =>
         File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));
 

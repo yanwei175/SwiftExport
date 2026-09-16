@@ -234,7 +234,7 @@ public sealed partial class SourceDemandCandidatePickerViewModel(
                 return;
             }
 
-            foreach (var demand in result.Data.Where(item => item.CanEstablish))
+            foreach (var demand in result.Data)
             {
                 var row = new SourceDemandCandidateRowModel { Demand = demand };
                 row.PropertyChanged += OnRowPropertyChanged;

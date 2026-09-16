@@ -6,7 +6,7 @@ namespace SwiftExport.Core.Entities.Inventory;
 
 /// <summary>入库单头，保存入库来源、目标仓库和过账状态。</summary>
 [Table("InboundDocument")]
-public sealed class InboundDocument : BaseEntity
+public sealed partial class InboundDocument : BaseEntity
 {
     /// <summary>该实体保存的业务单据号。</summary>
     public string DocumentNo { get; set; } = string.Empty;

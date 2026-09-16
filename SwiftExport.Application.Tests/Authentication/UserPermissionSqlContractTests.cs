@@ -1,39 +1,31 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Core.DatabaseSchema;
+using SwiftExport.Core.Entities.Auth;
 
 namespace SwiftExport.Application.Tests.Authentication;
 
-/// <summary>静态验证模块关系 SQL、迁移预览开关和采购消费者的单点接线。</summary>
+/// <summary>静态验证模块关系元数据和采购消费者的单点接线。</summary>
 [TestClass]
 public sealed class UserPermissionSqlContractTests
 {
-    /// <summary>凭据版本迁移延迟解析条件新增列，并在失败时回滚事务。</summary>
+    /// <summary>凭据版本正值约束必须由实体元数据声明。</summary>
     [TestMethod]
-    public void CredentialVersionMigrationDefersNewColumnReferencesAndRollsBackOnFailure()
+    public void CredentialVersionConstraintComesFromEntityMetadata()
     {
-        var source = Read("SwiftExport.Infrastructure", "Migrations", "022_SysUser_CredentialVersion.sql");
-        StringAssert.Contains(source, "EXEC sys.sp_executesql N'");
-        StringAssert.Contains(source, "UPDATE dbo.SysUser");
-        StringAssert.Contains(source, "ALTER TABLE dbo.SysUser ALTER COLUMN CredentialVersion int NOT NULL");
-        StringAssert.Contains(source, "ADD CONSTRAINT DF_SysUser_CredentialVersion");
-        StringAssert.Contains(source, "ADD CONSTRAINT CK_SysUser_CredentialVersion_Positive");
-        StringAssert.Contains(source, "BEGIN TRY");
-        StringAssert.Contains(source, "IF XACT_STATE() <> 0");
-        StringAssert.Contains(source, "ROLLBACK TRANSACTION");
+        var check = typeof(SysUser).GetCustomAttributes(typeof(DbCheckAttribute), true).Cast<DbCheckAttribute>()
+            .Single(item => item.Name == "CK_SysUser_CredentialVersion");
+        StringAssert.Contains(check.Expression, "[CredentialVersion] >= 1");
     }
 
-    /// <summary>迁移默认预览、限制八个模块并用活动唯一索引保证幂等。</summary>
+    /// <summary>用户模块权限必须用活动唯一索引保证幂等并声明逻辑用户关系。</summary>
     [TestMethod]
-    public void MigrationIsPreviewFirstIdempotentAndAudited()
+    public void ModulePermissionMetadataIsUniqueAndTraceable()
     {
-        var source = Read("SwiftExport.Infrastructure", "Migrations", "023_SysUser_ModulePermissions.sql");
-        StringAssert.Contains(source, "DECLARE @ApplyLegacyProcurementMigration bit = 0");
-        StringAssert.Contains(source, "UX_SysUser_ModulePermissions_ActiveUserKey");
-        StringAssert.Contains(source, "WHERE IsDeleted=0");
-        StringAssert.Contains(source, "NOT EXISTS");
-        StringAssert.Contains(source, "N'Migration023'");
-        StringAssert.Contains(source, "ur.RoleId");
-        StringAssert.Contains(source, "AlreadyMigrated");
-        Assert.IsFalse(source.Contains("System.Settings.Manage", StringComparison.Ordinal));
+        var index = typeof(SysUserModulePermission).GetCustomAttributes(typeof(DbIndexAttribute), true).Cast<DbIndexAttribute>()
+            .Single(item => item.Name == "UX_SysUserModulePermissions_User_Key");
+        Assert.IsTrue(index.IsUnique);
+        Assert.AreEqual("[IsDeleted] = 0", index.Filter);
+        Assert.IsNotEmpty(typeof(SysUserModulePermission).GetCustomAttributes(typeof(LogicalReferenceAttribute), true));
     }
 
     /// <summary>模块替换使用调用方事务、软删除、审计和最终 Admin/目标重验。</summary>

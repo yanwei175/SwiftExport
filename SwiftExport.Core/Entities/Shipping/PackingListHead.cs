@@ -6,7 +6,7 @@ namespace SwiftExport.Core.Entities.Shipping;
 
 /// <summary>装箱单头，保存客户文档快照及独立的过账事实；目标表待迁移，当前不提供持久化入口。</summary>
 [Table("PackingListHead")]
-public sealed class PackingListHead : BaseEntity
+public sealed partial class PackingListHead : BaseEntity
 {
     /// <summary>装箱单业务编号。</summary>
     public string PackingListNo { get; set; } = string.Empty;

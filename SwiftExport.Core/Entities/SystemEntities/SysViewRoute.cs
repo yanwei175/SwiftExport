@@ -9,7 +9,7 @@ namespace SwiftExport.Core.Entities.SystemEntities;
 /// 替代硬编码的 ViewRoutes.cs，实现路由数据库化。
 /// </summary>
 [Table("SysViewRoute")]
-public class SysViewRoute : BaseEntity
+public partial class SysViewRoute : BaseEntity
 {
     /// <summary>
     /// 路由键，与 SysDictType.TargetViewKey 字段值保持一致。

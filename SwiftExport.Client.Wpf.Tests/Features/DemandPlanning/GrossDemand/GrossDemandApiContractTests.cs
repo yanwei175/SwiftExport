@@ -60,9 +60,6 @@ public sealed class GrossDemandApiContractTests
             new[] { 0, 8, 9 },
             Enum.GetValues<GrossDemandLifecycleStatusEnum>().Select(value => (int)value).ToArray());
         CollectionAssert.AreEqual(
-            new[] { 0, 1 },
-            Enum.GetValues<GrossDemandDecompositionStatusEnum>().Select(value => (int)value).ToArray());
-        CollectionAssert.AreEqual(
             new[] { 0, 8, 9 },
             Enum.GetValues<NetDemandLifecycleStatusEnum>().Select(value => (int)value).ToArray());
         CollectionAssert.AreEqual(

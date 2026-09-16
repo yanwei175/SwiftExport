@@ -8,17 +8,10 @@ namespace SwiftExport.Core.Entities.DemandPlanning;
 /// 原始业务需求。
 /// </summary>
 [Table("GrossDemand")]
-public sealed class GrossDemand : BaseEntity
+public sealed partial class GrossDemand : BaseEntity
 {
     /// <summary>毛需求生命周期；关闭后不能继续拆解。</summary>
     public GrossDemandLifecycleStatusEnum LifecycleStatus { get; set; } = GrossDemandLifecycleStatusEnum.Active;
-    /// <summary>弃用候选：旧链拆解状态，兼容保留；新物料选源应查询物料侧有效拆解记录，禁止新增依赖。消费者及历史保护迁移完成前不得删列。</summary>
-    [Obsolete("来源需求不再保存物料建立状态；请通过 NetDemand.GrossDemandId 查询物料事实。")]
-    public GrossDemandDecompositionStatusEnum DecompositionStatus { get; set; } = GrossDemandDecompositionStatusEnum.Pending;
-    /// <summary>弃用候选：旧链拆解修订号，兼容保留；权威修订将归物料领域，历史映射及消费者迁移完成前不得删列。</summary>
-    [Obsolete("拆解修订号由 NetDemand.DecompositionRevision 权威保存。")]
-    public int DecompositionRevision { get; set; }
-
     /// <summary>来源单据类型，例如销售订单、手工需求或投诉补货。</summary>
     public string SourceType { get; set; } = string.Empty;
     /// <summary>来源单据头或手工需求自身的 Uid。</summary>
@@ -64,12 +57,6 @@ public sealed class GrossDemand : BaseEntity
     /// <summary>来源需求备注快照。</summary>
     public string? Remark { get; set; }
 
-    /// <summary>弃用候选：旧链最近拆解时间，兼容保留；审计归物料拆解记录，历史迁移完成前不得删列或新增依赖。</summary>
-    [Obsolete("物料建立审计应读取 NetDemand 历史。")]
-    public DateTime? DecomposedAt { get; set; }
-    /// <summary>弃用候选：旧链最近拆解操作人，兼容保留；审计归物料拆解记录，历史迁移完成前不得删列或新增依赖。</summary>
-    [Obsolete("物料建立审计应读取 NetDemand 历史。")]
-    public string? DecomposedBy { get; set; }
     /// <summary>最近一次生命周期变更时间。</summary>
     public DateTime? LifecycleChangedAt { get; set; }
     /// <summary>最近一次生命周期变更操作人。</summary>

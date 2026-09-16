@@ -21,10 +21,6 @@ public interface INetDemandManagerService
     Task<ServiceResult<UpdateSuggestedPurchaseSupplierResult>> UpdateSuggestedPurchaseSupplierAsync(
         UpdateSuggestedPurchaseSupplierCommand command,
         CancellationToken cancellationToken = default);
-    /// <summary>查询尚可从来源需求建立物料需求的候选。</summary>
-    Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
-        SourceDemandCandidateSearchRequest request,
-        CancellationToken cancellationToken = default);
     /// <summary>查询全部仍包含待建立来源行的来源单分组。</summary>
     Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(
         CancellationToken cancellationToken = default);

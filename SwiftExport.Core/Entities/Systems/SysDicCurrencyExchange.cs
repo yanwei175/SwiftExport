@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.Systems;
 
 /// <summary>币种汇率实体，用于维护两个币种之间的换算规则。</summary>
 [Table("SysDicCurrencyExchange")]
-public class SysDicCurrencyExchange : BaseEntity
+public partial class SysDicCurrencyExchange : BaseEntity
 {
 
     /// <summary>启用标记，用于控制该记录的业务适用范围。</summary>

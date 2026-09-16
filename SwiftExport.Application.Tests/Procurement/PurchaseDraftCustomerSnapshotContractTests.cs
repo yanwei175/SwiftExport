@@ -21,7 +21,7 @@ public sealed class PurchaseDraftCustomerSnapshotContractTests
     [TestMethod]
     public void AppendMustRequireSameCustomerIdentityWithoutUpdatingCustomerSnapshots()
     {
-        var service = Read("SwiftExport.Application", "Services", "DemandPlanning", "PurchaseDraftCreationService.cs");
+        var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseDraftCreationService.cs");
         var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderDraftRepository.cs");
         var appendSection = Slice(repository, "private Task<int> AdvanceDraftVersionAsync", "private static void ValidateHeadKey");
 
@@ -37,9 +37,9 @@ public sealed class PurchaseDraftCustomerSnapshotContractTests
     [TestMethod]
     public void WriteModelMustUseDocumentCustomerFactsAndLeaveConfirmationBatchEmpty()
     {
-        var builder = Read("SwiftExport.Application", "Services", "DemandPlanning", "PurchaseDraftWriteModelBuilder.cs");
-        var creation = Read("SwiftExport.Application", "Services", "DemandPlanning", "PurchaseDraftCreationService.cs");
-        var preview = Read("SwiftExport.Application", "Services", "DemandPlanning", "PurchaseDraftPreviewBuilder.cs");
+        var builder = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseDraftWriteModelBuilder.cs");
+        var creation = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseDraftCreationService.cs");
+        var preview = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseDraftPreviewBuilder.cs");
 
         StringAssert.Contains(creation, "customerRepository.GetByIdListAsync(customerIds, withUpdLock: true)");
         StringAssert.Contains(creation, "CustomerName = customer?.CustomerName ?? string.Empty");
@@ -47,7 +47,9 @@ public sealed class PurchaseDraftCustomerSnapshotContractTests
         StringAssert.Contains(builder, "CustomerId = document.CustomerId");
         StringAssert.Contains(builder, "CustomerCode = document.CustomerCode");
         StringAssert.Contains(builder, "CustomerNameSnapshot = document.CustomerName");
-        Assert.IsFalse(builder.Contains("document.Header.Customer", StringComparison.Ordinal));
+        Assert.IsFalse(builder.Contains("document.Header.CustomerId", StringComparison.Ordinal));
+        Assert.IsFalse(builder.Contains("document.Header.CustomerCode", StringComparison.Ordinal));
+        Assert.IsFalse(builder.Contains("document.Header.CustomerName", StringComparison.Ordinal));
         Assert.IsFalse(builder.Contains("ActiveConfirmationId =", StringComparison.Ordinal));
     }
 

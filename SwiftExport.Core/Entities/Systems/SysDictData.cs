@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.Systems;
 
 /// <summary>系统字典数据实体，用于保存某一字典类型下可选的业务值。</summary>
 [Table("SysDictData")]
-public class SysDictData : BaseEntity
+public partial class SysDictData : BaseEntity
 {
 
 

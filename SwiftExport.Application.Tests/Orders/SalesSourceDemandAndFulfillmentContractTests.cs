@@ -32,18 +32,16 @@ public sealed class SalesSourceDemandContractTests
     }
 
     [TestMethod]
-    public void SchemaAndPreviewUseFullSourceIdentityWithoutGuessingHistoricalVersion()
+    public void GeneratedSchemaUsesFullSourceIdentityWithoutHistoricalMigration()
     {
-        var fresh = Read("SwiftExport.Infrastructure", "Database", "FreshInstall", "030_初始化目标业务表.sql");
-        var preview = Read("SwiftExport.Infrastructure", "Migrations", "024_SourceDemandReception_Preflight.sql");
-        var migration = Read("SwiftExport.Infrastructure", "Migrations", "024_SourceDemandReception_AdditiveSchema.sql");
-
-        StringAssert.Contains(fresh, "SourceVersion int NULL,CustomerId uniqueidentifier NULL");
-        StringAssert.Contains(fresh, "SourceType,SourceUid,SourceLineId");
-        StringAssert.Contains(migration, "SourceType,SourceUid,SourceLineId");
-        StringAssert.Contains(preview, "无法确定历史接收版本，不自动回填");
-        Assert.IsFalse(preview.Contains("UPDATE ", StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(preview.Contains("INSERT ", StringComparison.OrdinalIgnoreCase));
+        var baseline = Read("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql");
+        StringAssert.Contains(baseline, "[SourceVersion] int NULL");
+        StringAssert.Contains(baseline, "[CustomerId] uniqueidentifier NULL");
+        StringAssert.Contains(baseline, "[SourceType] nvarchar");
+        StringAssert.Contains(baseline, "[SourceUid] uniqueidentifier");
+        StringAssert.Contains(baseline, "[SourceLineId] uniqueidentifier");
+        Assert.IsFalse(baseline.Contains("UPDATE dbo.", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(baseline.Contains("INSERT dbo.", StringComparison.OrdinalIgnoreCase));
     }
 
     [TestMethod]

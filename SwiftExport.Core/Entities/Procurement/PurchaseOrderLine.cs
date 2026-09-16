@@ -9,7 +9,7 @@ namespace SwiftExport.Core.Entities.Procurement;
 /// 对应物理表 dbo.PurchaseOrderLine。
 /// </summary>
 [Table("PurchaseOrderLine")]
-public sealed class PurchaseOrderLine : BaseEntity
+public sealed partial class PurchaseOrderLine : BaseEntity
 {
     /// <summary>不由需求贡献承担的数量；历史未知保持空值，独立采购等于采购数量。</summary>
     public decimal? UnlinkedQty { get; set; }
@@ -92,11 +92,11 @@ public sealed class PurchaseOrderLine : BaseEntity
     /// <summary>物料类型快照。</summary>
     public string? MaterialType { get; set; }
 
-    /// <summary>需求来源类型快照。</summary>
-    public string SourceType { get; set; } = string.Empty;
+    /// <summary>需求来源类型快照；独立采购没有需求来源时为空。</summary>
+    public string? SourceType { get; set; }
 
-    /// <summary>需求来源单号快照。</summary>
-    public string SourceNo { get; set; } = string.Empty;
+    /// <summary>需求来源单号快照；独立采购没有来源单据时为空。</summary>
+    public string? SourceNo { get; set; }
 
     /// <summary>需求来源单据 Uid。</summary>
     public Guid? SourceUid { get; set; }

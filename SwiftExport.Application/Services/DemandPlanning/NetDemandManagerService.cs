@@ -145,12 +145,6 @@ public sealed class NetDemandManagerService(
         }
     }
 
-    /// <summary>查询可建立物料需求的来源候选，返回分页结果。</summary>
-    public Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchSourceDemandCandidatesAsync(
-        SourceDemandCandidateSearchRequest request,
-        CancellationToken cancellationToken = default)
-        => establishmentService.SearchCandidatesAsync(request, cancellationToken);
-
     /// <summary>查询待建立来源单分组，分组资格与物料领域候选规则保持一致。</summary>
     public async Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(
         CancellationToken cancellationToken = default)

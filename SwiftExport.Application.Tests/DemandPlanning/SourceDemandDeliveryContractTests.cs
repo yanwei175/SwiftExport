@@ -35,21 +35,6 @@ public sealed class SourceDemandDeliveryContractTests
     }
 
     [TestMethod]
-    public void HistoricalMappingScriptsArePreviewFirstAndDoNotGuessBySku()
-    {
-        var preflight = Read("SwiftExport.Infrastructure", "Migrations", "025_SourceDemandDelivery_Preflight.sql");
-        var migration = Read("SwiftExport.Infrastructure", "Migrations", "025_SourceDemandDelivery_AdditiveSchema.sql");
-        Assert.IsFalse(preflight.Contains("UPDATE ", StringComparison.OrdinalIgnoreCase));
-        StringAssert.Contains(preflight, "售后来源缺少显式订单池归属");
-        StringAssert.Contains(preflight, "SuggestedCutoverSourceVersion");
-        StringAssert.Contains(preflight, "该值不代表历史接收时点，需单独授权回填");
-        StringAssert.Contains(preflight, "COL_LENGTH(N'dbo.PackingListContributionLine',N'SourceDemandVersionSnapshot')");
-        StringAssert.Contains(migration, "EXEC sys.sp_executesql");
-        StringAssert.Contains(migration, "INNER JOIN dbo.GrossDemand gd ON gd.Uid=pl.GrossDemandId");
-        Assert.IsFalse(migration.Contains("SkuSnapshot=", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [TestMethod]
     public void SourceExitUsesActualSupplyAndDoesNotTreatMissingDeliveryAsSafe()
     {
         var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");

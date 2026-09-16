@@ -33,22 +33,22 @@ public sealed class PurchaseOrderDiscountSnapshotContractTests
         StringAssert.Contains(queryRepository, "h.Currency,h.DiscountRate,h.DiscountAmount");
     }
 
-    /// <summary>增量脚本必须声明手工优惠边界，不得默认、回填或按倍率计算未知历史。</summary>
+    /// <summary>实体生成基线必须声明手工优惠边界且不包含历史回填。</summary>
     [TestMethod]
-    public void IncrementalSql_ShouldKeepUnknownHistoryNullAndAvoidDerivedTotals()
+    public void GeneratedSchema_ShouldKeepUnknownHistoryNullAndAvoidDerivedTotals()
     {
-        var sql = Read("SwiftExport.Infrastructure", "Database", "20260912_采购单增加折扣快照字段.sql");
+        var sql = Read("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql");
+        var tableStart = sql.IndexOf("CREATE TABLE [dbo].[PurchaseOrderHead]", StringComparison.Ordinal);
+        var tableEnd = sql.IndexOf("CREATE TABLE [dbo].[PurchaseOrderLine]", tableStart, StringComparison.Ordinal);
+        var purchaseHead = sql[tableStart..tableEnd];
 
-        StringAssert.Contains(sql, "DiscountRate decimal(9,6) NULL");
-        StringAssert.Contains(sql, "DiscountAmount decimal(18,4) NULL");
-        StringAssert.Contains(sql, "CK_PurchaseOrderHead_DiscountRate");
-        StringAssert.Contains(sql, "DiscountRate >= 0");
-        StringAssert.Contains(sql, "用户手工填写的整单优惠金额快照");
-        StringAssert.Contains(sql, "DiscountAmount 不由 DiscountRate 自动计算或覆盖");
-        Assert.IsFalse(sql.Contains("DEFAULT", StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(sql.Contains("UPDATE dbo.PurchaseOrderHead", StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(sql.Contains("DiscountedAmount", StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(sql.Contains("TotalAmount", StringComparison.OrdinalIgnoreCase));
+        StringAssert.Contains(purchaseHead, "[DiscountRate] decimal(9,6) NULL");
+        StringAssert.Contains(purchaseHead, "[DiscountAmount] decimal(18,4) NULL");
+        StringAssert.Contains(purchaseHead, "CK_PurchaseOrderHead_Discount");
+        StringAssert.Contains(purchaseHead, "[DiscountRate] >= 0");
+        Assert.IsFalse(purchaseHead.Contains("UPDATE dbo.PurchaseOrderHead", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(purchaseHead.Contains("DiscountedAmount", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(purchaseHead.Contains("TotalAmount", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string Read(params string[] parts) =>

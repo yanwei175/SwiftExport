@@ -6,7 +6,7 @@ namespace SwiftExport.Core.Entities.Orders;
 
 /// <summary>销售订单头实体，保存客户订单的商务条件、交付要求和生命周期状态。</summary>
 [Table("SalesOrderHeader")]
-public class SalesOrderHeader : BaseEntity
+public partial class SalesOrderHeader : BaseEntity
 {
     /// <summary>单据生命周期状态，用于判断当前记录允许执行的业务操作。</summary>
     public SalesOrderDocumentStatusEnum DocumentStatus { get; set; } = SalesOrderDocumentStatusEnum.Open;

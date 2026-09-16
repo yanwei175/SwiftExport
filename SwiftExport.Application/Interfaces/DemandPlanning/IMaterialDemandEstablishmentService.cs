@@ -6,9 +6,6 @@ namespace SwiftExport.Application.Interfaces.DemandPlanning;
 /// <summary>定义物料领域从来源需求建立、回退及校验活动物料事实的权威用例。</summary>
 public interface IMaterialDemandEstablishmentService
 {
-    Task<ServiceResult<PagedResponseBase<SourceDemandCandidateDto>>> SearchCandidatesAsync(
-        SourceDemandCandidateSearchRequest request,
-        CancellationToken cancellationToken = default);
 
     Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishAsync(
         EstablishMaterialDemandsCommand command,

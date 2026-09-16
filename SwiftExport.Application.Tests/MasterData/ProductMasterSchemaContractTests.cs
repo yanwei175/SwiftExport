@@ -20,12 +20,12 @@ public sealed class ProductMasterSchemaContractTests
         Assert.IsNull(typeof(ProductNeutral).GetProperty("MasterProductUid"));
     }
 
-    /// <summary>验证 FreshInstall 包含唯一、查询及数值完整性约束。</summary>
+    /// <summary>验证实体生成基线包含唯一、查询及数值完整性约束。</summary>
     [TestMethod]
-    public void FreshInstall_ShouldCreateProductMasterAggregateConstraints()
+    public void GeneratedSchema_ShouldCreateProductMasterAggregateConstraints()
     {
-        var sql = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Database", "FreshInstall", "030_初始化目标业务表.sql"));
-        StringAssert.Contains(sql, "CREATE TABLE dbo.ProductNeutral");
+        var sql = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql"));
+        StringAssert.Contains(sql, "CREATE TABLE [dbo].[ProductNeutral]");
         StringAssert.Contains(sql, "UX_ProductMaster_MasterSku");
         StringAssert.Contains(sql, "UX_ProductNeutral_ProductCode");
         StringAssert.Contains(sql, "IX_ProductMaster_Category");
@@ -34,8 +34,8 @@ public sealed class ProductMasterSchemaContractTests
         StringAssert.Contains(sql, "IX_ProductNeutral_Color");
         StringAssert.Contains(sql, "CK_ProductMaster_Pcs");
         StringAssert.Contains(sql, "CK_ProductNeutral_ExchangeRate");
-        var start = sql.IndexOf("CREATE TABLE dbo.ProductMaster", StringComparison.Ordinal);
-        var end = sql.IndexOf("CREATE TABLE dbo.ProductPackage", start, StringComparison.Ordinal);
+        var start = sql.IndexOf("CREATE TABLE [dbo].[ProductMaster]", StringComparison.Ordinal);
+        var end = sql.IndexOf("CREATE TABLE [dbo].[ProductPackage]", start, StringComparison.Ordinal);
         var productMasterAggregate = sql.Substring(start, end - start);
         Assert.IsFalse(productMasterAggregate.Contains("FOREIGN KEY", StringComparison.OrdinalIgnoreCase), "主产品关系按当前约定使用逻辑外键。");
     }

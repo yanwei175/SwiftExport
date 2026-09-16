@@ -54,15 +54,15 @@ public sealed class ProcurementReversalSqlTests
         var line = first.Data.Lines[0].PurchaseOrderLineId;
         var otherLine = second.Data.Lines[0].PurchaseOrderLineId;
         await db.ExecuteAsync("""
-            INSERT dbo.GrossDemand(Uid,SourceType,SourceUid,SourceNo,SourceLineId,IsNonStandard,SkuSnapshot,DemandQty)
-            VALUES(@source,N'Manual',NEWID(),N'TEST-SOURCE',NEWID(),0,N'TEST-FG',20);
-            INSERT dbo.NetDemand(Uid,GrossDemandId,DecompositionRevision,LineNumber,RootNetDemandId,SupplyTypeSnapshot,SkuSnapshot,GrossQty,NetQty)
-            VALUES(@net,@source,1,1,@net,N'采购',N'TEST-FG',20,20);
+            INSERT dbo.GrossDemand(Uid,LifecycleStatus,SourceType,SourceUid,SourceNo,SourceLineId,ProductId,IsNonStandard,SkuSnapshot,DemandQty)
+            VALUES(@source,0,N'Manual',NEWID(),N'TEST-SOURCE',NEWID(),@ProductId,0,N'TEST-FG',20);
+            INSERT dbo.NetDemand(Uid,GrossDemandId,DecompositionRevision,LineNumber,LifecycleStatus,RootNetDemandId,DeliveryMode,ProductId,SupplyTypeSnapshot,SkuSnapshot,GrossQty,NetQty)
+            VALUES(@net,@source,1,1,0,@net,0,@ProductId,N'采购',N'TEST-FG',20,20);
             UPDATE dbo.PurchaseOrderLine SET UnlinkedQty=0,SourceUid=@source WHERE Uid IN (@line,@otherLine);
-            INSERT dbo.DemandExecutionLink(Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,TargetHeadId,TargetNo,TargetLineId,AllocatedQty)
-            VALUES(NEWID(),@net,NEWID(),NEWID(),N'PO',@uid,N'FIRST',@line,10),
-                  (NEWID(),@net,NEWID(),NEWID(),N'PO',@other,N'OTHER',@otherLine,10);
-            """, new { source, net, uid, other, line, otherLine });
+            INSERT dbo.DemandExecutionLink(Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)
+            VALUES(NEWID(),@net,NEWID(),NEWID(),N'PO',@uid,N'FIRST',@line,0,10,0),
+                  (NEWID(),@net,NEWID(),NEWID(),N'PO',@other,N'OTHER',@otherLine,0,10,0);
+            """, new { source, net, uid, other, line, otherLine, db.ProductId });
         var cancelled = await db.InScopeAsync(p => p.GetRequiredService<IProcurementOrderReversalService>().CancelConfirmationAsync(uid,
             new() { CommandId = Guid.NewGuid(), ExpectedVersion = first.Data.Version, Reason = "保留引用退回草稿" }));
         Assert.IsTrue(cancelled.Success, cancelled.Message);

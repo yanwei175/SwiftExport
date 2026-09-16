@@ -5,7 +5,7 @@ namespace SwiftExport.Core.Entities.MasterData;
 
 /// <summary>产品分类实体，保存产品分类的层级、编码和显示顺序。</summary>
 [Table("ProductCategory")]
-public class ProductCategory : BaseEntity
+public partial class ProductCategory : BaseEntity
 {
     /// <summary>该实体保存的分类名称。</summary>
     public string CategoryName { get; set; } = default!;

@@ -8,7 +8,7 @@ namespace SwiftExport.Core.Entities.DemandPlanning;
 /// 毛需求一次拆解版本中的物料需求事实行。
 /// </summary>
 [Table("NetDemand")]
-public sealed class NetDemand : BaseEntity
+public sealed partial class NetDemand : BaseEntity
 {
     /// <summary>所属毛需求 Uid。</summary>
     public Guid GrossDemandId { get; set; }

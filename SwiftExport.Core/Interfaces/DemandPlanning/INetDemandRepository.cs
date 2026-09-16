@@ -29,10 +29,6 @@ public interface INetDemandRepository
     /// <summary>在调用方事务中锁定有效来源及其物料树。</summary>
     Task<IReadOnlyList<NetDemand>> GetActiveFamilyForUpdateAsync(Guid netDemandId);
     Task<IReadOnlyList<NetDemand>> GetActiveByGrossDemandForUpdateAsync(Guid grossDemandId);
-    /// <summary>由物料领域查询来源需求建立候选，状态通过活动物料事实和历史联表计算。</summary>
-    Task<PagedResponseBase<SourceDemandCandidateDto>> SearchSourceDemandCandidatesAsync(
-        SourceDemandCandidateSearchRequest request,
-        CancellationToken cancellationToken = default);
     /// <summary>查询全部仍包含可建立来源行的来源单分组。</summary>
     Task<IReadOnlyList<SourceDemandCandidateGroupDto>> GetSourceDemandCandidateGroupsAsync(
         CancellationToken cancellationToken = default);

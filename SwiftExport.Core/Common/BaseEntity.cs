@@ -1,8 +1,10 @@
 ﻿
 using SwiftExport.Contracts.Common;
+using SwiftExport.Core.DatabaseSchema;
 
 namespace SwiftExport.Core.Common;
 
+[DbCheck("CK_{Table}_Version", "[Version] >= 1")]
 public abstract class BaseEntity
 {
     /// <summary>
@@ -18,8 +20,10 @@ public abstract class BaseEntity
     /// 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1
     /// 3. 命中失败视为并发冲突（数据已被他人修改）
     /// </summary>
+    [DbColumn(DefaultExpression = "1")]
     public int Version { get; set; } = 1;
     // 软删除
+    [DbColumn(DefaultExpression = "0")]
     public bool IsDeleted { get; set; } = false;
 
     // 审计字段

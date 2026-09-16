@@ -8,7 +8,7 @@ namespace SwiftExport.Core.Entities.Systems;
 /// 对应表：DocumentSequence。
 /// </summary>
 [Table("DocumentSequence")]
-public class DocumentSequence : BaseEntity
+public partial class DocumentSequence : BaseEntity
 {
     /// <summary>
     /// 单据类型（例如 SO/PO/MO）。
