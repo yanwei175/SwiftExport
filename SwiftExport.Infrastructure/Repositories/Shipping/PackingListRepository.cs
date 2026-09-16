@@ -10,7 +10,7 @@ using System.Data;
 
 namespace SwiftExport.Infrastructure.Repositories.Shipping;
 
-/// <summary>使用新 PackingList 头行表实现管理查询、来源投影和草稿持久化，不处理库存动作。</summary>
+/// <summary>使用 PackingList 头行表实现管理查询、草稿持久化和模块专属来源补充，不处理库存动作。</summary>
 public sealed class PackingListRepository(RepositoryBaseContext context) : IPackingListRepository
 {
     private CommandDefinition Command(string sql, object? parameters, CancellationToken token) =>
@@ -24,6 +24,9 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
               AND OBJECT_ID(N'dbo.OutboundDocument',N'U') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListHead',N'CreateCommandId') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListLine',N'GrossDemandId') IS NOT NULL
+              AND COL_LENGTH(N'dbo.PackingListLine',N'IsNonStandardSnapshot') IS NOT NULL
+              AND COL_LENGTH(N'dbo.PackingListLine',N'SourceTypeSnapshot') IS NOT NULL
+              AND COL_LENGTH(N'dbo.PackingListLine',N'SourceDocumentNoSnapshot') IS NOT NULL
               AND COL_LENGTH(N'dbo.OutboundDocument',N'TriggerPackingListId') IS NOT NULL
               AND EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.PackingListHead')
                          AND name=N'UX_PackingListHead_CreateCommand')
@@ -76,7 +79,8 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
         var sql = "SELECT " + HeaderDetailColumns + "," + InvoiceSummary + " AS InvoiceNosSummary FROM dbo.PackingListHead h WHERE h.Uid=@Uid AND h.IsDeleted=0;\n"
             + """
             SELECT l.Uid,l.Version,l.IsDeleted,l.CreatedDate,l.CreatedBy,l.UpdatedDate,l.UpdatedBy,
-                   l.PackingListHeadId,l.LineNumber,l.GrossDemandId,l.ProductId,l.SkuSnapshot,
+                   l.PackingListHeadId,l.LineNumber,l.GrossDemandId,l.ProductId,l.IsNonStandardSnapshot,
+                   l.SourceTypeSnapshot,l.SourceDocumentNoSnapshot,l.SourceLineNumberSnapshot,l.SkuSnapshot,
                    l.LinkSkuSnapshot,l.CustomerSkuSnapshot,l.DescriptionEnSnapshot,l.ColorNameEnSnapshot,
                    l.UnitSnapshot,l.Qty,l.PcsPerPackage,l.PackageCount,l.NwPerPackage,l.GwPerPackage,
                    l.CbmPerPackage,l.SubTotalNw,l.SubTotalGw,l.SubTotalCbm,l.CustomerPoNo,l.InvoiceNo,
@@ -149,47 +153,32 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
     }
 
     /// <inheritdoc/>
-    public async Task<PagedResponseBase<PackingListSourceCandidateDto>> SearchSourcesAsync(
-        PackingListSourceSearchRequest request, CancellationToken cancellationToken = default)
-    {
-        var sql = SourceProjection + """
-            SELECT * INTO #PackingSources FROM SourceCandidates
-            WHERE RemainingQty>0
-              AND (@Keyword IS NULL OR SourceNo LIKE @Keyword ESCAPE '~' OR SkuSnapshot LIKE @Keyword ESCAPE '~'
-                OR CustomerSkuSnapshot LIKE @Keyword ESCAPE '~' OR DescriptionEnSnapshot LIKE @Keyword ESCAPE '~');
-            SELECT COUNT(1) FROM #PackingSources;
-            SELECT GrossDemandId,DemandVersion,SourceVersion,CustomerId,ProductId,SourceType,SourceNo,DemandQty,
-                   DeliveredQty,RemainingQty,DeliveryUnavailableReason,SkuSnapshot,LinkSkuSnapshot,
-                   CustomerSkuSnapshot,DescriptionEnSnapshot,ColorNameEnSnapshot,UnitSnapshot,
-                   PcsPerPackage,NwPerPackage,GwPerPackage,CbmPerPackage,CustomerPoNo,ImagePath
-            FROM #PackingSources ORDER BY SourceNo,SourceType,GrossDemandId
-            OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY;
-            DROP TABLE #PackingSources;
-            """;
-        using var reader = await context.Session.Connection.QueryMultipleAsync(Command(sql, new
-        {
-            request.CustomerId,
-            Keyword = Like(request.Keyword),
-            Skip = (long)(request.PageIndex - 1) * request.PageSize,
-            Take = request.PageSize
-        }, cancellationToken));
-        return new PagedResponseBase<PackingListSourceCandidateDto>
-        {
-            TotalCount = await reader.ReadSingleAsync<int>(),
-            Items = (await reader.ReadAsync<PackingListSourceCandidateDto>()).ToList(),
-            PageIndex = request.PageIndex,
-            PageSize = request.PageSize
-        };
-    }
-
-    /// <inheritdoc/>
-    public async Task<IReadOnlyList<PackingListSourceCandidateDto>> GetSourcesAsync(
+    public async Task<IReadOnlyList<PackingListSourceEnrichment>> GetSourceEnrichmentsAsync(
         IReadOnlyCollection<Guid> grossDemandIds, CancellationToken cancellationToken = default)
     {
-        if (grossDemandIds.Count == 0) return Array.Empty<PackingListSourceCandidateDto>();
-        var rows = await context.Session.Connection.QueryAsync<PackingListSourceCandidateDto>(Command(
-            SourceProjection + "SELECT GrossDemandId,DemandVersion,SourceVersion,CustomerId,ProductId,SourceType,SourceNo,DemandQty,DeliveredQty,RemainingQty,DeliveryUnavailableReason,SkuSnapshot,LinkSkuSnapshot,CustomerSkuSnapshot,DescriptionEnSnapshot,ColorNameEnSnapshot,UnitSnapshot,PcsPerPackage,NwPerPackage,GwPerPackage,CbmPerPackage,CustomerPoNo,ImagePath FROM SourceCandidates WHERE GrossDemandId IN @Ids;",
-            new { Ids = grossDemandIds, CustomerId = (Guid?)null }, cancellationToken));
+        if (grossDemandIds.Count == 0) return Array.Empty<PackingListSourceEnrichment>();
+        var rows = await context.Session.Connection.QueryAsync<PackingListSourceEnrichment>(Command("""
+            SELECT g.Uid AS GrossDemandId,
+                   CASE WHEN pkg.PackageCount=1 THEN CONVERT(decimal(18,4),pkg.PcsPerPackage) END AS PcsPerPackage,
+                   CASE WHEN pkg.PackageCount=1 THEN pkg.NwPerPackage END AS NwPerPackage,
+                   CASE WHEN pkg.PackageCount=1 THEN pkg.GwPerPackage END AS GwPerPackage,
+                   CASE WHEN pkg.PackageCount=1 THEN pkg.CbmPerPackage END AS CbmPerPackage,
+                   CASE WHEN g.SourceType=N'SO' AND soh.Uid IS NOT NULL AND sol.Uid IS NOT NULL
+                        THEN soh.CustomerPoNo END AS CustomerPoNo
+            FROM dbo.GrossDemand g
+            LEFT JOIN dbo.SalesOrderHeader soh ON g.SourceType=N'SO' AND soh.Uid=g.SourceUid
+                AND soh.CustomerId=g.CustomerId AND soh.IsDeleted=0
+            LEFT JOIN dbo.SalesOrderLine sol ON g.SourceType=N'SO' AND sol.Uid=g.SourceLineId
+                AND sol.SalesOrderId=soh.Uid AND sol.ProductId=g.ProductId
+                AND sol.IsNonStandard=g.IsNonStandard AND sol.IsDeleted=0
+            OUTER APPLY(
+                SELECT COUNT(1) AS PackageCount,MAX(pp.PcsPerPackage) AS PcsPerPackage,
+                       MAX(pp.Nw_KG) AS NwPerPackage,MAX(pp.Gw_KG) AS GwPerPackage,MAX(pp.Cbm) AS CbmPerPackage
+                FROM dbo.ProductPackage pp
+                WHERE g.IsNonStandard=0 AND pp.ProductId=g.ProductId AND pp.IsDeleted=0 AND pp.IsDefault=1
+            ) pkg
+            WHERE g.Uid IN @Ids AND g.IsDeleted=0;
+            """, new { Ids = grossDemandIds }, cancellationToken));
         return rows.ToList();
     }
 
@@ -216,7 +205,8 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
     public async Task<IReadOnlyList<PackingListLine>> LockLinesAsync(Guid uid, CancellationToken cancellationToken = default) =>
         (await context.Session.Connection.QueryAsync<PackingListLine>(Command("""
             SELECT Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,PackingListHeadId,LineNumber,
-                   GrossDemandId,ProductId,SkuSnapshot,LinkSkuSnapshot,CustomerSkuSnapshot,DescriptionEnSnapshot,
+                   GrossDemandId,ProductId,IsNonStandardSnapshot,SourceTypeSnapshot,SourceDocumentNoSnapshot,
+                   SourceLineNumberSnapshot,SkuSnapshot,LinkSkuSnapshot,CustomerSkuSnapshot,DescriptionEnSnapshot,
                    ColorNameEnSnapshot,UnitSnapshot,Qty,PcsPerPackage,PackageCount,NwPerPackage,GwPerPackage,
                    CbmPerPackage,SubTotalNw,SubTotalGw,SubTotalCbm,CustomerPoNo,InvoiceNo,Marks,Note,
                    WarehouseSiteId,WarehouseCodeSnapshot,WarehouseNameSnapshot
@@ -308,50 +298,6 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
     private const string HeaderDetailColumns = "h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,h.PackingListNo,h.CustomerId,h.CustomerNameSnapshot,h.CustomerAddressSnapshot,h.AttentionSnapshot,h.InvoiceDate,h.ContainerNo,h.SealNo,h.ShippingMark,h.Note,h.Etd,h.Eta,h.LifecycleStatus,h.PostingStatus,h.PostingDate,h.PostedDate,h.PostedBy,h.ReversedDate,h.ReversedBy,h.ReverseReason,h.CreateCommandId,h.PostCommandId,h.ReverseCommandId";
     private const string InvoiceSummary = "COALESCE((SELECT STRING_AGG(x.InvoiceNo,N', ') WITHIN GROUP (ORDER BY x.FirstLine,x.FirstUid) FROM (SELECT LTRIM(RTRIM(il.InvoiceNo)) COLLATE Latin1_General_100_BIN2 InvoiceNo,MIN(il.LineNumber) FirstLine,MIN(il.Uid) FirstUid FROM dbo.PackingListLine il WHERE il.PackingListHeadId=h.Uid AND il.IsDeleted=0 AND NULLIF(LTRIM(RTRIM(il.InvoiceNo)),N'') IS NOT NULL GROUP BY LTRIM(RTRIM(il.InvoiceNo)) COLLATE Latin1_General_100_BIN2) x),N'')";
 
-    private const string SourceProjection = """
-        ;WITH Delivered AS (
-            SELECT l.GrossDemandId,SUM(l.Qty) DeliveredQty
-            FROM dbo.PackingListLine l
-            INNER JOIN dbo.PackingListHead h ON h.Uid=l.PackingListHeadId
-            WHERE l.IsDeleted=0 AND h.IsDeleted=0 AND h.PostingStatus=1
-            GROUP BY l.GrossDemandId
-        ), SourceCandidates AS (
-            SELECT g.Uid AS GrossDemandId,g.Version AS DemandVersion,g.SourceVersion,
-                   CONVERT(uniqueidentifier,g.CustomerId) AS CustomerId,CONVERT(uniqueidentifier,g.ProductId) AS ProductId,
-                   g.SourceType,g.SourceNo,g.DemandQty,COALESCE(d.DeliveredQty,0) AS DeliveredQty,
-                   g.DemandQty-COALESCE(d.DeliveredQty,0) AS RemainingQty,
-                   CONVERT(nvarchar(500),NULL) AS DeliveryUnavailableReason,
-                   g.SkuSnapshot,g.LinkSkuSnapshot,g.CustomerSkuSnapshot,
-                   CASE WHEN g.SourceType=N'SO' AND soh.Uid IS NOT NULL AND sol.Uid IS NOT NULL THEN sol.DescriptionEn END AS DescriptionEnSnapshot,
-                   CASE WHEN g.SourceType=N'SO' AND soh.Uid IS NOT NULL AND sol.Uid IS NOT NULL THEN sol.ColorNameEn END AS ColorNameEnSnapshot,
-                   g.UnitSnapshot,
-                   CASE WHEN pkg.PackageCount=1 THEN CONVERT(decimal(18,4),pkg.PcsPerPackage) END AS PcsPerPackage,
-                   CASE WHEN pkg.PackageCount=1 THEN pkg.NwPerPackage END AS NwPerPackage,
-                   CASE WHEN pkg.PackageCount=1 THEN pkg.GwPerPackage END AS GwPerPackage,
-                   CASE WHEN pkg.PackageCount=1 THEN pkg.CbmPerPackage END AS CbmPerPackage,
-                   CASE WHEN g.SourceType=N'SO' AND soh.Uid IS NOT NULL AND sol.Uid IS NOT NULL THEN soh.CustomerPoNo END AS CustomerPoNo,
-                   g.ImagePathSnapshot AS ImagePath
-            FROM dbo.GrossDemand g
-            INNER JOIN dbo.Customer c ON c.Uid=g.CustomerId AND c.IsDeleted=0
-            INNER JOIN dbo.Product p ON p.Uid=g.ProductId AND p.IsDeleted=0
-            LEFT JOIN Delivered d ON d.GrossDemandId=g.Uid
-            LEFT JOIN dbo.SalesOrderHeader soh ON g.SourceType=N'SO' AND soh.Uid=g.SourceUid
-                AND soh.CustomerId=g.CustomerId AND soh.IsDeleted=0
-            LEFT JOIN dbo.SalesOrderLine sol ON g.SourceType=N'SO' AND sol.Uid=g.SourceLineId
-                AND sol.SalesOrderId=soh.Uid AND sol.ProductId=g.ProductId AND sol.IsNonStandard=0 AND sol.IsDeleted=0
-            OUTER APPLY(
-                SELECT COUNT(1) PackageCount,MAX(pp.PcsPerPackage) PcsPerPackage,MAX(pp.Nw_KG) NwPerPackage,
-                       MAX(pp.Gw_KG) GwPerPackage,MAX(pp.Cbm) CbmPerPackage
-                FROM dbo.ProductPackage pp
-                WHERE pp.ProductId=g.ProductId AND pp.IsDeleted=0 AND pp.IsDefault=1
-            ) pkg
-            WHERE g.IsDeleted=0 AND g.LifecycleStatus=0 AND g.SourceType IN (N'SO',N'CR')
-              AND g.IsNonStandard=0 AND g.CustomerId IS NOT NULL AND g.ProductId IS NOT NULL
-              AND (g.SourceType=N'CR' OR (soh.Uid IS NOT NULL AND sol.Uid IS NOT NULL))
-              AND (@CustomerId IS NULL OR g.CustomerId=@CustomerId)
-        )
-        """;
-
     /// <summary>承载锁定查询返回的行归属，避免依赖 ValueTuple 的 Dapper 构造映射。</summary>
     private sealed class LineOwnerRow
     {
@@ -363,12 +309,14 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
 
     private const string InsertLineSql = """
         INSERT dbo.PackingListLine(Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,
-          PackingListHeadId,LineNumber,GrossDemandId,ProductId,SkuSnapshot,LinkSkuSnapshot,CustomerSkuSnapshot,
+          PackingListHeadId,LineNumber,GrossDemandId,ProductId,IsNonStandardSnapshot,SourceTypeSnapshot,
+          SourceDocumentNoSnapshot,SourceLineNumberSnapshot,SkuSnapshot,LinkSkuSnapshot,CustomerSkuSnapshot,
           DescriptionEnSnapshot,ColorNameEnSnapshot,UnitSnapshot,Qty,PcsPerPackage,PackageCount,NwPerPackage,
           GwPerPackage,CbmPerPackage,SubTotalNw,SubTotalGw,SubTotalCbm,CustomerPoNo,InvoiceNo,Marks,Note,
           WarehouseSiteId,WarehouseCodeSnapshot,WarehouseNameSnapshot)
         VALUES(@Uid,1,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@PackingListHeadId,@LineNumber,
-          @GrossDemandId,@ProductId,@SkuSnapshot,@LinkSkuSnapshot,@CustomerSkuSnapshot,@DescriptionEnSnapshot,
+          @GrossDemandId,@ProductId,@IsNonStandardSnapshot,@SourceTypeSnapshot,@SourceDocumentNoSnapshot,
+          @SourceLineNumberSnapshot,@SkuSnapshot,@LinkSkuSnapshot,@CustomerSkuSnapshot,@DescriptionEnSnapshot,
           @ColorNameEnSnapshot,@UnitSnapshot,@Qty,@PcsPerPackage,@PackageCount,@NwPerPackage,@GwPerPackage,
           @CbmPerPackage,@SubTotalNw,@SubTotalGw,@SubTotalCbm,@CustomerPoNo,@InvoiceNo,@Marks,@Note,
           @WarehouseSiteId,@WarehouseCodeSnapshot,@WarehouseNameSnapshot);

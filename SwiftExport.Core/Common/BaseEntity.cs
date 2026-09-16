@@ -4,6 +4,7 @@ using SwiftExport.Core.DatabaseSchema;
 
 namespace SwiftExport.Core.Common;
 
+/// <summary>持久化实体公共基类，统一提供主键、乐观并发、软删除和审计字段。</summary>
 [DbCheck("CK_{Table}_Version", "[Version] >= 1")]
 public abstract class BaseEntity
 {
@@ -22,14 +23,17 @@ public abstract class BaseEntity
     /// </summary>
     [DbColumn(DefaultExpression = "1")]
     public int Version { get; set; } = 1;
-    // 软删除
+    /// <summary>软删除标记；为真时业务查询默认不再返回该记录。</summary>
     [DbColumn(DefaultExpression = "0")]
     public bool IsDeleted { get; set; } = false;
 
-    // 审计字段
+    /// <summary>记录创建时间。</summary>
     public DateTime? CreatedDate { get; set; }
+    /// <summary>记录创建人标识。</summary>
     public string? CreatedBy { get; set; }
+    /// <summary>记录最后更新时间。</summary>
     public DateTime? UpdatedDate { get; set; }
+    /// <summary>记录最后更新人标识。</summary>
     public string? UpdatedBy { get; set; }
 
 }

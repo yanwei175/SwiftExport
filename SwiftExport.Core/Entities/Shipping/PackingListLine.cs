@@ -13,8 +13,16 @@ public sealed partial class PackingListLine : BaseEntity
     public int LineNumber { get; set; }
     /// <summary>唯一交付来源锚点，不表示采购或物料分摊。</summary>
     public Guid GrossDemandId { get; set; }
-    /// <summary>本次交付的产品标识。</summary>
-    public Guid ProductId { get; set; }
+    /// <summary>标准行产品标识；非标行为空。</summary>
+    public Guid? ProductId { get; set; }
+    /// <summary>是否为不产生库存事实的非标来源快照。</summary>
+    public bool IsNonStandardSnapshot { get; set; }
+    /// <summary>来源类型快照，历史展示不回查当前来源。</summary>
+    public string SourceTypeSnapshot { get; set; } = string.Empty;
+    /// <summary>来源单号快照，历史展示不回查当前来源。</summary>
+    public string SourceDocumentNoSnapshot { get; set; } = string.Empty;
+    /// <summary>来源行号快照。</summary>
+    public int? SourceLineNumberSnapshot { get; set; }
     /// <summary>产品编码快照。</summary>
     public string SkuSnapshot { get; set; } = string.Empty;
     /// <summary>关联型号快照。</summary>

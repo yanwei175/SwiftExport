@@ -179,7 +179,7 @@ public sealed class SourceDemandReceptionServiceTests
         Assert.IsFalse(fixture.Repository.Demands.Single().IsDeleted);
     }
 
-    /// <summary>来源接收仍隔离销售与售后；交付尚未接入时两类额度声明都必须明确拒绝。</summary>
+    /// <summary>来源接收与交付查询保持独立；数据库结构不可用时额度声明必须明确拒绝。</summary>
     [TestMethod]
     public async Task DeliveryVerificationIsUnavailableForBothAcceptedSourceTypes()
     {
@@ -193,13 +193,9 @@ public sealed class SourceDemandReceptionServiceTests
                 GrossDemandId = demand.Uid, ExpectedDemandVersion = demand.Version,
                 ExpectedSourceVersion = demand.SourceVersion, Quantity = 1m
             };
-            foreach (var requiresPool in new[] { false, true })
-            {
-                claim.RequiresOrderPoolOwnership = requiresPool;
-                var error = await Assert.ThrowsAsync<SourceDeliveryException>(
-                    () => fixture.DeliveryService.VerifyForUpdateAsync([claim], true));
-                Assert.AreEqual("DELIVERY_QUERY_UNAVAILABLE", error.Code);
-            }
+            var error = await Assert.ThrowsAsync<SourceDeliveryException>(
+                () => fixture.DeliveryService.VerifyForUpdateAsync([claim]));
+            Assert.AreEqual("DELIVERY_QUERY_UNAVAILABLE", error.Code);
         }
         Assert.AreEqual(2, fixture.Repository.Demands.Count);
     }
@@ -234,9 +230,11 @@ public sealed class SourceDemandReceptionServiceTests
         private static SourceDeliveryService CreateUnavailableDeliveryService()
         {
             var session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
+            session.Transaction = new FakeConnection().BeginTransaction();
             var repository = DispatchProxy.Create<IPackingListRepository, EmptyPackingListPort>();
+            var query = DispatchProxy.Create<ISourceDeliveryQueryRepository, EmptySourceDeliveryQueryPort>();
             return new SourceDeliveryService(
-                new ServiceBaseContext(session, NullLoggerFactory.Instance), repository);
+                new ServiceBaseContext(session, NullLoggerFactory.Instance), query, repository);
         }
 
         public SourceDemandReceptionCommand Command(string sourceType, int sourceVersion) => new()
@@ -283,7 +281,7 @@ public sealed class SourceDemandReceptionServiceTests
                 : Task.FromException(new SourceDeliveryException(ErrorCode, "模拟交付阻断"));
         public Task<ServiceResult<PagedResponseBase<SourceDemandDeliveryItemDto>>> SearchAsync(SourceDemandDeliverySearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<SourceDemandDeliveryItemDto>> GetAsync(Guid grossDemandId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<IReadOnlyDictionary<Guid, SourceDemandDeliveryItemDto>> VerifyForUpdateAsync(IReadOnlyCollection<SourceDeliveryClaim> claims, bool requireInventoryContext, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyDictionary<Guid, SourceDemandDeliveryItemDto>> VerifyForUpdateAsync(IReadOnlyCollection<SourceDeliveryClaim> claims, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task VerifyClosureAsync(string sourceType, Guid sourceUid, IReadOnlyDictionary<Guid, decimal> expectedLines, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
@@ -292,6 +290,15 @@ public sealed class SourceDemandReceptionServiceTests
     {
         protected override object? Invoke(System.Reflection.MethodInfo? targetMethod, object?[]? args) =>
             throw new NotSupportedException(targetMethod?.Name);
+    }
+
+    /// <summary>模拟未部署统一交付查询结构。</summary>
+    private class EmptySourceDeliveryQueryPort : DispatchProxy
+    {
+        protected override object? Invoke(System.Reflection.MethodInfo? targetMethod, object?[]? args) =>
+            targetMethod?.Name == nameof(ISourceDeliveryQueryRepository.IsSchemaReadyAsync)
+                ? Task.FromResult(false)
+                : throw new NotSupportedException(targetMethod?.Name);
     }
 
     /// <summary>仅实现接收协议使用的仓储成员，其余成员禁止测试误调用。</summary>

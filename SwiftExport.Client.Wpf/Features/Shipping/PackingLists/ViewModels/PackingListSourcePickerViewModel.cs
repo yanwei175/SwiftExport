@@ -25,7 +25,7 @@ public sealed partial class PackingListSourcePickerViewModel(IPackingListApi api
     [ObservableProperty] public partial IReadOnlyList<PackingListSourcePickerRowModel> Items { get; private set; } = [];
     [ObservableProperty] public partial bool IsLoading { get; private set; }
     [ObservableProperty] public partial int TotalCount { get; private set; }
-    [ObservableProperty] public partial string StatusText { get; private set; } = "查询待交付来源；后端接口待开发。";
+    [ObservableProperty] public partial string StatusText { get; private set; } = "查询当前仍有余额的待交付来源。";
     /// <summary>分页大小选项。</summary>
     public IReadOnlyList<int> PageSizeOptions { get; } = [20, 50, 100];
     /// <inheritdoc/>
@@ -75,7 +75,7 @@ public sealed partial class PackingListSourcePickerViewModel(IPackingListApi api
         _query = query; var id = ++_requestId; IsLoading = true; NotifyState();
         try
         {
-            var result = await runner.RunAsync(() => api.SearchSourcesAsync(request, query.Token), query.Token, "待交付来源查询失败（后端接口待开发）");
+            var result = await runner.RunAsync(() => api.SearchSourcesAsync(request, query.Token), query.Token, "待交付来源查询失败");
             if (_disposed || id != _requestId || query.IsCancellationRequested) return;
             if (!result.Success || result.Data is null) { StatusText = result.Message; return; }
             if (result.Data.Items.Any(x => x.CustomerId != Search.CustomerId || x.GrossDemandId == Guid.Empty)

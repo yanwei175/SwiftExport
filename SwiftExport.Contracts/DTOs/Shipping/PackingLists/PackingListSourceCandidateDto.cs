@@ -6,7 +6,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
 {
-    /// <summary>装箱单专用数据契约；后端待实现。</summary>
+    /// <summary>装箱单 Picker 使用的可交付来源及唯一默认包装投影。</summary>
     public class PackingListSourceCandidateDto
     {
         /// <summary>来源需求唯一标识。</summary>
@@ -17,12 +17,16 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public int? SourceVersion { get; set; }
         /// <summary>已证明的最终客户。</summary>
         public Guid CustomerId { get; set; }
-        /// <summary>已关联的标准产品。</summary>
-        public Guid ProductId { get; set; }
+        /// <summary>标准产品标识；非标来源为空。</summary>
+        public Guid? ProductId { get; set; }
+        /// <summary>是否为不产生库存事实的非标来源。</summary>
+        public bool IsNonStandard { get; set; }
         /// <summary>来源类型。</summary>
         public string SourceType { get; set; }
         /// <summary>来源单号快照。</summary>
         public string SourceNo { get; set; }
+        /// <summary>来源行号快照。</summary>
+        public int? SourceLineNumber { get; set; }
         /// <summary>来源要求数量。</summary>
         public decimal DemandQty { get; set; }
         /// <summary>正式交付净额；不可用时为空，不伪装零。</summary>

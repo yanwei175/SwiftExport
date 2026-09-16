@@ -6,7 +6,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
 {
-    /// <summary>装箱单专用数据契约；后端待实现。</summary>
+    /// <summary>装箱单草稿行输入；来源和包装快照最终由服务端采用。</summary>
     public class PackingListDraftLineInput
     {
         /// <summary>行稳定身份；新增行也由客户端生成非空 Uid。</summary>
@@ -17,8 +17,8 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public int LineNumber { get; set; }
         /// <summary>唯一交付来源锚点，不表示采购或物料分摊。</summary>
         public Guid GrossDemandId { get; set; }
-        /// <summary>本次交付的产品标识。</summary>
-        public Guid ProductId { get; set; }
+        /// <summary>标准行产品标识；非标行为空。</summary>
+        public Guid? ProductId { get; set; }
         /// <summary>产品编码快照。</summary>
         public string SkuSnapshot { get; set; }
         /// <summary>关联型号快照。</summary>

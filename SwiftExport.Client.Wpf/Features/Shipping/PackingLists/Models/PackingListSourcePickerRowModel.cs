@@ -13,12 +13,16 @@ public sealed partial class PackingListSourcePickerRowModel : ObservableObject
     public int? SourceVersion { get; init; }
     /// <summary>已证明的最终客户。</summary>
     public Guid CustomerId { get; init; }
-    /// <summary>已关联的标准产品。</summary>
-    public Guid ProductId { get; init; }
+    /// <summary>标准产品标识；非标来源为空。</summary>
+    public Guid? ProductId { get; init; }
+    /// <summary>是否为不产生库存事实的非标来源。</summary>
+    public bool IsNonStandard { get; init; }
     /// <summary>来源类型。</summary>
     public string? SourceType { get; init; }
     /// <summary>来源单号快照。</summary>
     public string? SourceNo { get; init; }
+    /// <summary>来源行号快照。</summary>
+    public int? SourceLineNumber { get; init; }
     /// <summary>来源要求数量。</summary>
     public decimal DemandQty { get; init; }
     /// <summary>正式交付净额；不可用时为空，不伪装零。</summary>
@@ -62,8 +66,10 @@ public sealed partial class PackingListSourcePickerRowModel : ObservableObject
     /// <summary>验证本次选择数量；未知交付额度必须先由后端补齐。</summary>
     public string? ValidateSelection()
     {
-        if (GrossDemandId == Guid.Empty || ProductId == Guid.Empty || CustomerId == Guid.Empty)
-            return "来源、客户或产品身份缺失。";
+        if (GrossDemandId == Guid.Empty || CustomerId == Guid.Empty
+            || (!IsNonStandard && (!ProductId.HasValue || ProductId == Guid.Empty))
+            || (IsNonStandard && ProductId.HasValue))
+            return "来源、客户或标准/非标产品身份不一致。";
         if (!RemainingQty.HasValue || !string.IsNullOrWhiteSpace(DeliveryUnavailableReason))
             return "待发货数量尚未确认，请刷新来源。";
         if (SelectedQty <= 0) return "本次发货数量必须大于零。";

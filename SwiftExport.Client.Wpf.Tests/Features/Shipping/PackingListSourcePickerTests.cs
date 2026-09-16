@@ -67,4 +67,25 @@ public sealed class PackingListSourcePickerTests
         Assert.AreEqual(2, request.PageIndex);
         Assert.AreEqual(20, request.PageSize);
     }
+
+    /// <summary>非标来源允许缺少产品身份，并把来源身份快照映射到新装箱行。</summary>
+    [TestMethod]
+    public void NonStandardSourceMapsWithoutProductOrWarehouse()
+    {
+        var dto = new PackingListSourceCandidateDto
+        {
+            GrossDemandId = Guid.NewGuid(), CustomerId = Guid.NewGuid(), IsNonStandard = true,
+            SourceType = "MD", SourceNo = "MD-001", SourceLineNumber = 3,
+            RemainingQty = 2, DemandQty = 2, SkuSnapshot = "CUSTOM"
+        };
+        var row = dto.Adapt<PackingListSourcePickerRowModel>();
+        row.SelectedQty = 1;
+        Assert.IsNull(row.ValidateSelection());
+        var line = dto.Adapt<PackingListLineDto>();
+        Assert.IsTrue(line.IsNonStandardSnapshot);
+        Assert.IsNull(line.ProductId);
+        Assert.AreEqual("MD", line.SourceTypeSnapshot);
+        Assert.AreEqual("MD-001", line.SourceDocumentNoSnapshot);
+        Assert.AreEqual(3, line.SourceLineNumberSnapshot);
+    }
 }

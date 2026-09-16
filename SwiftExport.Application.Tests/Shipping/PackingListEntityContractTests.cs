@@ -53,7 +53,11 @@ public sealed class PackingListEntityContractTests
         Assert.AreEqual(typeof(Guid), typeof(PackingListLine).GetProperty("PackingListHeadId")!.PropertyType);
         Assert.AreEqual(typeof(int), typeof(PackingListLine).GetProperty("LineNumber")!.PropertyType);
         Assert.AreEqual(typeof(Guid), typeof(PackingListLine).GetProperty("GrossDemandId")!.PropertyType);
-        Assert.AreEqual(typeof(Guid), typeof(PackingListLine).GetProperty("ProductId")!.PropertyType);
+        Assert.AreEqual(typeof(Guid?), typeof(PackingListLine).GetProperty("ProductId")!.PropertyType);
+        Assert.AreEqual(typeof(bool), typeof(PackingListLine).GetProperty("IsNonStandardSnapshot")!.PropertyType);
+        Assert.AreEqual(typeof(string), typeof(PackingListLine).GetProperty("SourceTypeSnapshot")!.PropertyType);
+        Assert.AreEqual(typeof(string), typeof(PackingListLine).GetProperty("SourceDocumentNoSnapshot")!.PropertyType);
+        Assert.AreEqual(typeof(int?), typeof(PackingListLine).GetProperty("SourceLineNumberSnapshot")!.PropertyType);
         Assert.AreEqual(typeof(string), typeof(PackingListLine).GetProperty("SkuSnapshot")!.PropertyType);
         Assert.AreEqual(typeof(string), typeof(PackingListLine).GetProperty("LinkSkuSnapshot")!.PropertyType);
         Assert.AreEqual(typeof(string), typeof(PackingListLine).GetProperty("CustomerSkuSnapshot")!.PropertyType);

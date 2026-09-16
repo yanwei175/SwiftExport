@@ -18,7 +18,11 @@ public sealed class PackingListMappings : IRegister
             .Map(x => x.Source, x => x)
             .Map(x => x.Qty, x => x.SelectedQty);
         // 来源快照只带展示字段；行身份、行号和实际包装数由后续详情接纳动作显式生成。
-        config.NewConfig<PackingListSourceCandidateDto, PackingListLineDto>();
+        config.NewConfig<PackingListSourceCandidateDto, PackingListLineDto>()
+            .Map(x => x.IsNonStandardSnapshot, x => x.IsNonStandard)
+            .Map(x => x.SourceTypeSnapshot, x => x.SourceType)
+            .Map(x => x.SourceDocumentNoSnapshot, x => x.SourceNo)
+            .Map(x => x.SourceLineNumberSnapshot, x => x.SourceLineNumber);
         config.NewConfig<PackingListHeaderDto, PackingListHeaderModel>()
             .Ignore(x => x.IsChecked).Ignore(x => x.IsSelected).Ignore(x => x.IsReadOnly)
             .Map(x => x.PersistedIsDeleted, x => x.IsDeleted)

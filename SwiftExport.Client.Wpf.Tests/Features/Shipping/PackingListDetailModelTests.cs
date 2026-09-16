@@ -31,7 +31,8 @@ public sealed class PackingListDetailModelTests
     [TestMethod]
     public void Line_UnknownInvalidAndOverflow_AreNotValidZeroes()
     {
-        var line = new PackingListLineModel { Qty = 1 };
+        var line = new PackingListLineModel
+            { GrossDemandId = Guid.NewGuid(), ProductId = Guid.NewGuid(), Qty = 1 };
         Assert.IsNull(line.SubTotalNw);
         Assert.IsNull(line.SuggestedPackageCount);
         Assert.IsNull(line.ValidateRow());
@@ -46,6 +47,22 @@ public sealed class PackingListDetailModelTests
         line.PcsPerPackage = 0.01m;
         Assert.IsNull(line.SuggestedPackageCount);
         Assert.IsNotNull(line.ValidateRow());
+    }
+
+    /// <summary>非标行不要求产品，但必须拒绝库存仓库；标准行必须保留产品身份。</summary>
+    [TestMethod]
+    public void Line_ValidatesStandardAndNonStandardIdentity()
+    {
+        var line = new PackingListLineModel
+            { GrossDemandId = Guid.NewGuid(), IsNonStandardSnapshot = true, Qty = 1 };
+        Assert.IsNull(line.ValidateRow());
+        line.WarehouseSiteId = Guid.NewGuid();
+        Assert.IsNotNull(line.ValidateRow());
+        line.WarehouseSiteId = null;
+        line.IsNonStandardSnapshot = false;
+        Assert.IsNotNull(line.ValidateRow());
+        line.ProductId = Guid.NewGuid();
+        Assert.IsNull(line.ValidateRow());
     }
 
     /// <summary>删除、撤销和行号变化均刷新汇总，子行变化不制造头部脏状态。</summary>

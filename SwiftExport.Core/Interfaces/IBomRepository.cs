@@ -55,15 +55,7 @@ namespace SwiftExport.Core.Interfaces
 
         Task<IEnumerable<BomDto>> GetBomDtoByBomNoAsync(string bomNo);
 
-        /// <summary>
-        /// 调用数据库的存储过程,执行Merge 操作,适用于Excel批量修改BOM条目,不针对单个BOM对象
-        /// 同步客户产品,
-        /// 需要数据库里建有对应的存储过程和客户自定义表
-        /// </summary>
-        /// <param name="items">
-        /// 必须带ID的一个BOM对象列表.
-        /// </param>
-        /// <returns>受影响的行数</returns>
+        // 已停用的旧批量同步入口仅作历史定位，不使用 XML 文档注释，避免生成无归属成员说明。
         //Task<int> SyncBomItemsAsync(IEnumerable<Bom> items);
     }
 }

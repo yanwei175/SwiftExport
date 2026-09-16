@@ -1,10 +1,12 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Contracts.Apis.DemandPlanning;
+using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
+using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
-/// <summary>冻结交付未接入边界、旧出库依赖移除和来源退出安全检查。</summary>
+/// <summary>冻结统一交付查询、旧出库依赖移除和来源退出安全检查。</summary>
 [TestClass]
 public sealed class SourceDemandDeliveryContractTests
 {
@@ -19,19 +21,35 @@ public sealed class SourceDemandDeliveryContractTests
 
         var controller = Read("SwiftExport.WebApi", "Controllers", "DemandPlanning", "SourceDemandDeliveryController.cs");
         StringAssert.Contains(controller, "api/demand-planning/source-demands/delivery");
+        StringAssert.Contains(controller, "[Authorize]");
+        StringAssert.Contains(controller, "PermissionKeys.ModuleDemandPlanningAccess");
         Assert.IsFalse(controller.Contains("ReceiveAsync", StringComparison.Ordinal));
     }
 
     [TestMethod]
-    public void OldOutboundProjectionAndRepositoryAreRemoved()
+    public void UnifiedPackingListDeliveryProjectionIsRegistered()
     {
-        Assert.IsFalse(File.Exists(Path.Combine(Root(), "SwiftExport.Infrastructure/Repositories/Shipping/SourceDeliveryRepository.cs")));
-        Assert.IsFalse(File.Exists(Path.Combine(Root(), "SwiftExport.Infrastructure/Repositories/Shipping/SourceDeliverySql.cs")));
-        Assert.IsFalse(File.Exists(Path.Combine(Root(), "SwiftExport.Core/Interfaces/Shipping/ISourceDeliveryRepository.cs")));
         var registration = Read("SwiftExport.Infrastructure", "DependencyInjection.cs");
+        var delivery = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "SourceDeliveryQueryRepository.cs");
         var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
-        Assert.IsFalse(registration.Contains("ISourceDeliveryRepository", StringComparison.Ordinal));
+        StringAssert.Contains(registration, "ISourceDeliveryQueryRepository");
+        StringAssert.Contains(delivery, "dbo.PackingListLine");
+        StringAssert.Contains(delivery, "h.PostingStatus=@Posted");
+        Assert.IsFalse(delivery.Contains("SourceType IN", StringComparison.Ordinal));
         Assert.IsFalse(sourceRepository.Contains("OutboundDocument", StringComparison.Ordinal));
+    }
+
+    /// <summary>共享契约支持非标来源，并且不再暴露库存池归属或库存动作判定。</summary>
+    [TestMethod]
+    public void ContractsExposeNonStandardIdentityWithoutOrderPoolFields()
+    {
+        Assert.AreEqual(typeof(Guid?), typeof(SourceDemandDeliveryItemDto).GetProperty("ProductId")!.PropertyType);
+        Assert.AreEqual(typeof(Guid?), typeof(PackingListSourceCandidateDto).GetProperty("ProductId")!.PropertyType);
+        Assert.AreEqual(typeof(Guid?), typeof(PackingListDraftLineInput).GetProperty("ProductId")!.PropertyType);
+        Assert.IsNotNull(typeof(SourceDemandDeliveryItemDto).GetProperty("IsNonStandard"));
+        Assert.IsNotNull(typeof(PackingListLineDto).GetProperty("SourceTypeSnapshot"));
+        foreach (var removed in new[] { "OrderPoolSalesOrderId", "IsInventoryActionAllowed", "InventoryBlockerCode" })
+            Assert.IsNull(typeof(SourceDemandDeliveryItemDto).GetProperty(removed), removed);
     }
 
     [TestMethod]

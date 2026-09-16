@@ -56,7 +56,6 @@ namespace SwiftExport.Core.Entities.MasterData
     [LogicalReference(nameof(Product.ProductMasterId), typeof(ProductMaster))]
     [LogicalReference(nameof(Product.ColorId), typeof(ProductColor), IsRequired = true)]
     [LogicalReference(nameof(Product.DefaultSupplierId), typeof(Supplier))]
-    [LogicalReference("CategoryId", typeof(ProductCategory), IsRequired = true)]
     public partial class Product { }
 
     [DbIndex("UX_ProductCategory_CategoryCode", nameof(ProductCategory.CategoryCode), IsUnique = true, Filter = "[IsDeleted] = 0 AND [CategoryCode] IS NOT NULL")]
@@ -308,12 +307,13 @@ namespace SwiftExport.Core.Entities.Shipping
 
     [DbCheck("CK_PackingListLine_Line", "[LineNumber] > 0")]
     [DbCheck("CK_PackingListLine_Qty", "[Qty] > 0")]
+    [DbCheck("CK_PackingListLine_ProductMode", "([IsNonStandardSnapshot] = 0 AND [ProductId] IS NOT NULL) OR ([IsNonStandardSnapshot] = 1 AND [ProductId] IS NULL AND [WarehouseSiteId] IS NULL)")]
     [DbCheck("CK_PackingListLine_Measures", "([PcsPerPackage] IS NULL OR [PcsPerPackage] > 0) AND ([PackageCount] IS NULL OR [PackageCount] >= 0) AND ([NwPerPackage] IS NULL OR [NwPerPackage] >= 0) AND ([GwPerPackage] IS NULL OR [GwPerPackage] >= 0) AND ([CbmPerPackage] IS NULL OR [CbmPerPackage] >= 0)")]
     [DbIndex("UX_PackingListLine_Head_Line", nameof(PackingListLine.PackingListHeadId), nameof(PackingListLine.LineNumber), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [DbIndex("IX_PackingListLine_GrossDemand", nameof(PackingListLine.GrossDemandId), nameof(PackingListLine.PackingListHeadId), Filter = "[IsDeleted] = 0")]
     [LogicalReference(nameof(PackingListLine.PackingListHeadId), typeof(PackingListHead), IsRequired = true)]
     [LogicalReference(nameof(PackingListLine.GrossDemandId), typeof(DemandPlanning.GrossDemand), IsRequired = true)]
-    [LogicalReference(nameof(PackingListLine.ProductId), typeof(Product), IsRequired = true)]
+    [LogicalReference(nameof(PackingListLine.ProductId), typeof(Product))]
     [LogicalReference(nameof(PackingListLine.WarehouseSiteId), typeof(Inventory.WarehouseSite))]
     public sealed partial class PackingListLine { }
 }

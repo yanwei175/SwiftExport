@@ -34,7 +34,7 @@
             <Setter Property="BorderThickness" Value="1" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding ShowDropDownButton, ElementName=Root}" Value="True">
-                    <Setter Property="Padding" Value="8,0,68,0" />
+                    <Setter Property="Padding" Value="8,0,28,0" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -45,7 +45,7 @@
             <Setter Property="FontSize" Value="{Binding FontSize, ElementName=Root}" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding ShowDropDownButton, ElementName=Root}" Value="True">
-                    <Setter Property="Margin" Value="14,0,68,0" />
+                    <Setter Property="Margin" Value="14,0,28,0" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -103,31 +103,31 @@
 
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                     <ui:Button x:Name="BtnClear"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        MinWidth="{DynamicResource TextBoxClearButtonHeight}"
-                        MinHeight="{DynamicResource TextBoxClearButtonHeight}"
-                        Margin="{DynamicResource TextBoxClearButtonMargin}"
-                        Padding="{DynamicResource TextBoxClearButtonPadding}"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        Appearance="Secondary"
-                        Background="Transparent"
-                        BorderBrush="Transparent"
-                        BorderThickness="0"
-                        Command="{Binding Path=TemplateButtonCommand, RelativeSource={RelativeSource TemplatedParent}}"
-                        Cursor="Arrow"
-                        Foreground="{DynamicResource TextControlButtonForeground}"
-                        IsTabStop="False"
-                        MouseOverBackground="{DynamicResource SubtleFillColorSecondaryBrush}"
-                        MouseOverBorderBrush="Transparent"
-                        PressedBackground="{DynamicResource SubtleFillColorTertiaryBrush}"
-                        PressedBorderBrush="Transparent"
-                        Content="{ui:SymbolIcon Symbol=Dismiss24}"
-                        ToolTip="清除"
-                        AutomationProperties.Name="清除当前输入和选择"
-                        Visibility="{Binding HasTextOrSelection, ElementName=Root,Converter={StaticResource BooleanToVisibilityConverter}}"
-                        Click="BtnClear_Click" />
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                MinWidth="{DynamicResource TextBoxClearButtonHeight}"
+                                MinHeight="{DynamicResource TextBoxClearButtonHeight}"
+                                Margin="{DynamicResource TextBoxClearButtonMargin}"
+                                Padding="{DynamicResource TextBoxClearButtonPadding}"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Appearance="Secondary"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                Command="{Binding Path=TemplateButtonCommand, RelativeSource={RelativeSource TemplatedParent}}"
+                                Cursor="Arrow"
+                                Foreground="{DynamicResource TextControlButtonForeground}"
+                                IsTabStop="False"
+                                MouseOverBackground="{DynamicResource SubtleFillColorSecondaryBrush}"
+                                MouseOverBorderBrush="Transparent"
+                                PressedBackground="{DynamicResource SubtleFillColorTertiaryBrush}"
+                                PressedBorderBrush="Transparent"
+                                Content="{ui:SymbolIcon Symbol=Dismiss24}"
+                                ToolTip="清除"
+                                AutomationProperties.Name="清除当前输入和选择"
+                                Visibility="{Binding HasTextOrSelection, ElementName=Root,Converter={StaticResource BooleanToVisibilityConverter}}"
+                                Click="BtnClear_Click" />
 
                     <ui:Button x:Name="BtnDropDown"
                                MinWidth="{DynamicResource TextBoxClearButtonHeight}"

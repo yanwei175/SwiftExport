@@ -6,7 +6,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
 {
-    /// <summary>装箱单专用数据契约；后端待实现。</summary>
+    /// <summary>装箱单持久化行快照；非标行不关联产品或仓库。</summary>
     public class PackingListLineDto : BaseDto
     {
         /// <summary>所属装箱单头 Uid，逻辑关联。</summary>
@@ -15,8 +15,16 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public int LineNumber { get; set; }
         /// <summary>唯一交付来源锚点，不表示采购或物料分摊。</summary>
         public Guid GrossDemandId { get; set; }
-        /// <summary>本次交付的产品标识。</summary>
-        public Guid ProductId { get; set; }
+        /// <summary>标准行产品标识；非标行为空。</summary>
+        public Guid? ProductId { get; set; }
+        /// <summary>是否为不产生库存事实的非标来源快照。</summary>
+        public bool IsNonStandardSnapshot { get; set; }
+        /// <summary>来源类型快照。</summary>
+        public string SourceTypeSnapshot { get; set; }
+        /// <summary>来源单号快照。</summary>
+        public string SourceDocumentNoSnapshot { get; set; }
+        /// <summary>来源行号快照。</summary>
+        public int? SourceLineNumberSnapshot { get; set; }
         /// <summary>产品编码快照。</summary>
         public string SkuSnapshot { get; set; }
         /// <summary>关联型号快照。</summary>

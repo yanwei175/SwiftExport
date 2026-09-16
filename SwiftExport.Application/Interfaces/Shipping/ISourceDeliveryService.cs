@@ -3,7 +3,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Interfaces.Shipping;
 
-/// <summary>交付查询与复核边界；来源退出核验已接入，尚未接入的查询、额度与结案能力继续明确拒绝。</summary>
+/// <summary>交付查询与额度复核边界；结案能力尚未接入时继续明确拒绝。</summary>
 public interface ISourceDeliveryService
 {
     /// <summary>查询认可来源的当前可交付要求。</summary>
@@ -16,10 +16,9 @@ public interface ISourceDeliveryService
         Guid grossDemandId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>在调用方事务内复核来源版本、生命周期、交付余额和实际库存动作所需条件。</summary>
+    /// <summary>在调用方事务内复核来源版本、生命周期和交付余额。</summary>
     Task<IReadOnlyDictionary<Guid, SourceDemandDeliveryItemDto>> VerifyForUpdateAsync(
         IReadOnlyCollection<SourceDeliveryClaim> claims,
-        bool requireInventoryContext,
         CancellationToken cancellationToken = default);
 
     /// <summary>在来源单据调用方事务内核验要求身份以及正式交付完成或合法关闭证据。</summary>
@@ -39,14 +38,17 @@ public interface ISourceDeliveryService
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>PL 提交的来源交付额度声明；订单池要求只在该行实际消耗客供件时生效。</summary>
+/// <summary>PackingList 提交的来源交付额度声明。</summary>
 public sealed class SourceDeliveryClaim
 {
+    /// <summary>被申报的 GrossDemand 标识。</summary>
     public Guid GrossDemandId { get; set; }
-    public int ExpectedDemandVersion { get; set; }
+    /// <summary>调用方已见的需求版本；未提供时只校验锁定后的当前事实。</summary>
+    public int? ExpectedDemandVersion { get; set; }
+    /// <summary>调用方已见的上游事实版本；未提供时不比较。</summary>
     public int? ExpectedSourceVersion { get; set; }
+    /// <summary>本次命令针对该来源申报的数量。</summary>
     public decimal Quantity { get; set; }
-    public bool RequiresOrderPoolOwnership { get; set; }
 }
 
 /// <summary>交付复核失败；稳定代码供 PL 和来源单据调用方映射业务阻断。</summary>

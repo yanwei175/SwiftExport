@@ -22,7 +22,7 @@ public partial class Product : BaseEntity
     /// <summary>该实体保存的中文产品描述。</summary>
     public string? DescriptionZh { get; set; }
     /// <summary>关联的产品颜色唯一标识。</summary>
-    public Guid ColorId { get; set; }
+    public Guid? ColorId { get; set; }
     /// <summary>该实体保存的英文规格特性。</summary>
     public string? FeaturesEn { get; set; }
     /// <summary>该实体保存的中文规格特性。</summary>
@@ -51,12 +51,6 @@ public partial class Product : BaseEntity
     /// <summary>该实体保存的产品主图路径。</summary>
     public string? MainImage { get; set; }
 
-    //// 装箱基础数据（供销售订单行带出）已经转到 ProductPackage 了，这里先注释掉，等确认不需要了再删掉。
-    //public decimal? PcsOfCarton { get; set; }
-    //public decimal? NwOfCarton { get; set; }
-    //public decimal? GwOfCarton { get; set; }
-    //public decimal? CbmOfCarton { get; set; }
-
     // 产品价格（供订单行带出）
     /// <summary>该实体保存的人民币单价或参考价。</summary>
     public decimal? CNYPrice { get; set; }
@@ -83,10 +77,6 @@ public partial class Product : BaseEntity
     public string? DefaultSupplierCode { get; set; }
     /// <summary>旧模型保留的默认供应商产品编码兼容字段；目标模型以 SupplierProduct 关系为准。</summary>
     public string? DefaultSupplierSku { get; set; }
-    /// <summary>旧模型保留的产品分类兼容字段；分类权威来源已迁移到 ProductMaster.CategoryId。</summary>
-    [Obsolete("Product.CategoryId 已废弃，请通过 Product.ProductMasterId 关联 ProductMaster.CategoryId 获取分类。")]
-    public Guid CategoryId { get; set; }
-
 
     // Dapper 不会映射这个，因为它没有 setter
     public bool IsNonStandard => !string.IsNullOrWhiteSpace(Sku) && Sku.StartsWith(DocumentTypeStaticsEnum.NonStandardPart);

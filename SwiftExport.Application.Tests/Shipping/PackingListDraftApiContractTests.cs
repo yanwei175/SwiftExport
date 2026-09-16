@@ -33,12 +33,12 @@ public sealed class PackingListDraftApiContractTests
     public void Repository_UsesGrossDemandWithoutPlanningOrProcurementPrerequisites()
     {
         var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingListRepository.cs");
-        StringAssert.Contains(repository, "g.SourceType IN (N'SO',N'CR')");
-        StringAssert.Contains(repository, "g.IsNonStandard=0");
-        StringAssert.Contains(repository, "g.CustomerId IS NOT NULL AND g.ProductId IS NOT NULL");
-        StringAssert.Contains(repository, "soh.Uid IS NOT NULL AND sol.Uid IS NOT NULL");
-        StringAssert.Contains(repository, "h.PostingStatus=1");
-        StringAssert.Contains(repository, "g.DemandQty-COALESCE(d.DeliveredQty,0)");
+        var delivery = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "SourceDeliveryQueryRepository.cs");
+        Assert.IsFalse(delivery.Contains("SourceType IN", StringComparison.Ordinal));
+        StringAssert.Contains(delivery, "g.IsNonStandard=1 AND g.ProductId IS NULL");
+        StringAssert.Contains(delivery, "h.PostingStatus=@Posted");
+        StringAssert.Contains(delivery, "g.DemandQty-COALESCE(d.DeliveredQty,0)");
+        StringAssert.Contains(delivery, "WITH (UPDLOCK,HOLDLOCK)");
         StringAssert.Contains(repository, "pkg.PackageCount=1");
         foreach (var forbidden in new[] { "NetDemand", "Allocation", "PurchaseOrderHead", "PurchaseOrderLine", "PackingListDocument", "PackingListContributionLine" })
             Assert.IsFalse(repository.Contains(forbidden, StringComparison.Ordinal), forbidden);
@@ -69,7 +69,7 @@ public sealed class PackingListDraftApiContractTests
         StringAssert.Contains(service, "BusinessOperationLog");
         StringAssert.Contains(service, "MidpointRounding.AwayFromZero");
         StringAssert.Contains(service, "LineSetMismatch");
-        StringAssert.Contains(service, "PcsPerPackage = source.PcsPerPackage");
+        StringAssert.Contains(service, "PcsPerPackage = source.IsNonStandard ? null : enrichment?.PcsPerPackage");
         Assert.IsFalse(service.Contains("line.PcsPerPackage = input.PcsPerPackage", StringComparison.Ordinal));
         Assert.IsFalse(service.Contains("IInventoryPostingService", StringComparison.Ordinal));
     }

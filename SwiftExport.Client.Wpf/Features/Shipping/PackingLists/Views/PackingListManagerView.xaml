@@ -15,7 +15,7 @@
              xmlns:vm="clr-namespace:SwiftExportClient.Features.Shipping.PackingLists.ViewModels"
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance vm:PackingListManagerViewModel}"
-             d:DesignHeight="850" d:DesignWidth="1000">
+             d:DesignHeight="850" d:DesignWidth="1400">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -39,43 +39,55 @@
                     </ui:TextBox.InputBindings>
                 </ui:TextBox>
             </Grid>
-            <StackPanel Grid.Row="2" Orientation="Horizontal">
-                <TextBlock Text="客户:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <ComboBox Width="160" ItemsSource="{Binding Customers}" DisplayMemberPath="CustomerCode" SelectedValuePath="Uid"
-                          SelectedValue="{Binding Search.CustomerId, Mode=TwoWay}" AutomationProperties.Name="箱单客户筛选"/>
-                <TextBlock Text="单据日期:" VerticalAlignment="Center" Margin="12,0,8,0"/>
-                <DatePicker SelectedDate="{Binding Search.InvoiceDateFrom}" Width="140" AutomationProperties.Name="开始日期"/>
-                <TextBlock Text="至" VerticalAlignment="Center" Margin="8,0"/>
-                <DatePicker SelectedDate="{Binding Search.InvoiceDateTo}" Width="140" AutomationProperties.Name="结束日期"/>
-            </StackPanel>
         </Grid>
 
         <Grid Grid.Row="2" RowDefinitions="Auto,8,3*,8,8*,Auto">
             <!--单头操作区域-->
-            <Grid ColumnDefinitions="80,8,120,8,120,8,Auto,8,*">
+            <Grid ColumnDefinitions="80,8,*,8,120,8,Auto">
                 <TextBlock Grid.Column="0" Text="筛选条件:"
                            Style="{StaticResource BodyStrongTextBlock}"
                            VerticalAlignment="Center" 
                            HorizontalAlignment="Left"/>
-                <ComboBox Grid.Column="2" 
-                          ItemsSource="{x:Static staticEnums:PackingListPostingStatusList.All}"
-                          SelectedItem="{Binding Search.PostingStatus, Mode=TwoWay}"
-                          AutomationProperties.Name="过账状态筛选"
-                          MinWidth="120">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Converter={StaticResource EnumDescriptionConverter}}"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    
+                    <TextBlock Text="过账:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    
+                    <ComboBox  MinWidth="120" Margin="0,0,8,0"
+                              ItemsSource="{x:Static staticEnums:PackingListPostingStatusList.All}"
+                              SelectedItem="{Binding Search.PostingStatus, Mode=TwoWay}"
+                              AutomationProperties.Name="过账状态筛选"
+                              >
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource EnumDescriptionConverter}}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <TextBlock Text="客户:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox Width="120" Margin="0,0,8,0"
+                              ItemsSource="{Binding Customers}" 
+                              DisplayMemberPath="CustomerCode" 
+                              SelectedValuePath="Uid"
+                              SelectedValue="{Binding Search.CustomerId, Mode=TwoWay}"/>
+
+                    <DatePicker SelectedDate="{Binding Search.InvoiceDateFrom}" Width="120" Margin="0,0,8,0"
+                                controls:DatePickerAssist.PlaceholderText="单据日期起"
+                                Style="{StaticResource SwiftExportDatePicker}"/>
+
+                    <DatePicker SelectedDate="{Binding Search.InvoiceDateTo}" Width="120" Margin="0,0,8,0" 
+                                controls:DatePickerAssist.PlaceholderText="单据日期至"
+                                Style="{StaticResource SwiftExportDatePicker}"/>
+                    
+                </StackPanel>
                 
-                <ui:Button Grid.Column="6" 
+                <ui:Button Grid.Column="4" 
                            Content="查询" 
                            MinWidth="70" Appearance="Primary" 
                            Command="{Binding SearchCommand}" 
                            VerticalAlignment="Stretch"/>
 
-                <StackPanel Grid.Column="8" Orientation="Horizontal" HorizontalAlignment="Left" IsEnabled="{Binding IsNotBusy}">
+                <StackPanel Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Left" IsEnabled="{Binding IsNotBusy}">
                     <ui:Button Content="新增" MinWidth="70"  Margin="0,0,6,0" Command="{Binding AddNewCommand}" VerticalAlignment="Stretch"/>
                     <ui:Button Content="编辑" MinWidth="70"   Margin="0,0,6,0" Command="{Binding EditCommand}"/>
                     <ui:Button Content="刷新" MinWidth="70"   Margin="0,0,6,0"  Command="{Binding RefreshCommand}" VerticalAlignment="Stretch"/>

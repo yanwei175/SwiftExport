@@ -648,7 +648,11 @@ CREATE TABLE [dbo].[PackingListLine]
     [PackingListHeadId] uniqueidentifier NOT NULL,
     [LineNumber] int NOT NULL,
     [GrossDemandId] uniqueidentifier NOT NULL,
-    [ProductId] uniqueidentifier NOT NULL,
+    [ProductId] uniqueidentifier NULL,
+    [IsNonStandardSnapshot] bit NOT NULL,
+    [SourceTypeSnapshot] nvarchar(300) NOT NULL,
+    [SourceDocumentNoSnapshot] nvarchar(300) NOT NULL,
+    [SourceLineNumberSnapshot] int NULL,
     [SkuSnapshot] nvarchar(300) NOT NULL,
     [LinkSkuSnapshot] nvarchar(300) NULL,
     [CustomerSkuSnapshot] nvarchar(300) NULL,
@@ -674,6 +678,7 @@ CREATE TABLE [dbo].[PackingListLine]
     CONSTRAINT [PK_PackingListLine] PRIMARY KEY ([Uid]),
     CONSTRAINT [CK_PackingListLine_Line] CHECK ([LineNumber] > 0),
     CONSTRAINT [CK_PackingListLine_Measures] CHECK (([PcsPerPackage] IS NULL OR [PcsPerPackage] > 0) AND ([PackageCount] IS NULL OR [PackageCount] >= 0) AND ([NwPerPackage] IS NULL OR [NwPerPackage] >= 0) AND ([GwPerPackage] IS NULL OR [GwPerPackage] >= 0) AND ([CbmPerPackage] IS NULL OR [CbmPerPackage] >= 0)),
+    CONSTRAINT [CK_PackingListLine_ProductMode] CHECK (([IsNonStandardSnapshot] = 0 AND [ProductId] IS NOT NULL) OR ([IsNonStandardSnapshot] = 1 AND [ProductId] IS NULL AND [WarehouseSiteId] IS NULL)),
     CONSTRAINT [CK_PackingListLine_Qty] CHECK ([Qty] > 0),
     CONSTRAINT [CK_PackingListLine_Version] CHECK ([Version] >= 1)
 );
@@ -703,7 +708,6 @@ CREATE TABLE [dbo].[ProcurementCommandReceipt]
 -- 逻辑依赖: [ProductMasterId] -> [dbo].[ProductMaster].[Uid]（由 Application 校验）
 -- 逻辑依赖: [ColorId] -> [dbo].[ProductColor].[Uid]（由 Application 校验）
 -- 逻辑依赖: [DefaultSupplierId] -> [dbo].[Supplier].[Uid]（由 Application 校验）
--- 逻辑依赖: [CategoryId] -> [dbo].[ProductCategory].[Uid]（由 Application 校验）
 CREATE TABLE [dbo].[Product]
 (
     [Uid] uniqueidentifier NOT NULL,
@@ -719,7 +723,7 @@ CREATE TABLE [dbo].[Product]
     [Sku] nvarchar(300) NOT NULL,
     [DescriptionEn] nvarchar(2000) NULL,
     [DescriptionZh] nvarchar(2000) NULL,
-    [ColorId] uniqueidentifier NOT NULL,
+    [ColorId] uniqueidentifier NULL,
     [FeaturesEn] nvarchar(500) NULL,
     [FeaturesZh] nvarchar(500) NULL,
     [MaterialType] nvarchar(300) NULL,
@@ -739,7 +743,6 @@ CREATE TABLE [dbo].[Product]
     [DefaultSupplierId] uniqueidentifier NULL,
     [DefaultSupplierCode] nvarchar(300) NULL,
     [DefaultSupplierSku] nvarchar(300) NULL,
-    [CategoryId] uniqueidentifier NOT NULL,
     CONSTRAINT [PK_Product] PRIMARY KEY ([Uid]),
     CONSTRAINT [CK_Product_Version] CHECK ([Version] >= 1)
 );
@@ -1579,5 +1582,5246 @@ EXEC(N'CREATE TRIGGER [dbo].[TR_PurchaseConfirmationLine_AppendOnly] ON [dbo].[P
 EXEC(N'CREATE TRIGGER [dbo].[TR_PurchaseConfirmationNode_AppendOnly] ON [dbo].[PurchaseConfirmationNode] INSTEAD OF UPDATE, DELETE AS BEGIN SET NOCOUNT ON; THROW 53100, N''PurchaseConfirmationNode 是只追加事实，禁止更新或删除。'', 1; END;');
 
 EXEC(N'CREATE TRIGGER [dbo].[TR_PurchaseOrderHead_ImmutableIdentity] ON [dbo].[PurchaseOrderHead] AFTER UPDATE AS BEGIN SET NOCOUNT ON; IF EXISTS (SELECT 1 FROM inserted i INNER JOIN deleted d ON d.[Uid]=i.[Uid] WHERE EXISTS (SELECT i.[OriginKind], i.[ExecutionRequestId] EXCEPT SELECT d.[OriginKind], d.[ExecutionRequestId])) THROW 53101, N''PurchaseOrderHead 的成立身份不可修改。'', 1; END;');
+
+-- 表和字段说明（来源于 SwiftExport.Core XML 文档）
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'保存售后单头和实物确认事实，不持有下游进度。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'售后单号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'AfterSalesNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户身份。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'CustomerId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户编码快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'CustomerCodeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户名称快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'CustomerNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'受理日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'AcceptedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'负责人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'OwnerId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'生命周期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'DocumentStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'实物确认状态。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'ConfirmationStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'当前确认时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'DemandConfirmedAt';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'当前确认人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'DemandConfirmedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'预计完成日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'ExpectedCompletionDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'结案说明。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'Conclusion';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'整单备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'保存售后问题与补发明细事实，不持有下游进度。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'所属售后单。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'HeaderId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'稳定行号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'LineNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'原销售行。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'OriginalSalesOrderLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'责任供应商。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'ResponsibleSupplierId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'问题成品身份。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'IssueProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'问题物料编号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'IssueSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'问题客户型号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'IssueCustomerSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'问题AQ型号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'IssueLinkSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'问题颜色。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'IssueColorId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'问题颜色快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'IssueColorSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'问题产品描述。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'IssueProductDescription';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'投诉描述。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'IssueDescription';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'品质分类。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'QualityCategoryId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'原因分析。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'CauseAnalysis';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'实际补发物料。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'ProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'实际补发非标标记。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'IsNonStandard';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'补发SKU。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'SkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'补发客户型号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'CustomerSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'补发AQ型号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'LinkSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'补发描述。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'DescriptionSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'补发颜色。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'ColorId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'补发颜色快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'ColorSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'补发规格。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'SpecificationSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'补发数量，空或零不创建来源需求。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'Quantity';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单位，默认Pcs。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'要求交期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'RequiredDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'人民币行金额，空未定零免费。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'ServiceAmountCny';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'退回品收到日期，不改变库存。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'ReturnedReceivedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'处理说明。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'TreatmentDescription';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'行备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'物料清单组成行实体，保存父产品在指定 BOM 版本下的组件及用量比例。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的BOM 编号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'BomNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的BOM 版本。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'BomVersion';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的父产品唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'ParentProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的父产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'ParentSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的单据行号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'LineNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的组件产品唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'ComponentProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的组件产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'ComponentSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'组件用量比例的分子，与分母共同计算父需求对应的组件需求量。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'Numerator';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'组件用量比例的分母，必须大于零。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'Denominator';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Bom',
+    @level2type=N'COLUMN', @level2name=N'Note';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'面向业务人员的持久化操作日志；只追加，不提供更新或删除。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的业务请求关联标识唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'CorrelationId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'业务命令唯一标识，用于按模块和操作类型防止日志重复写入。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'CommandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务模块。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'Module';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务聚合类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'AggregateType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的业务聚合唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'AggregateUid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的业务聚合单号历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'AggregateNoSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务操作类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'OperationType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务操作显示名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'OperationName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务操作原因。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'Reason';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务操作摘要。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'Summary';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的变更字段摘要 JSON。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'ChangedFieldsJson';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的关联业务对象摘要 JSON。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'RelatedObjectsJson';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的操作用户唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'UserUid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的操作人名称历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'UserNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务事实发生时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
+    @level2type=N'COLUMN', @level2name=N'OccurredDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户主数据实体，保存客户身份、联系方式及资料目录配置。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否允许新业务引用；停用不取消已有业务承诺。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'IsActive';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的客户业务编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'CustomerCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的客户名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'CustomerName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的联系地址。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'Address';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的联系电话。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'PhoneNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的联系人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'ContactPerson';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的标签资料目录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'LabelFolderPath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的说明书资料目录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'ManualFolderPath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的图纸资料目录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'DrawingFolderPath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的线稿资料目录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'LinedrawingFolderPath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的条码资料目录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'BarcodeFolderPath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的规格书资料目录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'SpecSheetFolderPath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的资料关联编号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'DocRelateNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'贸易条款备注（用于定义完整的交易条件） 例如：FOB Jiangmen, 30% Deposit, Balance before shipment',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'IncotermSortRemark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'国际贸易术语（如 EXW / FOB / CIF / DAP / DDP）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'Incoterm';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'贸易条款地点（如 FOB Shenzhen 中的 Shenzhen）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'IncotermLocation';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'定金比例（如 30% 存储为 0.3）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'DepositRate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'交货周期（天数）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'LeadTimeDays';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'付款方式（如 TT / LC / OA）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'PaymentMethod';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'币种（USD / RMB / EUR 等）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'Currency';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'ETD 备注（用于告知客户预计离港时间，如 "Mid August"）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'EtdSortRemark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'承运方式（如 DHL / UPS / 海运 / 空运）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Customer',
+    @level2type=N'COLUMN', @level2name=N'ShippedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户采购单默认配置实体，保存指定客户和供应商组合的币种、折扣、包装及经办人默认要求。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的客户主数据 Uid；旧数据按客户编码回填。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'CustomerId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的客户业务编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'CustomerCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的供应商主数据 Uid；未指定供应商时允许为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'SupplierId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的供应商业务编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'SupplierCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该客户与供应商组合默认使用的币种代码；空值表示未配置。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'Currency';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'默认价格倍率，允许大于 1 表示涨价；空值表示未配置。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'DefaultDiscountRate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'独立的默认折扣说明，不与默认折扣率联动。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'DiscountRemark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的进水管类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'InletHoseType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的起泡器类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'AeratorType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的托盘类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'PalletType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的包装盒类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'BoxType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的标签类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'LabelType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的说明书类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'IMType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的外箱类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'CartonType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的标志类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'LogoType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的默认销售人员。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'SalesPerson';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的默认采购人员。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'Purchaser';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerPoConfig',
+    @level2type=N'COLUMN', @level2name=N'Note';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户产品关系实体，保存客户专属产品编码、描述、价格和交付约定。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联客户主表 ID。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'CustomerId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的客户业务编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'CustomerCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联咱们的产品主表 ID。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'SkuId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的公司产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'Sku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的关联产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'LinkSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的客户产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'CustomerSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户那边的系列名。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'CustomerPdSeries';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户那边的描述。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'CustomerPdDescription';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户那边的颜色称呼。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'CustomerColorName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户那边的规格/特性。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'CustomerPdFeatures';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户条码1。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'CustomerBarcode1';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户条码2。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'CustomerBarcode2';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户产品关系备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'Note';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'美元约定价。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'USDPrice';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'人民币约定价。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'CNYPrice';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'生产提前期（天）。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'LeadTimeDays';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'最小起订量。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'MOQ';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否启用。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'IsActive';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的英文产品描述。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'DescriptionEn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的英文规格特性。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CustomerProduct',
+    @level2type=N'COLUMN', @level2name=N'FeaturesEn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'净需求到采购、生产或外协执行行的权威追溯关系。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的净需求 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'NetDemandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'一次采购草稿创建请求的幂等标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'ExecutionRequestId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'请求内单条贡献的幂等标识，防止重复生成 Link。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'CommandItemId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'下游执行对象类型，例如采购单行。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'TargetType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'下游单据头 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'TargetHeadId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'下游单号快照，供人工查账。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'TargetNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'下游执行明细行 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'TargetLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'追溯关系生命周期；取消采购草稿时 Link 会转为取消。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'LinkStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'最初分配给下游执行行的数量。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'AllocatedQty';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'取消或减量累计释放数量；有效贡献为 AllocatedQty-ReleasedQty。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'ReleasedQty';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'建立 Link 时保留的原始需求交期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'DemandRequiredDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'建立 Link 时保留的计划交付日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'PlannedDeliveryDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'Link 取消时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'CancelledAt';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'Link 取消操作人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'CancelledBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'Link 取消原因。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'CancelledReason';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'执行关系反向处理时间；用于未来正式单据反向流程。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'ReversedAt';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'执行关系反向处理操作人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'ReversedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'执行关系反向处理原因。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'ReversedReason';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'执行追溯备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DemandExecutionLink',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据流水号实体。 对应表：DocumentSequence。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DocumentSequence';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DocumentSequence',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DocumentSequence',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DocumentSequence',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DocumentSequence',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DocumentSequence',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DocumentSequence',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DocumentSequence',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据类型（例如 SO/PO/MO）。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DocumentSequence',
+    @level2type=N'COLUMN', @level2name=N'DocType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'年月分段（yyyyMM）。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DocumentSequence',
+    @level2type=N'COLUMN', @level2name=N'YearMonth';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'当前已使用流水号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'DocumentSequence',
+    @level2type=N'COLUMN', @level2name=N'CurrentNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'原始业务需求。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'毛需求生命周期；关闭后不能继续拆解。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'LifecycleStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源单据类型，例如销售订单、手工需求或投诉补货。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'SourceType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源单据头或手工需求自身的 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'SourceUid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'供用户查账的来源单号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'SourceNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源明细行 Uid；手工需求通常与自身 Uid 相同。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'SourceLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源明细行号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'SourceLineNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源单据头在本需求被接收时的事实版本，用于拒绝旧版本覆盖。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'SourceVersion';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源需求实物内容的稳定指纹；历史数据无法确认时为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'DemandBasisFingerprint';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源需求对应的交付客户；手工需求及历史数据可以为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'CustomerId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'标准产品 Uid；非标需求可以为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'ProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否为不依赖产品主数据和 BOM 的非标需求。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'IsNonStandard';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'毛需求成立时的 SKU 快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'SkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联 SKU 快照，用于产品或客户型号追溯。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'LinkSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户型号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'CustomerSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产品描述快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'DescriptionSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'颜色快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'ColorSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'规格特征快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'SpecificationSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产品图片路径快照，仅用于追溯和展示。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'ImagePathSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源需求接收时的产品单位快照；未关联产品的非标需求可以为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'原始业务需求数量，是拆解数量计算的起点。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'DemandQty';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源业务要求的交期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'RequiredDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源需求备注快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'最近一次生命周期变更时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'LifecycleChangedAt';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'最近一次生命周期变更操作人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'LifecycleChangedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关闭或恢复等生命周期变更原因。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'GrossDemand',
+    @level2type=N'COLUMN', @level2name=N'LifecycleChangedReason';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'入库单头，保存入库来源、目标仓库和过账状态。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务单据号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'DocumentNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'入库业务类型，同时确定所有明细来源行所属的上游单据类型；一张单不混合采购与生产来源。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'DocumentType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'建立方式：人工选择或自动触发，不改变上游来源类型与可收数量口径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'CreationMode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据生命周期状态，用于判断当前记录允许执行的业务操作。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'LifecycleStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'库存过账状态，用于判断当前记录允许执行的业务操作。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'PostingStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的仓库站点唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'WarehouseSiteId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的仓库编码历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'WarehouseCodeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的仓库名称历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'WarehouseNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的实际收货日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'ReceiptDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的过账时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'PostedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的过账操作人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'PostedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的反向时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'ReversedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的反向操作人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'ReversedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的反向原因。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'ReverseReason';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'触发自动入库的装箱单标识，不是供货来源；人工建立时为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'TriggerPackingListId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'业务命令唯一标识，用于保障对应业务命令幂等执行。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocument',
+    @level2type=N'COLUMN', @level2name=N'CommandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'入库单明细，保存产品、数量和可追溯来源。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的入库单头唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'InboundDocumentId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的单据行号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'LineNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的产品主数据唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'ProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的产品编码历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'SkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的产品描述历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'DescriptionSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的计量单位历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本入库明细实际过账增加的产品数量。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'Quantity';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'实际供货单据行标识；由单头入库类型解释，采购入库指向采购行，不指向需求、Link 或装箱贡献。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'SourceLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的原始业务明细唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'OriginalLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'库存余额实体，保存仓库与产品维度的当前库存投影。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的仓库站点唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'WarehouseSiteId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的产品主数据唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'ProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的产品编码历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'SkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'首次建账或归零重入时冻结的产品名称快照，供主数据缺失后的只读追溯。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'ProductNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的计量单位历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'当前仓库与产品维度的在手库存投影，由有效库存流水累计形成。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'OnHandQty';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的最后入账流水序号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryBalance',
+    @level2type=N'COLUMN', @level2name=N'LastLedgerSequence';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'库存流水实体，保存每次库存增减及反向的不可变业务事实。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务流水顺序号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'Sequence';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的仓库站点唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'WarehouseSiteId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的产品主数据唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'ProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的库存交易类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'TransactionType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本次库存变动量；入库为正、出库为负，反向业务按相反方向记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'QuantityDelta';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本次流水入账后的库存余额，用于按序核对库存守恒。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'BalanceAfter';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的来源业务单据类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'SourceDocumentType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的来源业务单据唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'SourceDocumentId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的来源业务明细唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'SourceLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源业务单据形成库存事实时的真实编号快照；来源本身无编号时允许为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'SourceDocumentNoSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的被反向的原库存流水唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'ReversalOfLedgerId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'纠错替代事实所替代的原库存流水；普通过账不得设置。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'ReplacementOfLedgerId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'原子纠错组的稳定标识；组内反向与替代事实共用同一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'CorrectionGroupId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产生本次库存业务的命令唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'CommandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本次库存变动明细的幂等标识，保证同一明细只入账一次。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'CommandItemId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'规范化原始请求的 SHA-256 指纹，保留缺省与显式快照的差异并支持可靠重放。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'RequestFingerprint';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务操作原因。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'Reason';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务事实发生时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'OccurredDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的仓库编码历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'WarehouseCodeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'库存事实发生时的仓库名称快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'WarehouseNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的产品编码历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'SkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'库存事实发生时的产品名称快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'ProductNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的计量单位历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'InventoryLedgerEntry',
+    @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'毛需求一次拆解版本中的物料需求事实行。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'所属毛需求 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'GrossDemandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'建立本批物料需求时采用的来源需求技术版本；历史数据无法确认时为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'SourceDemandVersionSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'建立本批物料需求时采用的上游单据事实版本；手工来源或历史数据可以为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'SourceVersionSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'建立本批物料需求时采用的来源实物内容指纹；用于区分技术版本推进与真实需求变化。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'SourceDemandBasisFingerprintSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'生成本行的毛需求拆解修订号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'DecompositionRevision';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'同一毛需求、同一拆解版本内的稳定行号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'LineNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'净需求生命周期；回退拆解时旧行会被取消而不是删除历史。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'LifecycleStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'父级净需求 Uid；根产品为空，客供子件指向父件。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'ParentNetDemandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本棵拆解树的根净需求 Uid；根行指向自身。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'RootNetDemandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'送达目标净需求 Uid；客供件通常指向父件净需求。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'DeliveryTargetNetDemandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'送达规则；标准交付或送往父件的执行供应商。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'DeliveryMode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联产品 Uid；非标净需求可以为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'ProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'物料需求建议采用的采购供应商 Uid；仅供采购决策参考，不代表实际采购方或送达方。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'SuggestedPurchaseSupplierId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'生成本净需求的 BOM 行 Uid；根行和非标行为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'BomLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'拆解时采用的 BOM 版本快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'BomVersion';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'从根产品到当前物料的 BOM 路径快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'BomPath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'拆解时的物料类型快照，例如成品、配件或客供件。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'MaterialTypeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'拆解时的供货方式快照，例如采购、生产或外协。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'SupplyTypeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'拆解时的 SKU 快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'SkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'父级 SKU 快照；根行通常为空字符串。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'ParentSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户型号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'CustomerSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产品描述快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'DescriptionSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'颜色快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'ColorSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'规格特征快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'SpecificationSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'BOM 展开后得到的原始需求数量。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'GrossQty';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'当前净需求数量；现阶段未扣库存时通常等于 GrossQty。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'NetQty';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'从毛需求继承的原始业务交期，只读保留。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'RequiredDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'拆解产生或人工维护的净需求备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'拆解回退时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'RolledBackAt';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'拆解回退操作人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'RolledBackBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'拆解回退原因。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'RolledBackReason';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'出库单头实体，保存库存出库的来源仓库及过账和反向状态。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务单据号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'DocumentNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务单据类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'DocumentType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据生命周期状态，用于判断当前记录允许执行的业务操作。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'LifecycleStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'库存过账状态，用于判断当前记录允许执行的业务操作。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'PostingStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的仓库站点唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'WarehouseSiteId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的仓库编码历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'WarehouseCodeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的仓库名称历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'WarehouseNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的实际出货日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'ShipmentDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'人工库存出库备注，最多 500 字。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'手工出库用途，最多 500 字；草稿和历史单可空，新增过账必须填写。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'IssueReason';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'触发自动出库的装箱单标识；手工出库为空，不代表销售交付来源。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'TriggerPackingListId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的装箱单号历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'PackingListNoSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的过账时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'PostedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的过账操作人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'PostedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的反向时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'ReversedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的反向操作人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'ReversedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的反向原因。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'ReverseReason';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'业务命令唯一标识，用于保障对应业务命令幂等执行。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocument',
+    @level2type=N'COLUMN', @level2name=N'CommandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'出库单明细实体，保存仓库产品的出库数量和库存操作身份，不承担销售交付归属。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的出库单头唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'OutboundDocumentId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的单据行号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'LineNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的产品主数据唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'ProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的产品编码历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'SkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的产品描述历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'DescriptionSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的计量单位历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本出库明细实际过账扣减的产品数量。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'Quantity';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'业务命令明细唯一标识，用于保障批量命令明细幂等执行。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'CommandItemId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的原始业务明细唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'OutboundDocumentLine',
+    @level2type=N'COLUMN', @level2name=N'OriginalLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'装箱单头，保存客户文档快照及独立的过账事实；目标表待迁移，当前不提供持久化入口。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'装箱单业务编号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'PackingListNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'最终客户逻辑标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'CustomerId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据采用的客户名称快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'CustomerNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据采用的客户地址快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'CustomerAddressSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'自由填写的备注快照，不关联联系人实体。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'AttentionSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'用户自定义单据日期，不作为库存记账日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'InvoiceDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'集装箱号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'ContainerNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'封条号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'SealNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'装运箱唛。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'ShippingMark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'Note';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'预计离港日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'Etd';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'预计到达日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'Eta';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据生命周期，与库存状态分别表达。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'LifecycleStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'库存过账状态，不表示已实现过账入口。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'PostingStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'库存业务日期，未过账可空，与单据日期独立。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'PostingDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'实际过账操作时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'PostedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'过账操作人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'PostedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'反向操作时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'ReversedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'反向操作人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'ReversedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'反向原因。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'ReverseReason';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'保留建单命令身份，具体命令校验另行实现。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'CreateCommandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'过账命令身份，用于后续幂等处理。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'PostCommandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'反向命令身份，用于后续幂等处理。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListHead',
+    @level2type=N'COLUMN', @level2name=N'ReverseCommandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'装箱明细，以来源需求锚定交付要求，保存产品及实际包装快照，不承担采购数量分摊。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'所属装箱单头 Uid，逻辑关联。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'PackingListHeadId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据内行号，同来源允许多行。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'LineNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'唯一交付来源锚点，不表示采购或物料分摊。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'GrossDemandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'标准行产品标识；非标行为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'ProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否为不产生库存事实的非标来源快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'IsNonStandardSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源类型快照，历史展示不回查当前来源。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'SourceTypeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源单号快照，历史展示不回查当前来源。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'SourceDocumentNoSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源行号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'SourceLineNumberSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产品编码快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'SkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联型号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'LinkSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户型号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'CustomerSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'英文描述快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'DescriptionEnSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'英文颜色名称快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'ColorNameEnSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'库存及交付数量的计量单位快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本行计划交付数量，草稿不形成正式交付事实。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'Qty';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'每包数量；未知为空，已知时须大于零。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'PcsPerPackage';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'实际整包装数；默认建议向上取整，允许人工指定，未知为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'PackageCount';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'每包净重。未知为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'NwPerPackage';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'每包毛重。未知为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'GwPerPackage';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'每包体积。未知为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'CbmPerPackage';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'实际包装数乘单包指标的结果快照；未来保存入口重算，四位小数 AwayFromZero，未知为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'SubTotalNw';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'实际包装数乘单包指标的结果快照；未来保存入口重算，四位小数 AwayFromZero，未知为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'SubTotalGw';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'实际包装数乘单包指标的结果快照；未来保存入口重算，四位小数 AwayFromZero，未知为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'SubTotalCbm';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户采购编号文本快照，不作为关系主键。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'CustomerPoNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'行上手工填写的发票号文本，不关联财务发票。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'InvoiceNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本行箱唛。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'Marks';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本行备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'Note';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本次库存操作仓库，草稿允许未确定。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'WarehouseSiteId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采用的仓库编码快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'WarehouseCodeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采用的仓库名称快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'WarehouseNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'独立采购命令原始结果，和业务操作日志分开存储，以命令身份和请求指纹检测重放冲突。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户端提供的稳定命令标识，用于识别重试。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'CommandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'执行该命令的用户标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'ActorUid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'命令作用的采购订单标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'PurchaseOrderId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购命令操作类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'Operation';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'规范化请求内容的指纹，用于识别同命令不同内容的冲突。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'RequestFingerprint';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'首次命令执行结果的 JSON 快照，用于幂等重放。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProcurementCommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'ResultJson';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产品主数据实体，保存公司内部稳定产品身份、物料属性和当前默认供应商关系。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否允许新业务引用；停用保留历史身份，不等同软删除。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'IsActive';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'所属主型号标识；使用逻辑外键，由聚合保存上下文赋值。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'ProductMasterId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'逻辑外键：直接存字符串 "AT010011"。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'MasterSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的公司产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'Sku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的英文产品描述。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'DescriptionEn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的中文产品描述。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'DescriptionZh';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的产品颜色唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'ColorId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的英文规格特性。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'FeaturesEn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的中文规格特性。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'FeaturesZh';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的物料角色类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'MaterialType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产品当前基础计量单位，保存 Unit 字典项的英文代码；历史交易使用各自的 UnitSnapshot。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'Unit';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'供应方式（仅表示采购/生产/外协，不再承担“是否有BOM”的语义）。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'SupplyType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'BOM版本号。 约定：0 表示无BOM，>0 表示存在对应版本BOM。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'BomVersion';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的BOM 编号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'BomNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'Note';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的关联产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'LinkSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的产品主图路径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'MainImage';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的人民币单价或参考价。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'CNYPrice';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的美元参考价。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'USDPrice';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'每基础单位体积（CBM），用于采购/物流统计。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'UnitCBM';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'每基础单位重量（KG），用于采购/物流统计。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'UnitWeight';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'旧模型保留的默认客户编码兼容字段；目标模型以 CustomerProduct 关系为准。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'DefaultCustomerCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'旧模型保留的默认客户产品编码兼容字段；目标模型以 CustomerProduct 关系为准。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'DefaultCustomerSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'默认供应商权威关系；编码仅作为兼容和人工查账字段。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'DefaultSupplierId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'旧模型保留的默认供应商编码兼容字段；目标模型以 DefaultSupplierId 及 SupplierProduct 关系为准。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'DefaultSupplierCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'旧模型保留的默认供应商产品编码兼容字段；目标模型以 SupplierProduct 关系为准。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Product',
+    @level2type=N'COLUMN', @level2name=N'DefaultSupplierSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产品分类实体，保存产品分类的层级、编码和显示顺序。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的分类名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory',
+    @level2type=N'COLUMN', @level2name=N'CategoryName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的上级记录唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory',
+    @level2type=N'COLUMN', @level2name=N'ParentId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的分类显示别名。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory',
+    @level2type=N'COLUMN', @level2name=N'FakeName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的分类编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory',
+    @level2type=N'COLUMN', @level2name=N'CategoryCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的分类显示顺序。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductCategory',
+    @level2type=N'COLUMN', @level2name=N'SortNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产品颜色主数据实体，保存稳定颜色编码及中英文名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductColor';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductColor',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductColor',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductColor',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductColor',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductColor',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductColor',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductColor',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的颜色唯一编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductColor',
+    @level2type=N'COLUMN', @level2name=N'ColorCodeUnique';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的颜色业务编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductColor',
+    @level2type=N'COLUMN', @level2name=N'ColorCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的颜色英文名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductColor',
+    @level2type=N'COLUMN', @level2name=N'ColorNameEn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的颜色中文名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductColor',
+    @level2type=N'COLUMN', @level2name=N'ColorNameZh';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产品文件资料实体，保存产品图纸、说明书、标签和条码文件位置。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的产品主数据 Uid；旧数据按 ProductSKU 非破坏性回填。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'ProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'ProductSKU';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的产品标签文件路径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'LabelPath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的说明书文件路径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'IMPath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的产品图纸文件路径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'DrawingPath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的产品线稿文件路径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'LinedrawingPath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的产品规格书文件路径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'SpecSheetPath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的第一条码文件路径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'Barcode1Path';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的第二条码文件路径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductDetails',
+    @level2type=N'COLUMN', @level2name=N'Barcode2Path';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产品主型号实体，保存主型号层级的默认描述、分类和标签。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'主型号业务编码；未删除记录内唯一。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'MasterSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'英文描述。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'DefaultDescriptionEn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'中文描述。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'DefaultDescriptionZh';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'英文默认配置。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'DefaultFeaturesEn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'中文默认配置。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'DefaultFeaturesZh';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'每箱装率(PCS/箱)，默认值为1',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'DefaultPcsPerPackage';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'每箱净重(KG)',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'DefaultNetWeight';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'每箱毛重(KG)',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'DefaultGrossWeight';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'每箱体积',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'DefaultCbm';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'ProductType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'标签属性用来归类。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'ProductTag';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'分类唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'CategoryId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'默认供应商标识；使用逻辑外键，由应用服务校验。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductMaster',
+    @level2type=N'COLUMN', @level2name=N'DefaultSupplierId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'中性产品实体，保存主型号下按颜色区分的业务编码、价格和图片路径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'中性产品业务编码；未删除记录内唯一。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'ProductCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'所属主型号标识；使用逻辑外键，由聚合保存上下文赋值。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'ProductMasterId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'颜色标识；使用逻辑外键，由应用服务校验。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'ColorId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'默认美元销售价。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'DefaultSalesPriceUsd';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'默认汇率；非空时必须大于零。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'DefaultExchangeRate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'利润率；本期仅保存用户输入，不参与价格计算。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'ProfitMargin';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'默认人民币采购价。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'DefaultPurchasePriceCny';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'图片路径；本期不承担文件上传或生命周期管理。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'ImagePath';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否作为所属主型号的主图；列表查询只读取有效记录中的主图路径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductNeutral',
+    @level2type=N'COLUMN', @level2name=N'IsMainImage';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产品包装规格实体，保存产品装率、尺寸、重量、体积和包材要求。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联产品主键Id',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'ProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'包装类型：InnerBox(内盒), Carton(外箱), Pallet(托盘)',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'PackageType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'装率：该层级包装内含有的单品(PCS)数量',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'PcsPerPackage';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的包装长度（厘米）。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'Length_CM';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的包装宽度（厘米）。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'Width_CM';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的包装高度（厘米）。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'Height_CM';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该级总净重(KG)',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'Nw_KG';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该级总毛重(KG)',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'Gw_KG';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'体积CBM (数据库计算列) 特别注意：在EF Core中需标记为由数据库生成',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'Cbm';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否为出货默认计算规格',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'IsDefault';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'对应的包材物料号 (关联BOM)',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'PackagingMaterialSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ProductPackage',
+    @level2type=N'COLUMN', @level2name=N'Note';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'确认批次的行依据，记录明确无 BOM 与实际结构指纹；永不回填当前 BOM。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'所属采购确认批次标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'ConfirmationId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'确认时对应的采购订单标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'PurchaseOrderId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'确认时对应的采购订单行标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'PurchaseOrderLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'建立本确认依据的稳定命令标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'CommandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购确认结构的根产品标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'RootProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'确认时采用的采购订单行版本。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'LineVersion';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'确认时根产品是否存在有效 BOM 结构。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'HasBom';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'确认结构的确定性指纹，用于证明执行依据未被替换。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'Fingerprint';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购行完成确认的时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'ConfirmedAt';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'BOM 比例计算、累计和舍入规则快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationLine',
+    @level2type=N'COLUMN', @level2name=N'RatioPolicy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'按完整路径保存确认 BOM 节点和客供件消耗目标，保留原始比例供审计与后续执行。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'所属采购确认行依据标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'ConfirmationLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'节点在确认 BOM 树中的稳定完整路径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'Path';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'确认 BOM 树的根产品标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'RootProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本节点直接父级产品标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'ParentProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本节点组件产品标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'ComponentProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'形成该节点的 BOM 行标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'BomLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'父级产品 BOM 编号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'ParentBomNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'父级产品 BOM 版本快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'ParentBomVersion';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'父级产品 SKU 快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'ParentSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'组件产品 SKU 快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'ComponentSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'组件计量单位快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'组件物料类型快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'MaterialType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'组件供料类型快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'SupplyType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'当前 BOM 层级用量比例的分子。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'Numerator';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'当前 BOM 层级用量比例的分母。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'Denominator';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'从根产品累计到本节点的用量比例。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'CumulativeRatio';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本节点是否为需要在履约时扣减的客供件。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'IsCustomerSupplied';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客供件消耗仓库标识；非客供件或尚未指定时为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'ConsumptionWarehouseSiteId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客供件消耗仓库编码快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'WarehouseCodeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客供件消耗仓库名称快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'WarehouseNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客供件消耗所关联的供应商标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'ConsumptionSupplierId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客供件供应商编码快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'SupplierCodeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客供件供应商名称快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseConfirmationNode',
+    @level2type=N'COLUMN', @level2name=N'SupplierNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购订单头实体，是采购单生命周期、供应商关系、需求来源和商业快照的权威模型。 对应物理表 dbo.PurchaseOrderHead。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'来源类别：0 为历史未分类，1 为需求，2 为手工；不以来源缺失推断类别。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'OriginKind';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购货物的客户归属；历史未知记录保持空值。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'CustomerId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'创建时的客户名称，不随主数据修改。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'CustomerNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本订单当前生效的确认依据批次。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'ActiveConfirmationId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本切片手工录入的包装商务要求，不读取当前客户默认覆盖历史。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'PackagingRequirements';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购确认状态；草稿为待确认，正式下单后为已确认。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'ConfirmationStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购生命周期；业务判断不得再读取旧 OrderStatus。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'LifecycleStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购单号，是供人工查账的业务编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'OrderNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'诗亦霖内部采购单号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'BoNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户采购单号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'CustomerPoNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户代码快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'CustomerCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购创建时采用的配置币种快照；仅用于同币种展示与记账，本模块不执行币种换算。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'Currency';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购单采用的价格倍率快照；1 表示原价，小于 1 表示折扣，大于 1 表示加价，不在实体中换算或覆盖行价格。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'DiscountRate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'用户手工填写的整单优惠金额快照，不由价格倍率自动计算；未填写或历史未知时保持空值。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'DiscountAmount';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购供应商权威 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'SupplierId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购供应商编码快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'SupplierCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购供应商名称快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'SupplierName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'形成采购单的需求来源类型；独立采购没有需求来源时为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'DemandSourceType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'形成采购单的来源单据 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'DemandSourceUid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'形成采购单的来源单号快照；独立采购没有来源单据时为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'DemandSourceNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'创建请求 Uid；旧链用于需求转换，新链对应独立创建命令。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'ExecutionRequestId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'业务员名称快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'SoPerson';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购或跟单员名称快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'PoPerson';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'进水管要求快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'InletrHoseType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'起泡器要求快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'AeratorType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'托盘要求快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'PalletType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'内盒要求快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'BoxType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'标贴要求快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'LabelType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'说明书要求快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'IMType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'外箱要求快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'CartonType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'Logo 或标识要求快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'LogoType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'复核人名称快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'ReviewedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购文件夹路径或编号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'PoFolder';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'折扣及特殊商务备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'ZheKouBeiZhu';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购单通用备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购单日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'OrderDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购头预计交付日期，取当前有效采购行的最早计划交期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'ExpectedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'供应商回复交期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'ReplyDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'最近一次确认时间；完整历史由业务操作日志保存。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'ConfirmedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'最近一次确认人名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
+    @level2type=N'COLUMN', @level2name=N'ConfirmedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购订单行实体，保存采购数量、商业条件、产品快照和送达目标。 已备好、已入库和已发货数量分别来自跟单、入库和出库事实，不在本实体缓存。 对应物理表 dbo.PurchaseOrderLine。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'不由需求贡献承担的数量；历史未知保持空值，独立采购等于采购数量。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'UnlinkedQty';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'明确收货仓库，不依赖需求分配，不等同于 BOM 客供件消耗仓库。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'DeliveryWarehouseSiteId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'收货仓库代码历史快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'DeliveryWarehouseCodeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'收货仓库名称历史快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'DeliveryWarehouseNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'所属采购订单头 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'PurchaseOrderId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购单内稳定行号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'LineNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购单号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'OrderNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联产品 Uid；非标件允许为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'ProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购 SKU 快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'Sku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户型号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'CustomerSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联 SKU 快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'LinkSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'供应商产品型号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'SupplierSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购品中文描述快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'DescriptionZh';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'表面处理或颜色快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'FinishZh';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'产品配置快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'FeaturesZh';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购单位快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购数量；物理列继续使用历史名称 QTY。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'QTY';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'未税单价；采购资料未完成时允许为空，明确零价有效。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'UnitPrice';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'含税单价；采购资料未完成时允许为空，明确零价有效。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'TaxPrice';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'未税金额快照，由数量和未税单价计算。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'UnitAmount';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'含税金额快照，由数量和含税单价计算。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'TaxAmount';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购计划交付日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'PlannedDeliveryDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客供件送达目标供应商 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'DeliveryTargetSupplierId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'送达目标供应商编码快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'DeliverySupplierCodeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'送达目标供应商名称快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'DeliverySupplierNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购行附加说明。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'SubNote';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'供货方式快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'SupplyType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'物料类型快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'MaterialType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'需求来源类型快照；独立采购没有需求来源时为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'SourceType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'需求来源单号快照；独立采购没有来源单据时为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'SourceNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'需求来源单据 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'SourceUid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单一来源时保存来源明细 Uid；聚合多来源时为空，权威关系见 DemandExecutionLink。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'SourceLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单一来源时保存来源行号快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
+    @level2type=N'COLUMN', @level2name=N'SourceLineNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'销售订单头实体，保存客户订单的商务条件、交付要求和生命周期状态。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据生命周期状态，用于判断当前记录允许执行的业务操作。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'DocumentStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'确认状态，用于判断当前记录允许执行的业务操作。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'ConfirmationStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的销售订单号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'OrderNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的商业发票号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'InvoiceNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的客户主数据唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'CustomerId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的客户业务编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'CustomerCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的客户采购单号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'CustomerPoNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的运输方式。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'ShippedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的交易币种。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'Currency';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的订单结算汇率。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'ExchangeRate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的原币订单总金额。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'TotalAmountOriginalCurrency';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的本位币订单总金额。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'TotalAmountLocalCurrency';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的收货方名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'ShipToName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的收货地址。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'ShipToAddress';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的收货方联系电话。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'ShipToPhone';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'如 "FOB", "CIF", "DAP" 等。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'Incoterm';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'如 "FOB Shanghai", "CIF Los Angeles", "DAP Berlin" 等，表示具体的 Incoterm 位置。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'IncotermLocation';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的贸易条款排序备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'IncotermSortRemark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'预付款比例，如 30% 的预付款，DepositRate 就是 0.3。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'DepositRate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'从订单日期到交货日期的天数。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'LeadTimeDays';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'如 "预付款", "信用证", "月结" 等。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'PaymentMethod';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的销售订单资料目录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'SoFolder';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的订单日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'OrderDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'订单交货日期（客户要求的交货日期）。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'DeliveryDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'销售订单回复日期（销售订单确认时的交货日期）。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'ReplyDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的预计到达日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'ETA';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的预计离港日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'ETD';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的关闭原因。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'CloseReason';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的关闭时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'ClosedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的关闭操作人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderHeader',
+    @level2type=N'COLUMN', @level2name=N'ClosedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'销售订单明细实体，保存客户订购产品、数量、价格及交易成立时的产品快照。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的单据行号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'LineNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的销售订单头唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'SalesOrderId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的销售订单号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'OrderNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'非标准产品标记，用于控制该记录的业务适用范围。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'IsNonStandard';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的产品主数据唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'ProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的客户产品关系唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'CustomerProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的公司产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'Sku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的关联产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'LinkSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的客户产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'CustomerSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的英文产品描述。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'DescriptionEn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的颜色英文名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'ColorNameEn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的英文规格特性。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'FeaturesEn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的人民币单价或参考价。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'CnyPrice';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的美元参考价。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'UsdPrice';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户在本销售订单明细中订购的数量。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'Qty';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的人民币金额。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'CnyAmount';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的美元金额。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'UsdAmount';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的每箱装量。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'PcsOfCarton';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的每箱净重。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'NwOfCarton';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的每箱毛重。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'GwOfCarton';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的每箱体积。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'CbmOfCarton';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的箱数。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'Ctns';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的明细总净重。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'NwSubTotal';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的明细总毛重。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'GwSubTotal';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的明细总体积。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'CbmSubTotal';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的销售明细备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'SubNote';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'预计交货日期',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'ExpectedDeliveryDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的产品主图路径。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'MainImage';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'供应商主数据实体，保存供应商身份、联系人及默认采购条件。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否允许新业务引用；停用不连带停用仓库或取消历史订单。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'IsActive';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的供应商业务编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'SupplierCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的供应商名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'SupplierName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的供应商折扣率。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'ZheKou';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的供应商折扣说明。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'ZheKouBeiZhu';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的资料关联编号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'DocRelateNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的联系人。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'ContactPerson';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的联系人邮箱。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'ContactEmail';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的联系人电话。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'ContactPhone';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的联系地址。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'Address';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的交易币种。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'Currency';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的默认税率。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'TaxRate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的付款条件。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'PaymentTerms';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的默认采购交期天数。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'Supplier',
+    @level2type=N'COLUMN', @level2name=N'DefaultLeadTime';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'供应商产品关系实体，保存供应商与公司产品之间的采购编码、描述和价格约定。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的供应商主数据唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'SupplierId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的供应商业务编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'SupplierCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的公司产品主数据唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'SkuId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'ProductSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的供应商产品编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'SupplierSku';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的供应商产品中文描述。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'SupplierSkuDescriptionZh';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的供应商产品中文规格。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'SupplierSkuFeaturesZh';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的未税采购价。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'UnitPrice';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的含税采购价。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProduct',
+    @level2type=N'COLUMN', @level2name=N'TaxPrice';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'供应商对采购行的追加式进度反馈。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'采购行权威 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'PurchaseOrderLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'同一采购行内严格递增的反馈序号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'Sequence';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'供应商排产状态，用于判断当前记录允许执行的业务操作。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'ArrangementStatus';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'供应商截至本次报告累计已备妥的数量；空值表示尚未反馈，不代表已入库或当前库存。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'ReadyQty';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的预计备妥日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'ExpectedReadyDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的供应商报告日期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'SupplierReportedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'供应商反馈或跟单备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'Note';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'进度修正标记，用于控制该记录的业务适用范围。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'IsCorrection';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的进度修正原因。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'CorrectionReason';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'提交供应商进度报告的命令唯一标识，用于防止重复追加。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SupplierProgressReport',
+    @level2type=N'COLUMN', @level2name=N'CommandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'货币主数据实体 对应数据库表 SysDicCurrency',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'货币代码，如 USD / CNY / EUR',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'CurrencyCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'货币英文名称',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'CurrencyNameEn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'货币中文名称',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'CurrencyNameZh';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'货币符号，如 $、¥、€',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'CurrencySymbol';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'精确度，如 2 表示保留两位小数',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'Precision';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'相对于本位币的汇率',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'RateToBase';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否本位币（系统中只能有一个）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'IsBase';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否系统内置货币（内置货币不允许删除）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'IsSystem';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否启用',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'IsEnabled';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'备注',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrency',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'币种汇率实体，用于维护两个币种之间的换算规则。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'启用标记，用于控制该记录的业务适用范围。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'IsEnabled';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的源币种编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'FromCurrencyCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的目标币种编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'ToCurrencyCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的汇率小数精度。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'Precision';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的币种换算汇率。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'Rate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDicCurrencyExchange',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'系统字典数据实体，用于保存某一字典类型下可选的业务值。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的字典编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'DictCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的字典值英文名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'DataNameEn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的字典值中文名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'DataNameZh';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的显示排序号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'SortOrder';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的界面样式类名。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'CssClass';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'系统内置标记，用于控制该记录的业务适用范围。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'IsSystem';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'启用标记，用于控制该记录的业务适用范围。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictData',
+    @level2type=N'COLUMN', @level2name=N'IsEnabled';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'系统字典类型实体，用于定义字典分类、层级和维护入口。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的字典编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'DictCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的字典名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'DictName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'系统内置标记，用于控制该记录的业务适用范围。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'IsSystem';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的业务备注。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的上级记录唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'ParentId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的显示排序号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'SortOrder';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的字典维护目标视图标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'TargetViewKey';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'如 "Basic" (基础档案), "Finance" (财务), "Sales" (销售)。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'GroupCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'组名，如 "基础数据"。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysDictType',
+    @level2type=N'COLUMN', @level2name=N'GroupName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'角色主表实体，对应数据库 [dbo].[SysRoles]。 支持父角色嵌套（ParentRoleId），可构建角色树。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'角色名称（唯一，数据库有 UQ_Roles 唯一索引）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles',
+    @level2type=N'COLUMN', @level2name=N'RoleName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'角色描述',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles',
+    @level2type=N'COLUMN', @level2name=N'Description';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'父角色 ID（顶级角色为 null，支持角色层级继承）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles',
+    @level2type=N'COLUMN', @level2name=N'ParentRoleId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'系统用户实体，保存登录身份、账号状态和用户资料。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'登录用户名（唯一）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'UserName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'显示昵称',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'NickName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'BCrypt 哈希后的密码，禁止明文存储',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'PasswordHash';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'凭据版本；密码改变时递增，用于使此前签发的 JWT 失效。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'CredentialVersion';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'邮箱',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'Email';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'手机号',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'PhoneNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否启用',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser',
+    @level2type=N'COLUMN', @level2name=N'IsActive';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'保存普通用户直接获得的一级模块权限，不承载角色或管理员身份。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'被授予模块的用户标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
+    @level2type=N'COLUMN', @level2name=N'UserId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'代码目录中定义的稳定一级模块键。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
+    @level2type=N'COLUMN', @level2name=N'PermissionKey';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'用户-角色关联表实体，对应数据库 [dbo].[SysUser_Roles]。 一条记录表示某用户拥有某角色。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_Roles';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'用户 ID（外键 → SysUser.Uid）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
+    @level2type=N'COLUMN', @level2name=N'UserId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'用户名（冗余字段，方便查询展示，无需 Join）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
+    @level2type=N'COLUMN', @level2name=N'UserName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'角色 ID（外键 → SysRole.Uid，如有角色主表）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
+    @level2type=N'COLUMN', @level2name=N'RoleId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'角色名称（冗余字段，方便查询展示）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
+    @level2type=N'COLUMN', @level2name=N'RoleName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'视图路由配置实体 职责：将 TargetViewKey 映射到对应的 ViewModel 类型名称， 替代硬编码的 ViewRoutes.cs，实现路由数据库化。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'路由键，与 SysDictType.TargetViewKey 字段值保持一致。 大小写不敏感，唯一约束由数据库保证。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'TargetViewKey';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'ViewModel 完整类型名（含命名空间），用于反射创建实例。 示例：SwiftExport.View.FW.ProductViews.ViewModels.ProductColorManagerViewModel',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'ViewModelTypeName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'View 完整类型名（可选覆盖）。 为 NULL 时，由 ViewLocatorSelector 按约定（ViewModel→View）自动解析； 不为 NULL 时，强制使用此类型，跳过约定映射（适合命名不规范的旧页面）。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'ViewTypeName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'路由配置的可读名称，仅用于管理界面展示。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'DisplayName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否启用。false 时路由不生效（不加载该页面），但数据不删除。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'IsEnabled';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'排序号，管理列表按升序展示。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'SortOrder';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'路由分类：Dict（字典专属页）/ Standalone（独立功能页）等。 便于后续按分类筛选路由。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'RouteCategory';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'程序集名称（扩展字段）。 单程序集场景留 NULL，多程序集插件化场景填写程序集名。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'AssemblyName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'备注说明。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysViewRoute',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'仓库站点实体，当前用于维护供应商虚拟仓及其启用状态。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的仓库编码。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'Code';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的仓库名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'Name';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'该实体保存的仓库站点类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'SiteType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'关联的供应商主数据唯一标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'SupplierId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的供应商编码历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'SupplierCodeSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'单据或业务事实形成时冻结的供应商名称历史快照，不随主数据更新。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'SupplierNameSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'业务关系启用标记，用于控制该记录的业务适用范围。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'WarehouseSite',
+    @level2type=N'COLUMN', @level2name=N'IsActive';
 
 COMMIT TRANSACTION;

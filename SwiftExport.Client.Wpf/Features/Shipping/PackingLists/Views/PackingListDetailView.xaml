@@ -241,6 +241,15 @@
                     
                     <DataGridTextColumn Width="50" Header="序号" 
                                         Binding="{Binding LineNumber}"  IsReadOnly="True"/>
+
+                    <DataGridTextColumn Width="80" Header="来源类型"
+                                        Binding="{Binding SourceTypeSnapshot}" IsReadOnly="True"/>
+
+                    <DataGridTextColumn Width="140" Header="来源单号"
+                                        Binding="{Binding SourceDocumentNoSnapshot}" IsReadOnly="True"/>
+
+                    <DataGridCheckBoxColumn Width="55" Header="非标"
+                                            Binding="{Binding IsNonStandardSnapshot}" IsReadOnly="True"/>
                     
                     <DataGridTemplateColumn Header="图片" Width="60" CanUserSort="False" gridColumns:GridColumn.Key="image">
                         <DataGridTemplateColumn.CellTemplate>

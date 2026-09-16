@@ -36,7 +36,7 @@ public sealed partial class PackingListManagerViewModel(IPackingListApi api, IAp
     [ObservableProperty] public partial PackingListManagerRowModel? SelectedHeader { get; set; }
     [ObservableProperty] public partial int TotalCount { get; private set; }
     [ObservableProperty] public partial bool IsLoading { get; private set; }
-    [ObservableProperty] public partial string ResultSummary { get; private set; } = "后端接口待开发，当前按真实响应反馈。";
+    [ObservableProperty] public partial string ResultSummary { get; private set; } = "查询装箱单草稿与交付状态。";
     public IReadOnlyList<int> PageSizeOptions { get; } = [20, 50, 100];
     public string PageStatus => $"第 {Search.PageIndex} 页，共 {TotalCount} 张";
     /// <inheritdoc/>
@@ -84,7 +84,7 @@ public sealed partial class PackingListManagerViewModel(IPackingListApi api, IAp
             var key = (row.Uid, row.Version);
             if (!_deleteCommands.TryGetValue(key, out var id)) _deleteCommands[key] = id = Guid.NewGuid();
             var result = await runner.RunAsync(() => api.DeleteAsync(row.Uid,
-                new DeletePackingListDraftCommand { CommandId = id, ExpectedVersion = row.Version }), "删除失败（后端接口待开发）");
+                new DeletePackingListDraftCommand { CommandId = id, ExpectedVersion = row.Version }), "删除失败");
             if (_disposed) return;
             if (!result.Success || result.Data?.Uid != row.Uid) { ValidationSummary = result.Success ? "删除响应无效。" : result.Message; return; }
             Headers.RemoveCompletely(row); SelectedHeader = null; TotalCount = Math.Max(0, TotalCount - 1);
@@ -102,7 +102,7 @@ public sealed partial class PackingListManagerViewModel(IPackingListApi api, IAp
         var id = ++_queryId; IsLoading = true;
         try
         {
-            var result = await runner.RunAsync(() => api.SearchAsync(request, query.Token), query.Token, "箱单查询失败（后端接口待开发）");
+            var result = await runner.RunAsync(() => api.SearchAsync(request, query.Token), query.Token, "箱单查询失败");
             if (_disposed || id != _queryId || query.IsCancellationRequested) return;
             if (!result.Success || result.Data is null) { ValidationSummary = result.Message; return; }
             var selectedId = SelectedHeader?.Uid;

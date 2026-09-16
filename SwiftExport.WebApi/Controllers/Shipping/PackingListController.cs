@@ -29,7 +29,7 @@ public sealed class PackingListController(
     public Task<ActionResult<ServiceResult<PackingListDetailDto>>> GetAsync(Guid uid, CancellationToken token) =>
         AuthorizedAsync(() => service.GetAsync(uid, token), token);
 
-    /// <summary>分页读取同客户仍可交付的 SO/CR 来源。</summary>
+    /// <summary>分页读取同客户仍可交付的 GrossDemand 来源。</summary>
     [HttpPost("sources/search")]
     public Task<ActionResult<ServiceResult<PagedResponseBase<PackingListSourceCandidateDto>>>> SearchSourcesAsync(
         [FromBody] PackingListSourceSearchRequest request, CancellationToken token) =>

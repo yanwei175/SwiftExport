@@ -21,9 +21,25 @@ public sealed partial class PackingListLineModel : BaseLineModel<PackingListLine
     [ObservableProperty]
     public partial Guid GrossDemandId { get; set; }
 
-    /// <summary>本次交付的产品标识。</summary>
+    /// <summary>标准行产品标识；非标行为空。</summary>
     [ObservableProperty]
-    public partial Guid ProductId { get; set; }
+    public partial Guid? ProductId { get; set; }
+
+    /// <summary>是否为不产生库存事实的非标来源快照。</summary>
+    [ObservableProperty]
+    public partial bool IsNonStandardSnapshot { get; set; }
+
+    /// <summary>来源类型快照。</summary>
+    [ObservableProperty]
+    public partial string? SourceTypeSnapshot { get; set; }
+
+    /// <summary>来源单号快照。</summary>
+    [ObservableProperty]
+    public partial string? SourceDocumentNoSnapshot { get; set; }
+
+    /// <summary>来源行号快照。</summary>
+    [ObservableProperty]
+    public partial int? SourceLineNumberSnapshot { get; set; }
 
     /// <summary>产品编码快照。</summary>
     [ObservableProperty]
@@ -142,6 +158,11 @@ public sealed partial class PackingListLineModel : BaseLineModel<PackingListLine
     /// <summary>本地同步校验不替代后端来源、库存和权限校验。</summary>
     public override string? ValidateRow()
     {
+        if (GrossDemandId == Guid.Empty) return "来源身份不能为空。";
+        if (IsNonStandardSnapshot && (ProductId.HasValue || WarehouseSiteId.HasValue))
+            return "非标行不能关联产品或库存仓库。";
+        if (!IsNonStandardSnapshot && (!ProductId.HasValue || ProductId == Guid.Empty))
+            return "标准行必须关联产品。";
         if (Qty <= 0) return "交付数量必须大于零。";
         if (PcsPerPackage.HasValue && PcsPerPackage <= 0) return "每包数量必须大于零。";
         if (PackageCount.HasValue && (PackageCount < 0 || decimal.Truncate(PackageCount.Value) != PackageCount))

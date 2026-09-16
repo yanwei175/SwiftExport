@@ -57,13 +57,15 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     public ReadOnlyObservableCollection<CustomerDto> Customers => _cache.Customers;
     [ObservableProperty] public partial CustomerDto? SelectedCustomer { get; set; }
     [ObservableProperty] public partial PackingListLineModel? SelectedLine { get; set; }
-    [ObservableProperty] public partial string ResultSummary { get; private set; } = "后端接口待开发；草稿保存以服务端返回为准。";
+    [ObservableProperty] public partial string ResultSummary { get; private set; } = "草稿保存以服务端来源额度复核结果为准。";
     /// <summary>仅成功加载的有效未过账草稿可编辑，弹窗或写入期间冻结。</summary>
     public bool IsEditable => !_disposed && _loaded && !IsReadOnly && !IsBusy && !_dialogOpen;
     /// <summary>只读单据仍可浏览、选行和复制；写入或弹窗期间暂停交互。</summary>
     public bool CanInteractWithLines => !_disposed && _loaded && !IsBusy && !_dialogOpen;
     /// <summary>有物理行后不允许换客户，避免来源跨客户。</summary>
     public bool CanEditFacts => IsEditable && Lines.AllLines.Count == 0;
+    /// <summary>只有标准行可以选择或清空库存仓库。</summary>
+    public bool CanEditSelectedWarehouse => IsEditable && SelectedLine is { IsNonStandardSnapshot: false };
     /// <inheritdoc/>
     public string DocumentTitle => _isNew ? "新建 PackingList" : Header.PackingListNo ?? "PackingList 详情";
     /// <inheritdoc/>
@@ -97,7 +99,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         RunBusyAsync(() => LoadAsync(_lifetime.Token), "重新加载…");
     private async Task LoadAsync(CancellationToken token)
     {
-        var result = await _runner.RunAsync(() => _api.GetAsync(_uid, token), token, "箱单读取失败（后端接口待开发）");
+        var result = await _runner.RunAsync(() => _api.GetAsync(_uid, token), token, "箱单读取失败");
         if (_disposed || token.IsCancellationRequested) return;
         if (!result.Success || !IsValidDetail(result.Data)) { ValidationSummary = result.Success ? "单据响应身份无效。" : result.Message; return; }
         ApplyDetail(result.Data!);
@@ -126,6 +128,8 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         Header.CustomerNameSnapshot = value?.CustomerName;
         Header.CustomerAddressSnapshot = value?.Address;
     }
+    /// <summary>切换选中行时刷新仓库命令可用性，非标行始终禁用仓库操作。</summary>
+    partial void OnSelectedLineChanged(PackingListLineModel? value) => NotifyState();
     /// <summary>保存前校验完整有效行，专用写 DTO 排除状态、审计和图片。</summary>
     [RelayCommand(CanExecute = nameof(IsEditable))]
     private async Task SaveAsync()
@@ -138,7 +142,10 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         var error = await Lines.ValidateAllAsync();
         if (error is not null) { ValidationSummary = error; return; }
         if (!IsEditable) return;
-        if (Lines.Items.Any(x => x.GrossDemandId == Guid.Empty || x.ProductId == Guid.Empty)) { ValidationSummary = "来源或产品身份缺失。"; return; }
+        if (Lines.Items.Any(x => x.GrossDemandId == Guid.Empty
+            || (x.IsNonStandardSnapshot && (x.ProductId.HasValue || x.WarehouseSiteId.HasValue))
+            || (!x.IsNonStandardSnapshot && (!x.ProductId.HasValue || x.ProductId == Guid.Empty))))
+        { ValidationSummary = "来源的标准/非标产品或仓库身份不一致。"; return; }
         await RunBusyAsync(async () =>
         {
             Renumber();
@@ -150,8 +157,8 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
             command.CommandId = _saveCommandId;
             var result = _isNew
                 ? await _runner.RunAsync(() => _api.CreateAsync(new CreatePackingListDraftCommand { CommandId = _saveCommandId,
-                    Uid = _uid, Header = command.Header, Lines = command.Lines }), "保存失败（后端接口待开发）")
-                : await _runner.RunAsync(() => _api.UpdateAsync(_uid, command), "保存失败（后端接口待开发）");
+                    Uid = _uid, Header = command.Header, Lines = command.Lines }), "保存失败")
+                : await _runner.RunAsync(() => _api.UpdateAsync(_uid, command), "保存失败");
             if (_disposed) return;
             if (!result.Success || result.Data?.Uid != _uid || !IsValidDetail(result.Data.Detail))
             { ValidationSummary = result.Success ? "保存响应不完整，编辑内容已保留。" : result.Message; return; }
@@ -171,7 +178,10 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
             var draft = Lines.Items.GroupBy(x => x.GrossDemandId).ToDictionary(x => x.Key, x => x.Sum(y => y.Qty));
             var selected = await _sources.PickAsync(Header.CustomerId, draft, _lifetime.Token);
             if (_disposed || selected is null) return;
-            if (selected.Any(x => x.Source.CustomerId != Header.CustomerId || x.Qty <= 0 || x.Source.GrossDemandId == Guid.Empty || x.Source.ProductId == Guid.Empty))
+            if (selected.Any(x => x.Source.CustomerId != Header.CustomerId || x.Qty <= 0
+                || x.Source.GrossDemandId == Guid.Empty
+                || (x.Source.IsNonStandard && x.Source.ProductId.HasValue)
+                || (!x.Source.IsNonStandard && (!x.Source.ProductId.HasValue || x.Source.ProductId == Guid.Empty))))
             { ValidationSummary = "选源返回身份或数量异常。"; return; }
             foreach (var selection in selected)
             {
@@ -194,10 +204,10 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     private void MoveLine(PackingListLineModel? line, int offset)
     { if (IsEditable && line is not null && Lines.Move(line, Lines.Items.IndexOf(line) + offset)) Renumber(); }
     private void Renumber() { for (var i = 0; i < Lines.Items.Count; i++) Lines.Items[i].LineNumber = i + 1; }
-    [RelayCommand(CanExecute = nameof(IsEditable))]
+    [RelayCommand(CanExecute = nameof(CanEditSelectedWarehouse))]
     private async Task SelectWarehouseAsync()
     {
-        if (!IsEditable || SelectedLine is not { } line) return;
+        if (!CanEditSelectedWarehouse || SelectedLine is not { } line) return;
         _dialogOpen = true; NotifyState();
         try
         {
@@ -209,9 +219,9 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         catch (Exception ex) { if (!_disposed) await HandleExceptionAsync(ex); }
         finally { _dialogOpen = false; NotifyState(); }
     }
-    [RelayCommand(CanExecute = nameof(IsEditable))]
+    [RelayCommand(CanExecute = nameof(CanEditSelectedWarehouse))]
     private void ClearWarehouse()
-    { if (IsEditable && SelectedLine is { } line) { line.WarehouseSiteId = null; line.WarehouseCodeSnapshot = null; line.WarehouseNameSnapshot = null; } }
+    { if (CanEditSelectedWarehouse && SelectedLine is { } line) { line.WarehouseSiteId = null; line.WarehouseCodeSnapshot = null; line.WarehouseNameSnapshot = null; } }
     /// <summary>撤销到上次服务器快照；新建页撤销只清空新增行。</summary>
     [RelayCommand(CanExecute = nameof(IsEditable))]
     private async Task UndoAsync()
@@ -249,6 +259,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         IsDirty = HasUnsavedChanges;
         OnPropertyChanged(nameof(HasUnsavedChanges)); OnPropertyChanged(nameof(DocumentTitle));
         OnPropertyChanged(nameof(IsEditable)); OnPropertyChanged(nameof(CanEditFacts));
+        OnPropertyChanged(nameof(CanEditSelectedWarehouse));
         OnPropertyChanged(nameof(CanInteractWithLines));
         foreach (var command in new IRelayCommand[] { SaveCommand, SelectSourcesCommand, DeleteLineCommand, MoveLineUpCommand,
             MoveLineDownCommand, SelectWarehouseCommand, ClearWarehouseCommand, UndoCommand }) command.NotifyCanExecuteChanged();
