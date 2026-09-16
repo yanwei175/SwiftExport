@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.Apis.MasterData;
@@ -22,29 +22,30 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 
-/// <summary>采购详情文档；统一处理手工创建、草稿商务编辑、确认绑定及确认状态命令。</summary>
+/// <summary>采购详情文档；统一处理手工创建、草稿商务编辑、确认状态命令。</summary>
 public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDocumentTabViewModel, IDocumentTabInitializable, IDisposable
 {
     public const string RouteKey = "procurement-purchase-order-detail";
     private readonly IProcurementOrderApi _api;
     private readonly IProcurementMasterDataQueryApi _masterData;
-    private readonly IWarehouseSiteApi _warehouses;
     private readonly IDialogService _dialogs;
     private readonly IMessageService _messages;
     private readonly INavigationService _navigation;
     private readonly ICurrentUserService _currentUser;
-    private Guid _saveCommandId, _confirmCommandId, _createCommandId;
+    private Guid _saveCommandId, _createCommandId;
+    // 未知结果冻结完整请求，重试不得重新生成指纹或版本。
+    private ConfirmProcurementOrderCommand? _pendingConfirmation;
     private bool _loading;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _customerSearchCts, _supplierSearchCts, _productSearchCts, _deliverySupplierSearchCts;
     private long _loadSequence;
 
     public PurchaseOrderDetailViewModel(IProcurementOrderApi api, IProcurementMasterDataQueryApi masterData,
-        IWarehouseSiteApi warehouses, IDialogService dialogs, IMessageService messages,
+        IDialogService dialogs, IMessageService messages,
         INavigationService navigation, ICurrentUserService currentUser,
         ProcurementReversalSession? reversalSession = null, IProcurementReversalDialogService? reversalDialogs = null)
     {
-        _api = api; _masterData = masterData; _warehouses = warehouses; _dialogs = dialogs;
+        _api = api; _masterData = masterData; _dialogs = dialogs;
         _messages = messages; _navigation = navigation; _currentUser = currentUser;
         _reversalSession = reversalSession ?? new ProcurementReversalSession(); _reversalDialogs = reversalDialogs;
         _reversalSession.Changed += OnReversalChanged;
@@ -60,26 +61,23 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
 
     public PurchaseOrderHeaderEditorModel Header { get; } = new();
     public PurchaseOrderLineListModel Lines { get; } = new();
-    public List<ProcurementConfirmationBindingModel> ConfirmationBindings { get; } = [];
     public ObservableCollection<ProcurementCustomerCandidateDto> CustomerCandidates { get; } = [];
     public ObservableCollection<ProcurementSupplierCandidateDto> SupplierCandidates { get; } = [];
     public ObservableCollection<ProcurementProductCandidateDto> ProductCandidates { get; } = [];
     public ObservableCollection<ProcurementSupplierCandidateDto> DeliverySupplierCandidates { get; } = [];
-    public List<WarehouseCandidateDto> WarehouseCandidates { get; } = [];
     public string DocumentTitle => IsCreateMode ? "新建采购" : string.IsNullOrWhiteSpace(OrderNo) ? "采购订单详情" : OrderNo;
     public bool HasUnsavedChanges => HeaderHasChanges || Lines.HasChanges;
     public bool HasReadPermission => _currentUser.HasPermission(PermissionKeys.ProcurementOrderRead);
     public bool HasCreatePermission => _currentUser.HasPermission(PermissionKeys.ProcurementOrderCreate);
-    public bool CanEdit => CanInteractWithDocument && !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderEdit) && Header.CanEditDraft;
-    public bool CanConfirm => CanInteractWithDocument && !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm) && Header.CanConfirm;
-    public bool CanCancel => CanInteractWithDocument && !IsCreateMode
+    public bool CanEdit => _pendingConfirmation is null && CanInteractWithDocument && !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderEdit) && Header.CanEditDraft;
+    public bool CanConfirm => CanInteractWithDocument && !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm) && (_pendingConfirmation is not null || Header.CanConfirm);
+    public bool CanCancel => _pendingConfirmation is null && CanInteractWithDocument && !IsCreateMode
         && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm)
         && LifecycleStatus == PurchaseOrderLifecycleStatusEnum.Active
         && ConfirmationStatus == ConfirmationStatusEnum.已确认;
 
     [ObservableProperty] public partial bool IsCreateMode { get; set; }
     [ObservableProperty] public partial bool HeaderHasChanges { get; set; }
-    [ObservableProperty] public partial bool HasConfirmationBindings { get; set; }
     [ObservableProperty] public partial Guid PurchaseOrderId { get; set; }
     [ObservableProperty] public partial string OrderNo { get; set; } = string.Empty;
     [ObservableProperty] public partial int Version { get; set; }
@@ -109,7 +107,6 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
             InitializeCreate(); return;
         }
         if (!HasReadPermission) { StatusText = "当前账号没有读取采购订单的权限。"; return; }
-        await LoadWarehouseCandidatesAsync(cancellationToken);
         await LoadAsync(request.PurchaseOrderId, cancellationToken);
     }
 
@@ -316,31 +313,24 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     {
         if (!CanConfirmCommand()) return;
         if (HasUnsavedChanges) { _messages.ShowWarning("请先保存", "确认前必须保存当前商务修改。"); return; }
-        var context = await _api.GetConfirmationContextAsync(PurchaseOrderId);
-        if (!Handle(context.ToClientResult(), "读取确认依据失败")) return;
-        var priorBindings = ConfirmationBindings.ToDictionary(x => (x.PurchaseOrderLineId, x.Path));
-        var sameBasis = _confirmationFingerprint == context.Data!.Fingerprint;
-        ConfirmationBindings.Clear();
-        foreach (var line in context.Data!.Lines)
-            foreach (var node in line.Bom.Nodes.Where(x => x.IsCustomerSupplied))
-                ConfirmationBindings.Add(sameBasis && priorBindings.TryGetValue((line.PurchaseOrderLineId, node.Path), out var prior)
-                    ? prior : new ProcurementConfirmationBindingModel { PurchaseOrderLineId = line.PurchaseOrderLineId, Path = node.Path, ComponentSku = node.ComponentSkuSnapshot });
-        _confirmationFingerprint = context.Data.Fingerprint;
-        HasConfirmationBindings = ConfirmationBindings.Count > 0; OnPropertyChanged(nameof(ConfirmationBindings));
-        if (ConfirmationBindings.Any(x => x.Warehouse is null))
-        { SelectedDetailTabIndex = 1; _messages.ShowWarning("需要消耗仓绑定", "请为每条客供件 BOM 路径选择消耗仓库，然后再次确认。"); return; }
-        if (!await _dialogs.ConfirmAsync("确认采购订单", $"订单 {OrderNo} 共 {Lines.Items.Count} 行，将冻结当前 BOM/消耗快照。是否继续？", "确认")) return;
-        _confirmCommandId = _confirmCommandId == Guid.Empty ? Guid.NewGuid() : _confirmCommandId;
-        var result = await _api.ConfirmAsync(PurchaseOrderId, new ConfirmProcurementOrderCommand
+        if (_pendingConfirmation is null)
         {
-            CommandId = _confirmCommandId,
-            ExpectedVersion = context.Data.Version,
-            ContextFingerprint = context.Data.Fingerprint,
-            ConsumptionBindings = ConfirmationBindings.Select(x => new ProcurementConsumptionBinding
-            { PurchaseOrderLineId = x.PurchaseOrderLineId, Path = x.Path, WarehouseSiteId = x.Warehouse!.Uid }).ToList()
-        });
+            var context = await _api.GetConfirmationContextAsync(PurchaseOrderId);
+            if (!Handle(context.ToClientResult(), "读取确认依据失败")) return;
+            if (!await _dialogs.ConfirmAsync("确认采购订单", $"订单 {OrderNo} 共 {Lines.Items.Count} 行，确认后锁定采购并允许入库。是否继续？", "确认")) return;
+            _pendingConfirmation = new ConfirmProcurementOrderCommand
+            {
+                CommandId = Guid.NewGuid(), ExpectedVersion = context.Data!.Version,
+                ContextFingerprint = context.Data.Fingerprint
+            };
+        }
+        NotifyState();
+        var result = await _api.ConfirmAsync(PurchaseOrderId, _pendingConfirmation);
+        if (!result.Success && result.Error?.Code is "VALIDATION" or "BUSINESS_BLOCKED" or "VERSION_CONFLICT" or "FORBIDDEN" or "UNAUTHENTICATED" or "PROC_BOM_BASIS_CHANGED")
+            _pendingConfirmation = null;
+        NotifyState();
         if (!Handle(result.ToClientResult(), "确认采购失败")) return;
-        _confirmCommandId = Guid.Empty; await LoadAsync(PurchaseOrderId, CancellationToken.None);
+        _pendingConfirmation = null; await LoadAsync(PurchaseOrderId, CancellationToken.None);
         _messages.ShowSuccess("采购已确认", OrderNo);
     }
 
@@ -359,13 +349,6 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     {
         IsCreateMode = true; OrderDate = DateTime.Today; Header.LoadCreate(); Lines.Clear(); AddLine();
         HeaderHasChanges = false; StatusText = "请选择客户、实际供应商并维护采购行。"; NotifyState();
-    }
-
-    private async Task LoadWarehouseCandidatesAsync(CancellationToken ct)
-    {
-        WarehouseCandidates.Clear();
-        var result = await _warehouses.SearchCandidatesAsync(new PagedRequestBase { PageIndex = 1, PageSize = 100 }, ct);
-        if (result.Success && result.Data is not null) WarehouseCandidates.AddRange(result.Data.Items);
     }
 
     private async Task LoadAsync(Guid uid, CancellationToken ct)
@@ -390,7 +373,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         var dto = result.Data!; PurchaseOrderId = dto.PurchaseOrderId; OrderNo = dto.OrderNo ?? string.Empty;
         IsReadOnly = false;
         Version = dto.Version; ConfirmationStatus = dto.ConfirmationStatus; LifecycleStatus = dto.LifecycleStatus;
-        Header.LoadNew(dto); Lines.LoadFromDtos(dto.Lines); ConfirmationBindings.Clear(); HasConfirmationBindings = false;
+        Header.LoadNew(dto); Lines.LoadFromDtos(dto.Lines);
         CustomerLookupText = Header.CustomerDisplay; SupplierLookupText = Header.SupplierDisplay;
         SelectedDetailTabIndex = 0; HeaderHasChanges = false; _loading = false;
         StatusText = $"已加载 {Lines.Items.Count} 条采购行。"; NotifyState();
@@ -403,7 +386,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         if (result.ErrorCode == SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.VersionConflict)
             _messages.ShowWarning("版本冲突", StatusText + " 本地修改已保留，请决定是否刷新。");
         else if (result.ErrorCode == ProcurementErrorCodes.BomBasisChanged)
-        { ConfirmationBindings.Clear(); HasConfirmationBindings = false; _messages.ShowWarning("确认依据已变化", StatusText); }
+        { _messages.ShowWarning("确认依据已变化", StatusText); }
         else _messages.ShowError(title, StatusText);
         return false;
     }

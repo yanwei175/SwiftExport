@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Application.Interfaces.DemandPlanning;
@@ -71,8 +71,8 @@ public sealed class ProcurementReversalSqlTests
         await db.AddBomAsync();
         var restoredContext = await db.ContextAsync(uid);
         Assert.IsTrue(restoredContext.Success, restoredContext.Message);
-        Assert.IsTrue(restoredContext.Data!.Lines.All(x => !x.Bom.HasBom));
-        Assert.AreEqual(originalContext.Data.Lines[0].Bom.Fingerprint, restoredContext.Data.Lines[0].Bom.Fingerprint);
+        Assert.AreEqual(2, restoredContext.Data!.Lines.Count);
+        Assert.AreEqual(0, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine"));
         first = cancelled;
         var deletion = new DeleteProcurementDraftLinesCommand { CommandId = Guid.NewGuid(), ExpectedVersion = first.Data.Version, Reason = "只释放选定贡献", Lines = [first.Data.Lines[0]] };
         await db.RejectLogsAsync();
@@ -116,6 +116,12 @@ public sealed class ProcurementReversalSqlTests
         var confirmed = await db.ConfirmAsync(uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = created.Data.Version, ContextFingerprint = basis.Data!.Fingerprint });
         Assert.IsTrue(confirmed.Success, confirmed.Message);
         var batch = confirmed.Data!.ConfirmationId;
+        // 模拟旧版本已保存的历史快照；新确认不写快照，反向操作仍须完整保留旧事实。
+        await db.ExecuteAsync("""
+            INSERT dbo.PurchaseConfirmationLine(Uid,ConfirmationId,PurchaseOrderId,PurchaseOrderLineId,CommandId,RootProductId,LineVersion,HasBom,Fingerprint,ConfirmedAt,RatioPolicy)
+            SELECT NEWID(),@batch,PurchaseOrderId,Uid,NEWID(),ProductId,Version,0,N'historical',GETDATE(),N'RawFactors-Final4-AwayFromZero'
+            FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid;
+            """,new {batch,uid});
         var cancel = new CancelProcurementOrderConfirmationCommand { CommandId = Guid.NewGuid(), ExpectedVersion = confirmed.Data.Version, Reason = "删除部分需求后重新采购" };
         var cancelled = await db.InScopeAsync(p => p.GetRequiredService<IProcurementOrderReversalService>().CancelConfirmationAsync(uid, cancel));
         Assert.IsTrue(cancelled.Success, cancelled.Message);
@@ -137,6 +143,10 @@ public sealed class ProcurementReversalSqlTests
         var reconfirmed = await db.ConfirmAsync(uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = deleted.Data.Version, ContextFingerprint = newBasis.Data!.Fingerprint });
         Assert.IsTrue(reconfirmed.Success, reconfirmed.Message);
         Assert.AreNotEqual(batch, reconfirmed.Data!.ConfirmationId);
+        var history = await db.InScopeAsync(p => p.GetRequiredService<IProcurementConfirmationQueryService>().GetSnapshotAsync(uid));
+        Assert.IsTrue(history.Success, history.Message);
+        Assert.AreEqual(batch, history.Data!.ConfirmationId);
+        Assert.AreEqual(2, history.Data.Lines.Count);
         var voided = await db.InScopeAsync(p => p.GetRequiredService<IProcurementOrderReversalService>().VoidAsync(uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = reconfirmed.Data.Version, Reason = "整单作废" }));
         Assert.IsTrue(voided.Success, voided.Message);
         Assert.AreEqual(reconfirmed.Data.ConfirmationId, voided.Data!.ConfirmationId);

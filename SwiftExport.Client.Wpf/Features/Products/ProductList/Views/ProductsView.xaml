@@ -1,9 +1,9 @@
 <UserControl x:Class="SwiftExportClient.Features.Products.ProductList.Views.ProductsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             mc:Ignorable="d"
-             d:Height="800"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:resourceProxies="clr-namespace:SwiftExportClient.Resources.Proxies"
              xmlns:imageControls="clr-namespace:SwiftExportClient.Resources.Controls"
@@ -15,8 +15,10 @@
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:staticEnums="clr-namespace:SwiftExport.Contracts.SysEnums.StaticEnums;assembly=SwiftExport.Contracts"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:vm="clr-namespace:SwiftExportClient.Features.Products.ProductList.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance vm:ProductsViewModel}"
+             d:Height="800">
     <UserControl.Resources>
         <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter" />
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
@@ -59,11 +61,15 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <controls:LookupTextBox Grid.Column="0"
-                                    Placeholder="键入搜索..."
-                                    MinimumSearchLength="0"
-                                    Text="{Binding Keyword, Mode=TwoWay}"
-                                    QueryCommand="{Binding SearchCommand}" />
+            <ui:TextBox Grid.Column="0"
+                        PlaceholderText="键入搜索..."
+                        Icon="{ui:SymbolIcon Symbol=Search24}"
+                        Text="{Binding Keyword, Mode=TwoWay}">
+                <ui:TextBox.InputBindings>
+                    <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                </ui:TextBox.InputBindings>
+            </ui:TextBox>
+    
 
             <ui:Button Margin="6,0,0,0" Grid.Column="2"
                        Appearance="Primary"
@@ -143,6 +149,7 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
+            
             <controls:LookupTextBox Grid.Column="0" 
                                     Placeholder="客户"
                                     SearchMode="Remote" 
@@ -158,6 +165,7 @@
             <controls:LookupTextBox Grid.Column="2" Placeholder="颜色"
                                     ClearSelectionOnEdit="False"
                                     SearchMode="Local"
+                                    ShowDropDownButton="True"
                                     ItemsSource="{Binding ReferenceDataCache.ProductColors}"
                                     DisplayMemberPath="ColorNameZh" 
                                     FilterMemberPaths="ColorCodeUnique,ColorCode,ColorNameZh,ColorNameEn"

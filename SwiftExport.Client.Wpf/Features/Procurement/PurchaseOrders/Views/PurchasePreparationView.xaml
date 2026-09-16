@@ -23,7 +23,7 @@
 
             <TextBlock Grid.Column="1" Text="{Binding SelectionValidationText}"
                        VerticalAlignment="Bottom"
-                       Foreground="{DynamicResource SwiftExportBrush.Error}"
+                       Foreground="{DynamicResource SwiftExportBrush.ErrorText}"
                        TextWrapping="Wrap" />
             
             <Button Grid.Column="3"

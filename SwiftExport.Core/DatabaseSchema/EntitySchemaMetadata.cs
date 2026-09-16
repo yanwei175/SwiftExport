@@ -1,4 +1,4 @@
-using SwiftExport.Core.DatabaseSchema;
+﻿using SwiftExport.Core.DatabaseSchema;
 using SwiftExport.Core.Entities.Auth;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Orders;
@@ -217,7 +217,6 @@ namespace SwiftExport.Core.Entities.Procurement
     [DbIndex("UX_PurchaseOrderHead_ExecutionRequest", nameof(PurchaseOrderHead.ExecutionRequestId), nameof(PurchaseOrderHead.SupplierId), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [LogicalReference(nameof(PurchaseOrderHead.CustomerId), typeof(Customer))]
     [LogicalReference(nameof(PurchaseOrderHead.SupplierId), typeof(Supplier), IsRequired = true)]
-    [LogicalReference(nameof(PurchaseOrderHead.ActiveConfirmationId), typeof(PurchaseConfirmationLine))]
     [DbImmutableColumns(nameof(PurchaseOrderHead.OriginKind), nameof(PurchaseOrderHead.ExecutionRequestId))]
     public sealed partial class PurchaseOrderHead { }
 

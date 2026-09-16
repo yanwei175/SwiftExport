@@ -357,7 +357,7 @@
                                        Style="{StaticResource CaptionTextBlock}" />
                             <TextBlock Text="{Binding ValidationSummary}" 
                                        Margin="12,0,0,0" 
-                                       Foreground="{DynamicResource SwiftExportBrush.Error}"
+                                       Foreground="{DynamicResource SwiftExportBrush.ErrorText}"
                                        Style="{StaticResource CaptionTextBlock}" />
                         </StackPanel>
                         

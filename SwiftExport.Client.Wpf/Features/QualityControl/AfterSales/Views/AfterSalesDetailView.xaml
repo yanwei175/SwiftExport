@@ -397,7 +397,7 @@
         <!--statue-->
         <Grid Grid.Row="6" ColumnDefinitions="*,Auto">
             <TextBlock Text="{Binding ResultSummary}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
-            <TextBlock Grid.Column="1" Text="{Binding ValidationSummary}" Foreground="{DynamicResource SwiftExportBrush.Error}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Assertive"/>
+            <TextBlock Grid.Column="1" Text="{Binding ValidationSummary}" Foreground="{DynamicResource SwiftExportBrush.ErrorText}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Assertive"/>
         </Grid>
     </Grid>
 </UserControl>

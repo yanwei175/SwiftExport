@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -7,6 +7,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../SwiftExport.Application.Tests/Procurement/ConfirmationDecouplingSqlTests.cs" Link="ConfirmationDecouplingSqlTests.cs" />
     <Compile Include="../../SwiftExport.Application.Tests/Procurement/IndependentProcurementSqlTests.cs" Link="IndependentProcurementSqlTests.cs" />
     <Compile Include="../../SwiftExport.Application.Tests/Procurement/PurchaseDraftAppendSqlTests.cs" Link="PurchaseDraftAppendSqlTests.cs" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />

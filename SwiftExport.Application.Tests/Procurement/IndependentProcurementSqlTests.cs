@@ -1,4 +1,4 @@
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Dapper;
@@ -157,10 +157,10 @@ public sealed class IndependentProcurementSqlTests
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderHead WHERE Uid=@uid AND (DemandSourceUid IS NOT NULL OR DemandSourceType IS NOT NULL OR DemandSourceNo IS NOT NULL)", new { uid }));
         var context = await Db.ContextAsync(uid);
         Assert.IsTrue(context.Success, context.Message);
-        Assert.IsFalse(context.Data.Lines.Single().Bom.HasBom);
+        Assert.AreEqual(1, context.Data.Lines.Count);
         var confirmed = await Db.ConfirmAsync(uid, ConfirmCommand(context.Data));
         Assert.IsTrue(confirmed.Success, confirmed.Message);
-        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine WHERE PurchaseOrderId=@uid AND HasBom=0", new { uid }));
+        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine WHERE PurchaseOrderId=@uid AND HasBom=0", new { uid }));
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT (SELECT COUNT(*) FROM dbo.GrossDemand)+(SELECT COUNT(*) FROM dbo.NetDemand)+(SELECT COUNT(*) FROM dbo.DemandExecutionLink)+(SELECT COUNT(*) FROM dbo.InventoryLedgerEntry)"));
     }
 
@@ -215,41 +215,32 @@ public sealed class IndependentProcurementSqlTests
         Assert.AreEqual(2, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt"));
     }
 
-    /// <summary>客供件全路径显式选择消耗仓，冻结比例和仓库快照且不误用收货供应商。</summary>
+    /// <summary>含客供件的采购不选消耗仓即可确认，命令重试保持同一批次。</summary>
     [TestMethod]
-    public async Task BomConfirmationRequiresExactBindingsAndPersistsConsumptionSnapshot()
+    public async Task BomConfirmationDoesNotBindWarehouseOrCreateSnapshot()
     {
         await Db.AddBomAsync();
         var created = await Db.CreateAsync();
-        Assert.IsTrue(created.Success, created.Message);
         var uid = created.Data.PurchaseOrderId;
         var context = await Db.ContextAsync(uid);
         Assert.IsTrue(context.Success, context.Message);
         var command = ConfirmCommand(context.Data);
-        Assert.IsFalse((await Db.ConfirmAsync(uid, command)).Success);
-        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine"));
-        AddBindings(command, context.Data);
         var confirmed = await Db.ConfirmAsync(uid, command);
         Assert.IsTrue(confirmed.Success, confirmed.Message);
-        Assert.AreEqual(Db.ConsumptionSiteId, await Db.ScalarAsync<Guid>("SELECT ConsumptionWarehouseSiteId FROM dbo.PurchaseConfirmationNode WHERE IsCustomerSupplied=1"));
-        Assert.AreEqual(Db.ConsumptionSupplierId, await Db.ScalarAsync<Guid>("SELECT ConsumptionSupplierId FROM dbo.PurchaseConfirmationNode WHERE IsCustomerSupplied=1"));
-        Assert.AreEqual(0.6667m, await Db.ScalarAsync<decimal>("SELECT CumulativeRatio FROM dbo.PurchaseConfirmationNode WHERE IsCustomerSupplied=1"));
-        await Db.ExecuteAsync("UPDATE dbo.Bom SET Numerator=7,Version=Version+1 WHERE Uid=@uid", new { uid = Db.BomLineId });
-        await Db.ExecuteAsync("UPDATE dbo.Product SET IsActive=0 WHERE Uid=@uid", new { uid = Db.ProductId });
-        var history = await Db.InScopeAsync(p => p.GetRequiredService<IProcurementConfirmationQueryService>().GetSnapshotAsync(uid));
-        Assert.IsTrue(history.Success, history.Message);
-        var frozen = history.Data.Lines.Single().Nodes.Single(n => n.Structure.IsCustomerSupplied);
-        Assert.AreEqual(0.6667m, frozen.Structure.CumulativeRatio);
-        Assert.AreEqual(Db.ConsumptionSiteId, frozen.ConsumptionWarehouseSiteId);
+        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationNode"));
+        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine"));
+        Assert.IsNotNull(confirmed.Data.ConfirmationId);
         var replay = await Db.ConfirmAsync(uid, command);
         Assert.IsTrue(replay.Success, replay.Message);
         Assert.AreEqual(confirmed.Data.ConfirmationId, replay.Data.ConfirmationId);
-        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine"));
+        var history = await Db.InScopeAsync(p => p.GetRequiredService<IProcurementConfirmationQueryService>().GetSnapshotAsync(uid));
+        Assert.IsTrue(history.Success, history.Message);
+        Assert.AreEqual(0, history.Data.Lines.Count);
     }
 
-    /// <summary>上下文读取之后 BOM 改变时拒绝旧指纹，失败不产生确认状态或快照。</summary>
+    /// <summary>BOM 改变不影响采购事实指纹。</summary>
     [TestMethod]
-    public async Task ChangedBomContextRejectsConfirmationWithoutPartialWrites()
+    public async Task ChangedBomDoesNotInvalidateConfirmation()
     {
         await Db.AddBomAsync();
         var created = await Db.CreateAsync();
@@ -257,16 +248,15 @@ public sealed class IndependentProcurementSqlTests
         var context = await Db.ContextAsync(created.Data.PurchaseOrderId);
         Assert.IsTrue(context.Success, context.Message);
         var command = ConfirmCommand(context.Data);
-        AddBindings(command, context.Data);
         await Db.ExecuteAsync("UPDATE dbo.Bom SET Numerator=3,Version=Version+1 WHERE Uid=@uid", new { uid = Db.BomLineId });
         var failed = await Db.ConfirmAsync(created.Data.PurchaseOrderId, command);
-        Assert.IsFalse(failed.Success);
+        Assert.IsTrue(failed.Success, failed.Message);
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine"));
-        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT ConfirmationStatus FROM dbo.PurchaseOrderHead"));
-        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt"));
+        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT ConfirmationStatus FROM dbo.PurchaseOrderHead"));
+        Assert.AreEqual(2, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt"));
     }
 
-    /// <summary>缺失主数据、失效单位或缺失 BOM 子项均阻止新事实形成，不能回退成无 BOM。</summary>
+    /// <summary>缺失主数据和失效单位仍阻断，BOM 子项损坏不影响采购确认。</summary>
     [TestMethod]
     public async Task MissingMasterInvalidUnitAndBrokenBomAreRejected()
     {
@@ -282,11 +272,11 @@ public sealed class IndependentProcurementSqlTests
         Assert.IsTrue(created.Success, created.Message);
         await Db.ExecuteAsync("UPDATE dbo.Bom SET ComponentProductId=NEWID() WHERE Uid=@uid", new { uid = Db.BomLineId });
         var context = await Db.ContextAsync(created.Data.PurchaseOrderId);
-        Assert.IsFalse(context.Success);
+        Assert.IsTrue(context.Success, context.Message);
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine"));
     }
 
-    /// <summary>两个并发确认只有一个成功；版本锁和事务确保只形成一批快照。</summary>
+    /// <summary>两个并发确认只有一个成功；版本锁和事务确保只形成一个确认批次。</summary>
     [TestMethod]
     public async Task ConcurrentConfirmationsProduceOneSnapshotBatch()
     {
@@ -297,7 +287,7 @@ public sealed class IndependentProcurementSqlTests
         Assert.IsTrue(context.Success, context.Message);
         var results = await Task.WhenAll(Db.ConfirmAsync(uid, ConfirmCommand(context.Data)), Db.ConfirmAsync(uid, ConfirmCommand(context.Data)));
         Assert.AreEqual(1, results.Count(r => r.Success));
-        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(DISTINCT ConfirmationId) FROM dbo.PurchaseConfirmationLine"));
+        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(DISTINCT ActiveConfirmationId) FROM dbo.PurchaseOrderHead"));
         Assert.AreEqual(2, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt"));
     }
 
@@ -325,7 +315,6 @@ public sealed class IndependentProcurementSqlTests
         var context = await Db.ContextAsync(uid);
         Assert.IsTrue(context.Success, context.Message);
         var command = ConfirmCommand(context.Data);
-        AddBindings(command, context.Data);
         await Db.RejectLogsAsync();
         Assert.IsFalse((await Db.ConfirmAsync(uid, command)).Success);
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine"));
@@ -348,12 +337,11 @@ public sealed class IndependentProcurementSqlTests
         var uid = created.Data.PurchaseOrderId;
         var context = await Db.ContextAsync(uid);
         Assert.IsTrue(context.Success, context.Message);
-        Assert.IsTrue(context.Data.Lines.Single().Bom.HasBom);
-        Assert.IsFalse(context.Data.Lines.Single().Bom.Nodes.Any(n => n.IsCustomerSupplied));
+        Assert.AreEqual(1, context.Data.Lines.Count);
         var confirmed = await Db.ConfirmAsync(uid, ConfirmCommand(context.Data));
         Assert.IsTrue(confirmed.Success, confirmed.Message);
-        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine WHERE HasBom=1"));
-        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationNode WHERE ConsumptionWarehouseSiteId IS NULL"));
+        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine WHERE HasBom=1"));
+        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationNode WHERE ConsumptionWarehouseSiteId IS NULL"));
     }
 
     /// <summary>真实账号停用后即使已有成功命令回执也拒绝重放，不通过旧回执绕过权限。</summary>
@@ -462,7 +450,7 @@ public sealed class IndependentProcurementSqlTests
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine"));
     }
 
-    /// <summary>正在读取确认依据时，第二连接修改 BOM 被数据库锁阻塞；提交后新读取产生不同指纹。</summary>
+    /// <summary>采购确认预览不阻塞 BOM 更新，更新后采购事实指纹不变。</summary>
     [TestMethod]
     public async Task BomUpdateWaitsForCoherentReadTransaction()
     {
@@ -470,26 +458,26 @@ public sealed class IndependentProcurementSqlTests
         var created = await Db.CreateAsync();
         Assert.IsTrue(created.Success, created.Message);
         var uid = created.Data.PurchaseOrderId;
-        var fingerprint = await ReadWhileWriterIsBlockedAsync(uid,
+        var fingerprint = await ReadWhileBomWriterCompletesAsync(uid,
             "UPDATE dbo.Bom SET Numerator=5,Version=Version+1 WHERE Uid=@BomLineId;",
             new { Db.BomLineId });
         var after = await Db.ContextAsync(uid);
         Assert.IsTrue(after.Success, after.Message);
-        Assert.AreNotEqual(fingerprint, after.Data.Fingerprint);
+        Assert.AreEqual(fingerprint, after.Data.Fingerprint);
     }
 
-    /// <summary>无 BOM 的空组成范围同样持锁；并发插入等待事务结束，之后非法隐藏组成不能被当作无 BOM。</summary>
+    /// <summary>采购确认不锁定空 BOM 范围，插入组成不改变采购确认资格。</summary>
     [TestMethod]
     public async Task EmptyBomRangeBlocksConcurrentInsertion()
     {
         var created = await Db.CreateAsync();
         Assert.IsTrue(created.Success, created.Message);
         var uid = created.Data.PurchaseOrderId;
-        await ReadWhileWriterIsBlockedAsync(uid, """
+        await ReadWhileBomWriterCompletesAsync(uid, """
             INSERT dbo.Bom(Uid,BomNo,BomVersion,ParentProductId,ParentSkuSnapshot,LineNumber,ComponentProductId,ComponentSkuSnapshot,Numerator,Denominator)
             VALUES(@BomLineId,N'TEST-BOM',1,@ProductId,N'TEST-FG',1,@ComponentId,N'TEST-B',2,3);
             """, new { Db.BomLineId, Db.ProductId, Db.ComponentId });
-        Assert.IsFalse((await Db.ContextAsync(uid)).Success);
+        Assert.IsTrue((await Db.ContextAsync(uid)).Success);
     }
 
     /// <summary>旧库升级已退出支持；历史迁移用例不再进入当前空库验收。</summary>
@@ -514,8 +502,8 @@ public sealed class IndependentProcurementSqlTests
         }
     }
 
-    /// <summary>查询 SQL Server 正在执行请求的 blocking_session_id，证明写入确实等待读取事务，而非仅等待线程调度。</summary>
-    private async Task<string> ReadWhileWriterIsBlockedAsync(Guid uid, string sql, object args)
+    /// <summary>在采购读取事务尚未提交时完成独立 BOM 写入，证明已解除结构范围锁依赖。</summary>
+    private async Task<string> ReadWhileBomWriterCompletesAsync(Guid uid, string sql, object args)
     {
         return await Db.InScopeAsync(async provider =>
         {
@@ -531,17 +519,9 @@ public sealed class IndependentProcurementSqlTests
                 var repository = provider.GetRequiredService<IProcurementOrderRepository>();
                 var head = await repository.GetHeadAsync(uid, default);
                 var lines = await repository.GetLinesAsync(uid, default);
-                var context = await provider.GetRequiredService<ProcurementConfirmationBuilder>().BuildAsync(head!, lines, default);
+                var context = await provider.GetRequiredService<ProcurementConfirmationBuilder>().BuildAsync(await provider.GetRequiredService<IProcurementReversalRepository>().LockAsync(uid, default), default);
                 pending = writer.ExecuteAsync(sql, args, commandTimeout: 20);
-                var blockedBy = 0;
-                for (var attempt = 0; attempt < 30 && blockedBy != readerId; attempt++)
-                {
-                    await Task.Delay(100);
-                    blockedBy = await Db.ScalarAsync<int>("SELECT COALESCE(MAX(blocking_session_id),0) FROM sys.dm_exec_requests WHERE session_id=@writerId", new { writerId });
-                    if (pending.IsCompleted) break;
-                }
-                Assert.AreEqual(readerId, blockedBy, "并发 BOM 写入必须被读取事务真实阻塞。");
-                Assert.IsFalse(pending.IsCompleted);
+                Assert.AreEqual(1, await pending.WaitAsync(TimeSpan.FromSeconds(5)), "采购确认读取不应锁定 BOM 范围。");
                 transaction.Commit();
                 session.Transaction = null;
                 Assert.AreEqual(1, await pending);
@@ -564,7 +544,7 @@ public sealed class IndependentProcurementSqlTests
         CommandId = Guid.NewGuid(), ExpectedVersion = order.Version, Remark = "商务修改",
         Lines = order.Lines.Select(l => new UpdatePurchaseOrderDraftLineCommand
         {
-            PurchaseOrderLineId = l.PurchaseOrderLineId, ExpectedVersion = l.Version, TaxPrice = 3m,
+            PurchaseOrderLineId = l.PurchaseOrderLineId, ExpectedVersion = l.Version, UnitPrice = 2m, TaxPrice = 3m,
             SupplierSku = "SUPPLIER-UPDATED", PlannedDeliveryDate = new DateTime(2026, 9, 10)
         }).ToList()
     };
@@ -574,10 +554,4 @@ public sealed class IndependentProcurementSqlTests
         CommandId = Guid.NewGuid(), ExpectedVersion = context.Version, ContextFingerprint = context.Fingerprint
     };
 
-    /// <summary>绑定服务端实际返回的每个客供件完整路径，避免测试假设 BOM 路径编码。</summary>
-    private void AddBindings(ConfirmProcurementOrderCommand command, ProcurementConfirmationContextDto context)
-    {
-        command.ConsumptionBindings = context.Lines.SelectMany(l => l.Bom.Nodes.Where(n => n.IsCustomerSupplied).Select(n =>
-            new ProcurementConsumptionBinding { PurchaseOrderLineId = l.PurchaseOrderLineId, Path = n.Path, WarehouseSiteId = Db.ConsumptionSiteId })).ToList();
-    }
 }

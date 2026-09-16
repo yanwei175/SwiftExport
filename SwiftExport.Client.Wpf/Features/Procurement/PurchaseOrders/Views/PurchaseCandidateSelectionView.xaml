@@ -265,7 +265,7 @@
                                                     <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextPrimary}"/>
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding DeliverySupplierDisplay}" Value="未选择">
-                                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.Error}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ErrorText}"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>

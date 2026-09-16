@@ -1,4 +1,4 @@
-using Dapper;
+﻿using Dapper;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.MasterData;
@@ -56,10 +56,6 @@ public sealed class ProcurementOrderRepository(RepositoryBaseContext context) : 
               WHERE r.SupplierId=@supplierId AND r.SkuId=p.Uid AND ISNULL(r.IsDeleted,0)=0 ORDER BY r.Uid) sp
             WHERE p.Uid=@productId AND p.IsActive=1 AND ISNULL(p.IsDeleted,0)=0;
             """, new { productId, customerId, supplierId }, ct));
-    /// <inheritdoc/>
-    public Task<WarehouseSite?> GetWarehouseAsync(Guid uid, CancellationToken ct)
-        => context.Session.Connection.QuerySingleOrDefaultAsync<WarehouseSite>(Command(
-            "SELECT * FROM dbo.WarehouseSite WITH(HOLDLOCK) WHERE Uid=@uid AND IsDeleted=0;", new { uid }, ct));
     /// <inheritdoc/>
     public async Task<string?> GetUnitAsync(string unit, CancellationToken ct)
     {
@@ -125,38 +121,8 @@ public sealed class ProcurementOrderRepository(RepositoryBaseContext context) : 
         }
     }
     /// <inheritdoc/>
-    public async Task ConfirmAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseConfirmationLine> snapshots, IReadOnlyList<PurchaseConfirmationNode> nodes, CancellationToken ct)
+    public async Task ConfirmAsync(PurchaseOrderHead head, CancellationToken ct)
     {
-        foreach (var item in snapshots)
-        {
-            context.AuditStamp.StampForInsert(item);
-            await context.Session.Connection.ExecuteAsync(Command("""
-                INSERT dbo.PurchaseConfirmationLine
-                (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,ConfirmationId,PurchaseOrderId,
-                 PurchaseOrderLineId,CommandId,RootProductId,LineVersion,HasBom,Fingerprint,ConfirmedAt,RatioPolicy)
-                VALUES
-                (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@ConfirmationId,@PurchaseOrderId,
-                 @PurchaseOrderLineId,@CommandId,@RootProductId,@LineVersion,@HasBom,@Fingerprint,@ConfirmedAt,@RatioPolicy);
-                """, item, ct));
-        }
-        foreach (var item in nodes)
-        {
-            context.AuditStamp.StampForInsert(item);
-            await context.Session.Connection.ExecuteAsync(Command("""
-                INSERT dbo.PurchaseConfirmationNode
-                (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,ConfirmationLineId,Path,
-                 RootProductId,ParentProductId,ComponentProductId,BomLineId,ParentBomNo,ParentBomVersion,
-                 ParentSkuSnapshot,ComponentSkuSnapshot,UnitSnapshot,MaterialType,SupplyType,Numerator,Denominator,
-                 CumulativeRatio,IsCustomerSupplied,ConsumptionWarehouseSiteId,WarehouseCodeSnapshot,WarehouseNameSnapshot,
-                 ConsumptionSupplierId,SupplierCodeSnapshot,SupplierNameSnapshot)
-                VALUES
-                (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@ConfirmationLineId,@Path,
-                 @RootProductId,@ParentProductId,@ComponentProductId,@BomLineId,@ParentBomNo,@ParentBomVersion,
-                 @ParentSkuSnapshot,@ComponentSkuSnapshot,@UnitSnapshot,@MaterialType,@SupplyType,@Numerator,@Denominator,
-                 @CumulativeRatio,@IsCustomerSupplied,@ConsumptionWarehouseSiteId,@WarehouseCodeSnapshot,@WarehouseNameSnapshot,
-                 @ConsumptionSupplierId,@SupplierCodeSnapshot,@SupplierNameSnapshot);
-                """, item, ct));
-        }
         context.AuditStamp.StampForUpdate(head);
         if (await context.Session.Connection.ExecuteAsync(Command("""
             UPDATE dbo.PurchaseOrderHead SET ConfirmationStatus=1,ActiveConfirmationId=@ActiveConfirmationId,

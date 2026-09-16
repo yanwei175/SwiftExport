@@ -1,4 +1,4 @@
-using Mapster;
+﻿using Mapster;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums;
@@ -28,48 +28,14 @@ public sealed partial class ProcurementOrderCommandService
                     || line.UnitAmount != ProcurementOrderPolicy.Amount(line.Quantity, line.UnitPrice))
                     throw new InvalidOperationException("采购金额与数量单价不一致。");
             }
-            var basis = await confirmation.BuildAsync(head, lines, ct);
+            var basis = await confirmation.BuildAsync(facts, ct);
             if (basis.Fingerprint != command.ContextFingerprint)
-                throw new ProcurementOperationException(ProcurementErrorCodes.BomBasisChanged, "确认依据已改变，请重新读取 BOM 上下文。", "ContextFingerprint");
-            var bindings = command.ConsumptionBindings;
-            if (bindings is null || bindings.Any(x => x is null || string.IsNullOrWhiteSpace(x.Path))
-                || bindings.Select(x => (x.PurchaseOrderLineId, x.Path)).Distinct().Count() != bindings.Count)
-                throw new InvalidOperationException("客供件消耗目标存在空值或重复路径。");
-            var required = basis.Lines.SelectMany(l => l.Bom.Nodes.Where(n => n.IsCustomerSupplied).Select(n => (l.PurchaseOrderLineId, n.Path))).ToHashSet();
-            if (!required.SetEquals(bindings.Select(x => (x.PurchaseOrderLineId, x.Path))))
-                throw new InvalidOperationException("必须且只能为每个客供件完整路径指定消耗仓库。");
+                throw new ProcurementOperationException(ProcurementErrorCodes.BomBasisChanged, "确认依据已改变，请重新读取采购确认预览。", "ContextFingerprint");
+            // 每次确认保留独立批次身份；不再创建 BOM 或消耗仓快照。
             var batchId = GuidSequentialGenerator.NewGuid();
-            var snapshots = new List<PurchaseConfirmationLine>();
-            var nodes = new List<PurchaseConfirmationNode>();
             var now = DateTime.Now;
-            foreach (var item in basis.Lines)
-            {
-                var snapshot = new PurchaseConfirmationLine
-                {
-                    Uid = GuidSequentialGenerator.NewGuid(), ConfirmationId = batchId, PurchaseOrderId = uid,
-                    PurchaseOrderLineId = item.PurchaseOrderLineId, LineVersion = item.LineVersion,
-                    CommandId = command.CommandId, RootProductId = item.Bom.RootProductId, HasBom = item.Bom.HasBom,
-                    Fingerprint = item.Bom.Fingerprint, ConfirmedAt = now
-                };
-                snapshots.Add(snapshot);
-                foreach (var original in item.Bom.Nodes)
-                {
-                    var node = original.Adapt<PurchaseConfirmationNode>(mappings);
-                    node.Uid = GuidSequentialGenerator.NewGuid(); node.ConfirmationLineId = snapshot.Uid;
-                    if (node.IsCustomerSupplied)
-                    {
-                        var binding = bindings.Single(x => x.PurchaseOrderLineId == item.PurchaseOrderLineId && x.Path == node.Path);
-                        var target = await confirmation.RequireWarehouseAsync(binding.WarehouseSiteId, ct);
-                        node.ConsumptionWarehouseSiteId = target.Site.Uid;
-                        node.WarehouseCodeSnapshot = target.Site.Code; node.WarehouseNameSnapshot = target.Site.Name;
-                        node.ConsumptionSupplierId = target.Supplier.Uid;
-                        node.SupplierCodeSnapshot = target.Supplier.SupplierCode; node.SupplierNameSnapshot = target.Supplier.SupplierName;
-                    }
-                    nodes.Add(node);
-                }
-            }
             head.ActiveConfirmationId = batchId; head.ConfirmedDate = now; head.ConfirmedBy = user.UserName;
-            await repository.ConfirmAsync(head, snapshots, nodes, ct);
+            await repository.ConfirmAsync(head, ct);
             head.Version++; head.ConfirmationStatus = ConfirmationStatusEnum.已确认;
             return Result(head, lines);
         }, ct);

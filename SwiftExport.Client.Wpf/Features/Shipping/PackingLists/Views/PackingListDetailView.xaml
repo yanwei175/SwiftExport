@@ -327,7 +327,7 @@
         <!--Message-->
         <Grid Grid.Row="6">
             <StackPanel>
-                <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" Foreground="{DynamicResource SwiftExportBrush.Error}"/>
+                <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" Foreground="{DynamicResource SwiftExportBrush.ErrorText}"/>
                 <TextBlock Text="{Binding ResultSummary}" TextWrapping="Wrap"/>
             </StackPanel>
         </Grid>

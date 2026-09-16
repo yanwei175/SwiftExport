@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.Input;
+﻿using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums;
@@ -13,11 +13,10 @@ public sealed partial class PurchaseOrderDetailViewModel
     private readonly ProcurementReversalSession _reversalSession;
     private readonly IProcurementReversalDialogService? _reversalDialogs;
     private bool _reversalDisposed;
-    private string? _confirmationFingerprint;
     private string ReversalUser => _currentUser.CurrentUser?.UserId ?? string.Empty;
     /// <summary>未决反向命令存在时冻结本单编辑，但允许刷新和原命令重试。</summary>
     public bool CanInteractWithDocument => !_reversalDisposed && !IsReadOnly && _reversalSession.Find(ReversalUser, PurchaseOrderId) is null;
-    private bool CanVoidOrder() => IsNotBusy && CanInteractWithDocument && !IsCreateMode && !HasUnsavedChanges
+    private bool CanVoidOrder() => _pendingConfirmation is null && IsNotBusy && CanInteractWithDocument && !IsCreateMode && !HasUnsavedChanges
         && _currentUser.HasPermission(PermissionKeys.ProcurementOrderVoid) && LifecycleStatus == PurchaseOrderLifecycleStatusEnum.Active;
     private bool CanDeleteDraftLines() => IsNotBusy && CanEdit && !HasUnsavedChanges && Lines.Items.Count > 0;
     private bool CanRetryReversal() => IsNotBusy && _reversalSession.Find(ReversalUser, PurchaseOrderId) is not null;

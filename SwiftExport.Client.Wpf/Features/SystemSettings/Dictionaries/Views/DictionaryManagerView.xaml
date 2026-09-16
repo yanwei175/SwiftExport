@@ -104,7 +104,7 @@
                                                        Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
                                             <TextBlock Margin="0,2,0,0"
                                                        Text="未配置"
-                                                       Foreground="{DynamicResource SwiftExportBrush.Error}">
+                                                       Foreground="{DynamicResource SwiftExportBrush.ErrorText}">
                                                 <TextBlock.Style>
                                                     <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource CaptionTextBlock}">
                                                         <Setter Property="Visibility" Value="Collapsed" />

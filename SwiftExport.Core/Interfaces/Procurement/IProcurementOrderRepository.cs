@@ -1,4 +1,4 @@
-using SwiftExport.Core.Entities.Procurement;
+﻿using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Core.Entities.Inventory;
@@ -20,16 +20,14 @@ public interface IProcurementOrderRepository
     Task<Product?> GetProductAsync(Guid uid, CancellationToken ct);
     /// <summary>读取创建采购行所需的权威产品及当前客户、供应商关系快照。</summary>
     Task<ProcurementProductCandidateDto?> GetProductCandidateAsync(Guid productId, Guid customerId, Guid supplierId, CancellationToken ct);
-    /// <summary>读取并锁定当前收货或消耗仓库。</summary>
-    Task<WarehouseSite?> GetWarehouseAsync(Guid uid, CancellationToken ct);
     /// <summary>取得唯一启用的规范单位代码，失效或重复时返回空。</summary>
     Task<string?> GetUnitAsync(string unit, CancellationToken ct);
     /// <summary>插入新头行，依赖调用方事务。</summary>
     Task InsertAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines, CancellationToken ct);
     /// <summary>仅更新商务白名单并推进头行版本。</summary>
     Task SaveAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines, CancellationToken ct);
-    /// <summary>固化所有行依据和节点后确认订单；任何写入失败均抛异常回滚。</summary>
-    Task ConfirmAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseConfirmationLine> snapshots, IReadOnlyList<PurchaseConfirmationNode> nodes, CancellationToken ct);
+    /// <summary>保存采购确认状态、批次与审计；不生成 BOM 节点或库存事实。</summary>
+    Task ConfirmAsync(PurchaseOrderHead head, CancellationToken ct);
     /// <summary>保存命令原始结果；命令键唯一。</summary>
     Task InsertReceiptAsync(ProcurementCommandReceipt receipt, CancellationToken ct);
 }

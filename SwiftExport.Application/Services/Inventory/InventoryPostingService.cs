@@ -1,4 +1,4 @@
-using SwiftExport.Application.Contexts;
+﻿using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Inventory;
@@ -166,9 +166,12 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
         var products = new Dictionary<Guid, Product>();
         foreach (var warehouseId in pending.Select(x => x.WarehouseSiteId).Distinct().OrderBy(x => x))
         {
-            var site = await warehouseSites.GetForUpdateAsync(warehouseId) ?? throw new InventoryPostingException("虚拟仓不存在。");
-            if (!site.IsActive && pending.Any(x => x.WarehouseSiteId == warehouseId && x.TransactionType != InventoryTransactionTypeEnum.Reversal && !x.CorrectionGroupId.HasValue))
-                throw new InventoryPostingException("虚拟仓已停用，不能新增普通库存事实。");
+            // 与软删除共用仓库行锁；反向必须先恢复原仓，不能悄悄改到其他仓库。
+            var site = await warehouseSites.GetForUpdateAsync(warehouseId);
+            if (site is null || site.IsDeleted || !site.IsActive)
+                throw new InventoryPostingException(pending.Any(x => x.WarehouseSiteId == warehouseId && x.TransactionType == InventoryTransactionTypeEnum.Reversal)
+                    ? "原实际仓库已删除、停用或不存在，请先恢复原仓库后再反过账。"
+                    : "仓库已删除、停用或不存在，请重新选择有效仓库。");
             sites.Add(warehouseId, site);
         }
         foreach (var productId in pending.Select(x => x.ProductId).Distinct().OrderBy(x => x))

@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Mapster;
 using SwiftExport.Contracts.Apis.Procurement;
@@ -178,21 +178,8 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
             return;
         }
 
-        var requiresConsumptionBinding = context.Data.Lines
-            .SelectMany(static line => line.Bom.Nodes)
-            .Any(static node => node.IsCustomerSupplied);
-        var prompt = $"采购单：{order.OrderNo}\n供应商：{order.SupplierName}\n行数：{context.Data.Lines.Count}\n\n"
-            + (requiresConsumptionBinding
-                ? "订单存在尚需选择的 BOM/客供件消耗绑定，将进入采购详情完成确认。"
-                : "确认后将冻结当前 BOM 与消耗依据，是否继续？");
-        if (!await _dialogs.ConfirmAsync("确认采购订单", prompt, requiresConsumptionBinding ? "进入详情" : "确认"))
-            return;
-
-        if (requiresConsumptionBinding)
-        {
-            await OpenDetailAsync();
-            return;
-        }
+        var prompt = $"采购单：{order.OrderNo}\n供应商：{order.SupplierName}\n行数：{context.Data.Lines.Count}\n\n确认后锁定采购并允许入库，是否继续？";
+        if (!await _dialogs.ConfirmAsync("确认采购订单", prompt, "确认")) return;
 
         await RunWriteAsync(async () =>
         {
@@ -207,7 +194,6 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
                 CommandId = Guid.NewGuid(),
                 ExpectedVersion = context.Data.Version,
                 ContextFingerprint = context.Data.Fingerprint,
-                ConsumptionBindings = []
             };
             SwiftExport.Contracts.Wrappers.ServiceResult<ProcurementOrderCommandResult>? result = null;
             try
@@ -286,11 +272,6 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
                     skipped.Add($"{order.OrderNo}：{GetFailureText(context, "读取确认依据失败。")}");
                     continue;
                 }
-                if (RequiresConsumptionBinding(context.Data))
-                {
-                    skipped.Add($"{order.OrderNo}：需要进入采购详情选择 BOM/客供件消耗绑定。");
-                    continue;
-                }
 
                 plans.Add(new BatchConfirmationPlan
                 {
@@ -300,7 +281,6 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
                         CommandId = Guid.NewGuid(),
                         ExpectedVersion = context.Data.Version,
                         ContextFingerprint = context.Data.Fingerprint,
-                        ConsumptionBindings = []
                     }
                 });
             }
@@ -397,7 +377,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
             ? await _orderApi.GetConfirmationSnapshotAsync(order.PurchaseOrderId)
             : null;
         var text = result?.Success == true && result.Data is not null
-            ? $"确认批次：{result.Data.ConfirmationId}\n冻结行数：{result.Data.Lines.Count}\n新链追溯当前只展示订单详情与冻结 BOM/消耗快照。"
+            ? result.Data.Lines.Count == 0 ? "没有旧版本 BOM 确认快照；不影响采购确认或入库。" : $"历史确认批次：{result.Data.ConfirmationId}\n冻结行数：{result.Data.Lines.Count}\n此处仅展示旧版本保留的历史结构；新确认不生成 BOM/消耗快照。"
             : "订单尚未形成确认快照。新链不伪造需求 Link、跟进或入库追溯数据。";
         await _dialogs.ShowContentAsync($"采购追溯 · {order.OrderNo}", text);
     }
@@ -545,11 +525,6 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         foreach (var order in Orders)
             order.PropertyChanged -= OnOrderPropertyChanged;
     }
-
-    /// <summary>判断确认上下文是否包含必须在详情页人工绑定的客供 BOM 节点。</summary>
-    private static bool RequiresConsumptionBinding(ProcurementConfirmationContextDto context) => context.Lines
-        .SelectMany(static line => line.Bom.Nodes)
-        .Any(static node => node.IsCustomerSupplied);
 
     /// <summary>提取服务返回的可读失败原因，并为缺失信息提供稳定兜底。</summary>
     private static string GetFailureText<T>(SwiftExport.Contracts.Wrappers.ServiceResult<T> result, string fallback)

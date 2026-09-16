@@ -1,4 +1,4 @@
-using Dapper;
+﻿using Dapper;
 using Microsoft.Data.SqlClient;
 using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
@@ -158,14 +158,9 @@ public sealed class WarehouseSiteRepository(RepositoryBaseContext context) : IWa
     public async Task<IReadOnlyList<string>> GetDeleteBlockersAsync(Guid warehouseSiteId, CancellationToken cancellationToken = default)
     {
         const string sql = """
-            SELECT Blocker FROM (
-                SELECT N'库存余额' Blocker WHERE EXISTS(SELECT 1 FROM dbo.InventoryBalance WITH(UPDLOCK,HOLDLOCK) WHERE WarehouseSiteId=@WarehouseSiteId)
-                UNION ALL SELECT N'库存流水' WHERE EXISTS(SELECT 1 FROM dbo.InventoryLedgerEntry WITH(UPDLOCK,HOLDLOCK) WHERE WarehouseSiteId=@WarehouseSiteId)
-                UNION ALL SELECT N'采购确认节点' WHERE EXISTS(SELECT 1 FROM dbo.PurchaseConfirmationNode WITH(UPDLOCK,HOLDLOCK) WHERE ConsumptionWarehouseSiteId=@WarehouseSiteId)
-                UNION ALL SELECT N'正式入库单' WHERE EXISTS(SELECT 1 FROM dbo.InboundDocument WITH(UPDLOCK,HOLDLOCK) WHERE WarehouseSiteId=@WarehouseSiteId)
-                UNION ALL SELECT N'正式出库单' WHERE EXISTS(SELECT 1 FROM dbo.OutboundDocument WITH(UPDLOCK,HOLDLOCK) WHERE WarehouseSiteId=@WarehouseSiteId)
-                UNION ALL SELECT N'PackingList明细' WHERE EXISTS(SELECT 1 FROM dbo.PackingListLine WITH(UPDLOCK,HOLDLOCK) WHERE WarehouseSiteId=@WarehouseSiteId)
-            ) b;
+            SELECT N'库存余额非零' AS Blocker
+            WHERE EXISTS(SELECT 1 FROM dbo.InventoryBalance WITH(UPDLOCK,HOLDLOCK)
+                WHERE WarehouseSiteId=@WarehouseSiteId AND IsDeleted=0 AND OnHandQty<>0);
             """;
         var rows = await _context.Session.Connection.QueryAsync<string>(new CommandDefinition(
             sql, new { WarehouseSiteId = warehouseSiteId }, _context.Session.Transaction, cancellationToken: cancellationToken));

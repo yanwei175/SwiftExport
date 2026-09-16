@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.Procurement;
@@ -130,9 +130,9 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         Assert.IsFalse(noReadFixture.ViewModel.BatchConfirmCommand.CanExecute(null));
     }
 
-    /// <summary>客供 BOM 在预检时跳过；其余订单使用预检时固定的版本、指纹与命令身份提交。</summary>
+    /// <summary>客供件不再因消耗绑定跳过；确认使用预检时固定的版本、指纹与命令身份。</summary>
     [TestMethod]
-    public async Task CustomerSuppliedOrderMustBeSkippedAndExecutableCommandMustUseFreshContext()
+    public async Task CustomerSuppliedOrderConfirmsWithoutWarehouseBinding()
     {
         var skipped = Order("PO-CS");
         var contextFailure = Order("PO-CTX");
@@ -147,15 +147,15 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
 
         await fixture.ViewModel.BatchConfirmCommand.ExecuteAsync(null);
 
-        Assert.HasCount(1, fixture.Orders.ConfirmCalls);
-        var call = fixture.Orders.ConfirmCalls[0];
+        Assert.HasCount(2, fixture.Orders.ConfirmCalls);
+        var call = fixture.Orders.ConfirmCalls.Single(x => x.OrderId == executable.PurchaseOrderId);
         Assert.AreEqual(executable.PurchaseOrderId, call.OrderId);
         Assert.AreEqual(9, call.Command.ExpectedVersion);
         Assert.AreEqual("fp-ok", call.Command.ContextFingerprint);
         Assert.AreNotEqual(Guid.Empty, call.Command.CommandId);
-        Assert.HasCount(0, call.Command.ConsumptionBindings);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(call.Command.ContextFingerprint));
         StringAssert.Contains(fixture.Dialogs.LastConfirmationMessage, "PO-CS");
-        StringAssert.Contains(fixture.Dialogs.LastConfirmationMessage, "采购详情");
+        Assert.IsFalse(fixture.Dialogs.LastConfirmationMessage.Contains("消耗绑定"));
         StringAssert.Contains(fixture.Dialogs.LastConfirmationMessage, "PO-CTX");
         StringAssert.Contains(fixture.Dialogs.LastConfirmationMessage, "确认依据读取失败");
         StringAssert.Contains(fixture.Dialogs.LastConfirmationMessage, "PO-OK · S-001");
@@ -311,10 +311,7 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
             context.Lines.Add(new ProcurementLineConfirmationContextDto
             {
                 PurchaseOrderLineId = Guid.NewGuid(),
-                Bom = new BomExecutionSnapshotDto
-                {
-                    Nodes = [new BomExecutionNodeDto { IsCustomerSupplied = true }]
-                }
+                LineVersion = 1
             });
         }
         return context;

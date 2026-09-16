@@ -1,4 +1,4 @@
-using SwiftExport.Contracts.SysEnums;
+﻿using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.DatabaseSchema;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -18,7 +18,7 @@ public sealed partial class PurchaseOrderHead : BaseEntity
     public Guid? CustomerId { get; set; }
     /// <summary>创建时的客户名称，不随主数据修改。</summary>
     public string? CustomerNameSnapshot { get; set; }
-    /// <summary>本订单当前生效的确认依据批次。</summary>
+    /// <summary>本订单当前生效的确认操作批次；不是 BOM 快照行外键，不要求存在结构快照。</summary>
     public Guid? ActiveConfirmationId { get; set; }
     /// <summary>本切片手工录入的包装商务要求，不读取当前客户默认覆盖历史。</summary>
     public string? PackagingRequirements { get; set; }

@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Inventory;
@@ -149,6 +149,6 @@ public sealed class PurchaseOrderLookupAndReorderTests
             StringAssert.Contains(xaml, $"gridColumns:GridColumn.Key=\"{key}\"");
         }
         Assert.IsFalse(xaml.Contains("gridColumns:GridColumn.Key=\"warehouse-target\"", StringComparison.Ordinal));
-        StringAssert.Contains(xaml, "ItemsSource=\"{Binding DataContext.WarehouseCandidates");
+        Assert.IsFalse(xaml.Contains("WarehouseCandidates"));
     }
 }

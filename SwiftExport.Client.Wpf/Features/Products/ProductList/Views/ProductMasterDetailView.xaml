@@ -213,10 +213,10 @@
                 <ui:Button Content="新增行" Command="{Binding AddNeutralCommand}" Margin="0,0,4,0"/>
                 <ui:Button Content="删除行" Command="{Binding DeleteNeutralCommand}" Margin="0,0,4,0"/>
                 <ui:ToggleSwitch Margin="0,0,4,0"
-                                     VerticalAlignment="Center"
-                                     OffContent="整行模式"
-                                     OnContent="格子模式"
-                                     IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" />
+                                 VerticalAlignment="Center"
+                                 OffContent="整行模式"
+                                 OnContent="格子模式"
+                                 IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" />
             </StackPanel>
 
             <DataGrid Grid.Row="2" ItemsSource="{Binding Neutrals.Items}"
@@ -340,7 +340,7 @@
             </DataGrid>
         </Grid>
 
-        <TextBlock Grid.Row="6" Text="{Binding ValidationSummary}" Foreground="{DynamicResource SwiftExportBrush.Error}"
+        <TextBlock Grid.Row="6" Text="{Binding ValidationSummary}" Foreground="{DynamicResource SwiftExportBrush.ErrorText}"
                    Style="{StaticResource CaptionTextBlock}" />
     </Grid>
 </UserControl>

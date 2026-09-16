@@ -390,10 +390,11 @@
                                              gridColumns:GridColumn.Key="associated-purchase-qty" />
 
                     <DataGridTextColumn Header="采购单号" Width="160" Binding="{Binding PurchaseOrderNos}" 
-                                        IsReadOnly="True"
-                                        ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                        IsReadOnly="True" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                        Foreground="{DynamicResource SwiftExportBrush.ActiveText}"
                                         gridColumns:GridColumn.Key="purchase-orders" />
-                    
+
+
                     <DataGridTextColumn Header="描述" Width="200" Binding="{Binding Description}" IsReadOnly="True"
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                         gridColumns:GridColumn.Key="description" />

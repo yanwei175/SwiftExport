@@ -41,7 +41,7 @@
                 <DataTrigger Binding="{Binding StatusSeverity}"
                              Value="{x:Static uiServices:UiMessageSeverity.Error}">
                     <Setter Property="Symbol" Value="ErrorCircle24" />
-                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.Error}" />
+                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -61,7 +61,7 @@
                 </DataTrigger>
                 <DataTrigger Binding="{Binding StatusSeverity}"
                              Value="{x:Static uiServices:UiMessageSeverity.Error}">
-                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.Error}" />
+                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>

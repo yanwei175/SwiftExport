@@ -1,4 +1,4 @@
-using Mapster;
+﻿using Mapster;
 using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.Wrappers;
@@ -15,8 +15,8 @@ public sealed class ProcurementConfirmationQueryService(ProcurementOrderTransact
         => transaction.ExecuteAsync("Read", async () =>
         {
             var head = await orders.GetHeadAsync(uid, ct) ?? throw new InvalidOperationException("独立采购单不存在。");
-            var batch = head.ActiveConfirmationId ?? await snapshots.GetLatestBatchAsync(uid, ct);
-            if (!batch.HasValue) throw new InvalidOperationException("订单尚无已确认依据。");
+            var batch = await snapshots.GetLatestBatchAsync(uid, ct);
+            if (!batch.HasValue) return new ProcurementConfirmationSnapshotDto { PurchaseOrderId = uid };
             var lines = await snapshots.GetLinesAsync(uid, batch.Value, ct);
             if (lines.Count == 0) throw new InvalidOperationException("已确认依据缺失，不能按当前 BOM 补造。");
             var nodes = (await snapshots.GetNodesAsync(uid, batch.Value, ct)).ToLookup(x => x.ConfirmationLineId);

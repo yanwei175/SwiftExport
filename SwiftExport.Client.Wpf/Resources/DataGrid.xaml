@@ -101,7 +101,7 @@
         <Setter Property="HorizontalContentAlignment" Value="Right" />
         <Style.Triggers>
             <Trigger Property="Validation.HasError" Value="True">
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
                 <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
                 <Setter Property="ToolTip"
                         Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors), Converter={StaticResource SwiftExportFirstValidationErrorConverter}, FallbackValue={x:Null}}" />
@@ -129,7 +129,7 @@
         <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
         <Style.Triggers>
             <Trigger Property="Validation.HasError" Value="True">
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
                 <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
                 <Setter Property="ToolTip"
                         Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors), Converter={StaticResource SwiftExportFirstValidationErrorConverter}, FallbackValue={x:Null}}" />
@@ -314,13 +314,13 @@
                 <Setter Property="Opacity" Value="1" />
             </MultiDataTrigger>
             <Trigger Property="Validation.HasError" Value="True">
-                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
+                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
                 <Setter Property="gridState:GridRowPresentation.MarkerText" Value="行验证错误" />
                 <Setter Property="gridState:GridRowPresentation.MarkerGlyph" Value="!" />
             </Trigger>
             <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.RowState).HasError}"
                          Value="True">
-                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
+                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
                 <Setter Property="gridState:GridRowPresentation.MarkerText" Value="行验证错误" />
                 <Setter Property="gridState:GridRowPresentation.MarkerGlyph" Value="!" />
             </DataTrigger>
@@ -372,12 +372,12 @@
         <Style.Triggers>
             <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.CellState).HasError}"
                          Value="True">
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
                 <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
                 <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.CellState).Message}" />
             </DataTrigger>
             <Trigger Property="Validation.HasError" Value="True">
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
                 <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
                 <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors), Converter={StaticResource SwiftExportFirstValidationErrorConverter}, FallbackValue={x:Null}}" />
             </Trigger>
@@ -395,7 +395,7 @@
                     <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
                     <Condition Binding="{Binding (Validation.HasError), RelativeSource={RelativeSource Self}}" Value="True" />
                 </MultiDataTrigger.Conditions>
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
                 <Setter Property="BorderThickness" Value="0,0,0,2" />
             </MultiDataTrigger>
             <MultiDataTrigger>
@@ -403,7 +403,7 @@
                     <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
                     <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.CellState).HasError}" Value="True" />
                 </MultiDataTrigger.Conditions>
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
                 <Setter Property="BorderThickness" Value="0,0,0,2" />
                 <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.CellState).Message}" />
             </MultiDataTrigger>
@@ -412,7 +412,7 @@
                     <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridSelection:GridSelection.IsCurrentCell)}" Value="True" />
                     <Condition Binding="{Binding (Validation.HasError), RelativeSource={RelativeSource Self}}" Value="True" />
                 </MultiDataTrigger.Conditions>
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
                 <Setter Property="BorderThickness" Value="2" />
             </MultiDataTrigger>
             <MultiDataTrigger>
@@ -420,7 +420,7 @@
                     <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridSelection:GridSelection.IsCurrentCell)}" Value="True" />
                     <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.CellState).HasError}" Value="True" />
                 </MultiDataTrigger.Conditions>
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Error}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
                 <Setter Property="BorderThickness" Value="2" />
                 <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.CellState).Message}" />
             </MultiDataTrigger>

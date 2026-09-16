@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -110,7 +110,7 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
             var repository = p.GetRequiredService<IProcurementOrderRepository>();
             var head = await repository.GetHeadAsync(uid, default) ?? throw new InvalidOperationException("测试订单不存在。");
             var lines = await repository.GetLinesAsync(uid, default);
-            return await p.GetRequiredService<ProcurementConfirmationBuilder>().BuildAsync(head, lines, default);
+            return await p.GetRequiredService<ProcurementConfirmationBuilder>().BuildAsync(await p.GetRequiredService<IProcurementReversalRepository>().LockAsync(uid, default), default);
         }, default));
 
     public CreateIndependentPurchaseOrderCommand CreateCommand() => new()

@@ -1,4 +1,4 @@
-using SwiftExport.Application.Interfaces.Procurement;
+﻿using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.Wrappers;
@@ -33,6 +33,6 @@ public sealed class ProcurementOrderQueryService(ProcurementOrderTransaction tra
             var facts = await reversalFacts.LockAsync(uid, ct);
             ProcurementConfirmationBuilder.RequireSourceReferences(facts);
             var head = facts.Head ?? throw new InvalidOperationException("采购单不存在。");
-            return await confirmation.BuildAsync(head, facts.Lines.Where(x => !x.IsDeleted).ToList(), ct);
+            return await confirmation.BuildAsync(facts, ct);
         }, ct);
 }
