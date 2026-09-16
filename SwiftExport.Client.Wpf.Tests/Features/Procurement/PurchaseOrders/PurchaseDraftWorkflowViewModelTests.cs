@@ -17,6 +17,84 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Procurement.PurchaseOrders;
 [TestClass]
 public sealed class PurchaseDraftWorkflowViewModelTests
 {
+    /// <summary>所选客供件送达方与锚定父件不一致时，本地校验必须阻断请求；修正后请求携带父件供应商。</summary>
+    [TestMethod]
+    public async Task PreparationValidation_ShouldRejectMismatchedAnchoredDeliverySupplier()
+    {
+        var api = new NetDemandApiStub();
+        using var picker = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
+        using var preview = CreateViewModel(api);
+        picker.AttachWorkflow(preview);
+        preview.BeginSession();
+        var parent = CreateRow(5m, api.SourceUid);
+        var child = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
+        {
+            Uid = Guid.NewGuid(),
+            Version = 2,
+            SourceType = parent.SourceType,
+            SourceUid = parent.SourceUid,
+            SourceNo = parent.SourceNo,
+            Sku = "CS-100",
+            LinkSku = "CUSTOMER-SUPPLIED",
+            SupplyType = SupplyTypeEnums.采购,
+            NetQty = 3m,
+            IsCustomerSupplied = true,
+            DeliveryTargetNetDemandId = parent.Uid,
+            SuggestedPurchaseSupplierId = Guid.NewGuid(),
+            SuggestedPurchaseSupplierCode = "CS-SUP",
+            SuggestedPurchaseSupplierName = "客供采购方",
+            SuggestedDeliverySupplierId = Guid.NewGuid(),
+            SuggestedDeliverySupplierCode = "WRONG",
+            SuggestedDeliverySupplierName = "错误送达方",
+        });
+        parent.IsChecked = true;
+        child.IsChecked = true;
+        picker.Items.Add(parent);
+        picker.Items.Add(child);
+
+        await picker.ValidateSelectionCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(0, api.PreviewCallCount);
+        Assert.AreSame(child, picker.SelectedItem);
+        StringAssert.Contains(child.ValidationDisplayMessage, "必须与锚定父件");
+        StringAssert.Contains(picker.SelectionValidationText, "必须与锚定父件");
+
+        child.SynchronizeDeliverySupplierFromParent(parent);
+        await picker.ValidateSelectionCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(1, api.PreviewCallCount);
+        var childRequest = api.LastPreviewRequest!.Items.Single(item => item.NetDemandId == child.Uid);
+        Assert.AreEqual(parent.SupplierId, childRequest.DeliveryTargetSupplierId);
+    }
+
+    /// <summary>重复校验失败应展示真实错误；修复服务端后重试可进入审核，输入改变仍撤销旧校验。</summary>
+    [TestMethod]
+    public async Task PreparationFailure_ShouldKeepActualErrorAndRecoverOnRetry()
+    {
+        var api = new NetDemandApiStub();
+        using var picker = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
+        using var preview = CreateViewModel(api);
+        picker.AttachWorkflow(preview);
+        preview.BeginSession();
+        var row = CreateRow(5m, api.SourceUid);
+        row.IsChecked = true;
+        picker.Items.Add(row);
+        api.PreviewHandler = (_, _) => Task.FromResult(
+            ServiceResult<PurchaseDraftPreviewResponse>.Fail("采购草稿预览失败，请联系管理员。"));
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            await picker.ValidateSelectionCommand.ExecuteAsync(null);
+            StringAssert.Contains(picker.SelectionValidationText, "采购草稿预览失败");
+            Assert.IsFalse(picker.EnterPreviewCommand.CanExecute(null));
+        }
+        api.PreviewHandler = null;
+        await picker.ValidateSelectionCommand.ExecuteAsync(null);
+        Assert.IsTrue(picker.EnterPreviewCommand.CanExecute(null));
+        preview.InvalidatePreparation();
+        Assert.IsFalse(picker.EnterPreviewCommand.CanExecute(null));
+        StringAssert.Contains(picker.SelectionValidationText, "重新校验");
+    }
+
     [TestMethod]
     public async Task ManualPreview_ShouldDefaultRemainingQtyAndRequireRepreviewAfterEdit()
     {

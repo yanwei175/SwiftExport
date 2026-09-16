@@ -145,7 +145,7 @@ public sealed partial class MaterialDemandManagerRowModel : ObservableObject
     public string DemandRoleText => IsCustomerSupplied ? "客供件" : "父件";
 
     /// <summary>带层级缩进的 SKU。</summary>
-    public string DisplaySku => IsCustomerSupplied ? $"    ↳ {Sku}" : Sku;
+    public string DisplaySku => IsCustomerSupplied ? $" ↳ {Sku}" : Sku;
 
     /// <summary>客户端当前是否勾选该行。</summary>
     [ObservableProperty]

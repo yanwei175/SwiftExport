@@ -41,7 +41,7 @@ public sealed class ProcurementReversalSqlTests
         await db.InitializeAsync();
         await db.PrepareReversalSchemaAsync();
         var command = db.CreateCommand();
-        command.Lines.Add(new() { ProductId = db.ProductId, Quantity = 3m, UnitPrice = 1m, TaxPrice = 1m, WarehouseSiteId = db.ReceiptSiteId });
+        command.Lines.Add(new() { ProductId = db.ProductId, Quantity = 3m, UnitPrice = 1m, TaxPrice = 1m });
         var first = await db.CreateAsync(command);
         var second = await db.CreateAsync();
         Assert.IsTrue(first.Success, first.Message);
@@ -87,8 +87,11 @@ public sealed class ProcurementReversalSqlTests
         var blocked = await db.InScopeAsync(p => p.GetRequiredService<IMaterialDemandEstablishmentService>().RollbackAsync(new() { CommandId = Guid.NewGuid(), Reason = "来源重做", Items = [new() { GrossDemandId = source, DecompositionRevision = 1 }] }));
         Assert.IsFalse(blocked.Success);
         Assert.AreEqual("DOWNSTREAM_EXECUTION_EXISTS", blocked.Error?.Code);
+        // 复现旧需求采购漏写未关联数量；整单作废仍须真实释放完整贡献，不回填历史字段。
+        await db.ExecuteAsync("UPDATE dbo.PurchaseOrderLine SET UnlinkedQty=NULL WHERE Uid=@otherLine", new { otherLine });
         var voided = await db.InScopeAsync(p => p.GetRequiredService<IProcurementOrderReversalService>().VoidAsync(other, new() { CommandId = Guid.NewGuid(), ExpectedVersion = second.Data.Version, Reason = "解除剩余引用" }));
         Assert.IsTrue(voided.Success, voided.Message);
+        Assert.IsNull(await db.ScalarAsync<decimal?>("SELECT UnlinkedQty FROM dbo.PurchaseOrderLine WHERE Uid=@otherLine", new { otherLine }));
         Assert.AreEqual(2, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.DemandExecutionLink WHERE NetDemandId=@net AND LinkStatus=8 AND ReleasedQty=AllocatedQty", new { net }));
         var rollback = await db.InScopeAsync(p => p.GetRequiredService<IMaterialDemandEstablishmentService>().RollbackAsync(new() { CommandId = Guid.NewGuid(), Reason = "来源重做", Items = [new() { GrossDemandId = source, DecompositionRevision = 1 }] }));
         Assert.IsTrue(rollback.Success, rollback.Message);
@@ -104,7 +107,7 @@ public sealed class ProcurementReversalSqlTests
         await db.InitializeAsync();
         await db.PrepareReversalSchemaAsync();
         var create = db.CreateCommand();
-        create.Lines.Add(new() { ProductId = db.ProductId, Quantity = 3m, UnitPrice = 2m, TaxPrice = 2m, WarehouseSiteId = db.ReceiptSiteId });
+        create.Lines.Add(new() { ProductId = db.ProductId, Quantity = 3m, UnitPrice = 2m, TaxPrice = 2m });
         var created = await db.CreateAsync(create);
         Assert.IsTrue(created.Success, created.Message);
         var uid = created.Data!.PurchaseOrderId;

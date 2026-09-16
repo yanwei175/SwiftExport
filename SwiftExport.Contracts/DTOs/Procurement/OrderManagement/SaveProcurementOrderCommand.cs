@@ -5,7 +5,7 @@ using SwiftExport.Contracts.DTOs.Base;
 
 namespace SwiftExport.Contracts.DTOs.Procurement.OrderManagement
 {
-    /// <summary>仅保存未确认订单的商务白名单，不改变身份、数量、收货目标或行集合。</summary>
+    /// <summary>仅保存未确认订单的商务白名单，不改变身份、数量、送达供应商或行集合。</summary>
     public sealed class SaveProcurementOrderCommand
     {
         public Guid CommandId { get; set; }

@@ -202,14 +202,14 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
             INSERT INTO dbo.PurchaseOrderLine
             (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,
              PurchaseOrderId,LineNumber,OrderNo,ProductId,Sku,CustomerSku,LinkSku,SupplierSku,
-             DescriptionZh,FinishZh,FeaturesZh,UnitSnapshot,QTY,UnitPrice,TaxPrice,UnitAmount,TaxAmount,
+             DescriptionZh,FinishZh,FeaturesZh,UnitSnapshot,QTY,UnlinkedQty,UnitPrice,TaxPrice,UnitAmount,TaxAmount,
              PlannedDeliveryDate,DeliveryTargetSupplierId,
              DeliverySupplierCodeSnapshot,DeliverySupplierNameSnapshot,SubNote,SupplyType,MaterialType,
              SourceType,SourceNo,SourceUid,SourceLineId,SourceLineNumber)
             VALUES
             (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
              @PurchaseOrderId,@LineNumber,@OrderNo,@ProductId,@Sku,@CustomerSku,@LinkSku,@SupplierSku,
-             @DescriptionZh,@FinishZh,@FeaturesZh,@UnitSnapshot,@Quantity,@UnitPrice,@TaxPrice,@UnitAmount,@TaxAmount,
+             @DescriptionZh,@FinishZh,@FeaturesZh,@UnitSnapshot,@Quantity,@UnlinkedQty,@UnitPrice,@TaxPrice,@UnitAmount,@TaxAmount,
              @PlannedDeliveryDate,@DeliveryTargetSupplierId,
              @DeliverySupplierCodeSnapshot,@DeliverySupplierNameSnapshot,@SubNote,@SupplyType,@MaterialType,
              @SourceType,@SourceNo,@SourceUid,@SourceLineId,@SourceLineNumber);
@@ -265,22 +265,23 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
         h.OrderDate,h.ExpectedDate,h.ReplyDate,h.ConfirmedDate,h.ConfirmedBy
         """;
 
+    // 入库来源直接指向采购行；包含软删采购行，避免历史收货或库存事实被漏掉。
     private const string SafeFactsPredicate = """
         NOT EXISTS
         (
             SELECT 1 FROM dbo.InboundDocumentLine receiveFact
             WHERE ISNULL(receiveFact.IsDeleted,0)=0
-              AND receiveFact.SourceType=10 AND receiveFact.SourceUid IN
-                   (SELECT linkFact.Uid FROM dbo.DemandExecutionLink linkFact
-                    WHERE linkFact.TargetHeadId=h.Uid AND linkFact.TargetType=N'PO' AND ISNULL(linkFact.IsDeleted,0)=0)
+              AND receiveFact.SourceLineId IN
+                   (SELECT purchaseLine.Uid FROM dbo.PurchaseOrderLine purchaseLine
+                    WHERE purchaseLine.PurchaseOrderId=h.Uid)
         )
         AND NOT EXISTS
         (
             SELECT 1 FROM dbo.InventoryLedgerEntry inventoryFact
             JOIN dbo.InboundDocumentLine receiveFact ON receiveFact.Uid=inventoryFact.SourceLineId
-            WHERE receiveFact.SourceType=10 AND receiveFact.SourceUid IN
-                  (SELECT linkFact.Uid FROM dbo.DemandExecutionLink linkFact
-                   WHERE linkFact.TargetHeadId=h.Uid AND linkFact.TargetType=N'PO' AND ISNULL(linkFact.IsDeleted,0)=0)
+            WHERE receiveFact.SourceLineId IN
+                  (SELECT purchaseLine.Uid FROM dbo.PurchaseOrderLine purchaseLine
+                   WHERE purchaseLine.PurchaseOrderId=h.Uid)
         )
         """;
 
@@ -289,17 +290,17 @@ public sealed class PurchaseOrderDraftRepository(RepositoryBaseContext context)
         (
             SELECT 1 FROM dbo.InboundDocumentLine receiveFact WITH (UPDLOCK,HOLDLOCK)
             WHERE ISNULL(receiveFact.IsDeleted,0)=0
-              AND receiveFact.SourceType=10 AND receiveFact.SourceUid IN
-                   (SELECT linkFact.Uid FROM dbo.DemandExecutionLink linkFact WITH (UPDLOCK,HOLDLOCK)
-                    WHERE linkFact.TargetHeadId=h.Uid AND linkFact.TargetType=N'PO' AND ISNULL(linkFact.IsDeleted,0)=0)
+              AND receiveFact.SourceLineId IN
+                   (SELECT purchaseLine.Uid FROM dbo.PurchaseOrderLine purchaseLine WITH (UPDLOCK,HOLDLOCK)
+                    WHERE purchaseLine.PurchaseOrderId=h.Uid)
         )
         AND NOT EXISTS
         (
             SELECT 1 FROM dbo.InventoryLedgerEntry inventoryFact WITH (UPDLOCK,HOLDLOCK)
             JOIN dbo.InboundDocumentLine receiveFact WITH (UPDLOCK,HOLDLOCK) ON receiveFact.Uid=inventoryFact.SourceLineId
-            WHERE receiveFact.SourceType=10 AND receiveFact.SourceUid IN
-                  (SELECT linkFact.Uid FROM dbo.DemandExecutionLink linkFact WITH (UPDLOCK,HOLDLOCK)
-                   WHERE linkFact.TargetHeadId=h.Uid AND linkFact.TargetType=N'PO' AND ISNULL(linkFact.IsDeleted,0)=0)
+            WHERE receiveFact.SourceLineId IN
+                  (SELECT purchaseLine.Uid FROM dbo.PurchaseOrderLine purchaseLine WITH (UPDLOCK,HOLDLOCK)
+                   WHERE purchaseLine.PurchaseOrderId=h.Uid)
         )
         """;
 }

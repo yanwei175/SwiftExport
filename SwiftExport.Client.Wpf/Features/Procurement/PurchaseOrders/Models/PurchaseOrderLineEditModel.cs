@@ -1,6 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Mapster;
-using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
@@ -14,7 +13,6 @@ public sealed partial class PurchaseOrderLineEditModel : BaseLineModel<PurchaseO
     [ObservableProperty] public partial int LineNumber { get; set; }
     [ObservableProperty] public partial Guid ProductId { get; set; }
     [ObservableProperty] public partial ProcurementProductCandidateDto? Product { get; set; }
-    [ObservableProperty] public partial WarehouseCandidateDto? Warehouse { get; set; }
     [ObservableProperty] public partial string MainImage { get; set; } = string.Empty;
     [ObservableProperty] public partial string Sku { get; set; } = string.Empty;
     [ObservableProperty] public partial string CustomerSku { get; set; } = string.Empty;
@@ -34,9 +32,6 @@ public sealed partial class PurchaseOrderLineEditModel : BaseLineModel<PurchaseO
     [ObservableProperty] public partial decimal? UnitAmount { get; set; }
     [ObservableProperty] public partial decimal? TaxAmount { get; set; }
     [ObservableProperty] public partial DateTime? PlannedDeliveryDate { get; set; }
-    [ObservableProperty] public partial Guid WarehouseSiteId { get; set; }
-    [ObservableProperty] public partial string WarehouseCode { get; set; } = string.Empty;
-    [ObservableProperty] public partial string WarehouseName { get; set; } = string.Empty;
     [ObservableProperty] public partial ProcurementSupplierCandidateDto? DeliverySupplier { get; set; }
     [ObservableProperty] public partial Guid? DeliverySupplierId { get; set; }
     [ObservableProperty] public partial string DeliverySupplierCode { get; set; } = string.Empty;
@@ -72,7 +67,6 @@ public sealed partial class PurchaseOrderLineEditModel : BaseLineModel<PurchaseO
         if (IsNew && Product is null) return "必须选择产品。";
         if (Quantity <= 0) return "数量必须大于零。";
         if (string.IsNullOrWhiteSpace(IsNew ? Product?.Unit : UnitSnapshot)) return "必须有产品单位。";
-        if ((IsNew && Warehouse is null) || (!IsNew && WarehouseSiteId == Guid.Empty)) return "必须选择合法收货目标。";
         if (RequiresDeliverySupplier && (!DeliverySupplierId.HasValue || DeliverySupplierId == Guid.Empty)) return "客供件必须选择送达供应商。";
         if (!UnitPrice.HasValue) return "未税单价不能为空；无报价时请明确输入 0。";
         if (UnitPrice < 0) return "未税单价不能为负数。";
@@ -113,14 +107,6 @@ public sealed partial class PurchaseOrderLineEditModel : BaseLineModel<PurchaseO
         UnitPrice = value.UnitPrice;
         TaxPrice = value.TaxPrice;
         if (!RequiresDeliverySupplier) ClearDeliverySupplier();
-    }
-
-    partial void OnWarehouseChanged(WarehouseCandidateDto? value)
-    {
-        if (!IsNew || value is null) return;
-        WarehouseSiteId = value.Uid;
-        WarehouseCode = value.Code ?? string.Empty;
-        WarehouseName = value.Name ?? string.Empty;
     }
 
     partial void OnDeliverySupplierChanged(ProcurementSupplierCandidateDto? value)

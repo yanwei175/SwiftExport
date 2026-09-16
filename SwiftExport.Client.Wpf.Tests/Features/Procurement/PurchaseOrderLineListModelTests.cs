@@ -41,7 +41,7 @@ public sealed class PurchaseOrderLineListModelTests
     private static PurchaseOrderLineDetailDto ExistingLine() => new()
     {
         Uid = Guid.NewGuid(), Version = 1, ProductId = Guid.NewGuid(), LineNumber = 1,
-        Sku = "SKU-1", UnitSnapshot = "PCS", Quantity = 10m, WarehouseSiteId = Guid.NewGuid(),
+        Sku = "SKU-1", UnitSnapshot = "PCS", Quantity = 10m,
         SupplierSku = "OLD-SKU"
     };
 }

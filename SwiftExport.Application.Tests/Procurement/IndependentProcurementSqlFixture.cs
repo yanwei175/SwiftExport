@@ -117,7 +117,7 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
     {
         CommandId = Guid.NewGuid(), CustomerId = CustomerId, SupplierId = SupplierId,
         OrderDate = new DateTime(2026, 8, 31), PackagingRequirements = "客户包装要求",
-        Lines = [new() { ProductId = ProductId, Quantity = 10m, UnitPrice = 2m, TaxPrice = 2.5m, WarehouseSiteId = ReceiptSiteId }]
+        Lines = [new() { ProductId = ProductId, Quantity = 10m, UnitPrice = 2m, TaxPrice = 2.5m }]
     };
 
     public async Task AddBomAsync() => await ExecuteAsync("""
@@ -162,9 +162,9 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
         INSERT dbo.Supplier(Uid,SupplierCode,SupplierName,DocRelateNo,IsActive) VALUES
           (@SupplierId,N'TEST-ACTUAL',N'实际供应商',N'TEST-ACTUAL',1),(@ReceiptSupplierId,N'TEST-RECEIPT',N'收货供应商',N'TEST-RECEIPT',1),
           (@ConsumptionSupplierId,N'TEST-CONSUME',N'消耗供应商',N'TEST-CONSUME',1);
-        INSERT dbo.Product(Uid,Sku,DescriptionZh,Unit,MaterialType,SupplyType,BomVersion,ColorId,CategoryId,IsActive) VALUES
-          (@ProductId,N'TEST-FG',N'采购成品',N'PCS',N'成品',N'采购',0,@EmptyId,@EmptyId,1),
-          (@ComponentId,N'TEST-B',N'客供件',N'PCS',N'客供件',N'采购',0,@EmptyId,@EmptyId,1);
+        INSERT dbo.Product(Uid,Sku,DescriptionZh,Unit,MaterialType,SupplyType,BomVersion,ColorId,IsActive) VALUES
+          (@ProductId,N'TEST-FG',N'采购成品',N'PCS',N'成品',N'采购',0,@EmptyId,1),
+          (@ComponentId,N'TEST-B',N'客供件',N'PCS',N'客供件',N'采购',0,@EmptyId,1);
         INSERT dbo.SysDictData(Uid,DictCode,DataNameEn,IsSystem,IsEnabled) VALUES(NEWID(),N'Unit',N'PCS',1,1);
         INSERT dbo.WarehouseSite(Uid,Code,Name,SiteType,SupplierId,IsActive) VALUES
           (@ReceiptSiteId,N'TEST-R',N'收货仓',0,@ReceiptSupplierId,1),(@ConsumptionSiteId,N'TEST-C',N'消耗仓',0,@ConsumptionSupplierId,1);

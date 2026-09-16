@@ -86,6 +86,75 @@ public sealed class NetDemandManagerSourceNavigationTests
         Assert.AreEqual(grossDemandId, api.RollbackCommands[0].Items.Single().GrossDemandId);
     }
 
+    /// <summary>父件、客供子件和同组兄弟必须同步选择，不得影响其他拆解树。</summary>
+    [TestMethod]
+    public async Task RowSelection_ShouldSynchronizeLoadedDemandFamily()
+    {
+        var sourceUid = Guid.NewGuid();
+        var grossDemandId = Guid.NewGuid();
+        var rootId = Guid.NewGuid();
+        var otherRootId = Guid.NewGuid();
+        var api = new RecordingNetDemandApi(sourceUid)
+        {
+            SearchItems =
+            [
+                CreateManagerItem(sourceUid, grossDemandId, rootId, rootId, 1, false),
+                CreateManagerItem(sourceUid, grossDemandId, rootId, Guid.NewGuid(), 2, true),
+                CreateManagerItem(sourceUid, grossDemandId, rootId, Guid.NewGuid(), 3, true),
+                CreateManagerItem(sourceUid, Guid.NewGuid(), otherRootId, otherRootId, 1, false),
+            ],
+        };
+        using var viewModel = CreateViewModel(api);
+        await viewModel.InitializeAsync();
+        var family = viewModel.Items.Where(item => item.RootNetDemandId == rootId).ToArray();
+        var other = viewModel.Items.Single(item => item.RootNetDemandId == otherRootId);
+
+        family[0].IsChecked = true;
+
+        Assert.IsTrue(family.All(item => item.IsChecked));
+        Assert.IsFalse(other.IsChecked);
+        Assert.AreEqual(3, viewModel.CheckedCount);
+        Assert.IsNull(viewModel.IsAllChecked);
+        Assert.IsTrue(viewModel.RollbackSourceEstablishmentCommand.CanExecute(null));
+
+        family[1].IsChecked = false;
+
+        Assert.IsTrue(family.All(item => !item.IsChecked));
+        Assert.AreEqual(0, viewModel.CheckedCount);
+        Assert.AreEqual(false, viewModel.IsAllChecked);
+
+        family[2].IsChecked = true;
+
+        Assert.IsTrue(family.All(item => item.IsChecked));
+        Assert.AreEqual(3, viewModel.CheckedCount);
+    }
+
+    /// <summary>表头全选和全取消继续覆盖当前页全部拆解组。</summary>
+    [TestMethod]
+    public async Task HeaderSelection_ShouldSelectAndClearAllLoadedFamilies()
+    {
+        var api = new RecordingNetDemandApi(Guid.NewGuid())
+        {
+            SearchItems =
+            [
+                CreateManagerItem(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1, false),
+                CreateManagerItem(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1, false),
+            ],
+        };
+        using var viewModel = CreateViewModel(api);
+        await viewModel.InitializeAsync();
+
+        viewModel.IsAllChecked = true;
+
+        Assert.IsTrue(viewModel.Items.All(item => item.IsChecked));
+        Assert.AreEqual(viewModel.Items.Count, viewModel.CheckedCount);
+
+        viewModel.IsAllChecked = false;
+
+        Assert.IsTrue(viewModel.Items.All(item => !item.IsChecked));
+        Assert.AreEqual(0, viewModel.CheckedCount);
+    }
+
     [TestMethod]
     public async Task SaveSuggestedSupplier_ShouldSendOnlyNetDemandSuggestionAndVersion()
     {
@@ -191,6 +260,30 @@ public sealed class NetDemandManagerSourceNavigationTests
             DispatchProxy.Create<INetDemandDialogService, NoCallProxy>());
     }
 
+    /// <summary>创建父子联动测试使用的物料工作台行。</summary>
+    private static MaterialDemandManagerItemDto CreateManagerItem(
+        Guid sourceUid,
+        Guid grossDemandId,
+        Guid rootNetDemandId,
+        Guid uid,
+        int lineNumber,
+        bool isCustomerSupplied)
+        => new()
+        {
+            Uid = uid,
+            Version = 1,
+            GrossDemandId = grossDemandId,
+            DecompositionRevision = 1,
+            LineNumber = lineNumber,
+            SourceType = "SO",
+            SourceUid = sourceUid,
+            SourceNo = "SO-1001",
+            RootNetDemandId = rootNetDemandId,
+            IsCustomerSupplied = isCustomerSupplied,
+            Sku = $"SKU-{lineNumber}",
+            NetQty = 1m,
+        };
+
     private static string FindRepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
@@ -227,6 +320,8 @@ public sealed class NetDemandManagerSourceNavigationTests
         public List<MaterialDemandSourceGroupSearchRequest> SourceGroupRequests { get; } = [];
         public List<RollbackMaterialDemandsCommand> RollbackCommands { get; } = [];
         public List<UpdateSuggestedPurchaseSupplierCommand> SuggestedSupplierCommands { get; } = [];
+        /// <summary>指定测试需要的当前页物料行；为空时使用默认夹具。</summary>
+        public List<MaterialDemandManagerItemDto>? SearchItems { get; init; }
 
         public Task<ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>> SearchAsync(
             MaterialDemandManagerSearchRequest request,
@@ -234,9 +329,9 @@ public sealed class NetDemandManagerSourceNavigationTests
         {
             SearchRequests.Add(request);
             var sourceMode = request.SourceUid.HasValue;
-            var items = sourceMode
-                ? new[] { CreateItem(sourceUid, 1), CreateItem(sourceUid, 2) }
-                : new[] { CreateItem(sourceUid, 1) };
+            var items = SearchItems?.ToArray() ?? (sourceMode
+                ? [CreateItem(sourceUid, 1), CreateItem(sourceUid, 2)]
+                : [CreateItem(sourceUid, 1)]);
             return Task.FromResult(ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>.Ok(new PagedResponseBase<MaterialDemandManagerItemDto>
             {
                 Items = items.ToList(),

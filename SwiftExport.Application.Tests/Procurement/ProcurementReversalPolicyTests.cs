@@ -13,6 +13,39 @@ namespace SwiftExport.Application.Tests.Procurement;
 [TestClass]
 public sealed class ProcurementReversalPolicyTests
 {
+    /// <summary>旧需求行空值只在全量活动贡献可证明时允许作废，其他命令及真正数量异常仍阻断。</summary>
+    [TestMethod]
+    public void LegacyUnknownUnlinkedQuantityAllowsOnlyProvenWholeVoid()
+    {
+        var head = new PurchaseOrderHead { Uid = Guid.NewGuid(), Version = 1, OriginKind = 1, ConfirmationStatus = ConfirmationStatusEnum.已确认 };
+        var source = new SwiftExport.Core.Entities.DemandPlanning.GrossDemand { Uid = Guid.NewGuid() };
+        var demand = new SwiftExport.Core.Entities.DemandPlanning.NetDemand { Uid = Guid.NewGuid(), GrossDemandId = source.Uid };
+        var line = new PurchaseOrderLine { Uid = Guid.NewGuid(), Version = 1, Quantity = 5, UnlinkedQty = null };
+        var link = new SwiftExport.Core.Entities.DemandPlanning.DemandExecutionLink
+        {
+            Uid = Guid.NewGuid(), NetDemandId = demand.Uid, TargetType = "PO", TargetHeadId = head.Uid,
+            TargetLineId = line.Uid, AllocatedQty = 5, LinkStatus = DemandExecutionLinkStatusEnum.Active
+        };
+        var facts = new ProcurementReversalFacts { Head = head, Lines = [line], Sources = [source], Demands = [demand], Links = [link] };
+        var request = new ProcurementReversalPreviewRequest { ExpectedVersion = 1 };
+        var preview = ProcurementReversalPolicy.Build(facts, ProcurementReversalOperation.Void, request);
+        Assert.IsTrue(preview.CanExecute);
+        Assert.AreEqual(5m, preview.Contributions.Single().Quantity);
+        Assert.IsNull(line.UnlinkedQty);
+        Assert.IsFalse(ProcurementReversalPolicy.Build(facts, ProcurementReversalOperation.CancelConfirmation, request).CanExecute);
+        foreach (var quantity in new[] { 4m, 6m })
+        {
+            link.AllocatedQty = quantity;
+            Assert.IsFalse(ProcurementReversalPolicy.Build(facts, ProcurementReversalOperation.Void, request).CanExecute);
+        }
+        link.AllocatedQty = 5;
+        demand.IsDeleted = true;
+        Assert.IsFalse(ProcurementReversalPolicy.Build(facts, ProcurementReversalOperation.Void, request).CanExecute);
+        demand.IsDeleted = false;
+        facts.Links.Clear();
+        Assert.IsFalse(ProcurementReversalPolicy.Build(facts, ProcurementReversalOperation.Void, request).CanExecute);
+    }
+
     /// <summary>相同入库事实同时阻断取消及作废；完整反向才放行，删行仅检查被删行。</summary>
     [TestMethod]
     public void InboundDraftPostedAndIncompleteReversalBlockWholeOperations()

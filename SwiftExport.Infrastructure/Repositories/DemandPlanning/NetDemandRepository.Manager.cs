@@ -45,7 +45,10 @@ SELECT
     nd.[SkuSnapshot] AS [Sku],COALESCE(p.[LinkSku],gd.[LinkSkuSnapshot]) AS [LinkSku],
     nd.[CustomerSkuSnapshot] AS [CustomerSku],nd.[DescriptionSnapshot] AS [Description],
     nd.[ColorSnapshot] AS [Color],nd.[SpecificationSnapshot] AS [Specification],
-    COALESCE(gd.[ImagePathSnapshot],p.[MainImage]) AS [ImagePath],nd.[MaterialTypeSnapshot] AS [MaterialType],
+    CASE WHEN nd.[DeliveryMode]=1
+         THEN COALESCE(p.[MainImage],N'')
+         ELSE COALESCE(NULLIF(LTRIM(RTRIM(gd.[ImagePathSnapshot])),N''),p.[MainImage],N'')
+    END AS [ImagePath],nd.[MaterialTypeSnapshot] AS [MaterialType],
     COALESCE(NULLIF(LTRIM(RTRIM(p.[Unit])),N''),N'PCS') AS [Unit],nd.[SupplyTypeSnapshot] AS [SupplyType],
     nd.[SuggestedPurchaseSupplierId],suggestedSupplier.[SupplierCode] AS [SuggestedPurchaseSupplierCode],
     suggestedSupplier.[SupplierName] AS [SuggestedPurchaseSupplierName],

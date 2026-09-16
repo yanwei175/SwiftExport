@@ -56,7 +56,12 @@ public static class ProcurementReversalPolicy
             var links = own.Where(x => x.TargetLineId == line.Uid && !x.IsDeleted && x.LinkStatus == DemandExecutionLinkStatusEnum.Active).ToList();
             if ((head.OriginKind == 1 || line.SourceUid.HasValue) && links.Count == 0)
                 preview.Blockers.Add($"第 {line.LineNumber} 行缺少活动需求引用。");
-            if (links.Count > 0 && links.Sum(x => x.AllocatedQty - x.ReleasedQty) + line.UnlinkedQty != line.Quantity)
+            var linkedQty = links.Sum(x => x.AllocatedQty - x.ReleasedQty);
+            // 旧需求采购漏写未关联数量时，仅整单作废可用完整活动贡献证明全量来自需求；不回填历史空值。
+            var legacyFullyLinkedVoid = operation == ProcurementReversalOperation.Void
+                && (head.OriginKind == 1 || line.SourceUid.HasValue)
+                && !line.UnlinkedQty.HasValue && links.Count > 0 && linkedQty == line.Quantity;
+            if (links.Count > 0 && !legacyFullyLinkedVoid && linkedQty + line.UnlinkedQty != line.Quantity)
                 preview.Blockers.Add($"第 {line.LineNumber} 行采购数量与有效需求贡献不一致。");
             if (operation == ProcurementReversalOperation.CancelConfirmation) continue;
             foreach (var link in links)

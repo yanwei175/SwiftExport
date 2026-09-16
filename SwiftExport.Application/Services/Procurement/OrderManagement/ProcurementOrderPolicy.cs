@@ -72,7 +72,7 @@ public static class ProcurementOrderPolicy
                 ?? throw new InvalidOperationException("采购行不属于本订单。");
             if (item.ExpectedVersion <= 0 || item.ExpectedVersion != line.Version)
                 throw new ProcurementOperationException(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.VersionConflict, "采购行版本冲突。", "Lines[].ExpectedVersion");
-            // 商务补丁显式白名单，绝不映射数量、产品、单位或收货目标。
+            // 商务补丁显式白名单，绝不映射数量、产品、单位或送达供应商。
             line.UnitAmount = Amount(line.Quantity, item.UnitPrice);
             line.TaxAmount = Amount(line.Quantity, item.TaxPrice);
             line.UnitPrice = item.UnitPrice; line.TaxPrice = item.TaxPrice;

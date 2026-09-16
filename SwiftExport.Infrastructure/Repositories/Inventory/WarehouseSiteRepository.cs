@@ -161,7 +161,6 @@ public sealed class WarehouseSiteRepository(RepositoryBaseContext context) : IWa
             SELECT Blocker FROM (
                 SELECT N'库存余额' Blocker WHERE EXISTS(SELECT 1 FROM dbo.InventoryBalance WITH(UPDLOCK,HOLDLOCK) WHERE WarehouseSiteId=@WarehouseSiteId)
                 UNION ALL SELECT N'库存流水' WHERE EXISTS(SELECT 1 FROM dbo.InventoryLedgerEntry WITH(UPDLOCK,HOLDLOCK) WHERE WarehouseSiteId=@WarehouseSiteId)
-                UNION ALL SELECT N'采购订单行' WHERE EXISTS(SELECT 1 FROM dbo.PurchaseOrderLine WITH(UPDLOCK,HOLDLOCK) WHERE DeliveryWarehouseSiteId=@WarehouseSiteId)
                 UNION ALL SELECT N'采购确认节点' WHERE EXISTS(SELECT 1 FROM dbo.PurchaseConfirmationNode WITH(UPDLOCK,HOLDLOCK) WHERE ConsumptionWarehouseSiteId=@WarehouseSiteId)
                 UNION ALL SELECT N'正式入库单' WHERE EXISTS(SELECT 1 FROM dbo.InboundDocument WITH(UPDLOCK,HOLDLOCK) WHERE WarehouseSiteId=@WarehouseSiteId)
                 UNION ALL SELECT N'正式出库单' WHERE EXISTS(SELECT 1 FROM dbo.OutboundDocument WITH(UPDLOCK,HOLDLOCK) WHERE WarehouseSiteId=@WarehouseSiteId)

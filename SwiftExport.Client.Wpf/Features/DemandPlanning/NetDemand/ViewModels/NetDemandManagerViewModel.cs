@@ -873,10 +873,16 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         _syncingChecks = true;
         try
         {
-            var checkedCount = CheckedCount;
-            IsAllChecked = Items.Count == 0 || checkedCount == 0
-                ? false
-                : checkedCount == Items.Count ? true : null;
+            if (sender is MaterialDemandManagerRowModel changedRow)
+            {
+                // 当前页只要加载了同一拆解树的父子行，就必须保持一致选择；同步期间忽略嵌套通知以避免递归。
+                foreach (var relatedRow in Items.Where(item => IsSameLoadedDemandFamily(item, changedRow)))
+                {
+                    relatedRow.IsChecked = changedRow.IsChecked;
+                }
+            }
+
+            UpdateAllCheckedState();
         }
         finally
         {
@@ -889,14 +895,37 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     private void ClearChecks()
     {
         _syncingChecks = true;
-        foreach (var item in Items)
+        try
         {
-            item.IsChecked = false;
-        }
+            foreach (var item in Items)
+            {
+                item.IsChecked = false;
+            }
 
-        IsAllChecked = false;
-        _syncingChecks = false;
+            IsAllChecked = false;
+        }
+        finally
+        {
+            _syncingChecks = false;
+        }
         UpdateSelectionCommands();
+    }
+
+    /// <summary>判断两行是否属于当前加载集合中的同一来源拆解树。</summary>
+    private static bool IsSameLoadedDemandFamily(
+        MaterialDemandManagerRowModel left,
+        MaterialDemandManagerRowModel right)
+        => left.GrossDemandId == right.GrossDemandId
+           && left.DecompositionRevision == right.DecompositionRevision
+           && left.RootNetDemandId == right.RootNetDemandId;
+
+    /// <summary>根据当前页实际选中数刷新表头三态，不触发批量选择回写。</summary>
+    private void UpdateAllCheckedState()
+    {
+        var checkedCount = CheckedCount;
+        IsAllChecked = Items.Count == 0 || checkedCount == 0
+            ? false
+            : checkedCount == Items.Count ? true : null;
     }
 
     private void UpdateSelectionCommands()

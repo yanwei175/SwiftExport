@@ -7,6 +7,8 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../SwiftExport.Application.Tests/Procurement/IndependentProcurementSqlTests.cs" Link="IndependentProcurementSqlTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Procurement/PurchaseDraftAppendSqlTests.cs" Link="PurchaseDraftAppendSqlTests.cs" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="4.3.0" />
     <PackageReference Include="MSTest.TestFramework" Version="4.3.0" />

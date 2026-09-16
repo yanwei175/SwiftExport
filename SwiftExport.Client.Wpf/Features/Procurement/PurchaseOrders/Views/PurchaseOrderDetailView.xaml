@@ -301,6 +301,7 @@
                             <DataGrid Grid.Row="2" ItemsSource="{Binding Lines.Items}"
                                   SelectedItem="{Binding Lines.SelectedItem}"
                                   AutoGenerateColumns="False"
+                                      FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                                   RowHeight="{StaticResource DataGridRowHeightMedium}"
                                   CanUserSortColumns="False"
                                   HeadersVisibility="Column"
@@ -432,10 +433,11 @@
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Grid>
-                                                    <TextBlock Text="{Binding Quantity,StringFormat=N1}"/>
+                                                    <TextBlock Text="{Binding Quantity,StringFormat=N1}" Style="{StaticResource SwiftExportDataGridNumberTextBlock}"/>
                                                     <TextBox Text="{Binding Quantity,UpdateSourceTrigger=PropertyChanged}">
                                                         <TextBox.Style>
                                                             <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                                                <Setter Property="VerticalAlignment" Value="Center"/>
                                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding IsNew}" Value="True">
@@ -450,14 +452,14 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
-                                    <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                    <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                                      Header="未税单价"
-                                                    Binding="{Binding UnitPrice,UpdateSourceTrigger=PropertyChanged,StringFormat=N4}"
+                                                    Binding="{Binding UnitPrice,UpdateSourceTrigger=PropertyChanged,StringFormat=N2}"
                                                     gridColumns:GridColumn.Key="unit-price"
                                                     gridColumns:GridColumn.FieldPath="UnitPrice"
                                                     Width="85"/>
 
-                                    <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                    <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                                      Header="未税总价"
                                                     Binding="{Binding UnitAmount,StringFormat=N2}"
                                                     gridColumns:GridColumn.Key="unit-amount"
@@ -465,39 +467,21 @@
                                                      Width="95"
                                                     IsReadOnly="True"/>
 
-                                    <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                    <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"
                                                      Header="计划交期"
                                                     Binding="{Binding PlannedDeliveryDate,UpdateSourceTrigger=PropertyChanged,StringFormat=yyyy-MM-dd}"
                                                     gridColumns:GridColumn.Key="planned-delivery-date"
                                                     gridColumns:GridColumn.FieldPath="PlannedDeliveryDate"
                                                     Width="105"/>
 
-                                    <DataGridTemplateColumn Header="收货目标" Width="150"
-                                                            gridColumns:GridColumn.Key="warehouse-target" gridColumns:GridColumn.FieldPath="WarehouseSiteId">
+                                    <DataGridTemplateColumn Header="送至供应商" Width="150"
+                                                            gridColumns:GridColumn.Key="delivery-supplier" 
+                                                            gridColumns:GridColumn.FieldPath="DeliverySupplierId">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <Grid>
-                                                    <TextBlock Text="{Binding WarehouseName}"/>
-                                                    <ComboBox ItemsSource="{Binding DataContext.WarehouseCandidates,RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Warehouse}" DisplayMemberPath="Name">
-                                                        <ComboBox.Style>
-                                                            <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsNew}" Value="True">
-                                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </ComboBox.Style>
-                                                    </ComboBox>
-                                                </Grid>
+                                                <TextBlock Text="{Binding DeliverySupplierName}" Style="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-
-                                    <DataGridTemplateColumn Header="送至供应商" Width="150"
-                                                            gridColumns:GridColumn.Key="delivery-supplier" gridColumns:GridColumn.FieldPath="DeliverySupplierId">
-                                        <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DeliverySupplierName}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
                                         <DataGridTemplateColumn.CellEditingTemplate>
                                             <DataTemplate>
                                                 <purchaseComponents:PurchaseSupplierLookupTextBox Text="{Binding DeliverySupplierName,Mode=OneWay}"
@@ -544,7 +528,7 @@
                             </Style>
                         </TabItem.Style>
                         <Grid RowDefinitions="Auto,4,*" Margin="4">
-                            <TextBlock Text="确认时仅为客供件完整 BOM 路径选择消耗仓；它不等于采购行收货目标。" Foreground="DarkOrange"/>
+                            <TextBlock Text="确认时为客供件选择消耗仓；实际收货仓在入库时选择。" Foreground="DarkOrange"/>
                             <DataGrid Grid.Row="2" ItemsSource="{Binding ConfirmationBindings}" AutoGenerateColumns="False" Style="{StaticResource SwiftExportDataGrid}">
                                 <DataGrid.Columns>
                                     <DataGridCheckBoxColumn Header="选择" Binding="{Binding IsChecked,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Width="52" gridColumns:GridColumn.Key="reversal-selected"/>

@@ -106,7 +106,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         if (request is null || request.PurchaseOrderId == Guid.Empty)
         {
             if (!HasCreatePermission) { StatusText = "当前账号没有创建采购订单的权限。"; return; }
-            await LoadWarehouseCandidatesAsync(cancellationToken); InitializeCreate(); return;
+            InitializeCreate(); return;
         }
         if (!HasReadPermission) { StatusText = "当前账号没有读取采购订单的权限。"; return; }
         await LoadWarehouseCandidatesAsync(cancellationToken);
@@ -263,7 +263,6 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
             Lines = Lines.Items.Select(x => new CreateIndependentPurchaseOrderLineCommand
             {
                 ProductId = x.Product!.Uid,
-                WarehouseSiteId = x.Warehouse!.Uid,
                 Quantity = x.Quantity,
                 DeliverySupplierId = x.RequiresDeliverySupplier ? x.DeliverySupplierId : null,
                 UnitPrice = x.UnitPrice,

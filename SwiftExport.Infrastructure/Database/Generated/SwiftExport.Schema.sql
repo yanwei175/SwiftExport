@@ -1029,9 +1029,6 @@ CREATE TABLE [dbo].[PurchaseOrderLine]
     [UpdatedDate] datetime2(7) NULL,
     [UpdatedBy] nvarchar(500) NULL,
     [UnlinkedQty] decimal(18,4) NULL,
-    [DeliveryWarehouseSiteId] uniqueidentifier NULL,
-    [DeliveryWarehouseCodeSnapshot] nvarchar(300) NULL,
-    [DeliveryWarehouseNameSnapshot] nvarchar(500) NULL,
     [PurchaseOrderId] uniqueidentifier NOT NULL,
     [LineNumber] int NOT NULL,
     [OrderNo] nvarchar(300) NOT NULL,
@@ -1530,7 +1527,6 @@ CREATE INDEX [IX_PurchaseConfirmationNode_Product] ON [dbo].[PurchaseConfirmatio
 CREATE UNIQUE INDEX [UX_PurchaseOrderHead_ExecutionRequest] ON [dbo].[PurchaseOrderHead] ([ExecutionRequestId], [SupplierId]) WHERE [IsDeleted] = 0;
 CREATE UNIQUE INDEX [UX_PurchaseOrderHead_OrderNo] ON [dbo].[PurchaseOrderHead] ([OrderNo]) WHERE [IsDeleted] = 0;
 
-CREATE INDEX [IX_PurchaseOrderLine_DeliveryWarehouse] ON [dbo].[PurchaseOrderLine] ([DeliveryWarehouseSiteId]) WHERE [DeliveryWarehouseSiteId] IS NOT NULL;
 CREATE INDEX [IX_PurchaseOrderLine_Product] ON [dbo].[PurchaseOrderLine] ([ProductId]) WHERE [IsDeleted] = 0;
 CREATE UNIQUE INDEX [UX_PurchaseOrderLine_Head_Line] ON [dbo].[PurchaseOrderLine] ([PurchaseOrderId], [LineNumber]) WHERE [IsDeleted] = 0;
 
@@ -5293,21 +5289,6 @@ EXEC sys.sp_addextendedproperty
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
     @level2type=N'COLUMN', @level2name=N'UnlinkedQty';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'明确收货仓库，不依赖需求分配，不等同于 BOM 客供件消耗仓库。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
-    @level2type=N'COLUMN', @level2name=N'DeliveryWarehouseSiteId';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'收货仓库代码历史快照。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
-    @level2type=N'COLUMN', @level2name=N'DeliveryWarehouseCodeSnapshot';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'收货仓库名称历史快照。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'PurchaseOrderLine',
-    @level2type=N'COLUMN', @level2name=N'DeliveryWarehouseNameSnapshot';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'所属采购订单头 Uid。',
     @level0type=N'SCHEMA', @level0name=N'dbo',

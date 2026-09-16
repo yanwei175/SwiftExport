@@ -63,8 +63,7 @@ public sealed class ProcurementOrderQueryRepository(RepositoryBaseContext contex
             WHERE h.Uid=@uid AND h.IsDeleted=0;
             SELECT l.Uid,l.LineNumber,l.Version,l.ProductId,p.MainImage,l.Sku,l.UnitSnapshot,
               l.CustomerSku,l.LinkSku,l.FinishZh,l.FeaturesZh,l.MaterialType,l.SupplyType,
-              l.QTY AS Quantity,l.UnlinkedQty,l.DeliveryWarehouseSiteId AS WarehouseSiteId,
-              l.DeliveryWarehouseCodeSnapshot AS WarehouseCode,l.DeliveryWarehouseNameSnapshot AS WarehouseName,
+              l.QTY AS Quantity,l.UnlinkedQty,
               CASE WHEN l.MaterialType=N'客供件' THEN l.DeliveryTargetSupplierId END AS DeliverySupplierId,
               CASE WHEN l.MaterialType=N'客供件' THEN l.DeliverySupplierCodeSnapshot ELSE N'' END AS DeliverySupplierCode,
               CASE WHEN l.MaterialType=N'客供件' THEN l.DeliverySupplierNameSnapshot ELSE N'' END AS DeliverySupplierName,

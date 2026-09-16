@@ -8,6 +8,10 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../SwiftExport.Client.Wpf.Tests/Services/DialogDisabledButtonTests.cs" Link="DialogDisabledButtonTests.cs" />
+    <Compile Include="../../SwiftExport.Client.Wpf.Tests/Features/Procurement/PurchaseOrderLookupAndReorderTests.cs" Link="PurchaseOrderLookupAndReorderTests.cs" />
+    <Compile Include="../../SwiftExport.Client.Wpf.Tests/Features/Procurement/PurchaseOrderLineListModelTests.cs" Link="PurchaseOrderLineListModelTests.cs" />
+    <Compile Include="../../SwiftExport.Client.Wpf.Tests/Features/Procurement/PurchaseOrders/PurchaseDraftWorkflowViewModelTests.cs" Link="PurchaseDraftWorkflowViewModelTests.cs" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="4.3.0" />
     <PackageReference Include="MSTest.TestFramework" Version="4.3.0" />

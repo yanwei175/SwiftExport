@@ -94,49 +94,57 @@
                                    Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
             </Grid>
         </Border>
-        
-        <Grid RowDefinitions="Auto,4,Auto,4,*,4,Auto">
-            <Grid Grid.Row="0" ColumnDefinitions="240,4,Auto,12,*">
-                <ui:TextBox Grid.Column="0" MinHeight="32" VerticalContentAlignment="Center"
-                            PlaceholderText="来源单号、SKU、客户型号或描述"
-                            Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}">
-                    <ui:TextBox.InputBindings>
-                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                    </ui:TextBox.InputBindings>
-                </ui:TextBox>
-                <ui:Button Grid.Column="2" Width="36" 
-                           Appearance="Primary"
-                           Icon="{ui:SymbolIcon Symbol=Search24}"
-                           Command="{Binding SearchCommand}" ToolTip="查询"/>
 
-                <StackPanel Grid.Column="4" Orientation="Horizontal">
-                    <ui:Button Content="新增独立需求"
+        <Grid RowDefinitions="Auto,8,Auto,8,Auto,8,*,8,Auto">
+            
+            <!--条件筛选区域-->
+            <Grid RowDefinitions="Auto,8, *">
+                <Grid ColumnDefinitions="3*,3*,3*">
+                    <!--搜索框-->
+                    <ui:TextBox Grid.Column="1" VerticalAlignment="Stretch"
+                            Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
+                            Icon="{ui:SymbolIcon Symbol=Search24}"
+                            PlaceholderText="来源单号、SKU、客户型号或描述">
+                        <ui:TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                        </ui:TextBox.InputBindings>
+                    </ui:TextBox>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+
+                        <ui:Button Grid.Column="2"  Appearance="Primary" Margin="8,0,0,0"
+                            Content="查询" VerticalAlignment="Stretch"
+                            Command="{Binding SearchCommand}" MinWidth="70"/>
+
+                        <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0"
+                            VerticalAlignment="Stretch" MinWidth="70"/>
+
+                        <ui:Button Content="清空" Command="{Binding ClearFiltersCommand}" Margin="8,0,0,0"
+                               VerticalAlignment="Stretch" MinWidth="70"/>
+                    </StackPanel>
+
+                </Grid>
+            </Grid>
+
+
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal">
+                <ui:Button Content="新增独立需求"
                                Command="{Binding CreateManualCommand}" 
                                Appearance="Primary" 
                                Margin="0,0,8,0"/>
-
-                    <Button Command="{Binding EditSelectedManualCommand}" 
+                <Button Command="{Binding EditSelectedManualCommand}" 
                             Style="{StaticResource GrossDemandToolbarButton}" 
                             Content="编辑独立需求" Margin="0,0,8,0" />
-                    <Button Command="{Binding CloseSelectedManualCommand}" 
+                <Button Command="{Binding CloseSelectedManualCommand}" 
                             Style="{StaticResource GrossDemandToolbarButton}" 
                             Content="关闭独立需求" Margin="0,0,8,0"/>
-
-                    <Button Command="{Binding OpenSourceCommand}" 
+                <Button Command="{Binding OpenSourceCommand}" 
                             Style="{StaticResource GrossDemandToolbarButton}" 
                             Content="来源单据" Margin="0,0,8,0"/>
+            </StackPanel>
 
-                    <Button Command="{Binding RefreshCommand}" 
-                            Content="刷新"
-                            MinWidth="70"
-                            Style="{StaticResource GrossDemandToolbarButton}"
-                            Margin="0,0,8,0"/>
-
-
-                </StackPanel>
-            </Grid>
-
-            <StackPanel Grid.Row="2">
+            <StackPanel Grid.Row="4">
                 <Grid ColumnDefinitions="Auto,4,Auto,4,128,4,128,4,128,4,128,4,128,4,128,4,Auto,4,*">
                     <ToggleButton Content="来源单号分组"
                                           Command="{Binding ToggleSourcePanelCommand}"
@@ -167,15 +175,11 @@
                                 Background="White"
                                 controls:DatePickerAssist.PlaceholderText="需求交期起"
                                 SelectedDate="{Binding RequiredDateFrom}" />
-                    
+
                     <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="12"
                                 Background="White"
                                 controls:DatePickerAssist.PlaceholderText="需求交期至"
                                 SelectedDate="{Binding RequiredDateTo}" />
-                    
-                    <Button Grid.Column="14"
-                                    Content="清空筛选"
-                                    Command="{Binding ClearFiltersCommand}" />
                 </Grid>
                 
                 <Popup IsOpen="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
@@ -213,7 +217,7 @@
                 </Popup>
             </StackPanel>
             
-            <controls:RightDrawerHost Grid.Row="4" IsOpen="{Binding IsDrawerOpen, Mode=OneWay}"
+            <controls:RightDrawerHost Grid.Row="6" IsOpen="{Binding IsDrawerOpen, Mode=OneWay}"
                               DrawerContent="{Binding ActiveDrawerContent}"
                               CloseCommand="{Binding CloseDrawerCommand}"
                               CloseOnEscape="True"
@@ -362,7 +366,7 @@
                         </DataGrid>
                 </controls:RightDrawerHost.MainContent>
             </controls:RightDrawerHost>
-            <Grid Grid.Row="6" ColumnDefinitions="*,Auto,Auto,Auto">
+            <Grid Grid.Row="8" ColumnDefinitions="*,Auto,Auto,Auto">
                 <TextBlock Text="{Binding ResultSummary}" 
                Style="{StaticResource CaptionTextBlock}" 
                VerticalAlignment="Center" />

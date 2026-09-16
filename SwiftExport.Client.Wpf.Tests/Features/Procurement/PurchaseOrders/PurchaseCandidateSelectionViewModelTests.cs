@@ -82,9 +82,9 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         Assert.AreEqual("未选择", row.PurchaseSupplierDisplay);
     }
 
-    /// <summary>送达方许可必须同时服从客供属性和页面输入门禁。</summary>
+    /// <summary>采购方继续服从页面输入门禁，客供送达事实只能由父件联动方法写入。</summary>
     [TestMethod]
-    public void SupplierEditability_ShouldUseTheSameRowGateAsFillDown()
+    public void SupplierEditability_ShouldKeepDeliveryFactsReadOnly()
     {
         var standard = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
         {
@@ -99,14 +99,68 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         });
 
         Assert.IsTrue(standard.CanEditPurchaseSupplier);
-        Assert.IsFalse(standard.CanEditDeliverySupplier);
-        Assert.IsTrue(customerSupplied.CanEditDeliverySupplier);
+        Assert.IsTrue(typeof(PurchaseCandidateItemModel)
+            .GetProperty(nameof(PurchaseCandidateItemModel.DeliveryTargetSupplierId))!
+            .SetMethod!.IsPrivate);
+        Assert.IsTrue(typeof(PurchaseCandidateItemModel)
+            .GetProperty(nameof(PurchaseCandidateItemModel.DeliverySupplierCode))!
+            .SetMethod!.IsPrivate);
+        Assert.IsTrue(typeof(PurchaseCandidateItemModel)
+            .GetProperty(nameof(PurchaseCandidateItemModel.DeliverySupplierName))!
+            .SetMethod!.IsPrivate);
 
         standard.IsInputEnabled = false;
         customerSupplied.IsInputEnabled = false;
         Assert.IsFalse(standard.CanEditPurchaseSupplier);
         Assert.IsFalse(customerSupplied.CanEditPurchaseSupplier);
-        Assert.IsFalse(customerSupplied.CanEditDeliverySupplier);
+    }
+
+    /// <summary>候选完整加载后以父件当前供应商覆盖建议送达方，后续更换和清空仍同步全部锚定事实。</summary>
+    [TestMethod]
+    public async Task ParentSupplierChanges_ShouldSynchronizeAnchoredCustomerSuppliedRows()
+    {
+        var api = new CandidateApiStub();
+        var initial = CreateSupplier("SUP-A", "供应商甲");
+        var replacement = CreateSupplier("SUP-B", "供应商乙");
+        var parent = CreateCandidate(api.FirstSourceUid, "SO-A", 1, "PARENT");
+        parent.SuggestedPurchaseSupplierId = initial.Uid;
+        parent.SuggestedPurchaseSupplierCode = initial.SupplierCode;
+        parent.SuggestedPurchaseSupplierName = initial.SupplierName;
+        var child = CreateCandidate(api.FirstSourceUid, "SO-A", 2, "CHILD");
+        child.IsCustomerSupplied = true;
+        child.DeliveryTargetNetDemandId = parent.Uid;
+        child.SuggestedDeliverySupplierId = Guid.NewGuid();
+        child.SuggestedDeliverySupplierCode = "OLD";
+        child.SuggestedDeliverySupplierName = "旧送达方";
+        var unrelated = CreateCandidate(api.FirstSourceUid, "SO-A", 3, "OTHER");
+        unrelated.IsCustomerSupplied = true;
+        unrelated.DeliveryTargetNetDemandId = Guid.NewGuid();
+        unrelated.SuggestedDeliverySupplierId = Guid.NewGuid();
+        api.Groups.Add(CreateGroup("SO-A", api.FirstSourceUid, 3));
+        api.Candidates.AddRange([parent, child, unrelated]);
+        using var viewModel = CreateViewModel(api);
+
+        await viewModel.OpenAsync();
+        await viewModel.SelectSourceGroupCommand.ExecuteAsync(viewModel.SourceGroups[1]);
+
+        var parentRow = viewModel.Items.Single(item => item.Uid == parent.Uid);
+        var childRow = viewModel.Items.Single(item => item.Uid == child.Uid);
+        var unrelatedRow = viewModel.Items.Single(item => item.Uid == unrelated.Uid);
+        var unrelatedDeliveryId = unrelatedRow.DeliveryTargetSupplierId;
+        Assert.AreEqual(initial.Uid, childRow.DeliveryTargetSupplierId);
+        Assert.AreEqual(initial.SupplierCode, childRow.DeliverySupplierCode);
+        Assert.AreEqual(initial.SupplierName, childRow.DeliverySupplierName);
+
+        parentRow.PurchaseSupplierSelection = replacement;
+        Assert.AreEqual(replacement.Uid, childRow.DeliveryTargetSupplierId);
+        Assert.AreEqual(replacement.SupplierCode, childRow.DeliverySupplierCode);
+        Assert.AreEqual(replacement.SupplierName, childRow.DeliverySupplierName);
+        Assert.AreEqual(unrelatedDeliveryId, unrelatedRow.DeliveryTargetSupplierId);
+
+        viewModel.ClearPurchaseSupplierCommand.Execute(parentRow);
+        Assert.IsNull(childRow.DeliveryTargetSupplierId);
+        Assert.AreEqual(string.Empty, childRow.DeliverySupplierCode);
+        Assert.AreEqual(string.Empty, childRow.DeliverySupplierName);
     }
 
     /// <summary>业务阻断只作为行级错误供行头与摘要使用，不把每个绑定属性都标成红框。</summary>
@@ -221,6 +275,37 @@ public sealed class PurchaseCandidateSelectionViewModelTests
                 window.Close();
             }
 
+            return Task.CompletedTask;
+        });
+    }
+
+    /// <summary>客供送达列仅展示父件派生结果，不能进入编辑态或参与向下填充。</summary>
+    [TestMethod]
+    public void DeliverySupplierColumn_ShouldRemainReadOnly()
+    {
+        StaTest.RunAsync(() =>
+        {
+            ApplicationResourceLoader.Load();
+            using var viewModel = CreateViewModel(new CandidateApiStub());
+            var row = CreateCandidateRow(CreateSupplier("SUP-A", "供应商甲"));
+            viewModel.Items.Add(row);
+            var view = new PurchaseCandidateSelectionView { DataContext = viewModel };
+            var window = Show(view);
+            try
+            {
+                var grid = (DataGrid)view.FindName("CandidateGrid");
+                var column = FindColumn(grid, "DeliverySupplier");
+                Assert.IsTrue(column.IsReadOnly);
+                Assert.IsFalse(GridColumn.GetCanFillDown(column));
+                Assert.IsNull(column.CellEditingTemplate);
+                grid.CurrentCell = new DataGridCellInfo(row, column);
+                grid.Focus();
+                Assert.IsFalse(grid.BeginEdit());
+            }
+            finally
+            {
+                window.Close();
+            }
             return Task.CompletedTask;
         });
     }

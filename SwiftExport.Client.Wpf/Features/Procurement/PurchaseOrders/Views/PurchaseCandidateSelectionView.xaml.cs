@@ -51,7 +51,6 @@ public partial class PurchaseCandidateSelectionView : UserControl
         var canEdit = GridColumn.GetKey(e.Column) switch
         {
             "PurchaseSupplier" => row.CanEditPurchaseSupplier,
-            "DeliverySupplier" => row.CanEditDeliverySupplier,
             _ => true,
         };
         if (!canEdit) e.Cancel = true;
@@ -61,7 +60,7 @@ public partial class PurchaseCandidateSelectionView : UserControl
     private void OnPreparingCellForEdit(object? sender, DataGridPreparingCellForEditEventArgs e)
     {
         var columnKey = GridColumn.GetKey(e.Column);
-        if (columnKey != "PurchaseSupplier" && columnKey != "DeliverySupplier") return;
+        if (columnKey != "PurchaseSupplier") return;
         var editingElement = e.EditingElement;
         Dispatcher.BeginInvoke(new Action(() =>
         {

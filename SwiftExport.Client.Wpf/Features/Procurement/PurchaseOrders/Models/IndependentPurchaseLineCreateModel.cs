@@ -8,7 +8,6 @@ namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 public sealed partial class IndependentPurchaseLineCreateModel : ObservableObject
 {
     [ObservableProperty] public partial ProcurementProductCandidateDto? Product { get; set; }
-    [ObservableProperty] public partial WarehouseCandidateDto? Warehouse { get; set; }
     [ObservableProperty] public partial decimal Quantity { get; set; } = 1;
     [ObservableProperty] public partial decimal? UnitPrice { get; set; }
     [ObservableProperty] public partial decimal? TaxPrice { get; set; }

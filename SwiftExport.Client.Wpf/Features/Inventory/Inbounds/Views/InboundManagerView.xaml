@@ -37,6 +37,15 @@
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                     </ui:TextBox.InputBindings>
                 </ui:TextBox>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+
+                    <ui:Button Grid.Column="2"  Appearance="Primary" Margin="8,0,0,0"
+                            Content="查询" VerticalAlignment="Stretch"
+                            Command="{Binding SearchCommand}" MinWidth="70"/>
+
+                    <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0"
+                            VerticalAlignment="Stretch" MinWidth="70"/>
+                </StackPanel>
             </Grid>
         </Grid>
 
@@ -65,18 +74,12 @@
                     </ComboBox.ItemTemplate>
                 </ComboBox>
                 
-                <ui:Button Grid.Column="6" 
-                           Content="查询" 
-                           MinWidth="70" Appearance="Primary" 
-                           Command="{Binding SearchCommand}" 
-                           VerticalAlignment="Stretch"/>
 
-                <StackPanel Grid.Column="8" Orientation="Horizontal" HorizontalAlignment="Left">
+                <StackPanel Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Left">
                     <ui:Button Content="新增" MinWidth="70"  Margin="0,0,6,0" Command="{Binding AddNewHeaderRowCommand}" VerticalAlignment="Stretch"/>
-                    <ui:Button Content="保存" MinWidth="70"   Margin="0,0,6,0"  Command="{Binding SaveCommand}" Appearance="Success"/>
-                    <ui:Button Content="刷新" MinWidth="70"   Margin="0,0,6,0"  Command="{Binding RefreshCommand}" VerticalAlignment="Stretch"/>
+                    <ui:Button Content="保存" MinWidth="70"   Margin="0,0,6,0"  Command="{Binding SaveCommand}" Appearance="Success" VerticalAlignment="Stretch"/>
                     <ui:Button Content="删除" MinWidth="70"   Margin="0,0,6,0"  Command="{Binding DeleteSelectedCommand}" VerticalAlignment="Stretch"/>
-                    <ui:Button Content="过账" MinWidth="70"   Margin="0,0,6,0" Command="{Binding PostCommand}" Appearance="Primary"/>
+                    <ui:Button Content="过账" MinWidth="70"   Margin="0,0,6,0" Command="{Binding PostCommand}" Appearance="Primary" VerticalAlignment="Stretch"/>
                     <ui:Button Content="反过账" MinWidth="70" Margin="0,0,6,0" Command="{Binding ReverseCommand}" Appearance="Danger" VerticalAlignment="Stretch"/>
                 </StackPanel>
             </Grid>

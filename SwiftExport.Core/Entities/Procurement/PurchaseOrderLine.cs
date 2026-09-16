@@ -13,12 +13,6 @@ public sealed partial class PurchaseOrderLine : BaseEntity
 {
     /// <summary>不由需求贡献承担的数量；历史未知保持空值，独立采购等于采购数量。</summary>
     public decimal? UnlinkedQty { get; set; }
-    /// <summary>明确收货仓库，不依赖需求分配，不等同于 BOM 客供件消耗仓库。</summary>
-    public Guid? DeliveryWarehouseSiteId { get; set; }
-    /// <summary>收货仓库代码历史快照。</summary>
-    public string? DeliveryWarehouseCodeSnapshot { get; set; }
-    /// <summary>收货仓库名称历史快照。</summary>
-    public string? DeliveryWarehouseNameSnapshot { get; set; }
     /// <summary>所属采购订单头 Uid。</summary>
     public Guid PurchaseOrderId { get; set; }
 

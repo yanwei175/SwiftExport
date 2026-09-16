@@ -19,6 +19,53 @@ namespace SwiftExport.Application.Tests.Procurement;
 [DoNotParallelize]
 public sealed class IndependentProcurementSqlTests
 {
+    /// <summary>采购不固定收货仓；分仓过账共享采购容量，反过账仅扣回原实际仓。</summary>
+    [TestMethod]
+    public async Task PurchaseReceiptsAcrossWarehousesShareCapacityAndReverseOriginalWarehouse()
+    {
+        var created = await Db.CreateAsync();
+        Assert.IsTrue(created.Success, created.Message);
+        var uid = created.Data!.PurchaseOrderId;
+        var context = await Db.ContextAsync(uid);
+        Assert.IsTrue(context.Success, context.Message);
+        Assert.IsTrue((await Db.ConfirmAsync(uid, ConfirmCommand(context.Data))).Success);
+        var lineId = created.Data.Lines.Single().PurchaseOrderLineId;
+        async Task<SwiftExport.Contracts.DTOs.Inventory.Inbounds.InboundDraftCommandResult> Draft(Guid site, decimal quantity)
+        {
+            var result = await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.IInboundManagerService>()
+                .CreateAsync(new() { CommandId = Guid.NewGuid(), Draft = new()
+                {
+                    DocumentType = SwiftExport.Contracts.SysEnums.Inventory.InboundDocumentTypeEnum.PurchaseReceipt,
+                    WarehouseSiteId = site, ReceiptDate = DateTime.Today,
+                    Lines = [new() { SourceLineId = lineId, Quantity = quantity }]
+                } }));
+            Assert.IsTrue(result.Success, result.Message);
+            return result.Data!;
+        }
+        async Task<SwiftExport.Contracts.Wrappers.ServiceResult<SwiftExport.Contracts.DTOs.Inventory.Inbounds.InboundPostResult>> Post(
+            SwiftExport.Contracts.DTOs.Inventory.Inbounds.InboundDraftCommandResult draft) =>
+            await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.IInboundManagerService>()
+                .PostAsync(draft.Uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = draft.Version }));
+        var first = await Draft(Db.ReceiptSiteId, 4m);
+        var second = await Draft(Db.ConsumptionSiteId, 6m);
+        var firstPost = await Post(first);
+        var secondPost = await Post(second);
+        Assert.IsTrue(firstPost.Success, firstPost.Message);
+        Assert.IsTrue(secondPost.Success, secondPost.Message);
+        async Task<decimal> Balance(Guid site) => await Db.ScalarAsync<decimal>(
+            "SELECT OnHandQty FROM dbo.InventoryBalance WHERE WarehouseSiteId=@site AND ProductId=@product", new { site, product = Db.ProductId });
+        Assert.AreEqual(4m, await Balance(Db.ReceiptSiteId));
+        Assert.AreEqual(6m, await Balance(Db.ConsumptionSiteId));
+        var excess = await Draft(Db.ReceiptSiteId, 1m);
+        Assert.IsFalse((await Post(excess)).Success);
+        var reversed = await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.IInboundManagerService>()
+            .ReverseAsync(second.Uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = secondPost.Data!.Version, Reason = "隔离测试反过账" }));
+        Assert.IsTrue(reversed.Success, reversed.Message);
+        Assert.AreEqual(4m, await Balance(Db.ReceiptSiteId));
+        Assert.AreEqual(0m, await Balance(Db.ConsumptionSiteId));
+        Assert.IsTrue((await Post(excess)).Success);
+    }
+
     /// <summary>真实 SQL 验证 Manager 头行口径一致、采购行直连、多 Link 不倍增、无 Link 可读及草稿忽略。</summary>
     [TestMethod]
     public async Task ManagerReceiptFactsUsePurchaseLineIdentityWithoutDemandLinkDependency()
@@ -95,7 +142,7 @@ public sealed class IndependentProcurementSqlTests
         if (fixture != null) await fixture.DisposeAsync();
     }
 
-    /// <summary>无需求链创建合法订单并冻结客户、单位、实际供应商和独立收货目标。</summary>
+    /// <summary>无需采购收货仓即可创建并确认订单，冻结客户、单位与实际供应商，不生成库存。</summary>
     [TestMethod]
     public async Task CreateAndConfirmWithoutBomDoesNotCreateDemandOrInventory()
     {

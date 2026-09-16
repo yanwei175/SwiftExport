@@ -218,7 +218,7 @@
                                         gridColumns:GridColumn.CanFillDown="False" />
                     
                     <DataGridTemplateColumn Header="供应商" 
-                                            Width="150"
+                                            Width="80"
                                             IsReadOnly="False"
                                             SortMemberPath="PurchaseSupplierCode"
                                             gridColumns:GridColumn.Key="PurchaseSupplier"
@@ -233,51 +233,46 @@
                         <DataGridTemplateColumn.CellEditingTemplate>
                             <DataTemplate>
                                 <purchaseComponents:PurchaseSupplierLookupTextBox
-                                    Text="{Binding PurchaseSupplierSearchText, Mode=OneWay}"
-                                    ItemsSource="{Binding DataContext.SupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    SelectedSupplier="{Binding PurchaseSupplierSelection, Mode=TwoWay}"
-                                    SearchCommand="{Binding DataContext.SearchSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    SelectionCommittedCommand="{Binding DataContext.CommitPurchaseSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    SelectionCommittedCommandParameter="{Binding}"
-                                    SelectionClearedCommand="{Binding DataContext.ClearPurchaseSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    SelectionClearedCommandParameter="{Binding}"
-                                    IsBusy="{Binding DataContext.IsSupplierSearchBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    IsEnabled="{Binding CanEditPurchaseSupplier}"
-                                    Placeholder="搜索实际采购方" />
+                                                    Text="{Binding PurchaseSupplierSearchText, Mode=OneWay}"
+                                                    ItemsSource="{Binding DataContext.SupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    SelectedSupplier="{Binding PurchaseSupplierSelection, Mode=TwoWay}"
+                                                    SearchCommand="{Binding DataContext.SearchSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    SelectionCommittedCommand="{Binding DataContext.CommitPurchaseSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    SelectionCommittedCommandParameter="{Binding}"
+                                                    SelectionClearedCommand="{Binding DataContext.ClearPurchaseSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    SelectionClearedCommandParameter="{Binding}"
+                                                    IsBusy="{Binding DataContext.IsSupplierSearchBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    IsEnabled="{Binding CanEditPurchaseSupplier}"
+                                                    Placeholder="搜索实际采购方" />
                             </DataTemplate>
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
                     
                     <DataGridTemplateColumn Header="客供送至" Width="100" 
-                                            IsReadOnly="False"
+                                            IsReadOnly="True"
                                             SortMemberPath="DeliverySupplierCode"
                                             gridColumns:GridColumn.Key="DeliverySupplier"
-                                            gridColumns:GridColumn.FillDownFieldPaths="DeliveryTargetSupplierId,DeliverySupplierCode,DeliverySupplierName"
-                                            gridColumns:GridColumn.CanFillDownPath="CanEditDeliverySupplier">
+                                            gridColumns:GridColumn.CanFillDown="False">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding DeliverySupplierDisplay}"
-                                           ToolTip="{Binding DeliverySupplierDisplay}"
-                                           Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                                           ToolTip="{Binding DeliverySupplierDisplay}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridWarpTextBlock}">
+                                            <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ActiveText}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DeliverySupplierDisplay}" Value="不适用">
+                                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextPrimary}"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding DeliverySupplierDisplay}" Value="未选择">
+                                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.Error}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <purchaseComponents:PurchaseSupplierLookupTextBox
-                                    Text="{Binding DeliverySupplierSearchText, Mode=OneWay}"
-                                    ItemsSource="{Binding DataContext.SupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    SelectedSupplier="{Binding DeliverySupplierSelection, Mode=TwoWay}"
-                                    SelectedSupplierId="{Binding DeliveryTargetSupplierId, Mode=TwoWay}"
-                                    SearchCommand="{Binding DataContext.SearchSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    SelectionCommittedCommand="{Binding DataContext.CommitDeliverySupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    SelectionCommittedCommandParameter="{Binding}"
-                                    SelectionClearedCommand="{Binding DataContext.ClearDeliverySupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    SelectionClearedCommandParameter="{Binding}"
-                                    IsBusy="{Binding DataContext.IsSupplierSearchBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    IsEnabled="{Binding CanEditDeliverySupplier}"
-                                    Placeholder="搜索实际送达方" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
                     <DataGridTextColumn Header="待采数量" Width="70" 
@@ -322,19 +317,18 @@
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTemplateColumn Header="验证结果" Width="260" 
+                    <DataGridTemplateColumn Header="验证结果" Width="*"
                                         gridColumns:GridColumn.Key="ValidationMessage"
                                         gridColumns:GridColumn.CanFillDown="False">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding ValidationDisplayMessage}"
                                            Foreground="{DynamicResource SwiftExportBrush.ErrorText}"
-                                           Margin="4"
+                                           Margin="2"
                                            TextWrapping="Wrap"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-
                 </DataGrid.Columns>
             </DataGrid>
 

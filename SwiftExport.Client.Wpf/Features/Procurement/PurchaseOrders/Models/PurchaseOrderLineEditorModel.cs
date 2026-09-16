@@ -22,7 +22,6 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
     public string SupplyType { get; init; } = string.Empty;
     public string MainImage { get; init; } = string.Empty;
     public string UnitSnapshot { get; init; } = string.Empty;
-    public string WarehouseName { get; init; } = string.Empty;
     public string SourceType { get; init; } = string.Empty;
     public string SourceNo { get; init; } = string.Empty;
     public int? SourceLineNumber { get; init; }
@@ -112,7 +111,7 @@ public sealed partial class PurchaseOrderLineEditorModel : ObservableObject
         CustomerSku = dto.CustomerSku ?? string.Empty, LinkSku = dto.LinkSku ?? string.Empty,
         FinishZh = dto.FinishZh ?? string.Empty, FeaturesZh = dto.FeaturesZh ?? string.Empty,
         MaterialType = dto.MaterialType ?? string.Empty, SupplyType = dto.SupplyType ?? string.Empty,
-        UnitSnapshot = dto.UnitSnapshot ?? string.Empty, WarehouseName = dto.WarehouseName ?? string.Empty,
+        UnitSnapshot = dto.UnitSnapshot ?? string.Empty,
         SourceType = dto.SourceType ?? string.Empty, SourceNo = dto.SourceNo ?? string.Empty, SourceLineNumber = dto.SourceLineNumber,
         Quantity = dto.Quantity, UnitAmount = dto.UnitAmount, TaxAmount = dto.TaxAmount,
         DeliverySupplierName = dto.DeliverySupplierName ?? string.Empty, PlannedDeliveryDate = dto.PlannedDeliveryDate,

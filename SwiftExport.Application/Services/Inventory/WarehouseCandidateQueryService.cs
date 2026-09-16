@@ -37,7 +37,7 @@ public sealed class WarehouseCandidateQueryService(
         context.Session.Transaction = transaction;
         try
         {
-            // 创建选择收货仓，确认选择消耗仓；查询权限不赋予任何采购写权限。
+            // 采购确认选择客供件消耗仓；保留共用查询权限，查询本身不赋予采购写权限。
             var projection = await permissions.GetProjectionAsync(userId, cancellationToken);
             if (projection is null
                 || (!projection.Permissions.Contains(PermissionKeys.ProcurementOrderCreate, StringComparer.Ordinal)

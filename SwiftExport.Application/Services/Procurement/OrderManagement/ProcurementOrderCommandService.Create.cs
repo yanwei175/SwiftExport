@@ -44,7 +44,6 @@ public sealed partial class ProcurementOrderCommandService
                     ?? throw new InvalidOperationException("产品采购快照读取失败。");
                 var unit = await repository.GetUnitAsync(product!.Unit?.Trim() ?? "", ct);
                 if (string.IsNullOrWhiteSpace(unit)) throw new InvalidOperationException("产品缺少唯一有效基础单位。");
-                var target = await confirmation.RequireWarehouseAsync(item.WarehouseSiteId, ct);
                 // 映射仅带商务输入，下面显式建立权威身份和历史快照。
                 var line = item.Adapt<PurchaseOrderLine>(mappings);
                 line.Uid = GuidSequentialGenerator.NewGuid(); line.PurchaseOrderId = head.Uid; line.LineNumber = lines.Count + 1;
@@ -54,8 +53,6 @@ public sealed partial class ProcurementOrderCommandService
                 line.FinishZh = productSnapshot.FinishZh; line.FeaturesZh = productSnapshot.FeaturesZh;
                 line.Quantity = item.Quantity; line.UnlinkedQty = item.Quantity;
                 line.MaterialType = product.MaterialType; line.SupplyType = product.SupplyType;
-                line.DeliveryWarehouseSiteId = target.Site.Uid; line.DeliveryWarehouseCodeSnapshot = target.Site.Code;
-                line.DeliveryWarehouseNameSnapshot = target.Site.Name;
                 if (product.MaterialType == MaterialTypesEnum.客供件)
                 {
                     if (!item.DeliverySupplierId.HasValue || item.DeliverySupplierId == Guid.Empty)

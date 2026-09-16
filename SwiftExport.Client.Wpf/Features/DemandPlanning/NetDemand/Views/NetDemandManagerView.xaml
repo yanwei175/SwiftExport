@@ -106,6 +106,17 @@
                             <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                         </ui:TextBox.InputBindings>
                     </ui:TextBox>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <ui:Button Grid.Column="2"  Appearance="Primary" Margin="8,0,0,0"
+                            Content="查询" VerticalAlignment="Stretch"
+                            Command="{Binding SearchCommand}" MinWidth="70"/>
+
+                        <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0"
+                            VerticalAlignment="Stretch" MinWidth="70"/>
+
+                        <ui:Button Content="清空" Command="{Binding ClearFiltersCommand}" Margin="8,0,0,0"
+                               VerticalAlignment="Stretch" MinWidth="70"/>
+                    </StackPanel>
                 </Grid>
             </Grid>
 
@@ -129,10 +140,6 @@
                             Content="取消修改"
                             AutomationProperties.Name="还原未保存的推荐采购供应商修改" />
 
-                    <ui:Button Command="{Binding RefreshCommand}" Content="刷新" Margin="0,0,8,0" 
-                               MinWidth="70"/>
-
-
                 </StackPanel>
             </Grid>
 
@@ -150,24 +157,17 @@
                                                DisplayMemberPath="DisplayText"
                                                ItemsSource="{Binding SourceTypeOptions}" 
                                                SelectedItems="{Binding SelectedSourceTypes, Mode=OneWay}" />
-                    
-                    <ComboBox Grid.Column="4"
+
+                    <ComboBox Grid.Column="4" MinWidth="120"
                               ItemsSource="{Binding DemandRoleOptions}" 
                               DisplayMemberPath="DisplayText"
                               SelectedItem="{Binding SelectedDemandRole}" />
-                    
+
                     <ToggleButton Grid.Column="6"
                                   Content="更多条件"
                                   IsChecked="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
                                   MinHeight="34"
                                   HorizontalAlignment="Left" />
-                    
-                    <ui:Button Grid.Column="8" Content="查询"  Appearance="Primary"
-                        MinWidth="70" VerticalAlignment="Stretch"
-                        Command="{Binding SearchCommand}" />
-
-                    <Button Grid.Column="10" VerticalAlignment="Stretch"
-                            Content="清空筛选" Command="{Binding ClearFiltersCommand}" />
 
                 </Grid>
                 <Popup IsOpen="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
@@ -192,7 +192,7 @@
                                             SelectedDate="{Binding DemandRequiredDateTo}" />
                             </Grid>
                             <Separator Height="4" Background="Transparent" BorderThickness="0"/>
-                            
+
                             <Grid ColumnDefinitions="*,4,*,4,*,4,*,4,*,4,*,4,*">
                                 <ui:TextBox Grid.Column="0" PlaceholderText="来源单号（支持多行）"
                                             Text="{Binding SourceNosText}" AcceptsReturn="True" TextWrapping="Wrap"
@@ -217,6 +217,7 @@
                           IsReadOnly="{Binding IsReadOnly}"
                           RowHeight="{StaticResource DataGridRowHeightMedium}"
                           FontSize="{StaticResource SwiftExportDefaltFontSize}"
+                      FrozenColumnCount="8"
                           SelectionMode="Single"
                           SelectionUnit="FullRow"
                           EnableRowVirtualization="True" 
@@ -226,91 +227,136 @@
                           gridCore:GridRowHeader.ShowRowNumber="True"
                           gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                           gridSelection:GridSelection.CurrentRow="{Binding SelectedItem, Mode=TwoWay}">
-                        <DataGrid.Columns>
-                            <DataGridTemplateColumn Width="45" CanUserSort="False" IsReadOnly="True"
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Width="45" CanUserSort="False" IsReadOnly="True"
                                                 gridColumns:GridColumn.Key="selected"
                                                 gridColumns:GridColumn.CanExport="False"
                                                 gridColumns:GridColumn.CanFilter="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
-                                <DataGridTemplateColumn.HeaderTemplate>
-                                    <DataTemplate>
-                                        <CheckBox IsThreeState="False"
+                        <DataGridTemplateColumn.HeaderTemplate>
+                            <DataTemplate>
+                                <CheckBox IsThreeState="False"
                                               IsChecked="{Binding DataContext.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}" />
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.HeaderTemplate>
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <CheckBox  HorizontalAlignment="Center"
+                            </DataTemplate>
+                        </DataGridTemplateColumn.HeaderTemplate>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox  HorizontalAlignment="Center"
                                               IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="图片" Width="60" CanUserSort="False" IsReadOnly="True"
+                    <DataGridTemplateColumn Header="图片" Width="60" CanUserSort="False" IsReadOnly="True"
                                                 gridColumns:GridColumn.Key="image"
                                                 gridColumns:GridColumn.CanExport="False"
                                                 gridColumns:GridColumn.CanFilter="False">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <controls:CachedImage Width="56" Height="56" Margin="2"
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <controls:CachedImage Width="56" Height="56" Margin="2"
                                                                     Style="{StaticResource SwiftExportCachedImage}"
                                                                     SourcePath="{Binding ImagePath}"
                                                                     DecodePixelWidth="80"
                                                                     Stretch="Uniform" />
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="状态" Width="60" Binding="{Binding LifecycleStatusText}" IsReadOnly="True"
-                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                             gridColumns:GridColumn.Key="material-status" />
-                            
-                            <DataGridTextColumn Header="来源" Width="82" Binding="{Binding SourceTypeText}" IsReadOnly="True"
+                    <DataGridTextColumn Header="状态" Width="45" Binding="{Binding LifecycleStatusText}" IsReadOnly="True"
+                                             gridColumns:GridColumn.Key="material-status" >
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
+
+                                <Style.Triggers>
+
+                                    <DataTrigger Binding="{Binding LifecycleStatusText}" Value="活动">
+                                        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ActiveText}"/>
+                                    </DataTrigger>
+
+                                    <DataTrigger Binding="{Binding LifecycleStatusText}"  Value="已回退">
+                                        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.WarningText}"/>
+                                    </DataTrigger>
+
+                                    <DataTrigger Binding="{Binding LifecycleStatusText}" Value="已作废">
+                                        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.DeletedText}"/>
+                                    </DataTrigger>
+
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Header="来源" Width="80" Binding="{Binding SourceTypeText}" IsReadOnly="True"
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             gridColumns:GridColumn.Key="source-type" />
-                            
-                            <DataGridTextColumn Header="来源单号" Width="130" Binding="{Binding SourceNo}" IsReadOnly="True"
+
+                    <DataGridTextColumn Header="来源单号" Width="100" Binding="{Binding SourceNo}" IsReadOnly="True"
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             gridColumns:GridColumn.Key="source-no" />
-                            
-                            <DataGridTextColumn Header="行" Width="44" Binding="{Binding SourceLineNumber}" IsReadOnly="True"
+
+                    <DataGridTextColumn Header="行" Width="44" Binding="{Binding SourceLineNumber}" IsReadOnly="True"
                                                 Visibility="Collapsed"
                                                 ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                                 gridColumns:GridColumn.Key="source-line" />
-                            
-                            <DataGridTextColumn Header="角色" Width="70" Binding="{Binding DemandRoleText}" IsReadOnly="True"
-                                                Visibility="Collapsed"
-                                                ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                                gridColumns:GridColumn.Key="demand-role" />
-                            
-                            <DataGridTextColumn Header="物料编号" Width="150" Binding="{Binding DisplaySku}" SortMemberPath="Sku" IsReadOnly="True"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+
+                    <DataGridTextColumn Header="角色" Width="70" Binding="{Binding DemandRoleText}" 
+                                                IsReadOnly="True"
+                                                gridColumns:GridColumn.Key="demand-role" >
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
+
+                                <Style.Triggers>
+
+                                    <DataTrigger Binding="{Binding DemandRoleText}" Value="父件">
+                                        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ActiveText}"/>
+                                    </DataTrigger>
+
+                                    <DataTrigger Binding="{Binding DemandRoleText}"  Value="客供件">
+                                        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.WarningText}"/>
+                                    </DataTrigger>
+
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Header="物料编号" Width="150" Binding="{Binding DisplaySku}" SortMemberPath="Sku" IsReadOnly="True"
+                                            ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                             gridColumns:GridColumn.Key="sku" gridColumns:GridColumn.FieldPath="Sku" />
 
-                            <DataGridTextColumn Header="产品型号" Width="150" Binding="{Binding LinkSku}" SortMemberPath="LinkSku" IsReadOnly="True"
-                                                ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                    <DataGridTextColumn Header="产品型号" Width="150" Binding="{Binding LinkSku}" SortMemberPath="LinkSku" IsReadOnly="True"
+                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                                 gridColumns:GridColumn.Key="link-sku" gridColumns:GridColumn.FieldPath="LinkSku" />
 
-                            <DataGridTextColumn Header="客户型号" Width="140" Binding="{Binding CustomerSku}" IsReadOnly="True"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                    <DataGridTextColumn Header="客户型号" Width="140" Binding="{Binding CustomerSku}" IsReadOnly="True"
+                                            ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                             gridColumns:GridColumn.Key="customer-sku" />
-                            
-                            <DataGridTextColumn Header="供货方式" Width="84" Binding="{Binding SupplyType}" IsReadOnly="True"
-                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+
+                    <DataGridTextColumn Header="供货方式" Width="70" Binding="{Binding SupplyType}" IsReadOnly="True"
+                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                              gridColumns:GridColumn.Key="supply-type" />
 
-                            <DataGridTemplateColumn Header="默认供应商" Width="100"
+                    <DataGridTemplateColumn Header="默认供应商" Width="100"
                                                     SortMemberPath="SuggestedPurchaseSupplierCode"
                                                     gridColumns:GridColumn.Key="suggested-purchase-supplier">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding SuggestedPurchaseSupplierDisplay}"
-                                                   ToolTip="{Binding SuggestedPurchaseSupplierName}"
-                                                   Style="{StaticResource SwiftExportDataGridTextBlock}" />
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                                <DataGridTemplateColumn.CellEditingTemplate>
-                                    <DataTemplate>
-                                        <procurementComponents:PurchaseSupplierLookupTextBox
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding SuggestedPurchaseSupplierDisplay}"
+                                                   ToolTip="{Binding SuggestedPurchaseSupplierName}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridWarpTextBlock}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SuggestedPurchaseSupplierDisplay}" Value="未设置">
+                                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.DeletedText}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <procurementComponents:PurchaseSupplierLookupTextBox
                                             ItemsSource="{Binding DataContext.SuggestedSupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                             SelectedSupplier="{Binding SuggestedPurchaseSupplierSelection, Mode=OneWay}"
                                             SearchCommand="{Binding DataContext.SearchSuggestedSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
@@ -320,40 +366,43 @@
                                             IsEnabled="{Binding DataContext.CanWrite, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                             Placeholder="搜索推荐采购供应商"
                                             AutomationProperties.Name="推荐采购供应商" />
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellEditingTemplate>
-                            </DataGridTemplateColumn>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="客供送至" Width="100"
+                    <DataGridTextColumn Header="客供送至" Width="100"
                                                 Binding="{Binding SuggestedDeliverySupplierDisplay, TargetNullValue=未确定}"
-                                                ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                                 IsReadOnly="True"
                                                 gridColumns:GridColumn.Key="suggested-delivery-supplier" />
-                            
-                            <DataGridTextColumn Header="原需求交期" Width="102" Binding="{Binding DemandRequiredDate, StringFormat=yyyy-MM-dd}" IsReadOnly="True"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+
+                    <DataGridTextColumn Header="原需求交期" Width="102" Binding="{Binding DemandRequiredDate, StringFormat=yyyy-MM-dd}" IsReadOnly="True"
+                                            ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"
                                             gridColumns:GridColumn.Key="demand-required-date" />
-                            
-                            <DataGridTextColumn Header="净需求" Width="88" Binding="{Binding NetQty, StringFormat=N4}" IsReadOnly="True"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+
+                    <DataGridTextColumn Header="物料需求" Width="70" 
+                                                Binding="{Binding NetQty, StringFormat=N1}" IsReadOnly="True"
+                                            ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                             gridColumns:GridColumn.Key="net-qty" />
-                            
-                            <DataGridTextColumn Header="关联采购量" Width="96" Binding="{Binding AssociatedPurchaseQty, StringFormat=N4}" IsReadOnly="True"
-                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+
+                    <DataGridTextColumn Header="关联采购量" Width="80" Binding="{Binding AssociatedPurchaseQty, StringFormat=N1}" IsReadOnly="True"
+                                             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                              gridColumns:GridColumn.Key="associated-purchase-qty" />
-                            
-                            <DataGridTextColumn Header="采购单" Width="160" Binding="{Binding PurchaseOrderNos}" IsReadOnly="True"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            gridColumns:GridColumn.Key="purchase-orders" />
-                            <DataGridTextColumn Header="描述" Width="200" Binding="{Binding Description}" IsReadOnly="True"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            gridColumns:GridColumn.Key="description" />
-                            
-                            <DataGridTextColumn Header="根 SKU" Width="120" Binding="{Binding RootSku}" IsReadOnly="True"
-                                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+
+                    <DataGridTextColumn Header="采购单号" Width="160" Binding="{Binding PurchaseOrderNos}" 
+                                        IsReadOnly="True"
+                                        ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                        gridColumns:GridColumn.Key="purchase-orders" />
+                    
+                    <DataGridTextColumn Header="描述" Width="200" Binding="{Binding Description}" IsReadOnly="True"
+                                        ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                        gridColumns:GridColumn.Key="description" />
+
+                    <DataGridTextColumn Header="根SKU" Width="120" Binding="{Binding RootSku}" IsReadOnly="True"
+                                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                                     gridColumns:GridColumn.Key="root-sku" />
                 </DataGrid.Columns>
-                    </DataGrid>
+            </DataGrid>
 
             <Grid Grid.Row="8" ColumnDefinitions="*,Auto,Auto,Auto">
                 <TextBlock Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center" />
@@ -372,7 +421,7 @@
                     </controls:PageNavigator.Style>
                 </controls:PageNavigator>
             </Grid>
-            
+
         </Grid>
     </DockPanel>
 </UserControl>

@@ -36,6 +36,32 @@ public sealed class NetDemandManagerSqlContractTests
         Assert.IsFalse(source.Contains("[dbo].[NetDemandAllocation]", StringComparison.Ordinal));
     }
 
+    /// <summary>客供件只读取自身产品主图，父件才允许优先使用来源图片快照。</summary>
+    [TestMethod]
+    public void ManagerQuery_ShouldResolveImagesByDemandRole()
+    {
+        var sourcePath = Path.Combine(
+            FindRepositoryRoot(),
+            "SwiftExport.Infrastructure",
+            "Repositories",
+            "DemandPlanning",
+            "NetDemandRepository.Manager.cs");
+        var source = File.ReadAllText(sourcePath);
+        var managerQuery = source.Split("SearchManagerAsync", StringSplitOptions.None)[1]
+            .Split("SearchMaterialSourceGroupsAsync", StringSplitOptions.None)[0];
+        var purchaseCandidateQuery = source.Split("GetPurchaseCandidatesAsync", StringSplitOptions.None)[1]
+            .Split("PurchaseCandidatePurchaseFactsSql", StringSplitOptions.None)[0];
+
+        StringAssert.Contains(managerQuery, "CASE WHEN nd.[DeliveryMode]=1");
+        StringAssert.Contains(managerQuery, "THEN COALESCE(p.[MainImage],N'')");
+        StringAssert.Contains(managerQuery,
+            "ELSE COALESCE(NULLIF(LTRIM(RTRIM(gd.[ImagePathSnapshot])),N''),p.[MainImage],N'')");
+        Assert.IsFalse(managerQuery.Contains(
+            "COALESCE(gd.[ImagePathSnapshot],p.[MainImage]) AS [ImagePath]",
+            StringComparison.Ordinal));
+        StringAssert.Contains(purchaseCandidateQuery, "COALESCE(p.[MainImage],N'') AS [ImagePath]");
+    }
+
     /// <summary>从测试输出目录向上定位仓库根目录。</summary>
     private static string FindRepositoryRoot()
     {

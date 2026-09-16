@@ -11,6 +11,7 @@ namespace SwiftExport.Application.Services.Procurement;
 /// <summary>把已经确认的预览文档转换为待写入实体；不访问数据库。</summary>
 public sealed class PurchaseDraftWriteModelBuilder
 {
+    /// <summary>生成新建或追加的采购行及完整需求贡献；全部数量来自需求，未关联数量明确为零。</summary>
     public PurchaseDraftWriteModel Build(
         PurchaseDraftPreviewDocumentDto document,
         Guid executionRequestId,
@@ -100,6 +101,8 @@ public sealed class PurchaseDraftWriteModelBuilder
                 UnitPrice = previewLine.UnitPrice ?? 0m,
                 TaxPrice = previewLine.TaxPrice ?? 0m,
                 Quantity = previewLine.PurchaseQty,
+                // 上方已校验全部采购数量由来源贡献承担，不得留下历史未知的空值。
+                UnlinkedQty = 0m,
                 UnitAmount = (previewLine.UnitPrice ?? 0m) * previewLine.PurchaseQty,
                 TaxAmount = (previewLine.TaxPrice ?? 0m) * previewLine.PurchaseQty,
                 PlannedDeliveryDate = previewLine.PlannedDeliveryDate,

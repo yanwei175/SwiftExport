@@ -17,15 +17,20 @@
         </Grid>
         <DataGrid Grid.Row="2"
                   FontSize="{DynamicResource SwiftExportDefaltFontSize}"
-                  RowHeight="{StaticResource DataGridRowHeightSmall}"
+                  RowHeight="{StaticResource DataGridRowHeightMedium}"
                   ItemsSource="{Binding Session.Results}"
+                  GridLinesVisibility="Horizontal"
+                  CanUserResizeRows="True"
                   AutoGenerateColumns="False"
                   IsReadOnly="True">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="来源" Width="180" Binding="{Binding SourceDisplay}" />
                 <DataGridTextColumn Header="结果" Width="110" Binding="{Binding OutcomeText}" />
-                <DataGridTextColumn Header="采购单号" Width="180" Binding="{Binding PurchaseOrderNos}" />
-                <DataGridTextColumn Header="说明" Width="*" Binding="{Binding Message}" />
+                <DataGridTextColumn Header="采购单号" Width="210" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                    Binding="{Binding PurchaseOrderNos}" />
+                <DataGridTextColumn Header="说明" Width="*" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                    Binding="{Binding Message}" 
+                                    />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

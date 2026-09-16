@@ -24,6 +24,12 @@
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                     </ui:TextBox.InputBindings>
                 </ui:TextBox>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+
+                    <ui:Button Grid.Column="2"  Appearance="Primary" Margin="8,0,0,0"
+                            Content="查询" VerticalAlignment="Stretch"
+                            Command="{Binding SearchCommand}" MinWidth="70" IsEnabled="{Binding IsPurchase}"/>
+                </StackPanel>
             </Grid>
 
             <StackPanel Grid.Row="2" Orientation="Horizontal">
@@ -52,8 +58,7 @@
                 <supplierControls:SupplierAutoSuggestComboBox Width="240" Margin="0,0,8,0"
                     ItemsSource="{Binding Suppliers}" SelectedSupplier="{Binding SelectedSupplier, Mode=TwoWay}"
                     IsEnabled="{Binding IsPurchase}"/>
-                <ui:Button Content="查询" Appearance="Info" VerticalAlignment="Stretch" MinWidth="80"
-                        Command="{Binding SearchCommand}" Margin="0,0,8,0" IsEnabled="{Binding IsPurchase}"/>
+                
                 <Button Content="清空勾选" VerticalAlignment="Stretch" MinWidth="80"
                         Command="{Binding ClearSelectionCommand}" Margin="0,0,8,0"/>
 

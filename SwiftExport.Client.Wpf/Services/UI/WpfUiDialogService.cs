@@ -62,6 +62,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
         void OnDialogLoaded(object sender, RoutedEventArgs args)
         {
             dialogShell = FindDialogShell(dialog);
+            ApplyButtonState(dialog, state);
             ApplyCurrentSize();
         }
         void OnStateChanged(object? sender, EventArgs args)
@@ -345,13 +346,33 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
 
     private static bool AreClose(double left, double right) => Math.Abs(left - right) < 0.01;
 
-    /// <summary>仅启用具有文字且状态允许的按钮，避免本地值覆盖 WPF-UI 的空按钮隐藏规则。</summary>
+    /// <summary>按钮有文字即显示，业务状态只控制可点击性；适配 WPF-UI 4.3 将禁用与隐藏绑定的模板。</summary>
     private static void ApplyButtonState(ContentDialog dialog, IDialogContentState? state)
     {
         dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(dialog.PrimaryButtonText)
             && (state?.IsPrimaryButtonEnabled ?? true);
         dialog.IsSecondaryButtonEnabled = !string.IsNullOrWhiteSpace(dialog.SecondaryButtonText)
             && (state?.IsSecondaryButtonEnabled ?? true);
+        if (dialog.Template is null) return;
+        var primaryVisible = !string.IsNullOrWhiteSpace(dialog.PrimaryButtonText);
+        var secondaryVisible = !string.IsNullOrWhiteSpace(dialog.SecondaryButtonText);
+        // 只调整本服务创建的实例，不替换全局主题；禁用状态和关闭校验继续保留。
+        SetButtonVisibility("PrimaryButton", primaryVisible);
+        SetButtonVisibility("SecondaryButton", secondaryVisible);
+        SetColumnWidth("PrimaryColumn", primaryVisible ? new GridLength(1, GridUnitType.Star) : new GridLength(0));
+        SetColumnWidth("SecondaryColumn", secondaryVisible ? new GridLength(1, GridUnitType.Star) : new GridLength(0));
+        SetColumnWidth("FirstSpacer", new GridLength(primaryVisible && secondaryVisible ? 8 : 0));
+        SetColumnWidth("SecondSpacer", new GridLength(primaryVisible || secondaryVisible ? 8 : 0));
+
+        void SetButtonVisibility(string name, bool visible)
+        {
+            if (dialog.Template.FindName(name, dialog) is FrameworkElement button)
+                button.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        }
+        void SetColumnWidth(string name, GridLength width)
+        {
+            if (dialog.Template.FindName(name, dialog) is ColumnDefinition column) column.Width = width;
+        }
     }
 
     /// <summary>拒绝无法参与 WPF 布局的尺寸，避免运行时由依赖属性抛出含糊异常。</summary>

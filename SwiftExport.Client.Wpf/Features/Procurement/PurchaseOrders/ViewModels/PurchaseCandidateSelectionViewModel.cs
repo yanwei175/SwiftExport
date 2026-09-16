@@ -335,18 +335,6 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         if (IsInputEnabled && item?.CanEditPurchaseSupplier == true) item.ClearPurchaseSupplier();
     }
 
-    [RelayCommand]
-    private void CommitDeliverySupplier(PurchaseCandidateItemModel? item)
-    {
-        if (IsInputEnabled && item?.CanEditDeliverySupplier == true) item.CommitDeliverySupplier();
-    }
-
-    [RelayCommand]
-    private void ClearDeliverySupplier(PurchaseCandidateItemModel? item)
-    {
-        if (IsInputEnabled && item?.CanEditDeliverySupplier == true) item.ClearDeliverySupplier();
-    }
-
     /// <summary>统一刷新所有行的输入许可，使编辑器与 EnterpriseGrid 填充使用同一业务门禁。</summary>
     public void SetInputEnabled(bool isEnabled)
     {
@@ -391,6 +379,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
             SelectionValidationText = "请至少选择一条待采购物料。";
             return;
         }
+        foreach (var row in rows) row.ValidationMessage = string.Empty;
         var localError = rows.FirstOrDefault(static row => !row.IsAvailableForPurchase
             || row.PurchaseQty <= 0
             || row.PurchaseQty > row.RemainingQty);
@@ -398,6 +387,14 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         {
             SelectedItem = localError;
             SelectionValidationText = localError.ValidationDisplayMessage;
+            return;
+        }
+        if (!TryValidateAnchoredDeliverySuppliers(rows, out var deliveryError, out var deliveryMessage))
+        {
+            deliveryError!.ValidationMessage = deliveryMessage;
+            SelectedItem = deliveryError;
+            SelectionValidationText = deliveryMessage;
+            RefreshLocalFilter();
             return;
         }
 
@@ -440,6 +437,9 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
     private string BuildSelectionValidationText()
     {
         if (_workflow is null) return string.Empty;
+        // 失败的校验没有有效预览，必须保留本次失败原因，不能被通用的审核失效提示覆盖。
+        if (_workflow.IsStale && !string.IsNullOrWhiteSpace(_workflow.StatusText))
+            return _workflow.StatusText;
         if (_workflow.HasValidPreparation) return "校验和确认已完成，可以进入采购审核。";
         if (!_workflow.IsStale && _workflow.HasUnconfirmedWarnings)
         {
@@ -566,6 +566,54 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         RefreshLocalFilter();
     }
 
+    /// <summary>
+    /// 对勾选客供件复核只读送达方与当前加载父件的实际采购方一致；关系缺失时失败关闭。
+    /// </summary>
+    private bool TryValidateAnchoredDeliverySuppliers(
+        IReadOnlyList<PurchaseCandidateItemModel> rows,
+        out PurchaseCandidateItemModel? invalidRow,
+        out string message)
+    {
+        foreach (var child in rows.Where(static row => row.IsCustomerSupplied))
+        {
+            if (!child.DeliveryTargetNetDemandId.HasValue
+                || child.DeliveryTargetNetDemandId.Value == Guid.Empty)
+            {
+                invalidRow = child;
+                message = "客供件缺少有效的父件锚定关系，不能校验送达供应商。";
+                return false;
+            }
+
+            var parent = Items.FirstOrDefault(item => !item.IsCustomerSupplied
+                && item.Uid == child.DeliveryTargetNetDemandId.Value
+                && SameSource(item, child));
+            if (parent is null)
+            {
+                invalidRow = child;
+                message = "客供件未找到当前加载的锚定父件，不能校验送达供应商。";
+                return false;
+            }
+            if (parent.SupplierId == Guid.Empty)
+            {
+                invalidRow = child;
+                message = "客供件锚定父件尚未选择实际采购供应商。";
+                return false;
+            }
+            if (child.DeliveryTargetSupplierId != parent.SupplierId
+                || !string.Equals(child.DeliverySupplierCode, parent.PurchaseSupplierCode, StringComparison.Ordinal)
+                || !string.Equals(child.DeliverySupplierName, parent.PurchaseSupplierName, StringComparison.Ordinal))
+            {
+                invalidRow = child;
+                message = "客供件送达供应商必须与锚定父件的实际采购供应商一致。";
+                return false;
+            }
+        }
+
+        invalidRow = null;
+        message = string.Empty;
+        return true;
+    }
+
     private static string CreateSourceKey(string sourceType, Guid sourceUid) =>
         $"{sourceType.Trim().ToUpperInvariant()}|{sourceUid:N}";
 
@@ -583,6 +631,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
             item.SelectionChanged += OnRowSelectionChanged;
             Items.Add(item);
         }
+        SynchronizeAllAnchoredDeliverySuppliers();
     }
 
     /// <summary>把服务端结构化验证结果映射回稳定需求行，供只看错误和定位编辑使用。</summary>
@@ -676,6 +725,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
                 row.SelectionChanged += OnRowSelectionChanged;
                 Items.Add(row);
             }
+            SynchronizeAllAnchoredDeliverySuppliers();
             IsDetailLoaded = true;
             RefreshLocalFilter();
         }
@@ -775,6 +825,25 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         left.SourceUid == right.SourceUid
         && string.Equals(left.SourceType, right.SourceType, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>按当前完整加载集合把全部客供子件送达方归一为锚定父件供应商。</summary>
+    private void SynchronizeAllAnchoredDeliverySuppliers()
+    {
+        foreach (var parent in Items.Where(static item => !item.IsCustomerSupplied))
+            SynchronizeAnchoredChildren(parent);
+    }
+
+    /// <summary>同步单个父件的全部同来源锚定子件；派生更新不再次发布业务输入事件。</summary>
+    private void SynchronizeAnchoredChildren(PurchaseCandidateItemModel parent)
+    {
+        foreach (var child in Items.Where(item => item.IsCustomerSupplied
+                     && item.DeliveryTargetNetDemandId == parent.Uid
+                     && SameSource(item, parent)))
+        {
+            if (child.SynchronizeDeliverySupplierFromParent(parent))
+                child.ValidationMessage = string.Empty;
+        }
+    }
+
     /// <summary>选择集合成批变化后统一清除旧确认、刷新计数和命令；联动提示只报告真实新增数量。</summary>
     private void CompleteSelectionBatch(int linkedCount)
     {
@@ -795,7 +864,11 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
 
     private void OnRowValueChanged(object? sender, EventArgs e)
     {
-        if (sender is PurchaseCandidateItemModel row) row.ValidationMessage = string.Empty;
+        if (sender is PurchaseCandidateItemModel row)
+        {
+            row.ValidationMessage = string.Empty;
+            if (!row.IsCustomerSupplied) SynchronizeAnchoredChildren(row);
+        }
         HasValidatedSelection = false;
         SelectionValidationText = string.Empty;
         _workflow?.InvalidatePreparation();

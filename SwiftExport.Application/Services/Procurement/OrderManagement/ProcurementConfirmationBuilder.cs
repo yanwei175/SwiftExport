@@ -25,11 +25,14 @@ public sealed class ProcurementConfirmationBuilder(IProcurementOrderRepository r
             var links = facts.Links.Where(x => x.TargetType == "PO" && x.TargetHeadId == head.Uid && x.TargetLineId == line.Uid
                 && !x.IsDeleted && x.LinkStatus == DemandExecutionLinkStatusEnum.Active).ToList();
             if (head.OriginKind != 1 && !line.SourceUid.HasValue && links.Count == 0) continue;
+            // 空值代表旧链未明确未关联数量，不能与活动 Link 损坏混为同一种错误。
+            if (!line.UnlinkedQty.HasValue)
+                throw new InvalidOperationException($"采购第 {line.LineNumber} 行（{line.Sku}）缺少未关联数量依据，请核查创建数据；不能确认。");
             if (links.Count == 0 || links.Any(x => x.ReleasedQty < 0 || x.AllocatedQty <= x.ReleasedQty)
                 || links.Sum(x => x.AllocatedQty - x.ReleasedQty) + line.UnlinkedQty != line.Quantity
                 || links.Any(x => !facts.Demands.Any(n => n.Uid == x.NetDemandId && !n.IsDeleted && n.LifecycleStatus == NetDemandLifecycleStatusEnum.Active
                     && facts.Sources.Any(s => s.Uid == n.GrossDemandId && !s.IsDeleted))))
-                throw new InvalidOperationException("采购剩余行的活动物料引用缺失、失效或贡献数量不一致，不能重新确认。");
+                throw new InvalidOperationException($"采购第 {line.LineNumber} 行（{line.Sku}）的活动物料引用缺失、失效或贡献数量不一致，不能确认。");
         }
     }
     /// <summary>检查客户和实际供应商仍存在且启用，名称变化不覆写既有订单快照。</summary>
@@ -70,15 +73,15 @@ public sealed class ProcurementConfirmationBuilder(IProcurementOrderRepository r
         if (sourceOrder)
         {
             var batch = await snapshots.GetLatestBatchAsync(head.Uid, ct)
-                ?? throw new InvalidOperationException("需求来源采购缺少历史确认依据；首次确认的收货目标衔接尚未完成，不能用当前 BOM 补造。");
+                ?? throw new InvalidOperationException("需求来源采购缺少历史确认依据；首次确认的执行依据衔接尚未完成，不能用当前 BOM 补造。");
             historicalLines = await snapshots.GetLinesAsync(head.Uid, batch, ct);
             historicalNodes = await snapshots.GetNodesAsync(head.Uid, batch, ct);
         }
         foreach (var line in lines.OrderBy(x => x.LineNumber))
         {
-            if (!line.ProductId.HasValue || !line.DeliveryWarehouseSiteId.HasValue
+            if (!line.ProductId.HasValue
                 || (!sourceOrder && (line.UnlinkedQty != line.Quantity || line.SourceUid.HasValue)))
-                throw new InvalidOperationException("采购行身份、数量或收货目标不完整。");
+                throw new InvalidOperationException("采购行身份或数量不完整。");
             ProcurementOrderPolicy.Number(line.Quantity, 4, "采购数量", true);
             var product = await repository.GetProductAsync(line.ProductId.Value, ct);
             ProcurementOrderPolicy.RequireProduct(product);
@@ -87,7 +90,6 @@ public sealed class ProcurementConfirmationBuilder(IProcurementOrderRepository r
             var unit = await repository.GetUnitAsync(product!.Unit?.Trim() ?? "", ct);
             if (string.IsNullOrWhiteSpace(unit) || unit != line.UnitSnapshot)
                 throw new InvalidOperationException("基础单位失效或已改变，不能确认历史单位不一致的采购行。");
-            _ = await RequireWarehouseAsync(line.DeliveryWarehouseSiteId.Value, ct);
             // 送达供应商是客供件自身的独立目标，不再由收货仓库的供应商归属推导。
             if (line.MaterialType == MaterialTypesEnum.客供件)
             {

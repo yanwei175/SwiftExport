@@ -50,13 +50,13 @@ public sealed class ProcurementOrderPolicyTests
     {
         var head = new PurchaseOrderHead { Uid = Guid.NewGuid(), OriginKind = 2, CustomerId = Guid.NewGuid(), SupplierId = Guid.NewGuid() };
         var line = new PurchaseOrderLine { Uid = Guid.NewGuid(), ProductId = Guid.NewGuid(), Quantity = 12m,
-            UnlinkedQty = 12m, UnitSnapshot = "PCS", DeliveryWarehouseSiteId = Guid.NewGuid() };
-        var identity = (head.CustomerId, head.SupplierId, line.ProductId, line.Quantity, line.UnitSnapshot, line.DeliveryWarehouseSiteId);
+            UnlinkedQty = 12m, UnitSnapshot = "PCS" };
+        var identity = (head.CustomerId, head.SupplierId, line.ProductId, line.Quantity, line.UnitSnapshot);
         ProcurementOrderPolicy.ApplySave(head, [line], new UpdatePurchaseOrderDraftCommand
         {
             ExpectedVersion = 1, Lines = [new() { PurchaseOrderLineId = line.Uid, ExpectedVersion = 1, UnitPrice = 2m, TaxPrice = 3m, SupplierSku = "  S-1  " }]
         });
-        Assert.AreEqual(identity, (head.CustomerId, head.SupplierId, line.ProductId, line.Quantity, line.UnitSnapshot, line.DeliveryWarehouseSiteId));
+        Assert.AreEqual(identity, (head.CustomerId, head.SupplierId, line.ProductId, line.Quantity, line.UnitSnapshot));
         Assert.AreEqual(24m, line.UnitAmount);
         Assert.AreEqual(36m, line.TaxAmount);
         Assert.AreEqual("S-1", line.SupplierSku);

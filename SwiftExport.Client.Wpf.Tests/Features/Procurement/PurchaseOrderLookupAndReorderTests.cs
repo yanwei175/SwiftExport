@@ -33,7 +33,6 @@ public sealed class PurchaseOrderLookupAndReorderTests
             MaterialType = MaterialTypesEnum.客供件, SupplyType = SupplyTypeEnums.采购, Unit = "PCS",
             UnitPrice = 12.5m, TaxPrice = 14.1m
         });
-        line.Warehouse = new WarehouseCandidateDto { Uid = Guid.NewGuid(), Code = "WH", Name = "收货仓" };
 
         Assert.AreEqual("C-1", line.CustomerSku);
         Assert.AreEqual("S-1", line.SupplierSku);
@@ -46,6 +45,7 @@ public sealed class PurchaseOrderLookupAndReorderTests
 
         line.DeliverySupplier = new ProcurementSupplierCandidateDto { Uid = Guid.NewGuid(), SupplierCode = "SUP", SupplierName = "供应商" };
         Assert.AreEqual("供应商", line.DeliverySupplierName);
+        Assert.IsNull(line.ValidateRow(), "客供件明确送达供应商即可通过行校验，不要求采购收货仓。");
     }
 
     [TestMethod]
@@ -73,7 +73,7 @@ public sealed class PurchaseOrderLookupAndReorderTests
             new PurchaseOrderLineDetailDto
             {
                 Uid = Guid.NewGuid(), ProductId = originalProductId, Sku = "OLD", Quantity = 1m,
-                UnitSnapshot = "PCS", WarehouseSiteId = Guid.NewGuid()
+                UnitSnapshot = "PCS"
             }
         });
 
@@ -141,12 +141,14 @@ public sealed class PurchaseOrderLookupAndReorderTests
         {
             "line-number", "image", "sku", "customer-sku", "link-sku", "supplier-sku",
             "description-zh", "finish-zh", "features-zh", "material-type", "supply-type", "unit",
-            "quantity", "unit-price", "unit-amount", "planned-delivery-date", "warehouse-target",
+            "quantity", "unit-price", "unit-amount", "planned-delivery-date",
             "delivery-supplier", "source-summary", "note"
         };
         foreach (var key in expectedKeys)
         {
             StringAssert.Contains(xaml, $"gridColumns:GridColumn.Key=\"{key}\"");
         }
+        Assert.IsFalse(xaml.Contains("gridColumns:GridColumn.Key=\"warehouse-target\"", StringComparison.Ordinal));
+        StringAssert.Contains(xaml, "ItemsSource=\"{Binding DataContext.WarehouseCandidates");
     }
 }

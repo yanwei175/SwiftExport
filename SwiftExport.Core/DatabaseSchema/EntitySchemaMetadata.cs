@@ -225,7 +225,6 @@ namespace SwiftExport.Core.Entities.Procurement
     [DbCheck("CK_PurchaseOrderLine_Quantity", "[QTY] > 0")]
     [DbIndex("UX_PurchaseOrderLine_Head_Line", nameof(PurchaseOrderLine.PurchaseOrderId), nameof(PurchaseOrderLine.LineNumber), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [DbIndex("IX_PurchaseOrderLine_Product", nameof(PurchaseOrderLine.ProductId), Filter = "[IsDeleted] = 0")]
-    [DbIndex("IX_PurchaseOrderLine_DeliveryWarehouse", nameof(PurchaseOrderLine.DeliveryWarehouseSiteId), Filter = "[DeliveryWarehouseSiteId] IS NOT NULL")]
     [LogicalReference(nameof(PurchaseOrderLine.PurchaseOrderId), typeof(PurchaseOrderHead), IsRequired = true)]
     [LogicalReference(nameof(PurchaseOrderLine.ProductId), typeof(Product))]
     [LogicalReference(nameof(PurchaseOrderLine.DeliveryTargetSupplierId), typeof(Supplier))]

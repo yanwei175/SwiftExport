@@ -158,7 +158,7 @@ public sealed class PurchaseOrderManagerContractsTests
                      "LabelType", "InstructionManualType", "CartonType", "LogoType", "DiscountRemark", "PurchaseOrderFolder", "ReviewedBy" })
             StringAssert.Contains(header, field);
         foreach (var field in new[] { "CustomerSku", "LinkSku", "FinishZh", "FeaturesZh", "MaterialType", "SupplyType", "MainImage",
-                     "UnitSnapshot", "WarehouseName", "SourceSummary" })
+                     "UnitSnapshot", "SourceSummary" })
             StringAssert.Contains(line, field);
         StringAssert.Contains(header, "LoadNew("); StringAssert.Contains(line, "BaseLineModel<PurchaseOrderLineDetailDto>");
     }

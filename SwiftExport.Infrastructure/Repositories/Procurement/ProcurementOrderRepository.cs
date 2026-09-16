@@ -91,14 +91,12 @@ public sealed class ProcurementOrderRepository(RepositoryBaseContext context) : 
             await context.Session.Connection.ExecuteAsync(Command("""
                 INSERT dbo.PurchaseOrderLine
                 (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,PurchaseOrderId,LineNumber,OrderNo,
-                 ProductId,Sku,UnitSnapshot,QTY,UnlinkedQty,SupplyType,MaterialType,DeliveryWarehouseSiteId,
-                 DeliveryWarehouseCodeSnapshot,DeliveryWarehouseNameSnapshot,DeliveryTargetSupplierId,
+                 ProductId,Sku,UnitSnapshot,QTY,UnlinkedQty,SupplyType,MaterialType,DeliveryTargetSupplierId,
                  DeliverySupplierCodeSnapshot,DeliverySupplierNameSnapshot,UnitPrice,TaxPrice,UnitAmount,TaxAmount,
                  PlannedDeliveryDate,SupplierSku,DescriptionZh,SubNote,SourceType,SourceNo)
                 VALUES
                 (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@PurchaseOrderId,@LineNumber,@OrderNo,
-                 @ProductId,@Sku,@UnitSnapshot,@Quantity,@UnlinkedQty,@SupplyType,@MaterialType,@DeliveryWarehouseSiteId,
-                 @DeliveryWarehouseCodeSnapshot,@DeliveryWarehouseNameSnapshot,@DeliveryTargetSupplierId,
+                 @ProductId,@Sku,@UnitSnapshot,@Quantity,@UnlinkedQty,@SupplyType,@MaterialType,@DeliveryTargetSupplierId,
                  @DeliverySupplierCodeSnapshot,@DeliverySupplierNameSnapshot,@UnitPrice,@TaxPrice,@UnitAmount,@TaxAmount,
                  @PlannedDeliveryDate,@SupplierSku,@DescriptionZh,@SubNote,NULL,NULL);
                 """, line, ct));

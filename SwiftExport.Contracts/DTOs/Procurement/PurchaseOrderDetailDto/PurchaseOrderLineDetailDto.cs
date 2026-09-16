@@ -25,9 +25,6 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto
         public decimal? UnitAmount { get; set; }
         public decimal? TaxAmount { get; set; }
         public DateTime? PlannedDeliveryDate { get; set; }
-        public Guid WarehouseSiteId { get; set; }
-        public string WarehouseCode { get; set; }
-        public string WarehouseName { get; set; }
         public Guid DeliverySupplierId { get; set; }
         public string DeliverySupplierCode { get; set; }
         public string DeliverySupplierName { get; set; }
