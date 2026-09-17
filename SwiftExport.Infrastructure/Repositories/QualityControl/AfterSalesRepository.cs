@@ -15,7 +15,7 @@ public sealed class AfterSalesRepository(RepositoryBaseContext context) : IAfter
     private IDbConnection Connection => context.Session.Connection;
     private IDbTransaction? Transaction => context.Session.Transaction;
     private static readonly string[] HeaderColumns = ["Uid","Version","IsDeleted","CreatedDate","CreatedBy","UpdatedDate","UpdatedBy","AfterSalesNo","CustomerId","CustomerCodeSnapshot","CustomerNameSnapshot","AcceptedDate","OwnerId","DocumentStatus","ConfirmationStatus","DemandConfirmedAt","DemandConfirmedBy","ExpectedCompletionDate","Conclusion","Remark"];
-    private static readonly string[] LineColumns = ["Uid","Version","IsDeleted","CreatedDate","CreatedBy","UpdatedDate","UpdatedBy","HeaderId","LineNumber","OriginalSalesOrderLineId","ResponsibleSupplierId","IssueProductId","IssueSkuSnapshot","IssueCustomerSkuSnapshot","IssueLinkSkuSnapshot","IssueColorId","IssueColorSnapshot","IssueProductDescription","IssueDescription","QualityCategoryId","CauseAnalysis","ProductId","IsNonStandard","SkuSnapshot","CustomerSkuSnapshot","LinkSkuSnapshot","DescriptionSnapshot","ColorId","ColorSnapshot","SpecificationSnapshot","Quantity","UnitSnapshot","RequiredDate","ServiceAmountCny","ReturnedReceivedDate","TreatmentDescription","Remark"];
+    private static readonly string[] LineColumns = ["Uid","Version","IsDeleted","CreatedDate","CreatedBy","UpdatedDate","UpdatedBy","HeaderId","LineNumber","OriginalSalesOrderLineId","CustomerComplaintNo","ResponsibleSupplierId","IssueProductId","IssueSkuSnapshot","IssueCustomerSkuSnapshot","IssueLinkSkuSnapshot","IssueColorId","IssueColorSnapshot","IssueProductDescription","IssueDescription","QualityCategoryId","CauseAnalysis","ProductId","IsNonStandard","SkuSnapshot","CustomerSkuSnapshot","LinkSkuSnapshot","DescriptionSnapshot","ColorId","ColorSnapshot","SpecificationSnapshot","Quantity","UnitSnapshot","RequiredDate","ServiceAmountCny","ReturnedReceivedDate","TreatmentDescription","Remark"];
 
     /// <inheritdoc />
     public Task<AfterSalesHeader?> GetHeaderAsync(Guid uid, bool forUpdate = false)
@@ -71,7 +71,7 @@ public sealed class AfterSalesRepository(RepositoryBaseContext context) : IAfter
               AND (@DateTo IS NULL OR h.AcceptedDate<=@DateTo)
               AND (@ResponsibleSupplierId IS NULL OR EXISTS(SELECT 1 FROM dbo.AfterSalesLine l WHERE l.HeaderId=h.Uid AND l.IsDeleted=0 AND l.ResponsibleSupplierId=@ResponsibleSupplierId))
               AND (@Keyword IS NULL OR h.AfterSalesNo LIKE @Keyword OR EXISTS(SELECT 1 FROM dbo.AfterSalesLine l WHERE l.HeaderId=h.Uid AND l.IsDeleted=0 AND
-                (l.IssueSkuSnapshot LIKE @Keyword OR l.IssueCustomerSkuSnapshot LIKE @Keyword OR l.IssueLinkSkuSnapshot LIKE @Keyword
+                (l.CustomerComplaintNo LIKE @Keyword OR l.IssueSkuSnapshot LIKE @Keyword OR l.IssueCustomerSkuSnapshot LIKE @Keyword OR l.IssueLinkSkuSnapshot LIKE @Keyword
                  OR l.SkuSnapshot LIKE @Keyword OR l.CustomerSkuSnapshot LIKE @Keyword OR l.LinkSkuSnapshot LIKE @Keyword)))
             """;
         var sql = $"""

@@ -45,9 +45,6 @@ public sealed partial class PackingListHeaderModel : BaseLineModel<PackingListHe
     [ObservableProperty]
     public partial string? SealNo { get; set; }
 
-    /// <summary>装运箱唛。</summary>
-    [ObservableProperty]
-    public partial string? ShippingMark { get; set; }
 
     /// <summary>单据备注。</summary>
     [ObservableProperty]

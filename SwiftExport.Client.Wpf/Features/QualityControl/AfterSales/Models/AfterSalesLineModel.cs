@@ -22,6 +22,8 @@ public sealed partial class AfterSalesLineModel : ObservableObject
     [ObservableProperty] public partial int Version { get; set; } = 1;
     [ObservableProperty] public partial int LineNumber { get; set; }
     [ObservableProperty] public partial Guid? OriginalSalesOrderLineId { get; set; }
+    /// <summary>获取或设置客户侧投诉单号，清空后按空值保存。</summary>
+    [ObservableProperty] public partial string? CustomerComplaintNo { get; set; }
     [ObservableProperty] public partial Guid? ResponsibleSupplierId { get; set; }
     /// <summary>获取或设置当前通过缓存选择的责任供应商。</summary>
     [ObservableProperty] public partial SupplierDto? SelectedResponsibleSupplier { get; set; }
@@ -106,6 +108,7 @@ public sealed partial class AfterSalesLineModel : ObservableObject
     public string? Validate(bool forConfirmation)
     {
         if (string.IsNullOrWhiteSpace(IssueDescription)) return "投诉描述不能为空。";
+        if (CustomerComplaintNo?.Trim().Length > 100) return "客户投诉单号不能超过100字。";
         if (Quantity < 0) return "补发数量不能为负数。";
         if (Quantity is > 99999999999999.9999m || Quantity.HasValue && decimal.Round(Quantity.Value, 4) != Quantity.Value) return "补发数量最多十四位整数、四位小数。";
         if (ServiceAmountCny < 0) return "人民币行金额不能为负数。";

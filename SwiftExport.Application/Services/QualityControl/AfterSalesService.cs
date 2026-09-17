@@ -149,7 +149,15 @@ public sealed class AfterSalesService(
                 }
             }
             ValidateLengths(head);
-            foreach(var item in writes) ValidateLengths(item.Line);
+            foreach(var item in writes)
+            {
+                // 客户追溯信息在确认前后使用同一规则，不重新发布实物要求。
+                item.Line.CustomerComplaintNo=string.IsNullOrWhiteSpace(item.Line.CustomerComplaintNo)
+                    ? null : item.Line.CustomerComplaintNo.Trim();
+                if(item.Line.CustomerComplaintNo?.Length>100)
+                    Fail("VALIDATION","客户投诉单号不能超过100字。",$"Lines[{item.Line.Uid}].CustomerComplaintNo");
+                ValidateLengths(item.Line);
+            }
             if (create)
             {
                 var number=await numbering.GetNextDocumentNoAsync(new DocumentNoRequest {DocType="CR",BusinessDate=head.AcceptedDate,SerialWidth=4,Operator=user.UserName});

@@ -8,6 +8,48 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Shipping;
 [TestClass]
 public sealed class PackingListDetailModelTests
 {
+    /// <summary>每箱数量须为不超过本行数量的正整数，空值保留待填语义。</summary>
+    [TestMethod]
+    public async Task PackageQuantityMustBeIntegralAndNotExceedLineQuantity()
+    {
+        var lines = new PackingListLineListModel();
+        var row = lines.AddNew(new PackingListLineDto
+        { GrossDemandId = Guid.NewGuid(), IsNonStandardSnapshot = true, Qty = 10 });
+        Assert.IsNull(await lines.ValidateAllAsync());
+        row.PcsPerPackage = 2.5m;
+        Assert.AreEqual("第 1 行：每箱数量必须是整数。", await lines.ValidateAllAsync());
+        row.PcsPerPackage = 11;
+        Assert.AreEqual("第 1 行：每箱数量不能大于出货数量。", await lines.ValidateAllAsync());
+        row.PcsPerPackage = 10;
+        Assert.IsNull(await lines.ValidateAllAsync());
+        row.PcsPerPackage = 3;
+        Assert.IsNull(await lines.ValidateAllAsync());
+        Assert.AreEqual(3.3333m, row.PackageCount, "箱数仍可为小数，整数规则仅约束每箱数量");
+        row.PcsPerPackage = 0;
+        Assert.IsNotNull(await lines.ValidateAllAsync());
+        row.PcsPerPackage = -1;
+        Assert.IsNotNull(await lines.ValidateAllAsync());
+    }
+
+    /// <summary>列表校验报告超重行号；相等及尾箱待填空值不被误拒绝。</summary>
+    [TestMethod]
+    public async Task WeightValidationReportsRowAndAllowsUnknownTailMeasures()
+    {
+        var lines = new PackingListLineListModel();
+        var row = lines.AddNew(new PackingListLineDto
+        { GrossDemandId = Guid.NewGuid(), IsNonStandardSnapshot = true, Qty = 1,
+            NwPerPackage = 3, GwPerPackage = 2 });
+        Assert.AreEqual("第 1 行：单箱净重不能大于单箱毛重。", await lines.ValidateAllAsync());
+        row.GwPerPackage = 3;
+        Assert.IsNull(await lines.ValidateAllAsync());
+        row.GwPerPackage = 4;
+        Assert.IsNull(await lines.ValidateAllAsync());
+        row.GwPerPackage = null;
+        Assert.IsNull(await lines.ValidateAllAsync());
+        row.NwPerPackage = null; row.GwPerPackage = 2;
+        Assert.IsNull(await lines.ValidateAllAsync());
+    }
+
     /// <summary>加载不脏、包装编辑可撤销，派生小计不是独立编辑事实。</summary>
     [TestMethod]
     public void Line_LoadEditReject_PreservesTrackingAndComputesPreview()

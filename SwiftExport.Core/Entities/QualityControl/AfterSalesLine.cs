@@ -14,6 +14,9 @@ public sealed partial class AfterSalesLine : BaseEntity
     public int LineNumber { get; set; }
     /// <summary>原销售行。</summary>
     public Guid? OriginalSalesOrderLineId { get; set; }
+    /// <summary>客户侧投诉单号，可空；开放单据确认后仍可补充，不影响实物要求。</summary>
+    [Column(TypeName = "nvarchar(100)")]
+    public string? CustomerComplaintNo { get; set; }
     /// <summary>责任供应商。</summary>
     public Guid? ResponsibleSupplierId { get; set; }
     /// <summary>问题成品身份。</summary>

@@ -73,7 +73,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     {
         if (_initialized) return;
         if (parameter is not PackingListOpenRequest request || request.Uid == Guid.Empty)
-        { ValidationSummary = "缺少有效的箱单打开参数。"; return; }
+        { ReportValidationWarning("缺少有效的箱单打开参数。"); return; }
         _initialized = true; _uid = request.Uid; _isNew = request.IsNew;
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, _lifetime.Token);
         await RunBusyAsync(async () =>
@@ -86,7 +86,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
                 Header.MarkAsAdded();
             }
             else await LoadAsync(linked.Token);
-            if (!cacheResult.Success && !_disposed) ResultSummary = "客户缓存未完整加载，请刷新客户资料后重试。";
+            if (!cacheResult.Success && !_disposed) ReportAttention("客户缓存未完整加载，请刷新客户资料后重试。");
         }, "加载箱单…");
     }
     /// <summary>加载失败不把现有单据误当成新建；重试只读初始化。</summary>
@@ -97,7 +97,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     {
         var result = await _runner.RunAsync(() => _api.GetAsync(_uid, token), token, "箱单读取失败");
         if (_disposed || token.IsCancellationRequested) return;
-        if (!result.Success || !IsValidDetail(result.Data)) { ValidationSummary = result.Success ? "单据响应身份无效。" : result.Message; return; }
+        if (!result.Success || !IsValidDetail(result.Data)) { ReportValidationWarning(result.Success ? "单据响应身份无效。" : result.Message); return; }
         ApplyDetail(result.Data!);
     }
     private bool IsValidDetail(PackingListDetailDto? detail) => detail?.Header?.Uid == _uid && detail.Lines is not null
@@ -131,17 +131,17 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     private async Task SaveAsync()
     {
         if (!IsEditable) return;
-        if (CommitEdits?.Invoke() == false) { ValidationSummary = "请先修正表格输入格式。"; return; }
+        if (CommitEdits?.Invoke() == false) { ReportValidationWarning("请先修正表格输入格式。"); return; }
         if (Header.CustomerId == Guid.Empty || string.IsNullOrWhiteSpace(Header.CustomerNameSnapshot))
-        { ValidationSummary = "请确定客户及客户名称。"; return; }
-        if (Header.InvoiceDate == default || Lines.Items.Count == 0) { ValidationSummary = "请填写单据日期并至少添加一行来源。"; return; }
+        { ReportValidationWarning("请确定客户及客户名称。"); return; }
+        if (Header.InvoiceDate == default || Lines.Items.Count == 0) { ReportValidationWarning("请填写单据日期并至少添加一行来源。"); return; }
         var error = await Lines.ValidateAllAsync();
-        if (error is not null) { ValidationSummary = error; return; }
+        if (error is not null) { ReportValidationWarning(error); return; }
         if (!IsEditable) return;
         if (Lines.Items.Any(x => x.GrossDemandId == Guid.Empty
             || (x.IsNonStandardSnapshot && (x.ProductId.HasValue))
             || (!x.IsNonStandardSnapshot && (!x.ProductId.HasValue || x.ProductId == Guid.Empty))))
-        { ValidationSummary = "来源的标准/非标产品身份不一致。"; return; }
+        { ReportValidationWarning("来源的标准/非标产品身份不一致。"); return; }
         await RunBusyAsync(async () =>
         {
             Renumber();
@@ -153,7 +153,10 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
                 DeletedLines = Lines.DeletedItems.Where(x => !x.IsNew).Adapt<List<PackingListDeletedLineInput>>()
             };
             var fingerprint = JsonSerializer.Serialize(command);
-            if (_saveFingerprint != fingerprint) { _saveFingerprint = fingerprint; _saveCommandId = Guid.NewGuid(); }
+            if (_saveFingerprint != fingerprint)
+            {
+                _saveFingerprint = fingerprint; _saveCommandId = Guid.NewGuid();
+            }
             command.CommandId = _saveCommandId;
             var result = _isNew
                 ? await _runner.RunAsync(() => _api.CreateAsync(new CreatePackingListDraftCommand
@@ -164,9 +167,12 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
                     Lines = command.Lines
                 }), "保存失败")
                 : await _runner.RunAsync(() => _api.UpdateAsync(_uid, command), "保存失败");
+
             if (_disposed) return;
             if (!result.Success || result.Data?.Uid != _uid || !IsValidDetail(result.Data.Detail))
-            { ValidationSummary = result.Success ? "保存响应不完整，编辑内容已保留。" : result.Message; return; }
+            {
+                ReportValidationWarning(result.Success ? "保存响应不完整，编辑内容已保留。" : result.Message); return;
+            }
             _isNew = false; _saveFingerprint = null; ApplyDetail(result.Data.Detail);
             ResultSummary = result.Data.AlreadyApplied ? "已接纳此前成功保存的结果。" : "草稿已保存。";
         }, "保存箱单…");
@@ -176,9 +182,9 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     private async Task SelectSourcesAsync()
     {
         if (!IsEditable) return;
-        if (Header.CustomerId == Guid.Empty) { ValidationSummary = "请先选择客户。"; return; }
+        if (Header.CustomerId == Guid.Empty) { ReportValidationWarning("请先选择客户。"); return; }
         if (CommitEdits?.Invoke() == false || Lines.Items.Any(x => x.Qty <= 0))
-        { ValidationSummary = "请先修正草稿数量及输入格式，再获取来源。"; return; }
+        { ReportValidationWarning("请先修正草稿数量及输入格式，再获取来源。"); return; }
         _dialogOpen = true; NotifyState();
         try
         {
@@ -189,7 +195,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
                 || x.Source.GrossDemandId == Guid.Empty
                 || (x.Source.IsNonStandard && x.Source.ProductId.HasValue)
                 || (!x.Source.IsNonStandard && (!x.Source.ProductId.HasValue || x.Source.ProductId == Guid.Empty))))
-            { ValidationSummary = "选源返回身份或数量异常。"; return; }
+            { ReportValidationWarning("选源返回身份或数量异常。"); return; }
             foreach (var selection in selected)
             {
                 var dto = selection.Source.Adapt<PackingListLineDto>();
@@ -270,7 +276,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     private void SplitTail(PackingListLineModel? line)
     {
         if (!IsEditable || line is null || !Lines.Items.Contains(line)) return;
-        if (CommitEdits?.Invoke() == false) { ValidationSummary = "请先修正表格输入格式。"; return; }
+        if (CommitEdits?.Invoke() == false) { ReportValidationWarning("请先修正表格输入格式。"); return; }
         if (!CanSplitTail(line)) return;
         var remainder = line.Qty % line.PcsPerPackage!.Value;
         var fullQty = line.Qty - remainder;
@@ -280,6 +286,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
             line.PcsPerPackage = line.Qty;
             line.NwPerPackage = null; line.GwPerPackage = null; line.CbmPerPackage = null;
             SelectedLine = line;
+            ReportAttention("尾箱已拆分，请填写尾箱的单箱净重、毛重和体积。");
             return;
         }
         var index = Lines.Items.IndexOf(line);
@@ -292,7 +299,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         line.Qty = fullQty;
         var tail = Lines.AddNew(dto);
         Lines.Move(tail, index + 1); Renumber(); SelectedLine = tail;
-        ResultSummary = "尾箱已拆分，请填写尾箱的单箱净重、毛重和体积。";
+        ReportAttention("尾箱已拆分，请填写尾箱的单箱净重、毛重和体积。");
     }
     private bool CanSplitTail(PackingListLineModel? line) =>
         IsEditable && line is not null && Lines.Items.Contains(line) && line.CanSplitTail;
@@ -319,7 +326,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         }
         finally { _dialogOpen = false; NotifyState(); }
     }
-    [RelayCommand] private void Post() => _messages.ShowInfo("待开发", "过账及自动入出库待开发，本次未修改数据。");
+    [RelayCommand] private void Post() => _messages.ShowWarning("待开发", "过账及自动入出库待开发，本次未修改数据。");
     [RelayCommand] private void Reverse() => _messages.ShowInfo("待开发", "反过账待开发，本次未修改数据。");
     [RelayCommand] private Task CloseAsync() => _navigation.CloseAsync(_navigation.OpenTabs.FirstOrDefault(x => ReferenceEquals(x.ContentViewModel, this)));
     /// <inheritdoc/>
@@ -347,9 +354,25 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         foreach (var command in new IRelayCommand[] { SaveCommand, SelectSourcesCommand, DeleteLineCommand, MoveLineUpCommand,
             MoveLineDownCommand, SplitTailCommand, UndoCommand }) command.NotifyCanExecuteChanged();
     }
+    /// <summary>阻断性错误同时保留页面摘要并提示一次；释放后的页面不再发出通知。</summary>
+    private void ReportValidationWarning(string? message)
+    {
+        if (_disposed) return;
+        ValidationSummary = string.IsNullOrWhiteSpace(message) ? "操作未完成，请检查后重试。" : message;
+        _messages.ShowWarning("PackingList", ValidationSummary);
+    }
+
+    /// <summary>需用户留意的非阻断信息保留在状态栏，并以警告提醒。</summary>
+    private void ReportAttention(string message)
+    {
+        if (_disposed) return;
+        ResultSummary = message;
+        _messages.ShowWarning("PackingList", message);
+    }
+
     /// <summary>保持用户输入，仅反馈稳定错误文本。</summary>
     protected override Task HandleExceptionAsync(Exception exception)
-    { System.Diagnostics.Trace.TraceError("PackingList详情异常：{0}", exception.GetType().Name); ValidationSummary = "操作失败，当前编辑内容已保留。"; return Task.CompletedTask; }
+    { System.Diagnostics.Trace.TraceError("PackingList详情异常：{0}", exception.GetType().Name); ReportValidationWarning("操作失败，当前编辑内容已保留。"); return Task.CompletedTask; }
     /// <summary>取消只读请求、解除事件和视图提交委托；写请求不受查询取消影响。</summary>
     public void Dispose()
     {

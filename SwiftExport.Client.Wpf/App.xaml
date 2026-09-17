@@ -37,7 +37,10 @@
 
             </ResourceDictionary.MergedDictionaries>
             <converters:EnumDescriptionConverter x:Key="EnumDescriptionConverter" />
+            <converters:FirstValidationErrorConverter x:Key="FirstValidationErrorConverter" />
             <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+            <converters:IsIntegerConverter x:Key="IsIntegerConverter" />
+            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
 
         </ResourceDictionary>
     </Application.Resources>

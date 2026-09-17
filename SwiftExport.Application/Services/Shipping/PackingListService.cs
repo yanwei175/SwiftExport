@@ -457,7 +457,6 @@ public sealed class PackingListService(
         Length(header.ContainerNo, 100, "Header.ContainerNo");
         Length(header.ShippingLocationSnapshot, 200, "Header.ShippingLocationSnapshot");
         Length(header.SealNo, 100, "Header.SealNo");
-        Length(header.ShippingMark, 2000, "Header.ShippingMark");
         Length(header.Note, 2000, "Header.Note");
     }
 
@@ -471,7 +470,6 @@ public sealed class PackingListService(
         target.ContainerNo = Clean(input.ContainerNo, 100);
         target.ShippingLocationSnapshot = Clean(input.ShippingLocationSnapshot, 200);
         target.SealNo = Clean(input.SealNo, 100);
-        target.ShippingMark = Clean(input.ShippingMark, 2000);
         target.Note = Clean(input.Note, 2000);
         target.Etd = input.Etd;
         target.Eta = input.Eta;
@@ -495,7 +493,6 @@ public sealed class PackingListService(
                 ContainerNo = Normalize(header.ContainerNo),
                 SealNo = Normalize(header.SealNo),
                 ShippingLocationSnapshot = Normalize(header.ShippingLocationSnapshot),
-                ShippingMark = Normalize(header.ShippingMark),
                 Note = Normalize(header.Note),
                 header.Etd,
                 header.Eta

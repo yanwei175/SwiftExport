@@ -19,6 +19,23 @@ namespace SwiftExport.Client.Wpf.Tests.Features.QualityControl.AfterSales;
 [TestClass]
 public sealed class AfterSalesModelsAndContractsTests
 {
+    /// <summary>客户投诉单号读取不产生脏状态，修改、清空和长度校验正确进入保存契约。</summary>
+    [TestMethod]
+    public void CustomerComplaintNumberRoundTripsAndTracksEdits()
+    {
+        var line=new AfterSalesLineModel();
+        line.Load(new AfterSalesLineDto {Uid=Guid.NewGuid(),IssueDescription="投诉",CustomerComplaintNo="客户-001"});
+        Assert.IsFalse(line.IsDirty);Assert.AreEqual("客户-001",line.CustomerComplaintNo);
+        line.CustomerComplaintNo="客户-002";
+        Assert.IsTrue(line.IsDirty);Assert.AreEqual("客户-002",line.ToDto().CustomerComplaintNo);
+        line.CustomerComplaintNo=null;Assert.IsNull(line.ToDto().CustomerComplaintNo);
+        Assert.IsNull(line.Validate(false));
+        line.CustomerComplaintNo=new string('中',101);
+        Assert.AreEqual("客户投诉单号不能超过100字。",line.Validate(false));
+        line.Load(new AfterSalesLineDto {Uid=Guid.NewGuid(),IssueDescription="历史投诉"});
+        Assert.IsNull(line.CustomerComplaintNo);Assert.IsFalse(line.IsDirty);
+    }
+
     /// <summary>空或零数量允许保存，正数量确认才要求责任方、金额和补件身份。</summary>
     [TestMethod]
     public void LineValidation_ShouldApplyDemandRulesOnlyToPositiveQuantity()

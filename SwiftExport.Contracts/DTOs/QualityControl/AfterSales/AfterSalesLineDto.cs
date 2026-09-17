@@ -17,6 +17,8 @@ namespace SwiftExport.Contracts.DTOs.QualityControl.AfterSales
     public int LineNumber { get; set; }
     /// <summary>原销售行。</summary>
     public Guid? OriginalSalesOrderLineId { get; set; }
+    /// <summary>客户侧投诉单号，可空，最多100字。</summary>
+    public string CustomerComplaintNo { get; set; }
     /// <summary>责任供应商。</summary>
     public Guid? ResponsibleSupplierId { get; set; }
     /// <summary>问题成品身份。</summary>
@@ -74,4 +76,3 @@ namespace SwiftExport.Contracts.DTOs.QualityControl.AfterSales
 
     }
 }
-

@@ -39,7 +39,7 @@ public static class AfterSalesPolicy
     public static bool LockedFactsEqual(AfterSalesEditLineDto left, AfterSalesEditLineDto right)
     {
         // 排除明确允许编辑的补充字段，不通过手写长字段复制遗漏新加入的事实字段。
-        var allowed = new HashSet<string> { "Version","IssueDescription","CauseAnalysis","TreatmentDescription","Remark","ReturnedReceivedDate" };
+        var allowed = new HashSet<string> { "Version","IssueDescription","CauseAnalysis","TreatmentDescription","Remark","ReturnedReceivedDate","CustomerComplaintNo" };
         return typeof(AfterSalesEditLineDto).GetProperties().Where(p=>!allowed.Contains(p.Name))
             .All(p=>Equals(p.GetValue(left),p.GetValue(right)));
     }

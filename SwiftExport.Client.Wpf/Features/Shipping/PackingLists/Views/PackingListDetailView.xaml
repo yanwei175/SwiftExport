@@ -15,17 +15,18 @@
              xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
              mc:Ignorable="d" d:DesignHeight="800" d:DesignWidth="1200"
              d:DataContext="{d:DesignInstance vm:PackingListDetailViewModel}">
-    <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,*,8,Auto">
+
+    <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,6*,8,Auto">
 
         <!--Title-->
         <Grid ColumnDefinitions="Auto,8,*,8,Auto">
             <StackPanel Orientation="Horizontal">
                 <ui:Button Grid.Column="0" Content="保存箱单" Command="{Binding SaveCommand}" MinWidth="70" VerticalAlignment="Stretch" Appearance="Primary"/>
 
-                <ui:Button Content="撤销" Command="{Binding UndoCommand}" Margin="8,0,0,0"/>
-                <ui:Button Content="重新加载" Command="{Binding ReloadCommand}" Margin="8,0,0,0"/>
-                <ui:Button Content="过账" Command="{Binding PostCommand}" Margin="8,0,0,0"/>
-                <ui:Button Content="反过账" Command="{Binding ReverseCommand}" Margin="8,0,0,0"/>
+                <ui:Button Content="撤销" Command="{Binding UndoCommand}" Margin="8,0,0,0" MinWidth="70"/>
+                <ui:Button Content="重新加载" Command="{Binding ReloadCommand}" Margin="8,0,0,0" MinWidth="70"/>
+                <ui:Button Content="过账" Command="{Binding PostCommand}" Margin="8,0,0,0" MinWidth="70"/>
+                <ui:Button Content="反过账" Command="{Binding ReverseCommand}" Margin="8,0,0,0" MinWidth="70"/>
             </StackPanel>
 
             <TextBlock Grid.Column="0" Grid.ColumnSpan="10"
@@ -36,7 +37,13 @@
         </Grid>
 
         <!--Header-->
-        <Grid Grid.Row="2" RowDefinitions="Auto,8,Auto">
+        <Grid Grid.Row="2" >
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" MaxHeight="35"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -86,18 +93,15 @@
                 <ui:TextBox Grid.Column="6" Text="{Binding Header.PackingListNo,Mode=OneWay}" IsReadOnly="True" ToolTip="新订单保存时由服务端生成" />
 
                 <TextBlock Grid.Column="8" Text="创建日期:" VerticalAlignment="Center" />
-                <ui:TextBox Grid.Column="10" Text="{Binding Header.CreatedDate,Mode=OneWay}" IsReadOnly="True"/>
-                <TextBlock Grid.Column="12" Text="箱唛:" VerticalAlignment="Center"/>
-                <ui:TextBox Grid.Column="14" Grid.ColumnSpan="5" Text="{Binding Header.ShippingMark, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}"/>
-                <TextBlock Grid.Column="20" Text="备注:" VerticalAlignment="Center"/>
-                <ui:TextBox Grid.Column="22" Grid.ColumnSpan="5" Text="{Binding Header.Note, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}"/>
+                <ui:TextBox Grid.Column="10" Text="{Binding Header.CreatedDate,Mode=OneWay,StringFormat=yyyy-MM-dd}" 
+                            IsReadOnly="True"/>
+                
 
-                <TextBlock Grid.Column="28" Text="状态:" VerticalAlignment="Center" />
-                <ui:TextBox Grid.Column="30" Text="{Binding Header.LifecycleStatus,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}" IsReadOnly="True"/>
+                <TextBlock Grid.Column="12" Text="状态:" VerticalAlignment="Center" />
+                <ui:TextBox Grid.Column="14" Text="{Binding Header.LifecycleStatus,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}" IsReadOnly="True"/>
 
-                <TextBlock Grid.Column="32" Text="过账:" VerticalAlignment="Center" />
-                <ui:TextBox Grid.Column="34" Text="{Binding Header.PostingStatus,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}" IsReadOnly="True"/>
-
+                <TextBlock Grid.Column="16" Text="过账:" VerticalAlignment="Center" />
+                <ui:TextBox Grid.Column="18" Text="{Binding Header.PostingStatus,Mode=OneWay,Converter={StaticResource EnumDescriptionConverter}}" IsReadOnly="True"/>
 
             </Grid>
 
@@ -107,47 +111,47 @@
                     BorderThickness="1"
                     CornerRadius="4"
                     IsEnabled="{Binding IsEditable}">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="4"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="4"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="4"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="4"/>
-                    <RowDefinition Height="50"/>
-                </Grid.RowDefinitions>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="4"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="4"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="4"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="4"/>
+                        <RowDefinition Height="50"/>
+                    </Grid.RowDefinitions>
 
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="4" />
-                    <ColumnDefinition Width="6*"/>
-                    <ColumnDefinition Width="20" />
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="4" />
-                    <ColumnDefinition Width="2*"/>
-                    <ColumnDefinition Width="4" />
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="4" />
-                    <ColumnDefinition Width="2*"/>
-                </Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="6*"/>
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="2*"/>
+                    </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Ship-To"/>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Ship-To"/>
 
-                <ui:TextBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
+                    <ui:TextBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
                             PlaceholderText="客户联系人..."
                             Text="{Binding Header.CustomerNameSnapshot, UpdateSourceTrigger=PropertyChanged}" />
 
-                <ui:TextBox Grid.Row="4" Grid.ColumnSpan="3"  Grid.RowSpan="3"
+                    <ui:TextBox Grid.Row="4" Grid.ColumnSpan="3"  Grid.RowSpan="3"
                             PlaceholderText="客户地址..."
                             Text="{Binding Header.CustomerAddressSnapshot, UpdateSourceTrigger=PropertyChanged}"
                             TextWrapping="Wrap"/>
 
 
-                 <TextBlock Grid.Row="8" Text="Attention: :" VerticalAlignment="Top" />
-                <ui:TextBox Grid.Row="8" Grid.Column="2"
+                    <TextBlock Grid.Row="8" Text="Attention: :" VerticalAlignment="Top" />
+                    <ui:TextBox Grid.Row="8" Grid.Column="2"
                                     Text="{Binding Header.AttentionSnapshot,UpdateSourceTrigger=PropertyChanged}"
                                     PlaceholderText="备注"
                                     TextAlignment="Left" TextWrapping="Wrap"/>
@@ -158,7 +162,7 @@
                                     IsReadOnly="True" Text="{Binding Header.InvoiceNosSummary, Mode=OneWay}" />
 
                     <TextBlock Grid.Row="2" Grid.Column="4" Text="InvoiceDate:" VerticalAlignment="Center" />
-                     <DatePicker Grid.Row="2" Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}"
+                    <DatePicker Grid.Row="2" Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}"
                                     SelectedDate="{Binding Header.InvoiceDate, Mode=TwoWay}" controls:DatePickerAssist.PlaceholderText="发票日期"/>
 
                     <TextBlock Grid.Row="4" Grid.Column="4" Text="Container:" VerticalAlignment="Center" />
@@ -171,28 +175,27 @@
                                     PlaceholderText="铅封号"
                                     Text="{Binding Header.SealNo, UpdateSourceTrigger=PropertyChanged}" />
 
-
-
-                <TextBlock Grid.Row="2" Grid.Column="8" Text="出货地点:" VerticalAlignment="Center"/>
-                <ui:TextBox Grid.Row="2" Grid.Column="10" Grid.ColumnSpan="4" MaxLength="200"
+                    <TextBlock Grid.Row="2" Grid.Column="8" Text="出货地点:" VerticalAlignment="Center"/>
+                    <ui:TextBox Grid.Row="2" Grid.Column="10" Grid.ColumnSpan="4" MaxLength="200"
                             Text="{Binding Header.ShippingLocationSnapshot, UpdateSourceTrigger=PropertyChanged}"/>
-                <TextBlock Grid.Row="8" Grid.Column="4" Text="ETD:" VerticalAlignment="Center" />
+                    <TextBlock Grid.Row="8" Grid.Column="4" Text="ETD:" VerticalAlignment="Center" />
                     <DatePicker  Grid.Row="8" Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}"
                                     SelectedDate="{Binding Header.Etd, Mode=TwoWay}" controls:DatePickerAssist.PlaceholderText="ETD"/>
 
-                <TextBlock Grid.Row="8" Grid.Column="8" Text="ETA:" VerticalAlignment="Center" />
-                <DatePicker Grid.Row="8" Grid.Column="10"
+                    <TextBlock Grid.Row="8" Grid.Column="8" Text="ETA:" VerticalAlignment="Center" />
+                    <DatePicker Grid.Row="8" Grid.Column="10"
                                 Style="{StaticResource SwiftExportDatePicker}"
                                     SelectedDate="{Binding Header.Eta, Mode=TwoWay}" controls:DatePickerAssist.PlaceholderText="ETA"/>
                 </Grid>
-        </Border>
+            </Border>
         </Grid>
 
         <GridSplitter Grid.Row="3" Style="{StaticResource SwiftExportGridSplitterHorizontal}"/>
+
         <!--LineDataGrid-->
-        <Grid Grid.Row="4" RowDefinitions="Auto,8,*">
+        <Grid Grid.Row="4" RowDefinitions="Auto,8,*,8,Auto,8,Auto">
             <!--汇总-->
-            <Grid Grid.Row="0" ColumnDefinitions="*,8,Auto,8,50,8,Auto,8,50,8,Auto,8,50,8,Auto,8,50,8,Auto,8,50">
+            <Grid Grid.Row="0" ColumnDefinitions="*,8,Auto,8,80,8,Auto,8,80,8,Auto,8,80,8,Auto,8,80,8,Auto,8,80">
                 <StackPanel Orientation="Horizontal">
                     <ui:Button MinWidth="88" Margin="0,0,8,0" Content="获取" Command="{Binding SelectSourcesCommand}"  VerticalAlignment="Stretch" Appearance="Primary"/>
                     <ui:Button MinWidth="88" Margin="0,0,8,0" Content="删除行" Command="{Binding DeleteLineCommand}"  VerticalAlignment="Stretch"/>
@@ -227,7 +230,6 @@
                       CanUserSortColumns="False"
                       SelectionMode="Single"
                       SelectionUnit="FullRow"
-                      HeadersVisibility="Column"
                       gridCore:EnterpriseGrid.IsEnabled="True"
                       gridCore:GridVirtualization.IsEnabled="True"
                       gridOperations:GridOperations.IsEnabled="True"
@@ -254,14 +256,26 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    
+
                     <DataGridTemplateColumn Header="拆箱" Width="40" IsReadOnly="True">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <ui:Button Icon="{ui:SymbolIcon Symbol=ArrowSplit24}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                <ui:Button Icon="{ui:SymbolIcon Symbol=ArrowSplit24}" 
+                                           Command="{Binding DataContext.SplitTailCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                           CommandParameter="{Binding}"
                                            BorderThickness="0"
-                                        Command="{Binding DataContext.SplitTailCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                        CommandParameter="{Binding}"/>
+                                           ToolTip="拆分尾数箱" ToolTipService.InitialShowDelay="150"
+                                           HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                    <ui:Button.Style>
+                                        <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding CanSplitTail}" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource SwiftExportBrush.WarningSoft}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ui:Button.Style>
+                                </ui:Button>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -276,9 +290,6 @@
 
                     <DataGridTextColumn Width="100" Header="来源单号" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                         Binding="{Binding SourceDocumentNoSnapshot}" IsReadOnly="True"/>
-                    
-
-
 
                     <DataGridTemplateColumn Header="图片" Width="60" CanUserSort="False" gridColumns:GridColumn.Key="image">
                         <DataGridTemplateColumn.CellTemplate>
@@ -331,9 +342,22 @@
                                         EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
                                         Binding="{Binding CbmPerPackage, UpdateSourceTrigger=LostFocus,StringFormat=N3}"/>
 
-                    <DataGridTextColumn Width="60" Header="箱数" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                    <DataGridTextColumn Width="60" Header="箱数"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        IsReadOnly="True" Binding="{Binding PackageCount, Mode=OneWay,StringFormat=N1}"/>
+                                        IsReadOnly="True" 
+                                        Binding="{Binding PackageCount, Mode=OneWay,StringFormat=N1}">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridNumberTextBlock}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CanSplitTail}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ErrorText}"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
 
                     <DataGridTextColumn Width="80" Header="小计净重" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                         Binding="{Binding SubTotalNw,StringFormat=N2}" IsReadOnly="True"/>
@@ -357,7 +381,7 @@
                                         Binding="{Binding Note, UpdateSourceTrigger=PropertyChanged}"/>
 
 
-                    
+
                     <DataGridTemplateColumn Header="非标">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
@@ -367,6 +391,15 @@
                     </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
+
+            <Grid Grid.Row="4" ColumnDefinitions="Auto,8,*">
+                <TextBlock Grid.Column="0" Text="备注:" VerticalAlignment="Top"/>
+                <ui:TextBox Grid.Column="2" Height="60"
+                        TextWrapping="Wrap" 
+                        AcceptsReturn="True"
+                        Text="{Binding Header.Note, UpdateSourceTrigger=PropertyChanged}" 
+                       IsEnabled="{Binding IsEditable}"/>
+            </Grid>
         </Grid>
 
         <!--Message-->

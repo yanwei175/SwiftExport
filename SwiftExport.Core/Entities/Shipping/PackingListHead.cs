@@ -27,8 +27,6 @@ public sealed partial class PackingListHead : BaseEntity
 
     /// <summary>封条号。</summary>
     public string? SealNo { get; set; }
-    /// <summary>装运箱唛。</summary>
-    public string? ShippingMark { get; set; }
     /// <summary>单据备注。</summary>
     public string? Note { get; set; }
     /// <summary>预计离港日期。</summary>

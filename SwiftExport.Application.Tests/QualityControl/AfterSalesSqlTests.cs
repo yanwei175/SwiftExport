@@ -169,6 +169,7 @@ CREATE TABLE dbo.AfterSalesLine (
     [HeaderId] uniqueidentifier NOT NULL,
     [LineNumber] int NOT NULL,
     [OriginalSalesOrderLineId] uniqueidentifier NULL,
+    [CustomerComplaintNo] nvarchar(100) NULL,
     [ResponsibleSupplierId] uniqueidentifier NULL,
     [IssueProductId] uniqueidentifier NULL,
     [IssueSkuSnapshot] nvarchar(100) NULL,

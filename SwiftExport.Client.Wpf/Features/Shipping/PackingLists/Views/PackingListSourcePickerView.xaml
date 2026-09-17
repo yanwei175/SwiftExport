@@ -59,7 +59,7 @@
                   AutomationProperties.Name="待交付来源列表">
             <DataGrid.Columns>
 
-                <DataGridTemplateColumn Header="选择" Width="45" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
+                <DataGridTemplateColumn Header="勾选" Width="45" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <CheckBox IsChecked="{Binding IsChecked, Mode=OneWay}" 

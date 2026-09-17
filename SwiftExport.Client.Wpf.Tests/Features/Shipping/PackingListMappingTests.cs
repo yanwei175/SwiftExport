@@ -47,11 +47,14 @@ public sealed class PackingListMappingTests
     [TestMethod]
     public void HeaderSnapshotAndWriteProjectionRemainSeparate()
     {
+        Assert.IsNull(typeof(PackingListHeaderDto).GetProperty("ShippingMark"));
+        Assert.IsNull(typeof(PackingListDraftHeaderInput).GetProperty("ShippingMark"));
+        Assert.IsNull(typeof(PackingListHeaderModel).GetProperty("ShippingMark"));
         var dto = new PackingListHeaderDto
         {
             Uid = Guid.NewGuid(), Version = 3, PackingListNo = "PL-1", CustomerId = Guid.NewGuid(),
             CustomerNameSnapshot = "客户", CustomerAddressSnapshot = "地址", AttentionSnapshot = "Attention",
-            InvoiceDate = new DateTime(2026, 9, 15), ShippingLocationSnapshot = "工厂装柜点", ContainerNo = "C", SealNo = "S", ShippingMark = "M", Note = "N",
+            InvoiceDate = new DateTime(2026, 9, 15), ShippingLocationSnapshot = "工厂装柜点", ContainerNo = "C", SealNo = "S", Note = "N",
             Etd = new DateTime(2026, 9, 16), Eta = new DateTime(2026, 9, 18),
             LifecycleStatus = PackingListLifecycleStatusEnum.Active, PostingStatus = PackingListPostingStatusEnum.Posted,
             PostingDate = new DateTime(2026, 9, 14), PostedDate = new DateTime(2026, 9, 14), PostedBy = "poster",

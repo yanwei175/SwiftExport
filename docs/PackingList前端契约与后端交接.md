@@ -1,5 +1,7 @@
 # PackingList 前端契约与后端交接
 
+> 头部 ShippingMark 已移除，箱唛仅使用行 Marks。实体、头读写契约、UI 和仓储 SQL 已同步；数据库列由用户手动删除，本次不执行数据库操作。
+
 ## 2026-09-17 装箱计算与头地点更新（优先于下文旧规则）
 
 - 出货地点 ShippingLocationSnapshot 移至 PackingListHead、HeaderDto、DraftHeaderInput 和 HeaderModel；Detail 头部编辑。Line 的地点及三个 Warehouse 字段均移除，不影响库存选仓。
@@ -115,7 +117,6 @@ Detail：SaveCommand、CloseCommand、SelectSourcesCommand、DeleteLineCommand�
 | InvoiceDate | DateTime | 用户自定义单据日期，不作为库存记账日期。 |
 | ContainerNo | string | 集装箱号。 |
 | SealNo | string | 封条号。 |
-| ShippingMark | string | 装运箱唛。 |
 | Note | string | 单据备注。 |
 | Etd | DateTime? | 预计离港日期。 |
 | Eta | DateTime? | 预计到达日期。 |
@@ -177,7 +178,6 @@ Detail：SaveCommand、CloseCommand、SelectSourcesCommand、DeleteLineCommand�
 | InvoiceDate | DateTime | 用户自定义单据日期，不作为库存记账日期。 |
 | ContainerNo | string | 集装箱号。 |
 | SealNo | string | 封条号。 |
-| ShippingMark | string | 装运箱唛。 |
 | Note | string | 单据备注。 |
 | Etd | DateTime? | 预计离港日期。 |
 | Eta | DateTime? | 预计到达日期。 |

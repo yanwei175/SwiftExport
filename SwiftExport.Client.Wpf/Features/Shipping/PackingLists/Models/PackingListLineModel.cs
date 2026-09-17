@@ -1,7 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Mapster;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
-using SwiftExport.Contracts.SysEnums.Shipping;
 using SwiftExportClient.Mvvm;
 
 namespace SwiftExportClient.Features.Shipping.PackingLists.Models;
@@ -134,9 +133,19 @@ public sealed partial class PackingListLineModel : BaseLineModel<PackingListLine
     {
         get
         {
-            if (!(PcsPerPackage > 0)) return null;
-            try { return decimal.Round(Qty / PcsPerPackage.Value, 4, MidpointRounding.AwayFromZero); }
-            catch (OverflowException) { return null; }
+            if (!(PcsPerPackage > 0))
+                return null;
+            try
+            {
+                return decimal.Round(
+                    Qty / PcsPerPackage.Value,
+                    4,
+                    MidpointRounding.AwayFromZero);
+            }
+            catch (OverflowException)
+            {
+                return null;
+            }
         }
     }
 
@@ -162,8 +171,24 @@ public sealed partial class PackingListLineModel : BaseLineModel<PackingListLine
             return "标准行必须关联产品。";
         if (Qty <= 0) return "交付数量必须大于零。";
         if (PcsPerPackage.HasValue && PcsPerPackage <= 0) return "每包数量必须大于零。";
+        // 每箱数量按完整件数填写，不能超过本行实际出货数量；未知值仍允许待填。
+        if (PcsPerPackage.HasValue && decimal.Truncate(PcsPerPackage.Value) != PcsPerPackage.Value)
+            return "每箱数量必须是整数。";
+        if (PcsPerPackage > Qty)
+            return "每箱数量不能大于出货数量。";
+        // 每箱数量按完整件数填写，不能超过本行实际出货数量；未知值仍允许待填。
+        if (PcsPerPackage.HasValue && decimal.Truncate(PcsPerPackage.Value) != PcsPerPackage.Value)
+            return "每箱数量必须是整数。";
+        if (PcsPerPackage > Qty)
+            return "每箱数量不能大于出货数量。";
         if (NwPerPackage < 0 || GwPerPackage < 0 || CbmPerPackage < 0)
             return "重量和体积不得为负数。";
+        // 尾箱指标允许待填；只有两者已知时比较，不能把空值当作零毛重。
+        if (NwPerPackage.HasValue && GwPerPackage.HasValue && NwPerPackage > GwPerPackage)
+            return "单箱净重不能大于单箱毛重。";
+        // 尾箱指标允许待填；只有两者已知时比较，不能把空值当作零毛重。
+        if (NwPerPackage.HasValue && GwPerPackage.HasValue && NwPerPackage > GwPerPackage)
+            return "单箱净重不能大于单箱毛重。";
         if (PcsPerPackage > 0 && PackageCount is null)
             return "箱数超出允许的数值范围。";
         if (PackageCount.HasValue && ((NwPerPackage.HasValue && SubTotalNw is null)

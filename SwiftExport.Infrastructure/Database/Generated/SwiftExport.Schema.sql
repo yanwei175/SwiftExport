@@ -58,6 +58,7 @@ CREATE TABLE [dbo].[AfterSalesLine]
     [HeaderId] uniqueidentifier NOT NULL,
     [LineNumber] int NOT NULL,
     [OriginalSalesOrderLineId] uniqueidentifier NULL,
+    [CustomerComplaintNo] nvarchar(100) NULL,
     [ResponsibleSupplierId] uniqueidentifier NULL,
     [IssueProductId] uniqueidentifier NULL,
     [IssueSkuSnapshot] nvarchar(300) NULL,
@@ -1737,6 +1738,11 @@ EXEC sys.sp_addextendedproperty
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'AfterSalesLine',
     @level2type=N'COLUMN', @level2name=N'OriginalSalesOrderLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户侧投诉单号，可空；开放单据确认后仍可补充，不影响实物要求。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
+    @level2type=N'COLUMN', @level2name=N'CustomerComplaintNo';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'责任供应商。',
     @level0type=N'SCHEMA', @level0name=N'dbo',

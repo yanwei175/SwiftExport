@@ -196,7 +196,7 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
         context.Session.Connection.QuerySingleOrDefaultAsync<PackingListHead>(Command("""
             SELECT Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,PackingListNo,CustomerId,
                    CustomerNameSnapshot,CustomerAddressSnapshot,AttentionSnapshot,InvoiceDate,ContainerNo,SealNo,ShippingLocationSnapshot,
-                   ShippingMark,Note,Etd,Eta,LifecycleStatus,PostingStatus,PostingDate,PostedDate,PostedBy,
+                   Note,Etd,Eta,LifecycleStatus,PostingStatus,PostingDate,PostedDate,PostedBy,
                    ReversedDate,ReversedBy,ReverseReason,CreateCommandId,PostCommandId,ReverseCommandId
             FROM dbo.PackingListHead WITH(UPDLOCK,HOLDLOCK)
             WHERE Uid=@Uid AND (@IncludeDeleted=1 OR IsDeleted=0);
@@ -235,11 +235,11 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
             await context.Session.Connection.ExecuteAsync(Command("""
                 INSERT dbo.PackingListHead(Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,
                   PackingListNo,CustomerId,CustomerNameSnapshot,CustomerAddressSnapshot,AttentionSnapshot,InvoiceDate,
-                  ContainerNo,SealNo,ShippingLocationSnapshot,ShippingMark,Note,Etd,Eta,LifecycleStatus,PostingStatus,PostingDate,PostedDate,
+                  ContainerNo,SealNo,ShippingLocationSnapshot,Note,Etd,Eta,LifecycleStatus,PostingStatus,PostingDate,PostedDate,
                   PostedBy,ReversedDate,ReversedBy,ReverseReason,CreateCommandId,PostCommandId,ReverseCommandId)
                 VALUES(@Uid,1,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@PackingListNo,@CustomerId,
                   @CustomerNameSnapshot,@CustomerAddressSnapshot,@AttentionSnapshot,@InvoiceDate,@ContainerNo,@SealNo,@ShippingLocationSnapshot,
-                  @ShippingMark,@Note,@Etd,@Eta,@LifecycleStatus,@PostingStatus,@PostingDate,@PostedDate,@PostedBy,
+                  @Note,@Etd,@Eta,@LifecycleStatus,@PostingStatus,@PostingDate,@PostedDate,@PostedBy,
                   @ReversedDate,@ReversedBy,@ReverseReason,@CreateCommandId,@PostCommandId,@ReverseCommandId);
                 """, header, cancellationToken));
             header.Version = 1;
@@ -250,7 +250,7 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
             var count = await context.Session.Connection.ExecuteAsync(Command("""
                 UPDATE dbo.PackingListHead SET CustomerId=@CustomerId,CustomerNameSnapshot=@CustomerNameSnapshot,
                   CustomerAddressSnapshot=@CustomerAddressSnapshot,AttentionSnapshot=@AttentionSnapshot,
-                  InvoiceDate=@InvoiceDate,ContainerNo=@ContainerNo,SealNo=@SealNo,ShippingLocationSnapshot=@ShippingLocationSnapshot,ShippingMark=@ShippingMark,
+                  InvoiceDate=@InvoiceDate,ContainerNo=@ContainerNo,SealNo=@SealNo,ShippingLocationSnapshot=@ShippingLocationSnapshot,
                   Note=@Note,Etd=@Etd,Eta=@Eta,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
                 WHERE Uid=@Uid AND Version=@Version AND IsDeleted=0 AND LifecycleStatus=0 AND PostingStatus=0;
                 """, header, cancellationToken));
@@ -295,7 +295,7 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
     }
 
     private const string HeaderListColumns = "h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,h.PackingListNo,h.CustomerId,h.CustomerNameSnapshot,h.InvoiceDate,h.ContainerNo,h.SealNo,h.ShippingLocationSnapshot,h.Etd,h.Eta,h.LifecycleStatus,h.PostingStatus";
-    private const string HeaderDetailColumns = "h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,h.PackingListNo,h.CustomerId,h.CustomerNameSnapshot,h.CustomerAddressSnapshot,h.AttentionSnapshot,h.InvoiceDate,h.ContainerNo,h.SealNo,h.ShippingLocationSnapshot,h.ShippingMark,h.Note,h.Etd,h.Eta,h.LifecycleStatus,h.PostingStatus,h.PostingDate,h.PostedDate,h.PostedBy,h.ReversedDate,h.ReversedBy,h.ReverseReason,h.CreateCommandId,h.PostCommandId,h.ReverseCommandId";
+    private const string HeaderDetailColumns = "h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,h.PackingListNo,h.CustomerId,h.CustomerNameSnapshot,h.CustomerAddressSnapshot,h.AttentionSnapshot,h.InvoiceDate,h.ContainerNo,h.SealNo,h.ShippingLocationSnapshot,h.Note,h.Etd,h.Eta,h.LifecycleStatus,h.PostingStatus,h.PostingDate,h.PostedDate,h.PostedBy,h.ReversedDate,h.ReversedBy,h.ReverseReason,h.CreateCommandId,h.PostCommandId,h.ReverseCommandId";
     private const string InvoiceSummary = "COALESCE((SELECT STRING_AGG(x.InvoiceNo,N', ') WITHIN GROUP (ORDER BY x.FirstLine,x.FirstUid) FROM (SELECT LTRIM(RTRIM(il.InvoiceNo)) COLLATE Latin1_General_100_BIN2 InvoiceNo,MIN(il.LineNumber) FirstLine,MIN(il.Uid) FirstUid FROM dbo.PackingListLine il WHERE il.PackingListHeadId=h.Uid AND il.IsDeleted=0 AND NULLIF(LTRIM(RTRIM(il.InvoiceNo)),N'') IS NOT NULL GROUP BY LTRIM(RTRIM(il.InvoiceNo)) COLLATE Latin1_General_100_BIN2) x),N'')";
 
     /// <summary>承载锁定查询返回的行归属，避免依赖 ValueTuple 的 Dapper 构造映射。</summary>

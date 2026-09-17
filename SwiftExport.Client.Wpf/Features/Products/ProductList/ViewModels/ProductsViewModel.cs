@@ -1,9 +1,5 @@
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SwiftExportClient.Resources.Controls;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
@@ -19,9 +15,13 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Mvvm;
+using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
@@ -66,7 +66,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
                 dictionaryValues,
                 OnDictionaryValuesChanged);
         RefreshUnitOptions();
-
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(SaveCommand);
@@ -349,11 +348,14 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     {
         var request = new ProductSearchRequest
         {
-            Keyword = NullIfWhiteSpace(Keyword), CustomerId = FilterCustomer?.Uid ?? Guid.Empty,
+            Keyword = NullIfWhiteSpace(Keyword),
+            CustomerId = FilterCustomer?.Uid ?? Guid.Empty,
             ColorCodeUnique = FilterColor?.ColorCodeUnique,
             CategoryId = Guid.Empty,
             CategoryIds = FilterCategory is null ? [] : GetCategoryIds(FilterCategory).ToList(),
-            MaterialTypeList = FilterMaterialTypes.ToList(), PageIndex = PageIndex, PageSize = PageSize,
+            MaterialTypeList = FilterMaterialTypes.ToList(),
+            PageIndex = PageIndex,
+            PageSize = PageSize,
         };
         var result = await _apiCallRunner.RunAsync(() => _productApi.GetPagedAsync(request), "加载产品资料失败");
         if (!result.Success)

@@ -11,7 +11,7 @@ public interface IPackingListRepository
     Task<bool> IsSchemaReadyAsync(CancellationToken cancellationToken = default);
     /// <summary>分页读取装箱单管理摘要。</summary>
     Task<PagedResponseBase<PackingListManagerListItemDto>> SearchAsync(PackingListManagerSearchRequest request, CancellationToken cancellationToken = default);
-    /// <summary>分页查询具有活动物料及未释放 Target 的可交付来源，仅限装箱单 Picker。</summary>
+    /// <summary>分页查询可交付来源；普通来源需活动物料及未释放 Target，售后补发免此限制，仅限装箱单 Picker。</summary>
     Task<PagedResponseBase<SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery.SourceDemandDeliveryItemDto>> SearchSourcesAsync(
         PackingListSourceSearchRequest request, CancellationToken cancellationToken = default);
     /// <summary>读取装箱单完整快照；不存在时返回空。</summary>

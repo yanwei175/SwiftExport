@@ -1,5 +1,7 @@
 # PackingList 实体与关联交付设计
 
+> 头部 ShippingMark 已移除，箱唛仅使用行 Marks。实体、头读写契约、UI 和仓储 SQL 已同步；数据库列由用户手动删除，本次不执行数据库操作。
+
 ## 2026-09-17 最新字段处置
 
 PackingListHead 新增 ShippingLocationSnapshot（可空，200字符），头读写 DTO 同步。PackingListLine 删除 ShippingLocationSnapshot、WarehouseSiteId、WarehouseCodeSnapshot、WarehouseNameSnapshot；无库存仓库职责。
@@ -32,7 +34,6 @@ PackageCount 改为 Qty/PcsPerPackage 的四位小数结果快照，取消向上
 | InvoiceDate | DateTime | 用户自定义单据日期，不作为库存记账日期。 |
 | ContainerNo | string? | 集装箱号。 |
 | SealNo | string? | 封条号。 |
-| ShippingMark | string? | 装运箱唛。 |
 | Note | string? | 单据备注。 |
 | Etd | DateTime? | 预计离港日期。 |
 | Eta | DateTime? | 预计到达日期。 |

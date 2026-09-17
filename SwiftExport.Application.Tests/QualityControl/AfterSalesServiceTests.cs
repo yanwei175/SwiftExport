@@ -27,6 +27,40 @@ namespace SwiftExport.Application.Tests.QualityControl;
 [TestClass]
 public sealed class AfterSalesServiceTests
 {
+    /// <summary>客户投诉单号确认前后均可补充和清空，超长拒绝且不重新发布需求。</summary>
+    [TestMethod]
+    public async Task CustomerComplaintNumberCanBeSupplementedWithoutPublishingDemand()
+    {
+        using var f=new Fixture();var c=f.Command();c.AddedLines[0].CustomerComplaintNo="  客诉-001  ";
+        var saved=await f.Service.SaveAsync(c.Uid,c,true);
+        Assert.IsTrue(saved.Success,saved.Message);Assert.AreEqual("客诉-001",f.Rows[0].CustomerComplaintNo);
+        var confirmed=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
+        Assert.IsTrue(confirmed.Success,confirmed.Message);
+        var edit=f.Edit();edit.UpdatedLines[0].CustomerComplaintNo=" 客诉-002 ";
+        var changed=await f.Service.SaveAsync(c.Uid,edit,false);
+        Assert.IsTrue(changed.Success,changed.Message);Assert.AreEqual(1,f.ReceiveCalls);
+        Assert.AreEqual("客诉-002",f.Rows[0].CustomerComplaintNo);
+        using(var audit=JsonDocument.Parse(f.Logs.Last().ChangedFieldsJson!))
+        {
+            Assert.AreEqual("客诉-001",audit.RootElement.GetProperty("Before").GetProperty("Lines")[0].GetProperty("CustomerComplaintNo").GetString());
+            Assert.AreEqual("客诉-002",audit.RootElement.GetProperty("After").GetProperty("Lines")[0].GetProperty("CustomerComplaintNo").GetString());
+        }
+        edit=f.Edit();edit.UpdatedLines[0].CustomerComplaintNo=new string('中',101);
+        var rejected=await f.Service.SaveAsync(c.Uid,edit,false);
+        Assert.AreEqual("VALIDATION",rejected.Error.Code);StringAssert.Contains(rejected.Error.Field,"CustomerComplaintNo");
+        Assert.AreEqual("客诉-002",f.Rows[0].CustomerComplaintNo);
+        edit=f.Edit();edit.UpdatedLines[0].CustomerComplaintNo="   ";
+        Assert.IsTrue((await f.Service.SaveAsync(c.Uid,edit,false)).Success);
+        Assert.IsNull((await f.Service.GetAsync(c.Uid)).Data.Lines[0].CustomerComplaintNo);
+        Assert.AreEqual(1,f.ReceiveCalls);
+        foreach(var status in new[]{DocumentStatusEnum.Closed,DocumentStatusEnum.Voided})
+        {
+            f.Head!.DocumentStatus=status;edit=f.Edit();edit.UpdatedLines[0].CustomerComplaintNo="不允许修改";
+            Assert.AreEqual("BUSINESS_BLOCKED",(await f.Service.SaveAsync(c.Uid,edit,false)).Error.Code);
+            Assert.IsNull(f.Rows[0].CustomerComplaintNo);
+        }
+    }
+
     /// <summary>混合行只把配件正数量交给来源，空和零只保留投诉。</summary>
     [TestMethod]
     public async Task MixedRowsAndStableReplay()

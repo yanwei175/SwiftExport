@@ -35,7 +35,8 @@ public sealed class PackingListEntityContractTests
         Assert.AreEqual(typeof(DateTime), typeof(PackingListHead).GetProperty("InvoiceDate")!.PropertyType);
         Assert.AreEqual(typeof(string), typeof(PackingListHead).GetProperty("ContainerNo")!.PropertyType);
         Assert.AreEqual(typeof(string), typeof(PackingListHead).GetProperty("SealNo")!.PropertyType);
-        Assert.AreEqual(typeof(string), typeof(PackingListHead).GetProperty("ShippingMark")!.PropertyType);
+        Assert.IsNull(typeof(PackingListHead).GetProperty("ShippingMark"));
+        Assert.AreEqual(typeof(string), typeof(PackingListLine).GetProperty("Marks")!.PropertyType);
         Assert.AreEqual(typeof(string), typeof(PackingListHead).GetProperty("Note")!.PropertyType);
         Assert.AreEqual(typeof(DateTime?), typeof(PackingListHead).GetProperty("Etd")!.PropertyType);
         Assert.AreEqual(typeof(DateTime?), typeof(PackingListHead).GetProperty("Eta")!.PropertyType);

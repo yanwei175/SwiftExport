@@ -23,6 +23,50 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Shipping;
 [TestClass]
 public sealed class PackingListViewModelTests
 {
+    /// <summary>不合法每箱数量阻止请求并警告，修正为相等整数后可提交。</summary>
+    [TestMethod]
+    public async Task SaveRejectsInvalidPackageQuantityWithWarning()
+    {
+        var api = new PackingListApiStub(); var ui = new PackingListUiStub();
+        using var vm = Detail(api, ui); await NewDraft(vm);
+        var row = vm.Lines.Items.Single();
+        row.PcsPerPackage = 1.5m;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(0, api.Creates.Count);
+        Assert.AreEqual("第 1 行：每箱数量必须是整数。", ui.Warnings.Single());
+        row.PcsPerPackage = 3;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(0, api.Creates.Count);
+        Assert.AreEqual("第 1 行：每箱数量不能大于出货数量。", ui.Warnings.Last());
+        Assert.AreEqual(2, ui.Warnings.Count);
+        Assert.IsTrue(vm.HasUnsavedChanges);
+        row.PcsPerPackage = 2;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(1, api.Creates.Count);
+    }
+
+    /// <summary>净重大于毛重时保存不发请求，保留编辑，修正后可继续提交。</summary>
+    [TestMethod]
+    public async Task SaveRejectsNetWeightAboveGrossWeight()
+    {
+        var api = new PackingListApiStub();
+        var ui = new PackingListUiStub();
+        using var vm = Detail(api, ui);
+        await NewDraft(vm);
+        var row = vm.Lines.Items.Single();
+        row.NwPerPackage = 5; row.GwPerPackage = 4;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(0, api.Creates.Count);
+        Assert.AreEqual("第 1 行：单箱净重不能大于单箱毛重。", vm.ValidationSummary);
+        Assert.AreEqual(1, ui.Warnings.Count);
+        Assert.AreEqual(vm.ValidationSummary, ui.Warnings.Single());
+        Assert.AreEqual(5m, row.NwPerPackage);
+        Assert.IsTrue(vm.HasUnsavedChanges);
+        row.GwPerPackage = 5;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(1, api.Creates.Count);
+    }
+
     /// <summary>失败保存不丢编辑，原内容重试复用身份，改动后创建新意图。</summary>
     [TestMethod]
     public async Task SaveFailureRetainsEditsAndStableCommandId()
@@ -32,6 +76,8 @@ public sealed class PackingListViewModelTests
         await NewDraft(vm);
         await vm.SaveCommand.ExecuteAsync(null);
         Assert.IsTrue(vm.HasUnsavedChanges); Assert.AreEqual(1, api.Creates.Count);
+        Assert.AreEqual(1, ui.Warnings.Count);
+        Assert.AreEqual(vm.ValidationSummary, ui.Warnings.Single());
         var id = api.Creates[0].CommandId;
         await vm.SaveCommand.ExecuteAsync(null);
         Assert.AreEqual(id, api.Creates[1].CommandId);
@@ -89,7 +135,7 @@ public sealed class PackingListViewModelTests
         using var vm = Detail(api, ui); await vm.InitializeDocumentAsync(new PackingListOpenRequest { Uid = dto.Header.Uid }, default);
         Assert.IsTrue(vm.IsReadOnly); Assert.IsFalse(vm.IsEditable);
         await vm.SaveCommand.ExecuteAsync(null); vm.PostCommand.Execute(null); vm.ReverseCommand.Execute(null);
-        Assert.AreEqual(0, api.Updates.Count); Assert.AreEqual(2, ui.Infos);
+        Assert.AreEqual(0, api.Updates.Count); Assert.AreEqual(1, ui.Infos); Assert.AreEqual(1, ui.Warnings.Count);
         api.Get = _ => Task.FromResult(ServiceResult<PackingListDetailDto>.Fail("404"));
         using var failed = Detail(api, ui); await failed.InitializeDocumentAsync(new PackingListOpenRequest { Uid = Guid.NewGuid() }, default);
         Assert.IsTrue(failed.IsReadOnly); Assert.IsFalse(failed.HasUnsavedChanges);
@@ -262,6 +308,8 @@ internal sealed class PackingListUiStub : IDialogService, IMessageService
 {
     public bool Confirm { get; set; } = true;
     public int Infos { get; private set; }
+    /// <summary>记录警告内容，验证每次失败只通知一次。</summary>
+    public List<string> Warnings { get; } = [];
     /// <inheritdoc/>
     public Task<bool> ConfirmAsync(string title, string message, string primaryButtonText = "确定", string closeButtonText = "取消", CancellationToken cancellationToken = default) => Task.FromResult(Confirm);
     /// <inheritdoc/>
@@ -273,7 +321,7 @@ internal sealed class PackingListUiStub : IDialogService, IMessageService
     /// <inheritdoc/>
     public void ShowSuccess(string title, string message) { }
     /// <inheritdoc/>
-    public void ShowWarning(string title, string message) { }
+    public void ShowWarning(string title, string message) => Warnings.Add(message);
     /// <inheritdoc/>
     public void ShowError(string title, string message) { }
 }
