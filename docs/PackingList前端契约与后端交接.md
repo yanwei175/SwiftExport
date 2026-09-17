@@ -1,6 +1,27 @@
 # PackingList 前端契约与后端交接
 
-## 交付状态
+## 2026-09-17 装箱计算与头地点更新（优先于下文旧规则）
+
+- 出货地点 ShippingLocationSnapshot 移至 PackingListHead、HeaderDto、DraftHeaderInput 和 HeaderModel；Detail 头部编辑。Line 的地点及三个 Warehouse 字段均移除，不影响库存选仓。
+- Qty、PcsPerPackage、NwPerPackage、GwPerPackage、CbmPerPackage 在草稿可编辑。箱数实时等于 Qty / PcsPerPackage，按四位小数 AwayFromZero；取消 Ceiling 和手工覆盖箱数。未知每箱数量时箱数为空；未知单箱指标时对应小计及合计为空。小计=箱数×单箱指标，四位小数。
+- 写请求的 PackageCount 只保留兼容字段，后端不采信；后端复核手工包装值并重算箱数及小计，幂等指纹包含包装输入和头地点。不重新覆盖成来源默认包装，来源默认值仅用于选入时初始化。
+- 序号前“拆尾箱”按钮仅对可编辑草稿、正数量、正每箱数量且有余数的行可用。105/20 拆为原行100/20/5箱，下方新行5/5/1箱；新行来源相同、Uid独立、版本为0，保留单据文本和产品快照，清空净重/毛重/体积等待填写。整除不拆。原本不足一箱时就地转成1箱，不建立零数量行。
+- 拆分后重新编号，草稿整单保存仍复核同来源总量；失败保留编辑，撤销恢复服务端快照。
+- 改用迁移脚本 SwiftExport.Infrastructure/Migrations/PackingList头地点与行仓库清理.sql，不再执行旧行地点增量脚本。先备份再手动部署；脚本没有执行。同头多个旧地点或头行冲突会阻断；旧仓库列删除后仅能从备份恢复。历史生成基线未改，新实体元数据已更新。
+- 拼箱暂未实现：建议后续人工选行建立箱组，共享箱号，包装毛重和体积归箱组只计一次，产品行继续保留来源和数量。需单独确定箱组结构、净重口径、拆组和导出规则，不以多行各填1箱代替拼箱。
+
+## 2026-09-17 选源规则更新（覆盖下文历史交接口径）
+
+- 已存在并适配真实 Controller、Service、Repository；尚未连接数据库验证。本次不实现过账和反过账。
+- Picker 请求仍为 POST /sources/search，新增 List<string> Keywords。多行文本按换行拆分、Trim、去空、忽略大小写去重；最多 200 项、单项 200 字符。与原 Keyword 合并 OR 匹配来源单号、SKU、关联型号、客户型号、描述和颜色；SQL LIKE 特殊字符转义，全部参数化。不是 Excel 导入或自动勾选。
+- 专用查询要求活动 NetDemand，且关联未删除 DemandExecutionLink 的 AllocatedQty > ReleasedQty；与物料回退的 Target 阻断口径一致，不附加 LinkStatus、TargetType 或采购确认条件。在计数、分页之前执行 EXISTS，避免多 Link 重复来源。通用来源交付查询及草稿保存不新增该准入条件。
+- 后端 RemainingQty 已扣除有效已过账 PackingList 数量（现有交付投影）；前端按 GrossDemandId 再减当前草稿有效行数量。AvailableQty <= 0 或余额不可用不展示，不扣其他草稿。服务器 TotalCount 保留，本页可能因本地扣量为空。
+- 标准、非标都可选；非标以 GrossDemandId 和来源行身份识别，ProductId 可空，ImagePath 保留。
+- 列表始终只读。原生 FullRow + Extended 选择支持单选、Ctrl、Shift；IsChecked 镜像选择状态，复选框只展示。选择结果 Qty 默认本地 AvailableQty，随后在草稿调整。不再存在 SelectedQty 编辑器。
+- ShippingLocationSnapshot 是可选出货地点文本（200 字符），写入、读取和显示都使用该字段，不调用仓库选择器，不影响库存选仓或自动入出库。WarehouseSiteId/Code/Name 仅保留历史读取兼容，不进入新写请求。
+- 发布前手动审核执行 SwiftExport.Infrastructure/Migrations/PackingList出货地点增量.sql；仅新增地点列和备注，首次增列复制旧地点文本，不删旧仓库字段。未执行该迁移时 SchemaReady 检查阻断服务，本次没有连接或修改数据库。
+
+## 历史交付状态
 
 2026-09-15 已接入 Manager、Detail、Picker 的 ViewModel、出货导航、页面模板、Refit 注册及选源弹窗。前端调用真实 IPackingListApi，后端 Controller、Service、Repository 尚未实现，因此尚无可连接真实数据的端到端闭环。保留原页面布局；过账和反过账按钮只显示“待开发”，不发请求、不改变状态或库存。Trace/Export/XLSX 与打印仍为独立后续范围。
 
@@ -42,7 +63,7 @@ Detail：SaveCommand、CloseCommand、SelectSourcesCommand、DeleteLineCommand�
 
 - 创建：CommandId、头 Uid、行 Uid 均为非空稳定 Guid，由客户端生成；同意图网络重试不重建标识。新增行 ExpectedVersion=0，已有行正版本。
 - 更新：整单 ExpectedVersion + 全部有效 Lines + 显式 DeletedLines。Uid 在有效与删除集合中不得重复/交叉；存量行必须在两集合恰好出现一次，遗漏返回 LINE_SET_MISMATCH，不能默认为删除；外单行拒绝。
-- 头行保存同事务，后端重新读取来源/产品/单位/客户、校验草稿状态，校验数量及四位包装精度，统一重算小计和汇总。仓库可空，缺省包装不能自动变零。允许同 GrossDemandId 多行，不要求 NetDemand/Allocation/采购存在。
+- 头行保存同事务，后端重新读取来源/产品/单位/客户、校验草稿状态，校验数量及四位包装精度，统一重算小计和汇总。出货地点可空，缺省包装不能自动变零。允许同 GrossDemandId 多行，不要求 NetDemand/Allocation/采购存在。
 - 草稿不占用来源额度、不改变库存；保存时汇总同来源本单数量进行一致性检查，未来过账另做锁后重验。
 - 写入输入故意不继承 BaseDto，不提供 IsDeleted、状态、审计、PostCommandId、图片和小计字段。UI 不提交其查询 DTO。服务端也不得使用宽松反射绑定 Entity。
 - 幂等日志由后端另行设计：相同 CommandId+规范化内容返回首次成功结果并 AlreadyApplied=true；内容不同返回 IDEMPOTENCY_CONFLICT，不因单有CommandId就宣称已实现幂等。
@@ -74,7 +95,7 @@ Detail：SaveCommand、CloseCommand、SelectSourcesCommand、DeleteLineCommand�
 
 - 复用 PackingListSourceSearchRequest、PackingListSourceCandidateDto 和 IPackingListApi.SearchSourcesAsync，不新增重复来源 API。ImagePath 已在 DTO 中，贯穿 PickerRow、Selection.Source 与新行快照，仅展示不持久化。
 - PackingListSourcePickerSearchModel 保存固定 CustomerId、Keyword、PageIndex/PageSize；候选仍来自 GrossDemand，不能要求先有 NetDemand 或采购。
-- PackingListSourcePickerRowModel 为只读候选快照加 IsChecked、SelectedQty；不是持久化单据行，所以不使用 BaseLineModel 的增删脏状态。SelectedQty 初始0，用户明确填写；余额未知、异常或超量不得确认。候选表可展示未知进度及原因，但后端完成投影前不能宣称待发货额度可用。
+- PackingListSourcePickerRowModel 为只读候选快照加 IsChecked、DraftQty、AvailableQty；不是持久化单据行。剩余数量由后端交付投影扣减后，前端再扣当前草稿；选中后在草稿调整数量。
 - 后端正常待发货查询过滤已确认 RemainingQty<=0；不得将未实现交付投影伪造为0。详情按 GrossDemandId 汇总本单已有数量传给 Picker，与本次选择合计复核；不排除整个来源（允许拆多行）。前端校验不替代服务端保存时重验。
 - PackingListSourcePickerSelection 包含完整 Source 快照和 Qty；弹窗仅确认时返回快照，取消/关闭返回 null。详情显式生成行Uid/LineNumber，赋值 Qty，按建议初始化 PackageCount；不自动填写 InvoiceNo，不在映射中创建业务身份。ImagePath 贯穿候选、选择结果和详情行，不写入保存命令。
 - 当前 Picker 为“当前页选择”协议：勾选后查询或翻页被阻断，先确认加入或清空勾选，不静默丢失已选项；可以多次打开以加入不同来源或不同包装行。
@@ -140,7 +161,7 @@ Detail：SaveCommand、CloseCommand、SelectSourcesCommand、DeleteLineCommand�
 | InvoiceNo | string | 行上手工填写的发票号文本，不关联财务发票。 |
 | Marks | string | 本行箱唛。 |
 | Note | string | 本行备注。 |
-| WarehouseSiteId | Guid? | 本次库存操作仓库，草稿允许未确定。 |
+| WarehouseSiteId | Guid? | 历史兼容仓库标识；不再作为当前单据库存操作输入。 |
 | WarehouseCodeSnapshot | string | 采用的仓库编码快照。 |
 | WarehouseNameSnapshot | string | 采用的仓库名称快照。 |
 | ImagePath | string | 查询展示图片，不持久化。 |
@@ -186,7 +207,7 @@ Detail：SaveCommand、CloseCommand、SelectSourcesCommand、DeleteLineCommand�
 | InvoiceNo | string | 行上手工填写的发票号文本，不关联财务发票。 |
 | Marks | string | 本行箱唛。 |
 | Note | string | 本行备注。 |
-| WarehouseSiteId | Guid? | 本次库存操作仓库，草稿允许未确定。 |
+| WarehouseSiteId | Guid? | 历史兼容仓库标识；不再作为当前单据库存操作输入。 |
 | WarehouseCodeSnapshot | string | 采用的仓库编码快照。 |
 | WarehouseNameSnapshot | string | 采用的仓库名称快照。 |
 
@@ -307,7 +328,7 @@ Manager 搜索/翻页/切换明细使用 CancellationToken + 请求序号 + 页�
 
 导航使用已有 Module.Shipping.Access；尚无 PackingList 独立操作权限键，不硬编码角色。前端 CanExecute 按有效未过账草稿、Busy、弹窗状态限制编辑，删除只接受有效未过账草稿；后端仍须独立授权每个 API。后续细分查看/新建/编辑/删除权限时需同时适配前后端。
 
-发票号及小计仅本地预览。PackageCount 手工值不随 Qty 变化静默重置；选源初始化时显式采用 SuggestedPackageCount。未知指标使相应小计/总计未知，不按零计；数量按单位分组，使用当前文化显示。保存前通过视图委托提交 Grid 原生编辑并检查 WPF 转换错误，再做模型验证；卸载时解除委托。来源、产品和状态只读，有物理行（含待删除旧行）时锁定客户；先撤销/重新建单，不静默改换来源客户。仓库可以暂缺，支持选中行选择或清空仓库。
+发票号及小计仅本地预览。PackageCount 手工值不随 Qty 变化静默重置；选源初始化时显式采用 SuggestedPackageCount。未知指标使相应小计/总计未知，不按零计；数量按单位分组，使用当前文化显示。保存前通过视图委托提交 Grid 原生编辑并检查 WPF 转换错误，再做模型验证；卸载时解除委托。来源、产品和状态只读，有物理行（含待删除旧行）时锁定客户；先撤销/重新建单，不静默改换来源客户。出货地点为可选自由文本，不再选择或校验库存仓库。
 
 保存返回完整详情且头行身份匹配才接纳为新基线；失败或不完整响应保留编辑。相同请求内容重试复用 CommandId，内容变化生成新命令标识。当前页只在内存保留重试身份，不承诺跨进程离线恢复；超时后若改动原意图，后端必须根据稳定单据 Uid 防重复建单并返回冲突，不得再创建第二张。更新提交所有有效行及明确删除身份/版本，未列出的旧行不能默认为删除。
 

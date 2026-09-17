@@ -21,6 +21,9 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public DateTime InvoiceDate { get; set; }
         /// <summary>集装箱号。</summary>
         public string ContainerNo { get; set; }
+        /// <summary>整单出货地点文本快照，不决定库存仓库。</summary>
+        public string ShippingLocationSnapshot { get; set; }
+
         /// <summary>封条号。</summary>
         public string SealNo { get; set; }
         /// <summary>装运箱唛。</summary>

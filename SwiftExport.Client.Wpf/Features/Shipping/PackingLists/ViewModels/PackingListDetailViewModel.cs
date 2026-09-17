@@ -5,7 +5,6 @@ using SwiftExport.Contracts.Apis.Shipping;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Contracts.SysEnums.Shipping;
-using SwiftExportClient.Features.Inventory.WarehouseSites.Services;
 using SwiftExportClient.Features.Shipping.PackingLists.Models;
 using SwiftExportClient.Features.Shipping.PackingLists.Services;
 using SwiftExportClient.Mvvm;
@@ -26,7 +25,6 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     private readonly IApiCallRunner _runner;
     private readonly IReferenceDataCacheService _cache;
     private readonly IPackingListSourcePickerService _sources;
-    private readonly IWarehousePickerService _warehouses;
     private readonly INavigationService _navigation;
     private readonly IDialogService _dialogs;
     private readonly IMessageService _messages;
@@ -39,17 +37,17 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     public const string RouteKey = "shipping.packing-list-detail";
     /// <summary>注入窄 API、参考缓存和 UI 边界，不直接创建视图。</summary>
     public PackingListDetailViewModel(IPackingListApi api, IApiCallRunner runner, IReferenceDataCacheService cache,
-        IPackingListSourcePickerService sources, IWarehousePickerService warehouses, INavigationService navigation,
+        IPackingListSourcePickerService sources, INavigationService navigation,
         IDialogService dialogs, IMessageService messages)
     {
-        _api = api; _runner = runner; _cache = cache; _sources = sources; _warehouses = warehouses;
+        _api = api; _runner = runner; _cache = cache; _sources = sources;
         _navigation = navigation; _dialogs = dialogs; _messages = messages;
         IsReadOnly = true;
         Header.PropertyChanged += OnHeaderChanged;
         Lines.ListStateChanged += OnLinesChanged;
         PropertyChanged += OnPageChanged;
         foreach (var command in new IRelayCommand[] { SaveCommand, SelectSourcesCommand, DeleteLineCommand,
-            MoveLineUpCommand, MoveLineDownCommand, SelectWarehouseCommand, ClearWarehouseCommand, UndoCommand })
+            MoveLineUpCommand, MoveLineDownCommand, SplitTailCommand, UndoCommand })
             RegisterBusyAwareCommand(command);
     }
     public PackingListHeaderModel Header { get; } = new();
@@ -64,8 +62,6 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     public bool CanInteractWithLines => !_disposed && _loaded && !IsBusy && !_dialogOpen;
     /// <summary>有物理行后不允许换客户，避免来源跨客户。</summary>
     public bool CanEditFacts => IsEditable && Lines.AllLines.Count == 0;
-    /// <summary>只有标准行可以选择或清空库存仓库。</summary>
-    public bool CanEditSelectedWarehouse => IsEditable && SelectedLine is { IsNonStandardSnapshot: false };
     /// <inheritdoc/>
     public string DocumentTitle => _isNew ? "新建 PackingList" : Header.PackingListNo ?? "PackingList 详情";
     /// <inheritdoc/>
@@ -128,7 +124,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         Header.CustomerNameSnapshot = value?.CustomerName;
         Header.CustomerAddressSnapshot = value?.Address;
     }
-    /// <summary>切换选中行时刷新仓库命令可用性，非标行始终禁用仓库操作。</summary>
+    /// <summary>切换选中行时刷新当前草稿操作可用性。</summary>
     partial void OnSelectedLineChanged(PackingListLineModel? value) => NotifyState();
     /// <summary>保存前校验完整有效行，专用写 DTO 排除状态、审计和图片。</summary>
     [RelayCommand(CanExecute = nameof(IsEditable))]
@@ -143,21 +139,30 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         if (error is not null) { ValidationSummary = error; return; }
         if (!IsEditable) return;
         if (Lines.Items.Any(x => x.GrossDemandId == Guid.Empty
-            || (x.IsNonStandardSnapshot && (x.ProductId.HasValue || x.WarehouseSiteId.HasValue))
+            || (x.IsNonStandardSnapshot && (x.ProductId.HasValue))
             || (!x.IsNonStandardSnapshot && (!x.ProductId.HasValue || x.ProductId == Guid.Empty))))
-        { ValidationSummary = "来源的标准/非标产品或仓库身份不一致。"; return; }
+        { ValidationSummary = "来源的标准/非标产品身份不一致。"; return; }
         await RunBusyAsync(async () =>
         {
             Renumber();
-            var command = new UpdatePackingListDraftCommand { ExpectedVersion = Header.Version,
-                Header = Header.Adapt<PackingListDraftHeaderInput>(), Lines = Lines.Items.Adapt<List<PackingListDraftLineInput>>(),
-                DeletedLines = Lines.DeletedItems.Where(x => !x.IsNew).Adapt<List<PackingListDeletedLineInput>>() };
+            var command = new UpdatePackingListDraftCommand
+            {
+                ExpectedVersion = Header.Version,
+                Header = Header.Adapt<PackingListDraftHeaderInput>(),
+                Lines = Lines.Items.Adapt<List<PackingListDraftLineInput>>(),
+                DeletedLines = Lines.DeletedItems.Where(x => !x.IsNew).Adapt<List<PackingListDeletedLineInput>>()
+            };
             var fingerprint = JsonSerializer.Serialize(command);
             if (_saveFingerprint != fingerprint) { _saveFingerprint = fingerprint; _saveCommandId = Guid.NewGuid(); }
             command.CommandId = _saveCommandId;
             var result = _isNew
-                ? await _runner.RunAsync(() => _api.CreateAsync(new CreatePackingListDraftCommand { CommandId = _saveCommandId,
-                    Uid = _uid, Header = command.Header, Lines = command.Lines }), "保存失败")
+                ? await _runner.RunAsync(() => _api.CreateAsync(new CreatePackingListDraftCommand
+                {
+                    CommandId = _saveCommandId,
+                    Uid = _uid,
+                    Header = command.Header,
+                    Lines = command.Lines
+                }), "保存失败")
                 : await _runner.RunAsync(() => _api.UpdateAsync(_uid, command), "保存失败");
             if (_disposed) return;
             if (!result.Success || result.Data?.Uid != _uid || !IsValidDetail(result.Data.Detail))
@@ -172,6 +177,8 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     {
         if (!IsEditable) return;
         if (Header.CustomerId == Guid.Empty) { ValidationSummary = "请先选择客户。"; return; }
+        if (CommitEdits?.Invoke() == false || Lines.Items.Any(x => x.Qty <= 0))
+        { ValidationSummary = "请先修正草稿数量及输入格式，再获取来源。"; return; }
         _dialogOpen = true; NotifyState();
         try
         {
@@ -187,41 +194,116 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
             {
                 var dto = selection.Source.Adapt<PackingListLineDto>();
                 dto.Uid = Guid.NewGuid(); dto.PackingListHeadId = _uid; dto.LineNumber = Lines.Items.Count + 1; dto.Qty = selection.Qty;
-                // 来源快照不代表已知实际包装数，先给出可编辑建议。
-                var row = Lines.AddNew(dto); row.PackageCount = row.SuggestedPackageCount; SelectedLine = row;
+                // 箱数与小计由行模型实时计算。
+                SelectedLine = Lines.AddNew(dto);
             }
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex) { if (!_disposed) await HandleExceptionAsync(ex); }
         finally { _dialogOpen = false; NotifyState(); }
     }
+
     [RelayCommand(CanExecute = nameof(IsEditable))]
     private void DeleteLine() { if (!IsEditable) return; Lines.Remove(SelectedLine); SelectedLine = null; Renumber(); }
-    [RelayCommand(CanExecute = nameof(IsEditable))]
+
+    [RelayCommand(CanExecute = nameof(CanMoveLineUp))]
     private void MoveLineUp(PackingListLineModel? line) => MoveLine(line ?? SelectedLine, -1);
-    [RelayCommand(CanExecute = nameof(IsEditable))]
-    private void MoveLineDown(PackingListLineModel? line) => MoveLine(line ?? SelectedLine, 1);
-    private void MoveLine(PackingListLineModel? line, int offset)
-    { if (IsEditable && line is not null && Lines.Move(line, Lines.Items.IndexOf(line) + offset)) Renumber(); }
-    private void Renumber() { for (var i = 0; i < Lines.Items.Count; i++) Lines.Items[i].LineNumber = i + 1; }
-    [RelayCommand(CanExecute = nameof(CanEditSelectedWarehouse))]
-    private async Task SelectWarehouseAsync()
+    private bool CanMoveLineUp(PackingListLineModel? line)
     {
-        if (!CanEditSelectedWarehouse || SelectedLine is not { } line) return;
-        _dialogOpen = true; NotifyState();
-        try
-        {
-            var warehouse = await _warehouses.PickAsync(_lifetime.Token);
-            if (_disposed || warehouse is null || !Lines.Items.Contains(line)) return;
-            line.WarehouseSiteId = warehouse.Uid; line.WarehouseCodeSnapshot = warehouse.Code; line.WarehouseNameSnapshot = warehouse.Name;
-        }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (Exception ex) { if (!_disposed) await HandleExceptionAsync(ex); }
-        finally { _dialogOpen = false; NotifyState(); }
+        if (!IsEditable)
+            return false;
+
+        line ??= SelectedLine;
+
+        return line is not null &&
+               Lines.Items.IndexOf(line) > 0;
     }
-    [RelayCommand(CanExecute = nameof(CanEditSelectedWarehouse))]
-    private void ClearWarehouse()
-    { if (CanEditSelectedWarehouse && SelectedLine is { } line) { line.WarehouseSiteId = null; line.WarehouseCodeSnapshot = null; line.WarehouseNameSnapshot = null; } }
+
+    [RelayCommand(CanExecute = nameof(CanMoveLineDown))]
+    private void MoveLineDown(PackingListLineModel? line) => MoveLine(line ?? SelectedLine, 1);
+    private bool CanMoveLineDown(PackingListLineModel? line)
+    {
+        if (!IsEditable)
+            return false;
+
+        line ??= SelectedLine;
+
+        if (line is null)
+            return false;
+
+        var index = Lines.Items.IndexOf(line);
+
+        return index >= 0 &&
+               index < Lines.Items.Count - 1;
+    }
+
+
+
+    private void MoveLine(PackingListLineModel? line, int offset)
+    {
+        if (!IsEditable || line is null)
+            return;
+
+        var oldIndex = Lines.Items.IndexOf(line);
+        if (oldIndex < 0)
+            return;
+
+        var newIndex = oldIndex + offset;
+
+        if (newIndex < 0 || newIndex >= Lines.Items.Count)
+            return;
+
+        if (!Lines.Move(line, newIndex))
+            return;
+
+        Renumber();
+
+        MoveLineUpCommand.NotifyCanExecuteChanged();
+        MoveLineDownCommand.NotifyCanExecuteChanged();
+    }
+
+
+
+
+    /// <summary>拆尾箱只改当前草稿；来源和总数量不变，新增行使用独立身份。</summary>
+    [RelayCommand(CanExecute = nameof(CanSplitTail))]
+    private void SplitTail(PackingListLineModel? line)
+    {
+        if (!IsEditable || line is null || !Lines.Items.Contains(line)) return;
+        if (CommitEdits?.Invoke() == false) { ValidationSummary = "请先修正表格输入格式。"; return; }
+        if (!CanSplitTail(line)) return;
+        var remainder = line.Qty % line.PcsPerPackage!.Value;
+        var fullQty = line.Qty - remainder;
+        if (fullQty == 0)
+        {
+            // 本身不足一箱时直接转换为尾箱，避免制造零数量行。
+            line.PcsPerPackage = line.Qty;
+            line.NwPerPackage = null; line.GwPerPackage = null; line.CbmPerPackage = null;
+            SelectedLine = line;
+            return;
+        }
+        var index = Lines.Items.IndexOf(line);
+        var dto = line.ToDto();
+        dto.Uid = Guid.NewGuid(); dto.Version = 0; dto.IsDeleted = false;
+        dto.CreatedBy = null; dto.UpdatedBy = null; dto.CreatedDate = default; dto.UpdatedDate = default;
+        dto.Qty = remainder; dto.PcsPerPackage = remainder; dto.PackageCount = 1;
+        dto.NwPerPackage = null; dto.GwPerPackage = null; dto.CbmPerPackage = null;
+        dto.SubTotalNw = null; dto.SubTotalGw = null; dto.SubTotalCbm = null;
+        line.Qty = fullQty;
+        var tail = Lines.AddNew(dto);
+        Lines.Move(tail, index + 1); Renumber(); SelectedLine = tail;
+        ResultSummary = "尾箱已拆分，请填写尾箱的单箱净重、毛重和体积。";
+    }
+    private bool CanSplitTail(PackingListLineModel? line) =>
+        IsEditable && line is not null && Lines.Items.Contains(line) && line.CanSplitTail;
+
+    private void Renumber()
+    {
+        for (var i = 0; i < Lines.Items.Count; i++) Lines.Items[i].LineNumber = i + 1;
+    }
+
+
+
     /// <summary>撤销到上次服务器快照；新建页撤销只清空新增行。</summary>
     [RelayCommand(CanExecute = nameof(IsEditable))]
     private async Task UndoAsync()
@@ -257,12 +339,13 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     private void NotifyState()
     {
         IsDirty = HasUnsavedChanges;
-        OnPropertyChanged(nameof(HasUnsavedChanges)); OnPropertyChanged(nameof(DocumentTitle));
-        OnPropertyChanged(nameof(IsEditable)); OnPropertyChanged(nameof(CanEditFacts));
-        OnPropertyChanged(nameof(CanEditSelectedWarehouse));
+        OnPropertyChanged(nameof(HasUnsavedChanges));
+        OnPropertyChanged(nameof(DocumentTitle));
+        OnPropertyChanged(nameof(IsEditable));
+        OnPropertyChanged(nameof(CanEditFacts));
         OnPropertyChanged(nameof(CanInteractWithLines));
         foreach (var command in new IRelayCommand[] { SaveCommand, SelectSourcesCommand, DeleteLineCommand, MoveLineUpCommand,
-            MoveLineDownCommand, SelectWarehouseCommand, ClearWarehouseCommand, UndoCommand }) command.NotifyCanExecuteChanged();
+            MoveLineDownCommand, SplitTailCommand, UndoCommand }) command.NotifyCanExecuteChanged();
     }
     /// <summary>保持用户输入，仅反馈稳定错误文本。</summary>
     protected override Task HandleExceptionAsync(Exception exception)

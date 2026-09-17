@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Refit;
@@ -10,9 +10,6 @@ namespace SwiftExport.Contracts.Apis.Procurement
     /// <summary>独立采购管理专用协议，与旧 purchase-orders Workspace 并存。</summary>
     public interface IProcurementOrderApi
     {
-        /// <summary>单独取得已冻结确认快照，不按当前 BOM 重建。</summary>
-        [Get("/{uid}/confirmation-snapshot")]
-        Task<ServiceResult<ProcurementConfirmationSnapshotDto>> GetConfirmationSnapshotAsync(Guid uid, CancellationToken cancellationToken = default);
         /// <summary>执行专用采购SearchAsync用例。</summary>
         [Post("/search")]
         Task<ServiceResult<PagedResponseBase<ProcurementOrderListItemDto>>> SearchAsync([Body] ProcurementOrderSearchRequest request, CancellationToken cancellationToken = default);

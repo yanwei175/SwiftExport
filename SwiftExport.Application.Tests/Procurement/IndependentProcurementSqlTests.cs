@@ -233,9 +233,7 @@ public sealed class IndependentProcurementSqlTests
         var replay = await Db.ConfirmAsync(uid, command);
         Assert.IsTrue(replay.Success, replay.Message);
         Assert.AreEqual(confirmed.Data.ConfirmationId, replay.Data.ConfirmationId);
-        var history = await Db.InScopeAsync(p => p.GetRequiredService<IProcurementConfirmationQueryService>().GetSnapshotAsync(uid));
-        Assert.IsTrue(history.Success, history.Message);
-        Assert.AreEqual(0, history.Data.Lines.Count);
+
     }
 
     /// <summary>BOM 改变不影响采购事实指纹。</summary>

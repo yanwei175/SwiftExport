@@ -21,12 +21,11 @@ public sealed class PackingListSourcePickerTests
         };
         var row = dto.Adapt<PackingListSourcePickerRowModel>();
         Assert.IsFalse(row.IsChecked);
-        Assert.AreEqual(0m, row.SelectedQty);
+        Assert.AreEqual(8m, row.AvailableQty);
         row.IsChecked = true;
-        row.SelectedQty = 3;
         Assert.IsNull(row.ValidateSelection());
         var selection = row.Adapt<PackingListSourcePickerSelection>();
-        Assert.AreEqual(3m, selection.Qty);
+        Assert.AreEqual(8m, selection.Qty);
         foreach (var property in typeof(PackingListSourceCandidateDto).GetProperties())
             Assert.AreEqual(property.GetValue(dto), property.GetValue(selection.Source), property.Name);
         var line = selection.Source.Adapt<PackingListLineDto>();
@@ -37,7 +36,7 @@ public sealed class PackingListSourcePickerTests
         Assert.IsNull(line.InvoiceNo);
     }
 
-    /// <summary>未知余额不当作零或全部可交付，输入超量不得确认。</summary>
+    /// <summary>未知余额不当作零或全部可交付；没有可交付余额不得确认。</summary>
     [TestMethod]
     public void SelectionRejectsUnknownOrExcessQuantity()
     {
@@ -48,11 +47,9 @@ public sealed class PackingListSourcePickerTests
         Assert.IsNotNull(unknown.ValidateSelection());
         dto.RemainingQty = 2;
         var row = dto.Adapt<PackingListSourcePickerRowModel>();
-        row.SelectedQty = 3;
-        Assert.IsNotNull(row.ValidateSelection());
-        row.SelectedQty = 2;
         Assert.IsNull(row.ValidateSelection());
-        row.SelectedQty = 0;
+        dto.RemainingQty = 0;
+        row = dto.Adapt<PackingListSourcePickerRowModel>();
         Assert.IsNotNull(row.ValidateSelection());
     }
 
@@ -60,10 +57,11 @@ public sealed class PackingListSourcePickerTests
     [TestMethod]
     public void SearchMapsCustomerKeywordAndPaging()
     {
-        var model = new PackingListSourcePickerSearchModel { CustomerId = Guid.NewGuid(), Keyword = "SKU", PageIndex = 2 };
+        var model = new PackingListSourcePickerSearchModel { CustomerId = Guid.NewGuid(), Keyword = "SKU", KeywordsText = " A\r\nB\n a \n\n", PageIndex = 2 };
         var request = model.Adapt<PackingListSourceSearchRequest>();
         Assert.AreEqual(model.CustomerId, request.CustomerId);
         Assert.AreEqual("SKU", request.Keyword);
+        CollectionAssert.AreEqual(new[] { "A", "B" }, request.Keywords);
         Assert.AreEqual(2, request.PageIndex);
         Assert.AreEqual(20, request.PageSize);
     }
@@ -79,7 +77,6 @@ public sealed class PackingListSourcePickerTests
             RemainingQty = 2, DemandQty = 2, SkuSnapshot = "CUSTOM"
         };
         var row = dto.Adapt<PackingListSourcePickerRowModel>();
-        row.SelectedQty = 1;
         Assert.IsNull(row.ValidateSelection());
         var line = dto.Adapt<PackingListLineDto>();
         Assert.IsTrue(line.IsNonStandardSnapshot);

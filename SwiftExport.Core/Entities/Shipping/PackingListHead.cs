@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Shipping;
 
-/// <summary>装箱单头，保存客户文档快照及独立的过账事实；目标表待迁移，当前不提供持久化入口。</summary>
+/// <summary>装箱单头，保存客户文档快照及独立的过账事实，出货地点只属于单据文本。</summary>
 [Table("PackingListHead")]
 public sealed partial class PackingListHead : BaseEntity
 {
@@ -22,6 +22,9 @@ public sealed partial class PackingListHead : BaseEntity
     public DateTime InvoiceDate { get; set; }
     /// <summary>集装箱号。</summary>
     public string? ContainerNo { get; set; }
+    /// <summary>整单出货地点文本快照，不决定库存仓库。</summary>
+    public string? ShippingLocationSnapshot { get; set; }
+
     /// <summary>封条号。</summary>
     public string? SealNo { get; set; }
     /// <summary>装运箱唛。</summary>

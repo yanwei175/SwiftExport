@@ -1,4 +1,4 @@
-// SwiftExport.Application/DependencyInjection.cs
+﻿// SwiftExport.Application/DependencyInjection.cs
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
@@ -71,7 +71,6 @@ public static class DependencyInjection
         // 独立采购按查询、命令和确认依据分别注册，不复用旧 Workspace。
         services.AddScoped<SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderTransaction>();
         services.AddScoped<SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementConfirmationBuilder>();
-        services.AddScoped<IProcurementConfirmationQueryService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementConfirmationQueryService>();
         services.AddScoped<IProcurementOrderCommandService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderCommandService>();
         services.AddScoped<IProcurementOrderReversalService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderReversalService>();
         services.AddScoped<IProcurementOrderQueryService, SwiftExport.Application.Services.Procurement.OrderManagement.ProcurementOrderQueryService>();

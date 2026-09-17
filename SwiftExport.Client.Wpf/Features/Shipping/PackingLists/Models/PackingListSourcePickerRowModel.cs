@@ -59,9 +59,10 @@ public sealed partial class PackingListSourcePickerRowModel : ObservableObject
     [ObservableProperty]
     public partial bool IsChecked { get; set; }
 
-    /// <summary>用户本次选择的交付数量，不默认使用全部需求量。</summary>
-    [ObservableProperty]
-    public partial decimal SelectedQty { get; set; }
+    /// <summary>当前草稿同来源有效行数量，不包含其他草稿。</summary>
+    public decimal DraftQty { get; internal set; }
+    /// <summary>只读本次可选量，保留后端原始 RemainingQty 不变。</summary>
+    public decimal? AvailableQty => RemainingQty.HasValue ? Math.Max(0, RemainingQty.Value - DraftQty) : null;
 
     /// <summary>验证本次选择数量；未知交付额度必须先由后端补齐。</summary>
     public string? ValidateSelection()
@@ -72,8 +73,7 @@ public sealed partial class PackingListSourcePickerRowModel : ObservableObject
             return "来源、客户或标准/非标产品身份不一致。";
         if (!RemainingQty.HasValue || !string.IsNullOrWhiteSpace(DeliveryUnavailableReason))
             return "待发货数量尚未确认，请刷新来源。";
-        if (SelectedQty <= 0) return "本次发货数量必须大于零。";
-        if (SelectedQty > RemainingQty.Value) return "本次数量超过当前待发货数量。";
+        if (!AvailableQty.HasValue || AvailableQty.Value <= 0) return "当前草稿已用尽此来源待交付量。";
         return null;
     }
 }

@@ -143,10 +143,7 @@ public sealed class ProcurementReversalSqlTests
         var reconfirmed = await db.ConfirmAsync(uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = deleted.Data.Version, ContextFingerprint = newBasis.Data!.Fingerprint });
         Assert.IsTrue(reconfirmed.Success, reconfirmed.Message);
         Assert.AreNotEqual(batch, reconfirmed.Data!.ConfirmationId);
-        var history = await db.InScopeAsync(p => p.GetRequiredService<IProcurementConfirmationQueryService>().GetSnapshotAsync(uid));
-        Assert.IsTrue(history.Success, history.Message);
-        Assert.AreEqual(batch, history.Data!.ConfirmationId);
-        Assert.AreEqual(2, history.Data.Lines.Count);
+        Assert.AreEqual(2, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine WHERE ConfirmationId=@batch", new {batch}));
         var voided = await db.InScopeAsync(p => p.GetRequiredService<IProcurementOrderReversalService>().VoidAsync(uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = reconfirmed.Data.Version, Reason = "整单作废" }));
         Assert.IsTrue(voided.Success, voided.Message);
         Assert.AreEqual(reconfirmed.Data.ConfirmationId, voided.Data!.ConfirmationId);

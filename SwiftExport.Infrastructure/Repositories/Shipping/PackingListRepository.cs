@@ -11,7 +11,7 @@ using System.Data;
 namespace SwiftExport.Infrastructure.Repositories.Shipping;
 
 /// <summary>使用 PackingList 头行表实现管理查询、草稿持久化和模块专属来源补充，不处理库存动作。</summary>
-public sealed class PackingListRepository(RepositoryBaseContext context) : IPackingListRepository
+public sealed partial class PackingListRepository(RepositoryBaseContext context) : IPackingListRepository
 {
     private CommandDefinition Command(string sql, object? parameters, CancellationToken token) =>
         new(sql, parameters, context.Session.Transaction, cancellationToken: token);
@@ -24,6 +24,7 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
               AND OBJECT_ID(N'dbo.OutboundDocument',N'U') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListHead',N'CreateCommandId') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListLine',N'GrossDemandId') IS NOT NULL
+              AND COL_LENGTH(N'dbo.PackingListHead',N'ShippingLocationSnapshot') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListLine',N'IsNonStandardSnapshot') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListLine',N'SourceTypeSnapshot') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListLine',N'SourceDocumentNoSnapshot') IS NOT NULL
@@ -84,7 +85,7 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
                    l.LinkSkuSnapshot,l.CustomerSkuSnapshot,l.DescriptionEnSnapshot,l.ColorNameEnSnapshot,
                    l.UnitSnapshot,l.Qty,l.PcsPerPackage,l.PackageCount,l.NwPerPackage,l.GwPerPackage,
                    l.CbmPerPackage,l.SubTotalNw,l.SubTotalGw,l.SubTotalCbm,l.CustomerPoNo,l.InvoiceNo,
-                   l.Marks,l.Note,l.WarehouseSiteId,l.WarehouseCodeSnapshot,l.WarehouseNameSnapshot,
+                   l.Marks,l.Note,
                    g.ImagePathSnapshot AS ImagePath
             FROM dbo.PackingListLine l
             LEFT JOIN dbo.GrossDemand g ON g.Uid=l.GrossDemandId AND g.IsDeleted=0
@@ -194,7 +195,7 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
     public Task<PackingListHead?> LockHeaderAsync(Guid uid, bool includeDeleted, CancellationToken cancellationToken = default) =>
         context.Session.Connection.QuerySingleOrDefaultAsync<PackingListHead>(Command("""
             SELECT Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,PackingListNo,CustomerId,
-                   CustomerNameSnapshot,CustomerAddressSnapshot,AttentionSnapshot,InvoiceDate,ContainerNo,SealNo,
+                   CustomerNameSnapshot,CustomerAddressSnapshot,AttentionSnapshot,InvoiceDate,ContainerNo,SealNo,ShippingLocationSnapshot,
                    ShippingMark,Note,Etd,Eta,LifecycleStatus,PostingStatus,PostingDate,PostedDate,PostedBy,
                    ReversedDate,ReversedBy,ReverseReason,CreateCommandId,PostCommandId,ReverseCommandId
             FROM dbo.PackingListHead WITH(UPDLOCK,HOLDLOCK)
@@ -208,8 +209,7 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
                    GrossDemandId,ProductId,IsNonStandardSnapshot,SourceTypeSnapshot,SourceDocumentNoSnapshot,
                    SourceLineNumberSnapshot,SkuSnapshot,LinkSkuSnapshot,CustomerSkuSnapshot,DescriptionEnSnapshot,
                    ColorNameEnSnapshot,UnitSnapshot,Qty,PcsPerPackage,PackageCount,NwPerPackage,GwPerPackage,
-                   CbmPerPackage,SubTotalNw,SubTotalGw,SubTotalCbm,CustomerPoNo,InvoiceNo,Marks,Note,
-                   WarehouseSiteId,WarehouseCodeSnapshot,WarehouseNameSnapshot
+                   CbmPerPackage,SubTotalNw,SubTotalGw,SubTotalCbm,CustomerPoNo,InvoiceNo,Marks,Note
             FROM dbo.PackingListLine WITH(UPDLOCK,HOLDLOCK)
             WHERE PackingListHeadId=@Uid AND IsDeleted=0 ORDER BY Uid;
             """, new { Uid = uid }, cancellationToken))).ToList();
@@ -235,10 +235,10 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
             await context.Session.Connection.ExecuteAsync(Command("""
                 INSERT dbo.PackingListHead(Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,
                   PackingListNo,CustomerId,CustomerNameSnapshot,CustomerAddressSnapshot,AttentionSnapshot,InvoiceDate,
-                  ContainerNo,SealNo,ShippingMark,Note,Etd,Eta,LifecycleStatus,PostingStatus,PostingDate,PostedDate,
+                  ContainerNo,SealNo,ShippingLocationSnapshot,ShippingMark,Note,Etd,Eta,LifecycleStatus,PostingStatus,PostingDate,PostedDate,
                   PostedBy,ReversedDate,ReversedBy,ReverseReason,CreateCommandId,PostCommandId,ReverseCommandId)
                 VALUES(@Uid,1,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@PackingListNo,@CustomerId,
-                  @CustomerNameSnapshot,@CustomerAddressSnapshot,@AttentionSnapshot,@InvoiceDate,@ContainerNo,@SealNo,
+                  @CustomerNameSnapshot,@CustomerAddressSnapshot,@AttentionSnapshot,@InvoiceDate,@ContainerNo,@SealNo,@ShippingLocationSnapshot,
                   @ShippingMark,@Note,@Etd,@Eta,@LifecycleStatus,@PostingStatus,@PostingDate,@PostedDate,@PostedBy,
                   @ReversedDate,@ReversedBy,@ReverseReason,@CreateCommandId,@PostCommandId,@ReverseCommandId);
                 """, header, cancellationToken));
@@ -250,7 +250,7 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
             var count = await context.Session.Connection.ExecuteAsync(Command("""
                 UPDATE dbo.PackingListHead SET CustomerId=@CustomerId,CustomerNameSnapshot=@CustomerNameSnapshot,
                   CustomerAddressSnapshot=@CustomerAddressSnapshot,AttentionSnapshot=@AttentionSnapshot,
-                  InvoiceDate=@InvoiceDate,ContainerNo=@ContainerNo,SealNo=@SealNo,ShippingMark=@ShippingMark,
+                  InvoiceDate=@InvoiceDate,ContainerNo=@ContainerNo,SealNo=@SealNo,ShippingLocationSnapshot=@ShippingLocationSnapshot,ShippingMark=@ShippingMark,
                   Note=@Note,Etd=@Etd,Eta=@Eta,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
                 WHERE Uid=@Uid AND Version=@Version AND IsDeleted=0 AND LifecycleStatus=0 AND PostingStatus=0;
                 """, header, cancellationToken));
@@ -294,8 +294,8 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
         header.Version++;
     }
 
-    private const string HeaderListColumns = "h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,h.PackingListNo,h.CustomerId,h.CustomerNameSnapshot,h.InvoiceDate,h.ContainerNo,h.SealNo,h.Etd,h.Eta,h.LifecycleStatus,h.PostingStatus";
-    private const string HeaderDetailColumns = "h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,h.PackingListNo,h.CustomerId,h.CustomerNameSnapshot,h.CustomerAddressSnapshot,h.AttentionSnapshot,h.InvoiceDate,h.ContainerNo,h.SealNo,h.ShippingMark,h.Note,h.Etd,h.Eta,h.LifecycleStatus,h.PostingStatus,h.PostingDate,h.PostedDate,h.PostedBy,h.ReversedDate,h.ReversedBy,h.ReverseReason,h.CreateCommandId,h.PostCommandId,h.ReverseCommandId";
+    private const string HeaderListColumns = "h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,h.PackingListNo,h.CustomerId,h.CustomerNameSnapshot,h.InvoiceDate,h.ContainerNo,h.SealNo,h.ShippingLocationSnapshot,h.Etd,h.Eta,h.LifecycleStatus,h.PostingStatus";
+    private const string HeaderDetailColumns = "h.Uid,h.Version,h.IsDeleted,h.CreatedDate,h.CreatedBy,h.UpdatedDate,h.UpdatedBy,h.PackingListNo,h.CustomerId,h.CustomerNameSnapshot,h.CustomerAddressSnapshot,h.AttentionSnapshot,h.InvoiceDate,h.ContainerNo,h.SealNo,h.ShippingLocationSnapshot,h.ShippingMark,h.Note,h.Etd,h.Eta,h.LifecycleStatus,h.PostingStatus,h.PostingDate,h.PostedDate,h.PostedBy,h.ReversedDate,h.ReversedBy,h.ReverseReason,h.CreateCommandId,h.PostCommandId,h.ReverseCommandId";
     private const string InvoiceSummary = "COALESCE((SELECT STRING_AGG(x.InvoiceNo,N', ') WITHIN GROUP (ORDER BY x.FirstLine,x.FirstUid) FROM (SELECT LTRIM(RTRIM(il.InvoiceNo)) COLLATE Latin1_General_100_BIN2 InvoiceNo,MIN(il.LineNumber) FirstLine,MIN(il.Uid) FirstUid FROM dbo.PackingListLine il WHERE il.PackingListHeadId=h.Uid AND il.IsDeleted=0 AND NULLIF(LTRIM(RTRIM(il.InvoiceNo)),N'') IS NOT NULL GROUP BY LTRIM(RTRIM(il.InvoiceNo)) COLLATE Latin1_General_100_BIN2) x),N'')";
 
     /// <summary>承载锁定查询返回的行归属，避免依赖 ValueTuple 的 Dapper 构造映射。</summary>
@@ -312,22 +312,19 @@ public sealed class PackingListRepository(RepositoryBaseContext context) : IPack
           PackingListHeadId,LineNumber,GrossDemandId,ProductId,IsNonStandardSnapshot,SourceTypeSnapshot,
           SourceDocumentNoSnapshot,SourceLineNumberSnapshot,SkuSnapshot,LinkSkuSnapshot,CustomerSkuSnapshot,
           DescriptionEnSnapshot,ColorNameEnSnapshot,UnitSnapshot,Qty,PcsPerPackage,PackageCount,NwPerPackage,
-          GwPerPackage,CbmPerPackage,SubTotalNw,SubTotalGw,SubTotalCbm,CustomerPoNo,InvoiceNo,Marks,Note,
-          WarehouseSiteId,WarehouseCodeSnapshot,WarehouseNameSnapshot)
+          GwPerPackage,CbmPerPackage,SubTotalNw,SubTotalGw,SubTotalCbm,CustomerPoNo,InvoiceNo,Marks,Note)
         VALUES(@Uid,1,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@PackingListHeadId,@LineNumber,
           @GrossDemandId,@ProductId,@IsNonStandardSnapshot,@SourceTypeSnapshot,@SourceDocumentNoSnapshot,
           @SourceLineNumberSnapshot,@SkuSnapshot,@LinkSkuSnapshot,@CustomerSkuSnapshot,@DescriptionEnSnapshot,
           @ColorNameEnSnapshot,@UnitSnapshot,@Qty,@PcsPerPackage,@PackageCount,@NwPerPackage,@GwPerPackage,
-          @CbmPerPackage,@SubTotalNw,@SubTotalGw,@SubTotalCbm,@CustomerPoNo,@InvoiceNo,@Marks,@Note,
-          @WarehouseSiteId,@WarehouseCodeSnapshot,@WarehouseNameSnapshot);
+          @CbmPerPackage,@SubTotalNw,@SubTotalGw,@SubTotalCbm,@CustomerPoNo,@InvoiceNo,@Marks,@Note);
         """;
 
     private const string UpdateLineSql = """
         UPDATE dbo.PackingListLine SET LineNumber=@LineNumber,Qty=@Qty,PcsPerPackage=@PcsPerPackage,
           PackageCount=@PackageCount,NwPerPackage=@NwPerPackage,GwPerPackage=@GwPerPackage,CbmPerPackage=@CbmPerPackage,
           SubTotalNw=@SubTotalNw,SubTotalGw=@SubTotalGw,SubTotalCbm=@SubTotalCbm,InvoiceNo=@InvoiceNo,
-          Marks=@Marks,Note=@Note,WarehouseSiteId=@WarehouseSiteId,WarehouseCodeSnapshot=@WarehouseCodeSnapshot,
-          WarehouseNameSnapshot=@WarehouseNameSnapshot,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
+          Marks=@Marks,Note=@Note,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
         WHERE Uid=@Uid AND PackingListHeadId=@PackingListHeadId AND Version=@Version AND IsDeleted=0;
         """;
 

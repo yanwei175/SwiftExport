@@ -61,7 +61,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         RegisterBusyAwareCommand(ClearFiltersCommand); RegisterBusyAwareCommand(BatchConfirmCommand);
         RegisterBusyAwareCommand(OpenDetailCommand); RegisterBusyAwareCommand(CreateIndependentCommand);
         RegisterBusyAwareCommand(GetFromNetDemandCommand); RegisterBusyAwareCommand(PageChangeCommand);
-        RegisterBusyAwareCommand(OpenTraceCommand); RegisterBusyAwareCommand(OpenFollowUpCommand);
+        RegisterBusyAwareCommand(OpenFollowUpCommand);
         RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
     }
 
@@ -369,18 +369,6 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     [RelayCommand(CanExecute = nameof(CanCreateIndependent))]
     private Task CreateIndependentAsync() => _navigation.OpenDocumentAsync(PurchaseOrderDetailViewModel.RouteKey,
         $"purchase-order:new:{Guid.NewGuid():N}", new PurchaseOrderDocumentOpenRequest());
-    [RelayCommand(CanExecute = nameof(CanOpenDetail))]
-    private async Task OpenTraceAsync()
-    {
-        var order = SelectedOrder!;
-        var result = order.ConfirmationStatus == ConfirmationStatusEnum.已确认
-            ? await _orderApi.GetConfirmationSnapshotAsync(order.PurchaseOrderId)
-            : null;
-        var text = result?.Success == true && result.Data is not null
-            ? result.Data.Lines.Count == 0 ? "没有旧版本 BOM 确认快照；不影响采购确认或入库。" : $"历史确认批次：{result.Data.ConfirmationId}\n冻结行数：{result.Data.Lines.Count}\n此处仅展示旧版本保留的历史结构；新确认不生成 BOM/消耗快照。"
-            : "订单尚未形成确认快照。新链不伪造需求 Link、跟进或入库追溯数据。";
-        await _dialogs.ShowContentAsync($"采购追溯 · {order.OrderNo}", text);
-    }
     [RelayCommand] private Task OpenFollowUpAsync() => _navigation.OpenAsync(PurchaseOrderProgressWorkspaceViewModel.RouteKey);
     [RelayCommand(CanExecute = nameof(CanCreateIndependent))]
     private async Task GetFromNetDemandAsync()

@@ -34,13 +34,10 @@ public sealed partial class PackingListSourcePickerViewModel(IPackingListApi api
     public bool IsPrimaryButtonEnabled => !_disposed && !IsLoading && GetSelectionError() is null;
     /// <inheritdoc/>
     public bool IsSecondaryButtonEnabled => false;
-    /// <summary>视图只检查文本转换错误，不承担交付计算。</summary>
-    public Func<bool>? ValidateEditors { get; set; }
     /// <inheritdoc/>
     public bool CanClose(DialogResult requestedResult)
     {
         if (requestedResult != DialogResult.Primary) return true;
-        if (ValidateEditors?.Invoke() == false) { StatusText = "请修正本次数量的输入格式。"; return false; }
         var error = GetSelectionError();
         if (error is not null) StatusText = error;
         return IsPrimaryButtonEnabled;
@@ -69,7 +66,10 @@ public sealed partial class PackingListSourcePickerViewModel(IPackingListApi api
         var request = Search.Adapt<PackingListSourceSearchRequest>();
         request.PageIndex = Math.Max(1, page);
         request.PageSize = pageSize ?? Search.PageSize;
-        if (!applyFilters && _applied is not null) request.Keyword = _applied.Keyword;
+        if (!applyFilters && _applied is not null)
+        { request.Keyword = _applied.Keyword; request.Keywords = new List<string>(_applied.Keywords); }
+        if (request.Keywords.Count > 200 || request.Keywords.Any(x => x.Length > 200))
+        { StatusText = "批量搜索最多 200 个关键词，每个最多 200 字符。"; return; }
         _query?.Cancel();
         using var query = CancellationTokenSource.CreateLinkedTokenSource(token);
         _query = query; var id = ++_requestId; IsLoading = true; NotifyState();
@@ -82,10 +82,12 @@ public sealed partial class PackingListSourcePickerViewModel(IPackingListApi api
                 || result.Data.Items.GroupBy(x => x.GrossDemandId).Any(x => x.Count() > 1))
             { StatusText = "来源响应客户或身份异常，未接纳。"; return; }
             foreach (var row in Items) row.PropertyChanged -= OnRowChanged;
-            Items = result.Data.Items.Adapt<List<PackingListSourcePickerRowModel>>();
+            var rows = result.Data.Items.Adapt<List<PackingListSourcePickerRowModel>>();
+            foreach (var row in rows) row.DraftQty = _draft.GetValueOrDefault(row.GrossDemandId);
+            Items = rows.Where(x => x.AvailableQty > 0 && string.IsNullOrWhiteSpace(x.DeliveryUnavailableReason)).ToArray();
             foreach (var row in Items) row.PropertyChanged += OnRowChanged;
             _applied = request; Search.PageIndex = request.PageIndex; Search.PageSize = request.PageSize; TotalCount = result.Data.TotalCount;
-            StatusText = Items.Count == 0 ? "没有待交付来源。" : "勾选来源并填写本次数量；未知交付进度不能确认。";
+            StatusText = $"服务器共 {TotalCount} 条，本页扣除草稿后可选 {Items.Count} 条；Ctrl/Shift 扩展选行，加入后在草稿调整数量。";
         }
         catch (OperationCanceledException) when (query.IsCancellationRequested) { }
         catch (Exception ex)
@@ -102,14 +104,11 @@ public sealed partial class PackingListSourcePickerViewModel(IPackingListApi api
     private string? GetSelectionError()
     {
         var rows = Items.Where(x => x.IsChecked).ToArray();
-        if (rows.Length == 0) return "请勾选来源并填写数量。";
+        if (rows.Length == 0) return "请选择待交付来源。";
         foreach (var row in rows)
         {
             var error = row.ValidateSelection();
             if (error is not null) return error;
-            var existing = _draft.GetValueOrDefault(row.GrossDemandId);
-            if (existing > row.RemainingQty!.Value || row.SelectedQty > row.RemainingQty.Value - existing)
-                return $"{row.SkuSnapshot}：加上草稿已有数量后超过待交付量。";
         }
         return null;
     }
@@ -117,5 +116,5 @@ public sealed partial class PackingListSourcePickerViewModel(IPackingListApi api
     private void NotifyState() { OnPropertyChanged(nameof(IsPrimaryButtonEnabled)); StateChanged?.Invoke(this, EventArgs.Empty); }
     /// <summary>关闭弹窗后取消查询并解除行订阅。</summary>
     public void Dispose()
-    { _disposed = true; _requestId++; _query?.Cancel(); ValidateEditors = null; foreach (var row in Items) row.PropertyChanged -= OnRowChanged; }
+    { _disposed = true; _requestId++; _query?.Cancel(); foreach (var row in Items) row.PropertyChanged -= OnRowChanged; }
 }

@@ -70,7 +70,8 @@ public sealed class PackingListDraftApiContractTests
         StringAssert.Contains(service, "MidpointRounding.AwayFromZero");
         StringAssert.Contains(service, "LineSetMismatch");
         StringAssert.Contains(service, "PcsPerPackage = source.IsNonStandard ? null : enrichment?.PcsPerPackage");
-        Assert.IsFalse(service.Contains("line.PcsPerPackage = input.PcsPerPackage", StringComparison.Ordinal));
+        StringAssert.Contains(service, "line.PcsPerPackage = input.PcsPerPackage");
+        StringAssert.Contains(service, "line.PackageCount = CalculatePackageCount(input.Qty, input.PcsPerPackage)");
         Assert.IsFalse(service.Contains("IInventoryPostingService", StringComparison.Ordinal));
     }
 

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
@@ -11,7 +11,7 @@ namespace SwiftExport.WebApi.Controllers.Procurement;
 [Authorize]
 [Route("api/procurement/orders")]
 public sealed class ProcurementOrderController(IProcurementOrderQueryService queries, IProcurementOrderCommandService commands,
-    IProcurementConfirmationQueryService snapshots, IProcurementOrderReversalService reversals) : ControllerBase
+    IProcurementOrderReversalService reversals) : ControllerBase
 {
     /// <summary>预览取消确认资格，保留物料需求引用。</summary>
     [HttpPost("{uid}/cancel-confirmation-preview")]
@@ -42,11 +42,6 @@ public sealed class ProcurementOrderController(IProcurementOrderQueryService que
     [HttpPost("{uid}/delete-lines")]
     public Task<ServiceResult<ProcurementOrderCommandResult>> DeleteLinesAsync(Guid uid, [FromBody] DeleteProcurementDraftLinesCommand request, CancellationToken cancellationToken = default)
         => reversals.DeleteLinesAsync(uid, request, cancellationToken);
-
-    /// <summary>单独转发已冻结确认依据读取，管理详情不包含大树。</summary>
-    [HttpGet("{uid}/confirmation-snapshot")]
-    public Task<ServiceResult<ProcurementConfirmationSnapshotDto>> GetConfirmationSnapshotAsync(Guid uid, CancellationToken cancellationToken = default)
-        => snapshots.GetSnapshotAsync(uid, cancellationToken);
 
     /// <summary>转发采购SearchAsync用例，透传取消令牌。</summary>
     [HttpPost("search")]

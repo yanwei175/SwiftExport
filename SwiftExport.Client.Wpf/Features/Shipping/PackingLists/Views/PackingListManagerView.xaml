@@ -38,7 +38,7 @@
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                     </ui:TextBox.InputBindings>
                 </ui:TextBox>
-                
+
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
 
                     <ui:Button Grid.Column="2"  Appearance="Primary" Margin="8,0,0,0"
@@ -119,15 +119,24 @@
                           gridCore:EnterpriseGrid.IsEnabled="True"
                           gridCore:GridRowHeader.ShowRowNumber="True">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="箱单号" Binding="{Binding PackingListNo}" Width="150"/>
-                        <DataGridTextColumn Header="客户" Binding="{Binding CustomerNameSnapshot}" Width="180"/>
-                        <DataGridTextColumn Header="单据日期" Binding="{Binding InvoiceDate, StringFormat=d}" Width="110"/>
-                        <DataGridTextColumn Header="发票号" Binding="{Binding InvoiceNosSummary}" Width="180"/>
-                        <DataGridTextColumn Header="过账状态" Binding="{Binding PostingStatus, Converter={StaticResource EnumDescriptionConverter}}" Width="100"/>
-                        <DataGridTextColumn Header="柜号" Binding="{Binding ContainerNo}" Width="130"/>
-                        <DataGridTextColumn Header="封条号" Binding="{Binding SealNo}" Width="120"/>
-                        <DataGridTextColumn Header="ETD" Binding="{Binding Etd, StringFormat=d}" Width="110"/>
-                        <DataGridTextColumn Header="ETA" Binding="{Binding Eta, StringFormat=d}" Width="110"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                            Header="箱单号" Binding="{Binding PackingListNo}" Width="150"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                            Header="客户" Binding="{Binding CustomerNameSnapshot}" Width="180"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                            Header="单据日期" Binding="{Binding InvoiceDate, StringFormat=d}" Width="110"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                            Header="发票号" Binding="{Binding InvoiceNosSummary}" Width="180"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                            Header="过账状态" Binding="{Binding PostingStatus, Converter={StaticResource EnumDescriptionConverter}}" Width="100"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                            Header="柜号" Binding="{Binding ContainerNo}" Width="130"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                            Header="封条号" Binding="{Binding SealNo}" Width="120"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                            Header="ETD" Binding="{Binding Etd, StringFormat=d}" Width="110"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                            Header="ETA" Binding="{Binding Eta, StringFormat=d}" Width="110"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -149,28 +158,28 @@
 
             <Grid Grid.Row="4" RowDefinitions="Auto,8,*">
                 <!--汇总-->
-                <Grid Grid.Row="0" ColumnDefinitions="*,8,Auto,8,Auto,8,Auto,8,Auto,8,Auto,8,Auto,8,Auto,8,Auto,8,Auto,8,Auto">
+                <Grid Grid.Row="0" ColumnDefinitions="*,8,Auto,8,80,8,Auto,8,80,8,Auto,8,80,8,Auto,8,80,8,Auto,8,80">
                     <TextBlock Text="汇总信息:" 
                                Style="{StaticResource BodyStrongTextBlock}"
                                VerticalAlignment="Center" 
                                HorizontalAlignment="Left"/>
-                        <TextBlock Grid.Column="2" Text="数量（按单位）"/>
-                        <TextBlock Grid.Column="4" Text="{Binding Lines.QtySummary,Mode=OneWay}"/>
-                    
-                        <TextBlock Grid.Column="6" Text="总净重"/>
-                        <TextBlock Grid.Column="8" Text="{Binding Lines.NetWeightSummary,Mode=OneWay}"/>
-                    
-                        <TextBlock Grid.Column="10" Text="总毛重"/>
-                        <TextBlock Grid.Column="12" Text="{Binding Lines.GrossWeightSummary,Mode=OneWay}"/>
-                    
-                        <TextBlock Grid.Column="14" Text="总箱数"/>
-                        <TextBlock Grid.Column="16" Text="{Binding Lines.CartonSummary,Mode=OneWay}"/>
-                    
-                        <TextBlock Grid.Column="18" Text="总体积"/>
-                         <TextBlock Grid.Column="20" Text="{Binding Lines.CbmSummary,Mode=OneWay}"/>
-                    
+                    <TextBlock Grid.Column="2" Text="数量:"/>
+                    <TextBlock Grid.Column="4" Text="{Binding Lines.QtySummary,Mode=OneWay}"/>
+
+                    <TextBlock Grid.Column="6" Text="总净重:"/>
+                    <TextBlock Grid.Column="8" Text="{Binding Lines.NetWeightSummary,Mode=OneWay}"/>
+
+                    <TextBlock Grid.Column="10" Text="总毛重:"/>
+                    <TextBlock Grid.Column="12" Text="{Binding Lines.GrossWeightSummary,Mode=OneWay}"/>
+
+                    <TextBlock Grid.Column="14" Text="总箱数:"/>
+                    <TextBlock Grid.Column="16" Text="{Binding Lines.CartonSummary,Mode=OneWay}"/>
+
+                    <TextBlock Grid.Column="18" Text="总体积:"/>
+                    <TextBlock Grid.Column="20" Text="{Binding Lines.CbmSummary,Mode=OneWay}"/>
+
                 </Grid>
-                
+
                 <!--单行-->
                 <DataGrid x:Name="LineGrid" Grid.Row="2"
                           IsReadOnly="True"
@@ -183,7 +192,6 @@
                           CanUserAddRows="False" 
                           CanUserDeleteRows="False"
                           CanUserSortColumns="False"
-                          HeadersVisibility="Column"
                           gridCore:EnterpriseGrid.IsEnabled="True"
                           gridCore:GridVirtualization.IsEnabled="True"
                           gridOperations:GridOperations.IsEnabled="False"
@@ -196,7 +204,7 @@
                                             Binding="{Binding LineNumber}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                             IsReadOnly="True" Width="40"/>
-                        
+
                         <DataGridTemplateColumn Header="图片" Width="64" CanUserSort="False">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -207,21 +215,20 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="SKU" Binding="{Binding SkuSnapshot}" Width="120"/>
-                        <DataGridTextColumn Header="Link SKU" Binding="{Binding LinkSkuSnapshot}" Width="120"/>
-                        <DataGridTextColumn Header="客户SKU" Binding="{Binding CustomerSkuSnapshot}" Width="120"/>
-                        <DataGridTextColumn Header="英文描述" Binding="{Binding DescriptionEnSnapshot}" Width="200"/>
-                        <DataGridTextColumn Header="英文颜色" Binding="{Binding ColorNameEnSnapshot}" Width="120"/>
-                        <DataGridTextColumn Header="数量" Binding="{Binding Qty}" Width="90"/>
-                        <DataGridTextColumn Header="单位" Binding="{Binding UnitSnapshot}" Width="70"/>
-                        <DataGridTextColumn Header="每包数量" Binding="{Binding PcsPerPackage}" Width="90"/>
-                        <DataGridTextColumn Header="包装数" Binding="{Binding PackageCount}" Width="90"/>
-                        <DataGridTextColumn Header="净重小计" Binding="{Binding SubTotalNw}" Width="100"/>
-                        <DataGridTextColumn Header="毛重小计" Binding="{Binding SubTotalGw}" Width="100"/>
-                        <DataGridTextColumn Header="体积小计" Binding="{Binding SubTotalCbm}" Width="100"/>
-                        <DataGridTextColumn Header="客户PO" Binding="{Binding CustomerPoNo}" Width="120"/>
-                        <DataGridTextColumn Header="发票号" Binding="{Binding InvoiceNo}" Width="120"/>
-                        <DataGridTextColumn Header="仓库" Binding="{Binding WarehouseNameSnapshot}" Width="130"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="SKU" Binding="{Binding SkuSnapshot}" Width="120"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="Link SKU" Binding="{Binding LinkSkuSnapshot}" Width="120"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="客户SKU" Binding="{Binding CustomerSkuSnapshot}" Width="120"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="英文描述" Binding="{Binding DescriptionEnSnapshot}" Width="200"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="英文颜色" Binding="{Binding ColorNameEnSnapshot}" Width="120"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" Header="数量" Binding="{Binding Qty,StringFormat=N0}" Width="70"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" Header="每箱数量" Binding="{Binding PcsPerPackage,StringFormat=N0}" Width="70"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" Header="箱数" Binding="{Binding PackageCount,StringFormat=N1}" Width="90"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" Header="净重小计" Binding="{Binding SubTotalNw,StringFormat=N2}" Width="90"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" Header="毛重小计" Binding="{Binding SubTotalGw,StringFormat=N2}" Width="90"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" Header="体积小计" Binding="{Binding SubTotalCbm,StringFormat=N3}" Width="90"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="客户PO" Binding="{Binding CustomerPoNo}" Width="120"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="发票号" Binding="{Binding InvoiceNo}" Width="120"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="单位" Binding="{Binding UnitSnapshot}" Width="70"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>

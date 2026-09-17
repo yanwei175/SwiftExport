@@ -34,7 +34,6 @@ public sealed class PackingListService(
     IPackingListRepository repository,
     ISourceDeliveryService sourceDelivery,
     ICustomerRepository customers,
-    IWarehouseSiteRepository warehouses,
     IBusinessOperationLogRepository logs,
     IDocumentNoService numbers,
     ICurrentUser currentUser,
@@ -78,26 +77,21 @@ public sealed class PackingListService(
             ValidatePage(request);
             if (request.CustomerId == Guid.Empty)
                 Fail(PackingListErrorCodes.InvalidDraft, "必须指定最终客户。", nameof(request.CustomerId));
-            var deliveryResult = await sourceDelivery.SearchAsync(new SourceDemandDeliverySearchRequest
-            {
-                CustomerId = request.CustomerId,
-                Keyword = request.Keyword,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
-            }, cancellationToken);
-            if (!deliveryResult.Success || deliveryResult.Data is null)
-                throw new PackingListException(
-                    deliveryResult.Error?.Code ?? PackingListErrorCodes.DeliveryUnavailable,
-                    deliveryResult.Message ?? "无法读取来源交付余额。");
+            var keywords = (request.Keywords ?? []).Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (keywords.Count > 200 || keywords.Any(x => x.Length > 200) || request.Keyword?.Trim().Length > 200)
+                Fail(PackingListErrorCodes.InvalidDraft, "批量搜索最多 200 个关键词，每个最多 200 字符。", nameof(request.Keywords));
+            request.Keywords = keywords;
+            var delivery = await repository.SearchSourcesAsync(request, cancellationToken);
             var enrichments = (await repository.GetSourceEnrichmentsAsync(
-                deliveryResult.Data.Items.Select(item => item.GrossDemandId).ToArray(),
+                delivery.Items.Select(item => item.GrossDemandId).ToArray(),
                 cancellationToken)).ToDictionary(item => item.GrossDemandId);
             return new PagedResponseBase<PackingListSourceCandidateDto>
             {
-                TotalCount = deliveryResult.Data.TotalCount,
-                PageIndex = deliveryResult.Data.PageIndex,
-                PageSize = deliveryResult.Data.PageSize,
-                Items = deliveryResult.Data.Items.Select(item => ToCandidate(
+                TotalCount = delivery.TotalCount,
+                PageIndex = delivery.PageIndex,
+                PageSize = delivery.PageSize,
+                Items = delivery.Items.Select(item => ToCandidate(
                     item,
                     enrichments.GetValueOrDefault(item.GrossDemandId))).ToList()
             };
@@ -238,7 +232,6 @@ public sealed class PackingListService(
                 Fail(PackingListErrorCodes.SourceChanged, "本单来源数量超过当前剩余可交付量。", $"Lines[{total.Key}].Qty");
         }
 
-        var warehouseCache = new Dictionary<Guid, WarehouseSite>();
         var result = new List<PackingListLine>(inputs.Count);
         foreach (var input in inputs)
         {
@@ -259,10 +252,6 @@ public sealed class PackingListService(
             {
                 if (input.ProductId != source.ProductId)
                     Fail(PackingListErrorCodes.SourceChanged, "所选来源的产品身份已变化。", $"Lines[{input.Uid}].ProductId");
-                if (source.IsNonStandard && input.WarehouseSiteId.HasValue)
-                    Fail(PackingListErrorCodes.InvalidDraft, "非标来源不能选择库存仓库。", $"Lines[{input.Uid}].WarehouseSiteId");
-                var candidate = ToCandidate(source, enrichment);
-                if (!source.IsNonStandard) ValidateAdoptedPackage(candidate, input.Uid);
                 line = new PackingListLine
                 {
                     Uid = input.Uid,
@@ -284,53 +273,26 @@ public sealed class PackingListService(
                     UnitSnapshot = source.IsNonStandard
                         ? Clean(source.Unit, 100)
                         : RequiredSnapshot(source.Unit, "来源计量单位不完整。", input.Uid, "UnitSnapshot"),
-                    CustomerPoNo = Clean(enrichment?.CustomerPoNo, 200),
-                    PcsPerPackage = source.IsNonStandard ? null : enrichment?.PcsPerPackage,
-                    NwPerPackage = source.IsNonStandard ? null : enrichment?.NwPerPackage,
-                    GwPerPackage = source.IsNonStandard ? null : enrichment?.GwPerPackage,
-                    CbmPerPackage = source.IsNonStandard ? null : enrichment?.CbmPerPackage
+                    CustomerPoNo = Clean(enrichment?.CustomerPoNo, 200)
                 };
             }
             line.LineNumber = input.LineNumber;
             line.Qty = input.Qty;
-            line.PackageCount = input.PackageCount;
-            line.SubTotalNw = Multiply(input.PackageCount, line.NwPerPackage);
-            line.SubTotalGw = Multiply(input.PackageCount, line.GwPerPackage);
-            line.SubTotalCbm = Multiply(input.PackageCount, line.CbmPerPackage);
+            // 包装是本单可编辑事实；尾箱空值不能被主数据默认包装覆盖。
+            line.PcsPerPackage = input.PcsPerPackage;
+            line.NwPerPackage = input.NwPerPackage;
+            line.GwPerPackage = input.GwPerPackage;
+            line.CbmPerPackage = input.CbmPerPackage;
+            line.PackageCount = CalculatePackageCount(input.Qty, input.PcsPerPackage);
+            line.SubTotalNw = Multiply(line.PackageCount, line.NwPerPackage);
+            line.SubTotalGw = Multiply(line.PackageCount, line.GwPerPackage);
+            line.SubTotalCbm = Multiply(line.PackageCount, line.CbmPerPackage);
             line.InvoiceNo = Clean(input.InvoiceNo, 200);
             line.Marks = Clean(input.Marks, 2000);
             line.Note = Clean(input.Note, 2000);
-            if (line.IsNonStandardSnapshot && input.WarehouseSiteId.HasValue)
-                Fail(PackingListErrorCodes.InvalidDraft, "非标来源不能选择库存仓库。", $"Lines[{line.Uid}].WarehouseSiteId");
-            await ApplyWarehouseAsync(line, input.WarehouseSiteId, warehouseCache);
             result.Add(line);
         }
         return result;
-    }
-
-    /// <summary>仓库可空；一旦选择，服务端重新采用活动仓库的编码和名称。</summary>
-    private async Task ApplyWarehouseAsync(PackingListLine line, Guid? warehouseId,
-        IDictionary<Guid, WarehouseSite> cache)
-    {
-        if (!warehouseId.HasValue)
-        {
-            line.WarehouseSiteId = null;
-            line.WarehouseCodeSnapshot = null;
-            line.WarehouseNameSnapshot = null;
-            return;
-        }
-        if (warehouseId.Value == Guid.Empty)
-            Fail(PackingListErrorCodes.InvalidDraft, "仓库标识无效。", $"Lines[{line.Uid}].WarehouseSiteId");
-        if (!cache.TryGetValue(warehouseId.Value, out var site))
-        {
-            site = await warehouses.GetForUpdateAsync(warehouseId.Value)
-                ?? throw new PackingListException(PackingListErrorCodes.InvalidDraft, "仓库不存在或已删除。", $"Lines[{line.Uid}].WarehouseSiteId");
-            cache[warehouseId.Value] = site;
-        }
-        if (!site.IsActive) Fail(PackingListErrorCodes.InvalidDraft, "仓库已停用。", $"Lines[{line.Uid}].WarehouseSiteId");
-        line.WarehouseSiteId = site.Uid;
-        line.WarehouseCodeSnapshot = site.Code;
-        line.WarehouseNameSnapshot = site.Name;
     }
 
     /// <summary>在同一事务内串行命令、执行写入并保存可重放结果。</summary>
@@ -476,10 +438,11 @@ public sealed class PackingListService(
             if (row.GrossDemandId == Guid.Empty || row.ProductId == Guid.Empty)
                 Fail(PackingListErrorCodes.InvalidDraft, "来源身份不能为空，标准行的产品身份也不能为空。", field);
             ValidateDecimal(row.Qty, false, field + ".Qty");
-            if (row.PackageCount.HasValue && (row.PackageCount < 0 || decimal.Truncate(row.PackageCount.Value) != row.PackageCount.Value))
-                Fail(PackingListErrorCodes.InvalidDraft, "实际包装数必须为非负整数。", field + ".PackageCount");
-            if (row.PackageCount > MaxDecimal)
-                Fail(PackingListErrorCodes.InvalidDraft, "实际包装数超出允许范围。", field + ".PackageCount");
+            if (row.PcsPerPackage.HasValue) ValidateDecimal(row.PcsPerPackage.Value, false, field + ".PcsPerPackage");
+            ValidateOptionalNonNegative(row.NwPerPackage, field + ".NwPerPackage");
+            ValidateOptionalNonNegative(row.GwPerPackage, field + ".GwPerPackage");
+            ValidateOptionalNonNegative(row.CbmPerPackage, field + ".CbmPerPackage");
+            CalculatePackageCount(row.Qty, row.PcsPerPackage);
         }
     }
 
@@ -492,6 +455,7 @@ public sealed class PackingListService(
         Length(header.CustomerAddressSnapshot, 2000, "Header.CustomerAddressSnapshot");
         Length(header.AttentionSnapshot, 2000, "Header.AttentionSnapshot");
         Length(header.ContainerNo, 100, "Header.ContainerNo");
+        Length(header.ShippingLocationSnapshot, 200, "Header.ShippingLocationSnapshot");
         Length(header.SealNo, 100, "Header.SealNo");
         Length(header.ShippingMark, 2000, "Header.ShippingMark");
         Length(header.Note, 2000, "Header.Note");
@@ -505,6 +469,7 @@ public sealed class PackingListService(
         target.AttentionSnapshot = Clean(input.AttentionSnapshot, 2000);
         target.InvoiceDate = input.InvoiceDate;
         target.ContainerNo = Clean(input.ContainerNo, 100);
+        target.ShippingLocationSnapshot = Clean(input.ShippingLocationSnapshot, 200);
         target.SealNo = Clean(input.SealNo, 100);
         target.ShippingMark = Clean(input.ShippingMark, 2000);
         target.Note = Clean(input.Note, 2000);
@@ -529,6 +494,7 @@ public sealed class PackingListService(
                 header.InvoiceDate,
                 ContainerNo = Normalize(header.ContainerNo),
                 SealNo = Normalize(header.SealNo),
+                ShippingLocationSnapshot = Normalize(header.ShippingLocationSnapshot),
                 ShippingMark = Normalize(header.ShippingMark),
                 Note = Normalize(header.Note),
                 header.Etd,
@@ -537,8 +503,8 @@ public sealed class PackingListService(
             Lines = lines.OrderBy(row => row.Uid).Select(row => new
             {
                 row.Uid, row.ExpectedVersion, row.LineNumber, row.GrossDemandId, row.ProductId, row.Qty,
-                row.PackageCount,
-                InvoiceNo = Normalize(row.InvoiceNo), Marks = Normalize(row.Marks), Note = Normalize(row.Note), row.WarehouseSiteId
+                row.PcsPerPackage, row.NwPerPackage, row.GwPerPackage, row.CbmPerPackage,
+                InvoiceNo = Normalize(row.InvoiceNo), Marks = Normalize(row.Marks), Note = Normalize(row.Note)
             }).ToArray(),
             DeletedLines = deleted.OrderBy(row => row.Uid).Select(row => new { row.Uid, row.ExpectedVersion }).ToArray()
         };
@@ -606,15 +572,17 @@ public sealed class PackingListService(
         catch (OverflowException) { Fail(PackingListErrorCodes.InvalidDraft, "包装小计超出允许范围。"); return null; }
     }
 
-    /// <summary>校验服务端采用的唯一默认包装，避免脏主数据越过草稿数值边界。</summary>
-    private static void ValidateAdoptedPackage(PackingListSourceCandidateDto source, Guid lineUid)
+    /// <summary>服务端重算四位箱数，不信任客户端派生值，也不对尾箱向上取整。</summary>
+    private static decimal? CalculatePackageCount(decimal qty, decimal? pcs)
     {
-        var field = $"Lines[{lineUid}]";
-        if (source.PcsPerPackage.HasValue)
-            ValidateDecimal(source.PcsPerPackage.Value, false, field + ".PcsPerPackage");
-        ValidateOptionalNonNegative(source.NwPerPackage, field + ".NwPerPackage");
-        ValidateOptionalNonNegative(source.GwPerPackage, field + ".GwPerPackage");
-        ValidateOptionalNonNegative(source.CbmPerPackage, field + ".CbmPerPackage");
+        if (!pcs.HasValue) return null;
+        try
+        {
+            var value = decimal.Round(qty / pcs.Value, 4, MidpointRounding.AwayFromZero);
+            ValidateDecimal(value, true, "PackageCount");
+            return value;
+        }
+        catch (OverflowException) { Fail(PackingListErrorCodes.InvalidDraft, "箱数超出允许范围。", "PackageCount"); return null; }
     }
 
     /// <summary>把统一交付投影与 PackingList 专属包装补充合并为冻结的 Picker 契约。</summary>

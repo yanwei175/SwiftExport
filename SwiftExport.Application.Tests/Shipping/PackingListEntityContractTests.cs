@@ -77,10 +77,9 @@ public sealed class PackingListEntityContractTests
         Assert.AreEqual(typeof(string), typeof(PackingListLine).GetProperty("InvoiceNo")!.PropertyType);
         Assert.AreEqual(typeof(string), typeof(PackingListLine).GetProperty("Marks")!.PropertyType);
         Assert.AreEqual(typeof(string), typeof(PackingListLine).GetProperty("Note")!.PropertyType);
-        Assert.AreEqual(typeof(Guid?), typeof(PackingListLine).GetProperty("WarehouseSiteId")!.PropertyType);
-        Assert.AreEqual(typeof(string), typeof(PackingListLine).GetProperty("WarehouseCodeSnapshot")!.PropertyType);
-        Assert.AreEqual(typeof(string), typeof(PackingListLine).GetProperty("WarehouseNameSnapshot")!.PropertyType);
-        Assert.IsNull(new PackingListLine().WarehouseSiteId);
+        foreach (var field in new[] { "WarehouseSiteId", "WarehouseCodeSnapshot", "WarehouseNameSnapshot", "ShippingLocationSnapshot" })
+            Assert.IsNull(typeof(PackingListLine).GetProperty(field));
+        Assert.AreEqual(typeof(string), typeof(PackingListHead).GetProperty("ShippingLocationSnapshot")!.PropertyType);
         Assert.IsNull(new PackingListLine().PackageCount);
         Assert.IsNull(new PackingListLine().SubTotalNw);
     }

@@ -15,16 +15,16 @@ public sealed class PackingListDetailModelTests
         var line = new PackingListLineModel();
         line.Load(new PackingListLineDto { Uid = Guid.NewGuid(), Qty = 11, PcsPerPackage = 5, PackageCount = 3, NwPerPackage = 1.23445m });
         Assert.IsFalse(line.IsDirty);
-        Assert.AreEqual(3m, line.SuggestedPackageCount);
-        Assert.AreEqual(3.7034m, line.SubTotalNw);
-        line.PackageCount = 4;
+        Assert.AreEqual(2.2m, line.PackageCount);
+        Assert.AreEqual(2.7158m, line.SubTotalNw);
+        line.PcsPerPackage = 2.75m;
         Assert.IsTrue(line.IsDirty);
         Assert.AreEqual(4.9378m, line.ToDto().SubTotalNw);
         line.Qty = 100;
-        Assert.AreEqual(4m, line.PackageCount, "建议数量不得覆盖人工包装数");
+        Assert.AreEqual(36.3636m, line.PackageCount, "箱数随数量实时重算");
         line.RejectChanges();
         Assert.IsFalse(line.IsDirty);
-        Assert.AreEqual(3m, line.PackageCount);
+        Assert.AreEqual(2.2m, line.PackageCount);
     }
 
     /// <summary>未知包装保持空，极端值不崩溃且阻止保存。</summary>
@@ -34,31 +34,32 @@ public sealed class PackingListDetailModelTests
         var line = new PackingListLineModel
             { GrossDemandId = Guid.NewGuid(), ProductId = Guid.NewGuid(), Qty = 1 };
         Assert.IsNull(line.SubTotalNw);
-        Assert.IsNull(line.SuggestedPackageCount);
+        Assert.IsNull(line.PackageCount);
         Assert.IsNull(line.ValidateRow());
-        line.PackageCount = 1.5m;
+        line.PcsPerPackage = 0;
         Assert.IsNotNull(line.ValidateRow());
-        line.PackageCount = 2;
+        line.PcsPerPackage = .5m;
         line.NwPerPackage = decimal.MaxValue;
         Assert.IsNull(line.SubTotalNw);
         Assert.IsNotNull(line.ValidateRow());
         line.NwPerPackage = 1;
         line.Qty = decimal.MaxValue;
         line.PcsPerPackage = 0.01m;
-        Assert.IsNull(line.SuggestedPackageCount);
+        Assert.IsNull(line.PackageCount);
         Assert.IsNotNull(line.ValidateRow());
     }
 
-    /// <summary>非标行不要求产品，但必须拒绝库存仓库；标准行必须保留产品身份。</summary>
+    /// <summary>非标行不要求产品；标准行必须保留产品身份。</summary>
     [TestMethod]
     public void Line_ValidatesStandardAndNonStandardIdentity()
     {
         var line = new PackingListLineModel
             { GrossDemandId = Guid.NewGuid(), IsNonStandardSnapshot = true, Qty = 1 };
         Assert.IsNull(line.ValidateRow());
-        line.WarehouseSiteId = Guid.NewGuid();
+        Assert.IsNull(line.ValidateRow());
+        line.ProductId = Guid.NewGuid();
         Assert.IsNotNull(line.ValidateRow());
-        line.WarehouseSiteId = null;
+        line.ProductId = null;
         line.IsNonStandardSnapshot = false;
         Assert.IsNotNull(line.ValidateRow());
         line.ProductId = Guid.NewGuid();
@@ -97,7 +98,7 @@ public sealed class PackingListDetailModelTests
     public void Line_LocalPreviewRecomputesSnapshot_AndUnknownMakesTotalUnknown()
     {
         var lines = new PackingListLineListModel();
-        lines.LoadFromDtos(new[] { new PackingListLineDto { Uid = Guid.NewGuid(), Qty = 1, PackageCount = 2, NwPerPackage = 3, SubTotalNw = 99 } });
+        lines.LoadFromDtos(new[] { new PackingListLineDto { Uid = Guid.NewGuid(), Qty = 1, PcsPerPackage = .5m, PackageCount = 2, NwPerPackage = 3, SubTotalNw = 99 } });
         Assert.AreEqual(6m, lines.Items[0].SubTotalNw);
         Assert.AreEqual(6m, lines.NetWeightSummary);
         lines.AddNew(new PackingListLineDto { Qty = 1 });

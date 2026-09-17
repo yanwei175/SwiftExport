@@ -23,7 +23,6 @@ public sealed class PackingListMappingTests
             Qty = 20, PcsPerPackage = 10, PackageCount = 2, NwPerPackage = 3,
             GwPerPackage = 4, CbmPerPackage = .12345m, SubTotalNw = 6, SubTotalGw = 8, SubTotalCbm = .2469m,
             CustomerPoNo = "PO", InvoiceNo = "INV", Marks = "Mark", Note = "Note",
-            WarehouseSiteId = Guid.NewGuid(), WarehouseCodeSnapshot = "WH", WarehouseNameSnapshot = "Warehouse",
             CreatedDate = new DateTime(2026, 1, 1), CreatedBy = "creator",
             UpdatedDate = new DateTime(2026, 2, 1), UpdatedBy = "editor", ImagePath = "image.png"
         };
@@ -37,7 +36,7 @@ public sealed class PackingListMappingTests
         Assert.AreEqual(dto.Uid, input.Uid);
         Assert.AreEqual(4, input.ExpectedVersion);
         Assert.AreEqual(dto.GrossDemandId, input.GrossDemandId);
-        Assert.AreEqual(dto.WarehouseSiteId, input.WarehouseSiteId);
+        Assert.IsNull(typeof(PackingListDraftLineInput).GetProperty("WarehouseSiteId"));
         model.MarkAsAdded();
         Assert.AreEqual(0, model.Adapt<PackingListDraftLineInput>().ExpectedVersion);
         model.IsChecked = true;
@@ -52,7 +51,7 @@ public sealed class PackingListMappingTests
         {
             Uid = Guid.NewGuid(), Version = 3, PackingListNo = "PL-1", CustomerId = Guid.NewGuid(),
             CustomerNameSnapshot = "客户", CustomerAddressSnapshot = "地址", AttentionSnapshot = "Attention",
-            InvoiceDate = new DateTime(2026, 9, 15), ContainerNo = "C", SealNo = "S", ShippingMark = "M", Note = "N",
+            InvoiceDate = new DateTime(2026, 9, 15), ShippingLocationSnapshot = "工厂装柜点", ContainerNo = "C", SealNo = "S", ShippingMark = "M", Note = "N",
             Etd = new DateTime(2026, 9, 16), Eta = new DateTime(2026, 9, 18),
             LifecycleStatus = PackingListLifecycleStatusEnum.Active, PostingStatus = PackingListPostingStatusEnum.Posted,
             PostingDate = new DateTime(2026, 9, 14), PostedDate = new DateTime(2026, 9, 14), PostedBy = "poster",
@@ -70,6 +69,7 @@ public sealed class PackingListMappingTests
         Assert.AreEqual(dto.CustomerId, input.CustomerId);
         Assert.AreEqual(dto.InvoiceDate, input.InvoiceDate);
         Assert.AreEqual(dto.AttentionSnapshot, input.AttentionSnapshot);
+        Assert.AreEqual(dto.ShippingLocationSnapshot, input.ShippingLocationSnapshot);
         model.CustomerAddressSnapshot = "新地址";
         Assert.IsTrue(model.IsDirty);
         model.RejectChanges();

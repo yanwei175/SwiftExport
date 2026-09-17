@@ -37,6 +37,10 @@ public sealed partial class PackingListHeaderModel : BaseLineModel<PackingListHe
     [ObservableProperty]
     public partial string? ContainerNo { get; set; }
 
+    /// <summary>整单出货地点文本快照，不决定库存仓库。</summary>
+    [ObservableProperty]
+    public partial string? ShippingLocationSnapshot { get; set; }
+
     /// <summary>封条号。</summary>
     [ObservableProperty]
     public partial string? SealNo { get; set; }
@@ -124,4 +128,3 @@ public sealed partial class PackingListHeaderModel : BaseLineModel<PackingListHe
         base.IsTrackingIgnoredProperty(propertyName)
         || propertyName is nameof(InvoiceNosSummary) or nameof(Lines);
 }
-

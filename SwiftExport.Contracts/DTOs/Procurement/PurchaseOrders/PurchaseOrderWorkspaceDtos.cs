@@ -1,4 +1,4 @@
-using SwiftExport.Contracts.SysEnums;
+﻿using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using System;
 using System.Collections.Generic;
@@ -161,18 +161,6 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders
         public decimal EffectiveQty { get; set; }
         public DateTime? DemandRequiredDate { get; set; }
         public DateTime? PlannedDeliveryDate { get; set; }
-    }
-
-    /// <summary>
-    /// 采购单追溯结果，集中返回需求来源贡献和采购业务操作记录。
-    /// </summary>
-    /// <remarks>来源表：PurchaseOrderHead、PurchaseOrderLine、DemandExecutionLink、InboundDocumentLine、SupplierProgressReport。</remarks>
-    public class PurchaseOrderTraceDto
-    {
-        public Guid PurchaseOrderId { get; set; }
-        public string OrderNo { get; set; }
-        public List<PurchaseOrderSourceContributionDto> Contributions { get; set; } = new List<PurchaseOrderSourceContributionDto>();
-        public List<BusinessOperationTraceItemDto> Operations { get; set; } = new List<BusinessOperationTraceItemDto>();
     }
 
     /// <summary>

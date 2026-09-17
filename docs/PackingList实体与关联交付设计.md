@@ -1,6 +1,18 @@
 # PackingList 实体与关联交付设计
 
-## 状态与边界
+## 2026-09-17 最新字段处置
+
+PackingListHead 新增 ShippingLocationSnapshot（可空，200字符），头读写 DTO 同步。PackingListLine 删除 ShippingLocationSnapshot、WarehouseSiteId、WarehouseCodeSnapshot、WarehouseNameSnapshot；无库存仓库职责。
+
+PackageCount 改为 Qty/PcsPerPackage 的四位小数结果快照，取消向上取整及人工独立指定；重量体积小计继续四位 AwayFromZero。保存入口接纳用户实际包装值并统一重算。尾箱拆分保持来源及总量，新行各单箱指标清空，用户填写后再实时计算。
+
+手动迁移使用《PackingList头地点与行仓库清理.sql》，覆盖下文旧行地点方案；未执行。多人工作区的历史能力地图仍有旧仓库描述，以本次用户确认及源码为准，后续过账设计不得沿用行仓库字段。
+
+## 2026-09-17 旧增量决策
+
+新增行字段 ShippingLocationSnapshot（nvarchar(200)，可空）作为非权威出货地点文本，标准与非标都可填写，不影响自动入出库。旧 WarehouseSiteId、WarehouseCodeSnapshot、WarehouseNameSnapshot 只保留历史兼容，已从新写请求移除。迁移脚本见 SwiftExport.Infrastructure/Migrations/PackingList出货地点增量.sql，需单独审核部署，本次未执行。当前已存在前后端草稿链路；下文“仅实体”描述为历史阶段记录。最新选源口径见《PackingList前端契约与后端交接》的日期更新章节。
+
+## 历史状态与边界
 
 本轮仅清洗 Core 实体及契约测试。目标表 PackingListHead / PackingListLine **待迁移**；没有保存服务、DTO、API、WPF 或过账入口，不具备数据库运行时持久化能力。旧初始化和迁移脚本不改，现有 Uid 不重新生成。
 
@@ -143,4 +155,3 @@ Repository/DI/API：本轮均不新建。实施顺序为只读数据库核查与
 - 发票行号顺序为 A、空白、A、B，汇总 A, B；删除 B 行后仅 A。
 - Qty=25、PcsPerPackage=12，建议 PackageCount=3；人工指定 4、每包净重 2.5，小计 10.0000；未知单包指标仍为空。
 - 草稿零交付影响；修改 InvoiceDate 不改 PostingDate；目标实体映射不代表数据库迁移完成。
-

@@ -125,9 +125,9 @@
                             <DataTemplate>
                                 <CheckBox Margin="0" Padding="0"
                                     HorizontalAlignment="Center" 
-                                          VerticalAlignment="Center"
-                                          IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          IsEnabled="{Binding DataContext.IsNotBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                                    VerticalAlignment="Center"
+                                    IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    IsEnabled="{Binding DataContext.IsNotBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

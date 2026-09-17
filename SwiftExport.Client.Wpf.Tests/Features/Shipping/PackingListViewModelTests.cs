@@ -109,7 +109,7 @@ public sealed class PackingListViewModelTests
         Assert.AreEqual(2, count);
         vm.Dispose(); await vm.RefreshCommand.ExecuteAsync(null); Assert.AreEqual(2, count);
     }
-    /// <summary>Picker 保留图片、阻止草稿加选超量，并拒绝未知额度和输入格式错误。</summary>
+    /// <summary>Picker 保留图片、阻止草稿加选超量，并按本地可选余额生成默认数量。</summary>
     [TestMethod]
     public async Task PickerChecksDraftRemainingAndRetainsImage()
     {
@@ -118,11 +118,14 @@ public sealed class PackingListViewModelTests
         { Items = [new() { GrossDemandId = source, CustomerId = customer, ProductId = Guid.NewGuid(), RemainingQty = 10, ImagePath = "image.png" }] })) };
         using var vm = new PackingListSourcePickerViewModel(api, Runner());
         await vm.InitializeAsync(customer, new Dictionary<Guid, decimal> { [source] = 8 }, default);
-        var row = vm.Items.Single(); row.IsChecked = true; row.SelectedQty = 3;
-        Assert.IsFalse(vm.IsPrimaryButtonEnabled);
-        row.SelectedQty = 2; Assert.IsTrue(vm.IsPrimaryButtonEnabled);
+        var row = vm.Items.Single(); row.IsChecked = true;
+        Assert.AreEqual(10m, row.RemainingQty);
+        Assert.AreEqual(8m, row.DraftQty);
+        Assert.AreEqual(2m, row.AvailableQty);
+        Assert.IsTrue(vm.IsPrimaryButtonEnabled);
+        Assert.AreEqual(2m, vm.GetSelectedResult().Single().Qty);
         Assert.AreEqual("image.png", vm.GetSelectedResult().Single().Source.ImagePath);
-        vm.ValidateEditors = () => false; Assert.IsFalse(vm.CanClose(DialogResult.Primary));
+        Assert.IsTrue(vm.CanClose(DialogResult.Primary));
         await vm.SearchCommand.ExecuteAsync(null); Assert.IsTrue(row.IsChecked, "不得因查询丢弃勾选");
     }
     /// <summary>选择同来源产生不同物理行，库存位置不会由来源身份强制推断。</summary>
@@ -136,7 +139,7 @@ public sealed class PackingListViewModelTests
         await vm.SelectSourcesCommand.ExecuteAsync(null);
         Assert.AreEqual(2, vm.Lines.Items.Count);
         Assert.AreNotEqual(vm.Lines.Items[0].Uid, vm.Lines.Items[1].Uid);
-        Assert.AreEqual("new.png", vm.Lines.Items[1].ImagePath); Assert.AreEqual(2m, vm.Lines.Items[1].PackageCount);
+        Assert.AreEqual("new.png", vm.Lines.Items[1].ImagePath); Assert.AreEqual(1.5m, vm.Lines.Items[1].PackageCount);
         var last = vm.Lines.Items[1]; vm.MoveLineUpCommand.Execute(last);
         Assert.AreSame(last, vm.Lines.Items[0]); Assert.AreEqual(1, last.LineNumber);
     }
@@ -151,9 +154,70 @@ public sealed class PackingListViewModelTests
         vm.CommitEdits = () => { vm.Header.Note = "编辑器刚提交的值"; return true; };
         Assert.IsFalse(await vm.CanCloseAsync(default)); Assert.IsTrue(vm.HasUnsavedChanges);
     }
+    /// <summary>批量关键词传给后端；本地仅扣除当前草稿，不改服务端分页总数。</summary>
+    [TestMethod]
+    public async Task PickerSendsKeywordsAndHidesExhaustedDraftSources()
+    {
+        var customer = Guid.NewGuid(); var source = Guid.NewGuid();
+        PackingListSourceSearchRequest? captured = null;
+        var api = new PackingListApiStub { Sources = request =>
+        {
+            captured = request;
+            return Task.FromResult(ServiceResult<PagedResponseBase<PackingListSourceCandidateDto>>.Ok(new()
+            { TotalCount = 1, Items = [new() { GrossDemandId = source, CustomerId = customer,
+                IsNonStandard = true, RemainingQty = 5, ImagePath = "custom.png" }] }));
+        }};
+        using var vm = new PackingListSourcePickerViewModel(api, Runner());
+        vm.Search.KeywordsText = " A\r\nB\na ";
+        await vm.InitializeAsync(customer, new Dictionary<Guid, decimal> { [source] = 5 }, default);
+        CollectionAssert.AreEqual(new[] { "A", "B" }, captured!.Keywords);
+        Assert.AreEqual(0, vm.Items.Count);
+        Assert.AreEqual(1, vm.TotalCount);
+        Assert.IsFalse(vm.IsPrimaryButtonEnabled);
+    }
+
+    /// <summary>拆分保留总量和来源，紧邻插行并清空尾箱指标；整除不可重复拆分。</summary>
+    [TestMethod]
+    public async Task SplitTailPreservesQuantityAndClearsMeasures()
+    {
+        using var vm = Detail(new PackingListApiStub(), new PackingListUiStub());
+        await NewDraft(vm);
+        var row = vm.Lines.Items[0];
+        row.Qty = 105; row.PcsPerPackage = 20;
+        row.NwPerPackage = 10; row.GwPerPackage = 11; row.CbmPerPackage = .2m;
+        Assert.AreEqual(5.25m, row.PackageCount);
+        Assert.AreEqual(52.5m, vm.Lines.NetWeightSummary);
+        vm.SplitTailCommand.Execute(row);
+        Assert.AreEqual(2, vm.Lines.Items.Count);
+        var tail = vm.Lines.Items[1];
+        Assert.AreEqual(100m, row.Qty); Assert.AreEqual(5m, row.PackageCount);
+        Assert.AreEqual(5m, tail.Qty); Assert.AreEqual(5m, tail.PcsPerPackage); Assert.AreEqual(1m, tail.PackageCount);
+        Assert.AreEqual(row.GrossDemandId, tail.GrossDemandId); Assert.AreNotEqual(row.Uid, tail.Uid);
+        Assert.IsNull(tail.NwPerPackage); Assert.IsNull(tail.GwPerPackage); Assert.IsNull(tail.CbmPerPackage);
+        Assert.IsNull(vm.Lines.NetWeightSummary);
+        Assert.AreEqual(105m, vm.Lines.Items.Sum(x => x.Qty));
+        Assert.IsFalse(vm.SplitTailCommand.CanExecute(row)); Assert.IsFalse(vm.SplitTailCommand.CanExecute(tail));
+        tail.NwPerPackage = 3; tail.GwPerPackage = 4; tail.CbmPerPackage = .1m;
+        Assert.AreEqual(53m, vm.Lines.NetWeightSummary); Assert.AreEqual(59m, vm.Lines.GrossWeightSummary);
+        Assert.AreEqual(1.1m, vm.Lines.CbmSummary);
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(3m, vm.Lines.Items[1].NwPerPackage);
+    }
+
+    /// <summary>不足一箱时就地转为尾箱，不生成零数量行。</summary>
+    [TestMethod]
+    public async Task SplitSmallLineCreatesNoZeroLine()
+    {
+        using var vm = Detail(new PackingListApiStub(), new PackingListUiStub()); await NewDraft(vm);
+        var row = vm.Lines.Items[0]; row.PcsPerPackage = 20; row.NwPerPackage = 4;
+        vm.SplitTailCommand.Execute(row);
+        Assert.AreEqual(1, vm.Lines.Items.Count); Assert.AreEqual(2m, row.Qty);
+        Assert.AreEqual(2m, row.PcsPerPackage); Assert.AreEqual(1m, row.PackageCount); Assert.IsNull(row.NwPerPackage);
+    }
+
     private static ApiCallRunner Runner() => new(NullLogger<ApiCallRunner>.Instance);
     private static PackingListDetailViewModel Detail(PackingListApiStub api, PackingListUiStub ui, PackingListSourceStub? source = null) =>
-        new(api, Runner(), new ReferenceDataCacheServiceStub(), source ?? new(), new PackingListWarehouseStub(), new PackingListNavigationStub(), ui, ui);
+        new(api, Runner(), new ReferenceDataCacheServiceStub(), source ?? new(), new PackingListNavigationStub(), ui, ui);
     private static async Task NewDraft(PackingListDetailViewModel vm)
     {
         await vm.InitializeDocumentAsync(new PackingListOpenRequest { Uid = Guid.NewGuid(), IsNew = true }, default);

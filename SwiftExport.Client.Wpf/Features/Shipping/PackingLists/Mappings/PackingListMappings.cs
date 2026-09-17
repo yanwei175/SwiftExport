@@ -12,11 +12,11 @@ public sealed class PackingListMappings : IRegister
     {
         config.NewConfig<PackingListSourcePickerSearchModel, PackingListSourceSearchRequest>();
         config.NewConfig<PackingListSourceCandidateDto, PackingListSourcePickerRowModel>()
-            .Ignore(x => x.IsChecked).Ignore(x => x.SelectedQty);
+            .Ignore(x => x.IsChecked).Ignore(x => x.DraftQty);
         config.NewConfig<PackingListSourcePickerRowModel, PackingListSourceCandidateDto>();
         config.NewConfig<PackingListSourcePickerRowModel, PackingListSourcePickerSelection>()
             .Map(x => x.Source, x => x)
-            .Map(x => x.Qty, x => x.SelectedQty);
+            .Map(x => x.Qty, x => x.AvailableQty ?? 0m);
         // 来源快照只带展示字段；行身份、行号和实际包装数由后续详情接纳动作显式生成。
         config.NewConfig<PackingListSourceCandidateDto, PackingListLineDto>()
             .Map(x => x.IsNonStandardSnapshot, x => x.IsNonStandard)

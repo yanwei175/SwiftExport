@@ -6,7 +6,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
 {
-    /// <summary>装箱单草稿行输入；来源和包装快照最终由服务端采用。</summary>
+    /// <summary>装箱单草稿行输入；来源身份由服务端复核，包装接受手工输入，箱数与小计由服务端重算。</summary>
     public class PackingListDraftLineInput
     {
         /// <summary>行稳定身份；新增行也由客户端生成非空 Uid。</summary>
@@ -35,7 +35,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public decimal Qty { get; set; }
         /// <summary>每包数量；未知为空，已知时须大于零。</summary>
         public decimal? PcsPerPackage { get; set; }
-        /// <summary>实际整包装数；默认建议向上取整，允许人工指定，未知为空。</summary>
+        /// <summary>客户端计算的兼容展示值；服务端忽略此输入并以数量及每箱数量重算。</summary>
         public decimal? PackageCount { get; set; }
         /// <summary>每包净重。未知为空。</summary>
         public decimal? NwPerPackage { get; set; }
@@ -51,11 +51,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public string Marks { get; set; }
         /// <summary>本行备注。</summary>
         public string Note { get; set; }
-        /// <summary>本次库存操作仓库，草稿允许未确定。</summary>
-        public Guid? WarehouseSiteId { get; set; }
-        /// <summary>采用的仓库编码快照。</summary>
-        public string WarehouseCodeSnapshot { get; set; }
-        /// <summary>采用的仓库名称快照。</summary>
-        public string WarehouseNameSnapshot { get; set; }
+
+
     }
 }

@@ -11,5 +11,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
     {
         /// <summary>必须指定最终客户。</summary>
         public Guid CustomerId { get; set; }
+        /// <summary>批量关键词，任一关键词命中即匹配；空集合不限制，最多 200 项，每项最多 200 字符。</summary>
+        public List<string> Keywords { get; set; } = new List<string>();
     }
 }

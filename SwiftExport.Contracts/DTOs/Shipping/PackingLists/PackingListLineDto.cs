@@ -41,7 +41,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public decimal Qty { get; set; }
         /// <summary>每包数量；未知为空，已知时须大于零。</summary>
         public decimal? PcsPerPackage { get; set; }
-        /// <summary>实际整包装数；默认建议向上取整，允许人工指定，未知为空。</summary>
+        /// <summary>数量除以每箱数量计算的箱数，四位小数，不向上取整。</summary>
         public decimal? PackageCount { get; set; }
         /// <summary>每包净重。未知为空。</summary>
         public decimal? NwPerPackage { get; set; }
@@ -63,12 +63,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public string Marks { get; set; }
         /// <summary>本行备注。</summary>
         public string Note { get; set; }
-        /// <summary>本次库存操作仓库，草稿允许未确定。</summary>
-        public Guid? WarehouseSiteId { get; set; }
-        /// <summary>采用的仓库编码快照。</summary>
-        public string WarehouseCodeSnapshot { get; set; }
-        /// <summary>采用的仓库名称快照。</summary>
-        public string WarehouseNameSnapshot { get; set; }
+
         /// <summary>查询展示图片，不持久化。</summary>
         public string ImagePath { get; set; }
     }

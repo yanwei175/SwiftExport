@@ -96,7 +96,7 @@ public sealed class SourceDeliveryQueryRepository(RepositoryBaseContext context)
     }
 
     /// <summary>构造唯一交付投影；写入校验时锁定来源和参与净额计算的头行。</summary>
-    private static string Projection(bool forUpdate)
+    internal static string Projection(bool forUpdate)
     {
         var demandHint = forUpdate ? " WITH (UPDLOCK,HOLDLOCK)" : string.Empty;
         var lineHint = forUpdate ? " WITH (UPDLOCK,HOLDLOCK)" : string.Empty;

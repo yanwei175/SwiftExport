@@ -54,15 +54,45 @@ public sealed class PackingListUiTests
         var grids = Descendants(managerView).OfType<DataGrid>().ToArray();
         Assert.AreEqual(2, grids.Length); Assert.IsTrue(grids.All(x => x.IsReadOnly));
         using var detail = new PackingListDetailViewModel(api, runner, new ReferenceDataCacheServiceStub(), new PackingListSourceStub(),
-            new PackingListWarehouseStub(), new PackingListNavigationStub(), ui, ui);
+            new PackingListNavigationStub(), ui, ui);
         await detail.InitializeDocumentAsync(new PackingListOpenRequest { Uid = Guid.NewGuid(), IsNew = true }, default);
+        var splitRow = detail.Lines.AddNew(new SwiftExport.Contracts.DTOs.Shipping.PackingLists.PackingListLineDto
+        { Uid = Guid.NewGuid(), PackingListHeadId = detail.Header.Uid, GrossDemandId = Guid.NewGuid(),
+            IsNonStandardSnapshot = true, Qty = 105, PcsPerPackage = 20 });
         var detailView = new PackingListDetailView { DataContext = detail }; Layout(detailView);
         detailView.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
         Assert.IsNotNull(detail.CommitEdits); Assert.IsTrue(detail.CommitEdits());
+        var splitButton = Descendants(detailView).OfType<Button>().Single(x => Equals(x.Content, "拆尾箱"));
+        Assert.AreSame(detail.SplitTailCommand, splitButton.Command);
+        Assert.AreSame(splitRow, splitButton.CommandParameter);
+        Assert.IsTrue(splitButton.IsEnabled);
+        splitButton.Command.Execute(splitButton.CommandParameter);
+        Assert.AreEqual(2, detail.Lines.Items.Count);
         detailView.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent)); Assert.IsNull(detail.CommitEdits);
+        var customer = Guid.NewGuid();
+        api.Sources = _ => Task.FromResult(SwiftExport.Contracts.Wrappers.ServiceResult<
+            SwiftExport.Contracts.Wrappers.PagedResponseBase<SwiftExport.Contracts.DTOs.Shipping.PackingLists.PackingListSourceCandidateDto>>.Ok(new()
+            { Items = Enumerable.Range(0, 2).Select(_ => new SwiftExport.Contracts.DTOs.Shipping.PackingLists.PackingListSourceCandidateDto
+                { GrossDemandId = Guid.NewGuid(), CustomerId = customer, IsNonStandard = true, RemainingQty = 2 }).ToList() }));
         using var picker = new PackingListSourcePickerViewModel(api, runner);
+        await picker.InitializeAsync(customer, new Dictionary<Guid, decimal>(), default);
         var pickerView = new PackingListSourcePickerView { DataContext = picker }; Layout(pickerView);
-        Assert.AreEqual(1, Descendants(pickerView).OfType<DataGrid>().Count());
+        pickerView.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+        var pickerGrid = Descendants(pickerView).OfType<DataGrid>().Single();
+        Assert.IsTrue(pickerGrid.IsReadOnly);
+        Assert.AreEqual(DataGridSelectionMode.Extended, pickerGrid.SelectionMode);
+        Assert.AreEqual(DataGridSelectionUnit.FullRow, pickerGrid.SelectionUnit);
+        pickerGrid.SelectedItems.Add(picker.Items[0]);
+        pickerGrid.SelectedItems.Add(picker.Items[1]);
+        Assert.IsTrue(picker.Items.All(x => x.IsChecked));
+        Assert.AreEqual(2, picker.GetSelectedResult().Count);
+        picker.ClearSelectionCommand.Execute(null);
+        Assert.AreEqual(0, pickerGrid.SelectedItems.Count);
+        Assert.IsTrue(picker.Items.All(x => !x.IsChecked));
+        pickerGrid.SelectedItem = picker.Items[1];
+        Assert.IsTrue(picker.Items[1].IsChecked);
+        Assert.IsFalse(picker.Items[0].IsChecked);
+        pickerView.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent));
     });
     private static void Layout(FrameworkElement view)
     { view.Measure(new Size(1600, 900)); view.Arrange(new Rect(0, 0, 1600, 900)); view.UpdateLayout(); }
